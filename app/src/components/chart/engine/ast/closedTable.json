@@ -101,6 +101,26 @@
       "yields": "num",
       "sentence": "the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to \"D\" -- with no session filtering (Pine's session argument, which this engine does not read here)"
     },
+    "timeclose": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the instant the bar's period ENDS, in SECONDS since 1970, on the regular-session template: 16:00 New York on a daily bar's date, Friday 16:00 of a weekly bar's week, and the next bar boundary clipped at 16:00 on an intraday bar that opens inside 09:30-16:00. This engine's answer for Pine's time_close. The real early close (13:00) and a holiday-shortened week are NOT known here and read the template instead; blank on a monthly bar, a weekend bar, an extended-hours bar, and on a 60-minute chart's 09:30 bar when the series does not show which grid it is on"
+    },
+    "dayclosetime": {
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "16:00 New York, in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day. This engine's answer for Pine's time_close(\"D\"); the real early close (13:00) is not known here. Blank on a monthly bar, a weekend bar and an extended-hours bar"
+    },
+    "weekfirst": {
+      "lookback": 1,
+      "yields": "bool",
+      "sentence": "1 on the first bar of a New York calendar week (Monday to Sunday), otherwise 0 (blank on the oldest bar, which has no previous week to differ from). This engine's answer for Pine's timeframe.change(\"W\")"
+    },
+    "monthfirst": {
+      "lookback": 1,
+      "yields": "bool",
+      "sentence": "1 on the first bar of a New York calendar month, otherwise 0 (blank on the oldest bar, which has no previous month to differ from). This engine's answer for Pine's timeframe.change(\"M\")"
+    },
     "barindex": {
       "lookback": 0,
       "yields": "num",

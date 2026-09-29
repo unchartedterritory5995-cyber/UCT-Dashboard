@@ -9,7 +9,8 @@
 //   `timeframe.period`      a STRING — bind-time text, exactly like `syminfo.*`
 //   `timeframe.multiplier`  an INT   — settled by the bars this translation is for
 //   `timeframe.in_seconds`  an INT   — the same, with an optional argument
-//   `timeframe.change`      a BOOL PER BAR — and therefore REFUSED, by name
+//   `timeframe.change`      a BOOL PER BAR — a clock column for "D"/"W"/"M" on a
+//                           chart pane (2026-09-28, C8); REFUSED, by name, elsewhere
 //
 // ⭐⭐ THE AUTHORITY IS `basePeriod`, AND IT IS NOT A NEW ONE. `ownTimeframeOf`
 // has declared `timeframe.period` to name the chart's own timeframe since the
@@ -335,17 +336,40 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
 })
 
 // ───────────────────────────────────────────────────────────────────────────
-describe('`timeframe.change` is REFUSED, and the refusal teaches', () => {
-  it('⛔⛔ by name, with the reason, on both contracts and as a CALL', () => {
-    for (const opts of [{}, { strict: true }]) {
-      const r = refusal('plot(timeframe.change("D") ? close : open)', opts)
-      expect(r.guard).toBe('pine:builtin')
-      expect(r.message).toMatch(/timeframe\.change/)
-      expect(r.message).toMatch(/FIRST BAR OF EACH NEW PERIOD/)
+describe('`timeframe.change` is SERVED where it was measured, and REFUSED — teaching — everywhere else', () => {
+  it('⭐⭐ "D"/"W"/"M" (and "1D"/"1W"/"1M") on a chart pane: the first-of-period column, compared `!= 0` (C8)', () => {
+    // Measured against the vendor with 0 mismatches on 1D, 60m and W
+    // (`clockCloseTfChange.vendor.test.js`); `!= 0` is the vendor's own identity
+    // `ta.change(time(tf)) != 0`, which reads the blank oldest bar as false.
+    const col = { D: 'sessionfirst', '1D': 'sessionfirst', W: 'weekfirst', '1W': 'weekfirst',
+      M: 'monthfirst', '1M': 'monthfirst' }
+    for (const [tf, name] of Object.entries(col)) {
+      for (const basePeriod of ['D', '60', '5']) {
+        expect(formula(`plot(timeframe.change("${tf}") ? close : open)`, { strict: true, basePeriod }))
+          .toBe(`${name} != 0 ? close : open`)
+      }
+    }
+  })
+
+  it('⛔⛔ by name, with the reason, on a SCREEN, on a weekly chart and for an unmeasured period', () => {
+    const cases = [
+      ['plot(timeframe.change("D") ? close : open)', {}, /this is a screen/],
+      ['plot(timeframe.change("W") ? close : open)', { strict: true, basePeriod: 'W' }, /daily and intraday charts/],
+      ['plot(timeframe.change("M") ? close : open)', { strict: true, basePeriod: 'M' }, /daily and intraday charts/],
+      ['plot(timeframe.change("60") ? close : open)', { strict: true }, /"60" is not one of the three measured/],
+      ['plot(timeframe.change("3M") ? close : open)', { strict: true }, /"3M" is not one of the three measured/],
+      ['plot(timeframe.change(timeframe.period) ? close : open)', { strict: true }, /does not fold to a literal/],
+    ]
+    for (const [body, opts, why] of cases) {
+      const r = refusal(body, opts)
+      expect(r.guard, body).toBe('pine:builtin')
+      expect(r.message, body).toMatch(/timeframe\.change/)
+      expect(r.message, body).toMatch(why)
+      expect(r.message, body).toMatch(/FIRST BAR OF EACH NEW PERIOD/)
       // ⛔ THE CLAUSE THIS FILE EXISTS TO KEEP OUT, for the same reason
       // `pine.refusalAuthority.test.js` keeps it out of `barstate.isfirst`: it
-      // is FALSE about the three siblings that resolve one line away.
-      expect(r.message).not.toMatch(/names something the engine grammar does not hold/i)
+      // is FALSE about the siblings that resolve one line away.
+      expect(r.message, body).not.toMatch(/names something the engine grammar does not hold/i)
     }
   })
 

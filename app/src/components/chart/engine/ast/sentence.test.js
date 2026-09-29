@@ -999,6 +999,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       // adjusted. They sit between the bar fields and the operators because
       // `treesForTheWholeTable` walks the manifest's sections in that order.
       'clock:barindex',
+      // ⭐ (2026-09-28, C8) `time_close("D")`, `time_close`, and the week / month
+      // halves of `timeframe.change` — four named entries, not a bumped count.
+      'clock:dayclosetime',
       'clock:dayofmonth',
       'clock:dayofweek',
       'clock:dayopentime',
@@ -1035,8 +1038,11 @@ describe('totality over the closed table — derived from the manifest, never ha
       'clock:lastbaryear',
       'clock:minute',
       'clock:month',
+      'clock:monthfirst',
       'clock:sessionfirst',
       'clock:time',
+      'clock:timeclose',
+      'clock:weekfirst',
       'clock:year',
       'operator:!',
       'operator:!=',
@@ -1172,7 +1178,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(entries.length).toBe(123)
+    // ⭐ 123 -> 127 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(entries.length).toBe(127)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1189,7 +1196,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(subjects.length).toBe(123)
+    // ⭐ 123 -> 127 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(subjects.length).toBe(127)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2394,7 +2402,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // ones where the two lanes are two readers of the IANA database rather than
       // one formula written twice.
       'clock_time', 'clock_year', 'clock_month', 'clock_dayofmonth', 'clock_dayofweek',
-      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_dayopentime', 'clock_barindex', 'clock_isintraday',
+      'clock_hour', 'clock_minute', 'clock_sessionfirst', 'clock_dayopentime',
+      // ⭐ (2026-09-28, C8) the four `time_close` / `timeframe.change` columns.
+      'clock_timeclose', 'clock_dayclosetime', 'clock_weekfirst', 'clock_monthfirst', 'clock_barindex', 'clock_isintraday',
       'clock_isdaily', 'clock_isweekly', 'clock_ismonthly',
       // ⭐ THE TWO BAR-READING CASES (2026-08-26). `vwap()` is the first
       // ZERO-ARGUMENT case in this corpus, which is the whole reason its entry
@@ -2611,7 +2621,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(sentences.length).toBe(CORPUS.cases.length + 123)
+    // ⭐ 123 -> 127 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 127)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

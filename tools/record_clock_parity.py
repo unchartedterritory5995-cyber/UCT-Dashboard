@@ -65,6 +65,12 @@ STATES = (True, False, None)
 BARSTATE_COLUMNS = ("islast", "isfirst", "lastbarindex", "isrealtime", "isconfirmed",
                     "ishistory", "islastconfirmedhistory")
 
+#: The C8 columns (`time_close`, `time_close("D")`, `timeframe.change("W"/"M")`)
+#: plus `time` and `sessionfirst`, so each `close_cases` row names the instant it
+#: was read at and `timeframe.change("D")` sits beside its two siblings.
+CLOSE_COLUMNS = ("time", "timeclose", "dayclosetime", "sessionfirst", "weekfirst",
+                 "monthfirst")
+
 
 def _canon(value):
     """⭐ THE ONE NUMERIC RULE, APPLIED EVERYWHERE.
@@ -129,6 +135,18 @@ def record(compute_clock, source: dict) -> dict:
     out["iso_weekly_expected"] = _columns(compute_clock(iso_bars, "W", False),
                                           sorted(source["expected"]))
 
+    # ── `time_close` / `timeframe.change` (C8, 2026-09-28) ──────────────────
+    # Each case is a named series and the timeframe it is read under. The 60m
+    # cases pin the one grid-dependent bar (09:30) on the product's clock-hour
+    # grid, on the vendor's 09:30-aligned grid, and on a series that shows
+    # neither; the weekly case holds NUMERIC instants (the pane's date-keyed
+    # weekly bars stay blank by the Q-T1 ruling); the daily instants are read
+    # under "D", under "M" (unmeasured: blank) and with no timeframe (blank).
+    out["close_expected"] = {
+        name: _columns(compute_clock(case["bars"], case["tf"], False), CLOSE_COLUMNS)
+        for name, case in sorted(source["close_cases"].items())
+    }
+
     # ── the timeframe vocabulary ─────────────────────────────────────────────
     tf_out = {}
     for code in source["tf_booleans"]:
@@ -184,10 +202,21 @@ def record(compute_clock, source: dict) -> dict:
         "blank: which day a weekly bar is keyed by is unmeasured, so it is not "
         "guessed."
     )
+    out["_close_cases"] = (
+        "⭐⭐ `time_close`, `time_close(\"D\")` AND `timeframe.change` (C8, "
+        "2026-09-28). Each `close_cases` entry is a series and the timeframe it is "
+        "read under; `close_expected` is what both lanes compute for it. The rules "
+        "were measured on AMEX:SPY at full history "
+        "(`tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-*`) and are "
+        "stated in `indicators.js::CLOCK_TIME_DERIVED`: the regular-session "
+        "TEMPLATE close (the vendor's 13 early closes and holiday weeks are "
+        "counted there, not reproduced), and the one 60m bar — 09:30 — whose close "
+        "depends on which grid the series is on."
+    )
     out["_recorder"] = (
         "⛔ GENERATED — DO NOT HAND-EDIT. Rewrite with "
         "`python tools/record_clock_parity.py`; check with `--check`. Inputs "
-        "(`bars`, `non_instant_bars`, `iso_daily_bars`, `tf`, and the `tf_booleans` / "
+        "(`bars`, `non_instant_bars`, `iso_daily_bars`, `close_cases`, `tf`, and the `tf_booleans` / "
         "`sliced_sessionfirst` key sets) are READ from this file and written back "
         "unchanged — only the expected blocks are recomputed, so the series the "
         "numbers describe stays nameable. Canonical by construction: sorted keys, "
@@ -275,7 +304,8 @@ def main() -> int:
 
     missing = [k for k in ("bars", "tf", "non_instant_bars", "expected",
                            "non_instant_expected", "tf_booleans",
-                           "sliced_sessionfirst", "iso_daily_bars") if k not in source]
+                           "sliced_sessionfirst", "iso_daily_bars", "close_cases")
+               if k not in source]
     if missing:
         print("⛔ INPUTS NOT RECOVERABLE FROM THE FIXTURE: " + ", ".join(missing))
         print("   Refusing to record a fixture whose inputs nobody can name.")

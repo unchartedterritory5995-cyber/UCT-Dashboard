@@ -40,6 +40,10 @@ says which name and why — it never guesses a meaning.
 | `minute` | the minute of the bar, 0 to 59, in New York time |
 | `sessionfirst` | 1 on the first bar of a New York calendar day, otherwise 0 (blank on the oldest bar, which has no previous day to differ from) |
 | `dayopentime` | the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to "D" -- with no session filtering (Pine's session argument, which this engine does not read here) |
+| `timeclose` | the instant the bar's period ENDS, in SECONDS since 1970, on the regular-session template: 16:00 New York on a daily bar's date, Friday 16:00 of a weekly bar's week, and the next bar boundary clipped at 16:00 on an intraday bar that opens inside 09:30-16:00. This engine's answer for Pine's time_close. The real early close (13:00) and a holiday-shortened week are NOT known here and read the template instead; blank on a monthly bar, a weekend bar, an extended-hours bar, and on a 60-minute chart's 09:30 bar when the series does not show which grid it is on |
+| `dayclosetime` | 16:00 New York, in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day. This engine's answer for Pine's time_close("D"); the real early close (13:00) is not known here. Blank on a monthly bar, a weekend bar and an extended-hours bar |
+| `weekfirst` | 1 on the first bar of a New York calendar week (Monday to Sunday), otherwise 0 (blank on the oldest bar, which has no previous week to differ from). This engine's answer for Pine's timeframe.change("W") |
+| `monthfirst` | 1 on the first bar of a New York calendar month, otherwise 0 (blank on the oldest bar, which has no previous month to differ from). This engine's answer for Pine's timeframe.change("M") |
 | `barindex` | the bar's position in the series, 0 on the oldest bar |
 | `isintraday` | 1 when the chart's timeframe is 1, 5, 15, 30 or 60 minutes, otherwise 0 |
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |

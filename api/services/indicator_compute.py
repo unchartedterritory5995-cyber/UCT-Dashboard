@@ -45,7 +45,7 @@ These match the structure used throughout ``api/services/bars_fetch.py``.
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from math import isfinite, sqrt
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -1441,7 +1441,22 @@ CLOCK_TIMEFRAMES = CLOCK_INTRADAY_TFS + ("D", "W", "M")
 #: The nine columns that read the bar's ``t`` — and therefore the nine the
 #: unit gate refuses together.
 CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
-                      "hour", "minute", "sessionfirst", "dayopentime")
+                      "hour", "minute", "sessionfirst", "dayopentime",
+                      "timeclose", "dayclosetime", "weekfirst", "monthfirst")
+
+#: ⭐⭐ ``time_close``, ``time_close("D")`` AND ``timeframe.change("W"/"M")`` --
+#: the last four names above (2026-09-28, objects triage C8). Mirrors
+#: ``indicators.js::CLOCK_TIME_DERIVED``'s doc comment value for value; read
+#: that one for the readings, the counted early-close/holiday mismatch and what
+#: is blank. In short: ``timeclose`` is the regular-session TEMPLATE close
+#: (intraday ``min(open + span, 16:00)``, daily 16:00, weekly Friday 16:00),
+#: ``dayclosetime`` is 16:00 on the date the bar opened, and ``weekfirst`` /
+#: ``monthfirst`` are ``sessionfirst``'s rule over an ISO week / a month.
+#: ⛔ NO CALENDAR HERE EITHER: the vendor's 13 early closes and holiday weeks
+#: are counted, not reproduced (1D 13/8,473; 60m 13 and 52 of 20,616; W 52 and
+#: 1 of 1,758).
+_RTH_OPEN_MINUTE = 9 * 60 + 30
+_RTH_CLOSE_MINUTE = 16 * 60
 
 #: ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
 #: BROADCAST TO EVERY BAR OF THAT DAY. Mirrors ``indicators.js``'s own
@@ -1975,6 +1990,28 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     memo_hour = None
     memo = None
     prev_day = -1
+    # ── ``time_close`` / ``timeframe.change`` (C8) — see ``CLOCK_TIME_DERIVED``.
+    span = _TF_SPAN_SECONDS.get(tf) if isinstance(tf, str) else None
+    week_first: List[MaybeNum] = [None] * n
+    month_first: List[MaybeNum] = [None] * n
+    time_close: List[MaybeNum] = [None] * n
+    day_close: List[MaybeNum] = [None] * n
+    # The one bar whose close depends on the GRID: 09:30 on a 60-minute chart.
+    grid60 = None
+    if tf == "60":
+        on_hour = on_half = False
+        for t in opens:
+            dt = datetime.fromtimestamp(t, zone)
+            if dt.isoweekday() > 5 or dt.hour < 10 or dt.hour > 15:
+                continue
+            m60 = int((t - int(t // 3600) * 3600) // 60)
+            if m60 == 0:
+                on_hour = True
+            elif m60 == 30:
+                on_half = True
+        grid60 = None if on_hour == on_half else ("product" if on_hour else "vendor")
+    prev_week = None
+    prev_month = -1
     for i, t in enumerate(opens):
         utc_hour = int(t // 3600)
         if utc_hour == memo_hour:
@@ -2017,6 +2054,46 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         # arithmetic is needed to get this exactly right.
         day_open[i] = float(t - (h * 3600 + minute[i] * 60 + (t % 60)))
 
+        # ``weekfirst`` / ``monthfirst``: ``sessionfirst``'s rule over a wider
+        # key. The week is ISO (Monday-first), keyed by its Monday's day number.
+        day_num = date(y, mo, d).toordinal()
+        week = day_num - (6 if wd == 1 else wd - 2)
+        mon = y * 100 + mo
+        week_first[i] = None if prev_week is None else (0.0 if week == prev_week else 1.0)
+        month_first[i] = None if prev_month < 0 else (0.0 if mon == prev_month else 1.0)
+        prev_week = week
+        prev_month = mon
+
+        # ``timeclose`` / ``dayclosetime``: the regular-session TEMPLATE close,
+        # 16:00 on this bar's New York date as a wall-clock difference (no DST
+        # change falls between 09:30 and 16:00 on a weekday).
+        weekday = 2 <= wd <= 6
+        minute_of_day = h * 60 + int(minute[i])
+        close16 = t + (_RTH_CLOSE_MINUTE * 60 - (minute_of_day * 60 + (t % 60)))
+        close = None
+        dclose = None
+        if not known or not weekday or tf == "M":
+            pass  # unknown timeframe, a weekend bar, or a monthly bar: unmeasured
+        elif span is not None:
+            if _RTH_OPEN_MINUTE <= minute_of_day < _RTH_CLOSE_MINUTE:
+                dclose = close16
+                if tf == "60" and minute_of_day == _RTH_OPEN_MINUTE:
+                    if grid60 == "product":
+                        close = t + 1800
+                    elif grid60 == "vendor":
+                        close = min(t + span, close16)
+                else:
+                    close = min(t + span, close16)
+        elif tf == "D":
+            close = close16
+            dclose = close16
+        elif tf == "W":
+            # Friday of this ISO week: 6 - dow days on (2 = Monday .. 6 = Friday).
+            close = close16 + (6 - wd) * 86400
+            dclose = close16
+        time_close[i] = None if close is None else float(close)
+        day_close[i] = None if dclose is None else float(dclose)
+
     cols["time"] = time_col
     cols["year"] = year
     cols["month"] = month
@@ -2026,6 +2103,10 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     cols["minute"] = minute
     cols["sessionfirst"] = first
     cols["dayopentime"] = day_open
+    cols["timeclose"] = time_close
+    cols["dayclosetime"] = day_close
+    cols["weekfirst"] = week_first
+    cols["monthfirst"] = month_first
     # `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
     # computed above -- read back, never recomputed, so this broadcast can
     # never disagree with what `year`/`month`/… already say about that bar.

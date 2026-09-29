@@ -1180,7 +1180,66 @@ export function timeframeFlags(tf) {
  *  gate below refuses together. Derived from nothing: it IS the partition, and
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
 const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
-  'hour', 'minute', 'sessionfirst', 'dayopentime']
+  'hour', 'minute', 'sessionfirst', 'dayopentime',
+  'timeclose', 'dayclosetime', 'weekfirst', 'monthfirst']
+
+/** ⭐⭐ `time_close`, `time_close("D")` AND `timeframe.change("W"/"M")` — THE
+ *  LAST FOUR NAMES ABOVE. They read `t`, so the unit gate refuses them with the
+ *  other nine (2026-09-28, objects triage C8).
+ *
+ *  THE READINGS (probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`,
+ *  AMEX:SPY at full history — `tests/fixtures/vendor/harness/vw-clock-close-
+ *  tfchange-spy-{1d,1w}-2026-09-28.json` and a 20,616-bar 60m capture kept
+ *  outside git for size):
+ *
+ *   `timeclose` — Pine's bare `time_close`, the instant the bar's period ENDS,
+ *     not the next bar's open. 1D: 16:00 New York on the bar's date (8,460 of
+ *     8,473 bars; `time_close - time` = 23400 s). 60m (RTH): the next grid
+ *     boundary CLIPPED at 16:00 — the 15:30 bar reads 16:00, span 1800 s (2,937
+ *     bars). W: Friday 16:00 of the bar's week (1,706 of 1,758). The forming
+ *     last bar reads the SAME template (the W capture's last bar was forming and
+ *     read Friday 16:00), so nothing here depends on whether a bar is closed.
+ *   `dayclosetime` — `time_close("D")`: 16:00 New York on the date the bar
+ *     OPENED, on 1D, on 60m (every RTH bar of a day points at that day's 16:00)
+ *     and on W (the close of the week's FIRST session, not its last — measured:
+ *     `time_close("D") - time` = 23400 s on 1,757 of 1,758 weekly bars).
+ *   `weekfirst` / `monthfirst` — `timeframe.change("W")` / `("M")`: this bar's
+ *     ISO week (Monday-first) / calendar month in New York differs from the
+ *     previous bar's. 0 mismatches on all three captures, "1W" identical to "W",
+ *     and each equals its control `ta.change(time(tf)) != 0` on every bar.
+ *     `timeframe.change("D")` is `sessionfirst`, which already exists. Blank on
+ *     the oldest bar for `sessionfirst`'s own reason (`lookback: 1`).
+ *
+ *  ⛔⛔ THE CLOSE IS THE REGULAR-SESSION TEMPLATE, AND THE VENDOR'S IS NOT
+ *  ALWAYS. TradingView uses the real early close on 13 SPY days (every one from
+ *  2019-07-03 on; NOT 2020-11-27 or 2020-12-24, and none before 2019 — its own
+ *  calendar is irregular), and the real last session of a holiday week. This
+ *  lane holds NO trading calendar and must not (see the barstate ruling below:
+ *  "a date set in this lane would be a second calendar authority in a second
+ *  language"), and the repo's calendar (`nyse_calendar.py`, 2025–2027 only)
+ *  covers 3 of the 13. So the template is answered and the mismatch is COUNTED
+ *  rather than hidden: 1D 13/8,473 bars (13:00 vs 16:00); 60m 13/20,616 for
+ *  `timeclose` (the 12:30 bar) and 52/20,616 for `dayclosetime` (every bar of
+ *  those 13 days); W 52/1,758 for `timeclose` (46 holiday weeks ending
+ *  Thursday, 6 ending at a 13:00 Friday) and 1/1,758 for `dayclosetime`.
+ *
+ *  ⛔ WHAT IS BLANK, BECAUSE NOTHING MEASURED IT: an intraday bar that opens
+ *  outside 09:30–16:00 or on a weekend (the probe ran with extended hours OFF);
+ *  a daily or weekly bar on a weekend date; any monthly bar; an absent or
+ *  unknown `tf`. And ONE BAR ON THE PRODUCT'S OWN 60m GRID NEEDS THE SERIES:
+ *  `bars_fetch.bucket_60_et_unix_seconds` gives 09:30 a 30-minute bucket and
+ *  then aligns to the clock hour, where TradingView's RTH grid is 09:30-aligned.
+ *  Every other bar reads `min(open + span, 16:00)` on either grid; the 09:30
+ *  bar ends at 10:00 on ours and 10:30 on the vendor's. Which grid a series is
+ *  on is read off the series (an RTH bar opening at :00 past 10:00 exists only
+ *  on ours, one at :30 only on the vendor's); a series that shows neither, or
+ *  both, leaves its 09:30 bars blank rather than guessing. */
+/** Seconds in one bar of an intraday code. Mirrors `indicator_compute
+ *  ._TF_SPAN_SECONDS`, which `scheduled_close_seconds` already reads. */
+const CLOCK_TF_SPAN_SECONDS = Object.freeze({ 1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600 })
+/** The regular session in New York, minutes after midnight: 09:30–16:00. */
+const RTH_OPEN_MINUTE = 9 * 60 + 30
+const RTH_CLOSE_MINUTE = 16 * 60
 
 /** ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
  *  BROADCAST TO EVERY BAR OF THAT DAY (2026-09-20) — `sessionfirst`'s own
@@ -1593,6 +1652,27 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   // column can reach — answers off the same authority a column does, rather
   // than off a second formatter that agrees until one of them is edited.
   let prevDay = -1
+  // ── `time_close` / `timeframe.change` (C8) — see `CLOCK_TIME_DERIVED`. ──
+  const span = Object.prototype.hasOwnProperty.call(CLOCK_TF_SPAN_SECONDS, tf)
+    ? CLOCK_TF_SPAN_SECONDS[tf] : null
+  const known = flags !== null
+  // The one bar whose close depends on the GRID: 09:30 on a 60-minute chart.
+  // `grid60` is 'product' (clock-hour buckets after a 30-minute opening one),
+  // 'vendor' (09:30-aligned), or null when the series shows neither or both.
+  let grid60 = null
+  if (tf === '60') {
+    let onHour = false
+    let onHalf = false
+    for (let i = 0; i < length; i++) {
+      const q = etClockAt(opens[i])
+      if (!q || q.dow === 1 || q.dow === 7 || q.h < 10 || q.h > 15) continue
+      if (q.min === 0) onHour = true
+      else if (q.min === 30) onHalf = true
+    }
+    grid60 = onHour === onHalf ? null : (onHour ? 'product' : 'vendor')
+  }
+  let prevWeek = null
+  let prevMonth = -1
   for (let i = 0; i < length; i++) {
     const t = opens[i]
     const p = etClockAt(t)
@@ -1622,6 +1702,46 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     // the column's own doc comment above for why no calendar/DST arithmetic
     // is needed to get this exactly right.
     cols.dayopentime[i] = t - (p.h * 3600 + cols.minute[i] * 60 + (t % 60))
+
+    // `weekfirst` / `monthfirst`: `sessionfirst`'s rule over a wider key. The
+    // week is ISO (Monday-first), keyed by the day number of its Monday.
+    const dayNum = Date.UTC(p.y, p.m - 1, p.d) / 86400000
+    const week = dayNum - (p.dow === 1 ? 6 : p.dow - 2)
+    const month = p.y * 100 + p.m
+    cols.weekfirst[i] = prevWeek === null ? NA : (week === prevWeek ? 0 : 1)
+    cols.monthfirst[i] = prevMonth < 0 ? NA : (month === prevMonth ? 0 : 1)
+    prevWeek = week
+    prevMonth = month
+
+    // `timeclose` / `dayclosetime`: the regular-session TEMPLATE close. 16:00 on
+    // this bar's New York date is read as a wall-clock difference, which is
+    // exact because no DST change falls between 09:30 and 16:00 on a weekday.
+    const weekday = p.dow >= 2 && p.dow <= 6
+    const minuteOfDay = p.h * 60 + p.min
+    const close16 = t + (RTH_CLOSE_MINUTE * 60 - (minuteOfDay * 60 + (t % 60)))
+    let close = NA
+    let dayClose = NA
+    if (!known || !weekday || tf === 'M') {
+      // unknown timeframe, a weekend bar, or a monthly bar: never measured
+    } else if (span !== null) {
+      if (minuteOfDay >= RTH_OPEN_MINUTE && minuteOfDay < RTH_CLOSE_MINUTE) {
+        dayClose = close16
+        if (tf === '60' && minuteOfDay === RTH_OPEN_MINUTE) {
+          close = grid60 === 'product' ? t + 1800 : (grid60 === 'vendor' ? Math.min(t + span, close16) : NA)
+        } else {
+          close = Math.min(t + span, close16)
+        }
+      }
+    } else if (tf === 'D') {
+      close = close16
+      dayClose = close16
+    } else if (tf === 'W') {
+      // Friday of this ISO week: 6 - dow days on (dow 2 = Monday .. 6 = Friday).
+      close = close16 + (6 - p.dow) * 86400
+      dayClose = close16
+    }
+    cols.timeclose[i] = close
+    cols.dayclosetime[i] = dayClose
   }
   // `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
   // computed above — read back, never recomputed, so this broadcast can

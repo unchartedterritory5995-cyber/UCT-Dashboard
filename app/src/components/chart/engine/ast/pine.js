@@ -1401,20 +1401,21 @@ export const BUILTIN_TIMEFRAME_CALL = Object.freeze({
  *  a generic *"the engine grammar does not hold this"* about the name beside them
  *  teaches a reader to distrust every refusal in the file.
  *
- *  ⛔ `timeframe.change` IS NOT "NOT BUILT YET" — it is a PER-BAR EVENT. It is
- *  true on the first bar of each new period of the timeframe it is handed, so it
- *  is a column decided bar by bar rather than a value one binding settles. The
- *  three names that now resolve are all constant for a binding; this one is not,
- *  and folding it to either constant would be a confident wrong answer on every
- *  bar. */
+ *  ⭐⭐ (2026-09-28, C8) `timeframe.change` IS NOW SERVED FOR "D", "W" AND "M" —
+ *  a per-bar event decided by a CLOCK COLUMN (`sessionfirst`, `weekfirst`,
+ *  `monthfirst`), measured against the vendor with 0 mismatches on 1D, 60m and
+ *  W (`Resolver.clockCloseCallOf`). This entry is the sentence for every form
+ *  that is NOT: another period, a timeframe that does not fold to a literal, and
+ *  the screen door. Folding it to a constant would still answer the same thing
+ *  on every bar, which is the one answer it is never allowed to give. */
 export const BUILTIN_TIMEFRAME_RULED = Object.freeze({
   'timeframe.change': 'it is true on the FIRST BAR OF EACH NEW PERIOD, so it is decided '
-    + 'bar by bar rather than settled once for a binding — unlike its siblings '
-    + '`timeframe.period`, `timeframe.multiplier` and `timeframe.in_seconds`, which '
-    + 'this engine does hold. Serving it needs a CLOCK COLUMN for "is this the first '
-    + 'bar of a new <tf>", which the manifest does not declare; folding it to a '
-    + 'constant would answer the same thing on every bar, which is the one answer it '
-    + 'is never allowed to give.',
+    + 'bar by bar by a CLOCK COLUMN — and this engine holds one for "D", "W" and "M" '
+    + '(and their spellings "1D", "1W", "1M"), measured against TradingView, on a '
+    + 'CHART PANE. Any other period, a timeframe that does not fold to one of those, '
+    + 'and a screen (whose stored daily bars carry no clock) are not served; folding '
+    + 'it to a constant would answer the same thing on every bar, which is the one '
+    + 'answer it is never allowed to give.',
 })
 
 /** ⭐⭐⭐ `barstate.<name>` — SERVED AS CLOCK COLUMNS ON THE HOST CONTRACT, and
@@ -7795,6 +7796,14 @@ export class Resolver {
       const folded = this.timeframeCallOf(name, node)
       if (folded) return folded
     }
+    // ⭐⭐ `timeframe.change(<tf>)` AND `time_close(<tf>)` (2026-09-28, C8) — served
+    // for the forms the vendor was measured on, and REFUSED BY NAME for every
+    // other one, inside `clockCloseCallOf`. It yields to a user definition of
+    // the same name, like every carve-out in this file.
+    if ((name === 'timeframe.change' || name === 'time_close')
+        && !this.shadowedByDefinition(name)) {
+      return this.clockCloseCallOf(name, node)
+    }
     // ⛔ A RULED `timeframe.*` CALL GETS ITS RULING, not the namespace shrug —
     // `timeframe.change(tf)` reaches the door as a CALL, so the check in
     // `resolveName` above cannot see it.
@@ -7975,6 +7984,87 @@ export class Resolver {
     if (code === null) return null
     const secs = timeframeSeconds(code)
     return secs === null ? null : cNum(secs)
+  }
+
+  /** ⭐⭐ `timeframe.change(<tf>)` AND `time_close(<tf>)` — THE C8 CLOCK CALLS,
+   *  AS THE VENDOR WAS MEASURED ANSWERING THEM (2026-09-28). Returns a node, or
+   *  throws a refusal that names the form it could not take.
+   *
+   *  The readings: probe `tools/visual_conformance/probes/vw-clock-close-tfchange.pine`
+   *  on AMEX:SPY at full history — `tests/fixtures/vendor/harness/vw-clock-close-
+   *  tfchange-spy-{1d,1w}-2026-09-28.json` (8,473 and 1,758 bars) and a 20,616-bar
+   *  60m capture kept outside git for size. The column meanings, and the counted
+   *  early-close / holiday mismatch of `time_close`, are
+   *  `indicators.js::CLOCK_TIME_DERIVED`'s.
+   *
+   *   `timeframe.change("D"|"W"|"M")` — equal, bar for bar on all three charts,
+   *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). So it
+   *     is translated AS that identity: the first-of-period column compared
+   *     `!= 0`, which reads the column's blank oldest bar as false exactly as the
+   *     control does. "1W" read identically to "W" (K16), and "1D"/"1M" are the
+   *     same spellings (`PINE_TF_SPELLING`).
+   *     ⛔ CHART PANE ONLY, AND A DAILY OR INTRADAY ONE. A screen evaluates stored
+   *     daily bars whose `t` is a `YYYYMMDD` int, and the pane's weekly/monthly
+   *     bars are date-keyed and unread (Q-T1), so the clock is blank on both and
+   *     `!= 0` would read false on every bar — a confident wrong answer where the
+   *     refusal is an honest one. (`time_close` needs no such gate: a blank
+   *     clock stays blank through its arithmetic, as bare `time` does.)
+   *   `time_close("D")` — 16:00 New York on the date the bar opened (`dayclosetime`),
+   *     in milliseconds for a script that declares a `//@version`, exactly as
+   *     `time("D")` is; SECONDS for a versionless one, as `time("D")` is too.
+   *
+   *  ⛔ REFUSED BY NAME, because nothing measured them: any other period ("60",
+   *  "240", "3M", the chart's own `timeframe.period`, "" …), a timeframe that
+   *  does not fold to a literal, any second argument (`session`, `timezone`,
+   *  `bars_back`), and a named argument other than `timeframe`. */
+  clockCloseCallOf(name, node) {
+    const at = locate(node.tok)
+    const isChange = name === 'timeframe.change'
+    const guard = isChange ? 'pine:builtin' : 'pine:function'
+    const no = (why) => new PineRefusal(guard, isChange
+      ? `\`${name}\` is a Pine built-in this engine holds only in part: ${why}. `
+        + BUILTIN_TIMEFRAME_RULED[name]
+      : `${REFUSALS['pine:function']} — \`time_close(<timeframe>)\`: ${why}`, at)
+    const args = (node.args || []).filter(Boolean)
+    if (args.some((a) => a.name && a.name !== 'timeframe')) {
+      throw no(`the only argument read here is \`timeframe\`, and this call names \``
+        + `${args.find((a) => a.name && a.name !== 'timeframe').name}\``)
+    }
+    if (args.length !== 1) {
+      throw no(`it is measured with exactly one argument, the timeframe, and this call `
+        + `has ${args.length}`)
+    }
+    const raw = args[0].value !== undefined ? args[0].value : args[0]
+    const lit = this.timeframeLiteralOf(raw)
+    const code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+    if (isChange) {
+      const col = code === 'D' ? 'sessionfirst' : code === 'W' ? 'weekfirst'
+        : code === 'M' ? 'monthfirst' : null
+      if (col === null) {
+        throw no(lit === null
+          ? 'its timeframe does not fold to a literal this translation can read'
+          : `the period ${JSON.stringify(lit)} is not one of the three measured`)
+      }
+      if (!this.strict) throw no('this is a screen, not a chart pane')
+      // ⛔ AND ONLY ON A CHART WHOSE BARS CARRY A CLOCK. The product's weekly and
+      // monthly bars are keyed by a DATE that is not read as an instant (Q-T1:
+      // "a week's key day is unmeasured"), so every clock column is blank there
+      // and `!= 0` would read false on every bar — measured: the W capture's
+      // 1,757 "new day" bars all read 0 through the product's bar shape.
+      if (!(/^[0-9]+$/.test(this.basePeriod) || this.basePeriod === 'D')) {
+        throw no(`it is served on daily and intraday charts, whose bars carry a clock, `
+          + `and this one is \`${this.basePeriod}\``)
+      }
+      return cOp('!=', [clockLeaf(col), cNum(0)])
+    }
+    if (code !== 'D') {
+      throw no(lit === null
+        ? 'its timeframe does not fold to a literal this translation can read'
+        : `only "D" (or "1D") is measured, and this asks for ${JSON.stringify(lit)}. `
+          + 'The bare `time_close` — this bar’s own close — does translate')
+    }
+    const leaf = clockLeaf('dayclosetime')
+    return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
   }
 
   /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR
@@ -10010,6 +10100,13 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
   // names "our clock does not declare... so this map could never be
   // consulted" for it. It can be now.
   timenow: 'lastbartime',
+  // ⭐⭐ `time_close` (2026-09-28, C8) — the bar's period END on the regular-
+  // session template (`indicators.js::CLOCK_TIME_DERIVED`, the `timeclose` note),
+  // measured against the vendor on 1D / 60m / W. A DIFFERENT UNIT from Pine's, so
+  // it is also in `PINE_CLOCK_MISMATCH` and `PINE_CLOCK_TRANSFORM`, exactly as
+  // `time` is: milliseconds for a script that declares a `//@version`, refused by
+  // its unit for one that does not.
+  time_close: 'timeclose',
 })
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
@@ -10061,6 +10158,12 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
   time: 'in Pine a bar timestamp in MILLISECONDS since 1970, where this engine’s '
     + '`time` is SECONDS — a thousand-fold difference that would compare true '
     + 'against no literal a member wrote, on every bar, without ever looking wrong',
+  // ⭐ (2026-09-28) `time_close` reaches `timeclose` under a different spelling
+  // AND a different unit — the unit is what this map is for.
+  time_close: 'in Pine the instant a bar closes in MILLISECONDS since 1970, where '
+    + 'this engine’s `timeclose` is SECONDS — a thousand-fold difference that would '
+    + 'compare true against no literal a member wrote, on every bar, without ever '
+    + 'looking wrong',
 })
 
 /** ⭐⭐ A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A SCRIPT SPEAKING PINE.
@@ -10090,6 +10193,8 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
  *  the refusal. */
 const PINE_CLOCK_TRANSFORM = Object.freeze({
   time: () => cOp('*', [cSeries('time'), cNum(1000)]),
+  // ⭐ (2026-09-28) exact for the same reason: `timeclose` is whole seconds.
+  time_close: () => cOp('*', [cSeries('timeclose'), cNum(1000)]),
 })
 
 /** The reconciliation decision, in ONE place because there are TWO doors.
