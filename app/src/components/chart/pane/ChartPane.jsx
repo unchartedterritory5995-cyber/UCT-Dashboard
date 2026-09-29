@@ -1001,6 +1001,7 @@ function ChartPane({
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
+        chartTf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}

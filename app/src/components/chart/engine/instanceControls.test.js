@@ -208,7 +208,9 @@ describe('setIndicatorEnabled — the instance AND the mirror, always both', () 
     for (const id of ['macd', 'obv', 'stoch', 'bb', 'rsi']) cs = setIndicatorEnabled(cs, id, true, R)
     const folded = mergeChartSettings(JSON.stringify({ indicators: Object.fromEntries(
       ['macd', 'obv', 'stoch', 'bb', 'rsi'].map(k => [k, { enabled: true }])) }))
-    expect(folded.indicatorInstances.map(i => i.defId),
+    // (The four adopted default averages ride in the fold's answer — `maAdoption.js`
+    // — and not in the hand-built `cs`; the ORDER claim is over the five written.)
+    expect(folded.indicatorInstances.filter(i => !/^ovl:/.test(i.instanceId)).map(i => i.defId),
       'the fold and the writer order the same set differently')
       .toEqual(live(cs).map(i => i.defId))
     // …and it is not vacuous: five ids in a definite order that is NOT the order

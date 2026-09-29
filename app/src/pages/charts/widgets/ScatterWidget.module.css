@@ -46,6 +46,13 @@
   transition: border-color .12s, color .12s;
 }
 .uniAdd:hover { border-color: var(--ut-gold); color: var(--ut-gold); }
+/* TERM-079 — "Follow linked list": the toggle when ON, and the linked chip while it
+   waits for a watchlist on this colour group to publish a list. */
+.uniFollowOn, .uniFollowOn:hover {
+  border-color: var(--ut-gold); color: var(--ut-gold);
+  background: color-mix(in srgb, var(--ut-gold) 12%, transparent);
+}
+.uniTabIdle { opacity: 0.6; cursor: default; }
 
 /* The scatter stage: the ECharts canvas fills it; the axis dropdowns + zoom
    controls float on top. overflow:hidden clips any 1-2px canvas spill during a

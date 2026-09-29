@@ -134,7 +134,8 @@ def validate_session(token: str) -> dict | None:
     conn = get_connection()
     try:
         row = conn.execute(
-            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at "
+            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
+            "u.toolkit "
             "FROM sessions s JOIN users u ON s.user_id = u.id "
             "WHERE s.token = ?",
             (token,),
@@ -163,7 +164,7 @@ def validate_session(token: str) -> dict | None:
             except:
                 pass
 
-        return {
+        user = {
             "id": user_id,
             "email": row["email"],
             "display_name": row["display_name"],
@@ -172,6 +173,14 @@ def validate_session(token: str) -> dict | None:
             # Powers the trial window on every authed request (trial.py).
             "created_at": row["created_at"] if "created_at" in row.keys() else None,
         }
+        # TERM-081: the column `entitlements.toolkit_for` reads. ⛔ Carried ONLY
+        # when set — `/api/auth/me` returns this dict verbatim, so an unassigned
+        # account (every account today) keeps a byte-identical payload, and
+        # `toolkit_for` resolves the absent key to `DEFAULT_TOOLKIT` as before.
+        # The value is passed through raw: validating it is `toolkit_for`'s job.
+        if row["toolkit"] is not None:
+            user["toolkit"] = row["toolkit"]
+        return user
     finally:
         conn.close()
 

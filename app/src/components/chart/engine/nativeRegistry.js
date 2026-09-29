@@ -595,7 +595,12 @@ const RAW_DEFS = [
   nativeDef('ichimoku', 'ichimoku',
     { name: 'Ichimoku Cloud', shortName: 'Ichimoku', category: 'Trend',
       description: 'A trend system in one picture: two averages, a projected cloud and a lagging line.',
-      tags: ['overlay', 'trend'] },
+      tags: ['overlay', 'trend'],
+      // ⛔ ALWAYS THE CHART'S TIMEFRAME (2026-09-28). Its cloud is PROJECTED and its
+      // lagging line SHIFTED by a count of ITS OWN bars inside the compute, so a
+      // higher-timeframe copy moved onto lower bars would be displaced by the wrong
+      // distance — see `calcTimeframeCapability.js`.
+      calcTimeframe: false },
     onPrice,
     [
       // The three periods are NOT user-editable today (the toolbar exposes only
@@ -987,6 +992,18 @@ const RAW_DEFS = [
       // stays as the `MA (9)` fallback for a blob whose `maType` is unreadable.
       { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
         nameFrom: { stem: 'maType', params: ['period'] },
+        // ⭐⭐ THE APPEARANCE A MOVING AVERAGE HAS ALWAYS HAD, DECLARED AS A
+        // CAPABILITY (2026-09-28). `cs.overlays`' averages carried Overlap candles,
+        // Line style, Line width and a reserved Offset; adopting them as instances
+        // (`maAdoption.js`) must not take those controls away, and an average added
+        // through + Add Indicator must have the same ones. They are PRESENTATION —
+        // stored in `inst.presentation`, never `inputs` — so the inspector reads
+        // this list rather than learning a definition id.
+        appearance: ['overlap', 'lineStyle', 'lineWidth', 'offset'],
+        // ⛔ ADD-ONLY at the DEFINITION level: a chart holds many averages (its
+        // defaults among them), so a per-definition "off" would delete them all.
+        // `IndicatorLibraryDialog.toggledRow` reads this.
+        addOnly: true,
         description: 'The average of any series — price, volume, or another indicator output.',
         tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
@@ -1006,7 +1023,13 @@ const RAW_DEFS = [
         // special. A source held anywhere else would have needed its own
         // invalidation rule, and that rule would eventually be wrong.
         { key: 'source', type: 'source', label: 'Source', default: 'close' },
-        periodInput('period', 'Period', 5, 1, 400),
+        // ⚠️ 500, NOT 400 (2026-09-28). The overlay averages this definition now
+        // adopts were bounded at 500 by every editor they had (Settings, toolbar and
+        // `StockChart.sanitizeOverlayPeriods`), and `validateInstance` DROPS an
+        // instance whose input is out of range — a member's 450-day average would
+        // have vanished on adoption rather than been kept. `maAdoption.MA_PERIOD_MAX`
+        // mirrors it.
+        periodInput('period', 'Period', 5, 1, 500),
         { key: 'maType', type: 'enum', label: 'Type', default: 'sma',
           options: [['sma', 'SMA'], ['ema', 'EMA']] },
         colorInput('color', 'Color', '#f0b90b'),
@@ -1142,7 +1165,10 @@ const RAW_DEFS = [
   nativeDef('dollarVolume', 'dollarVolume',
     { name: 'Dollar Volume', shortName: '$ Vol', category: 'Volume',
       description: 'The cash traded in each bar — volume multiplied by the closing price.',
-      tags: ['dollar volume', 'turnover', 'notional', 'liquidity', 'volume', '$ vol'] },
+      tags: ['dollar volume', 'turnover', 'notional', 'liquidity', 'volume', '$ vol'],
+      // ⛔ A MAGNITUDE, NOT A LEVEL (2026-09-28): a day's dollar volume held across
+      // 5m bars reads as a 5m quantity ~78× too large. Always the chart's frame.
+      calcTimeframe: false },
     autoPane(0.15),
     [colorInput('color', 'Color', '#8fb7d9')],
     [

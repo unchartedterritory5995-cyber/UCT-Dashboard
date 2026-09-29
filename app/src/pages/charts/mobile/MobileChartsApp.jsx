@@ -27,6 +27,7 @@ import { pushRecent } from './mobileRecents'
 import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
 import { liveOverlayList } from '../../../components/chart/chartDefaults'
+import { MA_DEF_ID } from '../../../components/chart/maAdoption'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MobileCharts.module.css'
 
@@ -246,8 +247,13 @@ export default function MobileChartsApp({
     // here, which is the badge-counting-ghosts defect this block already guards
     // against for tombstoned instances two lines down.
     const mas = liveOverlayList(cs?.overlays).filter((o) => o?.enabled).length
+    // ⭐ 2026-09-28 — the four default averages are `movingAverage` INSTANCES now
+    // (`maAdoption.js`). A switched-off slot never badged, and a hidden average
+    // still does not: an average counts while it draws; every other study keeps
+    // counting by existence (hidden is declutter, not off).
     const studies = Array.isArray(cs?.indicatorInstances)
-      ? cs.indicatorInstances.filter((i) => i && typeof i === 'object' && !isInstanceTombstone(i)).length
+      ? cs.indicatorInstances.filter((i) => i && typeof i === 'object' && !isInstanceTombstone(i)
+        && !(i.defId === MA_DEF_ID && i.hidden === true)).length
       : 0
     const carved = CARVED_OUT_ROWS.filter((r) => cs?.indicators?.[r.id]?.enabled === true).length
     return mas + studies + carved

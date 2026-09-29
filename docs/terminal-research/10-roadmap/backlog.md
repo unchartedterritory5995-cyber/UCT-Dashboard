@@ -334,7 +334,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM | FB | short title | SZ | DEP | ROLLBACK | PAR | STATE |
 |---|---|---|---|---|---|---|---|
 | TERM-011 | `FB-S7-03` | A second delivery channel; split ops from business events | S | d0·**b6** | tier 0–2 | Yes | BUILDABLE |
-| TERM-012 | `FB-OBS-01` | Make CARD 16's p95 gate measurable | S | d0·b1 | tier 4 pref / 3 | Yes | ⚰️ RECUT |
+| TERM-012 | `FB-OBS-01` | Make CARD 16's p95 gate measurable | S | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT 2026-09-29 |
 | TERM-013 | `FB-OBS-02` | Read the drop counters on a schedule | M | d1·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-014 | `FB-OBS-03` | RSS-slope reader + per-subsystem attribution | L | d2·b1 | tier 4 pref / 3 | Yes | HELD via 007 |
 | TERM-015 | `FB-OBS-04` | Cadence heartbeat + daily dead-man roll-up | M | d1·b3 | tier 4 pref / 3 | Yes | BUILDABLE |
@@ -352,7 +352,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-022 | `FB-D1-01` | The Massive adapter + the retirement queue | L | d0·b4 | **TIER-NONE** | Partial | BUILDABLE |
 | TERM-023 | `FB-S3-01` | Entity master — **a member path, not a build** | ~~L~~ → **M** | d0·b3 | **TIER-NONE** | Partial | ⚰️ RECUT — ADMIN-MOUNTED |
 | TERM-024 | `FB-S4-02` | A panel declares a need, never a transport | S now / L later | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
+| TERM-025 | `FB-S7-01` | The remaining seven trigger types, one at a time | M per type | d0·b2 | tier 4 pref / 3 | Yes | ⚰️ BUILT — 8/8 types registered, every CP3 merged (verified 2026-09-28 against origin/master `38bb9a421`); next is a per-type owner CP4/FLIP ruling, not a build |
 | TERM-026 | `FB-S9-01` | Auditor sees a GET; publish its denominator | S | d0·b2 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.5 Band 3 — CHEAP AND CLEAR (10). Packages at §4.3.
@@ -367,7 +367,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-032 | `FB-A6-01` | Say "coverage n=0", not an empty transcript panel | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-033 | `FB-A8-02` | Six `.catch(() => null)` sites onto `sectionFetch.js` | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-034 | `FB-I1-03` | The I1 spec, railed rather than written | S doc / **M as checks** | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ⚰️ RECUT — partial ship |
+| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT `20cbef927` — authority + horizon rail + shared fixture; ✅ follow-up #1 DONE 2026-09-28: `nyseCalendar.js` + `nyse_calendar.py` derive from the dataset (client + `bars_fetch`/`liveflow_monitor` read it); remaining scattered users per the census |
 | TERM-036 | `FB-D5-02` | Route dividends off yfinance onto Massive reference | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.6 Band 4 — DEPENDENT (26). Register rows only; §2.9 says why.
@@ -424,7 +424,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-079 | `FB-S4-01` | Typed context channels, one list-consuming panel | M | d0·b0 | tier 4 pref / 3 | Yes | ⭐ cheapest leverage |
 | TERM-080 | `FB-S9-03` | Per-route rate limits before any programmatic client | M | d0·b1 | tier 4 pref / 3 | Partial | BUILDABLE |
 | TERM-081 | `FB-S9-04` | Give `entitlements.py` the column it reads | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
-| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | ⛔ needs 012 |
+| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT for `/api/snapshot` + `/api/movers` (`c4660990c`, `92c51a697`, not pushed; staleness on `Server-Timing` `desc="stale-swr"`); ✅ BUILT census rank 3 `/api/earnings` + `/api/earnings-gaps` (`7550991ff`, not pushed; date-keyed slot bounded 2400 s, partial TTL 300 s, `/api/push` kicks one refresh and a build straddling a push is never remembered); follow-up, ranked: theme-performance live overlay, `/api/breadth-monitor`, `/api/calendar/day-metrics-batch` — census `evidence/2026-09-29-term082-serve-stale-census/results.md`; the "known it worked" p95 needs a post-deploy run of `tools/bars_warmth_audit.py`-style measurement (012 is built) |
 | TERM-083 | `FB-X1-02` | A backup rail, and a restore **rehearsal** | M | d0·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-084 | `FB-X2-02` | TTL and rotation on the ICS export token | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
 | TERM-085 | `FB-X3-01` | One wire sentence naming today's explaining surface | S | d0·b0 | tier 4 pref / 3 | Yes ⚠️ other repo | BUILDABLE |
@@ -438,7 +438,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-088 | item 15 `ACC-02` | ⭐⭐ The decision record gets a member surface | M | d1 behind 023 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-089 | item 15 `ACC-10` | A replay surface for the Morning Wire payload archive | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-090 | item 15 `ACC-06` | The episodic-pivot base rate, beside the flag | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ⚰️ RECUT — surface ships |
+| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ✅ BUILT `ffe8a3f40`, DARK (`EDU_CURRICULUM_ENABLED`) |
 | TERM-092 | CARD 27 | Re-time the wire missed-run watchdog past 09:30, + a rail | **XS** | d0 | tier 4 pref / 3 | Yes | ⛔ owner deploy |
 | TERM-093 | item 14 `WF-C13`/`WF-C09` | The "what else was open, named" capture | S | d0 | **TIER-NONE** | Yes | ⛔ owner subject |
 
@@ -593,6 +593,13 @@ over all of them.
   four tickets in the register that comes back without a build.
 
 #### TERM-012 · `FB-OBS-01` — Make CARD 16's p95 gate measurable ⚰️ RECUT
+- ✅ **BUILT 2026-09-29.** (a) and (c) had already shipped: `stale-swr` is its own `STALE_SERVED` bucket, counted as
+  served in the no-wait p95, and an uncomputable gate prints NOT COMPUTABLE. The gap was (b): no line named its
+  quantity. `tools/bars_warmth_audit.py` now prints every percentile through `pct_line`, which carries `n` and
+  `QUANTITY` (client wall-clock, incl. TLS/CDN/network, not `Server-Timing dur`). Rails in
+  `tests/test_bars_warmth_audit_buckets.py`: the 40-sample stale-swr fixture, the n=40 → index 38 boundary, and
+  both buckets routed through the helper. ⚠️ `pct_of` ≠ `flow_router._diag_percentile` (index 38 vs 37 at n=40),
+  kept deliberately for continuity with recorded p95s; named in the code, not unified.
 - **User outcome.** The programme's only performance gate can be evaluated at all, so "fast enough"
   stops being an opinion.
 - **Context.** ⚰️ **The recut.** Item 17 §3.7 and ARCH-07-OBS G-2 rest on a control:
@@ -1405,6 +1412,51 @@ the order is not asserted.
 - **ROLLBACK TIER.** `tier 4 pref / 3`.
 
 #### TERM-035 · `FB-S11-01` — The market clock as code, with a horizon rail ⚰️ RECUT
+- ✅ **BUILT `20cbef927` (2026-09-28).** ⭐ Since follow-up #1 (same day) the client clock and the
+  backend `YYYYMMDD` sets both read it; see (c).
+  - **What exists:**
+    - One versioned dataset, `app/src/lib/marketClock/market_calendar.json` (v`2026-09-28.1`,
+      coverage 2025-01-01 to **horizon 2028-12-31**).
+    - The same functions on both sides, reading those bytes: `session_at` / `is_trading_day` /
+      `close_time` / `horizon` in `api/services/session_calendar.py`, and the same four in
+      `app/src/lib/marketClock/sessionCalendar.js`.
+    - Boundaries: pre-market from 04:00; RTH 09:30 to 16:00, or to 13:00 on a half-day; post-market
+      to 20:00 on every trading day. The half-day post-market end follows `marketClock.js` and
+      `voice_temporal_awareness`.
+  - **Where the dates come from:** `pandas_market_calendars` 5.4.0 and `exchange_calendars` 4.13.2,
+    which agree on every date for 2025 to 2029. The rows are also railed equal to
+    `nyse_calendar.py` (2025 to 2027) and `nyseCalendar.js` (2026 and 2027).
+  - **(a) Horizon rail, met.** `MIN_HORIZON_MONTHS = 12`.
+    - An injected-"today" control goes red.
+    - Shrinking the horizon to 2027-08-28 turns the real rail red.
+    - At the current horizon it first goes red on 2028-01-01.
+  - **(b) Half-day parity between client and server, met.**
+    - `tests/fixtures/market_calendar_cases.json` holds 67 session rows and 19 day rows (half-days,
+      holidays and both DST edges for 2026, 2027 and 2028). Both pytest and vitest read it.
+    - Every half-day in the dataset must have a row in it.
+    - Removing the 2026-11-27 half-day fails 6 tests on each side.
+    - Removing DST handling fails 19 on each side.
+  - **(c) Migration: follow-up #1 ✅ DONE (2026-09-28).** `useMarketOpen` / `sessionModel.js` were
+    deliberately not moved; the single migration point was `nyseCalendar.js`, one layer down, and
+    it is now migrated:
+    - `app/src/lib/marketClock/nyseCalendar.js` derives `COVERED_YEARS` (now 2025-2028) and every
+      per-year table from `sessionCalendar.js`, with its exported names and shapes unchanged. Every
+      client clock reader (`marketClock.js`, `useMarketOpen`, `sessionModel`/`nextOpenHint`,
+      `sessionStale`, `FreshnessBadge`, `freshnessAge`, `extSession`, `marketSession`) now answers
+      from the dataset. `sessionCalendar.js`'s `AWAITING_A_DECISION` entry and its
+      `PARKING_EXPIRES` row are removed from `reachable.test.js`.
+    - `api/services/nyse_calendar.py` derives `NYSE_HOLIDAYS_YYYYMMDD` / `NYSE_EARLY_CLOSES_YYYYMMDD`
+      from `session_calendar.calendar()`, so `bars_fetch`, `liveflow_monitor` and every other
+      reader of those sets gain 2028, and `GET /api/market-calendar`'s `covers_through` reads
+      `2028-12-31` with no router change. 2025-2027 are byte-for-byte the previous sets.
+    - `tests/test_nyse_calendar_parity.py` was rewritten from "regex-parse the JS literals" to "both
+      load the same JSON", plus the backend answering the shared fixture.
+    - Details: `evidence/2026-09-29-term035-calendar-census/results.md`, section "Follow-up #1".
+  - **Disagreement found:** `tools/full_chart_diagnostic.py` is missing the 2025-01-09 closure and
+    uses a fixed EDT offset.
+  - **Census, results and the per-module follow-up list:**
+    `evidence/2026-09-29-term035-calendar-census/results.md`.
+  - Tests: `108 passed` (pytest) and `95 passed` (vitest).
 - **User outcome.** Every panel and every AI answer agrees on what session it is, and an expired
   calendar fails a test instead of quietly answering wrongly.
 - **Context.** ⚰️ **Not greenfield — a consolidation.** Item 16 sizes it **S** (*"the dataset is small
@@ -1718,6 +1770,19 @@ them and deleted a ninth (§8).
 - **ROLLBACK TIER.** `tier 4 pref / 3`.
 
 #### TERM-091 · item 15 `ACC-13` — Load `docs/curriculum/` into the shipped education store ⚰️ RECUT
+- ✅ **BUILT `ffe8a3f40` (2026-09-28), DARK behind `EDU_CURRICULUM_ENABLED`, unmerged.** New table
+  `edu_lessons` in the existing `education.db` (kind `lesson` | `artifact`, keyed by a source-derived
+  `lesson_key`, `source='curriculum'`), loader `scripts/load_edu_curriculum.py` (`--unload` is the
+  scoped reversal), paid `GET /api/education/lessons[/{key}]`, a Lesson notes block on the existing
+  Courses section. Loaded count is printed: **79 lessons + 7 toolkit artifacts**, census
+  **181** (corrected 138 · verified 29 · replaced 9 · no_data_needed 5), read from
+  `uct_method_scripts.json`. ⚠️ **Two findings the ticket did not have:** (1) no curriculum JSON
+  carries an attribution field, so attribution is **derived by rules** (47 of 86 rows) and the
+  79 lessons never name a third party in their own text; (2) `docs/curriculum/HANDOFF.md` records
+  both courses — The UCT Method's 79 lessons with their scripts included — as **already applied to
+  production as admin-only DRAFT `edu_paths` courses** (`kind='course'`, planned steps). "In no
+  product DB" is therefore half-stale: the lessons are in the store as unrecorded video slots, and
+  what this adds is their member-readable TEXT. Unverified against production (no Railway access).
 - **User outcome.** The 79 lessons the firm has already written become reachable where members already
   go for teaching material.
 - **Context.** ⚰️⚰️ **This ticket started as "give the curriculum a surface" and a grep deleted the

@@ -60,6 +60,8 @@ import useLongPress from '../components/mobile/useLongPress'
 import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
+import SaveListDialog, { ListOrigin } from './watchlist/SaveListDialog'
+import { isLinkedList } from './watchlist/watchlistOrigin'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useBulkQuotes from '../hooks/useBulkQuotes'
 import useThemeIndexQuotes, { themeIndexLabel, themeIndexKey } from '../hooks/useThemeIndexQuotes'
@@ -887,6 +889,8 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [dragOverId, setDragOverId] = useState(null)
   const [importListId, setImportListId] = useState(null)
   const [importText, setImportText] = useState('')
+  // TERM-077: the list whose "Save to My Lists" (copy or link) dialog is open.
+  const [saveSource, setSaveSource] = useState(null)
   const [showPerfCols, setShowPerfCols] = useState(false)
   // ⭐ A12 CP2 (2026-09-25): `visiblePerf` is backed by the WATCHLIST_PERF_COLS_KEY
   // server preference. ⚰️ It was `useState(new Set())` — plain session state, so every
@@ -1073,7 +1077,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     setCtxMenu(null)
   }
 
-  const { user } = useAuth()
+  const { user, watchlistCopyOrLinkEnabled } = useAuth()
   const isTouch = useIsTouch()
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
@@ -2482,6 +2486,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   function renderWatchlistGroup(wl, isOwner) {
     const open = expandedLists.has(wl.id)
     const items = wl.items || []
+    // TERM-077: a LINKED list's members belong to its source, so they are
+    // read-only here. A list with no `origin` (every list while the gate is
+    // off) is exactly as editable as before: `editable === isOwner`.
+    const editable = isOwner && !isLinkedList(wl)
     return (
       <div key={wl.id} className={styles.wlGroup}>
         <div
@@ -2522,6 +2530,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           {!isOwner && wl.owner_name && (
             <span className={styles.ownerTag}>{wl.owner_name}</span>
           )}
+          {!isOwner && watchlistCopyOrLinkEnabled && (
+            <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              <button
+                className={styles.wlActionBtn}
+                onClick={() => setSaveSource(wl)}
+                title={`Save ${wl.name} to My Lists — as a copy or a link`}
+                aria-label={`Save ${wl.name} to My Lists`}
+              ><UIcon name="copy" size={13} /></button>
+            </div>
+          )}
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
               {items.length > 0 && (
@@ -2540,7 +2558,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   ><UIcon name="chevronDown" size={13} /></button>
                 </>
               )}
-              {!pickList && <button
+              {!pickList && editable && <button
                 className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => {
                   setExpandedLists(prev => new Set(prev).add(wl.id))
@@ -2569,6 +2587,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             </div>
           )}
         </div>
+        {isOwner && <ListOrigin origin={wl.origin} />}
 
         {open && (() => {
           // ⭐ ONE sort, shared with arrow-key navigation. This used to re-sort the
@@ -2596,13 +2615,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           // be able to drift apart.
           const renderListItem = (item) => (
             <>
-              {renderTickerRow({ sym: item.sym, name: item.name, isOwner, wlId: wl.id })}
+              {renderTickerRow({ sym: item.sym, name: item.name, isOwner: editable, wlId: wl.id })}
               {/* Note editor, opened from the row menu's "Notes" entry (and closed by
                   picking it again). Editable on YOUR lists only — a shared list's
                   notes are read-only. */}
               {expandedNote === item.id && (
                 <div className={styles.noteRow}>
-                  {isOwner ? (
+                  {editable ? (
                     <textarea
                       className={styles.noteTextarea}
                       value={noteText}
@@ -2648,7 +2667,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             {wl.description && !wl.is_prebuilt && <div className={styles.wlDesc}>{wl.description}</div>}
             {/* Old per-list filter/sort header removed — the global column header now
                 drives columns + sorting so every watchlist uses the same format. */}
-            {isOwner && addingToList === wl.id && (
+            {editable && addingToList === wl.id && (
               <div className={styles.inlineAddRow} onClick={e => e.stopPropagation()}>
                 <TickerCombobox
                   compact
@@ -3205,6 +3224,19 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         </div>
       )}
 
+      {/* ── TERM-077: Save to My Lists — copy or link, chosen here ── */}
+      {saveSource && watchlistCopyOrLinkEnabled && (
+        <SaveListDialog
+          source={saveSource}
+          onClose={() => setSaveSource(null)}
+          onSaved={() => {
+            setSaveSource(null)
+            mutateMine()
+            setActiveTab('mine')
+          }}
+        />
+      )}
+
       {/* ── Import modal ── */}
       {importListId && (
         <div className={styles.modalBackdrop} onClick={() => setImportListId(null)}>
@@ -3415,14 +3447,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 if (wl) exportCSV(wl)
               }}>Export CSV</button>
             )}
-            {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && (
+            {ctxMenu.isOwner && ctxMenu.id !== 'flagged' && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={styles.ctxItem} onClick={() => {
                 setImportListId(ctxMenu.id)
                 setImportText('')
                 setCtxMenu(null)
               }}>Import tickers</button>
             )}
-            {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && (
+            {ctxMenu.isOwner && getStarredSyms(ctxMenu.id).length > 0 && !isLinkedList(myLists?.find(w => w.id === ctxMenu.id)) && (
               <button className={`${styles.ctxItem} ${styles.ctxItemDanger}`} onClick={() => handleRemoveStarred(ctxMenu.id)}>
                 Remove starred ({getStarredSyms(ctxMenu.id).length})
               </button>

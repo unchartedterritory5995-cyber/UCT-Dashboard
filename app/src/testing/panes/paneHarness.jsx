@@ -103,7 +103,11 @@ window.fetch = (input, init) => {
 
 const LEGEND_PARAM = new URLSearchParams(location.search).get('legend')
 const SYM = 'AAPL'
-const TF = 'D'
+// The starting chart timeframe. Calculation-timeframe and visibility passes switch
+// it on one page with the buttons below or `window.__setHarnessTf` (2026-09-28).
+const TF0 = 'D'
+const barsNFor = (tf) => (tf === 'D' || tf === 'W' || tf === 'M' ? 1200 : 1500)
+const HARNESS_TFS = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
 
 /** Every live instance, flattened for the readout. */
 const instancesOf = (cs) => (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])
@@ -186,6 +190,7 @@ const btn = {
 }
 
 function Harness() {
+  const [TF, setTFState] = useState(TF0)
   const [bars, setBars] = useState(null)
   const [barsErr, setBarsErr] = useState(null)
   const [cs, setCs] = useState(() => mergeChartSettings({}))
@@ -202,17 +207,28 @@ function Harness() {
     setLog((l) => [`${new Date().toISOString().slice(11, 23)}  ${s}`, ...l].slice(0, 220))
   }, [])
 
+  // A timeframe switch forgets the old bars first, so the chart never draws
+  // one timeframe's bars under another's label.
+  const setTF = useCallback((t) => { setBars(null); setBarsErr(null); setTFState(t) }, [])
+
   // Real bars off the running backend. No auth on /api/bars, and a failure here
   // is reported rather than silently substituted — a harness drawing fixture
   // data while claiming to be live is the failure mode this whole phase is about.
   useEffect(() => {
     let dead = false
-    realFetch(`/api/bars/${SYM}?tf=${TF}&bars=400`)
+    realFetch(`/api/bars/${SYM}?tf=${TF}&bars=${barsNFor(TF)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((j) => { if (!dead) setBars(Array.isArray(j.bars) ? j.bars : []) })
       .catch((e) => { if (!dead) setBarsErr(String(e)) })
     return () => { dead = true }
-  }, [])
+  }, [TF])
+  // Scripted passes switch the chart timeframe WITHOUT a reload (the settings
+  // blob lives in this component's state; a reload would discard it).
+  useEffect(() => {
+    window.__setHarnessTf = setTF
+    window.__harnessCs = cs
+    window.__setHarnessCs = setCs
+  }, [cs])
 
   // ⭐ LOCK 2. Every settings write StockChart makes lands HERE instead of the
   // global preference. This is also what makes the harness honest: the blob it
@@ -283,14 +299,14 @@ function Harness() {
     const [res] = securityResults([{ ticker, name, type, exchange: 'X', entity_id: 1 }],
       { tf: TF, bars: 400 })
     addCatalogue(res, ticker)
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   const addBreadth = useCallback((symbol, name) => {
     // The literal row shape `/api/breadth-symbols` returns.
     const [res] = breadthResults([{ symbol, name, group: 'ma', group_label: 'Moving averages' }],
       { tf: TF, bars: 400 })
     addCatalogue(res, symbol)
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   /**
    * A NAMESPACED Breadth Library row — universe × metric, signed, histogram.
@@ -314,7 +330,7 @@ function Harness() {
       domain: 'signed', presentation: 'histogram', legacy: false,
     }], { tf: TF, bars: 400 })
     addCatalogue(res, 'US:NETHL')
-  }, [addCatalogue])
+  }, [addCatalogue, TF])
 
   // ─── VOLUME-PANE RESIDENCY (2026-09-18) ───────────────────────────────────
   //
@@ -437,6 +453,12 @@ function Harness() {
         <b style={{ color: '#7dabf5' }}>P2.0d — pane identity, live</b>
         <span style={{ color: '#8b93a1' }}>
           {SYM} {TF} · {bars ? `${bars.length} real bars` : barsErr ? `BARS FAILED: ${barsErr}` : 'loading bars…'}
+        </span>
+        <span data-testid="harness-tfs">
+          {HARNESS_TFS.map((t) => (
+            <button key={t} style={{ ...btn, ...(t === TF ? { border: '1px solid #dcbb5e', color: '#dcbb5e' } : {}) }}
+              onClick={() => setTF(t)}>{t}</button>
+          ))}
         </span>
         <span style={{ color: BLOCKED.length ? '#ef8a86' : '#63c993' }}>
           preference writes refused: {BLOCKED.length}
@@ -626,6 +648,7 @@ function Harness() {
           cannot reach Main Trading any more than the rest of the page can. */}
       <ChartSettingsModal
         open={settingsOpen}
+        chartTf={TF}
         onClose={() => setSettingsOpen(false)}
         /* ⚠️ MIRRORS `pane/ChartPane.jsx:960`, WHICH IS THE ONLY OTHER MOUNT.
            Without it `paneMap` and `movePane` ask the SETTINGS-ONLY volume

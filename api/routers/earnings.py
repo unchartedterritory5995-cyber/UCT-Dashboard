@@ -1,21 +1,138 @@
+import datetime
 import logging
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import APIRouter, HTTPException, Request
-from api.services.engine import get_earnings, _generate_earnings_analysis, _generate_earnings_preview
+from fastapi import APIRouter, HTTPException, Request, Response
+from api.services.engine import (
+    EARNINGS_CACHE_KEY, build_earnings, get_earnings,
+    _generate_earnings_analysis, _generate_earnings_preview,
+)
 from api.services.earnings_estimates import get_earnings_intel
 from api.services.cache import cache
+from api.services.serve_stale import ServeStale, TIER_FRESH, serve_with_tier, server_timing
 from api.limiter import limiter
 
 router = APIRouter()
 
+# TERM-082 (census rank 3): `/api/earnings` sits on a 30-minute TTL, and a miss
+# runs two EarningsWhispers + two Finnhub calendar calls SEQUENTIALLY at 15 s
+# timeouts each (worst ~60 s), plus the FMP fallback and a Massive overlay.
+# CatalystFlow polls `/api/earnings-gaps` every 30 s and that route reads the
+# same list, so the member whose poll landed after the cliff paid the rebuild.
+# The last COMPLETE payload is served instead while one refresh runs behind the
+# caller.
+#
+# Bound: 2400 s = the 1800 s TTL + 10 minutes. The slot's age counts from the
+# BUILD, so it is already ~1800 s old the moment the TTL lapses; any bound at or
+# under the TTL would never serve at all. The extra 10 minutes covers a refresh
+# that takes the full ~60 s worst case many times over, but no more: the list
+# changes around the BMO/AMC report windows as actuals land, and past the bound
+# a refresh that keeps RAISING degrades to the old synchronous build rather
+# than pinning the day to a pre-report list. (A refresh that returns a PARTIAL
+# does not need the bound: it is written to the cache on its short TTL and is
+# served from there, never from the slot.)
+#
+# Keyed by DATE: the payload is "today" (today's BMO, yesterday's AMC, tonight's
+# AMC), so yesterday's list must never answer a stale serve after midnight.
+#
+# Router-level on purpose, like movers: `engine.get_earnings()` has other
+# callers (the catalyst engine, which WRITES catalyst rows from it; voice and
+# Compass tools; flow_explain; the analysis modal's row lookup below). They keep
+# their exact behaviour: cache hit, else a synchronous build. Never a served-
+# stale list.
+EARNINGS_STALE_MAX_AGE = 2400
+_EARNINGS_STALE = ServeStale("earnings", max_age_seconds=EARNINGS_STALE_MAX_AGE, max_keys=4)
+
+# PUSH SEMANTICS. `/api/push` invalidates the "earnings" cache because a new
+# wire changes the answer (the cap_universe filter, the wire_data fallback and
+# the actuals patch all read it). What last-good means after a push:
+#   * the pre-push payload stays in the slot and may be served, MARKED
+#     `stale-swr`, within the bound above,
+#   * but only because the push KICKS one refresh immediately
+#     (`on_wire_push`), so it is the answer for the length of one rebuild, not
+#     until some reader happens to notice;
+#   * a build that STARTED before the push read the old wire, so its result is
+#     never remembered: the build is re-run once, and its cache write is
+#     dropped. `_PUSH_GEN` is how a build learns a push landed under it.
+# With no last-good in the slot (nobody has read the route since boot) a push
+# kicks nothing, and the first reader builds synchronously exactly as before.
+_PUSH_GEN = [0]
+_PUSH_GEN_LOCK = threading.Lock()
+
+
+def _today() -> str:
+    """Today, as `engine.build_earnings` computes it (a seam for tests)."""
+    return datetime.date.today().isoformat()
+
+
+def _slot_key() -> str:
+    return f"earnings:{_today()}"
+
+
+def _fresh_earnings():
+    hit = cache.get(EARNINGS_CACHE_KEY)
+    # `get_earnings`' own test is truthiness, kept so the two paths agree on
+    # what a hit is. (payload, complete): a fresh cache hit is never judged.
+    return (hit, True) if hit else None
+
+
+def _build_for_route():
+    """`build_earnings`, but never let a build that straddled a wire push
+    become the answer: the pre-push wire it read is exactly what the push
+    replaced."""
+    data, complete = {}, False
+    for _attempt in range(2):
+        gen = _PUSH_GEN[0]
+        data, complete = build_earnings()
+        if gen == _PUSH_GEN[0]:
+            return data, complete
+        # A push landed mid-build. Drop the cache write this build made so the
+        # next reader does not take pre-push data as fresh, and build again.
+        cache.invalidate(EARNINGS_CACHE_KEY)
+    # Two pushes raced two builds: serve it, never remember it.
+    return data, False
+
+
+def _good(result) -> bool:
+    # Only a COMPLETE build becomes the fallback (cache_policy's rule): a
+    # failed provider leg is served on the short TTL but never remembered.
+    return bool(result) and result[1] is True
+
+
+def serve_earnings():
+    """The routes' read of today's earnings: `(payload, tier, stale_age_s)`."""
+    served, tier, age = serve_with_tier(
+        _EARNINGS_STALE, _slot_key(),
+        fresh=_fresh_earnings, build=_build_for_route, good=_good,
+    )
+    return served[0], tier, age
+
+
+def on_wire_push() -> bool:
+    """Called by `/api/push` after it stores the new wire. Marks every build in
+    flight as pre-push, and kicks one refresh now when there is a last-good the
+    routes could be serving. Returns whether a refresh was kicked."""
+    with _PUSH_GEN_LOCK:
+        _PUSH_GEN[0] += 1
+    key = _slot_key()
+    value, age = _EARNINGS_STALE.peek(key)
+    if value is None or age is None or age > _EARNINGS_STALE.max_age:
+        # Nothing servable: the first reader builds synchronously, as before.
+        # (Kicking here would race that reader's build: the background refresh
+        # does not take the single-flight build lock.)
+        return False
+    _EARNINGS_STALE.kick(key, build=_build_for_route, good=_good)
+    return True
+
 
 @router.get("/api/earnings")
-def earnings():
+def earnings(response: Response):
+    t0 = time.perf_counter()
     try:
-        result = get_earnings()
+        result, tier, age = serve_earnings()
         try:
             from api.routers.bars import warm_bars_async
             tickers = [
@@ -27,31 +144,42 @@ def earnings():
                 warm_bars_async(list(dict.fromkeys(tickers)), tf="D", bars=8000)
         except Exception:
             pass
-        return result
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+    # PROD-C7: a served-stale list says so on the response, in /api/bars'
+    # Server-Timing shape (`desc="stale-swr"` + the list's age).
+    response.headers["Server-Timing"] = server_timing(
+        "earnings", tier, (time.perf_counter() - t0) * 1000.0, age)
+    return result
 
 
 @router.get("/api/earnings-gaps")
-def earnings_gaps():
-    """Live change_pct for all current earnings tickers. TTL 30 s."""
+def earnings_gaps(response: Response):
+    """Live change_pct for all current earnings tickers. TTL 30 s.
+
+    The Server-Timing tier names where the earnings LIST came from (the
+    serve-stale read above); the prices themselves are at most 30 s old."""
+    t0 = time.perf_counter()
     cached = cache.get("earnings_gaps_live")
     if cached is not None:
+        response.headers["Server-Timing"] = server_timing(
+            "earnings-gaps", TIER_FRESH, (time.perf_counter() - t0) * 1000.0)
         return cached
 
-    data = get_earnings()
+    data, tier, age = serve_earnings()
     all_syms = [e["sym"] for e in data.get("bmo", []) + data.get("amc", []) if e.get("sym")]
     if not all_syms:
-        cache.set("earnings_gaps_live", {}, ttl=30)
-        return {}
-
-    try:
-        from api.services.massive import _get_client
-        result = _get_client().get_batch_snapshots(all_syms)
-    except Exception:
         result = {}
+    else:
+        try:
+            from api.services.massive import _get_client
+            result = _get_client().get_batch_snapshots(all_syms)
+        except Exception:
+            result = {}
 
     cache.set("earnings_gaps_live", result, ttl=30)
+    response.headers["Server-Timing"] = server_timing(
+        "earnings-gaps", tier, (time.perf_counter() - t0) * 1000.0, age)
     return result
 
 

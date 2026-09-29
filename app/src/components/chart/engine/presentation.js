@@ -374,14 +374,16 @@ export function presentedPlot(plot, instance, ctx) {
   const sign = effective === 'histogram'
     ? resolveSignColors(instance, plot, ctx && ctx.candles) : null
   const styleChanged = !!defStyle && defStyle !== plot.style
+  const look = lineLookPatch(instance, effective)
   // ⚠️ BOTH QUESTIONS BEFORE THE EARLY RETURN. This read `if (defStyle === plot.style)
   // return plot`, which is correct for style alone and wrong the moment a SECOND
   // property is resolved here: a member turning sign colours on for an output that
   // was ALREADY a histogram would have been handed back the untouched plot and seen
   // nothing happen.
-  if (!styleChanged && !sign) return plot
+  if (!styleChanged && !sign && !look) return plot
   const next = { ...plot }
   if (styleChanged) next.style = defStyle
+  if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
   // branch of `seriesOptionsForPlot` already reads as the point radius.
   if (defStyle === 'markers') next.width = DOT_SIZES[resolveDotSize(instance, plot)]
@@ -391,6 +393,56 @@ export function presentedPlot(plot, instance, ctx) {
     next.colorDown = sign.down
   }
   return next
+}
+
+/** The line widths and line styles a member may choose (Line width / Line style).
+ *  ⭐ THE SAME VOCABULARY `cs.overlays` HAS ALWAYS STORED (`indicatorRegistry`'s
+ *  `LINE_WIDTHS` / `LINE_STYLES`), so an adopted average keeps its exact value and
+ *  there is one enum, not two. */
+export const LINE_WIDTH_CHOICES = Object.freeze([1, 2, 3, 4])
+export const LINE_STYLE_CHOICES = Object.freeze(['solid', 'dashed', 'dotted'])
+export const DEFAULT_LINE_WIDTH_CHOICE = 1
+export const DEFAULT_LINE_STYLE_CHOICE = 'solid'
+
+/**
+ * The stroke a LINE-SHAPED output wears — as distinct from its GEOMETRY.
+ *
+ * ⛔⛔ LINE STYLE IS NOT PLOT STYLE. `presentation.plotStyle` (Line / Step) decides
+ * the geometry — `lineType` Simple vs WithSteps — and is resolved above by
+ * `resolvePlotStyle`. `presentation.lineStyle` (Solid / Dashed / Dotted) and
+ * `presentation.lineWidth` decide the STROKE drawn along whichever geometry that
+ * is. A dashed step line is both, and neither field can express the other.
+ *
+ * ⭐ AND THE RENDER LOOK, WHICH IS NEVER STORED. `instance.renderLook` is stamped
+ * onto an in-memory copy by the chart surface (`StockChart`) for the facts only
+ * the SURFACE knows: whether its averages draw as smooth curves (the bold Model
+ * Book look `/charts` uses), whether they may stretch the candles' axis
+ * (`fitPriceToCandles`), and whether the MA value tags are on (`showMaLabels`).
+ * Those are exactly the facts the `cs.overlays` renderer read from its props, so an
+ * adopted average draws the way it always drew. Nothing here writes it back.
+ *
+ * Returns `null` when nothing applies, so the common case allocates nothing.
+ */
+export function lineLookPatch(instance, effectiveStyle) {
+  const pres = instance && instance.presentation
+  const look = instance && instance.renderLook
+  if (!pres && !look) return null
+  const lineish = effectiveStyle === 'line' || effectiveStyle === 'stepline'
+  let out = null
+  const put = (k, v) => { out = out || {}; out[k] = v }
+  if (lineish && pres) {
+    const w = Number(pres.lineWidth)
+    if (LINE_WIDTH_CHOICES.includes(w)) put('width', w)
+    if (LINE_STYLE_CHOICES.includes(pres.lineStyle)) put('lineStyle', pres.lineStyle)
+  }
+  if (look && typeof look === 'object') {
+    // ⛔ CURVES ARE A LINE'S, NEVER A STEP'S. A step drawn with `Curved` would stop
+    // being a step, and the member chose Step on purpose.
+    if (look.curved === true && effectiveStyle === 'line') put('lineType', 'curved')
+    if (look.autoscale === 'default' || look.autoscale === 'exclude') put('autoscale', look.autoscale)
+    if (typeof look.lastValue === 'boolean') put('lastValueVisible', look.lastValue)
+  }
+  return out
 }
 
 /** The two colours ONE output's sign-coloured histogram wears, or `null`.

@@ -46,6 +46,30 @@ class WatchlistItem(BaseModel):
     notes: Optional[str] = ""
 
 
+class WatchlistSaveAs(BaseModel):
+    # ⛔ NO DEFAULT. TERM-077: the member chooses copy or link at import, and a
+    # guessed default is wrong half the time and silently so. `mode` is typed
+    # `Optional` only so a missing/blank value reaches the route's own 400 with
+    # a readable message; the model still refuses to build without the field.
+    mode: Optional[str]
+    name: Optional[str] = None
+
+
+def _refuse_if_linked(wl_id: str) -> None:
+    """TERM-077: a LINKED list's items belong to its source — refuse edits here.
+
+    Only consulted while WATCHLIST_COPY_OR_LINK_ENABLED is on; off, every item
+    route behaves exactly as before the feature existed.
+    """
+    from api.services import watchlist_origin
+    if watchlist_origin.enabled() and watchlist_origin.is_linked(wl_id):
+        raise HTTPException(
+            status_code=409,
+            detail="This list is linked to its source, which stays authoritative. "
+                   "Save a copy to edit it.",
+        )
+
+
 class PerfRequest(BaseModel):
     tickers: list[str]
 
@@ -289,9 +313,16 @@ def list_watchlists(
     never passes on is built, green and unreachable — that is exactly how the first
     `include_items` pass shipped, surviving all nine service tests.
     """
-    return watchlist_service.list_user_watchlists(
+    lists = watchlist_service.list_user_watchlists(
         user["id"], include_items=include_items, include_prebuilt=include_prebuilt
     )
+    # TERM-077: provenance + link refresh, only on the FULL read (the slim
+    # app-shell reads draw names and never pay for it) and only while the gate
+    # is on — off, this route returns exactly what it always did.
+    from api.services import watchlist_origin
+    if include_items and watchlist_origin.enabled():
+        lists = watchlist_origin.annotate(user["id"], lists)
+    return lists
 
 
 @router.get("/api/watchlists/public")
@@ -366,6 +397,26 @@ def create_watchlist(body: WatchlistCreate, user: dict = Depends(get_current_use
     return watchlist_service.create_watchlist(user["id"], body.name, body.description, body.is_public)
 
 
+@router.post("/api/watchlists/{wl_id}/save-as")
+def save_watchlist_as(wl_id: str, body: WatchlistSaveAs, user: dict = Depends(get_current_user)):
+    """TERM-077: save another list into My Lists as a COPY or a LINK.
+
+    The member's explicit choice is required (400 without it) and is recorded
+    with the new list in the same transaction. 404 while the gate is off, and
+    for a source this member cannot see.
+    """
+    from api.services import watchlist_origin
+    if not watchlist_origin.enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+    try:
+        result = watchlist_origin.save_from_list(user["id"], wl_id, body.mode, body.name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not result:
+        raise HTTPException(status_code=404, detail="Watchlist not found")
+    return result
+
+
 @router.get("/api/watchlists/{wl_id}")
 def get_watchlist(
     request: Request,
@@ -388,6 +439,10 @@ def get_watchlist(
     wl = watchlist_service.get_watchlist(wl_id, user["id"])
     if not wl:
         raise HTTPException(status_code=404, detail="Watchlist not found")
+    # TERM-077: provenance + link refresh for the member's own list, gate on only.
+    from api.services import watchlist_origin
+    if watchlist_origin.enabled() and wl.get("user_id") == user["id"]:
+        wl = watchlist_origin.annotate(user["id"], [wl])[0]
     try:
         from api.routers.bars import warm_bars_async
         tickers = [i["sym"].upper() for i in (wl.get("items") or []) if isinstance(i, dict) and i.get("sym")]
@@ -434,6 +489,7 @@ def delete_watchlist(wl_id: str, user: dict = Depends(get_current_user)):
 
 @router.post("/api/watchlists/{wl_id}/items")
 def add_item(wl_id: str, body: WatchlistItem, user: dict = Depends(get_current_user)):
+    _refuse_if_linked(wl_id)
     result = watchlist_service.add_item(user["id"], wl_id, body.sym, body.notes)
     if not result:
         raise HTTPException(status_code=404, detail="Watchlist not found")
@@ -454,7 +510,8 @@ class BulkAddItems(BaseModel):
 
 @router.post("/api/watchlists/{wl_id}/items/bulk")
 def bulk_add_items(wl_id: str, body: BulkAddItems, user: dict = Depends(get_current_user)):
-    result = watchlist_service.bulk_add_items(user["id"], wl_id, body.symbols)
+    _refuse_if_linked(wl_id)
+    result =watchlist_service.bulk_add_items(user["id"], wl_id, body.symbols)
     if not result:
         raise HTTPException(status_code=404, detail="Watchlist not found")
     return result
@@ -462,6 +519,7 @@ def bulk_add_items(wl_id: str, body: BulkAddItems, user: dict = Depends(get_curr
 
 @router.put("/api/watchlists/{wl_id}/reorder")
 def reorder_items(wl_id: str, body: ReorderItems, user: dict = Depends(get_current_user)):
+    _refuse_if_linked(wl_id)
     if not watchlist_service.reorder_items(user["id"], wl_id, body.item_ids):
         raise HTTPException(status_code=404, detail="Watchlist not found")
     return {"ok": True}
@@ -469,7 +527,8 @@ def reorder_items(wl_id: str, body: ReorderItems, user: dict = Depends(get_curre
 
 @router.put("/api/watchlists/{wl_id}/items/{item_id}/notes")
 def update_item_notes(wl_id: str, item_id: str, body: ItemNotesUpdate, user: dict = Depends(get_current_user)):
-    result = watchlist_service.update_item_notes(user["id"], wl_id, item_id, body.notes)
+    _refuse_if_linked(wl_id)
+    result =watchlist_service.update_item_notes(user["id"], wl_id, item_id, body.notes)
     if not result:
         raise HTTPException(status_code=404, detail="Item not found")
     return result
@@ -477,6 +536,7 @@ def update_item_notes(wl_id: str, item_id: str, body: ItemNotesUpdate, user: dic
 
 @router.delete("/api/watchlists/{wl_id}/items/{item_id}")
 def remove_item(wl_id: str, item_id: str, user: dict = Depends(get_current_user)):
+    _refuse_if_linked(wl_id)
     if not watchlist_service.remove_item(user["id"], wl_id, item_id):
         raise HTTPException(status_code=404, detail="Item not found")
     return {"ok": True}

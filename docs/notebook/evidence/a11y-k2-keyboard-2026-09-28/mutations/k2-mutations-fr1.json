@@ -1,0 +1,98 @@
+[
+ {
+  "id": "R1",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "a box off the LEFT edge is not moved (the I-1 defect)",
+  "exit": 1,
+  "totals": "Tests  6 failed | 13 passed (19)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 moves a box that starts left of the gutter right, by exactly the overhang 15ms",
+   "\u00d7 a box wider than the room keeps its LEFT edge on screen 1ms",
+   "\u00d7 the measured LOCKED case at 390 (x -75..185) opens shifted wholly on screen 211ms",
+   "\u00d7 Lock while open: a re-render that moves the door re-places the panel (it used to jump off screen) 60ms",
+   "\u00d7 a window resize while open re-places it 42ms",
+   "\u00d7 I-1 + M-4: a LOCKED note -- no Writing help, no empty \"Editor toolbar\", and the panel opens on screen at 390 405ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > fix round 1 (K2 review) > I-1 + M-4: a LOCKED note -- no Writing help, no empty \"Editor toolbar\", and the panel opens on screen at 390",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > onScreenShift > moves a box that starts left of the gutter right, by exactly the overhang",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > onScreenShift > a box wider than the room keeps its LEFT edge on screen",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > <NoteMoreMenu> keeps its panel on screen > the measured LOCKED case at 390 (x -75..185) opens shifted wholly on screen",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > <NoteMoreMenu> keeps its panel on screen > Lock while open: a re-render that moves the door re-places the panel (it used to jump off screen)",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > <NoteMoreMenu> keeps its panel on screen > a window resize while open re-places it"
+  ]
+ },
+ {
+  "id": "R2",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "placed only when it opens, not after a re-render (the Lock-while-open jump)",
+  "exit": 1,
+  "totals": "Tests  1 failed | 7 passed (8)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Lock while open: a re-render that moves the door re-places the panel (it used to jump off screen) 59ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > <NoteMoreMenu> keeps its panel on screen > Lock while open: a re-render that moves the door re-places the panel (it used to jump off screen)"
+  ]
+ },
+ {
+  "id": "R3",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "a resize does not re-place it",
+  "exit": 1,
+  "totals": "Tests  1 failed | 7 passed (8)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 a window resize while open re-places it 42ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteMoreMenu.test.jsx > <NoteMoreMenu> keeps its panel on screen > a window resize while open re-places it"
+  ]
+ },
+ {
+  "id": "R4",
+  "file": "src/pages/journal-2-0/components/notebook/NoteMoreMenu.jsx",
+  "what": "a press on the Delete question (or its backdrop) closes the panel (M-3)",
+  "exit": 1,
+  "totals": "Tests  2 failed | 9 passed (11)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 Delete asks first; Escape on the question puts focus back on Delete, and the panel is still open 890ms",
+   "\u00d7 M-3: a tap on the Delete question's BACKDROP keeps the panel open and puts focus back on Delete 899ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > Delete asks first; Escape on the question puts focus back on Delete, and the panel is still open",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > fix round 1 (K2 review) > M-3: a tap on the Delete question's BACKDROP keeps the panel open and puts focus back on Delete"
+  ]
+ },
+ {
+  "id": "R5",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "Escape not stopped at the disclosure: the page's find-bar Escape also runs (M-2; the round-0 M5)",
+  "exit": 1,
+  "totals": "Tests  1 failed | 10 passed (11)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 M-2: Escape inside the panel with the find bar open closes ONLY the panel; the find bar stays and focus is on More 1707ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > fix round 1 (K2 review) > M-2: Escape inside the panel with the find bar open closes ONLY the panel; the find bar stays and focus is on More"
+  ]
+ },
+ {
+  "id": "R6",
+  "file": "src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx",
+  "what": "a locked note renders the toolbar row again (M-4)",
+  "exit": 1,
+  "totals": "Tests  1 failed | 10 passed (11)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 I-1 + M-4: a LOCKED note -- no Writing help, no empty \"Editor toolbar\", and the panel opens on screen at 390 371ms",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > fix round 1 (K2 review) > I-1 + M-4: a LOCKED note -- no Writing help, no empty \"Editor toolbar\", and the panel opens on screen at 390"
+  ]
+ },
+ {
+  "id": "CONTROL",
+  "what": "every file restored: the same suites, unmutated",
+  "exit": 0,
+  "totals": "Tests  25 passed (25)"
+ }
+]

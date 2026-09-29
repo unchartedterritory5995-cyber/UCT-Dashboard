@@ -275,3 +275,25 @@ describe('the Indicators tab draws the control, not just the descriptor', () => 
     expect(inst.inputs.source).toBe('volume')
   })
 })
+
+describe('two upstream instances with the same name', () => {
+  // ⭐ Duplicate makes same-named siblings ordinary (two `SMA 50`s). Each is its
+  // own optgroup; keyed by label alone, React warned "two children with the same
+  // key" and could reconcile one group onto the other (2026-09-28, browser).
+  it('lists both groups with no duplicate-key warning', () => {
+    const base = mergeChartSettings({})
+    const sma50 = base.indicatorInstances.find((i) => i.inputs?.period === 50)
+    const cs = { ...base, indicatorInstances: [...base.indicatorInstances, { ...sma50, instanceId: 'dup:50' }] }
+    const self = base.indicatorInstances.find((i) => i.inputs?.period === 9)
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const { container } = render(
+        <SourceField row={{ instanceId: self.instanceId, label: 'EMA 9' }} field={FIELD}
+          value="close" settings={cs} registry={registry} onPick={() => {}} />,
+      )
+      const labels = [...container.querySelectorAll('optgroup')].map((g) => g.label)
+      expect(labels.filter((l) => l === 'SMA 50')).toHaveLength(2)
+      expect(spy.mock.calls.filter((c) => String(c[0]).includes('same key'))).toEqual([])
+    } finally { spy.mockRestore() }
+  })
+})

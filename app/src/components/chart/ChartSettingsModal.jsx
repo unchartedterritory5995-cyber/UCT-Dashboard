@@ -301,6 +301,9 @@ export default function ChartSettingsModal({
   // Optional (Charts workspace): the adjustable-watermark shortcuts. "Move
   // watermark" enters the same drag+confirm mode as the right-click item;
   // "Reset to center" clears this chart's saved position. Absent elsewhere.
+  // The timeframe the chart this modal belongs to is ON — handed to Indicators so
+  // it can SAY when a calculation timeframe cannot draw here. Absent on the grid.
+  chartTf = null,
   onAdjustWatermark = null,
   onResetWatermark = null,
   watermarkCustomized = false,
@@ -1274,6 +1277,7 @@ export default function ChartSettingsModal({
                settings, so "edit this indicator" is one click from the chart
                rather than a click plus a hunt down a list. */
             openRowId={indTargetRow(scrollTo)}
+            chartTf={chartTf}
           />
           )}
 

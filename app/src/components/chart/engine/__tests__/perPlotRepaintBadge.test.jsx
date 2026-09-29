@@ -1,4 +1,4 @@
-import { legendAlways } from './legendProbe'
+import { legendAlways as legendAlwaysBase } from './legendProbe'
 // app/src/components/chart/engine/__tests__/perPlotRepaintBadge.test.jsx
 //
 // ─── 🔴 THE PER-PLOT REPAINT BADGE — THE RENDER SURFACE, AND ITS SEPARATION ──
@@ -42,6 +42,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages } from '../../__fixtures__/adoptedAverages'
+const legendAlways = (cs) => legendAlwaysBase(noDefaultAverages(cs))
 
 // `__tests__` → engine → chart → components → src → app → the repo root.
 const HERE = path.dirname(fileURLToPath(import.meta.url))

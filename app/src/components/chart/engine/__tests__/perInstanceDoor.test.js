@@ -372,6 +372,18 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // one more empty object and is otherwise byte-identical, and `{}` is "no
       // preference": `resolvePaneSeriesOrder` returns the incoming order untouched.
       // (Prior value: 596ff356bbd69685a073971857eb1876e6c1d9eb62ca715202dc4dffe28cea16)
-      .toBe('a2d35dcafd3067f47fb03804ece00dd727c1eba27e2204cdbeb02132a93a4a4d')
+      // 2026-09-28: re-pinned for `maAdoption.js` (the four default averages are
+      // adopted as `ovl:<i>` `movingAverage` instances on every read).
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The 280-blob corpus was
+      // dumped on this tree and on a clean worktree at 38bb9a421 (which reproduces
+      // the previous pin exactly) and diffed: ADDED ONLY — 1,120 adopted entries
+      // (1,100 live averages, 4 per blob, plus 20 tombstones), each slot gaining
+      // `removed`/`adopted`; ZERO removed or changed lines. The 20 tombstones are
+      // the `movingAverage:off` step: the per-DEFINITION door turns every average
+      // off, defaults included — which is why `movingAverage` is now `addOnly` and
+      // `IndicatorLibraryDialog.toggledRow` never calls that door for it. No other
+      // definition's enable/input/disable blob changed beyond carrying the averages.
+      // (Prior value: a2d35dcafd3067f47fb03804ece00dd727c1eba27e2204cdbeb02132a93a4a4d)
+      .toBe('4ca66180df6f662a4b874a7e42770c6a9115695bd10a6091aed73a3d3a990474')
   })
 })

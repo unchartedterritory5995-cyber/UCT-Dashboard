@@ -22,6 +22,7 @@
 // declarations, neither calls the other at module scope) but it was safe by
 // accident, and a `const` added to either side at the wrong moment is a TDZ
 // crash in the merge every chart is on.
+import { adoptOverlayAverages } from './maAdoption'
 
 // ─── Removing an indicator instance: the tombstone ───────────────────────────
 //
@@ -75,6 +76,8 @@ export function isInstanceTombstone(inst) {
 // object instead of merging one level — i.e. a per-chart override silently
 // drops every sibling key the override didn't mention.
 // ⛔ ADD A NEW SECTION HERE THE SAME DAY YOU ADD IT TO CHART_DEFAULTS.
+// ⭐ `adoptOverlayAverages` is the one import, and `maAdoption.js` imports
+// nothing — so this module stays off the engine graph (see the header).
 // The rail is mergeSettingsOverride.test.js, which DERIVES the expected set
 // from CHART_DEFAULTS and names the missing key — that is how `darkPool`
 // (added 2026-08-14 with the dark-pool overlay) was caught here.
@@ -83,8 +86,14 @@ const _OVERRIDE_SECTION_KEYS = [
   'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
   'signature', 'prevDayLevels', 'darkPool',
 ]
-export function mergeSettingsOverride(base, partial) {
-  if (!partial) return base
+export function mergeSettingsOverride(base, partialIn) {
+  if (!partialIn) return base
+  // ⭐ THE OVERRIDE'S OWN AVERAGES ARE ADOPTED BEFORE THE MERGE, AS THE OVERRIDE'S —
+  // see `maAdoption.js`. A widget blob written before adoption carries live
+  // `overlays` and no `ovl:<i>` instances; folding it first gives the widget ITS
+  // averages (and a tombstone for one its member deleted), and `explicitReset`
+  // stops the id-merge below patching them over the GLOBAL `ovl:<i>`.
+  const partial = adoptOverlayAverages(partialIn, { explicitReset: true })
   const out = { ...base }
   for (const [k, v] of Object.entries(partial)) {
     if (v === undefined) continue

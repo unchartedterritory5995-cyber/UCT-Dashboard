@@ -1,0 +1,2 @@
+M5 RED rc=1 [a sibling route that merely starts with the word folds] app/src/pages/journal-2-0/lib/compactHeaderRoute.js :: Test Files  1 failed (1) | Tests  1 failed | 13 passed (14) :: restored sha ac5e4508a534 == capture == HEAD: True
+CONTROL unmutated tree rc=0 :: Test Files  1 passed (1) | Tests  14 passed (14)

@@ -10,7 +10,16 @@
 // member is a reader that can delete an indicator from a member's chart by having
 // an old preference, which is a far worse bug than any ordering mistake.
 import { describe, it, expect } from 'vitest'
-import { mergeChartSettings } from '../../chartDefaults'
+import { mergeChartSettings as mergeChartSettingsReal } from '../../chartDefaults'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 import {
   PANE_SERIES_ORDER_KEY,
   storedPaneSeriesOrder,
@@ -27,7 +36,9 @@ const PRICE = 'price'
 const withOrder = (paneKey, ids, rest) => ({
   ...(rest || {}), [PANE_SERIES_ORDER_KEY]: { [paneKey]: ids },
 })
-const MEMBERS = ['overlay-0', 'overlay-1', 'overlay-2', 'inst:movingAverage:1']
+// ⭐ 2026-09-28: the default averages are the INSTANCES ovl:<i> (maAdoption.js),
+// so their row ids — and a stored arrangement of them — are instance ids now.
+const MEMBERS = ['ovl:0', 'ovl:1', 'ovl:2', 'inst:movingAverage:1']
 
 // ════════════════════════════════════════════════════════════════════════════
 describe('the reader — absent, partial, complete, and wrong', () => {
@@ -46,9 +57,9 @@ describe('the reader — absent, partial, complete, and wrong', () => {
   })
 
   it('⭐ A COMPLETE PREFERENCE IS OBEYED', () => {
-    const cs = withOrder(PRICE, ['overlay-2', 'inst:movingAverage:1', 'overlay-0', 'overlay-1'])
+    const cs = withOrder(PRICE, ['ovl:2', 'inst:movingAverage:1', 'ovl:0', 'ovl:1'])
     expect(resolvePaneSeriesOrder(cs, PRICE, MEMBERS))
-      .toEqual(['overlay-2', 'inst:movingAverage:1', 'overlay-0', 'overlay-1'])
+      .toEqual(['ovl:2', 'inst:movingAverage:1', 'ovl:0', 'ovl:1'])
   })
 
   it('⭐ A PARTIAL PREFERENCE ORDERS WHAT IT KNOWS AND APPENDS THE REST', () => {
@@ -57,40 +68,40 @@ describe('the reader — absent, partial, complete, and wrong', () => {
     // be spliced against is itself derived from definition rank, so splicing lets
     // rank move a row the member placed. Appending cannot disturb any pairwise
     // relation the member established.
-    const cs = withOrder(PRICE, ['overlay-2', 'overlay-0'])
+    const cs = withOrder(PRICE, ['ovl:2', 'ovl:0'])
     expect(resolvePaneSeriesOrder(cs, PRICE, MEMBERS))
-      .toEqual(['overlay-2', 'overlay-0', 'overlay-1', 'inst:movingAverage:1'])
+      .toEqual(['ovl:2', 'ovl:0', 'ovl:1', 'inst:movingAverage:1'])
   })
 
   it('⛔⛔ A STALE ID IS IGNORED — IT CANNOT CONJURE A ROW', () => {
-    const cs = withOrder(PRICE, ['overlay-9', 'inst:rsi:7', 'overlay-1', 'overlay-0'])
+    const cs = withOrder(PRICE, ['ovl:9', 'inst:rsi:7', 'ovl:1', 'ovl:0'])
     const out = resolvePaneSeriesOrder(cs, PRICE, MEMBERS)
     expect([...out].sort(), 'the reader changed the SET, not just the order')
       .toEqual([...MEMBERS].sort())
-    expect(out).toEqual(['overlay-1', 'overlay-0', 'overlay-2', 'inst:movingAverage:1'])
+    expect(out).toEqual(['ovl:1', 'ovl:0', 'ovl:2', 'inst:movingAverage:1'])
   })
 
   it('⛔⛔ A MEMBER THE PREFERENCE NEVER HEARD OF CANNOT VANISH', () => {
     // The other half of the same rule, and the one that would delete an indicator
     // from a chart: a `paneSeriesOrder` written before a series was added must
     // still return that series.
-    const cs = withOrder(PRICE, ['overlay-0'])
+    const cs = withOrder(PRICE, ['ovl:0'])
     const out = resolvePaneSeriesOrder(cs, PRICE, MEMBERS)
     expect(out).toHaveLength(MEMBERS.length)
     expect(out).toEqual(expect.arrayContaining(MEMBERS))
   })
 
   it('⛔ A DUPLICATE IN THE STORED LIST IS COLLAPSED, not rendered twice', () => {
-    const cs = withOrder(PRICE, ['overlay-1', 'overlay-1', 'overlay-0'])
+    const cs = withOrder(PRICE, ['ovl:1', 'ovl:1', 'ovl:0'])
     expect(resolvePaneSeriesOrder(cs, PRICE, MEMBERS))
-      .toEqual(['overlay-1', 'overlay-0', 'overlay-2', 'inst:movingAverage:1'])
+      .toEqual(['ovl:1', 'ovl:0', 'ovl:2', 'inst:movingAverage:1'])
   })
 
   it('⛔ A PREFERENCE BELONGS TO ONE PANE AND REACHES NO OTHER', () => {
     // ⭐ THIS IS THE "MOVED TO ANOTHER PANE" CASE, and it needs no cleanup: the
     // id is simply not a member of the pane being read, so the price arrangement
     // says nothing about the QQQ pane and vice versa.
-    const cs = withOrder(PRICE, ['inst:movingAverage:1', 'overlay-0'])
+    const cs = withOrder(PRICE, ['inst:movingAverage:1', 'ovl:0'])
     expect(resolvePaneSeriesOrder(cs, 'inst:dataSeries:1', ['inst:movingAverage:1', 'x']))
       .toEqual(['inst:movingAverage:1', 'x'])
   })
@@ -98,7 +109,7 @@ describe('the reader — absent, partial, complete, and wrong', () => {
   it('⛔ A MALFORMED BLOB IS DATA, NOT A CRASH', () => {
     for (const bad of [{ [PANE_SERIES_ORDER_KEY]: 'nope' }, { [PANE_SERIES_ORDER_KEY]: 7 },
       { [PANE_SERIES_ORDER_KEY]: { price: 'nope' } },
-      { [PANE_SERIES_ORDER_KEY]: { price: [1, null, {}, '', 'overlay-1'] } }]) {
+      { [PANE_SERIES_ORDER_KEY]: { price: [1, null, {}, '', 'ovl:1'] } }]) {
       expect(() => resolvePaneSeriesOrder(bad, PRICE, MEMBERS)).not.toThrow()
       expect([...resolvePaneSeriesOrder(bad, PRICE, MEMBERS)].sort()).toEqual([...MEMBERS].sort())
     }
@@ -117,16 +128,16 @@ describe('orderPaneRows — a multi-output indicator is ONE row', () => {
     const rows = [
       { id: 'inst:macd:1', plot: 'macd' },
       { id: 'inst:macd:1', plot: 'signal' },
-      { id: 'overlay-0', plot: 'ma' },
+      { id: 'ovl:0', plot: 'ma' },
     ]
-    const cs = withOrder(PRICE, ['overlay-0', 'inst:macd:1'])
+    const cs = withOrder(PRICE, ['ovl:0', 'inst:macd:1'])
     expect(orderPaneRows(cs, PRICE, rows, (r) => r.id).map((r) => r.plot))
       .toEqual(['ma', 'macd', 'signal'])
   })
 
   it('⚠️ A ROW WITH NO ID IS KEPT, at the end', () => {
-    const rows = [{ id: 'overlay-0' }, { id: null, tag: 'anon' }, { id: 'overlay-1' }]
-    const cs = withOrder(PRICE, ['overlay-1', 'overlay-0'])
+    const rows = [{ id: 'ovl:0' }, { id: null, tag: 'anon' }, { id: 'ovl:1' }]
+    const cs = withOrder(PRICE, ['ovl:1', 'ovl:0'])
     const out = orderPaneRows(cs, PRICE, rows, (r) => r.id)
     expect(out).toHaveLength(3)
     expect(out[2].tag, 'an unidentifiable row was dropped from the chart').toBe('anon')
@@ -138,13 +149,13 @@ describe('the writer — one slot, one key, one pane', () => {
   const cs0 = {}
 
   it('⭐ A MIDDLE ROW MOVES UP AND DOWN, and nothing else moves', () => {
-    const up = moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'overlay-1', -1)
+    const up = moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'ovl:1', -1)
     expect(resolvePaneSeriesOrder(up, PRICE, MEMBERS))
-      .toEqual(['overlay-1', 'overlay-0', 'overlay-2', 'inst:movingAverage:1'])
+      .toEqual(['ovl:1', 'ovl:0', 'ovl:2', 'inst:movingAverage:1'])
 
-    const down = moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'overlay-1', 1)
+    const down = moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'ovl:1', 1)
     expect(resolvePaneSeriesOrder(down, PRICE, MEMBERS))
-      .toEqual(['overlay-0', 'overlay-2', 'overlay-1', 'inst:movingAverage:1'])
+      .toEqual(['ovl:0', 'ovl:2', 'ovl:1', 'inst:movingAverage:1'])
   })
 
   it('⛔ THE BOUNDARIES ARE NO-OPS, AND THEY DO NOT WRITE', () => {
@@ -152,10 +163,10 @@ describe('the writer — one slot, one key, one pane', () => {
     // `if (next !== settings) onChange(next)` from persisting a chart because a
     // member pressed ↑ on the top row — and `canMoveSeries` is what stops the
     // press being offered at all.
-    expect(moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'overlay-0', -1)).toBe(cs0)
+    expect(moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'ovl:0', -1)).toBe(cs0)
     expect(moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'inst:movingAverage:1', 1)).toBe(cs0)
-    expect(canMoveSeries(cs0, PRICE, MEMBERS, 'overlay-0', -1)).toBe(false)
-    expect(canMoveSeries(cs0, PRICE, MEMBERS, 'overlay-0', 1)).toBe(true)
+    expect(canMoveSeries(cs0, PRICE, MEMBERS, 'ovl:0', -1)).toBe(false)
+    expect(canMoveSeries(cs0, PRICE, MEMBERS, 'ovl:0', 1)).toBe(true)
     expect(canMoveSeries(cs0, PRICE, MEMBERS, 'inst:movingAverage:1', 1)).toBe(false)
   })
 
@@ -175,8 +186,8 @@ describe('the writer — one slot, one key, one pane', () => {
 
   it('⛔ A BAD DELTA IS REFUSED — no wrap, no jump, no zero', () => {
     for (const d of [0, 2, -2, NaN, '1', null, undefined]) {
-      expect(moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'overlay-1', d)).toBe(cs0)
-      expect(canMoveSeries(cs0, PRICE, MEMBERS, 'overlay-1', d)).toBe(false)
+      expect(moveSeriesWithinPane(cs0, PRICE, MEMBERS, 'ovl:1', d)).toBe(cs0)
+      expect(canMoveSeries(cs0, PRICE, MEMBERS, 'ovl:1', d)).toBe(false)
     }
   })
 
@@ -191,7 +202,7 @@ describe('the writer — one slot, one key, one pane', () => {
       paneOrder: ['price', 'volume'],
       volume: { separatePane: true },
     }
-    const after = moveSeriesWithinPane(before, PRICE, MEMBERS, 'overlay-1', -1)
+    const after = moveSeriesWithinPane(before, PRICE, MEMBERS, 'ovl:1', -1)
     expect(Object.keys(after).sort())
       .toEqual([...Object.keys(before), PANE_SERIES_ORDER_KEY, 'preset'].sort())
     expect(after.preset).toBe('custom')
@@ -226,26 +237,26 @@ describe('the writer — one slot, one key, one pane', () => {
     // `cs.overlays` is TOMBSTONED, never spliced, so `overlay-2` names the same
     // moving average before and after a Remove — which is exactly why the stored
     // id is safe to leave behind and exactly why reviving works with no bookkeeping.
-    const arranged = moveSeriesWithinPane({}, PRICE, MEMBERS, 'overlay-2', -1)
-    expect(resolvePaneSeriesOrder(arranged, PRICE, MEMBERS)[1]).toBe('overlay-2')
+    const arranged = moveSeriesWithinPane({}, PRICE, MEMBERS, 'ovl:2', -1)
+    expect(resolvePaneSeriesOrder(arranged, PRICE, MEMBERS)[1]).toBe('ovl:2')
 
-    const removed = MEMBERS.filter((id) => id !== 'overlay-2')
+    const removed = MEMBERS.filter((id) => id !== 'ovl:2')
     expect(resolvePaneSeriesOrder(arranged, PRICE, removed)).toEqual(removed)
-    expect(resolvePaneSeriesOrder(arranged, PRICE, MEMBERS)[1]).toBe('overlay-2')
+    expect(resolvePaneSeriesOrder(arranged, PRICE, MEMBERS)[1]).toBe('ovl:2')
   })
 
   it('⛔ SETTING AN EMPTY ARRANGEMENT IS A NO-OP, not an erasure', () => {
-    const cs = withOrder(PRICE, ['overlay-1', 'overlay-0'])
+    const cs = withOrder(PRICE, ['ovl:1', 'ovl:0'])
     expect(setPaneSeriesOrder(cs, PRICE, [])).toBe(cs)
-    expect(setPaneSeriesOrder(cs, '', ['overlay-0'])).toBe(cs)
-    expect(setPaneSeriesOrder(null, PRICE, ['overlay-0'])).toBe(null)
+    expect(setPaneSeriesOrder(cs, '', ['ovl:0'])).toBe(cs)
+    expect(setPaneSeriesOrder(null, PRICE, ['ovl:0'])).toBe(null)
   })
 
   it('⭐ ARRANGING ONE PANE LEAVES ANOTHER PANE\'S ARRANGEMENT ALONE', () => {
     const cs = withOrder('inst:rsi:1', ['a', 'b'])
-    const next = moveSeriesWithinPane(cs, PRICE, MEMBERS, 'overlay-1', -1)
+    const next = moveSeriesWithinPane(cs, PRICE, MEMBERS, 'ovl:1', -1)
     expect(next[PANE_SERIES_ORDER_KEY]['inst:rsi:1']).toEqual(['a', 'b'])
-    expect(next[PANE_SERIES_ORDER_KEY][PRICE][0]).toBe('overlay-1')
+    expect(next[PANE_SERIES_ORDER_KEY][PRICE][0]).toBe('ovl:1')
   })
 })
 
@@ -259,12 +270,12 @@ describe('⚰️⚰️ IT SURVIVES A READ — the allow-list trap, for the third
   // and `paneSizes` both carry a tombstone recording the same trap; this is the
   // rail that makes the third one impossible to reintroduce silently.
   it('⛔⛔ A STORED ARRANGEMENT COMES BACK OUT OF `mergeChartSettings`', () => {
-    const stored = { [PANE_SERIES_ORDER_KEY]: { price: ['overlay-2', 'inst:movingAverage:1'] } }
+    const stored = { [PANE_SERIES_ORDER_KEY]: { price: ['ovl:2', 'inst:movingAverage:1'] } }
     const merged = mergeChartSettings(stored)
     expect(merged[PANE_SERIES_ORDER_KEY], 'the arrangement was destroyed on read')
-      .toEqual({ price: ['overlay-2', 'inst:movingAverage:1'] })
+      .toEqual({ price: ['ovl:2', 'inst:movingAverage:1'] })
     expect(resolvePaneSeriesOrder(merged, PRICE, MEMBERS))
-      .toEqual(['overlay-2', 'inst:movingAverage:1', 'overlay-0', 'overlay-1'])
+      .toEqual(['ovl:2', 'inst:movingAverage:1', 'ovl:0', 'ovl:1'])
   })
 
   it('⛔ A BLOB WITH NO ARRANGEMENT READS AS "NO PREFERENCE", not as a missing key', () => {
@@ -274,12 +285,12 @@ describe('⚰️⚰️ IT SURVIVES A READ — the allow-list trap, for the third
 
   it('⛔ A MALFORMED STORED VALUE IS SANITISED, NOT CARRIED', () => {
     const merged = mergeChartSettings({ [PANE_SERIES_ORDER_KEY]: {
-      price: ['overlay-0', 7, null, ''],
+      price: ['ovl:0', 7, null, ''],
       bad: 'not-an-array',
       empty: [],
       '': ['x'],
     } })
-    expect(merged[PANE_SERIES_ORDER_KEY]).toEqual({ price: ['overlay-0'] })
+    expect(merged[PANE_SERIES_ORDER_KEY]).toEqual({ price: ['ovl:0'] })
   })
 
   it('⛔ THE WRITE ROUND-TRIPS — write, read, and the order is the one written', () => {
@@ -289,7 +300,7 @@ describe('⚰️⚰️ IT SURVIVES A READ — the allow-list trap, for the third
     expect(resolvePaneSeriesOrder(reloaded, PRICE, MEMBERS))
       .toEqual(resolvePaneSeriesOrder(moved, PRICE, MEMBERS))
     expect(resolvePaneSeriesOrder(reloaded, PRICE, MEMBERS))
-      .toEqual(['overlay-0', 'overlay-1', 'inst:movingAverage:1', 'overlay-2'])
+      .toEqual(['ovl:0', 'ovl:1', 'inst:movingAverage:1', 'ovl:2'])
   })
 })
 

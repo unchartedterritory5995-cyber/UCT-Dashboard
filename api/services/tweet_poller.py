@@ -10,6 +10,7 @@ import logging
 from typing import Optional
 
 from api.services import tweet_store, twitterapi_io
+from api.services.a8_taxonomy import resolve_primary
 from api.services.tweet_ticker_extract import extract_tickers
 
 logger = logging.getLogger(__name__)
@@ -54,7 +55,16 @@ def poll_account(handle: str) -> dict:
     for tweet in tweets:
         try:
             tickers = extract_tickers(tweet.get("text", ""))
-            tweet_store.upsert_tweet(tweet, tickers)
+            # TERM-075: which ticker is the story ABOUT. An annotation, never a
+            # gate — if it cannot be computed the links store as today's (all
+            # primary) and the tweet is kept.
+            try:
+                primary = resolve_primary(tweet.get("text", ""), tickers)
+            except Exception:
+                logger.exception("[tweet_poll] %s tweet %s primary resolve failed",
+                                 handle, tweet.get("id"))
+                primary = None
+            tweet_store.upsert_tweet(tweet, tickers, primary)
             summary["stored"] += 1
             # Track the lexicographically/numerically largest id (Twitter ids
             # are numerically increasing; str compare for safety on bigints)

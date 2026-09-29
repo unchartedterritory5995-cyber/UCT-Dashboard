@@ -744,8 +744,9 @@ def run_prewarmer_forever():
     except Exception as e:
         print(f"[prewarm] ETF/instant universe fetch failed (non-fatal): {e}")
     try:
-        taxonomy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "themes_taxonomy.json")
-        if os.path.exists(taxonomy_path):
+        from api.services import a8_taxonomy  # TERM-075: the one locator of the taxonomy file
+        taxonomy_path = a8_taxonomy.themes_taxonomy_path()
+        if taxonomy_path:
             with open(taxonomy_path) as f:
                 _tax = json.load(f)
             # PRE-EXISTING BUG FIX (2026-05-17): themes_taxonomy.json is a

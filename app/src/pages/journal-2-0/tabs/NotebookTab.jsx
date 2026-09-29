@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useNavigationType, useSearchParams } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useJ2Notes from '../hooks/useJ2Notes'
 import { applyTargetToParams } from '../lib/searchNavigation'
@@ -38,6 +38,7 @@ import BulkActionBar from '../components/notebook/BulkActionBar'
 import NoteMenuActions from '../components/notebook/NoteMenuActions'
 import { ARCHIVED_FOLDER, setNoteArchived } from '../lib/noteArchive'
 import { getMemberTemplate } from '../lib/memberTemplates'
+import { stepTrail, stepsBackToList } from '../lib/noteReturnTrail'
 import { DAILY_TEMPLATE_PREF, isDailyShortcut, openDailyNote } from '../lib/dailyNote'
 import usePreferences from '../../../hooks/usePreferences'
 import { useNoteSelection } from '../lib/noteSelection'
@@ -177,6 +178,9 @@ const RENAME_TAG_CHUNK_SIZE = 500
 
 export default function NotebookTab() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const navigationType = useNavigationType()
   const noteId = searchParams.get('note')
   // Wave 6 (lane E, item 7) — split view: `?side=` is a second note beside the
   // first, desktop only. Each pane is an ordinary editor (lib/splitView.js).
@@ -604,6 +608,14 @@ export default function NotebookTab() {
   const paneHeadingRef = useRef(null)
   // { id, order } -- the note last opened and the row order it was opened from
   const openedFromRef = useRef(null)
+  // D2 (D-1; fix round 1, I-1): the history entries since the member left a list
+  // for a note (lib/noteReturnTrail.js). The phone's "Back to notes" goes back
+  // through them to that exact list, because `openNote` drops `view` (a
+  // closeNote cannot know it: measured at 390 px on 97cffa4b9, it landed on
+  // Research Home). Keyed to ENTRIES, never to the note id: the editor pushes
+  // same-note entries (citations), which a note-id key walked back into.
+  const returnTrailRef = useRef(null)
+  const leavingListRef = useRef(false)
   // what the NEXT emptying of the pane should focus: { rowId } | { heading: true }
   const paneFocusPlanRef = useRef(null)
   // where an explicit open puts focus once the note loads: { id, to: 'title' | 'landmark' }
@@ -647,6 +659,9 @@ export default function NotebookTab() {
       ? [...mainRef.current.querySelectorAll('[data-note-card-id]')].map((el) => el.getAttribute('data-note-card-id'))
       : []
     openedFromRef.current = { id: note.id, order: [...new Set(rows)] }
+    // Leaving a list (no note open) starts a trail; an open from inside a note
+    // extends the one it is on.
+    leavingListRef.current = !noteId
     // M-5: a plan left by an earlier delete (split view keeps the side note
     // open, so the pane never emptied and the plan was never spent) belongs to
     // THAT open, not this one.
@@ -741,6 +756,34 @@ export default function NotebookTab() {
       return
     }
     paneHeadingRef.current?.focus()
+  }
+
+  // D2 (I-1): one trail step per navigation, from the router's own entry key
+  // and navigation type.
+  useEffect(() => {
+    const fromList = navigationType === 'PUSH' && leavingListRef.current
+    leavingListRef.current = false
+    returnTrailRef.current = stepTrail(returnTrailRef.current, {
+      type: navigationType, key: location.key, noteOpen: Boolean(noteId), fromList,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key])
+
+  // D2 (D-1): the phone's "Back to notes". A note reached from a list goes back
+  // through history to THAT list (its exact URL -- folder, tag, view), past any
+  // entry pushed inside the note; anything else (a shared `?note=` link opened
+  // fresh) closes to the Notebook's own list.
+  const phoneBackToNotes = () => {
+    const steps = stepsBackToList(returnTrailRef.current, location.key)
+    if (noteId && steps > 0) {
+      returnTrailRef.current = null
+      navigate(-steps)
+      refresh()
+      refreshAll()
+      refreshSidebarCounts()
+      return
+    }
+    closeNote()
   }
 
   // Selecting a folder / tag from the (now always-present) sidebar while a note
@@ -1480,6 +1523,12 @@ export default function NotebookTab() {
       ref={wrapRef}
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
+      // D2 (design finding D-1): a phone stacks the folder panel ABOVE the notes,
+      // so a `?note=` link painted the folder panel first and put the note's title
+      // 1,530 px down at 390 px (measured on fa6710394). With a note open, the
+      // phone rule in NotebookTab.module.css hides the panel; the note is the
+      // page, and the phone back control below returns to the list.
+      data-note-open={noteId ? 'true' : undefined}
     >
       {/* Wave 8 (8A, A4): the FIRST focusable thing in the tab -- past the
           folder tree, straight to the note or the list. Visually hidden until
@@ -1649,6 +1698,19 @@ export default function NotebookTab() {
         )}
         {noteId ? (
           <>
+          {/* D2 (D-1): the way back to the list on a phone, where the folder
+              panel is hidden while a note is open. Shown at <=640 px only
+              (the stylesheet decides); above that the panel is beside the note
+              and is the way back. The same close every other door uses. */}
+          <button
+            type="button"
+            className={styles.phoneBack}
+            onClick={phoneBackToNotes}
+            data-nb-phone-back=""
+          >
+            <UIcon name="chevronRight" size={16} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} />
+            Back to notes
+          </button>
           {/* ⛔ Wave 6 item 7: the main editor sits in the SAME pane element
               whether or not a note is beside it — moving it into a new parent
               when the side opens would remount it (a flushed save, a reloaded

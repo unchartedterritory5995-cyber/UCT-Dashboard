@@ -281,6 +281,53 @@ def _reset_signature_serve_stale():
     _clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_snapshot_movers_serve_stale():
+    """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
+
+    Same hazard as the Calendar fixture above: each route keeps its last
+    COMPLETE payload in a module-level slot, so one test's faked snapshot or
+    movers list would answer — as a stale-swr hit — for the next test that
+    expects to drive a build of its own. Looked up via sys.modules so the
+    fixture never imports either router into an unrelated test."""
+    import sys
+
+    def _clear():
+        for mod_name, slot_name in (("api.routers.snapshot", "_SNAPSHOT_STALE"),
+                                    ("api.routers.movers", "_MOVERS_STALE")):
+            mod = sys.modules.get(mod_name)
+            slot = getattr(mod, slot_name, None) if mod is not None else None
+            if slot is not None:
+                slot._slots.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_earnings_serve_stale():
+    """Clear `/api/earnings`' serve-stale slot (TERM-082, census rank 3).
+
+    Same hazard as the snapshot/movers fixture above: the route keeps its last
+    COMPLETE list in a module-level slot, and `/api/push` kicks a refresh when
+    that slot holds something. So one test's faked earnings list would answer
+    the next test's request as a stale-swr hit, or turn a later push test into
+    a background rebuild against real providers. Looked up via sys.modules so
+    the fixture never imports the router into an unrelated test."""
+    import sys
+
+    def _clear():
+        mod = sys.modules.get("api.routers.earnings")
+        slot = getattr(mod, "_EARNINGS_STALE", None) if mod is not None else None
+        if slot is not None:
+            slot._slots.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _setup_j2_database():
     """Initialize the J2 schema in the test auth.db.

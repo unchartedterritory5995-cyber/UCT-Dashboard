@@ -1,0 +1,23 @@
+[
+ {
+  "id": "M5b",
+  "file": "src/pages/journal-2-0/lib/useDisclosureFocus.js",
+  "what": "Escape neither stopped nor checked for a layer that already handled it",
+  "exit": 1,
+  "totals": "Tests  2 failed | 11 passed (13)",
+  "red": true,
+  "restored_equals_committed_blob": true,
+  "failing": [
+   "\u00d7 NESTING: inside an inner disclosure only the INNER one wraps, and one Escape closes one layer 30ms",
+   "\u00d7 NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer 1178ms",
+   "FAIL  src/pages/journal-2-0/lib/useDisclosureFocus.test.jsx > useDisclosureFocus > NESTING: inside an inner disclosure only the INNER one wraps, and one Escape closes one layer",
+   "FAIL  src/pages/journal-2-0/components/notebook/NoteEditorPage.moreMenu.test.jsx > the door keeps the keyboard contract (K2) > NESTED: the Open-beside search inside the panel keeps Tab to itself, and one Escape closes one layer"
+  ]
+ },
+ {
+  "id": "CONTROL",
+  "what": "every file restored: the same suites, unmutated",
+  "exit": 0,
+  "totals": "Tests  98 passed (98)"
+ }
+]

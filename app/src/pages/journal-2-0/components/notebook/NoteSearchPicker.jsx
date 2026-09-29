@@ -12,9 +12,16 @@
  * still takes the first row, the same as the palette; that row is SHOWN as the
  * Enter target (`data-enter-target`, the hover background) and its name carries
  * the reason ("..., in note text"), so what Enter commits is visible and labelled.
+ *
+ * Wave 10 lane K2 (walk row S2-27): one of the editor's contained disclosures
+ * (`lib/useDisclosureFocus.js`). While focus is inside, Tab stays inside (the search and its
+ * results); Escape from anywhere in it cancels, and the caller hands focus back to the control
+ * that opened it (Open beside does, through its own re-focus). The walk tabbed out of the
+ * Open-beside search into the formatting row six presses later, and Escape out there left it open.
  */
 import { useEffect, useRef, useState } from 'react'
 import { NOTE_IN_TEXT_CUE } from '../../lib/noteSwitcher'
+import useDisclosureFocus from '../../lib/useDisclosureFocus'
 import styles from './RelationPropertyValue.module.css'
 
 const SEARCH_DEBOUNCE_MS = 150
@@ -27,6 +34,12 @@ export default function NoteSearchPicker({
   const [searchError, setSearchError] = useState(false)
   const seq = useRef(0)
   const excludeKey = exclude.join('|')
+  const boxRef = useRef(null)
+  // The search input takes focus itself (autoFocus); Escape clears and cancels.
+  const { disclosureProps } = useDisclosureFocus({
+    open: true, containerRef: boxRef, focusOnOpen: false,
+    onClose: () => { setQuery(''); onCancel?.() },
+  })
 
   useEffect(() => {
     const q = query.trim()
@@ -50,13 +63,12 @@ export default function NoteSearchPicker({
   }, [query, excludeKey])
 
   return (
-    <span className={styles.picker}>
+    <span className={styles.picker} ref={boxRef} {...disclosureProps}>
       <input
         className={styles.search}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') { setQuery(''); onCancel?.() }
           if (e.key === 'Enter' && results[0]) { e.preventDefault(); onPick(results[0]) }
         }}
         placeholder={placeholder}

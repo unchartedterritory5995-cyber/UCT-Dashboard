@@ -91,7 +91,6 @@
       "api/services/institutional_holdings.py": 1,
       "api/services/massive.py": 4,
       "api/services/news_aggregator.py": 2,
-      "api/services/options_chain.py": 1,
       "api/services/research/estimates.py": 1,
       "api/services/research/financials.py": 1,
       "api/services/research/ownership.py": 1,

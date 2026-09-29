@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   FIRST_PAINT_BARS, FIRST_PAINT_MAX, RTH_VISIBLE_FRACTION,
   firstPaintBarsFor, firstPaintVisibleFor,
-  fullBarsFor, shouldBackfill, nextBackfillDepth,
+  fullBarsFor, shouldBackfill, nextBackfillDepth, spliceDeepLeftOfFresh,
 } from './barsBackfill'
 
 describe('nextBackfillDepth (progressive deep-pan)', () => {
@@ -150,5 +150,36 @@ describe('firstPaintBarsFor — the budget is in VISIBLE bars', () => {
 
   it('the session fraction is derived from the clock, not typed', () => {
     expect(RTH_VISIBLE_FRACTION).toBeCloseTo(390 / 960, 6)
+  })
+})
+
+describe('spliceDeepLeftOfFresh — deep on the left, the server window verbatim on the right', () => {
+  const bar = (t, c = 1) => ({ t, o: c, h: c, l: c, c })
+  const deep = ['2020-01-02', '2020-01-03', '2020-01-06', '2020-01-07', '2020-01-08'].map((t) => bar(t, 1))
+  const fresh = ['2020-01-07', '2020-01-08', '2020-01-09'].map((t) => bar(t, 2))
+
+  it('takes only cache bars strictly older than the window, then the window unchanged', () => {
+    const out = spliceDeepLeftOfFresh(deep, fresh)
+    expect(out.map((b) => b.t)).toEqual(['2020-01-02', '2020-01-03', '2020-01-06', '2020-01-07', '2020-01-08', '2020-01-09'])
+    expect(out.slice(-3)).toEqual(fresh)                  // every overlapping bar is the server's
+    expect(out.slice(0, 3).every((b) => b.c === 1)).toBe(true)
+  })
+  it('never draws a cache bar past the server window (mergeDelta would)', () => {
+    const ahead = deep.concat([bar('2020-01-10', 1)])
+    const out = spliceDeepLeftOfFresh(ahead, fresh)
+    expect(out.at(-1)).toBe(fresh.at(-1))
+  })
+  it('refuses to splice across a hole: the cache must reach the window', () => {
+    expect(spliceDeepLeftOfFresh(deep.slice(0, 2), fresh)).toBeNull()
+  })
+  it('returns null when there is nothing older to add, or an input is empty / mixed-kind', () => {
+    expect(spliceDeepLeftOfFresh(fresh, fresh)).toBeNull()
+    expect(spliceDeepLeftOfFresh([], fresh)).toBeNull()
+    expect(spliceDeepLeftOfFresh(deep, [])).toBeNull()
+    expect(spliceDeepLeftOfFresh([{ t: 1577923200 }], [{ t: '2020-01-02' }])).toBeNull()
+  })
+  it('works on unix-second keys too', () => {
+    const out = spliceDeepLeftOfFresh([{ t: 10 }, { t: 20 }, { t: 30 }], [{ t: 20, c: 9 }, { t: 40, c: 9 }])
+    expect(out.map((b) => b.t)).toEqual([10, 20, 40])
   })
 })

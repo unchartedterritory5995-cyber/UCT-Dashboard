@@ -19,6 +19,9 @@ Routes:
     POST   /api/education/taxonomy-apply      → bulk category+tag apply     (PUSH_SECRET)
     POST   /api/education/categories/rename   → rename a category + move rows     (admin)
     PATCH  /api/education/categories/{name}   → patch category meta               (admin)
+    GET    /api/education/lessons             → curriculum text lessons + census   (paid,
+                                                  DARK: EDU_CURRICULUM_ENABLED, TERM-091)
+    GET    /api/education/lessons/{key}       → one lesson; counts a view          (paid, DARK)
 """
 from __future__ import annotations
 
@@ -37,6 +40,7 @@ from api.middleware.auth_middleware import (
 )
 from api.services import data_sync
 from api.services import education_search
+from api.services import education_curriculum as curriculum
 from api.services import education_service as svc
 
 router = APIRouter(prefix="/api/education", tags=["education"])
@@ -704,3 +708,59 @@ def paths_apply(body: PathsApplyIn, _: None = Depends(require_push_secret)):
         return svc.bulk_apply_paths([p.model_dump() for p in body.paths])
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ── Curriculum lessons (TERM-091, edu_lessons) ────────────────────────────────
+# DARK behind EDU_CURRICULUM_ENABLED (read per request, unset = OFF). Unset, both
+# routes answer the FastAPI 404 body to EVERY caller, admin included, before any
+# identity is read — the same answer as a route that does not exist — and the
+# edu_lessons table is never created or read. `_curriculum_armed` is the first
+# dependency on purpose (the TERM-023 entity_resolve precedent). Paid gating is
+# the same `require_paid` every other education read uses.
+
+_LESSON_LIST_KEYS = ("lesson_key", "kind", "course", "module_label", "module_index",
+                     "sort_order", "title", "note", "minutes", "verdicts",
+                     "attribution", "attribution_detail")
+
+
+def _curriculum_armed() -> None:
+    if not curriculum.is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+@router.get("/lessons", dependencies=[Depends(_curriculum_armed)])
+def list_curriculum_lessons(_user: dict = Depends(require_paid)):
+    """`{lessons: [...], census: {verified, corrected, replaced, no_data_needed,
+    total}, counts: {lessons, artifacts}}`. Lessons are text rows loaded from
+    docs/curriculum/ (lazy one-shot load on first read while armed). Every row
+    carries `attribution` (empty = no third-party rule fired, never "original")."""
+    curriculum.ensure_loaded_once()
+    rows = curriculum.list_lessons()
+    is_admin = (_user or {}).get("role") == "admin"
+    out = []
+    for r in rows:
+        item = {k: r.get(k) for k in _LESSON_LIST_KEYS}
+        item["chapter_count"] = len(r.get("chapters") or [])
+        if is_admin:
+            item["view_count"] = r.get("view_count", 0)
+        out.append(item)
+    return {
+        "lessons": out,
+        "census": curriculum.census(rows),
+        "counts": {
+            "lessons": sum(1 for r in rows if r.get("kind") == "lesson"),
+            "artifacts": sum(1 for r in rows if r.get("kind") == "artifact"),
+        },
+    }
+
+
+@router.get("/lessons/{lesson_key}", dependencies=[Depends(_curriculum_armed)])
+def get_curriculum_lesson(lesson_key: str, _user: dict = Depends(require_paid)):
+    """One lesson (chapters with their spec_verdict, or an artifact's body).
+    Each fetch increments the lesson's view_count."""
+    row = curriculum.get_lesson(lesson_key, record_view=True)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+    if (_user or {}).get("role") != "admin":
+        row.pop("view_count", None)
+    return row

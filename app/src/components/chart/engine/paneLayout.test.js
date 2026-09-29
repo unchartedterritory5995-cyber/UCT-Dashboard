@@ -484,10 +484,14 @@ describe('stack order is DATA, and it comes from the instance list', () => {
     // which is the designed behaviour — the frozen list is the historical record
     // of what shipped, not the catalogue. The claim that may never move is the
     // relative order of the FIVE that shipped, because that IS legacy z-order.
+    // ⭐ 2026-09-28 — `movingAverage` LEADS THEM: it is where the `cs.overlays`
+    // averages live now (`maAdoption.js`), and those always drew under the five.
+    // The five keep their relative order, which is the claim that may not move.
     const overlays = SHIPPED_STACK_ORDER.filter((id) => !OSC.includes(id))
-    expect(overlays.slice(0, 5)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
+    expect(overlays[0]).toBe('movingAverage')
+    expect(overlays.slice(1, 6)).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian'])
     // …and everything after them is a LATER definition, never a re-ordered one.
-    expect(overlays.slice(5).some(id => ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].includes(id)))
+    expect(overlays.slice(6).some(id => ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].includes(id)))
       .toBe(false)
     // Non-vacuity: every registered definition appears exactly once.
     const ids = listDefinitions().map(d => d.id)

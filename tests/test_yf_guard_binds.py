@@ -90,26 +90,25 @@ def test_institutional_holdings_reaches_yfinance_through_the_guard(spy):
     assert "error" in out
 
 
-def test_options_chain_expirations_reaches_yfinance_through_the_guard(spy):
-    from api.services import options_chain
-    options_chain._CACHE = type(options_chain._CACHE)()
-    out = options_chain.list_expirations("AAPL")
-    assert spy.fired
-    assert "error" in out
-
-
-def test_options_chain_get_chain_reaches_yfinance_through_the_guard(spy):
-    from api.services import options_chain
-    options_chain._CACHE = type(options_chain._CACHE)()
-    out = options_chain.get_chain("AAPL")
-    assert spy.fired
-    assert "error" in out
+# (api/services/options_chain.py -- the yfinance + Black-Scholes chain leg -- was
+# RETIRED by TERM-069; its two binding proofs went with it. The one chain is
+# Massive's, and tests/test_term069_chain_leg_retired.py rails that it stays so.)
 
 
 def test_ticker_logos_clearbit_reaches_yfinance_through_the_guard(spy):
     from api.services import ticker_logos
     assert ticker_logos._clearbit_logo_bytes("AAPL") is None
     assert spy.fired
+
+
+def test_financial_statements_reaches_yfinance_through_the_guard(spy):
+    """Every statement read in `_build` (income/balance/cash-flow, annual and
+    quarterly) goes through the guard. It was on master (b8c3fdf57) with no
+    proof, so this file's coverage rail was red for every session."""
+    from api.services import financial_statements
+    financial_statements._build("AAPL")
+    assert spy.fired
+    assert len(spy.calls) >= 6, spy.calls   # the six statement reads
 
 
 def test_catalyst_ticker_metadata_reaches_yfinance_through_the_guard(spy):
@@ -222,12 +221,12 @@ BOUND_HERE = {
     "api/routers/charts.py",
     "api/services/catalyst/ticker_metadata.py",
     "api/services/engine.py",
+    "api/services/financial_statements.py",
     "api/services/fundamentals.py",
     "api/services/industry_map.py",
     "api/services/institutional_holdings.py",
     "api/services/massive.py",
     "api/services/news_aggregator.py",
-    "api/services/options_chain.py",
     "api/services/short_interest.py",
     "api/services/ticker_logos.py",
     "api/services/ticker_meta.py",

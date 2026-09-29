@@ -128,6 +128,11 @@ PAID_NOW: set[tuple[str, str]] = {
     ("GET", "/api/ownership/{sym}"),
     ("GET", "/api/stock-brief/{sym}"),
     ("GET", "/api/news-catalysts/{sym}"),
+    # ── Morning Wire replay: PAST issues (api/routers/engine_data.py) ───────
+    # TERM-089. Today's wire stays the free tier (`/api/rundown`, LEFT_OPEN);
+    # the archive of past mornings is the paid product.
+    ("GET", "/api/wire/archive"),
+    ("GET", "/api/wire/archive/{ymd}"),
     ("GET", "/api/theme-index/{slug}"),
     ("GET", "/api/single-stock-etfs/{symbol}"),
     ("GET", "/api/research/expected-move/{sym}"),
@@ -738,6 +743,16 @@ REACHED_FROM_FREE_PAGE = {
         "same 402, archived image on the free tier.",
     "/api/news-catalysts/":
         "NewsEmbed -> NewsWidget -> useNewsCatalysts; same reach, same refusal.",
+    # TERM-089 (2026-09-28): the Morning Wire page itself mounts WireArchive, the
+    # replay of PAST issues. Verdict, made out loud: today's wire stays free, past
+    # issues are paid. The component renders NOTHING and fetches NOTHING unless
+    # `useIsPaid()` is true (WireArchive.test.jsx asserts no request for a free
+    # member), so a free member's page never sends the 402 this file proves.
+    "/api/wire/archive":
+        "WireArchive on /morning-wire, rendered and fetched only for a paid "
+        "member; a free member sees today's wire exactly as before.",
+    "/api/wire/archive/":
+        "Same component, the by-date read behind its date picker; same gate.",
 }
 
 

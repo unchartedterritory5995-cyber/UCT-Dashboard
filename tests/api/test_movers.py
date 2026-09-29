@@ -39,7 +39,12 @@ async def test_movers_requires_auth():
 
 @pytest.mark.asyncio
 async def test_movers_structure(auth_override):
-    with patch("api.routers.movers.get_movers", return_value=MOCK_MOVERS):
+    # The route builds through `build_movers` (payload, complete) behind its
+    # serve-stale slot (TERM-082), so that is the seam to fake; the TTL entry
+    # is dropped so a value another test cached cannot answer instead.
+    from api.services.cache import cache
+    cache.invalidate("movers")
+    with patch("api.routers.movers.build_movers", return_value=(MOCK_MOVERS, True)):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/movers")
     assert r.status_code == 200

@@ -33,7 +33,9 @@
 // be created — that is the whole point of `capability`. See its block below.
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
-import { isOverlayRemoved } from './chartDefaults'
+// ⭐ "Is there an average to restore?" is `maAdoption`'s question now: every
+// adopted slot carries `removed: true`, so the bare flag no longer means "gone".
+import { revivableSlotIndex } from './maAdoption'
 import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
@@ -644,11 +646,16 @@ export function createFromResult(cs, res, registry) {
       ? addInstance(cs, res.create.defId, registry)
       : cs
   }
+  const familyDefault = creationPresentationFor(res)
   if (res.create.via === CREATE_VIA.PRODUCT) {
     // ⚠️ THE PRODUCT'S OWN NAME IS NOT STAMPED ON ITS COMPONENTS. Each series is
     // named by `semanticNamesFor` from its OWN catalogue row, so the pane legend
     // reads `Bullish / Bearish / Neutral` rather than the product name three times.
-    return createProductSeries(cs, res.create.components, registry)
+    const components = Array.isArray(res.create.components)
+      ? res.create.components.map((c) => (c && !c.presentation && familyDefault
+        ? { ...c, presentation: familyDefault } : c))
+      : res.create.components
+    return createProductSeries(cs, components, registry)
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
@@ -656,10 +663,38 @@ export function createFromResult(cs, res, registry) {
     return createDirectSeries(cs, res.create.source, registry, {
       name: names.full,
       compact: names.compact,
-      presentation: res.create.presentation || null,
+      presentation: res.create.presentation || familyDefault,
     })
   }
   return cs
+}
+
+/**
+ * THE STYLE A NEW DATA SERIES STARTS AS, BY SOURCE FAMILY (`res.kind`).
+ *
+ * ⭐ A DEFAULT AT CREATION, NEVER AT RESOLVE TIME. It is stamped onto the new
+ * instance's stored `presentation`, so an instance saved before this rule —
+ * which stores nothing and resolves to `line` — keeps drawing a line, and a
+ * member's later choice overwrites the stamp like any other choice.
+ *
+ * ⛔ TECHNICAL AND FORMULA ROWS ARE ABSENT: they create through
+ * `CREATE_VIA.DEFINITION` and keep their definition's authored style. And a
+ * catalogue-declared presentation (a signed histogram, a quarterly step)
+ * outranks this — the family default fills only the gap that used to be `line`.
+ *
+ * ⚠️ `economic` IS LISTED AHEAD OF ITS SOURCE FAMILY SHIPPING, so an `econ:`
+ * result carrying that kind needs no change here.
+ */
+export const FAMILY_DEFAULT_PLOT_STYLE = Object.freeze({
+  fundamental: 'area',
+  breadth: 'area',
+  security: 'area',      // Symbols, ETFs and Indexes share this kind
+  economic: 'area',
+})
+
+function creationPresentationFor(res) {
+  const style = res && FAMILY_DEFAULT_PLOT_STYLE[res.kind]
+  return style ? { plotStyle: style } : null
 }
 
 /**
@@ -1007,8 +1042,7 @@ export const LIBRARY_HIDDEN_IDS = Object.freeze([DIRECT_SERIES_DEF_ID, 'ma'])
  * so the offer exists exactly when the action behind it would do something.
  */
 export function hiddenLibraryIds(settings) {
-  const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
-  const canRevive = overlays.some(isOverlayRemoved)
+  const canRevive = revivableSlotIndex(settings) >= 0
   return canRevive
     ? LIBRARY_HIDDEN_IDS.filter((id) => id !== 'ma')
     : LIBRARY_HIDDEN_IDS
@@ -1037,7 +1071,7 @@ export function hiddenLibraryIds(settings) {
  * *"Do NOT break removed-overlay revival"* — is met by not touching it.
  *
  * ⚠️ THE FIRST TOMBSTONE IS THE ONE NAMED, because it is the one `toggledRow`
- * revives (`list.findIndex(isOverlayRemoved)`). Naming a different one would be a
+ * revives (`maAdoption.revivableSlotIndex`). Naming a different one would be a
  * label that lies about what the click does.
  *
  * @param {object} row       a `BUILT_IN_ROWS` row
@@ -1047,7 +1081,7 @@ export function hiddenLibraryIds(settings) {
 export function libraryRowFor(row, settings) {
   if (!row || row.id !== 'ma' || row.builtIn !== 'overlay') return row
   const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
-  const dead = overlays.find(isOverlayRemoved)
+  const dead = overlays[revivableSlotIndex(settings)]
   if (!dead) return row
   // The same grammar `indicatorRegistry.listIndicators` gives a live overlay row
   // — `EMA 9`, `SMA 200` — so the offer and the row it restores read alike.
@@ -1070,7 +1104,7 @@ export function libraryRowFor(row, settings) {
     //
     // ⛔ `singleton` IS WHAT REMOVES THE SECOND CONTROL, and it is honest here for
     // the reason it is honest on Volume: there is exactly ONE tombstone this row
-    // revives (`toggledRow` takes `findIndex(isOverlayRemoved)`). Restore it and
+    // revives (`toggledRow` takes `revivableSlotIndex`). Restore it and
     // the row disappears, because `hiddenLibraryIds` stops revealing it.
     restores: true,
     singleton: true,

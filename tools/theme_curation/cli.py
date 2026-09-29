@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+from api.services.a8_taxonomy import THEMES_TAXONOMY_FILENAME
 from tools.theme_curation import loaders, apply as A
 
 
@@ -203,7 +204,7 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd")
 
     a = sub.add_parser("audit")
-    a.add_argument("--taxonomy", default="themes_taxonomy.json")
+    a.add_argument("--taxonomy", default=THEMES_TAXONOMY_FILENAME)
     a.add_argument("--cap", default="api/data/cap_universe.json")
     a.add_argument("--out", default="tools/theme_curation/audit.md")
     a.add_argument("--check-live", action="store_true",
@@ -211,7 +212,7 @@ def main(argv=None) -> int:
                         "split delisted (drop/remap) from cap_universe gaps (network)")
 
     d = sub.add_parser("discover")
-    d.add_argument("--taxonomy", default="themes_taxonomy.json")
+    d.add_argument("--taxonomy", default=THEMES_TAXONOMY_FILENAME)
     d.add_argument("--cap", default="api/data/cap_universe.json")
     d.add_argument("--industries", default="tools/theme_curation/theme_finviz_industries.json")
     d.add_argument("--ledger", default="tools/theme_curation/curation_ledger.db")
@@ -235,7 +236,7 @@ def main(argv=None) -> int:
     sub.add_parser("bootstrap-finviz")
 
     ap_apply = sub.add_parser("apply")
-    ap_apply.add_argument("--taxonomy", default="themes_taxonomy.json")
+    ap_apply.add_argument("--taxonomy", default=THEMES_TAXONOMY_FILENAME)
     ap_apply.add_argument("--cap", default="api/data/cap_universe.json")
     ap_apply.add_argument("--ledger", default="tools/theme_curation/curation_ledger.db")
     ap_apply.add_argument("--review-dir", default="tools/theme_curation/review")

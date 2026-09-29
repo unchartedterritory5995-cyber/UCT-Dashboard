@@ -44,6 +44,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages, withoutAdopted } from '../../__fixtures__/adoptedAverages'
 
 const H = vi.hoisted(() => ({
   addSeriesCalls: [],
@@ -168,7 +171,9 @@ beforeEach(() => {
 afterEach(() => { __setPaneModeForTest(null) })
 
 const { default: StockChart, ENGINE_OWNED } = await import('../../../StockChart')
-const { mergeChartSettings, CHART_DEFAULTS } = await import('../../chartDefaults')
+const { mergeChartSettings: mergeChartSettingsReal, CHART_DEFAULTS } = await import('../../chartDefaults')
+const mergeChartSettings = (x) => mergeChartSettingsReal(
+  typeof x === 'string' ? JSON.stringify(noDefaultAverages(JSON.parse(x))) : noDefaultAverages(x))
 const { computePaneLayout, __setPaneModeForTest } = await import('../paneLayout')
 const { migrateLegacyToInstances } = await import('../instances')
 const { uctDefaultChartSettings } = await import('../../../../pages/charts/ChartsWorkspace')
@@ -187,7 +192,10 @@ const drawStored = (json) => render(
 )
 const onScale = (id) => H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === id)
 const bbLines = () => H.addSeriesCalls.filter(c => c.options && c.options.color === BB_COLOUR)
-const bound = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
+const boundAll = () => (H.binderApis[0] ? H.binderApis[0].bindings() : [])
+// ⭐ 2026-09-28 — a real stored blob's averages are ENGINE-drawn now (`maAdoption.js`);
+// this file's pins are about the fourteen flipped indicators, so it counts the rest.
+const bound = () => boundAll().filter(b => b.defId !== 'movingAverage')
 const bands = () => H.syncCalls.at(-1).paneMargins
 
 /** The bands the layout reserves for the instances THIS STORED BLOB projects to.
@@ -254,8 +262,10 @@ describe('the blob shapes themselves — without these the cases below prove not
     // carrying their stored inputs, and the mirror is DESTROYED.
     const merged = mergeChartSettings(JSON.stringify(JULY_BLOB))
     expect(merged.settingsVersion).toBe(2)
-    expect(merged.indicatorInstances.map(i => i.defId)).toEqual(['rsi', 'bb'])
-    expect(merged.indicatorInstances[0].inputs).toEqual({ period: 14, color: '#7b68ee' })
+    // ⭐ 2026-09-28 — its four `cs.overlays` averages are adopted as `ovl:<i>`
+    // instances too (`maAdoption.js`); the FOLD's answer is the two below.
+    expect(withoutAdopted(merged.indicatorInstances).map(i => i.defId)).toEqual(['rsi', 'bb'])
+    expect(withoutAdopted(merged.indicatorInstances)[0].inputs).toEqual({ period: 14, color: '#7b68ee' })
     expect(Object.keys(merged.indicators)).toEqual(['volumeProfile'])
   })
 
@@ -463,7 +473,7 @@ describe('⭐ the blob the FROZEN TEMPLATE writes — "UCT Default" and "New Lay
     // still false" — B5 Task 4 deleted the flag, so there is no stamp and no flag,
     // and the reason this passes is the same one it always was.)
     const cs = mergeChartSettings(uctDefaultChartSettings())
-    expect(cs.indicatorInstances, 'the template arrives with an indicator on').toEqual([])
+    expect(withoutAdopted(cs.indicatorInstances), 'the template arrives with an indicator on').toEqual([])
     const next = setIndicatorEnabled(cs, 'rsi', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(onScale('rsi'), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)
@@ -562,7 +572,7 @@ describe('⭐ a stored blob with MACD ON — three plots, one band, after the fl
 
   it('…and a user who TICKS MACD on the frozen template gets three lines', () => {
     const cs = mergeChartSettings(uctDefaultChartSettings())
-    expect(cs.indicatorInstances, 'the capture changed').toEqual([])
+    expect(withoutAdopted(cs.indicatorInstances), 'the capture changed').toEqual([])
     const next = setIndicatorEnabled(cs, 'macd', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
     expect(onScale('macd'), 'the checkbox is ticked and the band is empty').toHaveLength(3)
@@ -628,7 +638,7 @@ describe('⭐ a stored blob with VWAP ON — the INTRADAY shape', () => {
 
   it('…and a user who TICKS VWAP on the frozen template gets a line', () => {
     const cs = mergeChartSettings(uctDefaultChartSettings())
-    expect(cs.indicatorInstances, 'the capture changed').toEqual([])
+    expect(withoutAdopted(cs.indicatorInstances), 'the capture changed').toEqual([])
     const next = setIndicatorEnabled(cs, 'vwap', true, engineRegistry)
     render(<StockChart sym="AAPL" tf="5" barsOverride={INTRADAY} settingsOverride={next} />)
     expect(cyan(), 'the checkbox is ticked and there is no line on the chart').toHaveLength(1)

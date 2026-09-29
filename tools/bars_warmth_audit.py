@@ -59,6 +59,23 @@ def pct_of(sorted_vals, q):
     return sorted_vals[min(len(sorted_vals) - 1, int(len(sorted_vals) * q))]
 
 
+#: TERM-012 (b): every printed percentile names WHICH quantity it is. The number
+#: this tool times is CLIENT WALL-CLOCK around one GET, so it includes TLS,
+#: Cloudflare and the network, while the response's `Server-Timing dur` does not.
+#: "Neither is wrong ... what is wrong is that the gate does not name one."
+#: ⚠️ `pct_of` is NOT `flow_router._diag_percentile`: at n=40, q=0.95 this picks
+#: index 38 (second largest) and that one picks index 37. Kept deliberately — a
+#: changed formula would break comparison with every p95 already recorded.
+QUANTITY = "client wall-clock ms (incl. TLS/CDN/network; not Server-Timing dur)"
+
+
+def pct_line(label, sorted_vals, qs=(0.50, 0.95), extra=""):
+    """One percentile line that always carries its n and its quantity."""
+    parts = " ".join(f"p{int(q * 100)}={pct_of(sorted_vals, q):.0f}" for q in qs)
+    tail = f", {extra}" if extra else ""
+    return f"  {label} {parts} (n={len(sorted_vals)}{tail}; {QUANTITY})"
+
+
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 
@@ -149,9 +166,8 @@ def main():
             # share printed beside it so a pass cannot be bought by serving stale.
             nowait = sorted(warm_ms + stale_ms)
             if nowait:
-                print(f"  no-wait latency p50={pct_of(nowait, 0.50):.0f}ms "
-                      f"p95={pct_of(nowait, 0.95):.0f}ms   "
-                      f"(n={len(nowait)}, of which stale-served={len(stale_ms)})")
+                print(pct_line("no-wait latency", nowait,
+                               extra=f"of which stale-served={len(stale_ms)}"))
             else:
                 # ⛔ NEVER SILENT. The old code was `if warm_ms:` with no else, so an
                 # empty warm set printed NOTHING and a reader took the next line —
@@ -163,9 +179,7 @@ def main():
                       "the COLD line below as a p95.")
             if cold_ms:
                 cold_ms.sort()
-                print(f"  COLD latency p50={pct_of(cold_ms, 0.50):.0f}ms "
-                      f"p95={pct_of(cold_ms, 0.95):.0f}ms max={cold_ms[-1]:.0f}ms "
-                      f"(n={len(cold_ms)})")
+                print(pct_line("COLD latency", cold_ms, extra=f"max={cold_ms[-1]:.0f}"))
                 print(f"  cold symbols: {', '.join(cold_syms[:25])}")
     return 0
 

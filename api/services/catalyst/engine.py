@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 from typing import Optional
 
+from api.services.a8_taxonomy import CATALYST_TAG
 from api.services.catalyst import (
     curator,
     filters,
@@ -262,7 +263,7 @@ def _fire_catalyst_alerts(top_n: list[dict], market_date: str) -> int:
             if not store.try_record_alert(user_id, ticker, market_date):
                 continue
 
-            tag = c.get("tag", "Catalyst")
+            tag = c.get("tag", CATALYST_TAG.CATALYST)
             gap = c.get("gap_pct") or 0.0
             thesis = (c.get("thesis_text") or "")[:300]
             title = f"📰 Catalyst: ${ticker} ({tag})"
@@ -372,7 +373,7 @@ def _fire_mustknow_alerts(displayed: list[dict], market_date: str) -> int:
                     user_id, store.mustknow_dedup_key(ticker), market_date):
                 continue
             grade = (c.get("grade") or "").upper()
-            ctype = c.get("catalyst_type") or c.get("tag") or "Catalyst"
+            ctype = c.get("catalyst_type") or c.get("tag") or CATALYST_TAG.CATALYST
             gap = c.get("gap_pct") or 0.0
             thesis = (c.get("thesis_text") or "")[:300]
             title = f"🚨 Must-know {grade}: ${ticker} ({ctype})"
@@ -431,7 +432,7 @@ def _enrich_top_3_with_deep_context(top_12: list[dict]) -> None:
         if tweet_count > 5 and rss_count > 2:
             continue
 
-        tag = c.get("tag") or "Catalyst"
+        tag = c.get("tag") or CATALYST_TAG.CATALYST
         query = (
             f"Provide deep context on ${ticker} for a professional swing "
             f"trader. The stock is moving today with a '{tag}' tag. Cover: "
@@ -607,7 +608,7 @@ def _enrich_earnings_with_perplexity(candidates: list[dict]) -> None:
         return
 
     for c in candidates:
-        if c.get("tag") != "Earnings":
+        if c.get("tag") != CATALYST_TAG.EARNINGS:
             continue
         ticker = c.get("ticker")
         if not ticker:

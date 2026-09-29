@@ -1,0 +1,82 @@
+{
+  "_readme": [
+    "TERM-075 / FB-A8-01. Cashtag grammars in product Python that are NOT M5's grammar",
+    "(a8Taxonomy.json cashtag.pattern). Each is a different grammar with its own owner and",
+    "ruling, recorded rather than unified: unifying them would change member-visible matching.",
+    "tests/test_a8_taxonomy.py fails BY NAME on a grammar not listed here, and on a listed one",
+    "that no longer exists (this file may only shrink). A byte-copy of M5's grammar is never",
+    "allowed here - it fails its own rail."
+  ],
+  "grammars": [
+    {
+      "path": "api/routers/ai_search.py",
+      "pattern": "\\$([A-Za-z]{1,5}(?:[.\\-][A-Za-z])?)(?![A-Za-z])|\\b([A-Za-z]{2,5})\\b",
+      "reason": "AI Search query parser: class-share suffix and a bare-word alternative in one pass over a member's question; a query grammar, not M5's ingest grammar."
+    },
+    {
+      "path": "api/services/ai_search_briefings.py",
+      "pattern": "\\[([^\\]]+)\\]\\(\\$[A-Za-z][A-Za-z.\\-]{0,6}\\)",
+      "reason": "Markdown ticker-link grammar [label]($SYM) the briefing renderer emits and strips; a link syntax, not a cashtag scan."
+    },
+    {
+      "path": "api/services/ai_search_log.py",
+      "pattern": "\\[[^\\]]+\\]\\(\\$([A-Za-z][A-Za-z.\\-]{0,6})\\)|\\$([A-Z]{1,5}(?:\\.[A-Z])?)\\b",
+      "reason": "Answer-log parsers: markdown ticker links plus class-share cashtags in model answers; tied to the answer format, not to M5."
+    },
+    {
+      "path": "api/services/ai_search_log.py",
+      "pattern": "\\[([^\\]]+)\\]\\(\\$[A-Za-z][A-Za-z.\\-]{0,6}\\)",
+      "reason": "Answer-log parsers: markdown ticker links plus class-share cashtags in model answers; tied to the answer format, not to M5."
+    },
+    {
+      "path": "api/services/buzz_extract.py",
+      "pattern": "(?<![A-Za-z0-9])\\$([A-Za-z]{1,6}(?:[.-][A-Za-z]{1,2})?)\\b",
+      "reason": "Discord /buzz tier-1 cashtag: mixed case, 1-6 letters, class-share suffix, left boundary; owner recall ruling 2026-09-02. Different grammar on purpose."
+    },
+    {
+      "path": "api/services/catalyst/sources.py",
+      "pattern": "\\$([A-Z]{1,5})\\b|\\b([A-Z]{2,5})\\b",
+      "reason": "Perplexity prose extraction: cashtag OR bare 2-5 letter uppercase word in one alternation, filtered downstream; a composite, not M5's cashtag scan."
+    },
+    {
+      "path": "api/services/journal_two/ask_retrieval.py",
+      "pattern": "\\$[A-Za-z][A-Za-z.\\-]{0,5}|\\b[A-Z][A-Z.\\-]{1,5}\\b",
+      "reason": "Notebook Ask retrieval: conservative cashtag-or-uppercase token shape over a member's question."
+    },
+    {
+      "path": "api/services/journal_two/note_semantic.py",
+      "pattern": "^\\$[A-Za-z]{1,6}(?:[.\\-][A-Za-z]{1,2})?$|^[A-Z]{2,5}(?:[.\\-][A-Z]{1,2})?$",
+      "reason": "Notebook semantic layer: whole-token ticker shape check (anchored), not a scan of text."
+    },
+    {
+      "path": "api/services/news_catalysts/service.py",
+      "pattern": "\\$([A-Za-z]{1,6})\\b",
+      "reason": "Research news catalysts: mixed-case 1-6 letter cashtag used for extraction and stripping of headline text."
+    },
+    {
+      "path": "api/services/voice_text_normalize.py",
+      "pattern": "\\$([A-Za-z]{1,5})\\b",
+      "reason": "Voice TTS normaliser: rewrites $sym for speech; a substitution, not ticker attribution."
+    },
+    {
+      "path": "api/services/wisdom/extract/segmenter.py",
+      "pattern": "\\$([A-Za-z]{1,5})\\b",
+      "reason": "Wisdom segmenter: mixed-case cashtag over published Substack text (wisdom program scope)."
+    },
+    {
+      "path": "api/services/wisdom/publish/adapters/voice.py",
+      "pattern": "\\$[A-Z]{1,5}\\b|\\b[A-Z]{2,5}\\b",
+      "reason": "Wisdom voice adapter: cashtag-or-uppercase token shape for publish-time checks (wisdom program scope)."
+    },
+    {
+      "path": "tools/buzz_audit_extraction.py",
+      "pattern": "\\$([A-Za-z]{1,6})\\b",
+      "reason": "Offline audit tool that measures buzz_extract's recall against a naive cashtag baseline; the naive grammar is the control."
+    },
+    {
+      "path": "tools/wisdom/null_screens.py",
+      "pattern": "\\$[A-Za-z]{1,6}\\b",
+      "reason": "Offline wisdom null-screen tool; a measurement grammar, not a product path."
+    }
+  ]
+}

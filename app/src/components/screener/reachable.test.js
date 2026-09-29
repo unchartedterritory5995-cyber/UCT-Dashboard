@@ -744,6 +744,11 @@ const AWAITING_A_DECISION = {
     'TERM-006 age authority — the ruling plus its rails, landed with NO '
     + 'consumer BY DECISION; adoption is TERM-059. Wire it, or delete it; do '
     + 'not leave it looking shipped.',
+  // (A "TERM-035 MARKET CALENDAR AUTHORITY — STAGED, NOT YET READ" block stood
+  // here from 2026-09-28 until TERM-035 follow-up #1 the same day, parking
+  // `app/src/lib/marketClock/sessionCalendar.js`. `nyseCalendar.js` now derives
+  // its tables from it, so it is reached through `marketClock.js` like every
+  // other clock reader; the block and its expiry were deleted in that commit.)
   }
 
 /**

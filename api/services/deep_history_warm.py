@@ -152,8 +152,9 @@ def _build_ticker_list() -> list[str]:
 
     # Theme holdings (the Theme Tracker navigation surface).
     try:
-        tax_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "themes_taxonomy.json")
-        if os.path.exists(tax_path):
+        from api.services import a8_taxonomy  # TERM-075: the one locator of the taxonomy file
+        tax_path = a8_taxonomy.themes_taxonomy_path()
+        if tax_path:
             with open(tax_path) as f:
                 tax = json.load(f)
 

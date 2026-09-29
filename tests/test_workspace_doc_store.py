@@ -470,7 +470,33 @@ def _versions() -> list[int]:
 
 
 def test_the_retention_policy_is_the_owners_decision():
-    assert (wds.RETAIN_DAYS, wds.RETAIN_NEWEST) == (30, 200)
+    assert (wds.RETAIN_DAYS, wds.RETAIN_NEWEST, wds.RETAIN_CEILING) == (30, 200, 2000)
+    assert wds.RETAIN_NEWEST <= wds.RETAIN_CEILING
+
+
+def test_the_ceiling_bounds_what_the_window_keeps(armed):
+    # Twelve versions, every one INSIDE the 30-day window: the window alone would keep them all.
+    for i in range(12):
+        _write_at(armed, T0 - DAY + i, f"v{i}")
+    res = wds.prune_versions(USER, BOARD, T0, retain_newest=3, retain_ceiling=5)
+    assert res["pruned"] == [1, 2, 3, 4, 5, 6, 7]
+    assert _versions() == [8, 9, 10, 11, 12]
+    # Control: without the ceiling the same window keeps everything, so the ceiling did that.
+    for i in range(3):
+        _write_at(armed, T0 + i, f"w{i}")
+    assert wds.prune_versions(USER, BOARD, T0 + 10, retain_newest=3, retain_ceiling=10_000)["pruned"] == []
+
+
+def test_the_ceiling_never_removes_a_protected_version(armed):
+    armed.t = T0 - DAY
+    wds.write(USER, BOARD, doc(charts_theme="a"), base_version=0)          # v1  <- restored later
+    for i in range(6):
+        h = wds.head(USER, BOARD)
+        wds.write(USER, BOARD, doc(charts_theme=f"b{i}"), base_version=h["version"])  # v2..v7
+    wds.restore(USER, BOARD, 1, base_version=7)                            # v8  restored_from=1
+    res = wds.prune_versions(USER, BOARD, T0, retain_newest=1, retain_ceiling=2)
+    assert 1 in res["protected"] and 1 in _versions()
+    assert res["pruned"] == [2, 3, 4, 5, 6]
 
 
 def test_the_30_day_window_keeps_a_version_exactly_30_days_old(armed):

@@ -75,7 +75,8 @@ import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/i
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
 // flag rather than a splice.
-import { liveOverlays, isVolumeRemoved, isOverlayRemoved, newOverlay } from './chartDefaults'
+import { liveOverlays, isVolumeRemoved, newOverlay } from './chartDefaults'
+import { revivableSlotIndex, reviveSlot } from './maAdoption'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
@@ -146,12 +147,14 @@ export function toggledRow(row, settings, registry) {
   // predict. Removal of a SPECIFIC moving average already has a precise door: the
   // ✕ on its own row in the active list, which names the one you are looking at.
   if (row.builtIn === 'overlay') {
+    // ⭐ 2026-09-28 — a restored slot is re-adopted as its `movingAverage`
+    // instance (`maAdoption.reviveSlot`), and a NEW one is appended as a live slot
+    // the same fold turns into an instance. Either way the chart gets an instance.
     const list = Array.isArray(settings?.overlays) ? settings.overlays : []
-    const revive = list.findIndex(isOverlayRemoved)
-    const overlays = revive >= 0
-      ? list.map((o, i) => (i === revive ? { ...o, removed: false, enabled: true } : o))
-      : [...list, newOverlay(list.length)]
-    return { ...settings, overlays }
+    const revive = revivableSlotIndex(settings)
+    return revive >= 0
+      ? reviveSlot(settings, revive)
+      : { ...settings, overlays: [...list, newOverlay(list.length)] }
   }
   // ⛔ THE VOLUME PANE FLIPS `removed`, NEVER `visible`. `visible` is the hide
   // toggle the member already has on the row and in three other menus; writing it
@@ -170,6 +173,15 @@ export function toggledRow(row, settings, registry) {
       },
     }
   }
+  // ⭐⭐ AN ADD-ONLY DEFINITION IS NEVER SWITCHED OFF FROM HERE (2026-09-28). The
+  // Moving Average is where the member's default averages live now (`maAdoption.js`),
+  // and "off" for a DEFINITION tombstones EVERY live instance of it — one click on
+  // an active row would take EMA 9, EMA 20, SMA 50 and SMA 200 off the chart with
+  // it. It inherits the legacy MA row's rule stated above: a chart holds many, so
+  // there is no single thing for "off" to mean, and removing a specific one has a
+  // precise door (its own row). So the row ADDS, on or not.
+  const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
+  if (def && def.meta && def.meta.addOnly === true) return addInstance(settings, row.id, registry)
   return setIndicatorEnabled(settings, row.id, !on, registry)
 }
 

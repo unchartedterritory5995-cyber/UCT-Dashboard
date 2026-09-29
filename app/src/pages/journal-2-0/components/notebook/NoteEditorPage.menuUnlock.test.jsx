@@ -134,6 +134,7 @@ async function renderLockedEditorWithMenu() {
 /** The MENU's own Unlock button, scoped to its group so it is never
  *  confused with the editor's own inline Unlock button (both render here). */
 async function unlockViaMenu(editor) {
+  fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))   // K2 (D-3)
   const menu = screen.getByRole('group', { name: 'Organise this note' })
   fireEvent.click(within(menu).getByRole('button', { name: 'Unlock' }))
   await waitFor(() => expect(editor.isEditable).toBe(true))
@@ -184,6 +185,7 @@ describe('N-a (wave 6 fix round 3, from M2) — a FAILED menu Unlock reads as fa
     })
     const editor = await renderLockedEditorWithMenu()
 
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))   // K2 (D-3)
     const menu = screen.getByRole('group', { name: 'Organise this note' })
     fireEvent.click(within(menu).getByRole('button', { name: 'Unlock' }))
 

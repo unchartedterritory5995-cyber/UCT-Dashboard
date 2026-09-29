@@ -44,6 +44,7 @@ from api.services.journal_two import (
     coach as coach_service,
     coach_chat as coach_chat_service,
     community as community_service,
+    compass_daily_caps,
     csv_import as csv_import_service,
     discipline as discipline_service,
     note_trade_links,
@@ -307,6 +308,14 @@ def _require_compass_enabled(user_id: str, account_id: str) -> None:
         raise HTTPException(status_code=404, detail="Account not found")
     if not settings_check.get("compassEnabled", True):
         raise HTTPException(status_code=403, detail="Compass is disabled for this account")
+
+
+def _take_compass_door(door, user_id: str) -> None:
+    """Charge one use of a per-member daily Compass ceiling
+    (`compass_daily_caps`), or refuse with 429 and the door's sentence. A
+    counter that cannot be read admits (fails open)."""
+    if not compass_daily_caps.take(door, user_id):
+        raise HTTPException(status_code=429, detail=door.sentence)
 
 
 def _reject_unified_for_per_trade(account_id: str) -> None:
@@ -3264,6 +3273,16 @@ async def _ask_stream(user: dict, scope: str, target: str | None,
             status_code=429,
             detail="You've hit today's Ask limit — it resets at midnight ET.",
         )
+    # TERM-078: the population-wide daily cap, AFTER the member's own
+    # reservation (so a member over their own allowance never spends the
+    # membership's). Off unless AI_POPULATION_CAP_MODE is set; on an enforce
+    # refusal the member's question is given back and the refusal NAMES the
+    # shared cap -- never the member's own "today's Ask limit" sentence.
+    from api.services import ai_population_cap
+    _pop_refusal = await run_in_threadpool(ai_population_cap.admit, "notebook_ask")
+    if _pop_refusal:
+        await run_in_threadpool(note_ask.refund_ask, user_id, day=day)
+        raise HTTPException(status_code=429, detail=_pop_refusal)
     # The daily cap bounds spend over a day; this bounds what one member can
     # hold open at once. Claimed AFTER the reservation so the failure path has
     # exactly one thing to undo.
@@ -4594,11 +4613,14 @@ def regenerate_coach_weekly_review(
     review_id: str,
     user: dict = Depends(get_current_user),
 ):
+    _require_compass_enabled(user["id"], account_id)
     existing = coach_service.get_weekly_review(review_id=review_id, user_id=user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Review not found")
     # week_start lives inside the metadata JSON blob
     week_start = (existing.get("metadata") or {}).get("week_start") or _most_recent_closed_monday()
+    # Charged BEFORE the forget below, so a refusal never drops the review.
+    _take_compass_door(compass_daily_caps.WEEKLY_REVIEW_REGENERATE, user["id"])
     # v1: forget the existing, then regenerate. Caller treats as replacement.
     coach_service.forget_review(review_id=review_id, user_id=user["id"])
     try:
@@ -4696,6 +4718,7 @@ def regenerate_coach_eod_recap(
     if not existing:
         raise HTTPException(status_code=404, detail="Recap not found")
     day = (existing.get("metadata") or {}).get("day")
+    _take_compass_door(compass_daily_caps.EOD_RECAP_REGENERATE, user["id"])
     coach_service.forget_review(review_id=recap_id, user_id=user["id"])
     try:
         return coach_service.generate_eod_recap(
@@ -4961,9 +4984,12 @@ def pre_trade_verdict(
     from api.services.journal_two import pre_trade_verdict as ptv_service
     _reject_unified_for_per_trade(account_id)
     _require_compass_enabled(user["id"], account_id)
-    return ptv_service.generate_verdict(
-        user_id=user["id"], account_id=account_id, params=payload or {},
-    )
+    try:
+        return ptv_service.generate_verdict(
+            user_id=user["id"], account_id=account_id, params=payload or {},
+        )
+    except ptv_service.VerdictLimitReached as e:
+        raise HTTPException(status_code=429, detail=str(e))
 
 
 # ── Trade Reviews (Per-Trade Post-Mortem) ────────────────────────────────────
@@ -5018,6 +5044,7 @@ def regenerate_trade_review(
     existing = tr.get_review(review_id, user_id=user["id"])
     if not existing:
         raise HTTPException(status_code=404, detail="Review not found")
+    _take_compass_door(compass_daily_caps.TRADE_REVIEW_REGENERATE, user["id"])
     return tr.generate_review(
         user_id=user["id"], account_id=account_id,
         trade_id=existing["trade_id"], regenerate=True,

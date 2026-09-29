@@ -13,6 +13,7 @@ import { formatET } from '../utils/timeAgo'
 import TickerPopup from '../components/TickerPopup'
 import UIcon from '../components/ui/UIcon'
 import styles from './CatalystsHistory.module.css'
+import { CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : { rows: [] }))
 
@@ -42,13 +43,16 @@ function fmtPrice(v) {
   return `$${v.toFixed(2)}`
 }
 
+// Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
+const TAG_CLASS = keyedBy(CATALYST_TAGS, {
+  Catalyst: styles.tagCatalyst,
+  Earnings: styles.tagEarnings,
+  Gapper: styles.tagGapper,
+  News: styles.tagNews,
+})
+
 function TagChip({ tag }) {
-  const cls = {
-    Catalyst: styles.tagCatalyst,
-    Earnings: styles.tagEarnings,
-    Gapper: styles.tagGapper,
-    News: styles.tagNews,
-  }[tag] || styles.tagDefault
+  const cls = TAG_CLASS[tag] || styles.tagDefault
   return <span className={`${styles.tag} ${cls}`}>{tag || '—'}</span>
 }
 

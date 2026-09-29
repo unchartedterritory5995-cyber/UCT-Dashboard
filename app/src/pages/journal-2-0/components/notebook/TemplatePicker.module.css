@@ -155,3 +155,34 @@
     min-height: var(--tap-min);
   }
 }
+
+/* Wave 10 lane D2 (design finding D-4): each built-in card previews the first
+   lines of the note it makes (templatePreview, from the template's own build()),
+   drawn as a small page: a left rule, headings a shade brighter than body lines.
+   The card stretches so a row of previews lines up. */
+.grid > .card {
+  height: 100%;
+}
+.cardPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-self: stretch;
+  margin-top: 6px;
+  padding: 6px 0 2px 9px;
+  border-left: 2px solid var(--border);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  overflow: hidden;
+}
+.previewLine {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.preview_heading {
+  color: var(--text);
+  font-weight: 600;
+}

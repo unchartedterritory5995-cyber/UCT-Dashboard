@@ -770,9 +770,17 @@ function listCarvedOutIndicators(settings) {
  *  themselves — a control that does nothing and says nothing, which is the
  *  exact class `VOLUME_PANE_SURFACE_FIXED` exists to end. */
 export function listAllIndicators(settings, registry, opts = {}) {
+  // ⭐ 2026-09-28 — THE ADOPTED AVERAGES LIST WHERE THEIR OVERLAY ROWS DID. A default
+  // average is the instance `ovl:<i>` now (`maAdoption.js`); its row is the direct
+  // successor of the `overlay-<i>` row, so it keeps that row's place — first,
+  // above Volume — rather than dropping below it with the other engine rows.
+  const engine = listEngineIndicators(settings, registry)
+  const adopted = engine.filter((r) => typeof r.instanceId === 'string' && /^ovl:\d+$/.test(r.instanceId))
+  const rest = engine.filter((r) => !adopted.includes(r))
   return [
+    ...adopted,
     ...listIndicators(settings, opts),
-    ...listEngineIndicators(settings, registry),
+    ...rest,
     ...listCarvedOutIndicators(settings),
   ]
 }

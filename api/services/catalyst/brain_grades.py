@@ -68,11 +68,17 @@ def _infer_setup(c: dict) -> str | None:
     gap_f = float(gap) if isinstance(gap, (int, float)) else 0.0
 
     # 1. Scanner already named a bucket — most reliable signal.
+    #    ⛔ EXCEPT that a gapper bucket does not know WHY the name gapped: an
+    #    earnings gapper is a Power Earnings Gap, and the EP label is
+    #    prohibited on it (TERM-090). Before this, a GAPPER bucket won ahead of
+    #    the earnings check and an earnings gapper was graded as an EP.
     setup = c.get("scanner_setup")
     if setup:
         st = (setup.get("setup_type") or "").upper()
         for key, name in _SCANNER_SETUP_MAP.items():
             if key in st:
+                if name == "Episodic Pivot" and c.get("earnings_just_reported"):
+                    return "Power Earnings Gap"
                 return name
 
     # 2. Earnings gap-up = Power Earnings Gap (the accurate name; if the firm

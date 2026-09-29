@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -7,6 +8,10 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
+// TERM-079 — the board's typed context channels (list-ref, symbol-set, range, …).
+// A SEPARATE, never-changing context beside WorkspaceContext: its value is one store
+// created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
+import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
 import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
@@ -192,7 +197,9 @@ function forceNewChartDefaults(settings) {
   if (!settings || typeof settings !== 'object') return settings
   const s = { ...settings }
   // SMA5 off the chart AND its legend (the legend derives from enabled overlays).
-  if (Array.isArray(s.overlays)) s.overlays = s.overlays.filter(o => !(o && o.type === 'SMA' && Number(o.period) === 5))
+  // ⭐ An adopted SMA 5 is an INSTANCE (`maAdoption.js`): `dropAverages` removes the
+  // legacy slot as before AND tombstones the instance, so it leaves the chart too.
+  Object.assign(s, dropAverages(s, (v) => v.type === 'SMA' && Number(v.period) === 5))
   s.watermark = { ...(s.watermark || {}), sizeScale: 1.25, weight: 500 }   // 125% + medium
   s.swingLabels = { ...(s.swingLabels || {}), enabled: false }             // swing prices off
   const h = s.header || {}
@@ -2473,6 +2480,7 @@ export default function ChartsWorkspace() {
     // the provider so widgets keep color-group ticker linking. Grid mode
     // renders as a vertically stacked cell list (its own @media CSS).
     return (
+      <ContextChannelsProvider>
       <WorkspaceContext.Provider value={workspaceValue}>
         {gridMode ? (
           <div className={styles.workspace} data-charts-theme={chartsTheme} style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -2521,6 +2529,7 @@ export default function ChartsWorkspace() {
           />
         )}
       </WorkspaceContext.Provider>
+      </ContextChannelsProvider>
     )
   }
 
@@ -2700,6 +2709,7 @@ export default function ChartsWorkspace() {
   }
 
   return (
+    <ContextChannelsProvider>
     <WorkspaceContext.Provider value={workspaceValue}>
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
@@ -3076,5 +3086,6 @@ export default function ChartsWorkspace() {
         )}
       </div>
     </WorkspaceContext.Provider>
+    </ContextChannelsProvider>
   )
 }

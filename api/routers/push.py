@@ -15,7 +15,17 @@ try:
 except Exception:  # pragma: no cover
     chart_health_alerts = None
 
-router = APIRouter()
+router = APIRouter()
+
+def _bearer_ok(secret: str, authorization) -> bool:
+    """`Authorization: Bearer <PUSH_SECRET>`, compared in constant time. A blank
+    secret admits nobody (it used to be the caller's `not secret` check, kept
+    here so the four endpoints cannot drift apart)."""
+    import hmac
+    if not secret or not isinstance(authorization, str):
+        return False
+    return hmac.compare_digest(authorization.encode(), f"Bearer {secret}".encode())
+
 
 INVALIDATE_KEYS = [
     "wire_data", "breadth", "themes_1W", "themes_1M", "themes_3M", "themes_Today",
@@ -107,13 +117,23 @@ def push_wire_data(
     Persists to /data/wire_data.json (Railway volume) so cache survives redeploys.
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     for key in INVALIDATE_KEYS:
         cache.invalidate(key)
 
     cache.set("wire_data", payload, ttl=82800)  # 23 hours
+
+    # TERM-082: `/api/earnings` serves its last-good list while one refresh
+    # runs. The "earnings" invalidation above changed the answer, so kick that
+    # refresh NOW (it reads the wire just stored) instead of leaving the
+    # pre-push list to be served until some reader notices. Never blocks.
+    try:
+        from api.routers import earnings as _earnings_router
+        _earnings_router.on_wire_push()
+    except Exception:
+        logger.exception("[push] earnings refresh kick failed (push unaffected)")
 
     # Taxonomy handshake — warn when the wire ran on a different taxonomy
     # version than this dashboard has seeded (never blocks the push).
@@ -129,6 +149,15 @@ def push_wire_data(
             json.dump(payload, f)
     except OSError:
         pass  # Volume not mounted in local dev — safe to ignore
+
+    # TERM-089: keep a dated copy of what members were served, so a past
+    # morning can be replayed. The live file above is overwritten daily; this
+    # is the only pod-side history. Never blocks the push.
+    try:
+        from api.services import wire_archive
+        wire_archive.record(payload)
+    except Exception:
+        logger.exception("[push] wire archive write failed (push unaffected)")
 
     # Record UCT20 composition snapshot (for portfolio NAV tracking)
     try:
@@ -160,6 +189,32 @@ def push_wire_data(
     return {"ok": True, "date": payload.get("date", "")}
 
 
+@router.post("/api/push/archive")
+def push_wire_archive(
+    payload: dict,
+    authorization: Optional[str] = Header(None),
+):
+    """TERM-089 backfill: archive a PAST wire without touching the live cache.
+
+    For the dated snapshots already on the engine PC
+    (`morning-wire/data/snapshots/wire_<date>.json`), which predate the push
+    recording its own history. Same PUSH_SECRET as `/api/push`. It never
+    overwrites a date a push already recorded -- what members were served on
+    the day is the record -- and it never invalidates or writes a cache key."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not _bearer_ok(secret, authorization):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services import wire_archive
+    try:
+        day = wire_archive.parse_date((payload or {}).get("date"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="payload.date must be YYYY-MM-DD")
+    if not isinstance(payload.get("rundown_html"), str) or not payload["rundown_html"]:
+        raise HTTPException(status_code=422, detail="payload.rundown_html is required")
+    stored = wire_archive.record(payload, overwrite=False)
+    return {"ok": True, "date": day, "stored": stored}
+
+
 @router.post("/api/push/intraday")
 def push_intraday(
     payload: dict,
@@ -175,7 +230,7 @@ def push_intraday(
         session_notes: str (Claude's session commentary)
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     # Store as separate cache key — never overwrites wire_data
@@ -225,7 +280,7 @@ def export_journal_for_brain(
         user_email: filter by user email (default: first admin user)
     """
     secret = os.environ.get("PUSH_SECRET", "")
-    if not secret or authorization != f"Bearer {secret}":
+    if not _bearer_ok(secret, authorization):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     from api.services.journal_two import trades as j2_trades

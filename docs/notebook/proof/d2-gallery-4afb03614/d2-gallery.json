@@ -1,0 +1,590 @@
+{
+ "tip": "4afb03614",
+ "instrument": "d2_gallery_capture.py",
+ "data_dir": "C:/data-w10d2",
+ "started": "2026-09-28T13:13:47-0500",
+ "rows": [
+  {
+   "viewport": "1200x800",
+   "dialog": {
+    "open": true,
+    "name": "New note",
+    "modal": "true",
+    "cards": [
+     {
+      "key": "daily-prep",
+      "name": "Daily Game Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Overnight & premarket",
+       "Index futures, notable gaps, news, and earnings that matter for today."
+      ],
+      "box": {
+       "top": 286,
+       "left": 257,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "post-market-debrief",
+      "name": "Post-Market Debrief",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The morning plan said",
+       "No game plan found for today \u2014 write one tomorrow before the open.",
+       "Today's trades"
+      ],
+      "box": {
+       "top": 286,
+       "left": 487,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "weekly-plan",
+      "name": "Weekly Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Market context",
+       "Regime, breadth, leading themes, and the level of the major indexes goi\u2026"
+      ],
+      "box": {
+       "top": 286,
+       "left": 716,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "weekly-review",
+      "name": "Weekly Review",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The numbers",
+       "\u2022 Trades / wins / losses: \u2014",
+       "\u2022 Net R: \u2014"
+      ],
+      "box": {
+       "top": 458,
+       "left": 257,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "thesis",
+      "name": "Long/Short Thesis",
+      "family": "Thesis & research",
+      "preview": [
+       "Bull case",
+       "The strongest case for this thesis being right.",
+       "Bear case"
+      ],
+      "box": {
+       "top": 661,
+       "left": 257,
+       "w": 222,
+       "h": 192
+      }
+     },
+     {
+      "key": "trade-review",
+      "name": "Trade Post-Mortem",
+      "family": "Around a trade",
+      "preview": [
+       "What was the setup?",
+       "Name the pattern and the market context. Why did this trade earn a plac\u2026",
+       "Entry & thesis"
+      ],
+      "box": {
+       "top": 893,
+       "left": 257,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "swing-log",
+      "name": "Swing Position Log",
+      "family": "Around a trade",
+      "preview": [
+       "The position",
+       "\u2022 Ticker / side / size: \u2014",
+       "\u2022 Entry: \u2014"
+      ],
+      "box": {
+       "top": 893,
+       "left": 487,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "earnings-play",
+      "name": "Earnings Play Plan",
+      "family": "Around a trade",
+      "preview": [
+       "The report",
+       "\u2022 Date / before or after the bell: \u2014",
+       "\u2022 Expected move: \u2014"
+      ],
+      "box": {
+       "top": 893,
+       "left": 716,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "tilt-log",
+      "name": "Tilt Log",
+      "family": "Mindset",
+      "preview": [
+       "What happened",
+       "The mistake, named",
+       "FOMO \u00b7 chased \u00b7 oversized \u00b7 moved the stop \u00b7 revenge trade \u00b7 early exit\u2026"
+      ],
+      "box": {
+       "top": 1107,
+       "left": 257,
+       "w": 222,
+       "h": 164
+      }
+     }
+    ],
+    "allCards": 11,
+    "docOverflowX": 0
+   },
+   "axe_violations": [],
+   "focus_trap_40_tabs_all_inside": true,
+   "after_two_arrow_rights": {
+    "inside": true,
+    "key": "post-market-debrief",
+    "label": "Post-Market Debrief"
+   },
+   "after_end": {
+    "inside": true,
+    "key": null,
+    "label": "Documenting a setup?Build it in My Playb"
+   },
+   "after_home": {
+    "inside": true,
+    "key": null,
+    "label": "Blank noteAn empty page \u2014 structure it y"
+   },
+   "escape": {
+    "open": false,
+    "focus": "Templates"
+   },
+   "enter_created": {
+    "picked": {
+     "inside": true,
+     "key": "post-market-debrief",
+     "label": "Post-Market Debrief"
+    },
+    "url": "/journal/notebook?note=22b264254ec0470aa4cec0f5bffe6556",
+    "title": "Debrief \u2014 Sep 28"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "820x1180",
+   "dialog": {
+    "open": true,
+    "name": "New note",
+    "modal": "true",
+    "cards": [
+     {
+      "key": "daily-prep",
+      "name": "Daily Game Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Overnight & premarket",
+       "Index futures, notable gaps, news, and earnings that matter for today."
+      ],
+      "box": {
+       "top": 344,
+       "left": 67,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "post-market-debrief",
+      "name": "Post-Market Debrief",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The morning plan said",
+       "No game plan found for today \u2014 write one tomorrow before the open.",
+       "Today's trades"
+      ],
+      "box": {
+       "top": 344,
+       "left": 297,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "weekly-plan",
+      "name": "Weekly Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Market context",
+       "Regime, breadth, leading themes, and the level of the major indexes goi\u2026"
+      ],
+      "box": {
+       "top": 344,
+       "left": 526,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "weekly-review",
+      "name": "Weekly Review",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The numbers",
+       "\u2022 Trades / wins / losses: \u2014",
+       "\u2022 Net R: \u2014"
+      ],
+      "box": {
+       "top": 516,
+       "left": 67,
+       "w": 222,
+       "h": 164
+      }
+     },
+     {
+      "key": "thesis",
+      "name": "Long/Short Thesis",
+      "family": "Thesis & research",
+      "preview": [
+       "Bull case",
+       "The strongest case for this thesis being right.",
+       "Bear case"
+      ],
+      "box": {
+       "top": 719,
+       "left": 67,
+       "w": 222,
+       "h": 192
+      }
+     },
+     {
+      "key": "trade-review",
+      "name": "Trade Post-Mortem",
+      "family": "Around a trade",
+      "preview": [
+       "What was the setup?",
+       "Name the pattern and the market context. Why did this trade earn a plac\u2026",
+       "Entry & thesis"
+      ],
+      "box": {
+       "top": 951,
+       "left": 67,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "swing-log",
+      "name": "Swing Position Log",
+      "family": "Around a trade",
+      "preview": [
+       "The position",
+       "\u2022 Ticker / side / size: \u2014",
+       "\u2022 Entry: \u2014"
+      ],
+      "box": {
+       "top": 951,
+       "left": 297,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "earnings-play",
+      "name": "Earnings Play Plan",
+      "family": "Around a trade",
+      "preview": [
+       "The report",
+       "\u2022 Date / before or after the bell: \u2014",
+       "\u2022 Expected move: \u2014"
+      ],
+      "box": {
+       "top": 951,
+       "left": 526,
+       "w": 222,
+       "h": 175
+      }
+     },
+     {
+      "key": "tilt-log",
+      "name": "Tilt Log",
+      "family": "Mindset",
+      "preview": [
+       "What happened",
+       "The mistake, named",
+       "FOMO \u00b7 chased \u00b7 oversized \u00b7 moved the stop \u00b7 revenge trade \u00b7 early exit\u2026"
+      ],
+      "box": {
+       "top": 1166,
+       "left": 67,
+       "w": 222,
+       "h": 164
+      }
+     }
+    ],
+    "allCards": 11,
+    "docOverflowX": 0
+   },
+   "axe_violations": [],
+   "focus_trap_40_tabs_all_inside": true,
+   "after_two_arrow_rights": {
+    "inside": true,
+    "key": "post-market-debrief",
+    "label": "Post-Market Debrief"
+   },
+   "after_end": {
+    "inside": true,
+    "key": null,
+    "label": "Documenting a setup?Build it in My Playb"
+   },
+   "after_home": {
+    "inside": true,
+    "key": null,
+    "label": "Blank noteAn empty page \u2014 structure it y"
+   },
+   "escape": {
+    "open": false,
+    "focus": "Templates"
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "390x844",
+   "dialog": {
+    "open": true,
+    "name": "New note",
+    "modal": "true",
+    "cards": [
+     {
+      "key": "daily-prep",
+      "name": "Daily Game Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Overnight & premarket",
+       "Index futures, notable gaps, news, and earnings that matter for today."
+      ],
+      "box": {
+       "top": 317,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "post-market-debrief",
+      "name": "Post-Market Debrief",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The morning plan said",
+       "No game plan found for today \u2014 write one tomorrow before the open.",
+       "Today's trades"
+      ],
+      "box": {
+       "top": 472,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "weekly-plan",
+      "name": "Weekly Plan",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "Regime: \u2014",
+       "Market context",
+       "Regime, breadth, leading themes, and the level of the major indexes goi\u2026"
+      ],
+      "box": {
+       "top": 626,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "weekly-review",
+      "name": "Weekly Review",
+      "family": "Daily & weekly rituals",
+      "preview": [
+       "The numbers",
+       "\u2022 Trades / wins / losses: \u2014",
+       "\u2022 Net R: \u2014"
+      ],
+      "box": {
+       "top": 781,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "thesis",
+      "name": "Long/Short Thesis",
+      "family": "Thesis & research",
+      "preview": [
+       "Bull case",
+       "The strongest case for this thesis being right.",
+       "Bear case"
+      ],
+      "box": {
+       "top": 967,
+       "left": 17,
+       "w": 351,
+       "h": 164
+      }
+     },
+     {
+      "key": "trade-review",
+      "name": "Trade Post-Mortem",
+      "family": "Around a trade",
+      "preview": [
+       "What was the setup?",
+       "Name the pattern and the market context. Why did this trade earn a plac\u2026",
+       "Entry & thesis"
+      ],
+      "box": {
+       "top": 1170,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "swing-log",
+      "name": "Swing Position Log",
+      "family": "Around a trade",
+      "preview": [
+       "The position",
+       "\u2022 Ticker / side / size: \u2014",
+       "\u2022 Entry: \u2014"
+      ],
+      "box": {
+       "top": 1324,
+       "left": 17,
+       "w": 351,
+       "h": 164
+      }
+     },
+     {
+      "key": "earnings-play",
+      "name": "Earnings Play Plan",
+      "family": "Around a trade",
+      "preview": [
+       "The report",
+       "\u2022 Date / before or after the bell: \u2014",
+       "\u2022 Expected move: \u2014"
+      ],
+      "box": {
+       "top": 1496,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     },
+     {
+      "key": "tilt-log",
+      "name": "Tilt Log",
+      "family": "Mindset",
+      "preview": [
+       "What happened",
+       "The mistake, named",
+       "FOMO \u00b7 chased \u00b7 oversized \u00b7 moved the stop \u00b7 revenge trade \u00b7 early exit\u2026"
+      ],
+      "box": {
+       "top": 1682,
+       "left": 17,
+       "w": 351,
+       "h": 146
+      }
+     }
+    ],
+    "allCards": 11,
+    "docOverflowX": 0
+   },
+   "axe_violations": [],
+   "focus_trap_40_tabs_all_inside": true,
+   "after_two_arrow_rights": {
+    "inside": true,
+    "key": "post-market-debrief",
+    "label": "Post-Market Debrief"
+   },
+   "after_end": {
+    "inside": true,
+    "key": null,
+    "label": "Documenting a setup?Build it in My Playb"
+   },
+   "after_home": {
+    "inside": true,
+    "key": null,
+    "label": "Blank noteAn empty page \u2014 structure it y"
+   },
+   "escape": {
+    "open": false,
+    "focus": "Templates"
+   },
+   "page_errors": []
+  }
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T13-13-49.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10s2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-28T13-13-49.md",
+  "required": [],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-28 13:13:54",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-28 13:14:39",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-28 13:16:30",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-28 13:16:37",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ }
+}

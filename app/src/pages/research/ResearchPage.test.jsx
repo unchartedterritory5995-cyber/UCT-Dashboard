@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderWithProviders, screen, fireEvent } from '../../test-utils'
 
 // Stable overview data for all renders.
@@ -89,6 +89,26 @@ vi.mock('./hooks/useResearchFlow', () => ({
       window: { start: '9/18/2026', end: '9/23/2026', active_days: 4, days_requested: '5' },
       contract_count: 1,
       contracts: [{ ticker: 'AAPL', cp: 'C', strike: 260, exp: '10/17/2026', dte: 24, premium: 500000, volume: 1200, oi: 3400, voi: 0.4, direction: 'Bull', perf: 12.5 }],
+    },
+    isLoading: false,
+  }),
+}))
+
+// TERM-088: the Decision Record tab's own hook, resolved so
+// ?section=decision-record has positive content (the not-considered state)
+// to assert against synchronously. Ships DARK -- see the describe block at the end.
+vi.mock('./hooks/useDecisionRecord', () => ({
+  default: () => ({
+    result: {
+      ok: true, httpStatus: 200,
+      body: {
+        ticker: 'AAPL', status: 'not_considered', reason: null, rows: [],
+        counts: { rows: 0, issues_considered: 0, issues_passed: 0, issues_dropped: 0, by_stage: {} },
+        coverage: { issues_held: 3, first_issue: '2026-09-21', last_issue: '2026-09-25', span_days: 5, weekdays_in_span: 5, span_months: 0 },
+        paging: { limit: 50, offset: 0, total_rows: 0 },
+        entity: { enabled: false, distinct_entities: null },
+        source: { store: 'uct_intelligence.db', tables: ['wire_universe', 'wire_issues'], pack_installed_at: null },
+      },
     },
     isLoading: false,
   }),
@@ -413,5 +433,38 @@ describe('S7 filing-watch header action (Stage 4, D7 — visible regardless of a
     renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
     fireEvent.click(screen.getByRole('button', { name: /Filing watch suspended/ }))
     expect(filingWatchMock.createOrReactivate).toHaveBeenCalledWith('AAPL')
+  })
+})
+
+// TERM-088 -- the Decision Record tab ships DARK behind
+// DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled on the auth
+// payload). Flag off must leave the page exactly as it was.
+describe('Decision Record tab (TERM-088, dark)', () => {
+  beforeEach(() => { auth.isPaid = true; auth.decisionRecordEnabled = false })
+  afterEach(() => { auth.decisionRecordEnabled = false })
+
+  it('is ABSENT from the strip when the flag is off (the default)', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    expect(screen.queryByRole('button', { name: 'Decision Record' })).not.toBeInTheDocument()
+  })
+
+  it('?section=decision-record falls through to Overview when the flag is off', () => {
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=decision-record' })
+    expect(screen.queryByTestId('decision-record-not-considered')).not.toBeInTheDocument()
+    expect(screen.getByText(/Key stats/i)).toBeInTheDocument()
+  })
+
+  it('is PRESENT and reachable when the flag is on', () => {
+    auth.decisionRecordEnabled = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL' })
+    fireEvent.click(screen.getByRole('button', { name: 'Decision Record' }))
+    expect(screen.getByTestId('decision-record-not-considered').textContent).toMatch(/Not considered/)
+  })
+
+  it('?section=decision-record lands on the tab when the flag is on', () => {
+    auth.decisionRecordEnabled = true
+    renderWithProviders(<ResearchPage />, { route: '/research/AAPL?section=decision-record' })
+    expect(screen.getByTestId('decision-record-not-considered')).toBeInTheDocument()
+    expect(screen.queryByText(/Key stats/i)).not.toBeInTheDocument()
   })
 })
