@@ -367,7 +367,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-032 | `FB-A6-01` | Say "coverage n=0", not an empty transcript panel | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-033 | `FB-A8-02` | Six `.catch(() => null)` sites onto `sectionFetch.js` | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-034 | `FB-I1-03` | The I1 spec, railed rather than written | S doc / **M as checks** | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT `20cbef927` — authority + horizon rail + shared fixture; unmerged, no production reader yet; per-module migration listed in the census |
+| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT `20cbef927` — authority + horizon rail + shared fixture; ✅ follow-up #1 DONE 2026-09-28: `nyseCalendar.js` + `nyse_calendar.py` derive from the dataset (client + `bars_fetch`/`liveflow_monitor` read it); remaining scattered users per the census |
 | TERM-036 | `FB-D5-02` | Route dividends off yfinance onto Massive reference | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.6 Band 4 — DEPENDENT (26). Register rows only; §2.9 says why.
@@ -424,7 +424,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-079 | `FB-S4-01` | Typed context channels, one list-consuming panel | M | d0·b0 | tier 4 pref / 3 | Yes | ⭐ cheapest leverage |
 | TERM-080 | `FB-S9-03` | Per-route rate limits before any programmatic client | M | d0·b1 | tier 4 pref / 3 | Partial | BUILDABLE |
 | TERM-081 | `FB-S9-04` | Give `entitlements.py` the column it reads | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
-| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT for `/api/snapshot` + `/api/movers` (`c4660990c`, `92c51a697`, not pushed; staleness on `Server-Timing` `desc="stale-swr"`); follow-up, ranked: `/api/earnings`(+gaps), theme-performance live overlay, `/api/breadth-monitor`, `/api/calendar/day-metrics-batch` — census `evidence/2026-09-29-term082-serve-stale-census/results.md`; the "known it worked" p95 needs a post-deploy run of `tools/bars_warmth_audit.py`-style measurement (012 is built) |
+| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT for `/api/snapshot` + `/api/movers` (`c4660990c`, `92c51a697`, not pushed; staleness on `Server-Timing` `desc="stale-swr"`); ✅ BUILT census rank 3 `/api/earnings` + `/api/earnings-gaps` (`7550991ff`, not pushed; date-keyed slot bounded 2400 s, partial TTL 300 s, `/api/push` kicks one refresh and a build straddling a push is never remembered); follow-up, ranked: theme-performance live overlay, `/api/breadth-monitor`, `/api/calendar/day-metrics-batch` — census `evidence/2026-09-29-term082-serve-stale-census/results.md`; the "known it worked" p95 needs a post-deploy run of `tools/bars_warmth_audit.py`-style measurement (012 is built) |
 | TERM-083 | `FB-X1-02` | A backup rail, and a restore **rehearsal** | M | d0·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-084 | `FB-X2-02` | TTL and rotation on the ICS export token | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
 | TERM-085 | `FB-X3-01` | One wire sentence naming today's explaining surface | S | d0·b0 | tier 4 pref / 3 | Yes ⚠️ other repo | BUILDABLE |
@@ -1412,7 +1412,8 @@ the order is not asserted.
 - **ROLLBACK TIER.** `tier 4 pref / 3`.
 
 #### TERM-035 · `FB-S11-01` — The market clock as code, with a horizon rail ⚰️ RECUT
-- ✅ **BUILT `20cbef927` (2026-09-28). Unmerged, and no production path reads it yet.**
+- ✅ **BUILT `20cbef927` (2026-09-28).** ⭐ Since follow-up #1 (same day) the client clock and the
+  backend `YYYYMMDD` sets both read it; see (c).
   - **What exists:**
     - One versioned dataset, `app/src/lib/marketClock/market_calendar.json` (v`2026-09-28.1`,
       coverage 2025-01-01 to **horizon 2028-12-31**).
@@ -1435,9 +1436,22 @@ the order is not asserted.
     - Every half-day in the dataset must have a row in it.
     - Removing the 2026-11-27 half-day fails 6 tests on each side.
     - Removing DST handling fails 19 on each side.
-  - **(c) Migration: none done.** `useMarketOpen` / `sessionModel.js` were deliberately not moved.
-    Moving the hook alone would split it from `marketClock.js`'s other readers in 2028. The single
-    migration point is `nyseCalendar.js`.
+  - **(c) Migration: follow-up #1 ✅ DONE (2026-09-28).** `useMarketOpen` / `sessionModel.js` were
+    deliberately not moved; the single migration point was `nyseCalendar.js`, one layer down, and
+    it is now migrated:
+    - `app/src/lib/marketClock/nyseCalendar.js` derives `COVERED_YEARS` (now 2025-2028) and every
+      per-year table from `sessionCalendar.js`, with its exported names and shapes unchanged. Every
+      client clock reader (`marketClock.js`, `useMarketOpen`, `sessionModel`/`nextOpenHint`,
+      `sessionStale`, `FreshnessBadge`, `freshnessAge`, `extSession`, `marketSession`) now answers
+      from the dataset. `sessionCalendar.js`'s `AWAITING_A_DECISION` entry and its
+      `PARKING_EXPIRES` row are removed from `reachable.test.js`.
+    - `api/services/nyse_calendar.py` derives `NYSE_HOLIDAYS_YYYYMMDD` / `NYSE_EARLY_CLOSES_YYYYMMDD`
+      from `session_calendar.calendar()`, so `bars_fetch`, `liveflow_monitor` and every other
+      reader of those sets gain 2028, and `GET /api/market-calendar`'s `covers_through` reads
+      `2028-12-31` with no router change. 2025-2027 are byte-for-byte the previous sets.
+    - `tests/test_nyse_calendar_parity.py` was rewritten from "regex-parse the JS literals" to "both
+      load the same JSON", plus the backend answering the shared fixture.
+    - Details: `evidence/2026-09-29-term035-calendar-census/results.md`, section "Follow-up #1".
   - **Disagreement found:** `tools/full_chart_diagnostic.py` is missing the 2025-01-09 closure and
     uses a fixed EDT offset.
   - **Census, results and the per-module follow-up list:**

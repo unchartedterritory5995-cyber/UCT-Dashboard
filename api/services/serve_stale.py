@@ -152,6 +152,17 @@ class ServeStale:
                 self.remember(key, built)
             return built
 
+    def kick(self, key: str, *, build: Callable[[], Any],
+             good: Callable[[Any], bool]) -> None:
+        """Start one background refresh of `key` NOW, exactly as a stale serve
+        would, and a no-op while one is already running (TERM-082, additive).
+
+        For a caller that knows the answer just changed (a wire push
+        invalidating `/api/earnings`) and must not wait for the next reader to
+        notice. The slot is untouched: until the refresh lands, readers keep
+        getting the remembered payload, marked stale, within `max_age`."""
+        self._kick(key, build, good)
+
     def _kick(self, key: str, build: Callable[[], Any], good: Callable[[Any], bool]) -> None:
         """Refresh in the background — one at a time per key."""
         with self._lock:

@@ -64,6 +64,7 @@ PERSISTENT_WIRE_DATA_FILE = os.environ.get(
 
 from api.services import yf_util
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 import logging as _logging
 _logger = _logging.getLogger(__name__)
 
@@ -813,19 +814,23 @@ def get_rundown() -> dict:
 
 # ─── Earnings ─────────────────────────────────────────────────────────────────
 
-def _enrich_earnings_with_gap(data: dict) -> None:
-    """Batch-fetch live change_pct from Massive and add it to each earnings entry."""
+def _enrich_earnings_with_gap(data: dict) -> bool:
+    """Batch-fetch live change_pct from Massive and add it to each earnings entry.
+
+    Returns whether the Massive leg answered (TERM-082: a failed overlay makes
+    the earnings build partial). An empty list needs no overlay and is True."""
     all_entries = data.get("bmo", []) + data.get("amc", []) + data.get("amc_tonight", [])
     syms = [e["sym"] for e in all_entries if e.get("sym")]
     if not syms:
-        return
+        return True
     try:
         from api.services.massive import _get_client
         price_map = _get_client().get_batch_snapshots(syms)
         for entry in all_entries:
             entry["change_pct"] = price_map.get(entry["sym"])
     except Exception:
-        pass
+        return False
+    return True
 
 
 def _fetch_ew_live(date_str: str) -> list:
@@ -881,21 +886,32 @@ def _fmp_calendar_actuals_for_day(day_iso: str) -> dict:
     carries no session field, so adding one would fabricate a session the
     same way coercing `tbd` into `amc` would). Returns {} on failure/missing
     key; never raises."""
+    return _fmp_calendar_actuals_for_day_checked(day_iso)[0]
+
+
+def _fmp_calendar_actuals_for_day_checked(day_iso: str) -> tuple[dict, bool]:
+    """`_fmp_calendar_actuals_for_day`, plus whether the FMP leg ANSWERED
+    (TERM-082). The unchecked form returns {} for a failure and for an empty
+    day alike, so `build_earnings` could not tell a provider outage from a
+    quiet calendar. `ok` is False only when FMP failed: a raise, a degraded
+    result, or a non-list body. An unconfigured key and a not-found (empty)
+    day are answers, not failures (cache_policy: never treat real emptiness
+    as failure)."""
     from api.services import fmp_client
     try:
         result = fmp_client.get_earnings_calendar(day_iso, day_iso)
     except fmp_client.FMPNotConfigured:
-        return {}
+        return {}, True
     except fmp_client.FMPNotFound:
-        return {}
+        return {}, True
     except Exception as e:
         _logger.warning("get_earnings: FMP calendar fetch failed for %s: %s", day_iso, e)
-        return {}
+        return {}, False
     if result.degraded is not None:
-        return {}
+        return {}, False
     data = result.value
     if not isinstance(data, list):
-        return {}
+        return {}, False
     out = {}
     for row in data:
         if not isinstance(row, dict):
@@ -903,14 +919,42 @@ def _fmp_calendar_actuals_for_day(day_iso: str) -> dict:
         sym = (row.get("symbol") or "").strip().upper()
         if sym:
             out[sym] = row
-    return out
+    return out, True
+
+
+#: `get_earnings`' cache key and TTLs (TERM-082). A partial build (a provider
+#: leg failed, see `build_earnings`) is still served, on the short TTL, and is
+#: never remembered as `/api/earnings`' serve-stale fallback (cache_policy).
+EARNINGS_CACHE_KEY = "earnings"
+EARNINGS_TTL = 1800
+EARNINGS_TTL_PARTIAL = 300
 
 
 def get_earnings() -> dict:
-    cached = cache.get("earnings")
+    cached = cache.get(EARNINGS_CACHE_KEY)
     if cached:
         return cached
+    data, _complete = build_earnings()
+    return data
 
+
+def build_earnings() -> tuple[dict, bool]:
+    """Recompute today's earnings payload, write the TTL cache, and say whether
+    it is COMPLETE. Always builds: the caller has already decided the cache
+    missed (`get_earnings` and `/api/earnings`' serve-stale slot are the two
+    callers).
+
+    Complete means no provider leg FAILED:
+      * EarningsWhispers answered for both today and yesterday (else the lists
+        fell back to wire_data, which is a degraded answer);
+      * every Finnhub calendar call that ran returned a body (`fh_get` returns
+        None on an error, a 429 cooldown or a shed token);
+      * every FMP breadth-fallback call that ran answered
+        (`_fmp_calendar_actuals_for_day_checked`);
+      * the Massive change_pct overlay did not raise.
+    A leg that did not need to run (no key configured, nothing pending) is not
+    a failure, and neither is an empty answer or a "Pending" verdict: before a
+    company reports, a missing actual IS the correct value."""
     import datetime
     today     = datetime.date.today().isoformat()
     yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
@@ -927,6 +971,7 @@ def get_earnings() -> dict:
     amc_raw: list = []
     today_ew: list = []
     ew_ok = False
+    legs_ok = True           # every Finnhub/FMP/Massive leg that RAN answered
     try:
         today_ew = _fetch_ew_live(today)
         yest_ew  = _fetch_ew_live(yesterday)
@@ -996,6 +1041,8 @@ def get_earnings() -> dict:
                 fh_data = _fh_budgeted_cal(
                     "/calendar/earnings", {"from": yesterday, "to": today}, timeout=15,
                 )
+                if not isinstance(fh_data, dict):
+                    legs_ok = False
                 fh_map = {
                     e["symbol"]: e
                     for e in (fh_data or {}).get("earningsCalendar", [])
@@ -1016,7 +1063,7 @@ def get_earnings() -> dict:
                             (rev_e / 1_000_000) if rev_e else None
                         )
             except Exception:
-                pass
+                legs_ok = False
 
         # ── FMP breadth fallback — fills whatever Finnhub still left pending
         # (throttle/429/missing key). Two per-day calls (yesterday, today),
@@ -1031,7 +1078,10 @@ def get_earnings() -> dict:
             try:
                 fmp_map = {}
                 for d_iso in {yesterday, today}:
-                    fmp_map.update(_fmp_calendar_actuals_for_day(d_iso))
+                    day_map, day_ok = _fmp_calendar_actuals_for_day_checked(d_iso)
+                    fmp_map.update(day_map)
+                    if not day_ok:
+                        legs_ok = False
                 for entry in (bmo_raw + amc_raw):
                     if entry.get("eps_actual") is not None:
                         continue
@@ -1046,7 +1096,7 @@ def get_earnings() -> dict:
                             (rev_e / 1_000_000) if rev_e else None
                         )
             except Exception:
-                pass
+                legs_ok = False
 
     # ── Tonight's AMC: today's reporters sorted by EW interest ──────────────
     amc_tonight_raw: list = []
@@ -1066,6 +1116,8 @@ def get_earnings() -> dict:
             fh_data2 = _fh_budgeted_cal2(
                 "/calendar/earnings", {"from": today, "to": today}, timeout=15,
             )
+            if not isinstance(fh_data2, dict):
+                legs_ok = False
             fh_today_amc = [
                 e for e in (fh_data2 or {}).get("earningsCalendar", [])
                 if e.get("hour", "").lower() == "amc"
@@ -1104,7 +1156,7 @@ def get_earnings() -> dict:
                     "ew_total":     0,
                 })
         except Exception:
-            pass
+            legs_ok = False
 
     # ── FMP breadth fallback — fills whatever is STILL pending on tonight's
     # AMC list (Finnhub throttle/429/missing key). Patches EXISTING entries
@@ -1114,7 +1166,9 @@ def get_earnings() -> dict:
     # `hour` in `tbd`, never coerced into `amc`, on the Calendar page).
     if any(e.get("eps_actual") is None for e in amc_tonight_raw):
         try:
-            fmp_today_map = _fmp_calendar_actuals_for_day(today)
+            fmp_today_map, fmp_today_ok = _fmp_calendar_actuals_for_day_checked(today)
+            if not fmp_today_ok:
+                legs_ok = False
             for entry in amc_tonight_raw:
                 if entry.get("eps_actual") is not None:
                     continue
@@ -1129,7 +1183,7 @@ def get_earnings() -> dict:
                         (rev_e / 1_000_000) if rev_e else None
                     )
         except Exception:
-            pass
+            legs_ok = False
 
     # ── Apply $300M cap filter from engine push ───────────────────────────────
     # wire_data["cap_universe"] is a sorted list of $300M+ tickers written by
@@ -1142,10 +1196,15 @@ def get_earnings() -> dict:
         amc_tonight_raw= [e for e in amc_tonight_raw if e.get("symbol", "") in cap_uni]
 
     data = _normalize_earnings(bmo_raw + amc_raw, amc_tonight_raw)
-    _enrich_earnings_with_gap(data)
+    if not _enrich_earnings_with_gap(data):
+        legs_ok = False
     _prewarm_earnings_analysis(data)
-    cache.set("earnings", data, ttl=1800)
-    return data
+    complete = bool(ew_ok and legs_ok)
+    # cache_policy's rule: a partial is still SERVED, on the short TTL, so a
+    # failed leg self-heals in minutes instead of pinning the day for 30.
+    set_by_completeness(EARNINGS_CACHE_KEY, data, complete=complete,
+                        ttl_ok=EARNINGS_TTL, ttl_partial=EARNINGS_TTL_PARTIAL)
+    return data, complete
 
 
 def _fmt_surprise(actual, estimate):

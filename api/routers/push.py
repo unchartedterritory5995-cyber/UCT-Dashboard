@@ -125,6 +125,16 @@ def push_wire_data(
 
     cache.set("wire_data", payload, ttl=82800)  # 23 hours
 
+    # TERM-082: `/api/earnings` serves its last-good list while one refresh
+    # runs. The "earnings" invalidation above changed the answer, so kick that
+    # refresh NOW (it reads the wire just stored) instead of leaving the
+    # pre-push list to be served until some reader notices. Never blocks.
+    try:
+        from api.routers import earnings as _earnings_router
+        _earnings_router.on_wire_push()
+    except Exception:
+        logger.exception("[push] earnings refresh kick failed (push unaffected)")
+
     # Taxonomy handshake — warn when the wire ran on a different taxonomy
     # version than this dashboard has seeded (never blocks the push).
     try:

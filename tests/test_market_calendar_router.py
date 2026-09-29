@@ -183,7 +183,9 @@ def test_a_non_clean_runway_reaches_the_admin_alert_feed(monkeypatch):
     mc._announce("expiring", 100, ANY_DAY)
     assert len(seen) == 1
     # The message has to carry the FIX, not just the complaint.
-    assert "_NYSE_HOLIDAYS_YYYYMMDD" in seen[0][2]
+    # TERM-035: the refresh target is the one dataset every calendar derives from.
+    assert "market_calendar.json" in seen[0][2]
+    assert "_NYSE_HOLIDAYS_YYYYMMDD" not in seen[0][2]
     assert "nyse.com" in seen[0][2]
 
 

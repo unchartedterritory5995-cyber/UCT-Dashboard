@@ -17,88 +17,89 @@
 // early closes (1:00 PM ET). This is the one factual correction this S11
 // slice makes to that document, per the contract-verification instruction
 // ("if only minor documentation corrections are required, correct them and
-// continue") — the data below reflects NYSE's real published calendar, not
-// the matrix row's paraphrase of it.
+// continue") — the data reflects NYSE's real published calendar, not the
+// matrix row's paraphrase of it.
 //
-// Coverage started at ONE year (2026) — "small, well-bounded" per the
-// matrix's own sizing — and is extended by hand, one year at a time, well
-// ahead of the prior year's Dec 31 cliff (Seam 7 architecture adjudication,
-// 2026-09-07: `extSession.test.js`/`marketSession.dailypaint.test.js` pin
-// the out-of-coverage degrade as intentional -- "no throw, no guess" -- but
-// that degrade silently reintroduces Seam 6's exact defect class once a
-// year's coverage lapses, so this table must stay at least one year ahead
-// of `today`, not just "the current year"). A date outside `COVERED_YEARS`
-// still degrades gracefully (see marketClock.js's `calendarCoverage` flag)
-// rather than guessing a future year's holiday dates -- this is the safety
-// net for a year nobody has added yet, not a substitute for adding it.
+// ⭐ TERM-035 follow-up #1 (2026-09-28): THIS FILE NO LONGER TYPES A DATE.
+// `COVERED_YEARS`, every per-year holiday / early-close table and the three
+// lookups below are DERIVED from `./market_calendar.json`, read through
+// `./sessionCalendar.js` (HOLIDAY_ROWS, EARLY_CLOSE_ROWS, COVERAGE_START,
+// horizon()). `api/services/session_calendar.py` reads the same bytes and
+// `api/services/nyse_calendar.py` derives the backend's `YYYYMMDD` sets from
+// it, so the browser and the server cannot hold two different calendars.
+// Refresh the JSON (holidays AND early closes, `horizon`, `version`), never
+// this file. The exported names and shapes are unchanged, so marketClock.js,
+// extSession.js, marketSession.js and every reader behind them are untouched.
 //
-// `tests/test_nyse_calendar_parity.py` cross-checks every year here against
-// `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD` (the backend's own independently
-// hand-maintained table) -- add a year to BOTH together, or the parity test
-// fails on the year this table stops matching.
+// Coverage is every WHOLE calendar year inside [coverage_start, horizon]
+// (2025-2028 when this was written). A date outside `COVERED_YEARS` still
+// degrades gracefully (see marketClock.js's `calendarCoverage` flag) rather
+// than guessing a future year's holiday dates -- "no throw, no guess" -- and
+// the horizon rail in tests/test_session_calendar.py goes red 12 months before
+// that degrade can become the normal case.
+//
+// `tests/test_nyse_calendar_parity.py` rails that this file stays derived (no
+// date literal, reads sessionCalendar.js) and that the backend sets equal the
+// same JSON; `sessionCalendar.test.js` holds these tables equal to the dataset.
 
-export const COVERED_YEARS = Object.freeze([2026, 2027])
-
-/** Full-day NYSE closures, 2026. ISO date strings (NYSE's own local/ET
- *  calendar date — these are whole-day closures, never partial). */
-export const NYSE_HOLIDAYS_2026 = Object.freeze([
-  { date: '2026-01-01', name: "New Year's Day" },
-  { date: '2026-01-19', name: 'Martin Luther King, Jr. Day' },
-  { date: '2026-02-16', name: "Washington's Birthday" },
-  { date: '2026-04-03', name: 'Good Friday' },
-  { date: '2026-05-25', name: 'Memorial Day' },
-  { date: '2026-06-19', name: 'Juneteenth National Independence Day' },
-  { date: '2026-07-03', name: 'Independence Day (observed)' },
-  { date: '2026-09-07', name: 'Labor Day' },
-  { date: '2026-11-26', name: 'Thanksgiving Day' },
-  { date: '2026-12-25', name: 'Christmas Day' },
-])
-
-/** Early-close (1:00 PM ET regular-session close) trading days, 2026. */
-export const NYSE_EARLY_CLOSES_2026 = Object.freeze([
-  { date: '2026-11-27', name: 'Day after Thanksgiving', closeHour: 13, closeMinute: 0 },
-  { date: '2026-12-24', name: 'Christmas Eve', closeHour: 13, closeMinute: 0 },
-])
-
-/** Full-day NYSE closures, 2027. Matches `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD`'s
- *  already-existing 2027 dates (verified via the Seam 7 parity adjudication,
- *  2026-09-07) -- June 19 2027 falls on a Saturday (observed Fri Jun 18), July 4
- *  2027 falls on a Sunday (observed Mon Jul 5), Dec 25 2027 falls on a Saturday
- *  (observed Fri Dec 24 -- a FULL closure, NOT an early close, unlike Dec 24 2026). */
-export const NYSE_HOLIDAYS_2027 = Object.freeze([
-  { date: '2027-01-01', name: "New Year's Day" },
-  { date: '2027-01-18', name: 'Martin Luther King, Jr. Day' },
-  { date: '2027-02-15', name: "Washington's Birthday" },
-  { date: '2027-03-26', name: 'Good Friday' },
-  { date: '2027-05-31', name: 'Memorial Day' },
-  { date: '2027-06-18', name: 'Juneteenth National Independence Day (observed)' },
-  { date: '2027-07-05', name: 'Independence Day (observed)' },
-  { date: '2027-09-06', name: 'Labor Day' },
-  { date: '2027-11-25', name: 'Thanksgiving Day' },
-  { date: '2027-12-24', name: 'Christmas Day (observed)' },
-])
-
-/** Early-close (1:00 PM ET regular-session close) trading days, 2027. Only
- *  the day after Thanksgiving -- Dec 24 2027 is a FULL closure this year
- *  (see NYSE_HOLIDAYS_2027 above), not an early close. */
-export const NYSE_EARLY_CLOSES_2027 = Object.freeze([
-  { date: '2027-11-26', name: 'Day after Thanksgiving', closeHour: 13, closeMinute: 0 },
-])
-
-const _BY_YEAR = Object.freeze({
-  2026: Object.freeze({
-    holidays: NYSE_HOLIDAYS_2026,
-    earlyCloses: NYSE_EARLY_CLOSES_2026,
-  }),
-  2027: Object.freeze({
-    holidays: NYSE_HOLIDAYS_2027,
-    earlyCloses: NYSE_EARLY_CLOSES_2027,
-  }),
-})
+import {
+  COVERAGE_START,
+  EARLY_CLOSE_ROWS,
+  HOLIDAY_ROWS,
+  horizon,
+} from './sessionCalendar'
 
 function _yearOf(isoDate) {
   return Number(isoDate.slice(0, 4))
 }
+
+function _closeParts(hhmm) {
+  const [hh, mm] = hhmm.split(':').map(Number)
+  return { closeHour: hh, closeMinute: mm }
+}
+
+// Only WHOLE years are covered: `hasCoverage` answers per year, so a partially
+// covered year would claim holidays it cannot see. A dataset that starts on
+// Jan 1 and ends on Dec 31 (the Python rail pins the horizon to a Dec 31)
+// covers its full span.
+const _HORIZON = horizon()
+const _FIRST_YEAR = _yearOf(COVERAGE_START) + (COVERAGE_START.endsWith('-01-01') ? 0 : 1)
+const _LAST_YEAR = _yearOf(_HORIZON) - (_HORIZON.endsWith('-12-31') ? 0 : 1)
+
+export const COVERED_YEARS = Object.freeze(
+  Array.from({ length: Math.max(0, _LAST_YEAR - _FIRST_YEAR + 1) }, (_, i) => _FIRST_YEAR + i),
+)
+
+function _tableFor(year) {
+  const inYear = (r) => _yearOf(r.date) === year
+  return Object.freeze({
+    /** Full-day NYSE closures: `{date, name}`, ISO ET calendar dates. */
+    holidays: Object.freeze(
+      HOLIDAY_ROWS.filter(inYear).map((h) => Object.freeze({ date: h.date, name: h.name })),
+    ),
+    /** Early-close trading days: `{date, name, closeHour, closeMinute}` (ET). */
+    earlyCloses: Object.freeze(
+      EARLY_CLOSE_ROWS.filter(inYear).map((e) =>
+        Object.freeze({ date: e.date, name: e.name, ..._closeParts(e.close) })),
+    ),
+  })
+}
+
+const _BY_YEAR = Object.freeze(
+  Object.fromEntries(COVERED_YEARS.map((y) => [y, _tableFor(y)])),
+)
+
+/** Every covered year's `{holidays, earlyCloses}` table, keyed by year. */
+export const NYSE_CALENDAR_BY_YEAR = _BY_YEAR
+
+// The per-year named exports that predate the dataset, kept so no importer
+// has to change. They are views into `_BY_YEAR`, not literals; a year that
+// ever fell outside coverage would read as empty rather than throw.
+const _EMPTY = Object.freeze([])
+export const NYSE_HOLIDAYS_2026 = _BY_YEAR[2026]?.holidays ?? _EMPTY
+export const NYSE_EARLY_CLOSES_2026 = _BY_YEAR[2026]?.earlyCloses ?? _EMPTY
+export const NYSE_HOLIDAYS_2027 = _BY_YEAR[2027]?.holidays ?? _EMPTY
+export const NYSE_EARLY_CLOSES_2027 = _BY_YEAR[2027]?.earlyCloses ?? _EMPTY
 
 /** Whether `year` has real published-calendar coverage in this module. */
 export function hasCoverage(year) {

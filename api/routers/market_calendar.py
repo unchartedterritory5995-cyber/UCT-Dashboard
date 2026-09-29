@@ -48,9 +48,12 @@ _MAX_AGE = 86_400
 # would never fire, which a test pins.
 _EXPIRING_WITHIN_DAYS = 180
 
+#: TERM-035: the one calendar is app/src/lib/marketClock/market_calendar.json —
+#: bars_fetch, nyse_calendar and the browser all derive from it, so it is the
+#: only file to refresh (bump its `version` and `horizon`).
 _REFRESH_HINT = (
-    "refresh api/services/bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD from "
-    "nyse.com/markets/hours-calendars"
+    "extend app/src/lib/marketClock/market_calendar.json (holidays, early_closes, "
+    "horizon) from nyse.com/markets/hours-calendars"
 )
 
 
