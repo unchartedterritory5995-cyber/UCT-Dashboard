@@ -1,0 +1,70 @@
+# promotion-gate: no — ADVISORY, and it says why in two lines. (1) It has never run on a
+#   GitHub runner: every check that gates promotion here was seen RED once and GREEN once
+#   on CI first (the Discord-render golden, the three notebook gates), and this one has not
+#   been. (2) A gating TERM-018 would also refuse a ROLLBACK: reverting a commit that added
+#   an observed guard deletes its site, and clause 1 goes red on exactly the push meant to
+#   restore production. Flipping this marker to `yes` is the owner's call, with (2) named.
+# TERM-018 / FB-OBS-09 — "Prove every guard can fire. A shipping precondition."
+#
+# Runs `tests/test_term018_every_guard_can_fire.py`: every guard on the ops alert channel
+# (derived by AST, never listed) is either OBSERVED red-before-green — with the predicate
+# still pinned in the source, the recorded mutation still absent, a proof commit on this
+# history quoting its red count, a WIRE from the guard to a module a Railway service boots
+# that breaks when any hop of it is cut, and no seam in the guard's reach bound at import —
+# or it is COUNTED DEBT under a ceiling that may only shrink.
+#
+# ⛔ fetch-depth 0 IS LOAD-BEARING. Clause 6 asks whether each proof commit is an ancestor
+#   of HEAD and reads its message; a shallow clone holds none of them, and the rail's git
+#   probe RAISES rather than answering "no" (a swallowed git failure would pass every
+#   membership check over an empty string).
+# ⛔ --noconftest IS LOAD-BEARING. The repo conftests import the product (FastAPI, SQLite
+#   stores), which this job does not install. The rail imports nothing from api.*: it READS
+#   api/ as text and AST, and plants its controls under pytest's tmp_path.
+# ⚠️ TWO CHECKS ARE DESELECTED HERE, BY NAME, AND RUN ONLY LOCALLY. Clause 5c and its
+#   control shell out to `pytest --collect-only` on the OBSERVING tests, which import the
+#   product — so they need the full requirements and cost ~130 s of the rail's ~150 s.
+#   Deselected by exact node id, never by a keyword filter, and the rail asserts this file
+#   deselects exactly those two (`test_the_CI_job_deselects_exactly_the_two_collection_checks`),
+#   so the list cannot quietly grow. Run the whole rail locally before landing a record:
+#     python -m pytest tests/test_term018_every_guard_can_fire.py -q -p no:cacheprovider
+name: term018 guards
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python -m pip install --quiet pytest
+
+      - name: Every guard is observed or counted debt, with its wire intact
+        run: |
+          python -m pytest --noconftest -p no:cacheprovider -q \
+            tests/test_term018_every_guard_can_fire.py \
+            --deselect tests/test_term018_every_guard_can_fire.py::test_the_pytest_collection_probe_can_answer_NO \
+            --deselect tests/test_term018_every_guard_can_fire.py::test_clause5c_every_observing_test_is_COLLECTED_by_pytest
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::TERM-018 is red. The failing test names the guard and the clause."
+          echo ""
+          echo "A NEW alert site with no record: add it to term-018-guard-observations.json,"
+          echo "  as an observation (with a proof commit quoting its red count) or as debt."
+          echo "A BROKEN WIRE (clause 7): the guard's scheduler/boot path moved; re-declare"
+          echo "  the chain the code now uses - or restore the wiring that was cut."
+          echo "A SEAM BOUND AT IMPORT (clause 8): default it to None, resolve it in the body."
+          echo ""
+          echo "Edit the record AS TEXT - never a json load/dump round trip."

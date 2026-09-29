@@ -26,7 +26,7 @@ HOW "OBSERVED RED BEFORE GREEN" IS REPRESENTED, AND THE ARGUMENT FOR IT
 ────────────────────────────────────────────────────────────────────────────────
 
 A rail cannot revert code and re-run a suite. So the observation is a RECORD - and a
-rail that only asserts a record EXISTS is a spelling check. Six ties turn the record
+rail that only asserts a record EXISTS is a spelling check. Eight ties turn the record
 into something that can fail on a real regression. Each is a different failure:
 
   1. SITE RESOLVES.      `predicate.file` + `predicate.scope` resolve to a real def by
@@ -53,6 +53,29 @@ into something that can fail on a real regression. Each is a different failure:
                         `proof.quote` verbatim. ⭐ So an observation CANNOT BE ADDED
                         without a commit that records an actual red count. The cost of
                         a new record is a real mutation run, not a sentence.
+  7. THE WIRE IS INTACT. every observation declares how its guard is REACHED in a
+                        running process (`wire`), and the declaration is checked by
+                        AST: a `chain` of call sites - each one a real call, whose
+                        name is BOUND to the previous hop's module by an import and
+                        transitively calls or references it - ending in a module a
+                        Railway service actually boots (read from `railway*.json`
+                        and the Dockerfile it names, never typed). ⭐ THE BACKLOG'S
+                        OWN WORDS: "the wire is the part that has actually been cut
+                        in this repo" (CARD 27: a correct comparison on a schedule
+                        it could never fire at). So every hop is also CUT IN MEMORY
+                        and the chain must break - a wire check that survives its
+                        wire being cut is a spelling check, and a chain that
+                        survives it has a second registration nobody can
+                        mutation-prove. A sink (its wire is every producer in the
+                        derived population) and a hand-run CLI are the only other
+                        kinds, and each is checked for being what it claims.
+  8. NO SEAM IS BOUND   within the guard's reach, no parameter default is a module-
+     AT IMPORT.         level def, class or import. `def f(read=real_read)` captures
+                        the original ONCE, so `monkeypatch.setattr(mod, "real_read",
+                        fake)` reaches nothing and the observing test silently
+                        exercises the real function - the backlog's seam rule:
+                        "every injected seam in a new monitor must be `=None` and
+                        resolved in the body, or its proof is theatre."
 
 ⛔⛔ WHAT THIS RAIL DOES NOT PROVE - STATED PLAINLY, BECAUSE THE GAP IS REAL:
 
@@ -70,6 +93,11 @@ into something that can fail on a real regression. Each is a different failure:
     it may only shrink.
   * It reads ONE alert channel (`chart_health_alerts`). §"SCOPE" below names what is
     out and why.
+  * Clause 7 stops at the entry MODULE. That the function holding the last hop
+    (usually `lifespan`) actually runs, and that an env flag around it is set, is
+    the process's business and production's, neither of which a static rail reads.
+    Edges are STRUCTURAL like clause 5's: a name bound to a module and a def that
+    references another prove the wire CAN carry the guard, not that it does.
   * It asserts no flag state and reads no production. Every claim is source + git.
 
 ────────────────────────────────────────────────────────────────────────────────
@@ -118,6 +146,7 @@ the git and collection probes each carry a control proving they can answer NO.
 from __future__ import annotations
 
 import ast
+import functools
 import io
 import json
 import os
@@ -987,3 +1016,697 @@ def test_the_planted_guards_observation_clauses_also_discriminate(tmp_path):
     mentions = code_mentions_in(producer)
     assert "planted_beta" in mentions           # ← in code (an emit argument)
     assert "A docstring naming planted_beta" not in " ".join(sorted(mentions))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  E. CLAUSE 7 - THE WIRE. The guard is reached from a process that actually boots.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: The three ways an observation may say its guard is reached. CLOSED on purpose: a
+#: free-text reason is the escape hatch every hard case would take.
+WIRE_KINDS = ("chain", "table", "sink", "cli")
+
+#: What a cut wire's name becomes. Nothing in the repo binds it.
+WIRE_CUT = "__term018_wire_cut__"
+
+#: `add_job` sites the matcher must find in `api/main.py` before a "no such job"
+#: answer means anything. ~160 at 2026-09-29; a floor, not a count.
+MAIN_ADD_JOB_FLOOR = 50
+
+
+def service_entry_modules(root: Path) -> set[str]:
+    """Repo-relative paths of the modules a Railway service BOOTS, read from the
+    configuration that boots them - never typed.
+
+    Two sources, because the services boot two ways: `railway*.json`'s
+    `deploy.startCommand` (`python -m api.worker_main`, `uvicorn api.main:app`), and,
+    for a config with no start command, the `CMD` lines of the Dockerfile its
+    `build.dockerfilePath` names (`web` boots `Dockerfile.web`'s CMD). A name that
+    resolves to no file is dropped rather than trusted.
+    """
+    texts: list[str] = []
+    for cfg in sorted(root.glob("railway*.json")):
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+        cmd = (data.get("deploy") or {}).get("startCommand")
+        if cmd:
+            texts.append(cmd)
+        dockerfile = (data.get("build") or {}).get("dockerfilePath")
+        if dockerfile and (root / dockerfile).is_file():
+            texts.extend(line for line in (root / dockerfile).read_text(
+                encoding="utf-8").splitlines() if line.lstrip().startswith("CMD"))
+    out: set[str] = set()
+    for text in texts:
+        for name in re.findall(r"\bapi\.(\w+)", text):
+            if (root / "api" / f"{name}.py").is_file():
+                out.add(f"api/{name}.py")
+    return out
+
+
+def _dotted(node: ast.AST | None) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        base = _dotted(node.value)
+        return f"{base}.{node.attr}" if base else None
+    return None
+
+
+@functools.lru_cache(maxsize=64)
+def _parsed(src: str) -> tuple[ast.AST, dict[int, ast.AST]]:
+    """One parse per distinct source TEXT. `api/main.py` is read by several records;
+    a cut is a different text, so it is parsed fresh rather than served the uncut
+    tree."""
+    tree = ast.parse(src)
+    return tree, _parents(tree)
+
+
+def refs_reach(src: str, scope: str) -> set[str]:
+    """Leaf names of every def in this module that transitively CALLS or REFERENCES
+    `scope`, plus `scope` itself.
+
+    Wider than `names_that_reach` on purpose: the wire into a monitor is almost never
+    a call. It is `threading.Thread(target=_loop)` or `add_job(_check)` - a bare
+    REFERENCE to a def - so a caller graph built from calls alone cannot see the one
+    edge a scheduler actually uses. `test_REFERENCE_EDGES_ARE_LOAD_BEARING` is the
+    control.
+    """
+    if scope == "<module>":
+        return set()
+    tree, parents = _parsed(src)
+    fns = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    defs = {n.name for n in fns}
+    callers: dict[str, set[str]] = {}
+    for node in fns:
+        me = node.name
+        for inner in ast.walk(node):
+            ref = None
+            if isinstance(inner, ast.Call):
+                f = inner.func
+                ref = f.id if isinstance(f, ast.Name) else (
+                    f.attr if isinstance(f, ast.Attribute) else None)
+            elif isinstance(inner, ast.Name) and isinstance(inner.ctx, ast.Load) \
+                    and inner.id in defs:
+                ref = inner.id
+            if ref and ref != me:
+                callers.setdefault(ref, set()).add(me)
+        outer = _qualname(node, parents, own=False)
+        if outer != "<module>":
+            callers.setdefault(me, set()).add(outer.rsplit(".", 1)[-1])
+    leaf = scope.rsplit(".", 1)[-1]
+    frontier, seen = {leaf}, {leaf}
+    while frontier:
+        nxt: set[str] = set()
+        for name in frontier:
+            for up in callers.get(name, set()):
+                if up not in seen:
+                    seen.add(up)
+                    nxt.add(up)
+        frontier = nxt
+    return seen
+
+
+def _is_add_job(call: str) -> bool:
+    return call.rsplit(".", 1)[-1] == "add_job"
+
+
+def wire_calls_in(src: str, call: str, job_id: str | None = None,
+                  id_kw: str = "id") -> list[ast.Call]:
+    """Every call whose dotted callee IS `call` or ends in `.<call>` - and, when
+    `job_id` is given, whose `<id_kw>=` keyword is exactly that literal. Source order."""
+    tree, _ = _parsed(src)
+    out: list[ast.Call] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        d = _dotted(node.func)
+        if not d or not (d == call or d.endswith("." + call)):
+            continue
+        if job_id is not None and not any(
+                k.arg == id_kw and isinstance(k.value, ast.Constant)
+                and k.value.value == job_id for k in node.keywords):
+            continue
+        out.append(node)
+    return sorted(out, key=lambda n: (n.lineno, n.col_offset))
+
+
+def _wire_target(node: ast.Call, call: str, arg: str | None = None) -> ast.AST | None:
+    """What a hop hands control to. A hop naming `arg` hands over that keyword's value
+    (a `JobSpec(fn=...)` table entry); `add_job` hands over the JOB (first positional
+    or `func=`), never `add_job` itself; any other call hands over its callee."""
+    if arg is not None:
+        return next((k.value for k in node.keywords if k.arg == arg), None)
+    if _is_add_job(call):
+        if node.args:
+            return node.args[0]
+        return next((k.value for k in node.keywords if k.arg == "func"), None)
+    return node.func
+
+
+def _nested_defs(tree: ast.AST, parents: dict[int, ast.AST], scope: str) -> set[str]:
+    """Leaf names of the defs lexically INSIDE `scope`.
+
+    ⚰️ The same-scope `add_job` allowance first accepted ANY target registered from
+    inside the guard's scope; clause 7's own cut then showed that renaming the job
+    left the wire watchdog's chain intact. The job it registers must be one the guard
+    itself defines."""
+    return {n.name for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and _qualname(n, parents, own=True).startswith(scope + ".")}
+
+
+def _module_of(rel: str) -> str:
+    return rel.removesuffix(".py").replace("/", ".")
+
+
+def hop_edge_fault(node: ast.Call, hop: dict, anchor_file: str, anchor_scope: str,
+                   srcs) -> str | None:
+    """None when this call carries control into the anchor; otherwise WHY it does not.
+
+    Same file: the target must be a def that reaches the anchor - or, for an
+    `add_job` only, the registration may sit INSIDE the anchor's own scope (the wire
+    watchdog registers its nested `_check` from within the very function it is).
+    Another file: the name must be BOUND to the anchor's module by an import in the
+    hop's file. ⛔ Without that the edge is a coincidence of spelling - a `start`
+    exists in dozens of modules, and a leaf-name match would let any of them stand in
+    for the one that matters.
+    """
+    tree, parents = _parsed(srcs(hop["file"]))
+    target = _dotted(_wire_target(node, hop["call"], hop.get("arg")))
+    if target is None:
+        return "its target is not a plain name, so nothing static can follow it"
+    leaf = target.rsplit(".", 1)[-1]
+    reach = refs_reach(srcs(anchor_file), anchor_scope)
+    if hop["file"] == anchor_file:
+        if "." in target:
+            return f"`{target}` is an attribute, not a def of this module"
+        if leaf in reach:
+            return None
+        enclosing = _qualname(node, parents, own=False)
+        if _is_add_job(hop["call"]) and enclosing == anchor_scope \
+                and leaf in _nested_defs(tree, parents, anchor_scope):
+            return None
+        return f"`{leaf}` does not call or reference `{anchor_scope}`"
+    mod = _module_of(anchor_file)
+    if "." in target:
+        base = target.rsplit(".", 1)[0]
+        if base not in sink_aliases_in(tree, mod):
+            return f"`{base}` is not bound to `{mod}` by any import in {hop['file']}"
+    elif leaf not in sink_aliases_in(tree, f"{mod}.{leaf}"):
+        return f"`{leaf}` is not imported from `{mod}` in {hop['file']}"
+    if leaf not in reach:
+        return f"`{mod}.{leaf}` does not call or reference `{anchor_scope}`"
+    return None
+
+
+def verify_chain(root: Path, pred: dict, hops: list[dict], entries: set[str],
+                 overrides: dict[str, str] | None = None, *, require_entry: bool = True
+                 ) -> tuple[str | None, list[tuple[dict, ast.Call]]]:
+    """`(fault or None, [(hop, the call that carried it)])`, walking OUTWARD from the
+    guard's scope one hop at a time. Each hop's anchor is the def holding the
+    previous hop's call. `overrides` substitutes a file's text, which is how a wire
+    is cut without touching the disk."""
+    overrides = overrides or {}
+
+    def srcs(rel: str) -> str:
+        if rel in overrides:
+            return overrides[rel]
+        return (root / rel).read_text(encoding="utf-8")
+
+    if not hops:
+        return "a chain with no hops", []
+    anchor_file, anchor_scope = pred["file"], pred["scope"]
+    carried: list[tuple[dict, ast.Call]] = []
+    for i, hop in enumerate(hops, 1):
+        if not (root / hop["file"]).is_file():
+            return f"hop {i}: {hop['file']} does not exist", carried
+        cands = wire_calls_in(srcs(hop["file"]), hop["call"], hop.get("job_id"),
+                              hop.get("id_kw", "id"))
+        if not cands:
+            jid = f" with id={hop['job_id']!r}" if hop.get("job_id") else ""
+            return f"hop {i}: no call to `{hop['call']}`{jid} in {hop['file']}", carried
+        faults: list[str] = []
+        for node in cands:
+            why = hop_edge_fault(node, hop, anchor_file, anchor_scope, srcs)
+            if why is None:
+                carried.append((hop, node))
+                break
+            faults.append(f"line {node.lineno}: {why}")
+        else:
+            return (f"hop {i}: no call to `{hop['call']}` in {hop['file']} reaches "
+                    f"{anchor_file}::{anchor_scope} - " + "; ".join(faults)), carried
+        _, parents = _parsed(srcs(hop["file"]))
+        anchor_file = hop["file"]
+        anchor_scope = _qualname(carried[-1][1], parents, own=False)
+    if require_entry and anchor_file not in entries:
+        return (f"the chain ends in {anchor_file}, which no Railway service boots "
+                f"(boots: {sorted(entries)})"), carried
+    return None, carried
+
+
+def cut_name(src: str, node: ast.AST) -> str:
+    """Rename ONE Name / Attribute leaf to `WIRE_CUT`, in memory - the wire is cut and
+    nothing else moves.
+
+    ⛔ ast column offsets are UTF-8 BYTE offsets, so the edit is made on bytes (several
+    of these files carry non-ASCII), and lines are split on "\\n" only: `splitlines`
+    also breaks on form feeds and U+2028, which would shift every line number the AST
+    handed back.
+    """
+    if isinstance(node, ast.Attribute):
+        ln, end = node.end_lineno, node.end_col_offset
+        start, word = end - len(node.attr), node.attr
+    elif isinstance(node, ast.Name):
+        ln, start = node.lineno, node.col_offset
+        end, word = start + len(node.id), node.id
+    else:
+        raise AssertionError(f"cannot cut a {type(node).__name__}")
+    lines = src.split("\n")
+    raw = lines[ln - 1].encode("utf-8")
+    assert raw[start:end].decode("utf-8") == word, (raw[start:end], word)
+    lines[ln - 1] = (raw[:start] + WIRE_CUT.encode("utf-8") + raw[end:]).decode("utf-8")
+    return "\n".join(lines)
+
+
+def _has_main_guard(src: str) -> bool:
+    tree, _ = _parsed(src)
+    for node in tree.body:
+        if isinstance(node, ast.If) and isinstance(node.test, ast.Compare):
+            names = {_dotted(node.test.left)} | {
+                c.value for c in node.test.comparators if isinstance(c, ast.Constant)}
+            if {"__name__", "__main__"} <= names:
+                return True
+    return False
+
+
+ENTRIES = service_entry_modules(ROOT)
+SINK_REL = POP_SPEC["sink_module"].replace(".", "/") + ".py"
+
+
+def _chain_params():
+    return [pytest.param(r, id=r["guard"]) for r in OBSERVED
+            if (r.get("wire") or {}).get("kind") in ("chain", "table")]
+
+
+def _is_registration(hop: dict) -> bool:
+    """A hop that registers a job rather than calling it - its TARGET is a second
+    thing that can be cut (`add_job(_check)`, `JobSpec(fn=_watchdog)`)."""
+    return _is_add_job(hop["call"]) or hop.get("arg") is not None
+
+
+def wire_chains(rec: dict) -> list[tuple[dict, list[dict], bool]]:
+    """`[(pred, hops, must_end_in_a_booted_module)]` for one observation.
+
+    A `table` wire is TWO chains with one edge between them that nothing static can
+    follow: guard -> the table entry naming it, and the table's dispatcher -> a
+    booted module. Both are proved; the edge between is NAMED in `unfollowable`.
+    """
+    wire = rec.get("wire") or {}
+    if wire.get("kind") == "chain":
+        return [(rec["predicate"], wire["hops"], True)]
+    if wire.get("kind") == "table":
+        return [(rec["predicate"], wire["hops"], False),
+                (wire["dispatcher"], wire["dispatcher_hops"], True)]
+    return []
+
+
+def test_the_boot_modules_are_READ_from_the_service_configuration():
+    """Non-vacuity + named members. A derivation that read nothing would fail every
+    chain with "no service boots it" - loud, but for the wrong reason."""
+    assert len(ENTRIES) >= 3, sorted(ENTRIES)
+    for must in ("api/main.py", "api/worker_main.py"):
+        assert must in ENTRIES, (must, sorted(ENTRIES))
+
+
+def test_the_add_job_matcher_can_answer_YES_and_NO():
+    """The L4 shape the backlog names: an AST over `api/main.py` that finds the jobs,
+    with a control proving an absent id is answered NO rather than matched loosely."""
+    src = (ROOT / "api" / "main.py").read_text(encoding="utf-8")
+    assert len(wire_calls_in(src, "add_job")) >= MAIN_ADD_JOB_FLOOR
+    assert wire_calls_in(src, "add_job", "wire_freshness_watchdog")
+    assert not wire_calls_in(src, "add_job", "term018_no_such_job_id")
+
+
+def test_every_observation_declares_its_wire():
+    bad = []
+    for rec in OBSERVED:
+        wire = rec.get("wire")
+        if not isinstance(wire, dict) or wire.get("kind") not in WIRE_KINDS:
+            bad.append(f"{rec['guard']}: wire={wire!r}")
+            continue
+        hops = wire.get("hops")
+
+        def _hops_ok(hs) -> bool:
+            return bool(hs) and all(isinstance(h, dict) and h.get("file") and h.get("call")
+                                    for h in hs)
+
+        if wire["kind"] in ("chain", "table"):
+            if not _hops_ok(hops):
+                bad.append(f"{rec['guard']}: a {wire['kind']} needs hops of "
+                           f"{{file, call}}: {hops!r}")
+        elif hops:
+            bad.append(f"{rec['guard']}: a {wire['kind']} wire carries no hops")
+        if wire["kind"] == "table":
+            disp = wire.get("dispatcher") or {}
+            if not (disp.get("file") and disp.get("scope")) \
+                    or not _hops_ok(wire.get("dispatcher_hops")):
+                bad.append(f"{rec['guard']}: a table names its dispatcher {{file, scope}} "
+                           "and the dispatcher's own hops")
+            if not (hops and hops[-1].get("job_id")):
+                bad.append(f"{rec['guard']}: a table's last hop is the ENTRY, by its id")
+            if not str(wire.get("unfollowable") or "").strip():
+                bad.append(f"{rec['guard']}: a table must NAME the edge nothing static "
+                           "can follow - that is the price of the kind")
+    assert not bad, (
+        "EVERY OBSERVATION MUST SAY HOW ITS GUARD IS REACHED IN A RUNNING PROCESS:\n  "
+        + "\n  ".join(bad)
+        + f"\n\n`wire.kind` is one of {WIRE_KINDS}. A guard proved red-before-green "
+          "in a test and reached by nothing in production is the CARD 27 shape.")
+
+
+@pytest.mark.parametrize("rec", _params())
+def test_clause7_the_wire_carries_the_guard_into_a_booted_process(rec):
+    wire = rec.get("wire") or {}
+    pred = rec["predicate"]
+    kind = wire.get("kind")
+    if kind in ("chain", "table"):
+        for start, hops, must_boot in wire_chains(rec):
+            fault, carried = verify_chain(ROOT, start, hops, ENTRIES,
+                                          require_entry=must_boot)
+            assert fault is None, (
+                f"THE WIRE TO {rec['guard']} IS BROKEN: {fault}\n"
+                "The guard can still be proved red-before-green in its own test and "
+                "never run in production. Fix the wiring, or re-declare the chain the "
+                "code uses.")
+            assert len(carried) == len(hops)
+    elif kind == "sink":
+        assert pred["file"] == SINK_REL, (
+            f"`sink` is reserved for the sink module ({SINK_REL}); "
+            f"{pred['file']} must declare the chain that reaches it")
+        emits = [g for g in _POPULATION if not g.startswith(SINK_REL + "::")]
+        assert len(emits) >= POP_SPEC["emit_site_count_floor"], (
+            "a sink's wire IS its producers, and the derivation found too few")
+    elif kind == "cli":
+        assert not pred["file"].startswith("api/"), (
+            f"{pred['file']} is service code; a service guard declares its chain")
+        assert _has_main_guard((ROOT / pred["file"]).read_text(encoding="utf-8")), (
+            f"{pred['file']} has no `if __name__ == \"__main__\":` - it is not a CLI")
+    else:
+        pytest.fail(f"undeclared wire for {rec['guard']} - see "
+                    "test_every_observation_declares_its_wire")
+
+
+@pytest.mark.parametrize("rec", _chain_params())
+def test_clause7_CUTTING_any_hop_breaks_the_chain(rec):
+    """⭐ THE BACKLOG'S "MUTATION-CHECKING THE WIRE", RUN FOR EVERY HOP, EVERY RUN.
+
+    Each hop's call is renamed in memory and the chain must stop verifying; an
+    `add_job` hop is cut twice, once at `add_job` and once at the job it names. A
+    chain that survives a cut has a SECOND registration carrying the same guard -
+    and three copies cannot be mutation-proved (delete every copy but one).
+    """
+    cut_count = 0
+    for start, hops, must_boot in wire_chains(rec):
+        fault, carried = verify_chain(ROOT, start, hops, ENTRIES, require_entry=must_boot)
+        assert fault is None, fault
+        for hop, node in carried:
+            src = (ROOT / hop["file"]).read_text(encoding="utf-8")
+            cuts = [node.func]
+            if _is_registration(hop):
+                cuts.append(_wire_target(node, hop["call"], hop.get("arg")))
+            for cut in cuts:
+                mutated = cut_name(src, cut)
+                assert mutated != src
+                fault2, _ = verify_chain(ROOT, start, hops, ENTRIES,
+                                         overrides={hop["file"]: mutated},
+                                         require_entry=must_boot)
+                cut_count += 1
+                assert fault2 is not None, (
+                    f"CUTTING `{_dotted(cut)}` at {hop['file']}:{cut.lineno} LEFT THE "
+                    f"CHAIN TO {rec['guard']} INTACT. Something else carries the same "
+                    "wire - delete every copy but one, or the survivor cannot be proved.")
+    assert cut_count >= 1, f"no hop of {rec['guard']} was cut - the discriminator ran on nothing"
+
+
+def _plant_service(root: Path, *, main_body: str) -> dict:
+    """A miniature estate: one monitor whose only route to its guard is a thread
+    TARGET (a reference, never a call), a same-named `start` in an unrelated module,
+    a relay module no service boots, and an entry module Railway boots."""
+    svc = root / "api" / "services"
+    svc.mkdir(parents=True)
+    (root / "railway.json").write_text(
+        json.dumps({"deploy": {"startCommand": "exec uvicorn api.main:app"}}),
+        encoding="utf-8", newline="\n")
+    (svc / "mon.py").write_text(
+        "import threading\n"
+        "def decide(x):\n"
+        "    return x > 1\n"
+        "def poll_once():\n"
+        "    return decide(2)\n"
+        "def _loop():\n"
+        "    poll_once()\n"
+        "def start():\n"
+        "    threading.Thread(target=_loop, daemon=True).start()\n"
+        "def unrelated():\n"
+        "    return 0\n",
+        encoding="utf-8", newline="\n")
+    (svc / "other.py").write_text("def start():\n    return None\n",
+                                  encoding="utf-8", newline="\n")
+    (svc / "relay.py").write_text(
+        "def go():\n    from api.services import mon\n    mon.start()\n",
+        encoding="utf-8", newline="\n")
+    (root / "api" / "main.py").write_text(main_body, encoding="utf-8", newline="\n")
+    return {"file": "api/services/mon.py", "scope": "decide"}
+
+
+_PLANTED_MAIN = (
+    "def lifespan(app):\n"
+    "    from api.services import mon\n"
+    "    mon.start()\n"
+)
+
+
+def test_REFERENCE_EDGES_ARE_LOAD_BEARING(tmp_path):
+    """CONTROL on `refs_reach`: the monitor's only route from `start` to `decide` is
+    `Thread(target=_loop)`. The call-only graph cannot see it; the wire needs it."""
+    _plant_service(tmp_path, main_body=_PLANTED_MAIN)
+    src = (tmp_path / "api" / "services" / "mon.py").read_text(encoding="utf-8")
+    assert "start" in refs_reach(src, "decide")
+    assert "start" not in names_that_reach(tmp_path, "api/services/mon.py", "decide")
+    assert "unrelated" not in refs_reach(src, "decide")            # ← and it can say NO
+
+
+def test_the_wire_check_DISTINGUISHES_a_live_wire_from_every_broken_one(tmp_path):
+    """MANDATORY DISCRIMINATOR for clause 7, through the real functions: one planted
+    chain that must hold, and four breakages that must each be named."""
+    pred = _plant_service(tmp_path, main_body=_PLANTED_MAIN)
+    entries = service_entry_modules(tmp_path)
+    assert entries == {"api/main.py"}, entries
+    hops = [{"file": "api/main.py", "call": "mon.start"}]
+
+    fault, carried = verify_chain(tmp_path, pred, hops, entries)
+    assert fault is None and len(carried) == 1, fault
+
+    # 1. the call is cut
+    main = (tmp_path / "api" / "main.py").read_text(encoding="utf-8")
+    cut = cut_name(main, carried[0][1].func)
+    assert "mon.start" not in cut
+    fault, _ = verify_chain(tmp_path, pred, hops, entries, overrides={"api/main.py": cut})
+    assert fault and "no call" in fault, fault
+
+    # 2. the SAME spelling, bound to a different module - a coincidence, refused
+    wrong = main.replace("import mon", "import other as mon")
+    fault, _ = verify_chain(tmp_path, pred, hops, entries, overrides={"api/main.py": wrong})
+    assert fault and "not bound" in fault, fault
+
+    # 3. the call exists and is bound, but never reaches THIS guard
+    fault, _ = verify_chain(tmp_path, {**pred, "scope": "unrelated"}, hops, entries)
+    assert fault and "does not call or reference" in fault, fault
+
+    # 4. a perfect chain that ends where no service boots
+    fault, _ = verify_chain(tmp_path, pred, [{"file": "api/services/relay.py",
+                                             "call": "mon.start"}], entries)
+    assert fault and "no Railway service boots" in fault, fault
+
+
+def test_an_add_job_hop_is_held_to_its_literal_id(tmp_path):
+    """The scheduler form: a job registered by id, one hop out from the guard."""
+    pred = _plant_service(tmp_path, main_body=(
+        "def lifespan(app, scheduler):\n"
+        "    def _job():\n"
+        "        from api.services import mon\n"
+        "        mon.start()\n"
+        "    scheduler.add_job(_job, id='mon_job', max_instances=1)\n"
+    ))
+    entries = service_entry_modules(tmp_path)
+    hops = [{"file": "api/main.py", "call": "mon.start"},
+            {"file": "api/main.py", "call": "add_job", "job_id": "mon_job"}]
+    fault, carried = verify_chain(tmp_path, pred, hops, entries)
+    assert fault is None and len(carried) == 2, fault
+    fault, _ = verify_chain(tmp_path, pred, [hops[0], {**hops[1], "job_id": "other_job"}],
+                            entries)
+    assert fault and "with id='other_job'" in fault, fault
+    main = (tmp_path / "api" / "main.py").read_text(encoding="utf-8")
+    job_cut = cut_name(main, _wire_target(carried[1][1], "add_job"))
+    fault, _ = verify_chain(tmp_path, pred, hops, entries, overrides={"api/main.py": job_cut})
+    assert fault and "does not call or reference" in fault, fault
+
+
+def test_a_table_entry_is_held_to_its_id_and_its_fn_and_cannot_pass_as_a_whole_chain(tmp_path):
+    """The dispatch-table form (Wisdom's `JobSpec(job_id=..., fn=...)`): the entry is
+    proved to name a def that reaches the guard - and the half-chain that ends in the
+    table is REFUSED when asked to stand in for a wire into a booted module."""
+    pred = _plant_service(tmp_path, main_body=_PLANTED_MAIN)
+    (tmp_path / "api" / "services" / "tbl.py").write_text(
+        "from api.services import mon\n"
+        "def _job(ctx):\n"
+        "    return mon.start()\n"
+        "JOBS = [Spec(job_id='tbl_job', fn=_job)]\n",
+        encoding="utf-8", newline="\n")
+    entries = service_entry_modules(tmp_path)
+    hops = [{"file": "api/services/tbl.py", "call": "mon.start"},
+            {"file": "api/services/tbl.py", "call": "Spec", "arg": "fn",
+             "id_kw": "job_id", "job_id": "tbl_job"}]
+    fault, carried = verify_chain(tmp_path, pred, hops, entries, require_entry=False)
+    assert fault is None and len(carried) == 2, fault
+    fault, _ = verify_chain(tmp_path, pred, hops, entries)             # ← whole-chain ask
+    assert fault and "no Railway service boots" in fault, fault
+    fault, _ = verify_chain(tmp_path, pred, [hops[0], {**hops[1], "job_id": "nope"}],
+                            entries, require_entry=False)
+    assert fault and "with id='nope'" in fault, fault
+    tbl = (tmp_path / "api" / "services" / "tbl.py").read_text(encoding="utf-8")
+    fn_cut = cut_name(tbl, _wire_target(carried[1][1], "Spec", "fn"))
+    fault, _ = verify_chain(tmp_path, pred, hops, entries, require_entry=False,
+                            overrides={"api/services/tbl.py": fn_cut})
+    assert fault and "does not call or reference" in fault, fault
+
+
+#: The two checks the CI job cannot run (they collect the product's own tests).
+CI_ONLY_LOCAL = ("test_the_pytest_collection_probe_can_answer_NO",
+                 "test_clause5c_every_observing_test_is_COLLECTED_by_pytest")
+CI_WORKFLOW = ROOT / ".github" / "workflows" / "term018-guards.yml"
+
+
+def test_the_CI_job_deselects_exactly_the_two_collection_checks():
+    """The shipping wire for THIS rail. The job may drop the two checks that need the
+    product installed - by exact node id - and nothing else; it must keep full history
+    (clause 6) and skip the product-importing conftests. A deselect list that grew, or a
+    `-k` filter, would let the job go green on a rail that had quietly stopped running."""
+    text = CI_WORKFLOW.read_text(encoding="utf-8")
+    here = Path(__file__).name
+    assert f"tests/{here}" in text, "the workflow no longer runs this rail"
+    deselected = re.findall(r"--deselect\s+(\S+)", text)
+    assert sorted(deselected) == sorted(f"tests/{here}::{n}" for n in CI_ONLY_LOCAL), deselected
+    names = pytest_test_names_in(Path(__file__).read_text(encoding="utf-8"))
+    assert set(CI_ONLY_LOCAL) <= names, "a deselected id names a test that does not exist"
+    assert not re.search(r"\s-k\s", text), "a -k filter can silently match nothing"
+    assert re.search(r"fetch-depth:\s*0\b", text), "clause 6 needs the full history"
+    assert "--noconftest" in text
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  F. CLAUSE 8 - NO SEAM IN THE GUARD'S REACH IS BOUND AT IMPORT
+# ══════════════════════════════════════════════════════════════════════════════
+
+def import_bound_defaults(src: str, only: set[str] | None = None) -> tuple[list[str], int]:
+    """`([violations], parameter defaults inspected)`.
+
+    A violation is a default that is a module-level def or class, a name imported
+    INTO the module, or an attribute rooted at an imported module (`clock=time.time`)
+    - each evaluated ONCE, at import. An UPPER_CASE leaf is a constant, not a seam,
+    and is skipped. `only` restricts the walk to defs with those leaf names.
+    """
+    tree, _ = _parsed(src)
+    bound: set[str] = set()
+    modules: set[str] = set()
+    for n in tree.body:
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            bound.add(n.name)
+        elif isinstance(n, ast.Import):
+            for a in n.names:
+                modules.add((a.asname or a.name).split(".")[0])
+        elif isinstance(n, ast.ImportFrom):
+            for a in n.names:
+                bound.add(a.asname or a.name)
+    out: list[str] = []
+    seen = 0
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if only is not None and fn.name not in only:
+            continue
+        a = fn.args
+        pos = a.posonlyargs + a.args
+        pairs = list(zip(pos[len(pos) - len(a.defaults):], a.defaults))
+        pairs += [(k, d) for k, d in zip(a.kwonlyargs, a.kw_defaults) if d is not None]
+        for arg, d in pairs:
+            seen += 1
+            leaf = _dotted(d)
+            if leaf is None or leaf.rsplit(".", 1)[-1].isupper():
+                continue
+            head = leaf.split(".", 1)[0]
+            if ("." not in leaf and head in bound) or ("." in leaf and head in (modules | bound)):
+                out.append(f"{fn.name}({arg.arg}={leaf}) line {d.lineno}")
+    return out, seen
+
+
+def _seam_scope(rec: dict) -> set[str] | None:
+    """The defs a monitor's observing test would patch its way into: everything that
+    reaches the guard, plus the guard's own nested defs."""
+    pred = rec["predicate"]
+    if pred["scope"] == "<module>":
+        return None
+    src = (ROOT / pred["file"]).read_text(encoding="utf-8")
+    tree, parents = _parsed(src)
+    return refs_reach(src, pred["scope"]) | _nested_defs(tree, parents, pred["scope"])
+
+
+_MONITOR_KINDS = ("chain", "table", "sink")
+
+
+def _monitor_params():
+    return [pytest.param(r, id=r["guard"]) for r in OBSERVED
+            if (r.get("wire") or {}).get("kind") in _MONITOR_KINDS]
+
+
+@pytest.mark.parametrize("rec", _monitor_params())
+def test_clause8_no_seam_in_the_guards_reach_is_bound_at_import(rec):
+    src = (ROOT / rec["predicate"]["file"]).read_text(encoding="utf-8")
+    bad, _ = import_bound_defaults(src, _seam_scope(rec))
+    assert not bad, (
+        f"SEAMS BOUND AT IMPORT in the reach of {rec['guard']}:\n  " + "\n  ".join(bad)
+        + "\n\nA default is evaluated once, when the module loads, so a test that "
+          "monkeypatches the module attribute reaches nothing and the observation "
+          "exercises the real function. Default it to None and resolve it in the body.")
+
+
+def test_clause8_inspected_real_defaults_in_the_guards_reach():
+    """Non-vacuity: across every monitor's reach the walk read parameter defaults, so
+    "no violation" is an answer about defaults rather than about an empty walk."""
+    total = 0
+    for rec in OBSERVED:
+        if (rec.get("wire") or {}).get("kind") in _MONITOR_KINDS:
+            src =(ROOT / rec["predicate"]["file"]).read_text(encoding="utf-8")
+            total += import_bound_defaults(src, _seam_scope(rec))[1]
+    assert total >= 5, f"only {total} parameter defaults inspected - a failed walk"
+
+
+def test_the_seam_detector_can_answer_YES_and_NO():
+    """CONTROL: the two real shapes are caught (`scripts/deploy_watch.py`'s
+    `probe_fn=probe`, and a module attribute), and a late-bound seam, a constant and a
+    literal are not."""
+    src = (
+        "import time\n"
+        "from api.x import probe, MAX_ROWS\n"
+        "def helper():\n"
+        "    return 1\n"
+        "def f(a, probe_fn=probe, clock=time.time, *, read=None, cap=MAX_ROWS, n=5,\n"
+        "      fallback=helper):\n"
+        "    return a\n"
+        "def g(x=None):\n"
+        "    return x\n"
+    )
+    bad, seen = import_bound_defaults(src)
+    assert seen == 7, seen
+    assert sorted(b.split(" line")[0] for b in bad) == [
+        "f(clock=time.time)", "f(fallback=helper)", "f(probe_fn=probe)"], bad
+    assert import_bound_defaults(src, {"g"}) == ([], 1)             # ← scoped, and clean

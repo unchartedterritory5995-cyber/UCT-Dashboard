@@ -11,7 +11,7 @@
     "rail asserts that partition is EXACTLY the derived set. A guard added to the",
     "code and to neither list fails the rail BY NAME on its first run.",
     "",
-    "WHAT AN `observed` ENTRY MUST SURVIVE (all six, every run, no exceptions):",
+    "WHAT AN `observed` ENTRY MUST SURVIVE (all eight, every run, no exceptions):",
     " 1. `predicate.file` + `predicate.scope` resolve to a real def by AST.",
     " 2. `predicate.pinned` is PRESENT in that scope's source, after comments and",
     "    docstrings are stripped and whitespace normalised.",
@@ -24,6 +24,14 @@
     " 6. `proof.commit` is an ancestor of HEAD and its message contains",
     "    `proof.quote` verbatim. So a record cannot be added without a commit that",
     "    records a real red count.",
+    " 7. `wire` says how the guard is reached in a running process, and it is",
+    "    checked by AST: a `chain` of real call sites, each name BOUND to the",
+    "    previous hop's module by an import, ending in a module a Railway service",
+    "    boots - and every hop is CUT in memory and the chain must break. A `table`",
+    "    is two such chains with the one runtime lookup between them named in",
+    "    `unfollowable`; a `sink` and a `cli` are checked for being what they claim.",
+    " 8. no parameter default in the guard's reach is a def, class or import bound",
+    "    when the module loads - an injected seam is `=None`, resolved in the body.",
     "",
     "WHAT THIS FILE DOES NOT PROVE: that the recorded test is red TODAY if the guard",
     "is reverted. Nothing static can prove that. It proves the mutation was really",
@@ -77,6 +85,15 @@
       "proof": {
         "commit": "e28834d82",
         "quote": "the defect restored (4 red)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "bars_reconciliation.start"
+          }
+        ]
       }
     },
     {
@@ -101,6 +118,37 @@
       "proof": {
         "commit": "a1f212dd6",
         "quote": "Reverting `_staleness_window` to `max(last_ok, boot)` reds 4 of 5"
+      },
+      "wire": {
+        "kind": "table",
+        "hops": [
+          {
+            "file": "api/services/wisdom/core/jobs.py",
+            "call": "registry.watchdog"
+          },
+          {
+            "file": "api/services/wisdom/core/jobs.py",
+            "call": "registry.JobSpec",
+            "arg": "fn",
+            "id_kw": "job_id",
+            "job_id": "wisdom_core_watchdog"
+          }
+        ],
+        "dispatcher": {
+          "file": "api/services/wisdom/registry.py",
+          "scope": "run_job"
+        },
+        "dispatcher_hops": [
+          {
+            "file": "api/services/wisdom/registry.py",
+            "call": "add_job"
+          },
+          {
+            "file": "api/main.py",
+            "call": "_wisdom_registry_jobs.register_jobs"
+          }
+        ],
+        "unfollowable": "registry.job_specs() imports api.services.wisdom.<pkg>.jobs through an f-string over PACKAGES and reads that module's JOBS list, and run_job reaches an entry's fn by looking its job id up in that list. Both halves are proved; the lookup between them is a runtime string match by design."
       }
     },
     {
@@ -124,6 +172,9 @@
       "proof": {
         "commit": "cf2613969",
         "quote": "reverting the two throttle lines to their per-key form reds 2 of 8"
+      },
+      "wire": {
+        "kind": "sink"
       }
     },
     {
@@ -147,6 +198,20 @@
       "proof": {
         "commit": "6c6f540c8",
         "quote": "reverting minute 35 -> 5 turns 5 of the 6 tests red"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "wire_freshness_watchdog"
+          },
+          {
+            "file": "api/main.py",
+            "call": "register_wire_watchdog_job"
+          }
+        ]
       }
     },
     {
@@ -170,6 +235,9 @@
       "proof": {
         "commit": "6c0dc5854",
         "quote": "putting stale-swr back into COLD turns two of them red"
+      },
+      "wire": {
+        "kind": "cli"
       }
     },
     {
@@ -190,6 +258,9 @@
       "proof": {
         "commit": "3622287d5",
         "quote": "the second transport coupled to the primary channel (8 red)"
+      },
+      "wire": {
+        "kind": "sink"
       },
       "what_the_guard_decides": "Whether an OPS CRITICAL reaches the second transport at all - and, load-bearingly, WITHOUT consulting the Discord channel's variables. `_should_page_discord` returns False when the webhook is blank, so a second leg that read the same fact would go silent in exactly the case spec section 6 step 4 exists for: 'With the primary channel's variable blanked, a CRITICAL still reaches the second channel' (backlog.md:586-587)."
     },
@@ -212,6 +283,9 @@
         "commit": "3622287d5",
         "quote": "the second transport delivering to nobody (7 red)"
       },
+      "wire": {
+        "kind": "sink"
+      },
       "what_the_guard_decides": "Whether the resolved recipients are actually sent to. It is the transport rather than a threshold, and - like `_page_discord` above - the derivation cannot tell those apart, so it is recorded rather than excluded by a hand-written rule."
     },
     {
@@ -232,6 +306,25 @@
       "proof": {
         "commit": "2059e998f",
         "quote": "the defect restored (3 red)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/services/calendar_week_poster.py",
+            "call": "week_days"
+          },
+          {
+            "file": "api/main.py",
+            "call": "run_scheduled_post"
+          },
+          {
+            "file": "api/main.py",
+            "call": "add_job",
+            "job_id": "calendar_week_post"
+          }
+        ],
+        "note": "The Saturday post is gated by CALENDAR_WEEK_POST_ENABLED, source default off; no flag state is asserted here. The calendar read path (api/routers/calendar.py -> week_days) reaches the same guard on every request, through a router module rather than a module a service boots, so it is not the declared chain."
       }
     },
     {
@@ -253,6 +346,19 @@
       "proof": {
         "commit": "a482e48a2",
         "quote": "the redeploy guard removed (3 red)"
+      },
+      "wire": {
+        "kind": "chain",
+        "hops": [
+          {
+            "file": "api/services/bars_continuous_audit.py",
+            "call": "bars_rail_monitor.start"
+          },
+          {
+            "file": "api/main.py",
+            "call": "bars_continuous_audit.start"
+          }
+        ]
       }
     }
   ],
