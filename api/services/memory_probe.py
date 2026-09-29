@@ -16,7 +16,7 @@ DERIVED, NOT ENUMERATED
 -----------------------
 Caches are discovered by walking `sys.modules` for live `TTLCache` instances
 rather than from a hand-written roster. There are at least four (`services.cache`,
-`routers.live_prices`, `services.discord_relay`, `services.fred_economic`) and a
+`routers.live_prices`, `services.discord_relay`, formerly `services.fred_economic`) and a
 typed list would omit the next one — which, being new, is exactly the one most
 likely to be leaking. Anything found without a module-level name is still
 reported, as `<unnamed>`.

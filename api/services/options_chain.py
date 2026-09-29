@@ -22,20 +22,19 @@ _log = logging.getLogger(__name__)
 _CACHE = TTLCache()
 _CACHE_TTL = 300  # 5 min — option chains move fast intraday
 
-# Risk-free rate fallback when FRED isn't reachable. Refresh periodically.
+# Fixed risk-free rate for the Greeks. Refresh periodically.
 _RFR_FALLBACK = 0.045
 
 
 def _risk_free_rate() -> float:
-    """Use the latest 3-month T-bill yield if FRED is wired, else fallback."""
-    try:
-        from api.services.fred_economic import get_series
-        r = get_series("3m_yield", periods=1)
-        latest = (r or {}).get("latest")
-        if latest and isinstance(latest.get("value"), (int, float)):
-            return float(latest["value"]) / 100.0
-    except Exception:
-        pass
+    """The fixed risk-free rate.
+
+    This used to ask FRED for the 3-month T-bill yield. FRED is retired (not a
+    licensed production source -- see api/services/fred_economic.py and
+    docs/economic-data/PHASE1-DESIGN.md); in production the FRED call always
+    returned an error and this always fell back, so behaviour is unchanged. A
+    licensed 3-month yield (econ registry UST3M, Fed H.15) can replace this once
+    that series is enabled in the econ store."""
     return _RFR_FALLBACK
 
 
