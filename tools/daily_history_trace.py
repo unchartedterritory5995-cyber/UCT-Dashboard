@@ -336,7 +336,11 @@ def _run_clock(browser, base, cname, now):
         scenario(page, base, "S6 warm deep cache", seed=FULL[:-1], click="Origin"),
         scenario(page, base, "S7 warm deep + stale tail", seed=FULL[:-5], click="Origin"),
         scenario(page, base, "S8 shallow 601-row cache, no click", seed=shallow601),
-        scenario(page, base, "S9 shallow 601-row cache + Origin", seed=shallow601, click="Origin"),
+        # FOLLOW-UP: Origin clicked before the deep leg lands reads 601 LOADED rows as
+        # "deep" (`_loadedRows > _fpBars`) and frames the shallow window. Fails at EVERY
+        # clock, RTH included, on 38bb9a421 too -- not the after-bell defect.
+        scenario(page, base, "S9 shallow 601-row cache + Origin", seed=shallow601, click="Origin",
+                 followup=True),
         scenario(page, base, "S10 overlay, cold, no click", compare="SPY"),
         scenario(page, base, "S11 overlay + shallow 601, no click",
                  seed=shallow601, compare="SPY", followup=True),

@@ -1,9 +1,10 @@
 {
-  "fixture": {
-    "full": 5247,
-    "sealed": 5246,
-    "origin": "2006-08-07",
-    "today": "2026-09-15"
+  "clocks": {
+    "RTH": "2026-09-15T13:17:00-04:00",
+    "POST": "2026-09-15T19:30:00-04:00",
+    "NIGHT": "2026-09-15T23:30:00-04:00",
+    "PRE": "2026-09-16T08:00:00-04:00",
+    "SAT": "2026-09-19T12:00:00-04:00"
   },
   "scenarios": [
     {
@@ -25,7 +26,10 @@
       },
       "histCalls": 1,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S2 deep delayed 4s, no click",
@@ -44,9 +48,12 @@
         "from": "2026-03-24",
         "to": "2026-09-24"
       },
-      "histCalls": 1,
+      "histCalls": 2,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S3 Origin BEFORE deep (4s delay)",
@@ -69,9 +76,12 @@
         "from": "2006-08-07",
         "to": "2006-11-07"
       },
-      "histCalls": 1,
+      "histCalls": 2,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S4 5Y BEFORE deep (4s delay)",
@@ -94,9 +104,12 @@
         "from": "2021-09-14",
         "to": "2026-11-10"
       },
-      "histCalls": 1,
+      "histCalls": 2,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S5 first deep FAILS, retry (25s)",
@@ -119,9 +132,12 @@
         "from": "2006-08-07",
         "to": "2006-11-07"
       },
-      "histCalls": 3,
+      "histCalls": 2,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S5b deep FAILS, no click (25s)",
@@ -142,7 +158,10 @@
       },
       "histCalls": 2,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S6 warm deep cache",
@@ -167,7 +186,10 @@
       },
       "histCalls": 1,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
     },
     {
       "scenario": "S7 warm deep + stale tail",
@@ -192,7 +214,1498 @@
       },
       "histCalls": 1,
       "seriesDeep": true,
-      "viewOk": true
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S8 shallow 601-row cache, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S9 shallow 601-row cache + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2024-02-26",
+        "to": "2024-08-28"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": false,
+      "compare": null,
+      "followup": true,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S10 overlay, cold, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2025-11-26",
+        "to": "2026-09-23"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": false,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S11 overlay + shallow 601, no click",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2020-07-16",
+        "to": "2021-05-13"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S12 overlay + shallow 601 + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2019-01-16",
+        "to": "2019-04-18"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": false,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "RTH"
+    },
+    {
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2021-09-14",
+        "to": "2026-11-10"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S8 shallow 601-row cache, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S9 shallow 601-row cache + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2024-02-26",
+        "to": "2024-08-28"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": false,
+      "compare": null,
+      "followup": true,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S10 overlay, cold, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2025-11-26",
+        "to": "2026-09-23"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": false,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S11 overlay + shallow 601, no click",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2020-07-16",
+        "to": "2021-05-13"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S12 overlay + shallow 601 + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2019-01-16",
+        "to": "2019-06-17"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": false,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "POST"
+    },
+    {
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2021-09-14",
+        "to": "2026-11-10"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S8 shallow 601-row cache, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S9 shallow 601-row cache + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2024-02-26",
+        "to": "2024-08-28"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": false,
+      "compare": null,
+      "followup": true,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S10 overlay, cold, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2025-11-26",
+        "to": "2026-09-23"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": false,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S11 overlay + shallow 601, no click",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2020-07-16",
+        "to": "2021-05-13"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S12 overlay + shallow 601 + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2019-01-16",
+        "to": "2019-06-17"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": false,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "NIGHT"
+    },
+    {
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2021-09-14",
+        "to": "2026-11-10"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-05-29",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S8 shallow 601-row cache, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2026-03-24",
+        "to": "2026-09-24"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S9 shallow 601-row cache + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2024-02-26",
+        "to": "2024-08-28"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": false,
+      "compare": null,
+      "followup": true,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S10 overlay, cold, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5247,
+        "first": "2006-08-07",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2025-11-26",
+        "to": "2026-09-23"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": false,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S11 overlay + shallow 601, no click",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2020-07-16",
+        "to": "2021-05-13"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S12 overlay + shallow 601 + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-28",
+        "last": "2026-09-15"
+      },
+      "visible": {
+        "from": "2019-01-16",
+        "to": "2019-06-17"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": false,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "PRE"
+    },
+    {
+      "scenario": "S1 immediate deep, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2026-03-27",
+        "to": "2026-09-29"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S2 deep delayed 4s, no click",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2026-03-27",
+        "to": "2026-09-29"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S3 Origin BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-06-03",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S4 5Y BEFORE deep (4s delay)",
+      "verdict": "PASS",
+      "delay_ms": 4000,
+      "fail_times": 0,
+      "click": "5Y",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-06-03",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2021-09-17",
+        "to": "2026-11-13"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S5 first deep FAILS, retry (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 600,
+        "first": "2024-06-03",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 3,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S5b deep FAILS, no click (25s)",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 1,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2026-03-27",
+        "to": "2026-09-29"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S6 warm deep cache",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S7 warm deep + stale tail",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2006-08-07",
+        "to": "2006-11-07"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S8 shallow 601-row cache, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2026-03-27",
+        "to": "2026-09-29"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": null,
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S9 shallow 601-row cache + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-31",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2024-02-29",
+        "to": "2024-09-02"
+      },
+      "histCalls": 1,
+      "seriesDeep": true,
+      "viewOk": false,
+      "compare": null,
+      "followup": true,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S10 overlay, cold, no click",
+      "verdict": "PASS",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 5250,
+        "first": "2006-08-07",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2025-12-01",
+        "to": "2026-09-28"
+      },
+      "histCalls": 2,
+      "seriesDeep": true,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": false,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S11 overlay + shallow 601, no click",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": null,
+      "clicked": null,
+      "preClickRendered": null,
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-31",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2020-07-21",
+        "to": "2021-05-18"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": true,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "SAT"
+    },
+    {
+      "scenario": "S12 overlay + shallow 601 + Origin",
+      "verdict": "F-FAIL",
+      "delay_ms": 0,
+      "fail_times": 0,
+      "click": "Origin",
+      "clicked": true,
+      "preClickRendered": {
+        "n": 601,
+        "first": "2024-05-31",
+        "last": "2026-09-18"
+      },
+      "rendered": {
+        "n": 601,
+        "first": "2024-05-31",
+        "last": "2026-09-18"
+      },
+      "visible": {
+        "from": "2019-01-21",
+        "to": "2019-06-20"
+      },
+      "histCalls": 0,
+      "seriesDeep": false,
+      "viewOk": false,
+      "compare": "SPY",
+      "followup": true,
+      "clock": "SAT"
     }
   ]
 }
