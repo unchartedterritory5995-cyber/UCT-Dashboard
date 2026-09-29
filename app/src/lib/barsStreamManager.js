@@ -14,6 +14,17 @@
 // Kill-switch: localStorage 'uct.barsPool.disabled' = '1' → no connection opens and
 // every key reports not-delivering, so the consumer's barsPushActive goes false and
 // the Finnhub writers stay authoritative (today's behavior). Runtime, no rebuild.
+//
+// Event ids (TERM-054): every server frame carries `id:`, and each bucket keeps
+// the newest one it saw. When a bucket RECONNECTS (error backoff or watchdog —
+// the same pairs coming back) it presents that id as `last_event_id`; a bucket
+// built for a changed union is a new subscription and presents none. The server
+// answers with `event: resume`: bars are last-value-wins, so resume is
+// `not_applicable` and zero bars are replayed — each pair's next bar supersedes
+// what was missed. The declaration is recorded (getLastResume) and is NOT a bar:
+// it never reaches onBar, never touches per-key delivery state, and so never
+// moves `delivering` or the single developing-bar writer. The existing
+// onReconnect gap-backfill is unchanged.
 
 import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
 
@@ -38,8 +49,9 @@ export const BARS_LIVE_DISENGAGE_MS = 150000
 
 let _nextId = 1
 const _subscribers = new Map()  // id -> { sym, tf, key, onBar, onReconnect, onStatus }
-let _buckets = []               // [{ key, pairs:Set<string>, es, connected, retryDelay, reconnectTimer, lastMsg }]
+let _buckets = []               // [{ key, pairs:Set<string>, es, connected, retryDelay, reconnectTimer, lastMsg, lastEventId }]
 const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
+let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
 let _watchdogTimer = null
 
@@ -145,6 +157,12 @@ export function getStatus(sym, tf) {
   return { connected, healthy, delivering }
 }
 
+/** The newest resume declaration the server sent (or null): what it said, which
+ *  bucket received it, and when. Diagnostics only — see the header comment. */
+export function getLastResume() {
+  return _lastResume
+}
+
 function _union() {
   if (_killed()) return []
   const set = new Set()
@@ -172,6 +190,7 @@ function _rebuild() {
     const bucket = {
       key, pairs: new Set(chunk), es: null, connected: false,
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
+      lastEventId: null,   // a NEW subscription presents no id — it is not a resume
     }
     next.push(bucket)
     _connectBucket(bucket)
@@ -195,11 +214,25 @@ function _teardownBucket(bucket) {
 
 function _connectBucket(bucket) {
   if (typeof EventSource === 'undefined') return  // SSR / non-browser safety
-  const es = new EventSource(`/api/stream/bars?bars=${bucket.key}`)
+  const resumeParam = bucket.lastEventId
+    ? `&last_event_id=${encodeURIComponent(bucket.lastEventId)}` : ''
+  const es = new EventSource(`/api/stream/bars?bars=${bucket.key}${resumeParam}`)
   bucket.es = es
   bucket.lastMsg = Date.now()
 
-  const touch = () => { bucket.lastMsg = Date.now() }
+  // Every frame is liveness; every frame's id is the newest this bucket has seen.
+  const touch = (event) => {
+    bucket.lastMsg = Date.now()
+    if (event && event.lastEventId) bucket.lastEventId = event.lastEventId
+  }
+
+  es.addEventListener('resume', (event) => {
+    if (bucket.es !== es) return
+    touch(event)
+    try {
+      _lastResume = { ...JSON.parse(event.data), bucket: bucket.key, receivedAt: Date.now() }
+    } catch { /* malformed frame — ignore */ }
+  })
 
   es.onopen = () => {
     if (bucket.es !== es) return
@@ -217,7 +250,7 @@ function _connectBucket(bucket) {
 
   es.addEventListener('bar', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)   // {sym, tf, bar:{t,o,h,l,c,v}}
       if (!data || !data.sym || data.tf == null) return
@@ -246,7 +279,7 @@ function _connectBucket(bucket) {
 
   // Named heartbeat (see stream.py) — keeps lastMsg fresh during quiet periods so
   // the watchdog doesn't false-reconnect a healthy-but-idle connection.
-  es.addEventListener('heartbeat', () => { if (bucket.es === es) touch() })
+  es.addEventListener('heartbeat', (event) => { if (bucket.es === es) touch(event) })
 
   es.onerror = () => {
     if (bucket.es !== es) return  // a rebuild/watchdog already replaced this connection
@@ -305,6 +338,7 @@ export function _resetForTests() {
   _buckets = []
   _subscribers.clear()
   _keyState.clear()
+  _lastResume = null
   _nextId = 1
 }
 
