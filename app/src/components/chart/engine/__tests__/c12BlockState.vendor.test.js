@@ -79,3 +79,48 @@ describe('C12 — `x = if cond` with no `else` (atr-support-and-resistance)', ()
     expect(idsOf(run, 'box').length).toBeGreaterThan(vendorIds(capture, 'box').length)
   })
 })
+
+describe('C12 — crossover of a `var` inside its own update (institutional-smc-order-flow-matrix-pro)', () => {
+  const capture = load('institutional-smc-order-flow-matrix-pro')
+  const W = 250 // `accum`'s warm-up: the object lane reads no `var` state before it
+  const levels = (recs) => recs.map((r) => `${r.st === 'sol' || r.style === 'solid' ? 'CHoCH' : 'BOS'}@${r.y1}`)
+
+  it('⭐ every BOS / CHoCH line past the warm-up is TradingView\'s, in order, level and kind', () => {
+    const run = ourRun(capture)
+    const ours = run.live.filter((o) => o.family === 'line').sort((a, b) => a.id - b.id)
+    const vendor = [...capture.objects.records.lines].sort((a, b) => a.id - b.id)
+    expect(vendor.length).toBe(18)
+    // the reset (`last_ph_s := na` after the break) is what keeps each level to ONE line
+    expect(ours.length).toBe(13)
+    expect(ours.every((o) => o.props.x2 >= W)).toBe(true)
+    expect(levels(ours.map((o) => o.props))).toEqual(levels(vendor.slice(vendor.length - ours.length)))
+  })
+
+  it('⭐ the five TradingView holds beyond ours all break BEFORE the warm-up — nothing else is missing', () => {
+    const run = ourRun(capture)
+    const ours = run.live.filter((o) => o.family === 'line').length
+    const vendor = [...capture.objects.records.lines].sort((a, b) => a.id - b.id)
+    const closes = capture.bars.rows.map((r) => r[4])
+    for (const rec of vendor.slice(0, vendor.length - ours)) {
+      const up = rec.st !== 'sol' // BOS: close crosses above; CHoCH: below
+      let at = -1
+      for (let i = 1; i < closes.length && at < 0; i++) {
+        const now = up ? closes[i] > rec.y1 : closes[i] < rec.y1
+        const before = up ? closes[i - 1] <= rec.y1 : closes[i - 1] >= rec.y1
+        if (now && before) at = i
+      }
+      expect(at, `${rec.st} ${rec.y1}`).toBeGreaterThan(0)
+      expect(at, `${rec.st} ${rec.y1}`).toBeLessThan(W)
+    }
+  })
+
+  it('⭐ the labels: TradingView\'s 16 ITH / ITL plus the 13 break labels past the warm-up', () => {
+    const run = ourRun(capture)
+    const count = (texts, t) => texts.filter((x) => x === t).length
+    const ours = run.live.filter((o) => o.family === 'label').map((o) => String(o.props.text))
+    const vendor = capture.objects.texts.labels
+    for (const t of ['ITH', 'ITL']) expect(count(ours, t), t).toBe(count(vendor, t))
+    expect(count(ours, 'BOS') + count(ours, 'CHoCH')).toBe(13)
+    expect(count(vendor, 'BOS') + count(vendor, 'CHoCH')).toBe(18)
+  })
+})
