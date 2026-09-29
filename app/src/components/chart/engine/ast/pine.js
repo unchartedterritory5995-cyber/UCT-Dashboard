@@ -7308,6 +7308,33 @@ export class Resolver {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
         // one cast covers `c ? a : b`, `if c`, and `else if c`.
         const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
+        // ⭐⭐ C12 — THE FALLTHROUGH OF AN `if` WITH NO `else` (`foldIfChain` marks
+        // it `noElse`). Its `na` is Pine's answer only for a NUMBER: v6 returns
+        // `false` for a bool, v5 `na`, and no capture separates them. So the branch
+        // it falls back from must resolve to a proven number — resolved even when a
+        // constant test would skip it, because its KIND is what decides what the
+        // skipped side means — and anything else keeps the `pine:block` refusal,
+        // naming why.
+        if (node.noElse) {
+          let yes
+          try {
+            yes = this.resolve(node.yes)
+          } catch (err) {
+            if (test.type === 'num' && test.value !== 0) throw err
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and its branch here could not be read to '
+              + 'say which', locate(node.tok))
+          }
+          if (conditionKindOf(yes, this.table) !== 'num') {
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and this branch is not a proven number',
+              locate(node.tok))
+          }
+          if (test.type === 'num') return test.value !== 0 ? yes : this.resolve(node.no)
+          return cOp('?:', [test, yes, this.resolve(node.no)])
+        }
         // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
         // the same rule as "a statement no output reaches is a note": refusing a
         // script over an arm its own folded input makes unreachable would be
@@ -11223,6 +11250,38 @@ function foldIfChain(stmts, i, ctx, env) {
 
   if (hasElse ? arms.every((a) => a.value) : false) {
     value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
+    for (let k = arms.length - 2; k >= 0; k -= 1) {
+      value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
+    }
+    value = exprBinding(value, before, locate(arm0.tok))
+  } else if (!hasElse && arms.every((a) => a.value && a.value.kind !== 'tuple')) {
+    // ⭐⭐ C12 (2026-09-29) — AN `if` WITH NO `else` IS A VALUE, AND ITS MISSING
+    // BRANCH IS `na`. Pine's manual: when an `if` used as an expression runs no
+    // branch, it returns `na`. This refused the whole chain as "a branch with no
+    // value", which is true of the TEXT and false of the language.
+    //
+    // ⚰️ MEASURED on the vendor harness, `atr-support-and-resistance` (v6, NYSE:RDDT
+    // 1D, 2026-09-28): `impUpWick = if impUp` / `open - low` feeds the only guard in
+    // front of every box and mid line the script draws, so the refusal cost all 20
+    // lines and 20 boxes TradingView holds. The capture also DECIDES the fallthrough:
+    // with `na` the wick test `impUpWick / ta.tr <= 0.25` is false on a non-impulse
+    // bar and the count is the vendor's; with `0` it would be true there and push a
+    // box on nearly every bar (`c12BlockState.vendor.test.js` runs both).
+    //
+    // ⛔ ONLY A PROVEN NUMBER. Pine v6 made `bool` non-`na`, so an `if` with no
+    // `else` over a bool returns `false` there and `na` in v5 — two answers no
+    // capture on disk separates. The innermost ternary carries `noElse`, and the
+    // Resolver refuses by name unless the branch it would fall back from resolves
+    // to a proven number (`conditionKindOf`), which is exactly where the two
+    // versions agree.
+    value = {
+      type: 'ternary',
+      test: arms[arms.length - 1].cond,
+      yes: boundNode(arms[arms.length - 1].value, null, arms[arms.length - 1].tok),
+      no: { type: 'name', name: 'na', tok: arms[arms.length - 1].tok },
+      noElse: true,
+      tok: arms[arms.length - 1].tok,
+    }
     for (let k = arms.length - 2; k >= 0; k -= 1) {
       value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
     }
