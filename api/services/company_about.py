@@ -42,8 +42,9 @@ def get_profile(sym: str) -> dict:
         return hit
     out: dict = {}
     try:
-        from api.services import earnings_estimates as ee
-        data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=8)
+        # TERM-072: the D1 adapter; `body_or_none` keeps `_fmp_get`'s contract.
+        from api.services import fmp_client
+        data = fmp_client.body_or_none(fmp_client.get_company_profile, sym, timeout=8)
         row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
         if row:
             lo = hi = None

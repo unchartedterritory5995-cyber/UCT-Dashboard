@@ -1,4 +1,5 @@
 import importlib
+from tests._fmp_legacy_stub import route_fmp
 
 
 def _mod(monkeypatch, tmp_path):
@@ -44,7 +45,7 @@ def test_build_quarterly_takes_last_five_plus_next(monkeypatch, tmp_path):
 
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
     # No FMP nor yfinance forward source → falls back to single Finnhub next-earnings.
-    monkeypatch.setattr(etmod.ee, "_fmp_get", lambda *a, **k: None)
+    route_fmp(monkeypatch, lambda *a, **k: None)
     monkeypatch.setattr(etmod, "_yf_forward_quarters", lambda t, limit: [])
     monkeypatch.setattr(etmod, "_next_earnings", lambda t: {"date": "2026-08-05", "eps_estimate": 0.58, "rev_estimate": 1.85e9})
     import calendar, time
@@ -120,7 +121,7 @@ def test_forward_includes_ended_but_unreported_quarter(monkeypatch, tmp_path):
 
     monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
-    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     import calendar, time
     now = calendar.timegm(time.strptime("2026-07-02", "%Y-%m-%d"))
     q = et._build_quarterly("ZZMXL", now)
@@ -162,7 +163,7 @@ def test_build_quarterly_four_forward_from_fmp(monkeypatch, tmp_path):
 
     monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")  # opt into the FMP depth path
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
-    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     import calendar, time
     now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
     q = et._build_quarterly("ZZF", now)
@@ -202,7 +203,7 @@ def test_forward_quarters_have_yoy_growth(monkeypatch, tmp_path):
 
     monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
     monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
-    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     import calendar, time
     now = calendar.timegm(time.strptime("2026-08-05", "%Y-%m-%d"))
     q = et._build_quarterly("ZZYOY", now)
@@ -256,7 +257,7 @@ def test_fmp_analyst_estimates_gated_off_by_default(monkeypatch, tmp_path):
         called["n"] += 1
         return [{"date": "2099-09-30", "epsAvg": 1.0, "revenueAvg": 1.0e9}]
 
-    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     assert etmod._fmp_forward_quarters("ZZG", 4) == []
     assert called["n"] == 0                                # no HTTP call made
 
@@ -271,7 +272,7 @@ def test_zero_revenue_estimate_normalized_to_missing(monkeypatch, tmp_path):
         return [{"date": "2099-09-30", "epsAvg": 0.76, "revenueAvg": 0}]
 
     monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
-    monkeypatch.setattr(etmod.ee, "_fmp_get", fake_fmp)
+    route_fmp(monkeypatch, fake_fmp)
     rows = etmod._fmp_forward_quarters("ZZ0", 4)
     assert rows == [{"period_end": "2099-09-30", "label": "2099 Q3",
                      "eps_estimate": 0.76, "rev_estimate": None}]

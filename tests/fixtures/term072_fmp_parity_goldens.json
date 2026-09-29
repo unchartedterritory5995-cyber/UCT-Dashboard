@@ -1,0 +1,1885 @@
+{
+ "analyst_intel._fmp_consensus": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "buy": 30,
+    "hold": 8,
+    "rating": "Buy",
+    "sell": 1,
+    "strong_buy": 2,
+    "strong_sell": 0
+   },
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-consensus",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "analyst_intel._fmp_price_target": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "avg": 327.0,
+    "count": null,
+    "high": 400.0,
+    "low": 253.0,
+    "updated": null
+   },
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/price-target-consensus",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "analyst_intel._fmp_recent_actions": {
+  "empty": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": [],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    {
+     "action": "hold",
+     "date": "2026-07-08",
+     "firm": "Evercore ISI",
+     "from_grade": "Outperform",
+     "news_publisher": "TheFly",
+     "news_url": "https://thefly.com/ajax/news_get.php?id=4381545",
+     "to_grade": "Outperform"
+    },
+    {
+     "action": "initialise",
+     "date": "2026-06-25",
+     "firm": "Goldman Sachs",
+     "from_grade": "Buy",
+     "news_publisher": "TheFly",
+     "news_url": "https://thefly.com/ajax/news_get.php?id=4375700",
+     "to_grade": "Neutral"
+    }
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/grades-news",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "annual_financials._annual_actuals_from_fmp": {
+  "empty": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": {},
+   "requests": []
+  },
+  "nonjson": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "2023": {
+     "eps": 6.13,
+     "sales": 383000000000.0
+    },
+    "2024": {
+     "eps": 6.08,
+     "sales": 391000000000.0
+    },
+    "2025": {
+     "eps": 6.08,
+     "sales": 416000000000.0
+    }
+   },
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "limit": 12,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "annual_financials._forward_estimates_fmp": {
+  "empty": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": [],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    {
+     "eps": 8.2,
+     "fiscal_year": 2098,
+     "sales": 490000000000.0
+    },
+    {
+     "eps": 9.1,
+     "fiscal_year": 2099,
+     "sales": 510000000000.0
+    }
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "period": "annual",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "call_recap_warmer.recent_reporters": {
+  "empty": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  },
+  "http403": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  },
+  "http500": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  },
+  "nokey": {
+   "output": [],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    "DIS",
+    "AAA",
+    "NEW"
+   ],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  },
+  "timeout": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "from": "2026-08-09",
+      "to": "2026-08-09"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-08",
+      "to": "2026-08-08"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    },
+    {
+     "params": {
+      "from": "2026-08-07",
+      "to": "2026-08-07"
+     },
+     "path": "/stable/earnings-calendar",
+     "timeout": 20
+    }
+   ]
+  }
+ },
+ "company_about.get_profile": {
+  "empty": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "http403": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "http500": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "nokey": {
+   "output": {},
+   "requests": []
+  },
+  "nonjson": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "avgVolume": 55000000.0,
+    "beta": 1.2,
+    "ceo": "Tim Cook",
+    "city": "Cupertino",
+    "country": "US",
+    "currency": "USD",
+    "description": "Designs phones.",
+    "employees": "164000",
+    "exchange": "NASDAQ",
+    "industry": "Consumer Electronics",
+    "ipoDate": "1980-12-12",
+    "isEtf": false,
+    "lastDiv": 1.0,
+    "mktCap": 3100000000000.0,
+    "name": "Apple Inc.",
+    "price": 227.5,
+    "sector": "Technology",
+    "state": "CA",
+    "website": "https://www.apple.com",
+    "week52High": 260.1,
+    "week52Low": 164.08
+   },
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "timeout": {
+   "output": {},
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  }
+ },
+ "earnings_estimates._year_earnings_from_fmp_income": {
+  "empty": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    [
+     {
+      "date": "2026-06-30",
+      "eps_actual": 2.5,
+      "eps_estimate": null,
+      "eps_surprise_pct": null,
+      "quarter": 2,
+      "revenue_actual": 6900000000.0,
+      "revenue_estimate": null,
+      "revenue_surprise_pct": null,
+      "year": 2026
+     },
+     {
+      "date": "2026-03-31",
+      "eps_actual": 2.9,
+      "eps_estimate": null,
+      "eps_surprise_pct": null,
+      "quarter": 1,
+      "revenue_actual": 7100000000.0,
+      "revenue_estimate": null,
+      "revenue_surprise_pct": null,
+      "year": 2026
+     }
+    ],
+    [
+     {
+      "date": "2025-12-31",
+      "eps_actual": 2.1,
+      "eps_estimate": null,
+      "eps_surprise_pct": null,
+      "quarter": 4,
+      "revenue_actual": 6400000000.0,
+      "revenue_estimate": null,
+      "revenue_surprise_pct": null,
+      "year": 2025
+     },
+     {
+      "date": "2025-09-30",
+      "eps_actual": 1.9,
+      "eps_estimate": null,
+      "eps_surprise_pct": null,
+      "quarter": 3,
+      "revenue_actual": 6100000000.0,
+      "revenue_estimate": null,
+      "revenue_surprise_pct": null,
+      "year": 2025
+     },
+     {
+      "date": "2025-06-30",
+      "eps_actual": 2.0,
+      "eps_estimate": null,
+      "eps_surprise_pct": null,
+      "quarter": 2,
+      "revenue_actual": 6000000000.0,
+      "revenue_estimate": null,
+      "revenue_surprise_pct": null,
+      "year": 2025
+     }
+    ]
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": [
+    [],
+    []
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 60,
+      "period": "quarter",
+      "symbol": "MMC"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "earnings_growth_fmp._profile": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "averageVolume": 55000000.0,
+    "beta": 1.2,
+    "ceo": "Tim Cook",
+    "cik": "0000320193",
+    "city": "Cupertino",
+    "companyName": "Apple Inc.",
+    "country": "US",
+    "currency": "USD",
+    "description": "Designs phones.",
+    "exchange": "NASDAQ",
+    "fullTimeEmployees": "164000",
+    "industry": "Consumer Electronics",
+    "ipoDate": "1980-12-12",
+    "isActivelyTrading": true,
+    "isEtf": false,
+    "isFund": false,
+    "lastDiv": 1.0,
+    "marketCap": 3100000000000.0,
+    "price": 227.5,
+    "range": "164.08-260.1",
+    "sector": "Technology",
+    "state": "CA",
+    "symbol": "AAPL",
+    "website": "https://www.apple.com"
+   },
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "earnings_growth_fmp.earnings_growth_pct": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": 30.0,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "PANW"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "period": "quarter",
+      "symbol": "PANW"
+     },
+     "path": "/stable/income-statement",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "earnings_table._fmp_forward_quarters": {
+  "empty": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": [],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    {
+     "eps_estimate": 2.1,
+     "label": "2098 Q2",
+     "period_end": "2098-06-30",
+     "rev_estimate": 120000000000.0
+    },
+    {
+     "eps_estimate": 8.2,
+     "label": "2098 Q3",
+     "period_end": "2098-09-30",
+     "rev_estimate": 490000000000.0
+    },
+    {
+     "eps_estimate": 9.1,
+     "label": "2099 Q3",
+     "period_end": "2099-09-30",
+     "rev_estimate": 510000000000.0
+    }
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 40,
+      "period": "quarter",
+      "symbol": "AAPL"
+     },
+     "path": "/stable/analyst-estimates",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "earnings_table._next_earnings": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": {
+    "date": "2098-10-30",
+    "eps_estimate": 1.6,
+    "rev_estimate": 100000000000.0
+   },
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "earnings_table._next_report_date": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": "2098-10-30",
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 8,
+      "symbol": "AAPL"
+     },
+     "path": "/stable/earnings",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "edgar.resolve_cik": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "ok": {
+   "output": "0000320193",
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "MMC"
+     },
+     "path": "/stable/profile",
+     "timeout": 8
+    }
+   ]
+  }
+ },
+ "institutional_holdings._fmp_ownership": {
+  "empty": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 4,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 3,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 4,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 3,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 4,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 3,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": [],
+   "requests": []
+  },
+  "nonjson": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 4,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 3,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": [
+    {
+     "date": "2026-03-31",
+     "holder": "BLACKROCK, INC.",
+     "pct_out": 7.7616,
+     "prior_shares": 1154665731,
+     "shares": 1144695425,
+     "value": 290512251859
+    },
+    {
+     "date": "2026-03-31",
+     "holder": "VANGUARD GROUP INC",
+     "pct_out": 8.4,
+     "prior_shares": 1250000000,
+     "shares": 1300000000,
+     "value": 200000000000
+    }
+   ],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": [],
+   "requests": [
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 1,
+      "symbol": "AAPL",
+      "year": 2026
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 4,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    },
+    {
+     "params": {
+      "limit": 20,
+      "quarter": 3,
+      "symbol": "AAPL",
+      "year": 2025
+     },
+     "path": "/stable/institutional-ownership/extract-analytics/holder",
+     "timeout": 10
+    }
+   ]
+  }
+ },
+ "ir_webcast._website_for": {
+  "empty": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "http403": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "http500": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "nokey": {
+   "output": null,
+   "requests": []
+  },
+  "nonjson": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "ok": {
+   "output": "https://www.apple.com",
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  },
+  "timeout": {
+   "output": null,
+   "requests": [
+    {
+     "params": {
+      "symbol": "AAPL"
+     },
+     "path": "/stable/profile",
+     "timeout": 10
+    }
+   ]
+  }
+ }
+}
