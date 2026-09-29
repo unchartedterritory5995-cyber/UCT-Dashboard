@@ -200,12 +200,18 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     const arms = [
       ['time(timeframe.period)', 'plot(time(timeframe.period) - time)'],
       ['time("W")', `plot(time(${Q}W${Q}))`],
-      ['time(tf, session)', `plot(na(time(timeframe.period, ${Q}0930-1600${Q})) ? 0 : 1)`],
     ]
     for (const [label, src] of arms) {
       expect(runtimeGuard(src), `${label} — runtime lane no longer refuses`).toBe('pine:function')
       expect(hostGuard(src), `${label} — host lane no longer refuses`).toBe('pine:function')
     }
+    // ⚰️ 2026-09-28: THE TWO-ARGUMENT SESSION FORM LEFT THE LIST — this rail
+    // doing its job a second time. `vw-time-session` (1D + 60m) measured it and
+    // the HOST lane serves it now (`sessionClockOf`, held bar by bar in
+    // `ast/pineVocabularyWave.test.js`). The RUNTIME lane still refuses it.
+    const session = `plot(na(time(timeframe.period, ${Q}0930-1600${Q})) ? 0 : 1)`
+    expect(hostGuard(session)).toBe('ok')
+    expect(runtimeGuard(session)).toBe('pine:function')
   })
 
   it('⭐⭐ `time("D")` ANSWERS, and in the SAME UNIT as bare `time`', () => {

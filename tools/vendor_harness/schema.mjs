@@ -166,7 +166,12 @@ export function validateCapture(c) {
   need(isObj(st), 'study is required')
   let plotIds = []
   if (isObj(st)) {
-    need(Array.isArray(st.plots) && st.plots.length > 0, 'study.plots must list the metaInfo plots in order')
+    // ⭐ An objects-only study (no plot() at all) legitimately declares ZERO plots —
+    // its answer is `objects`. Empty plots are accepted ONLY beside a readable objects
+    // block with counts, so a capture that merely lost its plots is still refused.
+    const objectsOnly = Array.isArray(st.plots) && st.plots.length === 0
+      && isObj(c.objects) && isObj(c.objects.counts) && Object.keys(c.objects.counts).length > 0
+    need(Array.isArray(st.plots) && (st.plots.length > 0 || objectsOnly), 'study.plots must list the metaInfo plots in order')
     if (Array.isArray(st.plots)) {
       st.plots.forEach((p, i) => {
         if (!isObj(p) || typeof p.id !== 'string' || typeof p.type !== 'string') errors.push(`study.plots[${i}] needs id and type`)

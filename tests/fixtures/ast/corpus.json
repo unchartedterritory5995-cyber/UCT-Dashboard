@@ -934,6 +934,37 @@
       }
     },
     {
+      "id": "mfi_pine_first_window_counts_bar_zero",
+      "source": "mfiPine(high, low, close, volume, 14)",
+      "why": "(2026-09-28) Pine's `ta.mfi` -- the same windowed money-flow sums as `mfi_14`, except that bar 0's flow sits on BOTH sides (`ta.change` is `na` there and both comparisons are false), so the first value lands on bar n-1, one bar before the house column. From bar n on the two are the same numbers. Pinned to the vendor separately by `mfiPine.vendor.test.js` and `tests/test_mfi_pine_parity.py`.",
+      "ast": {
+        "type": "call",
+        "name": "mfiPine",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
       "id": "donchian_upper",
       "source": "donchianUpper(high, low, 20)",
       "why": "the top of the Donchian channel. All three Donchian lines come out of ONE shipped call, so each earns its own digest for the same reason the two DI legs do.",

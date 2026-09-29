@@ -20,6 +20,317 @@ side-by-side. The local dev loop (`scripts/hub_sandbox_boot.py --port 8000` +
 
 ---
 
+## ⭐⭐ 2026-09-28 — WHAT A `var` IS ON BAR 0: `x[1]` is `na`, bare `x` is the initializer (branch `pine/var-seed-na`)
+
+> Base `db3691055` (`pine/bool-na-cast` = PR #237, on #234). Census tool (opt-in, committed):
+> `app/src/components/chart/engine/ast/varSeed.measure.test.js` (`VAR_SEED_CENSUS=1`). Rails:
+> `pine.varSeed.test.js`. Capture queue: `docs/pine/capture-queue-2026-09-28.md` → Q-V1.
+
+**The defect (recorded as a KNOWN DIVERGENCE by the section below).** `var x = init` +
+`x := … x[1] …` folds to `accum(seed, …self…, 250)`, and `accum`'s window starts with
+`self = seed`. The fold passed the initializer as the seed for EVERY spelling. In Pine a history
+read `x[1]` on bar 0 is `na` — history before bar 0 does not exist — and does not read the
+initializer, so a `var` that reads itself only through history never shows its initializer.
+`opening-range-initial-balance-opening-price` (`var opening = 0.0` /
+`opening := c ? open : opening[1]`) drew a flat **0.0** on every computed bar where the opening
+range never opens (all 50 computed bars of the SPY 60m extended-hours capture), where TradingView
+draws nothing. It attaches in production, so this blocked the #234 door.
+
+**The rule.**
+
+| spelling | bar 0 | evidence |
+|---|---|---|
+| bare `x` inside `x := …` | the initializer (`var` runs before the bar's statements) | **partly captured**: `runtime/mutable-history-spy-1d-2026-09-08.json`'s counter `var float x = 0.0; x := x + 1` reads 8,459 on the last of 8,459 loaded bars — bar 0 read `x` as 0.0, not `na` (on the unverified premise that "loaded history" counts from bar 0) |
+| `x[k]`, k ≥ 1 | `na` | **not captured** — the same fixture lists `x[1] === na on bar 0` under `not_observed`. Pine's history operator; this repo's runtime lane already implements it (`runtime/vm.js` `READ_HIST_SLOT`: *"On bar 0 nothing has been committed, so `x[1]` is `na`"*). Q-V1 (`vw-var-seed.pine`) settles it: every row carries bar 0's answer to every bar |
+
+No capture on disk contradicts the rule (searched `tests/fixtures/vendor/**` for a `var` whose
+update reads its own history: only the mutable-history probe, whose window starts at bar 8,059).
+
+**The fix — `varSeedOf` in `pine.js`, the smallest change that holds both spellings.** The
+Resolver counts, while it resolves a `var`'s update, how the update reads itself: **bare**
+(`case 'selfref'`), **history** (`selfOffsetLag`), or **guarded history** (an `x[k]` inside
+`nz(…)`'s first argument). The update tree is unchanged — one `self` still serves both spellings,
+because on every bar after bar 0 they are the same value — only the seed differs:
+
+| reads | seed | why |
+|---|---|---|
+| history only (guarded or not) | `0 / 0` | exact: `x[k]` is `na` on bar 0, and `nz(na, d)` is Pine's `d` |
+| bare only | the initializer — **unchanged** | exact on bar 0 |
+| bare + an UNGUARDED history read | `0 / 0` | never draws a number Pine never draws (see below) |
+| bare + only nz-guarded history | the initializer | `nz(m[1])` beside a bare `m` is exact this way and would blank under `na` |
+
+The PLAIN spelling (`x = init` + `x := … x[1] …`, no `var`) re-runs `x = init` every bar, so its
+bare `x` is that binding and never `self`: it is always the history case and seeds `na` (its seed
+binding is still resolved, so a seed this door cannot translate keeps refusing exactly as before).
+
+**⚠️ The mixed case is a choice between two wrong answers, stated rather than hidden.** One seed
+slot cannot be the initializer for the bare read and `na` for the history read on one step; which
+arm Pine runs on bar 0 is data, not syntax. `na` is chosen whenever an unguarded history read can
+see the seed, because the alternative invents numbers:
+`var x = close; x := 0.6 * x - 0.08 * x[2] + 0.48 * close` is `na` on every bar in Pine (bar 0's
+`x[2]` poisons it, the bare `x` carries it) and is now `na` here; the door used to draw a smoothed
+close. The cost: `c ? (m + close) / 2 : m[1]` never leaves `na` here, where Pine's answer depends on
+its own bar 0. The one corpus instance (`adaptive-trend-following-suite-alpha-extract`,
+`rsiMomentumSignal`, refused at the door) is mixed only through `if barstate.isconfirmed`'s
+implicit else — a bare arm that runs on the realtime bar alone — so `na` is exact there, and it is
+what the screener lane (which folds `barstate.isconfirmed` to 1) answers: **the two lanes agree**.
+An `na(x[1])` TEST is deliberately not a guard — it exists to see bar 0 and needs the `na` seed.
+
+**What the finite window can and cannot reproduce.** `accum` seeds the window's OPENING bar and
+first runs the update on the bar after it, so the seed never stands for "before bar 0": it stands
+for whatever the recurrence held on a bar the window cannot see. The honest seed is a value the
+recurrence can HOLD. A history-only `var` holds `na` (nothing has fired) or a value its update
+produced — never its initializer — so `na` is in its range and the initializer is not; a bare-only
+`var` can hold its initializer, and keeps it. Neither reproduces a value set more than 250 bars ago
+and still carried: the history spelling then shows a GAP, the bare spelling its initializer, where
+Pine shows the old value (`pine.varSeed.test.js` pins both). **How often a real chart meets that is
+UNMEASURED** — no vendor capture holds such a bar.
+
+**The census (320 scripts: 266 `corpus/committed` + 30 `pine_oos` present on this machine + 21
+`tests/fixtures/pine` + 3 `tests/fixtures/member`; licence-held `pine_oos` absent by name).**
+Per-output value fingerprints over SPY 60m RTH, SPY 60m EXTENDED hours and SPY 1D (300 bars each,
+so 50 computed past the warm-up), in BOTH lanes (host = strict, screener = lenient), translator at
+`HEAD` (byte-exact swap of `pine.js` to its `HEAD` blob, restored and sha-verified) vs the fix:
+
+| | count |
+|---|---|
+| scripts whose output VALUES changed | **1** — `opening-range-initial-balance-opening-price__4a7416ab01`, **attaches in production** |
+| scripts whose formula TEXT changed, no value moved on these bars | **4** — `camarilla__jw9faob08r`, `keltner-center-of-gravity-channel__e4a81d76f6`, `tests/fixtures/pine/02-ict-retracement-to-order-block-screener`, `tests/fixtures/pine/03-rsi-directional-momentum-scanner` — **none attaches** |
+| attach verdict or refusal list changed | **0** of 320, in either lane |
+
+The one value change, host lane, SPY 60m extended hours: "Opening price" **50/300 finite (all
+0.0) → 0/300**, and its untitled `OP` plotshape **40/300 (all 0.0) → 0/300** — `na` where
+TradingView's own membership (S11) says the range never opened. SPY 60m RTH: identical on every
+bar (the range opens inside every window, so the seed is forgotten before it is read); 1D:
+unchanged (`timeframe.isintraday` gates the plots). The screener lane refuses this script's
+`time(tf, session)` (a chart-pane clock), so it has nothing to move there. The four text-only
+scripts read the seed only on bars where their condition has already fired inside the window, or
+through `nz(…)`; on other bars their values can move — **unmeasured**, and none attaches.
+
+**The proof.** `openingRangeBoolCast.vendor.test.js`: the KNOWN DIVERGENCE case is flipped to
+assert `na` on every extended-hours bar for the opening price AND its `OP` label, with a
+non-vacuity control (the same formula re-seeded 0 draws 0.0 on every computed bar); all seven
+titled lines are now compared on BOTH captures (the opening price was skipped on the ext capture);
+a new case holds RTH bar for bar against both the reference and the initializer-seeded formula.
+`pine.varSeed.test.js` (11): both spellings against a Pine reference simulated from bar 0, with a
+fixture on which they differ on every computed bar; the finite-window gap; the plain spelling; `nz`
+unchanged; the implicit else as a bare read; the three mixed cases; the guard's scope.
+
+**Tests that encoded the old seed, changed with their reason written in place:**
+`pine.tuples.test.js` (`s[1]` and bare `s` are the same UPDATE, not the same formula — the seed is
+Pine's bar-0 difference); `pine.localScope.test.js` (the latch is `accum(0 / 0, …)`);
+`pine.convergence.test.js` (the multi-lag fixture is `na` in Pine — now asserted — and its two
+numeric cases measure the gate's claim on the update re-seeded with the finite `close` they always
+used); `__fixtures__/pineCorpus.json` regenerated with `PINE_CORPUS_WRITE=1` (2 lines: 02-ict and
+03-rsi, seed text only).
+
+**Mutation proof** (each applied to `pine.js` by the byte-exact harness, restored and sha-verified;
+6 files, 134 tests): seed always the initializer **17 red** · history branch deleted **15** ·
+history counted as bare **15** · guarded-history-only branch deleted **3** · `nz` not a guard **1** ·
+bare reads not counted **1** · plain spelling seeded by its binding again **2** · the `nz` guard
+leaking past its argument **1** (a survivor until the scope rail was added).
+
+**Derived artifacts** regenerated via their generators — `corpusMetric.test.js`,
+`PARAM_IDS_WRITE=1`, `lookbackAgreement.test.js` (then `pytest tests/test_ast_lookback_agreement.py`
+4 passed): **nothing moved** (`tools/corpus_metric.json`, `docs/pine/param-ids.json`,
+`tools/lookback_agreement.json` identical in content). Only `pineCorpus.json` moved, above.
+
+**Not changed, deliberately:** the plain self-reference `x = na(x[1]) ? SEED : f(x[1])` states its
+own bar-0 value in the `na` arm and keeps it; ThinkScript's `rec` (its own translator, its own
+bar-0 rule); the runtime lane (already right).
+
+---
+
+## ⭐⭐ 2026-09-28 — A NUMBER IN A BOOL CONTEXT: Pine v5's implicit cast, sized and fixed (branch `pine/bool-na-cast`)
+
+> Base `d7646568e` (`pine/vocab-2` = PR #234). Census tool (opt-in, committed):
+> `app/src/components/chart/engine/ast/boolContext.measure.test.js` (`BOOL_CONTEXT_CENSUS=1`).
+> Capture queue: `docs/pine/capture-queue-2026-09-28.md`.
+
+**The class.** Pine v1–v5 read a numeric operand of `and`/`or`/`not`, a `?:`/`if` test, an
+object guard and a condition-role argument (`ta.valuewhen(cond, …)`, `ta.barssince(cond)`) as a
+bool implicitly — `na` and `0` false, anything else true. This door emitted a bare `&&`/`||`/`!`/
+`?:`, which PROPAGATE `na` (`interpret.js`: the {0,1,NaN} domain). For every non-`na` value the
+two agree already (`logical` tests `x !== 0`); on every `na` bar they differed. And a numeric
+condition-role argument was worse than wrong: it translated, attached at the member door, and
+then THREW at evaluation (`assertArgRoles`: *"a condition argument must be a 0/1 column"*).
+
+**The rule, by version, and its evidence.**
+
+| version | rule | evidence |
+|---|---|---|
+| v5 | `na`/0 false, else true | **documented** — v6 migration guide, quoted in `pine.js::implicitBoolCast` |
+| v1–v4 | the same | **inferred** (no published sentence; the v4→v5 guide lists no change) — and **partly captured**: `harness/engulfingcandle-rddt-1d-2026-09-27.json` (v4) plots `rsiValue >= 70 and rsiValue` as **0**, not `na`, on the RSI warm-up bars — the `na → false` half. Nothing on disk shows the `0 → false` half for any version. |
+| v6 | unchanged — a numeric in a bool context does not compile there | documented |
+
+Probes `vw-bool-cast.pine` (v5) and `vw-bool-cast-v4.pine` (Q-B1/Q-B2) settle the rest; every
+row there has a different answer under each candidate reading (cast · `not na(x)` · propagate).
+
+**The fix.** `implicitBoolCast(tree, pineVersion)` in `pine.js`: a PROVEN number becomes
+`tree != 0` (the same identity `bool(x)` already folds to — no new node type, both lanes already
+implement `!=`); a numeric constant folds to its truth value. `Resolver.condition()` is the one
+funnel, called from `not`, both operands of `and`/`or`, the `?:` test (which `if` chains fold
+to), `iff`'s condition, every argument whose `argRoles` entry the table declares `bool`
+(`_functions_arg_role_kinds`, read, not listed), and an object guard wrapped in `!`/`&&`.
+`conditionKindOf` is three-valued and fails to `unknown`, NEVER to `num` — a bool operand is
+never cast, so its warm-up `na` stays `na`. `self` and `na` are neutral inside the `accum` join.
+
+**The census (296 scripts: 266 `corpus/committed` + 30 `pine_oos` present on this machine; 29
+licence-held `pine_oos` members absent by name).** Derived from the translator's own decision
+point — the `onCondition` observer on `Resolver.condition` — never from a second typer.
+
+| | count |
+|---|---|
+| scripts with a numeric operand in a bool context | **15** (v4 **4**, v5 **10**, v6 **1**) |
+| … whose numeric operand is `na` on some bar of the SPY 1D/60m captures | **15** |
+| scripts attaching at the member door with both production flags on | 64 |
+| **attaching AND affected — LIVE wrong answers (H14)** | **4**, named below |
+| attach verdict changed by the fix | **0** of 296 |
+| operands the classifier could not type (`unknown`, left uncast) | 1 site, `volatility-stop-mtf__K5XG42uHV9` (v6, refused `pine:module`) |
+
+**⛔⛔ H14 — the four that attach in production today and computed a different answer from
+TradingView** (before/after = the census's per-output fingerprints over the SPY 60m and 1D
+vendor bars, diffed with `pine.js` at `HEAD` and with the fix):
+
+| script | v | what was wrong | after |
+|---|---|---|---|
+| `opening-range-initial-balance-opening-price__4a7416ab01` | 5 | "Opening price" plot + its `OP` label: `na` on **every** bar (0/300 on SPY 60m) — `OR_t and not(OR_t[1])` over a `time()` timestamp | 50/300 finite = every bar past the 250-bar `accum` warm-up; all seven titled lines equal a Pine-v5 reference built on the vendor's own session membership, bar for bar (`openingRangeBoolCast.vendor.test.js`) |
+| `price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7` | 5 | **36 of its 38 object-program trees THREW at evaluation** — every `ta.valuewhen(ph, …)` over a pivot | all 38 compute; the Fibonacci / support / resistance drawings have coordinates again |
+| `liquidity-pools__fa7b28e733` | 5 | alert columns "Buy Side Liquidity Raid" / "Sell Side Liquidity Raid" THREW at evaluation (`ta.valuewhen(swing_h, …)`) | compute (284/300 and 283/300 finite on 60m) |
+| `engulfingcandle__0df91dc775` | 4 | "bullish" / "bearish" `na` on the RSI warm-up bars (284/300) where TradingView plots 0 | 298/300 finite; the v4 capture above already records 0 there (the harness grades the steady state, so its MATCH did not move) |
+
+**Not live (refused at the door today), recorded for when they attach:** `chart-champions-part-1`
+(22 sites), `smarter-snr` (26), `wyckoff-accumulation-distribution` (8; six plots go from ~16/300
+finite to 300/300), `pivot-point-supertrend` (5), `trendlines` (2), `liquidity-levels-sonarlab`,
+`trendline-pivots-quantvue`, `trend-levels-chartprime`, `initial-balance-ib-and-previous-day…`,
+`tradingview-alerts-to-mt4-mt5-strategy-example`.
+
+**⚠️ v6: `smt-divergence-ict-killzones__c932d56665` shows 2 numeric sites (`ta.change(is_london)
+and is_london`) that are left UNCAST by design.** They are not a Pine numeric: in v6
+`ta.change(<bool>)` returns a bool, and this door expands every `ta.change` to a difference. The
+v6 answer is still right on every non-first bar (a nonzero difference reads true); the first bar
+propagates `na`. That is a `ta.change(bool)` modelling question, not this cast's.
+
+**⚠️ FOUND BY THE PROOF, NOT CAUSED BY THE FIX — the `var` seed.** `var opening = 0.0` +
+`opening := cond ? open : opening[1]` folds to `accum(0, cond ? open : self, 250)`; `self` at a
+window start is the SEED, while Pine's `opening[1]` on bar 0 is `na`, so the seed is never
+observable in Pine. Where the OR session never opens inside the window — every extended-hours 60m
+bar (the vendor's own S11 is `na` on all 300), and 2h/4h grids — the door now draws a flat
+**0.0** where TradingView draws nothing. Before this change the line was `na` everywhere, so it
+never showed; the cast exposed it. Pinned as a KNOWN DIVERGENCE in
+`openingRangeBoolCast.vendor.test.js` (it goes red the day the seed is fixed). **→ FIXED 2026-09-28 (`pine/var-seed-na`,
+section above): the door now draws `na` there.** Any
+`var x = c` + `x := … x[1]` whose condition never fires in 250 bars has the same shape.
+
+**The runtime lane.** `pineRuntimeFrontend.js` lowers `and`/`or`/`not`/`?:` over mutable values
+itself (`lowerExpr` → `binary('&&')`, `unary('!')`, `ternary`) and has NO value-type system to
+decide "numeric", so it still propagates `na` there. Not fixed here, deliberately: the lane is
+wired to no member (`runtime/objectLane.js`: *"THIS MODULE WIRES NOTHING TO A MEMBER"*; ruling D2
+keeps the member pane on the host lane), and its `if` STATEMENTS already read `na` as false
+(`vm.js` `JUMP_IF_FALSE`). Its pure sub-expressions that reach `pine.js`'s Resolver are cast.
+
+**Also left:** `alertcondition(<numeric>)` and `plotshape(<numeric>)` are output channels, not
+tree bool contexts — a scan reads a condition as `<ast> != 0`, which is already the cast.
+
+---
+
+## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
+
+> Base `0a16dd9ab` (`pine/object-pass-integrated`). Door = `memberPaneDefinition` over the
+> 266 committed scripts, objects-only flag off/on. Census tool (opt-in, committed):
+> `app/src/components/chart/builder/memberPane/vocabularyWalls.census.measure.test.js`
+> (`VOCAB_CENSUS=1`). Capture queue: `docs/pine/capture-queue-2026-09-27.md`.
+
+**How "last wall" was measured.** For every script the door refuses with a vocabulary
+guard (`pine:function` 7 · `pine:builtin` 6 · `pine:input-kind` 2 · `pine:arity` 1 = **16
+scripts**, identical flag off and on), the refused name was replaced — every occurrence —
+by a correct-TYPE value (`time(...)` → `time`, `ta.nvi` → `close`, `syminfo.mintick` →
+`0.01`, …) and the door re-run until it attached or met a non-vocabulary wall. Never by
+deleting a binding line (that removes a name and manufactures `pine:undefined`). The chain
+is identical flag off and on for all 16.
+
+**The result, measured: only FOUR scripts have a vocabulary name as their last wall, and
+every one of the four is held by a RULING or an unmeasured semantics, not by a missing
+table row.**
+
+| name / form (first site) | first wall of | inside (masked) | LAST wall of | class | built? | evidence |
+|---|---:|---:|---:|---|---|---|
+| `time(tf, session[, tz])` (`opening-range…4a7416ab01:12`, `session-highs…c0ca8cf749:49`) | 2 | 0 | **1** (`opening-range-initial-balance-opening-price`) | C | no | 5m only (`r11-time-session…`); 1D unread → probe `vw-time-session` |
+| `input.time` (`session-hilo…WM2g5GtC4h:44`, `open-interest-profile…875691ab51:85`) | 2 | 0 | **1** (`session-hilo`) | B, **ruled** | no | ruling: `pine:input-kind` "under the threshold"; value confirm in `vw-time-tf` T16 |
+| `ta.nvi` + `ta.pvi` (`smart-money-interest-index…:13-14`, `smart-money-volume-index…:17-18`) | 2 | 0 | **2, jointly** (neither alone) | C, **ruled** | no | nvi seed on disk; pvi unread; `_functions_excluded.nvi/.pvi` refuses the fetch-dependent level → probe `vw-nvi-pvi` |
+| `time(<tf ≠ D>)` (`smart-money-concepts…:250`, `zigzag-ma…1302:24`, + 4 inside) | 2 | 4 | 0 (→ `pine:reassign`, `pine:request`) | A for W on 1D, C otherwise | no (needs a new clock column, both lanes) | `r11-time-tf…` (W, 610 bars, summary only) → probe `vw-time-tf` |
+| `syminfo.mintick` (`chart-champions…:73`, `renko…:40`) | 2 | 2 | 0 (→ `pine:state` ×2) | C (data) | no | `symbolScope.json::unserved` → probe `vw-mintick` |
+| `barstate.isnew` (`liquidity-engulfing…:24`, `smart-money-volume-activity…:81`) | 2 | 0 | 0 (→ `pine:request`, `pine:reassign`) | A, **ruled** | no | `barstate-full-spy-1d-closed-2026-09-10.json`: 1 on history, 0 on the newest closed bar; `_barstate.refused.isnew` |
+| `ta.vwap(src)` / v4 `vwap(src)` (`cpr…:205`, `camarilla…:313-316`, `rsi-vwap…:21`) | 1 | 2 | 0 (→ `pine:state`) | **A** for `hlc3` | **yes — `hlc3` only** | `groupb-round-max-vwap…`: `vwap(hlc3) − vwap` all 0 over 40 bars; `vwap(close)` is a different column and still refuses |
+| `year/month/dayofmonth(time)` (`initial-balance…M0u1uaug4Q:113`) | 1 | 0 | 0 (→ `time(session)`) | **B** | **yes** (+ `dayofweek`, `hour`, `minute`) | Pine reference: `year(time)` with no zone IS bare `year` (exchange zone, measured by `r11-nine-safe`); confirm probe `vw-clock-vwap` |
+| `timeframe.in_seconds(<non-literal>)` (`multiple-mtf…aArjfk9ShG:177`) | 1 | 0 | 0 (→ `pine:state`) | B for a literal (already served) | — | the literal form folds today; `vw-time-tf` T10–T15 confirm per code |
+| `int(<fractional>)` (`smarter-snr…:75`, `atr-god…:148`) | 1 | 1 | 0 (→ `pine:window`) | C | no | the `int` branch's own refusal; probe `vw-int-cast` |
+| `str.length(<non-literal>)` (`renko…:26`) | 0 (2nd) | — | 0 | C (text) | no | — |
+| `chart.right_visible_bar_time` (`open-interest-profile…:88`) | 0 (2nd) | — | 0 (→ no-output) | never matchable statically (viewport) | no | — |
+| `ta.alma` (`delta-volume-candles-lucf…:296,300`) | 0 | 1 (`pine:module`) | 0 | B | no (new table fn, zero unlock) | probe `vw-alma` |
+| bare `alma` (`highlow-channel-swing…:30`, `relative-volume…:71`) | 0 | 2 | 0 | **vendor REFUSES** | **must never be added** | `r11-alma-spy-2026-09-11.json` |
+| `ta.barssince(cond)` 1-arg unbounded · bare `barssince` 1-arg | 0 | 3 | 0 | ruled (unbounded; `r11-barssince…`) | no | — |
+| library / UDT names (`zen.`, `mymas.`, `pc.`, `PCvc.`, `kernels.`, `LucfTa.`, `breakout` arity, `input.enum`, `chart.bars/leftBarIndex/rightBarIndex`) | 0 | 11 | 0 | not vocabulary (Group C) | no | `r11-vocabulary-gap.md` |
+
+**Door counts, measured with `partialDrawing.census.measure.test.js` before and after:**
+flag off **34 → 34**, flag on **54 → 54**. **No script newly attaches** — the expected
+answer, since no last wall was an A/B name. One wall MOVED: `initial-balance-ib-and-
+previous-day-week-high-low-close` now refuses on the `time(<session>)` session clock
+instead of on `year(time)` (both flags). `pineTimenowAccept.test.js` records the move.
+
+**What shipped (the two names are IDENTITIES onto columns the engine already carries — no
+table name, no Python lane, no frozen digest moved — plus one guard their first consequence
+needed):**
+1. `ta.vwap(hlc3)` / `vwap(hlc3)` / the spelled-out `(high + low + close) / 3` → `vwap()`.
+   Any other source still refuses (`pine:arity`), now saying it is a different column and
+   naming `ta.vwap(hlc3)`. `ta.vwap(src, anchor)` unchanged.
+   ⚠️ An `input.source` DEFAULTING to `hlc3` translates too — the same behaviour
+   `sourceMustBe` already has for `ta.cci`/`ta.mfi`: an edit to another source is a
+   re-translation, which then refuses.
+2. `year|month|dayofmonth|dayofweek|hour|minute(time)` → the bare field, for a VERSIONED
+   script (whose `time` is `time * 1000`; recognised by identity with
+   `PINE_CLOCK_TRANSFORM.time()`). `time[1]`, a computed timestamp, a zone string and a
+   versionless script still refuse. `dayofweek(timenow)` refuses (no `lastbardayofweek`).
+3. **`pine:budget` — screener lane only.** Once `ta.vwap(hlc3)` translated,
+   `26-spy-to-es-qqq-to-nq` (community fixtures, non-strict) offered `sma(vwap(), 3)`, which
+   the budget refuses ("nothing can be wrapped around" the session-long `vwap()`): a
+   translation `doorScorecard` rightly calls unsaveable. The translate door now refuses a
+   column whose tree `checkBudget` rejects for `budget:lookback` AND that contains a
+   session-anchored call, in the budget's own sentence, on the SCREENER lane only.
+   ⚰️ **A blanket version was built first and measured wrong:** on the member door it
+   detached `volume-spikes-growing-volume-signals-with-alerts-scanner` (lookback 1000 > 960)
+   and `liquidity-pools__fa7b28e733` — the chart pane does not save under that budget, so
+   refusing there was an over-refusal. Narrowed to one cause and one lane; measured reach over
+   `pine`, `pine_community`, `pine_oos` and the 266, both lanes: script 26 only.
+   ⚰️ **And a second over-reach, caught by the suite:** measuring every screener tree
+   turned four trees the budget cannot MEASURE (a folded zero window — the C10 seam) into
+   `pine:statement` refusals. The session test now runs first and the measure is guarded;
+   an unmeasurable tree keeps meeting the engine's own refusal later, as before.
+   `REFUSALS` grows 43 → 44 (`symbolRosterSpeaks` re-pinned, with the reason).
+   `pine.guardCensus`: `pine:arity` joins the unexercised list (its only corpus firing was
+   that `ta.vwap(input_vwap_source)`), `pine:budget` is exercised.
+
+Rail: `app/src/components/chart/engine/ast/pineVocabularyWave.test.js` (12 tests; the vwap
+half READS the capture and asserts both its zero and its non-zero control). Mutation-proved
+8 ways, each red, restored from captured bytes and sha256-verified, unmutated control green:
+bar-time branch dead (1 red) · any argument accepted as bar time (3) · vwap accepts any
+source (1) · vwap branch removed (2) · the refusal gate forgets `dayofweek` (2) · budget check
+removed (1) · budget check on the host lane too (1) · budget check not narrowed to a session
+anchor (1).
+
+**Open, for the owner — each is a ruling, not a build:**
+1. `time(<session>)` on a daily bar — the refusal says "this engine screens daily bars,
+   where there is no inside to be in". Whether TradingView agrees is unread (probe #1). It
+   is the sole last wall of one script.
+2. `input.time` — sole last wall of `session-hilo`; blocked by the input-kind threshold
+   ruling, not by semantics.
+3. `ta.nvi`/`ta.pvi` — the fetch-dependence ruling; probe #3 turns its premise into a
+   measurement (two depths, same dates).
+4. `barstate.isnew` — the capture on disk already says TradingView answers 1 on every
+   historical bar and 0 on the newest closed bar; the ruling refuses on per-tick grounds.
+
+---
+
 ## ⭐⭐ 2026-09-27 — THE CALL-SITE INLINER UNDER THE PARTIAL-DRAWING RULE (branch `pine/object-pass-integrated`)
 
 > `pine/partial-drawing-rule` (PR #207) + `pine/object-pass-no-output` (5 commits on

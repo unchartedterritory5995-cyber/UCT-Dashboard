@@ -341,6 +341,12 @@ const FORMS = [
   { kind: 'call', name: 'cci', parts: ['the ', 3, '-bar commodity channel index of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'williamsR', parts: ['the ', 3, '-bar Williams %R of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'mfi', parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3] },
+  // ⭐ (2026-09-28) Pine's `ta.mfi` — the same phrase plus the one thing that
+  // makes it a different number on bar n-1: bar 0's flow is on both sides.
+  { kind: 'call',
+    name: 'mfiPine',
+    parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3,
+            ', counting the first bar\'s flow on both sides'] },
   { kind: 'call', name: 'donchianUpper', parts: ['the top of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
   { kind: 'call', name: 'donchianMiddle', parts: ['the midline of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
   { kind: 'call', name: 'donchianLower', parts: ['the bottom of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
@@ -1122,6 +1128,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:max',
       'function:median',
       'function:mfi',
+      // ⭐ (2026-09-28) Pine's `ta.mfi`, bar 0's flow on both sides — see `mfiPine` in the forms above.
+      'function:mfiPine',
       'function:min',
       'function:minusDI',
       'function:mod',
@@ -1172,7 +1180,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(entries.length).toBe(123)
+    // ⭐ 123 -> 124 (2026-09-28): `mfiPine`, Pine's `ta.mfi`, joined too.
+    expect(entries.length).toBe(124)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -1189,7 +1198,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(subjects.length).toBe(123)
+    // ⭐ 123 -> 124 (2026-09-28): `mfiPine`, Pine's `ta.mfi`, joined too.
+    expect(subjects.length).toBe(124)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -2372,7 +2382,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // (2026-09-27) Pine's `ta.atr`, seeded from bar 0.
       'atr_pine_seeded_from_bar_zero',
       'plus_di', 'minus_di', 'stoch_k',
-      'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14', 'donchian_upper',
+      'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
+      // (2026-09-28) Pine's `ta.mfi`, bar 0's flow on both sides.
+      'mfi_pine_first_window_counts_bar_zero',
+      'donchian_upper',
       'donchian_middle', 'donchian_lower', 'ichimoku_tenkan', 'ichimoku_kijun', 'ichimoku_span_a',
       'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
       'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition', 'offset_two_bars_apart', 'accum_bounded_counter',
@@ -2611,7 +2624,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐⭐ 120 -> 121 (2026-09-20): `valuewhenOccurrence` joined too.
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
-    expect(sentences.length).toBe(CORPUS.cases.length + 123)
+    // ⭐ 123 -> 124 (2026-09-28): `mfiPine`, Pine's `ta.mfi`, joined too.
+    expect(sentences.length).toBe(CORPUS.cases.length + 124)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

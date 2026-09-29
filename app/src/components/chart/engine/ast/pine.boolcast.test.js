@@ -137,15 +137,15 @@ describe('bool(x) is x != 0, which is what TradingView publishes', () => {
     expect(f).toBe('sma(close, 20) > 0 ? 1 : 0')
   })
 
-  it('⛔⛔ …and REFUSES a fractional one rather than picking a rounding', () => {
-    const out = translatePine(SRC('sma(close, int(20.5)) > 0'))
-    expect(out.ok).toBe(false)
-    expect(out.refusal.guard).toBe('pine:function')
-    // ⭐ THE REFUSAL NAMES BOTH SPELLINGS, because "this is unpublished" without a
-    // next step is a dead end, and both of these are declared in the table.
-    expect(out.refusal.message).toMatch(/idiv/)
-    expect(out.refusal.message).toMatch(/round/)
-    expect(out.refusal.message).toMatch(/TO UNBLOCK/)
+  it('⭐⭐ …and a fractional one TRUNCATES — measured, not picked', () => {
+    // ⚰️ This asserted a REFUSAL "rather than picking a rounding". Nothing was
+    // picked: `tests/fixtures/vendor/vw-int-cast-spy-1d-2026-09-27.json` read
+    // TradingView truncating toward zero (`int(20.5)` is 20, `int(-2.5)` is -2),
+    // and `pineVocabularyWave.test.js` holds the door to it bar by bar.
+    const f = formulaOf(translatePine(SRC('sma(close, int(20.5)) > 0')))
+    expect(f).toBe('sma(close, 20) > 0 ? 1 : 0')
+    const g = formulaOf(translatePine(SRC('close * int(close / 7) > 0')))
+    expect(g).toMatch(/idiv\(close \/ 7, 1\)/)
   })
 
   it('⛔ a member’s OWN one-argument `int` wins over the fold too', () => {

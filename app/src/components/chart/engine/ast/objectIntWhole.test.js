@@ -20,8 +20,13 @@ describe('⭐⭐ `int(x)` where x is whole or `na` on every bar is x', () => {
       'box.new(left = int(left), right = bar_index, top = high, bottom = low)'])
     expect(t.objectDiagnostics.droppedOps, JSON.stringify(t.objectDiagnostics.dropReasons)).toBe(0)
   })
-  it('⛔ CONTROL — `int(close)` still refuses: a fraction needs a rounding rule nobody published', () => {
+  it('⭐ `int(close)` now resolves too — the vendor measured truncation (vw-int-cast capture)', () => {
+    // ⚰️ This was the CONTROL "`int(close)` still refuses: a fraction needs a
+    // rounding rule nobody published". The rule was never published; it was
+    // MEASURED (`tests/fixtures/vendor/vw-int-cast-spy-1d-2026-09-27.json`,
+    // truncation toward zero on all 300 bars), so the fractional edge now reads
+    // `idiv(close, 1)` and the box is no longer dropped for its cast.
     const t = host(['box.new(left = int(close), right = bar_index, top = high, bottom = low)'])
-    expect(t.objectDiagnostics.dropReasons['create:box']).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['create:box']).toBeUndefined()
   })
 })

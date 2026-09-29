@@ -1839,6 +1839,40 @@ const carriedFn = (name) => (series, n) => {
   return out
 }
 
+/** Pine's `ta.mfi(hlc3, n)` over `bindShipped`'s bars, as `{value}` points.
+ *
+ *  ⭐ THE ONLY DIFFERENCE FROM `computeMFI` IS BAR 0, and it is Pine's `na`
+ *  rule, not a clamp: `ta.change(src)` has no previous bar there, so both
+ *  `change <= 0` and `change >= 0` are false and the bar's flow counts as
+ *  positive AND negative. Every later bar is classified exactly as
+ *  `computeMFI` classifies it (up if the typical price rose, down if it fell,
+ *  neither if flat), summed in the same order with the same zero-`lower` rule,
+ *  so from bar `n` on the two columns are the same numbers bit for bit — the
+ *  rail `mfiPine.vendor.test.js` asserts that as well as bar `n - 1`. */
+function pineMfiPoints(bars, n) {
+  const len = bars.length
+  const out = new Array(len)
+  for (let i = 0; i < len; i++) out[i] = { value: NaN }
+  if (!(n >= 1) || len < n) return out
+  const up = new Array(len)
+  const down = new Array(len)
+  let prevTp = NaN
+  for (let i = 0; i < len; i++) {
+    const tp = (bars[i].h + bars[i].l + bars[i].c) / 3
+    const flow = tp * (bars[i].v || 0)
+    const change = tp - prevTp
+    up[i] = change <= 0 ? 0 : flow
+    down[i] = change >= 0 ? 0 : flow
+    prevTp = tp
+  }
+  for (let i = n - 1; i < len; i++) {
+    let pmf = 0, nmf = 0
+    for (let j = i - n + 1; j <= i; j++) { pmf += up[j]; nmf += down[j] }
+    out[i] = { value: nmf === 0 ? 100 : 100 - 100 / (1 + pmf / nmf) }
+  }
+  return out
+}
+
 /** Pine's `ta.tr(true)` as a column, built from the SAME scalar entries a
  *  formula `na(c[1]) ? h - l : max(h - l, max(abs(h - c[1]), abs(l - c[1])))`
  *  evaluates through (`POINTWISE`, `BINARY`, `TERNARY`), so `atrPine` and that
@@ -2047,6 +2081,21 @@ export const FN = Object.freeze({
   cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
   williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
   mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),
+  // ⭐⭐ `mfiPine` — PINE'S `ta.mfi(hlc3, n)`, AND THE ONLY DOOR TO IT IS THE
+  // PINE TRANSLATOR (`pine.js::PINE_CALL_SHAPES.mfi`). TradingView publishes it
+  // as `upper = math.sum(volume * (ta.change(src) <= 0 ? 0 : src), n)`, `lower`
+  // the same with `>= 0`, `100 - 100 / (1 + upper / lower)`. On bar 0
+  // `ta.change` is `na` and BOTH comparisons are false, so bar 0's flow lands in
+  // BOTH sums and the first value is on bar `n - 1` — one bar before the house
+  // `mfi`, whose flows start at bar 1. Measured to the last bit on
+  // `artemis-oscillator-pro-rddt-1d-2026-09-28` (632 bars from listing): the
+  // blended `ta.mfi(hlc3, 11)`/`ta.mfi(hlc3, 19)` answers 40.0819173046955 on
+  // bar 19 where the house column had nothing yet. From bar `n` on the window
+  // no longer holds bar 0 and every sum is the house one, term for term.
+  // ⛔ `mfi` ABOVE IS UNTOUCHED ON PURPOSE — the native MFI and its golden
+  // fixtures read it — exactly the `atr`/`atrPine` ruling.
+  // Python twin: `ast_interpret.py::_fn_mfi_pine`.
+  mfiPine: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => pineMfiPoints(bars, n)),
 
   donchianUpper: (h, l, n) => bindShipped(HL, [h, l], h.length, (bars) => computeDonchian(bars, n).upper),
   donchianMiddle: (h, l, n) => bindShipped(HL, [h, l], h.length, (bars) => computeDonchian(bars, n).middle),

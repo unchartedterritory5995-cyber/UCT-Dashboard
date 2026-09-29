@@ -1,0 +1,26 @@
+//@version=6
+indicator("UCTPROBE_VW_MINTICK", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `syminfo.mintick` PER SYMBOL ───────────────
+//
+// `syminfo.mintick` is the first vocabulary wall of two corpus scripts
+// (`chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2` — `f_round_up_to_tick`;
+// `renko-candles-overlay__d76a18d49e` — `math.max(..., syminfo.mintick)`) and it
+// sits inside two more. It is not a Pine SEMANTICS question — it is a DATA value
+// this engine does not hold (`symbolScope.json::unserved`). Before any serving
+// rule can be proposed, the vendor's own value is needed across price regimes:
+//
+//   M01  syminfo.mintick            M02  syminfo.pricescale / syminfo.minmove
+//   M03  close (to see which price regime the value belongs to)
+//
+// ⛔ CAPTURE ON EACH, 1D, a handful of bars is enough (the value is per symbol,
+// not per bar — but read ≥ 5 bars so a per-bar change would show):
+//   AMEX:SPY · NASDAQ:AAPL · a sub-$1 US listing (e.g. any OTC/penny name the
+//   rig can load) · a $1–$5 name · NYSE:BRK.A · an index (SP:SPX) · a future
+//   (CME_MINI:ES1!) · a forex pair (FX:EURUSD) · BINANCE:BTCUSDT.
+// The rule a proposal would need is "which symbols get 0.01"; this is the list.
+
+plot(bar_index, "M00_bar_index_CONTROL")
+plot(syminfo.mintick, "M01_mintick")
+plot(syminfo.pricescale / syminfo.minmove, "M02_pricescale_over_minmove")
+plot(close, "M03_close")

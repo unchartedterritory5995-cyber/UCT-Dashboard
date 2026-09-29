@@ -89,7 +89,10 @@ describe('a `var` latch answers the same inside a function as it does outside', 
     // asserting the formulas are equal is what makes this a parity test rather
     // than two independent smoke tests that happen to sit in one case.
     expect(column(inFn)).toBe(column(atTop))
-    expect(column(atTop)).toBe('accum(0, close > open ? 1 : close < open ? -1 : self, 250)')
+    // ⭐ SEEDED `na` (2026-09-28): the latch reads itself only as `s[1]`, which on
+    // bar 0 is `na` in Pine — the `var s = 0` initializer is never observable
+    // (`varSeedOf` in pine.js; rails in `pine.varSeed.test.js`).
+    expect(column(atTop)).toBe('accum(0 / 0, close > open ? 1 : close < open ? -1 : self, 250)')
   })
 
   it('⭐⭐ and a local whose read is SUPERSEDED by a later `:=` is still refused', () => {
