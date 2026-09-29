@@ -15,6 +15,7 @@
     "on an entry that outlives its gap, and no generator ever adds one."
   ],
   "adopters": [
+    "app/src/components/calendar/CallRecapSection.jsx",
     "app/src/components/chart/builder/EvidenceTab.jsx",
     "app/src/components/screener/ScanResults.jsx",
     "app/src/pages/Breadth.jsx",

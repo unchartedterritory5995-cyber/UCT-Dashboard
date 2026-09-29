@@ -28,6 +28,13 @@ export default function FilingWatchesPanel() {
       <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
         Securities you've asked to be notified about when they file something new with the SEC.
       </p>
+      {/* TERM-062: the published re-arm rule, composed server-side from the
+          constants the sweep applies -- never restated here. */}
+      {filingWatch.cooldown && (
+        <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }} data-testid="filing-watch-cooldown">
+          {filingWatch.cooldown.sentence}
+        </p>
+      )}
       {watches.length === 0 ? (
         <span className={styles.hint}>No filing watches yet — use the filing-watch action on a ticker's chart or Research page.</span>
       ) : (

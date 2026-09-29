@@ -427,6 +427,11 @@ function walkJs(dir, out = []) {
 describe('the threshold constants live in exactly one place', () => {
   const files = walkJs(SRC)
 
+  // The two whole-tree checks below walk every file under app/src: ~14 s alone, so
+  // the default 15 s ceiling timed them out whenever the box was busy (2026-09-29,
+  // 77/77 alone each time). A timeout says nothing about the code.
+  const WHOLE_TREE_TIMEOUT_MS = 60_000
+
   it('NON-VACUITY: the walk actually read the tree', () => {
     expect(files.length).toBeGreaterThan(300)
     const keys = files.map(key)
@@ -452,7 +457,7 @@ describe('the threshold constants live in exactly one place', () => {
       if (hits.length) offenders.push(`${key(abs)}: ${hits.join('; ')}`)
     }
     expect(offenders, `a second authority over TERM-006's numbers:\n${offenders.join('\n')}`).toEqual([])
-  })
+  }, WHOLE_TREE_TIMEOUT_MS)
 
   it('each constant is EXPORT-declared in exactly one file', () => {
     for (const name of OWNED_CONSTANTS) {
@@ -463,7 +468,7 @@ describe('the threshold constants live in exactly one place', () => {
       expect(declaring.map(key), `${name} is declared in ${declaring.length} files`)
         .toEqual(['app/src/components/provenance/freshnessAge.js'])
     }
-  })
+  }, WHOLE_TREE_TIMEOUT_MS)
 
   it('the owning module hard-codes NO session duration — the cap is derived', () => {
     expect(stripComments(read(OWNER))).not.toMatch(SESSION_DURATION)

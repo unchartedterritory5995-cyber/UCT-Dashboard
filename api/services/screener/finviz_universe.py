@@ -429,7 +429,23 @@ def run_pull() -> dict:
     log.info("[finviz_universe] pull complete: rows=%d kept=%d "
              "missing_headers=%s wrote=True", len(data_rows), kept,
              missing_headers)
+    _record_short_interest_history(receipt)
     return receipt
+
+
+def _record_short_interest_history(receipt: dict) -> None:
+    """TERM-046: while `SHORT_INTEREST_SOURCE=finviz`, append the artifact just
+    written to short_interest's dated history (append-only, first-write-wins).
+    Flag off: returns before touching anything, and the receipt is unchanged.
+    Never raises into the pull — a history failure is recorded, not fatal."""
+    try:
+        from api.services import short_interest
+        if not short_interest.history_enabled():
+            return
+        receipt["short_interest_history"] = short_interest.record_history_from_artifact()
+    except Exception as e:                                     # noqa: BLE001
+        log.warning("[finviz_universe] short-interest history append failed: %s", e)
+        receipt["short_interest_history"] = {"error": f"{type(e).__name__}: {e}"[:200]}
 
 
 def read_finviz_fields(targets, failures=None) -> dict:

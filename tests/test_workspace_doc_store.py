@@ -644,3 +644,217 @@ def test_pruning_never_names_user_preferences():
     assert hits == [], hits
     # Control: the same walk sees the table it does name.
     assert any("workspace_doc_versions" in w for w in words)
+
+
+# ═══ 10. TERM-021 read-new: the one-write apply, the write-back ledger, read_prefs ═══
+# The store half of the read-new phase. What each test proves is stated in its own name; the
+# member-facing half (the header, the routes, a crash mid-apply) is in test_workspace_doc_router.
+import threading   # noqa: E402 -- section-local, kept beside the one test that needs it
+
+
+def _raw_rows(store, sql, args=()):
+    con = sqlite3.connect(str(store))
+    try:
+        return con.execute(sql, args).fetchall()
+    finally:
+        con.close()
+
+
+def test_a_mirror_reads_the_head_inside_its_own_transaction_so_concurrent_mirrors_lose_nothing(store):
+    """⚰️ The mirror used to read the head, merge outside the lock and retry ONCE on a conflict,
+    so a burst of board writes (a template apply from an old client fires seven) could drop a key
+    from the document for good — and read-new would then serve the stale value. One atomic
+    read-modify-write cannot lose one. Every board key's thread released at once."""
+    keys = sorted(wds.WORKSPACE_PREF_KEYS)
+    wds.ensure_snapshot(USER, lambda uid: {})
+    barrier = threading.Barrier(len(keys))
+    errors = []
+
+    def one(k):
+        try:
+            barrier.wait()
+            wds.mirror_pref(USER, k, f"v-{k}")
+        except Exception as exc:  # noqa: BLE001
+            errors.append((k, exc))
+
+    threads = [threading.Thread(target=one, args=(k,)) for k in keys]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    assert wds.prefs_from_doc(wds.head(USER, BOARD)["doc"]) == {k: f"v-{k}" for k in keys}
+    assert wds.head(USER, BOARD)["version"] == 1 + len(keys)
+
+
+def test_apply_is_ONE_version_carrying_every_key_with_its_writeback_pending(store):
+    wds.write(USER, BOARD, doc(charts_theme="a", charts_merged="false"), base_version=0)
+    patch = {"charts_workspace_layout": GOOD_LAYOUT, "charts_theme": "default",
+             "watchlist_columns": '{"order":["sym"]}', "charts_vol_pane_pct": ""}
+    res = wds.apply_patch(USER, BOARD, patch, base_version=1, prefs_reader=lambda uid: pytest.fail("read"))
+    assert res["appended"] and res["version"] == 2
+    assert [h["version"] for h in wds.history(USER, BOARD)] == [2, 1], "one apply, one version"
+    # Every key of the patch, and the key the patch did not name, kept as the head had it.
+    assert wds.prefs_from_doc(wds.head(USER, BOARD)["doc"]) == {**patch, "charts_merged": "false"}
+    assert wds.outstanding_writebacks(USER) == {2: sorted(patch)}
+    wds.mark_writeback_done(USER, BOARD, [2])
+    assert wds.outstanding_writebacks(USER) == {}
+    assert wds.stats()["writebacks_outstanding"] == 0
+
+
+def test_apply_on_a_stale_base_writes_nothing_to_either_table(store):
+    wds.write(USER, BOARD, doc(charts_theme="a"), base_version=0)
+    wds.write(USER, BOARD, doc(charts_theme="b"), base_version=1)
+    with pytest.raises(wds.VersionConflict) as exc:
+        wds.apply_patch(USER, BOARD, {"charts_theme": "stale"}, base_version=1, prefs_reader=lambda uid: {})
+    assert (exc.value.base_version, exc.value.head_version) == (1, 2)
+    assert wds.head(USER, BOARD)["doc"]["prefs"] == {"charts_theme": "b"}
+    assert _raw_rows(store, "SELECT COUNT(*) FROM workspace_writebacks") == [(0,)]
+
+
+def test_apply_on_a_board_with_no_document_copies_it_first_and_rebases_onto_the_copy(store):
+    old = {"charts_workspace_groups": '{"A":"NVDA"}', "charts_theme": "tv", "theme": "oled"}
+    res = wds.apply_patch(USER, BOARD, {"charts_theme": "default"}, base_version=0,
+                          prefs_reader=lambda uid: dict(old))
+    assert res["version"] == 2
+    assert [(h["version"], h["source"]) for h in wds.history(USER, BOARD)] == [(2, "write"), (1, "migration")]
+    assert wds.prefs_from_doc(wds.head(USER, BOARD)["doc"]) == {
+        "charts_workspace_groups": '{"A":"NVDA"}', "charts_theme": "default"}
+
+
+def test_apply_refuses_a_key_outside_the_board_and_writes_nothing(store):
+    with pytest.raises(wds.InvalidDocument, match="outside the board"):
+        wds.apply_patch(USER, BOARD, {"theme": "oled"}, base_version=0, prefs_reader=lambda uid: {})
+    assert wds.head(USER, BOARD) is None
+
+
+def test_a_restore_records_its_writeback_in_the_same_transaction(store):
+    wds.write(USER, BOARD, doc(charts_theme="a"), base_version=0)
+    wds.write(USER, BOARD, doc(charts_theme="b", charts_merged="true"), base_version=1)
+    wds.restore(USER, BOARD, 1, base_version=2)
+    assert wds.outstanding_writebacks(USER) == {3: ["charts_theme"]}
+
+
+# ── read_prefs ────────────────────────────────────────────────────────────────
+def _writer(log):
+    def w(uid, key, value):
+        log.append((uid, key, value))
+    return w
+
+
+def test_read_prefs_flag_off_returns_the_same_object_and_touches_nothing(store, monkeypatch):
+    monkeypatch.delenv(wds.ENABLED_ENV, raising=False)
+
+    def boom(*a, **k):
+        raise AssertionError("the store was touched while dark")
+
+    monkeypatch.setattr(wds, "_connect", boom)
+    prefs = {"charts_theme": "tv", "theme": "oled"}
+    served, stamp = wds.read_prefs(USER, prefs, boom)
+    assert served is prefs and stamp is None
+    assert not store.exists()
+
+
+@pytest.fixture
+def read_armed(store, monkeypatch):
+    monkeypatch.setenv(wds.ENABLED_ENV, "1")
+    monkeypatch.setattr(wds, "_READ_COUNTS", {k: 0 for k in wds._READ_COUNTS})
+    return store
+
+
+def test_read_prefs_absent_document_falls_back_to_the_old_store_never_a_default(read_armed):
+    prefs = {"charts_workspace_layout": GOOD_LAYOUT, "theme": "oled"}
+    served, stamp = wds.read_prefs(USER, prefs, _writer([]))
+    assert served == prefs and stamp == "fallback; reason=absent"
+    assert wds._READ_COUNTS["absent"] == 1
+
+
+def test_read_prefs_tombstoned_head_falls_back_to_the_old_store(read_armed):
+    wds.write(USER, BOARD, doc(charts_theme="doc"), base_version=0)
+    wds.tombstone(USER, BOARD, base_version=1)
+    served, stamp = wds.read_prefs(USER, {"charts_theme": "old"}, _writer([]))
+    assert served == {"charts_theme": "old"} and stamp == "fallback; reason=tombstone; v=2"
+    assert wds._READ_COUNTS["tombstone"] == 1
+
+
+@pytest.mark.parametrize("body", ['{"schema_version":1,"board":"charts","prefs":{"charts_theme":"x"',
+                                  '{"schema_version":9,"board":"charts","prefs":{}}',
+                                  '{"schema_version":1,"board":"charts","prefs":{"theme":"oled"}}'])
+def test_read_prefs_unreadable_head_falls_back_counts_and_never_raises(read_armed, body):
+    wds.write(USER, BOARD, doc(charts_theme="doc"), base_version=0)
+    # A body no writer here could produce (truncated, a future schema, a key outside the board),
+    # planted with an INSERT the way a restored-from-elsewhere file could carry it.
+    con = sqlite3.connect(str(read_armed))
+    try:
+        con.execute("INSERT INTO workspace_doc_versions (user_id, board_id, version, schema_version, doc_json,"
+                    " content_sha256, tombstone, source, restored_from, created_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?)", (USER, BOARD, 2, 1, body, "x", 0, "write", None, 0))
+        con.commit()
+    finally:
+        con.close()
+    prefs = {"charts_theme": "old", "theme": "oled"}
+    served, stamp = wds.read_prefs(USER, prefs, _writer([]))
+    assert served == prefs and stamp == "fallback; reason=unreadable"
+    assert wds._READ_COUNTS["unreadable"] == 1
+
+
+def test_read_prefs_serves_the_documents_bytes_where_the_stores_agree(read_armed):
+    prefs = {k: f"{{\"k\":\"{k}\",\"u\":\"é☃\"}}" for k in wds.WORKSPACE_PREF_KEYS}
+    prefs["charts_theme"] = "tv"
+    prefs["charts_vol_pane_pct"] = ""
+    prefs["theme"] = "oled"                           # not a board key: never the document's
+    wds.ensure_snapshot(USER, lambda uid: prefs)
+    log = []
+    served, stamp = wds.read_prefs(USER, dict(prefs), _writer(log))
+    assert served == prefs and stamp == "document; v=1"
+    assert log == [] and wds._READ_COUNTS["document"] == 1
+
+
+def test_read_prefs_a_key_the_document_lacks_is_the_old_stores(read_armed):
+    wds.write(USER, BOARD, doc(charts_theme="tv"), base_version=0)
+    prefs = {"charts_theme": "tv", "charts_merged": "true"}
+    served, _ = wds.read_prefs(USER, prefs, _writer([]))
+    assert served == prefs
+
+
+def test_read_prefs_an_interrupted_writeback_serves_the_document_and_completes_it(read_armed):
+    """The single-write guarantee at the store layer: an apply's version landed, its
+    user_preferences writes did not all follow. The read serves the DOCUMENT for those keys
+    (never a half-applied board), writes them back, and closes the ledger."""
+    wds.write(USER, BOARD, doc(charts_theme="old", charts_merged="false"), base_version=0)
+    wds.apply_patch(USER, BOARD, {"charts_theme": "new", "charts_merged": "true"}, base_version=1,
+                    prefs_reader=lambda uid: {})
+    half = {"charts_theme": "new", "charts_merged": "false", "theme": "oled"}   # one of two followed
+    log = []
+    served, stamp = wds.read_prefs(USER, half, _writer(log))
+    assert served == {"charts_theme": "new", "charts_merged": "true", "theme": "oled"}
+    assert stamp == "document; v=2; doc_newer=charts_merged"
+    assert log == [(USER, "charts_merged", "true")]
+    assert wds.outstanding_writebacks(USER) == {}
+
+
+def test_read_prefs_a_disagreement_with_no_writeback_is_the_old_stores_and_heals_the_document(read_armed):
+    """A write made while the flag was OFF (or a mirror that failed) leaves the OLD store ahead.
+    Without the ledger rule the document would win and the member would see an older board."""
+    wds.write(USER, BOARD, doc(charts_theme="before-disarm"), base_version=0)
+    prefs = {"charts_theme": "written-while-dark"}
+    log = []
+    served, stamp = wds.read_prefs(USER, prefs, _writer(log))
+    assert served == prefs and stamp == "document; v=1; old_newer=charts_theme"
+    assert log == [], "the old store is already right; nothing is written back to it"
+    h = wds.head(USER, BOARD)
+    assert (h["version"], h["source"], h["doc"]["prefs"]) == (2, "mirror", {"charts_theme": "written-while-dark"})
+    # Healed: the next read finds them in agreement.
+    assert wds.read_prefs(USER, prefs, _writer(log))[1] == "document; v=2"
+
+
+def test_read_prefs_a_failed_completion_keeps_the_ledger_open_and_still_serves_the_document(read_armed):
+    wds.write(USER, BOARD, doc(charts_theme="old"), base_version=0)
+    wds.apply_patch(USER, BOARD, {"charts_theme": "new"}, base_version=1, prefs_reader=lambda uid: {})
+
+    def failing(uid, key, value):
+        raise sqlite3.OperationalError("database is locked")
+
+    served, _ = wds.read_prefs(USER, {"charts_theme": "old"}, failing)
+    assert served == {"charts_theme": "new"}
+    assert wds.outstanding_writebacks(USER) == {2: ["charts_theme"]}
