@@ -12760,10 +12760,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
     lostRemovalFamilies.push({ via, family })
   }
+  // ⭐⭐ EVERY FAMILY THAT LOST A CREATE (C13, 2026-09-29) — `null` when the
+  // family cannot be named. Carried on the PROGRAM as `lostCreates` for the
+  // runtime: Pine's collector cuts a family by COUNT (`objectRuntime.js`,
+  // `collect`), so once it runs, a create this program never makes changes
+  // WHICH objects TradingView still holds — the picture gains objects Pine
+  // removed, not merely loses the missing one. See `lostCreates` in
+  // `objectRuntime.js` for what the runtime does with it.
+  const lostCreateFamilies = new Set()
+  const lostCreate = (family) => { lostCreateFamilies.add(family || null) }
   const unconverted = (body, via) => {
     for (const b of body || []) {
       if (!b || !b.k) continue
       diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
+      if (b.k === 'create') lostCreate(b.family)
       if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
       if (b.k === 'loop') unconverted(b.body, via)
     }
@@ -12793,8 +12803,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   for (const rc of refusedCalls) {
     const via = `fn:${rc.why}`
     diagnostics.attemptedOps += 1
-    const fx = rc.effects || { kinds: { delete: 1 }, families: [null] }
+    const fx = rc.effects || { kinds: { delete: 1 }, families: [null], creates: [null] }
     for (const family of fx.families || []) lostRemovalFamilies.push({ via, family })
+    for (const family of fx.creates || []) lostCreate(family)
     for (const [k, n] of Object.entries(fx.kinds || {})) {
       if (!diagnostics.unconvertedFnOps) diagnostics.unconvertedFnOps = {}
       diagnostics.unconvertedFnOps[k] = (diagnostics.unconvertedFnOps[k] || 0) + n
@@ -12825,6 +12836,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // reported zero drops and was therefore indistinguishable from `plot(close)`
   // alone — so a consumer classifying the two rows had to guess, and guessed
   // that a script naming `line` draws with plots.
+  // ⭐ A CONSTRUCTOR THE READER NEVER TURNED INTO AN OP (a `line.new` in a loop
+  // it could not parse, one it could not read at all) is a lost create too.
+  for (const name of [...(collected.diagnostics.loopBlocked || []), ...(collected.diagnostics.unsupported || [])]) {
+    const m = /^([a-z]+)\.new$/.exec(String(name))
+    if (m) lostCreate(m[1])
+  }
   diagnostics.collectedOps = collected.ops.length
   if (!collected.ops.length) {
     // ⭐ A PROGRAM WITH NO OPS DRAWS NOTHING, so a lost removal of a NAMED family
@@ -14192,6 +14209,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      if (op.k === 'create') lostCreate(op.family)
       if (op.k === 'update') contentLostBy(op, targetRef(op.target))
       dropped(`guard:${op.k}`)
       continue
@@ -14267,7 +14285,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); dropped(`create:${op.family}`); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
@@ -14493,7 +14511,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           out.push({ ...o, body })
           continue
         }
-        if (withheld(o) && o.k === 'create') { dropped('content:lost'); continue }
+        if (withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('content:lost'); continue }
         if (withheld(o)) { dropped('content:withheld'); continue }
         // A copy of a withheld handle is `na` — the object it names is not drawn.
         if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
@@ -14576,6 +14594,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     o.k === 'create' || (o.k === 'loop' && createsSomewhere(o.body))))
   if (!createsSomewhere(keptOps)) return { program: null, diagnostics }
 
+  // ⭐ `'*'` stands for a family this pass could not name — the runtime reads it
+  // as "every family", the loud way. Absent when nothing was lost, so a clean
+  // program is byte-identical to before.
+  const lostCreates = [...lostCreateFamilies].map((f) => (f === null ? '*' : f)).sort()
+  if (lostCreates.length) diagnostics.lostCreates = lostCreates
+
   return {
     program: {
       programVersion: OBJECT_PROGRAM_VERSION,
@@ -14585,6 +14609,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       trees,
       ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
       ...(Object.keys(limits).length ? { limits } : {}),
+      ...(lostCreates.length ? { lostCreates } : {}),
     },
     diagnostics,
   }

@@ -245,9 +245,9 @@ export function collectObjectOps(stmts, h) {
    *  loud answer, never "removes nothing". */
   const refuseCall = (why, fn, st, detail) => {
     const def = fnDefs.get(fn)
-    const effects = why === 'return-type' ? { kinds: {}, families: [] }
+    const effects = why === 'return-type' ? { kinds: {}, families: [], creates: [] }
       : def ? bodyEffects(def, fnDefs, objColls)
-        : { kinds: { delete: 1 }, families: [null] }
+        : { kinds: { delete: 1 }, families: [null], creates: [null] }
     diagnostics.refusedCalls.push({
       why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
       ...(detail ? { detail } : {}),

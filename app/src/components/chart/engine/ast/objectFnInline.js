@@ -377,12 +377,23 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
  *  `.clear()` on a NUMERIC array is therefore read as a table clear: a louder
  *  answer than the truth, never a quieter one.
  *
- *  @returns {{kinds: Object<string, number>, families: (string|null)[]}}
+ *  ⭐ AND WHAT IT WOULD HAVE CREATED (`creates`, C13 2026-09-29). A create
+ *  that never runs changes which objects Pine's collector cuts once the family
+ *  reaches its cap (`objectRuntime.js`, `lostCreates`), so the families a
+ *  refused body would have created are reported beside the ones it would have
+ *  removed. A create in a body whose family the tokens cannot name (a user
+ *  method's `.new` on a type) is not guessed: only `line.new`/`label.new`/
+ *  `box.new`/… name one, and a refused call to a function this reader cannot
+ *  find reports an unnamed family in `pine.js`.
+ *
+ *  @returns {{kinds: Object<string, number>, families: (string|null)[], creates: string[]}}
  *    `kinds` counts reader op kinds (`delete`, `clear`, `coll_<method>`);
- *    `families` has one entry per removal, `null` when no family is named. */
+ *    `families` has one entry per removal, `null` when no family is named;
+ *    `creates` has one entry per drawing constructor the body names. */
 export function bodyEffects(def, defs, objColls) {
   const kinds = {}
   const families = []
+  const creates = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -404,7 +415,7 @@ export function bodyEffects(def, defs, objColls) {
       if (DRAWN_FAMILIES.includes(ns)) {
         if (m === 'delete') { add('delete'); families.push(ns) } else if (ns === 'table' && m === 'clear') {
           add('clear'); families.push('table')
-        }
+        } else if (m === 'new') creates.push(ns)
         continue
       }
       if (ns === 'array') {
@@ -423,7 +434,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families }
+  return { kinds, families, creates }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */
