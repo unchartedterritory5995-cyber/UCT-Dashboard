@@ -139,10 +139,13 @@ KILL_LIST = {
 # lanes; a UI probe needs no model at all.
 #
 # ⭐ BLANK, NEVER POP. `api/services/build_intraday_cache.py:24-34` is a
-# hand-rolled .env loader that runs at import (the deep-cache builder thread
-# imports it on any fresh data dir) and does `os.environ.setdefault(k, v)` from
-# `<repo>/.env` and `$UCT_INTEL_PATH/.env`. An UNSET key is re-supplied by that
-# loader; a key set to "" is not, because setdefault never overrides.
+# hand-rolled .env loader that runs at IMPORT and does `os.environ.setdefault
+# (k, v)` from `<repo>/.env` and `$UCT_INTEL_PATH/.env`. Nothing in api/ calls
+# load_dotenv; this is the one loader. It is imported lazily -- by the deep-cache
+# builder (`api/main.py:5000`, gated DEEP_CACHE_ENABLED, skipped on a default
+# sandbox boot) and by breadth_combined_pass / breadth_wick_recon -- so it is
+# not on every boot, but any later import would re-supply an UNSET key. A key
+# set to "" is not re-supplied, because setdefault never overrides.
 #
 # ⭐ THE LIST IS CLASSIFIED, NOT TYPED FROM MEMORY. `tests/test_hub_sandbox_
 # model_keys.py` derives every `*_API_KEY` literal read in `api/**` by AST and
