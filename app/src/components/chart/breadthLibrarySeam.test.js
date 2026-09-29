@@ -130,13 +130,14 @@ describe('presentation comes from the catalogue, never from the ticker', () => {
     expect(signColorsForPlot(drawn)).toEqual({ up: '#2faf68', down: '#df4646' })
   })
 
-  it('an A50 series stays a plain line with no presentation stamped', () => {
+  it('an A50 series gets only the family default (area), no sign colouring', () => {
     const [res] = breadthResults([ROW_A50])
     const cs = createFromResult(emptyChart(), res, registry)
     const inst = lastCreatedInstance(emptyChart(), cs)
-    expect(inst.presentation).toBeUndefined()
+    expect(inst.presentation).toEqual({ plotStyle: 'area' })
     const plot = { key: 'value', style: 'line', color: '#4f9cf9' }
-    expect(presentedPlot(plot, inst)).toBe(plot)      // untouched
+    expect(presentedPlot(plot, inst).style).toBe('area')
+    expect(signColorsForPlot(presentedPlot(plot, inst))).toBeNull()
   })
 
   it('⚰️ presentation survives even when the NAME is not worth storing', () => {

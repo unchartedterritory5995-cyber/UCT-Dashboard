@@ -644,11 +644,16 @@ export function createFromResult(cs, res, registry) {
       ? addInstance(cs, res.create.defId, registry)
       : cs
   }
+  const familyDefault = creationPresentationFor(res)
   if (res.create.via === CREATE_VIA.PRODUCT) {
     // ⚠️ THE PRODUCT'S OWN NAME IS NOT STAMPED ON ITS COMPONENTS. Each series is
     // named by `semanticNamesFor` from its OWN catalogue row, so the pane legend
     // reads `Bullish / Bearish / Neutral` rather than the product name three times.
-    return createProductSeries(cs, res.create.components, registry)
+    const components = Array.isArray(res.create.components)
+      ? res.create.components.map((c) => (c && !c.presentation && familyDefault
+        ? { ...c, presentation: familyDefault } : c))
+      : res.create.components
+    return createProductSeries(cs, components, registry)
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
@@ -656,10 +661,38 @@ export function createFromResult(cs, res, registry) {
     return createDirectSeries(cs, res.create.source, registry, {
       name: names.full,
       compact: names.compact,
-      presentation: res.create.presentation || null,
+      presentation: res.create.presentation || familyDefault,
     })
   }
   return cs
+}
+
+/**
+ * THE STYLE A NEW DATA SERIES STARTS AS, BY SOURCE FAMILY (`res.kind`).
+ *
+ * ⭐ A DEFAULT AT CREATION, NEVER AT RESOLVE TIME. It is stamped onto the new
+ * instance's stored `presentation`, so an instance saved before this rule —
+ * which stores nothing and resolves to `line` — keeps drawing a line, and a
+ * member's later choice overwrites the stamp like any other choice.
+ *
+ * ⛔ TECHNICAL AND FORMULA ROWS ARE ABSENT: they create through
+ * `CREATE_VIA.DEFINITION` and keep their definition's authored style. And a
+ * catalogue-declared presentation (a signed histogram, a quarterly step)
+ * outranks this — the family default fills only the gap that used to be `line`.
+ *
+ * ⚠️ `economic` IS LISTED AHEAD OF ITS SOURCE FAMILY SHIPPING, so an `econ:`
+ * result carrying that kind needs no change here.
+ */
+export const FAMILY_DEFAULT_PLOT_STYLE = Object.freeze({
+  fundamental: 'area',
+  breadth: 'area',
+  security: 'area',      // Symbols, ETFs and Indexes share this kind
+  economic: 'area',
+})
+
+function creationPresentationFor(res) {
+  const style = res && FAMILY_DEFAULT_PLOT_STYLE[res.kind]
+  return style ? { plotStyle: style } : null
 }
 
 /**
