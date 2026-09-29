@@ -1,0 +1,259 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 5,
+    "fixed": 10,
+    "unchanged": 147,
+    "missing": 0,
+    "baseline": 157,
+    "current": 153,
+    "current_ran": 63769,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 3,
+    "new_unattributed": 2
+  },
+  "arithmetic": "baseline 157 = unchanged 147 + fixed 10 + missing 0  |  current 153 = unchanged 147 + new 5 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36536038165",
+  "current_run_id": "36549974905",
+  "baseline_sha": "322d92f8634e09953d0af2b9a5c71632ac2424b7",
+  "current_sha": "5acc73133efcd5bf08e0425006cb858ed4db9998",
+  "commit_range": "322d92f8634e09953d0af2b9a5c71632ac2424b7..5acc73133efcd5bf08e0425006cb858ed4db9998",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING",
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction",
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_price_target-timeout]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_expired_day_serves_last_good_at_once_and_one_refresh_runs"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_scan_screener_auth|test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence",
+    "pytest|tests.test_scan_screener_auth|test_a_PAID_member_still_gets_200_on_EVERY_route",
+    "pytest|tests.test_scan_screener_auth|test_a_TRIAL_member_is_treated_as_paid",
+    "pytest|tests.test_scan_screener_auth|test_an_ADMIN_gets_200_everywhere_including_the_refresh_route",
+    "pytest|tests.test_scan_screener_auth|test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door",
+    "pytest|tests.test_scan_screener_auth|test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door",
+    "pytest|tests.test_scan_screener_auth|test_the_route_counts_are_what_the_router_SOURCE_declares",
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_FLAG_ON_a_second_checker_that_saw_the_row_armed_delivers_NOTHING": {
+      "class": "test-file-change",
+      "commits": [
+        "046e098ca",
+        "b0950e9bc"
+      ],
+      "workstreams": [
+        {
+          "commit": "046e098ca",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b0950e9bc",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term048_watchlist_alerts_s7|test_the_bell_carries_ONE_entry_and_no_S7_reconstruction": {
+      "class": "test-file-change",
+      "commits": [
+        "046e098ca",
+        "b0950e9bc"
+      ],
+      "workstreams": [
+        {
+          "commit": "046e098ca",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        },
+        {
+          "commit": "b0950e9bc",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_price_target-timeout]": {
+      "class": "test-file-change",
+      "commits": [
+        "e311b1f22"
+      ],
+      "workstreams": [
+        {
+          "commit": "e311b1f22",
+          "workstream": "feat",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 322d92f86..5acc73133 touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_expired_day_serves_last_good_at_once_and_one_refresh_runs": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 322d92f86..5acc73133 touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.test_gate_shards|test_the_read_set_covers_every_root_relative_path_the_suite_reads": {
+      "class": "imported-file-change",
+      "commits": [
+        "87eabb72f"
+      ],
+      "workstreams": [
+        {
+          "commit": "87eabb72f",
+          "workstream": "fix",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 322d92f86..5acc73133 touched tests/test_mutation_check.py or anything it imports"
+    },
+    "pytest|tests.test_scan_screener_auth|test_a_FREE_member_is_refused_on_EVERY_route_with_THIS_routers_sentence": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_a_PAID_member_still_gets_200_on_EVERY_route": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_a_TRIAL_member_is_treated_as_paid": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_an_ADMIN_gets_200_everywhere_including_the_refresh_route": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_an_anonymous_caller_is_refused_on_EVERY_route_except_the_public_door": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_every_route_is_paid_except_the_one_admin_route_and_the_one_public_door": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_scan_screener_auth|test_the_route_counts_are_what_the_router_SOURCE_declares": {
+      "class": "test-file-change",
+      "commits": [
+        "5acc73133"
+      ],
+      "workstreams": [
+        {
+          "commit": "5acc73133",
+          "workstream": "test",
+          "confidence": "message-tag",
+          "ours": false
+        }
+      ]
+    },
+    "vitest|src/surfaces/manifest.test.js|S1 CP1 \u2014 the surface manifest is derived, not typed > every Layout-hosted route has a declaration": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 322d92f86..5acc73133 touched src/surfaces/manifest.test.js or anything it imports"
+    }
+  }
+}
