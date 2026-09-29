@@ -33,12 +33,19 @@ that degrade becoming the normal case is the HORIZON RAIL in
 ``MIN_HORIZON_MONTHS`` ahead, because an expired calendar and a correct one look
 identical on any single ordinary day.
 
-This module is NOT yet read by any production path. The existing lists
-(``nyse_calendar.py``, ``nyseCalendar.js`` and the others named in
-``docs/terminal-research/10-roadmap/evidence/2026-09-29-term035-calendar-census/results.md``)
-migrate onto it one module at a time, each with a parity assertion. Until then,
-the tests hold this dataset EQUAL to ``nyse_calendar.py`` on every year both
-cover, so the lists cannot drift apart without a test going red.
+READ IN PRODUCTION since TERM-035 follow-up #1: ``api/services/nyse_calendar.py``
+derives its two ``YYYYMMDD`` sets from :func:`calendar`, so ``bars_fetch``,
+``liveflow_monitor`` and every other reader of those sets (and
+``GET /api/market-calendar``'s ``covers_through``) now answer from this dataset.
+On the client, ``nyseCalendar.js`` derives from ``sessionCalendar.js`` the same
+way. The remaining typed lists named in
+``docs/terminal-research/10-roadmap/evidence/2026-09-29-term035-calendar-census/results.md``
+still migrate one module at a time.
+
+⛔ THIS MODULE MUST STAY STDLIB-ONLY. ``nyse_calendar`` is the dependency-free
+leaf that ``ast_interpret`` and ``scan_evaluator`` import to avoid dragging a
+service in, and it now imports this module; an ``api.*`` import here would undo
+that. ``tests/test_nyse_calendar_parity.py`` rails it.
 """
 from __future__ import annotations
 
@@ -134,6 +141,15 @@ _logger.info(
 # The authority. Every function takes an optional ``cal`` so tests can inject a
 # mutated dataset; production callers never pass it.
 # ---------------------------------------------------------------------------
+
+def calendar() -> CalendarData:
+    """The one parsed copy of the dataset that production reads (loaded at import).
+
+    ``nyse_calendar`` builds its ``YYYYMMDD`` sets from this object rather than
+    re-reading the file, so there is one parse and one set of validated dates.
+    """
+    return _CAL
+
 
 def horizon(cal: CalendarData = _CAL) -> date:
     """The last date the dataset covers."""

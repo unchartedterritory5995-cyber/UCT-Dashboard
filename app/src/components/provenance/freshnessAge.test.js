@@ -49,7 +49,8 @@ import {
 } from './freshnessAge'
 
 // ── FIXED INSTANTS ──────────────────────────────────────────────────────────
-// 2026 and 2027 are the years `nyseCalendar.js` covers. Every instant below is
+// 2026 is inside `nyseCalendar.js`'s coverage (market_calendar.json, 2025-2028
+// since TERM-035 follow-up #1). Every instant below is
 // written in UTC so the test says nothing about the machine's timezone.
 //
 //   REGULAR  Thu 2026-01-15, EST (UTC-5): RTH 14:30Z -> 21:00Z = 6.5 hours.
