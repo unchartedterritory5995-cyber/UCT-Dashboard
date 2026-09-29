@@ -13,7 +13,7 @@
 //   * a CSS/structural rail that reads the raw stylesheet + JSX text (`NoteBoardView.scrollsAlone.test.js`'s
 //     own pattern) and checks the MECHANISM -- a mask, not a colour-matched overlay, cross-browser,
 //     wired to the element that actually scrolls.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -43,9 +43,17 @@ const NOTES = [
   { id: 'n1', title: 'NVDA thesis', propertiesJson: { 'builtin:thesis_status': 'watching' } },
 ]
 
-// STATUS has 3 options + "No value" -- 4 columns, matching NoteBoardView.test.jsx's own
-// fixture. Each rendered column is 300 "px" under the mock below.
-const COLS = 4
+// D5 fix round 1 (M2): DERIVED, never a re-typed magic number -- STATUS's own option
+// count plus the always-present "No value" column, matching what `columnsFor()` in
+// NoteBoardView.jsx actually builds (and matching NoteBoardView.test.jsx's own fixture:
+// 3 options -> 4 columns).
+const COLS = STATUS.options.length + 1
+const COL_W = 300 // px per mocked column below -- arbitrary but shared by every test
+const CLIENT_W = 700 // the mocked visible width every overflowing-board test renders at
+const SCROLL_W = COLS * COL_W
+// The effect's own `max = scrollWidth - clientWidth` -- derived here so a test never
+// restates the arithmetic NoteBoardView.jsx already does.
+const MAX_SCROLL = SCROLL_W - CLIENT_W
 
 const renderBoard = (props = {}) => render(
   <NoteBoardView
@@ -83,41 +91,73 @@ const withScrollMetrics = (scrollWidth, clientWidth, fn) => {
 
 describe('the board scroll cue -- rendered (jsdom scroll metrics driven by hand)', () => {
   it('is ABSENT when the row does not overflow (clientWidth >= scrollWidth)', () => {
-    withScrollMetrics(COLS * 300, 2000, () => {
+    withScrollMetrics(SCROLL_W, 2000, () => {
       renderBoard()
       expect(cue()).toBe('false')
     })
   })
 
   it('is PRESENT at rest when the row overflows (scrollLeft 0, more columns to the right)', () => {
-    withScrollMetrics(COLS * 300, 700, () => {
+    withScrollMetrics(SCROLL_W, CLIENT_W, () => {
       renderBoard()
       expect(cue()).toBe('true')
     })
   })
 
   it('HIDES once scrolled to the end -- nothing more sits past the visible edge', async () => {
-    withScrollMetrics(COLS * 300, 700, () => {
+    withScrollMetrics(SCROLL_W, CLIENT_W, () => {
       renderBoard()
       expect(cue()).toBe('true')
       const el = scroller()
-      // max = scrollWidth - clientWidth = 1200 - 700 = 500
-      Object.defineProperty(el, 'scrollLeft', { value: 500, configurable: true })
+      Object.defineProperty(el, 'scrollLeft', { value: MAX_SCROLL, configurable: true })
       fireEvent.scroll(el)
       expect(cue()).toBe('false')
     })
   })
 
   it('REAPPEARS if scrolled back from the end', () => {
-    withScrollMetrics(COLS * 300, 700, () => {
+    withScrollMetrics(SCROLL_W, CLIENT_W, () => {
       renderBoard()
       const el = scroller()
-      Object.defineProperty(el, 'scrollLeft', { value: 500, configurable: true })
+      Object.defineProperty(el, 'scrollLeft', { value: MAX_SCROLL, configurable: true })
       fireEvent.scroll(el)
       expect(cue()).toBe('false')
       Object.defineProperty(el, 'scrollLeft', { value: 120, configurable: true })
       fireEvent.scroll(el)
       expect(cue()).toBe('true')
+    })
+  })
+
+  // D5 fix round 1 (M1): the effect's `< max - 2` clause is a deliberate 2px END
+  // tolerance -- a real browser's fractional-pixel scroll position at rest can land a
+  // hair short of the true max, and the cue must already read "done" there, not "one
+  // more nudge to go". Mutation-proved: dropping the tolerance (`< max - 2` -> `< max`)
+  // turns this red.
+  it('a sub-pixel scrollLeft inside the 2px END tolerance reads as fully scrolled', () => {
+    withScrollMetrics(SCROLL_W, CLIENT_W, () => {
+      renderBoard()
+      const el = scroller()
+      Object.defineProperty(el, 'scrollLeft', { value: MAX_SCROLL - 1.5, configurable: true })
+      fireEvent.scroll(el)
+      expect(cue()).toBe('false')
+    })
+  })
+
+  // D5 fix round 1 (M1): the ">2" floor is not ">0". At max<=2 the tolerance clause
+  // above (`scrollLeft < max - 2`) needs a NEGATIVE scrollLeft to ever read true --
+  // which a real LTR page never produces (max-2 <= 0 there) -- so a scrollLeft=0 test
+  // alone cannot tell `max > 2` apart from a loosened `max > 0`; both already read
+  // 'false' at rest. The scrollLeft here is therefore synthetic -- not a scenario a
+  // member can produce -- and exists only to pin the GATE's own boundary, independent
+  // of the tolerance clause above it. Mutation-proved: loosening the floor to
+  // `max > 0` turns this red.
+  it('the ">2" overflow floor is not ">0" -- a 1-2px overflow never opens the fan', () => {
+    withScrollMetrics(CLIENT_W + 2, CLIENT_W, () => {
+      renderBoard()
+      const el = scroller()
+      Object.defineProperty(el, 'scrollLeft', { value: -1, configurable: true })
+      fireEvent.scroll(el)
+      expect(cue()).toBe('false')
     })
   })
 
@@ -145,30 +185,107 @@ describe('the board scroll cue -- rendered (jsdom scroll metrics driven by hand)
     }
   })
 
-  it('control: unmounting the board tears the cue state down with it (no leaked listener state)', () => {
-    withScrollMetrics(COLS * 300, 700, () => {
-      const { unmount } = renderBoard()
-      expect(cue()).toBe('true')
-      expect(() => unmount()).not.toThrow()
-      expect(scroller()).toBeNull()
+  // D5 fix round 1 (I1): this used to be `expect(() => unmount()).not.toThrow()` --
+  // which STILL PASSES with the effect's whole cleanup block (NoteBoardView.jsx's
+  // `return () => { ... }`) deleted outright, because the global `test-setup.js`
+  // ResizeObserver stub is a no-op (`observe`/`disconnect` do nothing observable) and
+  // nothing ever asserted the scroll/resize listeners were actually removed. A leaked
+  // `scroll` listener on a detached element or a leaked `resize` listener on `window`
+  // throws NOTHING and unmounts cleanly -- it just keeps firing into a component that
+  // no longer exists. This version spies on the real registration calls and asserts
+  // each one is undone with the SAME function reference, plus a fake ResizeObserver
+  // (the global stub can't see this) recording observe()/disconnect().
+  // Mutation-proved: deleting the cleanup block, or deleting just its
+  // `window.removeEventListener('resize', update)` line, both turn this red.
+  it('control: unmounting REMOVES every listener with the SAME fn reference and disconnects its ResizeObserver', () => {
+    withScrollMetrics(SCROLL_W, CLIENT_W, () => {
+      const roCalls = { observe: 0, disconnect: 0 }
+      const RealRO = globalThis.ResizeObserver
+      class FakeRO {
+        observe() { roCalls.observe += 1 }
+        unobserve() {}
+        disconnect() { roCalls.disconnect += 1 }
+      }
+      globalThis.ResizeObserver = FakeRO
+
+      const winAdd = vi.spyOn(window, 'addEventListener')
+      const winRemove = vi.spyOn(window, 'removeEventListener')
+      const elAdd = vi.spyOn(HTMLElement.prototype, 'addEventListener')
+      const elRemove = vi.spyOn(HTMLElement.prototype, 'removeEventListener')
+
+      try {
+        const { unmount } = renderBoard()
+        expect(cue()).toBe('true')
+        expect(roCalls.observe).toBe(1)
+
+        const el = scroller()
+        // Scoped to the SCROLLER specifically (via mock.instances, the same idiom
+        // wireSection.test.jsx uses for Element.prototype.scrollIntoView) -- other
+        // elements in the tree may also register listeners, and this must not
+        // accidentally pass by finding one of THEIRS.
+        const scrollAddIdx = elAdd.mock.calls.findIndex(
+          (args, i) => args[0] === 'scroll' && elAdd.mock.instances[i] === el,
+        )
+        expect(scrollAddIdx, 'the effect registers a scroll listener on the scroller').toBeGreaterThan(-1)
+        const registeredScrollFn = elAdd.mock.calls[scrollAddIdx][1]
+
+        const resizeAddCall = winAdd.mock.calls.find((args) => args[0] === 'resize')
+        expect(resizeAddCall, 'the effect registers a resize listener on window').toBeTruthy()
+        const registeredResizeFn = resizeAddCall[1]
+
+        unmount()
+        expect(scroller()).toBeNull()
+
+        const scrollRemoved = elRemove.mock.calls.some(
+          (args) => args[0] === 'scroll' && args[1] === registeredScrollFn,
+        )
+        expect(scrollRemoved, 'el.removeEventListener(scroll, SAME fn) was called').toBe(true)
+
+        const resizeRemoved = winRemove.mock.calls.some(
+          (args) => args[0] === 'resize' && args[1] === registeredResizeFn,
+        )
+        expect(resizeRemoved, 'window.removeEventListener(resize, SAME fn) was called').toBe(true)
+
+        expect(roCalls.disconnect).toBe(1)
+      } finally {
+        winAdd.mockRestore()
+        winRemove.mockRestore()
+        elAdd.mockRestore()
+        elRemove.mockRestore()
+        globalThis.ResizeObserver = RealRO
+      }
     })
   })
 })
 
 describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data-board-scroll-more])', () => {
   const DIR = join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook')
-  const css = readFileSync(join(DIR, 'NoteBoardView.module.css'), 'utf8')
-  const jsx = readFileSync(join(DIR, 'NoteBoardView.jsx'), 'utf8')
   const FADE_SELECTOR = '.columns[data-board-scroll-more="true"]'
 
-  const rule = (text, selector) => {
+  const ruleFrom = (text, selector) => {
     const r = parseRules(text).find((x) => x.selector === selector)
     if (!r) throw new Error(`${selector} not found`)
     return Object.fromEntries(declarations(r).map((d) => [d.prop, d.value]))
   }
-  const fade = rule(css, FADE_SELECTOR)
+
+  // D5 fix round 1 (M3): `fade` used to be resolved by a bare `const` at DESCRIBE-BODY
+  // execution -- which runs at COLLECTION time, before any test starts. A renamed/
+  // removed selector threw THERE and killed collection for the WHOLE FILE (this block
+  // AND the rendered describe block above it), reporting "0 tests" with no named
+  // failure. A first attempt moved the lookup into `beforeAll` -- better (the rendered
+  // block above now runs), but a `beforeAll` throw marks every test in ITS OWN block as
+  // SKIPPED, still not a named failure. So `getFade()` below is called from INSIDE each
+  // `it()` that needs it: a throw there fails only THAT test, by name, and every test
+  // still gets its own pass/fail line.
+  let css, jsx
+  beforeAll(() => {
+    css = readFileSync(join(DIR, 'NoteBoardView.module.css'), 'utf8')
+    jsx = readFileSync(join(DIR, 'NoteBoardView.jsx'), 'utf8')
+  })
+  const getFade = () => ruleFrom(css, FADE_SELECTOR)
 
   it('is a MASK, cross-browser (prefixed + unprefixed), not a background overlay', () => {
+    const fade = getFade()
     expect(fade['mask-image']).toBeTruthy()
     expect(fade['-webkit-mask-image']).toBeTruthy()
     // A colour-matched overlay would need a `background`/`background-color` literal that
@@ -179,6 +296,7 @@ describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data
   })
 
   it('non-vacuity: the mask fades TOWARD the scroll direction (transparent on the right)', () => {
+    const fade = getFade()
     // `linear-gradient(to right, ...)` with the transparent stop LAST is what hides the
     // right edge while the strong (#000 => fully painted) stop leads -- the reverse would
     // fade the LEFT edge instead, which is not what D-5 asked for.
@@ -187,10 +305,11 @@ describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data
   })
 
   it('no transition on the swap -- there is no motion to gate behind prefers-reduced-motion', () => {
-    expect(fade.transition).toBeUndefined()
+    expect(getFade().transition).toBeUndefined()
   })
 
   it('non-vacuity: the attribute is on the SAME node the mask selector targets (.columns)', () => {
+    getFade() // still resolvable -- keeps this test's failure mode specific to ITS OWN assertions
     const code = stripComments(jsx)
     const openTagStart = code.indexOf('ref={setColumnsEl}')
     expect(openTagStart, 'the scroller ref is rendered').toBeGreaterThan(-1)
@@ -207,11 +326,27 @@ describe('the board scroll cue -- CSS/structural (NoteBoardView.module.css [data
   })
 
   it('control: an overlay-div idiom would need a background colour and is NOT what this rule does', () => {
-    const overlay = rule(
+    const overlay = ruleFrom(
       '.overlayFade { position: absolute; right: 0; background: linear-gradient(to right, transparent, #111); }',
       '.overlayFade',
     )
     expect(overlay['mask-image']).toBeUndefined()
     expect(overlay.background).toBeTruthy()
+  })
+
+  // D5 fix round 1 (M4): a column scrolled into view (keyboard, scrollIntoView) must not
+  // land directly under the fade, dimmed at the exact moment it's the thing being shown.
+  // scroll-padding-inline-end and the mask's own width share ONE custom property so they
+  // can never drift apart -- this checks both the sharing AND that the literal itself is
+  // declared exactly once (a second "40px" anywhere near it would mean something restated
+  // the width instead of deriving from it).
+  it('scroll-padding-inline-end shares the SAME --board-fade-w token as the mask, never a restated literal', () => {
+    const fade = getFade()
+    const base = ruleFrom(css, '.columns')
+    expect(base['scroll-padding-inline-end']).toBe('var(--board-fade-w)')
+    expect(fade['mask-image']).toContain('var(--board-fade-w)')
+    expect(fade['-webkit-mask-image']).toContain('var(--board-fade-w)')
+    const literalPxWidths = css.match(/--board-fade-w:\s*[\d.]+px/g) || []
+    expect(literalPxWidths).toHaveLength(1)
   })
 })

@@ -160,6 +160,9 @@ export default function NoteBoardView({
     const update = () => {
       if (dead) return
       const max = el.scrollWidth - el.clientWidth
+      // LTR-only: this app has no RTL surface, so "a column sits past the visible edge"
+      // only ever means the RIGHT edge -- the mask this drives (NoteBoardView.module.css)
+      // fades that side alone, on purpose.
       const next = max > 2 && el.scrollLeft < max - 2
       setMoreRight((prev) => (prev === next ? prev : next))
     }

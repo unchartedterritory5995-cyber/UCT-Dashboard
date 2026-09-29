@@ -60,9 +60,20 @@ SAMPLE_JS = r"""
   if (!el) return { found: false }
   const r = el.getBoundingClientRect()
   const cols = Array.from(el.children).filter((c) => c.tagName === 'SECTION' && c.hasAttribute('aria-label'))
+  // D5 fix round 1 (I2a): cue_attr is a DOM ATTRIBUTE, not proof of paint -- a member
+  // never sees an attribute, they see the browser's own COMPUTED style. Reading it
+  // directly closes that gap: getComputedStyle resolves the CSS cascade (the
+  // attribute selector actually matching, var(--board-fade-w) actually resolving) the
+  // way the rendering engine will, independent of what the DOM attribute merely says.
+  // Both spellings are read because engines disagree on which is canonical --
+  // Chromium (this probe's browser) still reports through the -webkit- prefixed OM
+  // property for a mask declared with both, alongside its own unprefixed maskImage.
+  const cs = getComputedStyle(el)
   return {
     found: true,
     cue_attr: el.getAttribute('data-board-scroll-more'),
+    computed_mask_image: cs.maskImage || null,
+    computed_webkit_mask_image: cs.webkitMaskImage || null,
     scrollWidth: el.scrollWidth, clientWidth: el.clientWidth, scrollLeft: el.scrollLeft,
     overflowing: el.scrollWidth - el.clientWidth > 2,
     box: { top: Math.round(r.top), left: Math.round(r.left), right: Math.round(r.right), bottom: Math.round(r.bottom) },
@@ -197,6 +208,7 @@ def main() -> int:
                                 "viewport": label, "found": s.get("found"),
                                 "cue_attr": s.get("cue_attr"), "overflowing": s.get("overflowing"),
                                 "columns": s.get("column_count"),
+                                "computed_mask_image": s.get("computed_mask_image"),
                                 "thumb_painted": (row.get("scrollbar") or {}).get("thumb_painted"),
                                 "error": row.get("error"),
                             }), flush=True)
