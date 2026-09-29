@@ -17,6 +17,10 @@ import { describe, it, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import DeviceSyncCard from './DeviceSyncCard'
 import MANIFEST from '../../lib/persistence/persistenceManifest.json'
+import { CEILINGS, LAYOUT_KINDS } from '../../lib/persistence/personalization'
+import { layoutAutoSaves } from '../../pages/charts/layoutDockPins'
+import { GRID_MAX_CELLS } from '../../pages/charts/grid/gridLayouts'
+import { MAX_COMPARISONS, MAX_CHART_TEMPLATES } from '../../components/chart/chartCeilings'
 
 // Everything that follows the ACCOUNT is listed; on the device, caches and diagnostic switches
 // are counted rather than listed.
@@ -85,5 +89,78 @@ describe('DeviceSyncCard is rendered from the persistence manifest', () => {
     expect(rows(a).length).toBeGreaterThan(20)
     expect(rows(a)).toEqual(rows(b))
     expect(a.textContent).toBe(b.textContent)
+  })
+})
+
+// TERM-052 (FB-S6-01) — the other two publications, asserted by RENDERED TEXT. The expected
+// layout lists are computed HERE by asking `layoutAutoSaves` about each kind, and the expected
+// numbers are the constants imported straight from the files that enforce them — never a copy.
+const kindLabels = (testId) => within(screen.getByTestId(testId))
+  .getAllByRole('listitem').map((li) => li.textContent).sort()
+const expectedKinds = (answer) => LAYOUT_KINDS
+  .filter((k) => layoutAutoSaves(k.probe) === answer).map((k) => k.label).sort()
+const limitText = (id) => screen.getByTestId('sync-ceilings')
+  .querySelector(`[data-ceiling-id="${id}"]`).textContent
+
+describe('DeviceSyncCard publishes which layouts save themselves, from the workspace rule', () => {
+  it('lists exactly the kinds layoutAutoSaves says save, and exactly the ones it says do not', () => {
+    render(<DeviceSyncCard />)
+    expect(expectedKinds(true).length).toBeGreaterThan(0) // CONTROL
+    expect(expectedKinds(false).length).toBeGreaterThan(0) // CONTROL
+    expect(kindLabels('sync-layout-autosaves')).toEqual(expectedKinds(true))
+    expect(kindLabels('sync-layout-manual')).toEqual(expectedKinds(false))
+    expect(screen.queryByTestId('sync-layout-unreadable')).toBeNull()
+  })
+
+  it('says what each list means, in words a member reads', () => {
+    render(<DeviceSyncCard />)
+    const on = screen.getByTestId('sync-layout-autosaves')
+    const off = screen.getByTestId('sync-layout-manual')
+    expect(within(on).getByRole('heading').textContent).toBe('Layouts that save as you work')
+    expect(on.textContent).toContain('written into the open layout a moment after you stop moving things')
+    expect(within(off).getByRole('heading').textContent).toBe('Layouts you save yourself')
+    expect(off.textContent).toContain('are not written into it. To keep them, save the board as a new layout.')
+  })
+
+  it('PLANTED DRIFT: a different rule moves the rows with no edit to the card', () => {
+    const { unmount } = render(<DeviceSyncCard autoSaves={() => true} />)
+    expect(kindLabels('sync-layout-autosaves')).toEqual(LAYOUT_KINDS.map((k) => k.label).sort())
+    expect(screen.queryByTestId('sync-layout-manual')).toBeNull()
+    unmount()
+    render(<DeviceSyncCard autoSaves={() => undefined} />)
+    expect(kindLabels('sync-layout-unreadable')).toEqual(LAYOUT_KINDS.map((k) => k.label).sort())
+    expect(screen.queryByTestId('sync-layout-autosaves')).toBeNull()
+  })
+})
+
+describe('DeviceSyncCard publishes the limits the code enforces', () => {
+  it('shows every ceiling with the number its enforcing constant holds', () => {
+    render(<DeviceSyncCard />)
+    const rows = within(screen.getByTestId('sync-ceilings')).getAllByRole('listitem')
+    expect(rows.map((li) => li.getAttribute('data-ceiling-id')).sort()).toEqual(CEILINGS.map((c) => c.id).sort())
+    expect(limitText('multichart-grid')).toBe(`Charts in one multi-chart grid${GRID_MAX_CELLS}`)
+    expect(limitText('chart-comparisons')).toBe(`Comparison symbols on one chart${MAX_COMPARISONS}`)
+    expect(limitText('chart-templates')).toContain(String(MAX_CHART_TEMPLATES))
+    expect(screen.getByTestId('sync-ceilings').textContent).not.toContain('unreadable')
+  })
+
+  it('PLANTED DRIFT: moving a constant moves the published number; a lost one reads unreadable', () => {
+    const moved = CEILINGS.map((c) => (c.id === 'multichart-grid' ? { ...c, value: 9 } : c))
+    const { unmount } = render(<DeviceSyncCard ceilings={moved} />)
+    expect(limitText('multichart-grid')).toBe('Charts in one multi-chart grid9')
+    unmount()
+    const lost = CEILINGS.map((c) => (c.id === 'chart-comparisons' ? { ...c, value: undefined } : c))
+    render(<DeviceSyncCard ceilings={lost} />)
+    expect(limitText('chart-comparisons')).toBe('Comparison symbols on one chartunreadable')
+  })
+
+  it('claims nothing about version history or restore — the versioned store (TERM-021) is dark', () => {
+    // Scoped to the TERM-052 sections: the manifest's own labels legitimately say "earlier
+    // version" about a renamed key, which is a different claim.
+    render(<DeviceSyncCard />)
+    const text = ['sync-layout-autosaves', 'sync-layout-manual', 'sync-ceilings']
+      .map((id) => screen.getByTestId(id).textContent).join(' ')
+    expect(text).toContain('Layouts that save as you work') // CONTROL: the sections rendered
+    expect(text).not.toMatch(/version|restore|undo|history/i)
   })
 })

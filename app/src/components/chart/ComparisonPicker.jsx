@@ -3,9 +3,10 @@ import { useState, useRef, useEffect, useId, useMemo } from 'react';
 import styles from './ComparisonPicker.module.css';
 import { pickComparisonColor } from './comparisonUtils';
 import useTickerSuggest from '../../hooks/useTickerSuggest';
+// TERM-052: the cap is published in Settings from this same constant, so it is never re-typed here.
+import { MAX_COMPARISONS } from './chartCeilings';
 
 
-const MAX_COMPARISONS = 5;
 const POPULAR_TICKERS = ['QQQ', 'SPY', 'IWM', 'DIA', 'NDX', 'VIX', 'BTC-USD'];
 
 
