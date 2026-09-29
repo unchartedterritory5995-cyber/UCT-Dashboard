@@ -96,6 +96,12 @@ export const DROP_KEYS = Object.freeze({
   'coll:push': C(LOSS.LIST, 'an object never entered into the list a later delete reads'),
   'coll:set': C(LOSS.LIST, 'a list slot never overwritten, so a later delete reads the old handle'),
   'coll:remove': C(LOSS.LIST, 'a handle never taken out of the list, so a later delete hits it twice'),
+  // ⭐ C16 (2026-09-29) — a READ of an object list that lost a change (its
+  // `array.size`, a slot, a handle copied out of one): our list is no longer
+  // TradingView's, so the step is withheld. A LIST loss like the others — a
+  // withheld delete is also on `lostRemovals`, which is what refuses the drawing.
+  'coll:diverged': C(LOSS.LIST,
+    'a step that reads an object list which lost a change, so it would act on a handle TradingView\'s list does not hold there'),
   // ⭐ 2026-09-27 — the call-site inliner (`objectFnInline.js`). `x := f(…)`
   // copies the handle an inlined body returned into the caller's register; when
   // that copy cannot be read, the register keeps what it held before, so a later
