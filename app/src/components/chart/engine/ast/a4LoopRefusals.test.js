@@ -91,8 +91,12 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
     expect(r, `nothing refuses at line ${at}, the creation`).toBeTruthy()
     expect(r.guard).toBe('pine:collection')
     expect(r.text).toMatch(/depends on a series/)
-    // ⭐ The dependency is named, not merely reported — `int` is what will not fold.
-    expect(r.text).toMatch(/`int`/)
+    // ⭐ The dependency is named, not merely reported.
+    // ⚰️ This matched /`int`/ while `int(volume)` itself refused (no published
+    // rounding). Since 2026-09-28 `int` is measured truncation and resolves to
+    // `idiv(volume, 1)`, so what will not fold is the size ARGUMENT — a series —
+    // and the sentence now names that instead.
+    expect(r.text).toMatch(/its size argument/)
     expect(r.text).toMatch(/Runtime arrays are the IR lane's, item \(c\)/)
   })
 

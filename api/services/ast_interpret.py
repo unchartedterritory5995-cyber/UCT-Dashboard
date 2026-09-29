@@ -1798,6 +1798,51 @@ def _fn_mfi(h, l, c, v, n):  # noqa: E741
     return _bind_shipped(_HLCV, (h, l, c, v), len(c), lambda bars: compute_mfi_raw(bars, n))
 
 
+def _pine_mfi_points(bars: List[dict], period: int) -> List[MaybeNum]:
+    """Pine's ``ta.mfi(hlc3, period)`` over ``_bind_shipped``'s bars -- the twin of
+    ``interpret.js::pineMfiPoints``.
+
+    The ONLY difference from ``compute_mfi_raw`` is bar 0, and it is Pine's ``na``
+    rule rather than a clamp: ``ta.change(src)`` has no previous bar there, so both
+    ``change <= 0`` and ``change >= 0`` are false and the bar's flow counts as
+    positive AND negative. Every later bar is classified exactly as
+    ``compute_mfi_raw`` classifies it, summed in the same order with the same
+    zero-``nmf`` rule, so from bar ``period`` on the two are the same numbers."""
+    n = len(bars)
+    out: List[MaybeNum] = [None] * n
+    if period <= 0 or n < period:
+        return out
+    up: List[float] = [0.0] * n
+    down: List[float] = [0.0] * n
+    prev_tp = NAN
+    for i in range(n):
+        tp = (bars[i]["h"] + bars[i]["l"] + bars[i]["c"]) / 3.0
+        flow = tp * (bars[i].get("v") or 0)
+        change = tp - prev_tp
+        up[i] = 0.0 if change <= 0 else flow
+        down[i] = 0.0 if change >= 0 else flow
+        prev_tp = tp
+    for i in range(period - 1, n):
+        pmf = 0.0
+        nmf = 0.0
+        for j in range(i - period + 1, i + 1):
+            pmf += up[j]
+            nmf += down[j]
+        out[i] = 100.0 if nmf == 0 else 100.0 - 100.0 / (1 + pmf / nmf)
+    return out
+
+
+def _fn_mfi_pine(h, l, c, v, n):  # noqa: E741
+    """PINE'S ``ta.mfi(hlc3, n)`` -- reached ONLY through the Pine translator
+    (``pine.js::PINE_CALL_SHAPES.mfi`` -> ``mfiPine``), never by ThinkScript, PCF
+    or the native MFI, which keep ``_fn_mfi``. Bar 0's flow sits on both sides
+    (``ta.change`` is ``na`` there and both comparisons are false), so the first
+    value lands on bar ``n - 1``; measured on
+    ``artemis-oscillator-pro-rddt-1d-2026-09-28``. JS twin: ``FN.mfiPine``."""
+    return _bind_shipped(_HLCV, (h, l, c, v), len(c), lambda bars: _pine_mfi_points(bars, n))
+
+
+
 def _donchian(h, l, n, index):  # noqa: E741
     return _bind_shipped(_HL, (h, l), len(h),
                          lambda bars: compute_donchian_raw(bars, n)[index])
@@ -1910,6 +1955,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
+    "mfiPine": _fn_mfi_pine,
     "donchianUpper": lambda h, l, n: _donchian(h, l, n, 0),   # noqa: E741
     "donchianMiddle": lambda h, l, n: _donchian(h, l, n, 1),  # noqa: E741
     "donchianLower": lambda h, l, n: _donchian(h, l, n, 2),   # noqa: E741

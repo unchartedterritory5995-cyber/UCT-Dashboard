@@ -163,7 +163,10 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
       // at line 69; the read used to refuse at `array.get` for a reason further
       // on, and now refuses at the write the walk does not model.
       ['market-structure-break-order-block__3a1fb6197f.pine', 'pine:collection', /`low_points_arr` is written at line 69/],
-      ['smarter-snr__ac98ab25d5.pine', 'pine:function', /\bint\b/],
+      // ⚰️ 2026-09-28: `int(x)` on a fraction was MEASURED (truncation, the
+      // vw-int-cast capture) and now reads `idiv(x, 1)`, so this script moved one
+      // wall deeper — to the `pine:window` the capture queue predicted.
+      ['smarter-snr__ac98ab25d5.pine', 'pine:window', /ta\.highest/],
       ['support-and-resistance__1505.pine', 'pine:na', /fixnan/],
     ]
     for (const [file, guard, messagePattern] of stillBlocked) {

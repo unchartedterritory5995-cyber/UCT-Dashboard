@@ -229,6 +229,66 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
         _same(_column(name, bars, "D", False), exp[name], name)
 
 
+def test_a_DAILY_series_keyed_by_ISO_DATES_reads_each_date_as_its_session_open():
+    """⭐⭐ Q-T1 (2026-09-28). The chart's daily bars arrive keyed by an ISO date;
+    each reads as its session's opening instant, 09:30 America/New_York — the
+    instant TradingView stamps as a daily bar's ``time``. The fixture's dates
+    cross both DST changes, so a fixed UTC offset would miss half of them. And
+    the same dates under ``"W"`` stay blank: a week's key day is unmeasured."""
+    doc = _doc()
+    bars = doc["iso_daily_bars"]
+    for name in sorted(doc["iso_daily_expected"]):
+        _same(_column(name, bars, "D", False), doc["iso_daily_expected"][name], name)
+    for name in sorted(doc["iso_weekly_expected"]):
+        _same(_column(name, bars, "W", False), doc["iso_weekly_expected"][name], name)
+    assert set(doc["iso_daily_expected"]["hour"]) == {9}
+    assert set(doc["iso_daily_expected"]["minute"]) == {30}
+    assert {(t % 86400) / 3600 for t in doc["iso_daily_expected"]["time"]} == {13.5, 14.5}
+    assert all(v is None for v in doc["iso_weekly_expected"]["time"])
+
+
+def test_TIME_CLOSE_and_TIMEFRAME_CHANGE_match_the_other_lane_on_every_close_case():
+    """⭐⭐ C8 (2026-09-28). ``time_close``, ``time_close("D")`` and the
+    first-of-week / first-of-month columns ``timeframe.change`` reads, through
+    ``interpret``, on every ``close_cases`` series: the product's 60m grid, the
+    vendor's, a series that shows neither, numeric weekly instants, and daily
+    instants under "D", under "M" and with no timeframe."""
+    doc = _doc()
+    cases = doc["close_cases"]
+    assert set(cases) == set(doc["close_expected"])
+    for case_name, case in sorted(cases.items()):
+        for name, want in sorted(doc["close_expected"][case_name].items()):
+            _same(_column(name, case["bars"], case["tf"], False), want,
+                  f"{case_name}.{name}")
+
+
+def test_the_close_cases_are_not_vacuous():
+    """⛔ Each case must hold the reading it exists for, or the loop above passes
+    on a fixture that never exercised the rule."""
+    exp = _doc()["close_expected"]
+    prod, vend, unk = (exp["sixty_product_grid"], exp["sixty_vendor_grid"],
+                       exp["sixty_grid_unknown"])
+    # The 09:30 bar: 10:00 on the product grid, 10:30 on the vendor's, blank
+    # when the series cannot say which.
+    i = 2
+    assert prod["timeclose"][i] - prod["time"][i] == 1800
+    assert vend["timeclose"][0] - vend["time"][0] == 3600
+    assert unk["timeclose"] == [None, None]
+    # The vendor's 15:30 bar is CLIPPED at 16:00.
+    assert vend["timeclose"][6] - vend["time"][6] == 1800
+    # Extended hours and weekends are blank; a weekly bar closes Friday 16:00.
+    assert prod["timeclose"][0] is None and prod["timeclose"][-3] is None
+    wk = exp["weekly_instants"]
+    assert [c - t for c, t in zip(wk["timeclose"][:5], wk["time"][:5])] ==         [369000, 369000, 282600, 369000, 369000]
+    assert wk["timeclose"][5] is None
+    # "M" and no timeframe: the close is unmeasured; the period flags still answer.
+    for blank in ("daily_instants_monthly_tf", "daily_instants_no_tf"):
+        assert all(v is None for v in exp[blank]["timeclose"])
+        assert exp[blank]["monthfirst"] == exp["daily_instants"]["monthfirst"]
+    assert exp["daily_instants"]["weekfirst"][1:] == [0, 1, 1, 1, 0]
+    assert exp["daily_instants"]["monthfirst"][1:] == [0, 1, 1, 1, 0]
+
+
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
     """⛔⛔ THE ONE CLOCK VALUE THAT READS A SECOND BAR, AND THE DEFECT IT CARRIED.
 
@@ -252,8 +312,18 @@ def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
     windows = {n: spec["lookback"] for n, spec in ast_table.TABLE[
         ast_table.CLOCK_SECTION].items()}
     assert windows["sessionfirst"] == 1, windows
-    assert [n for n, w in windows.items() if w] == ["sessionfirst"], (
+    # ⭐ (2026-09-28, C8) `weekfirst` / `monthfirst` are `sessionfirst`'s rule over
+    # a wider key and declare the same one-bar window; nothing else has one.
+    assert [n for n, w in windows.items() if w] == ["sessionfirst", "weekfirst",
+                                                     "monthfirst"], (
         f"another clock entry grew a window and nothing bounded it: {windows}")
+    for wider in ("weekfirst", "monthfirst"):
+        whole = _column(wider, bars, doc["tf"])
+        for cut in doc["sliced_sessionfirst"]:
+            i = int(cut)
+            got = _column(wider, bars[i:], doc["tf"])
+            assert got[0] is None, f"{wider} bars[{i}:] fabricated its warm-up bar"
+            assert got[1:] == whole[i + 1:], f"{wider} bars[{i}:] moved with the window"
 
     # 2. THE VALUE IS WINDOW-INDEPENDENT. Every slice agrees with the full series
     #    from its SECOND bar on, and its first bar is blank rather than guessed.
@@ -372,7 +442,8 @@ def test_every_ZERO_ONE_clock_value_is_DECLARED_bool_and_a_consumer_READS_it():
 
     declared = {n: ast_table.yields_of(n) for n in sorted(ast_table.clock_names())}
     bools = sorted(n for n, y in declared.items() if y == "bool")
-    assert bools == sorted(TF_FLAGS + BARSTATE_FLAGS + ("sessionfirst",)), declared
+    assert bools == sorted(TF_FLAGS + BARSTATE_FLAGS
+                           + ("sessionfirst", "weekfirst", "monthfirst")), declared
     # ⚠️ AND THE REST ARE MAGNITUDES — derived as the complement rather than
     # counted. Both halves are asserted, so a lane that declared
     # everything `bool` -- or everything `num` -- fails.

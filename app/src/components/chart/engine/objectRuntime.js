@@ -36,7 +36,7 @@ import {
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
-import { POOL_LIMITS, resolveCapacity } from './objectPool'
+import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -52,6 +52,10 @@ export const OBJECT_STATUS = Object.freeze({
 })
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/** The most addresses one `table.merge_cells` may span — Pine's own table is at
+ *  most 100 × 100 and anything larger is an argument that was never a size. */
+const MAX_MERGE_AREA = 10000
 
 /** Truthiness for a guard column. ⛔ `NaN` IS FALSE, deliberately: a condition
  *  that has not warmed up yet has not fired, and treating an unknown as a fire
@@ -87,7 +91,8 @@ function truthy(v) {
  * @param {number} ctx.barCount
  * @param {(node:number, bar:number)=>*} ctx.readNode   V2 graph node value at a bar
  * @param {(id:string)=>*}               [ctx.readParam] logical parameter value
- * @param {(bar:number)=>number}         [ctx.readTime]  bar timestamp
+ * @param {(bar:number)=>number}         [ctx.readTime]  Pine's `time` for the bar:
+ *        its opening instant in MILLISECONDS (`objectReaderFor` builds it)
  * @param {object}                       [ctx.limits]    override the envelope
  * @param {boolean}                      [ctx.trace]     keep a per-bar event log
  * @returns {{barCount:number, ok:()=>boolean, step:(bar:number)=>void,
@@ -180,6 +185,14 @@ export function beginObjects(program, ctx) {
   let nextId = 1
   let created = 0; let updated = 0; let deleted = 0; let evicted = 0
   let writesToDeleted = 0; let opsExecuted = 0; let maxOpsInABar = 0
+  /** Tables removed because a newer one was created at the same position — see
+   *  `replaceTableAt`. Counted apart from `deleted`, which the SCRIPT did. */
+  let tablesReplaced = 0
+  /** Fills removed because a newer `linefill.new` named the same two lines, and
+   *  fills never made because a line they name is not on the chart — see
+   *  `fillBetween`. */
+  let fillsReplaced = 0
+  let fillsWithoutLines = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -313,6 +326,126 @@ export function beginObjects(program, ctx) {
   function oldestOf(family) {
     for (const inst of live.values()) if (inst.family === family) return inst
     return null
+  }
+
+  /**
+   * ⭐⭐ PINE'S COLLECTOR — BATCHED, AND IT SPARES TWO KINDS OF OBJECT.
+   *
+   * Measured against TradingView 2026-09-28 (`objectPool.GC_BATCH`, triage
+   * class C7): nothing is collected until a create takes the family past
+   * `capacity + 5`; then the OLDEST objects go, one at a time, until `capacity`
+   * remain — except an object created on THIS bar, and one a drawing variable
+   * holds right now. Both still count. So a bar that draws more than the cap
+   * keeps every one of them, and a `var` box made on bar 0 outlives thousands
+   * of newer ones.
+   *
+   * ⛔ CALLED AFTER THE NEW OBJECT IS LIVE AND BEFORE `op.into` IS WRITTEN.
+   * In Pine the call runs before its assignment, so `l := label.new(…)` still
+   * has the OLD label in `l` while the collector runs — it is spared this once.
+   * Writing the register first would expose it one call early. ⚠️ That order is
+   * Pine's evaluation order applied, NOT a measurement: no probe separates it
+   * (the measured `var` case is a box nobody reassigns).
+   *
+   * ⚠️ "HOLDS" MEANS A REGISTER — a drawing variable's current value. An object
+   * reachable only through a collection (`array.push(arr, box.new(…))`) or a
+   * register's HISTORY (`l[1]`) is not spared: history is measured (probe C's
+   * `cl[1]` labels are collected), collections are not (probe D's array-held
+   * boxes never reach their trigger, so they cannot tell).
+   *
+   * ⚰️ UNTIL 2026-09-28 this was "evict the oldest before a create at the cap",
+   * which kept exactly `capacity` and fitted three of six corpus rows.
+   */
+  function collect(family, bar) {
+    const cap = limits[family]
+    if (counts[family] <= collectsAbove(cap)) return
+    const held = new Set()
+    for (const id of regs.values()) if (id !== null && id !== undefined) held.add(id)
+    for (const inst of live.values()) {
+      if (counts[family] <= cap) break
+      if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
+      reap(inst)
+      evicted += 1
+      if (ctx.trace) events.push({ bar, k: 'evict', family, id: inst.id })
+    }
+  }
+
+  /**
+   * ⭐⭐ A TABLE IS PLACED AT ONE OF NINE POSITIONS, AND A NEW ONE AT AN
+   * OCCUPIED POSITION REPLACES THE TABLE THAT WAS THERE.
+   *
+   * ⚰️ MEASURED AGAINST TRADINGVIEW, 2026-09-28 (NYSE:RDDT 1D, 632 bars): two
+   * scripts create a table on EVERY bar without `var` —
+   * `heat-map-seasons` (`table.new(position.bottom_center, …)`, vendor table id
+   * 20193) and `ict-ipda-look-back` (`table.new("top_right", …)`, id 641) — and
+   * TradingView holds exactly ONE table for each at the last bar. `artemis-
+   * oscillator-pro` holds THREE, at three different positions. One per position
+   * is the rule all three agree on; a FIFO of any depth ≥ 2 contradicts the first
+   * two, and a global cap of 1 contradicts the third.
+   *
+   * ⚰️ WHAT THIS ENGINE DID INSTEAD: tables counted against the house envelope
+   * (8) and the ninth REFUSED the run at bar 8 and stopped stepping — so on
+   * `ict-ipda-look-back` every line and box the script draws after bar 8 was
+   * lost, not just the tables.
+   *
+   * ⛔ ONLY WHEN THE POSITION IS KNOWN. A table whose position did not resolve
+   * (a dropped prop — `posOf(input)` the reader cannot fold) is not guessed onto
+   * a default; it keeps the old behaviour, envelope and refusal included. Both
+   * sides are normalised through `position.` so `position.top_right` and the
+   * string `"top_right"` — which Pine accepts interchangeably — name one slot.
+   */
+  const tablePosition = (props) => {
+    const p = props ? props.position : undefined
+    if (typeof p !== 'string' || !p) return null
+    return p.replace(/^position\./, '')
+  }
+  function replaceTableAt(position, bar) {
+    if (!position) return
+    for (const inst of live.values()) {
+      if (inst.family !== 'table' || tablePosition(inst.props) !== position) continue
+      reap(inst)
+      tablesReplaced += 1
+      if (ctx.trace) events.push({ bar, k: 'replace', family: 'table', id: inst.id })
+      return
+    }
+  }
+
+  /**
+   * ⭐⭐ `linefill.new(l1, l2)` — ONE FILL PER PAIR OF LINES, AND NONE WITHOUT THEM.
+   *
+   * Pine's manual (Fills → linefills): *"A pair of lines can only have one
+   * linefill between them, so successive calls to linefill.new using the same
+   * two lines will replace one linefill with another."* And a fill between lines
+   * that are not on the chart fills nothing.
+   *
+   * ⚰️ MEASURED against TradingView (2026-09-28, NYSE:RDDT 1D):
+   * `liquidity-pools` calls `linefill.new(upper, lower)` on EVERY bar for two
+   * `var` line pairs. The vendor holds 91 fills for its 182 lines — exactly one
+   * per pair. We held 500: one per call, evicting through the house envelope,
+   * plus a fill per bar between two `na` handles before the first swing.
+   *
+   * Returns `{skip: true}` when a line is not live (the create makes nothing and
+   * its handle reads `na`), after removing the fill this one replaces.
+   * ⛔ THE PAIR IS UNORDERED: `linefill.new(b, a)` names the same two lines.
+   */
+  function fillBetween(props, bar) {
+    const ids = fillRefs({ props })
+    const lines = ids.filter((id) => { const o = live.get(id); return o && o.family === 'line' })
+    if (lines.length < 2 || lines[0] === lines[1]) {
+      fillsWithoutLines += 1
+      return { skip: true }
+    }
+    const [a, b] = lines
+    const onA = fillsOfLine.get(a)
+    for (const fid of onA ? [...onA] : []) {
+      const f = live.get(fid)
+      const other = f ? fillRefs(f) : []
+      if (other.length === 2 && ((other[0] === a && other[1] === b) || (other[0] === b && other[1] === a))) {
+        reap(f)
+        fillsReplaced += 1
+        if (ctx.trace) events.push({ bar, k: 'replace', family: 'linefill', id: f.id })
+      }
+    }
+    return { skip: false }
   }
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
@@ -584,7 +717,13 @@ export function beginObjects(program, ctx) {
           // and treating that as 0 would draw a row of blanks that looks like
           // data. Drawing nothing is the honest answer for a list that is empty.
           if (!Number.isFinite(from) || !Number.isFinite(to)) break
-          const step = to >= from ? 1 : -1
+          // ⭐ `by <step>`: Pine steps by the step's SIZE in the direction
+          // `from → to` takes. ⛔ A step that is not a positive finite number
+          // runs ZERO times — `by 0` would never end, and a guessed 1 would
+          // draw rows the author wrote the step to skip.
+          const size = op.step === undefined ? 1 : Math.abs(Number(value(op.step)))
+          if (!Number.isFinite(size) || size <= 0) break
+          const step = to >= from ? size : -size
           const had = loopVars.has(op.id)
           const prev = loopVars.get(op.id)
           let ok = true
@@ -625,8 +764,27 @@ export function beginObjects(program, ctx) {
           // that RESEMBLES it.
           // ⚰️ Written family-agnostic at first, which silently made TABLES
           // evict too and turned the envelope's refusal into dead code.
+          // ⭐ Resolved BEFORE the capacity test, because for a table the new
+          // object's own position decides whether an old one leaves first.
+          const props = resolveProps(op.props, {})
+          if (op.family === 'table') replaceTableAt(tablePosition(props), bar)
+          if (op.family === 'linefill' && fillBetween(props, bar).skip) {
+            // ⭐ `linefill.new` with a line that is not there returns `na`: the
+            // handle it was assigned to is cleared, exactly as a create that
+            // never happened leaves it.
+            if (op.into) regs.set(op.into, null)
+            // ⛔ A `var` initialiser runs ONCE whatever it returned — `var lf =
+            // linefill.new(na, na)` is `na` for good, not retried until lines
+            // appear.
+            if (op.once) firedOnce.add(op.site)
+            break
+          }
           const pooled = EVICTS.has(op.family)
-          while (pooled && counts[op.family] >= limits[op.family]) {
+          // ⭐ Pine's own families collect AFTER the create (`collect` below);
+          // only `linefill` — the house envelope, no vendor rule — still evicts
+          // the oldest BEFORE one.
+          const pineCollected = own(POOL_LIMITS, op.family)
+          while (pooled && !pineCollected && counts[op.family] >= limits[op.family]) {
             const victim = oldestOf(op.family)
             // ⛔ NOTHING TO EVICT AND STILL OVER THE CAP is not a script error,
             // it is a contradiction in our own bookkeeping — say so rather than
@@ -646,14 +804,14 @@ export function beginObjects(program, ctx) {
           // and this is its refusal — without the `fail`, it would simply stop
           // creating and report `ok`, which is a script drawing less than it
           // asked for with nothing saying so.
-          if (counts[op.family] >= limits[op.family]) {
+          if (!pineCollected && counts[op.family] >= limits[op.family]) {
             if (!pooled) fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
             break
           }
           const id = nextId
           nextId += 1
           const inst = {
-            family: op.family, id, site: op.site, createdBar: bar, props: resolveProps(op.props, {}),
+            family: op.family, id, site: op.site, createdBar: bar, props,
           }
           live.set(id, inst)
           // ⭐ A fill records which lines own it AT CREATE, because that is the
@@ -663,6 +821,7 @@ export function beginObjects(program, ctx) {
           if (op.family === 'linefill') indexFill(inst)
           counts[op.family] += 1
           if (counts[op.family] > peak[op.family]) peak[op.family] = counts[op.family]
+          if (pineCollected) collect(op.family, bar)
           siteNow.set(op.site, id)
           if (op.once) firedOnce.add(op.site)
           if (op.into) regs.set(op.into, id)
@@ -748,6 +907,43 @@ export function beginObjects(program, ctx) {
         // documents that it draws the same box either way; there is no such
         // sentence here, so normalising would invent one. Clearing nothing is
         // the direction that cannot destroy a cell the author still wanted.
+        // ⭐⭐ `table.merge_cells(t, c0, r0, c1, r1)` — THE RECTANGLE BECOMES ONE
+        // CELL. The top-left cell carries the span (`colspan`, `rowspan`) and
+        // every covered address becomes a cell of its own — empty unless written —
+        // because that is what TradingView holds: `momentum-volatility-scanner`'s
+        // capture records (0,0) with colspan 2 and (1,0) as an empty cell.
+        // ⛔ AN INVERTED OR ONE-CELL RECTANGLE MERGES NOTHING, and a rectangle
+        // outside the table's own declared size merges nothing either (Pine
+        // raises there); the area is also capped, so an unbounded pair of
+        // arguments can never walk a million addresses.
+        case 'mergecells': {
+          const target = resolveRef(op.target)
+          const inst = target === null ? null : live.get(target)
+          if (!inst) { writesToDeleted += 1; break }
+          const c0 = Number(value(op.col))
+          const r0 = Number(value(op.row))
+          const c1 = Number(value(op.col2))
+          const r1 = Number(value(op.row2))
+          if (![c0, r0, c1, r1].every((n) => Number.isInteger(n) && n >= 0)) break
+          if (c1 < c0 || r1 < r0 || (c1 === c0 && r1 === r0)) break
+          const cols = inst.props && inst.props.columns
+          const rows = inst.props && inst.props.rows
+          if ((Number.isInteger(cols) && c1 >= cols) || (Number.isInteger(rows) && r1 >= rows)) break
+          if ((c1 - c0 + 1) * (r1 - r0 + 1) > MAX_MERGE_AREA) break
+          let map = cells.get(inst.id)
+          if (!map) { map = new Map(); cells.set(inst.id, map) }
+          for (let r = r0; r <= r1; r += 1) {
+            for (let c = c0; c <= c1; c += 1) {
+              const key = `${c},${r}`
+              if (!map.has(key)) map.set(key, {})
+            }
+          }
+          const head = `${c0},${r0}`
+          map.set(head, { ...map.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          updated += 1
+          if (ctx.trace) events.push({ bar, k: 'mergecells', id: inst.id })
+          break
+        }
         case 'clearcells': {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)
@@ -885,6 +1081,9 @@ export function beginObjects(program, ctx) {
     counts: { ...counts },
     stats: {
       created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
+      ...(tablesReplaced ? { tablesReplaced } : {}),
+      ...(fillsReplaced ? { fillsReplaced } : {}),
+      ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

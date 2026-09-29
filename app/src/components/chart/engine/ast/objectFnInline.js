@@ -157,6 +157,69 @@ export function splitArgs(toks, open, isPunct) {
   })
 }
 
+/**
+ * ⭐⭐ SEVERAL STATEMENTS ON ONE LINE, SEPARATED BY COMMAS — split into one
+ * statement each, as Pine runs them.
+ *
+ * Pine lets a line hold several statements joined by `,`; v4 function bodies
+ * are written that way almost by convention:
+ *
+ *     f_print(_txt) => var _lbl = label(na), label.delete(_lbl), _lbl := label.new(…)
+ *
+ * `blockStatements` already splits a line whose segments are ALL bindings
+ * (`a = 1, b = 2`) and deliberately leaves any other comma line whole, because
+ * the plot lane cannot say which segment is an output. The OBJECT reader can,
+ * and reading the whole line as one statement cost it exactly the part that
+ * matters: in the one-line body above only the LAST statement survived — the
+ * `var` handle became a per-bar local and the `label.delete` vanished.
+ *
+ * ⚰️ MEASURED against TradingView (2026-09-28, NYSE:RDDT 1D):
+ * `position-size-calculator` defines four printers in that shape and the
+ * vendor holds FOUR labels (one per call site, each deleting its predecessor);
+ * we held FIFTY — every label ever made, up to the default cap.
+ * `extrapolated-pivot-connector` writes
+ * `label.delete(ahigh[1]),label.delete(bhigh[1]),…` at the top level too.
+ *
+ * ⛔ ONLY A STATEMENT WITH NO BLOCK BENEATH IT, and never a DEFINITION header
+ * or one carrying a top-level `=>` (a switch arm, a definition): a body belongs
+ * to the line as a whole, and the arrow's right-hand side is not a list of
+ * statements to this reader. Commas inside `(…)`/`[…]` are arguments and tuple
+ * members and never split — the same depth rule `findTop` uses.
+ */
+export function splitCommaStatements(list, h) {
+  let out = null
+  for (let i = 0; i < (list || []).length; i += 1) {
+    const st = list[i]
+    const parts = commaParts(st, h)
+    if (parts && !out) out = list.slice(0, i)
+    if (parts) for (const header of parts) out.push({ header, body: [], sub: [] })
+    else if (out) out.push(st)
+  }
+  return out || list || []
+}
+
+function commaParts(st, h) {
+  const t = st && st.header
+  if (!t || !t.length || (st.sub && st.sub.length)) return null
+  if (definitionHeader(t, h)) return null
+  const parts = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < t.length; i += 1) {
+    const tk = t[i]
+    if (tk.kind !== 'punct') continue
+    if (tk.value === '(' || tk.value === '[') depth += 1
+    else if (tk.value === ')' || tk.value === ']') depth -= 1
+    else if (depth === 0 && tk.value === '=>') return null
+    else if (depth === 0 && tk.value === ',') { parts.push(t.slice(start, i)); start = i + 1 }
+  }
+  if (!parts.length) return null
+  parts.push(t.slice(start))
+  // ⛔ AN EMPTY SEGMENT (`a, , b` or a trailing comma) is not a statement this
+  // reader can name, so the line is left whole rather than half-read.
+  return parts.every((x) => x.length) ? parts : null
+}
+
 /** Is this statement header a function or method DEFINITION? Returns
  *  `{name, isMethod, open, arrow}` or null. */
 export function definitionHeader(t, h) {
@@ -197,7 +260,9 @@ export function readFunctionDefs(stmts, h) {
     const tail = t.slice(head.arrow + 1)
     // ⭐ A ONE-LINE BODY (`g(z) => label.new(…)`) is the tokens after `=>`; a
     // block body is the sub-statements. Both become one statement list.
-    const body = tail.length ? [{ header: tail, sub: st.sub || [] }] : (st.sub || [])
+    // ⭐ Either form may join several statements with commas — see
+    // `splitCommaStatements`.
+    const body = splitCommaStatements(tail.length ? [{ header: tail, sub: st.sub || [] }] : (st.sub || []), h)
     // ⛔ A NAME DEFINED TWICE IS AN OVERLOAD — Pine picks the body by the
     // receiver's (or first argument's) TYPE, which this reader cannot see. The
     // Map keeps only the last body, so the flag is what stops the inliner from

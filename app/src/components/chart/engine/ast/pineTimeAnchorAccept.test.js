@@ -202,10 +202,14 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
   // it never reaches the `anchorForm` branch at all (`args.length === 1`
   // gates it out), so it keeps refusing through whatever pre-existing path
   // already handled it.
-  it('⛔⛔ the 2-argument session form is UNCHANGED — still refuses, never mentions dayopentime', () => {
+  // ⚰️ 2026-09-28: the session form now TRANSLATES on the chart pane (measured,
+  // vw-time-session) — as the session clock, never as the day anchor.
+  it('⛔⛔ the 2-argument session form is the SESSION clock, never dayopentime', () => {
     const t = translatePine(S('ta.change(time("D", "0930-1600")) != 0 ? 1 : 0'), { strict: true })
-    expect(t.ok).toBe(false)
-    expect(t.refusal.message).not.toMatch(/dayopentime/)
+    expect(t.ok).toBe(true)
+    const f = t.outputs[t.selected].formula
+    expect(f).not.toMatch(/dayopentime/)
+    expect(f).toMatch(/hour \* 60 \+ minute >= 570/)
   })
 
   // ⛔⛔ THE HONEST CORPUS RESULT, MEASURED UNDER THE SAME `{ strict: true }`

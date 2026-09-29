@@ -934,6 +934,37 @@
       }
     },
     {
+      "id": "mfi_pine_first_window_counts_bar_zero",
+      "source": "mfiPine(high, low, close, volume, 14)",
+      "why": "(2026-09-28) Pine's `ta.mfi` -- the same windowed money-flow sums as `mfi_14`, except that bar 0's flow sits on BOTH sides (`ta.change` is `na` there and both comparisons are false), so the first value lands on bar n-1, one bar before the house column. From bar n on the two are the same numbers. Pinned to the vendor separately by `mfiPine.vendor.test.js` and `tests/test_mfi_pine_parity.py`.",
+      "ast": {
+        "type": "call",
+        "name": "mfiPine",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
       "id": "donchian_upper",
       "source": "donchianUpper(high, low, 20)",
       "why": "the top of the Donchian channel. All three Donchian lines come out of ONE shipped call, so each earns its own digest for the same reason the two DI legs do.",
@@ -2365,6 +2396,48 @@
       }
     },
     {
+      "id": "clock_timeclose",
+      "source": "timeclose",
+      "why": "⭐ (2026-09-28, C8) Pine's `time_close`: the instant the bar's period ENDS on the regular-session template, carried with `opts: {tf: '5'}`. On this 5-minute series an RTH bar reads `open + 300` (the 15:55 bar reads 16:00), and every extended-hours and weekend bar is BLANK -- the probe was captured with extended hours off, so nothing measured them. The weekend and the DST change in this series are what make a lane holding one UTC offset, or a lane that forgot the session window, disagree here",
+      "ast": {
+        "type": "series",
+        "name": "timeclose"
+      },
+      "opts": {
+        "tf": "5"
+      }
+    },
+    {
+      "id": "clock_dayclosetime",
+      "source": "dayclosetime",
+      "why": "⭐ (2026-09-28, C8) Pine's `time_close(\"D\")`: 16:00 New York on the date an RTH bar opened, the same value on every regular-session bar of that day, blank outside it. Across the 2025-11-02 DST change the same wall-clock 16:00 is two different UTC hours, which a fixed offset gets wrong on one side",
+      "ast": {
+        "type": "series",
+        "name": "dayclosetime"
+      },
+      "opts": {
+        "tf": "5"
+      }
+    },
+    {
+      "id": "clock_weekfirst",
+      "source": "weekfirst",
+      "why": "⭐ (2026-09-28, C8) `timeframe.change(\"W\")`'s column: 1 on the first bar of a New York ISO week, blank on the oldest bar exactly as `sessionfirst` is. This series crosses a weekend (Fri 2025-10-31 -> Mon 2025-11-03), so exactly one bar opens a new week; a lane keying the week by UTC or starting it on Sunday moves it",
+      "ast": {
+        "type": "series",
+        "name": "weekfirst"
+      }
+    },
+    {
+      "id": "clock_monthfirst",
+      "source": "monthfirst",
+      "why": "⭐ (2026-09-28, C8) `timeframe.change(\"M\")`'s column: 1 on the first bar of a New York calendar month, blank on the oldest bar. The same weekend crosses October -> November, so the one 1 here sits on the same bar as `clock_weekfirst`'s -- measured together, they cannot both be right by accident unless both keys are read in New York time",
+      "ast": {
+        "type": "series",
+        "name": "monthfirst"
+      }
+    },
+    {
       "id": "clock_barindex",
       "source": "barindex",
       "why": "the bar's position in the series, 0 on the oldest. The one clock column that reads no timestamp at all, so it is also the control: it must still be right on a series whose `t` the unit gate refuses, and a lane that folded it into the gate would answer all-null",
@@ -2419,6 +2492,18 @@
       },
       "opts": {
         "tf": "M"
+      }
+    },
+    {
+      "id": "clock_periodseconds",
+      "source": "periodseconds",
+      "why": "the chart's bar length in SECONDS, carried with `opts: {tf: '15'}` so it reads 900 on every bar of these 5-minute bars. ⭐ THE TIMEFRAME IS THE CALLER'S CLAIM, NOT THE BAR SPACING, the same rule `clock_isdaily` holds: a lane that measured the gap between bars would answer 300 and be red here. It is the grid the session clock `time(timeframe.period, session)` is read on, and a COLUMN rather than a translate-time constant because a member's script is translated once and drawn on every timeframe",
+      "ast": {
+        "type": "series",
+        "name": "periodseconds"
+      },
+      "opts": {
+        "tf": "15"
       }
     },
     {

@@ -104,7 +104,10 @@ describe('the closed table declares scalars, and both lanes read the same one', 
     //                               declared side NETS TO A WASH, which is the
     //                               shape that hides a mistake -- both halves
     //                               moved and the total did not.
-    expect(Object.keys(excluded).length).toBe(66)
+    //   excluded 66 + 1 = 67         `security_type` (#176, 2026-09-28) --
+    //                               a Stock / ADR / ETF bucket label, TEXT,
+    //                               for `sector`'s reason.
+    expect(Object.keys(excluded).length).toBe(67)
     for (const [column, why] of Object.entries(excluded)) {
       expect(names, `${column} is in BOTH halves of the partition`).not.toContain(column)
       expect(String(why).length).toBeGreaterThan(20)

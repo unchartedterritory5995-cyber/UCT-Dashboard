@@ -30,6 +30,11 @@
 // what stops "the object model works" from being said about a chart that
 // quietly lost half its lines.
 
+// ⭐ THE ONE AUTHORITY ON WHEN A DATE-KEYED DAILY BAR OPENED, and the New York
+// calendar it is read in. The clock columns read the same two, so an `xloc.bar_time`
+// coordinate built from `time` and the bar that `time` came from cannot disagree.
+import { barOpenInstant, etClockAt } from '../indicators.js'
+
 /** Pine's own defaults, so an object drawn with two arguments still looks like
  *  the author's. ⛔ Every one of these is Pine's documented default, not a
  *  house preference — a UCT-flavoured default here is an imported indicator
@@ -76,7 +81,7 @@ const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
  * chart is the authority on what a time looks like, and it wants the shape it was
  * handed.
  */
-export function makeBarClock(bars) {
+export function makeBarClock(bars, tf) {
   const n = Array.isArray(bars) ? bars.length : 0
   const raw = new Array(n)
   const epoch = new Array(n)
@@ -88,6 +93,15 @@ export function makeBarClock(bars) {
     stringly = true
     const ms = Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
     epoch[i] = Number.isFinite(ms) ? Math.floor(ms / 1000) : NaN
+  }
+  // Each loaded date's session-opening instant → the date as the series keys it,
+  // for `timeAtInstant`. Only a date-keyed series needs it.
+  const openKey = new Map()
+  if (stringly) {
+    for (let i = 0; i < n; i += 1) {
+      const at = barOpenInstant(raw[i], tf)
+      if (at !== null) openKey.set(at, raw[i])
+    }
   }
   const DAY = 86400
   let step = DAY
@@ -186,6 +200,30 @@ export function makeBarClock(bars) {
       }
       return shaped(sessionWise ? advanceSessions(epoch[0], k) : epoch[0] + k * step)
     },
+    /** an INSTANT (unix seconds) → a time IN THE SERIES' OWN SHAPE, or null */
+    timeAtInstant(sec) {
+      if (!Number.isFinite(sec)) return null
+      // ⭐ A SERIES KEYED BY INSTANTS IS ALREADY IN THIS UNIT: the instant IS the
+      // time, in range or not, and the chart decides whether it holds a slot there.
+      if (!stringly) return sec
+      // ⭐⭐ A SERIES KEYED BY DATES places an instant on the date whose session
+      // OPENED at it — `barOpenInstant`, the one rule the clock columns use, so
+      // `label.new(time, …, xloc.bar_time)` lands on the bar whose `time` it read.
+      // A loaded bar answers with its own key, untouched; a date past either end
+      // (a projection such as `time + 30 * (time - time[1])`) answers in the same
+      // `YYYY-MM-DD` shape, and the chart's own future slots decide the rest.
+      const hit = openKey.get(sec)
+      if (hit !== undefined) return hit
+      const p = etClockAt(sec)
+      if (!p) return null
+      const iso = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`
+      // ⛔ NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR. Where a daily chart puts
+      // 12:00 or 08:30 on a date was never measured, and snapping it to that
+      // date's bar would be a guess wearing a coordinate. Dropped and counted.
+      // A weekly or monthly date has no measured opening instant at all
+      // (`barOpenInstant` answers null there), so nothing is placed on it either.
+      return barOpenInstant(iso, tf) === sec ? iso : null
+    },
   }
 }
 
@@ -193,7 +231,16 @@ export function makeBarClock(bars) {
 function xOf(value, xloc, clock) {
   const v = num(value)
   if (v === null) return null
-  if (xloc === 'bar_time') return v
+  // ⭐⭐ AN `xloc.bar_time` COORDINATE IS A PINE TIME, IN MILLISECONDS — the unit
+  // Pine's `time` has had since v1, and drawings arrived in v4; the translator
+  // hands object trees `time * 1000` for exactly that reason (`clockTransformFor`).
+  // ⚰️ It was passed through raw, and the painter's contract is a time IN THE
+  // SERIES' OWN SHAPE (`timeToX` → `timeToCoordinate`, which places only a time the
+  // chart holds a slot for): unix seconds on an intraday chart, `YYYY-MM-DD` on a
+  // daily one. A millisecond count is neither, so every bar_time object was
+  // unplaceable on EVERY chart — on a daily chart a number cannot match a date at
+  // all, and on an intraday one it is a thousand times past the last slot.
+  if (xloc === 'bar_time') return clock.timeAtInstant(v / 1000)
   const t = clock.timeAt(v)
   // ⛔ `NaN` IS NOT A COORDINATE, AND `=== null` DOES NOT CATCH IT. That gap is
   // exactly how a whole indicator drew off-pane while every counter said it had
@@ -207,10 +254,13 @@ function xOf(value, xloc, clock) {
  * @param {Array}  live   `evaluateObjects(...).live`
  * @param {object} opts
  * @param {Array}  opts.bars  the series the program was evaluated over
+ * @param {string} [opts.tf]  the chart's timeframe code. A DATE-keyed series needs
+ *                  it to know when each date's bar opened (`barOpenInstant`);
+ *                  absent, an `xloc.bar_time` object on one is dropped, never guessed.
  * @returns {{lines, labels, boxes, tables, fills, dropped, counts}}
  */
 export function toRenderState(live, opts = {}) {
-  const clock = makeBarClock(opts.bars || [])
+  const clock = makeBarClock(opts.bars || [], opts.tf)
   const lines = []
   const labels = []
   const boxes = []
@@ -311,6 +361,9 @@ export function toRenderState(live, opts = {}) {
           // value, and the two would disagree the first time the canonical
           // ordering changed.
           text_formatting: c.props.text_formatting,
+          // ⭐ `table.merge_cells` — present only on a merged top-left cell.
+          ...(c.props.colspan > 1 ? { colspan: c.props.colspan } : {}),
+          ...(c.props.rowspan > 1 ? { rowspan: c.props.rowspan } : {}),
         })),
       })
     } else if (o.family === 'linefill') {

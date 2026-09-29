@@ -252,7 +252,14 @@
     const onGrid = rows.filter((r) => barTimes.has(r[0]))
     if (onGrid.length !== rows.length) warnings.push(`${rows.length - onGrid.length} study rows are off the bar grid (a plot offset into the future?) and were dropped`)
     if (!bars.length) throw new Error('no bars read from mainSeries().bars()')
-    if (!onGrid.length) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
+    // ⭐ A study that DECLARES no plots (objects-only: lines, labels, boxes, tables)
+    // has no data rows by construction — measured 2026-09-28 on RDDT 1D, k-clustering:
+    // metaInfo().plots = [], data() empty, dataLength() 632, graphics() present. Its
+    // answer is `objects`, so an empty plotValues is the truth, not "still computing".
+    // A study that declares plots and has no rows is still refused.
+    const declaredPlots = (tryOr(() => ds.metaInfo().plots, []) || []).length
+    if (!onGrid.length && declaredPlots > 0) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
+    if (!onGrid.length) warnings.push('objects-only study: it declares no plots, so plotValues is empty and its drawings are the whole answer')
 
     // ⛔ ORDER FROM `metaInfo().plots`, NEVER `Object.keys(styles)`.
     const plots = (mi.plots || []).map((p) => ({

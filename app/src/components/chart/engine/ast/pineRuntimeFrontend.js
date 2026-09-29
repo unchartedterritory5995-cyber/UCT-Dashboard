@@ -3358,6 +3358,21 @@ export function buildRuntimeIr(source, opts = {}) {
             'runtime:operator',
             'text used as a condition — a `?:` test is a boolean', locate(node.tok))
         }
+        // ⭐⭐ 2026-09-28 (OWNER RULING 2) — A COLOUR CONDITIONAL'S `na` TEST TAKES
+        // THE ELSE BRANCH, as Pine's does. `TERNARY` answers NaN for a NaN test, and
+        // a NaN where a colour is expected is no colour at all — a box or label
+        // Pine paints in its else colour drew in nothing. The test becomes
+        // `t != 0`: `!=` is a comparison, a comparison against NaN is 0 (the NaN
+        // rule both lanes share), so `na` reads false and a known test reads as it
+        // always did. The graph lane does the same where it builds a palette index
+        // (`pine.js::naSelectorTakesElse`) and the binder where it reads a
+        // two-colour condition (`binder.js::pointColour`).
+        // ⛔ A COLOUR ternary only — a value ternary keeps the value lane's
+        // semantics, which this ruling does not touch.
+        if (holdsColour(node, scope)) {
+          return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
+            lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
+        }
         return ternary(lowerExpr(node.test, scope), lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
       case 'offset': {
         // ⭐ INSIDE A REQUEST, `close[1]` IS THE REQUESTED SYMBOL'S PREVIOUS

@@ -223,10 +223,23 @@ describe('a confirmed-bar guard folds away instead of littering the formula', ()
     // The whole reason this is guarded rather than a one-line rewrite. `close` is
     // a price, not a flag; folding it would silently change the numbers a member's
     // formula produces, which is worse than the cosmetic problem being fixed.
+    //
+    // ⭐ 2026-09-28: UNDER v5 THE OPERAND IS NO LONGER A NON-BOOLEAN BY THE TIME
+    // THE FOLD SEES IT. Pine v5 reads a number in a bool context as `x != 0`
+    // (`implicitBoolCast` in pine.js), so `close and barstate.isconfirmed` is
+    // `close != 0 && 1`, and folding THAT `&& 1` is the identity this describe is
+    // about — the answer is `close != 0`, a 0/1 column, and never `close`.
     const kept = outOf('close and barstate.isconfirmed')
     expect(kept.refusal, kept.refusal?.message).toBeNull()
     expect(JSON.stringify(kept.ast)).not.toBe(JSON.stringify(outOf('close').ast))
-    expect(JSON.stringify(kept.ast)).toContain('&&')
+    expect(JSON.stringify(kept.ast)).toContain('"name":"!="')
+    // ⛔ …and where no cast applies (v6 — a numeric in a bool context does not
+    // compile there, so this door leaves it alone), the guard still refuses to
+    // fold a non-boolean: the `&&` stays.
+    const v6 = translatePine(script('close and barstate.isconfirmed').replace('//@version=5', '//@version=6'))
+    const v6ast = (v6.outputs || []).find((o) => o.ast).ast
+    expect(JSON.stringify(v6ast)).toContain('&&')
+    expect(JSON.stringify(v6ast)).not.toContain('"name":"!="')
   })
 
   it('the values still agree with the unfolded meaning, bar for bar', () => {

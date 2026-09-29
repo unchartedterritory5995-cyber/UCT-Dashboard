@@ -271,12 +271,9 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
     }
     // ⭐⭐ C1 — PER-POINT COLOUR FROM A COMPUTED COLUMN (`colorMode: 'column:'`).
     //
-    // ⛔ A NON-FINITE CONDITION GETS NO COLOUR AT ALL, not `down`. `na` is the
-    // author saying nothing on that bar — Pine's own `plot(x, color = na)` draws
-    // the point in no new colour — and picking a side would paint a warmup bar
-    // the "false" colour, which reads as a real signal for as many bars as the
-    // condition's own lookback. Omitting `color` leaves the series colour, which
-    // is what an uncoloured point already means everywhere else in this file.
+    // ⚰️ THIS SAID A NON-FINITE CONDITION GETS NO COLOUR AT ALL, and drew the
+    // series colour there. Owner ruling 2 (2026-09-28) replaced it with Pine's
+    // rule — an `na` condition takes the ELSE branch — see `pointColour`.
     const colour = pointColour(colColors, condColumn, i)
     if (colour) { out[i] = { time, value: v, color: colour }; continue }
     out[i] = { time, value: v }
@@ -298,15 +295,28 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn) {
 function pointColour(colColors, condColumn, i) {
   if (!colColors || !condColumn) return null
   const c = condColumn[i]
-  // ⛔ A NON-FINITE CONDITION IS NOT `down`. `na` is the author saying nothing on
-  // that bar, and picking a side paints every warm-up bar the "false" colour —
-  // which reads as a real signal for as many bars as the condition's lookback.
-  if (!Number.isFinite(c)) return null
   // ⭐⭐ A PALETTE: the column is the entry's index. ⛔ An index outside the
   // palette is a column this rule did not write — no colour, never a neighbour's.
+  // ⛔ AND A NaN INDEX STAYS NO COLOUR: an index names an ENTRY, and there is no
+  // entry called "unknown". Pine's `na`-takes-else rule for a palette's
+  // selectors is applied where the index is built (`pine.js::naSelectorTakesElse`
+  // makes each selector `t != 0`), so a Pine chain never writes one.
   if (colColors.palette) {
+    if (!Number.isFinite(c)) return null
     return (Number.isInteger(c) && c >= 0 && c < colColors.palette.length) ? colColors.palette[c] : null
   }
+  // ⭐⭐ OWNER RULING 2 (2026-09-28) — AN `na` CONDITION TAKES THE ELSE BRANCH,
+  // AS PINE'S DOES. `cond ? up : down` with `cond` na is `down` in Pine, on a
+  // plot and a fill alike, and TradingView draws it that way.
+  //
+  // ⚰️ THIS RETURNED NULL (the series colour for a plot, nothing for a fill), on
+  // the reasoning that `na` is the author saying nothing and picking a side
+  // paints a warm-up bar "false". Pine does pick a side, and the vendor harness
+  // measured the cost: Trend Duration Forecast's HMA is `trend ? coloUP :
+  // coloDN` over a `var` state this engine holds as NaN for its 250-bar seed
+  // window, and on those bars TradingView drew coloDN (`#ec5610`) where we drew
+  // the pane's gold — 195 of 577 bars (RDDT 1D, 2026-09-28).
+  if (!Number.isFinite(c)) return colColors.down
   return c !== 0 ? colColors.up : colColors.down
 }
 
@@ -639,18 +649,24 @@ export function createBinder({ chart, LWC }) {
         // that reads one refuses outright without it. Passing `inputs` and `tf`
         // and not `symbol` is what made v2's two tables the only part of that
         // document a member could not see.
+        // ⭐ AND WHETHER THE NEWEST BAR IS STILL FORMING — the same tri-state
+        // step 1 hands `computeFor`, for the same reason: `barstate.isconfirmed`
+        // in an object guard reads `na` without it (`objectReaderFor`).
         const reader = objectReaderFor(def, bars, {
           inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
+          newestBarIsForming: ctx.newestBarIsForming ?? null,
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
           barCount: bars.length,
           readNode: reader.readNode,
-          readTime: (i) => bars[i] && bars[i].t,
+          readTime: reader.readTime,
         })
         return {
           run,
-          state: toRenderState(run.live, { bars }),
+          // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
+          // object on the bar whose opening instant it names.
+          state: toRenderState(run.live, { bars, tf: ctx.tf }),
           form: reader.form,
           // ⛔⛔ THE NODES THE OBJECT LANE COULD NOT EVALUATE, CARRIED OUT OF THE
           // ATTEMPT INSTEAD OF DISCARDED. `objectReaderFor` has always answered

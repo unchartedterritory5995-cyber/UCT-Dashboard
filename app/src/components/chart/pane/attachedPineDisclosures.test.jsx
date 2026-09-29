@@ -195,9 +195,11 @@ describe('⭐⭐ the member route — indicatorInstances on ChartPane', () => {
         requirementNote('window_dependent', 4633).note,
       ])
       // ⭐ RENDERED TEXT, NOT STATE: the partial-drawing sentence, as the member reads it.
-      // (8 of 17 since the call-site inliner — see memberPaneDefinition.test.js.)
+      // (9 of 18 since 0c302d204 (#218): `hvPreviewLabel := na` is now a read,
+      // counted `guard:reset` step — b4a463e68 moved memberPaneDefinition.test.js
+      // and missed this copy. Was 8 of 17 since the call-site inliner.)
       expect(items[0].textContent)
-        .toMatch(/^8 of 17 drawing elements in this script aren't supported yet/)
+        .toMatch(/^9 of 18 drawing elements in this script aren't supported yet/)
     })
     // ⛔ THE NUMBER IS THE ONE THE CHART REPORTED, not a placeholder. A badge that
     // says "an unknown number of bars" beside a chart holding 4,633 of them is

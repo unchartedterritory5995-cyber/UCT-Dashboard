@@ -298,12 +298,15 @@ describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () 
   it('the roster is the data file, and it is not empty', () => {
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED).sort()).toEqual([
       'syminfo.basecurrency', 'syminfo.currency', 'syminfo.description',
-      'syminfo.mintick', 'syminfo.pointvalue', 'syminfo.root',
+      'syminfo.pointvalue', 'syminfo.root',
       'syminfo.session', 'syminfo.timezone', 'syminfo.type',
     ])
   })
 
-  for (const field of ['type', 'currency', 'session', 'mintick', 'pointvalue', 'description',
+  // ⚰️ `mintick` left this loop 2026-09-28 — it is served per witnessed exchange
+  // now, and `str.length(syminfo.mintick)` refuses `pine:text-value` naming the
+  // FIELD (a number is not text); see syminfoMintick.test.js.
+  for (const field of ['type', 'currency', 'session', 'pointvalue', 'description',
     'basecurrency', 'timezone', 'root']) {
     it(`⛔ \`syminfo.${field}\` — and the refusal does NOT say the grammar lacks it`, () => {
       const r = translatePine(`${HEAD}plot(close + str.length(syminfo.${field}))\n`)
