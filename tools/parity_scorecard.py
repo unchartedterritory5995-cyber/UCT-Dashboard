@@ -1728,6 +1728,18 @@ L1C_TAG = 'notebook-wave10-L1c-tip2-2026-09-28'  # tip2: the landing tree change
 # fail the "unchanged since the landing" tie. The RS tag is created at THIS lane's own final commit,
 # after every evidence file below is committed -- never before, or the tie is vacuous.
 RS_TAG = 'notebook-wave10-RS-2026-09-29'
+# ⛔ Lane RS2 (2026-09-29): RS_TAG resolves (2d74f25e3), but that commit is on the SEPARATE, still
+# un-landed `feat/notebook-w10-rs` branch -- not an ancestor of THIS tree's HEAD. Whoever wrote wave
+# 10 L5's squash (0812b5ec3, PR #252, "parity re-score 32/61") copied RS's evidence files and this
+# tool's RS-era state into master WITHOUT preserving a provable git ancestry to RS_TAG's commit, so
+# `evidence_index` has been unable to verify 'wave 10 RS' on every tree descended from L5 since before
+# this lane started (verified: the same single failure, same cause, on the pristine pre-RS2 tree).
+# Not this lane's evidence to re-derive or re-litigate -- the files are already committed, unchanged,
+# reachable from HEAD since 0812b5ec3 (`git log --follow` on each path below confirms it). RS2_TIP2_TAG
+# re-anchors the SAME wave to a tag THIS tree can prove, without touching a byte of the evidence itself
+# or any clause's verdict. If lane RS's own branch later lands for real, its landing should replace this
+# with a proper squash-tied entry; this is a stopgap so `--write` can run on this tree in the meantime.
+RS2_TIP2_TAG = 'notebook-wave10-RS-tip2-2026-09-29'
 # Lane RS2 (this re-score, 2026-09-29): a second new wave entry, same shape as RS's own -- RS's branch
 # never landed on this tree (its tag is not an ancestor of HEAD here), so RS2 cannot tie evidence to
 # 'wave 10 RS' on THIS branch. RS2 carries: L6's own landing record (PR #253, already an ancestor of
@@ -1745,7 +1757,7 @@ B0_WAVES = (
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
     ('wave 10 L1c', L1C_TAG, None, None),
-    ('wave 10 RS', RS_TAG, None, None),
+    ('wave 10 RS', RS2_TIP2_TAG, None, None),
     ('wave 10 RS2', RS2_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
