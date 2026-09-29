@@ -13445,6 +13445,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
+      // ⛔⛔ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED STAYS CONDEMNED HERE.
+      // After the walk, every name with a `:=` the fold never consumed is forced
+      // opaque on `env` ("the binding the walk DID produce would be a lie about
+      // that name"). The per-statement record was taken BEFORE that overrule, so
+      // reading it here resurrected the lie: measured 2026-09-28 on
+      // `poor-man039s-volume-profile`, `row0_text = ""` then
+      // `for … row0_text := row0_text + "#"` drew its label with the text "" —
+      // TradingView draws `####…`. The overrule's verdict wins.
+      const top = env.get(b.name)
+      if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
+        scoped.set(b.name, top)
+        continue
+      }
       if (bound) { scoped.set(b.name, bound); continue }
       // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
       // widened what the collector records (typed declarations, `:=` targets),
@@ -13464,6 +13477,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 
   let ops = []
+  // ⭐⭐ OBJECTS WHOSE CONTENT WAS WRITTEN BY A STEP THIS CHART LOST (2026-09-28,
+  // owner rule: our chart draws exactly what TradingView draws and never draws
+  // something wrong). A `label.set_text` / `box.set_text` that could not be
+  // carried leaves the object showing whatever text it was created with — an
+  // empty label where TradingView shows `####` — so the OBJECT is withheld and
+  // counted, never drawn blank. This is the create-time rule one step later:
+  // a create whose content cannot be read is already dropped (`CONTENT`).
+  const contentLost = []
+  const contentLostBy = (op, target) => {
+    if (op.k !== 'update' || !target) return
+    const content = CONTENT[op.family]
+    if (content && (op.props || []).some((name) => content.has(name))) contentLost.push(target)
+  }
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
   // Clearing them first, every bar, is exactly what Pine does.
@@ -13480,6 +13506,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      if (op.k === 'update') contentLostBy(op, targetRef(op.target))
       dropped(`guard:${op.k}`)
       continue
     }
@@ -13579,7 +13606,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         if (!v) bad = true
         else props[name] = v
       })
-      if (bad || !Object.keys(props).length) { dropped('update:props'); continue }
+      if (bad || !Object.keys(props).length) {
+        contentLostBy(op, target)
+        dropped('update:props')
+        continue
+      }
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
@@ -13721,6 +13752,72 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   }
   convertList(collected.ops)
+
+  // ⭐⭐ WITHHOLD EVERY OBJECT WHOSE CONTENT A LOST STEP WROTE — see `contentLost`.
+  // The lost step names a handle (a register, a create site, a collection slot);
+  // the handle is followed through every register copy and collection write in
+  // BOTH directions to the creates that can put an object there, and those
+  // creates are removed and COUNTED (`content:lost`), so the member's sentence
+  // counts them among what this chart cannot draw. Every step that would then
+  // act on a withheld object is removed and counted too (`content:withheld`):
+  // it draws nothing, and leaving it in would count it as drawn.
+  // ⚠️ Deliberately handle-wide: `l.set_text` lost on a register withholds every
+  // object that register can hold, because nothing here can say which of them
+  // the lost step would have reached.
+  if (contentLost.length) {
+    const regs = new Set()
+    const sites = new Set()
+    const colls = new Set()
+    const mark = (r) => {
+      if (!r) return false
+      const set = r.r === 'reg' ? regs : r.r === 'site' ? sites : r.r === 'coll' ? colls : null
+      if (!set || set.has(r.id)) return false
+      set.add(r.id)
+      return true
+    }
+    const hit = (r) => !!r && ((r.r === 'reg' && regs.has(r.id))
+      || (r.r === 'site' && sites.has(r.id)) || (r.r === 'coll' && colls.has(r.id)))
+    for (const r of contentLost) mark(r)
+    const each = (list, fn) => {
+      for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
+    }
+    for (let changed = true; changed;) {
+      changed = false
+      each(ops, (o) => {
+        if (o.k === 'setreg' && o.value) {
+          if (regs.has(o.reg) && mark(o.value)) changed = true
+          if (hit(o.value) && mark({ r: 'reg', id: o.reg })) changed = true
+        }
+        if ((o.k === 'push' || o.k === 'collset') && o.value) {
+          if (colls.has(o.coll) && mark(o.value)) changed = true
+          if (hit(o.value) && mark({ r: 'coll', id: o.coll })) changed = true
+        }
+      })
+    }
+    const withheld = (o) => (o.k === 'create'
+      ? (o.into && regs.has(o.into)) || sites.has(o.site)
+      : ['update', 'delete'].includes(o.k) ? hit(o.target)
+        : (o.k === 'push' || o.k === 'collset') ? hit(o.value) : false)
+    const prune = (list) => {
+      const out = []
+      for (const o of list) {
+        if (o.k === 'loop') {
+          const body = prune(o.body)
+          if (!body.length) { dropped('loop:empty'); continue }
+          out.push({ ...o, body })
+          continue
+        }
+        if (withheld(o) && o.k === 'create') { dropped('content:lost'); continue }
+        if (withheld(o)) { dropped('content:withheld'); continue }
+        // A copy of a withheld handle is `na` — the object it names is not drawn.
+        if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
+        out.push(o)
+      }
+      return out
+    }
+    ops = prune(ops)
+    diagnostics.contentWithheld = { regs: regs.size, sites: sites.size, colls: colls.size }
+  }
 
   // ⭐ WHICH LOST REMOVALS COULD HAVE REMOVED SOMETHING DRAWN — read off the
   // families the conversion actually CARRIED a create for, loop bodies included.
