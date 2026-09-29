@@ -98,7 +98,8 @@ def isolated(monkeypatch):
     monkeypatch.setattr(stream, "get_realtime_prices",
                         lambda syms: {s: {"price": 100.0, "volume": 5} for s in syms})
     monkeypatch.setattr(stream.realtime_candle, "get_current", lambda sym, tf: None)
-    monkeypatch.setattr(stream.realtime_candle, "get_correction_queue", lambda: asyncio.Queue())
+    monkeypatch.setattr(stream.realtime_candle, "subscribe_corrections", lambda syms: asyncio.Queue())
+    monkeypatch.setattr(stream.realtime_candle, "unsubscribe_corrections", lambda q: None)
     monkeypatch.setattr(stream.realtime_stream, "get_last_seen", lambda sym: None)
 
     from api.services import bar_broadcaster as bb

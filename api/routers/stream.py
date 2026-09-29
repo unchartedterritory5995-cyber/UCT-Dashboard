@@ -367,10 +367,15 @@ async def stream_prices(
         # Candle event tracking: {sym: (t, c, v)} — last seen state per ticker
         last_candle_state: dict = {}
 
-        # Correction queue handle (drain once per loop)
-        correction_queue = realtime_candle.get_correction_queue()
+        # This connection's OWN bounded correction queue, for its tickers
+        # (drained once per loop). Subscribed inside the `try` so the `finally`
+        # below unsubscribes it on every exit path -- a disconnect, a closed
+        # body iterator, a cancelled task -- and a generator that is never
+        # iterated never subscribes at all.
+        correction_queue = None
 
         try:
+            correction_queue = realtime_candle.subscribe_corrections(ticker_list)
             if resume is not None:
                 yield _frame("prices", json.dumps(resume), "resume")
             while True:
@@ -419,7 +424,7 @@ async def stream_prices(
                     elif ev["type"] == "bar_close":
                         yield _frame("prices", json.dumps(ev), "bar_close")
 
-                # Drain bar_correction events from reconciliation worker (non-blocking)
+                # Drain this connection's bar_correction events (non-blocking)
                 try:
                     while True:
                         ev = correction_queue.get_nowait()
@@ -460,6 +465,7 @@ async def stream_prices(
         finally:
             # Clean up subscriptions when client disconnects so _subscribed
             # doesn't grow unbounded as users navigate between pages.
+            realtime_candle.unsubscribe_corrections(correction_queue)
             unsubscribe("prices", _token)
             unsubscribe_tickers(ticker_list)
             if _bb is not None:
