@@ -1,35 +1,50 @@
-# lane SK mutation log -- 2026-09-29T02:26:52-0500
-# HEAD e96c0e2d225f38f4ad00c63b4786d95dac0f5e5c
+# lane SK mutation log -- 2026-09-29T03:02:41-0500
+# HEAD 62fc39678046827f77b5c95ab08ace445429c1f1
 # suite: tests/test_hub_sandbox_model_keys.py
 
-CONTROL (unmutated): rc=0 | 11 passed in 10.24s | failed=[]
-M1 blanking loop removed [rail a]: RED (killed) rc=1 | 3 failed, 8 passed in 12.35s
+CONTROL (unmutated): rc=0 | 18 passed in 14.53s | failed=[]
+M1 blanking loop removed [rail a]: RED (killed) rc=1 | 4 failed, 14 passed in 14.50s
+    failed: ['test_a_blank_beats_a_setdefault_dotenv_loader', 'test_a_no_opt_in_blanks_every_model_key', 'test_a_no_request_leaves_with_a_credential_after_the_policy', 'test_a_the_derived_model_keys_are_all_blanked']
+    restored == HEAD blob: True
+M2 pop instead of blank [rail a]: RED (killed) rc=1 | 3 failed, 15 passed in 14.42s
     failed: ['test_a_blank_beats_a_setdefault_dotenv_loader', 'test_a_no_opt_in_blanks_every_model_key', 'test_a_the_derived_model_keys_are_all_blanked']
     restored == HEAD blob: True
-M2 pop instead of blank [rail a]: RED (killed) rc=1 | 3 failed, 8 passed in 10.89s
-    failed: ['test_a_blank_beats_a_setdefault_dotenv_loader', 'test_a_no_opt_in_blanks_every_model_key', 'test_a_the_derived_model_keys_are_all_blanked']
+M3 policy not called by apply_sandbox_env [rail a]: RED (killed) rc=1 | 3 failed, 15 passed in 13.54s
+    failed: ['test_a_no_opt_in_blanks_every_model_key', 'test_a_policy_runs_before_the_app_is_imported', 'test_a_sdk_implicit_keys_and_keyring_are_neutralised']
     restored == HEAD blob: True
-M3 policy not called by apply_sandbox_env [rail a]: RED (killed) rc=1 | 2 failed, 9 passed in 9.34s
-    failed: ['test_a_no_opt_in_blanks_every_model_key', 'test_a_policy_runs_before_the_app_is_imported']
+M4 opt-in ignored (always blanks) [rail b]: RED (killed) rc=1 | 4 failed, 14 passed in 14.47s
+    failed: ['test_a_the_boot_line_names_keys_never_values', 'test_b_env_var_opt_in_reaches_the_env', 'test_b_flag_opt_in_passes_values_through', 'test_b_opt_in_leaves_sdk_implicit_keys_and_keyring_alone']
     restored == HEAD blob: True
-M4 opt-in ignored (always blanks) [rail b]: RED (killed) rc=1 | 3 failed, 8 passed in 9.77s
-    failed: ['test_a_the_boot_line_names_keys_never_values', 'test_b_env_var_opt_in_reaches_the_env', 'test_b_flag_opt_in_passes_values_through']
-    restored == HEAD blob: True
-M5 env opt-in accepts any non-empty value [rail b]: RED (killed) rc=1 | 1 failed, 10 passed in 9.30s
+M5 env opt-in accepts any non-empty value [rail b]: RED (killed) rc=1 | 1 failed, 17 passed in 13.63s
     failed: ['test_b_env_var_opt_in_is_exact']
     restored == HEAD blob: True
-M6 PERPLEXITY_API_KEY dropped from the model list [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.05s
+M6 PERPLEXITY_API_KEY dropped from the model list [rail c]: RED (killed) rc=1 | 2 failed, 16 passed in 13.41s
     failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_classification_equals_the_derived_read_set']
     restored == HEAD blob: True
-M7 OPENAI_API_KEY reclassified NON-model [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.50s
-    failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_no_provider_key_is_classified_non_model']
+M7 OPENAI_API_KEY reclassified NON-model [rail c]: RED (killed) rc=1 | 4 failed, 14 passed in 14.67s
+    failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_every_credential_shaped_sdk_read_is_blanked', 'test_c_no_provider_key_is_classified_non_model', 'test_c_sdk_implicit_env_is_fully_classified']
     restored == HEAD blob: True
-M8 a new provider key read in api/ (XAI_API_KEY) [rail c]: RED (killed) rc=1 | 2 failed, 9 passed in 10.72s
+M8 a new provider key read in api/ (XAI_API_KEY) [rail c]: RED (killed) rc=1 | 2 failed, 16 passed in 25.36s
     failed: ['test_a_the_derived_model_keys_are_all_blanked', 'test_c_classification_equals_the_derived_read_set']
     restored == HEAD blob: True
-M9 phantom classified name with no read site [rail c]: RED (killed) rc=1 | 1 failed, 10 passed in 8.99s
+M9 phantom classified name with no read site [rail c]: RED (killed) rc=1 | 1 failed, 17 passed in 31.67s
     failed: ['test_c_classification_equals_the_derived_read_set']
     restored == HEAD blob: True
-CONTROL (after restore): rc=0 | 11 passed in 11.57s | failed=[]
+M10 ANTHROPIC_AUTH_TOKEN blank dropped [rail a]: RED (killed) rc=1 | 2 failed, 16 passed in 32.96s
+    failed: ['test_a_no_request_leaves_with_a_credential_after_the_policy', 'test_a_sdk_implicit_keys_and_keyring_are_neutralised']
+    restored == HEAD blob: True
+M11 keyring null backend dropped [rail a]: RED (killed) rc=1 | 1 failed, 17 passed in 33.93s
+    failed: ['test_a_sdk_implicit_keys_and_keyring_are_neutralised']
+    restored == HEAD blob: True
+M12 wisdom model-job flags dropped from KILL_LIST [rail a]: RED (killed) rc=1 | 1 failed, 17 passed in 21.19s
+    failed: ['test_a_wisdom_model_jobs_are_pinned_off']
+    restored == HEAD blob: True
+M13 api.main imported above apply_sandbox_env in main() [rail a]: RED (killed) rc=1 | 1 failed, 17 passed in 15.98s
+    failed: ['test_a_policy_runs_before_the_app_is_imported']
+    restored == HEAD blob: True
+M14 ANTHROPIC_AUTH_TOKEN reclassified as non-credential [rail c]: RED (killed) rc=1 | 2 failed, 16 passed in 32.79s
+    failed: ['test_a_no_request_leaves_with_a_credential_after_the_policy', 'test_c_every_credential_shaped_sdk_read_is_blanked']
+    restored == HEAD blob: True
+CONTROL (after restore): rc=0 | 18 passed in 16.28s | failed=[]
 
-VERDICT: 9/9 mutations killed; controls green; PASS
+VERDICT: 14/14 mutations killed; controls green; PASS
