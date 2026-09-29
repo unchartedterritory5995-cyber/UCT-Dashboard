@@ -36,7 +36,7 @@ import {
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
-import { POOL_LIMITS, resolveCapacity } from './objectPool'
+import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
@@ -325,6 +325,47 @@ export function beginObjects(program, ctx) {
   function oldestOf(family) {
     for (const inst of live.values()) if (inst.family === family) return inst
     return null
+  }
+
+  /**
+   * ⭐⭐ PINE'S COLLECTOR — BATCHED, AND IT SPARES TWO KINDS OF OBJECT.
+   *
+   * Measured against TradingView 2026-09-28 (`objectPool.GC_BATCH`, triage
+   * class C7): nothing is collected until a create takes the family past
+   * `capacity + 5`; then the OLDEST objects go, one at a time, until `capacity`
+   * remain — except an object created on THIS bar, and one a drawing variable
+   * holds right now. Both still count. So a bar that draws more than the cap
+   * keeps every one of them, and a `var` box made on bar 0 outlives thousands
+   * of newer ones.
+   *
+   * ⛔ CALLED AFTER THE NEW OBJECT IS LIVE AND BEFORE `op.into` IS WRITTEN.
+   * In Pine the call runs before its assignment, so `l := label.new(…)` still
+   * has the OLD label in `l` while the collector runs — it is spared this once.
+   * Writing the register first would expose it one call early. ⚠️ That order is
+   * Pine's evaluation order applied, NOT a measurement: no probe separates it
+   * (the measured `var` case is a box nobody reassigns).
+   *
+   * ⚠️ "HOLDS" MEANS A REGISTER — a drawing variable's current value. An object
+   * reachable only through a collection (`array.push(arr, box.new(…))`) or a
+   * register's HISTORY (`l[1]`) is not spared: history is measured (probe C's
+   * `cl[1]` labels are collected), collections are not (probe D's array-held
+   * boxes never reach their trigger, so they cannot tell).
+   *
+   * ⚰️ UNTIL 2026-09-28 this was "evict the oldest before a create at the cap",
+   * which kept exactly `capacity` and fitted three of six corpus rows.
+   */
+  function collect(family, bar) {
+    const cap = limits[family]
+    if (counts[family] <= collectsAbove(cap)) return
+    const held = new Set()
+    for (const id of regs.values()) if (id !== null && id !== undefined) held.add(id)
+    for (const inst of live.values()) {
+      if (counts[family] <= cap) break
+      if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
+      reap(inst)
+      evicted += 1
+      if (ctx.trace) events.push({ bar, k: 'evict', family, id: inst.id })
+    }
   }
 
   /**
@@ -738,7 +779,11 @@ export function beginObjects(program, ctx) {
             break
           }
           const pooled = EVICTS.has(op.family)
-          while (pooled && counts[op.family] >= limits[op.family]) {
+          // ⭐ Pine's own families collect AFTER the create (`collect` below);
+          // only `linefill` — the house envelope, no vendor rule — still evicts
+          // the oldest BEFORE one.
+          const pineCollected = own(POOL_LIMITS, op.family)
+          while (pooled && !pineCollected && counts[op.family] >= limits[op.family]) {
             const victim = oldestOf(op.family)
             // ⛔ NOTHING TO EVICT AND STILL OVER THE CAP is not a script error,
             // it is a contradiction in our own bookkeeping — say so rather than
@@ -758,7 +803,7 @@ export function beginObjects(program, ctx) {
           // and this is its refusal — without the `fail`, it would simply stop
           // creating and report `ok`, which is a script drawing less than it
           // asked for with nothing saying so.
-          if (counts[op.family] >= limits[op.family]) {
+          if (!pineCollected && counts[op.family] >= limits[op.family]) {
             if (!pooled) fail(`more than ${limits[op.family]} live ${op.family} objects (bar ${bar})`)
             break
           }
@@ -775,6 +820,7 @@ export function beginObjects(program, ctx) {
           if (op.family === 'linefill') indexFill(inst)
           counts[op.family] += 1
           if (counts[op.family] > peak[op.family]) peak[op.family] = counts[op.family]
+          if (pineCollected) collect(op.family, bar)
           siteNow.set(op.site, id)
           if (op.once) firedOnce.add(op.site)
           if (op.into) regs.set(op.into, id)

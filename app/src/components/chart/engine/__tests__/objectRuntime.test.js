@@ -253,10 +253,15 @@ describe('C3B — the resource envelope', () => {
     })
     const r = evaluateObjects(prog, ctxOf(100))
     expect(r.status).toBe(OBJECT_STATUS.OK)
-    expect(r.live.length).toBe(5)
-    // ⭐ AND THEY ARE THE LAST FIVE BARS, NOT THE FIRST FIVE — the direction is
-    // the whole defect, and a length check alone cannot see it.
-    expect(r.live.map((o) => o.createdBar)).toEqual([95, 96, 97, 98, 99])
+    // ⭐ 2026-09-28: Pine collects in BATCHES (`objectPool.GC_BATCH`) — nothing
+    // goes until the count passes cap + 5, then it is cut back to the cap. One
+    // line per bar at cap 5: bar 10's create makes 11 → cut to 5, and every
+    // sixth bar after. 100 creates land 89 past that first cut, 89 mod 6 = 5,
+    // so ten are held. (This asserted exactly five while the rule was strict.)
+    expect(r.live.length).toBe(10)
+    // ⭐ AND THEY ARE THE LAST TEN BARS, NOT THE FIRST — the direction is the
+    // whole defect, and a length check alone cannot see it.
+    expect(r.live.map((o) => o.createdBar)).toEqual([90, 91, 92, 93, 94, 95, 96, 97, 98, 99])
   })
 
   it('⛔ a family with NO Pine eviction rule still REFUSES with a named reason', () => {
