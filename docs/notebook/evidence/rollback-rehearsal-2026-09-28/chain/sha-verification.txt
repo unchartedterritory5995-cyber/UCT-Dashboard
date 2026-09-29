@@ -1,0 +1,27 @@
+# SHA verification, 2026-09-28T21:13:38Z, origin/master = 38bb9a421
+# sha parents(count) ancestor-of-origin/master committer-date subject
+38bb9a421 1 yes 2026-09-28T14:46:59-05:00 Notebook 10/10 — wave 10 L1c: proof lanes + follow-ups F2–F7 (switcher recall, no silent f
+4bba30b73 1 yes 2026-09-27T23:24:28-05:00 fix(notebook): on a phone the Notebook's skip link no longer takes the taps meant for Today an
+d9e887ca0 1 yes 2026-09-27T16:50:08-05:00 Notebook wave 10 L1b: Phase II -- performance (10A) and operations (10D), with the full-suite 
+4f708a0d2 1 yes 2026-09-26T23:50:42-05:00 Notebook wave 10 L1a: Phase I (10B features + 10C integrity) and the phone header-menu fix (#2
+2ab637644 1 yes 2026-09-26T22:05:45-05:00 hotfix(notebook): H14 -- every read-then-write note door takes the write lock before it reads 
+c6a8a9d3a 1 yes 2026-09-26T20:12:54-05:00 hotfix(notebook): H14 -- depth cap, Word-file intake, PDF extraction budget (#203)
+1c4b0bf74 1 yes 2026-09-26T17:23:36-05:00 Notebook 10/10 — wave 9 (proof): benchmark instrument · parity scorecard · selected-notes 
+7e3f9e117 1 yes 2026-09-26T16:54:38-05:00 fix(notebook): the pane heading never moves the toolbar -- the lost "+ New note" click (H14) (
+caf6d1b9e 1 yes 2026-09-26T13:40:56-05:00 Notebook 10/10 — wave 8: accessibility · sharing and publish-to-web · onboarding and expor
+2e0598bfa 1 yes 2026-09-26T09:45:36-05:00 Wave 9C: the 30-day soak instrument (admin-only read + observer sidecar + roll-up), the user-s
+f883e0996 1 yes 2026-09-26T02:57:52-05:00 Notebook wave 7: capture and mobile, writing help, meaning search, Compass notes tool (all dar
+271a078b6 1 yes 2026-09-26T01:11:30-05:00 Notebook wave 6: editor columns/dates/figures/TOC, archive, lock, templates, daily note, relat
+2c3ed3093 1 yes 2026-09-25T21:25:25-05:00 Notebook wave 5 — editor content, quick switcher, bulk actions, offline safety + the schema 
+8167f7aa0 1 no 2026-09-24T03:24:44-05:00 fix(notebook)!: the server refuses a body write from a client too old for the stored note -- N
+fd87271fd 1 no 2026-09-24T04:21:25-05:00 fix(notebook)!: every client body PUT declares its schema -- the import media rewrite and the 
+82c56dd63 1 no 2026-09-24T14:27:55-05:00 fix(notebook)!: the schema declaration describes who WROTE the body, not who sends it -- NEVER
+
+# tags
+notebook-wave5-guard-8167f7aa0 -> 8167f7aa0
+notebook-wave5-guard-82c56dd63 -> 82c56dd63
+notebook-wave5-guard-fd87271fd -> fd87271fd
+
+# Notebook landings found by 'git log -i --grep=notebook' (one-parent commits) between wave 5 and the tip that the controller's list did not name:
+4bba30b73 2026-09-27 fix(notebook): on a phone the Notebook's skip link no longer takes the taps meant for Today and Tra
+7e3f9e117 2026-09-26 fix(notebook): the pane heading never moves the toolbar -- the lost "+ New note" click (H14) (#201)

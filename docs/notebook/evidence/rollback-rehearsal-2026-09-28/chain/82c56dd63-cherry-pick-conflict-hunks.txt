@@ -1,0 +1,422 @@
+===== app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx
+--- hunk 0: OURS (current)
+--- THEIRS (pre-wave)
+import {
+  noteContentGuardOptions, replaceDocument, isUnreadable, useUnreadableNote,
+} from '../../lib/noteContentGuard'
+import {
+  OWN_READ, bodyWrittenSchema, isSchemaRefusal, writtenSchemaOf,
+} from '../../lib/notebookSchema'
+import UnreadableNoteNotice from '../../lib/UnreadableNoteNotice'
+
+--- hunk 1: OURS (current)
+      editorRef.current?.commands.setContent(restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)
+--- THEIRS (pre-wave)
+      // S1: a restored body this bundle cannot read LOCKS the editor rather than blanking it.
+      // B1: a restored version is the SERVER's copy — once it is on screen the editor
+      // holds its own read again, whatever it carried before.
+      if (replaceDocument(editorRef.current, restoredNote.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        carriedRef.current = OWN_READ
+      }
+
+--- hunk 2: OURS (current)
+--- THEIRS (pre-wave)
+    editedSinceHydrationRef.current = false
+    // B1: a note just loaded is this editor's own read of the server copy.
+    carriedRef.current = OWN_READ
+
+--- hunk 3: OURS (current)
+--- THEIRS (pre-wave)
+    // ⭐⭐ D3 — A RECOVERED COPY WHOSE BASE IS KNOWN IS RESTORED THE WAY QUEUED WORK
+    // IS ADOPTED: on the copy it was written on, through our own save.
+    // ⚰️ MEASURED 2026-09-23: the direct PUT below 409'd against a server another
+    // device had moved, and left this editor on the SERVER'S CURRENT revision, so
+    // the member's next keystroke autosaved over the other device's words — 0
+    // forks. (After an append door, the captured block went the same way.)
+    // `recovery.base` comes from `baseOfRecovered`; with it, a moved server 409s
+    // into `reconcileConflict` like any other save. Without it (a crash draft
+    // whose base was never recorded) the path below is unchanged.
+    if (recovery?.base) {
+      const decision = recovery
+      const savedAt = pendingDraft.savedAt ?? null
+      setPendingDraft(null)
+      setRecovery(null)
+      setPendingAdoption({
+        state: {
+          title: pendingDraft.title || '', subtitle: pendingDraft.subtitle || '',
+          bodyJson: pendingDraft.bodyJson,
+        },
+        base: recovery.base,
+        // The member chose these words: no banner fallback for an edit, but a
+        // save already on the wire is still waited for (S2 case B).
+        auto: false,
+        decision,
+        savedAt,
+        // ⛔ B1: and they are sent at THEIR writer's level (absent ⇒ 0).
+        writtenSchema: recovery.writtenSchema,
+      })
+      return
+    }
+
+--- hunk 4: OURS (current)
+    if (draftBodyJson) editorRef.current.commands.setContent(draftBodyJson, EMIT_NOTHING)
+--- THEIRS (pre-wave)
+    if (draftBodyJson && !replaceDocument(editorRef.current, draftBodyJson, EMIT_NOTHING)) {
+      restoringDraftRef.current = false      // S1: unreadable here -- locked, nothing sent
+      return
+    }
+    // ⛔⛔ B1: the editor now holds words a recovered copy's WRITER produced. They
+    // are sent — now, and by every keystroke after — at that writer's level
+    // (absent ⇒ 0), until a save of them lands or the view returns to the server's.
+    if (draftBodyJson) carryRecovered(recovery?.writtenSchema)
+    const carriedAtSend = carriedRef.current
+
+--- hunk 5: OURS (current)
+--- THEIRS (pre-wave)
+
+  /**
+   * ⛔⛔ B1 — THE SERVER REFUSED WORDS THIS EDITOR SENT AT THEIR WRITER'S LEVEL.
+   *
+   * The same words from the same writer are refused again, so a retry is the one
+   * thing that cannot help — and "Reload to edit it." is the sentence that sent
+   * the member here. So preserve BOTH, the way the outbox resolves the same
+   * refusal: the words become a `(conflicted copy)` and the page shows the note
+   * as the server holds it (`reconcileConflict`'s fork, with every guard it
+   * already carries for words typed during the fork).
+   *
+   * ⛔ Single-flight. Two saves refused together — a keystroke while the first
+   * was on the wire — share ONE copy: the second waits for the first's fork,
+   * finds the body it was sending already PRESERVED by it (`preservedRef`), and
+   * stops. That copy was built from the editor after the second save left, so
+   * it holds the second one's words too; and when the member typed during the
+   * fork itself, the fork's own guards keep those words in the durable copy and
+   * the queue. ⛔ Only a FORK marks a body preserved — a version restore that
+   * moved the view preserved nothing, so a refusal after it still keeps a copy.
+   *
+   * @returns true when the refusal was resolved here (the caller must not show
+   *          it as an error), false when keeping a copy failed — the words then
+   *          stay in the durable copy and the queue, and the caller reports it.
+   */
+  const keepRefusedWords = async (carriedAtSend) => {
+    if (refusalForkRef.current) await refusalForkRef.current.catch(() => {})
+    if (carriedAtSend !== OWN_READ && preservedRef.current.has(carriedAtSend)) return true
+    const fork = reconcileConflict({ refused: true })
+    refusalForkRef.current = fork
+    try {
+      await fork
+      return true
+    } catch (re) {
+      console.warn('could not keep the refused words as a copy', re)
+      return false
+    } finally {
+      if (refusalForkRef.current === fork) refusalForkRef.current = null
+    }
+  }
+  /** A save left the wire (either way): wake whatever waited on it. */
+  function saveSettled() {
+    saveInFlightRef.current = false
+    const waiting = saveSettledWaitersRef.current.splice(0)
+    waiting.forEach((wake) => { try { wake() } catch { /* a waiter is not the save */ } })
+  }
+
+--- hunk 6: OURS (current)
+    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note)
+  }, [note?.id, editor, note])
+--- THEIRS (pre-wave)
+    hydratedRef.current = Boolean(editor && !editor.isDestroyed && note && !isUnreadable(editor))
+  }, [note?.id, editor, note, unreadable])
+
+  // ⭐⭐ D3 / F5P-1 — TAKE THE QUEUED WORDS AND SEND THEM THROUGH OUR OWN SAVE.
+  // Declared AFTER the hydration gate so it runs after it in the same commit.
+  // ⛔⛔ THE BASELINE IS THE COPY THE WORDS WERE WRITTEN ON (`adopt.base`), NEVER
+  // THE SERVER'S CURRENT REVISION. On the current revision the PUT would succeed
+  // without a 409 and silently drop whatever a door appended while the member
+  // was away. On the words' own base it 409s whenever the server moved, and
+  // `reconcileConflict` decides: metadata ⇒ rebase, append ⇒ merge the block,
+  // anything else ⇒ fork, never clobber.
+  useEffect(() => {
+    if (!pendingAdoption || !editor || editor.isDestroyed || !note || !hydratedRef.current) return undefined
+    const { state, base, auto, decision, savedAt, writtenSchema } = pendingAdoption
+    // Offer instead of adopting: the HEAD~1 behaviour, which keeps both copies.
+    const offer = () => {
+      setPendingAdoption(null)
+      if (decision) {
+        setPendingDraft({ ...decision.state, savedAt: savedAt ?? null })
+        setRecovery(decision)
+      }
+      setRecoveryDecidedFor(note.id)
+    }
+    // ⛔⛔ S2 (fix round 1) — NEVER PUT QUEUED WORDS OVER WHAT THE MEMBER IS DOING.
+    // A: typing before `recover()` resolved — adopting would replace it on
+    //    screen, reset its timer and overwrite its draft; it would be in no layer.
+    // B: a save on the wire — when it lands it moves `lastSavedRef` to ITS
+    //    revision, and the adoption's save would then go out on that revision
+    //    with no 409, over the member's words and any door's block.
+    // ONE flag covers both, and that is derived, not assumed. The hazard is a
+    // save that MOVES `lastSavedRef` when it lands (case B) — not every save:
+    // the metadata and excerpt doors reach the wire without touching it, so an
+    // adoption during one still sends on its base and 409s into the reconcile.
+    // Of the saves that do move it, `commitSave` (its timer, retries and the
+    // unmount flush) is downstream of `scheduleAutosave`, which marks the note
+    // edited BEFORE it arms anything; the crash-draft Restore comes only from a
+    // banner decision, never while an automatic adoption is pending; and a
+    // version restore moves it but loses no words in either order.
+    // ⚰️ A second `|| busy` term stood here and was deleted: removing it left
+    // every rail green, because it could not be true without this one — a guard
+    // that reads as protection and cannot fire. (S2-A′ isolates this flag;
+    // S2-B (Restore) the in-flight one.)
+    if (auto && editedSinceHydrationRef.current) { offer(); return undefined }
+    // A Restore is the member's own choice, so an edit does not stop it — but a
+    // save already on the wire is waited for, never raced (case B again).
+    if (!auto && saveInFlightRef.current) {
+      let cancelled = false
+      saveSettledWaitersRef.current.push(() => { if (!cancelled) setAdoptionTick((n) => n + 1) })
+      return () => { cancelled = true }
+    }
+    // ⛔ N6: the words go into the EDITOR first, because the save reads its body
+    // from the editor, not from `state`. If the view cannot take them, nothing is
+    // saved as though it had — they are offered, and the durable copy and the
+    // queue still hold them.
+    try {
+      if (!replaceDocument(editor, state.bodyJson || { type: 'doc', content: [] }, EMIT_NOTHING)) {
+        offer(); return undefined
+      }
+    } catch { offer(); return undefined }
+    // ⛔⛔ B1: these words were written by ANOTHER page load, perhaps a bundle
+    // that could not read this note and held an empty stand-in. From here every
+    // capture and every send of them is at THAT writer's level (absent ⇒ 0), so
+    // the server refuses them on a note it could not read and `keepRefusedWords`
+    // keeps them as a copy — never this bundle's own level, which let them land.
+    // Set BEFORE the autosave below: its snapshot is the first capture.
+    carryRecovered(writtenSchema)
+    setPendingAdoption(null)
+    const t = state.title || ''
+    const s = state.subtitle || ''
+    setTitle(t)
+    titleRef.current = t
+    setSubtitle(s)
+    subtitleRef.current = s
+    lastSavedRef.current = {
+      title: base.title || '', subtitle: base.subtitle || '',
+      bodyJson: base.bodyJson, updatedAt: base.updatedAt || null,
+    }
+    setRecoveryDecidedFor(note.id)
+    // The ordinary autosave path: draft + durable snapshot + the debounced PUT.
+    scheduleAutosaveRef.current()
+    return undefined
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAdoption, editor, note, adoptionTick])
+
+--- hunk 7: OURS (current)
+    if (fresh.bodyJson) editor.commands.setContent(fresh.bodyJson, EMIT_NOTHING)
+--- THEIRS (pre-wave)
+    // B1: once the SERVER's copy is on screen the editor holds its own read again —
+    // whatever it carried is in the sibling (recorded, so a second refusal of the
+    // same words does not copy them twice). Only when the view really moved.
+    const carriedHere = carriedRef.current
+    if (fresh.bodyJson && replaceDocument(editor, fresh.bodyJson, EMIT_NOTHING)) {
+      if (carriedHere !== OWN_READ) preservedRef.current.add(carriedHere)
+      carriedRef.current = OWN_READ
+    }
+
+--- hunk 8: OURS (current)
+    clearDraftLocally()
+    setSaveStatus('conflict')
+--- THEIRS (pre-wave)
+    // ⭐ D3 / F5P-1 — THE SIBLING NOW HOLDS THE MEMBER'S WORDS; SETTLE THE DURABLE
+    // COPY THE WAY THE SWEEP'S FORK DOES. Without this the record stayed dirty
+    // with a queued entry the sibling already preserved, and once the note
+    // closed the sweep forked it AGAIN. `settleOwnerFork` first (it clears the
+    // queue), THEN `markSynced`, so the writer's latest state is the server copy
+    // too and no pending keystroke snapshot can re-dirty the record.
+    // ⛔⛔ S1 (fix round 1) — BUT ONLY WHILE THE EDITOR AND THE STORE STILL HOLD
+    // EXACTLY WHAT WAS FORKED. Words typed during the create request reach the
+    // record, the queue and the draft but NOT the sibling; settling then wrote
+    // the server copy clean over them, `markSynced` superseded their pending
+    // snapshot and the draft went with them — in no layer at all. When anything
+    // moved, keep the pre-E-3 behaviour: no settle, the queue keeps the words,
+    // and a later second fork preserves them. A duplicate beats a loss.
+    const serverNow = { title: fresh.title || '', subtitle: fresh.subtitle || '', bodyJson: fresh.bodyJson ?? null }
+    const settled = editorHoldsForked
+      && (await settleOwnerFork({ accountId: user?.id, noteId, serverNote: fresh, forked })) === true
+    if (!settled) {
+      clearDraftLocally()          // pre-E-3: the durable copy (flushed above when the view moved) and the queue keep the words
+    } else if (sameAuthoredContent({
+      title: titleRef.current || '', subtitle: subtitleRef.current || '', bodyJson: editor.getJSON(),
+    }, serverNow)) {
+      // ⛔ Re-read AFTER the settle's await: a keystroke there is on top of the
+      // server copy, and its own snapshot, draft and autosave must survive.
+      durableRef.current.markSynced({ acked: serverNow, current: serverNow, updatedAt: fresh.updatedAt || null })
+      clearDraftLocally()
+    }
+    setSaveStatus(refused ? 'refused' : 'conflict')
+
+===== app/src/pages/journal-2-0/lib/noteContentGuard.js
+(no markers: modify/delete)
+===== app/src/pages/journal-2-0/lib/noteContentGuard.test.jsx
+(no markers: modify/delete)
+===== app/src/pages/journal-2-0/lib/offline/recoverLocalState.js
+--- hunk 0: OURS (current)
+import { usableBaseline } from './baseline'
+--- THEIRS (pre-wave)
+import { usableBaseline, isSupersededBaseline } from './baseline'
+import { APPEND_ONLY, classifyServerChange, lastKnownServerCopy } from './serverChange'
+import { writtenSchemaOf } from '../notebookSchema'
+
+/** B1: two stamps describing the SAME words ⇒ the lower. Absent ⇒ 0. */
+const lowerStamp = (a, b) => Math.min(writtenSchemaOf(a), writtenSchemaOf(b))
+
+--- hunk 1: OURS (current)
+--- THEIRS (pre-wave)
+
+/**
+ * ⭐⭐ D3 / F5P-1 — QUEUED WORK IS SENT BY THE NOTE'S OWNER, NOT OFFERED.
+ *
+ * ⚰️ THE STATE THIS ENDS (`q1-product-followups.md`, F5P-1). A member queued
+ * words offline, came back to the note, and sat on it. The sweep skips the note
+ * the editor owns (`excludeNoteId` -- two writers on one note is what Wave Q1
+ * forbids), and the editor reopened on the SERVER's copy and put the member's
+ * words behind a Restore/Discard banner. Nobody sent them; measured on
+ * production, nothing left for 120 s, and nothing would have.
+ *
+ * ⭐ WHY "OFFER" WAS THE WRONG VERB FOR THIS COPY. The banner exists for a crash
+ * draft: words that never reached the queue, which silently preferring could
+ * clobber. QUEUED words are different in kind: the member already committed them
+ * to the server, the sweep sends them WITHOUT asking the moment the note closes,
+ * and compare-and-set on their own baseline makes sending them unable to clobber
+ * anything -- the server 409s and the classifier decides rebase / merge / fork.
+ * So the owner does exactly what the sweep would, through its own save.
+ *
+ * ⛔ THIS ONLY DECIDES. It is a pure answer about what the durable store holds;
+ * the editor applies it. Null means "not provably queued work -- offer it as
+ * before", never "nothing to do".
+ *
+ * @param decision  what `chooseLocalRecovery` returned
+ * @param record    the DIRTY durable record, or null
+ * @param entry     that note's queued outbox entry, or null
+ * @returns null, or { state, base }:
+ *   state  the member's queued words -- what the editor must now hold
+ *   base   the server copy those words were written ON, with its revision. ⛔ The
+ *          editor's baseline becomes THIS, never the server's current revision:
+ *          sending the queued body on the current revision would succeed without
+ *          a 409 and silently drop whatever a door appended in between.
+ */
+export function queuedWorkToAdopt({ decision, record = null, entry = null } = {}) {
+  if (!decision?.unsynced || decision.ambiguous) return null
+  if (!record?.dirty || !entry) return null
+  // ⛔ A BLOCKED entry is retired from sending on purpose; its badge asks the
+  // member to act. Auto-sending it would be the retry it was retired from.
+  if (entry.permanent || entry.noteId !== record.noteId) return null
+  // ⛔ EXACTLY what is queued. A winning copy that differs from the record (a
+  // crash draft ahead of it, two copies from different sessions) is the case the
+  // banner is for: the member chooses. The entry and the record are written in
+  // one transaction, so a disagreement between them is also a reason to ask.
+  if (!sameAuthoredContent(decision.state, record)) return null
+  if (!sameAuthoredContent(entry.patch, record)) return null
+  // ⛔ The base must also not be NEWER than the entry's revision (review N4). That
+  // check lives in `baseOfRecovered`, ONE place, so Restore asks it too — see there.
+  const base = baseOfRecovered({ decision, record, entry })
+  if (!base) return null
+  // ⛔⛔ B1: the stamp of the bundle that WROTE these words — the lower of the
+  // record's and the entry's (the same words, one transaction; the lower is the
+  // one both vouch for). The editor sends the adopted words at THIS level, so an
+  // old tab's empty stand-in is refused on a note that tab could not read.
+  return { state: authored(record), base, writtenSchema: lowerStamp(record.writtenSchema, entry.writtenSchema) }
+}
+
+/**
+ * ⭐ D3 — WHICH SERVER COPY WAS THE RECOVERED WORK WRITTEN ON? One authority,
+ * asked by `queuedWorkToAdopt` and by the banner's Restore.
+ *
+ * ⚰️ MEASURED on the real editor, 2026-09-23 (wave 5): Restore sent the recovered
+ * copy on its own baseline, the server had moved, the PUT 409'd — and the editor
+ * was left holding the recovered words on the SERVER'S CURRENT revision. The
+ * member's next keystroke autosaved them over the other device's words: 0 forks,
+ * the other copy gone. With an append door instead, the captured block is gone.
+ * The editor could not do better, because nothing told it what the recovered
+ * words were written on. This does.
+ *
+ * ⛔⛔ AND IT MUST NOT BE NEWER THAN THE QUEUED ENTRY'S REVISION (review N4,
+ * fix rounds 1-3). A record written by the settle BEFORE A-1 carries
+ * `acked@landed` as its base — a copy that already holds a door's appended
+ * block — while its entry still sits on the OLDER revision the words were really
+ * written on. Adopting on that base sends the queued body at `landed`: a 200,
+ * and the block is gone. So a base NEWER than the entry is refused, by EITHER
+ * caller: `queuedWorkToAdopt` then offers the banner, and the banner's Restore
+ * falls back to its path for a copy with no known base.
+ * ⭐ A base OLDER than the entry is a legitimate shape and is used, exactly as
+ * `fe4e278bc` did (fix round 3, controller ruling on N4-b). Diffing the server
+ * against an OLDER copy can only see MORE change, so the 409 rebases, merges or
+ * forks — it can never hide an append. It happens without anything being wrong:
+ * the editor's 409 reconcile moves `lastSavedRef` forward and the retry does not
+ * land, so the next durable write takes the newer baseline while the record
+ * keeps its older last-known copy; and the drain's ring-vouched rebase moves the
+ * entry but never sees the server's document, so it leaves the base alone.
+ * ⚠️ A base NEWER than the entry is not always poison either: a drain rebase
+ * that learned the server's copy moves the entry and the base together, and a
+ * later unsent-work settle then re-derives the entry's baseline from the
+ * record's older one. That shape cannot be told apart from the poisoned one by
+ * direction, so it is refused too, and Restore's no-known-base path can then be
+ * overwritten by a later keystroke — the crash-draft class left open by ruling
+ * (`docs/notebook/f5-fixes-2026-09-23.md` §C.5; wave 6 lane D3b).
+ * ⛔ Compared PARSED, through the same authority the drain uses
+ * (`isSupersededBaseline`), never as strings. Only an equal revision or a base
+ * PROVABLY older is used; newer, unparseable, or an entry with no baseline is
+ * refused.
+ * ⚠️ Without an entry there is nothing to compare against, and the record's own
+ * base is returned as before.
+ *
+ * @param entry  that note's queued outbox entry, or null
+ * @returns { title, subtitle, bodyJson, updatedAt } — the last-known server copy
+ *          the winning durable record carries — or null when that cannot be
+ *          proved: no record, a winner that is not the record's words (a crash
+ *          draft ahead of it), a copy with no revision, or a revision that is not
+ *          provably at or before the queued entry's. ⛔ Null means "not known",
+ *          and the caller must not invent one from the server's current copy.
+ */
+export function baseOfRecovered({ decision, record = null, entry = null } = {}) {
+  if (!decision?.unsynced || !record?.dirty) return null
+  if (!sameAuthoredContent(decision.state, record)) return null
+  const base = lastKnownServerCopy(record)
+  const at = usableBaseline(base?.updatedAt)
+  if (!base || !at) return null
+  if (entry) {
+    const entryAt = usableBaseline(entry.baseUpdatedAt)
+    // "the base is older than the entry" is `isSupersededBaseline(base, entry)`.
+    if (at !== entryAt && !isSupersededBaseline(at, entryAt)) return null
+  }
+  return { ...authored(base), updatedAt: at }
+}
+
+===== app/src/pages/journal-2-0/lib/offline/useDurableNote.js
+--- hunk 0: OURS (current)
+      // That is the newest possible base, and it replaces whatever the record
+      // was carrying.
+      serverBase: caughtUp ? null : snapshotOfServerCopy(acked, landed),
+--- THEIRS (pre-wave)
+      // When the record settles onto `landed` (it takes `current`, at `landed`),
+      // that copy IS the base of what the record now holds.
+      //
+      // ⛔⛔ D3 (wave 5) — BUT NOT WHEN THE RECORD KEEPS ITS UNSENT WORK. Then it
+      // keeps `prev`'s words AND `prev`'s baseline, and the base of THOSE words
+      // is the server copy `prev` was already carrying — not `acked`.
+      //
+      // ⚰️ THE DEFECT, measured (`offlineWordsSurvive.property.test.jsx`, the two
+      // wave-5 orderings, 6/6 append rows RED): this line always wrote
+      // `acked@landed`. After a door appended a widget/fact/excerpt, `acked`
+      // already contains that node, so the drain's classifier diffed the server
+      // against a base that held it too, read "metadata-only", rebased the
+      // member's queued body over the server's — and the captured node was gone.
+      // The same shape as the Q1-F5 append-merge finding, reached through the
+      // settle instead of the ring. Keeping the older base, the diff sees the
+      // append for what it is and the drain MERGES it.
+      // ⛔ `acked@landed` stays the fallback: a dirty `prev` with no base of its
+      // own had nothing better, and that is the behaviour it had before.
+      serverBase: caughtUp ? null
+        : (unsentWork
+          ? (lastKnownServerCopy(prev) || snapshotOfServerCopy(acked, landed))
+          : snapshotOfServerCopy(acked, landed)),
+      // ⛔⛔ B1: the stamp comes from the SAME copy as the words — prev's when
+      // the unsent work is kept, never `current`'s over an old bundle's body.
+      writtenSchema: state?.writtenSchema,
+

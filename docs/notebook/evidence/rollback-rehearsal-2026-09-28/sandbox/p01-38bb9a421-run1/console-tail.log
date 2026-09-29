@@ -1,0 +1,150 @@
+2026-09-28 16:46:06,624 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-28 16:46:08,380 INFO api.services.bars_sanitize: [d5-cp4-dual-compute] NRIX outcome=BOTH_EMPTY fmp=0 d5=0
+2026-09-28 16:46:08,393 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:08,483 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:08,842 WARNING api.services.earnings_enrichment: AI key-quotes extraction failed for DAL: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfWa4MRjWYYwV5nWWAt5V'}
+2026-09-28 16:46:08,986 WARNING api.services.engine: AI preview failed for DAL: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfWa4N2wsD2ZxEuLUUBbt'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p01-38bb9a421\api\services\engine.py", line 1936, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfWa4N2wsD2ZxEuLUUBbt'}
+2026-09-28 16:46:09,551 INFO api.services.earnings_estimates: get_year_earnings SANG 2026: 2/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:10,777 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:11,787 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:14,735 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:14,826 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:15,988 INFO api.services.earnings_estimates: get_year_earnings IDT 2026: 2/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:16,578 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:16,922 INFO api.services.ticker_logos: [logo-hires] starting: 1317 cached logos to upgrade
+2026-09-28 16:46:17,220 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:17,951 INFO api.routers.calendar: Calendar: econ loaded � FF 0 events / 0 days, FMP filled 24 across 5 uncovered days
+2026-09-28 16:46:17,952 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set � bulk refresh skipped
+2026-09-28 16:46:18,407 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:19,177 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for PEP (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:21,238 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:21,252 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:21,288 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:46:21,288 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:21,441 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:21,445 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:21,593 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:22,138 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for ODC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:22,264 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-28 16:46:22,264 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-28 21:46:22 UTC], next run at: 2026-09-28 21:46:22 UTC)" (scheduled at 2026-09-28 21:46:22.261186+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': False, 'reason': 'already-ran', 'day': '2026-09-28'}
+2026-09-28 16:46:22,271 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-28 21:46:22 UTC], next run at: 2026-09-28 21:46:22 UTC)" executed successfully
+2026-09-28 16:46:22,690 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:46:22,690 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:22,783 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:23,826 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:46:23,826 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:24,255 INFO api.services.earnings_estimates: get_year_earnings NAII 2026: 2/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:24,413 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:24,586 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for ACI (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:25,717 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:26,774 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:26,784 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:26,811 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:29,796 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:29,831 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:30,274 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:46:30,275 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:30,357 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:31,845 INFO api.services.earnings_estimates: get_year_earnings POCI 2026: 2/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:32,490 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:32,520 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:32,668 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/273 syms; week-2 5 day(s)/14 syms
+2026-09-28 16:46:33,086 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:34,109 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:34,958 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for AZZ (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:37,604 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:37,686 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:37,884 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BLK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:39,141 INFO api.services.earnings_estimates: get_year_earnings TRAK 2026: 2/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:40,395 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:40,472 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for C (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:41,706 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:45,303 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:45,416 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:46,583 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-28 16:46:46,584 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-28 16:46:46,949 INFO api.services.earnings_estimates: get_year_earnings WALD 2025: 3/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:46,949 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:46,954 INFO api.services.earnings_estimates: get_year_earnings WALD 2026: 1/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:48,118 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:48,149 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-28 16:47:48 CDT)" (scheduled at 2026-09-28 16:46:48.149513-05:00)
+2026-09-28 16:46:48,156 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-28 16:47:48 CDT)" executed successfully
+2026-09-28 16:46:48,477 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-28 16:47:48 CDT)" (scheduled at 2026-09-28 16:46:48.465589-05:00)
+2026-09-28 16:46:48,478 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-28 16:46:48,478 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-28 16:47:48 CDT)" executed successfully
+2026-09-28 16:46:48,522 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-28 17:47:48 EDT)" (scheduled at 2026-09-28 17:46:48.511025-04:00)
+2026-09-28 16:46:48,524 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-28 17:47:48 EDT)" executed successfully
+2026-09-28 16:46:48,538 INFO apscheduler.executors.default: Running job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-28 17:48:48 EDT)" (scheduled at 2026-09-28 17:46:48.529975-04:00)
+2026-09-28 16:46:48,539 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-28 16:46:48 CDT)" (scheduled at 2026-09-28 16:46:48.537917-05:00)
+2026-09-28 16:46:48,547 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-28 16:46:48,548 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-28 16:47:48 CDT)" executed successfully
+2026-09-28 16:46:48,551 INFO apscheduler.executors.default: Job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-28 17:48:48 EDT)" executed successfully
+2026-09-28 16:46:49,235 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:50,692 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for DPZ (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:52,689 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:52,730 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-28 16:46:52,731 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-28 16:46:52,816 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:53,694 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for EQBK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:46:54,222 INFO api.services.earnings_estimates: get_year_earnings XLAB 2025: 3/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:54,259 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1000/2568 warmed=375 failed=625
+2026-09-28 16:46:54,266 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/earnings)
+2026-09-28 16:46:54,300 INFO api.services.earnings_estimates: get_year_earnings XLAB 2026: 1/4 quarters had a report (rest shown as �)
+2026-09-28 16:46:54,421 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-28 16:46:54,943 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-28 16:46:55,629 INFO fundamentals.reporters_warm: reporters warm: refreshed 19/19
+2026-09-28 16:46:55,632 INFO apscheduler.executors.default: Job "lifespan.<locals>._fundamentals_reporters_warm_job (trigger: cron[day_of_week='mon-fri', hour='6-9,16-19', minute='*/15'], next run at: 2026-09-28 18:00:00 EDT)" executed successfully
+2026-09-28 16:46:56,302 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for FBK (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:06,505 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for GS (Anthropic call failed or empty � will retry after cooldown)
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-28 16:47:08,623 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-09-28 16:47:08,629 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running � nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-09-28 16:47:08,630 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-09-28 16:47:09,218 INFO api.services.cache_snapshot: [cache-snapshot] saved 946/971 entries (4157.0 KB)
+[shutdown] cache snapshot saved: 946 entries, 4157 KB
+2026-09-28 16:47:09,229 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-09-28 16:47:09,231 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [6140]
+2026-09-28 16:47:09,510 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for JNJ (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:10,879 INFO api.services.rs_ranking: [rs_ranking] Cached 3621 RS rankings
+2026-09-28 16:47:10,883 INFO api.main: [rs-rankings] warmed: 3621 entries
+2026-09-28 16:47:12,066 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for JPM (Anthropic call failed or empty � will retry after cooldown)
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1rb\t\p01-38bb9a421\docs\plans\joystick\sandbox-runs\2026-09-28T16-44-10.md
+2026-09-28 16:47:22,288 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for UNH (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:25,360 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for UNTY (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:28,068 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for WFC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:37,984 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1250/2568 warmed=563 failed=687
+2026-09-28 16:47:38,083 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BAC (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:41,117 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BSVN (Anthropic call failed or empty � will retry after cooldown)
+2026-09-28 16:47:43,882 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for FAST (Anthropic call failed or empty � will retry after cooldown)

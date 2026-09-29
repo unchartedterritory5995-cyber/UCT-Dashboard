@@ -1,0 +1,19 @@
+# Each tree was extracted from `git archive` (core.autocrlf=false) and re-hashed file by file against the tree listing.
+p00-tip: tree 075e4ff735 -- 15267 files expected, 15267 re-hashed, IDENTICAL   (copied from the console at extraction; re-run after the build it counts app/dist and the launcher logs as extra, as expected)
+p01-38bb9a421: tree e3c33fb572 -- 15228 files expected, 15228 re-hashed, IDENTICAL
+p02-4bba30b73: tree 59f78d3b8b -- 15227 files expected, 15227 re-hashed, IDENTICAL
+p03-d9e887ca0: tree c356e39b5d -- 15205 files expected, 15205 re-hashed, IDENTICAL
+p04-4f708a0d2: tree 9e3d0a1c75 -- 15145 files expected, 15145 re-hashed, IDENTICAL
+p07-1c4b0bf74: tree 2c11feb7b0 -- 15133 files expected, 15133 re-hashed, IDENTICAL
+FAILED p08-7e3f9e117
+p09-caf6d1b9e: tree 15d62478c8 -- 15038 files expected, 15038 re-hashed, IDENTICAL
+p10-2e0598bfa: tree c6c1c879de -- 15030 files expected, 15030 re-hashed, IDENTICAL
+p11-f883e0996: tree 2662dcf76c -- 14944 files expected, 14944 re-hashed, IDENTICAL
+p12-271a078b6: tree ed39987898 -- 14816 files expected, 14816 re-hashed, IDENTICAL
+p13b-fd87271fd: tree 900580af63 -- 14733 files expected, 14733 re-hashed, IDENTICAL
+
+[exited with code 0]
+p08-7e3f9e117: tree 26993a3d49 -- 15132 files expected, 15132 re-hashed, IDENTICAL
+# "FAILED p08": that extraction deadlocked after writing every file (tarfile stops at the end-of-archive marker while git still writes its padding into a full pipe); it was stopped by hand, the drain was added to rehearse.py, and the tree was re-verified on the line above.
+r2-p12-271a078b6: tree bfb45998cd -- 14816 files expected, 14816 re-hashed, IDENTICAL   (round 2; copied from the console at extraction, 2026-09-28, `rehearse.py extract`; a re-run now would count the built app/dist as extra)
+r2-p13b-fd87271fd: tree 832bd5b759 -- 14733 files expected, 14733 re-hashed, IDENTICAL   (round 2; same source)
