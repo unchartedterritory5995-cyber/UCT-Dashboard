@@ -719,8 +719,9 @@ def paths_apply(body: PathsApplyIn, _: None = Depends(require_push_secret)):
 # the same `require_paid` every other education read uses.
 
 _LESSON_LIST_KEYS = ("lesson_key", "kind", "course", "module_label", "module_index",
-                     "sort_order", "title", "note", "minutes", "verdicts",
-                     "attribution", "attribution_detail")
+                     "sort_order", "title", "note", "minutes", "verdicts")
+# No `attribution` / `attribution_detail`: owner ruling 2026-09-29, no third-party credit
+# reaches a member (education_curriculum.SHOW_THIRD_PARTY_CREDIT).
 
 
 def _curriculum_armed() -> None:
@@ -732,8 +733,8 @@ def _curriculum_armed() -> None:
 def list_curriculum_lessons(_user: dict = Depends(require_paid)):
     """`{lessons: [...], census: {verified, corrected, replaced, no_data_needed,
     total}, counts: {lessons, artifacts}}`. Lessons are text rows loaded from
-    docs/curriculum/ (lazy one-shot load on first read while armed). Every row
-    carries `attribution` (empty = no third-party rule fired, never "original")."""
+    docs/curriculum/ (lazy one-shot load on first read while armed). No row
+    carries a third-party credit (owner ruling 2026-09-29)."""
     curriculum.ensure_loaded_once()
     rows = curriculum.list_lessons()
     is_admin = (_user or {}).get("role") == "admin"

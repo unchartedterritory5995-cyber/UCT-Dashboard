@@ -427,9 +427,22 @@ def ensure_loaded_once() -> None:
 
 # ── reads ─────────────────────────────────────────────────────────────────────
 
+#: OWNER RULING 2026-09-29: members see NO third-party credit line on any lesson. The loader
+#: still derives and STORES `attribution` / `attribution_detail` (an internal record, so the
+#: ruling can be reversed by flipping this constant without re-deriving anything), but no read
+#: path returns them. `tests/test_education_curriculum.py` rails both halves.
+SHOW_THIRD_PARTY_CREDIT = False
+_CREDIT_FIELDS = ("attribution", "attribution_detail")
+
+
 def _row_out(r) -> dict:
     d = dict(r)
+    if not SHOW_THIRD_PARTY_CREDIT:
+        for k in _CREDIT_FIELDS:
+            d.pop(k, None)
     for k in ("chapters", "attribution_detail"):
+        if k not in d:
+            continue
         try:
             d[k] = json.loads(d[k]) if d.get(k) else []
         except Exception:

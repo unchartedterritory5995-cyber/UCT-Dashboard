@@ -2180,7 +2180,7 @@ export default function ChartSettingsIndicators({
         </div>
 
         {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display || timeframe || readOnly.length > 0) && (
+        {(core.length > 0 || display || timeframe || visibility || readOnly.length > 0) && (
           <section className={styles.insSection} data-section="core">
             <div className={styles.insSectionLabel}>Core</div>
             {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
@@ -2189,6 +2189,11 @@ export default function ChartSettingsIndicators({
                 DRAWS — Timeframe sits between the maths and the destination. */}
             {timeframe}
             {display}
+            {/* ⭐ VISIBILITY SITS UNDER TIMEFRAME'S NEIGHBOURHOOD ON PURPOSE: Timeframe
+                is the resolution it is CALCULATED on, Visibility the chart timeframes
+                it is SHOWN on. Two behavioural controls, read together, above the fold
+                — it used to be its own section below all of Appearance. */}
+            {visibility}
             {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
           </section>
         )}
@@ -2212,9 +2217,6 @@ export default function ChartSettingsIndicators({
             {plotStyle}
           </section>
         )}
-
-        {/* ─── VISIBILITY ─────────────────────────────────────────────────── */}
-        {visibility}
 
         {/* ─── ACTIONS ──────────────────────────────────────────────────────
             ⭐ THE ROWS LOST THEIR ✕ AND THE INSPECTOR GAINED IT. One verb, one
@@ -2650,7 +2652,8 @@ export default function ChartSettingsIndicators({
   const [visEditing, setVisEditing] = useState(null)
 
   /**
-   * VISIBILITY — "Show on": on which CHART timeframes this indicator draws.
+   * VISIBILITY — on which CHART timeframes this indicator draws. A CORE row, directly
+   * under Timeframe (what it is calculated on) and Display, so it is above the fold.
    *
    * ⭐⭐ PRESENTATION ONLY. Hidden-here is not deleted, not disabled and not
    * rewritten: the instance keeps its source, calculation timeframe, display and
@@ -2685,15 +2688,14 @@ export default function ChartSettingsIndicators({
       write({ preset: 'custom', tfs: [...next] })
     }
     return (
-      <section className={styles.insSection} data-section="visibility" key="visibility">
-        <div className={styles.insSectionLabel}>Visibility</div>
+      <Fragment key="visibility">
         <div className={styles.insField} data-field="__visibility__" data-measure="wide">
-          <span className={styles.insFieldLabel}>Show on</span>
+          <span className={styles.insFieldLabel}>Visibility</span>
           <span className={styles.insFieldCtl}>
             <select
               className={styles.indSelect}
               value={preset === 'custom' ? 'custom:current' : preset}
-              aria-label={`${row.label} show on`}
+              aria-label={`${row.label} visibility`}
               onChange={(e) => {
                 const v = e.target.value
                 if (v === 'custom:current') return
@@ -2736,7 +2738,7 @@ export default function ChartSettingsIndicators({
             <button type="button" className={styles.insTfDone} onClick={() => setVisEditing(null)}>Done</button>
           </div>
         )}
-      </section>
+      </Fragment>
     )
   }, [settings, registry, chartTf, visEditing, commitWrite])
 
