@@ -50,8 +50,19 @@ const CASES = [
   { cls: 'plot-only', script: 'donchian-channels__5df15aaa23',
     objectsOnly: false, kind: 'clean', noObjects: true },
   // ── partial, nothing removed: drawn, disclosed ───────────────────────────
+  // ⚰️ 199 → 240 of 246, 2026-09-28 (C8). `time_close` became readable, so
+  // its 40 `var label.new(time_close, …, "")` creates and their `set_x`/`set_y`
+  // started converting — and every one of those labels would have been drawn
+  // BLANK: their text is written by `label.set_text(rowN_label, rowN_text)`,
+  // and `rowN_text` is built by `rowN_text := rowN_text + "#"` inside a `for`
+  // this chart cannot fold (TradingView shows `####…`). Owner rule: never draw
+  // something wrong. So an object whose text a lost setter writes is WITHHELD
+  // and counted (`content:lost` 40, `content:withheld` 40), and `row0_text` —
+  // which the object pass had been reading as its initial `""` past the
+  // reassignment overrule — is refused like the other 39. What is drawn is the
+  // two block lines; everything else is counted, never shown blank.
   { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
-    objectsOnly: true, kind: 'partial', text: partial(199, 246), also: '`line.set_xloc`' },
+    objectsOnly: true, kind: 'partial', text: partial(240, 246), also: '`line.set_xloc`' },
   // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost
@@ -63,18 +74,74 @@ const CASES = [
     objectsOnly: true, kind: 'refused', what: 'a delete' },
   { cls: 'removal lost: a table clear', script: 'strong-start-rvol-dashboard__36140b1cbe',
     objectsOnly: true, kind: 'refused', what: 'a table clear' },
-  { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: 'sonarlab-order-blocks__0df0d45ee6',
-    objectsOnly: true, kind: 'refused', what: 'a delete and a change to the list it deletes from' },
+  // ⚰️ 2026-09-28 — sonarlab WAS the "lost BEFORE conversion" row: its delete
+  // loops are `for … by 1`, which the reader used to block whole (a reader-level
+  // loss, zero dropReasons). The loop op carries a `by` step now, so the loops
+  // are READ — and their bound `array.size(shortBoxes) - 1` cannot be, so the
+  // loss is now a counted `loop:bounds` drop whose body deletes. Same verdict
+  // (refused), a truer phrase. The before-conversion class keeps its own
+  // fixture below, because no committed script exhibits it any more.
+  // ⚰️ 2026-09-28 (C8) — and sonarlab is no longer this row either. Its boxes
+  // are placed at `bar_index[last_green]`, where `last_green = 0` is reassigned
+  // inside a `for` the fold cannot read; the object pass used to read the
+  // initial `0` past the reassignment overrule and put every box on the wrong
+  // bar. The overrule now holds there too, no create converts, and the script
+  // is refused as drawing nothing this chart can place (`pine:no-output`). The
+  // class keeps a fixture shaped on sonarlab's own delete loop.
+  { cls: 'removal lost: a loop that deletes, its bound unreadable', script: '(fixture: sonarlab\'s delete loop)',
+    source: [
+      '//@version=5',
+      'indicator("loop deletes", overlay = true, max_boxes_count = 500)',
+      'var shortBoxes = array.new_box()',
+      'if close > open',
+      '    b = box.new(left=bar_index, top=high, bottom=low, right=bar_index + 1)',
+      '    array.push(shortBoxes, b)',
+      'for i = array.size(shortBoxes) - 1 to 0 by 1',
+      '    sbox = array.get(shortBoxes, i)',
+      '    if close > box.get_top(sbox)',
+      '        array.remove(shortBoxes, i)',
+      '        box.delete(sbox)',
+    ].join(String.fromCharCode(10)),
+    objectsOnly: true, kind: 'refused', what: 'a loop that deletes' },
+  { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: '(fixture: a `while` that deletes)',
+    source: [
+      '//@version=5',
+      'indicator("before conversion", overlay = true)',
+      'var label lb = label.new(bar_index, high, "x")',
+      'i = 0',
+      'while i < 1',
+      '    label.delete(lb)',
+      '    i += 1',
+    ].join(String.fromCharCode(10)),
+    zeroDropReasons: true,
+    objectsOnly: true, kind: 'refused', what: 'a delete' },
   // ── plots + partial: drawn, disclosed ─────────────────────────────────────
   // ⚰️ 24 → 25, 2026-09-27 (H14). `int kSize = array.size(knnF1)` read a `var`
   // array that `array.push` grows inside an `if` at line 471, and the host walk
   // folded it to its CREATION size, 0 — so the element built from it drew with a
   // number the script never has. It now refuses, and is counted, not drawn.
+  // ⚰️ 25 → 26, 2026-09-28 (C8). `bar_str = ""` is built by
+  // `bar_str := bar_str + …` in a loop the fold cannot read; the object pass
+  // read its initial `""` past the reassignment overrule and drew that cell
+  // EMPTY. It is now refused and counted (`cell:text`), never written blank.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(25, 38) },
-  { cls: 'plots + partial the reader never carried', script: 'momentum-volatility-scanner__4d1deaa855',
+    objectsOnly: false, kind: 'partial', text: partial(26, 38) },
+  // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
+  // was a name the reader never carried. It is carried now (and the script
+  // matches TradingView on every object family), so it is a CLEAN row, and the
+  // reader-name class keeps a fixture — no committed script shows it any more.
+  { cls: 'clean plots + objects, completed by `table.merge_cells`', script: 'momentum-volatility-scanner__4d1deaa855',
+    objectsOnly: false, kind: 'clean' },
+  { cls: 'plots + partial the reader never carried', script: '(fixture: `line.set_xloc`)',
+    source: [
+      '//@version=5',
+      'indicator("reader partial", overlay = true)',
+      'plot(close)',
+      'var line l = line.new(bar_index, close, bar_index + 1, close)',
+      'line.set_xloc(l, time, time + 1, xloc.bar_time)',
+    ].join(String.fromCharCode(10)),
     objectsOnly: false, kind: 'partial',
-    text: /^This script uses `table\.merge_cells`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
   // ⚠️ Since the call-site inliner this corpus row's program is EMPTY (all 7 of
   // its drawing steps are refused calls to its own helpers), so it proves the
@@ -109,9 +176,12 @@ const drawingItems = () => {
 describe.each(CASES)('$cls — $script', (c) => {
   it(`door verdict and the rendered sentence (${c.kind})`, () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', c.objectsOnly ? '1' : '')
-    const source = corpus(c.script)
+    const source = c.source || corpus(c.script)
     const door = memberPaneDefinition({ source, id: DEF_ID })
     render(<MemberPane sym="SPY" tf="D" source={source} defId={DEF_ID} />)
+    // ⭐ The class is DEFINED by the drop ledger being empty — assert it, or a
+    // fixture that drifted into a counted drop would still pass as this class.
+    if (c.zeroDropReasons) expect(door.translation.objectDiagnostics.dropReasons).toEqual({})
 
     if (c.kind === 'refused') {
       expect(door.ok).toBe(false)
@@ -222,9 +292,14 @@ describe('plots + removal lost, with a real program — the drawing is WITHHELD,
 })
 
 describe('⛔ flag OFF, a drawing-only script is still refused with the sentence it always had', () => {
-  it('sonarlab-order-blocks: no pane, the pre-existing refusal, nothing drawn', () => {
+  // ⚰️ 2026-09-28 — re-pointed from sonarlab-order-blocks, whose host
+  // translation is no longer clean (its `for … by 1` delete loops are read now,
+  // and their array bounds are not), so its flag-OFF refusal is the
+  // objects-only sentence every lossy drawing-only script gets. This row is
+  // about a CLEAN drawing-only script meeting the flag switched off.
+  it('makuchaku fair-value-gaps (clean, drawing-only): no pane, the pre-existing refusal, nothing drawn', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '')
-    const source = corpus('sonarlab-order-blocks__0df0d45ee6')
+    const source = corpus('makuchaku039s-trade-tools-fair-value-gaps__b951deedc8')
     render(<MemberPane sym="SPY" tf="D" source={source} defId={DEF_ID} />)
     expect(screen.getByTestId('pine-member-pane-refusal').textContent)
       .toBe('this script declares nothing a chart can draw')

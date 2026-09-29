@@ -128,15 +128,22 @@ def test_admin_guard_prefixes_are_the_confirmed_ungated_families():
 
 # ── Fix 2: theme warm is throttled ────────────────────────────────────────────
 def test_theme_warm_is_throttled_and_capped(monkeypatch):
-    import importlib
+    # ⛔ NO importlib.reload: it rebuilt the router module, and with it the TERM-082
+    # serve-stale slot, so every test that captured `tp._THEME_STALE` at import then
+    # inspected a dead slot (5 order-dependent reds). The one piece of state this test
+    # needs fresh is `_last_theme_warm`, which it resets explicitly below.
     import api.routers.theme_performance as tp
-    importlib.reload(tp)
 
     warm_calls = []
     monkeypatch.setattr("api.routers.bars.warm_bars_async",
                         lambda tickers, tf="D", bars=8000: warm_calls.append(list(tickers)))
     big = [{"ticker": "XLK", "holdings": [{"sym": f"T{i}"} for i in range(200)]}]
-    monkeypatch.setattr(tp.svc, "get_theme_performance", lambda: big)
+    # TERM-082: the route reads through a serve-stale slot whose build seam is
+    # `build_theme_performance` -> (payload, complete); a cached overlay from
+    # another test must not answer instead of the fake.
+    from api.services.cache import cache
+    cache.invalidate(tp.svc._OVERLAID_KEY)
+    monkeypatch.setattr(tp.svc, "build_theme_performance", lambda: (big, True))
     monkeypatch.setattr(tp.svc, "looks_like_ticker", lambda s: True)
     monkeypatch.setattr(tp, "_COLD_TAIL_CAP", 30, raising=False)
     tp._last_theme_warm = 0.0  # force first call to warm

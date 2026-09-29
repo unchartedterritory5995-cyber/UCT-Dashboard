@@ -197,7 +197,18 @@ def test_the_bind_time_clock_names_are_the_ones_about_THE_CHART_not_THE_BAR():
             f"{name} is declared constant per binding but its sentence does not "
             f"say it is about the chart's timeframe: {sentence(name)!r}")
 
-    for name in set(clock) - declared:
+    # ⛔ A chart-scoped NUMBER is held out of the predicate roster BY NAME, with
+    # its reason, in the manifest -- see `_bind_time_held_out`. It must
+    # still say it is about the chart, and it must never also sit on the roster.
+    held_out = {k for k in (ast_table.TABLE.get("_bind_time_held_out") or {})
+                if not k.startswith("_")}
+    for name in held_out:
+        assert name in clock, f"{name} is held out but is not a clock entry"
+        assert name not in declared, f"{name} is both held out and declared bind-time"
+        assert re.search(r"chart's timeframe", sentence(name)), (
+            f"{name} is held out as chart-scoped but its sentence does not say so")
+
+    for name in set(clock) - declared - held_out:
         assert not re.search(r"chart's timeframe", sentence(name)), (
             f"{name} says it is about the chart's timeframe but is NOT declared "
             "bind-time constant — a window using it would refuse for no reason")

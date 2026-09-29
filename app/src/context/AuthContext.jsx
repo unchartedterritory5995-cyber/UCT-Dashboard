@@ -3,6 +3,7 @@ import { setCurrentAccountId } from '../pages/journal-2-0/lib/offline/currentAcc
 import { clearIntroSeen } from '../components/intro/introStorage'
 import { latchNotebookFlags, FLAG_FALLBACKS } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import { setUnauthorizedHandler } from '../hooks/livePriceStore'
+import { readFeatureStatus } from '../components/featureStatus/featureStatus'
 
 export const AuthContext = createContext(null)
 
@@ -48,6 +49,10 @@ export function AuthProvider({ children }) {
   // and never re-derives it from a role it would have to keep in step.
   const [breadthDcV22Enabled, setBreadthDcV22Enabled] = useState(false)
   const [breadthDcV23Enabled, setBreadthDcV23Enabled] = useState(false)
+  // TERM-039 — member-facing feature status (the Support strip + the Beta mark).
+  // ⛔ DEFAULTS NULL, which every surface renders as "not available" — never as an
+  // empty list, because "we could not say" and "nothing is here" are different facts.
+  const [featureStatus, setFeatureStatus] = useState(null)
   // ⛔ WAVE K KEEPS NO REACT STATE FOR THE NOTEBOOK'S FLAGS, deliberately.
   // They are LATCHED for the life of the tab (`notebookFlags.js`), so they can
   // never change — and a `useState` that can never change is a second copy of a
@@ -85,6 +90,9 @@ export function AuthProvider({ children }) {
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
     ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
     ['watchlist_copy_or_link_enabled', (d) => d.watchlist_copy_or_link_enabled === true, setWatchlistCopyOrLinkEnabled],
+    // Not a boolean: the server's derived list. `readFeatureStatus` returns null for
+    // anything it cannot vouch for, so a missing field reads as "not measured".
+    ['feature_status', readFeatureStatus, setFeatureStatus],
   ]
 
   const applyServerFlags = (data) => {
@@ -286,7 +294,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

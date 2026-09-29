@@ -21,7 +21,7 @@ import path from 'node:path'
 
 import { gradeCapture, loadCapture } from './harness'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
-import { vendorPlotRoles } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { vendorPlotRoles, decodePackedColour } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const load = (id) => {
@@ -37,7 +37,10 @@ describe('live TradingView captures — MATCH', () => {
     'cumulative-volume-delta-rddt-1d-2026-09-27',
     'engulfingcandle-rddt-1d-2026-09-27',
     'keltner-channels-bands-rddt-1d-2026-09-27',
-    'rvol-rddt-1d-2026-09-27',
+    // ⚰️ 'rvol-rddt-1d-2026-09-27' WAS HERE, and its MATCH was vacuous on colour:
+    // the line's colorer has no palette, the harness could not read it, and the
+    // plot graded MATCH having compared no colour. Read (0xAABBGGRR), TradingView
+    // drew a GRADIENT our side does not carry — see its own test below.
   ]) {
     it(`⭐ ${id} matches TradingView on every plot, colour and object`, () => {
       expect(fs.existsSync(path.join(DIR, `${id}.json`)), 'capture file missing').toBe(true)
@@ -81,6 +84,35 @@ describe('live TradingView captures — MATCH', () => {
       }
     }, 60000)
   }
+
+  it('⛔ RVOL: every VALUE agrees; the line\'s colour is a gradient our side does not carry — DIVERGE on colour, by name', () => {
+    // `color.new(color.from_gradient(rvol, 0.5, 2, dnv, upv), 0)` — a colour per
+    // bar interpolated between two inputs. The packed vendor colours are the
+    // inputs' own at the gradient's two ends, which is also the proof the
+    // 0xAABBGGRR reading is right: `dnv = color.rgb(144,144,144)` at rvol ≤ 0.5,
+    // `upv = color.rgb(255,0,0)` at rvol ≥ 2.
+    const c = load('rvol-rddt-1d-2026-09-27')
+    const v = gradeCapture(c).verdict
+    for (const p of v.plots) {
+      expect(p.stats.valueMismatches, p.title).toBe(0)
+      expect(p.stats.naMismatches, p.title).toBe(0)
+      expect(p.stats.steady.compared, p.title).toBeGreaterThan(500)
+    }
+    const line = v.plots.find((p) => p.id === 'plot_0')
+    expect(line.verdict).toBe('DIVERGE')
+    expect(line.stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#909090ff' })
+    const thresh = v.plots.find((p) => p.id === 'plot_2')
+    expect(thresh.verdict, thresh.reason).toBe('MATCH')
+    expect(thresh.stats.colorCompared).toBeGreaterThan(500)
+    const col = c.plotValues.fields.indexOf('plot_1')
+    const val = c.plotValues.fields.indexOf('plot_0')
+    const low = c.plotValues.rows.filter((r) => r[val] !== null && r[val] <= 0.5)
+    const high = c.plotValues.rows.filter((r) => r[val] !== null && r[val] >= 2)
+    expect(low.length).toBeGreaterThan(10)
+    expect(high.length).toBeGreaterThan(10)
+    for (const r of low) expect(decodePackedColour(r[col])).toBe('#909090ff')
+    for (const r of high) expect(decodePackedColour(r[col])).toBe('#ff0000ff')
+  }, 60000)
 
   it('⭐ ATR Trailing Stoploss: the three-colour line agrees bar for bar (palette), and so does the seed', () => {
     const line = grade('atr-trailing-stoploss-rddt-1d-2026-09-27').plots.find((p) => p.id === 'plot_1')

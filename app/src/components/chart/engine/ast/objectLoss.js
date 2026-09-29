@@ -64,6 +64,10 @@ export const DROP_KEYS = Object.freeze({
     'a `table.clear` whose table cannot be read — the cells Pine wipes keep last bar\'s text'),
   'clear:range': C(LOSS.REMOVES,
     'a `table.clear` whose rectangle cannot be read — the cells Pine wipes keep last bar\'s text'),
+  'merge:target': C(LOSS.PARTIAL,
+    'a `table.merge_cells` whose table cannot be read — cells drawn unmerged, never an extra object'),
+  'merge:range': C(LOSS.PARTIAL,
+    'a `table.merge_cells` whose rectangle cannot be read — cells drawn unmerged, never an extra object'),
   'loop:bounds': C(LOSS.LOOP,
     'a loop whose range cannot be read; its body is never converted, so its class is its body\'s'),
   'loop:empty': C(LOSS.PARTIAL,
@@ -72,6 +76,16 @@ export const DROP_KEYS = Object.freeze({
     'a setter whose target cannot be read — the object is drawn where/how it was, never kept past its deletion'),
   'update:props': C(LOSS.PARTIAL,
     'a setter whose value cannot be read — a stale position or style, not an extra object'),
+  // ⭐ 2026-09-28 (C8) — an object whose TEXT a lost setter wrote is withheld,
+  // never drawn with the text it was created with (an empty label where
+  // TradingView shows `####`). The create is `content:lost`; every step that
+  // would then act on the withheld object is `content:withheld`. Both are a
+  // MISSING object, never an extra one — a delete of an object that was never
+  // drawn leaves nothing on screen.
+  'content:lost': C(LOSS.PARTIAL,
+    'an object whose text a lost setter writes — withheld, never drawn with its creation text'),
+  'content:withheld': C(LOSS.PARTIAL,
+    'a step on an object withheld because its text was lost — it acts on nothing drawn'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
   'cell:address': C(LOSS.PARTIAL, 'a table cell write whose row/column cannot be read — a missing cell'),
   'cell:text': C(LOSS.PARTIAL,
@@ -106,6 +120,7 @@ export const GUARD_KINDS = Object.freeze({
   delete: C(LOSS.REMOVES, 'a delete whose condition cannot be read — the object Pine deletes stays'),
   cell: C(LOSS.PARTIAL, 'a cell write whose condition cannot be read — a missing cell'),
   cellpatch: C(LOSS.PARTIAL, 'a cell setter whose condition cannot be read — a missing style'),
+  merge: C(LOSS.PARTIAL, 'a cell merge whose condition cannot be read — cells drawn unmerged'),
   clear: C(LOSS.REMOVES,
     'a `table.clear` whose condition cannot be read — the cells Pine wipes keep last bar\'s text'),
   coll_push: C(LOSS.LIST, 'a list push whose condition cannot be read'),

@@ -27,6 +27,7 @@ import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret } from './ast/interpret'
 import { resolveInputs, bindConstsFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
+import { barOpenInstant } from '../indicators.js'
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -92,7 +93,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     try {
       const tree = fold(nodeTree(graph, node))
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget,
-        undefined, { tf: opts.tf, crossMemo })
+        undefined, { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, crossMemo })
       columns.set(node, col)
     } catch (err) {
       failed.push(node)
@@ -143,11 +144,24 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
  *                                         the node table, so binding is identity
  *   V2 (`compute.graph`)                  program is BOUND to the shared graph
  *
- * @param {object} [opts] `{ inputs, tf }` — the INSTANCE's inputs (merged here
- *        over the definition's declared defaults by the plot lane's own
- *        `resolveInputs`) and the chart's timeframe. The document's budget is
- *        read off the definition, never passed in.
- * @returns {{program, readNode, failed, form}} or null when there is nothing to read
+ * @param {object} [opts] `{ inputs, tf, newestBarIsForming }` — the INSTANCE's
+ *        inputs (merged here over the definition's declared defaults by the plot
+ *        lane's own `resolveInputs`), the chart's timeframe, and whether the
+ *        newest bar is still forming. The document's budget is read off the
+ *        definition, never passed in.
+ *
+ *        ⚰️⚰️ `newestBarIsForming` IS THE FOURTH ARGUMENT THIS LANE WAS DEAF TO,
+ *        after `inputs`, `budget` and `tf` (see this file's header). `interpret`
+ *        seeds the four BARSTATE realtime columns from it and leaves them `NaN`
+ *        when it is absent — fail-closed, correctly — so `barstate.isconfirmed`
+ *        read `na` in EVERY object tree while the plot beside it read 1.
+ *        MEASURED against TradingView 2026-09-28: `liquidity-pools` guards its
+ *        swings with `barstate.isconfirmed ? ta.pivothigh(…) : na`; the vendor
+ *        draws 182 lines and 91 labels and every one of our guards was
+ *        truthy on 0 of 632 bars. `?? null` keeps UNKNOWN unknown, exactly as
+ *        `computeFor` does.
+ * @returns {{program, readNode, readTime, failed, form}} or null when there is
+ *        nothing to read. `readTime` is the runtime's reader for a bare `time`.
  */
 export function objectReaderFor(definition, bars, opts = {}) {
   const program = definition && definition.objects
@@ -182,12 +196,26 @@ export function objectReaderFor(definition, bars, opts = {}) {
     inputs,
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
+    newestBarIsForming: opts.newestBarIsForming ?? null,
     fold,
+  }
+  // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
+  // instant in MILLISECONDS, exactly what the same name reads inside a tree
+  // (`time * 1000`, off the clock column `barOpenInstant` fills). The runtime
+  // reads it through `readTime`, so it is decided HERE, beside the trees, from
+  // the same bars and timeframe.
+  // ⚰️ The callers passed the bar's KEY (`bars[i].t`): a date string on a daily
+  // chart, unix seconds on an intraday one. So `label.new(time, …,
+  // xloc.bar_time)` handed the render state a different unit from
+  // `label.new(time + 1, …)`, and on a daily chart a string it dropped as `na`.
+  const readTime = (i) => {
+    const at = barOpenInstant(bars && bars[i] ? bars[i].t : undefined, opts.tf)
+    return at === null ? NaN : at * 1000
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
     const { readNode, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, failed, refusals, form: 'graph' }
+    return { program, readNode, readTime, failed, refusals, form: 'graph' }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -203,7 +231,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   for (const i of graphNodesReferenced(bound)) {
     try {
       columns.set(i, interpret(fold(trees[i]), bars, evalOpts.inputs, evalOpts.budget,
-        undefined, { tf: evalOpts.tf, crossMemo }))
+        undefined, { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, crossMemo }))
     } catch (err) {
       failed.push(i)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
@@ -221,5 +249,5 @@ export function objectReaderFor(definition, bars, opts = {}) {
     const v = col[bar]
     return v === undefined ? NaN : v
   }
-  return { program: bound, readNode, failed, refusals, form: 'trees' }
+  return { program: bound, readNode, readTime, failed, refusals, form: 'trees' }
 }

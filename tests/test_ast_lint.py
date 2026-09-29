@@ -911,8 +911,11 @@ def test_ONE_clock_entry_has_a_REAL_window_or_the_rail_above_proves_nothing():
 
     windowed = sorted(n for n, s in ast_table.TABLE[ast_table.CLOCK_SECTION].items()
                       if s["lookback"] > 0)
-    assert windowed == ["sessionfirst"], windowed
-    assert al.max_lookback({"type": "series", "name": "sessionfirst"}) == 1
+    # (2026-09-28, C8) ``weekfirst`` / ``monthfirst`` are the same rule over a
+    # week and a month (``timeframe.change("W"/"M")``) and declare the same window.
+    assert windowed == ["monthfirst", "sessionfirst", "weekfirst"], windowed
+    for name in windowed:
+        assert al.max_lookback({"type": "series", "name": name}) == 1, name
     # …and it agrees with the FUNCTION that reads exactly the same history.
     change_tree = {"type": "call", "name": "change",
                    "args": [{"type": "series", "name": "close"}]}

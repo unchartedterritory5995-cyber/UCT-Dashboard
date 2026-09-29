@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.routers.ai_search as ai
+from api.services import ticker_resolver
 import api.services.perplexity_search as pplx
 from api.middleware.auth_middleware import (
     get_current_user,
@@ -37,7 +38,7 @@ def client(monkeypatch):
         return {"answer": "ok", "citations": [], "related_questions": [], "cached": False}
 
     monkeypatch.setattr(ai.perplexity_search, "web_search", fake)
-    monkeypatch.setattr(ai, "_UNI", {"NVDA", "AMD", "AAPL", "TSLA", "AMC", "BMO", "NOW", "LOW", "MA", "PM", "COHR", "F", "C"})
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA", "AMD", "AAPL", "TSLA", "AMC", "BMO", "NOW", "LOW", "MA", "PM", "COHR", "F", "C"})
     monkeypatch.setattr(ai, "_regime_provider", lambda: {"regime": "bull_trend"})
     monkeypatch.setattr(ai, "_quote_provider", lambda s: {"last": 10.0, "direction": "up", "abs_pct": 1.0})
     for fn in ("_ctx_catalyst", "_ctx_tape", "_ctx_flow_ticker"):
@@ -136,8 +137,10 @@ def test_breadth_still_fires_on_market_level(client, q):
 
 # ── MEDIUM #9: class-share cashtags + $FULLWORD ─────────────────────────────
 def test_cashtag_class_shares_and_fullword():
-    assert ai._extract_tickers("thoughts on $BRK.B?") == ["BRK.B"]
-    assert ai._extract_tickers("what about $BRK-B") == ["BRK.B"]
+    # TERM-064: one spelling, the canonical hyphen form the universe and caches use;
+    # Massive's dot form is applied at its REST boundary (massive.to_polygon_symbol).
+    assert ai._extract_tickers("thoughts on $BRK.B?") == ["BRK-B"]
+    assert ai._extract_tickers("what about $BRK-B") == ["BRK-B"]
     assert ai._extract_tickers("is $NVIDIA a buy") == []          # not a 5-char fragment
     assert ai._extract_tickers("$F and $C dividends") == ["F", "C"]
 

@@ -9,7 +9,8 @@
 //   `timeframe.period`      a STRING — bind-time text, exactly like `syminfo.*`
 //   `timeframe.multiplier`  an INT   — settled by the bars this translation is for
 //   `timeframe.in_seconds`  an INT   — the same, with an optional argument
-//   `timeframe.change`      a BOOL PER BAR — and therefore REFUSED, by name
+//   `timeframe.change`      a BOOL PER BAR — a clock column for "D"/"W"/"M" on a
+//                           chart pane (2026-09-28, C8); REFUSED, by name, elsewhere
 //
 // ⭐⭐ THE AUTHORITY IS `basePeriod`, AND IT IS NOT A NEW ONE. `ownTimeframeOf`
 // has declared `timeframe.period` to name the chart's own timeframe since the
@@ -88,13 +89,14 @@ describe('the arithmetic is derived, and it fails CLOSED', () => {
   })
 
   it('⛔ D/W/M are PINE\'S CONVENTION, and the relation is what is pinned', () => {
-    // ⚠️ NOT vendor-witnessed here. A month is 30 days because TradingView says
-    // so, not because any calendar does — so the relation is asserted rather
-    // than three magic numbers, and a reader can see the choice being made.
+    // ⚰️ This pinned `M === 30 * day` under "NOT vendor-witnessed here". It is
+    // witnessed now (`tests/fixtures/vendor/vw-time-tf-spy-1d-2026-09-27.json`,
+    // T12–T14), and the month is 2,628,003 s — a 30.4167-day month — not 30
+    // days. `pineVocabularyWave.test.js` compares all six codes to the capture.
     const day = timeframeSeconds('D')
     expect(day).toBe(86400)
     expect(timeframeSeconds('W')).toBe(7 * day)
-    expect(timeframeSeconds('M')).toBe(30 * day)
+    expect(timeframeSeconds('M')).toBe(2628003)
   })
 
   it('⛔ every code the SPELLING map can produce has both answers', () => {
@@ -266,7 +268,7 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
   it('⭐⭐ `in_seconds` takes an OPTIONAL argument, and reads it as bind-time text', () => {
     expect(numberIn('plot(close + timeframe.in_seconds("60"))')).toBe('close + 3600')
     expect(numberIn('plot(close + timeframe.in_seconds("W"))')).toBe('close + 604800')
-    expect(numberIn('plot(close + timeframe.in_seconds("M"))')).toBe('close + 2592000')
+    expect(numberIn('plot(close + timeframe.in_seconds("M"))')).toBe('close + 2628003')
     // ⭐ A PINE SPELLING, not only the engine's own code — the spelling map is
     // asked rather than copied, so `1H` and `1D` work where `60` and `D` do.
     expect(numberIn('plot(close + timeframe.in_seconds("1H"))')).toBe('close + 3600')
@@ -334,17 +336,41 @@ describe('`timeframe.multiplier` and `timeframe.in_seconds` are numbers', () => 
 })
 
 // ───────────────────────────────────────────────────────────────────────────
-describe('`timeframe.change` is REFUSED, and the refusal teaches', () => {
-  it('⛔⛔ by name, with the reason, on both contracts and as a CALL', () => {
-    for (const opts of [{}, { strict: true }]) {
-      const r = refusal('plot(timeframe.change("D") ? close : open)', opts)
-      expect(r.guard).toBe('pine:builtin')
-      expect(r.message).toMatch(/timeframe\.change/)
-      expect(r.message).toMatch(/FIRST BAR OF EACH NEW PERIOD/)
+describe('`timeframe.change` is SERVED where it was measured, and REFUSED — teaching — everywhere else', () => {
+  it('⭐⭐ "D"/"W"/"M" (and "1D"/"1W"/"1M") on a chart pane: false on the oldest bar, the first-of-period column after (C8)', () => {
+    // Measured against the vendor with 0 mismatches on 1D, 60m and W
+    // (`clockCloseTfChange.vendor.test.js`). `isfirst ? 0 : col` rather than
+    // `col != 0`: the same answer where the clock is present, and BLANK — not a
+    // confident false — where it is not (the pane's date-keyed weekly bars).
+    // The member pane translates before it knows the chart's timeframe, so the
+    // answer cannot depend on `basePeriod`, and does not.
+    const col = { D: 'sessionfirst', '1D': 'sessionfirst', W: 'weekfirst', '1W': 'weekfirst',
+      M: 'monthfirst', '1M': 'monthfirst' }
+    for (const [tf, name] of Object.entries(col)) {
+      for (const basePeriod of ['D', '60', '5', 'W', 'M']) {
+        expect(formula(`plot(timeframe.change("${tf}") ? close : open)`, { strict: true, basePeriod }))
+          .toBe(`(isfirst ? 0 : ${name}) ? close : open`)
+      }
+    }
+  })
+
+  it('⛔⛔ by name, with the reason, on a SCREEN and for an unmeasured period', () => {
+    const cases = [
+      ['plot(timeframe.change("D") ? close : open)', {}, /this is a screen/],
+      ['plot(timeframe.change("60") ? close : open)', { strict: true }, /"60" is not one of the three measured/],
+      ['plot(timeframe.change("3M") ? close : open)', { strict: true }, /"3M" is not one of the three measured/],
+      ['plot(timeframe.change(timeframe.period) ? close : open)', { strict: true }, /does not fold to a literal/],
+    ]
+    for (const [body, opts, why] of cases) {
+      const r = refusal(body, opts)
+      expect(r.guard, body).toBe('pine:builtin')
+      expect(r.message, body).toMatch(/timeframe\.change/)
+      expect(r.message, body).toMatch(why)
+      expect(r.message, body).toMatch(/FIRST BAR OF EACH NEW PERIOD/)
       // ⛔ THE CLAUSE THIS FILE EXISTS TO KEEP OUT, for the same reason
       // `pine.refusalAuthority.test.js` keeps it out of `barstate.isfirst`: it
-      // is FALSE about the three siblings that resolve one line away.
-      expect(r.message).not.toMatch(/names something the engine grammar does not hold/i)
+      // is FALSE about the siblings that resolve one line away.
+      expect(r.message, body).not.toMatch(/names something the engine grammar does not hold/i)
     }
   })
 

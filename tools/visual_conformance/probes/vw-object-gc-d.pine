@@ -1,0 +1,103 @@
+//@version=5
+indicator("UCTPROBE_VW_OBJECT_GC_D", overlay = false, max_labels_count = 5, max_lines_count = 7, max_boxes_count = 3)
+
+// ─── 2026-09-28 — OBJECT-LANE TRIAGE C7, PROBE D OF 4: THE COLLECTOR AS THE
+//     SCRIPT SEES IT (`*.all`), AND THE multi-tf BURST ──────────────────────────
+//
+// Probes A–C read only the END state. Several rules (defined in
+// `vw-object-gc-a.pine`) agree at the end and differ DURING the run — WHEN a trim
+// happens, not how much. `label.all` / `line.all` / `box.all` are Pine's own
+// read-only, oldest-first view of the live objects, so plotting their size before
+// and after a create, per bar, reads the collector bar by bar:
+//
+//   steady labels, cap 5, one per bar   D03 before   D04 after   final held
+//   H1  STRICT (evict on create)          5            5            5
+//   H2  TRIM-THEN-ADD                     6            6            6
+//   H3a BAR-END (last bar trimmed)        5            6            5
+//   H3b BAR-START (next bar trims)        5            6            6
+//   H10 LAZY / BATCHED (the manual's      climbs past 5, drops in steps (sawtooth);
+//       "54 under 50")                    D05 jumps by more than 1
+//
+// and the corpus's hardest row — multi-timeframe-supply-demand-zones kept ALL 504
+// boxes of a 500 cap, created in ONE bar (`if barstate.isfirst` + a for-loop,
+// each pushed into an array) and never followed by another create:
+//
+//   bursts on bar 0, nothing after     D06/D08 on bar 0   on bar 1+   final
+//   H1  STRICT                           3 / 7              3 / 7       3 / 7
+//   H2                                   4 / 8              4 / 8       4 / 8
+//   H3a (trimmed when bar 0 ends)        6 / 10             3 / 7       3 / 7
+//   H4  SPARE-THIS-BAR, create-driven    6 / 10             6 / 10      6 / 10  (= multi-tf)
+//   H9  held in a `var` array ⇒ exempt   6 / (per its rule) 6           6 / —   (boxes only)
+//
+//   O1 labels  numeric text "<bar>" — global, one per bar          (D03–D05)
+//   O2 boxes   "DB <j>", top = j, j = 1..6 — ONE burst on bar 0 in a for-loop,
+//              each pushed into a `var array<box>` (multi-tf's exact shape)  (D06, D07)
+//   O3 lines   y = j, j = 1..10 — ONE burst on bar 0 in a for-loop, UNHELD
+//              (O2 minus the array: the array-held vs unheld contrast)     (D08, D09)
+//
+//   D00  bar_index                      CONTROL
+//   D01  barstate.isconfirmed ? 1 : 0   last bar 0 = captured while FORMING
+//   D02  barstate.islast ? 1 : 0
+//   D03  array.size(label.all) BEFORE this bar's label.new
+//   D04  array.size(label.all) AFTER it
+//   D05  the oldest held label's bar (its text); bar_index − D05 + 1 is the window
+//   D06  array.size(box.all)            per bar, after everything this bar created
+//   D07  the oldest held box's j (box.get_top); 4 ⇒ trimmed to the newest 3; -1 none
+//   D08  array.size(line.all)           per bar
+//   D09  the oldest held line's j (line.get_y1); 4 ⇒ trimmed to the newest 7; -1 none
+//
+// ⛔ THE INSTRUMENT CAN PERTURB WHAT IT MEASURES. Reading `*.all` might itself
+// hold references. Two checks, both from the OBJECT capture, not the plots:
+// (1) the labels actually held at the end must number D04's last value and be
+// the newest n by id — if not, `*.all` is not the collector's view and D03–D09
+// are void; (2) O1 is global, one per bar, the same shape as B.O1 (boxes, cap
+// ≈ 50) — if B and D pick different rules, trust B's end state (nothing read
+// there) and use D for timing only.
+//
+// ⭐ PER-BAR CALL ORDER: bar 0: DB 1..6, then 10 lines; every bar: one label.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D (whatever history loads; bar 0 is the first LOADED bar)
+// and AMEX:SPY W, inputs at defaults (none), AFTER THE CLOSE. A runtime error is
+// itself a reading — record its text and the bar it names.
+//
+// ours today (2026-09-28, `enterMemberDoor` at d24d526e2): REFUSED at the builder,
+// cleanly — `pine:collection` "…`label.all` is read as an array here and nothing
+// in this script creates it". Expected: D is a vendor-only instrument; our
+// answer to its question is probe C's and B's end state.
+
+plot(bar_index, "D00_bar_index_CONTROL")
+plot(barstate.isconfirmed ? 1 : 0, "D01_isconfirmed")
+plot(barstate.islast ? 1 : 0, "D02_islast")
+
+// O2 + O3 — the bursts, bar 0 only
+var array<box> heldBoxes = array.new<box>()
+if barstate.isfirst
+    for j = 1 to 6
+        array.push(heldBoxes, box.new(bar_index, j, bar_index + 1, j - 1, text = "DB " + str.tostring(j)))
+    for j = 1 to 10
+        line.new(bar_index, j, bar_index + 1, j)
+
+// O1 — one label per bar, read before and after
+lBefore = array.size(label.all)
+label.new(bar_index, 1.0, str.tostring(bar_index))
+lAfter = array.size(label.all)
+float lOldest = -1
+if lAfter > 0
+    lOldest := str.tonumber(label.get_text(array.get(label.all, 0)))
+plot(lBefore, "D03_labels_all_BEFORE_create")
+plot(lAfter, "D04_labels_all_AFTER_create")
+plot(lOldest, "D05_oldest_held_label_bar")
+
+nBoxes = array.size(box.all)
+float bOldest = -1
+if nBoxes > 0
+    bOldest := box.get_top(array.get(box.all, 0))
+plot(nBoxes, "D06_boxes_all")
+plot(bOldest, "D07_oldest_held_box_j")
+
+nLines = array.size(line.all)
+float lnOldest = -1
+if nLines > 0
+    lnOldest := line.get_y1(array.get(line.all, 0))
+plot(nLines, "D08_lines_all")
+plot(lnOldest, "D09_oldest_held_line_j")

@@ -278,17 +278,61 @@ def _breadth_dc_flags(is_admin: bool = False) -> dict:
     """
     out = {}
     for env_name, default_on in BREADTH_DC_FLAGS.items():
-        raw = os.environ.get(env_name)
-        if raw is None:
-            value = default_on
-        else:
-            v = raw.strip().lower()
-            if v == _ADMIN_ONLY:
-                value = bool(is_admin)
-            else:
-                value = False if v in _FALSY else (True if v in _TRUTHY else default_on)
-        out[env_name.lower()] = value
+        scope = _breadth_dc_scope(env_name, default_on)
+        out[env_name.lower()] = scope == _SCOPE_ALL or (scope == _ADMIN_ONLY and bool(is_admin))
     return out
+
+
+#: The rollout scope of one Data Charts flag, as the ONE parse of its raw value.
+_SCOPE_ALL = "all"
+_SCOPE_OFF = "off"
+
+
+def _breadth_dc_scope(env_name: str, default_on: bool) -> str:
+    """`all` · `admin` · `off` — who this flag is on for, read PER REQUEST.
+
+    ⛔ THE ONE PARSE. `_breadth_dc_flags` resolves it to a boolean for this member and
+    `_preview_payload_keys` asks whether it is a restricted rollout (TERM-039's BETA mark),
+    so the surface and its mark cannot disagree about one variable. An unrecognised value
+    takes the DEFAULT, never the opposite of it (see `_breadth_dc_flags`)."""
+    raw = os.environ.get(env_name)
+    default = _SCOPE_ALL if default_on else _SCOPE_OFF
+    if raw is None:
+        return default
+    v = raw.strip().lower()
+    if v == _ADMIN_ONLY:
+        return _ADMIN_ONLY
+    if v in _FALSY:
+        return _SCOPE_OFF
+    if v in _TRUTHY:
+        return _SCOPE_ALL
+    return default
+
+
+def _preview_payload_keys() -> frozenset:
+    """TERM-039: the payload keys whose live value is a RESTRICTED rollout right now.
+
+    ⭐ DERIVED FROM THE READER, NEVER TYPED. Today the only restricted scope the server
+    can express per request is the owner-preview value `admin` on the Data Charts
+    increments, so that is the whole set; a capability on for everyone is not a preview,
+    whatever its ledger status says. When `admin` becomes `1`, the key leaves this set and
+    the member-visible BETA mark goes with it — no content edit, which is the spec's
+    "Known it worked". ⚠️ A cohort-gated (Terminal-Next) capability is a preview by
+    construction; none is member-facing yet (`rollout_gate`'s census), so it is not here."""
+    return frozenset(env_name.lower() for env_name, default_on in BREADTH_DC_FLAGS.items()
+                     if _breadth_dc_scope(env_name, default_on) == _ADMIN_ONLY)
+
+
+def _feature_status(payload: dict) -> dict:
+    """TERM-039's `feature_status` field, derived from the payload just built.
+
+    ⛔ NEVER RAISES: this is the universal auth path. Any failure — an import, the ledger,
+    the projection — degrades to "not measured", which the client renders as such."""
+    try:
+        from api.services import feature_status
+        return feature_status.project(payload, preview_ids=_preview_payload_keys())
+    except Exception:  # noqa: BLE001 -- a status strip must never become a login outage
+        return {"measured": False, "features": []}
 
 
 def _access_payload(user: dict, plan: str) -> dict:
@@ -308,7 +352,7 @@ def _access_payload(user: dict, plan: str) -> dict:
     is_admin = user.get("role") == "admin"
     is_paid_plan = is_admin or plan in PAID_PLANS
     trial_active = bool(ts["active"]) and not is_paid_plan
-    return {
+    payload = {
         "trial": {
             "active": trial_active,
             "days_left": ts["days_left"] if trial_active else 0,
@@ -435,6 +479,14 @@ def _access_payload(user: dict, plan: str) -> dict:
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
     }
+    # ── TERM-039 — member-facing feature status at the point of use ─────────
+    # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
+    # member-facing (and their names) come from `docs/feature_flags.json`; whether each
+    # is on for this member is the value this payload already carries — never a second
+    # env read, so the strip and the surface cannot disagree. See
+    # `api/services/feature_status.py` for what each state may and may not mean.
+    payload["feature_status"] = _feature_status(payload)
+    return payload
 
 
 def _watchlist_copy_or_link_flag() -> dict:

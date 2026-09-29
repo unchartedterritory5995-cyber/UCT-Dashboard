@@ -40,11 +40,16 @@ says which name and why — it never guesses a meaning.
 | `minute` | the minute of the bar, 0 to 59, in New York time |
 | `sessionfirst` | 1 on the first bar of a New York calendar day, otherwise 0 (blank on the oldest bar, which has no previous day to differ from) |
 | `dayopentime` | the opening timestamp, in SECONDS since 1970, of the New York calendar day the bar falls in -- the same value on every bar of that day. This engine's answer for Pine's time(<timeframe>) one-argument anchor form when the timeframe folds to "D" -- with no session filtering (Pine's session argument, which this engine does not read here) |
+| `timeclose` | the instant the bar's period ENDS, in SECONDS since 1970, on the regular-session template: 16:00 New York on a daily bar's date, Friday 16:00 of a weekly bar's week, and the next bar boundary clipped at 16:00 on an intraday bar that opens inside 09:30-16:00. This engine's answer for Pine's time_close. The real early close (13:00) and a holiday-shortened week are NOT known here and read the template instead; blank on a monthly bar, a weekend bar, an extended-hours bar, and on a 60-minute chart's 09:30 bar when the series does not show which grid it is on |
+| `dayclosetime` | 16:00 New York, in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day. This engine's answer for Pine's time_close("D"); the real early close (13:00) is not known here. Blank on a monthly bar, a weekend bar and an extended-hours bar |
+| `weekfirst` | 1 on the first bar of a New York calendar week (Monday to Sunday), otherwise 0 (blank on the oldest bar, which has no previous week to differ from). This engine's answer for Pine's timeframe.change("W") |
+| `monthfirst` | 1 on the first bar of a New York calendar month, otherwise 0 (blank on the oldest bar, which has no previous month to differ from). This engine's answer for Pine's timeframe.change("M") |
 | `barindex` | the bar's position in the series, 0 on the oldest bar |
 | `isintraday` | 1 when the chart's timeframe is 1, 5, 15, 30 or 60 minutes, otherwise 0 |
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
 | `isweekly` | 1 when the chart's timeframe is weekly, otherwise 0 |
 | `ismonthly` | 1 when the chart's timeframe is monthly, otherwise 0 |
+| `periodseconds` | the length of one bar of the chart's timeframe, in seconds -- 60 times the minutes on an intraday chart, 86400 on daily, 604800 on weekly and 2628003 on monthly, the same value on every bar; blank when no timeframe was given. This engine's answer for Pine's timeframe.in_seconds() on the chart's own timeframe, and the grid the session clock time(timeframe.period, session) is read on |
 | `islast` | 1 on the newest bar the fetch delivered, otherwise 0 |
 | `isfirst` | 1 on the oldest bar the fetch delivered, otherwise 0 |
 | `lastbarindex` | the newest bar's own barindex, the same value on every bar -- NOT window-dependent, exactly like islast: widen the fetch and the number moves, but it names the same real bar either way, the way islast's 1 always lands on that same bar |
@@ -82,7 +87,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (76)
+## Functions (77)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -134,6 +139,7 @@ decide whether a formula can run at all.
 | `max(left, right)` | a number | 0 bars | the larger of `left` and `right` |
 | `median(source, period)` | a number | whatever `period` asks for | the `period`-bar median of `source` |
 | `mfi(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume` |
+| `mfiPine(high, low, close, volume, period)` | a number | whatever `period` asks for | the `period`-bar money flow index of `high`, `low`, `close` and `volume`, counting the first bar's flow on both sides |
 | `min(left, right)` | a number | 0 bars | the smaller of `left` and `right` |
 | `minusDI(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar -DI of `high`, `low` and `close` |
 | `mod(left, right)` | a number | 0 bars | the remainder of `left` divided by `right` |

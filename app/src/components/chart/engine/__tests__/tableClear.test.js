@@ -114,11 +114,14 @@ describe('⛔⛔ GAP 2 — the root cause, named before it is fixed', () => {
     expect(clears[0].row2).toEqual({ v: 'const', value: 1 })
   })
 
-  it('⛔ CONTROL — `table.merge_cells`, its sibling in the same reference section, is STILL a named refusal', () => {
+  it('⛔ CONTROL — `table.cell_set_text_font_family`, a sibling in the same reference section, is STILL a named refusal', () => {
     // Without this, "unsupported no longer contains table.clear" would also pass
     // for a build that stopped reporting unsupported methods at all.
-    const { t } = wire(script('    table.merge_cells(t, 0, 0, 1, 0)'))
-    expect(t.objectDiagnostics.unsupported).toContain('table.merge_cells')
+    // ⚰️ This control was `table.merge_cells` until 2026-09-28, when that
+    // sibling was carried too (`tableMergeCells.test.js`); re-pointed at one
+    // the reader still does not carry, rather than deleted.
+    const { t } = wire(script('    table.cell_set_text_font_family(t, 0, 0, font.family_monospace)'))
+    expect(t.objectDiagnostics.unsupported).toContain('table.cell_set_text_font_family')
   })
 })
 

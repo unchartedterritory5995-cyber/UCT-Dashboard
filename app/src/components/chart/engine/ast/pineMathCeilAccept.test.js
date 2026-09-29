@@ -87,10 +87,15 @@ plot(math.ceil(close))
       path.join(CORPUS, 'chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(false)
-    expect(t.refusal.guard).not.toBe('pine:function')
+    // ⚠️ The guard is `pine:function` AGAIN since 2026-09-28 — for `time(<tf>)`,
+    // not for `math.ceil` — so the claim is carried by the MESSAGE, not the guard.
     expect(t.refusal.message).not.toMatch(/math\.ceil/)
-    expect(t.refusal.guard).toBe('pine:builtin')
-    expect(t.refusal.message).toMatch(/syminfo\.mintick/)
+    // ⚰️ WAS pine:builtin naming `syminfo.mintick`. 2026-09-28: the host lane now
+    // serves `syminfo.mintick` (per witnessed exchange, symbolScope.json::tick_size)
+    // and the script meets its next wall, `time(<timeframe>)` at line 84 — a
+    // pine:function refusal that is NOT about `math.ceil`, which is this case's claim.
+    expect(t.refusal.message).not.toMatch(/syminfo\.mintick/)
+    expect(t.refusal.message).toMatch(/time\(<timeframe>\)/)
   })
 
   // ⛔⛔ THE OTHER SIX REAL SCRIPTS NAMING `math.ceil`, MEASURED HONESTLY:

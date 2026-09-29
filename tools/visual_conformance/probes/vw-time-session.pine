@@ -1,0 +1,64 @@
+//@version=6
+indicator("UCTPROBE_VW_TIME_SESSION", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `time(tf, session[, tz])`, THE UNMEASURED HALF ─
+//
+// On disk (`r11-time-session-spy-5m-2026-09-11.json`): on a 5m chart,
+// `time(timeframe.period, "0930-1600")` is `na` OUTSIDE the window and the bar's
+// own `time` INSIDE, half-open [09:30, 16:00). That settled 5m bars that sit
+// wholly inside or outside. It did NOT read:
+//
+//   (a) a DAILY bar — the engine's door evaluates daily bars, and the one corpus
+//       script this is the last wall for (`opening-range-initial-balance-opening-
+//       price__4a7416ab01`) asks `time(tf, "0930-1000:1234567", "GMT-4")`;
+//   (b) a bar that STRADDLES a window edge (60m bars 09:30–10:30 against
+//       "1000-1100" — is membership the bar's OPEN time, or any overlap?);
+//   (c) a window that does NOT contain the session open ("1000-1100" on 1D);
+//   (d) the `:1234567` day suffix and a weekday-restricted one (":23456");
+//   (e) the third argument — a fixed "GMT-4" (NOT DST-aware), "GMT-5",
+//       "America/New_York", and `syminfo.timezone`;
+//   (f) an OVERNIGHT window ("2000-0000") and an empty-session edge.
+//
+// Every row is `na ? 1 : 0` (the membership signal) or `(t - time)/1000` seconds
+// (whether the value is the bar's own time). S00–S02 are the discriminators: a
+// verdict may only be read from a capture whose bars show more than one hour.
+//
+// ⛔ CAPTURE THREE TIMES, inputs at defaults: AMEX:SPY 1D (≥ 300 bars, spans both
+// a DST change in March AND one in November), AMEX:SPY 60 (extended OFF), and
+// AMEX:SPY 60 (extended ON). The 1D reading is the one the door needs.
+
+plot(bar_index, "S00_bar_index_CONTROL")
+plot(hour,      "S01_hour_MUST_VARY_ON_INTRADAY")
+plot(minute,    "S02_minute")
+
+isNa(t) => na(t) ? 1 : 0
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+tA = time(timeframe.period, "0930-1600")
+tB = time(timeframe.period, "0930-1000")
+tC = time(timeframe.period, "1000-1100")
+tD = time(timeframe.period, "0930-1000:1234567")
+tE = time(timeframe.period, "0930-1000:23456")
+tF = time(timeframe.period, "0930-1000:1234567", "GMT-4")
+tG = time(timeframe.period, "0930-1000:1234567", "GMT-5")
+tH = time(timeframe.period, "0930-1000:1234567", "America/New_York")
+tI = time(timeframe.period, "0930-1000:1234567", syminfo.timezone)
+tJ = time(timeframe.period, "2000-0000")
+tK = time(timeframe.period, "0930-1030")
+
+plot(isNa(tA), "S03_na_0930_1600")
+plot(secs(tA), "S04_secs_0930_1600")
+plot(isNa(tB), "S05_na_0930_1000_OR_window")
+plot(secs(tB), "S06_secs_0930_1000")
+plot(isNa(tC), "S07_na_1000_1100_EXCLUDES_OPEN")
+plot(secs(tC), "S08_secs_1000_1100")
+plot(isNa(tD), "S09_na_0930_1000_ALLDAYS")
+plot(isNa(tE), "S10_na_0930_1000_MON_FRI_23456")
+plot(isNa(tF), "S11_na_OR_GMTminus4_CORPUS_FORM")
+plot(isNa(tG), "S12_na_OR_GMTminus5")
+plot(isNa(tH), "S13_na_OR_America_New_York")
+plot(isNa(tI), "S14_na_OR_syminfo_timezone")
+plot(isNa(tJ), "S15_na_2000_0000_OVERNIGHT")
+plot(isNa(tK), "S16_na_0930_1030_IB_window")
+plot(secs(tK), "S17_secs_0930_1030")
+plot(dayofweek, "S18_dayofweek_for_S10")

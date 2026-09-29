@@ -1,0 +1,93 @@
+//@version=5
+indicator("UCTPROBE_VW_OBJECT_GC_C", overlay = false, max_labels_count = 5, max_lines_count = 7, max_boxes_count = 3)
+
+// ─── 2026-09-28 — OBJECT-LANE TRIAGE C7, PROBE C OF 4: DELETE, VAR, LAST-BAR BURST
+//
+// Rules H1–H7 are defined in `vw-object-gc-a.pine` (H1 strict ≤ cap — ours; H2
+// cap+1 after any create; H3a/H3b bar-end trim with the last bar trimmed / not;
+// H4 a bar's own creates are spared). This probe adds:
+//   H8  LIVE vs RING — an explicit `*.delete` frees a slot (the cap counts LIVE
+//       objects) vs the collector keeps the newest `cap` CREATED ids and a delete
+//       only leaves a hole in them
+//   H9  VAR-EXEMPT — an object a `var` still references is not collected;
+//       H9b only if it was TOUCHED (`set_*`) since — least-recently-used
+// Small caps (5 labels, 7 lines, 3 boxes) so every rule predicts a different count.
+//
+// O1 labels "CL <bar>" — global, one per bar; on every bar with bar_index % 3 == 2
+//    the PREVIOUS bar's label is deleted, so bars ≡ 1 (mod 3) are deleted one bar
+//    after they are made. Held set at the last bar N, by N mod 3:
+//                 H1 / H8-live (5 newest LIVE)       H8-ring (newest 5 CREATED − deleted)
+//      N ≡ 0      N-6, N-4, N-3, N-1, N               N-4, N-3, N-1, N          (4)
+//      N ≡ 1      N-5, N-4, N-2, N-1, N               N-4, N-2, N-1, N          (4)
+//      N ≡ 2      N-6, N-5, N-3, N-2, N               N-3, N-2, N               (3)
+//    H2 adds one more of the same kind (6 live / newest 6 created − deleted).
+//
+// O2 boxes — on bar 0, `var` "CB KEEP-VAR" (never touched again) and `var`
+//    "CB KEEP-SET" (`box.set_right` on EVERY bar), then global "CB <bar>" every bar.
+//      H1 (FIFO by id, no exemption)   CB N-2, CB N-1, CB N
+//      H2                              CB N-3 … CB N
+//      H9, exempt and not counted      KEEP-VAR, KEEP-SET, CB N-2, CB N-1, CB N
+//      H9, exempt but counted          KEEP-VAR, KEEP-SET, CB N
+//      H9b (touched = recent)          KEEP-SET + the newest 2 CB (or 3, if not counted)
+//    ⛔ If `box.set_right` on a COLLECTED box raises a runtime error, the study
+//    fails — that failure IS the reading (KEEP-SET was collected, and touching a
+//    collected object is an error, not a no-op). Record the error text verbatim.
+//
+// O3 lines — global, one SOLID width-2 line every bar; on the LAST bar only
+//    (`barstate.islast`), a burst of 10 DOTTED width-1 lines after it. The last bar
+//    therefore creates 11 lines at a cap of 7:
+//      H1 / H3a   7   = the last 7 dotted
+//      H2         8   = the last 8 dotted
+//      H4        11   = all 11 of the last bar (1 solid + 10 dotted), nothing older
+//      H3b       18   = 7 held from before + the last bar's 11
+//    The capture records `st` (style) and `w` (width), so solid vs dotted is read
+//    straight off each held line.
+//
+// ⭐ PER-BAR CALL ORDER (one id counter for every family): bar 0 only: KEEP-VAR,
+// KEEP-SET; every bar: CB <bar>, CL <bar>, [delete], solid line; last bar only:
+// 10 dotted lines. Box/label text carries the bar; x/y in the capture are vendor
+// indices, NOT bar_index.
+//
+//   C00  bar_index                     CONTROL
+//   C01  barstate.isconfirmed ? 1 : 0  last bar 0 = captured while FORMING
+//   C02  barstate.islast ? 1 : 0       the bar O3's burst ran on
+//   C03  bar_index % 3                 the phase that picks O1's row in the table
+//
+// ⛔ CAPTURE: AMEX:SPY 1D and AMEX:SPY W (two different N mod 3), inputs at
+// defaults (none), AFTER THE CLOSE. Only the end state and these rows are read.
+//
+// ours today (2026-09-28, `runOurSide` at d24d526e2 on the NYSE:RDDT 1D fixture's
+// 632 bars, N = 631 ≡ 1): TRANSLATES clean — 4 plots, 17 object ops, 0 drops.
+// Holds labels CL 626, 627, 629, 630, 631 (= H1 / H8-live, row N ≡ 1); boxes
+// CB 629, 630, 631 (H1 — both KEEPs collected, `set_right` on the collected one a
+// silent no-op); lines 7 (H1).
+
+plot(bar_index, "C00_bar_index_CONTROL")
+plot(barstate.isconfirmed ? 1 : 0, "C01_isconfirmed")
+plot(barstate.islast ? 1 : 0, "C02_islast")
+plot(bar_index % 3, "C03_bar_index_mod3")
+
+// O2 — var-held boxes (bar 0), one touched every bar, then one box per bar
+var box keepVar = box.new(0, 3.0, 1, 2.0, text = "CB KEEP-VAR")
+var box keepSet = box.new(0, 3.0, 1, 2.0, text = "CB KEEP-SET")
+box.set_right(keepSet, bar_index + 1)
+box.new(bar_index, 1.0, bar_index + 1, 0.0, text = "CB " + str.tostring(bar_index))
+
+// O1 — one label per bar; the previous bar's label deleted on bars ≡ 2 (mod 3)
+cl = label.new(bar_index, 1.0, "CL " + str.tostring(bar_index))
+if bar_index % 3 == 2
+    label.delete(cl[1])
+
+// O3 — one solid line per bar, then a 10-line dotted burst on the last bar
+line.new(bar_index, 1.0, bar_index + 1, 1.0, width = 2, style = line.style_solid)
+if barstate.islast
+    line.new(bar_index, 2.0, bar_index + 1, 2.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 3.0, bar_index + 1, 3.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 4.0, bar_index + 1, 4.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 5.0, bar_index + 1, 5.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 6.0, bar_index + 1, 6.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 7.0, bar_index + 1, 7.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 8.0, bar_index + 1, 8.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 9.0, bar_index + 1, 9.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 10.0, bar_index + 1, 10.0, width = 1, style = line.style_dotted)
+    line.new(bar_index, 11.0, bar_index + 1, 11.0, width = 1, style = line.style_dotted)

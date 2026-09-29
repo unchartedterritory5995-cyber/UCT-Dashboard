@@ -135,14 +135,14 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     }
   })
 
-  // ⛔ NOT `time` — recorded here because it is the trap this whole feature
-  // could have fallen into. Bare `time` is PERMANENTLY blocked by
-  // `PINE_CLOCK_MISMATCH.time` (Pine's is milliseconds, this engine's is
-  // seconds), before argument resolution ever reaches `BUILTIN_CALL_TREE`, so
-  // `year(time)` can never arrive at the identity door at all -- checking for
-  // it there would be dead code, not a second working form.
+  // ⚰️ THIS SAID `year(time)` "can never arrive at the identity door at all",
+  // because bare `time` refused at `PINE_CLOCK_MISMATCH`. The 2026-09-23 merge
+  // made a VERSIONED script's `time` reconcile to Pine's milliseconds, so it did
+  // arrive — and refused as "that argument". Since the 2026-09-27 vocabulary
+  // wave it is its own identity onto the BARE field (`pineVocabularyWave.test.js`
+  // owns that rail), so `time` leaves this list of declined shapes.
   it('⛔ every OTHER argument shape is declined by name, never guessed at', () => {
-    for (const bad of ['time', 'time[1]', 'timenow + 1']) {
+    for (const bad of ['time[1]', 'timenow + 1']) {
       const out = translatePine(S(`year(${bad})`), { strict: true })
       expect(out.ok, bad).toBe(false)
       expect(out.refusal.guard, bad).toBe('pine:builtin')
@@ -166,11 +166,12 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     const versionless = translatePine(`indicator(\"t\")\nplot(year(time))\n`, { strict: true })
     expect(versionless.ok).toBe(false)
     expect(versionless.refusal.message).toMatch(/MILLISECONDS/)
-    // ⛔ AND THE VERSIONED SCRIPT GETS THE TRUE REASON INSTEAD — asserted, so
-    // the two paths cannot quietly converge on one message again.
-    const timeMsg = translatePine(S('year(time)'), { strict: true }).refusal.message
-    expect(timeMsg).not.toMatch(/MILLISECONDS/)
-    expect(timeMsg).toMatch(/year/)
+    // ⛔ AND THE VERSIONED SCRIPT NOW TRANSLATES — to the bare field, which is
+    // what `year(time)` means in Pine (2026-09-27). Asserted, so the two paths
+    // cannot quietly converge on one answer again.
+    const versioned = translatePine(S('year(time)'), { strict: true })
+    expect(versioned.ok).toBe(true)
+    expect(versioned.outputs[versioned.selected].formula).toBe('year')
     // A computed timestamp gets THIS feature's own bespoke message, not the
     // generic "maps to nothing" one `year` (a clock entry, not a function)
     // would otherwise produce.
@@ -181,15 +182,34 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
 
   it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker (measured, not overclaimed)', () => {
     const cases = [
-      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:builtin', /syminfo\.mintick/],
+      // ⚰️ WAS pine:builtin /syminfo.mintick/. 2026-09-28: `syminfo.mintick` is
+      // served on the chart pane for a witnessed exchange (symbolScope.json::
+      // tick_size), so the host lane walks past line 73 to the next wall — the
+      // `time(<timeframe>)` anchor at line 84. Still refuses, still not on `timenow`.
+      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /time\(<timeframe>\)/],
       // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since
       // 2026-09-23: the merge reconciles `time` to Pine's milliseconds for any
       // script that declares a version, so this one no longer meets a units
       // mismatch — it meets the true reason, that `year` does not take that
       // argument. The case's claim is unchanged and still measured: it refuses,
       // and NOT on `timenow`.
-      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:builtin', /`year` with that argument/],
-      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function-def', /f_round_up_to_tick/],
+      // ⚰️ …AND MOVED AGAIN 2026-09-27: `year(time)`/`month(time)`/
+      // `dayofmonth(time)` now translate (vocabulary wave), so the script meets
+      // its next wall — the `time(<session>)` session clock. Still refuses,
+      // still not on `timenow`.
+      // ⚰️ …AND AGAIN 2026-09-28: the session clock is served on the chart pane
+      // for the chart's OWN timeframe (vw-time-session). This script asks it of
+      // a timeframe argument that is not the chart's, which stays refused.
+      ['initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine', 'pine:function', /OWN timeframe/],
+      // ⚰️ WAS pine:function-def /f_round_up_to_tick/. Moved 2026-09-28
+      // (`pineHostWalls5.test.js`): a body ending in a declaration now returns
+      // what it declares, so `f_round_up_to_tick` folds and the script meets its
+      // next wall — `syminfo.mintick`, the value it passes that helper. Still
+      // refuses, still not on `timenow`.
+      // ⚰️ …AND AGAIN at integration (2026-09-28): `syminfo.mintick` is served
+      // (#238), so the script meets the wall after that one — a
+      // `time(<timeframe>)` anchor for a period other than "D".
+      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function', /OPENING TIMESTAMP/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]
     for (const [file, guard, messagePattern] of cases) {

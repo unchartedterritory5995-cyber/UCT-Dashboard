@@ -278,7 +278,10 @@ def test_the_scalar_section_PARTITIONS_snapshot_db_COLUMNS_exactly():
     # sixteen measures are numbers. `as_of` follows the convention already in
     # this file — bar-derived columns take `bars_asof` (19) and joined context
     # takes `snapshot_date` (7), which is how every existing pair reads.
-    assert (len(declared), len(excluded)) == (137, 66)
+    # ⭐ 66 → 67 (2026-09-28): #176 added `security_type` to snapshot_db
+    # COLUMNS as TEXT (the Stock / ADR / ETF bucket), and a text column is
+    # excluded for the same reason as `sector` — no string literal exists.
+    assert (len(declared), len(excluded)) == (137, 67)
 
 
 def test_a_scalar_tree_is_non_repainting_AND_as_of_snapshot__both_verdicts_or_neither():
@@ -807,7 +810,12 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # bar-corpus case: `clock_dayopentime`. The scalar half is untouched at
     # 137 -- a per-bar clock column names no per-symbol column.
     # (2026-09-27) 122 -> 123: `atrPine` (Pine's `ta.atr`). Scalars untouched.
-    assert len(parts["bar"]) == 123 and len(parts["scalar"]) == 137
+    # ⭐ 123 -> 129 (2026-09-28, C8): `timeclose`, `dayclosetime`, `weekfirst`,
+    # `monthfirst`. New bar-corpus cases: `clock_timeclose`, `clock_dayclosetime`,
+    # `clock_weekfirst`, `clock_monthfirst`. The scalar half is untouched at 137.
+    assert len(parts["bar"]) == 129 and len(parts["scalar"]) == 137
+    # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
+    # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

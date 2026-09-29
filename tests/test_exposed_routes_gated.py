@@ -213,6 +213,8 @@ GATED: dict[tuple[str, str], str] = {
     ("GET", "/api/cot/{symbol}/narratives"): "paid",
     ("GET", "/api/sector-strength"): "paid",
     ("GET", "/api/regime"): "paid",
+    # TERM-041: the published regime vocabulary, same gate as the regime itself.
+    ("GET", "/api/regime/vocabulary"): "paid",
     ("GET", "/api/traders"): "paid",
     ("GET", "/api/insider/feed"): "paid",
     ("GET", "/api/insider/{ticker}"): "paid",

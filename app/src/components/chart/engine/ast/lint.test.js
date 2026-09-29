@@ -1053,8 +1053,10 @@ describe('the clock, linted — the window comes from the MANIFEST, not from thi
     // `lookback: 0` until 2026-08-26 and the linter hardcoded a matching zero —
     // two authorities agreeing on one false statement.
     const windowed = Object.entries(TABLE.clock).filter(([, s]) => s.lookback > 0)
-    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst'])
-    expect(lint.maxLookback({ type: 'series', name: 'sessionfirst' })).toBe(1)
+    // ⭐ (2026-09-28, C8) `weekfirst` / `monthfirst` are the same rule over a
+    // week and a month (`timeframe.change("W"/"M")`), and declare the same window.
+    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst', 'weekfirst', 'monthfirst'])
+    for (const [n] of windowed) expect(lint.maxLookback({ type: 'series', name: n }), n).toBe(1)
     // …and it agrees with the function that reads exactly the same history.
     expect(lint.maxLookback(parseFormula('change(close)').ast))
       .toBe(lint.maxLookback({ type: 'series', name: 'sessionfirst' }))

@@ -1,0 +1,116 @@
+// This Pine Script™ code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © BackQuant
+
+// ─── UCT PROBE — 2026-09-28 — `syminfo.mintick` INSIDE deadband-hysteresis ───────
+//
+// The corpus script `deadband-hysteresis-filter-backquant__3fb3d09595` (MPL-2.0,
+// © BackQuant, licence header above kept verbatim) with EXACTLY three edits:
+//   1. the title is UCTPROBE_VW_DEADBAND_TICKS (so the harness can find the study);
+//   2. overlay = false (the D00 control is a bar index; no computed value changes);
+//   3. Threshold Mode defaults to "Ticks" — the ONE mode in which
+//      `base := syminfo.mintick * tickThresh` is the band (the default "ATR" mode
+//      never reads the tick, so a capture of it would not test the value at all).
+// …plus the D00–D03 plots appended at the end. Nothing else is touched.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D and NASDAQ:AAPL 1D (both served, 1 / 100), and NYSE:BRK.A
+// 1D (served, 1 / 100, price regime $758k). Load the FULL history (startsAtBar0):
+// `dbhf` is a `var` seeded at bar 0, so a truncated chart and a full one start the
+// filter at different places. In Ticks mode the band is 0.1 and the step is 0.2 of
+// the excess, so a mis-seeded state decays by ~0.8 per bar — compare the tail, and
+// record how many leading bars disagree rather than assuming none do.
+//
+//   D00 bar_index (CONTROL)  D01 syminfo.mintick  D02 base tau  D03 dbhf
+
+//@version=6
+indicator(
+ "UCTPROBE_VW_DEADBAND_TICKS",
+ overlay = false,
+ precision = 2,
+ format = format.price,
+ timeframe = "",
+ timeframe_gaps = true
+ )
+
+// Inputs
+groupCalc = "Calculation"
+series float pricesource = input.source(close, "Price Source", group = groupCalc, tooltip = "Series the filter tracks and smooths")
+string thrMode = input.string("Ticks", "Threshold Mode", options = ["ATR", "Percent", "Ticks", "Points"], group = groupCalc, tooltip = "Deadband base: ATR=ta.atr(atrLen)*atrMult, Percent=pctThresh% of price, Ticks=syminfo.mintick*tickThresh, Points=ptsThresh")
+simple int atrLen = input.int(14, "ATR Length", minval = 1, group = groupCalc, inline = "a", tooltip = "ATR period when Threshold Mode = ATR")
+simple float atrMult = input.float(1.0, "ATR Mult", step = 0.1, group = groupCalc, inline = "a", tooltip = "Multiplier on ATR to set deadband width")
+simple float pctThresh = input.float(0.5, "Percent Threshold", step = 0.1, group = groupCalc, inline = "b", tooltip = "Deadband as percent of price when Threshold Mode = Percent")
+simple int tickThresh = input.int(10, "Tick Threshold", minval = 1, group = groupCalc, inline = "c", tooltip = "Deadband in ticks when Threshold Mode = Ticks")
+simple float ptsThresh = input.float(5.0, "Points Threshold", step = 0.1, group = groupCalc, inline = "c", tooltip = "Deadband in price points when Threshold Mode = Points")
+simple float enterMult = input.float(1.0, "Enter Mult", minval = 0.1, step = 0.1, group = groupCalc, inline = "d", tooltip = "Outer band. Move baseline only when |price - baseline| > base * Enter Mult")
+simple float exitMult = input.float(0.5, "Exit Mult", minval = 0.05, step = 0.05, group = groupCalc, inline = "d", tooltip = "Inner band for hysteresis. Hold while inside. Should be less than Enter Mult")
+simple float response = input.float(0.2, "Response", minval = 0.01, maxval = 1.0, step = 0.01, group = groupCalc, tooltip = "Baseline step when outside enter band. Higher = faster, lower = smoother")
+
+groupUI = "UI Settings"
+simple bool showFilter = input.bool(true, "Show Filtered Price on chart", group = groupUI, tooltip = "Toggle plot of the filtered baseline")
+simple bool paintCandles = input.bool(true, "Paint candles according to Trend", group = groupUI, tooltip = "Color candles using filter slope")
+color longColor = input.color(#33ff00, "Long Color", group = groupUI, inline = "col")
+color shortColor = input.color(#ff0000, "Short Color", group = groupUI, inline = "col")
+
+
+// Base threshold per mode
+getBaseTau(mode, src) =>
+    float base = na
+    if mode == "ATR"
+        base := ta.atr(atrLen) * atrMult
+    else if mode == "Percent"
+        base := math.abs(src) * pctThresh * 0.01
+    else if mode == "Ticks"
+        base := syminfo.mintick * tickThresh
+    else
+        base := ptsThresh
+    nz(base)
+
+// Deadband hysteresis core
+var float dbhf = na
+if na(dbhf)
+    dbhf := pricesource
+
+baseTau   = getBaseTau(thrMode, pricesource)
+em        = math.max(enterMult, 0.0001)
+xm        = math.min(exitMult, em)
+tauEnter  = baseTau * em
+tauExit   = baseTau * xm
+
+diff = pricesource - dbhf
+
+// Only move when outside enter band. Hold when inside exit band. Between bands do nothing.
+if diff >  tauEnter
+    dbhf += response * (diff - tauEnter)
+else if diff < -tauEnter
+    dbhf += response * (diff + tauEnter)
+// else no update
+
+// Trend from filtered slope
+var int Trend = 0
+if dbhf > dbhf[1]
+    Trend := 1
+if dbhf < dbhf[1]
+    Trend := -1
+
+// Coloring
+var color barColour = color.white
+if Trend == 1
+    barColour := longColor
+if Trend == -1
+    barColour := shortColor
+
+// Plot
+barcolor(paintCandles ? barColour : na)
+plot(showFilter ? dbhf : na, "DBHF", color = color.new(barColour, 40), linewidth = 4)
+
+// Alerts
+longFlip  = ta.crossover(dbhf, dbhf[1])
+shortFlip = ta.crossunder(dbhf, dbhf[1])
+
+alertcondition(longFlip,  "DBHF Up Slope",   "Deadband Hysteresis Filter slope turned up {{exchange}}:{{ticker}}")
+alertcondition(shortFlip, "DBHF Down Slope", "Deadband Hysteresis Filter slope turned down {{exchange}}:{{ticker}}")
+
+// ─── UCT PROBE ADDITIONS (2026-09-28) ──────────────────────────────────────────
+plot(bar_index, "D00_bar_index_CONTROL")
+plot(syminfo.mintick, "D01_mintick")
+plot(baseTau, "D02_base_tau")
+plot(dbhf, "D03_dbhf")

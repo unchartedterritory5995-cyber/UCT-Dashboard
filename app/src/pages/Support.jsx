@@ -4,6 +4,7 @@ import UIcon from '../components/ui/UIcon'
 import { useAuth } from '../context/AuthContext'
 import { notebookFlag } from './journal-2-0/lib/offline/notebookFlags'
 import { TOUR_START_STATE } from './journal-2-0/components/notebook/onboarding/tourControl'
+import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -1311,6 +1312,8 @@ export default function Support() {
         )}
 
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
+        {/* TERM-039: what is here today and what is on early for this account. */}
+        {!loading && <FeatureStatusStrip />}
       </div>
     )
   }

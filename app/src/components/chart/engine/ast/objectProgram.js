@@ -151,6 +151,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'col2', 'row2',                              // master's clear rectangle
   'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
   'from', 'to',                                // the `loop` bounds
+  'step',                                      // …and its `by` step
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -160,6 +161,8 @@ export const OBJECT_OP_KINDS = Object.freeze([
   // property, not replace the cell), which is why it is its own kind rather
   // than a flag on `cell`. `clearcells` is the range form's validated name.
   'cellpatch', 'clearcells',
+  // ⭐ `table.merge_cells` — a rectangle drawn as one cell (2026-09-28).
+  'mergecells',
   // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
   //
   // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
@@ -630,6 +633,7 @@ export function assertObjectProgram(program) {
       }
       assertValueRef(op.from, `${where}.from`)
       assertValueRef(op.to, `${where}.to`)
+      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`)
       if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
       if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
     } else if (op.k === 'create') {
@@ -648,7 +652,8 @@ export function assertObjectProgram(program) {
         }
       }
     } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell'
-      || op.k === 'cellpatch' || op.k === 'clear' || op.k === 'clearcells') {
+      || op.k === 'cellpatch' || op.k === 'clear' || op.k === 'clearcells'
+      || op.k === 'mergecells') {
       const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
       // ⭐ `cell` (Pine's PUT) and `cellpatch` (its `cell_set_*` PATCH) are two
       // operations with ONE SHAPE, so the door checks them with one rule — master's
@@ -671,8 +676,8 @@ export function assertObjectProgram(program) {
       // would pass the other's ops unchecked — which is worse than either alone.
       // ⚠️ Collapsing them to one spelling is a FOLLOW-UP with its own evidence,
       // not a drive-by inside a merge.
-      if (op.k === 'clearcells') {
-        if (fam !== 'table') throw new Error(`${where}: clearcells targets a ${fam}, but only a table has cells`)
+      if (op.k === 'clearcells' || op.k === 'mergecells') {
+        if (fam !== 'table') throw new Error(`${where}: ${op.k} targets a ${fam}, but only a table has cells`)
         for (const f of ['col', 'row', 'col2', 'row2']) assertValueRef(op[f], `${where}.${f}`)
       }
       if (op.k === 'clear') {

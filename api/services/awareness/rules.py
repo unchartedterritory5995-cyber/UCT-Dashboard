@@ -205,8 +205,12 @@ def rule_regime_flip(scan_ctx: dict, user_ctx: dict) -> list[InsightCandidate]:
     if not has_positions and not has_watch:
         return []
 
-    pretty_prev = prev_label.replace("_", " ")
-    pretty_new = label.replace("_", " ")
+    # The published words (TERM-041), never `id.replace("_", " ")` — that was a
+    # second display vocabulary ("bull trend") beside the authority's ("Bull
+    # trend"). dedup_key below stays keyed on the ID, so this changes no dedup.
+    from api.services.voice_regime_classifier import label_of
+    pretty_prev = label_of(prev_label)
+    pretty_new = label_of(label)
     base_signal = 0.5 + 0.5 * min(1.0, max(0.0, float(confidence)))
 
     return [InsightCandidate(

@@ -46,6 +46,16 @@
 //
 // ⭐ `size <= capacity` is therefore OUR guarantee about OUR pool, never a claim
 // about Pine. Nothing downstream may use it to validate a TradingView capture.
+//
+// ⭐⭐ 2026-09-28 — THE MEASUREMENT ARRIVED, AND IT IS NOT A SLACK. TradingView
+// collects in BATCHES (`GC_BATCH` below): nothing happens until a family passes
+// `capacity + 5`, then it is cut back to `capacity`, sparing the running bar's
+// creates and anything a drawing variable holds. A fixed `slack` cannot express
+// that — the held count cycles through six values depending on the phase of the
+// last bar. The rule lives in `objectRuntime`'s create, the ONLY collector any
+// lane runs (both the columnar lane's `evaluateObjects` and the runtime lane's
+// `beginObjects` go through it). `createObjectPool` below is imported by nothing
+// but its own tests and keeps the strict primitive; it is not a lane.
 
 /** The four FIFO drawing pools, with the parameter that sizes each one.
  *
@@ -66,6 +76,36 @@ export const POOL_LIMITS = Object.freeze({
 })
 
 export const OBJECT_KINDS = Object.freeze(Object.keys(POOL_LIMITS))
+
+/**
+ * ⭐⭐ TRADINGVIEW'S COLLECTOR, MEASURED (2026-09-28, triage class C7).
+ *
+ * The "approximate" limit is a BATCHED collector, and it is exact once read by
+ * id. A family is collected only when a create takes its live count past
+ * `capacity + GC_BATCH`; the collection then deletes the OLDEST objects until
+ * `capacity` remain, skipping two kinds of object:
+ *
+ *   · one created on the bar that is running (the bar's own creates are spared,
+ *     so a bar that creates more than `capacity` keeps all of them)
+ *   · one a drawing variable currently holds (a `var box b = box.new(…)` is
+ *     never collected — it still COUNTS toward the total)
+ *
+ * The live count therefore saw-tooths between `capacity` and
+ * `capacity + GC_BATCH` (`label.all` read per bar: 5,6,…,10 then 5 at cap 5).
+ * Measured on eight TradingView captures of `vw-object-gc-{a,b,c,d}.pine`
+ * (AMEX:SPY 1D and 1W, caps 3/5/7/50): a model of this rule reproduces every
+ * held set id for id, 24 of 24 families, and the engine reproduces the 18 it can
+ * run (probe D reads `label.all`, which the member door refuses) — plus the
+ * corpus rows that had no rule, id for id: makuchaku 51, ultimate-pivot 51/51,
+ * contraction-box 50, multi-timeframe S&D 504 of 500. Five, not any other
+ * offset: offsets 0–11 were scanned and only 5 fits all 24.
+ * `objectRuntime`'s create is the one collector that implements it. */
+export const GC_BATCH = 5
+
+/** The live count above which a create triggers a collection — see `GC_BATCH`. */
+export function collectsAbove(capacity) {
+  return capacity + GC_BATCH
+}
 
 /** The lowest Pine version with any drawing object at all. */
 export const DRAWINGS_SINCE_VERSION = 4

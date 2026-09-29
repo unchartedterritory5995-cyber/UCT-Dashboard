@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 from fastapi import APIRouter, Depends, Query, Request
 from api.bars_auth import require_bars_access
@@ -84,6 +85,136 @@ def _at_capacity(stream: str):
          "stream": stream, "max_subscribers": MAX_SUBSCRIBERS},
         status_code=503,
     )
+
+
+# ── event ids + Last-Event-ID (TERM-054 / FB-D3-01) ──────────────────────────
+# Every frame on both streams carries `id: <boot>-<seq>`. `<seq>` is ONE
+# counter per stream for this process, shared by every connection, so ids are
+# strictly increasing within a connection and comparable across connections of
+# this process. `<boot>` names the process: a pod restart (every web deploy)
+# mints a new one, which is how a reconnect tells "same server" from "the server
+# I was talking to is gone". The web pod is ONE uvicorn process — this is
+# in-process state, like the subscriber registry above, and a second process
+# would mint its own `<boot>` rather than share a sequence.
+#
+# ⛔ BOTH STREAMS ARE LAST-VALUE-WINS, SO NOTHING IS REPLAYED. The replay window
+# is ZERO events, by design, not by omission (ARCH-07 §3 Q6; the same vocabulary
+# as `app/src/lib/panelContract.js` DELIVERY, which a vitest rail pins against
+# STREAM_DELIVERY below). A missed price snapshot or developing bar is superseded
+# by the next one, so replaying it would only repaint history the client is
+# about to overwrite. What a reconnect presenting a Last-Event-ID gets instead is
+# a DECLARATION, as the first frame (`event: resume`): resume is
+# `not_applicable`, `replayed: 0`, and what the stream serves in its place —
+# never a silent refetch and never a claimed resume that cannot be served.
+# The one every-message-matters stream (the options tape) is served by
+# flow-worker and is not this module's.
+#
+# Why no gap counter: an id makes a gap DETECTABLE, and a counter of detected
+# gaps would need a reader (PERF-6 / FB-OBS-02). On a last-value-wins stream a
+# gap is not loss — the loss that IS real (slow-consumer drops) is already
+# counted by `bar_broadcaster` and read by TERM-013's `bars_rail_monitor`.
+STREAM_DELIVERY = {"prices": "last-value-wins", "bars": "last-value-wins"}
+
+#: What each stream sends after a resume declaration, in place of a replay.
+#: The test suite drives each generator and checks the claim is kept.
+_SERVED_INSTEAD = {
+    # the loop's first pass compares against an empty `last_prices`, so it
+    # emits every subscribed ticker that has a price at that moment
+    "prices": "current_snapshot",
+    # each pair's queue is fresh; the next bar the broadcaster emits for a pair
+    # is that pair's current developing bar
+    "bars": "next_bar_per_pair",
+}
+
+#: Replay window, in events. Zero for both: see the block comment above.
+REPLAY_WINDOW_EVENTS = 0
+
+_EVENT_BOOT = uuid.uuid4().hex[:8]
+_event_seq: dict = {"prices": 0, "bars": 0}
+
+#: A Last-Event-ID longer than this is not one of ours; it is echoed truncated.
+_MAX_LAST_EVENT_ID = 64
+
+
+def _next_event_id(stream: str) -> str:
+    """Mint the next id for `stream`. Single event loop ⇒ no lock needed."""
+    _event_seq[stream] = _event_seq.get(stream, 0) + 1
+    return f"{_EVENT_BOOT}-{_event_seq[stream]}"
+
+
+def _frame(stream: str, data: str, event: str | None = None) -> str:
+    """One SSE frame with a fresh id. `data` is already serialized."""
+    head = f"id: {_next_event_id(stream)}\n"
+    if event:
+        head += f"event: {event}\n"
+    return f"{head}data: {data}\n\n"
+
+
+def _parse_event_id(raw):
+    """`<boot>-<seq>` → (boot, seq), or None for anything else."""
+    if not isinstance(raw, str):
+        return None
+    boot, sep, seq = raw.strip().rpartition("-")
+    if not sep or not boot or not seq.isdigit():
+        return None
+    return boot, int(seq)
+
+
+def _requested_last_event_id(request, query_value):
+    """The id a reconnecting client presents, or None.
+
+    Two doors: the `Last-Event-ID` HEADER, which a browser's own EventSource
+    auto-reconnect sends, and the `last_event_id` QUERY parameter, which the
+    pooled client managers send — they close and re-create their EventSource on
+    error, and a new EventSource cannot set a header. The header wins.
+    """
+    headers = getattr(request, "headers", None)
+    raw = None
+    if headers is not None:
+        try:
+            raw = headers.get("last-event-id")
+        except Exception:
+            raw = None
+    if not raw and isinstance(query_value, str):
+        raw = query_value
+    raw = (raw or "").strip()
+    return raw or None
+
+
+def _resume_declaration(stream: str, last_event_id):
+    """What the server says to a reconnect that presented `last_event_id`.
+
+    Returns None when no id was presented (a first connection is not a resume).
+    `origin` says whose id it was:
+      • this_process   — minted here, at or below the current sequence
+      • other_process  — well-formed but another process's (a deploy happened)
+      • unrecognised   — malformed, or claims a sequence this process never reached
+    It never reports a count of missed events: the sequence is shared by every
+    connection of the stream, so the distance between two ids is not what THIS
+    client missed.
+    """
+    if not last_event_id:
+        return None
+    parsed = _parse_event_id(last_event_id)
+    if parsed is None:
+        origin = "unrecognised"
+    elif parsed[0] != _EVENT_BOOT:
+        origin = "other_process"
+    elif parsed[1] > _event_seq.get(stream, 0):
+        origin = "unrecognised"
+    else:
+        origin = "this_process"
+    return {
+        "type": "resume",
+        "stream": stream,
+        "delivery": STREAM_DELIVERY[stream],
+        "resume": "not_applicable",
+        "replayed": 0,
+        "replay_window_events": REPLAY_WINDOW_EVENTS,
+        "last_event_id": str(last_event_id)[:_MAX_LAST_EVENT_ID],
+        "origin": origin,
+        "served_instead": _SERVED_INSTEAD[stream],
+    }
 
 
 def _build_candle_events(tickers, last_state: dict) -> list[dict]:
@@ -176,13 +307,23 @@ def _build_stale_events(tickers, now=None, bb=None):
 async def stream_prices(
     request: Request,
     tickers: str = Query(..., description="Comma-separated ticker symbols"),
+    last_event_id: str | None = Query(None, description=(
+        "Id of the last event a reconnecting client received (the pooled "
+        "managers' door; a browser auto-reconnect sends the Last-Event-ID "
+        "header instead). Answered with an `event: resume` declaration.")),
 ):
     """SSE endpoint — streams real-time price updates to the browser.
 
     Connect via EventSource:
       const es = new EventSource('/api/stream/prices?tickers=AAPL,MSFT,NVDA')
       es.onmessage = (e) => { const prices = JSON.parse(e.data) }
+
+    Every frame carries `id:`. A reconnect presenting a Last-Event-ID gets an
+    `event: resume` first frame declaring resume not applicable (last-value-wins,
+    zero events replayed) and that a current snapshot follows — see the TERM-054
+    block above `_next_event_id`.
     """
+    resume = _resume_declaration("prices", _requested_last_event_id(request, last_event_id))
     ticker_list = [t.strip().upper() for t in tickers.split(",") if t.strip()]
     if not ticker_list:
         return JSONResponse({"error": "No tickers provided"}, status_code=400)
@@ -226,10 +367,17 @@ async def stream_prices(
         # Candle event tracking: {sym: (t, c, v)} — last seen state per ticker
         last_candle_state: dict = {}
 
-        # Correction queue handle (drain once per loop)
-        correction_queue = realtime_candle.get_correction_queue()
+        # This connection's OWN bounded correction queue, for its tickers
+        # (drained once per loop). Subscribed inside the `try` so the `finally`
+        # below unsubscribes it on every exit path -- a disconnect, a closed
+        # body iterator, a cancelled task -- and a generator that is never
+        # iterated never subscribes at all.
+        correction_queue = None
 
         try:
+            correction_queue = realtime_candle.subscribe_corrections(ticker_list)
+            if resume is not None:
+                yield _frame("prices", json.dumps(resume), "resume")
             while True:
                 # Exit immediately when browser disconnects — prevents zombie coroutines
                 if await request.is_disconnected():
@@ -266,21 +414,21 @@ async def stream_prices(
                 )
                 if prices_now != last_prices and current:
                     last_prices = prices_now
-                    yield f"data: {json.dumps(current)}\n\n"
+                    yield _frame("prices", json.dumps(current))
 
                 # Candle events: tick + bar_close emissions (per-iteration, cheap)
                 candle_events = _build_candle_events(ticker_list, last_candle_state)
                 for ev in candle_events:
                     if ev["type"] == "tick":
-                        yield f"event: tick\ndata: {json.dumps(ev)}\n\n"
+                        yield _frame("prices", json.dumps(ev), "tick")
                     elif ev["type"] == "bar_close":
-                        yield f"event: bar_close\ndata: {json.dumps(ev)}\n\n"
+                        yield _frame("prices", json.dumps(ev), "bar_close")
 
-                # Drain bar_correction events from reconciliation worker (non-blocking)
+                # Drain this connection's bar_correction events (non-blocking)
                 try:
                     while True:
                         ev = correction_queue.get_nowait()
-                        yield f"event: bar_correction\ndata: {json.dumps(ev)}\n\n"
+                        yield _frame("prices", json.dumps(ev), "bar_correction")
                 except asyncio.QueueEmpty:
                     pass
                 except Exception:
@@ -295,18 +443,18 @@ async def stream_prices(
                     # Emit stale for newly-stale tickers
                     for e in stale_events:
                         if e["sym"] not in already_stale:
-                            yield f"event: stale\ndata: {json.dumps(e)}\n\n"
+                            yield _frame("prices", json.dumps(e), "stale")
                             already_stale.add(e["sym"])
                     # Emit fresh for recovered tickers
                     for sym in list(already_stale - currently_stale):
-                        yield f"event: fresh\ndata: {json.dumps({'type': 'fresh', 'sym': sym})}\n\n"
+                        yield _frame("prices", json.dumps({'type': 'fresh', 'sym': sym}), "fresh")
                         already_stale.discard(sym)
 
                 # Heartbeat to keep connection alive through proxies. Sent as a
                 # NAMED event (not an SSE comment) so the client's watchdog can
                 # reset on it and tell a quiet-but-healthy stream from a dead one.
                 if time.time() - last_heartbeat > heartbeat_interval:
-                    yield "event: heartbeat\ndata: {}\n\n"
+                    yield _frame("prices", "{}", "heartbeat")
                     last_heartbeat = time.time()
 
                 # 250ms cadence (was 100ms). Every open tab holds one of these
@@ -317,6 +465,7 @@ async def stream_prices(
         finally:
             # Clean up subscriptions when client disconnects so _subscribed
             # doesn't grow unbounded as users navigate between pages.
+            realtime_candle.unsubscribe_corrections(correction_queue)
             unsubscribe("prices", _token)
             unsubscribe_tickers(ticker_list)
             if _bb is not None:
@@ -341,6 +490,10 @@ async def stream_bars(
     request: Request,
     bars: str = Query(..., description="Comma-separated SYM:TF pairs, e.g. AAPL:5,MSFT:1"),
     _access: dict = Depends(require_bars_access),
+    last_event_id: str | None = Query(None, description=(
+        "Id of the last event a reconnecting client received (the pooled "
+        "manager's door; a browser auto-reconnect sends the Last-Event-ID "
+        "header instead). Answered with an `event: resume` declaration.")),
 ):
     """SSE — streams real-time bar updates per (symbol, timeframe).
 
@@ -350,6 +503,10 @@ async def stream_bars(
 
     Each `event: bar` message contains the latest in-progress (or just-closed) bar
     for the (sym, tf) pair. Frontend should call series.update(bar) to apply.
+
+    Every frame carries `id:`. A reconnect presenting a Last-Event-ID gets an
+    `event: resume` first frame declaring resume not applicable (last-value-wins,
+    zero events replayed); each pair's next bar supersedes what was missed.
     """
     if os.environ.get("STREAM_BARS_ENABLED") != "1":
         return JSONResponse({"error": "Bar streaming disabled"}, status_code=503)
@@ -380,9 +537,13 @@ async def stream_bars(
     queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
     _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
 
+    resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
+
     async def event_generator():
         last_heartbeat = time.time()
         try:
+            if resume is not None:
+                yield _frame("bars", json.dumps(resume), "resume")
             while True:
                 if await request.is_disconnected():
                     break
@@ -395,7 +556,7 @@ async def stream_bars(
                     except asyncio.QueueEmpty:
                         continue
                     got_one = True
-                    yield f"event: bar\ndata: {json.dumps(msg)}\n\n"
+                    yield _frame("bars", json.dumps(msg), "bar")
 
                 if not got_one:
                     # 250ms idle floor — MATCH stream_prices (deliberately slowed
@@ -412,7 +573,7 @@ async def stream_bars(
                     # watchdog could never see it and would false-reconnect a
                     # healthy-but-idle stream. A named heartbeat both keeps the
                     # pipe warm AND lets the client touch its last-seen timer.
-                    yield "event: heartbeat\ndata: {}\n\n"
+                    yield _frame("bars", "{}", "heartbeat")
                     last_heartbeat = time.time()
         finally:
             unsubscribe("bars", _token)

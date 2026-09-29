@@ -547,12 +547,18 @@ class _MassiveRestClient:
     # own tickers, never the rest.
     _SNAPSHOT_BATCH = 200
 
-    def get_batch_snapshots(self, tickers: list[str], stale_to_zero: bool = False) -> dict[str, float]:
+    def get_batch_snapshots(self, tickers: list[str], stale_to_zero: bool = False,
+                            failures: list | None = None) -> dict[str, float]:
         """Return regular-session % change for a batch of tickers.
 
         stale_to_zero (Theme Tracker): during an ACTIVE session, force a name that hasn't traded
         today to 0% instead of letting a stale prior-session move stand (see the guard below) —
         so a pre-market theme reflects only names that actually moved pre-market.
+
+        failures (TERM-082, additive): when a list is passed, the size of every chunk that was
+        DROPPED after its retry is appended to it. A dropped chunk is otherwise invisible — its
+        tickers are simply absent — and a caller that remembers a last-good map must be able to
+        tell "answered" from "answered for fewer names than it should have".
 
         Chunked under the endpoint's ticker cap AND fetched in PARALLEL — the
         Theme Tracker sends ~2,050 holdings = ~11 chunks; sequential fetches were
@@ -596,6 +602,8 @@ class _MassiveRestClient:
                 except Exception:
                     if attempt == 0:
                         continue
+                    if failures is not None:
+                        failures.append(len(chunk))
                     return []
 
         rows: list = []
@@ -665,7 +673,8 @@ class _MassiveRestClient:
 
         return result
 
-    def get_batch_open_map(self, tickers: list[str]) -> dict[str, float]:
+    def get_batch_open_map(self, tickers: list[str],
+                           failures: list | None = None) -> dict[str, float]:
         """Return each ticker's REGULAR-SESSION move FROM TODAY'S OPEN — `(day.c - day.o)/day.o`
         as a % — for the Theme Tracker's "From Open" mode (excludes the overnight gap).
 
@@ -674,6 +683,8 @@ class _MassiveRestClient:
         regular-session open yet (pre-market: day.o == 0) is OMITTED, not zeroed — the caller
         keeps it out of the aggregate and the UI shows "—" until the open prints. Same endpoint,
         same payload the 1D path already fetches: no new provider, no new budget line.
+
+        failures: as get_batch_snapshots (TERM-082, additive).
         """
         if not tickers:
             return {}
@@ -700,6 +711,8 @@ class _MassiveRestClient:
                 except Exception:
                     if attempt == 0:
                         continue
+                    if failures is not None:
+                        failures.append(len(chunk))
                     return []
 
         rows: list = []
@@ -1353,26 +1366,39 @@ def get_market_cap(ticker: str, price: float | None = None):
     return None
 
 
-def get_etf_snapshots(tickers: list[str], stale_to_zero: bool = False) -> dict[str, float]:
+def get_etf_snapshots(tickers: list[str], stale_to_zero: bool = False,
+                      failures: list | None = None) -> dict[str, float]:
     """Return intraday % change for a list of ETF tickers via batch snapshot.
 
     Returns dict mapping ticker -> change_pct float.
     Returns empty dict on Massive client failure.
     stale_to_zero: see get_batch_snapshots — used by the Theme Tracker's live 1D overlay so a
     name that hasn't traded in the current session reads 0% (not a stale prior-session move).
+    failures (TERM-082, additive): see get_batch_snapshots; a client failure appends "client".
+    Only forwarded when passed, so every existing caller's call is unchanged.
     """
     try:
-        return _get_client().get_batch_snapshots(tickers, stale_to_zero=stale_to_zero)
+        if failures is None:
+            return _get_client().get_batch_snapshots(tickers, stale_to_zero=stale_to_zero)
+        return _get_client().get_batch_snapshots(tickers, stale_to_zero=stale_to_zero,
+                                                 failures=failures)
     except Exception:
+        if failures is not None:
+            failures.append("client")
         return {}
 
 
-def get_etf_open_snapshots(tickers: list[str]) -> dict[str, float]:
+def get_etf_open_snapshots(tickers: list[str], failures: list | None = None) -> dict[str, float]:
     """Return each ticker's move FROM TODAY'S OPEN (%) via batch snapshot — the Theme Tracker's
-    "From Open" overlay. Empty dict on client failure. See get_batch_open_map."""
+    "From Open" overlay. Empty dict on client failure. See get_batch_open_map.
+    failures: as get_etf_snapshots (TERM-082, additive)."""
     try:
-        return _get_client().get_batch_open_map(tickers)
+        if failures is None:
+            return _get_client().get_batch_open_map(tickers)
+        return _get_client().get_batch_open_map(tickers, failures=failures)
     except Exception:
+        if failures is not None:
+            failures.append("client")
         return {}
 
 

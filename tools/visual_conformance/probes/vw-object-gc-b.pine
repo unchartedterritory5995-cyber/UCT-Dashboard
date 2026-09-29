@@ -1,0 +1,63 @@
+//@version=5
+indicator("UCTPROBE_VW_OBJECT_GC_B", overlay = false)
+
+// ─── 2026-09-28 — OBJECT-LANE TRIAGE C7, PROBE B OF 4: ONE DIMENSION AT A TIME ──
+//
+// Probe A reproduces the corpus split (contraction-box 50, makuchaku 51,
+// ultimate-pivot 51 at the default cap ≈ 50). THIS probe keeps A's cap (default,
+// no max_*_count) and changes exactly ONE thing per family, so each family pair
+// A.On / B.On isolates one suspect. Rules H1–H7 are defined in
+// `vw-object-gc-a.pine`; in one line each: H1 strict ≤ cap (ours), H2 cap+1 after
+// any create, H3a/b bar-end trim (last bar trimmed / not), H4 a bar's own creates
+// are spared, H5 local-block creates keep one more, H6 sporadic keeps one more,
+// H7 na coordinates are collected differently.
+//
+//   family  B's shape                          vs A's            isolates
+//   O1 boxes  "BB <bar>"  global, every bar,   A.O1 (na coords   H7 NA-COORD
+//                         REAL coordinates      on most bars)
+//   O2 labels "BL <bar>"  inside `if`, EVERY   A.O2 (sporadic)   H6 RATE
+//                         bar, real
+//   O3 lines  (no text)   GLOBAL scope, every  A.O3 (inside      H5 SCOPE (k = 3)
+//                         bar, 3 per bar,       `if`)
+//                         width 1, 2, 3
+//
+//   held at the end    H1   H2   H3a  H3b  H4   H5   H6   H7
+//   O1 boxes           50   51   50   51   50   50   50   ≠ A.O1
+//   O2 labels          50   51   50   51   50   51   50   —
+//   O3 lines           50   51   50   53   50   50   50   —
+//
+//   A.O1 == B.O1   ⇒ na coordinates do not matter (H7 dead)
+//   A.O2 − B.O2 = 1 ⇒ rate matters (H6); = 0 with both 51 ⇒ scope (H5) or H2
+//   A.O3 − B.O3 = 1 ⇒ scope matters (H5); = 0 ⇒ it does not
+//
+// ⭐ READ BY ID. Per bar the calls run in THIS order, every bar: box, label,
+// line w1, w2, w3 — five consecutive ids per bar, so bar b's ids are
+// (base + 5b … base + 5b + 4) and every held line's bar is decodable. Box and
+// label text carry the bar. The capture's x/y are vendor indices, NOT bar_index.
+//
+//   B00  bar_index                     CONTROL
+//   B01  barstate.isconfirmed ? 1 : 0  last bar 0 = captured while FORMING
+//   B02  barstate.islast ? 1 : 0
+//
+// ⛔ CAPTURE with probe A, same session, same two charts: AMEX:SPY 1D and
+// AMEX:SPY W, inputs at defaults (none), AFTER THE CLOSE.
+//
+// ours today (2026-09-28, `runOurSide` at d24d526e2 on the NYSE:RDDT 1D fixture's
+// 632 bars): TRANSLATES clean — 3 plots, 5 object ops, 0 drops. Holds 50 / 50 / 50
+// (H1): boxes BB 582..631, labels BL 582..631, lines 50.
+
+plot(bar_index, "B00_bar_index_CONTROL")
+plot(barstate.isconfirmed ? 1 : 0, "B01_isconfirmed")
+plot(barstate.islast ? 1 : 0, "B02_islast")
+
+// O1 — global scope, every bar, REAL coordinates (A.O1 with na coordinates removed)
+box.new(bar_index, 1.0, bar_index + 1, 0.0, text = "BB " + str.tostring(bar_index))
+
+// O2 — inside `if`, EVERY bar (A.O2 with the sporadic schedule removed)
+if close > 0
+    label.new(bar_index, 1.0, "BL " + str.tostring(bar_index))
+
+// O3 — GLOBAL scope, 3 per bar (A.O3 with the `if` removed)
+line.new(bar_index, 1.0, bar_index + 1, 1.0, width = 1)
+line.new(bar_index, 2.0, bar_index + 1, 2.0, width = 2)
+line.new(bar_index, 3.0, bar_index + 1, 3.0, width = 3)

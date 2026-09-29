@@ -1,0 +1,65 @@
+{
+  "_readme": [
+    "TERM-064 / FB-S2-02. The recorded population that is NOT the one ticker resolver",
+    "(api/services/ticker_resolver.py). tests/test_ticker_resolver.py fails BY NAME on a",
+    "resolver function or a restated stop vocabulary not listed here, and on a listed one",
+    "that no longer exists (this file may only shrink). A function that DELEGATES to",
+    "ticker_resolver is not a second resolver and never belongs here.",
+    "Migrating any entry below is a follow-up in",
+    "docs/terminal-research/10-roadmap/evidence/2026-09-29-term064/results.md."
+  ],
+  "functions": [
+    {
+      "path": "api/build_cancel_patches.py",
+      "name": "parse_ticker",
+      "reason": "Parses an OPRA option contract symbol (O:AAPL260821C00150000) into root/expiry/side/strike; a contract decoder, not free-text ticker resolution."
+    },
+    {
+      "path": "api/services/journal_two/broker/snaptrade_adapter.py",
+      "name": "extract_symbol",
+      "reason": "Reads the equity symbol out of a SnapTrade activity's structured symbol field; broker data, no text to disambiguate. Journal 2.0 broker path, not migrated here."
+    },
+    {
+      "path": "api/services/massive.py",
+      "name": "_resolve_symbol",
+      "reason": "Maps an app ticker to Massive's vendor symbol (entity-master vendor_symbol, else to_polygon_symbol); the dual-class REST boundary itself, which must stay separate from resolution."
+    },
+    {
+      "path": "api/services/tweet_ticker_extract.py",
+      "name": "extract_tickers",
+      "reason": "Tweet ingest: M5's cashtag-only grammar, owned by A8 (TERM-075, a8Taxonomy.json, shared with JS). Converging M5 with the resolver's cashtag tier is a follow-up, not this ticket."
+    },
+    {
+      "path": "api/services/wisdom/publish/adapters/badges.py",
+      "name": "parse_tickers",
+      "reason": "Splits an explicit comma-separated ?tickers= query parameter; the caller already named the symbols, nothing is resolved from prose. Wisdom program scope."
+    },
+    {
+      "path": "tools/audit_bars_bulk.py",
+      "name": "_resolve_tickers",
+      "reason": "Offline audit CLI: turns --tickers / --basket arguments into a list; an argument parser, not a product resolver."
+    },
+    {
+      "path": "tools/theme_curation/discover.py",
+      "name": "extract_tickers",
+      "reason": "Offline theme-curation tool: parses 'TICKER - reason' lines of a list-mode model answer by line position; a line-format parser whose output an operator reviews."
+    }
+  ],
+  "vocabularies": [
+    {
+      "path": "api/services/buzz_universe.py",
+      "context": "query",
+      "reason": "Discord /buzz HOUSE_VOCAB: the room's own jargon, derived from #main-chat's corpus with owner recall rulings; a different input kind with its own measured vocabulary."
+    },
+    {
+      "path": "api/services/compass_eval/checks.py",
+      "context": "headline",
+      "reason": "Report-card safety check over MODEL ANSWERS (price_without_tool); an eval harness token filter, not a product resolver."
+    },
+    {
+      "path": "api/services/journal_two/ask_retrieval.py",
+      "context": "headline",
+      "reason": "Notebook Ask retrieval token filter over a member's question; Notebook workstream scope, not migrated by this ticket."
+    }
+  ]
+}

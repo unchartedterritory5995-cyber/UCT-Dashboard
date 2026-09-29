@@ -14,6 +14,9 @@ from api.flow_admin_auth import require_flow_admin, require_flow_user
 # security fix that rewrites forty lines of a partner's file is a merge conflict
 # waiting to undo itself.
 from api.services import schwab_oauth_state as oauth_state
+# TERM-070: /market-narrative serves its last good answer while one refresh runs
+# behind the member. All of that lives in its own module, for the same reason.
+from api.services import market_narrative_swr
 logger = logging.getLogger(__name__)
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
@@ -256,6 +259,7 @@ async def market_summary():
     results = await schwab.get_market_summary()
     return {"indices": results}
 @router.get("/market-narrative")
+@market_narrative_swr.serve_last_good
 def market_narrative(_auth: dict = Depends(require_flow_user)):
     """Generate AI narrative of today's market using Claude + web search.
     Cached 30 min keyed by date — cuts cost ~15x without losing freshness
@@ -268,7 +272,7 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
     from api.services.cache import cache
     from api.services import llm_timeouts, narrative_cost_guard
     today = datetime.now()
-    cache_key = f"market_narrative_{today.strftime('%Y%m%d')}"
+    cache_key = market_narrative_swr.cache_key(today)
     cached = cache.get(cache_key)
     if cached is not None:
         return {"narrative": cached}

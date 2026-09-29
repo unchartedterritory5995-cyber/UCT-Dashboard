@@ -27,7 +27,7 @@
 
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../../nativeRegistry'
-import { createBinder } from '../../binder'
+import { createBinder, drawShiftOf } from '../../binder'
 import { addInstance } from '../../instanceControls'
 import { mergeChartSettings } from '../../../chartDefaults'
 import { objectReaderFor } from '../../objectColumns'
@@ -138,10 +138,33 @@ function drawnColours(def, bars, ctx) {
     const plot = plotByKey.get(b.plotKey) || {}
     const seriesColor = b.series.__options && b.series.__options.color
     const byTime = new Map(data.map((p) => [String(p.time), p]))
-    const colors = bars.map((bar) => {
-      const p = byTime.get(String(bar.t))
+    // ⭐⭐ A DISPLACED PLOT'S COLOUR IS READ WHERE THE RENDERER DREW IT.
+    // `offset = -N` draws the value computed on bar i at bar i - N (the binder's
+    // `displacedColumn`), and TradingView's study data keys that value — and its
+    // colour — to the computing bar i (the VALUES agree bar for bar, which is how
+    // this was established). Reading the point at the undisplaced bar i found
+    // nothing there: measured 2026-09-28 on liquidity-pools (offset -4, 46 bars
+    // "vendor #787b86ff vs ours none"), price-action-as-in-book (-5, 26 bars) and
+    // the legacy trendlines capture (-15). A value that would sit left of bar 0
+    // was never drawn by either platform, so its colour is not a reading
+    // (`undefined`, which the comparator skips), not a "none".
+    // ⛔ The shift is the binder's OWN `drawShiftOf`, never re-derived here.
+    const shift = drawShiftOf(plot)
+    const colors = bars.map((_bar, i) => {
+      const at = i + shift
+      if (at < 0) return undefined
+      const p = at < bars.length ? byTime.get(String(bars[at].t)) : null
       if (!p || !Number.isFinite(p.value)) return null
-      return withOpacity(p.color || seriesColor || plot.color, plot.opacity)
+      // ⭐⭐ WHAT THE RENDERER WAS HANDED IS FINAL. The pool already folded the
+      // plot's opacity into a point colour and a series colour (`withAlpha`,
+      // which MULTIPLIES through); re-applying `opacity` here REPLACED the
+      // colour's alpha. ⚰️ Measured 2026-09-28 on Ultimate Pivot Points' Pivot:
+      // the `na` branch is a palette entry `rgba(0, 0, 0, 0)`, the plot's
+      // opacity is 0.9, the renderer drew it at alpha 0 — and this read it
+      // `#000000e6`, a visible black line nobody drew. Only the definition's
+      // own colour, when the renderer was handed none, still takes the opacity.
+      const drawn = p.color || seriesColor
+      return drawn ? normalizeColor(drawn) : withOpacity(plot.color, plot.opacity)
     })
     out.set(b.plotKey, colors)
   }
@@ -153,12 +176,14 @@ function drawnColours(def, bars, ctx) {
 function objectsOf(def, bars, ctx) {
   if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
   try {
-    const reader = objectReaderFor(def, bars, { inputs: undefined, tf: ctx.tf, symbol: ctx.symbol })
+    const reader = objectReaderFor(def, bars, {
+      inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
+    })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
-      barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+      barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
     })
-    const state = toRenderState(run.live, { bars })
+    const state = toRenderState(run.live, { bars, tf: ctx.tf })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
     // runtime's LIVE set at the last bar — because that is what the capture's
@@ -204,6 +229,33 @@ function objectsOf(def, bars, ctx) {
 }
 
 /**
+ * The two doors a member's paste passes through, and nothing else: the builder
+ * (`memberPaneDefinition`, MemberPane.jsx's own call) and the install door
+ * (`installUserDefinitions`, which re-validates and can refuse what the builder
+ * accepted). `def` is the installed definition, or null with the door's own
+ * sentence in `refusal`.
+ *
+ * ⛔ ONE AUTHORITY FOR "CAN THE MEMBER DOOR BUILD THIS". `runOurSide` below and
+ * the vendor-batch manifest census (`memberDoorCensus.measure.test.js`) both
+ * call this, so the batch never targets a script the grader would then refuse
+ * for a reason the census did not see.
+ *
+ * ⚠️ On any path that reached the install door, the caller owns the uninstall
+ * (`registry.uninstallUserDefinition(HARNESS_DEF_ID)`).
+ */
+export function enterMemberDoor(source) {
+  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  if (!built.ok) {
+    return { built, def: null, stage: 'builder', refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}` }
+  }
+  const { installed, errors } = registry.installUserDefinitions([built.definition])
+  if (!installed.length) {
+    return { built, def: null, stage: 'install', refusal: `install door refused: ${errors.join(' | ')}` }
+  }
+  return { built, def: installed[0], stage: null, refusal: null }
+}
+
+/**
  * Run the member door on the capture's bars.
  *
  * @returns {{ok: boolean, refusal: string|null, plots: object[], objects: object,
@@ -212,16 +264,16 @@ function objectsOf(def, bars, ctx) {
 export function runOurSide(capture) {
   const notes = []
   const source = capture && capture.source && capture.source.text
-  const built = memberPaneDefinition({ source, id: HARNESS_DEF_ID, name: 'vendor harness' })
+  const door = enterMemberDoor(source)
+  const built = door.built
   if (!built.ok) {
-    return { ok: false, refusal: `member door refused${built.guard ? ` (${built.guard})` : ''}: ${built.reason}`, plots: [], notes }
+    return { ok: false, refusal: door.refusal, plots: [], notes }
   }
-  const { installed, errors } = registry.installUserDefinitions([built.definition])
   try {
-    if (!installed.length) {
-      return { ok: false, refusal: `install door refused: ${errors.join(' | ')}`, plots: [], notes }
+    if (!door.def) {
+      return { ok: false, refusal: door.refusal, plots: [], notes }
     }
-    const def = installed[0]
+    const def = door.def
     const bars = toProductBars(capture)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
@@ -265,6 +317,16 @@ export function runOurSide(capture) {
         missingReason,
         lookback: o && o.ast ? lookbackOf(o.ast) : null,
         colors: row && colours.byKey.has(row.key) ? colours.byKey.get(row.key) : null,
+        // A positive `offset = N` the translator wrote INTO the tree as `x[N]`
+        // (its `_treeShift` hand-off) — see compare.mjs `leadBy`.
+        treeShift: o && Number.isInteger(o._treeShift) && o._treeShift > 0 ? o._treeShift : 0,
+        // Why there are no colours, when there are none — so the verdict names the
+        // cause instead of "could not be resolved".
+        colorsReason: row && !colours.byKey.has(row.key)
+          ? (o && o.hidden
+            ? `our pane draws no series for this row — hidden (${o.hiddenReason || 'unstated'})`
+            : (colours.ok ? 'the binder bound no series for this row' : colours.reason))
+          : null,
       })
     }
     const objects = objectsOf(def, bars, ctx)

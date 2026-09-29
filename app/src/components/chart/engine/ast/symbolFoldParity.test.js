@@ -110,10 +110,21 @@ describe('R-K — the two lanes fold one symbol the same way', () => {
     // it must not invent them differently in the two lanes.
     for (const s of SYMBOLS) {
       const js = jsFold(s)
-      for (const m of ['mintick', 'type', 'currency', 'session']) {
+      for (const m of ['type', 'currency', 'session']) {
         expect(js[m], `${s.ticker}.${m}`).toMatch(/^REFUSED:/)
       }
     }
+  })
+
+  it('⭐⭐ `mintick` (2026-09-28) resolves PER EXCHANGE, identically in both lanes', () => {
+    // ⚰️ It was in the loop above until the tick table landed. Now the two
+    // witnessed exchanges answer the vendor's decimal (NYSE Arca: AMEX:SPY, and
+    // NASDAQ: AAPL/SNDL/NKLA — all 1 / 100) and a symbol with no exchange stops
+    // on the field BY NAME. The parity case above already compares the lanes
+    // string for string; this pins what they agree ON.
+    expect(jsFold(SYMBOLS[0]).mintick).toBe('0.01')
+    expect(jsFold(SYMBOLS[1]).mintick).toBe('0.01')
+    expect(jsFold(SYMBOLS[2]).mintick).toMatch(/^REFUSED:syminfo\.mintick/)
   })
 
   it('⭐⭐ THE RATIO TEST — `contains(ticker,"/")` answers without any witness', () => {

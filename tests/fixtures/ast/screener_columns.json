@@ -2269,7 +2269,7 @@
   },
   {
    "id": "32-money-flow-oversold",
-   "source": "mfi(high, low, close, volume, 14) < 20 ? 1 : 0",
+   "source": "mfiPine(high, low, close, volume, 14) < 20 ? 1 : 0",
    "ast": {
     "type": "op",
     "name": "?:",
@@ -2280,7 +2280,7 @@
       "args": [
        {
         "type": "call",
-        "name": "mfi",
+        "name": "mfiPine",
         "args": [
          {
           "type": "series",

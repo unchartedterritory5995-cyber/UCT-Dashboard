@@ -1,0 +1,40 @@
+//@version=6
+indicator("UCTPROBE_VW_INT_CAST", overlay = false)
+
+// ─── 2026-09-27 VOCABULARY WAVE — `int(x)` ON A FRACTIONAL FLOAT ─────────────
+//
+// `pine.js` folds `int(x)` ONLY when x is already whole, because TradingView's
+// behaviour on a FRACTIONAL float (truncate toward zero? floor? round?) was never
+// measured and the door refuses to pick one. `smarter-snr__ac98ab25d5` and
+// `atr-god-strategy-by-tradesmart__4369755a` refuse on it. Each constant below
+// has a DIFFERENT answer under each candidate rule, so a wrong rule reads as a
+// wrong NUMBER, never as an error:
+//
+//   value   trunc  floor  round-half-up  round-half-even
+//    2.7     2      2       3               3
+//   -2.7    -2     -3      -3              -3
+//    2.5     2      2       3               2
+//   -2.5    -2     -3      -3 (away) / -2  -2
+//    3.5     3      3       4               4      (the half-even control)
+//
+// I06–I08 repeat the question on a SERIES so the answer is not a compile-time
+// constant fold: the difference against `math.floor` / trunc must be 0 on every
+// bar for exactly one candidate. I09 is `int(na)` (must be `na`).
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, ≥ 200 bars, inputs at defaults. A COMPILE FAILURE on
+// any line is itself a reading — record the error text.
+
+plot(bar_index, "I00_bar_index_CONTROL")
+plot(int(2.7),  "I01_int_2p7")
+plot(int(-2.7), "I02_int_neg2p7")
+plot(int(2.5),  "I03_int_2p5")
+plot(int(-2.5), "I04_int_neg2p5")
+plot(int(3.5),  "I05_int_3p5_CONTROL")
+
+x = (close - open) / 0.37
+trunc(v) => v >= 0 ? math.floor(v) : math.ceil(v)
+plot(int(x) - trunc(x),      "I06_int_minus_TRUNC_series")
+plot(int(x) - math.floor(x), "I07_int_minus_FLOOR_series")
+plot(int(x) - math.round(x), "I08_int_minus_ROUND_series")
+plot(na(int(float(na))) ? 1 : 0, "I09_int_of_na_IS_NA")
+plot(x, "I10_x_RAW_so_negatives_are_visible")

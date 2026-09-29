@@ -28,6 +28,7 @@ import path from 'node:path'
 
 import { lexPine, blockStatements } from './pine.js'
 import { scanMutability, buildRuntimeIr } from './pineRuntimeFrontend.js'
+import { OOS_ABSENT, partialNote } from './__tests__/oosLocalOnly.js'
 
 const CORPORA = [
   ['oos1', '../tests/fixtures/pine_oos'],
@@ -124,7 +125,7 @@ REPORT.totals = {
 if (OUT) fs.writeFileSync(OUT, JSON.stringify(REPORT, null, 2))
 
 describe('2F-2 — runtime history demand across every corpus', () => {
-  it('reports both numbers, and they are different questions', () => {
+  it(`reports both numbers, and they are different questions${partialNote()}`, () => {
     /* eslint-disable no-console */
     console.log(`\n  ${'corpus'.padEnd(11)} ${'n'.padStart(3)}  earliest-blocker  syntactic-demand`)
     for (const [label, c] of Object.entries(REPORT.corpora)) {
@@ -137,7 +138,8 @@ describe('2F-2 — runtime history demand across every corpus', () => {
     console.log(`\n  deepest literal offset over a mutable name: ${REPORT.totals.maxLiteralOffsetSeen}`)
     console.log(`  scripts with a NON-literal offset:          ${REPORT.totals.scriptsWithNonLiteralOffset}`)
     /* eslint-enable no-console */
-    expect(REPORT.totals.scripts).toBeGreaterThan(150)
+    // ⏭ Licence-held pine_oos absentees are named in the title, not counted as read.
+    expect(REPORT.totals.scripts).toBeGreaterThan(150 - OOS_ABSENT.length)
   })
 
   it('⛔ the syntactic measure is a SUPERSET of the earliest-blocker measure', () => {

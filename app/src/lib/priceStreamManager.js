@@ -15,6 +15,17 @@
 //
 // Kill-switch: localStorage 'uct.ssePool.disabled' = '1' (read at module load
 // in useRealtimePrices.js) reverts to the legacy one-connection-per-hook path.
+//
+// Event ids (TERM-054): every server frame carries `id:`, and each bucket keeps
+// the newest one it saw. When a bucket RECONNECTS (error backoff or watchdog —
+// the same subscription coming back) it presents that id as `last_event_id`;
+// a bucket built for a changed union is a new subscription and presents none.
+// This pool closes and re-creates its EventSource, so the browser's own
+// Last-Event-ID header never fires — the query parameter is the door. The
+// server answers with `event: resume`: this stream is last-value-wins, so resume
+// is `not_applicable`, zero events are replayed, and the current snapshot that
+// follows is merged exactly like any other. The declaration is recorded
+// (getLastResume) and changes nothing else.
 
 import * as realtimeCandle from './realtimeCandle'
 import {
@@ -27,7 +38,8 @@ const INITIAL_RETRY_MS = 5000
 
 let _nextId = 1
 const _subscribers = new Map()  // id -> { tickers: string[], listener }
-let _buckets = []               // [{ key, tickers, es, connected, retryDelay, reconnectTimer, lastMsg }]
+let _buckets = []               // [{ key, tickers, es, connected, retryDelay, reconnectTimer, lastMsg, lastEventId }]
+let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _streamPrices = {}
 let _staleSymbols = new Set()
 let _rebuildTimer = null
@@ -71,6 +83,12 @@ function _publish() {
 
 export function getSnapshot() {
   return _snapshot
+}
+
+/** The newest resume declaration the server sent (or null): what it said, which
+ *  bucket received it, and when. Diagnostics only — see the header comment. */
+export function getLastResume() {
+  return _lastResume
 }
 
 export function subscribe(tickers, listener) {
@@ -117,6 +135,7 @@ function _rebuild() {
     const bucket = {
       key, tickers: chunk, es: null, connected: false,
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
+      lastEventId: null,   // a NEW subscription presents no id — it is not a resume
     }
     next.push(bucket)
     _connectBucket(bucket)
@@ -141,11 +160,25 @@ function _teardownBucket(bucket) {
 
 function _connectBucket(bucket) {
   if (typeof EventSource === 'undefined') return  // SSR / non-browser safety
-  const es = new EventSource(`/api/stream/prices?tickers=${bucket.key}`)
+  const resumeParam = bucket.lastEventId
+    ? `&last_event_id=${encodeURIComponent(bucket.lastEventId)}` : ''
+  const es = new EventSource(`/api/stream/prices?tickers=${bucket.key}${resumeParam}`)
   bucket.es = es
   bucket.lastMsg = Date.now()
 
-  const touch = () => { bucket.lastMsg = Date.now() }
+  // Every frame is liveness; every frame's id is the newest this bucket has seen.
+  const touch = (event) => {
+    bucket.lastMsg = Date.now()
+    if (event && event.lastEventId) bucket.lastEventId = event.lastEventId
+  }
+
+  es.addEventListener('resume', (event) => {
+    if (bucket.es !== es) return
+    touch(event)
+    try {
+      _lastResume = { ...JSON.parse(event.data), bucket: bucket.key, receivedAt: Date.now() }
+    } catch { /* malformed frame — ignore */ }
+  })
 
   es.onopen = () => {
     if (bucket.es !== es) return
@@ -157,7 +190,7 @@ function _connectBucket(bucket) {
 
   es.onmessage = (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       const prev = _streamPrices
@@ -184,11 +217,11 @@ function _connectBucket(bucket) {
     } catch { /* malformed frame — ignore */ }
   }
 
-  es.addEventListener('heartbeat', () => { if (bucket.es === es) touch() })
+  es.addEventListener('heartbeat', (event) => { if (bucket.es === es) touch(event) })
 
   es.addEventListener('stale', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       if (!data?.sym) return
@@ -202,7 +235,7 @@ function _connectBucket(bucket) {
 
   es.addEventListener('fresh', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       if (!data?.sym) return
@@ -216,7 +249,7 @@ function _connectBucket(bucket) {
 
   es.addEventListener('tick', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       if (data?.sym) realtimeCandle.applyTick(data.sym, data.price, data.vol, data.ts)
@@ -225,7 +258,7 @@ function _connectBucket(bucket) {
 
   es.addEventListener('bar_close', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       if (data?.sym && data?.bar) realtimeCandle.applyBarClose(data.sym, data.tf || '1', data.bar)
@@ -234,7 +267,7 @@ function _connectBucket(bucket) {
 
   es.addEventListener('bar_correction', (event) => {
     if (bucket.es !== es) return
-    touch()
+    touch(event)
     try {
       const data = JSON.parse(event.data)
       if (data?.sym && data?.bar) realtimeCandle.applyCorrection(data.sym, data.tf || '1', data.bar)
@@ -292,6 +325,7 @@ export function _resetForTests() {
   _subscribers.clear()
   _streamPrices = {}
   _staleSymbols = new Set()
+  _lastResume = null
   _snapshot = { prices: {}, staleSymbols: new Set(), connected: false }
 }
 

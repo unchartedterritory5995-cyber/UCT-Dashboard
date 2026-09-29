@@ -11,6 +11,10 @@
 //   | default when undeclared | **50** | ❌ 500 |
 //   | at the cap | **evict the OLDEST** | ❌ `fail()` — keep the oldest |
 //
+// ⭐ 2026-09-28 (triage C7): "at the cap" turned out to be BATCHED — Pine lets a
+// family reach cap + 5, then cuts it back to the cap — so the counts below are
+// `heldAfter(created, cap)`, not the cap itself. Oldest-first is unchanged.
+//
 // ⚰️⚰️ WHAT THE `fail()` COST, AND IT IS NOT SUBTLE. `liquidity-pools` hit the
 // cap and stopped creating, so the objects it still held were the OLDEST ones:
 // its newest surviving line was **2025-04-09** against a series running to
@@ -74,6 +78,16 @@ const run = (src) => runOver(src, BARS, SERIES)
 /** The bar each surviving object was created on, oldest first. */
 const createdBars = (r) => (r.live || []).map((o) => o.createdBar)
 
+/** ⭐ HOW MANY ONE-PER-BAR OBJECTS PINE HOLDS after `created` creates at `cap`.
+ *
+ *  Measured against TradingView 2026-09-28 (triage C7, `vw-object-gc-*.pine`):
+ *  the collector is BATCHED — nothing goes until a create passes `cap + 5`, then
+ *  the family is cut back to `cap` — so the held count cycles cap..cap+5 with
+ *  the phase of the last bar. Written out here rather than imported from
+ *  `objectPool.GC_BATCH`, so a change to that constant is caught by this file
+ *  instead of silently agreed with. */
+const heldAfter = (created, cap) => (created <= cap + 5 ? created : cap + ((created - cap - 6) % 6))
+
 describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
   it('⛔ CONTROL — the fixture really does overflow any default cap', () => {
     // ⭐ A script that never reaches the cap would make every assertion below
@@ -83,25 +97,29 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
     expect(POOL_LIMITS.line.ceiling).toBe(500)
   })
 
-  it('⭐⭐ an UNDECLARED script keeps 50 — Pine\'s default, not 500', () => {
+  it('⭐⭐ an UNDECLARED script is capped at 50 — Pine\'s default, not 500', () => {
+    // ⭐ The cap is 50; what is HELD is 50 plus the batch phase (see
+    // `heldAfter`): 220 creates at 50 hold 52. Under the old 500 it held 220.
+    expect(resolveCapacity('line', null).capacity).toBe(50)
     const r = run(oneLinePerBar(null))
-    expect(r.live.length).toBe(resolveCapacity('line', null).capacity)
-    expect(r.live.length).toBe(50)
+    expect(r.live.length).toBe(heldAfter(N, 50))
+    expect(r.live.length).toBe(52)
   })
 
   it('⭐⭐ and the 50 it keeps are the NEWEST — this is the whole defect', () => {
     // ⚰️ Before the fix the survivors were bars 0..49. `liquidity-pools` showed
     // what that means on a real chart: a year-stale set, drawn confidently.
     const bars = createdBars(run(oneLinePerBar(null)))
-    expect(bars.length).toBe(50)
+    expect(bars.length).toBe(52)
     expect(Math.min(...bars), 'the OLDEST objects survived — eviction is inverted')
-      .toBe(N - 50)
+      .toBe(N - 52)
     expect(Math.max(...bars)).toBe(N - 1)
   })
 
   it('⭐ a DECLARED max_lines_count is honoured, and clamped at Pine\'s ceiling', () => {
     // a declared cap BELOW the number of bars is observable directly
-    expect(run(oneLinePerBar('max_lines_count = 120')).live.length).toBe(120)
+    expect(run(oneLinePerBar('max_lines_count = 120')).live.length).toBe(heldAfter(N, 120))
+    expect(heldAfter(N, 120)).toBe(124)
 
     // ⛔ THE CEILING IS ASSERTED ON THE POLICY, NOT ON THE LIVE COUNT, AND THE
     // REASON IS THAT THE FIXTURE CANNOT SHOW IT. This script makes at most one
@@ -123,7 +141,7 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
       + `// max_lines_count = 500 would be nice here${LF}`
       + `indicator(${Q}t${Q}, overlay = true)${LF}`
       + `line.new(bar_index, low, bar_index, high)${LF}`
-    expect(run(src).live.length, 'a COMMENT set the drawing budget').toBe(50)
+    expect(run(src).live.length, 'a COMMENT set the drawing budget').toBe(heldAfter(N, 50))
   })
 
   it('⛔⛔ an EVICTED object leaves every CONTAINER that named it', () => {
@@ -163,7 +181,7 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
 
     const r = runOver(src, bars, seriesOf(bars))
     expect(r.status, `the run refused: ${r.reason}`).toBe(OBJECT_STATUS.OK)
-    expect(r.live.length, 'the quota stopped holding while the array grew').toBe(50)
+    expect(r.live.length, 'the quota stopped holding while the array grew').toBe(heldAfter(LONG, 50))
   })
 
   it('⛔⛔ A LINEFILL DIES WITH ITS LINES — it is not an independent object', () => {
@@ -198,7 +216,7 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
     for (const o of r.live) byFam[o.family] = (byFam[o.family] || 0) + 1
     // ⭐ CONTROL — the fixture really does evict, or there is nothing to cascade
     expect(byFam.line, 'the line pool never filled — this fixture proves nothing')
-      .toBe(50)
+      .toBe(heldAfter(2 * N, 50))
 
     // ⛔ THE CLAIM: no fill outlives its lines. Two lines per fill, so the live
     // fills can never exceed half the live lines.
@@ -231,7 +249,7 @@ describe('⛔⛔ the drawing quota evicts the OLDEST, as Pine does', () => {
     const r = run(src)
     const byFam = {}
     for (const o of r.live) byFam[o.family] = (byFam[o.family] || 0) + 1
-    expect(byFam.line).toBe(50)
-    expect(byFam.box).toBe(50)
+    expect(byFam.line).toBe(heldAfter(N, 50))
+    expect(byFam.box).toBe(heldAfter(N, 50))
   })
 })
