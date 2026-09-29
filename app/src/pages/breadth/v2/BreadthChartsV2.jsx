@@ -31,7 +31,8 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { useIsPhone } from '../../../hooks/useBreakpoint'
 import useBreadthSeries, { MAX_KEYS } from './useBreadthSeries'
-import { useDcFlags } from './flag'
+import { useDcFlags, DC_FLAG_KEYS } from './flag'
+import BetaMark from '../../../components/featureStatus/BetaMark'
 import { buildOption, DEFAULT_CHROME, LIGHT_CHROME, LOG_UNITS, formatValue } from './chartOption'
 import { panelsFor } from './panels'
 import { todayET, shiftISO } from '../sessionDates'
@@ -457,6 +458,8 @@ export default function BreadthChartsV2({ keys, from, to }) {
 
   return (
     <section className={styles.root} data-testid="breadth-charts-v2" aria-label="Data Charts">
+      {/* TERM-039: renders only while an increment is an owner preview for this member. */}
+      <BetaMark ids={[DC_FLAG_KEYS.v22, DC_FLAG_KEYS.v23]} />
       <div className={styles.controls}>
         {!isControlled && (
           <PresetRow
