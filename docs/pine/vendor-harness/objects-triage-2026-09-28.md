@@ -634,3 +634,28 @@ check, and the object-pass confinement — bytes restored and sha-verified.
 | 8 | C8 `chart.left_visible_bar_time` | sector-rotation (1) | not answerable on a bar series (it is viewport state) — a named refusal is the correct end state |
 | 9 | C15 remainder (after step 14) — every C15 script now stops on another class | ema-ribbon (C10 MTF cells, C12 `trendBars`/`f_strengthBar` loop), vold (C10), artemis (C9/C10/C11/C12) | named, not built: (a) **v6 `timeframe.period` spelling** — the withheld ema-ribbon cells need the one value three lanes read changed (vendor evidence so far: on a v6 1D chart `timeframe.period == "D"` is FALSE, capture `ema-ribbon-…-2026-09-28` cell (0,9) `   1D`); a capture that prints `timeframe.period` itself on a v6 D/W/M chart settles it. A refinement that serves a branch whose OUTCOME is the same under both spellings (ema-ribbon's `f_tfLabel`: `"D" => "1D"` and default `=> timeframe.period` both give `1D`) would recover (0,5) without it. (b) **a position built by concatenating `input.string`s** (`vold`: `i_tableYpos + "_" + i_tableXpos`) is dropped (`enumUnreadable`, `table.position@15`) and falls to Pine's default `top_right`, which equals the vendor's `pos` at the only value the member door can have (input strings have no knob) — correct today by construction, not built. (c) **artemis' wrong cells are C12's** (see step 13) — the one case in this lane where we DRAW a text the vendor lacks |
 
+
+## Rulings, 2026-09-29 (owner delegated both to the integrator: "you decide all of that for the indicators")
+
+**R-W: the warm-up curtain (`pine.js::PINE_STATE_WARMUP`) STAYS, and gains one exact exception.**
+- Default unchanged: a translated `var` accumulates over a bounded 250-bar window, and any value or
+  object that reads it inside the warm-up is WITHHELD by name. Seeding from wherever a fetch starts is
+  REJECTED: that value changes when a member pans, and it matches TradingView only if our first bar is
+  the vendor's first bar, which we cannot know in general. A guess drawn on the chart is worse than a
+  named refusal (standing rule).
+- The exception, and the only one: when the loaded series PROVABLY starts at the symbol's first-ever
+  bar (the fetch returned fewer bars than it asked for, so history is exhausted), our bar 0 is the
+  vendor's bar 0 and a `var` seeded there is exact, bar counters included. That case may seed from
+  bar 0 and lift the curtain. Queued as lane **C12w** after C9 / C11b / C14; it needs the "history
+  exhausted" fact threaded from the bars fetch to the engine, and a vendor capture on a recent-IPO
+  symbol (whole history under 5,000 daily bars) as its witness. Until C12w lands, nothing changes.
+
+**R-R: `syminfo.root` is served as `syminfo.ticker` for the equities this engine screens, ONCE MEASURED.**
+- Pine's documented behaviour is that `root` equals `ticker` for any symbol that is not a derivative.
+  Under the file's own rule (an unconfirmed spelling is never served) that is a prediction, not a
+  witness, so the field stays in `symbolScope.json::unserved` until `probes/syminfo-roster.pine`
+  (already written, row 1 of `docs/pine/OWNER-CAPTURE-PACKET.md`) is captured on SPY / AAPL / BRK.B / F.
+- If the capture shows `root == ticker` on every equity witness, move `root` from `unserved` to a
+  served name that folds to the ticker, with the capture as its witness. That unblocks
+  `position-size-calc`'s ten cells as far as C10 allows. If any witness disagrees, it stays refused
+  and the reason is rewritten to name the measurement.
