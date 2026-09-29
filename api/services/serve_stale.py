@@ -65,9 +65,16 @@ class ServeStale:
 
     # ── slot state ────────────────────────────────────────────────────────────
 
-    def remember(self, key: str, value: Any) -> None:
+    def remember(self, key: str, value: Any, *, at: float | None = None) -> None:
+        """Hold `value` as `key`'s last good payload.
+
+        `at` is when the payload was BUILT (unix time), for a caller restoring
+        one it carried across a restart (TERM-070). The slot's age — and so the
+        `max_age` bound — counts from that build, never from the restore: a
+        deploy must not extend a payload's servable life by even a second.
+        Omitted, it is now, which is every in-process caller's case."""
         with self._lock:
-            self._slots[key] = (value, time.time())
+            self._slots[key] = (value, time.time() if at is None else float(at))
             self._prune_locked()
 
     def _prune_locked(self) -> None:
