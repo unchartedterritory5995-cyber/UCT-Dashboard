@@ -17,6 +17,10 @@ import { parseFundamentalSource } from './fundamentalGrammar'
 import { catalogMetric } from './fundamentalSeries'
 import { parseEconomicSource } from './economicGrammar'
 import { economicMeta } from './economicSeries'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+
+// Barrels always read in millions (a stock of crude is never "0.4B" or "426,398K").
+const MBBL_TIERS = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
 
 function compact(v, digits = 2) {
   const n = Math.abs(v)
@@ -96,8 +100,9 @@ export function formatFundamentalValue(v, key) {
     case 'usd3': return usd(Math.abs(x).toFixed(3), x)
     // a count of people: 231,000 claims -> 231.0K, 159.5M payrolls -> 159.50M
     case 'k_persons': return signed(compact(x, 2), x)
-    // barrels: 426,398 thousand bbl (scale 1000) -> 426.4M bbl
-    case 'mbbl': return `${grouped(x / 1e6, 1)}M bbl`
+    // barrels: 426,398 thousand bbl (scale 1000) -> 426.4M bbl. The M suffix is
+    // decided by the shared primitive (TERM-066 census: no hand-rolled K/M/B/T).
+    case 'mbbl': return `${formatCompact(x, { tiers: MBBL_TIERS })} bbl`
     // natural gas storage, already in Bcf
     case 'bcf': return `${grouped(x, 0)} Bcf`
     default: return x.toFixed(2)

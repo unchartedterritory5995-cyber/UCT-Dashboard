@@ -185,3 +185,25 @@ def test_reasons_never_carry_secrets(s):
     _, reasons = va.validate_fetch(spec(), fr_, s, now=NOW)
     assert reasons and all("SECRET" not in r and "registrationkey" not in r and "garbage" not in r
                            for r in reasons)
+
+
+def test_partial_tolerates_a_dropped_daily_holiday_null_only(s):
+    """A pre-fix DB holds ND holiday rows (value None) of a daily series; the adapter now drops
+    them, so a history payload omitting ONLY those nulls is complete. Omitting a VALUED day
+    (or a null of a monthly series) is still partial."""
+    d = spec(sym="UST10Y", freq="D", rev="none")
+    days = [("2026-09-03", 4.1), ("2026-09-04", 4.2), ("2026-09-07", None), ("2026-09-08", 4.3)]
+    held = [RawObs("UST10Y", p, p, v) for p, v in days]
+    store_obs(s, held, sym="UST10Y")
+    no_holiday = [o for o in held if o.value is not None]
+    assert va.validate_fetch(d, fr(no_holiday), s, now=NOW, mode="history")[1] == []
+    # negative control: dropping a valued day is still refused
+    r = va.validate_fetch(d, fr([o for o in no_holiday if o.period_start != "2026-09-04"]), s, now=NOW,
+                          mode="history")[1]
+    assert r and r[0].startswith("partial:") and "1 stored period" in r[0]
+    # negative control: a stored null of a MONTHLY series must still be covered
+    hist = series(n=6)
+    hist[2] = RawObs("USCPI", hist[2].period_start, hist[2].period_end, None)
+    store_obs(s, hist)
+    r = va.validate_fetch(spec(), fr([o for i, o in enumerate(hist) if i != 2]), s, now=NOW, mode="history")[1]
+    assert r and r[0].startswith("partial:")

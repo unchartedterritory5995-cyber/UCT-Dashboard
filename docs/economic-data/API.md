@@ -48,8 +48,17 @@ Contract source: `PHASE1-DESIGN.md` "Member API"; frontend reader: `app/src/comp
 - **meta is a whitelist** (`publish.meta_for`): never `licensing`, `params`, adapter, `catalog_row` (FRED equivalents),
   verification evidence or keys. Added over the design sketch: `source.provider_series_id` (public agency identity),
   `source.line` (the per-chart source line), `derivation:{op,inputs}|null` (a UCT calculation must say so — BLS/BEA/Census
-  terms), `source.attribution_keys` only when more than one, `max_age_days` only when the registry sets it.
-- **currentness** is read from `series_state` (owned by `currentness.py`) + the next active `calendar_event` for the
+  terms), `source.attribution_keys` only when more than one, and `max_age_days` (always present, 2026-09-29).
+- **`meta.max_age_days`** = calendar days a value stays the current value, measured from its AVAILABILITY `t` (not
+  period end): one normal release interval plus grace. `registry.max_age_days`: D 10 · W 13 · M 45 · Q 120 · A 400 ·
+  IRREG `null` (= unlimited); a registry `presentation.max_age_days` (positive number or `null`) overrides. Checked
+  against every enabled series' consecutive first-availability gaps: outside funding lapses and agency outages the
+  maxima are D 8 d, W 12.6 d (EIA Christmas-2025 schedule), M 33 d, Q 98 d, so a break on an overlay means a real gap.
+- **As-of views carry no currentness claim** (2026-09-29): an `?asof=` payload's `currentness` is exactly
+  `{"state": null, "historical": true}` in every serving mode (`publish.historical_currentness`; the artifact-mode
+  status overlay is skipped). `series_state` describes NOW, so attaching it to history (e.g. CURRENT on the FHFA view
+  one second before the July release) was a false claim. The frontend already pins as-of to historical.
+- **currentness** (latest view) is read from `series_state` (owned by `currentness.py`) + the next active `calendar_event` for the
   series' `release.calendar_key` (on/after today ET). No state row → `NO_EXPECTATION` if data exists, else
   `UNINITIALIZED`: the serving layer never infers, and never claims `CURRENT` by itself.
 - **Artifact-mode currentness** (`serving._status_currentness`, 2026-09-29): a series artifact is rewritten only when its

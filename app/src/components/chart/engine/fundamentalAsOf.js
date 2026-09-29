@@ -107,9 +107,14 @@ function periodAgeDays(refSec, pe) {
  *   08:30:00 release reach the 08:25-08:30 bar whose close printed BEFORE it --
  *   harmless for filings, a one-bar look-ahead for scheduled macro releases.
  *   D/W/M reference times are 16:00 ET and are unaffected.
+ * @param {'period'|'available'} [opts.ageFrom='period']  what the staleness limit is
+ *   measured FROM. 'period' (fundamentals, unchanged): the point's period END `pe`.
+ *   'available' (economic series): the point's own `t` -- a release stays current
+ *   until the next one is due, however long after its period the agency publishes
+ *   (FHFA prints ~60 d after the month, so a period-end clock blanked most of it).
  * @returns {Int32Array}
  */
-export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodAgeDays = MAX_PERIOD_AGE_DAYS, strict = false } = {}) {
+export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodAgeDays = MAX_PERIOD_AGE_DAYS, strict = false, ageFrom = 'period' } = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
   const out = new Int32Array(n).fill(-1)
   const pts = Array.isArray(points) ? points : []
@@ -126,7 +131,9 @@ export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodA
     else { while (j + 1 < pts.length && pts[j + 1].t <= ref) j++ }
     if (j < 0) continue
     const p = pts[j]
-    if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
+    if (ageFrom === 'available') {
+      if (Number.isFinite(p.t) && Math.floor((ref - p.t) / DAY) > maxPeriodAgeDays) continue
+    } else if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
     out[i] = j
   }
   return out

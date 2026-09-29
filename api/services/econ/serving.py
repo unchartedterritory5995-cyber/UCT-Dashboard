@@ -145,6 +145,7 @@ def _from_artifacts(sym: str, asof, start, end) -> Optional[dict]:
     if not isinstance(vint, dict) or vint.get("symbol") != sym:
         return None
     body["view"], body["asof"] = "asof", int(asof)
+    body["currentness"] = P.historical_currentness()      # the latest artifact's block describes NOW
     body["points"] = P.points_from_vintages(vint.get("rows") or [], asof=asof, start=start, end=end)
     return body
 
@@ -166,7 +167,9 @@ def series(symbol: str, asof: Optional[int] = None, start: Optional[str] = None,
     # ⛔ belt and braces: meta always from the web build's registry (the whitelist),
     # never whatever dict the artifact happened to carry
     body = dict(body)
-    if mode() != "db":
+    if asof is not None:
+        body["currentness"] = P.historical_currentness()   # never overlay NOW onto history
+    elif mode() != "db":
         cur = _status_currentness(sym)
         if cur is not None:
             body["currentness"] = cur

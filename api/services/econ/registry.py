@@ -129,6 +129,28 @@ def cohort() -> list[dict]:
     return [e for e in load_registry() if e.get("cohort") is True]
 
 
+# ─── staleness: how long a published value stays the CURRENT value ───────────
+# Measured from AVAILABILITY (the point's `t`), not from period end: a value is
+# valid until the next release is expected, plus grace. Defaults per frequency,
+# checked against every enabled series' consecutive first-availability gaps in
+# the local DB (2026-09-29): outside funding lapses / agency outages the max is
+# D 8 d (holiday weekends), W 12.6 d (EIA Christmas-2025 schedule; the 2022/2023
+# WPSR outages are 14.0 d and SHOULD break), M 33 d, Q 98 d.
+# None = unlimited (a policy target holds until replaced).
+MAX_AGE_DAYS = {"D": 10, "W": 13, "M": 45, "Q": 120, "A": 400, "IRREG": None}
+
+
+def max_age_days(entry: dict) -> Optional[int]:
+    """Days a value stays current after its availability (`t`). Registry override:
+    `presentation.max_age_days` (a positive number, or null = unlimited)."""
+    pres = entry.get("presentation") if isinstance(entry.get("presentation"), dict) else {}
+    for src in (pres, entry):                    # top-level `max_age_days` = legacy spelling
+        if "max_age_days" in src:
+            v = src["max_age_days"]
+            return None if v is None else int(v) if float(v).is_integer() else v
+    return MAX_AGE_DAYS.get(str(entry.get("frequency") or "").upper(), None)
+
+
 def members_for_search() -> list[dict]:
     """What a member can discover: enabled MEMBER series (support series are inputs only)."""
     return [e for e in enabled() if e.get("role") == Role.MEMBER.value]
@@ -261,6 +283,10 @@ def validate_registry(entries: Optional[list] = None, *, attributions: Optional[
             E(f"{sym}: seasonal_adjustment {e['seasonal_adjustment']!r} invalid")
         if (e.get("presentation") or {}).get("style") not in styles:
             E(f"{sym}: presentation.style invalid")
+        if isinstance(e.get("presentation"), dict) and "max_age_days" in e["presentation"]:
+            ma = e["presentation"]["max_age_days"]
+            if ma is not None and (isinstance(ma, bool) or not isinstance(ma, (int, float)) or not ma > 0):
+                E(f"{sym}: presentation.max_age_days must be a positive number or null")
         # units
         u = e["units"] if isinstance(e["units"], dict) else {}
         if u.get("fmt") not in FMTS:

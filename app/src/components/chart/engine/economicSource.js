@@ -25,10 +25,16 @@
 import { projectAsOfIndices, closeUtcSeconds } from './fundamentalAsOf'
 import { economicMeta } from './economicSeries'
 
-/** Calendar days an observation stays current, measured from its PERIOD END.
- *  `IRREG` (a policy target) holds until the next decision replaces it. A
- *  server-stated `meta.max_age_days` wins over this table. */
-export const ECON_MAX_AGE_DAYS = Object.freeze({ D: 7, W: 21, M: 75, Q: 200, A: 400, IRREG: Infinity })
+/** Calendar days an observation stays current, measured from its AVAILABILITY
+ *  (`t`, the release instant) -- one normal release interval plus grace, so a value
+ *  holds until its successor is due. `IRREG` (a policy target) holds until the next
+ *  decision replaces it. The server states `meta.max_age_days` (registry frequency
+ *  default or `presentation.max_age_days`; `null` = unlimited) and it wins over this
+ *  table, which is the fallback for a payload without it and mirrors
+ *  `api/services/econ/registry.MAX_AGE_DAYS`.
+ *  ⛔ NOT from period end: FHFA publishes ~60 d after the month, so the old
+ *  "75 d from pe" blanked most of every month on an overlay. */
+export const ECON_MAX_AGE_DAYS = Object.freeze({ D: 10, W: 13, M: 45, Q: 120, A: 400, IRREG: Infinity })
 
 /** The fallback when a series states no known frequency: fundamentals' limit. */
 const DEFAULT_MAX_AGE_DAYS = 200
@@ -46,6 +52,7 @@ export function frequencyOf(meta) {
 }
 
 export function maxAgeDaysOf(meta) {
+  if (meta && Object.prototype.hasOwnProperty.call(meta, 'max_age_days') && meta.max_age_days === null) return Infinity
   const stated = meta && Number(meta.max_age_days)
   if (Number.isFinite(stated) && stated > 0) return stated
   const f = frequencyOf(meta)
@@ -141,7 +148,7 @@ function _idOf(obj) {
  */
 export function projectEconomic(points, bars, tf, { meta = null, placement = PLACEMENTS.AVAILABLE, nowSec = null } = {}) {
   const pts = placePoints(points, placement)
-  const indices = projectAsOfIndices(pts, bars, tf, { nowSec, maxPeriodAgeDays: maxAgeDaysOf(meta), strict: true })
+  const indices = projectAsOfIndices(pts, bars, tf, { nowSec, maxPeriodAgeDays: maxAgeDaysOf(meta), strict: true, ageFrom: 'available' })
   const out = new Array(indices.length).fill(NaN)
   for (let i = 0; i < indices.length; i++) {
     const j = indices[i]
@@ -230,7 +237,13 @@ function _daysBetween(a, b) {
   return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / DAY_MS)
 }
 
-/** One series' observations keyed by ET date; the later PERIOD wins a shared date. */
+const _valued = (p) => !!p && Number.isFinite(p.v)
+
+/** One series' observations keyed by ET date; the later PERIOD wins a shared date.
+ *  ⛔ A NULL NEVER DISPLACES A VALUED POINT: a provider "no data" row that shares a
+ *  placement date with a real value (a holiday placed at the prior business day's
+ *  release, a lapse-cancelled month co-released with its successor) must not blank
+ *  that value -- between two valued points, or two nulls, the later period wins. */
 function _rowsOf(points, placement) {
   const placed = placement === PLACEMENTS.PERIOD ? placePoints(points, PLACEMENTS.PERIOD) : (Array.isArray(points) ? points : [])
   const byDate = new Map()
@@ -241,7 +254,8 @@ function _rowsOf(points, placement) {
     const prev = byDate.get(date)
     if (prev) {
       collapsed += 1
-      if (String(p.pe || '') < String(prev.pe || '')) continue
+      if (_valued(prev) && !_valued(p)) continue
+      if (_valued(prev) === _valued(p) && String(p.pe || '') < String(prev.pe || '')) continue
     }
     byDate.set(date, p)
   }
@@ -304,16 +318,19 @@ export function economicTimelineOf(list, { placement = PLACEMENTS.AVAILABLE, gri
     collapsed += s.collapsed
     const maxAge = maxAgeDaysOf(s.meta || { frequency: s.frequency })
     const own = []                         // this series' rows, in date order
+    const ownDate = []                     // ...and the timeline date each sits on
     const indices = new Int32Array(dates.length).fill(-1)
     const column = new Array(dates.length).fill(NaN)
     let cur = -1
     for (let i = 0; i < dates.length; i++) {
       const p = s.byDate.get(dates[i])
-      if (p) { own.push(p); cur = own.length - 1 }
+      if (p) { own.push(p); ownDate.push(dates[i]); cur = own.length - 1 }
       if (cur < 0) continue
       const q = own[cur]
       const exact = !!p
-      if (!exact && q.pe && _daysBetween(q.pe, dates[i]) > maxAge) continue
+      // age from the row's own placement date (its availability, or its period start
+      // under 'period' placement) -- the same clock as the overlay projection
+      if (!exact && _daysBetween(ownDate[cur], dates[i]) > maxAge) continue
       indices[i] = cur
       column[i] = Number.isFinite(q.v) ? q.v : NaN
     }

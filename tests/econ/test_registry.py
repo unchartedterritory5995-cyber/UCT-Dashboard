@@ -383,3 +383,19 @@ def test_committed_file_mutations_fire():
     e["source"]["adapter"] = "derived"
     e["derivation"] = {"op": "diff", "inputs": ["USCPIYOY"], "params": {}, "version": 1}
     assert any("circular derivation" in x for x in R.validate_registry(ents))
+
+
+def test_presentation_max_age_days_override_is_validated():
+    ok = _base()
+    ok[0]["presentation"] = {"style": "line", "max_age_days": 90}
+    ok[1]["presentation"] = {"style": "line", "max_age_days": None}      # explicit unlimited
+    assert not [e for e in _errs(ok) if "max_age_days" in e]
+    for bad in (0, -3, "45", True):
+        b = _base()
+        b[0]["presentation"] = {"style": "line", "max_age_days": bad}
+        assert any("max_age_days" in e for e in _errs(b)), bad
+
+
+def test_max_age_days_defaults_measure_one_release_interval_plus_grace():
+    assert [R.max_age_days({"frequency": f}) for f in ("D", "W", "M", "Q", "A", "IRREG")] == [10, 13, 45, 120, 400, None]
+    assert R.max_age_days({"frequency": "M", "presentation": {"max_age_days": 60}}) == 60

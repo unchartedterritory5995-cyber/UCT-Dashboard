@@ -175,6 +175,9 @@ Verification:
 
 See `LIVE-RELEASES.md` "Rebuild 2026-09-29" and `C:\w\econ1-data\rebuild-report-2026-09-29.json`.
 
+### Rebuild 2 (2026-09-29): holiday ND rows
+H.15 `ND` ("No data") rows of daily series are no longer observations (fed_ddp drops them; `rebuild_local_db.py --drop-non-emitted` removed 1,272 from the local DB, UST10Y 720 / UST2Y 552, proven against the archived payload). Consequence for placement: the Thursday before Good Friday (and 2001-09-10) now reaches the next day with an observation, one business day later than before (42 rows, all later, none earlier). See LIVE-RELEASES.md "Rebuild 2".
+
 ## 6. OWNER REVIEW: correcting backfill timing after production launch
 
 No production data exists yet, so **no action is needed before launch**. The local correction above was possible because the store is append-only for observations but the local DB could be rebuilt from scratch. That will not be true once members have seen the data.

@@ -306,7 +306,7 @@ function columnFor(sym) {
   const e = STATE.entries.get(sym)
   if (!e || !e.points) return null
   if (STATE.timeline) return STATE.timeline.columns.get(sym) || null
-  const idx = projectAsOfIndices(e.points, BARS, SC.tf, { maxPeriodAgeDays: maxAgeDaysOf(e.meta), strict: true })
+  const idx = projectAsOfIndices(e.points, BARS, SC.tf, { maxPeriodAgeDays: maxAgeDaysOf(e.meta), strict: true, ageFrom: 'available' })
   const col = Array.from(idx, (j) => (j >= 0 && Number.isFinite(e.points[j].v) ? e.points[j].v : NaN))
   Object.defineProperty(col, '__econ', { value: { indices: idx, points: e.points, frequency: frequencyOf(e.meta) } })
   return col

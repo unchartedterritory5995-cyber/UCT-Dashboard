@@ -52,6 +52,18 @@ the registry is updated, never silently re-scaled.
 Missing markers: CSV ``ND`` / ``NC`` / ``NA`` / empty, SDMX ``OBS_STATUS`` in
 {ND, NC, NA} or the ``-9999`` sentinel -> ``None`` (never 0).
 
+``ND`` on a DAILY series is not an observation. The release zip's own code list
+(``H15_struct.xml`` CL_OBS_STATUS, archived 2026-09-28) reads: A "Normal",
+NA "Not available", ND "No data", NC "Not calculable". H.15 business-day
+series (FREQ 9) carry ND exactly on market holidays (UST10Y: 720 ND, 0 NA/NC,
+every one a federal/SIFMA holiday or closure). A holiday has no period, so
+``to_obs`` DROPS ND rows of frequency-D series (``DROP_NO_DATA_FREQS``); NA/NC
+(a genuinely missing value for a day that exists) and empty cells stay ``None``.
+Non-daily ND rows stay ``None`` (a stated missing period). Keeping the holiday
+row placed a null at the prior business day's availability time, where it won
+the same-date collapse and masked the real value (481 UST10Y2Y points, 548
+breaks in the 2026-09-29 harness).
+
 Periods come from the registry frequency: D -> the day; W -> the 7-day week
 ending on the stated date (H.4.1 Wednesday); M/Q/A -> the calendar period that
 contains the stated label (CSV "2026-08", SDMX month-END date "2026-08-31").
@@ -90,6 +102,8 @@ LATEST_N = {"D": 10, "W": 8, "M": 13, "Q": 8, "A": 3, "IRREG": 10}
 
 NA_TOKENS = frozenset({"ND", "NC", "NA", "N/A", ""})
 NA_STATUSES = frozenset({"ND", "NC", "NA"})
+NO_DATA = "ND"                        # "No data": a non-business day of a business-day series
+DROP_NO_DATA_FREQS = frozenset({"D"})
 SENTINEL = -9999.0
 
 _REL_RE = re.compile(r"^[A-Za-z][A-Za-z0-9.]{0,15}$")
@@ -413,6 +427,13 @@ def select_series(parsed: dict, spec: SeriesSpec) -> dict:
     return series
 
 
+def is_no_data(raw: Any, status: Optional[str] = None) -> bool:
+    """The provider's ND ("No data") marker: SDMX OBS_STATUS=ND, or a CSV cell 'ND'."""
+    if status is not None and str(status).strip().upper() == NO_DATA:
+        return True
+    return status is None and str(raw if raw is not None else "").strip().upper() == NO_DATA
+
+
 def to_obs(spec: SeriesSpec, series: dict) -> list[RawObs]:
     out: dict[str, RawObs] = {}
     for row in series["rows"]:
@@ -421,6 +442,8 @@ def to_obs(spec: SeriesSpec, series: dict) -> list[RawObs]:
         if label is None or not str(label).strip():
             raise MalformedPayload(f"{spec.symbol}: row without a period label")
         ps, pe = period_of(label, spec)
+        if _freq(spec) in DROP_NO_DATA_FREQS and is_no_data(raw, status):
+            continue                                  # a holiday: no period exists
         v = parse_value(raw, status)
         flag = ""
         if status and str(status).upper() not in ("A",) and str(status).upper() not in NA_STATUSES:

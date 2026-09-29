@@ -21,12 +21,24 @@ WHAT IS CARRIED AND HOW
       ':retimed-<date>'.
   recomputed: every derived series (derive.derive_and_write, dependency order); derived
       release ids are allocated after the carried ones.
+  dropped (only with --drop-non-emitted): a BACKFILL row the CURRENT adapter would not
+      emit from the SAME archived payload it was written from. The row's acquisition
+      archive (`local:<adapter>/<sha>.bin` under --archive-dir) is re-normalised through
+      the adapter's own parser (`NORMALIZERS`); a NULL row whose period is absent from
+      that output is dropped (2026-09-29: fed_ddp daily ND = market-holiday "No data").
+      Fail closed: a candidate with no archive, a payload that no longer parses, or a
+      VALUED row the adapter would not emit aborts the rebuild. Live rows are never
+      dropped (carried verbatim). The dropped periods are also removed from the period
+      list backfill placement reads, i.e. the survivors are placed under current rules.
 
 VERIFY (report + non-zero exit on any failure)
-  counts per (series, kind) equal the old DB for backfill + live; every live row
+  counts per (series, kind) equal the old DB for backfill + live (backfill: minus the
+  dropped rows, exactly); every live row
   identical; 0 rows available before their release's scheduled time; audit_derived clean;
   latest (value, flag) per period identical to the old DB for EVERY series (derived
-  included); the configured as-of probes (FHFA June, JOLTS July by default).
+  included) apart from the dropped NULL periods (and a derived NULL on one of them);
+  0 daily null rows sharing an ET availability date with a valued row; the configured
+  as-of probes (FHFA June, JOLTS July by default).
 """
 from __future__ import annotations
 
@@ -38,6 +50,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -60,11 +73,67 @@ DEFAULT_PROBES = [
 ]
 
 
+# --- what the CURRENT adapter emits from an archived payload -------------------
+
+def _fed_ddp_emitted(spec_entry: dict, body: bytes) -> set:
+    """period_starts fed_ddp.to_obs emits for this series from an archived payload."""
+    from api.services.econ.adapters import fed_ddp
+    from api.services.econ.adapters.base import SeriesSpec
+    sp = SeriesSpec(spec_entry)
+    if body[:2] == b"PK":
+        parsed = fed_ddp.parse_sdmx_zip(body, {fed_ddp.mnemonic_of(sp)})
+    else:
+        parsed = fed_ddp.parse_ddp_csv(body)
+    return {o.period_start for o in fed_ddp.to_obs(sp, fed_ddp.select_series(parsed, sp))}
+
+
+NORMALIZERS = {"fed_ddp": _fed_ddp_emitted}
+
+
+def non_emitted(old, archive_dir: Optional[str], log=print) -> dict:
+    """{(series_id, period_start): reason} of BACKFILL rows to drop. Fail closed."""
+    drop: dict = {}
+    cache: dict = {}
+    q = ("SELECT o.series_id, o.period_start, o.value, o.acq_id, a.archive_ref FROM observation o "
+         "JOIN release r USING(release_id) LEFT JOIN acquisition a ON a.acq_id = o.acq_id "
+         "WHERE r.kind='backfill' ORDER BY 1, 2")
+    rows_by = defaultdict(list)
+    for sid, ps, v, acq, ref in old.execute(q):
+        rows_by[(sid, acq, ref)].append((ps, v))
+    for (sid, acq, ref), rows in sorted(rows_by.items(), key=lambda kv: (kv[0][0], kv[0][1] or 0)):
+        spec = registry.get(sid) or {}
+        norm = NORMALIZERS.get((spec.get("source") or {}).get("adapter"))
+        if norm is None or not any(v is None for _, v in rows):
+            continue
+        if not ref or not str(ref).startswith("local:") or not archive_dir:
+            raise SystemExit(f"{sid} acq {acq}: null rows but no local archive to re-normalise -- refusing")
+        path = os.path.join(archive_dir, *str(ref)[len("local:"):].split("/"))
+        if (sid, path) not in cache:
+            if not os.path.exists(path):
+                raise SystemExit(f"{sid}: archive {path} missing -- refusing to drop without evidence")
+            with open(path, "rb") as fh:
+                cache[(sid, path)] = norm(spec, fh.read())
+        emitted = cache[(sid, path)]
+        for ps, v in rows:
+            if ps in emitted:
+                continue
+            if v is not None:
+                raise SystemExit(f"{sid} {ps}: a VALUED backfill row the adapter no longer emits -- refusing")
+            drop[(sid, ps)] = f"not emitted by {spec['source']['adapter']} from {ref}"
+    log(f"non-emitted backfill rows to drop: {dict(sorted(Counter(k[0] for k in drop).items()))}")
+    return drop
+
+
+def _et_date(ts: int) -> str:
+    return timeutil.et_date(int(ts)).isoformat()
+
+
 def _cols(conn, table: str) -> list[str]:
     return [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
 
 
-def rebuild(old_path: str, new_path: str, *, stamp: str, log=print) -> dict:
+def rebuild(old_path: str, new_path: str, *, stamp: str, log=print, drop_non_emitted: bool = False,
+            archive_dir: Optional[str] = None, probes=None) -> dict:
     if os.path.exists(new_path):
         raise SystemExit(f"refusing: {new_path} exists (never overwritten)")
     old = sqlite3.connect(f"file:{old_path}?mode=ro", uri=True)
@@ -72,6 +141,11 @@ def rebuild(old_path: str, new_path: str, *, stamp: str, log=print) -> dict:
     st = S.connect(new_path)
     new = st.conn
     rep: dict = {"old": old_path, "new": new_path, "stamp": stamp, "started_at": int(time.time())}
+    dropped = non_emitted(old, archive_dir, log=log) if drop_non_emitted else {}
+    rep["dropped"] = {"rule": "backfill null rows the current adapter does not emit (fed_ddp daily ND)",
+                      "archive_dir": archive_dir, "count": len(dropped),
+                      "by_series": dict(sorted(Counter(k[0] for k in dropped).items())),
+                      "sample": sorted(f"{a} {b}" for a, b in dropped)[:10]}
 
     # 1. verbatim tables
     with st.tx():
@@ -114,6 +188,11 @@ def rebuild(old_path: str, new_path: str, *, stamp: str, log=print) -> dict:
     for sid, pe in old.execute("SELECT DISTINCT o.series_id, o.period_end FROM observation o JOIN release r "
                                "USING(release_id) WHERE r.kind IN ('live','backfill')"):
         periods_by_sym[sid].add(timeutil.as_date(pe))
+    for sid, ps in dropped:                       # daily: period_start == period_end
+        live = old.execute("SELECT 1 FROM observation o JOIN release r USING(release_id) WHERE r.kind='live' "
+                           "AND o.series_id=? AND o.period_start=?", (sid, ps)).fetchone()
+        if not live:
+            periods_by_sym[sid].discard(timeutil.as_date(ps))
     bf = old.execute(f"SELECT {','.join('o.' + c for c in OBS_COLS)} FROM observation o JOIN release r "
                      "USING(release_id) WHERE r.kind='backfill' ORDER BY o.series_id, o.period_start").fetchall()
     sorted_periods = {k: sorted(v) for k, v in periods_by_sym.items()}
@@ -121,6 +200,9 @@ def rebuild(old_path: str, new_path: str, *, stamp: str, log=print) -> dict:
     out_rows = []
     for r in bf:
         sym = r["series_id"]
+        if (sym, r["period_start"]) in dropped:
+            stats[sym]["dropped"] += 1
+            continue
         spec = registry.get(sym)
         key = (spec.get("release") or {}).get("calendar_key") or ""
         pl = backfill_timing.place(spec, r["period_start"], r["period_end"], now=int(r["ingested_at"]),
@@ -155,7 +237,7 @@ def rebuild(old_path: str, new_path: str, *, stamp: str, log=print) -> dict:
     rep["derived_written"] = dres
     log(f"derived rows written: {sum(dres.values())}")
     st.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-    rep["verify"] = verify(old, st)
+    rep["verify"] = verify(old, st, dropped=dropped, probes=DEFAULT_PROBES if probes is None else probes)
     rep["finished_at"] = int(time.time())
     st.close()
     old.close()
@@ -172,18 +254,22 @@ def _latest_map(conn, sym: str, asof=None) -> dict:
     return {r[0]: (r[1], r[2] or "") for r in conn.execute(q.format(a=a, pa=pa), args)}
 
 
-def verify(old, st, probes=DEFAULT_PROBES) -> dict:
+def verify(old, st, probes=DEFAULT_PROBES, dropped=None) -> dict:
     new = st.conn
-    v: dict = {"failures": []}
+    dropped = dropped or {}
+    v: dict = {"failures": [], "dropped": len(dropped)}
     fail = v["failures"].append
+    drop_n = Counter(k[0] for k in dropped)
+    drop_periods = {k[1] for k in dropped}
 
     def counts(conn):
         return {(r[0], r[1]): r[2] for r in conn.execute(
             "SELECT o.series_id, r.kind, COUNT(*) FROM observation o JOIN release r USING(release_id) GROUP BY 1,2")}
     co, cn = counts(old), counts(new)
     for k in sorted(set(co) | set(cn)):
-        if k[1] in ("live", "backfill") and co.get(k) != cn.get(k):
-            fail(f"count {k}: old {co.get(k)} new {cn.get(k)}")
+        want = (co.get(k) or 0) - (drop_n.get(k[0], 0) if k[1] == "backfill" else 0)
+        if k[1] in ("live", "backfill") and want != (cn.get(k) or 0):
+            fail(f"count {k}: old {co.get(k)} - dropped {drop_n.get(k[0], 0)} != new {cn.get(k)}")
     v["counts_old"] = {f"{a}/{b}": n for (a, b), n in sorted(co.items())}
     v["counts_new"] = {f"{a}/{b}": n for (a, b), n in sorted(cn.items())}
     q = (f"SELECT {','.join('o.' + c for c in OBS_COLS)} FROM observation o JOIN release r USING(release_id) "
@@ -205,12 +291,34 @@ def verify(old, st, probes=DEFAULT_PROBES) -> dict:
     syms = sorted({r[0] for r in new.execute("SELECT DISTINCT series_id FROM observation")} |
                   {r[0] for r in old.execute("SELECT DISTINCT series_id FROM observation")})
     diff = {}
+    excused = Counter()
     for s in syms:
         a, b = _latest_map(old, s), _latest_map(new, s)
+        derived = bool((registry.get(s) or {}).get("derivation"))
+        for p in [p for p in a if p not in b and a[p][0] is None and
+                  ((s, p) in dropped or (derived and p in drop_periods))]:
+            del a[p]                              # a dropped holiday null (or a derived null on one)
+            excused[s] += 1
         if a != b:
             bad = [p for p in set(a) | set(b) if a.get(p) != b.get(p)]
             diff[s] = sorted(bad)[:5] + ([f"... {len(bad)} total"] if len(bad) > 5 else [])
     v["latest_mismatch"] = diff
+    v["latest_excused_dropped_nulls"] = dict(sorted(excused.items()))
+    # a daily NULL placed on the same ET availability date as a VALUED row masks it on the
+    # release-date timeline -- the defect the drop removes. Must be 0 after a dropping rebuild.
+    masked = {}
+    for e in registry.load_registry():
+        if e.get("frequency") != "D":
+            continue
+        byday = defaultdict(set)
+        for r in st.latest_rows(e["symbol"]):
+            byday[_et_date(r.first_available_at)].add(r.value is None)
+        n = sum(1 for flags in byday.values() if flags == {True, False})
+        if n:
+            masked[e["symbol"]] = n
+    v["daily_null_shares_date_with_value"] = masked
+    if dropped and masked:
+        fail(f"daily nulls still share an availability date with a value: {masked}")
     if diff:
         fail(f"latest values differ: {sorted(diff)}")
     audits = {}
@@ -244,17 +352,24 @@ def main(argv=None) -> int:
     ap.add_argument("--new", required=True)
     ap.add_argument("--report", default=None)
     ap.add_argument("--stamp", default=time.strftime("%Y-%m-%d", time.gmtime()))
+    ap.add_argument("--drop-non-emitted", action="store_true",
+                    help="drop backfill NULL rows the current adapter no longer emits from their archived payload")
+    ap.add_argument("--archive-dir", default=os.environ.get("ECON_ARCHIVE_DIR"),
+                    help="ECON_ARCHIVE_DIR of the old DB (required with --drop-non-emitted)")
     a = ap.parse_args(argv)
+    if a.drop_non_emitted and not a.archive_dir:
+        ap.error("--drop-non-emitted needs --archive-dir (evidence), never a guess")
     for k in list(os.environ):          # no credentials in this process, ever
         if k.startswith(("AWS_", "R2_", "CLOUDFLARE_")) or k.endswith("_API_KEY"):
             del os.environ[k]
     os.environ["ECON_PUBLISH_R2"] = "0"
-    rep = rebuild(a.old, a.new, stamp=a.stamp)
+    rep = rebuild(a.old, a.new, stamp=a.stamp, drop_non_emitted=a.drop_non_emitted, archive_dir=a.archive_dir)
     text = json.dumps(rep, indent=1, default=str)
     if a.report:
         Path(a.report).write_text(text, encoding="utf-8")
     v = rep["verify"]
-    print(f"verify ok={v['ok']} leaks={v['leaks_before_schedule']} live_rows={v['live_rows']} "
+    print(f"verify ok={v['ok']} dropped={v['dropped']} masked={v['daily_null_shares_date_with_value']} "
+          f"leaks={v['leaks_before_schedule']} live_rows={v['live_rows']} "
           f"latest_mismatch={len(v['latest_mismatch'])} audit={len(v['audit_derived'])}")
     for f in v["failures"]:
         print("FAIL:", f)

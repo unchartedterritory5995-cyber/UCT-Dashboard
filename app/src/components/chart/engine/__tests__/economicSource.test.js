@@ -18,6 +18,7 @@ import {
 } from '../economicSource'
 import { formatFundamentalValue, fundamentalPriceFormat, fundamentalFormatOfInputs, formatKeyOf } from '../fundamentalFormat'
 import { legendChips } from '../readout'
+import { projectAsOfIndices } from '../fundamentalAsOf'
 import { hasFundamentalLineage, splitGapRuns } from '../gapRuns'
 import CPI from '../../../../econHarness/fixtures/USCPI.json'
 import FFU from '../../../../econHarness/fixtures/USFEDFUNDSU.json'
@@ -176,16 +177,18 @@ describe('⭐⭐ release-date alignment (AVAILABLE AT, never the period)', () =>
 
 describe('⛔ per-frequency max age: beyond it is a GAP, not a carried value', () => {
   it('the table and the frequency reader', () => {
-    expect(ECON_MAX_AGE_DAYS).toMatchObject({ D: 7, W: 21, M: 75, Q: 200, A: 400 })
+    expect(ECON_MAX_AGE_DAYS).toMatchObject({ D: 10, W: 13, M: 45, Q: 120, A: 400 })
     expect(frequencyOf({ frequency: 'W (week ending Saturday)' })).toBe('W')
     expect(frequencyOf({ frequency: 'D (business)' })).toBe('D')
-    expect(maxAgeDaysOf({ frequency: 'M' })).toBe(75)
+    expect(maxAgeDaysOf({ frequency: 'M' })).toBe(45)
     expect(maxAgeDaysOf({ frequency: 'IRREG' })).toBe(Infinity)
     expect(maxAgeDaysOf({ frequency: 'M', max_age_days: 40 })).toBe(40)
     expect(maxAgeDaysOf(null)).toBe(200)
+    expect(maxAgeDaysOf({ frequency: 'M', max_age_days: null })).toBe(Infinity)   // server: unlimited
+    expect(maxAgeDaysOf({ frequency: 'M', max_age_days: undefined })).toBe(45)
   })
 
-  it('a monthly series stops ~75 days after its period end when nothing newer arrives', () => {
+  it('a monthly series stops 45 days after its AVAILABILITY when nothing newer arrives', () => {
     const last = cpi.points.at(-1)                        // Aug 2026, pe 2026-08-31
     const bars = []
     for (let d = new Date('2026-09-14T00:00:00Z'); d <= new Date('2026-12-31T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
@@ -194,7 +197,8 @@ describe('⛔ per-frequency max age: beyond it is a GAP, not a carried value', (
     const col = projectEconomic(cpi.points, bars, 'D', { meta: cpi.meta })
     const valued = bars.filter((_, i) => Number.isFinite(col[i])).map((b) => b.t)
     expect(valued[0]).toBe('2026-09-14')                                  // July still current
-    expect(valued.at(-1)).toBe('2026-11-13')                              // 2026-08-31 + 75 days, a Friday
+    expect(etDateOf(last.t)).toBe('2026-09-15')                           // released 09-15 08:30 ET
+    expect(valued.at(-1)).toBe('2026-10-30')                              // 09-15 + 45 days (Fri); 10-31 is a Saturday
     expect(last.pe).toBe('2026-08-31')
   })
 
@@ -210,6 +214,35 @@ describe('⛔ per-frequency max age: beyond it is a GAP, not a carried value', (
     expect(Number.isNaN(col[i])).toBe(true)
     expect(col[idxOf(daily, '2025-11-14')]).toBe(324.245)                 // Sep value before it
     expect(col[idxOf(daily, '2025-12-15')]).toBe(325.063)                 // Nov value after it
+  })
+
+  it('⭐ FHFA-shaped (~60 d after the month): measured from availability, every release interval is covered', () => {
+    // monthly values released on the last Tuesday of month+2 at 09:00 ET
+    const rel = ['2025-11-25', '2025-12-30', '2026-01-27', '2026-02-24', '2026-03-31', '2026-04-28', '2026-05-26',
+      '2026-06-30', '2026-07-28', '2026-08-25', '2026-09-29']
+    const pts = rel.map((d, k) => {
+      const m = k + 9                                          // Sep 2025 .. Jul 2026
+      const y = 2025 + Math.floor((m - 1) / 12); const mo = ((m - 1) % 12) + 1
+      const ps = `${y}-${String(mo).padStart(2, '0')}-01`
+      const pe = new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10)
+      return { t: Date.parse(`${d}T13:00:00Z`) / 1000, v: 400 + k, ps, pe }
+    })
+    const bars = []
+    for (let d = new Date('2025-11-25T00:00:00Z'); d <= new Date('2026-09-29T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1)) {
+      if (d.getUTCDay() % 6) bars.push({ t: d.toISOString().slice(0, 10) })
+    }
+    const col = projectEconomic(pts, bars, 'D', { meta: { frequency: 'M' } })
+    expect(bars.filter((_, i) => !Number.isFinite(col[i])).map((b) => b.t)).toEqual([])   // 0 gaps between releases
+    // ⛔ NEGATIVE CONTROL: the old rule (75 d from PERIOD END) blanks part of most months
+    const old = projectAsOfIndices(pts, bars, 'D', { maxPeriodAgeDays: 75, strict: true })
+    expect(Array.from(old).filter((j) => j < 0).length).toBe(86)                  // 86 blank weekdays
+  })
+
+  it('fundamentals keep their period-end clock (ageFrom defaults to "period")', () => {
+    const pts = [{ t: Date.parse('2026-01-02T21:00:00Z') / 1000, v: 1, pe: '2025-06-30' }]
+    const bars = [{ t: '2026-01-05' }, { t: '2026-01-20' }]
+    expect(Array.from(projectAsOfIndices(pts, bars, 'D', { maxPeriodAgeDays: 200 }))).toEqual([0, -1])    // 01-20 is pe + 204 d
+    expect(Array.from(projectAsOfIndices(pts, bars, 'D', { maxPeriodAgeDays: 200, ageFrom: 'available' }))).toEqual([0, 0])
   })
 
   it('IRREG (policy target) holds until the next decision, however long', () => {
@@ -411,6 +444,22 @@ describe('⭐⭐ primary economic chart: series-native timeline', () => {
     expect(Array.from(projectEconomic(pts, tl.bars, 'D', { meta: { frequency: 'D' } }))).toEqual([NaN, 1])
   })
 
+  it('⛔ a NULL never displaces a VALUED point on a shared date (holiday no-data row), either order', () => {
+    const t = Date.parse('2026-09-08T20:15:00Z') / 1000                 // Fri 09-04 value + Mon 09-07 ND, both placed Tue
+    const val = { t, v: 0.52, ps: '2026-09-04', pe: '2026-09-04' }
+    const nul = { t, v: null, ps: '2026-09-07', pe: '2026-09-07' }
+    for (const pts of [[val, nul], [nul, val]]) {
+      const tl = economicTimeline('USX', pts, { frequency: 'D' })
+      expect(tl.bars).toHaveLength(1)
+      expect(tl.bars[0]).toMatchObject({ v: 0.52, pe: '2026-09-04' })
+      expect(tl.column[0]).toBe(0.52)
+      expect(tl.collapsed).toBe(1)
+    }
+    // negative control: two NULLS (or two values) still resolve by the later period
+    const n2 = economicTimeline('USX', [{ ...nul, pe: '2026-09-04', ps: '2026-09-04' }, nul], { frequency: 'D' })
+    expect(n2.bars[0].pe).toBe('2026-09-07')
+  })
+
   it('two observations on one date collapse to the later PERIOD, counted', () => {
     const t = 1760000000
     const pts = [{ t, v: 1, ps: '2025-09-01', pe: '2025-09-30' }, { t: t + 60, v: 2, ps: '2025-10-01', pe: '2025-10-31' }]
@@ -459,10 +508,10 @@ describe('⭐⭐ primary economic chart: series-native timeline', () => {
     expect(tl.bars[i].v).toBeNull()                                   // the ROW has no observation of its own
   })
 
-  it('a D series on a shared grid honours its 7-day max age (no carry into a stale stretch)', () => {
+  it('a D series on a shared grid honours its 10-day max age from its ROW date (no carry into a stale stretch)', () => {
     const pts = [{ t: Date.parse('2026-09-01T13:00:00Z') / 1000, v: 1, ps: '2026-08-31', pe: '2026-08-31' }]
     const tl = economicTimelineOf([{ symbol: 'USX', points: pts, meta: { frequency: 'D' } }], { grid: 'B', through: '2026-09-30' })
     const valued = tl.bars.filter((_, k) => Number.isFinite(tl.column[k])).map((b) => b.t)
-    expect(valued.at(-1)).toBe('2026-09-07')
+    expect(valued.at(-1)).toBe('2026-09-11')                          // placed 09-01 (not pe 08-31) + 10 days
   })
 })

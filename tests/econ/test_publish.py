@@ -156,7 +156,7 @@ def test_servable_rechecks_licensing_and_role():
 
 META_KEYS = {"symbol", "id", "name", "short_name", "description", "category", "subcategory", "frequency",
              "week_anchor", "units", "seasonal_adjustment", "presentation", "source", "derivation",
-             "aliases", "synonyms", "history_start"}
+             "aliases", "synonyms", "history_start", "max_age_days"}
 SOURCE_KEYS = {"agency", "dataset", "provider_series_id", "official_url", "attribution_key", "line"}
 PAYLOAD_KEYS = {"id", "symbol", "view", "asof", "meta", "currentness", "columns", "points"}
 FORBIDDEN = ("params", "licensing", "clearance", "approval_ref", "catalog_row", "fred_equivalent",
@@ -173,7 +173,7 @@ def assert_no_internals(doc):
 def test_payload_keys_are_whitelisted(store):
     body = P.build_series_payload(store, "USCPIYOY", now=NOW)
     assert set(body) == PAYLOAD_KEYS
-    assert set(body["meta"]) <= META_KEYS | {"max_age_days"}
+    assert set(body["meta"]) == META_KEYS
     assert set(body["meta"]["source"]) <= SOURCE_KEYS | {"attribution_keys"}
     assert set(body["meta"]["units"]) == {"display", "fmt", "scale"}
     assert body["meta"]["derivation"] == {"op": "yoy_pct", "inputs": ["USCPINSA"]}
@@ -325,3 +325,32 @@ def test_next_release_hole_is_unknown_with_no_date(tmp_path):
         assert nr == {"date": None, "time": None, "tz": "America/New_York", "precision": "unknown"}
     finally:
         s.close()
+
+
+# ── staleness: meta.max_age_days, measured from availability ──────────────────
+
+@pytest.mark.parametrize("sym,want", [("USCPI", 45), ("USFHFAHPI", 45), ("USRGDPQA", 120), ("USICSA", 13),
+                                      ("UST10Y2Y", 10), ("USEFFR", 10)])
+def test_meta_max_age_days_by_frequency(sym, want):
+    assert P.meta_for(R.get(sym))["max_age_days"] == want
+
+
+def test_meta_max_age_days_override_and_unlimited():
+    e = copy.deepcopy(R.get("USCPI"))
+    e["presentation"]["max_age_days"] = 90
+    assert P.meta_for(e)["max_age_days"] == 90
+    e["presentation"]["max_age_days"] = None                    # explicit unlimited
+    assert P.meta_for(e)["max_age_days"] is None
+    irr = copy.deepcopy(R.get("USCPI")); irr["frequency"] = "IRREG"
+    assert P.meta_for(irr)["max_age_days"] is None
+    # negative control: the old 75-days-from-period-end default is gone for monthly
+    assert P.meta_for(R.get("USCPI"))["max_age_days"] != 75
+
+
+def test_monthly_max_age_covers_every_normal_release_interval_negative_control():
+    """FHFA: ~60 d after period end, released monthly. From AVAILABILITY a 45 d limit spans
+    each release interval (<= 35 d); from PERIOD END 75 d does not (60 + 31 > 75)."""
+    ma = P.meta_for(R.get("USFHFAHPI"))["max_age_days"]
+    intervals = [28, 35, 31]                                       # consecutive last-Tuesday releases
+    assert all(i <= ma for i in intervals)
+    assert any(60 + i > 75 for i in intervals)                      # the old rule blanked these

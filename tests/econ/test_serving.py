@@ -197,3 +197,15 @@ def test_artifact_currentness_comes_from_the_status_heartbeat(tmp_path, monkeypa
     assert st == 200 and body["currentness"]["state"] == "CHECKING"
     assert set(body["currentness"]) == {"state", "latest_period", "expected_period", "next_release"}
     serving.clear_cache()
+
+
+def test_asof_carries_historical_currentness_never_now(mode):
+    """An ?asof= answer is history: {"state": null, "historical": true} in EVERY serving mode
+    (the artifact / status overlay describes NOW). Negative control: the latest view keeps
+    the real state block."""
+    st, body, _ = serving.series("USCPI", asof=T1 + 1)
+    assert st == 200 and body["currentness"] == {"state": None, "historical": True}
+    st, body, _ = serving.series("USCPI")
+    cur = body["currentness"]
+    assert st == 200 and "historical" not in cur and isinstance(cur.get("state"), str)
+    assert set(cur) >= {"state", "latest_period", "expected_period", "next_release"}

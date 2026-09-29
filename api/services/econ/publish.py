@@ -10,7 +10,8 @@ reader is app/src/components/chart/engine/economicSeries.js):
 
     {"id": "ECON:USCPI", "symbol": "USCPI", "view": "latest"|"asof", "asof": null|int,
      "meta": {...catalog row...},
-     "currentness": {"state", "latest_period", "expected_period", "next_release"},
+     "currentness": {"state", "latest_period", "expected_period", "next_release"}
+                    (an ?asof= view: {"state": null, "historical": true}),
      "columns": ["t", "v", "ps", "pe", "pit"],
      "points": [[t_first_available_unix, v|null, "YYYY-MM-DD", "YYYY-MM-DD", "V|U|L|X"], ...]}
 
@@ -182,8 +183,9 @@ def meta_for(entry: dict) -> dict:
     }
     if len(keys) > 1:
         m["source"]["attribution_keys"] = keys
-    if isinstance(entry.get("max_age_days"), (int, float)) and not isinstance(entry.get("max_age_days"), bool):
-        m["max_age_days"] = entry["max_age_days"]
+    # days a value stays current, measured from its AVAILABILITY `t` (null = unlimited);
+    # registry frequency default or `presentation.max_age_days` -- see registry.max_age_days
+    m["max_age_days"] = R.max_age_days(entry)
     return m
 
 
@@ -274,6 +276,14 @@ def currentness(store, entry: dict, now: Optional[float] = None) -> dict:
             "next_release": next_release(store, entry, now, state=st or {})}
 
 
+def historical_currentness() -> dict:
+    """The currentness block of an AS-OF payload. `series_state` describes NOW; an
+    `?asof=T` answer is history, so it carries no state, periods or next release
+    (measured 2026-09-29: the FHFA view one second before the July release still said
+    CURRENT with latest_period 2026-07). The frontend pins as-of to historical too."""
+    return {"state": None, "historical": True}
+
+
 # ─────────────────────────────────────────────────────────────── points
 
 def _valid_iso(d: Optional[str]) -> Optional[str]:
@@ -331,7 +341,7 @@ def build_series_payload(store, symbol: str, asof: Optional[int] = None, start: 
         "view": "asof" if asof is not None else "latest",
         "asof": int(asof) if asof is not None else None,
         "meta": meta_for(entry),
-        "currentness": currentness(store, entry, now),
+        "currentness": historical_currentness() if asof is not None else currentness(store, entry, now),
         "columns": list(COLUMNS),
         "points": points_from_store(store, sym, asof=asof, start=start, end=end),
     }

@@ -9,6 +9,21 @@ RUNNING so it captures the releases below. Nothing here touches production (LOCA
 PID **69928** (`C:\w\econ1-data\service.pid`). The earlier instance (04:14Z–07:13Z, worker 38684) was stopped to load
 the quota fixes; its log is `logs/service-run1.log`.
 
+## Rebuild 2 2026-09-29 (holiday "no data" rows dropped)
+
+Between 12:33 and 12:35 ET (16:33–16:35Z), after the BLS watcher's last window (1913-1916, 16:32Z), the local DB was rebuilt again with `tools/econ/rebuild_local_db.py --drop-non-emitted --archive-dir C:\w\econ1-data\archive`. Nothing was re-fetched.
+
+**Why.** H.15 marks market holidays `ND` ("No data", the release zip's CL_OBS_STATUS). They were stored as `null` rows and placed at the prior business day's release time, where they won the same-date collapse and masked the real value (UST10Y2Y: 552 nulls, 548 breaks in the harness). fed_ddp now drops ND on daily series; the rebuild drops the rows the current adapter would not emit, proven per row by re-normalising the row's own archived payload (fail closed on a missing archive or a valued row).
+
+**Procedure**: stopped the service (launcher 51896 / worker 4056, checked by command line; the watcher had finished all 11 windows and was left to exit); `lease` empty; `wal_checkpoint(TRUNCATE)` + `integrity_check` ok; `econ.db` → `econ-pre-rebuild2-2026-09-29.db` (kept); rebuilt into `econ.db`; `publish_all` (42 series, local); restarted with `start_service.ps1` → launcher **77580**, worker **71940**, `/status` 42 CURRENT.
+
+**Verification** (`C:\w\econ1-data\rebuild2-report-2026-09-29.json`, ok):
+- dropped **1,272** backfill rows: UST10Y 720, UST2Y 552 (all `null`, all ND in the archived H.15 zip); backfill 82,968 → 81,696 exactly; derived 18,243 → 17,691 (the 552 UST10Y2Y holiday nulls are no longer derived);
+- 31 live rows identical; 0 leaks; 0 unsnapped rows after first sighting; `audit_derived` clean;
+- latest (value, flag) identical for every series and period except the 1,824 dropped/derived holiday nulls; 0 daily nulls share an ET availability date with a value;
+- as-of probes FHFA June 442.53 / 442.34 and JOLTS July 7,271 / 7,335 pass;
+- 42 surviving rows re-timed, all LATER: the Thursday before Good Friday (19 years) and 2001-09-10 for UST10Y/UST2Y. The next-observation rule no longer counts the ND row as an observation, so the value is placed on the next day that has one (late side). Residual: if H.15 posted Thursday's rates on Good Friday, these rows are one business day late.
+
 ## Rebuild 2026-09-29 (backfill timing corrected; see BACKFILL-TIMING.md)
 
 Between 11:30 and 11:33 ET (15:30–15:33Z) the local DB was rebuilt under the corrected backfill placement. Nothing was re-fetched from any agency.

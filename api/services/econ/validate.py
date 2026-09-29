@@ -250,11 +250,18 @@ def check_mutation(spec, obs: list[RawObs], stored: dict) -> list[str]:
     return []
 
 
-def check_partial(obs: list[RawObs], stored: dict, start: Optional[str], end: Optional[str]) -> list[str]:
-    """A HISTORY fetch must cover every period we already hold in its range."""
+def check_partial(obs: list[RawObs], stored: dict, start: Optional[str], end: Optional[str],
+                  spec=None) -> list[str]:
+    """A HISTORY fetch must cover every period we already hold in its range.
+
+    Exception: a stored NULL of a DAILY series may be absent. Adapters now drop provider
+    "no data" (holiday) rows of daily series (fed_ddp ND), so a DB written before that rule
+    holds null rows the payload no longer carries; they were never observations."""
     have = {o.period_start for o in obs}
-    missing = sorted(p for p in stored
-                     if (start is None or p >= start) and (end is None or p <= end) and p not in have)
+    daily = spec is not None and _freq(spec) == "D"
+    missing = sorted(p for p, r in stored.items()
+                     if (start is None or p >= start) and (end is None or p <= end) and p not in have
+                     and not (daily and getattr(r, "value", 0) is None))
     if missing:
         return [f"partial: payload omits {len(missing)} stored period(s) in the requested range "
                 f"({missing[0]}..{missing[-1]})"]
@@ -337,7 +344,7 @@ def validate_fetch(spec, fetch_result, store, *, now: Optional[float] = None, mo
     reasons += check_scale(spec, obs, stored)
     reasons += check_mutation(spec, obs, stored)
     if mode == "history":
-        reasons += check_partial(obs, stored, start, end)
+        reasons += check_partial(obs, stored, start, end, spec)
     reasons += check_plausibility(obs, stored)
     if reasons:
         return [], _dedupe(reasons)

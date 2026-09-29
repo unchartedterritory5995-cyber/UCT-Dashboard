@@ -195,3 +195,11 @@ def test_catalog_shape(client):
     assert row["source"]["attribution_key"] == "bls" and "bls" in body["attributions"]
     assert_no_internals(body)
     assert json.dumps(body).count('"symbol"') == 42
+
+
+def test_asof_payload_carries_no_currentness_claim(client):
+    c = as_(client, "tok-pro")
+    body = c.get(f"/api/econ/series/USCPI?asof={T1 + 1}").json()
+    assert body["view"] == "asof" and body["currentness"] == {"state": None, "historical": True}
+    live = c.get("/api/econ/series/USCPI").json()["currentness"]          # negative control
+    assert live.get("historical") is None and isinstance(live["state"], str)

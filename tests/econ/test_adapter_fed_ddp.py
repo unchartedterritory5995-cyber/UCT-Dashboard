@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import copy
 import io
+import re
 import zipfile
 from datetime import date
 from pathlib import Path
@@ -119,13 +120,38 @@ def test_release_xml_history_all_cohort():
     assert h15.payload_sha256 and h15.raw_payload and h15.source_published_at is None
 
 
-def test_sdmx_nd_status_and_sentinel_are_none_not_zero():
+def test_sdmx_daily_nd_is_not_an_observation():
+    """ND ("No data", the release zip's CL_OBS_STATUS) on a business-day series = a holiday:
+    no period exists, so the row is DROPPED -- never a None that masks the prior day."""
     t = Router({"/releases/h15/": zresp("h15")})
     [r] = fed_ddp.FedDdpAdapter().fetch([UST10Y], mode="history", start=None, end=None, http=client(t))
-    nas = [o for o in r.observations if o.value is None]
-    assert nas, "fixture carries OBS_STATUS=ND rows"
-    assert all(o.value is None and o.flag == "" for o in nas)
+    body = zipfile.ZipFile(io.BytesIO(zresp("h15").content))
+    xml = body.read([n for n in body.namelist() if n.endswith("_data.xml")][0]).decode()
+    seg = xml[xml.index('SERIES_NAME="RIFLGFCY10_N.B"'):]
+    seg = seg[:seg.index("</kf:Series>")]
+    assert 'OBS_STATUS="ND"' in seg, "fixture carries OBS_STATUS=ND rows"
+    nd_days = set(re.findall(r'OBS_STATUS="ND" OBS_VALUE="-9999" TIME_PERIOD="([\d-]+)"', seg))
+    assert nd_days
+    got = {o.period_start for o in r.observations}
+    assert not (nd_days & got)                                 # holidays carry no row at all
+    assert not any(o.value is None for o in r.observations)
     assert not any(o.value == 0 or o.value == -9999 for o in r.observations)
+
+
+def test_sdmx_nd_on_non_daily_series_stays_a_none_row():
+    """Negative control: ND on a MONTHLY series is a stated missing period -> kept as None."""
+    series = {"meta": {}, "rows": [("2026-07-31", "-9999", "ND"), ("2026-08-31", "23342.8", "A")]}
+    obs = fed_ddp.to_obs(M2, series)
+    assert [(o.period_start, o.value) for o in obs] == [("2026-07-01", None), ("2026-08-01", 23342.8)]
+
+
+def test_sdmx_daily_na_nc_are_kept_as_none():
+    """NA ("Not available") / NC ("Not calculable") are a missing value on a day that EXISTS."""
+    series = {"meta": {}, "rows": [("2026-09-21", "-9999", "ND"), ("2026-09-22", "-9999", "NA"),
+                                   ("2026-09-23", "-9999", "NC"), ("2026-09-24", "5.10", "A")]}
+    obs = fed_ddp.to_obs(UST10Y, series)
+    assert [(o.period_start, o.value) for o in obs] == [
+        ("2026-09-22", None), ("2026-09-23", None), ("2026-09-24", 5.10)]
 
 
 def test_history_window_and_latest_trim():
@@ -218,7 +244,15 @@ def test_ddp_csv_na_markers():
             b'"Unique Identifier: ","H15/H15/RIFLGFCY10_N.B"\n"Time Period","RIFLGFCY10_N.B"\n'
             b'2026-09-21,ND\n2026-09-22,NC\n2026-09-23,NA\n2026-09-24,\n2026-09-25,5.17\n')
     obs = fed_ddp.to_obs(UST10Y, fed_ddp.select_series(fed_ddp.parse_ddp_csv(body), UST10Y))
-    assert [o.value for o in obs] == [None, None, None, None, 5.17]
+    # daily: ND (holiday) is dropped; NC / NA / empty stay None on their (existing) day
+    assert [(o.period_start, o.value) for o in obs] == [
+        ("2026-09-22", None), ("2026-09-23", None), ("2026-09-24", None), ("2026-09-25", 5.17)]
+    # negative control: the same cells on a MONTHLY series keep the ND row as None
+    mbody = body.replace(b"RIFLGFCY10_N.B", b"M2.M").replace(b"H15/H15/", b"H6/H6_M2/").replace(
+        b"Percent:_Per_Year", b"Currency").replace(b'"Currency:","NA"', b'"Currency:","USD"').replace(
+        b'"Multiplier:","1"', b'"Multiplier:","1000000000"')
+    mobs = fed_ddp.to_obs(M2, fed_ddp.select_series(fed_ddp.parse_ddp_csv(mbody.replace(b"2026-09-2", b"2026-0")), M2))
+    assert mobs[0].value is None and len(mobs) == 5
 
 
 @pytest.mark.parametrize("body,exc", [

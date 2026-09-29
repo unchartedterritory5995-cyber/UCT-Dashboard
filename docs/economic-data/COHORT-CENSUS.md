@@ -8,18 +8,18 @@ Columns: *count* = periods in the latest view; *NA* = provider-stated missing pe
 
 | symbol | status | adapter | provider id | freq | units raw → display (fmt, scale) | oldest | newest | count | NA | latest value | latest avail. (method) | src pub. | PIT V/U/L/X | revision | validation | currentness |
 |---|---|---|---|---|---|---|---|---:|---:|---:|---|---|---|---|---|---|
-| USCPI | enabled | bls | CUSR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 334.131 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCPINSA | enabled | bls | CUUR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 334.98 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/264/0 | none | no rejections | CURRENT |
-| USCORECPI | enabled | bls | CUSR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 337.765 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCORECPINSA | enabled | bls | CUUR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 338.041 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/264/0 | none | no rejections | CURRENT |
-| USCPIYOY | enabled | derived | yoy_pct(USCPINSA) | M | Percent → % (pct1, 1) | 1968-01-01 | 2026-08-01 | 704 | 1 | 3.39655 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/270/0 | none | no rejections | CURRENT |
-| USCPIMOM | enabled | derived | mom_pct(USCPI) | M | Percent → % (pct1, 1) | 1967-02-01 | 2026-08-01 | 715 | 2 | 0.396018 | 2026-09-11 08:30 ET (derived:mom_pct@1) |  | 0/0/715/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USCORECPIYOY | enabled | derived | yoy_pct(USCORECPINSA) | M | Percent → % (pct1, 1) | 1968-01-01 | 2026-08-01 | 704 | 1 | 2.44598 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/270/0 | none | no rejections | CURRENT |
+| USCPI | enabled | bls | CUSR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1947-01-01 | 2026-08-01 | 956 | 1 | 334.131 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/956/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCPINSA | enabled | bls | CUUR0000SA0 | M | Index 1982-84=100 → index (num3, 1) | 1913-01-01 | 2026-08-01 | 1364 | 1 | 334.98 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/912/0 | none | no rejections | CURRENT |
+| USCORECPI | enabled | bls | CUSR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1957-01-01 | 2026-08-01 | 836 | 1 | 337.765 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/0/836/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCORECPINSA | enabled | bls | CUUR0000SA0L1E | M | Index 1982-84=100 → index (num3, 1) | 1957-01-01 | 2026-08-01 | 836 | 1 | 338.041 | 2026-09-11 08:30 ET (scheduled:calendar) |  | 0/452/384/0 | none | no rejections | CURRENT |
+| USCPIYOY | enabled | derived | yoy_pct(USCPINSA) | M | Percent → % (pct1, 1) | 1914-01-01 | 2026-08-01 | 1352 | 1 | 3.39655 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/918/0 | none | no rejections | CURRENT |
+| USCPIMOM | enabled | derived | mom_pct(USCPI) | M | Percent → % (pct1, 1) | 1947-02-01 | 2026-08-01 | 955 | 2 | 0.396018 | 2026-09-11 08:30 ET (derived:mom_pct@1) |  | 0/0/955/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USCORECPIYOY | enabled | derived | yoy_pct(USCORECPINSA) | M | Percent → % (pct1, 1) | 1958-01-01 | 2026-08-01 | 824 | 1 | 2.44598 | 2026-09-11 08:30 ET (derived:yoy_pct@1) |  | 0/434/390/0 | none | no rejections | CURRENT |
 | USPPIFD | enabled | bls | WPSFD4 | M | Index Nov 2009=100 → index (num3, 1) | 2009-11-01 | 2026-08-01 | 202 | 0 | 157.411 (p) | 2026-09-10 08:30 ET (scheduled:calendar) |  | 0/0/202/0 | seasonal_factor_revision | no rejections | CURRENT |
 | USECI | enabled | bls | CIS1010000000000Q | Q | Percent change, 3-month → % (pct1, 1) | 2001-01-01 | 2026-04-01 | 102 | 0 | 0.9 | 2026-07-31 08:30 ET (scheduled:history) |  | 0/0/102/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USUNRATE | enabled | bls | LNS14000000 | M | Percent → % (pct1, 1) | 1967-01-01 | 2026-08-01 | 716 | 1 | 4.1 | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/716/0 | seasonal_factor_revision | no rejections | CURRENT |
-| USNFP | enabled | bls | CES0000000001 | M | Thousands of jobs → persons (k_persons, 1000) | 1967-01-01 | 2026-08-01 | 716 | 0 | 159,075 (p) | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/716/0 | annual_benchmark | no rejections | CURRENT |
-| USNFPCHG | enabled | derived | diff(USNFP) | M | Thousands of jobs → persons (k_persons, 1000) | 1967-02-01 | 2026-08-01 | 715 | 0 | 162 | 2026-09-04 08:30 ET (derived:diff@1) |  | 0/0/715/0 | annual_benchmark | no rejections | CURRENT |
+| USUNRATE | enabled | bls | LNS14000000 | M | Percent → % (pct1, 1) | 1948-01-01 | 2026-08-01 | 944 | 1 | 4.1 | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/944/0 | seasonal_factor_revision | no rejections | CURRENT |
+| USNFP | enabled | bls | CES0000000001 | M | Thousands of jobs → persons (k_persons, 1000) | 1939-01-01 | 2026-08-01 | 1052 | 0 | 159,075 (p) | 2026-09-04 08:30 ET (scheduled:history) |  | 0/0/1052/0 | annual_benchmark | no rejections | CURRENT |
+| USNFPCHG | enabled | derived | diff(USNFP) | M | Thousands of jobs → persons (k_persons, 1000) | 1939-02-01 | 2026-08-01 | 1051 | 0 | 162 | 2026-09-04 08:30 ET (derived:diff@1) |  | 0/0/1051/0 | annual_benchmark | no rejections | CURRENT |
 | USJOLTSO | enabled | bls | JTS000000000000000JOL | M | Thousands → persons (k_persons, 1000) | 2000-12-01 | 2026-08-01 | 309 | 0 | 7,079 (p) | 2026-09-29 10:00 ET (scheduled) |  | 2/0/307/0 | annual_benchmark | no rejections | CURRENT |
 | USICSA | enabled | dol | DOL ETA r539cy national InitialClaims/SA (history XML) + weekly news r | W/SAT | Number of claims → count (num0, 1) | 1967-01-01 | 2026-09-13 | 3116 | 0 | 197,000 (a) | 2026-09-25 08:30 ET (rule) | 2026-09-24 08:30 ET | 0/0/3116/0 | seasonal_factor_revision | no rejections | CURRENT |
 | USGDP | enabled | bea | NIPA T10105 L1 (A191RC) | Q | Millions USD, SAAR → USD (usd_compact, 1000000) | 1947-01-01 | 2026-04-01 | 318 | 0 | 32,486,066.00 | 2026-07-30 08:30 ET (scheduled:calendar) | 2026-08-26 08:30 ET | 0/0/318/0 | comprehensive | no rejections | CURRENT |
@@ -32,9 +32,9 @@ Columns: *count* = periods in the latest view; *NA* = provider-stated missing pe
 | USHOUST | enabled | census | resconst/ASTARTS/TOTAL | M | Thousands of units, SAAR → units (num0, 1000) | 1959-01-01 | 2026-08-01 | 812 | 0 | 1,275 (p) | 2026-09-17 08:30 ET (scheduled:calendar) |  | 0/0/812/0 | seasonal_factor_revision | no rejections | CURRENT |
 | USDURGOODS | enabled | census | m3/MDM/NO | M | Millions USD → USD (usd_compact, 1000000) | 1992-02-01 | 2026-08-01 | 415 | 0 | 338,604 (a) | 2026-09-25 08:30 ET (scheduled:calendar) |  | 0/0/415/0 | seasonal_factor_revision | no rejections | CURRENT |
 | USTRADEBAL | enabled | census | ftd/BOPGS/BAL | M | Millions USD → USD (usd_compact, 1000000) | 1994-01-01 | 2026-07-01 | 391 | 0 | -88,576 | 2026-09-03 08:30 ET (scheduled:history) |  | 0/0/391/0 | seasonal_factor_revision | no rejections | CURRENT |
-| UST2Y | enabled | fed_ddp | H15/H15/RIFLGFCY02_N.B | D | Percent → % (pct2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 4.81 | 2026-09-28 16:15 ET (rule) |  | 0/12868/261/0 | none | no rejections | CURRENT |
-| UST10Y | enabled | fed_ddp | H15/H15/RIFLGFCY10_N.B | D | Percent → % (pct2, 1) | 1962-01-02 | 2026-09-25 | 16889 | 720 | 5.17 | 2026-09-28 16:15 ET (rule) |  | 0/12868/4021/0 | none | no rejections | CURRENT |
-| UST10Y2Y | enabled | derived | spread(UST10Y, UST2Y) | D | Percentage points → pp (pp2, 1) | 1976-06-01 | 2026-09-25 | 13129 | 552 | 0.36 | 2026-09-28 16:15 ET (derived:spread@1) |  | 0/12868/261/0 | none | no rejections | CURRENT |
+| UST2Y | enabled | fed_ddp | H15/H15/RIFLGFCY02_N.B | D | Percent → % (pct2, 1) | 1976-06-01 | 2026-09-25 | 12577 | 0 | 4.81 | 2026-09-28 16:15 ET (rule) |  | 0/12326/251/0 | none | no rejections | CURRENT |
+| UST10Y | enabled | fed_ddp | H15/H15/RIFLGFCY10_N.B | D | Percent → % (pct2, 1) | 1962-01-02 | 2026-09-25 | 16169 | 0 | 5.17 | 2026-09-28 16:15 ET (rule) |  | 0/12326/3843/0 | none | no rejections | CURRENT |
+| UST10Y2Y | enabled | derived | spread(UST10Y, UST2Y) | D | Percentage points → pp (pp2, 1) | 1976-06-01 | 2026-09-25 | 12577 | 0 | 0.36 | 2026-09-28 16:15 ET (derived:spread@1) |  | 0/12326/251/0 | none | no rejections | CURRENT |
 | USFEDBAL | enabled | fed_ddp | H41/H41/RESPPMA_N.WW | W/WED | Millions USD → USD (usd_compact, 1000000) | 2002-12-12 | 2026-09-17 | 1241 | 0 | 6,747,704.00 | 2026-09-25 16:30 ET (rule) |  | 0/1241/0/0 | none | no rejections | CURRENT |
 | USM2 | enabled | fed_ddp | H6/H6_M2/M2.M | M | Billions USD → USD (usd_compact, 1000000000) | 1959-01-01 | 2026-08-01 | 812 | 0 | 23,342.8 | 2026-09-28 22:40 ET (rule) |  | 0/0/812/0 | seasonal_factor_revision | no rejections | CURRENT |
 | USINDPRO | enabled | fed_ddp | G17/IP_MARKET_GROUPS/IP.B50001.S | M | Index 2017=100 → index (num1, 1) | 1919-01-01 | 2026-08-01 | 1292 | 0 | 103.068 | 2026-09-18 09:15 ET (scheduled:calendar) |  | 0/0/1292/0 | annual_benchmark | no rejections | CURRENT |
@@ -58,18 +58,18 @@ PIT classes after the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`).
 
 | symbol | latest V | latest U | latest L | latest X | all V | all U | all L | all X | PIT-safe share (latest) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| USCPI | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
-| USCPINSA | 0 | 452 | 264 | 0 | 0 | 452 | 264 | 0 | 63.1% |
-| USCORECPI | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
-| USCORECPINSA | 0 | 452 | 264 | 0 | 0 | 452 | 264 | 0 | 63.1% |
-| USCPIYOY | 0 | 434 | 270 | 0 | 0 | 434 | 270 | 0 | 61.6% |
-| USCPIMOM | 0 | 0 | 715 | 0 | 0 | 0 | 715 | 0 | 0.0% |
-| USCORECPIYOY | 0 | 434 | 270 | 0 | 0 | 434 | 270 | 0 | 61.6% |
+| USCPI | 0 | 0 | 956 | 0 | 0 | 0 | 956 | 0 | 0.0% |
+| USCPINSA | 0 | 452 | 912 | 0 | 0 | 452 | 912 | 0 | 33.1% |
+| USCORECPI | 0 | 0 | 836 | 0 | 0 | 0 | 836 | 0 | 0.0% |
+| USCORECPINSA | 0 | 452 | 384 | 0 | 0 | 452 | 384 | 0 | 54.1% |
+| USCPIYOY | 0 | 434 | 918 | 0 | 0 | 434 | 918 | 0 | 32.1% |
+| USCPIMOM | 0 | 0 | 955 | 0 | 0 | 0 | 955 | 0 | 0.0% |
+| USCORECPIYOY | 0 | 434 | 390 | 0 | 0 | 434 | 390 | 0 | 52.7% |
 | USPPIFD | 0 | 0 | 202 | 0 | 0 | 0 | 202 | 0 | 0.0% |
 | USECI | 0 | 0 | 102 | 0 | 0 | 0 | 102 | 0 | 0.0% |
-| USUNRATE | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
-| USNFP | 0 | 0 | 716 | 0 | 0 | 0 | 716 | 0 | 0.0% |
-| USNFPCHG | 0 | 0 | 715 | 0 | 0 | 0 | 715 | 0 | 0.0% |
+| USUNRATE | 0 | 0 | 944 | 0 | 0 | 0 | 944 | 0 | 0.0% |
+| USNFP | 0 | 0 | 1052 | 0 | 0 | 0 | 1052 | 0 | 0.0% |
+| USNFPCHG | 0 | 0 | 1051 | 0 | 0 | 0 | 1051 | 0 | 0.0% |
 | USJOLTSO | 2 | 0 | 307 | 0 | 2 | 0 | 308 | 0 | 0.6% |
 | USICSA | 0 | 0 | 3116 | 0 | 0 | 0 | 3116 | 0 | 0.0% |
 | USGDP | 0 | 0 | 318 | 0 | 0 | 0 | 318 | 0 | 0.0% |
@@ -81,9 +81,9 @@ PIT classes after the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`).
 | USHOUST | 0 | 0 | 812 | 0 | 0 | 0 | 812 | 0 | 0.0% |
 | USDURGOODS | 0 | 0 | 415 | 0 | 0 | 0 | 415 | 0 | 0.0% |
 | USTRADEBAL | 0 | 0 | 391 | 0 | 0 | 0 | 391 | 0 | 0.0% |
-| UST2Y | 0 | 12868 | 261 | 0 | 0 | 12868 | 261 | 0 | 98.0% |
-| UST10Y | 0 | 12868 | 4021 | 0 | 0 | 12868 | 4021 | 0 | 76.2% |
-| UST10Y2Y | 0 | 12868 | 261 | 0 | 0 | 12868 | 261 | 0 | 98.0% |
+| UST2Y | 0 | 12326 | 251 | 0 | 0 | 12326 | 251 | 0 | 98.0% |
+| UST10Y | 0 | 12326 | 3843 | 0 | 0 | 12326 | 3843 | 0 | 76.2% |
+| UST10Y2Y | 0 | 12326 | 251 | 0 | 0 | 12326 | 251 | 0 | 98.0% |
 | USFEDBAL | 0 | 1241 | 0 | 0 | 0 | 1241 | 0 | 0 | 100.0% |
 | USM2 | 0 | 0 | 812 | 0 | 0 | 0 | 812 | 0 | 0.0% |
 | USINDPRO | 0 | 0 | 1292 | 0 | 0 | 0 | 1292 | 0 | 0.0% |
@@ -100,7 +100,7 @@ PIT classes after the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`).
 | USCRUDEINV | 0 | 0 | 2295 | 0 | 0 | 0 | 2295 | 0 | 0.0% |
 | USGASPRICE | 1 | 0 | 1884 | 0 | 1 | 0 | 1884 | 0 | 0.1% |
 | USFHFAHPI | 24 | 0 | 403 | 0 | 24 | 0 | 426 | 0 | 5.6% |
-| **total** | 31 | 64469 | 33682 | 0 | 31 | 64469 | 33706 | 0 | 65.7% |
+| **total** | 31 | 62843 | 36520 | 0 | 31 | 62843 | 36544 | 0 | 63.3% |
 
 ### Units / frequency verification notes
 
@@ -152,12 +152,12 @@ PIT classes after the 2026-09-29 backfill-timing rebuild (`BACKFILL-TIMING.md`).
 
 | symbol | op(inputs) | count | newest | latest value | independent recomputation from stored inputs | secondary |
 |---|---|---:|---|---:|---:|---|
-| USCPIYOY | yoy_pct(USCPINSA) | 704 | 2026-08-01 | 3.39655 | 3.39655 | 100*(USCPINSA/USCPINSA[-12m]-1) |
-| USCPIMOM | mom_pct(USCPI) | 715 | 2026-08-01 | 0.396018 | 0.396018 | 100*(USCPI/USCPI[-1m]-1) |
-| USCORECPIYOY | yoy_pct(USCORECPINSA) | 704 | 2026-08-01 | 2.44598 | 2.44598 | 100*(USCORECPINSA/USCORECPINSA[-12m]-1) |
-| USNFPCHG | diff(USNFP) | 715 | 2026-08-01 | 162 | 162 | USNFP - USNFP[-1m] |
+| USCPIYOY | yoy_pct(USCPINSA) | 1352 | 2026-08-01 | 3.39655 | 3.39655 | 100*(USCPINSA/USCPINSA[-12m]-1) |
+| USCPIMOM | mom_pct(USCPI) | 955 | 2026-08-01 | 0.396018 | 0.396018 | 100*(USCPI/USCPI[-1m]-1) |
+| USCORECPIYOY | yoy_pct(USCORECPINSA) | 824 | 2026-08-01 | 2.44598 | 2.44598 | 100*(USCORECPINSA/USCORECPINSA[-12m]-1) |
+| USNFPCHG | diff(USNFP) | 1051 | 2026-08-01 | 162 | 162 | USNFP - USNFP[-1m] |
 | USPCEPIYOY | yoy_pct(USPCEPI) | 799 | 2026-07-01 | 3.70117 |  | BEA BPCERO (T20811 L32) published 1dp, see full-series check |
-| UST10Y2Y | spread(UST10Y, UST2Y) | 13129 | 2026-09-25 | 0.36 | 0.36 | UST10Y-UST2Y from store; Treasury par curve 09/25: 5.17-4.81=0.36 (fed_ddp.txt §4) |
+| UST10Y2Y | spread(UST10Y, UST2Y) | 12577 | 2026-09-25 | 0.36 | 0.36 | UST10Y-UST2Y from store; Treasury par curve 09/25: 5.17-4.81=0.36 (fed_ddp.txt §4) |
 | USDEBTGDP | ratio_pct(USDEBT, USGDP) | 133 | 2026-04-01 | 121.475 | 121.475 | 100*USDEBT[2026-06-30]/(USGDP*1e6) |
 
 USPCEPIYOY full-series check vs BEA's own published *percent change from month one year ago* (`BPCERO`, NIPA T20811 line 32, same NipaDataM.txt payload, 1 dp): **799 months compared, 0 mismatches after rounding to 1 dp**, max |UCT − BEA| = 0.0499 (i.e. rounding only).
@@ -227,17 +227,16 @@ USPCEPIYOY full-series check vs BEA's own published *percent change from month o
   `ingest.backfill_refusal` refuses it even when named explicitly (`--backfill USRETAIL` → `REFUSED … status
   unverified`, exit 1, 0 rows). No other series failed validation on real history: **0 `validation_event` rows** across
   the whole backfill + a day of live polls (weekend daily rows 0, NA markers kept as `null`, revision windows not hit).
-- **BLS history is partial: 2017-01 → 2026-08 only** (9 series, 965 rows from ONE keyless v1 query by the service at
-  09:11 ET). The 1913–2016 windows (11 queries) are queued in `C:\w\econ1-data\tools\bls_backfill_when_ready.py`
-  (running; one window per 10 min after 15:00Z, pauses 3 h on any quota refusal). BLS refused the 4th query at
-  00:11 ET and 03:11 ET — see PERFORMANCE.md §1a. Re-run `census.py` + `census_md.py` after it logs `all windows done`.
-  Consequences until then: USCPIYOY/USCORECPIYOY start 2018-01, USCPIMOM/USNFPCHG 2017-02.
-- **Backfill placement is conservative, sometimes by weeks.** Backfilled rows use the registry `lag_rule` (late side),
-  raised to a matched event's schedule but never LOWERED to it: Aug 2026 CPI is placed 2026-09-25 08:30 ET (period end
-  + 25 d) although the configured PFEI event says 2026-09-11 08:30 ET. No leak, but an overlay would show the print two
-  weeks late. Recommendation: when a backfilled period matches a known past event of precision `exact`/`time_configured`,
-  place it at that event (it is the official release time). Rows already stored are append-only; a derivation-style
-  version bump or a one-time re-placement release would be needed.
+- **BLS history is complete (2026-09-29).** All 11 keyless v1 windows (1913–2016) were written by
+  `bls_backfill_when_ready.py` between 15:00Z and 16:32Z, one query per 10 min, 0 refusals; each series now starts at its
+  BLS history start (USCPINSA 1913-01, USCPI 1947-01, USCORECPI 1957-01, USUNRATE 1948-01, USNFP 1939-01, USPPIFD 2009-11,
+  USECI 2001Q1, USJOLTSO 2000-12). Derived: USCPIYOY 1914-01, USCORECPIYOY 1958-01, USCPIMOM 1947-02, USNFPCHG 1939-02.
+- **Backfill placement is audited and snapped (BACKFILL-TIMING.md).** Aug 2026 CPI is now at 2026-09-11 08:30 ET (the
+  PFEI event), not period end + 25 d. The rule remains late-side where no agency-stated time exists.
+- **Holiday "no data" rows are not observations (rebuild 2, 2026-09-29).** H.15 `ND` rows of UST10Y (720) and UST2Y
+  (552) were dropped by the rebuilt DB (fed_ddp now drops ND on daily series; NA/NC stay `null`). They had been placed at
+  the prior business day's release time and masked its value on the release-date timeline (UST10Y2Y: 552 nulls, 548
+  breaks → 0 / 0). `na` above now counts only genuine missing periods (Oct-2025 CPI family, 6 EIA gasoline weeks).
 - **Derived float noise**: UST10Y2Y 2026-09-25 is stored as 0.3600000000000003 (5.17 − 4.81 in binary). Display
   formats hide it; a `round(v, 10)` in `derive.py` would make stored values canonical (needs a derivation version bump).
 - **FHFA configured calendar has no past event**: `fhfa_hpi.json` starts at the 2026-09-29 release, so USFHFAHPI was
