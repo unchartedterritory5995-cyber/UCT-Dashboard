@@ -22,6 +22,7 @@ import { enterMemberDoor, toProductBars, tfCodeOf, HARNESS_DEF_ID } from './vend
 import * as registry from '../nativeRegistry'
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects, OBJECT_STATUS } from '../objectRuntime'
+import { toRenderState } from '../objectRenderState'
 
 const load = (slug) => JSON.parse(fs.readFileSync(
   path.join(HARNESS_DIR, `${slug}-rddt-1d-2026-09-28.json`), 'utf8'))
@@ -86,7 +87,7 @@ describe('C10 — an MTF toggle written `input == false ? timeframe.period : tf`
     expect(fills.length).toBe(2)
   })
 
-  it('⛔ CONTROL — the same toggle flipped to the 60-minute timeframe refuses, never draws the daily channel', () => {
+  it('⛔ CONTROL — the same toggle flipped to the 60-minute timeframe draws no channel, never the daily one', () => {
     // `TF = input.timeframe('60')` is below the daily bars this chart holds; the
     // toggle picking it must not quietly read the chart's own timeframe instead.
     const flipped = capture.source.text.replace("TF_Choise = input.bool(false, 'Time Frame'", "TF_Choise = input.bool(true, 'Time Frame'")
@@ -95,4 +96,40 @@ describe('C10 — an MTF toggle written `input == false ? timeframe.period : tf`
     const lines = r.run ? r.run.live.filter((o) => o.family === 'line') : []
     expect(lines).toEqual([])
   })
+})
+
+describe('C10 — a request below the chart\'s timeframe whose value is never shown (artemis-oscillator-pro)', () => {
+  const capture = load('artemis-oscillator-pro')
+  /** Every cell of the table whose first cell reads `MTF`, as `col,row text`. */
+  const mtfOfVendor = () => {
+    const cells = capture.objects.records.tableCells
+    const tid = cells.find((c) => c.t === 'MTF').tid
+    return cells.filter((c) => c.tid === tid).map((c) => `${c.col},${c.row} ${c.t}`).sort()
+  }
+  const mtfOfOurs = ({ run, bars }) => {
+    const table = toRenderState(run.live, { bars, tf: 'D' }).tables
+      .find((t) => (t.cells || []).some((c) => c && c.text === 'MTF'))
+    return table ? table.cells.map((c) => `${c.col},${c.row} ${c.text}`).sort() : []
+  }
+
+  it('⭐ the MTF panel is TradingView\'s, cell for cell: 15m / 1h / 4h forced `— n/a`, 1D read off the daily bars, the header `◮ MIXED`', () => {
+    const vendor = mtfOfVendor()
+    expect(vendor).toHaveLength(10)
+    expect(vendor).toContain('1,1 — n/a')
+    expect(vendor).toContain('1,4 ▼ BEAR')
+    expect(mtfOfOurs(ourRun(capture))).toEqual(vendor)
+  }, 60000)
+
+  it('⛔ CONTROL — a validity that reads the bars keeps the 15-minute request live: its cells are dropped, never guessed', () => {
+    const perBar = capture.source.text.replace(
+      'bool  mtfV1 = timeframe.in_seconds(mtfTf1) >= chartSec',
+      'bool  mtfV1 = timeframe.in_seconds(mtfTf1) >= chartSec or close < 0')
+    expect(perBar).not.toBe(capture.source.text)
+    const ours = mtfOfOurs(ourRun(capture, perBar))
+    // the 15m tag and the header both read the 15-minute oscillator now
+    expect(ours.filter((c) => c.startsWith('1,1 ') || c.startsWith('1,0 '))).toEqual([])
+    // the rows whose validity still folds keep their answer
+    expect(ours).toContain('1,2 — n/a')
+    expect(ours).toContain('1,4 ▼ BEAR')
+  }, 60000)
 })

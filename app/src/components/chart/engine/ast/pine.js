@@ -5223,6 +5223,65 @@ function logicalAnnihilator(op) {
   return op === '||' ? 1 : op === '&&' ? 0 : null
 }
 
+/** ⭐⭐ C10 (2026-09-29) — A CANONICAL TREE THAT IS THE SAME NUMBER ON EVERY BAR →
+ *  that number; `null` for anything else.
+ *
+ *  The resolver already skips a branch a constant test never takes, and an
+ *  operand the other side of `and`/`or` has already decided — but it asked only
+ *  whether the test WAS a `num`. `timeframe.in_seconds("15") >= chartSec`
+ *  resolves to `op('>=', num 900, num 86400)`, and `not` of it to `op('!', …)`:
+ *  constant, not a `num`. So artemis-oscillator-pro's "a timeframe below the
+ *  chart's own is forced `— n/a`" guard still resolved the dead arm, which
+ *  reads a 15-minute `request.security` this chart cannot serve, and the cell
+ *  TradingView draws as `— n/a` was dropped with the refusal of a value it
+ *  never shows.
+ *
+ *  ⛔ `bind.js::foldScalar` WITH EMPTY CONSTANTS IS THE EVALUATOR — the one this
+ *  file already folds constant windows with. It throws on every `series` leaf (a
+ *  bar value, a declared input knob, a clock), every bar-reading node and every
+ *  call outside its closed scalar set, so nothing per-bar can fold. ⛔ And a
+ *  `na` anywhere in the tree refuses the fold: `na == na` is 0 in JavaScript,
+ *  and what Pine answers for a comparison against `na` is not this helper's to
+ *  decide. A `num` itself is left to its callers, whose handling is unchanged. */
+function constantTestValue(tree) {
+  if (!tree || typeof tree !== 'object' || tree.type === 'num') return null
+  // ⭐ A SHAPE CHECK FIRST, WHICH NEVER THROWS: only `op`s over finite `num`s can
+  // fold, and asking `foldScalar` about anything else costs an exception per
+  // ternary the object pass reads (measured: +14% translate time over the
+  // corpus before this check). Everything else is not a constant here.
+  const stack = [tree]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') return null
+    if (n.type === 'num') {
+      if (!Number.isFinite(n.value)) return null
+    } else if (n.type === 'op' && Array.isArray(n.args)) {
+      for (const a of n.args) stack.push(a)
+    } else {
+      return null
+    }
+  }
+  // ⛔ EVERY NUMERIC SUBTREE MUST FOLD FINITE, not just the whole: `na` arrives
+  // as `0 / 0`, and `(0 / 0) != 1` is a finite 1 in JavaScript.
+  const finite = (n) => {
+    const v = foldScalar(n, {})
+    if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error('not finite')
+    if (n.type === 'op' || n.type === 'call') for (const a of n.args || []) finite(a)
+    return v
+  }
+  try { return finite(tree) } catch { return null }
+}
+
+/** ⭐ C10 (2026-09-29) — HOW MANY NAMES AND TERNARY ARMS A TIMEFRAME READER
+ *  FOLLOWS (`ownTimeframeOf`, `timeframeLiteralOf`) IN THE OBJECT PASS. The bound
+ *  exists to make a binding cycle a refusal instead of a hang, and any finite
+ *  number does that. It is 4 — "well past anything real" — and
+ *  artemis-oscillator-pro's preset chain `p=="Scalp" ? "60" : p=="Intraday" ?
+ *  "240" : … : "D"` is a name plus five arms, so its `"D"` timeframe was
+ *  unreadable while its label beside it read. The plot lane keeps 4: see
+ *  `Resolver.objectPass`. */
+const TF_READ_HOPS = 16
+
 function foldLogicalIdentity(op, left, right, table) {
   const isNum = (n, v) => n && n.type === 'num' && n.value === v
   const identity = op === '&&' ? 1 : op === '||' ? 0 : null
@@ -5461,6 +5520,18 @@ export class Resolver {
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
     this.basePeriod = basePeriodOf(opts)
+    /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
+     *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
+     *  `null` everywhere else. Pine evaluates the requested expression IN that
+     *  context, so `timeframe.period`, `.multiplier`, `.isminutes`, `.isseconds`
+     *  and a bare `timeframe.in_seconds()` inside it answer for that context —
+     *  the requested timeframe, by Pine's reference. They folded against
+     *  `basePeriod` here, so `request.security(syminfo.tickerid, "W",
+     *  timeframe.in_seconds())` read a day's 86400 on a daily chart. No capture
+     *  has measured the vendor's answer, so neither reading is served: such a
+     *  read REFUSES by name (`periodInForce`). The comparisons that concern the
+     *  BARS IN HAND (`securityAsNode`'s identity fold) keep reading `basePeriod`. */
+    this.requestPeriod = null
     /** Whether the newest bar in hand is still forming. Consulted ONLY to REFUSE an
      *  identity fold on an intraday base; never to produce a value. */
     this.newestBarIsForming = opts.newestBarIsForming === true
@@ -5582,6 +5653,18 @@ export class Resolver {
      *  entries depend only on the `var`'s own bindings, never on the output
      *  being resolved. Absent, each Resolver keeps its own. */
     this.partialReadCache = opts.partialReadCache || null
+    /** ⭐⭐ C10 (2026-09-29) — THE OBJECT PASS. Set by the object pass's factory
+     *  and by nothing else, and it widens two reads there only:
+     *   · a ternary or an `and`/`or` whose test is a constant EXPRESSION
+     *     (`constantTestValue`) answers with its live side when the side it never
+     *     takes REFUSES (the dead-arm rescue);
+     *   · a timeframe reader follows `TF_READ_HOPS` names and arms, not 4.
+     *  Confined on purpose: in the plot lane a newly-translating output mints its
+     *  parameters in a new order and moves the ADDRESSES members save
+     *  (`paramIds.test.js` — measured on cppivot-boss-floor-pivots, whose
+     *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
+     *  is an owner-ruled act. The object pass mints no parameters. */
+    this.objectPass = opts.objectPass === true
     /** ⭐⭐ THE BINDING OBJECTS THAT ARE THE LAST WORD INSIDE A FUNCTION BODY.
      *
      *  ⛔ AN IDENTITY SET, DELIBERATELY NOT A name→binding MAP. `finalBindings` is
@@ -6689,7 +6772,7 @@ export class Resolver {
       // ⛔ AND THE MAP IS THE SAME ONE `ownTimeframeOf` ASKS. A second roster of
       // "which spellings mean the chart's own timeframe" would let this door and
       // `securityAsNode` disagree about one script.
-      if (OWN_TF_NAMES.has(node.name)) return this.basePeriod
+      if (OWN_TF_NAMES.has(node.name)) return this.periodInForce(node.name, node.tok)
       return null
     }
     if (node.type === 'call' && (node.name === 'input' || node.name.startsWith('input.'))) {
@@ -7372,8 +7455,21 @@ export class Resolver {
           if (decidedBy.type === 'num' && decidedBy.value === annihilator) {
             return cNum(annihilator)
           }
-          return foldLogicalIdentity(mapped, decidedBy,
-            this.condition(this.resolve(node.right), node.op, node.tok), this.table)
+          // ⭐ C10 — THE SAME DECISION WHEN THE LEFT OPERAND IS A CONSTANT
+          // EXPRESSION (`not (900 >= 86400) or na(x)`; `constantTestValue`) —
+          // taken only as a RESCUE. The right side is still resolved first, so
+          // every tree that translated keeps its exact shape (and its parameter
+          // addresses); only a right side that REFUSES is skipped, because the
+          // left has already decided the answer on every bar.
+          let right
+          try {
+            right = this.condition(this.resolve(node.right), node.op, node.tok)
+          } catch (err) {
+            if (this.objectPass && err instanceof PineRefusal && err.guard !== 'pine:timeout'
+              && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
+            throw err
+          }
+          return foldLogicalIdentity(mapped, decidedBy, right, this.table)
         }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
@@ -7414,7 +7510,32 @@ export class Resolver {
         // script over an arm its own folded input makes unreachable would be
         // reading a different document than the one the member pasted.
         if (test.type === 'num') return this.resolve(test.value !== 0 ? node.yes : node.no)
-        return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+        // ⭐ C10 — …and a test that is a constant EXPRESSION rather than a
+        // literal (`not (900 >= 86400)`; `constantTestValue`) is the same case,
+        // taken only as a RESCUE: both arms are still resolved in order, so every
+        // tree that translated keeps its exact shape and parameter addresses
+        // (`paramIds.test.js`); only a DEAD arm that refuses is skipped. A live
+        // arm's refusal is still the answer.
+        const rescuable = (err) => this.objectPass && err instanceof PineRefusal
+          && err.guard !== 'pine:timeout'
+        let yes
+        try {
+          yes = this.resolve(node.yes)
+        } catch (err) {
+          if (rescuable(err) && constantTestValue(test) === 0) return this.resolve(node.no)
+          throw err
+        }
+        let no
+        try {
+          no = this.resolve(node.no)
+        } catch (err) {
+          if (rescuable(err)) {
+            const folded = constantTestValue(test)
+            if (folded !== null && folded !== 0) return yes
+          }
+          throw err
+        }
+        return cOp('?:', [test, yes, no])
       }
       case 'offset': {
         // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
@@ -7826,7 +7947,7 @@ export class Resolver {
       // guessed 1 — which would read as "this is a daily chart" on a timeframe
       // nobody has classified.
       if (own(BUILTIN_TIMEFRAME_SCALAR, name)) {
-        const v = BUILTIN_TIMEFRAME_SCALAR[name](this.basePeriod)
+        const v = BUILTIN_TIMEFRAME_SCALAR[name](this.periodInForce(name, node && node.tok))
         if (v !== null) return cNum(v)
       }
       // ⚰️ A SECOND `BUILTIN_TIMEFRAME_RULED` THROW STOOD HERE AND COULD NOT BE
@@ -8468,6 +8589,22 @@ export class Resolver {
    *  ⚠️ `resolve` can refuse (an input kind we do not hold); that is a
    *  non-answer here, not an error to propagate — the caller's `null` path
    *  already says "no literal", by name, at the member's own line. */
+  /** The timeframe a `timeframe.*` read answers for here — the chart's — or a
+   *  refusal inside a `request.security` child at another timeframe (see
+   *  `requestPeriod`). ⭐ What would settle it: a capture of
+   *  `plot(request.security(syminfo.tickerid, "W", timeframe.in_seconds()))` on a
+   *  daily chart. */
+  periodInForce(name, tok) {
+    if (this.requestPeriod) {
+      throw new PineRefusal('pine:request',
+        `${REFUSALS['pine:request']} — \`${name}\` read inside a \`request.security\` at `
+        + `\`${this.requestPeriod}\` answers for that request's context, which no capture `
+        + 'has measured, so it is not folded to this chart\'s own timeframe',
+        tok ? locate(tok) : null)
+    }
+    return this.basePeriod
+  }
+
   constantBranchOf(node) {
     if (!node || node.type !== 'ternary') return null
     let test = null
@@ -8482,15 +8619,11 @@ export class Resolver {
     // `TF_Choise == false ? timeframe.period : TF` (linear-regression-channel's
     // MTF toggle) resolves its test to `op('==', num 0, num 0)`: every leaf a
     // constant, yet not a `num`, so the toggle refused while the SAME toggle
-    // written `TF_Choise ? TF : timeframe.period` translated. `bind.js::foldScalar`
-    // is the evaluator this file already uses for exactly this question, and with
-    // EMPTY constants it throws on any `series` leaf — a per-bar value, a declared
-    // input knob, a clock — so only a test that is the same number on every bar
-    // folds. A non-finite fold (a `na` reaching the test) stays unanswered.
+    // written `TF_Choise ? TF : timeframe.period` translated. `constantTestValue`
+    // folds it, and nothing per-bar — see its own note.
     if (test && test.type !== 'num') {
-      let v = null
-      try { v = foldScalar(test, {}) } catch { v = null }
-      if (typeof v !== 'number' || !Number.isFinite(v)) return null
+      const v = constantTestValue(test)
+      if (v === null) return null
       return v ? node.yes : node.no
     }
     if (!test || test.type !== 'num') return null
@@ -8536,7 +8669,7 @@ export class Resolver {
     const given = positional.length ? positional[0] : (named[0] || null)
     let code = null
     if (given === null) {
-      code = this.basePeriod
+      code = this.periodInForce(name, node && node.tok)
     } else {
       const raw = given.value !== undefined ? given.value : given
       const lit = this.stringValueOf(raw)
@@ -8860,7 +8993,7 @@ export class Resolver {
    *  hourly, and reading it as the chart's own timeframe answers off whatever
    *  bars happen to be loaded. */
   ownTimeframeOf(node, depth = 0) {
-    if (!node || depth > 4) return null
+    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
       return taken ? this.ownTimeframeOf(taken, depth + 1) : null
@@ -8876,7 +9009,7 @@ export class Resolver {
   }
 
   timeframeLiteralOf(node, depth = 0) {
-    if (!node || depth > 4) return null
+    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
@@ -9361,7 +9494,16 @@ export class Resolver {
     // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
     // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
     // the tuple form from becoming a second authority on what a request means.
-    let out = resolveInner ? resolveInner() : this.resolve(positional[2])
+    // ⭐ C10 — the child is resolved IN the requested timeframe's context; see
+    // `requestPeriod`. The identity (`code` null) leaves the context unchanged.
+    const outerPeriod = this.requestPeriod
+    if (code) this.requestPeriod = code
+    let out
+    try {
+      out = resolveInner ? resolveInner() : this.resolve(positional[2])
+    } finally {
+      this.requestPeriod = outerPeriod
+    }
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
     if (other) out = { type: 'sym', value: other, args: [out] }
     return out
@@ -13217,6 +13359,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
 
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
+  /** ⭐ C10 — a canonical test that is the same number on every bar → that
+   *  number (a finite `num`, or a constant expression), else null. */
+  const decidedTest = (tree) => (tree && tree.type === 'num'
+    ? (Number.isFinite(tree.value) ? tree.value : null)
+    : constantTestValue(tree))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
    *  way `staticColourOf` already opens a colour behind a name. */
@@ -13545,9 +13692,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     if (node.type === 'ternary') {
       if (periodSpellingDecides(node.test, inline, scope)) return null
-      const cond = resolveTree(node.test, inline, envAt)
+      // ⭐ C10 — A TEST THAT IS THE SAME ON EVERY BAR ANSWERS WITH ITS LIVE ARM
+      // WHEN THE DEAD ONE CANNOT BE READ, as the resolver's own `ternary` case
+      // does. artemis-oscillator-pro's `not valid ? "— n/a" : d > 0 ? …` with
+      // `valid` folded false is `— n/a` on every bar, and its dead arm reads a
+      // 15-minute `request.security` this chart cannot serve. A rescue only: the
+      // test and both arms are read in their old order, so a text that read keeps
+      // its exact node and its trees their exact indices.
+      const condTree = canonicalOf(node.test, inline, envAt)
+      const cond = internTree(condTree)
       const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
       const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
+      if (!then || !other) {
+        const decided = decidedTest(condTree)
+        if (decided !== null) return decided !== 0 ? then : other
+      }
       if (!cond || !then || !other) return null
       return { t: 'if', cond, then, else: other }
     }
@@ -13741,9 +13900,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const hex = staticObjectColourOf(node, scope)
     if (hex) return { c: 'lit', hex }
     if (node.type === 'ternary') {
-      const cond = resolveTree(node.test)
+      // ⭐ C10 — a test that is the same on every bar answers with its live
+      // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
+      const condTree = canonicalOf(node.test)
+      const cond = internTree(condTree)
       const then = colorNodeOf(node.yes, scope, depth + 1)
       const other = colorNodeOf(node.no, scope, depth + 1)
+      if (!then || !other) {
+        const decided = decidedTest(condTree)
+        if (decided !== null) return decided !== 0 ? then : other
+      }
       if (!cond || !then || !other) return null
       return { c: 'if', cond, then, else: other }
     }
@@ -16800,6 +16966,7 @@ function translatePineResult(source, opts = {}) {
           // pass must not. Measured: without it `rsi-swing-indicator` rebuilt one
           // accumulator per object op (42 ms -> 426 ms to translate).
           partialReadCache: objectPartialReadCache,
+          objectPass: true,
           strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,

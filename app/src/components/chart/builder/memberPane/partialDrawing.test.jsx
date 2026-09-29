@@ -135,8 +135,14 @@ const CASES = [
   // four MTF column-label cells are carried — and they equal the vendor's
   // records on the RDDT 1D capture ("15m","1h","4h","1D"; tableCells 9 → 13,
   // nothing drawn the vendor lacks). Fewer unsupported, none drawn wrong.
+  // ⭐ 22 → 17, 2026-09-29 (C10, fix-order step 20). The MTF panel's value
+  // column: a timeframe below the chart's own is forced `— n/a` by a test that
+  // folds on every bar, so the 15m/1h/4h requests it never shows are no longer
+  // read (the object pass's dead-arm rescue), and the `D` request is read as the
+  // chart's own through a six-hop preset chain. All five cells equal the
+  // vendor's records ("◮ MIXED", "— n/a" ×3, "▼ BEAR"; tableCells 13 → 18).
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(22, 38) },
+    objectsOnly: false, kind: 'partial', text: partial(17, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the
