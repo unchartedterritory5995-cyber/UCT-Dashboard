@@ -59,6 +59,8 @@ TheReadStrip/theRead, test_canonical_address_book) — it was re-running tests w
 Still owed: TERM-049 (counts-only history; needs address-book stores), 021 arming (backup rehearsal), 018 gate after a
 week, 042 server mode after ~10 clean shadow sessions, 046 arming after one real pull shows Short Float/Ratio present.
 
+**RESOLVER APPROVAL LINE (delegated, 2026-09-29):** caller `api/routers/breadth_monitor.py::_with_total_claim` resolves `breadth_snapshot_numeric.breadth_score` @ D for the session it scores, so The Read's stated score carries a checked pointer. Test: `tests/test_term060_claims.py` + `_ALLOWED_RESOLVER_CALLERS` in `tests/test_canonical_address_book.py`. Approved by the integrator under the owner's delegation. TERM-060 finished by the integrator after its agent hit the weekly limit (`983e892cc`; 259 pytest + 122 vitest; mutation 2 red).
+
 **⭐ OWNER RULINGS, 2026-09-29 ~07:30 ET (asked one by one; these SUPERSEDE the outstanding list below):**
 062 drop the pre-save fire COUNT, ship the rest · 053 OPEN_READS_GATE → **enforce now** (read the would-deny log first),
 `/api/stream/prices` stays OPEN, `/api/r/*` token left as is · 045 ARM `EDGAR_OWNERSHIP_ENABLED`, keep FMP/Finnhub for
