@@ -41,12 +41,35 @@ describe('the fixture is not vacuous', () => {
 })
 
 describe('no second list on the client', () => {
-  // nyseCalendar.js is the client table marketClock.js reads today. On every
-  // year it covers, its dates must equal the dataset's exactly.
+  // nyseCalendar.js is the client table marketClock.js reads. Since TERM-035
+  // follow-up #1 it DERIVES from this dataset, so on every year it covers its
+  // dates (and close times) must equal the dataset's exactly.
   it.each(legacy.COVERED_YEARS.map((y) => [y]))('%i: holidays and half-days equal nyseCalendar.js', (year) => {
     const pick = (rows) => rows.map((r) => r.date).filter((d) => d.startsWith(String(year))).sort()
-    expect(pick(DATA.holidays)).toEqual(pick(legacy[`NYSE_HOLIDAYS_${year}`]))
-    expect(pick(DATA.early_closes)).toEqual(pick(legacy[`NYSE_EARLY_CLOSES_${year}`]))
+    const table = legacy.NYSE_CALENDAR_BY_YEAR[year]
+    expect(pick(DATA.holidays)).toEqual(pick(table.holidays))
+    expect(pick(DATA.early_closes)).toEqual(pick(table.earlyCloses))
+    for (const e of table.earlyCloses) {
+      const row = DATA.early_closes.find((r) => r.date === e.date)
+      expect([e.date, `${String(e.closeHour).padStart(2, '0')}:${String(e.closeMinute).padStart(2, '0')}`])
+        .toEqual([e.date, row.close])
+    }
+  })
+
+  it('covers every whole year of the dataset, and nothing past its horizon', () => {
+    const first = Number(DATA.coverage_start.slice(0, 4))
+    const last = Number(DATA.horizon.slice(0, 4))
+    expect(legacy.COVERED_YEARS).toEqual(Array.from({ length: last - first + 1 }, (_, i) => first + i))
+    expect(legacy.hasCoverage(last + 1)).toBe(false)
+    expect(legacy.hasCoverage(first - 1)).toBe(false)
+    // Non-vacuity: the per-year comparison above walks at least four years.
+    expect(legacy.COVERED_YEARS.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('the pre-dataset named exports still resolve to the derived 2026/2027 tables', () => {
+    expect(legacy.NYSE_HOLIDAYS_2026).toBe(legacy.NYSE_CALENDAR_BY_YEAR[2026].holidays)
+    expect(legacy.NYSE_EARLY_CLOSES_2027).toBe(legacy.NYSE_CALENDAR_BY_YEAR[2027].earlyCloses)
+    expect(legacy.NYSE_HOLIDAYS_2026.length).toBeGreaterThanOrEqual(9)
   })
 
   it('marketClock.sessionState agrees with every fixture row inside its own coverage', () => {

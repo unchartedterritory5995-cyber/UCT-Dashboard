@@ -1,6 +1,16 @@
 """⭐⭐ THE NYSE CALENDAR — the two date sets, and nothing else.
 
-⛔⛔ THIS MODULE IMPORTS NOTHING. That is its entire job. Both sets already had
+⭐⭐ THE DATES ARE NO LONGER TYPED HERE (TERM-035 follow-up #1). Both sets are
+DERIVED from ``app/src/lib/marketClock/market_calendar.json`` through
+``api.services.session_calendar.calendar()``, the dataset the browser also reads
+(``nyseCalendar.js`` -> ``sessionCalendar.js``). The names, types and 2025-2027
+contents are unchanged; 2028 arrived with the dataset. Refresh the JSON, never
+this file. ``tests/test_nyse_calendar_parity.py`` holds these sets equal to the
+JSON and the shared fixture ``tests/fixtures/market_calendar_cases.json`` pins
+real dates independently on both runtimes.
+
+⛔⛔ THIS MODULE IMPORTS NOTHING BUT THE STDLIB-ONLY ``session_calendar``. That is
+its entire job, and the parity test rails both halves of it. Both sets already had
 exactly one authority each, but those authorities lived inside SERVICE modules:
 the full closures in ``bars_fetch`` (which pulls ``fastapi``, ``massive``, the
 cache and a thread pool at import) and the half-days in ``liveflow_monitor``.
@@ -19,8 +29,11 @@ from here and re-export under their existing names, so every one of the existing
 read sites is untouched and keeps working through the module it already names.
 What moved is where the literal lives, not who owns it.
 
-⚠️ BOTH SETS RUN TO 2027 and carry a standing instruction to refresh annually
-from ``nyse.com/markets/hours-calendars``. Past that horizon a D/W/M bar falls
+⚠️ BOTH SETS RUN TO THE DATASET'S HORIZON (2028-12-31 at the time of writing) and
+the dataset carries a standing instruction to refresh from
+``nyse.com/markets/hours-calendars``; the horizon rail in
+``tests/test_session_calendar.py`` goes red 12 months before it lapses. ``GET
+/api/market-calendar`` publishes it as ``covers_through``. Past that horizon a D/W/M bar falls
 back to the regular session and may read ``isrealtime`` for up to one session
 too long on a holiday or half-day -- named in ``docs/pine/barstate.md`` rather
 than papered over.
@@ -33,29 +46,32 @@ statement that this repo does not know them.
 """
 from __future__ import annotations
 
+from datetime import date
+
+from api.services.session_calendar import calendar as _calendar
+
+
+def _yyyymmdd(d: date) -> int:
+    return d.year * 10000 + d.month * 100 + d.day
+
+
 #: NYSE FULL CLOSURES as ``YYYYMMDD`` ints. No bars exist on these dates.
+#: Derived from ``market_calendar.json`` (see the module docstring).
 #: ⚰️ Lived in ``api/services/bars_fetch.py`` until 2026-09-09 and is re-exported
 #: from there, so ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`` still resolves.
-NYSE_HOLIDAYS_YYYYMMDD: frozenset[int] = frozenset({
-    # 2025
-    20250101, 20250109, 20250120, 20250217, 20250418, 20250526, 20250619,
-    20250704, 20250901, 20251127, 20251225,
-    # 2026
-    20260101, 20260119, 20260216, 20260403, 20260525, 20260619, 20260703,
-    20260907, 20261126, 20261225,
-    # 2027
-    20270101, 20270118, 20270215, 20270326, 20270531, 20270618, 20270705,
-    20270906, 20271125, 20271224,
-})
+NYSE_HOLIDAYS_YYYYMMDD: frozenset[int] = frozenset(
+    _yyyymmdd(d) for d in _calendar().holidays
+)
 
 #: NYSE 1pm ET HALF-DAYS as ``YYYYMMDD`` ints. Real sessions, short ones.
+#: Derived from ``market_calendar.json``'s ``early_closes``. ⚠️ An int set cannot
+#: carry the close time, so every row there must close at 13:00; the parity test
+#: rails that rather than this module raising at import.
 #: ⚰️ Lived in ``api/services/liveflow_monitor.py`` until 2026-09-09 and is
 #: re-exported from there, so its five existing read sites are untouched.
-NYSE_EARLY_CLOSES_YYYYMMDD: frozenset[int] = frozenset({
-    20250703, 20251128, 20251224,   # 2025
-    20261127, 20261224,             # 2026
-    20271126,                       # 2027 (Dec 24 2027 is a FULL closure)
-})
+NYSE_EARLY_CLOSES_YYYYMMDD: frozenset[int] = frozenset(
+    _yyyymmdd(d) for d in _calendar().early_closes
+)
 
 
 #: ⚠️⚠️ HYPOTHESIS, NOT A MEASUREMENT — the hour TradingView appears to CONFIRM a
