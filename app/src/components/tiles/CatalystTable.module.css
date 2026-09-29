@@ -294,68 +294,6 @@
 }
 .dateLiveBtn:hover { background: rgba(220, 187, 94, 0.2); }
 
-.explainRow {
-  margin-bottom: 12px;
-}
-.explainToggle {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  border-radius: var(--radius-md);
-  padding: 4px 10px;
-  font-size: 11px;
-  cursor: pointer;
-  font-family: var(--font-sans);
-}
-.explainToggle:hover { color: var(--ut-cream); border-color: var(--ut-cream); }
-.explainPanel {
-  margin-top: 8px;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 12px;
-}
-.explainInputRow { display: flex; gap: 8px; margin-bottom: 8px; }
-.explainInput {
-  flex: 1;
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  color: var(--ut-cream);
-  border-radius: var(--radius-sm);
-  padding: 4px 8px;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-.explainBtn {
-  background: var(--ut-gold, #dcbb5e);
-  border: none;
-  color: var(--bg-surface);
-  border-radius: var(--radius-sm);
-  padding: 4px 14px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 11px;
-}
-.explainBtn:disabled { opacity: 0.5; cursor: wait; }
-.explainError { color: var(--loss); font-size: 11px; }
-.explainBody { padding: 4px 0; line-height: 1.5; }
-.explainHeader {
-  display: flex; gap: 16px; align-items: center;
-  font-family: var(--font-sans); font-size: 12px;
-  margin-bottom: 4px;
-}
-.explainHint { color: var(--text-muted); font-size: 11px; font-style: italic; }
-.explainDetails { margin-top: 6px; font-size: 11px; }
-.explainPre {
-  background: rgba(0,0,0,0.2);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  font-size: 10px;
-  overflow-x: auto;
-  margin: 4px 0 0;
-}
-
 .sectorBanners {
   display: flex;
   flex-direction: column;
@@ -892,12 +830,6 @@
     opacity: 0.5;
   }
   .feedbackWrap { gap: 4px; }
-  .explainToggle {
-    min-height: var(--tap-min, 44px);
-    padding: 0 14px;
-    display: inline-flex;
-    align-items: center;
-  }
   .historyLink {
     min-height: var(--tap-min, 44px);
     display: inline-flex;
@@ -933,11 +865,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-  }
-  .explainToggle {
-    min-height: var(--tap-min, 44px);
-    display: inline-flex;
-    align-items: center;
   }
   .historyLink {
     min-height: var(--tap-min, 44px);

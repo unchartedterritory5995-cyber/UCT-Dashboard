@@ -24,10 +24,19 @@ def _quota(tag: str, default: int) -> int:
     return int(os.environ.get(f"CATALYST_QUOTA_{tag.upper()}", default))
 
 
+def quota_for(tag: str) -> int:
+    """The slots one tag's bucket holds on today's list — the SAME value
+    `select_top_12` fills, so the "why isn't X here" receipt (TERM-057) can say
+    which bucket was full without restating the policy. 0 for an unknown tag."""
+    if tag not in _DEFAULT_QUOTA:
+        return 0
+    return _quota(tag, _DEFAULT_QUOTA[tag])
+
+
 def select_top_12(scored: list[dict]) -> list[dict]:
     # NOTE: function name kept for backwards compat — actual total is the sum
     # of quotas (now 20 by default; was 12). Quotas are env-overridable.
-    quotas = {tag: _quota(tag, n) for tag, n in _DEFAULT_QUOTA.items()}
+    quotas = {tag: quota_for(tag) for tag in _DEFAULT_QUOTA}
     total = sum(quotas.values())
 
     # Bucket scored candidates by tag (drop unknown tags entirely)

@@ -15,6 +15,7 @@ import styles from './CatalystTable.module.css'
 import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import UIcon from '../ui/UIcon'
+import AbsenceReceipt from '../provenance/AbsenceReceipt'
 import EpFlag, { isEpSetup } from './EpBaseRate'
 import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 
@@ -305,88 +306,6 @@ function parseSources(raw) {
   } catch {
     return []
   }
-}
-
-function ExplainTickerWidget() {
-  const [open, setOpen] = useState(false)
-  const [sym, setSym] = useState('')
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
-
-  async function lookup() {
-    const t = sym.trim().toUpperCase()
-    if (!t) return
-    setLoading(true); setResult(null)
-    try {
-      const r = await fetch(`/api/catalysts/explain/${t}`)
-      if (!r.ok) {
-        setResult({ error: `HTTP ${r.status}` })
-      } else {
-        setResult(await r.json())
-      }
-    } catch (e) {
-      setResult({ error: String(e) })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className={styles.explainRow}>
-      <button
-        type="button"
-        className={styles.explainToggle}
-        onClick={() => setOpen(o => !o)}
-        title="Why isn't a ticker on the list?"
-      >
-        <UIcon name="search" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{open ? 'Close lookup' : 'Why isn\'t X on the list?'}
-      </button>
-      {open && (
-        <div className={styles.explainPanel}>
-          <div className={styles.explainInputRow}>
-            <input
-              type="text"
-              value={sym}
-              onChange={(e) => setSym(e.target.value.toUpperCase())}
-              onKeyDown={(e) => e.key === 'Enter' && lookup()}
-              placeholder="Ticker (e.g. NVDA)"
-              className={styles.explainInput}
-              maxLength={6}
-            />
-            <button type="button" className={styles.explainBtn} disabled={loading} onClick={lookup}>
-              {loading ? '…' : 'Check'}
-            </button>
-          </div>
-          {result && result.error && (
-            <div className={styles.explainError}>Error: {result.error}</div>
-          )}
-          {result && !result.error && !result.found && (
-            <div className={styles.explainBody}>
-              <strong>{result.ticker}</strong>: not in candidate pool this refresh.
-              <div className={styles.explainHint}>{result.reason}</div>
-            </div>
-          )}
-          {result && !result.error && result.found && (
-            <div className={styles.explainBody}>
-              <div className={styles.explainHeader}>
-                <strong>{result.ticker}</strong>
-                <span>{result.tag ? `tag: ${result.tag}` : 'no tag'}</span>
-                <span>score: {result.score?.toFixed(2)}</span>
-                <span>rank: {result.rank_among_scored ?? '—'} / {result.total_scored}</span>
-              </div>
-              <div className={styles.explainHint}>{result.reason}</div>
-              <details className={styles.explainDetails}>
-                <summary>Signal breakdown</summary>
-                <pre className={styles.explainPre}>
-{JSON.stringify(result.signal_summary, null, 2)}
-                </pre>
-              </details>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
 }
 
 function SortableTh({ col, className, sortBy, onSort, children }) {
@@ -755,7 +674,8 @@ export default function CatalystTable({
         </div>
       )}
 
-      <ExplainTickerWidget />
+      {/* TERM-057: the shared "why isn't X here" receipt (S8), not a tile-local widget. */}
+      <AbsenceReceipt collapsible />
 
       {sectorContexts.length > 0 && (
         <div className={styles.sectorBanners}>

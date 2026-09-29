@@ -193,6 +193,37 @@ def catalysts_send_digest(user=Depends(require_admin)):
     return send_digest()
 
 
+# TERM-057 — the receipt's machine answer. ONE field the member-facing receipt
+# (`app/src/components/provenance/AbsenceReceipt.jsx`) keys its sentence off, so
+# the words are never re-derived from `reason` prose. ⛔ `not_evaluated` and
+# `excluded_by_gate` are DIFFERENT FACTS: a name no source surfaced was never
+# looked at by a gate, and calling it "excluded" would claim a judgement that did
+# not happen. Every key added below is ADDITIVE — the pre-TERM-057 keys keep
+# their meaning for any caller that still reads them.
+EXPLAIN_VERDICTS = (
+    "on_list",               # on today's persisted list (rank IS NOT NULL)
+    "not_evaluated",         # no source surfaced it — no gate or score ever ran
+    "excluded_by_gate",      # a pre-scoring gate dropped it (`gate` says which)
+    "no_qualifying_signal",  # cleared both gates, but no catalyst tag applied
+    "quota_full",            # tagged, but its tag's bucket was full (`quota`)
+    "cut_by_curator",        # the curator (LLM selection) cut it by name
+    "not_selected",          # scored + tagged, not picked, no single named cause
+    "qualifies_now",         # this live check would pick it; the last refresh did not
+)
+
+
+def _todays_list_rank(sym: str, market_date: str):
+    """The rank `sym` holds on the list the tile renders (the persisted rows,
+    rank IS NOT NULL), or None. The SAME record the member is looking at, so
+    "on the list" is never re-derived from a second pass. Never raises."""
+    try:
+        row = store.get_ticker_for_date(sym, market_date)
+    except Exception:
+        logger.debug("[catalysts] explain: list lookup failed for %s", sym)
+        return None
+    return (row or {}).get("rank")
+
+
 @router.get("/catalysts/explain/{sym}")
 def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     """Why isn't $SYM on today's list? Or what would put it there?
@@ -201,13 +232,23 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     isolated to one ticker. Returns a breakdown of which sources surfaced
     it, what tag it would get, what its composite score is, and what
     threshold/quota it would need to make the top-20.
+
+    TERM-057 (additive): `verdict` (one of EXPLAIN_VERDICTS), `market_date` +
+    `list_rank` (the persisted list the tile shows), `pool_size` (candidates
+    this check pulled), `gate` + `gate_reason` on a gate exclusion, and `quota`
+    ({tag, slots, rank_in_tag, in_tag}) whenever the mechanical selector ran.
     """
     sym = sym.upper().strip()
     if not sym or not sym.isalpha() or len(sym) > 6:
         raise HTTPException(400, "invalid ticker")
 
+    md = _today()
+    list_rank = _todays_list_rank(sym, md)
+    listed = list_rank is not None
+
     from api.services.catalyst import sources, scoring, tagging, filters
     candidates = sources.collect_all()
+    pool_size = len(candidates)
 
     # Find our ticker first — so we can report a quality-gate exclusion before
     # scoring (excluded candidates never get tagged/scored in the real engine).
@@ -220,10 +261,16 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
             "score": None,
             "tag": None,
             "signal_summary": {},
+            "verdict": "on_list" if listed else "not_evaluated",
+            "market_date": md,
+            "list_rank": list_rank,
+            "pool_size": pool_size,
         }
 
+    gate = "quality"
     passed, gate_reason = filters.quality_gate(me)
     if passed:
+        gate = "real_catalyst"
         passed, gate_reason = filters.is_real_catalyst(me)
     if not passed:
         return {
@@ -246,6 +293,12 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
                 f"source hit but doesn't clear the tradeability + activity "
                 f"floors, so it never enters the scored pool."
             ),
+            "verdict": "on_list" if listed else "excluded_by_gate",
+            "gate": gate,
+            "gate_reason": gate_reason,
+            "market_date": md,
+            "list_rank": list_rank,
+            "pool_size": pool_size,
         }
 
     # Score + tag everyone (gate-passers only, to mirror the engine)
@@ -266,7 +319,40 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
     # cut this name in today's run). None when the curator is off or the name
     # wasn't in the last curated pool.
     from api.services.catalyst import curator as _curator
-    curator_verdict = _curator.get_curation(_today()).get(sym)
+    curator_verdict = _curator.get_curation(md).get(sym)
+
+    # TERM-057: the cause, named. Precedence runs from the list the member sees,
+    # to a cut made by name, to the absence of a tag, to the selector itself.
+    tag = me.get("tag")
+    quota = None
+    if listed:
+        verdict = "on_list"
+    elif isinstance(curator_verdict, dict) and curator_verdict.get("keep") is False:
+        verdict = "cut_by_curator"
+    elif not tag:
+        verdict = "no_qualifying_signal"
+    elif _curator.curator_ran(md):
+        # The curator picked today's list, so the mechanical quota did not
+        # decide it — naming a quota bucket would be a cause that did not happen.
+        verdict = "not_selected"
+    else:
+        # The SAME selector the engine falls back to, over the same pool.
+        from api.services.catalyst import selection
+        picked = {c.get("ticker") for c in selection.select_top_12(scored)}
+        same_tag = [c for c in scored_sorted if c.get("tag") == tag]
+        rank_in_tag = next((i + 1 for i, c in enumerate(same_tag)
+                            if c.get("ticker") == sym), None)
+        slots = selection.quota_for(tag)
+        quota = {"tag": tag, "slots": slots, "rank_in_tag": rank_in_tag,
+                 "in_tag": len(same_tag)}
+        if sym in picked:
+            verdict = "qualifies_now"
+        elif rank_in_tag is not None and rank_in_tag > slots:
+            verdict = "quota_full"
+        else:
+            # Inside its bucket yet not picked (e.g. displaced by the
+            # analyst-row reserve): not the quota, so not called the quota.
+            verdict = "not_selected"
 
     return {
         "ticker": sym,
@@ -293,6 +379,11 @@ def catalysts_explain(sym: str = Path(...), user=Depends(get_current_user)):
             else "On today's list." if my_rank and my_rank <= 20
             else "Has source signal but tag didn't qualify (e.g. Gapper needs ≥5% gap + ≥3× vol)."
         ),
+        "verdict": verdict,
+        "quota": quota,
+        "market_date": md,
+        "list_rank": list_rank,
+        "pool_size": pool_size,
     }
 
 
