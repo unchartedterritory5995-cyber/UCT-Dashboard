@@ -113,3 +113,32 @@ def test_the_fixture_reaches_every_edge_it_claims(lib):
     assert max(totals) > 25                                                                      # past the LIMIT
     stamps = [n[8] for n in notes]
     assert len(stamps) > len(set(stamps))                                                        # ties
+
+
+def test_equal_updated_at_is_ordered_by_id_not_by_the_scan(tmp_path):
+    """The page is ORDER BY updated_at DESC, n.id. Four notes share one `updated_at` and are
+    inserted in an order that is neither id order nor its reverse, so neither a forward nor a
+    reverse scan can pass by accident (the module fixture's random ties did not reach the page
+    order, which is how removing the tiebreak survived -- review of lane PC, M3)."""
+    c = sqlite3.connect(str(tmp_path / "tie.db"))
+    c.row_factory = sqlite3.Row
+    j2db.ensure_schema(c)
+    stamp = "2026-09-20T12:00:00+00:00"
+    newer = "2026-09-21T12:00:00+00:00"
+    rows = [("t3", stamp), ("t1", stamp), ("t0", newer), ("t4", stamp), ("t2", stamp)]
+    for nid, ts in rows:
+        c.execute("INSERT INTO j2_notes (id, user_id, title, body_json, body_plain, tags,"
+                  " created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)",
+                  (nid, "u1", nid, '{"type":"doc"}', "", "[]", ts, ts))
+        c.execute("INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id, symbol)"
+                  " VALUES (?,?,?,?,?)", (nid, "u1", 0, "chart", "XYZ"))
+    c.commit()
+    try:
+        got = notes_svc.get_symbol_backlinks("u1", "XYZ", conn=c)
+        assert got["count"] == 5
+        assert [n["id"] for n in got["notes"]] == ["t0", "t1", "t2", "t3", "t4"], got["notes"]
+        # and a page that cuts through the tie keeps the same prefix
+        cut = notes_svc.get_symbol_backlinks("u1", "XYZ", limit=3, conn=c)
+        assert [n["id"] for n in cut["notes"]] == ["t0", "t1", "t2"] and cut["count"] == 5
+    finally:
+        c.close()

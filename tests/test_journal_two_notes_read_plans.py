@@ -280,6 +280,12 @@ def test_symbol_backlinks_look_up_each_hit_ONCE(conn):
     assert any("j2_note_embeds USING INDEX sqlite_autoindex_j2_note_embeds_1 (note_id=?)" in s
                for s in steps), steps
     assert back["count"] == 6 and len(back["notes"]) == 2      # non-vacuity: total beyond the page
+    # The page's order names its tiebreak. Today the note-id set is a UNION, which already hands
+    # the ids over in id order, so removing `, n.id` changes no answer on this plan (measured,
+    # docs/notebook/gate-runs/wave10-PC/mutation-backlinks-M3-tie.txt) -- a behavioural test
+    # cannot see it. The tiebreak is what keeps the page stable the day the plan changes, so the
+    # rail holds the SQL itself, as the trash order's rail does.
+    assert "ORDER BY n.updated_at DESC, n.id" in entered[0], entered[0]
 
 
 def test_a_documents_pages_are_found_by_user_and_document_not_by_user_alone(conn):
