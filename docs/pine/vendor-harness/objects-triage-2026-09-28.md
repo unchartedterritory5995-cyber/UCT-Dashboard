@@ -139,14 +139,34 @@ windows committed as `tests/fixtures/vendor/clock-close-tfchange-spy-60-excerpt-
 | `timeframe.change` "D"/"W"/"M" | this bar's New York day / ISO week / month differs from the previous bar's; false on bar 0 | none — 0 mismatches on all three charts, and equal on every bar to its control `ta.change(time(tf)) != 0`; "1W" reads as "W" |
 | forming last bar (K17) | the same template: the W capture's forming week read Friday 16:00 | — |
 
-**The early-close decision.** The clock lane holds no trading calendar, by design
-(*"a date set in this lane would be a second calendar authority in a second
-language"*), and the repo's calendar (`nyse_calendar.py`) covers 2025–2027, i.e. 3
-of the 13 days. So the lane answers the **regular-session template** and the
-mismatch is counted, not hidden, in `indicators.js::CLOCK_TIME_DERIVED` and in
-`clockCloseTfChange.vendor.test.js`, which asserts that every disagreeing bar is an
-early-close or holiday-week bar and every such bar disagrees. Refusing those bars
-was not available: nothing in the lane can tell which they are.
+**The early-close decision — superseded 2026-09-28 (branch `pine/early-close-wm-clock`).**
+The lane first answered the regular-session template and COUNTED the mismatch,
+because the repo's calendar covered 2025–2027 only. The one calendar
+(`market_calendar.json`, TERM-035) now runs back to 2000, and the clock layer
+derives the vendor's own view of it, so both lanes read the session close as TradingView applies it and the counted
+mismatch is gone: **1D / 60m / W `time_close` and `time_close("D")` agree on every
+bar** (K01/K02/K03/K12/K13: 1D 13/13/13/26/13 → 0; 60m 13/52/13/26/52 → 0; W on the
+vendor's own instants 52 and 1 → 0).
+
+| what the vendor's session applies | measured on | rule |
+|---|---|---|
+| closures | W: 133 of 134 late-starting weeks and 46 of 47 early-ending weeks from 2000 on read the first / last session; 0 of 44 before 2000 do | no closure before 2000; not September 11 2001 (the 09-10 week reads Friday 16:00), not Hurricane Sandy (the 2012-10-29 week is stamped Monday 09:30); Reagan 2004-06-11 and Ford 2007-01-02 ARE applied |
+| half-days | 1D: 13:00 on exactly 13 days, all from 2019-07-03; 60m agrees | none before 2019 (all eight 2015–2018 half-days keep a full session, late-trading bars to 16:00 included); not 2020-11-27 or 2020-12-24 |
+
+The calendar itself is NYSE truth. Its 2000–2024 rows (233 closures, 55 half-days)
+were added to `market_calendar.json` from the two libraries it already came from
+(exchange_calendars 4.13.2, pandas_market_calendars 5.4.0), which agree on every
+one; the closures also equal the NYSE holiday rules with the named unscheduled
+closures (331 over 1993–2028, identical) and the weekdays with no vendor daily
+bar (309 over the vendor's 1993-01-29..2026-09-28 span, identical), and the 2015–2024 half-days equal the days the vendor's 60m
+volume collapses after 13:00. One pandas-only special close (2005-06-01 15:56) is
+left out as disputed; the rules alone would have been wrong on 2002 (July 5, not
+July 3) and 2003-12-26, which is why the libraries, not the rules, are the source.
+Coverage starts at 2000 because the vendor applies no closure before it. The
+vendor's exceptions are written ONCE in the clock layer (`tradingview_session.py`
+⇄ `tradingViewSession.js`, parity-tested) and the vendor's view is derived; `tests/test_nyse_calendar_vendor_evidence.py` holds the calendar to the
+captures. ⚠️ Measured on AMEX:SPY only: whether TradingView applies the same view
+to a NASDAQ or NYSE listing is unmeasured.
 
 **Translation.** `timeframe.change(tf)` → `isfirst ? 0 : <weekfirst|monthfirst|sessionfirst>`,
 not `col != 0`: the member pane translates before it knows the chart's timeframe,

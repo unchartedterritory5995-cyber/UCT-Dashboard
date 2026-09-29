@@ -14,8 +14,8 @@ opening breadth reading; it is an artifact of who happened to trade overnight.
 
 ⭐ WHY THE BOUNDARY IS DERIVED FROM PARTICIPATION RATHER THAN A TYPED CALENDAR. The
 repo's canonical calendars (`liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD`,
-`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) start at **2025-01-01**, and this reconstruction
-runs back to 2008. Hand-typing nineteen years of half-days is exactly the kind of
+`bars_fetch._NYSE_HOLIDAYS_YYYYMMDD`) started at **2025-01-01** (both now from 2000,
+2026-09-29, `market_calendar.json`), and this reconstruction runs back to 2008. Hand-typing nineteen years of half-days is exactly the kind of
 transcribed constant that rots silently and is wrong in one place nobody checks.
 
 The market itself already says when it closed: during the regular session thousands of
@@ -135,6 +135,7 @@ def calendar_close_minute(iso: str) -> Optional[int]:
     try:
         from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD as EARLY
         from api.services.liveflow_monitor import _full_closures
+        from api.services.nyse_calendar import NYSE_CALENDAR_FROM_YYYYMMDD
     except Exception:                                   # pragma: no cover
         return None
     d = _dt.date.fromisoformat(iso)
@@ -142,7 +143,12 @@ def calendar_close_minute(iso: str) -> Optional[int]:
     known = set(EARLY) | set(_full_closures() or ())
     if not known:
         return None
-    lo = min(known)
+    # ⛔ THE ERA IS THE DATASET'S OWN ``coverage_start``, NEVER ``min(set)``. The
+    # earliest ROW is not where coverage begins: 2000-01-03 is the first holiday
+    # of a dataset that covers 2000-01-01, and a floor read off the first row
+    # would call the gap between them unknown -- or, if a year ever started with
+    # a half-day and no holiday, call a closure-less stretch covered.
+    lo = NYSE_CALENDAR_FROM_YYYYMMDD
     if ymd < lo:
         return None                                     # outside the calendar's era
     if ymd in (_full_closures() or ()):

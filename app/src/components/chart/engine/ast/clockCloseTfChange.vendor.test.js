@@ -16,12 +16,15 @@
 //   * `time_close("D")` is 16:00 on the date the bar OPENED, on all three charts.
 //   * `timeframe.change("D"|"W"|"M")` is "this bar's New York day / ISO week /
 //     month differs from the previous bar's", false on bar 0; "1W" reads as "W".
-//   * ⛔ THE VENDOR USES THE REAL EARLY CLOSE (13:00) on 13 SPY days since 2019
-//     and the real last session of a holiday week. This engine holds no trading
-//     calendar in the clock lane and answers the regular-session template, so
-//     those bars are COUNTED here, bar by bar, rather than hidden: every
-//     disagreement below must be one of them, and every one of them must be a
-//     disagreement.
+//   * ⭐ THE VENDOR USES THE REAL EARLY CLOSE (13:00) on 13 SPY days since 2019
+//     and the real last session of a holiday week, as ITS calendar applies them:
+//     no closure before 2000, not September 11 or Hurricane Sandy, no half-day
+//     before 2019, not 2020-11-27 or 2020-12-24. Since 2026-09-28 the clock reads
+//     that same view from the one calendar (`nyseCalendar.js`'s
+//     `tradingViewCloseMinute`, parity-tested against `nyse_calendar.py`), so
+//     every served row below agrees on EVERY bar. Until then this file counted
+//     the 13 / 52 bars the regular-session template got wrong; the counts are
+//     gone because the disagreement is.
 //
 // Every door test runs the PRODUCT'S bar shape (`ourSide.toProductBars`): a
 // daily bar keyed by an ISO date, an intraday bar by unix seconds.
@@ -128,28 +131,25 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
     }
   })
 
-  it('⭐⭐ bar for bar: every disagreement is an early-close bar, and every early close is one', () => {
+  it('⭐⭐ bar for bar: every served row agrees on every one of the 8,473 sessions', () => {
     const bad = disagreements(rows, V)
-    for (const k of ['K00', 'K04', 'K05', 'K06', 'K07', 'K08', 'K16', 'K17']) {
+    for (const k of SERVED) {
       expect(bad[k], `${k} disagrees at bars ${bad[k].slice(0, 5)}`).toEqual([])
     }
-    for (const k of ['K01', 'K02', 'K03', 'K13']) expect(bad[k], k).toEqual(early)
-    // `time_close - time_close[1]` differs on the early-close bar AND the bar after it.
-    const both = [...new Set(early.flatMap((i) => [i, i + 1]))].sort((a, b) => a - b)
-    expect(bad.K12).toEqual(both)
-    // …and ours is the TEMPLATE there: 16:00, three hours after the vendor's 13:00.
-    for (const i of early) {
-      expect(rows.K01.values[i] - V[i][col(TITLES, 'K01')], bars[i].t).toBe(10800)
-    }
+    // ⛔ non-vacuity: the 13 half-days ARE in this series, and ours spans 12600 s
+    // there (09:30 -> 13:00), the reading the regular-session template missed
+    expect(early.length).toBe(13)
+    for (const i of early) expect(rows.K03.values[i], bars[i].t).toBe(12600)
   })
 
-  it('K09–K11 (hour/minute/dayofweek OF time_close), read off the column: 16:00 on the bar\'s own day', () => {
+  it('K09–K11 (hour/minute/dayofweek OF time_close), read off the column: the session close on the bar\'s own day', () => {
     const cols = computeClock(bars, 'D', false)
     for (const [k, field] of [['K09', 'h'], ['K10', 'min'], ['K11', 'dow']]) {
       const bad = []
       V.forEach((r, i) => { if (etClockAt(cols.timeclose[i])[field] !== r[col(TITLES, k)]) bad.push(i) })
-      expect(bad, k).toEqual(k === 'K09' ? early : [])
+      expect(bad, k).toEqual([])
     }
+    expect(early.map((i) => etClockAt(cols.timeclose[i]).h)).toEqual(early.map(() => 13))
   })
 
   it('K14/K15 (the controls `ta.change(time("W"/"M")) != 0`) equal our week / month columns', () => {
@@ -169,7 +169,7 @@ describe('60m — four windows of the RTH capture (09:30-aligned bars, the vendo
   })
 
   for (const w of H60.windows) {
-    it(`${w.from} → ${w.to}: every disagreement is an early-close bar`, () => {
+    it(`${w.from} → ${w.to}: every served row agrees on every bar, half-days included`, () => {
       const bars = w.bars.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
       const rows = ourRows(bars, '60', H60.capture.newestBarIsForming)
       // `bar_index` counts from the window's first bar here, from the capture's there.
@@ -184,16 +184,11 @@ describe('60m — four windows of the RTH capture (09:30-aligned bars, the vendo
         && r[col(TITLES, 'K03')] === 1800).map((r) => `${ny(r[0]).m}/${ny(r[0]).d}`))
       const dayOf = (i) => `${ny(V[i][0]).m}/${ny(V[i][0]).d}`
       const lastBarOfEarly = V.map((r, i) => (earlyDays.has(dayOf(i)) && ny(r[0]).h === 12 ? i : -1)).filter((i) => i >= 0)
-      const barsOfEarly = V.map((r, i) => (earlyDays.has(dayOf(i)) ? i : -1)).filter((i) => i >= 0)
-      for (const k of ['K00', 'K04', 'K05', 'K06', 'K07', 'K08', 'K16', 'K17']) {
+      for (const k of SERVED) {
         expect(bad[k], `${k} disagrees at ${bad[k].slice(0, 5)}`).toEqual([])
       }
-      expect(bad.K01, 'K01').toEqual(lastBarOfEarly)
-      expect(bad.K03, 'K03').toEqual(lastBarOfEarly)
-      expect(bad.K02, 'K02').toEqual(barsOfEarly)
-      expect(bad.K13, 'K13').toEqual(barsOfEarly)
-      expect(bad.K12, 'K12').toEqual([...new Set(lastBarOfEarly.flatMap((i) => [i, i + 1]))]
-        .filter((i) => i < V.length).sort((a, b) => a - b))
+      // the half-day's 12:30 bar closes at 13:00 on ours as on the vendor's
+      for (const i of lastBarOfEarly) expect(rows.K03.values[i]).toBe(1800)
       // ⭐ THE CLIP IS MEASURED IN EVERY WINDOW: a 15:30 bar reads 16:00.
       const clipped = V.filter((r) => ny(r[0]).h === 15 && ny(r[0]).min === 30)
       expect(clipped.length).toBeGreaterThan(0)
@@ -214,7 +209,7 @@ describe('1W — the column rules on the vendor\'s own instants, and the product
   const V = W1.plotValues.rows
   const numeric = W1.bars.rows.map(([t, o, h, l, c, v]) => ({ t, o, h, l, c, v }))
 
-  it('time_close is Friday 16:00 of the week — except the 52 weeks whose last session was not', () => {
+  it('time_close is the week\'s LAST vendor session close — on all 1,758 weeks, the 52 holiday ones included', () => {
     const cols = computeClock(numeric, 'W', W1.newestBarIsForming)
     const bad = []
     const notFridayFour = []
@@ -223,11 +218,13 @@ describe('1W — the column rules on the vendor\'s own instants, and the product
       const p = etClockAt(r[col(TITLES, 'K01')])
       if (!(p.dow === 6 && p.h === 16 && p.min === 0)) notFridayFour.push(i)
     })
-    expect(bad).toEqual(notFridayFour)
-    expect(bad.length).toBe(52)
-    // time_close("D") on a weekly bar: the close of the week's FIRST session.
+    expect(bad).toEqual([])
+    // ⛔ non-vacuity: 52 of the vendor's weeks do NOT end Friday 16:00
+    expect(notFridayFour.length).toBe(52)
+    // time_close("D") on a weekly bar: the close of the week's FIRST session --
+    // 13:00 on the one week that opened on a half-day (2023-07-03).
     const badD = V.map((r, i) => (same(cols.dayclosetime[i], r[col(TITLES, 'K02')]) ? -1 : i)).filter((i) => i >= 0)
-    expect(badD.map((i) => etClockAt(V[i][0])).map((p) => `${p.y}-${p.m}-${p.d}`)).toEqual(['2023-7-3'])
+    expect(badD).toEqual([])
   })
 
   it('the FORMING last week reads the same template the vendor read', () => {

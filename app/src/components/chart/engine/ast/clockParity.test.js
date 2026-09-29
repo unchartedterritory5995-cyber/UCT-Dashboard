@@ -185,6 +185,12 @@ describe('the clock oracle — this lane against the committed fixture', () => {
     expect(e.sixty_product_grid.timeclose[2] - e.sixty_product_grid.time[2]).toBe(1800)
     expect(e.sixty_vendor_grid.timeclose[0] - e.sixty_vendor_grid.time[0]).toBe(3600)
     expect(e.sixty_grid_unknown.timeclose).toEqual([null, null])
+    // ⭐ THE CALENDAR AS TRADINGVIEW APPLIES IT (2026-09-28): 13:00 on a half-day
+    // it honours, 16:00 on 2018-12-24 and 2020-11-27, which it keeps full.
+    const half = e.daily_half_days
+    expect(half.timeclose.map((c, i) => c - half.time[i])).toEqual([23400, 12600, 23400, 23400, 12600, 12600])
+    expect(e.sixty_vendor_grid_half_days.timeclose[11]).toBe(null)
+    expect(e.sixty_product_grid_half_day.timeclose[4]).toBe(null)
   })
 
   it('⛔ `sessionfirst` is WINDOW-INDEPENDENT — every slice agrees from its second bar', () => {

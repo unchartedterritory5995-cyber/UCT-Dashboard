@@ -55,6 +55,8 @@
  *    rather than a NaN pad, so its line starts at zero on the first bar.
  */
 
+import { tradingViewCloseMinute } from '../../lib/marketClock/tradingViewSession.js'
+
 // Not-yet-computable. See the whitespace note above before handing this to LWC.
 const NA = NaN
 
@@ -1221,16 +1223,20 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  outside git for size):
  *
  *   `timeclose` — Pine's bare `time_close`, the instant the bar's period ENDS,
- *     not the next bar's open. 1D: 16:00 New York on the bar's date (8,460 of
- *     8,473 bars; `time_close - time` = 23400 s). 60m (RTH): the next grid
- *     boundary CLIPPED at 16:00 — the 15:30 bar reads 16:00, span 1800 s (2,937
- *     bars). W: Friday 16:00 of the bar's week (1,706 of 1,758). The forming
- *     last bar reads the SAME template (the W capture's last bar was forming and
- *     read Friday 16:00), so nothing here depends on whether a bar is closed.
- *   `dayclosetime` — `time_close("D")`: 16:00 New York on the date the bar
- *     OPENED, on 1D, on 60m (every RTH bar of a day points at that day's 16:00)
+ *     not the next bar's open. 1D: the session close on the bar's date — 16:00
+ *     New York on 8,460 of 8,473 bars (`time_close - time` = 23400 s), 13:00 on
+ *     the 13 half-days (12600 s). 60m (RTH): the next grid boundary CLIPPED at
+ *     the session close — the 15:30 bar reads 16:00, span 1800 s (2,937 bars),
+ *     and a half-day's 12:30 bar reads 13:00. W: the close of the week's LAST
+ *     session — Friday 16:00 on 1,706 of 1,758, Thursday on 46 holiday weeks,
+ *     13:00 on 7. The forming last bar reads the same rule (the W capture's last
+ *     bar was forming and read Friday 16:00), so nothing here depends on whether
+ *     a bar is closed.
+ *   `dayclosetime` — `time_close("D")`: the session close on the date the bar
+ *     OPENED, on 1D, on 60m (every RTH bar of a day points at that day's close)
  *     and on W (the close of the week's FIRST session, not its last — measured:
- *     `time_close("D") - time` = 23400 s on 1,757 of 1,758 weekly bars).
+ *     `time_close("D") - time` = 23400 s on 1,757 of 1,758 weekly bars, 12600 s
+ *     on the one week that opened on a half-day).
  *   `weekfirst` / `monthfirst` — `timeframe.change("W")` / `("M")`: this bar's
  *     ISO week (Monday-first) / calendar month in New York differs from the
  *     previous bar's. 0 mismatches on all three captures, "1W" identical to "W",
@@ -1238,21 +1244,24 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *     `timeframe.change("D")` is `sessionfirst`, which already exists. Blank on
  *     the oldest bar for `sessionfirst`'s own reason (`lookback: 1`).
  *
- *  ⛔⛔ THE CLOSE IS THE REGULAR-SESSION TEMPLATE, AND THE VENDOR'S IS NOT
- *  ALWAYS. TradingView uses the real early close on 13 SPY days (every one from
- *  2019-07-03 on; NOT 2020-11-27 or 2020-12-24, and none before 2019 — its own
- *  calendar is irregular), and the real last session of a holiday week. This
- *  lane holds NO trading calendar and must not (see the barstate ruling below:
- *  "a date set in this lane would be a second calendar authority in a second
- *  language"), and the repo's calendar (`nyse_calendar.py`, 2025–2027 only)
- *  covers 3 of the 13. So the template is answered and the mismatch is COUNTED
- *  rather than hidden: 1D 13/8,473 bars (13:00 vs 16:00); 60m 13/20,616 for
- *  `timeclose` (the 12:30 bar) and 52/20,616 for `dayclosetime` (every bar of
- *  those 13 days); W 52/1,758 for `timeclose` (46 holiday weeks ending
- *  Thursday, 6 ending at a 13:00 Friday) and 1/1,758 for `dayclosetime`.
+ *  ⭐⭐ THE CLOSE IS THE SESSION CLOSE AS TRADINGVIEW'S CALENDAR APPLIES IT
+ *  (2026-09-28). The vendor uses the real early close (13:00) on 13 SPY days,
+ *  every one from 2019-07-03 on, and the real last session of a holiday week —
+ *  but its calendar is its own: no closure before 2000, not September 11 or
+ *  Hurricane Sandy, no half-day before 2019, not 2020-11-27 or 2020-12-24. Those
+ *  are measured facts about the vendor, written ONCE in the clock layer
+ *  (`lib/marketClock/tradingViewSession.js` ⇄ `tradingview_session.py`,
+ *  parity-tested) beside the NYSE truth (`market_calendar.json`, the one
+ *  calendar), and this lane reads the derived view through
+ *  `tradingViewCloseMinute`. ⛔ That is not "a date set in this lane" (the
+ *  barstate ruling below): the lane holds no date, it imports the module the
+ *  parity test already holds equal to Python. Result: 0 mismatches on every
+ *  1D / 60m / W bar for `timeclose` and `dayclosetime`, where the template
+ *  counted 13 / 13 and 52 / 52 and 1.
  *
  *  ⛔ WHAT IS BLANK, BECAUSE NOTHING MEASURED IT: an intraday bar that opens
- *  outside 09:30–16:00 or on a weekend (the probe ran with extended hours OFF);
+ *  outside the session (before 09:30, at or after its close — 13:30 on a
+ *  half-day included) or on a weekend (the probe ran with extended hours OFF);
  *  a daily or weekly bar on a weekend date; any monthly bar; an absent or
  *  unknown `tf`. And ONE BAR ON THE PRODUCT'S OWN 60m GRID NEEDS THE SERIES:
  *  `bars_fetch.bucket_60_et_unix_seconds` gives 09:30 a 30-minute bucket and
@@ -1265,9 +1274,16 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
 /** Seconds in one bar of an intraday code. Mirrors `indicator_compute
  *  ._TF_SPAN_SECONDS`, which `scheduled_close_seconds` already reads. */
 const CLOCK_TF_SPAN_SECONDS = Object.freeze({ 1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600 })
-/** The regular session in New York, minutes after midnight: 09:30–16:00. */
+/** The regular session's open in New York, minutes after midnight (09:30). Its
+ *  CLOSE is the calendar's (`tradingViewCloseMinute`: 16:00, or 13:00 on a
+ *  half-day the vendor honours), never a constant here. */
 const RTH_OPEN_MINUTE = 9 * 60 + 30
-const RTH_CLOSE_MINUTE = 16 * 60
+
+/** `YYYYMMDD` of the calendar date `k` days after `y-m-d` (k may be negative). */
+function ymdPlusDays(y, m, d, k) {
+  const x = new Date(Date.UTC(y, m - 1, d + k))
+  return x.getUTCFullYear() * 10000 + (x.getUTCMonth() + 1) * 100 + x.getUTCDate()
+}
 
 /** ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
  *  BROADCAST TO EVERY BAR OF THAT DAY (2026-09-20) — `sessionfirst`'s own
@@ -1744,32 +1760,49 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     prevWeek = week
     prevMonth = month
 
-    // `timeclose` / `dayclosetime`: the regular-session TEMPLATE close. 16:00 on
-    // this bar's New York date is read as a wall-clock difference, which is
-    // exact because no DST change falls between 09:30 and 16:00 on a weekday.
+    // `timeclose` / `dayclosetime`: the session close AS TRADINGVIEW APPLIES IT
+    // (`tradingViewCloseMinute`, `tradingViewSession.js`, derived from the one
+    // calendar and parity-tested against `tradingview_session.py`): 13:00 on a half-day the vendor honours, else 16:00, and
+    // no session at all on a closure it honours. Read as a wall-clock difference
+    // from this bar's own instant, which is exact because no DST change falls on
+    // a weekday (they happen at 02:00 on a Sunday).
     const weekday = p.dow >= 2 && p.dow <= 6
     const minuteOfDay = p.h * 60 + p.min
-    const close16 = t + (RTH_CLOSE_MINUTE * 60 - (minuteOfDay * 60 + (t % 60)))
+    const sinceMidnight = minuteOfDay * 60 + (t % 60)
+    const closeMinute = weekday ? tradingViewCloseMinute(day) : null
+    const sessionClose = closeMinute === null ? NA : t + (closeMinute * 60 - sinceMidnight)
     let close = NA
     let dayClose = NA
     if (!known || !weekday || tf === 'M') {
       // unknown timeframe, a weekend bar, or a monthly bar: never measured
+    } else if (closeMinute === null) {
+      // a closure the vendor honours: its session holds no bar that day
     } else if (span !== null) {
-      if (minuteOfDay >= RTH_OPEN_MINUTE && minuteOfDay < RTH_CLOSE_MINUTE) {
-        dayClose = close16
+      // An intraday bar that opens after the session closed (a 13:30 bar on a
+      // half-day) is outside it, exactly as an extended-hours bar is.
+      if (minuteOfDay >= RTH_OPEN_MINUTE && minuteOfDay < closeMinute) {
+        dayClose = sessionClose
         if (tf === '60' && minuteOfDay === RTH_OPEN_MINUTE) {
-          close = grid60 === 'product' ? t + 1800 : (grid60 === 'vendor' ? Math.min(t + span, close16) : NA)
+          close = grid60 === 'product' ? Math.min(t + 1800, sessionClose)
+            : (grid60 === 'vendor' ? Math.min(t + span, sessionClose) : NA)
         } else {
-          close = Math.min(t + span, close16)
+          close = Math.min(t + span, sessionClose)
         }
       }
     } else if (tf === 'D') {
-      close = close16
-      dayClose = close16
+      close = sessionClose
+      dayClose = sessionClose
     } else if (tf === 'W') {
-      // Friday of this ISO week: 6 - dow days on (dow 2 = Monday .. 6 = Friday).
-      close = close16 + (6 - p.dow) * 86400
-      dayClose = close16
+      // The LAST vendor session of this ISO week (dow 2 = Monday .. 6 = Friday):
+      // Thursday when Friday is a holiday, 13:00 when that day is a half-day.
+      dayClose = sessionClose
+      for (let back = 6 - p.dow; back >= 0; back--) {
+        const last = tradingViewCloseMinute(ymdPlusDays(p.y, p.m, p.d, back))
+        if (last !== null) {
+          close = t + back * 86400 + (last * 60 - sinceMidnight)
+          break
+        }
+      }
     }
     cols.timeclose[i] = close
     cols.dayclosetime[i] = dayClose
