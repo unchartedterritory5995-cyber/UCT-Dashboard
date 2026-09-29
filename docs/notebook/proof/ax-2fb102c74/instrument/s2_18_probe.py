@@ -4,6 +4,8 @@ with a fresh walker at 2fb102c74 while 10E-2's unmodified walk read PASS on the 
 On the fresh walker's "Delta plain" (the note the walk's S2b edits), the same keys two ways:
   A  the walk's own route into the body (focus_top, then Tab until the editable body), Ctrl+Home;
   B  K2's control route (page.focus on the body), Ctrl+Home.
+E  as D, with 50 ms between Ctrl+Home and Alt+Shift+ArrowDown (the one variable);
+D  as C, with the walk's S2-18 timing (Ctrl+Home and Alt+Shift+ArrowDown with no wait between);
 C  the walk's S2-16/S2-17 keys in the same page (table insert, Tab x15, the exit keys), then
      route A;
 then Alt+Shift+ArrowDown, read the first four blocks, Alt+Shift+ArrowUp, read again. Also records
@@ -21,7 +23,7 @@ import keyboard_walk_k2_ax as W  # noqa: E402  (the shimmed walk: focus_top, e2_
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 C, K = W.C, W.K
-BLOCKS = ("() => Array.from(document.querySelectorAll('.ProseMirror > *')).slice(0, 4)"
+BLOCKS = ("() => Array.from(document.querySelectorAll('.ProseMirror > *')).slice(0, 8)"
           ".map(e => e.tagName + ':' + (e.textContent || '').trim().slice(0, 40))")
 CARET = """() => { const s = getSelection(); if (!s || !s.anchorNode) return null;
   let n = s.anchorNode.nodeType === 1 ? s.anchorNode : s.anchorNode.parentElement;
@@ -41,13 +43,13 @@ with sync_playwright() as p:
     C.signup_or_login(ctx.request, base, email, C.PW, "kbd walker")
     notes = ctx.request.get(base + "/api/j2/notes?limit=200").json()["notes"]
     nid = next(n["id"] for n in notes if n["title"] == "Delta plain")
-    for route in ("A_tab_route", "B_focus_route", "C_walk_replay"):
+    for route in ("A_tab_route", "B_focus_route", "C_walk_replay", "D_walk_replay_walk_timing", "E_walk_replay_50ms_gap"):
         pg = ctx.new_page()
         pg.goto(f"{base}/journal/notebook?note={nid}", wait_until="domcontentloaded")
         C.dismiss_intro(pg)
         pg.wait_for_selector(".ProseMirror", timeout=20000)
         pg.wait_for_timeout(1500)
-        if route == "C_walk_replay":
+        if route in ("C_walk_replay", "D_walk_replay_walk_timing", "E_walk_replay_50ms_gap"):
             # the walk's S2-16/S2-17 keys first, in this same page, then its S2-18 route (to_body)
             W.focus_top(pg)
             K.tab_until(pg, lambda x: x.get("contenteditable") or x.get("name") == "Note body", max_presses=170)
@@ -72,10 +74,22 @@ with sync_playwright() as p:
         else:
             pg.focus(".ProseMirror")
             reach = {"found": True, "presses": 0, "landed": "page.focus"}
-        pg.keyboard.press("Control+Home")
-        pg.wait_for_timeout(200)
-        before, caret = pg.evaluate(BLOCKS), pg.evaluate(CARET)
-        pg.keyboard.press("Alt+Shift+ArrowDown")
+        if route == "E_walk_replay_50ms_gap":
+            # as D, with 50 ms between the two keys: the one variable between D and E
+            before, caret = pg.evaluate(BLOCKS), None
+            pg.keyboard.press("Control+Home")
+            pg.wait_for_timeout(50)
+            pg.keyboard.press("Alt+Shift+ArrowDown")
+        elif route == "D_walk_replay_walk_timing":
+            # the walk's own S2-18 timing: read the first block, Ctrl+Home and Alt+Shift+ArrowDown back to back
+            before, caret = pg.evaluate(BLOCKS), None
+            pg.keyboard.press("Control+Home")
+            pg.keyboard.press("Alt+Shift+ArrowDown")
+        else:
+            pg.keyboard.press("Control+Home")
+            pg.wait_for_timeout(200)
+            before, caret = pg.evaluate(BLOCKS), pg.evaluate(CARET)
+            pg.keyboard.press("Alt+Shift+ArrowDown")
         pg.wait_for_timeout(500)
         moved, caret2 = pg.evaluate(BLOCKS), pg.evaluate(CARET)
         pg.keyboard.press("Alt+Shift+ArrowUp")
