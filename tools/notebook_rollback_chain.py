@@ -25,8 +25,9 @@ that changes the lines of a recorded conflict stops the chain instead of being r
 written for different lines.
 
 What "rolling back wave N" means at the measured tip (docs/notebook/wave5-rollback.md, the
-procedure; rehearsed on a sandbox for every step, 2026-09-28, and re-measured with L2 on top at
-f4cec49be, 2026-09-29, lane R1b): revert EVERY Notebook landing
+procedure; rehearsed on a sandbox for every step, 2026-09-28, re-measured with L2 on top at
+f4cec49be 2026-09-29 (lane R1b), and re-measured with L4 and L5 on top at 0812b5ec3 2026-09-29
+(lane R1c)): revert EVERY Notebook landing
 newer than or equal to N, newest first, one squash at a time, because every later wave is built
 on the earlier ones. At every step:
 
@@ -61,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "f4cec49be"          # moved from 38bb9a421 by lane R1b, 2026-09-29 (L2 #242 live)
+MEASURED_AT = "0812b5ec3"          # moved from f4cec49be by lane R1c, 2026-09-29 (L4 #251, L5 #252 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -76,6 +77,8 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L5", "0812b5ec3", "wave 10 L5 #252"),
+    ("L4", "7bd834b9f", "wave 10 L4 #251"),
     ("L2", "f4cec49be", "wave 10 L2 #242"),
     ("L1c", "38bb9a421", "wave 10 L1c #228"),
     ("225", "4bba30b73", "#225 H14: the phone skip link"),
@@ -127,7 +130,66 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # path-only commits in 38bb9a421..f4cec49be, read one by one. Only 948af2c17 edits Notebook CODE
 # (the Ask and writing-help doors); it is a Terminal feature, not a landing, and its lines are
 # handled by the L1a and wave-7 rules below -- reported, not buried.
+# Lane R1c, 2026-09-29: the thirteen path-only commits in f4cec49be..0812b5ec3 (L4..L5), read one
+# by one. NONE edits Notebook-owned code (no app/src/pages/journal-2-0/**, no
+# api/services/journal_two/**, no notebook_*.py router) -- every one touches only a file the
+# derived Notebook set pulls in because an earlier CHAIN landing also touched it: api/main.py
+# (lifespan wiring or a router's own dependency list), api/routers/auth.py (a preference key or an
+# unrelated flag helper), app/src/pages/Settings.jsx or Support.jsx (an unrelated card or strip),
+# app/vite.config.js (the build-time manifest-stripping plugin every page's bundle goes through),
+# or app/src/components/screener/reachable.test.js (the AWAITING_A_DECISION ledger, Pine/breadth
+# entries). Nothing here is RAISED.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
+    "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
+        "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
+        "reachable.test.js hunk is entirely Pine-runtime AWAITING_A_DECISION entries and its "
+        "vite.config.js hunk removes the market_calendar.json stripping block this same window's "
+        "20bbfd05d re-adds; no Notebook file touched",
+    "ea93f15287401c670a24ee470a84d40263a232b2":
+        "Terminal TERM-021: read-new phase adds a watchlist_columns preference key to "
+        "api/routers/auth.py's _PREFERENCE_KEYS dict (shared file); the Charts board's own column "
+        "layout, no Notebook route touched",
+    "57f6348363abccfb99419500df898a54540d08f4":
+        "Terminal TERM-052: publish density ceilings; touches app/src/pages/Settings.jsx only to "
+        "widen one SEARCH_INDEX keyword string (shared file), not a Notebook card",
+    "d506943792ddc4a0154a8399eaaf4da14092e6aa":
+        "Terminal TERM-059: the NAAIM freshness badge adopts freshnessAge.js; its "
+        "reachable.test.js hunk retires a Breadth AWAITING_A_DECISION entry (shared rail)",
+    "584896582286d22d04912f63ab8c53a74086f227":
+        "Terminal TERM-042: server-computed EOD breadth row, dark behind BREADTH_EOD_SOURCE; adds "
+        "one lifespan startup block to api/main.py (shared file), no Notebook router touched",
+    "20bbfd05de695e8d18483f1cd3e8c9118d01a5f6":
+        "perf(clock): ship market_calendar.json compact via the SAME vite.config.js build plugin "
+        "that strips the Pine manifests' prose (shared build file); the subject's 'so the Notebook "
+        "stays in budget' names the bundle-wide byte budget the Notebook's own perf gate reads, "
+        "not a Notebook code change",
+    "9cfb3c9639383af9033f3600532ed1846bd37786":
+        "Terminal TERM-037: the panel set as a by-product of the surface set; its "
+        "reachable.test.js hunk is a surfaces/ AWAITING_A_DECISION entry (shared rail)",
+    "2994ab6f3690578c912074320e23a724b1637fef":
+        "Terminal TERM-053: gates the GEX router's own mount with get_current_user in api/main.py "
+        "(shared file), an ARCH-06 auth fix unrelated to any Notebook router",
+    "71fdb71ad1b8c38735f43d6cc24be708d8ff6ce3":
+        "Terminal TERM-062: the filing-watch cooldown sweep reads its enable flag from "
+        "document_arrival.py instead of an inline os.environ check in api/main.py (shared file); "
+        "no Notebook route touched",
+    "3e5153f1d3bba79263d804c76b3b8cd8b4801dc9":
+        "perf(build): strips symbolScope.json's prose via the same vite.config.js manifest plugin "
+        "as 20bbfd05d (shared build file); its subject's '(Notebook bytes back under budget)' is "
+        "the same bundle-wide byte-budget reference, not a Notebook code change -- also excluded "
+        "by SUBJECT (NOTEBOOK_SUBJECT requires 'wave' after 'notebook')",
+    "e90fddc34bae507c5487837085c41613fa8cf1d4":
+        "Terminal TERM-039: member-facing feature status; touches api/routers/auth.py (an "
+        "unrelated _breadth_dc_flags refactor) and adds a FeatureStatusStrip import+render to "
+        "app/src/pages/Support.jsx (shared files), no Notebook code path changed",
+    "bb72f130548ff78a6f3bb8a7b90376070caecb15":
+        "feat(pine): routes the columnar lane's unrepresentable scripts to the per-bar runtime "
+        "lane, dark behind VITE_PINE_RUNTIME_PANE_ENABLED; its reachable.test.js hunk retires Pine "
+        "AWAITING_A_DECISION entries (shared rail)",
+    "3646a4c193830a359e4aa480769b5e173c7081aa":
+        "test(pine): param ids re-pinned after new inputs minted; touches "
+        "app/src/components/screener/reachable.test.js only via the shared AWAITING_A_DECISION "
+        "ledger's line-count drift, not a Notebook entry",
     "91a33ea2899afa7a635740b14c44b98d11f08169":
         "Terminal TERM-080: rate-limit middleware mounted in api/main.py (shared file); dark, "
         "edits no Notebook file",
@@ -200,6 +262,12 @@ RULES: dict[str, dict] = {
             "from api.services.notebook_flags import FALSY as _FALSY, TRUTHY as _TRUTHY, flag_on"]]),
         "api/services/journal_two/public_note_payload.py": "delete",
         "tests/test_share_publish_authorization.py": "delete",
+        # Lane R1c, measured at 0812b5ec3: TERM-039 (e90fddc34, REVIEWED_NOT_LANDINGS)
+        # added a FeatureStatusStrip import right after wave 8's two notebook imports.
+        # Drop only wave 8's own two lines; TERM-039's import is not this landing's to
+        # revert and stays.
+        "app/src/pages/Support.jsx": ("hunks", [[
+            "ours_drop", "offline/notebookFlags'", "onboarding/tourControl'"]]),
     },
     "f883e0996": {
         "api/main.py": ("hunks", [[
@@ -265,6 +333,9 @@ RULES: dict[str, dict] = {
 # path STOPS. Re-recorded at f4cec49be (lane R1b, 2026-09-29): the ten pins recorded at
 # 38bb9a421 came back byte-identical, so the chain below L2 still composes unchanged from the
 # new tip; the four new pins are the four conflicts TERM-078 and TERM-089 introduced.
+# Re-recorded at 0812b5ec3 (lane R1c, 2026-09-29, L4 #251 + L5 #252 live): all eleven pins
+# above came back byte-identical from the new tip. The one new pin is caf6d1b9e's
+# app/src/pages/Support.jsx, the conflict TERM-039 (e90fddc34) introduced.
 PINS: dict[str, dict[str, str]] = {
     "271a078b6": {
         "api/main.py": "64a4d181d834d6cc",
@@ -283,6 +354,7 @@ PINS: dict[str, dict[str, str]] = {
         "api/main.py": "e19c020e021008a4",
         "api/routers/auth.py": "5525f10d14838f71",
         "api/services/journal_two/public_note_payload.py": "77da29e1bdb202e7",
+        "app/src/pages/Support.jsx": "7e83b493575ccb6f",
         "tests/test_share_publish_authorization.py": "9f65da1bb6ff25e2",
     },
     "d9e887ca0": {
