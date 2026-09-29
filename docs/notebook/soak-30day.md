@@ -67,6 +67,7 @@ but see §11 for what to re-check when they land.
 | `nb_gate.py` | Sunday 17:05 CT, `UCT-WaveQ1-Gate` | the SOAK log | `NB_GATE_VERDICT` (overwritten each run) | `NB_OBSERVE_LOG`, `NB_GATE_VERDICT`, `NB_RESUME_DOC` |
 | `window_check.py` (the mini-canary) | Sunday 15:00 CT, `UCT-WaveQ1-Canary` — ⚠️ weekly today; a daily run is recommended during the soak (trigger 3 is canary-only) | production, rig profile | a check row under `## 📋 THE WINDOW-WATCH LOG` in its resume doc | `UCT_Q1_RIG_PROFILE` |
 | `authdb_restore_drill.py` | weekly, by the owner (R2 credentials) | the newest `auth.db` backup in R2 | `--report <NB_SOAK_DRILLS>\drill-<date>.md` | `DATA_SYNC_*` |
+| `authdb_restore_drill.py --archive` (occasional, NOT part of the weekly cadence — `authdb/archive/` holds one never-pruned pre-pattern-purge snapshot, wave 10 lane AD) | run by hand whenever the archive lineage itself needs re-proving (e.g. after `tools/archive_authdb_backup.py` adds a new object) | the newest object under `authdb/archive/` | `--report`/`--write-restored` as above; the ONLY difference from the weekly row is the freshness rule is lifted (an archive object is old by design) — the R-9 tombstone replay is the identical code path and fails closed identically | `DATA_SYNC_*` |
 | `nb_soak.py` (copy beside the others) | daily (a new task) | everything above, plus `NB_SOAK_RULED`, `NB_SOAK_INCIDENTS`, the repo checkout | `soak-dashboard.md` + `soak-alert-state.json` beside the log; archives the gate's verdict into `NB_SOAK_VERDICTS` | `NB_OBSERVE_LOG`, `NB_SOAK_SAMPLES`, `NB_SOAK_VERDICTS`, `NB_GATE_VERDICT`, `NB_RESUME_DOC`, `NB_SOAK_DRILLS`, `NB_SOAK_RULED`, `NB_SOAK_INCIDENTS`, `NB_SOAK_REPO`, `NB_SOAK_START`, `NB_SOAK_START_SHA`, `NB_SOAK_DISCORD_WEBHOOK` |
 
 ⛔ **The soak runs on its OWN observation log** (D-9C5). `nb_gate.py` reads the whole log with no
@@ -163,6 +164,11 @@ ignore the channel — the same shape as 8 of 56 CI runs going red on runner noi
 4. Run the restore drill with a report into the drills directory:
    `python tools\authdb_restore_drill.py --report <NB_SOAK_DRILLS>\drill-<date>.md`
    (exit 0 PASS · 1 FAIL · 2 INCONCLUSIVE — only exit 0 closes the week).
+   ⛔ This is the WEEKLY BACKUP lineage (`authdb/backup/`) only. The separate, never-pruned
+   `authdb/archive/` lineage (manifest exception (d)) is drilled with `--archive` instead — not
+   part of this weekly step, since there is nothing new to prove about it week over week; run it
+   by hand whenever the archive object itself changes (`docs/account-deletion-manifest.md`
+   "Backups", exception (d) has the exact commands).
 5. Rule on every fork the dashboard lists: `- FORK <date>: ATTRIBUTED — <two tabs / a canary /
    a connector>`, or open an incident.
 6. Rig sign-in: if the dashboard shows SIGN-IN REQUIRED, `python tools\window_check.py --park`
