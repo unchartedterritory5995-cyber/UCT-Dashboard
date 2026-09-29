@@ -244,21 +244,45 @@ describe('1W — the column rules on the vendor\'s own instants, and the product
     }
   })
 
-  it('⛔ on the PRODUCT\'S weekly bars (date-keyed, unread — Q-T1) every clock row reads BLANK past bar 0, never a confident 0', () => {
-    // The member pane translates before it knows the chart is weekly, so the
-    // door cannot refuse there; what it must not do is launder a blank clock
-    // into "no new period" on every bar, which `col != 0` did (measured: 1,757
-    // of 1,757 new-day bars read 0 through the product's bar shape).
-    const rows = ourRows(toProductBars(W1), 'W', W1.newestBarIsForming)
-    for (const k of ['K04', 'K05', 'K06', 'K16']) {
-      expect(rows[k].values, k).toBeTruthy()
-      expect(rows[k].values[0], `${k} bar 0`).toBe(0)
-      expect(Array.from(rows[k].values).slice(1).every(Number.isNaN), `${k} past bar 0`).toBe(true)
+  // ⚰️ Until 2026-09-28 this read "⛔ on the PRODUCT'S weekly bars (date-keyed,
+  // unread — Q-T1) every clock row reads BLANK past bar 0, never a confident 0":
+  // a weekly bar keyed by a date had no clock, and the rail kept that blank from
+  // being laundered into "no new period". The bar now HAS its clock — the open of
+  // its week's first vendor session — so the rail asserts the readings instead.
+  it('⭐⭐ on the PRODUCT\'S weekly bars (keyed by the FRIDAY of the ISO week) every served row agrees with the vendor', () => {
+    const product = toProductBars(W1)
+    // ⛔ non-vacuity: the harness feeds the product's key, a Friday, even on the
+    // 52 weeks whose Friday was not a session — never the vendor's own stamp
+    expect(product.every((b) => new Date(`${b.t}T12:00:00Z`).getUTCDay() === 5)).toBe(true)
+    const rows = ourRows(product, 'W', W1.newestBarIsForming)
+    const bad = disagreements(rows, V)
+    // K17 (`barstate.isconfirmed`) is not a clock row: the capture's own
+    // `newestBarIsForming` reads false while its K17 reads 0 on the forming week
+    // (see the FORMING case above), so the tri-state INPUT differs, not the clock.
+    for (const k of SERVED.filter((s) => s !== 'K17')) {
+      expect(bad[k], `${k} disagrees at bars ${bad[k].slice(0, 5)}`).toEqual([])
     }
-    const tc = computeClock(toProductBars(W1), 'W', false).timeclose
-    expect(Array.from(tc).every(Number.isNaN)).toBe(true)
+    expect(bad.K17).toEqual([V.length - 1])
+    // …and the key day does not matter: the vendor's own first-session dates give
+    // the SAME clock, bar for bar
+    const stamped = W1.bars.rows.map(([t, o, h, l, c, v]) => ({ t: etIso(t), o, h, l, c, v }))
+    const a = computeClock(product, 'W', false)
+    const b = computeClock(stamped, 'W', false)
+    for (const name of ['time', 'timeclose', 'dayclosetime', 'weekfirst', 'monthfirst']) {
+      expect(Array.from(a[name]), name).toEqual(Array.from(b[name]))
+    }
+    // `time` is Monday 09:30 on most weeks, Tuesday after a holiday Monday from
+    // 2000 on (132), and Wednesday once (2007-01-03, Ford's funeral after New
+    // Year's Day) — 133 weeks that do not open on Monday, as on the vendor's side
+    expect(Array.from(a.time).map((t) => etClockAt(t).dow).filter((d) => d !== 2).length).toBe(133)
   })
 })
+
+/** The New York calendar date of a unix instant, as `YYYY-MM-DD`. */
+function etIso(t) {
+  const p = etClockAt(t)
+  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`
+}
 
 describe('the door — CONTROLS that were refusals before C8', () => {
   const V6 = '//@version=6\nindicator("t")\n'
