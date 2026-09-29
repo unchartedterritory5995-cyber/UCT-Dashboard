@@ -3,12 +3,20 @@
 DARK behind ``WORKSPACE_DOC_STORE_ENABLED`` (read per request). Unset, every route answers 404 —
 the same answer as a route that does not exist — and nothing opens or creates the store.
 
-WRITE-BOTH / READ-OLD. In this phase ``auth.db user_preferences`` is still the authority every
-client reads; this router serves the document that shadows it (``workspace_doc_store``). The one
-route that writes the old store is RESTORE: it appends a copy of an older version here, then puts
-that version's values back into ``user_preferences`` under the SAME keys, so a member's board is
-what the restored version held. A key the restored version does not carry is left untouched —
-never deleted. DELETE appends a tombstone to the document only; it does not touch the board.
+WRITE-BOTH / READ-NEW. While armed, ``GET /api/auth/preferences`` reads the board's keys from
+the document head (``workspace_doc_store.read_prefs``), and ``user_preferences`` keeps being
+written on every path, so disarming is a flag flip. Two routes here write BOTH stores, and each
+is ONE document write first, then the same values into ``user_preferences`` under the SAME keys:
+
+  * RESTORE appends a copy of an older version, so a member's board is what that version held.
+  * APPLY (a template apply, New Layout, UCT Default) appends every key of the board change as
+    ONE version, compare-and-set on the head the client read. A 409 changes nothing.
+
+Each of those versions carries a ``pending`` row in the write-back ledger from the instant it is
+appended, and a ``done`` row once every ``user_preferences`` write succeeded — so a crash in
+between leaves the document complete and read-new serving it. A key the version does not carry
+is left untouched — never deleted. DELETE appends a tombstone to the document only; it does not
+touch the board.
 
 Gate: ``get_current_user`` — the same gate as ``/api/auth/preferences``, whose data this is.
 """
@@ -18,7 +26,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.middleware.auth_middleware import get_current_user
 from api.services import auth_service
@@ -52,6 +60,31 @@ class RestoreRequest(BaseModel):
     version: int
     base_version: int
     board: str = wds.BOARD_CHARTS
+
+
+class ApplyRequest(BaseModel):
+    base_version: int
+    prefs: dict[str, Optional[str]] = Field(default_factory=dict)
+    board: str = wds.BOARD_CHARTS
+
+
+def _write_back(uid: str, values: dict) -> tuple[list, list, list]:
+    """Put ``values`` into ``user_preferences`` under the same keys. ``(written, unchanged,
+    failed)``, each by NAME: a failed key is reported, never swallowed, and never deleted."""
+    current = auth_service.get_user_preferences(uid)
+    written, unchanged, failed = [], [], []
+    for key in sorted(values):
+        value = values[key]
+        if key in current and current[key] == value:
+            unchanged.append(key)
+            continue
+        try:
+            auth_service.set_user_preference(uid, key, value)
+            written.append(key)
+        except Exception as exc:  # noqa: BLE001 -- reported by name, never swallowed
+            logger.warning("[workspace_doc] write-back failed %s/%s: %s", uid, key, exc)
+            failed.append(key)
+    return written, unchanged, failed
 
 
 @router.get("/health", dependencies=[Depends(_armed)])
@@ -106,19 +139,10 @@ def restore(req: RestoreRequest, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="No such version, or it is a tombstone.")
 
     restored = wds.prefs_from_doc(res["doc"])
+    written, unchanged, failed = _write_back(uid, restored)
+    if res["appended"] and not failed:
+        wds.mark_writeback_done(uid, board, [res["version"]])
     current = auth_service.get_user_preferences(uid)
-    written, unchanged, failed = [], [], []
-    for key in sorted(restored):
-        value = restored[key]
-        if key in current and current[key] == value:
-            unchanged.append(key)
-            continue
-        try:
-            auth_service.set_user_preference(uid, key, value)
-            written.append(key)
-        except Exception as exc:  # noqa: BLE001 -- reported by name, never swallowed
-            logger.warning("[workspace_doc] restore write-back failed %s/%s: %s", uid, key, exc)
-            failed.append(key)
     untouched = sorted(k for k in current if k in wds.WORKSPACE_PREF_KEYS and k not in restored)
     return {
         "board": board,
@@ -129,6 +153,43 @@ def restore(req: RestoreRequest, user: dict = Depends(get_current_user)):
         "prefs_unchanged": unchanged,
         "prefs_failed": failed,
         "left_untouched": untouched,
+        "complete": not failed,
+    }
+
+
+@router.post("/apply", dependencies=[Depends(_armed)])
+def apply(req: ApplyRequest, user: dict = Depends(get_current_user)):
+    """Apply a board change (a layout template, New Layout, UCT Default) as ONE document write.
+
+    Compare-and-set on ``base_version``, the head the client read: a stale base is 409 and
+    NOTHING is written, to either store — the client re-reads and reports, never retries. On a
+    200 the version is already the member's board (read-new serves it); ``prefs_failed`` names
+    any ``user_preferences`` key that did not follow, and the next read completes it."""
+    from api.routers.auth import _validate_preference   # the old endpoint's own allow-list + schemas
+
+    board = _board(req.board)
+    if not req.prefs:
+        raise HTTPException(status_code=400, detail="Nothing to apply.")
+    for key, value in req.prefs.items():
+        _validate_preference(key, value if value is not None else "")
+    uid = user["id"]
+    try:
+        res = wds.apply_patch(uid, board, req.prefs, base_version=req.base_version,
+                              prefs_reader=auth_service.get_user_preferences)
+    except wds.VersionConflict as exc:
+        raise _conflict(exc)
+    except wds.InvalidDocument as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    written, unchanged, failed = _write_back(uid, req.prefs)
+    if res["appended"] and not failed:
+        wds.mark_writeback_done(uid, board, [res["version"]])
+    return {
+        "board": board,
+        "version": res["version"],
+        "appended": res["appended"],
+        "prefs_written": written,
+        "prefs_unchanged": unchanged,
+        "prefs_failed": failed,
         "complete": not failed,
     }
 

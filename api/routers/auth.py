@@ -2339,6 +2339,10 @@ _PREFERENCE_KEYS = {
     "theme_tracker_settings": _PREF_OPAQUE,
     "tracings_doc": _PREF_OPAQUE,
     "volume_scan_lists": _PREF_OPAQUE,
+    # TERM-021 read-new: the Charts board's Watchlist column layout, folded into the versioned
+    # workspace document (`localStorage['uct.watchlist.cols']` stays the widget's own copy). The
+    # client writes it ONLY while WORKSPACE_DOC_STORE_ENABLED is armed (`ChartsWorkspace.jsx`).
+    "watchlist_columns": _PREF_OPAQUE,
     # Written server-side by `watchlists.py` AND from Settings.jsx.
     "watchlist_digest": _PREF_OPAQUE,
     "watchlist_settings": _PREF_OPAQUE,
@@ -2449,8 +2453,16 @@ def _validate_preference(key: str, value: str) -> None:
 
 
 @router.get("/preferences")
-def get_preferences(user: dict = Depends(get_current_user)):
-    return get_user_preferences(user["id"])
+def get_preferences(response: Response, user: dict = Depends(get_current_user)):
+    # TERM-021 READ-NEW. Flag off, `read_prefs` hands back the SAME dict before any I/O and no
+    # header is set: the response is byte-for-byte what it was. Armed, the board's keys come from
+    # the document head (falling back to this store, never to a default) and the header says
+    # which answered.
+    prefs, stamp = workspace_doc_store.read_prefs(user["id"], get_user_preferences(user["id"]),
+                                                  set_user_preference)
+    if stamp is not None:
+        response.headers["X-Workspace-Doc"] = stamp
+    return prefs
 
 
 @router.post("/preferences")
