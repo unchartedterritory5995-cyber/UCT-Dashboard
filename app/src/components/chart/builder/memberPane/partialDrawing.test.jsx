@@ -67,8 +67,14 @@ const CASES = [
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost
   // `line.delete`s still remove nothing drawn.
+  // 189 of 197 since C13 (2026-09-29): three `chart_pivot` calls sat under
+  // input-only guards and were refused as conditional-history, so their bodies
+  // never became ops; they are inlined now, and the setters inside them sit
+  // behind guards this chart cannot read. The labels those setters write are
+  // WITHHELD (`content:lost`) — before, two of them were drawn BLANK where
+  // TradingView shows `PDH` / `PDL`. Same verdict: partial, drawn.
   { cls: 'partial objects-only, lost deletes remove nothing drawn', script: 'htf-liquidity-dashboard-tfo__ec8f8316a4',
-    objectsOnly: true, kind: 'partial', text: partial(138, 152) },
+    objectsOnly: true, kind: 'partial', text: partial(189, 197) },
   // ── partial with a removal, drawing-only: refused by name ────────────────
   { cls: 'removal lost: a delete', script: 'rsi-horizontal-resistance-levels__a3f8454f81',
     objectsOnly: true, kind: 'refused', what: 'a delete' },

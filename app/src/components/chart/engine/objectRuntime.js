@@ -144,6 +144,9 @@ export function beginObjects(program, ctx) {
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
   const counts = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const peak = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  /** How many objects Pine's collector cut, per family — see `collect` and
+   *  `lostCreates` in `finish`. */
+  const collectedBy = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
 
   /** site ids whose ONCE create has already fired. ⭐ Pine's `var x = expr`
    *  initialises the first time the path is reached and never again. */
@@ -365,6 +368,7 @@ export function beginObjects(program, ctx) {
       if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
       reap(inst)
       evicted += 1
+      collectedBy[family] += 1
       if (ctx.trace) events.push({ bar, k: 'evict', family, id: inst.id })
     }
   }
@@ -1062,14 +1066,56 @@ export function beginObjects(program, ctx) {
   }
 
   const finish = () => {
+  // ⭐⭐ A FAMILY THE COLLECTOR CUT WHILE THE PROGRAM LOST CREATES OF IT IS
+  // WITHHELD (C13, 2026-09-29).
+  //
+  // Pine's collector cuts a family by COUNT: past `cap + 5` the oldest go until
+  // `cap` remain (`collect`). A create this program lost (`program.lostCreates`
+  // — the converter's `create:*`, `guard:create`, `content:lost`, a refused
+  // helper's body, a loop it never read) still counts on TradingView's side, so
+  // once the collector has run the two sides cut at different moments and hold
+  // DIFFERENT objects: TradingView removed ones this chart keeps. That is not a
+  // smaller picture, it is a wrong one — the one loss the member door refuses
+  // (`objectLoss.js`, ruling 2026-09-27: "anything whose loss leaves an object
+  // on screen that Pine would have removed").
+  //
+  // ⚰️ MEASURED 2026-09-29 (NYSE:RDDT 1D). `high-low-open-mid-ranges` draws its
+  // weekly range lines, loses its `vline` dividers (an unreadable guard), and
+  // counts 504 lines against TradingView's 504 — the right COUNT with the wrong
+  // lines. `sector-rotation` counts 50/50 lines too, but TradingView's sit at
+  // bars 33–57 and ours at the chart's last 50 bars: it loses four guarded
+  // `line.new`s that TradingView runs.
+  //
+  // ⛔ ONLY WHEN THIS RUN'S COLLECTOR ACTUALLY CUT THE FAMILY. Below the trigger
+  // nothing is removed on this side, and a lost create is only a MISSING object
+  // (drawn, disclosed). ⚠️ The converse is NOT covered: TradingView, holding the
+  // lost objects too, can pass its trigger while this run does not — nothing
+  // here can count creates that never ran. Named, not hidden.
+  //
+  // ⛔ `'*'` (a family the converter could not name) withholds every family the
+  // collector cut. A fill spans two lines, so withheld lines take their fills.
+  const lost = new Set(Array.isArray(program.lostCreates) ? program.lostCreates : [])
+  const withheldFams = new Set()
+  for (const fam of Object.keys(POOL_LIMITS)) {
+    if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
+  }
+  if (withheldFams.has('line')) withheldFams.add('linefill')
+  const withheld = {}
+  for (const o of live.values()) {
+    if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
+  }
+  const heldCounts = { ...counts }
+  for (const fam of withheldFams) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
-  const ordered = [...live.values()].sort((a, b) => a.id - b.id)
+  const ordered = [...live.values()].filter((o) => !withheldFams.has(o.family))
+    .sort((a, b) => a.id - b.id)
 
   return {
     status,
     reason,
+    ...(withheldFams.size ? { withheld } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,
@@ -1078,7 +1124,7 @@ export function beginObjects(program, ctx) {
       props: { ...o.props },
       ...(o.family === 'table' ? { cells: cellsOf(cells.get(o.id)) } : {}),
     })),
-    counts: { ...counts },
+    counts: heldCounts,
     stats: {
       created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
       ...(tablesReplaced ? { tablesReplaced } : {}),
