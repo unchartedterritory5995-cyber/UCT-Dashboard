@@ -2376,10 +2376,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ]
     },
     {
