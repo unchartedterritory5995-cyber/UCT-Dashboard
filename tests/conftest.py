@@ -353,6 +353,29 @@ def _reset_theme_day_metrics_serve_stale():
     _clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_market_narrative_serve_stale():
+    """Clear `/api/schwab/market-narrative`'s serve-stale state (TERM-070).
+
+    The route keeps its last GOOD narrative in a module-level slot, a carried
+    copy in the shared cache (so a deploy can re-seed the slot), and a brief
+    negative memo of its last failure. Any one of them left behind answers the
+    next test's request without running the handler it means to drive — a
+    stale 200 where a rail expects the cost cap's 429. Looked up via
+    sys.modules so the fixture never imports the router into an unrelated
+    test."""
+    import sys
+
+    def _clear():
+        mod = sys.modules.get("api.services.market_narrative_swr")
+        if mod is not None:
+            mod._reset_for_test()
+
+    _clear()
+    yield
+    _clear()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _setup_j2_database():
     """Initialize the J2 schema in the test auth.db.
