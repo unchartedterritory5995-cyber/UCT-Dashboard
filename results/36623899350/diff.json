@@ -1,0 +1,266 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 13,
+    "fixed": 2,
+    "unchanged": 141,
+    "missing": 0,
+    "baseline": 143,
+    "current": 154,
+    "current_ran": 34075,
+    "new_flaky": 0,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 13,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 143 = unchanged 141 + fixed 2 + missing 0  |  current 154 = unchanged 141 + new 13 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36596723515",
+  "current_run_id": "36623899350",
+  "baseline_sha": "14cb488e57b5f8313783c85cb78eb14aacb16d9f",
+  "current_sha": "4e891b22bb6ecbcd60258826e63ec0db1dfc97ba",
+  "commit_range": "14cb488e57b5f8313783c85cb78eb14aacb16d9f..4e891b22bb6ecbcd60258826e63ec0db1dfc97ba",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_hub_sandbox_model_keys|test_a_no_request_leaves_with_a_credential_after_the_policy",
+    "pytest|tests.test_hub_sandbox_model_keys|test_c_sdk_implicit_env_is_fully_classified",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_a_non_notebook_commit_on_top_runs_and_warns",
+    "pytest|tests.test_notebook_rollback_chain|test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool",
+    "pytest|tests.test_notebook_rollback_chain|test_an_unrecorded_conflict_stops_the_chain",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_current_on_a_base_with_nothing_uncharted",
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_stale_and_why_on_an_uncharted_landing",
+    "pytest|tests.test_notebook_rollback_chain|test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_a_landing_the_subject_criterion_misses",
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_closed_table_citations|test_every_closed_table_citation_in_source_resolves_to_a_real_key",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_hub_sandbox_model_keys|test_a_no_request_leaves_with_a_credential_after_the_policy": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_hub_sandbox_model_keys|test_c_sdk_implicit_env_is_fully_classified": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_a_non_notebook_commit_on_top_runs_and_warns": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_a_subjectless_hotfix_to_useJ2Notes_stops_the_tool": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_an_unrecorded_conflict_stops_the_chain": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_current_on_a_base_with_nothing_uncharted": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_check_says_stale_and_why_on_an_uncharted_landing": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_a_landing_the_subject_criterion_misses": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_notebook_rollback_chain|test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path": {
+      "class": "test-file-change",
+      "commits": [
+        "7bd834b9f"
+      ],
+      "workstreams": [
+        {
+          "commit": "7bd834b9f",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous": {
+      "class": "test-file-change",
+      "commits": [
+        "1d7c54428",
+        "0812b5ec3"
+      ],
+      "workstreams": [
+        {
+          "commit": "1d7c54428",
+          "workstream": "author:Claude Fable 5",
+          "confidence": "author",
+          "ours": false
+        },
+        {
+          "commit": "0812b5ec3",
+          "workstream": "author:unchartedterritory5995-cyber",
+          "confidence": "author",
+          "ours": false
+        }
+      ]
+    },
+    "pytest|tests.test_closed_table_citations|test_every_closed_table_citation_in_source_resolves_to_a_real_key": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 14cb488e5..4e891b22b touched tests/test_closed_table_citations.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 14cb488e5..4e891b22b touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    }
+  }
+}
