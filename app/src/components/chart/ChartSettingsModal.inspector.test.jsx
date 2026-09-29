@@ -940,11 +940,15 @@ describe('ONE MEMBER-FACING MOVING AVERAGE, over two persistence implementations
     // to match.
     const { cs } = withMA(base(), 'close')
     show(cs); openTab()
-    const CORE = ['Source', 'Period', 'Type', 'Timeframe', 'Display']
+    const CORE = ['Source', 'Period', 'Type', 'Timeframe', 'Display', 'Visibility']
 
     select(/^EMA 9$/)
     expect(coreOf().map((r) => r.split(' = ')[0])).toEqual(CORE)
     expect(coreOf()).toEqual(expect.arrayContaining(['Period = 9', 'Type = EMA', 'Timeframe = Chart']))
+    // ⭐ Visibility is a CORE row under Timeframe/Display (above the fold), not a
+    // section of its own below Appearance.
+    expect(coreOf()).toContain('Visibility = All timeframes')
+    expect(inspector().querySelector('[data-section="visibility"]')).toBeNull()
 
     select(/^SMA 50$/)
     expect(coreOf()).toEqual(expect.arrayContaining(['Period = 50', 'Type = SMA', 'Timeframe = Chart']))
