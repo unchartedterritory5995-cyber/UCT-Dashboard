@@ -34,6 +34,18 @@ whitelist, do not publish). ENGINEERING — 038 (no saved-object registry), 043 
 OWNER — 044 (licensing T-43 transcript derivatives), 046 (FINRA purchase/licence), 049 (OI-15 consent), 060 (resolver
 approval line). 058 is largely SHIPPED (`a6950a079`); only a Builder-path count may remain. In flight: 059, 057, 047.
 
+**`c8401e8d4`** (smoke PASS): TERM-059 (NAAIM as-of at the value), TERM-057 (catalyst "why isn't X" receipt — also
+fixed the explain route claiming "on today's list" for any top-20 rank; quota is per tag 10/5/3/2), TERM-047 (CoverageLine
+rail over 12 derived result surfaces; ScannerShell adopts it; 9 shrink-only exemptions).
+**`ca6d902f2`** (smoke pending at write): TERM-052 (DeviceSyncCard: autosave rule + ceilings derived from the enforcing
+constants — MAX_CHART_TEMPLATES 40 silently drops the oldest), TERM-051 (Version history on /charts, DARK behind
+WORKSPACE_DOC_STORE_ENABLED; **STATE-2 guard LIVE**: an unreadable `charts_workspace_layout` is never autosaved over — the
+member-data-loss path). `fef262e88` (next push): VersionHistory KEY_LABELS railed to WORKSPACE_PREF_KEYS.
+Arming 021/051 still needs: the read-new phase (read-fallback shim, template apply = one doc write, `uct.watchlist.cols`
+folded in) and STORE_BACKUP_ENABLED with one real `--rehearse` PASS on workspace_docs.
+Pre-existing master red NOT ours: `usePreferences.additionsOnly` (Watchlists A12 9/25, Notebook wave 8 9/26).
+New owner question: TERM-055 — CARD 7's sentence needs `vendor`/`dividends` the adjustment-basis endpoint does not return.
+
 **OWNER DECISIONS OUTSTANDING:** TERM-062 held off the branch (fire-frequency count reveals whether anyone watched a
 ticker — options: ship / drop the count / rebuild from SEC history); TERM-053 four open families (OPEN_READS_GATE
 enforce flip; `/api/stream/prices` + Discord Activity; `/api/r/*` token in the bundle → rotate + remove VITE var);
