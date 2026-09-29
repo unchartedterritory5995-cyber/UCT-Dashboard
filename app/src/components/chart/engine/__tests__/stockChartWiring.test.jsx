@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, act } from '@testing-library/react'
+import { useState, Profiler } from 'react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
@@ -1419,6 +1420,114 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(H.scaleApplyCalls, 'a legend hover touched a price scale').toEqual([])
     expect(series.options().lineWidth, 'the line is not the width it started at')
       .toBe(before)
+  })
+
+  // ─── WHY THE CASE ABOVE FAILED ONLY IN COMPANY (2026-09-28) ───────────────
+  //
+  // ⛔⛔ IT WAS NEVER THE HOVER. `fireEvent.mouseEnter` on a chip reaches no
+  // handler at all (the chip has none — `IndicatorChip.test.jsx` rails that). The
+  // six `applyOptions` it reported were a FULL `updateChart` pass — the candle, the
+  // four MAs and the engine's RSI re-sync, every value identical to what the line
+  // already carried — and it was set off by a STATE CHANGE nobody made in the
+  // test: the first-paint dwell timer (`_setFpDwellReady(true)`, 150ms after
+  // mount). Alone, `draw` + `hoverLatest` outlasts 150ms and that re-render lands
+  // BEFORE the counters are cleared. In a loaded 500-700-file run the legend
+  // settles on a different schedule, and the timer's first chance to fire is the
+  // macrotask the hover's own `act` yields to — inside the window. Pinned with a
+  // setter probe: the only state set in the failing window was that timer's.
+  //
+  // ⭐ AND THE REASON AN UNRELATED RE-RENDER RE-STYLED ANYTHING IS THE REAL
+  // DEFECT. `useJ2ChartMarkers` rebuilds on `positions`/`trades`, which its SWR
+  // hooks answer as `data?.positions ?? []` — a NEW array on every render whenever
+  // the Journal 2.0 endpoints have not answered with one (signed out, a 401, a
+  // failed fetch, the first moments before the fetch lands, and this file's `{}`
+  // fetch stub). That made `mergedMarkers` / `mergedPriceLines` new on every
+  // render, so `updateChart` was a new callback on every render, so ANY re-render
+  // of StockChart — a crosshair move, a menu opening, a timer — re-ran the whole
+  // paint: every series re-styled and every price line torn down and rebuilt. A
+  // signed-in member never saw it (their endpoints answer arrays, which SWR keeps
+  // by identity); the empty overlay now takes the same stable path theirs does.
+  //
+  // So this case asks the question the flake was really asking, on purpose and
+  // on a fixed schedule: a re-render that changes NOTHING paints nothing.
+  describe('a re-render that changes nothing reaches the renderer not at all', () => {
+    /** StockChart under a host whose own state can force a re-render with the
+     *  SAME props (same references) — the no-op render the dwell timer produced
+     *  by accident. `commits` counts React commits of the chart's subtree, so the
+     *  case can prove a render really happened before it asserts nothing moved. */
+    const drawHosted = (settings) => {
+      // ONE caller price line, held by reference, so the price-line half of the
+      // claim has something to rebuild — with none, "rebuilt nothing" is vacuous.
+      let props = {
+        sym: 'AAPL', tf: 'D', barsOverride: BARS, settingsOverride: legendAlways(settings),
+        priceLines: [{ price: 150, color: '#c9a84c', title: 'rail' }],
+      }
+      let setHost = null
+      let commits = 0
+      function Host() {
+        const [p, setP] = useState(props)
+        setHost = setP
+        return (
+          <Profiler id="stock-chart" onRender={() => { commits += 1 }}>
+            <StockChart {...p} />
+          </Profiler>
+        )
+      }
+      const view = render(<Host />)
+      return {
+        view,
+        commits: () => commits,
+        /** Re-render the host with the props it already has. */
+        bump: () => act(async () => { setHost(cur => ({ ...cur })) }),
+        /** Re-render with a REAL change — the control. */
+        setSettings: (next) => act(async () => {
+          props = { ...props, settingsOverride: legendAlways(next) }
+          setHost(props)
+        }),
+      }
+    }
+
+    /** Draw, settle the legend, and let the mount's own timers land — the 150ms
+     *  dwell among them — so what the window sees is the bump and nothing else. */
+    const settled = async (settings) => {
+      const h = drawHosted(settings)
+      await hoverLatest(h.view)
+      await act(async () => { await new Promise(r => setTimeout(r, 250)) })
+      expect(H.priceLineCalls.some(c => c.options && c.options.title === 'rail'),
+        'the caller price line never drew — the price-line half would assert on nothing').toBe(true)
+      H.applyOptionsCalls.length = 0
+      H.setDataCalls.length = 0
+      H.addSeriesCalls.length = 0
+      H.scaleApplyCalls.length = 0
+      H.priceLineCalls.length = 0
+      return h
+    }
+
+    it('⛔⛔ a no-op re-render re-styles no series and rebuilds no price line', async () => {
+      const h = await settled({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+      const before = h.commits()
+      await h.bump()
+      expect(h.commits(), 'the host did not re-render — this case would assert on nothing')
+        .toBeGreaterThan(before)
+
+      expect(H.applyOptionsCalls, 'a render that changed nothing re-styled a series').toEqual([])
+      expect(H.setDataCalls, 'a render that changed nothing re-set series data').toEqual([])
+      expect(H.addSeriesCalls, 'a render that changed nothing created a series').toEqual([])
+      expect(H.scaleApplyCalls, 'a render that changed nothing touched a price scale').toEqual([])
+      expect(H.priceLineCalls, 'a render that changed nothing rebuilt the price lines').toEqual([])
+    })
+
+    it('control: a REAL change on the same host does reach the renderer', async () => {
+      // Without this the case above would pass against a host whose re-render never
+      // reached `updateChart` at all.
+      const h = await settled({ ...RSI_ON, indicatorInstances: [RSI_INSTANCE] })
+      await h.setSettings({
+        ...RSI_ON,
+        indicatorInstances: [{ ...RSI_INSTANCE, inputs: { ...RSI_INSTANCE.inputs, color: '#00ff00' } }],
+      })
+      expect(H.applyOptionsCalls.some(c => c.options && c.options.color === '#00ff00'),
+        'a new RSI colour never reached a series — the recorder cannot see a restyle').toBe(true)
+    })
   })
 
   it('⛔ …and neither does a CLICK — it opens a menu, it does not restyle', async () => {
