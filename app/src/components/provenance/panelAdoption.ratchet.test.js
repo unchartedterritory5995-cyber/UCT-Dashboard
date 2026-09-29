@@ -659,12 +659,24 @@ const DEFAULT_NOTE = [
   'Paths are repo-relative with forward slashes, sorted, and the file is LF with a',
   'trailing newline: the rail asserts these bytes are exactly what its writer',
   'produces, so appending one adopter is a one-line diff.',
+  'coverage_line_exempt (TERM-047) is the OPPOSITE kind of list: SHRINK-ONLY and hand-edited.',
+  'Each key is a derived result surface that renders no CoverageLine; each value is ONE line',
+  'starting with its kind (not-a-result-set: / no-counts: / delegates:). The rail fails by name',
+  'on an entry that outlives its gap, and no generator ever adds one.',
 ]
 
 /** ⛔ ONE SHAPE, ONE KEY ORDER, ONE INDENT — so the round trip is IDEMPOTENT and
  *  an append is a one-line diff rather than a whole-file rewrite. Asserted, not
  *  promised, by `the committed baseline is byte-exactly what the writer produces`. */
-const serialiseBaseline = (doc) => `${JSON.stringify({ note: doc.note, adopters: doc.adopters }, null, 2)}\n`
+//  TERM-047's `coverage_line_exempt` rides the SAME artifact, after the
+//  adopters, and only when present — so a baseline without it serialises to the
+//  bytes it always did. The writer carries it through VERBATIM and never adds a
+//  key to it: that map is hand-edited only (see the TERM-047 section below).
+const serialiseBaseline = (doc) => `${JSON.stringify({
+  note: doc.note,
+  adopters: doc.adopters,
+  ...(doc.coverage_line_exempt ? { coverage_line_exempt: doc.coverage_line_exempt } : {}),
+}, null, 2)}\n`
 
 function writeBaselineFile(doc) {
   const text = serialiseBaseline(doc)
@@ -737,7 +749,8 @@ function maybeUpdateBaseline() {
       + 'meant to be a deliberate, reviewable act; laundering it through a generator is not.')
   }
   const merged = [...new Set([...recorded, ...OBSERVED])].sort()
-  writeBaselineFile({ note: existing.note ?? DEFAULT_NOTE, adopters: merged })
+  writeBaselineFile({ note: existing.note ?? DEFAULT_NOTE, adopters: merged,
+    coverage_line_exempt: existing.coverage_line_exempt })
 }
 
 maybeUpdateBaseline()
@@ -764,6 +777,15 @@ function readBaseline() {
   if (doc.adopters.some((p, i) => p !== sorted[i])) {
     throw new Error(`REFUSING: ${key(BASELINE_FILE)}'s adopter list is not sorted — an `
       + 'unsorted list makes every append a scattered diff.')
+  }
+  // TERM-047's exemption map: absent is not the same as empty, and an absent
+  // map would make every result surface a violation — which is loud, so that is
+  // allowed to fail in the rail below rather than here. A PRESENT map must be the
+  // right shape, or its entries would be read as reasons they are not.
+  const ex = doc.coverage_line_exempt
+  if (ex !== undefined && (ex === null || typeof ex !== 'object' || Array.isArray(ex))) {
+    throw new Error(`REFUSING: ${key(BASELINE_FILE)}'s \`coverage_line_exempt\` is not a `
+      + '{ path: reason } map.')
   }
   return doc
 }
@@ -1054,6 +1076,436 @@ describe('⭐⭐ the ratchet — adoption may not go backwards', () => {
       '── PARTNER-OWNED, LABELLED NOT FILTERED ────────────────────────────────',
       ...(partner.length ? partner : ['      (none declared)']),
       '',
+      '═══════════════════════════════════════════════════════════════════════',
+      '',
+    ].join('\n'))
+  }, 600000)
+})
+
+// ─── TERM-047 (FB-A9-02) — `CoverageLine` ON EVERY RESULT SURFACE ─────────────
+//
+// The spec's own test: *"A rail DERIVES the set of result surfaces and fails by
+// name on one that does not route through the component"* — and it names this
+// family of rails (`i1S8Boundary.test.js`'s shape) as the one to extend rather
+// than rewrite. So it lives HERE, on the census layer above, and reuses its graph,
+// its resolver, its derived alias set and its baseline artifact. No second walk.
+//
+// ── THE CRITERION: WHAT A "RESULT SURFACE" IS ───────────────────────────────
+//
+// The spec places the receipt in row A9 (Screening & Discovery) and says what it
+// is FOR: best-of-breed §6.1 item 5, *"`CoverageLine`'s four counts distinguish
+// 'no match' from 'cannot compute'"*. A result surface is therefore a surface
+// showing the answer to a SCREEN — a predicate evaluated over a universe, where
+// "no match" and "cannot compute" are different facts. Mechanically, a module is
+// one when ALL of these hold on its AST:
+//
+//   (1) it is tracked, non-test and REACHABLE from the app's entry graph (the
+//       census's own `REACHABLE_MODULES` — a harness page is not a member door);
+//   (2) it has JSX — it can put a list on a screen;
+//   (3) its OWN DATA DOOR addresses an A9 route: a `/api/…` string literal (or a
+//       template literal's head) whose route FAMILY — the first segment after
+//       `/api/` — has a word beginning `scan` or `screen` (`/api/scans/*`,
+//       `/api/screener/*`, `/api/volume-scan/*`). "Its own door" is the module
+//       itself plus every React HOOK (`use[A-Z]…`, no JSX) it imports directly,
+//       because a hook is how a component in this app fetches.
+//
+// THE SET IS DERIVED; THE VOCABULARY IS NOT, AND IT IS TWO WORDS. The spec's
+// gloss "filtered / screened / searched" was MEASURED as a vocabulary first
+// (`scan|screen|search|filter` over every route literal): it adds ticker
+// autocomplete (`/api/ticker-search`, eight modules), document and transcript
+// text search, and the AI-search admin panel. Not one of those evaluates a
+// predicate over a universe, so "not computable" has no meaning on any of them,
+// and filing them as exemptions would be the 519-row register this file's header
+// already refused (why-not (a)). They stay out by criterion, and a control below
+// proves the criterion keeps `CommandPalette.jsx` out.
+//
+// WHAT IT DOES NOT SEE, stated so a green run is not read as more:
+//   • a route named ONLY in a non-hook helper module (`screenShareLink.js`'s
+//     path constants reach `App.jsx` and `SharedScreen.jsx` that way — measured;
+//     neither renders a result set, which is why helpers are not followed);
+//   • a result list served from outside the A9 route namespaces (`/api/candidates`,
+//     `/api/nhnl`). Widening is a one-word change to `RESULT_FAMILY_STEMS`, and
+//     the rail will then NAME every surface the widening admits.
+//
+// ── WHAT "ROUTES THROUGH THE COMPONENT" MEANS ────────────────────────────────
+//
+// A surface routes through `CoverageLine` when it RENDERS it ITSELF — a parsed
+// JSX element bound to a default import that resolves to
+// `provenance/CoverageLine.jsx` or a derived alias of it (the screener shim). An
+// import alone is not a render (`adopts` above is the ratchet's weaker question,
+// and the right one THERE).
+//
+// NOT "OR THROUGH A CHILD" — AND THAT WAS MEASURED, NOT ASSUMED. The first
+// version of this rail also accepted ONE hop (a rendered child whose own module
+// renders the line). Its own permanent mutation below then stripped
+// `ScanResults`' CoverageLine import — and the rail still called ScanResults
+// routed, because it renders `<EvidenceTab>`, which renders a BACKTEST's receipt.
+// A child's line is that child's query's receipt, not this surface's: one hop was
+// already enough to launder a missing receipt, so the closure would be worse. A
+// surface whose answer genuinely lives in a child (`ScreensManager` →
+// `<ScanResults>`) is a DECLARED delegation — see `delegates:` below — and the
+// rail checks that the delegate it names really does render the line.
+//
+// ── THE EXEMPTIONS: SHRINK-ONLY, ONE LINE EACH ──────────────────────────────
+//
+// `coverage_line_exempt` in `panelAdoption.baseline.json` — `{ path: reason }`,
+// sorted, hand-edited as TEXT. Every reason starts with its KIND, so the list
+// reads as a to-do list rather than a pile:
+//
+//   `not-a-result-set:` the door is A9 but the surface lists no screen answer
+//                       (methodology, a catalogue, saved-screen controls);
+//   `no-counts:`        a result set whose backend does NOT return the four
+//                       counts. Adopting there means fabricating them, which
+//                       is the defect this component exists to prevent — the
+//                       follow-up is a BACKEND receipt, then the adoption;
+//   `delegates:`        the surface hands its answer to another that renders it.
+//                       The reason must NAME that delegate by repo path, and
+//                       the rail checks the named module renders CoverageLine
+//                       itself — so a delegation cannot outlive its delegate.
+//
+// THE LIST CAN ONLY SHRINK, enforced the way `AWAITING_A_DECISION` and
+// `RECORDED_BOUNDARY_DEBT` are: an entry that no longer names a NON-routing
+// result surface FAILS BY NAME (it adopted, or it stopped being a result
+// surface), so an entry cannot outlive the gap it records; and no generator
+// writes this map — the update mode above carries it through verbatim. Adding
+// a line is a decision recorded in a diff with its reason beside it.
+
+const COVERAGE_LINE_FILE = path.join(PROV_DIR, 'CoverageLine.jsx')
+
+/** CoverageLine and every DERIVED alias that fronts it — never a typed path. */
+const COVERAGE_TARGETS = new Set([COVERAGE_LINE_FILE,
+  ...ALIASES.filter((a) => edgesOf(a).includes(COVERAGE_LINE_FILE))])
+
+/** The A9 route-family stems. The ONE hand-typed input here; see the header. */
+const RESULT_FAMILY_STEMS = ['scan', 'screen']
+
+const EXEMPT_KINDS = ['not-a-result-set:', 'no-counts:', 'delegates:']
+
+const routeWords = (s) => String(s)
+  .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+  .toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)
+
+/** `/api/scans/period-change?start=` → `scans`. */
+const routeFamily = (route) => String(route).split(/[?#]/)[0].split('/')[2] || ''
+
+const isResultRoute = (route) => String(route).startsWith('/api/')
+  && routeWords(routeFamily(route)).some((w) => RESULT_FAMILY_STEMS.some((s) => w.startsWith(s)))
+
+/** Every `/api/…` route this AST names: a string literal, or a template
+ *  literal's HEAD (`/api/scans/${key}` → `/api/scans/`). A comment is not a
+ *  node, so prose naming a route is not a door. */
+function apiRoutesIn(ast) {
+  const out = []
+  walk(ast, (n) => {
+    let s = null
+    if (n.type === 'Literal' && typeof n.value === 'string') s = n.value
+    else if (n.type === 'TemplateLiteral' && n.quasis?.length) s = n.quasis[0].value?.cooked
+    if (typeof s === 'string' && s.startsWith('/api/')) out.push(s)
+  })
+  return out
+}
+
+const jsxIn = (ast) => {
+  let found = false
+  walk(ast, (n) => { if (typeof n.type === 'string' && n.type.startsWith('JSX')) found = true })
+  return found
+}
+
+/** A React hook module: named `use[A-Z]…` and puts nothing on screen itself. */
+const isHookModule = (file) => /^use[A-Z]/.test(path.basename(file)) && !hasJsx(file)
+
+/**
+ * The A9 routes a module's OWN data door addresses, as `{ route, via }` — `via`
+ * is the hook it came through, or null for the module itself. Takes the source
+ * as an argument so the planted controls classify a module that is not on disk.
+ * `hooks: false` exists for the control that proves the hook hop is load-bearing.
+ */
+function resultDoorsOf(file, src, { hooks = true } = {}) {
+  const ast = parse(src)
+  const own = apiRoutesIn(ast).filter(isResultRoute).map((route) => ({ route, via: null }))
+  if (!hooks) return own
+  const via = edgesFromSource(file, src).filter(isHookModule)
+    .flatMap((h) => apiRoutesIn(astOf(h)).filter(isResultRoute).map((route) => ({ route, via: h })))
+  return [...own, ...via]
+}
+
+const isResultSurfaceSource = (file, src) => jsxIn(parse(src)) && resultDoorsOf(file, src).length > 0
+
+/** Local component names bound to an import, and the module(s) each resolves to. */
+function importTable(file, ast) {
+  const table = new Map()
+  for (const n of ast.body) {
+    if (n.type !== 'ImportDeclaration' || typeof n.source?.value !== 'string') continue
+    const targets = resolve(file, n.source.value)
+    for (const s of n.specifiers || []) {
+      if (s.type === 'ImportNamespaceSpecifier') continue
+      table.set(s.local.name, { targets, isDefault: s.type === 'ImportDefaultSpecifier'
+        || (s.type === 'ImportSpecifier' && s.imported?.name === 'default') })
+    }
+  }
+  return table
+}
+
+/** Every JSX element name this AST renders (`<X>` and `<a.X>` → `X`). */
+function renderedNames(ast) {
+  const out = new Set()
+  walk(ast, (n) => {
+    if (n.type !== 'JSXOpeningElement' || !n.name) return
+    if (n.name.type === 'JSXIdentifier') out.add(n.name.name)
+    if (n.name.type === 'JSXMemberExpression' && n.name.object?.type === 'JSXIdentifier') {
+      out.add(n.name.object.name)
+    }
+  })
+  return out
+}
+
+/** Does this source RENDER `<CoverageLine>` ITSELF — an element bound to a
+ *  DEFAULT import of the component or a derived alias of it? */
+function rendersCoverageLineSource(file, src) {
+  const ast = parse(src)
+  const table = importTable(file, ast)
+  return [...renderedNames(ast)].some((name) => {
+    const b = table.get(name)
+    return !!b && b.isDefault && b.targets.some((t) => COVERAGE_TARGETS.has(t))
+  })
+}
+
+/** `'direct'` or `null`. No child hop — the header records the measurement
+ *  that removed it. */
+const coverageRouting = (file, src) => (rendersCoverageLineSource(file, src) ? 'direct' : null)
+
+const rendersCoverageLine = (file) => rendersCoverageLineSource(file, read(file))
+
+const routingLabel = (r) => (r ? 'direct' : 'NONE')
+
+/** The repo paths a `delegates:` reason names (`app/src/<path>.jsx`). */
+const delegatesNamedIn = (why) => [...String(why).matchAll(/app\/src\/[\w./-]+\.(?:jsx|js|tsx|ts)/g)]
+  .map((m) => m[0])
+
+// ── the derived set ─────────────────────────────────────────────────────────
+
+const RESULT_SURFACES = REACHABLE_MODULES
+  .filter((p) => !ADOPT_TARGETS.has(p) && hasJsx(p))
+  .filter((p) => isResultSurfaceSource(p, read(p)))
+  .map((p) => ({ abs: p, rel: key(p), routing: coverageRouting(p, read(p)), doors: resultDoorsOf(p, read(p)) }))
+
+/**
+ * THE VERDICT — pure, so its failure is PROVED by table cases rather than
+ * described. `violations`: a result surface that renders no CoverageLine and is
+ * not exempt. `stale`: an exemption that no longer names a non-routing result
+ * surface — the shrink half.
+ */
+function coverageVerdict(surfaces, exempt) {
+  const bySurface = new Map(surfaces.map((s) => [s.rel, s]))
+  return {
+    violations: surfaces.filter((s) => !s.routing && !Object.hasOwn(exempt, s.rel)).map((s) => s.rel),
+    stale: Object.keys(exempt).filter((rel) => !bySurface.has(rel) || !!bySurface.get(rel).routing),
+  }
+}
+
+const staleWhy = (rel) => {
+  const s = RESULT_SURFACES.find((x) => x.rel === rel)
+  if (!s) {
+    return fs.existsSync(path.join(ROOT, rel))
+      ? 'is NO LONGER A RESULT SURFACE (no A9 door, no JSX, or unreachable) — delete its line'
+      : 'was DELETED — delete its line'
+  }
+  return `now routes through CoverageLine (${routingLabel(s.routing)}) — the gap is closed, delete its line`
+}
+
+const EXEMPT = BASELINE.coverage_line_exempt ?? {}
+const COVERAGE_VERDICT = coverageVerdict(RESULT_SURFACES, EXEMPT)
+
+describe('TERM-047 — CoverageLine on every result surface', () => {
+  it('the derivation is not vacuous: a known member BY NAME, and it discriminates', () => {
+    assertInstrumentAlive()
+    expect(RESULT_SURFACES.length, 'no result surface was derived — every assertion below would '
+      + 'pass over an empty set').toBeGreaterThan(0)
+    // The door a member walks through (CLAUDE.md), by name, rendering the line itself.
+    const scan = RESULT_SURFACES.find((s) => s.rel === 'app/src/components/screener/ScanResults.jsx')
+    expect(scan, 'ScanResults.jsx is not in the derived set — the criterion lost the screener').toBeTruthy()
+    expect(scan.routing, 'ScanResults.jsx renders <CoverageLine> at the foot of the result set').toBe('direct')
+    expect(scan.doors.map((d) => d.route)).toContain('/api/scans/definition-results')
+    // THE NEGATIVES, so "is a result surface" is not "returns true": a reachable
+    // search surface on a NON-A9 route, and the app root.
+    const palette = path.join(SRC, 'components', 'CommandPalette.jsx')
+    expect(REACHABLE_MODULES, 'CommandPalette.jsx is not reachable — pick another negative').toContain(palette)
+    expect(apiRoutesIn(astOf(palette)).some((r) => r.startsWith('/api/ticker-search')),
+      'CommandPalette no longer names /api/ticker-search — this negative measures nothing').toBe(true)
+    expect(RESULT_SURFACES.map((s) => s.rel)).not.toContain(key(palette))
+    expect(RESULT_SURFACES.map((s) => s.rel)).not.toContain('app/src/App.jsx')
+  }, 600000)
+
+  it('THE HOOK HOP IS LOAD-BEARING: the screener shell is a surface only through its hooks', () => {
+    const shell = path.join(PAGES_DIR, 'screener', 'shell', 'ScannerShell.jsx')
+    const src = read(shell)
+    expect(resultDoorsOf(shell, src, { hooks: false }), 'ScannerShell names an A9 route itself now — '
+      + 'this control no longer isolates the hook hop; pick another hook-only surface').toEqual([])
+    const viaHooks = resultDoorsOf(shell, src)
+    expect(viaHooks.map((d) => path.basename(d.via || '')))
+      .toEqual(expect.arrayContaining(['useScreenerScan.js']))
+    expect(RESULT_SURFACES.map((s) => s.rel)).toContain(key(shell))
+  }, 600000)
+
+  it('the classifier: a route stem, a template head, a hook, and prose are told apart', () => {
+    expect(isResultRoute('/api/scans/definition-results')).toBe(true)
+    expect(isResultRoute('/api/screener/scan')).toBe(true)
+    expect(isResultRoute('/api/volume-scan/live?show_all=1')).toBe(true)
+    expect(isResultRoute('/api/ticker-search?q=')).toBe(false)
+    expect(isResultRoute('/api/j2/notes/enrichment/scan')).toBe(false)   // family `j2`
+    expect(isResultRoute('/api/ai-search/stream')).toBe(false)
+    const from = path.join(PAGES_DIR, '__planted__', 'Planted.jsx')
+    expect(isResultSurfaceSource(from, "// fetch('/api/scans/x')\nexport default () => <ul />\n"),
+      'a route named in a COMMENT was read as a door — this is a grep wearing an AST').toBe(false)
+    expect(isResultSurfaceSource(from, 'const u = `/api/scans/${k}`\nexport default () => <ul />\n')).toBe(true)
+    expect(isResultSurfaceSource(from, "const u = '/api/scans/x'\nexport const f = () => u\n"),
+      'a module with no JSX cannot put a list on screen').toBe(false)
+  })
+
+  it('every exemption has a KIND and a one-line reason, and the map is sorted', () => {
+    const rows = Object.entries(EXEMPT)
+    expect(rows.length, 'coverage_line_exempt is absent or empty — if every result surface '
+      + 'routes through CoverageLine, delete this assertion; otherwise the map was lost').toBeGreaterThan(0)
+    for (const [rel, why] of rows) {
+      expect(typeof why, rel).toBe('string')
+      expect(why.includes('\n'), `${rel}: the reason must be ONE line`).toBe(false)
+      expect(EXEMPT_KINDS.some((k) => why.startsWith(k)),
+        `${rel}: the reason must start with one of ${EXEMPT_KINDS.join(' ')} — got "${why}"`).toBe(true)
+      expect(why.length, `${rel}: a kind with no reason after it is not a reason`).toBeGreaterThan(30)
+    }
+    const keys = rows.map(([k]) => k)
+    expect(keys, 'coverage_line_exempt keys are not sorted').toEqual([...keys].sort())
+  })
+
+  it('a `delegates:` exemption names its delegate, and the delegate RENDERS the line', () => {
+    const delegations = Object.entries(EXEMPT).filter(([, why]) => why.startsWith('delegates:'))
+    const broken = []
+    for (const [rel, why] of delegations) {
+      const named = delegatesNamedIn(why)
+      if (named.length === 0) { broken.push(`${rel}: names no delegate path`); continue }
+      for (const d of named) {
+        const abs = path.join(ROOT, ...d.split('/'))
+        if (!fs.existsSync(abs)) broken.push(`${rel}: delegate ${d} does not exist`)
+        else if (!rendersCoverageLine(abs)) broken.push(`${rel}: delegate ${d} renders no <CoverageLine>`)
+      }
+    }
+    expect(broken, 'A DELEGATION WHOSE DELEGATE NO LONGER RENDERS THE RECEIPT is an exemption '
+      + 'for a gap nobody covers. Adopt CoverageLine on the surface, or correct the reason.').toEqual([])
+    // The check can fail: a delegation naming a module with no line is caught.
+    const planted = 'delegates: app/src/App.jsx renders it (planted control)'
+    const plantedAbs = path.join(ROOT, ...delegatesNamedIn(planted)[0].split('/'))
+    expect(rendersCoverageLine(plantedAbs)).toBe(false)
+  }, 600000)
+
+  it('every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME', () => {
+    expect(COVERAGE_VERDICT.violations.map((rel) => {
+      const s = RESULT_SURFACES.find((x) => x.rel === rel)
+      return `${rel}   doors: ${[...new Set(s.doors.map((d) => d.route))].join(' ')}`
+    }), 'RESULT SURFACES WITHOUT A COVERAGE RECEIPT. Each of these shows the answer to a screen '
+      + '(an A9 route) and renders no <CoverageLine> — so a screen that silently loses symbols '
+      + 'reads as a quiet market. Render <CoverageLine coverage={…}/> from the BACKEND\'s four counts, '
+      + `or — if the backend returns none, or this is not a result set — add a one-line reason to `
+      + `coverage_line_exempt in ${key(BASELINE_FILE)} (${EXEMPT_KINDS.join(' ')}).`)
+      .toEqual([])
+  }, 600000)
+
+  it('the exemption list can only SHRINK — an entry outliving its gap fails by name', () => {
+    expect(COVERAGE_VERDICT.stale.map((rel) => `${rel}   ${staleWhy(rel)}`),
+      `STALE EXEMPTIONS in ${key(BASELINE_FILE)} coverage_line_exempt. An entry that outlives the `
+      + 'gap it records is a standing excuse: the day the surface regresses, it would stay green.')
+      .toEqual([])
+  }, 600000)
+
+  it('PLANTED VIOLATION: a new result surface with no receipt is NAMED', () => {
+    // A module that is not on disk, classified by the SAME functions the rail
+    // uses, joined to the real derived set.
+    const planted = path.join(PAGES_DIR, 'screener', '__planted__', 'PlantedResults.jsx')
+    const src = "import { useEffect, useState } from 'react'\n"
+      + 'export default function PlantedResults() {\n'
+      + '  const [rows, setRows] = useState([])\n'
+      + "  useEffect(() => { fetch('/api/scans/planted').then((r) => r.json()).then((d) => setRows(d.rows)) }, [])\n"
+      + '  return <ul>{rows.map((r) => <li key={r.sym}>{r.sym}</li>)}</ul>\n'
+      + '}\n'
+    expect(isResultSurfaceSource(planted, src)).toBe(true)
+    expect(coverageRouting(planted, src)).toBe(null)
+    const rel = key(planted)
+    const v = coverageVerdict([...RESULT_SURFACES, { rel, routing: null, doors: [] }], EXEMPT)
+    expect(v.violations).toContain(rel)
+    // …and the same module, rendering the line, is NOT named.
+    const fixed = "import CoverageLine from '../../../components/provenance/CoverageLine'\n"
+      + src.replace('return <ul>', 'return <><CoverageLine coverage={null} /><ul>').replace('</ul>\n', '</ul></>\n')
+    expect(coverageRouting(planted, fixed)).toBe('direct')
+  })
+
+  it('MUTATION, PERMANENT: strip ScanResults\' CoverageLine import and the rail names it', () => {
+    const abs = path.join(SRC, 'components', 'screener', 'ScanResults.jsx')
+    const rel = key(abs)
+    const real = read(abs)
+    const stripped = real.split('\n').filter((l) => !/^import\s+CoverageLine\b/.test(l)).join('\n')
+    expect(stripped, 'the strip removed nothing — ScanResults imports CoverageLine differently now')
+      .not.toBe(real)
+    expect(coverageRouting(abs, real)).toBe('direct')
+    expect(coverageRouting(abs, stripped), 'an element with no import binding still counted — the '
+      + 'render check is matching a NAME, not a resolved import').toBe(null)
+    const surfaces = RESULT_SURFACES.map((s) => (s.rel === rel ? { ...s, routing: null } : s))
+    // The mutation's OWN effect, net of whatever the live tree already reports:
+    // exactly one new violation, and it is the stripped surface, by name.
+    const added = coverageVerdict(surfaces, EXEMPT).violations
+      .filter((x) => !COVERAGE_VERDICT.violations.includes(x))
+    expect(added).toEqual([rel])
+  }, 600000)
+
+  it('an IMPORT is not a RENDER, and a NAMED import is not the component', () => {
+    const from = path.join(PAGES_DIR, 'screener', '__planted__', 'Planted.jsx')
+    const importOnly = "import CoverageLine from '../../../components/provenance/CoverageLine'\n"
+      + "const u = '/api/scans/x'\nexport default () => <ul data-u={u} />\n"
+    expect(coverageRouting(from, importOnly)).toBe(null)
+    // The SHIM counts, because the alias set is derived — the screener imports it that way.
+    const viaShim = "import CoverageLine from '../../../components/screener/CoverageLine'\n"
+      + 'export default () => <CoverageLine coverage={null} />\n'
+    expect(coverageRouting(from, viaShim)).toBe('direct')
+  })
+
+  it('the verdict can FAIL both ways — table cases, with a discriminator', () => {
+    const A = { rel: 'a.jsx', routing: 'direct', doors: [] }
+    const B = { rel: 'b.jsx', routing: null, doors: [] }
+    const C = { rel: 'c.jsx', routing: 'direct', doors: [] }
+    expect(coverageVerdict([A, B, C], {})).toEqual({ violations: ['b.jsx'], stale: [] })
+    expect(coverageVerdict([A, B, C], { 'b.jsx': 'r' })).toEqual({ violations: [], stale: [] })
+    expect(coverageVerdict([A, B, C], { 'b.jsx': 'r', 'a.jsx': 'r' })).toEqual({ violations: [], stale: ['a.jsx'] })
+    expect(coverageVerdict([A, C], { 'b.jsx': 'r' })).toEqual({ violations: [], stale: ['b.jsx'] })
+    expect(coverageVerdict([A, B, C], { 'c.jsx': 'r' })).toEqual({ violations: ['b.jsx'], stale: ['c.jsx'] })
+    // The stale guard, on the REAL set: exempting a surface that renders the line is caught.
+    const real = coverageVerdict(RESULT_SURFACES,
+      { ...EXEMPT, 'app/src/components/screener/ScanResults.jsx': 'delegates: planted stale entry for the control' })
+    expect(real.stale).toContain('app/src/components/screener/ScanResults.jsx')
+  }, 600000)
+
+  it('prints the derived set, how each routes, and the exemptions by kind', () => {
+    const rows = RESULT_SURFACES.map((s) => {
+      const mark = s.routing ? `routes ${routingLabel(s.routing)}` : (Object.hasOwn(EXEMPT, s.rel) ? 'EXEMPT' : 'VIOLATION')
+      const doors = [...new Set(s.doors.map((d) => (d.via ? `${path.basename(d.via)}→${d.route}` : d.route)))]
+      return `      ${mark.padEnd(28)} ${s.rel}\n${' '.repeat(35)}${doors.join('  ')}`
+    })
+    const byKind = EXEMPT_KINDS.map((k) => {
+      const hits = Object.entries(EXEMPT).filter(([, why]) => why.startsWith(k))
+      return [`   ${k} ${hits.length}`, ...hits.map(([rel, why]) => `      ${rel}\n         ${why}`)]
+    }).flat()
+    // eslint-disable-next-line no-console
+    console.log([
+      '',
+      '════ TERM-047 — CoverageLine ON EVERY RESULT SURFACE ═════════════════════',
+      `  route-family stems : ${RESULT_FAMILY_STEMS.join(' · ')}   (A9 Screening & Discovery)`,
+      `  CoverageLine doors : ${[...COVERAGE_TARGETS].map(key).join(', ')}`,
+      `  RESULT SURFACES (${RESULT_SURFACES.length}), derived:`,
+      ...rows,
+      '',
+      `  routing ${RESULT_SURFACES.filter((s) => s.routing).length}  ·  exempt `
+        + `${RESULT_SURFACES.filter((s) => !s.routing && Object.hasOwn(EXEMPT, s.rel)).length}  ·  violations `
+        + `${COVERAGE_VERDICT.violations.length}  ·  stale exemptions ${COVERAGE_VERDICT.stale.length}`,
+      '',
+      '── EXEMPTIONS BY KIND — the follow-up list ─────────────────────────────',
+      ...byKind,
       '═══════════════════════════════════════════════════════════════════════',
       '',
     ].join('\n'))
