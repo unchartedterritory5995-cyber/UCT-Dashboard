@@ -60,9 +60,72 @@ import styles from './Cited.module.css'
 // unlabelled timestamp for another, and a London reader would see a number three
 // hours earlier than yesterday's with nothing to explain it.
 
-export default function Cited({ children, row = null }) {
+// ── The transcript-span row (TERM-044 / FB-A6-02) ────────────────────────────
+//
+//   <Cited row={ {transcript: {segment, start, end, speaker, text}} }
+//          onOpenSource={(transcript) => ...} />
+//
+// A THIRD row shape, additive like the other two. `text` is the transcript's
+// own characters at [start, end) of turn `segment` — the server located it and
+// verified it before it was stored, so the panel shows the passage itself, not
+// a description of one. `onOpenSource` is optional: a surface that can scroll
+// the full transcript to that turn passes it; one that cannot simply shows the
+// passage.
+//
+// Rendered as a block that flows with its sentence (the toggle sits at the end
+// of the line, the passage opens beneath it) rather than the floating panel
+// the bar row uses: a passage is a paragraph, and a popover that paragraph
+// wide clips inside a scrolling modal on a phone.
+function TranscriptCited({ children, transcript, onOpenSource }) {
   const panelId = useId()
   const [open, setOpen] = useState(false)
+  const who = transcript.speaker || 'Unattributed speaker'
+  return (
+    <span className={styles.wrapPassage} data-testid="cited-present">
+      {children}
+      <button
+        type="button"
+        className={`${styles.toggle} ${styles.togglePassage}`}
+        data-testid="cited-toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label="Show the transcript passage this point comes from"
+        title="Show the transcript passage this point comes from"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <UIcon name="info" size={12} />
+      </button>
+      {open && (
+        <span id={panelId} className={styles.panelPassage} role="note" data-testid="cited-panel">
+          <span className={styles.passageHead}>From the call transcript · {who}</span>
+          <q className={styles.passage} data-testid="cited-passage">{transcript.text}</q>
+          {onOpenSource && (
+            <button
+              type="button"
+              className={styles.openSource}
+              data-testid="cited-open-source"
+              onClick={() => onOpenSource(transcript)}
+            >
+              Show in full transcript
+            </button>
+          )}
+        </span>
+      )}
+    </span>
+  )
+}
+
+export default function Cited({ children, row = null, onOpenSource = null }) {
+  const panelId = useId()
+  const [open, setOpen] = useState(false)
+
+  if (row && row.transcript && typeof row.transcript === 'object') {
+    return (
+      <TranscriptCited transcript={row.transcript} onOpenSource={onOpenSource}>
+        {children}
+      </TranscriptCited>
+    )
+  }
 
   if (!row) {
     // Same honest-degraded principle as <Provenance>'s own §9.8 state:

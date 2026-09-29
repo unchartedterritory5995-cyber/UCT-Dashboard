@@ -54,3 +54,77 @@
 
 .panelRow { color: var(--text-muted); }
 .panelUnverified { color: var(--color-warning); font-style: italic; }
+
+/* ── The transcript-span row (TERM-044) ─────────────────────────────────────
+   A passage is a paragraph, so it opens IN FLOW beneath the sentence it cites
+   instead of floating: the bar row's nowrap popover would run off a phone
+   screen and clip inside the recap's scrolling modal. */
+
+.wrapPassage { display: inline; }
+
+/* Compact on a desktop pointer so a list of cited points keeps its rhythm;
+   the full finger floor on every touch width (phone AND tablet). */
+.togglePassage {
+  min-width: 24px;
+  min-height: 24px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.panelPassage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 6px 0 4px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent, var(--text-muted));
+  border-radius: var(--radius-md);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.passageHead {
+  font-size: 10px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.passage {
+  display: block;
+  padding-left: 8px;
+  border-left: 2px solid var(--ut-gold, #dcbb5e);
+  color: var(--text, #e8e6df);
+  font-style: normal;
+}
+
+.openSource {
+  align-self: flex-start;
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--ut-gold, #dcbb5e);
+  background: transparent;
+  border: 1px solid var(--border-accent, var(--text-muted));
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.openSource:hover,
+.openSource:focus-visible { color: var(--text-bright); }
+.openSource:focus-visible { outline: 2px solid var(--color-accent, #c9a84c); outline-offset: 1px; }
+
+@media (max-width: 1024px) {
+  .togglePassage {
+    min-width: var(--tap-min);
+    min-height: var(--tap-min);
+  }
+  .openSource {
+    min-height: var(--tap-min);
+    padding: 0 12px;
+    font-size: 12px;
+  }
+}
