@@ -1271,6 +1271,7 @@ def s_ed_color(W, pg) -> str:
     press(pg, ed)
     pg.keyboard.press("Control+Home")
     pg.keyboard.press("Shift+Control+ArrowRight")
+    open_format_more(pg)   # phone-only: "Text color and highlight" is a `.formatRun` member
     press(pg, pg.get_by_role("button", name="Text color and highlight").filter(visible=True).first)
     return mark_popup(pg.get_by_role("group", name="Text color and highlight").filter(visible=True).first)
 
@@ -1318,12 +1319,14 @@ def s_ed_writing_help(W, pg) -> str:
 
 def s_ed_history(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # "Version history" lives in NoteMoreMenu
     press(pg, pg.get_by_role("button", name="Version history").filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name="Version history"))
 
 
 def s_ed_palette(W, pg) -> str:
     s_note(W, pg)
+    open_format_more(pg)   # phone-only: "Insert widget" is a `.formatRun` member (group -d)
     press(pg, pg.get_by_role("button", name="Insert widget").filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name="Insert widget"))
 
@@ -1336,6 +1339,7 @@ def s_ed_share(W, pg) -> str:
 
 def s_ed_export(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # NoteExportControls (the "Export" door) lives in NoteMoreMenu
     press(pg, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     return mark_popup(pg.get_by_role("menu", name="Export this note as"))
 
@@ -1350,6 +1354,7 @@ def s_ed_ask(W, pg) -> str:
 
 def s_ed_delete(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # "Delete" is the LAST action in NoteMoreMenu
     press(pg, pg.get_by_role("button", name=re.compile(r"^Delete$")).filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name=re.compile("Delete this note")).filter(visible=True).first)
 
@@ -2480,25 +2485,61 @@ def focus_editor(pg, door: str) -> str:
     return "editor " + ("tapped" if door == "touch" else "clicked")
 
 
-def open_format_more(pg, door: str) -> bool:
-    """On the touch tier, six toolbar controls (Blockquote, Code block, Insert link, Insert
-    image, Scan a document, Attach a file -- lane D3P's `.formatRun` group `-c`) sit behind one
-    "Format" disclosure below 640px (NoteEditorPage.jsx `formatToggle`/`data-format-open`); at
-    390 they are not VISIBLE at all until it opens. Found live (wave 10 lane WK2): with the
-    root-scoping fix (clause a) landed, G-160 (OCR/text from images and docx) still read
-    touch=NO-DOOR, and G-159 (Camera scan with OCR, touch-only) was in WK's own "believed
-    genuine" NO-DOOR list -- both reach for their toolbar button directly and neither opened
-    this disclosure first. Not a feature's own door (mirrors focus_editor()): never sets
-    door_used, so a control genuinely missing AFTER this opens still reads NO-DOOR, not
-    StepMissing."""
-    if door != "touch":
+def open_format_more(pg, door: str | None = None) -> bool:
+    """On the touch tier, ALL FOUR toolbar `.formatRun` groups (font/size/colour, headings,
+    blockquote/code/links/images/files, and more -- lane D3P, one "Format" disclosure controls
+    all four via one `aria-controls`) sit behind that single disclosure below 640px
+    (NoteEditorPage.jsx `formatToggle`/`data-format-open`); at <=640 they are not VISIBLE at
+    all until it opens. `.formatToggle` itself is `display:none` above 640px (base rule), so
+    this is a safe no-op at desktop/tablet widths -- callers with a known non-touch door still
+    pass door="desktop"/"keyboard" to skip the lookup outright; callers with no width context
+    (a Surface's own `open()`) pass nothing and let the toggle's own absence decide.
+
+    Found live (wave 10 lane WK2): with the root-scoping fix (clause a) landed, G-160
+    (OCR/text from images and docx) still read touch=NO-DOOR, and G-159 (Camera scan with OCR,
+    touch-only) was in WK's own "believed genuine" NO-DOOR list -- both reach for their
+    toolbar button directly and neither opened this disclosure first. The SAME gap sat behind
+    three more UNREACHED surfaces this lane's live full run then found (axe: ed-history/
+    ed-export/ed-delete UNREACHED at all 3 themes; geometry: the same three plus ed-color at
+    390) -- their Surface `open()` functions (`s_ed_history` etc.) reach directly for a button
+    that is a `.formatRun` member too, at the one width where it is collapsed.
+
+    Not a feature's own door (mirrors focus_editor()): never sets door_used, so a control
+    genuinely missing AFTER this opens still reads NO-DOOR, not StepMissing."""
+    if door is not None and door != "touch":
         return False
     toggle = pg.get_by_role("button", name="Format", exact=True).filter(visible=True).first
     if not toggle.count():
         return False
     if toggle.get_attribute("aria-expanded") == "true":
         return False
-    toggle.tap(timeout=4000)
+    if is_touch(pg):
+        toggle.tap(timeout=4000)
+    else:
+        toggle.click(timeout=4000)
+    pg.wait_for_timeout(300)
+    return True
+
+
+def open_more_note_actions(pg) -> bool:
+    """The editor's "More note actions" disclosure (NoteMoreMenu.jsx) -- Duplicate, Lock,
+    Archive, Save as template, Open a note beside, the file doors, the word count, and Delete
+    LAST -- is `hidden={!open}` until this button opens it, at EVERY width (unlike
+    `open_format_more`'s phone-only toggle: this one is the door's own overflow menu, not a
+    responsive collapse). Found live (wave 10 lane WK2): `s_ed_history`/`s_ed_export`/
+    `s_ed_delete` reach directly for "Version history"/"Export"/"Delete" and time out --
+    exactly WK's own 5d UNREACHED-write note ("Lock"/"Archive"/"Save as template"/"Delete" each
+    sit in this menu) and the same-shaped axe/geometry UNREACHED this lane's own full run
+    found for the read side. Not a feature's own door: never sets door_used."""
+    toggle = pg.get_by_role("button", name="More note actions", exact=True).filter(visible=True).first
+    if not toggle.count():
+        return False
+    if toggle.get_attribute("aria-expanded") == "true":
+        return False
+    if is_touch(pg):
+        toggle.tap(timeout=4000)
+    else:
+        toggle.click(timeout=4000)
     pg.wait_for_timeout(300)
     return True
 
