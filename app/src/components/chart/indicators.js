@@ -1262,8 +1262,10 @@ const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
  *  ⛔ WHAT IS BLANK, BECAUSE NOTHING MEASURED IT: an intraday bar that opens
  *  outside the session (before 09:30, at or after its close — 13:30 on a
  *  half-day included) or on a weekend (the probe ran with extended hours OFF);
- *  a daily or weekly bar on a weekend date; any monthly bar; an absent or
- *  unknown `tf`. And ONE BAR ON THE PRODUCT'S OWN 60m GRID NEEDS THE SERIES:
+ *  a numeric daily, weekly or monthly bar on a weekend date; an absent or
+ *  unknown `tf`. ⚠️ A MONTHLY bar is ANSWERED (2026-09-28) by the weekly rule
+ *  over a month — first session's open, last session's close — and it is
+ *  UNMEASURED: no monthly capture exists. And ONE BAR ON THE PRODUCT'S OWN 60m GRID NEEDS THE SERIES:
  *  `bars_fetch.bucket_60_et_unix_seconds` gives 09:30 a 30-minute bucket and
  *  then aligns to the clock hour, where TradingView's RTH grid is 09:30-aligned.
  *  Every other bar reads `min(open + span, 16:00)` on either grid; the 09:30
@@ -1455,6 +1457,8 @@ export const CLOCK_COLUMNS = Object.freeze([
  * which is the instant TradingView stamps as a daily bar's `time`. The nine
  * columns then read that instant, so `hour` is 9 and `minute` 30 on every
  * daily bar and a fixed-zone session sees DST exactly as the vendor does.
+ * A WEEKLY / MONTHLY bar keyed by a date (2026-09-28) is read the same way, as
+ * the open of its week's / month's first vendor session (`barOpenInstant`).
  *
  * ⛔ AND AN ABSENT `tf` FAILS CLOSED, NEVER TO A DEFAULT. A guessed `'D'` makes
  * `isdaily` a confident 1 on a 5-minute chart, which is a wrong answer wearing a
@@ -1510,9 +1514,21 @@ export const BARSTATE_MODES = Object.freeze([BARSTATE_MODE_CALENDAR, BARSTATE_MO
  *  reads the same number, which is what keeps bare `time`, the clock leaves and
  *  a fixed-zone session (`"GMT-4"`: in on EDT days, out on EST days) agreeing.
  *
- *  ⛔ DAILY ONLY. A weekly or monthly bar opens at the first session of its
- *  period, and which calendar day the product keys it by is a separate fact
- *  nobody has measured here — so `W`/`M` dates stay blank rather than guessed.
+ *  ⭐⭐ WEEKLY AND MONTHLY TOO (2026-09-28). TradingView stamps a weekly bar
+ *  with the open of its week's FIRST session — Monday 09:30, Tuesday 09:30
+ *  after a holiday Monday, Wednesday once (2007-01-03) — as ITS calendar
+ *  applies closures: every week before 2000 reads Monday, holiday or not, and
+ *  the Hurricane Sandy week reads Monday 2012-10-29. Measured on all 1,758 SPY
+ *  weekly rows of `vw-clock-close-tfchange-spy-1w-2026-09-28.json`; the rule
+ *  is `tradingViewCloseMinute`, the one calendar's vendor view. ⭐ THE KEY DAY
+ *  DOES NOT MATTER, BY CONSTRUCTION: `/api/bars` keys a weekly bar by the
+ *  FRIDAY of its ISO week (`bars_fetch._resample_weekly_iso`, even when that
+ *  Friday is a holiday — "a label, not a traded session") and the harness by
+ *  the first session's date; any date in the Monday-first ISO week maps to the
+ *  same instant. A MONTHLY bar is the same rule over a calendar month (the
+ *  product keys it by the 1st, `_resample_monthly_iso`). ⚠️ MONTHLY IS
+ *  UNMEASURED: no monthly capture exists; it applies the weekly rule to a
+ *  month and is labelled as such, never as a vendor reading.
  *  ⛔ AN ISO DATE ONLY. The screen's stored `YYYYMMDD` ints stay behind the unit
  *  gate unchanged; widening them is the screen's own ruling, not this one.
  *  ⛔ An impossible date (`2025-02-30`) or one before the unit floor is `null`,
@@ -1526,20 +1542,46 @@ export const DAILY_SESSION_OPEN_ET_MINUTE = 9 * 60 + 30
 const ISO_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 export function barOpenInstant(t, tf) {
   if (typeof t === 'number') return Number.isFinite(t) && t >= VWAP_MIN_INSTANT ? t : null
-  if (tf !== 'D' || typeof t !== 'string') return null
+  if ((tf !== 'D' && tf !== 'W' && tf !== 'M') || typeof t !== 'string') return null
   const m = ISO_DATE_RE.exec(t)
   if (!m) return null
   const y = Number(m[1]); const mo = Number(m[2]); const d = Number(m[3])
-  const midnightUtc = Date.UTC(y, mo - 1, d) / 1000
-  const back = new Date(midnightUtc * 1000)
+  const back = new Date(Date.UTC(y, mo - 1, d))
   if (back.getUTCFullYear() !== y || back.getUTCMonth() !== mo - 1 || back.getUTCDate() !== d) return null
-  // New York is UTC-4 or UTC-5 at 09:30 on any date (a DST change happens at
-  // 02:00), so exactly one of the two candidates reads 09:30 on this date there.
+  let day = y * 10000 + mo * 100 + d
+  if (tf === 'W') {
+    // Monday of this date's ISO week (getUTCDay: 0 = Sunday .. 6 = Saturday),
+    // then its first vendor session.
+    day = firstVendorSession(ymdPlusDays(y, mo, d, -((back.getUTCDay() + 6) % 7)), 5)
+  } else if (tf === 'M') {
+    day = firstVendorSession(y * 10000 + mo * 100 + 1, new Date(Date.UTC(y, mo, 0)).getUTCDate())
+  }
+  if (day === null) return null
+  return etWallInstant(day, DAILY_SESSION_OPEN_ET_MINUTE)
+}
+
+/** The first `YYYYMMDD` from `start` on, within `span` calendar days, that the
+ *  vendor's session trades (`tradingViewCloseMinute` not null), or null. */
+function firstVendorSession(start, span) {
+  const y = Math.floor(start / 10000); const m = Math.floor(start / 100) % 100; const d = start % 100
+  for (let k = 0; k < span; k++) {
+    const day = ymdPlusDays(y, m, d, k)
+    if (tradingViewCloseMinute(day) !== null) return day
+  }
+  return null
+}
+
+/** The instant a New York WALL-CLOCK minute occurs on `ymd`, or null. New York
+ *  is UTC-4 or UTC-5 at any minute from 03:00 on (a DST change happens at
+ *  02:00), so exactly one of the two candidates reads that minute on that date. */
+function etWallInstant(ymd, minuteOfDay) {
+  const y = Math.floor(ymd / 10000); const mo = Math.floor(ymd / 100) % 100; const d = ymd % 100
+  const midnightUtc = Date.UTC(y, mo - 1, d) / 1000
   for (const offsetHours of [4, 5]) {
-    const instant = midnightUtc + DAILY_SESSION_OPEN_ET_MINUTE * 60 + offsetHours * 3600
+    const instant = midnightUtc + minuteOfDay * 60 + offsetHours * 3600
     const p = etClockAt(instant)
     if (p && p.y === y && p.m === mo && p.d === d
-        && p.h * 60 + p.min === DAILY_SESSION_OPEN_ET_MINUTE) return instant
+        && p.h * 60 + p.min === minuteOfDay) return instant
   }
   return null
 }
@@ -1773,8 +1815,8 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     const sessionClose = closeMinute === null ? NA : t + (closeMinute * 60 - sinceMidnight)
     let close = NA
     let dayClose = NA
-    if (!known || !weekday || tf === 'M') {
-      // unknown timeframe, a weekend bar, or a monthly bar: never measured
+    if (!known || !weekday) {
+      // unknown timeframe or a weekend bar: never measured
     } else if (closeMinute === null) {
       // a closure the vendor honours: its session holds no bar that day
     } else if (span !== null) {
@@ -1800,6 +1842,21 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
         const last = tradingViewCloseMinute(ymdPlusDays(p.y, p.m, p.d, back))
         if (last !== null) {
           close = t + back * 86400 + (last * 60 - sinceMidnight)
+          break
+        }
+      }
+    } else if (tf === 'M') {
+      // ⚠️ UNMEASURED (no monthly capture): the weekly rule over a calendar
+      // month — the close of the month's LAST vendor session. Read through the
+      // wall clock, not a day count, because a DST change can fall inside a month.
+      dayClose = sessionClose
+      const lastDay = new Date(Date.UTC(p.y, p.m, 0)).getUTCDate()
+      for (let dd = lastDay; dd >= p.d; dd--) {
+        const ymd = p.y * 10000 + p.m * 100 + dd
+        const last = tradingViewCloseMinute(ymd)
+        if (last !== null) {
+          const at = etWallInstant(ymd, last)
+          if (at !== null) close = at
           break
         }
       }

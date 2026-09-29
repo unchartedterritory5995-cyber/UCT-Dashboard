@@ -168,6 +168,22 @@ vendor's exceptions are written ONCE in the clock layer (`tradingview_session.py
 captures. ⚠️ Measured on AMEX:SPY only: whether TradingView applies the same view
 to a NASDAQ or NYSE listing is unmeasured.
 
+**Weekly and monthly clock (2026-09-28, same branch).** A date-keyed W / M bar had
+no clock (Q-T1 covered D only), so every time-derived row read blank on the
+product's weekly bars. TradingView stamps a weekly bar with the open of its week's
+FIRST session and closes it at its LAST: measured on all 1,758 SPY weeks — Monday
+09:30 on 1,625, Tuesday on 132, Wednesday once (2007-01-03) — under the same
+vendor calendar as the closes (every week before 2000 opens Monday). The product
+keys a weekly bar by the FRIDAY of its ISO week (`bars_fetch._resample_weekly_iso`,
+`weekly_dating=friday-close`, holiday Fridays included) and a monthly bar by the
+1st (`_resample_monthly_iso`); `barOpenInstant` / `bar_open_instant` map ANY date
+of the Monday-first ISO week / the month to the same instant, so the key day
+cannot matter, and `ourSide.toProductBars` now feeds the harness the product's key
+instead of the vendor's stamp. Probe W rows through the member door (K01–K08,
+K12, K13, K16): 1,757–1,758 of 1,758 wrong (blank) → **0**. ⚠️ **MONTHLY IS
+UNMEASURED**: no monthly capture exists; M applies the weekly rule to a month
+(first session's open, last session's close) and is labelled that way.
+
 **Translation.** `timeframe.change(tf)` → `isfirst ? 0 : <weekfirst|monthfirst|sessionfirst>`,
 not `col != 0`: the member pane translates before it knows the chart's timeframe,
 and the pane's weekly/monthly bars carry no clock (Q-T1), where `!= 0` read false on

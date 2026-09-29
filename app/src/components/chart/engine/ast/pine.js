@@ -8101,8 +8101,9 @@ export class Resolver {
    *     to its control `ta.change(time(tf)) != 0`, bar 0 included (false). It is
    *     translated as `isfirst ? 0 : <first-of-period column>`: false on the
    *     oldest bar exactly as the vendor reads it, and BLANK wherever the clock is
-   *     blank (the pane's date-keyed weekly/monthly bars, Q-T1) rather than a
-   *     confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
+   *     blank (a series the unit gate refuses; until 2026-09-28 also the pane's
+   *     date-keyed weekly/monthly bars, which now read their period's first
+   *     session) rather than a confident false. "1W" read identically to "W" (K16), and "1D"/"1M" are
    *     the same spellings (`PINE_TF_SPELLING`).
    *     ⛔ CHART PANE ONLY. A screen evaluates stored daily bars whose `t` is a
    *     `YYYYMMDD` int, so the clock is blank there, and the window-dependent
@@ -8149,11 +8150,12 @@ export class Resolver {
       // ⭐ FALSE ON THE OLDEST BAR, THE COLUMN EVERYWHERE ELSE — the vendor's
       // reading, written so a BLANK clock stays blank. The member pane translates
       // once, before it knows the chart's timeframe (`basePeriod` is `BASE_TF`
-      // there), so the translation cannot refuse a weekly chart; and on the
-      // pane's weekly/monthly bars — date-keyed and unread, Q-T1 — every clock
-      // column is blank. `col != 0` read that blank as false on every bar
-      // (measured: the W capture's 1,757 new-day bars all read 0 through the
-      // product's bar shape), a confident wrong answer; this reads blank there.
+      // there), so the translation cannot refuse a weekly chart; and wherever
+      // the clock is blank (until 2026-09-28 that was every date-keyed weekly /
+      // monthly bar, Q-T1 — they read their period's first session now) `col != 0`
+      // read that blank as false on every bar (measured: the W capture's 1,757
+      // new-day bars all read 0 through the product's bar shape), a confident
+      // wrong answer; this reads blank there.
       // ⚠️ `isfirst` makes the tree WINDOW-DEPENDENT (`_requirement_tags`), and
       // that is TRUE of the vendor's own answer: bar 0 reads false because it is
       // the first bar LOADED, whether or not it opened a period. A pane accepts it.
