@@ -106,10 +106,16 @@ def require_push_secret(request: Request) -> None:
 
 
 def _check_auth(request: Request) -> None:
+    # TERM-053: constant-time, like every other PUSH_SECRET check in the app
+    # (push.py::_bearer_ok, require_push_secret above). A `!=` on a secret
+    # leaks how many leading bytes matched. The RESPONSES are unchanged —
+    # 500 unset, 401 mismatch — so this is not the owner call that converting
+    # these routes to `require_push_secret` would be (see its docstring).
     if not _PUSH_SECRET:
         raise HTTPException(status_code=500, detail="PUSH_SECRET not configured")
     auth = request.headers.get("Authorization", "")
-    if auth != f"Bearer {_PUSH_SECRET}":
+    if not hmac.compare_digest(auth.encode("utf-8", "ignore"),
+                               f"Bearer {_PUSH_SECRET}".encode("utf-8", "ignore")):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
