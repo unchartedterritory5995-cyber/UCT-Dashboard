@@ -76,6 +76,8 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L7` | `8d08da86f` | wave 10 L7 #254 | |
+| `L6` | `3fb184cdf` | wave 10 L6 #253 | |
 | `L5` | `0812b5ec3` | wave 10 L5 #252 | |
 | `L4` | `7bd834b9f` | wave 10 L4 #251 | |
 | `L2` | `f4cec49be` | wave 10 L2 #242 | |
@@ -583,6 +585,57 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-09-29: L6 #253 + L7 #254 on top, from `8d08da86f` (lane R1d)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | conflicts (all) / in shipped code | new since 2026-09-29 (R1c) |
+|---|---|---|
+| `L7` | 0 / 0 | the new top step. Its tree equals L7's parent outside `docs/`, `tools/`, `scripts/`, and differs from the tip in exactly L7's own shipped files (three touch-tier CSS floors + the proof-walk instrument) |
+| `L6` | 0 / 0 | the second new step. Ships no `app/` or `api/` file at all (rollback-chain tooling + rehearsal evidence for L4/L5, a restore-drill fix, proof-walk evidence); its revert is a no-op for members and, measured, conflict-free |
+| `L5`, `L2`, `225` | 0 / 0 each | -- (same rules, same pins) |
+| `L4` | 2 / 0 | both conflicts are `KEEP_PATHS` (`docs/notebook/wave5-rollback.md`, `tools/notebook_rollback_chain.py`, this lane's own edits) restored to the tip's copy -- no product conflict, no new rule |
+| `L1c` | 8 / 0 | -- (same rules, same pins) |
+| `L1b` | 4 / 2 | -- (same rules, same pins) |
+| `L1a` | 6 / 1 | -- (same rule, same pin) |
+| `wave9`, `201` | 5 / 0, 0 / 0 | -- |
+| `wave8` | 8 / 5 | -- (same rules, same pins) |
+| `9C` | 7 / 0 | -- |
+| `wave7` | 13 / 3 | -- (same rules, same pins) |
+| `wave6` | 9 / 2 | -- (same rules, same pins) |
+| `wave5` | **15 / 2** | **new rule**: TERM-038 (8393002716, REVIEWED_NOT_LANDINGS) built its dark "saved things" palette rows INSIDE the same functions wave 5's own quick-switcher introduced in `app/src/components/CommandPalette.jsx` -- seven conflict hunks, none separable (TERM-038's added lines are single statements inside wave-5-authored function bodies, not lines beside them). Ruled "ours" (keep the whole file as the accumulated tree has it), the same shape as wave 7's `api/services/daily_counters.py` rule below |
+| guards | 5 / 1; 1 / 0 | -- (same rule, same pin) |
+
+- **All fifteen pins recorded at `0812b5ec3` came back byte-identical** from the new tip
+  (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-09-29-r1d/chain/record-pins-output.json`). Nothing that
+  landed between `0812b5ec3` and `8d08da86f` changed the lines of a conflict the chain already
+  resolves, except the one new CommandPalette.jsx conflict above.
+- **The census of the new window, commit by commit**
+  (`evidence/rollback-rehearsal-2026-09-29-r1d/check-origin-master-before.log`, the raw `--check`
+  refusal before this lane's edit). It selected 6: `L7` by subject and path, `L6` by path only (a
+  real landing, declared in `CHAIN_BY_PATH_ONLY` -- see the tool's own comment), and 4 more by path
+  only. The 4 are in `REVIEWED_NOT_LANDINGS`, each with its reason. A rail derives the window from
+  the tool's own census and fails on any selected commit that is neither in `CHAIN` nor reviewed.
+- **None of the 4 reviewed commits edits Notebook-owned code** (no `app/src/pages/journal-2-0/**`,
+  no `api/services/journal_two/**`, no `notebook_*.py` router). One, TERM-038 (`8393002716`),
+  edits a file the chain's own reverts also touch (`app/src/components/CommandPalette.jsx`, the
+  new wave-5 conflict above); one, `9633d68e8`, is the RE-LAND of the H15 rollback `1be4b9a2b`
+  already reviewed above -- a different "wave 2" (the Pine vendor-harness / deploy-integration
+  branch, not a Notebook wave), confirmed by reading `1be4b9a2b`'s own commit message and diffing
+  both commits' hunks on `reachable.test.js` and `vite.config.js` side by side (exact mirror
+  images).
+
+**The sandbox rehearsal, 2026-09-29 (lane R1d).** `evidence/rollback-rehearsal-2026-09-29-r1d/rehearse.py`
+(same method as R1's, R1b's and R1c's) and `probe.py` (imports R1c's probe for the never-revert
+set, the per-landing doors, L4's door and L5's behaviour-preservation check; adds L6's own check --
+a pure BEHAVIOUR-preservation check like L5's, since L6 ships no door to remove: the `--check`
+CLI's own verdict, run inside each tree, must read `"current"` at that tree's own `MEASURED_AT` --
+and L7's door, `.a11y touch-tier CSS floor on NoteFindBar's Find input` (`min-height` at the
+touch tier), present through `L6` and absent through `L7`). Full table:
+`evidence/rollback-rehearsal-2026-09-29-r1d/sandbox-results.md`.
 
 ## Measured, 2026-09-29: L4 #251 + L5 #252 on top, from `0812b5ec3` (lane R1c)
 

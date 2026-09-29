@@ -26,6 +26,20 @@ byte-identical. One new conflict was found four steps further down, at wave 8's 
 (`caf6d1b9e`, `app/src/pages/Support.jsx`): TERM-039 (e90fddc34, REVIEWED_NOT_LANDINGS) added an
 import+render that sits on lines wave 8's revert also touches. New mutation record:
 docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/mutations-r1c.log.
+
+Lane R1d, 2026-09-29: MEASURED_AT moved again, from 0812b5ec3 to 8d08da86f (L6 #253, L7 #254).
+L6 ships no `app/` or `api/` code (rollback-chain tooling + rehearsal evidence for L4/L5, a
+restore-drill fix, proof-walk evidence) -- it is in CHAIN anyway (a real wave-10 landing, selected
+by PATH only; see the tool's own SUBJECT-criterion comment) and its revert is conflict-free, same
+as L7's. Four more path-only commits in the window were read and ruled NOT Notebook landings
+(TERM-038 the command palette, breadth read/write-safety, TERM-049 Research History, the re-land
+of an unrelated "wave 2" H15 rollback) -- all four added to REVIEWED_NOT_LANDINGS. One of them,
+TERM-038 (8393002716), interleaves its dark "saved" palette rows inside the SAME functions wave
+5's own quick-switcher introduced in `app/src/components/CommandPalette.jsx`, seven conflict
+hunks deep with no separable lines; ruled "ours" (keep the newer work), the same shape as wave 7's
+`api/services/daily_counters.py` rule. The fifteen pins recorded at 0812b5ec3 came back
+byte-identical; the one new pin is wave 5's CommandPalette.jsx conflict. New mutation record:
+docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1d/mutations-r1d.log.
 """
 from __future__ import annotations
 
@@ -39,16 +53,18 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT 0812b5ec3 (L4 #251 + L5 #252) by lane R1c, 2026-09-29. The R1b record
-# (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) is the same chain two landings
-# shorter, from f4cec49be; it stays as the evidence of that rehearsal. The R1 2026-09-28 record
-# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) is shorter still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29-r1c" / "chain" / "chain-through-wave5.jsonl"
+# Re-recorded at MEASURED_AT 8d08da86f (L6 #253 + L7 #254) by lane R1d, 2026-09-29. The R1c record
+# (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) is the same chain two
+# landings shorter, from 0812b5ec3; it stays as the evidence of that rehearsal. The R1b record
+# (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) is shorter still, from f4cec49be;
+# the R1 2026-09-28 record (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter
+# still, from 38bb9a421.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29-r1d" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1c moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1d moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "f4cec49be"
+PREVIOUS_MEASURED_AT = "0812b5ec3"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -125,16 +141,19 @@ def test_the_census_can_see_a_landing_and_can_refuse_a_neighbour(chain):
 
 
 def test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT(chain):
-    """The SUBJECT criterion selects exactly CHAIN over the measured range, and the PATH criterion
-    selects every CHAIN landing (it is derived from them). The path criterion also selects other
-    workstreams' commits there -- the broad, fail-closed trade the runbook states."""
+    """The SUBJECT criterion selects exactly CHAIN's subject-selected entries over the measured
+    range (every entry except the declared CHAIN_BY_PATH_ONLY exceptions -- see the test above),
+    and the PATH criterion selects EVERY CHAIN landing including those (it is derived from them).
+    The path criterion also selects other workstreams' commits there -- the broad, fail-closed
+    trade the runbook states."""
     rows = chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")
     named = [full(s) for _k, s, _w in chain.CHAIN]
+    named_by_subject = [full(s) for _k, s, _w in chain.CHAIN if s[:9] not in CHAIN_BY_PATH_ONLY]
     by_subject = [c["sha"] for c in rows if c["by_subject"]]
-    assert by_subject == named, (
+    assert by_subject == named_by_subject, (
         "tools/notebook_rollback_chain.py CHAIN must list every Notebook landing, newest first.\n"
         f"  landings git finds : {[s[:9] for s in by_subject]}\n"
-        f"  CHAIN names        : {[n[:9] for n in named]}")
+        f"  CHAIN names        : {[n[:9] for n in named_by_subject]}")
     in_chain = {c["sha"]: c for c in rows if c["sha"] in named}
     assert len(in_chain) == len(named) and all(c["by_path"] for c in in_chain.values())
 
@@ -216,12 +235,29 @@ def test_check_says_stale_and_why_on_an_uncharted_landing(chain, capsys):
     assert (rc, out["check"]) == (2, "stale") and "does not contain MEASURED_AT" in out["stopped"]
 
 
+# L6 (wave 10, PR #253) ships no `app/` or `api/` file at all -- rollback-chain tooling +
+# rehearsal evidence for L4/L5, a restore-drill fix, proof-walk evidence -- so `ships` is false and
+# SUBJECT can never select it, however its subject reads. It is a real wave-10 landing (the
+# tool's own SUBJECT-criterion comment states the exception) and belongs in CHAIN anyway, selected
+# by PATH only: its one Notebook-owned file is tests/test_notebook_rollback_chain.py, the rollback
+# tool's own test suite. Declared here, not inferred, so a FUTURE by-path-only CHAIN entry still
+# has to earn its way in by name.
+CHAIN_BY_PATH_ONLY = {"3fb184cdf"}
+
+
 def test_the_subject_criterion_selects_every_chain_landing(chain):
-    """NOTEBOOK_SUBJECT is read off CHAIN's own squash subjects: every CHAIN entry is still
-    selected by SUBJECT (it ships app/ or api/ and its subject takes a landing's form)."""
+    """NOTEBOOK_SUBJECT is read off CHAIN's own squash subjects: every CHAIN entry is selected by
+    SUBJECT (it ships app/ or api/ and its subject takes a landing's form) -- except the declared
+    CHAIN_BY_PATH_ONLY exceptions, which must still be selected by PATH (the census must SEE them;
+    nothing in CHAIN is silently unmonitored)."""
     missed = []
     for key, s, _w in chain.CHAIN:
         rows = chain.notebook_landings(f"{s}^..{s}")
+        if s[:9] in CHAIN_BY_PATH_ONLY:
+            if not (rows and rows[0]["by_path"] and not rows[0]["by_subject"]):
+                missed.append((key, _git("log", "-1", "--format=%s", s).strip()[:70],
+                                "declared by-path-only but the census disagrees"))
+            continue
         if not (rows and rows[0]["by_subject"]):
             missed.append((key, _git("log", "-1", "--format=%s", s).strip()[:70]))
     assert len(chain.CHAIN) >= 14 and not missed, f"CHAIN landings the SUBJECT criterion misses: {missed}"
