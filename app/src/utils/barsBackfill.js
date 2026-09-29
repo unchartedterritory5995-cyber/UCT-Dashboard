@@ -131,3 +131,44 @@ export function nextBackfillDepth(current, fullTarget, step = 8) {
   const next = Math.max(current * step, current + 4000)
   return Math.min(next, fullTarget)
 }
+
+// ── Deep history on the LEFT, the fresh server window on the RIGHT ──────────
+//
+// ⛔⛔ THE 2026-09-28 REGRESSION. Under split-fetch the primary /api/bars answer is the
+// 600-bar tail and the deep sealed set lives only in the cache. Once that primary has
+// landed, the post-server render arm must still DRAW the deep set — the 09-03
+// guarantee (`_splitDeepUsable`, 079576228). `81b12873f` gated that arm on the paint
+// AUTHORITY instead, whose 'provisional-close' verdict is true for every today-dated
+// tail from the bell until midnight ET, so every daily chart collapsed to 600 bars each
+// weekday evening (QQQ "began" 2024-05-07; Origin framed the 600th session back).
+//
+// ⭐ THIS SPLICE MAKES THE AUTHORITY QUESTION MOOT INSTEAD OF OVERRULING IT. The cache
+// contributes ONLY bars strictly OLDER than the server window's first bar; every bar in
+// the window — today, the close, the whole recent tail — is the server's, verbatim, and
+// nothing is drawn past the server's last bar. A stale or provisional cache tail cannot
+// reach the screen through here, which is everything the paint authority protects.
+// (`mergeDelta` is NOT this: it keeps cache bars the delta lacks, including any AFTER
+// the server's last bar.)
+//
+// Returns null — "draw the server window alone" — when the splice would not be honest:
+//   • either side empty, or the time keys are of different kinds;
+//   • the cache does not REACH the server window (its last bar is older than the
+//     window's first): splicing would draw a hole between them as if it were contiguous;
+//   • the cache holds nothing older than the window (no depth to add).
+export function spliceDeepLeftOfFresh(deep, fresh) {
+  if (!Array.isArray(deep) || !deep.length || !Array.isArray(fresh) || !fresh.length) return null
+  const first = fresh[0]?.t
+  const deepLast = deep[deep.length - 1]?.t
+  if (first == null || deepLast == null || typeof first !== typeof deepLast) return null
+  if (deepLast < first) return null
+  // Bars are ascending by `t` (ISO date strings sort lexically, unix seconds numerically):
+  // binary-search the count strictly older than the window.
+  let lo = 0, hi = deep.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (deep[mid].t < first) lo = mid + 1
+    else hi = mid
+  }
+  if (lo === 0) return null
+  return deep.slice(0, lo).concat(fresh)
+}
