@@ -1227,9 +1227,43 @@ describe('the interpreter is PURE', () => {
     const indicatorsScan = scan(indicatorsTree, WIDENED_BY)
     expect(indicatorsScan.findings,
       'indicators.js reached something outside pure arithmetic').toEqual([])
-    // ⛔ IT IS A LEAF. If it ever imports anything, that import is inside this
-    // closure and unscanned, and this case would keep passing.
-    expect(indicatorsScan.imports).toEqual([])
+    // ⛔ ITS ONE EDGE IS THE CALENDAR, AND THE CALENDAR IS SCANNED TOO. Until
+    // 2026-09-28 this read `toEqual([])` — a leaf. The C8 close columns now read
+    // the session close as TradingView applies it from `tradingViewSession.js`,
+    // which derives it from `sessionCalendar.js` (the one calendar, reading
+    // `market_calendar.json`). Both modules are inside this closure, and admitting
+    // either edge unscanned would be the hollow widening the notes above warn
+    // against. Any OTHER import is still a failure.
+    expect(indicatorsScan.imports).toEqual(['../../lib/marketClock/tradingViewSession.js'])
+    const CLOCK_LIB = path.join(path.dirname(INDICATORS), '..', '..', 'lib', 'marketClock')
+    const tvTree = acorn.parse(fs.readFileSync(path.join(CLOCK_LIB, 'tradingViewSession.js'), 'utf8'),
+      { ecmaVersion: 2023, sourceType: 'module' })
+    // `Date` again as a CONSTRUCTOR over a date the caller names (`Date.UTC`,
+    // `getUTCDay`) — never `Date.now`, which the member check still catches.
+    const tvScan = scan(tvTree, ['Date'])
+    expect(tvScan.findings, 'tradingViewSession.js reached something outside pure arithmetic').toEqual([])
+    expect(tvScan.imports).toEqual(['./sessionCalendar.js'])
+    expect(scan(tvTree).findings).toEqual(['free identifier: Date'])
+    // …and the calendar it reads. `sessionCalendar.js` answers session questions
+    // for an instant it is HANDED, so it needs `Date` and `Intl` exactly as
+    // `indicators.js` does (its `TypeError` names a bad argument) — measured both
+    // ways, like the two above. ⛔ Its edges are the dataset, which is DATA, and
+    // the leaf that unpacks it (scanned below).
+    const scTree = acorn.parse(fs.readFileSync(path.join(CLOCK_LIB, 'sessionCalendar.js'), 'utf8'),
+      { ecmaVersion: 2023, sourceType: 'module' })
+    const SC_WIDENED = ['Date', 'Intl', 'TypeError']
+    const scScan = scan(scTree, SC_WIDENED)
+    expect(scScan.findings, 'sessionCalendar.js reached something outside pure arithmetic').toEqual([])
+    expect(scScan.imports).toEqual(['./market_calendar.json', './calendarCompact.js'])
+    expect(scan(scTree).findings).toEqual(SC_WIDENED.map((n) => `free identifier: ${n}`).sort())
+    // …and the one code edge beside the dataset: `calendarCompact.js` rebuilds the
+    // dataset's rows from the bundle's compact form. It is scanned with NO
+    // widening and must be a leaf, so the calendar's closure stays exactly this.
+    const ccTree = acorn.parse(fs.readFileSync(path.join(CLOCK_LIB, 'calendarCompact.js'), 'utf8'),
+      { ecmaVersion: 2023, sourceType: 'module' })
+    const ccScan = scan(ccTree)
+    expect(ccScan.findings, 'calendarCompact.js reached something outside pure arithmetic').toEqual([])
+    expect(ccScan.imports).toEqual([])
     // ⛔ AND THE WIDENING IS EXACTLY WHAT IT CLAIMS. Without the extension the
     // findings must be precisely the two names it spells — no more (or the
     // extension is hiding something) and no fewer (or it is admitting a name

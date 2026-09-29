@@ -74,10 +74,29 @@ export function toProductBars(capture) {
   const tz = capture.symbol && capture.symbol.timezone
   const daily = isDailyLike(capture.timeframe)
   const iso = capture.bars.timeUnit === 'iso-date'
+  const code = tfCodeOf(capture.timeframe)
   return capture.bars.rows.map(([t, o, h, l, c, v]) => ({
-    t: iso ? t : (daily ? isoDateIn(t, tz) : t),
+    t: iso ? t : (daily ? productPeriodKey(isoDateIn(t, tz), code) : t),
     o, h, l, c, v: v === null || v === undefined ? 0 : v,
   }))
+}
+
+/** ⭐ THE DAY THE PRODUCT KEYS A W / M BAR BY (2026-09-28), not the day the
+ *  vendor stamps it: `/api/bars` dates a weekly bar by the FRIDAY of its ISO week
+ *  (`bars_fetch._resample_weekly_iso`, holiday Fridays included — the startup
+ *  fingerprint's `weekly_dating=friday-close`) and a monthly bar by the 1st of
+ *  its month (`_resample_monthly_iso`). Until this rule the harness keyed both by
+ *  the vendor's own first-session date, a shape the product never serves. The
+ *  clock maps any day of the ISO week / month to the same opening instant
+ *  (`barOpenInstant`), so the grade is unchanged by construction; what changed
+ *  is that the harness now feeds the engine what a member's chart does. */
+export function productPeriodKey(isoDate, code) {
+  if (code !== 'W' && code !== 'M') return isoDate
+  const [y, m, d] = isoDate.split('-').map(Number)
+  const at = new Date(Date.UTC(y, m - 1, d))
+  if (code === 'M') return `${isoDate.slice(0, 8)}01`
+  at.setUTCDate(at.getUTCDate() + (4 - ((at.getUTCDay() + 6) % 7)))
+  return at.toISOString().slice(0, 10)
 }
 
 /** `{ticker, exchange}` for the bind-time fold, from the capture's symbol. */
@@ -295,10 +314,17 @@ export function runOurSide(capture) {
     if (!colours.ok) notes.push(`colours unresolvable: ${colours.reason}`)
 
     const rowByAst = new Map((built.rows || []).map((r) => [r.ast, r]))
+    // ⭐ A RUNTIME-LANE document (`memberPaneDefinition`'s route for a script the
+    // columnar lane refuses) has no tree per output — each row names the host
+    // output it draws instead, and is matched by that.
+    const rowByOutput = new Map((built.rows || [])
+      .filter((r) => Number.isInteger(r.output)).map((r) => [r.output, r]))
     const plots = []
-    for (const o of (built.translation.outputs || [])) {
+    for (const [index, o] of (built.translation.outputs || []).entries()) {
       if (o && o.kind === 'alertcondition') continue
-      const row = o && o.ast ? rowByAst.get(o.ast) : null
+      const row = built.lane === 'runtime'
+        ? (rowByOutput.get(index) || null)
+        : (o && o.ast ? rowByAst.get(o.ast) : null)
       const col = row ? cols[row.key] : undefined
       let missingReason = null
       if (!row) {

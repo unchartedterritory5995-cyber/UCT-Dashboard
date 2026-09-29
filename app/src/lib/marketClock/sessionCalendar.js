@@ -31,7 +31,13 @@
 // dataset. sessionCalendar.test.js still holds marketClock.sessionState equal
 // to this module on every shared-fixture row both cover.
 
-import DATA from './market_calendar.json'
+import RAW from './market_calendar.json'
+import { expandCalendar } from './calendarCompact.js'
+
+// The production bundle carries the file with its row names interned
+// (`calendarCompact.js`, applied by the vite build); this rebuilds the exact rows.
+// The file itself, which dev and every test read, passes through unchanged.
+const DATA = expandCalendar(RAW)
 
 function _hm(s) {
   const [hh, mm] = s.split(':').map(Number)

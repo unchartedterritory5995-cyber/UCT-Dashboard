@@ -822,7 +822,16 @@ class Driver:
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
                 "history": {"startsAtBar0": starts, "why": why}, "window": window,
-                "newestBarIsForming": {"value": forming, "why": forming_why}, "depth": depth}
+                # ⭐ What tv_capture WROTE, which it derives from the chart (the bar's
+                # period end vs the capture instant) and which overrides this guess: the
+                # guess below only knows daily bars (a 1W bar on a Monday evening is
+                # forming; the guess said closed). The guess is kept as `asserted`.
+                "newestBarIsForming": {
+                    "value": (summary.get("newestBarIsForming")
+                              if isinstance(summary.get("newestBarIsForming"), bool) else forming),
+                    "source": summary.get("newestBarIsFormingSource") or "asserted",
+                    "asserted": forming, "why": forming_why},
+                "depth": depth}
 
     def cleanup(self) -> dict:
         """⛔ ALWAYS RUNS. Remove what this script added, put the chart back,

@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-29",
   "scripts": 266,
-  "host_ok": 49,
-  "screener_ok": 56,
+  "host_ok": 50,
+  "screener_ok": 55,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -1090,10 +1090,14 @@
     },
     {
       "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
-      "host": true,
-      "screener": true,
-      "hostGuards": [],
-      "screenerGuards": []
+      "host": false,
+      "screener": false,
+      "hostGuards": [
+        "pine:state"
+      ],
+      "screenerGuards": [
+        "pine:state"
+      ]
     },
     {
       "file": "inside-bar-strategy-w-sl__b39f395d5d.pine",
@@ -1453,11 +1457,9 @@
     },
     {
       "file": "market-structure-by-leviathan__9ca1dae1ac.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:objects-only"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -1615,14 +1617,10 @@
     },
     {
       "file": "multicator-table__486858895c.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:state"
-      ],
-      "screenerGuards": [
-        "pine:state"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "multiple-mtf-moving-average-xdecow__aArjfk9ShG.pine",
@@ -2032,7 +2030,6 @@
       "hostGuards": [
         "pine:text-value",
         "pine:plot-offset",
-        "pine:state",
         "pine:reassign",
         "pine:request",
         "pine:window"
@@ -2040,7 +2037,6 @@
       "screenerGuards": [
         "pine:text-value",
         "pine:plot-offset",
-        "pine:state",
         "pine:reassign",
         "pine:request",
         "pine:window",
@@ -2094,10 +2090,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ],
       "screenerGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ]
     },
     {
@@ -2193,7 +2189,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:objects-only"
+        "pine:no-output"
       ],
       "screenerGuards": [
         "pine:no-output"
@@ -2260,15 +2256,18 @@
         "pine:drawing",
         "pine:request",
         "pine:block",
-        "pine:state",
+        "pine:window",
         "pine:offset-literal"
       ],
       "screenerGuards": [
         "pine:function",
+        "pine:collection",
         "pine:reassign",
+        "pine:drawing",
+        "pine:request",
         "pine:block",
-        "pine:offset-literal",
-        "pine:state"
+        "pine:window",
+        "pine:offset-literal"
       ]
     },
     {
@@ -2326,10 +2325,12 @@
       "host": false,
       "screener": false,
       "hostGuards": [
+        "pine:state",
         "pine:block",
         "pine:module"
       ],
       "screenerGuards": [
+        "pine:state",
         "pine:block",
         "pine:module"
       ]

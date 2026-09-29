@@ -39,7 +39,7 @@ double of the chart model (see "What is and is not proven" below).
 |---|---|---|
 | `symbol` | `name, full_name, pro_name, exchange, listed_exchange, type, session, timezone, pricescale, minmov, currency` from `mainSeries().symbolInfo()` | `pricescale` sets the float floor; `timezone` turns a daily bar time into the product's ISO date |
 | `timeframe` | `mainSeries().interval()` verbatim (`1D`, `5`, `12M`…) | mapped to the chart's own code (`D`, `5`, …) for the bind-time fold |
-| `newestBarIsForming` | `false` when captured after the close; `null` if unknown | passed to `computeFor` exactly as the chart passes it |
+| `newestBarIsForming` | DERIVED by `tv_capture.js` (v2, 2026-09-28) from the chart: the newest bar's period end (intraday: start + N min capped at its session segment; 1D: that day's close; 1W/1M: the close of the week's / month's last trading day, `session_holidays` read) against the capture instant. A caller's assertion is used only when that cannot answer (`2W`, no session); `null` if neither. `newestBar` carries `{time, source, derived, periodEndUTC, rule, asserted}` | passed to `computeFor` exactly as the chart passes it. ⚰️ v1 took the caller's word, and the batch's daily-only guess recorded SPY 1W on a Monday evening as closed while TradingView's own `barstate.isconfirmed` read 0 |
 | `history.startsAtBar0` | `true` ONLY when the loaded history reaches bar 0 | with no pre-window state, there is no warm-up excuse: every bar counts |
 | `source` | `{text, sha256, chars, declaredTitle}` — the exact Pine that was added to the chart | the script compared must be the script the vendor ran |
 | `census` | the study count with its control (events filtered by `shortId`) | capture-procedure.md "COUNTING STUDIES" |
@@ -84,8 +84,8 @@ there and are not repeated here.
 8. `__uctVH.studies()` — confirm the census (`controlProbeSawSomething: true`,
    `controlFilterRemovedExactlyTheEvents: true`) and the study's title.
 9. `__uctVH.capture({study: '<title substring>', source: '<the exact Pine>', id:
-   '<script>-<sym>-<tf>-<yyyy-mm-dd>', newestBarIsForming: false, startsAtBar0:
-   false})` — it throws (writes nothing) on an ambiguous name, a compile error, an
+   '<script>-<sym>-<tf>-<yyyy-mm-dd>', startsAtBar0: false})` (`newestBarIsForming` is
+   derived; an assertion is used only when the derivation cannot answer) — it throws (writes nothing) on an ambiguous name, a compile error, an
    empty study, or a census that fails its control. Read `warnings` (e.g. the
    source's `indicator("…")` title not matching the study).
 10. For `i` in `0 … chunks-1`: `JSON.stringify(__uctVH.chunk(i))` and save each
@@ -277,8 +277,9 @@ the last script the chart is put back on the symbol and resolution it started on
 `startsAtBar0` is asserted ONLY when the history stopped growing AND the first loaded
 bar is the symbol's listing day in its own timezone (known for `NYSE:RDDT` =
 2024-03-21; pass `--listing-date` for another young listing). `newestBarIsForming`
-defaults to `auto` (a weekday inside 09:30–16:00 ET says forming) — **run it after the
-close** so every capture says `false`.
+defaults to `auto` (a weekday inside 09:30–16:00 ET says forming) — that guess only knows
+daily bars, so `tv_capture.js` now derives the value from the chart and overrides it (a
+disagreement is a warning); the batch record keeps the guess as `asserted`.
 
 ### What each outcome means (`results/<slug>.json`, `ledger.jsonl`)
 

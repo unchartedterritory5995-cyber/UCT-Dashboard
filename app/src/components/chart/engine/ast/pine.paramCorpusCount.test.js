@@ -81,7 +81,16 @@ describe('Track F parameter-corpus count — reproducible, not a one-time manual
     // the running band. The locator drop is large because that one folded formula was
     // enormous; losing a single WRONG script can move a total more than losing several
     // right ones, which is why the movers are NAMED rather than the delta explained.
-expect(translating.length, 'scripts that translate at all').toBe(14)
+    // ⚰️ RE-FROZEN 2026-09-28 (branch `pine/var-read-order`) — 14 → 13 scripts,
+    // 30 → 29 params, 734 → 156 locator occurrences. ONE named mover:
+    // `20-smc-toolkit-udt` left the translating set. Its structure columns read
+    // `trend_initialized` before its own `:=`, which folded to the initializer
+    // `false` — so the columns it offered re-initialised the trend on every break.
+    // Read by position the fold is correct and needs lookback 1013 > 960, and the
+    // screener lane refuses it (`pine:budget`). It was the script whose single
+    // `swing_length` parameter expanded to 570 locators, which is why one wrong
+    // script moves the locator total by 578.
+expect(translating.length, 'scripts that translate at all').toBe(13)
         // ⚰️ RE-FROZEN 2026-09-12 BY RULING R-F — 15 → 14 scripts, 31 → 29 params,
     // 1,208 → 536 locator occurrences. One script left the translating set:
     // `10-supertrend.pine`, which was folding its Supertrend band to
@@ -89,7 +98,7 @@ expect(translating.length, 'scripts that translate at all').toBe(14)
     // the running band. The locator drop is large because that one folded formula was
     // enormous; losing a single WRONG script can move a total more than losing several
     // right ones, which is why the movers are NAMED rather than the delta explained.
-expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(14)
+expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parameter').toBe(13)
   })
 
   it('reproduces the "29 total adjustable parameters" claim under the distinct-id counting', () => {
@@ -115,7 +124,16 @@ expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parame
     // displaced plots now translate (`displacement - 1` folds), and the Senkou B span
     // brings `senkouBLength` into a surviving column. `displacement` itself adds no
     // id — every use of it is a COMPUTED displacement, which stays untagged.
-expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(30)
+    // ⚰️ RE-FROZEN 2026-09-28 (branch `pine/var-read-order`) — 14 → 13 scripts,
+    // 30 → 29 params, 734 → 156 locator occurrences. ONE named mover:
+    // `20-smc-toolkit-udt` left the translating set. Its structure columns read
+    // `trend_initialized` before its own `:=`, which folded to the initializer
+    // `false` — so the columns it offered re-initialised the trend on every break.
+    // Read by position the fold is correct and needs lookback 1013 > 960, and the
+    // screener lane refuses it (`pine:budget`). It was the script whose single
+    // `swing_length` parameter expanded to 570 locators, which is why one wrong
+    // script moves the locator total by 578.
+expect(totalDistinctParams, 'sum of distinct parameter ids across all 13 scripts').toBe(29)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -147,7 +165,16 @@ expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts
     // now carries the parameter tag too — so every pivot use counts twice, which is
     // exactly the number of places an edit must rewrite. Before it, an edit moved the
     // pivot's window and left the shift at the default.
-expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(734)
+    // ⚰️ RE-FROZEN 2026-09-28 (branch `pine/var-read-order`) — 14 → 13 scripts,
+    // 30 → 29 params, 734 → 156 locator occurrences. ONE named mover:
+    // `20-smc-toolkit-udt` left the translating set. Its structure columns read
+    // `trend_initialized` before its own `:=`, which folded to the initializer
+    // `false` — so the columns it offered re-initialised the trend on every break.
+    // Read by position the fold is correct and needs lookback 1013 > 960, and the
+    // screener lane refuses it (`pine:budget`). It was the script whose single
+    // `swing_length` parameter expanded to 570 locators, which is why one wrong
+    // script moves the locator total by 578.
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 13 scripts').toBe(156)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {

@@ -17,7 +17,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
 import { toRenderState } from '../objectRenderState'
-import { barOpenInstant } from '../../indicators.js'
+import { barOpenInstant, etClockAt } from '../../indicators.js'
 import * as registry from '../nativeRegistry'
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
@@ -124,8 +124,22 @@ describe('⭐⭐ a daily series keyed by DATES', () => {
       expect(rs.labels, `x=${x} tf=${tf}`).toHaveLength(0)
       expect(rs.dropped.label).toBe(1)
     }
-    // a weekly series keyed the same way has no measured opening instant
-    expect(toRenderState([label(open * 1000)], { bars: DAILY, tf: 'W' }).dropped.label).toBe(1)
+    // ⚰️ "a weekly series keyed the same way has no measured opening instant"
+    // until 2026-09-28 — see the weekly case below.
+  })
+
+  it('⭐ (2026-09-28) a WEEKLY series keyed as the product keys it (the Friday) places a label at the week open on that week bar, and nothing else', () => {
+    const WEEKLY = ['2026-08-07', '2026-08-14', '2026-08-21'].map((t) => ({ t, o: 1, h: 1, l: 1, c: 1 }))
+    const wopen = barOpenInstant('2026-08-14', 'W')          // Monday 2026-08-10 09:30
+    expect(etClockAt(wopen).dow).toBe(2)
+    const rs = toRenderState([label(wopen * 1000)], { bars: WEEKLY, tf: 'W' })
+    expect(rs.labels[0].x).toBe('2026-08-14')
+    // not its week's opening instant ⇒ no bar
+    expect(toRenderState([label((wopen + 86400) * 1000)], { bars: WEEKLY, tf: 'W' }).dropped.label).toBe(1)
+    // a projection past the last loaded week is dropped rather than keyed by a
+    // guess at the product's future-week key
+    const next = barOpenInstant('2026-08-28', 'W')
+    expect(toRenderState([label(next * 1000)], { bars: WEEKLY, tf: 'W' }).dropped.label).toBe(1)
   })
 
   it('lines and boxes take the same road', () => {

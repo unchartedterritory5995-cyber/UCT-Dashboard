@@ -110,6 +110,8 @@ without it; each row below is a full re-grade of the 47 captures.
 | 8 | C16 `table.merge_cells` carried (reader → runtime → render state → DOM `colSpan`) | `554f78d85` | 16 / 47 | 175 / 252 | `momentum-volatility-scanner` 5/7 → **7/7 MATCH** (cells 12/12 — the covered (1,0) cell is held, empty, as the vendor holds it); `average-day-range-adr-pivots` cells 2 → 3 of 4 (its merged cell reads now; the missing cell is the one `cell:text` drop the census records — not traced further) |
 | 9 | C7 the object collector is batched (`cap + 5` → `cap`, sparing the bar and `var`-held objects) | `c5e63beea` | 19 / 47 | 180 / 252 | `makuchaku039s-…` 6/7 → **7/7 MATCH** (boxes 51/51), `ultimate-pivot-points` 4/7 → **7/7 MATCH** (lines 51/51, labels 51/51), `multi-timeframe-supply-demand-zones` 6/7 → **7/7 MATCH** (boxes 504/504) — all three id for id; `contraction-box` stays MATCH at 50; no other family moved. The 8 probe captures: 0/8 → 6/8 objects MATCH, 19/42 → 42/42 families (D is refused at the door) |
 | 10 | C8 `time_close`, `time_close("D")`, `timeframe.change("D"/"W"/"M")` as clock columns (`timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`; measured on the `vw-clock-close-tfchange` probe) | `dff023f59`, `445900da7`, `3fb5093f8` | 16 / 47 | 175 / 252 | `poor-man039s-volume-profile`'s 40 labels converted at `dff023f59` and were drawn with EMPTY text (their text is built in a `for` this chart cannot fold, C12; TradingView shows `####…`) — briefly 176/252 on a count that was drawn wrong. `3fb5093f8` withholds any object whose text a lost setter writes and refuses a block local the reassignment overrule condemned, so the labels are counted, not drawn: its sentence reads 240 of 246 (was 199). The same fix stops `artemis-oscillator-pro` drawing an empty cell (25 → 26 of 38) and `sonarlab-order-blocks` placing boxes at `bar_index[0]` (still refused, now `pine:no-output`). No C8 refusal remains in any of the five scripts' object programs; each now stops on another class: `liquidation-levels` C15 `str.format` (40 trees), `reverse-stochastic-momentum-index-on-chart` a text feature (14), `average-day-range-adr-pivots` C11/C13, `htf-candle-footprint-cartel-console` C12 (`startBar`, 48). Attach status unchanged for all 266 corpus scripts, both flag states |
+| 11 | C8 early closes and holiday weeks: `time_close` / `time_close("D")` read the session close as TradingView's calendar applies it (`market_calendar.json` extended to 2000, vendor view derived in `tradingview_session`) | `f37825c96` | unchanged | unchanged | none on the 47 (no graded script reads a close on an early-close day). Probe rows K01/K02/K03/K12/K13: 1D 13/13/13/26/13 → 0; 60m 13/52/13/26/52 → 0. Against master `9f9d60b4b`: 47-capture verdicts (211 entries), the committed harness dir (87 captures, 349 entries) and the member-door census (38 / 61 of 266 attach) all 0 changed |
+| 12 | Q-T1 widened: date-keyed W / M bars read their period's first vendor session (M UNMEASURED); the harness keys W by the product's Friday | `6caad1725` | unchanged | unchanged | none on the 47 (all 1D). Probe W rows through the door: K01/K02/K03/K08/K13 1,758 → 0, K04/K05/K06/K07/K12/K16 1,757 → 0. Plot-column census, every attaching corpus script (61) on SPY 1D and 1W bars, master vs tip: 252 columns each; 1D 0 changed; 1W 2 changed, both in `support-and-resistance-multi-time-frame` (`security(…,'M',…)` on a weekly chart: Resistance Monthly 245 bars, Support Monthly 9) — caused by the harness now feeding the product's FRIDAY key, not by the clock: the MTF resampler groups a week that straddles two months by its key day, so a Friday key files it in the later month. That is what the product already does; whether TradingView does it is unmeasured (no W capture of an MTF-monthly script) |
 
 ### Where the lane stands
 
@@ -139,14 +141,50 @@ windows committed as `tests/fixtures/vendor/clock-close-tfchange-spy-60-excerpt-
 | `timeframe.change` "D"/"W"/"M" | this bar's New York day / ISO week / month differs from the previous bar's; false on bar 0 | none — 0 mismatches on all three charts, and equal on every bar to its control `ta.change(time(tf)) != 0`; "1W" reads as "W" |
 | forming last bar (K17) | the same template: the W capture's forming week read Friday 16:00 | — |
 
-**The early-close decision.** The clock lane holds no trading calendar, by design
-(*"a date set in this lane would be a second calendar authority in a second
-language"*), and the repo's calendar (`nyse_calendar.py`) covers 2025–2027, i.e. 3
-of the 13 days. So the lane answers the **regular-session template** and the
-mismatch is counted, not hidden, in `indicators.js::CLOCK_TIME_DERIVED` and in
-`clockCloseTfChange.vendor.test.js`, which asserts that every disagreeing bar is an
-early-close or holiday-week bar and every such bar disagrees. Refusing those bars
-was not available: nothing in the lane can tell which they are.
+**The early-close decision — superseded 2026-09-28 (branch `pine/early-close-wm-clock`).**
+The lane first answered the regular-session template and COUNTED the mismatch,
+because the repo's calendar covered 2025–2027 only. The one calendar
+(`market_calendar.json`, TERM-035) now runs back to 2000, and the clock layer
+derives the vendor's own view of it, so both lanes read the session close as TradingView applies it and the counted
+mismatch is gone: **1D / 60m / W `time_close` and `time_close("D")` agree on every
+bar** (K01/K02/K03/K12/K13: 1D 13/13/13/26/13 → 0; 60m 13/52/13/26/52 → 0; W on the
+vendor's own instants 52 and 1 → 0).
+
+| what the vendor's session applies | measured on | rule |
+|---|---|---|
+| closures | W: 133 of 134 late-starting weeks and 46 of 47 early-ending weeks from 2000 on read the first / last session; 0 of 44 before 2000 do | no closure before 2000; not September 11 2001 (the 09-10 week reads Friday 16:00), not Hurricane Sandy (the 2012-10-29 week is stamped Monday 09:30); Reagan 2004-06-11 and Ford 2007-01-02 ARE applied |
+| half-days | 1D: 13:00 on exactly 13 days, all from 2019-07-03; 60m agrees | none before 2019 (all eight 2015–2018 half-days keep a full session, late-trading bars to 16:00 included); not 2020-11-27 or 2020-12-24 |
+
+The calendar itself is NYSE truth. Its 2000–2024 rows (233 closures, 55 half-days)
+were added to `market_calendar.json` from the two libraries it already came from
+(exchange_calendars 4.13.2, pandas_market_calendars 5.4.0), which agree on every
+one; the closures also equal the NYSE holiday rules with the named unscheduled
+closures (331 over 1993–2028, identical) and the weekdays with no vendor daily
+bar (309 over the vendor's 1993-01-29..2026-09-28 span, identical), and the 2015–2024 half-days equal the days the vendor's 60m
+volume collapses after 13:00. One pandas-only special close (2005-06-01 15:56) is
+left out as disputed; the rules alone would have been wrong on 2002 (July 5, not
+July 3) and 2003-12-26, which is why the libraries, not the rules, are the source.
+Coverage starts at 2000 because the vendor applies no closure before it. The
+vendor's exceptions are written ONCE in the clock layer (`tradingview_session.py`
+⇄ `tradingViewSession.js`, parity-tested) and the vendor's view is derived; `tests/test_nyse_calendar_vendor_evidence.py` holds the calendar to the
+captures. ⚠️ Measured on AMEX:SPY only: whether TradingView applies the same view
+to a NASDAQ or NYSE listing is unmeasured.
+
+**Weekly and monthly clock (2026-09-28, same branch).** A date-keyed W / M bar had
+no clock (Q-T1 covered D only), so every time-derived row read blank on the
+product's weekly bars. TradingView stamps a weekly bar with the open of its week's
+FIRST session and closes it at its LAST: measured on all 1,758 SPY weeks — Monday
+09:30 on 1,625, Tuesday on 132, Wednesday once (2007-01-03) — under the same
+vendor calendar as the closes (every week before 2000 opens Monday). The product
+keys a weekly bar by the FRIDAY of its ISO week (`bars_fetch._resample_weekly_iso`,
+`weekly_dating=friday-close`, holiday Fridays included) and a monthly bar by the
+1st (`_resample_monthly_iso`); `barOpenInstant` / `bar_open_instant` map ANY date
+of the Monday-first ISO week / the month to the same instant, so the key day
+cannot matter, and `ourSide.toProductBars` now feeds the harness the product's key
+instead of the vendor's stamp. Probe W rows through the member door (K01–K08,
+K12, K13, K16): 1,757–1,758 of 1,758 wrong (blank) → **0**. ⚠️ **MONTHLY IS
+UNMEASURED**: no monthly capture exists; M applies the weekly rule to a month
+(first session's open, last session's close) and is labelled that way.
 
 **Translation.** `timeframe.change(tf)` → `isfirst ? 0 : <weekfirst|monthfirst|sessionfirst>`,
 not `col != 0`: the member pane translates before it knows the chart's timeframe,
