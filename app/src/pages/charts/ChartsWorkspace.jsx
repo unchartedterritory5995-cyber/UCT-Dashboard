@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -13,7 +13,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
+import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -46,6 +46,8 @@ import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
+import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
+import vhStyles from './VersionHistory.module.css'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
@@ -403,6 +405,26 @@ export function parseLayout(raw) {
     }
   } catch {}
   return null
+}
+
+// STATE-2 (ledger C7): is the STORED board a value that exists but cannot be read?
+//
+// parseLayout answers null for "nothing stored" AND for "something stored that is
+// not a layout" (a truncated write, a hand-edited row, a blob from a writer that
+// no longer exists). The board renders a default in both cases: correct for a
+// new member, and member-data loss for the second, because the autosave used to
+// write that default over the original within 500 ms and nothing could bring it
+// back.
+//
+// Only the second case is this. An absent value, an empty string and the JSON
+// literal `null` hold no member data, so writing over them loses nothing.
+export function isUnreadableStoredLayout(raw) {
+  if (raw == null) return false
+  if (typeof raw === 'string') {
+    const t = raw.trim()
+    if (t === '' || t === 'null') return false
+  }
+  return parseLayout(raw) === null
 }
 
 // Keep every widget FULLY within the viewport-locked grid — no widget may hang
@@ -823,6 +845,19 @@ export default function ChartsWorkspace() {
     if (!prefsLoading) hydratedRef.current = true
   }, [prefsLoading])
 
+  // ⛔ STATE-2 GUARD: the automatic save never writes over a stored board it
+  // could not read. While the stored `charts_workspace_layout` is unreadable the
+  // board shows a default (there is nothing else to show), the member is told,
+  // and the debounced save + the unmount flush both refuse. The stored value is
+  // only replaced by something the member does on purpose: open a layout, New
+  // Layout, Save current arrangement, or a version restore. Each of those writes
+  // directly and, by making the stored value readable, lifts this guard on the
+  // next render. Read through a ref at WRITE time, because the save fires 500 ms
+  // after the render that scheduled it. Railed in VersionHistory.workspace.test.jsx.
+  const storedLayoutUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
+  const storedLayoutUnreadableRef = useRef(storedLayoutUnreadable)
+  storedLayoutUnreadableRef.current = storedLayoutUnreadable
+
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
     try {
@@ -1070,12 +1105,19 @@ export default function ChartsWorkspace() {
 
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)
+  // The ONE automatic writer of the board. Both the debounce below and the
+  // unmount flush go through it, so the STATE-2 guard has a single place to hold.
+  const autosaveLayout = useCallback((nextLayout) => {
+    if (storedLayoutUnreadableRef.current) return false
+    setPref('charts_workspace_layout', serializeLayout(nextLayout))
+    return true
+  }, [setPref])
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      setPref('charts_workspace_layout', serializeLayout(nextLayout))
+      autosaveLayout(nextLayout)
     }, 500)
-  }, [setPref])
+  }, [autosaveLayout])
 
   // Flush any pending debounced save when leaving the page (SPA nav / unmount) so
   // the last arrangement is always what loads next time — no dependence on the
@@ -1085,10 +1127,10 @@ export default function ChartsWorkspace() {
       if (saveTimerRef.current && hydratedRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
-        setPref('charts_workspace_layout', serializeLayout(layoutRef.current))
+        autosaveLayout(layoutRef.current)
       }
     }
-  }, [setPref])
+  }, [autosaveLayout])
 
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
@@ -2259,6 +2301,68 @@ export default function ChartsWorkspace() {
     setLayoutsMenuOpen(false); setLayoutsSub(null); setToolsMenuOpen(false)
     setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false)
   }, [])
+
+  // ── TERM-051: version history (a member restore) ──────────────────────────
+  // The panel lives HERE, not inside the Layouts menu, and its outcome is told
+  // through `workspaceNotice`, which the workspace renders: the message must
+  // outlive both the menu that opened the panel and the panel itself.
+  // An autosave landing while the panel is open moves the head; the restore's
+  // compare-and-set then answers 409 and the panel re-reads. Never a blind retry.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [workspaceNotice, setWorkspaceNotice] = useState(null)  // { text } | null
+  const [layoutHeldDismissed, setLayoutHeldDismissed] = useState(false)
+  const noticeTimerRef = useRef(null)
+  const showWorkspaceNotice = useCallback((text) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
+    setWorkspaceNotice({ text })
+    noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
+  }, [])
+  useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
+  const openVersionHistory = useCallback(() => {
+    closeToolbarMenus()
+    setHistoryOpen(true)
+  }, [closeToolbarMenus])
+  const closeVersionHistory = useCallback(() => setHistoryOpen(false), [])
+  // The restore route writes the restored values back into user_preferences
+  // itself (api/routers/workspace_doc.py). The board still holds its own copy of
+  // the layout and the linked symbols (both are one-shot seeds from prefs), so
+  // after a 200 it RE-READS the preferences and re-seeds from what came back.
+  const handleVersionRestored = useCallback(async (res) => {
+    setHistoryOpen(false)
+    // A pending autosave belongs to the board being replaced; firing it now
+    // would write the old arrangement over the one just restored.
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
+    userRemovedRef.current = false
+    suppressAutoSave()
+    const v = res?.restored_from
+    const fresh = await refreshPreferences()
+    if (!fresh) {
+      showWorkspaceNotice(`Version ${v} was restored, but the board could not be reloaded. Reload the page to see it.`)
+      return
+    }
+    const restoredLayout = parseLayout(fresh.charts_workspace_layout)
+    if (restoredLayout) {
+      setLayout(restoredLayout)
+      loadedFromPrefsRef.current = true
+    }
+    const g = parsePref(fresh.charts_workspace_groups, null)
+    if (g && typeof g === 'object') {
+      setGroupSymsState({ A: null, B: null, C: null, D: null, ...g })
+      groupsLoadedFromPrefsRef.current = true
+    }
+    setLayoutHeldDismissed(false)
+    const failed = Array.isArray(res?.prefs_failed) ? res.prefs_failed : []
+    const written = Array.isArray(res?.prefs_written) ? res.prefs_written : []
+    if (failed.length) {
+      showWorkspaceNotice(`Version ${v} was restored except ${failed.map(keyLabel).join(', ')}, which kept the current value. Try the restore again.`)
+    } else if (!res?.appended && written.length === 0) {
+      showWorkspaceNotice(`Version ${v} already matched your board, so nothing changed.`)
+    } else {
+      showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
+    }
+  }, [showWorkspaceNotice, suppressAutoSave])
+  const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
   // no longer exists, which structurally fixes mega-review #10/#16.)
@@ -2338,14 +2442,10 @@ export default function ChartsWorkspace() {
   }, [dockActiveId, globalLayouts, myLayouts, layout])
   const dockDirty = !!dockCompare?.dirty
 
-  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
-  //
-  // A prebuilt (global) row is what every member sees, so nudging a widget on
-  // one must never rewrite it; the frozen UCT Default is not a row at all.
-  // Those two stay exactly as they always were — deliberate saves only.
-  const dockAutoSaves = !!dockActiveId
-    && dockActiveId !== UCT_DEFAULT_ID
-    && (dockActiveTpl?.scope || 'user') !== 'global'
+  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. The rule is
+  // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
+  // which layouts save themselves by calling the same function (TERM-052).
+  const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
@@ -2474,6 +2574,36 @@ export default function ChartsWorkspace() {
     } catch { /* surfaced by SWR revalidate */ }
   }, [handleNewLayout, saveLayout, setPref])
 
+  // The workspace's feedback host. It sits outside every menu and panel so a
+  // message survives the control that produced it.
+  const noticeHost = (
+    <div className={vhStyles.noticeHost} role="status" aria-live="polite" data-testid="workspace-notice-host">
+      {storedLayoutUnreadable && !layoutHeldDismissed && (
+        <div className={`${vhStyles.notice} ${vhStyles.noticeWarn}`} data-testid="layout-held-notice">
+          <UIcon name="warning" size={16} gold={false} />
+          <span className={vhStyles.noticeText}>
+            <strong>Your saved board could not be read.</strong>{' '}
+            A default board is showing instead. Your saved board has been kept as it was, and
+            changes made here are not saved automatically until you open a layout or save this one.
+            {historyAvailableForNotice && ' You can also restore an earlier version from Layouts, Version history.'}
+          </span>
+          <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setLayoutHeldDismissed(true)}>
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+      )}
+      {workspaceNotice && (
+        <div className={vhStyles.notice} data-testid="workspace-notice">
+          <UIcon name="info" size={16} gold={false} />
+          <span className={vhStyles.noticeText}>{workspaceNotice.text}</span>
+          <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setWorkspaceNotice(null)}>
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
     // pickers; non-chart widgets open as full-screen pages). Rendered inside
@@ -2528,6 +2658,7 @@ export default function ChartsWorkspace() {
             onDeleteLayout={handleDeleteTemplate}
           />
         )}
+        {noticeHost}
       </WorkspaceContext.Provider>
       </ContextChannelsProvider>
     )
@@ -2835,6 +2966,7 @@ export default function ChartsWorkspace() {
                   {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
                   <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
                   {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
+                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} onOpen={openVersionHistory} />}
                   <button
                     type="button"
                     className={styles.addMenuItem}
@@ -3084,6 +3216,14 @@ export default function ChartsWorkspace() {
             onClose={() => setReplayOpen(false)}
           />
         )}
+        {historyOpen && (
+          <VersionHistoryPanel
+            onClose={closeVersionHistory}
+            onRestored={handleVersionRestored}
+            onUnavailable={closeVersionHistory}
+          />
+        )}
+        {noticeHost}
       </div>
     </WorkspaceContext.Provider>
     </ContextChannelsProvider>
