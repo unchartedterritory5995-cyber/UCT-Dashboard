@@ -2,6 +2,16 @@
 
 **Refusal, reported per instruction: "any refusal, report it; never work around it."**
 
+> ✅ **RESOLVED, same lane, later the same session.** Free space returned on its own (measured
+> ~142 GB, not this lane's doing) and the full three-boot rehearsal completed CLEAN on the
+> re-run — results in `../sandbox-results.md`. This file is kept UNEDITED below as the record of
+> what actually happened at the time it happened: the refusal was real, it was reported instead
+> of worked around, and the eventual success does not retroactively make it not have occurred.
+> The scratch extraction directory this lane had built was also found wiped by an unrelated
+> concurrent session's own cleanup before the re-run (see the note at the end of
+> `sandbox-results.md`) — a second, independent confirmation that this box was under genuine
+> multi-session disk pressure, not something scoped to this lane.
+
 ## What was attempted
 
 `rehearse.py extract s00-tip` succeeded and verified **IDENTICAL** (17,102 files, tree

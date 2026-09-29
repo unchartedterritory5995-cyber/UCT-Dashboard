@@ -20,11 +20,11 @@
 > new conflict was found four steps further down, at wave 8's own revert (`caf6d1b9e`,
 > `app/src/pages/Support.jsx` -- TERM-039's import sits on lines wave 8's revert also touches),
 > now a rule and a pin (*Measured, 2026-09-29, lane R1c*). `MEASURED_AT` is `0812b5ec3`.
-> ⛔ **The live sandbox boot rehearsal (booting the tip, `L5` and `L4`) is NOT done** -- the box's
-> `C:` drive measured **0 bytes free** mid-lane, a machine-wide condition this lane did not cause
-> and did not work around; the objects-only chain build (every `--through` target, every pin) is
-> complete and independently verified, and the boot scripts are ready to run once there is real
-> disk headroom. Evidence: `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/`.
+> Rehearsed on a sandbox: the tip, `L5` and `L4`, all three boots CLEAN. ⚠️ Mid-lane the box's `C:`
+> drive measured **0 bytes free** -- a machine-wide condition this lane did not cause, reported as
+> a refusal rather than worked around (`sandbox/BLOCKED-disk-exhaustion.md`) -- and free space
+> returned on its own before the re-run that produced the results below. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/` (`sandbox-results.md` is the table).
 >
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
@@ -621,24 +621,40 @@ the record the rail rebuilds tree for tree):
   (`app/src/pages/Support.jsx`), which is exactly the new conflict above -- reported, not buried.
 - **SK, raised not silently decided:** see the banner above and the keep-list, item 4.
 
-**The sandbox rehearsal, 2026-09-29 (lane R1c) -- PARTIAL, blocked by disk exhaustion.**
-`evidence/rollback-rehearsal-2026-09-29-r1c/rehearse.py` (same method as R1's and R1b's) and
-`probe.py` (imports R1's probe for the never-revert set and the per-landing doors; adds L4's own
-door -- `button[data-format-toggle]`, the phone format disclosure (D3P), present at the tip and
-through `L5`, gone through `L4` -- and an L5 behaviour-preservation check, since L5 is a pure
-query optimisation with no removable door: `GET /api/j2/notes/backlinks?symbol=` must answer the
-identical shape before and after its revert).
+**The sandbox rehearsal, 2026-09-29 (lane R1c).** `evidence/rollback-rehearsal-2026-09-29-r1c/rehearse.py`
+(same method as R1's and R1b's) and `probe.py` (imports R1's probe for the never-revert set and
+the per-landing doors; adds L4's own door -- `button[data-format-toggle]`, the phone format
+disclosure (D3P), present at the tip and through `L5`, gone through `L4` -- and an L5
+behaviour-preservation check, since L5 is a pure query optimisation with no removable door:
+`GET /api/j2/notes/backlinks?symbol=` must answer the identical shape before and after its
+revert). Full table: `evidence/rollback-rehearsal-2026-09-29-r1c/sandbox-results.md`.
 
-- `git archive` extraction + re-hash verified **IDENTICAL** for the tip (`s00-tip`, 17,102 files)
-  and for `--through L5` (`s-L5`, 17,101 files) --
-  `evidence/rollback-rehearsal-2026-09-29-r1c/sandbox/extract-verify.log`.
-- Extracting `--through L4` (`s-L4`) failed: `OSError: [Errno 28] No space left on device`.
-  `Get-Volume C` read **0 bytes free, machine-wide**, at that moment -- not this lane's own scratch
-  usage (measured at 1.48 GB). Full account:
-  `evidence/rollback-rehearsal-2026-09-29-r1c/sandbox/BLOCKED-disk-exhaustion.md`.
-- **No boot of any target ran.** This is reported as a refusal, not worked around: nothing outside
-  this lane's own, already-logged scratch extractions was deleted to try to make room. The scripts
-  are ready to run unchanged once there is real disk headroom.
+- `git archive` extraction + re-hash verified **IDENTICAL** for the tip (`s00-tip`, 17,102 files),
+  `--through L5` (`s-L5`, 17,101 files) and `--through L4` (`s-L4`, 17,096 files).
+- **All three boots CLEAN**: pre-boot, +15s, +120s and shutdown, 62 db files hashed each time, one
+  data dir (`C:\data-w10r1c` :8238) seeded by the tip boot so every rolled-back server read data
+  the tip had written.
+- **L4's door** (`button[data-format-toggle]`): 1 at the tip, 1 through `L5`, **0** through `L4` --
+  gone exactly at L4's own step.
+- **L5's behaviour-preservation check**: the symbol-backlinks endpoint answers the identical shape
+  and value (`count: 0`, same keys) at the tip, through `L5` and through `L4` -- consistent with
+  L5 being a pure query optimisation with no door to remove.
+- **The never-revert set** (three fixture notes, levels 0/1/2): identical at every step -- the
+  level-2 note declares schema 2, its PUT answers 200, the stored body keeps its node and the
+  typed words, at the tip, through `L5` and through `L4`.
+- **Every earlier landing's door** (`w8_share_links`, `w7_personal_tokens`, `w6_note_templates`,
+  `L1b_admin_notebook_slo`, etc.) answers identically at all three steps -- correct, since neither
+  L5 nor L4 reverts anything below them.
+- **The step-2 check list inside all three trees**: the schema diff against the tip is EMPTY,
+  `tests/test_notebook_schema_guard.py` gives 17 passed, and the vitest list gives 272 passed --
+  the same counts as lane R1b's at `L2` depth, since neither L5 nor L4 changes that file set.
+- ⚠️ **Mid-lane refusal, resolved before the results above.** The first attempt hit the box's `C:`
+  drive at **0 bytes free, machine-wide** (`Get-Volume C`), partway through extracting the third
+  tree -- reported as a refusal and NOT worked around (nothing outside this lane's own,
+  already-logged scratch extractions was deleted to try to make room). Free space returned on its
+  own (measured ~142 GB, not this lane's doing); this lane's own scratch extraction directory was
+  separately found wiped by an unrelated concurrent session's own cleanup before the successful
+  re-run. Full account: `evidence/rollback-rehearsal-2026-09-29-r1c/sandbox/BLOCKED-disk-exhaustion.md`.
 
 ## Measured, 2026-09-28: every step, on a sandbox (lane R1, scorecard clause 3b)
 
