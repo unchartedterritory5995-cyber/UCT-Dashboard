@@ -7,6 +7,13 @@
 > Evidence: `docs/notebook/evidence/rollback-rehearsal-2026-09-28/` (raw chain `chain/`, raw boots `sandbox/`, mechanical tables `chain/step-table.md` and
 > `sandbox-results.md`). The table is in *Measured, 2026-09-28* below.
 >
+> ⭐ **RE-MEASURED AT `f4cec49be` (L2 #242, production's tip, 2026-09-29; lane R1b).** L2 is the
+> new top row. Its revert is conflict-free. The whole chain was rebuilt from the new tip: the ten
+> pins recorded at `38bb9a421` came back byte-identical, and later Terminal work added four new
+> conflicts, each now a rule and a pin (*Measured, 2026-09-29*). `MEASURED_AT` is `f4cec49be`.
+> Rehearsed on a sandbox through `L2`, `L1a` and `wave7`. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-29/`.
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -60,7 +67,10 @@ python tools/notebook_rollback_chain.py --list
 | `wave6` | `271a078b6` | wave 6 #193 | |
 | `wave5` | `2c3ed3093` | wave 5 #186, then re-apply `8167f7aa0` and `fd87271fd` | |
 
-`--through wave8` reverts every row from `L1c` down to `wave8`, skipping the two kept rows.
+`--through wave8` reverts every row from `L2` down to `wave8`, skipping the two kept rows.
+`L2` is frontend only (46 files under `app/src/pages/journal-2-0/`, no server change), so
+`--through L2` changes no API door. Its revert takes out the phone Journal header and deep links,
+the template gallery, the editor header's More menu (D-3) and keyboard 9d.
 ⚠️ #225 and #201 fix CSS that wave 8 added. They cannot be kept below wave 8: measured, keeping
 them stops the wave-8 revert on `NotebookTab.module.css`.
 
@@ -136,6 +146,10 @@ python docs/notebook/evidence/rollback-rehearsal-2026-09-28/probe.py --base http
   --integrity-log <log> --out <dir> --mode seed --fixtures <dir>\fixtures.json --label tip      # the tip; then --mode check on the rollback
 ```
 
+For a chain that includes `L2`, use `evidence/rollback-rehearsal-2026-09-29/probe.py` instead: it
+runs the 2026-09-28 probe unchanged and adds L2's door (the editor's More-menu button) and the
+writing-help and meters doors the 2026-09-29 rules move.
+
 The first line of the launcher's integrity log must read CLEAN at pre-boot, +15 s, +120 s and
 shutdown. The probe must show three things:
 - the reverted landings' doors are gone (the table in *Measured* gives each landing's door);
@@ -187,10 +201,23 @@ list. The tool refuses to run on a base that holds one, and names it. Its subjec
 files is enough for the refusal. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out`
 goes red on it by name too.
 
-⚠️ **The file criterion is broad on purpose, and that is its cost.** The Notebook file set is 815
-files at `MEASURED_AT`. It includes shared files every workstream edits, such as `app/src/App.jsx`
-and `api/main.py`. Measured: between wave 5 and `MEASURED_AT`, 23 commits that were not Notebook
-landings touched a file in the set. So another workstream's commit on master will stop the tool.
+⚠️ **The file criterion is broad on purpose, and that is its cost.** The Notebook file set is 834
+files at `MEASURED_AT` `f4cec49be` (815 at `38bb9a421`; L2 added 19). It includes shared files every
+workstream edits, such as `app/src/App.jsx` and `api/main.py`. Measured
+(`evidence/rollback-rehearsal-2026-09-29/chain/census-*.txt`):
+- between wave 5 and `f4cec49be`, 847 one-parent commits; the census selects 49. 14 are the
+  landings in `CHAIN` (the subject criterion selects exactly those). 35 are not landings
+  (23 up to `38bb9a421`, 12 after it);
+- 21 of those 35 are selected ONLY through six shared files: `api/main.py` (10 of the 35),
+  `api/routers/auth.py`, `api/services/auth_db.py`, `app/src/App.jsx`, `app/src/pages/Settings.jsx`
+  and `app/src/components/screener/reachable.test.js`;
+- in the L2 window (`38bb9a421..f4cec49be`, 58 commits) it selected 13, and 1 was a landing.
+
+So the criterion is over-broad by that measure: about 12 false positives per landing in the last
+window. It is NOT narrowed, because nothing yet rails a narrower one. The same window also shows
+what the breadth buys: two of the twelve (`948af2c17` and `c26c8f863`) sit on lines the reverts
+conflict with, four conflicts between them. The chain would have stopped on those anyway, but the
+census named them first. Another workstream's commit on master will stop the tool.
 A person then reads it and does one of two things:
 - adds it to `REVIEWED_NOT_LANDINGS` with the reason it is not a Notebook landing, then re-runs;
 - or treats it as a landing, following the four steps below.
@@ -427,6 +454,83 @@ The vitest rail goes red, because it imports `editorSchema`.
      after the wave-8 revert. After the wave-6 revert, `tools/notebook_personal_api_walk.py`
      (`note_daily`) and `tools/note_tasks_bridge.py` (`note_tasks`) lose their imports the same way.
    - Those tools do not run against a rolled-back tree. The server never imports them.
+
+## Measured, 2026-09-29: L2 #242 on top, from `f4cec49be` (lane R1b)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | conflicts (all) / in shipped code | new since 2026-09-28 |
+|---|---|---|
+| `L2` | 0 / 0 | the new step. Its tree equals L2's parent outside `docs/`, `tools/`, `scripts/`, and differs from the tip in exactly L2's 46 shipped files |
+| `L1c`, `225` | 0 / 0 | — |
+| `L1b` | 3 / 2 | — (same rules, same pins) |
+| `L1a` | 5 / 1 (`notebook_writing_help.py`) | **new rule**: TERM-078 (`948af2c17`) put one population-gate line inside L1a's property-autofill route. The route is L1a's own, so the hunk takes the pre-L1a side (`theirs`): the route goes whole. The `_population_gate` helper stays, because wave 7's stream route still calls it |
+| `wave9`, `201` | 5 / 0, 0 / 0 | — |
+| `wave8` | 7 / 4 | — (same rules, same pins) |
+| `9C` | 6 / 0 | — |
+| `wave7` | 13 / 3 | **two new rules** (modify/delete: wave 7 added both files, `948af2c17` edited both). `api/routers/notebook_writing_help.py` is deleted: it is wave 7's door, and its one later edit gates only that door. ⛔ `api/services/daily_counters.py` is KEPT (`ours`): TERM-078's `ai_population_cap.py` and the Compass caps' `compass_daily_caps.py` (`c7a8a7309`) import it at module level, and `journal_two.py` imports `compass_daily_caps`, so deleting it leaves a server that cannot import |
+| `wave6` | 9 / 2 | — (same rules, same pins) |
+| `wave5` + guards | 14 / 1; 5 / 1; 1 / 0 | **new rule**: TERM-089 (`c26c8f863`) appended its two `/api/wire/archive` rows to `tests/test_paywall_gate_free_tier.py` right after wave 5's five editor-widget rows. The pre-wave-5 side of the hunk is empty, so the resolution is exactly TERM-089's rows |
+
+- **The ten pins recorded at `38bb9a421` came back byte-identical** from `f4cec49be`. Nothing that
+  landed in between changed the lines of a conflict the chain already resolves.
+- **A pin over a whole-file rule is now the previous step's file.** A modify/delete conflict leaves
+  no conflict markers, so the hunk fingerprint was `sha256(b"")`, which matches every such conflict
+  and can never stop the chain. The first record of the `daily_counters.py` rule came back
+  `e3b0c44298fc1c14`, the empty hash. `_fingerprint` now pins `ours` the way it always pinned
+  `delete`. A rail refuses an empty pin and a rule without a pin. Another rail edits
+  `daily_counters.py` on top of the tip and watches the chain stop at wave 7.
+- **The census of the new window, commit by commit** (`chain/census-38bb9a421..f4cec49be.txt`).
+  It selected 13: L2 by subject and path, and 12 by path only. The 12 are in
+  `REVIEWED_NOT_LANDINGS`, each with its reason. A rail derives the window from the tool's own
+  census and fails on any selected commit that is neither in `CHAIN` nor reviewed. Another rail
+  refuses a reviewed entry that the SUBJECT criterion selects, because that entry is a landing.
+- ⚠️ **RAISED: `948af2c17` (TERM-078, AI meters and a population-wide cap) edits Notebook code and
+  is not a Notebook landing.** It adds a dark population gate to the writing-help router
+  (`notebook_writing_help.py`, both routes) and to the Ask door (`journal_two.py`), and adds
+  `read()` to `daily_counters.py`. The L1a and wave-7 rules above resolve its lines. Two
+  consequences outlive the rules:
+  - its `ai_meters.py` lazily imports `api.services.journal_two.writing_help`, which the wave-7
+    revert deletes (`evidence/.../objects.log`: the only new unresolved `api.*` import in any step
+    tree, from `wave7` down). `meters_for` catches a failing meter and skips it. Measured on the
+    sandbox (below): through `wave7`, `/api/ai-search/meters` still answers 200 JSON, and the log
+    shows two meters dropped, `notebook_writing_help` (ImportError) and **`notebook_ask`
+    (AttributeError: the wave-7 revert takes the `note_ask` constant the meter reads)**. So a member
+    on a wave-7 rollback loses the Ask Notebook row from the AI allowances card while Ask itself
+    stays. That is TERM-078's code, not this chain's: raised, not fixed here
+    (`sandbox/ai-meters-warnings.log`);
+  - its door census `api/services/ai_doors.py` still names `api/routers/notebook_writing_help.py`
+    after the wave-7 revert. `tests/test_ai_doors_census.py` was NOT run in a rolled-back tree
+    (this lane runs pytest only on its own files). Expect it red there; it is not in step 2's list.
+
+**The sandbox rehearsal, 2026-09-29.** The method is lane R1's
+(`evidence/rollback-rehearsal-2026-09-29/rehearse.py`, `probe.py`, `results.py`):
+- four trees, each extracted with `git archive` and re-hashed IDENTICAL to its git tree: the tip
+  `f4cec49be` (the control, which seeds the three fixture notes), through `L2`, through `L1a`
+  (the new L1a rule) and through `wave7` (the two new wave-7 rules);
+- one data dir, `C:\data-w10r1b` on :8231, with the Notebook gates at production's values;
+- **every boot CLEAN** at pre-boot, +15 s, +120 s and shutdown, with 62 db files hashed. The
+  launcher's identity was proven before each probe.
+
+| step | L2 More-menu button | L1a autofill POST | wave-7 writing-help stream POST | TERM-078 meters (kept) | other doors | levels 2 / 1 / 0 notes |
+|---|---|---|---|---|---|---|
+| tip | 1 | 422, its own sentence | 422, its own sentence | 200 JSON | as on 2026-09-28's tip | PUT declares 2, 200, node/mark kept, words saved |
+| through `L2` | **0** | 422 | 422 | 200 JSON | every door as on the tip | same as the tip |
+| through `L1a` | 0 | **405, route gone** | 422 (wave 7's door stays) | 200 JSON | L1c recall 1 → 0, L1b SLO → HTML, L1a empty-text create 400 → 200, #225's skip link back to its pre-fix CSS; #203's depth cap still 400 | same |
+| through `wave7` | 0 | 405 | **405, route gone** | **200 JSON** (two meters dropped, see above) | wave 7's personal tokens → HTML; wave 8's CSS doors gone; #203 still 400 | same (a wave-7 rollback declares 2) |
+
+- The step-2 check list inside the three rollback trees: the schema diff is empty, and
+  `test_notebook_schema_guard.py` gives 17 passed. The vitest list gives 272 passed (`L2`),
+  244 (`L1a`) and 221 (`wave7`), the same counts as lane R1's for those depths.
+- `objects.py` is an import lint over all 15 step trees of `--through wave5`. Every `api.*` import
+  under `api/` resolves, except the `ai_meters.py` one above, from `wave7` down. It also checks the
+  wave-5 rule's file: it parses, TERM-089's rows are kept in both tables, and wave 5's five rows are
+  gone.
+- Not booted: `wave6`, `wave5` and the guards. Their rules and pins are unchanged since 2026-09-28,
+  except the wave-5 test-file rule, which touches no shipped code.
+- In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
+  credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
 
 ## Measured, 2026-09-28: every step, on a sandbox (lane R1, scorecard clause 3b)
 
