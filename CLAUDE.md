@@ -5455,7 +5455,7 @@ Originally spec'd as "Morning Catalyst Table"; renamed to "Stock Catalysts" sinc
 - `api/routers/catalysts.py` — `GET /api/catalysts/today` (includes sector_contexts), `GET /api/catalysts/by-date/{ymd}`, `GET /api/catalysts/explain/{sym}`, `POST /api/catalysts/refresh` (admin), `GET /api/admin/catalyst-stats`
 
 ### Files (frontend)
-- `app/src/components/tiles/CatalystTable.{jsx,module.css}` — 7-col table (Sym/Price/%Change/Vol×/Tag/Catalyst/When) with sortable headers, tag chip filter, ★ watchlist highlight, ⓘ citations popover, 🔎 Why-isn't-X widget, sector context banners
+- `app/src/components/tiles/CatalystTable.{jsx,module.css}` — 7-col table (Sym/Price/%Change/Vol×/Tag/Catalyst/When) with sortable headers, tag chip filter, ★ watchlist highlight, ⓘ citations popover, the shared "why isn't X here" receipt (`components/provenance/AbsenceReceipt.jsx`, TERM-057 — also mounted on the research page Catalysts tab; ⚰️ the tile-local `ExplainTickerWidget` is gone), sector context banners
 - `app/src/utils/highlightThesis.jsx` — renders **bold** markdown + gold cashtags + colored ± pct + bold $amounts
 - `app/src/utils/timeAgo.js` — adds `formatET(ts)` for absolute ET timestamps ("9:32 AM EDT" same-day, "May 25, 9:32 AM EDT" earlier days)
 - `app/src/hooks/useCatalysts.js` — SWR poll /api/catalysts/today every 30s
