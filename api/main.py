@@ -8904,7 +8904,13 @@ app.include_router(indicator_alerts_router.router)
 app.include_router(backtest_router.router)
 app.include_router(patterns_router.router)
 app.include_router(admin_patterns_router.router)
-app.include_router(gex_router, dependencies=_OPEN_READS)
+# TERM-053: the GEX family is gated at its MOUNT, not per route. OI-17 put
+# `get_current_user` on `/data` and `/compare` four lines below it stayed
+# anonymous (ARCH-06 §2.2) — the omission class recurring one route apart. A
+# session is now required for every route this router has or later gains; the
+# staged OPEN_READS_GATE still layers its PAID decision on `/compare` under
+# `enforce`. `/compare` has no caller in this repo or its siblings (2026-09-29).
+app.include_router(gex_router, dependencies=_OPEN_READS + [Depends(get_current_user)])
 app.include_router(dealer_positioning_router, dependencies=_OPEN_READS)
 app.include_router(watchlist_router)
 app.include_router(flow_router, dependencies=_OPEN_READS)

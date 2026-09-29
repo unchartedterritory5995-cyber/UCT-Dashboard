@@ -50,7 +50,15 @@
     "is waiting on evidence or was simply forgotten.",
     "",
     "decision / decision_reason: recorded when an owner rules on a held flag, so",
-    "the ledger says WHY a value is what it is and not merely what it is."
+    "the ledger says WHY a value is what it is and not merely what it is.",
+    "",
+    "member_facing: {label, where[, payload_key]} marks a gate whose surface a MEMBER",
+    "sees (TERM-039). It is the ONE place that names the capability to a member: the",
+    "Support page feature-status strip and the Beta mark read these entries through",
+    "api/services/feature_status.py and take ON/OFF from the per-request auth payload,",
+    "never from status here. payload_key is needed only when the payload key is not",
+    "the lowercased flag name. An OFF capability is never listed; declare one only if",
+    "its payload key is an explicit false when off (tests/test_feature_status.py)."
   ],
   "flags": {
     "A8_PRIMARY_MENTION_ENABLED": {
@@ -296,6 +304,10 @@
       "note": "ARMED on the worker while the Breadth Data Correctness re-grind runs. Resumes the combined historical pass (RTH-only, 1-minute, composites-before-OHLC) on every worker boot, because the first launch was killed by an unrelated redeploy 43 minutes in and nothing noticed for eleven hours - a ~40-hour job on a pod other people deploy to cannot live in a detached process. Safe to run on every boot: completed sessions are skipped via pass_checkpoint and a committed session re-runs idempotently, so a restart costs at most the session in flight. It writes ONLY to BREADTH_COMBINED_PASS_ARTIFACT, and open_artifact refuses both an absent path and the production breadth store, so arming this cannot touch live breadth even if the path is wrong. UNSET IT once the artifact is validated and promoted. Record: docs/breadth-library/DECISIONS.md BL-036 and docs/breadth-library/PASS-HANDOFF.md."
     },
     "BREADTH_DC_V2_2_ENABLED": {
+      "member_facing": {
+        "label": "Stacked chart panels",
+        "where": "Breadth > Data Charts"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -303,6 +315,10 @@
       "note": "Data Charts V2-2 (stacked panels), DC-2 §2. Dark: unset means NOT RELEASED, and an unrecognised value takes that default rather than its opposite. Read PER REQUEST in api/routers/auth.py::_access_payload and carried on every auth payload, so a flip needs no rebuild -- which is the whole point: this REPLACES the build-time VITE_BREADTH_CHARTS_V2_ENABLED, where a flip was a rebuild, a rollback was a deploy, and a per-owner preview could not be expressed at all because there is only one bundle. THREE VALUES: unset/0/false/no/off = off for everyone; 1/true/yes/on = on for everyone; 'admin' = ON FOR ADMINS ONLY (the owner preview, the same 0/1/admin idiom COMPASS_MENTOR_MODE already uses). 'admin' reading true for a member is the one failure here that costs anything and is railed by name in tests/test_breadth_dc_flags.py::test_admin_means_ADMIN_ONLY_and_a_member_sees_OFF, mutation-proved. TURN OFF: unset (or 0) on web -> the surface returns to ABSENCE on each member's next authenticated request, no redeploy. FLIP HISTORY (web): 2026-09-18 00:27 CT set to 1 for everyone (D-055) while V2 had NO presentation layer (unstyled raw buttons, a 'Data Charts V2' heading) - found by the owner, not by the flip's checks. 2026-09-19 ~00:37 ET set to 'admin' (members back on V1). 2026-09-19 the presentation layer shipped (18ed26151, 412d14aa5) and, on the owner's explicit 'put it live fully for all', set to 1 for everyone."
     },
     "BREADTH_DC_V2_3_ENABLED": {
+      "member_facing": {
+        "label": "Long history and coverage notes",
+        "where": "Breadth > Data Charts"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -607,6 +623,11 @@
       "note": ""
     },
     "DECISION_RECORD_MEMBER_ENABLED": {
+      "member_facing": {
+        "label": "Decision Record tab",
+        "where": "Research",
+        "payload_key": "decision_record_enabled"
+      },
       "status": "pending",
       "since": "2026-09-28",
       "where": [],
@@ -952,6 +973,10 @@
       "note": "Wave P OCR. Read as FLAG = \"J2_OCR_ENABLED\" then os.getenv(FLAG, \"0\") in api/services/journal_two/document_ocr_tesseract.py. ⛔⛔ IT WAS INVISIBLE TO THIS LEDGER UNTIL 2026-09-12: the AST index matched a string CONSTANT at the call site, and an env name held in a variable has none — so a LIVE, ARMED production flag had no entry and nothing could tell. Found when the index was generalised for Wave K. Read live from Railway the same day: J2_OCR_ENABLED=1 on web, unset on worker and bars-api."
     },
     "J2_SHARE_LINKS_ENABLED": {
+      "member_facing": {
+        "label": "Share links",
+        "where": "Notebook"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -1010,6 +1035,10 @@
       "note": "Wave K, 2026-09-12. Enablement gate for the Q2 Notebook attachments surface, which is NOT BUILT. The key ships with K so the wave that builds it ships behind a switch that already works, instead of bolting one on afterwards. Unset means OFF and that is the decision. Rides the auth payload (_access_payload); see docs/notebook/wave-k-flip-packet.md."
     },
     "NOTEBOOK_ASK_INSERT_ON": {
+      "member_facing": {
+        "label": "Insert an Ask answer into a note",
+        "where": "Notebook"
+      },
       "status": "armed",
       "where": ["web"],
       "note": "G-064, 2026-09-22. Enablement gate for inserting an Ask Notebook answer into a note (spec docs/superpowers/specs/2026-09-22-ask-notebook-insert-design.md). Unset means OFF and that is the decision: the Insert button is hidden. The askInsert/askCitation node types are registered regardless, so a note that already holds an inserted answer keeps rendering after a rollback. Rides the auth payload (_access_payload). ARMED on web 2026-09-26 02:47Z (2026-09-25 22:47 ET), owner-approved flip (\"I approve all ... flipping productions settings\"), set by the owner from this session: new boot confirmed (deploy SUCCESS 02:47:37Z on 2c3ed3093, uptime reset), and /api/auth/me read in a real browser as the smoke account returns notebook_ask_insert_on=true. Rehearsed OFF 2026-09-27T14:20:39Z .. restored 2026-09-27T14:32:53Z (wave 10, R-11): one --set of all seven Notebook switches to 0, verified on production as the smoke account (a new boot, the auth payload false, the gated GET doors 404), then restored from the recorded values and verified the same way (payload true, doors 200). Members were without the switched features for about 12 minutes on a Sunday morning."
@@ -1039,6 +1068,10 @@
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the inbound-email door (POST /api/j2/inbound-email, HMAC-signed by the Cloudflare Email Worker in cloudflare/inbound-email-worker/, plus the member address endpoints). Unset means OFF and that is the decision: every route answers 404 and no address token is minted. Stays dark until the owner approves the Privacy page sentence naming Cloudflare as a processor (draft in docs/notebook/email-in-setup.md) and sets the routing rule + worker secret. Read per request; a flip needs no restart. ARMED on web 2026-09-27 ~14:20Z (one --set of NOTEBOOK_INBOUND_EMAIL_ENABLED=1, run by the owner; folded into the same boot as the R-11 rehearsal's OFF). Edge wiring done 2026-09-26: WAF rule skipping Browser Integrity Check and Super Bot Fight Mode on POST /api/j2/inbound-email, Email Routing subaddressing on, notes@ routed to the uct-inbound-email worker, and the dark test answered 404. Walked 2026-09-27 as bench@ (setup doc section 7 step 9): the address was minted through the Settings > Connections card; an email from Gmail with a 642-byte PDF became an Inbox note carrying the text and an attachment chip for the PDF; an email to the made-up notes+000...0@ address produced no note and no bounce; the walk note was trashed and bench@'s address rotated. The Privacy page was NOT changed, by decision (2026-09-27): it already names Cloudflare as a processor for network delivery and security of everything that reaches the site, and the owner's standing direction is to add no further privacy-page mentions. The drafted email sentence stays in docs/notebook/email-in-setup.md s1 if that direction changes."
     },
     "NOTEBOOK_ONBOARDING_ENABLED": {
+      "member_facing": {
+        "label": "Tour and sample notebook",
+        "where": "Notebook"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -1058,6 +1091,10 @@
       "note": "Wave 7 lane G, 2026-09-25. Enablement gate for the member personal API (api/routers/notebook_personal_api.py: mint/list/revoke personal tokens; create a note; append to a note or to today's daily note). Unset means OFF and that is the decision: every route answers 404 and no token can be minted. Read per request; a flip needs no restart. Tokens are client_type=personal_api rows in j2_capture_tokens with the two notebook:notes:* scopes and never the capture scopes. ARMED: set to 1 on web 2026-09-26 23:11:17Z (18:11 CT), the owner-approved wave-10 Phase-0 flip, in one --set together with NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED and NOTEBOOK_TASK_REMINDERS_ENABLED: web restarted (deploy SUCCESS 23:11:18Z on 1c4b0bf74, /api/health uptime 34 s about 76 s after the set), railway variables --kv reads 1, and GET /api/j2/personal/tokens read as the smoke account went 404 -> 200 on the new boot. The flip packet's `railway ssh` in-process read was not taken (refused by the session's permission classifier); the route's answer is the process's own read. hub_nav_smoke --auth PASS after the flip (19 routes, 31 nav entries). Rollback: `railway variables --service web --set NOTEBOOK_PERSONAL_API_ENABLED=0` (never a delete), then verify a new boot. Rehearsed OFF 2026-09-27T14:20:39Z .. restored 2026-09-27T14:32:53Z (wave 10, R-11): one --set of all seven Notebook switches to 0, verified on production as the smoke account (a new boot, the auth payload false, the gated GET doors 404), then restored from the recorded values and verified the same way (payload true, doors 200). Members were without the switched features for about 12 minutes on a Sunday morning."
     },
     "NOTEBOOK_PUBLISH_ENABLED": {
+      "member_facing": {
+        "label": "Publish to the web",
+        "where": "Notebook"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -1090,6 +1127,10 @@
       "note": "Notebook 10/10 wave 6 lane F: KILL SWITCH for the daily task reminder. SHIPS ON BY DEFAULT and is kept as a ROLLBACK switch: unset = on; 0/false/no/off = off. SERVICE: web - api/main.py calls note_tasks.register_task_reminder_job once, inside the scheduler-lock block, which registers the 07:00 ET pass, a 09:00 ET second pass and a one-shot boot catch-up; a task's due date is the dateMention node (app/src/pages/journal-2-0/lib/dateMentionNode.js), so a task can be due. The value is read at the START of every run of api/services/journal_two/note_tasks.py::run_task_reminders (all three jobs), never at registration. REACH: the next pass after the new value is live in the web process; what it gates is one IN-APP bell notification per member per ET day for open tasks due today or overdue - never email (the Resend quota is spent daily), severity info so never Discord. Turning it off stops reminders and never deletes a row. FLIPPING IT NEEDS NO RESTART OF ITS OWN: the value is read at the start of every run of all three jobs, never cached at import or registration, so the next pass after the value reaches the web process obeys it. Getting the value there is Railway's part, not this flag's: `railway variables --set` on web has itself redeployed web each time it was measured (a platform behaviour, not a requirement of the flag), while `railway variable delete` does not, so follow a delete with `railway redeploy --service web --yes`; either way read the value in the running process, never from --kv. STATUS PENDING because no Railway service sets it, and unset already means ON. The AST index (feature_flag_index) reads os.environ.get with no default as off-unless-set, which is why this row is required at all. The open decision is whether to set it explicitly to 1 on web, so ON-on-purpose is distinguishable from never-decided (the D2_SAMPLE_PERSIST_ENABLED precedent). Deduped in the j2_task_reminder_log table (purged with the member's account, account_purge.py). The 07:00 and 09:00 ET jobs each carry a one-hour misfire grace; the 09:00 pass is a no-op for every member already reminded and reaches anyone 07:00 missed (a failed delivery, or a deploy spanning 07:00), and the boot catch-up runs the pass after 07:00 ET on a day the durable j2_task_reminder_runs marker does not close (a pod down at 09:00 too). Passes may overlap: each member's claim is one atomic INSERT on the (user_id, day) key, and the day is marked done only when every member due holds a DELIVERED claim, read from the store (round-2 R1-6). DECIDED 2026-09-26: set explicitly to 1 on web at 23:11:17Z (18:11 CT) in the owner-approved wave-10 Phase-0 --set with NOTEBOOK_PERSONAL_API_ENABLED and NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED, so ON is now on purpose rather than never-decided; behaviour is unchanged (unset already meant on). Same new boot as the personal-API entry; railway variables --kv reads 1. Rollback: `railway variables --service web --set NOTEBOOK_TASK_REMINDERS_ENABLED=0`."
     },
     "NOTEBOOK_WRITING_HELP_ENABLED": {
+      "member_facing": {
+        "label": "Writing help",
+        "where": "Notebook"
+      },
       "status": "armed",
       "where": ["web"],
       "note": "Wave 7 lane H, 2026-09-25. Enablement gate for editor writing help (summarize / rewrite / continue / translate through POST /api/j2/notes/{id}/writing-help/stream, sharing Ask Notebook's client, global dollar cap and stream slots, with its own 60/day member counter). Unset means OFF and that is the decision: the route answers 404 and the editor shows no writing-help entry. Rides the auth payload as notebook_writing_help_enabled; read per request; a flip needs no restart. The member cap NOTEBOOK_WRITING_HELP_PERUSER_CAP (default 60) is read per call, so a change needs no restart. The 60/day count and the shared $25/day cap are durable in auth.db (`daily_usage_counters`, ruling D-H5b): a deploy no longer resets them. Each call is charged a per-action estimate (`writing_help.estimate_cost`, ruling D-H5). ARMED on web 2026-09-26 08:13:53Z (03:13 CT), owner-approved post-deploy flip, set together with COMPASS_NOTES_TOOL_ENABLED in one --set: web restarted (uptime 52 s at 08:15:56Z), railway variables --kv reads 1, and /api/auth/me read as the smoke account returns notebook_writing_help_enabled=true; the post-restart hub_nav_smoke --auth passed. Rehearsed OFF 2026-09-27T14:20:39Z .. restored 2026-09-27T14:32:53Z (wave 10, R-11): one --set of all seven Notebook switches to 0, verified on production as the smoke account (a new boot, the auth payload false, the gated GET doors 404), then restored from the recorded values and verified the same way (payload true, doors 200). Members were without the switched features for about 12 minutes on a Sunday morning."
@@ -1219,6 +1260,10 @@
       "owner": "owner"
     },
     "RESEARCH_FLOW_TAB_ENABLED": {
+      "member_facing": {
+        "label": "Flow tab",
+        "where": "Research"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -1226,6 +1271,10 @@
       "note": "A13 Wave B (2026-09-23 roadmap): the Research page's new 'Flow' tab, reusing the existing, partner-owned GET /api/live/massive/ticker-flow endpoint as-is (read-only, zero new backend computation). Same request-time mechanism and ENABLEMENT polarity as RESEARCH_TECHNICAL_TAB_ENABLED: unset means not released yet, so a forgotten variable can never expose a surface nobody decided to ship. ON since 2026-09-24 ~19:24 UTC by owner ruling, after the go-live packet review + a real local mobile verification pass (docs/terminal-research/10-roadmap/2026-09-24-go-live-packet.md). Verified fully post-flip: config set (--kv), a genuine new boot (uptime reset), the flag correctly served in-process (research_flow_tab_enabled:true via a real authenticated fetch), and the tab itself exercised on live production for two tickers (AAPL, NVDA) via a real browser session -- both rendered the correct empty-state copy for zero qualifying prints, no error, no crash. One diagnostic detour worth recording: the tab appeared stuck on 'Loading options-flow evidence...' for several seconds on first click in an automated/backgrounded browser tab; traced to the backgrounded tab's own throttling (document.visibilityState stayed 'hidden' throughout), not the feature -- the underlying endpoint, the bundled client code, and the SWR fetch all confirmed correct, and the tab resolved correctly once given enough real wall-clock time. TURN OFF: set 0 (never delete -- deleting has been measured to leave the old value live in-process while --kv reports it gone) on web."
     },
     "RESEARCH_TECHNICAL_TAB_ENABLED": {
+      "member_facing": {
+        "label": "Technical tab",
+        "where": "Research"
+      },
       "status": "armed",
       "where": [
         "web"
@@ -1233,6 +1282,10 @@
       "note": "ON since 2026-09-09 23:22:30 ET by owner ruling, verified in the running process at flip time. The Research > Technical tab (Chart/Technical Intelligence Convergence) is LIVE to paid members and has been since that timestamp. ⚰️ THIS ENTRY SAID `dark` UNTIL 2026-09-10: it carried the MERGE-TIME state and was never updated when the flag was flipped, so the ledger described an unreleased surface while members were using it. The half that LOOKS (tools/flag_ledger_audit.py) could not run on this machine -- it decoded the Railway CLI's UTF-8 as cp1252 and died, surfacing as \"could not enumerate the services\", which reads as an auth problem rather than an encoding bug -- so nothing caught the drift for a day. Fixed 2026-09-10 (d806f4463). See the flip-and-ledger rule in CLAUDE.md."
     },
     "S7_FILING_WATCH_ENABLED": {
+      "member_facing": {
+        "label": "Filing watch alerts",
+        "where": "Alerts"
+      },
       "status": "armed",
       "where": [
         "web"

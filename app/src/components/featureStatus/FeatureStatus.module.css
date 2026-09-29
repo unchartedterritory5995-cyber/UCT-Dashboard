@@ -1,0 +1,123 @@
+/* TERM-039 — the Beta mark (at the point of use) and the feature-status strip (Support). */
+
+/* ── Beta mark ─────────────────────────────────────────────────────────── */
+.betaMark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  padding: 3px 9px;
+  border: 1px solid var(--ut-gold-glow);
+  border-radius: var(--radius-pill);
+  background: var(--ut-gold-dim);
+  color: var(--ut-gold);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  text-decoration: none;
+  line-height: 1;
+}
+.betaMark:hover,
+.betaMark:focus-visible { border-color: var(--ut-gold); }
+
+/* A static copy inside the strip's own list — the same look, not a link. */
+.betaPill { composes: betaMark; cursor: default; }
+
+/* Touch tier: the link is a real tap target. */
+@media (max-width: 1024px) {
+  .betaMark {
+    min-height: var(--tap-min, 44px);
+    min-width: var(--tap-min, 44px);
+    justify-content: center;
+    box-sizing: border-box;
+  }
+  .betaPill { min-height: 0; min-width: 0; }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Strip ─────────────────────────────────────────────────────────────── */
+.strip {
+  margin-top: 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  scroll-margin-top: 16px;
+}
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+.columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.column { min-width: 0; }
+.columnTitle {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.columnNote {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.where {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.empty,
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.unknown {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Phone: one column. */
+@media (max-width: 640px) {
+  .strip { padding: 14px; }
+  .columns { grid-template-columns: 1fr; }
+}
