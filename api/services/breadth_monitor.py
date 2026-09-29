@@ -125,14 +125,17 @@ def _write_numeric(c, date_str: str, metrics: dict, source: str = "collector") -
 
 # ── Write ─────────────────────────────────────────────────────────────────────
 
-def store_snapshot(date_str: str, metrics: dict) -> bool:
+def store_snapshot(date_str: str, metrics: dict, source: str = "collector") -> bool:
+    """`source` labels the numeric projection's row. Every existing writer (the
+    push route, the self-heal) passes nothing and stays `collector`; TERM-042's
+    server-computed EOD row passes `server` (only when BREADTH_EOD_SOURCE=server)."""
     try:
         with _conn() as c:
             c.execute(
                 "INSERT OR REPLACE INTO breadth_snapshots (date, metrics) VALUES (?, ?)",
                 (date_str, json.dumps(metrics)),
             )
-            _write_numeric(c, date_str, metrics)
+            _write_numeric(c, date_str, metrics, source=source)
             c.commit()
         from api.services.cache import cache
         cache.delete_prefix("breadth_history_")  # fresh data → drop cached history
