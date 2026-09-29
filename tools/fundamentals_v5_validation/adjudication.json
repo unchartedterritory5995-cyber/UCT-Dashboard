@@ -1,0 +1,52 @@
+{
+ "run_id": "v5-20260925T124921Z",
+ "written_at": "2026-09-29",
+ "purpose": "Human adjudication of every item the automated stage-1/2/2x checks flagged. Each entry cites the evidence file that supports it.",
+ "differential": {
+  "source": "validation/compare.json + validation/v4v5_diff.db (every differing key, one row each)",
+  "v4_points": 4721795, "v5_points": 4722687, "identical": 4717704,
+  "differing_keys": 5120, "companies_differing": 647,
+  "kinds": {"v4gap_to_v5value": 3336, "new_v5_point": 1029, "v4value_to_v5gap": 475, "only_v4_point": 137,
+            "value_changed": 131, "period_changed": 12},
+  "attribution": {
+   "company_level": "validation/attrib.json: 647 companies with series differences ALL have evidence differences; 0 differ without an evidence difference; 4,045 identical-evidence companies have identical series (derivation code knowledge/metrics/series/derive is byte-identical between production V4 and V5 7dfda83de; both stores share one fact/filing snapshot)",
+   "counterfactual": "validation/cf.json: for all 111 companies holding a value->gap or stage-1-UNEXPLAINED point, giving V5 exactly V4's evidence reproduces the V4 series EXACTLY (C_equals_v4_series_all=true); restoring V5's evidence reproduces the artifact (restored_all=true)"
+  },
+  "classification": {
+   "EXPECTED_V5_CORRECTION": "v4gap_to_v5value 3,336 / new_v5_point 1,029 / value_changed 131 / period_changed 12: exact instance spans replace FS-reconstructed spans (exact_span_correction) and per-filing instance evidence (filing_instance_only_evidence). Ground truth (compare.json truth): 4,427 sound, 13 flagged WRONG -> all adjudicated below (none is a V5 evidence defect)",
+   "EXPECTED_METHODOLOGY_CHANGE": "scope expansion to every form contributing XBRL facts (scope_expansion_periodic / scope_expansion_other_form): new V5 evidence from 10-K/A, 10-Q/A, 20-F, 6-K, 8-K, S-1 etc.",
+   "V4VALUE_TO_V5GAP_475": {
+    "NEW_V5_EVIDENCE": 399,
+    "V5_LACKS_FS_EVIDENCE": 51,
+    "JOINT": 25,
+    "notes": "V5_LACKS_FS_EVIDENCE = the V4 value depended on an FS-data-set signal V5 does not carry: 26 are the same filing flagged with the FS RECONSTRUCTED span (exact-span correction), 16 involve FS signals from filings outside the V5 fact census (v5_evidence_missing_for_filing), 9 are FS-only markers the filing's own instance did not support (bulk_data_only). All 475 are PIT: every gap reproduces from raw truth at t (stage2x D 1,500/1,500) and the prefix-truncation test holds (stage2x C).",
+    "corroboration": "validation/corrob.json: of 2,764 primitive-tag V5-only evidence rows in the NEW_V5_EVIDENCE companies, 1,089 are corroborated by a material value change in companyfacts; 912 sit in filings that report no primary (non-dimensional) value for the key (dimension-only restatements, invisible to companyfacts by construction -- the CELH class V5 exists to catch); 389 same value, 141 immaterial/rounding, 233 no earlier value"
+   },
+   "STAGE1_UNEXPLAINED_67": "resolved: 27 caused by NEW V5 evidence, 40 by V5 lacking FS evidence (validation/cf.json). The stage-1 attribution window (800 days) was too short for growth metrics, whose base period sits 1-2 years before t. FINAL UNEXPLAINED = 0",
+   "UNEXPLAINED": 0
+  },
+  "stage1_WRONG_13": {
+   "source": "validation/trace.json (full later-report chains with forms)",
+   "checker_false_positive": [
+    {"cik": 814585, "points": 2, "why": "FY2010 NetIncomeLoss 52,529,000 later shown as 53,000,000 (10-K presented in millions): rounding presentation, knowledge rule 'a rounder copy never replaces a precise value'; the Q1-2011 value used IS the restated one, public at t"},
+    {"cik": 1679788, "points": 1, "why": "the 'later value' is a DEF 14A pay-vs-performance rounding (1,260,327,000 -> 1,300,000,000); DEF 14A is excluded from knowledge by design (KNOWLEDGE_FORMS)"},
+    {"cik": 1708259, "points": 1, "why": "20-F reports each key in two currencies (RMB and USD convenience translation) in the SAME filing; the checker read the other currency as a re-report. V5 uses the USD pair consistently (0.378 = 1,523,099,000 / 1,104,923,000 - 1)"},
+    {"cik": 1738906, "points": 1, "why": "same dual-currency 20-F pattern (NI and Assets in RMB and USD); V5 ratio is the consistent USD ratio"}
+   ],
+   "deliberate_knowledge_rule_shared_with_v4": [
+    {"cik": 1414953, "points": 5, "why": "sign-flip quarantine (knowledge.is_sign_flip): a re-report with the same magnitude and opposite sign is treated as a tagging error and the FIRST-seen sign is kept"},
+    {"cik": 1176309, "points": 2, "why": "sign-flip quarantine kept the ORIGINAL -610,000 / -1,838,000 revenue (the original was the tagging error). KNOWN LIMITATION of the rule: first-seen wins even when the first is wrong"},
+    {"cik": 1376139, "points": 1, "why": "_coarser_rounding treated a 10-K quarterly-note 50,000,000 as a coarser rounding of the 10-Q's 51,000,000 (trailing zero makes 50M look stated in tens of millions); the precise-first value was kept. KNOWN LIMITATION: a 2% single-quarter difference"}
+   ],
+   "v5_evidence_defects": 0
+  }
+ },
+ "stage2x_flags": {
+  "VALUE_WITHOUT_SOURCES_218755": "fcf_ttm / fcf_growth_ttm only (composite OCF-CapEx derivation records no accession). V4 has the identical population (218,740 + 15 new V5 points). Pre-existing provenance-RECORDING limitation, not a V5 change; these points are still covered for lookahead by the prefix-truncation and determinism tests (validation/diag1.json)",
+  "PERIOD_END_AFTER_T_1254": "1,254 points in 492 companies have a period_end AFTER the day they became public (e.g. a 2033 shares date) -- impossible dates from filer XBRL typos. V4 has the IDENTICAL key set (validation/diag2.json: same_keys 1,254, only_v5 0, only_v4 0). PRE-EXISTING SOURCE-DATA DEFECT, not V5, not lookahead (the value was public at t). Must be addressed in cutover design. (A further 21,294 shares_outstanding points are dated on their own filing day = cover-page 'as of' date; valid.)",
+  "PREFIX_TRUNCATION_26_OF_1358": "all 26 are company-level WITHHOLDING of split-sensitive metrics (eps, shares, dividends/share): with full history the split ledger fails verification in a LATER window, so the whole company's split-sensitive history is withheld; with history cut at T it verifies and they are emitted. No value is altered or invented by later information; later information only REMOVES a metric family. Identical rule and identical population in V4 (361 companies withheld in both). PIT-adjacent methodology property; incremental implication: a new filing can retroactively withhold a company's entire EPS/share history (validation/diag1.json)",
+  "EXPLAIN_DIVERGENCE_6": "validation/diag4.json: served vs explain() over ALL 4,983 V5-valued differing points + 30,000 random points: 6 divergences (4 roe_ttm, 2 revenue_growth_ttm; 5 companies), 3 of them on keys identical to V4 that ALSO diverge in V4. A truncation rebuild (only data public by t) reproduces the SERVED value in 6/6 -> the stored values are point-in-time; the explain() tool re-derivation is what differs. Root cause not identified. Open item (explain_cli would show a different number for these points)."
+ },
+ "stage2_provenance_3": "the 3 stage-2 provenance mismatches are 3 of the 6 EXPLAIN_DIVERGENCE points above; lookahead 0/1,500",
+ "gate_decision": "No systemic unexplained difference, no V5 evidence defect, no lookahead, no chronology change vs V4, no unit/scaling change vs V4, correct input universe (census digest pinned). All flagged items are adjudicated above with evidence."
+}
