@@ -320,7 +320,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 |---|---|---|---|---|---|---|---|
 | TERM-001 | `FB-S1-02` | Publish a board-size bound; the number is a person's | S | d0·b0 | tier 4 pref / 3 | Partial | HELD |
 | TERM-002 | `FB-A10-05` | Ask Massive for a second OPRA connection | S | d0·b0 | **TIER-NONE** | No | ⛔ ACT vendor |
-| TERM-003 | `FB-A10-06` | Confluence Radar: extend or delete | S/M | d0·b0 | **TIER-NONE** | Yes | ⛔ ACT decision |
+| TERM-003 | `FB-A10-06` | Confluence Radar: extend or delete | S/M | d0·b0 | **TIER-NONE** | Yes | ⚰️ MOOT, 2026-09-29 — the premise was wrong. Capability ledger G9 was corrected 2026-09-27: Confluence Radar is NOT dormant — it ships as the **8th tab of Options Flow** (`pages/Confluence.jsx`, `hooks/useConfluence.js`, live `GET /api/confluence`, refresher thread in `api/main.py`), members use it, and the ledger struck "extend or delete (product decision)" because acting on it would duplicate or delete a live surface. No decision is open. |
 | TERM-004 | `FB-A5-01` | One canonical earnings-date authority (OQ-14) | S/M | d0·b0 | tier 4 pref / 3 | Yes | HELD |
 | TERM-005 | `FB-A9-03` | A second whole-market screener universe | L | d1·b0 | tier 4 pref / 3 | No | HELD purchase |
 | TERM-006 | `FB-S8-02` | One shell-level freshness authority, in time units | S | d1·b1 | tier 4 pref / 3 | Yes | HELD 1 sentence |
