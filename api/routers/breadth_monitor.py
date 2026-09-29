@@ -38,7 +38,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from api.services.cache import cache
 from api.bars_auth import require_bars_access
-from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user, require_admin
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
 
@@ -1206,6 +1206,16 @@ def breadth_eod_source_status(limit: int = Query(default=60, ge=1, le=400),
     tick, and the parallel run's per-metric parity report (graded with the live
     reconciliation's own tiers; failures by session date). Reads the shadow store
     only — it computes nothing on the request path."""
+    from api.services import breadth_eod_source as eod
+    return {**eod.status(), "parity": eod.parity_report(limit)}
+
+
+@router.get("/api/admin/breadth-eod-source")
+def breadth_eod_source_status_admin(limit: int = Query(default=60, ge=1, le=400),
+                                    _user: dict = Depends(require_admin)):
+    """TERM-042: the same read as `/api/breadth-monitor/eod-source`, for a signed-in
+    ADMIN session instead of the worker's PUSH_SECRET bearer, so the parity report
+    can be read without handing the worker credential to a person. Read-only."""
     from api.services import breadth_eod_source as eod
     return {**eod.status(), "parity": eod.parity_report(limit)}
 
