@@ -12770,6 +12770,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (prior.kind === 'state') {
         env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
         ctx.consumed.add(toks[mut].index)
+        // ⭐ C11b — the state path records too; the expression path below always did.
+        record(st, nameTok.value)
         i += 1
         continue
       }
@@ -14665,7 +14667,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
+  // ⭐⭐ C11b — EACH CONDITION IS READ IN THE SCOPE ITS `if` STOOD IN (`g.locals`,
+  // stamped by `collectObjectOps`), never the op's: a block may reassign a name
+  // its own condition read, and Pine evaluated that condition once, before the
+  // block ran. The op's scope (`scopeEnv`) is restored whatever happens.
   const guardOf = (guards) => {
+    const opScope = scopeEnv
+    try {
+      return guardOfIn(guards, opScope)
+    } finally {
+      scopeEnv = opScope
+    }
+  }
+  const guardOfIn = (guards, opScope) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
@@ -14673,6 +14687,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
     const liveParts = []
     for (const g of guards) {
+      scopeEnv = g.locals ? scopeFor(g.locals) : opScope
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
@@ -16172,6 +16187,8 @@ function translatePineResult(source, opts = {}) {
         if (prior && prior.kind === 'state') {
           env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok))
           ctx.consumed.add(toks[mutAt].index)
+          // ⭐ C11b — recorded, so a drawing after this line reads it (`scopeFor`).
+          recordTop(stmt, nameTok.value)
           continue
         }
         if (!prior || prior.kind !== 'expr') {
@@ -16186,6 +16203,11 @@ function translatePineResult(source, opts = {}) {
           type: 'binary', op: op[0], left: boundNode(prior, nameTok.value, nameTok), right: rhs, tok: toks[mutAt],
         }, new Map(env), locate(nameTok)))
         ctx.consumed.add(toks[mutAt].index)
+        // ⭐⭐ C11b — THE REASSIGNMENT IS RECORDED LIKE THE DECLARATION WAS. Only the
+        // declaration used to be, so the object pass read `x = 1.0` for every
+        // drawing after `x := 2.0` (measured: a label captioned "1" where Pine
+        // writes "2"). `scopeFor` now reads THIS statement's binding after it.
+        recordTop(stmt, nameTok.value)
       } catch (err) {
         const r = fromError(err)
         // ⛔ CONSUMED ON PURPOSE. The refusal is recorded against the name with
