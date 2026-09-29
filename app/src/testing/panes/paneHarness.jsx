@@ -103,9 +103,9 @@ window.fetch = (input, init) => {
 
 const LEGEND_PARAM = new URLSearchParams(location.search).get('legend')
 const SYM = 'AAPL'
-// `?tf=5` etc. — the chart timeframe, so calculation-timeframe and visibility
-// passes can switch timeframes on one page (2026-09-28). Default D, as before.
-const TF0 = new URLSearchParams(location.search).get('tf') || 'D'
+// The starting chart timeframe. Calculation-timeframe and visibility passes switch
+// it on one page with the buttons below or `window.__setHarnessTf` (2026-09-28).
+const TF0 = 'D'
 const barsNFor = (tf) => (tf === 'D' || tf === 'W' || tf === 'M' ? 1200 : 1500)
 const HARNESS_TFS = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
 
@@ -456,7 +456,7 @@ function Harness() {
         </span>
         <span data-testid="harness-tfs">
           {HARNESS_TFS.map((t) => (
-            <button key={t} style={{ ...btn, ...(t === TF ? { borderColor: '#dcbb5e', color: '#dcbb5e' } : {}) }}
+            <button key={t} style={{ ...btn, ...(t === TF ? { border: '1px solid #dcbb5e', color: '#dcbb5e' } : {}) }}
               onClick={() => setTF(t)}>{t}</button>
           ))}
         </span>
