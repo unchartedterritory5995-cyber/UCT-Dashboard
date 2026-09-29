@@ -1439,6 +1439,12 @@
       ],
       "note": "Brand-new per-user custom Theme Set feature (api/services/theme_sets.py, api/routers/theme_sets.py; last touched 2026-09-05), armed on web as of 2026-09-06. A personal, named diff on top of the shared Theme Tracker taxonomy (hide/add themes, add custom themes/stocks) stored in its own /data/theme_sets.db -- entirely additive, never touches the shared taxonomy or theme_memberships. Off would mean GET /api/theme-sets reports {enabled:false} and all writes refuse. Unrelated to the already-armed THEME_ENGINE_ENABLED (the autonomous Theme Membership Engine that absorbs orphan stocks into the shared taxonomy) despite the naming similarity."
     },
+    "TICKER_HISTORY_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-29",
+      "where": [],
+      "note": "TERM-049 (FB-A13-01) first slice: the Research > History tab, one ticker's timeline across four citable lanes (Morning Wire archive mentions, UCT 20 entries/exits, catalyst-list days, community-room mention COUNTS only per the owner's OI-15 ruling). Read per request (api/services/ticker_history.is_enabled) by both GET /api/research/history/{sym} (404 while off, paid-gated when on) and the auth payload's ticker_history_enabled, so the tab and the route cannot disagree. Unset/0 = today exactly: no tab, the route answers 404. Flow is not a lane yet (served by flow-worker). Rollback: set 0 (a DELETE does not restart web)."
+    },
     "TRADE_CONDITION_FILTER_ENABLED": {
       "status": "armed",
       "where": [

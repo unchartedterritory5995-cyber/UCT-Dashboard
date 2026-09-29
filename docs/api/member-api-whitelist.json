@@ -2246,6 +2246,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/history/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
