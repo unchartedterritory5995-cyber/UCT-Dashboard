@@ -16,6 +16,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import UIcon from '../ui/UIcon'
 import { normalizeCallRecap, guidanceKind } from '../research/callRecap'
 import { SeriesChart } from '../research-kit'
+import Cited from '../provenance/Cited'
 import grounded from './GroundedBlocks.module.css'
 import styles from './CallRecapSection.module.css'
 
@@ -195,10 +196,13 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
 
   const kw = searchQuery.trim()
 
-  // Filter bullets if keyword active
-  const filteredBullets = kw
-    ? (recap.bullets || []).filter(b => b.toLowerCase().includes(kw.toLowerCase()))
-    : (recap.bullets || [])
+  // Filter bullets if keyword active. Filtered as {text, anchor} pairs:
+  // anchors are aligned by index, so filtering the text alone would hand a
+  // surviving bullet its neighbour's citation.
+  const anchors = Array.isArray(recap.bullet_anchors) ? recap.bullet_anchors : null
+  const filteredBullets = (recap.bullets || [])
+    .map((text, i) => ({ text, anchor: anchors ? anchors[i] ?? null : null }))
+    .filter(b => !kw || b.text.toLowerCase().includes(kw.toLowerCase()))
 
   const filteredQuotes = kw
     ? (recap.quotes || []).filter(q =>
@@ -338,12 +342,29 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
         </div>
       )}
 
-      {/* Bullets */}
+      {/* Bullets. A recap written with span anchors (TERM-044) cites every
+          point it can: the toggle opens the exact transcript passage the
+          server located for it. A point whose passage could not be verified
+          says "citation unavailable" rather than borrowing one. A recap from
+          before anchors existed has NO `bullet_anchors` and renders exactly
+          as it always did — a plain list. */}
       {filteredBullets.length > 0 && (
         <>
           <div className={styles.sectionLabel} style={{ marginTop: 8 }}>KEY POINTS</div>
           <ul className={styles.bullets}>
-            {filteredBullets.map((b, i) => <li key={i}>{highlight(b, kw)}</li>)}
+            {filteredBullets.map((b, i) => (
+              <li key={i}>
+                {anchors ? (
+                  <Cited
+                    row={b.anchor ? { transcript: b.anchor } : null}
+                    onOpenSource={onJumpToSegment
+                      ? (t) => onJumpToSegment(t.segment) : null}
+                  >
+                    <span>{highlight(b.text, kw)}</span>
+                  </Cited>
+                ) : highlight(b.text, kw)}
+              </li>
+            ))}
           </ul>
         </>
       )}

@@ -30,6 +30,7 @@ function predicate(id, sym, { suspended = false, created_at = 1_700_000_000 } = 
 beforeEach(() => {
   filingWatchMock.predicates = []
   filingWatchMock.isLoading = false
+  filingWatchMock.cooldown = null
   filingWatchMock.watchState.mockReset().mockReturnValue('ACTIVE')
   filingWatchMock.createOrReactivate.mockReset()
   filingWatchMock.suspend.mockReset()
@@ -94,5 +95,20 @@ describe('FilingWatchesPanel — actions', () => {
     const rowSyms = Array.from(container.querySelectorAll('[class*="sessionRow"]'))
       .map(row => row.querySelector('[class*="sessionLabel"]').firstChild.textContent)
     expect(rowSyms).toEqual(['NVDA', 'AAPL'])
+  })
+})
+
+// TERM-062 -- the published re-arm rule is the server's sentence, rendered verbatim.
+describe('FilingWatchesPanel -- published cooldown', () => {
+  it('renders the cooldown sentence the list response carries', () => {
+    filingWatchMock.cooldown = { type_id: 'document-arrival', sentence: 'Checked every 20 minutes. Each new filing alerts you once, and never again.' }
+    render(<FilingWatchesPanel />)
+    expect(screen.getByText('Checked every 20 minutes. Each new filing alerts you once, and never again.')).toBeInTheDocument()
+  })
+
+  it('renders no rule at all when the response carries none (never a typed fallback)', () => {
+    render(<FilingWatchesPanel />)
+    expect(screen.queryByTestId('filing-watch-cooldown')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Checked every/)).not.toBeInTheDocument()
   })
 })

@@ -113,6 +113,142 @@ def ground_items(items, segments, *, field: str = "quote") -> list[dict]:
     return out
 
 
+# ── Span anchors for the KEY POINTS (TERM-044 / FB-A6-02) ────────────────────
+#
+# A bullet is the model's own summary, so it cannot be gated the way a quote is.
+# What CAN be gated is the passage it says it rests on: the model returns that
+# passage verbatim as `evidence`, and the server — never the model — finds it
+# in the transcript and computes WHERE. The anchor is the smallest unit the
+# data honestly supports:
+#
+#     {segment, start, end, speaker, text}
+#
+# `segment` indexes the transcript's turns (the same index the quote gate and
+# the transcript panel's jump already use); `start`/`end` are a half-open
+# character span into THAT turn's `content`, exactly as the transcript service
+# returns it; `text` is `content[start:end]` — the transcript's own characters,
+# not the model's copy of them. So a passage shown on screen is the transcript,
+# or nothing is shown.
+#
+# ⛔ A bullet whose evidence cannot be found gets NO anchor. It keeps its text
+# (what the recap SAYS is not this gate's business) and renders with no
+# citation rather than a wrong one.
+
+# An ellipsis may stitch runs together, and the span then covers the elided
+# words too. Past this size it has stopped being "the passage" and become most
+# of an answer, which is not a citation anyone can check at a glance.
+_MAX_SPAN = 1200
+
+
+def _normalized_with_map(raw: str) -> tuple[str, list[int]]:
+    """`normalize(raw)` plus, for every character of it, the index in `raw`
+    it came from. Built character by character with the SAME folds as
+    `normalize` (quote map, whitespace runs to one space, strip, casefold) so
+    a match found in folded text maps back to real transcript offsets."""
+    out: list[str] = []
+    idx: list[int] = []
+    pending_space = -1          # raw index of a whitespace run not yet emitted
+    for k, ch in enumerate(raw or ""):
+        ch = ch.translate(_QUOTE_MAP)
+        if ch.isspace():
+            if out and pending_space < 0:
+                pending_space = k
+            continue
+        if pending_space >= 0:
+            out.append(" ")
+            idx.append(pending_space)
+            pending_space = -1
+        for c in ch.casefold():
+            out.append(c)
+            idx.append(k)
+    return "".join(out), idx
+
+
+def _evidence_runs(evidence: str) -> list[str]:
+    """The normalised runs an evidence string must match, in order. Unlike
+    `locate`, a string with no run long enough to be distinctive yields
+    NOTHING rather than falling back to itself — a ten-character "passage"
+    matches half a transcript and anchors a claim to whichever turn came first."""
+    runs = [r for r in _ELLIPSIS.split(evidence or "") if len(r.strip()) >= _MIN_RUN]
+    return [n for n in (normalize(r) for r in runs) if n]
+
+
+def verified_span(evidence: str, content: str) -> Optional[tuple[int, int]]:
+    """THE GATE. The half-open span of `content` that `evidence` quotes, or
+    None when the evidence is not in this turn (or too short to be a
+    passage, or stitched across too much of it).
+
+    None is the product, not a failure: the caller renders no citation."""
+    runs = _evidence_runs(evidence)
+    if not runs:
+        return None
+    hay, idx = _normalized_with_map(content)
+    cursor, first = 0, None
+    for part in runs:
+        found = hay.find(part, cursor)
+        if found < 0:
+            return None
+        if first is None:
+            first = found
+        cursor = found + len(part)       # runs must appear IN ORDER
+    start, end = idx[first], idx[cursor - 1] + 1
+    if end - start > _MAX_SPAN:
+        return None
+    return start, end
+
+
+def anchor_for(evidence: str, segments: list[dict]) -> Optional[dict]:
+    """The first turn whose text contains `evidence`, as an anchor dict."""
+    for i, seg in enumerate(segments or []):
+        content = seg.get("content") or ""
+        span = verified_span(evidence, content)
+        if span is None:
+            continue
+        start, end = span
+        return {
+            "segment": i,
+            "start": start,
+            "end": end,
+            "speaker": (seg.get("speaker") or "").strip(),
+            "text": content[start:end],
+        }
+    return None
+
+
+def anchor_bullets(raw_bullets, segments) -> tuple[Any, Optional[list]]:
+    """Split the model's bullets into (bullets, bullet_anchors).
+
+    `bullets` stays a list of plain strings — the shape every consumer
+    (the recap UI, TTS, AI search) already reads — carrying the model's text
+    UNCHANGED. `bullet_anchors` is aligned with it by index: an anchor dict,
+    or None where the evidence could not be verified.
+
+    A response in the pre-anchor shape (every bullet a bare string — e.g. a
+    Batch submitted before this landed) passes through untouched with NO
+    `bullet_anchors` at all, so it renders exactly as a legacy recap does."""
+    if not isinstance(raw_bullets, list) or not any(
+            isinstance(b, dict) for b in raw_bullets):
+        return raw_bullets, None
+    texts: list[str] = []
+    anchors: list[Optional[dict]] = []
+    for b in raw_bullets:
+        if isinstance(b, str):
+            text, evidence = b, ""
+        elif isinstance(b, dict):
+            text, evidence = b.get("text") or "", (b.get("evidence") or "").strip()
+        else:
+            continue
+        if not isinstance(text, str) or not text.strip():
+            continue
+        anchor = anchor_for(evidence, segments) if evidence else None
+        if evidence and anchor is None:
+            _log.info("[call_recap] bullet left uncited, evidence not in transcript: %.60r",
+                      evidence)
+        texts.append(text)
+        anchors.append(anchor)
+    return texts, anchors
+
+
 def prepared_remarks_end(segments: list[dict]) -> Optional[int]:
     """Index of the first Q&A turn, or None when it can't be determined.
 
@@ -171,7 +307,21 @@ RECAP_SCHEMA: dict[str, Any] = {
                 "drivers":   {"type": "array", "items": {"type": "string"}},
             },
         },
-        "bullets":   {"type": "array", "items": {"type": "string"}},
+        # Each takeaway travels with the verbatim passage it rests on. `text`
+        # is governed by exactly the prompt rule it always was; `evidence` is
+        # located server-side and becomes the bullet's citation (TERM-044).
+        "bullets":   {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["text", "evidence"],
+                "properties": {
+                    "text":     {"type": "string"},
+                    "evidence": {"type": "string"},
+                },
+            },
+        },
         "guidance":  {"type": "string",
                       "enum": ["raised", "cut", "maintained", "none"]},
         "guidance_detail": {"type": "string"},
@@ -260,6 +410,10 @@ Return:
   phrases naming what actually moved the read — specific things said on this
   call, not generic categories.
 - bullets: 5-8 concrete takeaways, each carrying a specific figure or fact.
+  Return each as an object: `text` is the takeaway itself, written exactly as
+  the line above asks; `evidence` is the SHORT verbatim passage (one or two
+  sentences, one speaker) that the takeaway rests on, copied exactly under
+  the quote rules above.
 - quotes: 5-8 of the most consequential things management actually said.
 - forward_looking: every statement about FUTURE performance — guidance, targets,
   demand commentary, margin or capex trajectory, segment outlook. `detail` is
@@ -346,6 +500,12 @@ def finish_from_message(sym: str, transcript: dict, resp) -> Optional[dict[str, 
         if (f.get("speaker") or "").strip().lower() != "operator"
     ]
     data["qa_highlights"] = ground_items(data.get("qa_highlights"), segments)
+    # Bullets keep their text; each gains a server-computed span anchor, or
+    # none. A pre-anchor response gets no `bullet_anchors` key at all.
+    bullets, bullet_anchors = anchor_bullets(data.get("bullets"), segments)
+    data["bullets"] = bullets
+    if bullet_anchors is not None:
+        data["bullet_anchors"] = bullet_anchors
 
     # The model can return a score whose sign contradicts its own label. Clamp
     # the range and drop the whole block on a contradiction rather than render a

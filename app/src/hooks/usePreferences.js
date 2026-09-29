@@ -1,8 +1,12 @@
-import useSWR from 'swr'
+import useSWR, { mutate as mutateGlobal } from 'swr'
 import { useCallback } from 'react'
 import { mergeSettingsOverride } from '../components/chart/instanceShape'
+import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 
-const fetcher = url => fetch(url).then(r => r.ok ? r.json() : {})
+// TERM-021 read-new: every preferences response says whether the versioned workspace
+// document is armed (the `X-Workspace-Doc` header, absent while dark). Recording it here
+// costs nothing — no request, and the body is read exactly as before.
+const fetcher = url => fetch(url).then(r => { noteWorkspaceDocResponse(r); return r.ok ? r.json() : {} })
 
 const DEFAULTS = {
   default_chart_tf: 'D',
@@ -86,6 +90,35 @@ function resolveWriteValue(key, current, next) {
   if (!isMergeable(patch)) return next          // nothing to merge into shape
   if (!isMergeable(current)) return patch       // no base yet: the patch IS the blob
   return mergeSettingsOverride(current, patch)
+}
+
+/**
+ * RE-READ the preferences from the server and put that answer in the shared
+ * cache, so every mounted consumer re-renders from what the server now holds.
+ *
+ * For writes that land on the server WITHOUT going through `setPref` — today
+ * two: TERM-051's version restore, whose route writes the restored values
+ * straight into `user_preferences`, and TERM-021's one-write board apply
+ * (`POST /api/workspace/doc/apply`). No optimistic value exists for such a
+ * write, so the only honest source is a fresh read.
+ *
+ * Returns the merged prefs (defaults underneath, as the hook serves them), or
+ * `null` when the read failed. A failed read touches NOTHING in the cache: the
+ * caller says so rather than showing a board it could not confirm.
+ */
+export async function refreshPreferences() {
+  let data
+  try {
+    const res = await fetch(PREFS_URL)
+    noteWorkspaceDocResponse(res)
+    if (!res || !res.ok) return null
+    data = await res.json()
+  } catch {
+    return null
+  }
+  if (!data || typeof data !== 'object') return null
+  await mutateGlobal(PREFS_URL, data, { revalidate: false })
+  return { ...DEFAULTS, ...data }
 }
 
 export default function usePreferences() {

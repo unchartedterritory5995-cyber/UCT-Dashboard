@@ -1,5 +1,6 @@
 import useCatalystHistory from '../hooks/useCatalystHistory'
 import Provenance from '../../../components/provenance/Provenance'
+import AbsenceReceipt from '../../../components/provenance/AbsenceReceipt'
 import { mapAvailability, AVAILABLE } from '../../../components/provenance/availabilityContract'
 import { epochSecondsToIso } from '../../../components/provenance/presentationFormat'
 import styles from '../ResearchPage.module.css'
@@ -81,6 +82,17 @@ export default function CatalystsTab({ sym }) {
           No catalysts recorded for this ticker yet.
         </div>
       )}
+
+      {/* TERM-057: the same "why isn't X here" receipt the Catalyst tile mounts,
+          fixed to this ticker. The explain route answers exactly one question --
+          this ticker against TODAY's curated list -- which is the question this
+          page is asked when the history above has no entry for today. */}
+      {sym ? (
+        <section className={styles.card} data-testid="catalyst-absence">
+          <div className={styles.ct}>Today&apos;s catalyst list</div>
+          <AbsenceReceipt ticker={sym} />
+        </section>
+      ) : null}
     </div>
   )
 }

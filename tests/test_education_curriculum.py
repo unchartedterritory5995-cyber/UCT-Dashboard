@@ -15,6 +15,7 @@ Counts are DERIVED from docs/curriculum/*.json in the test and printed, never ty
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 from pathlib import Path
@@ -276,7 +277,8 @@ def test_flag_on_list_lazily_loads_once_and_serves_lessons_with_census(svc, flag
     assert body["counts"]["lessons"] == sum(1 for x in rows if x["kind"] == "lesson")
     assert body["counts"]["artifacts"] == sum(1 for x in rows if x["kind"] == "artifact")
     assert body["census"] == ec.census(rows)
-    assert all("attribution" in x for x in body["lessons"])
+    # OWNER RULING 2026-09-29: no third-party credit reaches a member, on any lesson.
+    assert not any("attribution" in x or "attribution_detail" in x for x in body["lessons"])
     assert all("view_count" not in x for x in body["lessons"])
     assert Path(ec._flag_file()).exists()
 
@@ -290,3 +292,14 @@ def test_fetch_counts_a_view_and_only_admins_see_the_count(svc, flag_on):
     a = _client(ADMIN).get(f"/api/education/lessons/{key}")
     assert a.json()["view_count"] == 2
     assert _client(PAID).get("/api/education/lessons/uct-method:nope").status_code == 404
+
+
+def test_no_credit_reaches_a_member_even_on_a_lesson_that_has_one_stored(svc, flag_on):
+    """OWNER RULING 2026-09-29: the loader still derives and stores credits (an internal
+    record); no read route returns them. Non-vacuity: the lesson fetched really HAS one."""
+    _client(PAID).get("/api/education/lessons")
+    with contextlib.closing(ec.es._connect()) as c:
+        row = c.execute("SELECT lesson_key FROM edu_lessons WHERE attribution != '' LIMIT 1").fetchone()
+    assert row, "no stored credit to test against -- the control is vacuous"
+    body = _client(PAID).get(f"/api/education/lessons/{row[0]}").json()
+    assert "attribution" not in body and "attribution_detail" not in body

@@ -4,7 +4,7 @@
 // .py's actual shape, without waiting on D2. Never fabricates a recursive
 // inputs graph the backend does not supply.
 
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Cited from './Cited'
@@ -75,5 +75,58 @@ describe('a uctUri-shaped row (forward-compatible, D2-gated full form not built)
     await user.click(screen.getByTestId('cited-toggle'))
     expect(screen.getByTestId('cited-panel')).toHaveTextContent('uct://breadth/pct_above_50sma@2026-09-02')
     expect(screen.queryByTestId('cited-unverified-note')).toBeNull()
+  })
+})
+
+describe('a transcript-span row (TERM-044) — the passage itself, one click away', () => {
+  const transcript = {
+    segment: 2, start: 186, end: 229, speaker: 'Josh D’Amaro',
+    text: 'Total segment operating income came in ahead',
+  }
+
+  it('closed by default: the value renders, the passage does not', () => {
+    render(<Cited row={{ transcript }}><span>OI up 21%</span></Cited>)
+    expect(screen.getByTestId('cited-present')).toHaveTextContent('OI up 21%')
+    expect(screen.getByTestId('cited-toggle')).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByTestId('cited-passage')).toBeNull()
+  })
+
+  it('opening it shows the passage verbatim and names the speaker — no bar-row fields', async () => {
+    const user = userEvent.setup()
+    render(<Cited row={{ transcript }}><span>OI up 21%</span></Cited>)
+    await user.click(screen.getByRole('button', { name: 'Show the transcript passage this point comes from' }))
+    expect(screen.getByTestId('cited-passage').textContent).toBe(transcript.text)
+    const panel = screen.getByTestId('cited-panel')
+    expect(panel).toHaveTextContent('From the call transcript · Josh D’Amaro')
+    expect(panel).not.toHaveTextContent(/Reconciliation|Source:/)
+  })
+
+  it('an unnamed turn is labelled as such, never left blank', async () => {
+    const user = userEvent.setup()
+    render(<Cited row={{ transcript: { ...transcript, speaker: '' } }}><span>x</span></Cited>)
+    await user.click(screen.getByTestId('cited-toggle'))
+    expect(screen.getByTestId('cited-panel')).toHaveTextContent('From the call transcript · Unattributed speaker')
+  })
+
+  it('offers "Show in full transcript" only when the surface can go there, and hands back the span', async () => {
+    const user = userEvent.setup()
+    const onOpenSource = vi.fn()
+    const { unmount } = render(<Cited row={{ transcript }} onOpenSource={onOpenSource}><span>x</span></Cited>)
+    await user.click(screen.getByTestId('cited-toggle'))
+    await user.click(screen.getByTestId('cited-open-source'))
+    expect(onOpenSource).toHaveBeenCalledWith(transcript)
+    unmount()
+    render(<Cited row={{ transcript }}><span>x</span></Cited>)
+    await user.click(screen.getByTestId('cited-toggle'))
+    expect(screen.queryByTestId('cited-open-source')).toBeNull()
+  })
+
+  it('is keyboard-operable: Tab to focus, Enter to open', async () => {
+    const user = userEvent.setup()
+    render(<Cited row={{ transcript }}><span>x</span></Cited>)
+    await user.tab()
+    expect(screen.getByTestId('cited-toggle')).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByTestId('cited-passage')).toBeTruthy()
   })
 })

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
@@ -13,7 +13,7 @@ import { WorkspaceContext } from './WorkspaceContext'
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig } from './layoutDockPins'
+import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
@@ -46,6 +46,10 @@ import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
+import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
+import vhStyles from './VersionHistory.module.css'
+import { recordBoardWrites, replayBoardWrites, applyColumnsSteps, boardDocumentPatch, commitBoardDocument, planColumnsFold } from './boardDocument'
+import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
@@ -405,6 +409,26 @@ export function parseLayout(raw) {
   return null
 }
 
+// STATE-2 (ledger C7): is the STORED board a value that exists but cannot be read?
+//
+// parseLayout answers null for "nothing stored" AND for "something stored that is
+// not a layout" (a truncated write, a hand-edited row, a blob from a writer that
+// no longer exists). The board renders a default in both cases: correct for a
+// new member, and member-data loss for the second, because the autosave used to
+// write that default over the original within 500 ms and nothing could bring it
+// back.
+//
+// Only the second case is this. An absent value, an empty string and the JSON
+// literal `null` hold no member data, so writing over them loses nothing.
+export function isUnreadableStoredLayout(raw) {
+  if (raw == null) return false
+  if (typeof raw === 'string') {
+    const t = raw.trim()
+    if (t === '' || t === 'null') return false
+  }
+  return parseLayout(raw) === null
+}
+
 // Keep every widget FULLY within the viewport-locked grid — no widget may hang
 // off any edge. The body is overflow:hidden, so an overhang just vanishes (the
 // fundamentals-widget bug), and a widget shoved below FIXED_ROWS by a neighbor
@@ -728,7 +752,11 @@ export default function ChartsWorkspace() {
     + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
   )
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
-  const { prefs, setPref, loading: prefsLoading } = usePreferences()
+  const { prefs, setPref, setPrefMerged, loading: prefsLoading } = usePreferences()
+  // Read at WRITE time by the Watchlist-columns fold below (it runs from the autosave, 500 ms
+  // after the render that scheduled it), so it must be the latest prefs, not a closure's.
+  const prefsRef = useRef(prefs)
+  prefsRef.current = prefs
   // Cross-device sync for chart Tracings (overlay drawing sheets). Self-contained;
   // newer-wins against the server via the preferences store. Renders nothing.
   useTracingsSync()
@@ -822,6 +850,19 @@ export default function ChartsWorkspace() {
   useEffect(() => {
     if (!prefsLoading) hydratedRef.current = true
   }, [prefsLoading])
+
+  // ⛔ STATE-2 GUARD: the automatic save never writes over a stored board it
+  // could not read. While the stored `charts_workspace_layout` is unreadable the
+  // board shows a default (there is nothing else to show), the member is told,
+  // and the debounced save + the unmount flush both refuse. The stored value is
+  // only replaced by something the member does on purpose: open a layout, New
+  // Layout, Save current arrangement, or a version restore. Each of those writes
+  // directly and, by making the stored value readable, lifts this guard on the
+  // next render. Read through a ref at WRITE time, because the save fires 500 ms
+  // after the render that scheduled it. Railed in VersionHistory.workspace.test.jsx.
+  const storedLayoutUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
+  const storedLayoutUnreadableRef = useRef(storedLayoutUnreadable)
+  storedLayoutUnreadableRef.current = storedLayoutUnreadable
 
   // Color-group state — seed from prefs or empty.
   const [groupSyms, setGroupSymsState] = useState(() => {
@@ -926,9 +967,10 @@ export default function ChartsWorkspace() {
     }
   }
 
-  // Workspace-wide chart theme ('default' | 'sunrise'), persisted like the layout.
+  // Workspace-wide chart theme ('default' | 'sunrise'), persisted like the layout. Its
+  // only writers are the three board changes below (commitBoard), which reset it to
+  // 'default' — each as a literal setPref('charts_theme', …) inside its build.
   const chartsTheme = prefs.charts_theme || 'default'
-  const setChartsTheme = useCallback((t) => setPref('charts_theme', t), [setPref])
 
   // Each widget's chrome (panel + border, header row, and its own top rows) paints
   // the canvas color of THAT widget's settings, published to the widget subtree as
@@ -1068,14 +1110,59 @@ export default function ChartsWorkspace() {
     [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
+  // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
+  //
+  // `localStorage['uct.watchlist.cols']` is the Watchlist widget's own live copy, and it
+  // stays that. While the versioned workspace document is ARMED, the board also keeps a
+  // copy under `watchlist_columns`, so a column layout is versioned with the board it
+  // belongs to and follows the account to a new device. Dark, this does nothing at all.
+  //
+  //   * localStorage holds a column layout the document does not → copy it IN. The first
+  //     run is the one-time migration READ; every board save after it keeps the copy
+  //     current. ⛔ The localStorage value is never removed or rewritten by this.
+  //   * localStorage holds nothing and the document does (a new device) → fill it in.
+  //     The widget reads it on its next mount.
+  const foldWatchlistColumns = useCallback(() => {
+    if (!isWorkspaceDocArmed()) return
+    let local
+    try { local = localStorage.getItem('uct.watchlist.cols') } catch { return }
+    const { write, fill } = planColumnsFold(prefsRef.current?.watchlist_columns, local)
+    if (write != null && typeof setPrefMerged === 'function') {
+      setPrefMerged('watchlist_columns', () => write)
+    }
+    if (fill != null) {
+      try { localStorage.setItem('uct.watchlist.cols', fill) } catch { /* ignore quota / disabled storage */ }
+    }
+  }, [setPrefMerged])
+  const columnsFoldedRef = useRef(false)
+  useEffect(() => {
+    if (columnsFoldedRef.current || prefsLoading) return
+    columnsFoldedRef.current = true
+    foldWatchlistColumns()
+  }, [prefsLoading, foldWatchlistColumns])
+
+  // An armed one-write board change (commitBoard, below) is in flight: the automatic
+  // save waits. A save landing between the head read and the apply would move the head
+  // and make the member's own board change answer 409.
+  const boardCommitInFlightRef = useRef(false)
+
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)
+  // The ONE automatic writer of the board. Both the debounce below and the
+  // unmount flush go through it, so the STATE-2 guard has a single place to hold.
+  const autosaveLayout = useCallback((nextLayout) => {
+    if (storedLayoutUnreadableRef.current) return false
+    if (boardCommitInFlightRef.current) return false
+    setPref('charts_workspace_layout', serializeLayout(nextLayout))
+    foldWatchlistColumns()
+    return true
+  }, [setPref, foldWatchlistColumns])
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      setPref('charts_workspace_layout', serializeLayout(nextLayout))
+      autosaveLayout(nextLayout)
     }, 500)
-  }, [setPref])
+  }, [autosaveLayout])
 
   // Flush any pending debounced save when leaving the page (SPA nav / unmount) so
   // the last arrangement is always what loads next time — no dependence on the
@@ -1085,10 +1172,10 @@ export default function ChartsWorkspace() {
       if (saveTimerRef.current && hydratedRef.current) {
         clearTimeout(saveTimerRef.current)
         saveTimerRef.current = null
-        setPref('charts_workspace_layout', serializeLayout(layoutRef.current))
+        autosaveLayout(layoutRef.current)
       }
     }
-  }, [setPref])
+  }, [autosaveLayout])
 
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
@@ -1815,6 +1902,66 @@ export default function ChartsWorkspace() {
   const [saveAsScope, setSaveAsScope] = useState('user')  // 'user' | 'global' (admin)
   const [saveErr, setSaveErr] = useState('')
 
+  // ── TERM-021 read-new: a board change is ONE write while the document is armed ──
+  //
+  // A template apply, New Layout and UCT Default each replace the whole board: six to
+  // ten preference writes plus the Watchlist columns in localStorage, with no
+  // transaction. `build(setPref, setWatchlistColumns)` DESCRIBES that change by making
+  // those writes against a recorder (boardDocument.js); `commitBoard` then runs it
+  //   * DARK: `applyLocal()` and the recorded writes replayed through the real setPref
+  //     and localStorage, in the same order with the same values — synchronously,
+  //     exactly as the board did before this existed;
+  //   * ARMED: as ONE compare-and-set document write. The board switches only once the
+  //     server has it, so what the member sees is what is stored. A 409 re-reads and
+  //     says so; it never retries and never falls back to the per-key writes (that
+  //     would be the silent overwrite the compare-and-set refuses). A 404 means the
+  //     store went dark mid-session: the per-key path, which is correct dark.
+  // ⛔ The build callbacks name their parameter `setPref` ON PURPOSE: every write stays
+  // a literal-key setPref call, which is what the key-set rails
+  // (`test_the_key_set_is_exactly_what_the_workspace_writes`, the persistence census,
+  // `serializeLayout`'s bypass rail) read.
+  const workspaceNoticeRef = useRef(null)   // assigned where showWorkspaceNotice is declared
+  const commitBoard = useCallback(async ({ build, applyLocal, onCommitted }) => {
+    const steps = recordBoardWrites(build)
+    const legacy = () => {
+      applyLocal()
+      replayBoardWrites(steps, setPref)
+      onCommitted?.()
+    }
+    if (!isWorkspaceDocArmed()) { legacy(); return 'legacy' }
+    // A pending autosave belongs to the board being replaced, and landing now would
+    // move the head under this write.
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    boardCommitInFlightRef.current = true
+    let r
+    try {
+      r = await commitBoardDocument(boardDocumentPatch(steps))
+    } finally {
+      boardCommitInFlightRef.current = false
+    }
+    if (r.status === 'dark') { legacy(); return 'legacy' }
+    if (r.status === 'applied') {
+      // Re-read BEFORE the board switches, so the widgets it mounts read the values the
+      // document now holds (the same fresh read a version restore makes).
+      const fresh = await refreshPreferences()
+      applyColumnsSteps(steps)
+      applyLocal()
+      loadedFromPrefsRef.current = true
+      onCommitted?.()
+      if (!fresh) workspaceNoticeRef.current?.('The layout was saved, but the board could not be reloaded. Reload the page to see it.')
+      return 'applied'
+    }
+    if (r.status === 'conflict') {
+      const fresh = await refreshPreferences()
+      const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
+      if (current) { setLayout(current); loadedFromPrefsRef.current = true }
+      workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
+      return 'conflict'
+    }
+    workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
+    return 'failed'
+  }, [setPref])
+
   // Apply a saved/prebuilt layout: restore the arrangement (+ its color-group
   // tickers) and persist so it sticks across refreshes. Runs through parseLayout
   // so any older-shaped template is normalized to the current grid.
@@ -1834,55 +1981,56 @@ export default function ChartsWorkspace() {
     // the board layout — it belongs in the chart_settings pref, not the
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
-    setLayout(boardLayout)
-    setPref('charts_workspace_layout', serializeLayout(boardLayout))
-    // Restore the template's WIDGET appearance blobs (or defaults for a prebuilt/older
-    // template that carries none) so a locked/prebuilt template never inherits the
-    // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
-    // follow the same rule.
-    // Defaults are the APP-THEME-MATCHED look (graphite → graphite), not the raw
-    // theme-blind blob — otherwise a template with no styling stamps #0e0f0d and the
-    // widget stops matching the app theme.
-    setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || themeTrackerDefaultsForTheme(themeRef.current)))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || fundamentalsDefaultsForTheme(themeRef.current)))
-    setPref('breadth_widget_settings', JSON.stringify(breadthSettings || breadthDefaultsForTheme(themeRef.current)))
-    // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
-    // pref) rides the template too: owner-reported bug — added columns vanished after
-    // switching layouts and back, because Save captured them nowhere and opening a
-    // prebuilt wiped the localStorage key. Widgets remount on layout switch (new
-    // widget ids), so they re-read this key on mount.
-    try {
-      if (watchlistColumns && typeof watchlistColumns === 'object') {
-        localStorage.setItem('uct.watchlist.cols', JSON.stringify(watchlistColumns))
-      } else if (isPrebuilt) {
-        localStorage.removeItem('uct.watchlist.cols')
-      }
-    } catch { /* ignore */ }
-    // Restore the chart settings the template was saved with, if it has them. A
-    // PREBUILT template that carries none resets to the frozen default (never inherit
-    // the previous layout's chart styling); a personal arrangement-only template
-    // leaves the current settings untouched.
-    if (chartSettings) {
-      setPref('chart_settings', chartSettings)
-    } else if (isPrebuilt) {
-      setPref('chart_settings', uctDefaultChartSettings())
-    }
-    if (isPrebuilt) {
-      // Wipe the standalone per-user overrides so a prebuilt layout always opens
-      // clean: theme (e.g. TSDR Sunset), volume-pane height. (Watchlist columns
-      // are handled by the watchlistColumns conditional above — restore when the
-      // template carries them, wipe when a prebuilt carries none.)
-      setChartsTheme('default')
-      setPref('charts_vol_pane_pct', '')
-    }
-    // Remember which named template is now open, so "Save current arrangement"
-    // can update THIS template in place with later edits. Persisted so the link
-    // survives a refresh.
-    setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
-    setOpenMenuOpen(false)
-    flashSaved()
-  }, [setPref, setChartsTheme, flashSaved, suppressAutoSave])
+    commitBoard({
+      applyLocal: () => setLayout(boardLayout),
+      onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
+      build: (setPref, setWatchlistColumns) => {
+        setPref('charts_workspace_layout', serializeLayout(boardLayout))
+        // Restore the template's WIDGET appearance blobs (or defaults for a prebuilt/older
+        // template that carries none) so a locked/prebuilt template never inherits the
+        // user's personal widget styling. Watchlist / Theme Tracker / Fundamentals all
+        // follow the same rule.
+        // Defaults are the APP-THEME-MATCHED look (graphite → graphite), not the raw
+        // theme-blind blob — otherwise a template with no styling stamps #0e0f0d and the
+        // widget stops matching the app theme.
+        setPref('watchlist_settings', JSON.stringify(watchlistSettings || WATCHLIST_DEFAULTS))
+        setPref('theme_tracker_settings', JSON.stringify(themeTrackerSettings || themeTrackerDefaultsForTheme(themeRef.current)))
+        setPref('fundamentals_settings', JSON.stringify(fundamentalsSettings || fundamentalsDefaultsForTheme(themeRef.current)))
+        setPref('breadth_widget_settings', JSON.stringify(breadthSettings || breadthDefaultsForTheme(themeRef.current)))
+        // Watchlist COLUMN config (added columns / widths / order — localStorage, not a
+        // pref) rides the template too: owner-reported bug — added columns vanished after
+        // switching layouts and back, because Save captured them nowhere and opening a
+        // prebuilt wiped the localStorage key. Widgets remount on layout switch (new
+        // widget ids), so they re-read this key on mount.
+        if (watchlistColumns && typeof watchlistColumns === 'object') {
+          setWatchlistColumns(watchlistColumns)
+        } else if (isPrebuilt) {
+          setWatchlistColumns(null)
+        }
+        // Restore the chart settings the template was saved with, if it has them. A
+        // PREBUILT template that carries none resets to the frozen default (never inherit
+        // the previous layout's chart styling); a personal arrangement-only template
+        // leaves the current settings untouched.
+        if (chartSettings) {
+          setPref('chart_settings', chartSettings)
+        } else if (isPrebuilt) {
+          setPref('chart_settings', uctDefaultChartSettings())
+        }
+        if (isPrebuilt) {
+          // Wipe the standalone per-user overrides so a prebuilt layout always opens
+          // clean: theme (e.g. TSDR Sunset), volume-pane height. (Watchlist columns
+          // are handled by the watchlistColumns conditional above — restore when the
+          // template carries them, wipe when a prebuilt carries none.)
+          setPref('charts_theme', 'default')
+          setPref('charts_vol_pane_pct', '')
+        }
+        // Remember which named template is now open, so "Save current arrangement"
+        // can update THIS template in place with later edits. Persisted so the link
+        // survives a refresh.
+        setPref('charts_active_template', JSON.stringify({ id: tpl.id, name: tpl.name, scope: tpl.scope || 'user' }))
+      },
+    })
+  }, [commitBoard, flashSaved, suppressAutoSave])
 
   // Terminal-grade property 3, "saved things become names, and names are
   // addresses" — opens a specific saved board directly from a URL, the same
@@ -1981,36 +2129,39 @@ export default function ChartsWorkspace() {
     userRemovedRef.current = false
     suppressAutoSave()
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
-    setLayout(normalized)
-    setPref('charts_workspace_layout', serializeLayout(normalized))
     // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
     // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
     // capture + the dark defaults. Parsed fresh each apply so the constants are never
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
-    setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
-    // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
-    // default too → reset them to the theme-appropriate defaults (light = white canvas
-    // + #17a917/#db000b up/down), so no personal widget styling leaks onto UCT Default.
-    setPref('watchlist_settings', JSON.stringify(watchlistDefaultsForTheme(appTheme)))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(appTheme)))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(appTheme)))
-    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(appTheme)))
-    setChartsTheme('default')
-    try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
-    // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
-    // that otherwise survives — reset it so a dragged pane snaps back to the default.
-    setPref('charts_vol_pane_pct', '')
-    // UCT Default is the frozen default, not a saved template — but the Layout
-    // Dock still has to light it up as the open layout, and 'null' is what a BLANK
-    // board (New Layout) writes, so the two would be indistinguishable. A sentinel
-    // id names it without inventing a row. Safe for every existing reader:
-    // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
-    // and handleDeleteTemplate compares against numeric row ids.
-    setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
-    setOpenMenuOpen(false)
-    flashSaved()
-  }, [setPref, setChartsTheme, flashSaved, prefs.theme, suppressAutoSave])
+    commitBoard({
+      applyLocal: () => setLayout(normalized),
+      onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
+      build: (setPref, setWatchlistColumns) => {
+        setPref('charts_workspace_layout', serializeLayout(normalized))
+        setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
+        // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
+        // default too → reset them to the theme-appropriate defaults (light = white canvas
+        // + #17a917/#db000b up/down), so no personal widget styling leaks onto UCT Default.
+        setPref('watchlist_settings', JSON.stringify(watchlistDefaultsForTheme(appTheme)))
+        setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(appTheme)))
+        setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(appTheme)))
+        setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(appTheme)))
+        setPref('charts_theme', 'default')
+        setWatchlistColumns(null)  // reset columns too (mirrors WL_COLS_LS)
+        // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
+        // that otherwise survives — reset it so a dragged pane snaps back to the default.
+        setPref('charts_vol_pane_pct', '')
+        // UCT Default is the frozen default, not a saved template — but the Layout
+        // Dock still has to light it up as the open layout, and 'null' is what a BLANK
+        // board (New Layout) writes, so the two would be indistinguishable. A sentinel
+        // id names it without inventing a row. Safe for every existing reader:
+        // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
+        // and handleDeleteTemplate compares against numeric row ids.
+        setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
+      },
+    })
+  }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -2044,26 +2195,29 @@ export default function ChartsWorkspace() {
     flushNamedSaveRef.current?.()
     suppressAutoSave()
     const blank = { widgets: [], cols: GRID_COLS }
-    setLayout(blank)
-    setPref('charts_workspace_layout', serializeLayout(blank))
     const g = { A: null, B: null, C: null, D: null }
-    setGroupSymsState(g)
-    setPref('charts_workspace_groups', JSON.stringify(g))
-    // Reset the shared styling to the UCT DEFAULT so every widget you add to the new
-    // board matches the default look instead of inheriting the previous layout's
-    // personal styling (chart colors/volume, watchlist appearance + columns, theme).
-    // Layout stays blank; a freshly-added watchlist widget mounts and re-reads the
-    // reset column config from localStorage.
-    setPref('chart_settings', uctDefaultChartSettings())
-    setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(themeRef.current)))
-    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(themeRef.current)))
-    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
-    setChartsTheme('default')
-    try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // mirrors WL_COLS_LS in Watchlists.jsx
-    // Blank board is not a named template.
-    setPref('charts_active_template', 'null')
-  }, [setPref, setChartsTheme, suppressAutoSave])
+    commitBoard({
+      applyLocal: () => { setLayout(blank); setGroupSymsState(g) },
+      build: (setPref, setWatchlistColumns) => {
+        setPref('charts_workspace_layout', serializeLayout(blank))
+        setPref('charts_workspace_groups', JSON.stringify(g))
+        // Reset the shared styling to the UCT DEFAULT so every widget you add to the new
+        // board matches the default look instead of inheriting the previous layout's
+        // personal styling (chart colors/volume, watchlist appearance + columns, theme).
+        // Layout stays blank; a freshly-added watchlist widget mounts and re-reads the
+        // reset column config from localStorage.
+        setPref('chart_settings', uctDefaultChartSettings())
+        setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
+        setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(themeRef.current)))
+        setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(themeRef.current)))
+        setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(themeRef.current)))
+        setPref('charts_theme', 'default')
+        setWatchlistColumns(null)  // mirrors WL_COLS_LS in Watchlists.jsx
+        // Blank board is not a named template.
+        setPref('charts_active_template', 'null')
+      },
+    })
+  }, [commitBoard, suppressAutoSave])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2259,6 +2413,75 @@ export default function ChartsWorkspace() {
     setLayoutsMenuOpen(false); setLayoutsSub(null); setToolsMenuOpen(false)
     setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false)
   }, [])
+
+  // ── TERM-051: version history (a member restore) ──────────────────────────
+  // The panel lives HERE, not inside the Layouts menu, and its outcome is told
+  // through `workspaceNotice`, which the workspace renders: the message must
+  // outlive both the menu that opened the panel and the panel itself.
+  // An autosave landing while the panel is open moves the head; the restore's
+  // compare-and-set then answers 409 and the panel re-reads. Never a blind retry.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [workspaceNotice, setWorkspaceNotice] = useState(null)  // { text } | null
+  const [layoutHeldDismissed, setLayoutHeldDismissed] = useState(false)
+  const noticeTimerRef = useRef(null)
+  const showWorkspaceNotice = useCallback((text) => {
+    if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current)
+    setWorkspaceNotice({ text })
+    noticeTimerRef.current = setTimeout(() => setWorkspaceNotice(null), 12000)
+  }, [])
+  workspaceNoticeRef.current = showWorkspaceNotice
+  useEffect(() => () => { if (noticeTimerRef.current) clearTimeout(noticeTimerRef.current) }, [])
+  const openVersionHistory = useCallback(() => {
+    closeToolbarMenus()
+    setHistoryOpen(true)
+  }, [closeToolbarMenus])
+  const closeVersionHistory = useCallback(() => setHistoryOpen(false), [])
+  // The restore route writes the restored values back into user_preferences
+  // itself (api/routers/workspace_doc.py). The board still holds its own copy of
+  // the layout and the linked symbols (both are one-shot seeds from prefs), so
+  // after a 200 it RE-READS the preferences and re-seeds from what came back.
+  const handleVersionRestored = useCallback(async (res) => {
+    setHistoryOpen(false)
+    // A pending autosave belongs to the board being replaced; firing it now
+    // would write the old arrangement over the one just restored.
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
+    userRemovedRef.current = false
+    suppressAutoSave()
+    const v = res?.restored_from
+    const fresh = await refreshPreferences()
+    if (!fresh) {
+      showWorkspaceNotice(`Version ${v} was restored, but the board could not be reloaded. Reload the page to see it.`)
+      return
+    }
+    const restoredLayout = parseLayout(fresh.charts_workspace_layout)
+    if (restoredLayout) {
+      setLayout(restoredLayout)
+      loadedFromPrefsRef.current = true
+    }
+    const g = parsePref(fresh.charts_workspace_groups, null)
+    if (g && typeof g === 'object') {
+      setGroupSymsState({ A: null, B: null, C: null, D: null, ...g })
+      groupsLoadedFromPrefsRef.current = true
+    }
+    // TERM-021: a version that carries a Watchlist column layout puts it back where the
+    // widget reads it. A version without one leaves localStorage as it is — never a removal.
+    const restoredCols = parsePref(fresh.watchlist_columns, null)
+    if (restoredCols && typeof restoredCols === 'object' && !Array.isArray(restoredCols)) {
+      try { localStorage.setItem('uct.watchlist.cols', JSON.stringify(restoredCols)) } catch { /* ignore */ }
+    }
+    setLayoutHeldDismissed(false)
+    const failed = Array.isArray(res?.prefs_failed) ? res.prefs_failed : []
+    const written = Array.isArray(res?.prefs_written) ? res.prefs_written : []
+    if (failed.length) {
+      showWorkspaceNotice(`Version ${v} was restored except ${failed.map(keyLabel).join(', ')}, which kept the current value. Try the restore again.`)
+    } else if (!res?.appended && written.length === 0) {
+      showWorkspaceNotice(`Version ${v} already matched your board, so nothing changed.`)
+    } else {
+      showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
+    }
+  }, [showWorkspaceNotice, suppressAutoSave])
+  const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
   // no longer exists, which structurally fixes mega-review #10/#16.)
@@ -2338,14 +2561,10 @@ export default function ChartsWorkspace() {
   }, [dockActiveId, globalLayouts, myLayouts, layout])
   const dockDirty = !!dockCompare?.dirty
 
-  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts.
-  //
-  // A prebuilt (global) row is what every member sees, so nudging a widget on
-  // one must never rewrite it; the frozen UCT Default is not a row at all.
-  // Those two stay exactly as they always were — deliberate saves only.
-  const dockAutoSaves = !!dockActiveId
-    && dockActiveId !== UCT_DEFAULT_ID
-    && (dockActiveTpl?.scope || 'user') !== 'global'
+  // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. The rule is
+  // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
+  // which layouts save themselves by calling the same function (TERM-052).
+  const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
@@ -2474,6 +2693,36 @@ export default function ChartsWorkspace() {
     } catch { /* surfaced by SWR revalidate */ }
   }, [handleNewLayout, saveLayout, setPref])
 
+  // The workspace's feedback host. It sits outside every menu and panel so a
+  // message survives the control that produced it.
+  const noticeHost = (
+    <div className={vhStyles.noticeHost} role="status" aria-live="polite" data-testid="workspace-notice-host">
+      {storedLayoutUnreadable && !layoutHeldDismissed && (
+        <div className={`${vhStyles.notice} ${vhStyles.noticeWarn}`} data-testid="layout-held-notice">
+          <UIcon name="warning" size={16} gold={false} />
+          <span className={vhStyles.noticeText}>
+            <strong>Your saved board could not be read.</strong>{' '}
+            A default board is showing instead. Your saved board has been kept as it was, and
+            changes made here are not saved automatically until you open a layout or save this one.
+            {historyAvailableForNotice && ' You can also restore an earlier version from Layouts, Version history.'}
+          </span>
+          <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setLayoutHeldDismissed(true)}>
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+      )}
+      {workspaceNotice && (
+        <div className={vhStyles.notice} data-testid="workspace-notice">
+          <UIcon name="info" size={16} gold={false} />
+          <span className={vhStyles.noticeText}>{workspaceNotice.text}</span>
+          <button type="button" className={vhStyles.noticeDismiss} aria-label="Dismiss" onClick={() => setWorkspaceNotice(null)}>
+            <UIcon name="x" size={14} gold={false} />
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
   if (isMobile) {
     // Phone: the chart-first mobile app (full-bleed chart + bottom-sheet
     // pickers; non-chart widgets open as full-screen pages). Rendered inside
@@ -2528,6 +2777,7 @@ export default function ChartsWorkspace() {
             onDeleteLayout={handleDeleteTemplate}
           />
         )}
+        {noticeHost}
       </WorkspaceContext.Provider>
       </ContextChannelsProvider>
     )
@@ -2835,6 +3085,7 @@ export default function ChartsWorkspace() {
                   {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
                   <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
                   {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
+                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} onOpen={openVersionHistory} />}
                   <button
                     type="button"
                     className={styles.addMenuItem}
@@ -3084,6 +3335,14 @@ export default function ChartsWorkspace() {
             onClose={() => setReplayOpen(false)}
           />
         )}
+        {historyOpen && (
+          <VersionHistoryPanel
+            onClose={closeVersionHistory}
+            onRestored={handleVersionRestored}
+            onUnavailable={closeVersionHistory}
+          />
+        )}
+        {noticeHost}
       </div>
     </WorkspaceContext.Provider>
     </ContextChannelsProvider>

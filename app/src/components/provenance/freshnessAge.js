@@ -127,21 +127,21 @@
 // `FreshnessBadge` already renders them through two separate, deliberately
 // distinct surfaces (`session-stale-note` vs an age clause).
 //
-// ─── ⛔ NO CONSUMER YET, ON PURPOSE ──────────────────────────────────────────
+// ─── ITS CONSUMERS — ONE PANEL, NAMED (TERM-059, 2026-09-29) ─────────────────
 //
-// This commit is the authority plus its rails and NOTHING imports it from a
-// panel. Adoption is TERM-059, and it is its own scoped decision: the
-// provenance census (`panelAdoption.measure.test.js`) measures 519
-// non-adopting panels under `pages/**` with 204 of them in one directory. A
-// wiring pass over that is not a ride-along.
+// ⚰️ This section was "NO CONSUMER YET, ON PURPOSE": the authority landed with
+// its rails and nothing imported it from a panel, and
+// `components/screener/reachable.test.js` parked it by name with TERM-059 as its
+// adoption. TERM-059 is the first consumer: the Breadth Monitor's NAAIM column
+// asks this authority, through `pages/breadth/naaimAge.js`, whether the weekly
+// survey's reading must state its as-of, and the cell renders the answer with
+// `<FreshnessBadge age={...}>`. The parking entry came out in the same commit.
 //
-// ⛔⛔ SO THE CITATION RAIL GUARDS A RULE NOBODY RENDERS YET, AND THAT IS NOT
-// ADOPTION BEING PROVED. `components/screener/reachable.test.js:727-746` parks
-// this module BY NAME, names TERM-059 as its adoption, and carries the expiry
-// 2026-11-30 (`reachable.test.js:805`). Until a panel imports this file, every
-// assertion tying CARD 33 §2 to this module is a statement about this
-// authority's arithmetic and about the card's text — never evidence that a
-// member has ever been shown an age.
+// ⚠️ ONE PANEL IS NOT ADOPTION. The provenance census
+// (`panelAdoption.measure.test.js`) measures hundreds of non-adopting panels
+// under `pages/**`; each further adopter is its own scoped decision, and
+// `freshnessAge.test.js` §7 names every importer so a new one is a reviewed
+// line rather than a silent spread.
 //
 // ⚠️ THAT NUMBER WAS RE-RUN, NOT QUOTED. `D-PAGES` reports examined=525
 // adopting=6 not-adopting=519, with 204 of the 519 in

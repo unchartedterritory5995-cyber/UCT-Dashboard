@@ -19,6 +19,38 @@ const n = v => Number(v).toLocaleString('en-US')
 // DROPPED rather than pairing one session's date with another's counts.
 // "First sweep tonight" covers never-swept AND withheld (indistinguishable
 // at the store, by design — spec §4c).
+
+/** The joined scan's receipt — `{as_of, evaluated, answered, dropped,
+ *  not_computable}` off the meta entry's `latest` — ONLY when its counts may be
+ *  shown beside the rows that join filtered: the join APPLIED on this request,
+ *  and the meta's latest is the SAME sweep (`as_of`) the join used. Otherwise
+ *  null. ONE RULE, TWO READERS: the chip's applied branch above and the
+ *  shell's `CoverageLine` (TERM-047) both ask this, so the chip and the line can
+ *  never disagree about which sweep's counts belong to the rows on screen. */
+export function joinReceipt({ scans, hash, scanJoins }) {
+  const meta = (scans || []).find(s => s.def_hash === hash)
+  const join = (scanJoins || []).find(j => j.def_hash === hash)
+  const l = meta?.latest
+  if (!join || join.applied !== true || !l || l.as_of !== join.as_of) return null
+  return l
+}
+
+/** Every applied scan join whose receipt `joinReceipt` allows, in the order the
+ *  server reported the joins, with the chip's own words for which sweep it is.
+ *  A join with no receipt (never swept, withheld, or a stale meta) yields
+ *  NOTHING here — never a zeroed receipt, which would read as a quiet market. */
+export function joinedScanReceipts({ scans, scanJoins }) {
+  const out = []
+  for (const j of scanJoins || []) {
+    if (!j || j.applied !== true) continue
+    const latest = joinReceipt({ scans, hash: j.def_hash, scanJoins })
+    if (!latest) continue
+    const name = (scans || []).find(s => s.def_hash === j.def_hash)?.name || 'Saved scan'
+    out.push({ def_hash: j.def_hash, label: `${name} — swept ${day(latest.as_of)}`, latest })
+  }
+  return out
+}
+
 export function scanChipText({ scans, spec, hash, scanJoins }) {
   const meta = (scans || []).find(s => s.def_hash === hash)
   const name = meta?.name || spec?.label || 'Saved scan'
@@ -26,8 +58,9 @@ export function scanChipText({ scans, spec, hash, scanJoins }) {
   if (join && join.applied === false) return `${name} — first sweep tonight`
   const l = meta?.latest
   if (join && join.applied === true) {
-    if (l && l.as_of === join.as_of) {
-      return `${name} — swept ${day(l.as_of)} · ${n(l.answered)}/${n(l.evaluated)} answered · ${n(l.dropped)} dropped`
+    const r = joinReceipt({ scans, hash, scanJoins })
+    if (r) {
+      return `${name} — swept ${day(r.as_of)} · ${n(r.answered)}/${n(r.evaluated)} answered · ${n(r.dropped)} dropped`
     }
     return `${name} — swept ${day(join.as_of)}`
   }

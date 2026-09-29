@@ -94,14 +94,13 @@ test('flag off: the route 404s and NOTHING renders', async () => {
   expect(screen.queryByText(/Lesson notes/)).toBeNull()
 })
 
-test('an attributed lesson renders its attribution text; an unattributed one renders none', async () => {
+test('no lesson renders a third-party credit, even when the payload carries one (owner ruling 2026-09-29)', async () => {
   renderIt()
   const title = await screen.findByText(/FLAGSHIP — Episodic Pivot/)
   const item = title.closest('li')
-  expect(within(item).getByText(ATTR)).toBeTruthy()
-  const plain = screen.getByText(/Casino Math/).closest('li')
-  expect(within(plain).queryByTestId('lesson-attribution')).toBeNull()
-  expect(screen.getAllByTestId('lesson-attribution')).toHaveLength(1)
+  expect(within(item).queryByText(ATTR)).toBeNull()
+  expect(screen.queryAllByTestId('lesson-attribution')).toHaveLength(0)
+  expect(document.body.textContent).not.toContain('Qullamaggie')
   // never an originality claim
   expect(document.body.textContent.toLowerCase()).not.toContain('original')
 })

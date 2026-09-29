@@ -1,0 +1,133 @@
+{
+  "_provenance": [
+    "TERM-046 parity fixture. Recorded ONCE from the live sources, then frozen: tests read this file and never the network.",
+    "recorded_at: 2026-09-29T12:53:47.996414+00:00 (pull date 2026-09-29 ET).",
+    "finviz_quote_page: the value text Finviz's PUBLIC quote page shows for each label (Short Float, Short Ratio, Short Interest, Shs Float, Shs Outstand). The Elite whole-market export (FINVIZ_API_KEY) was NOT reachable from the recording environment, so the page's own text stands in for the export's cells. Same Finviz values as the export, at page precision (share counts to 2 decimals of their suffix; the export serves raw millions).",
+    "yfinance_info: the .info keys api/services/short_interest.py reads, verbatim from yfinance in the same minute. dateShortInterest 1789430400 = 2026-09-15 (a FINRA mid-month settlement); sharesShortPreviousMonthDate 1786665600 = 2026-08-14.",
+    "'Short Interest' (Finviz export c=84) is recorded only to check the DERIVED shares_short; the export pull does not request c=84 today."
+  ],
+  "recorded_at": "2026-09-29T12:53:47.996414+00:00",
+  "pulled_on_et": "2026-09-29",
+  "tickers": {
+    "AAPL": {
+      "finviz_quote_page": {
+        "Short Float": "0.88%",
+        "Short Ratio": "2.71",
+        "Short Interest": "128.75M",
+        "Shs Float": "14.58B",
+        "Shs Outstand": "14.61B"
+      },
+      "yfinance_info": {
+        "sharesShort": 128753092,
+        "sharesShortPriorMonth": 116327753,
+        "shortRatio": 3.03,
+        "shortPercentOfFloat": 0.0088,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 14569078010,
+        "sharesOutstanding": 14594180000
+      }
+    },
+    "NVDA": {
+      "finviz_quote_page": {
+        "Short Float": "1.27%",
+        "Short Ratio": "2.36",
+        "Short Interest": "294.23M",
+        "Shs Float": "23.19B",
+        "Shs Outstand": "24.15B"
+      },
+      "yfinance_info": {
+        "sharesShort": 294225803,
+        "sharesShortPriorMonth": 285956804,
+        "shortRatio": 2.29,
+        "shortPercentOfFloat": 0.0127,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 23132626000,
+        "sharesOutstanding": 24147000000
+      }
+    },
+    "TSLA": {
+      "finviz_quote_page": {
+        "Short Float": "2.44%",
+        "Short Ratio": "1.76",
+        "Short Interest": "68.86M",
+        "Shs Float": "2.82B",
+        "Shs Outstand": "3.95B"
+      },
+      "yfinance_info": {
+        "sharesShort": 68862357,
+        "sharesShortPriorMonth": 69196896,
+        "shortRatio": 1.79,
+        "shortPercentOfFloat": 0.0195,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 2819186930,
+        "sharesOutstanding": 3949547394
+      }
+    },
+    "GME": {
+      "finviz_quote_page": {
+        "Short Float": "9.45%",
+        "Short Ratio": "5.76",
+        "Short Interest": "39.07M",
+        "Shs Float": "413.27M",
+        "Shs Outstand": "449.10M"
+      },
+      "yfinance_info": {
+        "sharesShort": 39069126,
+        "sharesShortPriorMonth": 54036583,
+        "shortRatio": 5.27,
+        "shortPercentOfFloat": 0.084,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 462380202,
+        "sharesOutstanding": 504500990
+      }
+    },
+    "CVNA": {
+      "finviz_quote_page": {
+        "Short Float": "9.25%",
+        "Short Ratio": "6.95",
+        "Short Interest": "62.23M",
+        "Shs Float": "672.52M",
+        "Shs Outstand": "718.98M"
+      },
+      "yfinance_info": {
+        "sharesShort": 62226156,
+        "sharesShortPriorMonth": 65227842,
+        "shortRatio": 8.14,
+        "shortPercentOfFloat": 0.1163,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 706360389,
+        "sharesOutstanding": 719916415
+      }
+    },
+    "PLTR": {
+      "finviz_quote_page": {
+        "Short Float": "2.72%",
+        "Short Ratio": "1.64",
+        "Short Interest": "60.18M",
+        "Shs Float": "2.21B",
+        "Shs Outstand": "2.30B"
+      },
+      "yfinance_info": {
+        "sharesShort": 60184903,
+        "sharesShortPriorMonth": 68278633,
+        "shortRatio": 2.08,
+        "shortPercentOfFloat": 0.027999999,
+        "shortPercentOfShares": null,
+        "dateShortInterest": 1789430400,
+        "sharesShortPreviousMonthDate": 1786665600,
+        "floatShares": 2109957437,
+        "sharesOutstanding": 2300713329
+      }
+    }
+  }
+}

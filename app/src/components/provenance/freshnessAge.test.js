@@ -427,6 +427,11 @@ function walkJs(dir, out = []) {
 describe('the threshold constants live in exactly one place', () => {
   const files = walkJs(SRC)
 
+  // The two whole-tree checks below walk every file under app/src: ~14 s alone, so
+  // the default 15 s ceiling timed them out whenever the box was busy (2026-09-29,
+  // 77/77 alone each time). A timeout says nothing about the code.
+  const WHOLE_TREE_TIMEOUT_MS = 60_000
+
   it('NON-VACUITY: the walk actually read the tree', () => {
     expect(files.length).toBeGreaterThan(300)
     const keys = files.map(key)
@@ -452,7 +457,7 @@ describe('the threshold constants live in exactly one place', () => {
       if (hits.length) offenders.push(`${key(abs)}: ${hits.join('; ')}`)
     }
     expect(offenders, `a second authority over TERM-006's numbers:\n${offenders.join('\n')}`).toEqual([])
-  })
+  }, WHOLE_TREE_TIMEOUT_MS)
 
   it('each constant is EXPORT-declared in exactly one file', () => {
     for (const name of OWNED_CONSTANTS) {
@@ -463,7 +468,7 @@ describe('the threshold constants live in exactly one place', () => {
       expect(declaring.map(key), `${name} is declared in ${declaring.length} files`)
         .toEqual(['app/src/components/provenance/freshnessAge.js'])
     }
-  })
+  }, WHOLE_TREE_TIMEOUT_MS)
 
   it('the owning module hard-codes NO session duration — the cap is derived', () => {
     expect(stripComments(read(OWNER))).not.toMatch(SESSION_DURATION)
@@ -527,19 +532,35 @@ describe('comments are stripped before matching, and strings are not', () => {
   })
 })
 
-// ─── 7. NO CONSUMER YET — STATED AS A RAIL, NOT AS A SENTENCE ───────────────
+// ─── 7. ITS CONSUMERS — BY NAME, STATED AS A RAIL, NOT AS A SENTENCE ─────────
+//
+// ⚰️ This section was "NO CONSUMER YET" and asserted the importer list was
+// EMPTY, with the instruction that TERM-059's first panel would turn it red and
+// that the red was the signal to name the adopters here. TERM-059 (2026-09-29)
+// is that red: the Breadth Monitor's NAAIM column asks this authority whether
+// its weekly survey must show its as-of, through `pages/breadth/naaimAge.js`.
+//
+// ⚠️ A NEW IMPORTER STILL TURNS THIS RED, ON PURPOSE. Adoption of the age ruling
+// is a decision per panel (the census measures hundreds of non-adopters), so a
+// panel that starts asking is named here in the commit that wires it.
 
-describe('this commit is the authority plus its rails, with no consumer', () => {
-  it('nothing outside this module and its test imports it', () => {
+describe('the age authority has named consumers, and only those', () => {
+  it('its importers outside this module and its test are exactly the adopting panels', () => {
     const importers = walkJs(SRC)
       .filter((abs) => abs !== OWNER && abs !== SELF)
       .filter((abs) => /from\s+['"][^'"]*freshnessAge['"]/.test(stripComments(read(abs))))
       .map(key)
-    // ⚠️ When TERM-059 wires the first panel, this assertion is the thing that
-    // goes red, and that red is the SIGNAL to update it — not a defect. Replace
-    // the empty expectation with the adopting panels, by name.
-    expect(importers, 'TERM-059 has begun; update this rail with the adopting panels by name')
-      .toEqual([])
+    expect(importers, 'a panel adopted (or dropped) the age ruling; name it here by path')
+      .toEqual(['app/src/pages/breadth/naaimAge.js'])
+  })
+
+  it('and the adopter is itself rendered by a page, not a helper nobody calls', () => {
+    // An importer that no member-facing surface reaches would be the "built,
+    // tested, green and unreachable" shape the empty assertion above used to
+    // guard against. The Monitor imports the helper and hands it to the cell.
+    const breadth = stripComments(read(path.join(SRC, 'pages', 'Breadth.jsx')))
+    expect(breadth).toMatch(/from\s+['"]\.\/breadth\/naaimAge['"]/)
+    expect(breadth).toMatch(/age:\s*naaimAge/)
   })
 })
 
@@ -576,12 +597,12 @@ describe('this commit is the authority plus its rails, with no consumer', () => 
 // (three of them below, four in §3).
 //
 // ⚠️ HONEST CONSTRAINT, STATED SO A FUTURE READER CANNOT ASSUME THE OPPOSITE:
-// THIS GUARDS A RULE NOBODY RENDERS. The module is deliberately unconsumed —
-// `components/screener/reachable.test.js:727-746` parks it by name, names
-// TERM-059 as its adoption, cites 519 measured non-adopting panels, and carries
-// the expiry 2026-11-30 (`reachable.test.js:805`). Everything below is about the
-// card's TEXT and this authority's ARITHMETIC. None of it is evidence that a
-// member has ever been shown an age.
+// everything below is about the card's TEXT and this authority's ARITHMETIC.
+// ⚰️ It used to add "THIS GUARDS A RULE NOBODY RENDERS" — the module landed
+// unconsumed and `reachable.test.js` parked it by name until TERM-059. Since
+// 2026-09-29 one panel renders it (§7 names it: the Breadth Monitor's NAAIM
+// column); the member-visible half is railed in `pages/breadth/naaimAge.test.jsx`
+// by RENDERED TEXT, not here.
 //
 // ⛔ ONE DELIBERATE ASYMMETRY IN HOW SOURCE IS READ HERE. The CITATION is
 // matched in the module's COMMENTS — a pointer to a ruling is exactly what a
