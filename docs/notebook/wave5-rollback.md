@@ -45,6 +45,7 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L2` | `f4cec49be` | wave 10 L2 #242 | |
 | `L1c` | `38bb9a421` | wave 10 L1c #228 | |
 | `225` | `4bba30b73` | #225 H14: the phone skip link (a fix to wave-8 CSS) | |
 | `L1b` | `d9e887ca0` | wave 10 L1b #224 | |

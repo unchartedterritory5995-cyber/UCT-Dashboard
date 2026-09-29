@@ -24,7 +24,8 @@ that changes the lines of a recorded conflict stops the chain instead of being r
 written for different lines.
 
 What "rolling back wave N" means at the measured tip (docs/notebook/wave5-rollback.md, the
-procedure; rehearsed on a sandbox for every step, 2026-09-28): revert EVERY Notebook landing
+procedure; rehearsed on a sandbox for every step, 2026-09-28, and re-measured with L2 on top at
+f4cec49be, 2026-09-29, lane R1b): revert EVERY Notebook landing
 newer than or equal to N, newest first, one squash at a time, because every later wave is built
 on the earlier ones. At every step:
 
@@ -59,7 +60,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "38bb9a421"
+MEASURED_AT = "f4cec49be"          # moved from 38bb9a421 by lane R1b, 2026-09-29 (L2 #242 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -74,6 +75,7 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L2", "f4cec49be", "wave 10 L2 #242"),
     ("L1c", "38bb9a421", "wave 10 L1c #228"),
     ("225", "4bba30b73", "#225 H14: the phone skip link"),
     ("L1b", "d9e887ca0", "wave 10 L1b #224"),
@@ -108,8 +110,46 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 #     intended fail-closed behaviour, not noise to tune away.
 NOTEBOOK_SUBJECT = re.compile(r"(?i)\bnotebook\b|^wave 9c\b")
 # Commits a person reviewed and ruled NOT a Notebook landing although a criterion selects them:
-# {full sha: why}. Empty at MEASURED_AT.
-REVIEWED_NOT_LANDINGS: dict[str, str] = {}
+# {full sha: why}. Each one is selected by PATH only (never by subject: a subject-selected commit
+# is a landing and belongs in CHAIN); the rail re-derives that. Lane R1b, 2026-09-29: the twelve
+# path-only commits in 38bb9a421..f4cec49be, read one by one. Only 948af2c17 edits Notebook CODE
+# (the Ask and writing-help doors); it is a Terminal feature, not a landing, and its lines are
+# handled by the L1a and wave-7 rules below -- reported, not buried.
+REVIEWED_NOT_LANDINGS: dict[str, str] = {
+    "91a33ea2899afa7a635740b14c44b98d11f08169":
+        "Terminal TERM-080: rate-limit middleware mounted in api/main.py (shared file); dark, "
+        "edits no Notebook file",
+    "c26c8f8634152af58e289b769069cfbb730debdc":
+        "Terminal TERM-089: wire archive rows appended to tests/test_paywall_gate_free_tier.py "
+        "(shared rail wave 5 touched); the wave-5 rule keeps them",
+    "59eefe3913a11232e776052bd917f102927a99c8":
+        "Terminal TERM-081: users.toolkit column in api/services/auth_db.py (shared file), "
+        "not a Notebook change",
+    "dccc0acc4b4a474ecc32669d737c7ea8019444e4":
+        "Terminal TERM-088: decision-record router mounted in api/main.py and flag in "
+        "api/routers/auth.py (shared files); dark",
+    "948af2c17d034f2cf938acf2fa01f45e96d89671":
+        "Terminal TERM-078: AI meters + population cap. EDITS NOTEBOOK CODE (a dark population "
+        "gate in notebook_writing_help.py and the Ask door in journal_two.py, a read() in "
+        "daily_counters.py); not a landing -- the L1a and wave-7 rules resolve its lines",
+    "105e611abe18b16db6c3287861b153edcc10a5a5":
+        "Terminal TERM-086: inbound-alerts router mounted in api/main.py (shared file); dark",
+    "11f9c5803da4bb4981bdf68fdf9271c999ed777d":
+        "Terminal TERM-076: DeviceSyncCard mounted in app/src/pages/Settings.jsx (shared file)",
+    "4cd31df8b24024b7958af0bd0335d0d31ea14cd1":
+        "Terminal TERM-077: watchlist copy-or-link flag in api/routers/auth.py (shared file); dark",
+    "c7a8a7309c963032d45c1cc129efdd3b52a1eb74":
+        "Compass ai-spend: daily caps on Compass routes in api/routers/journal_two.py (shared "
+        "J2 router), no Notebook route touched",
+    "1b26a787bf556fe8a8a9b3850ddff3a0c5e51c40":
+        "Charts: moving-average settings in app/src/pages/Settings.jsx (shared file)",
+    "3fa6e6becb4d43f23129931f405458d2041566a7":
+        "Terminal TERM-035: registers sessionCalendar.js in "
+        "app/src/components/screener/reachable.test.js (shared rail)",
+    "3998b7c7053ebddbc17d315ed9acee08c3359ae7":
+        "Terminal TERM-035: NYSE calendar derivation; edits "
+        "app/src/components/screener/reachable.test.js (shared rail)",
+}
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
 # the hunk -- the tip's `_OPEN_READS` dependency on the journal_two mount (94926db1e, not a
@@ -121,6 +161,11 @@ _NOTEBOOK_FILES: dict[str, frozenset] = {}
 #       replacement, or ["ours_drop", <substring>...] = ours minus the lines holding them
 #       (each substring must drop exactly one line); "all-ours" for every hunk.
 RULES: dict[str, dict] = {
+    # Lane R1b, measured at f4cec49be: TERM-078 (948af2c17) put one population-gate call inside
+    # L1a's property-autofill route. The route is L1a's own and goes whole ("theirs" = the
+    # pre-L1a side, which has no route); the `_population_gate` helper it calls stays, because
+    # the writing-help stream route (wave 7) still calls it.
+    "4f708a0d2": {"api/routers/notebook_writing_help.py": ("hunks", ["theirs"])},
     "d9e887ca0": {
         "app/src/components/CommandPalette.jsx": ("hunks", [["ours_drop", "lib/notebookTelemetry'"]]),
         "tests/test_alert_destination.py": ("hunks", [[
@@ -144,12 +189,24 @@ RULES: dict[str, dict] = {
         "api/services/journal_two/public_note_payload.py": "delete",
         "tests/test_share_publish_authorization.py": "delete",
     },
-    "f883e0996": {"api/main.py": ("hunks", [[
-        "ours_drop", "# Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.",
-        "# Mounted beside the other pre-journal_two Notebook routers; no path here can",
-        "# be shadowed by journal_two's /api/j2/notes/{note_id} (different depth), but",
-        "# the family is kept together and the mount is railed by name",
-        "# (tests/test_main_router_order.py).", "notebook_writing_help_router.router"]])},
+    "f883e0996": {
+        "api/main.py": ("hunks", [[
+            "ours_drop", "# Wave 7 lane H (controller wiring): /api/j2/notes/{note_id}/writing-help/stream.",
+            "# Mounted beside the other pre-journal_two Notebook routers; no path here can",
+            "# be shadowed by journal_two's /api/j2/notes/{note_id} (different depth), but",
+            "# the family is kept together and the mount is railed by name",
+            "# (tests/test_main_router_order.py).", "notebook_writing_help_router.router"]]),
+        # Lane R1b, measured at f4cec49be (modify/delete: wave 7 added both files, TERM-078
+        # 948af2c17 edited both). The writing-help router is wave 7's own door and goes; its
+        # only later edit is TERM-078's population gate, which gates nothing once the route
+        # is gone.
+        "api/routers/notebook_writing_help.py": "delete",
+        # ⛔ daily_counters.py STAYS: it is no longer the Notebook's alone. TERM-078's
+        # ai_population_cap.py and c7a8a7309's compass_daily_caps.py import it at module
+        # level (journal_two.py imports compass_daily_caps), so deleting it stops the server
+        # from importing at all. Keep the newer work.
+        "api/services/daily_counters.py": "ours",
+    },
     "271a078b6": {"api/main.py": ("hunks", [[
         "ours_drop", "# Wave 6 (controller wiring) -- ORDER IS LOAD-BEARING: notebook_insights before",
         "# journal_two, or /api/j2/notes/tasks is answered as a note called",
@@ -157,6 +214,21 @@ RULES: dict[str, dict] = {
         "notebook_insights_router.router", "client_errors_router.router",
         "notebook_link_preview_router.router"]]),
                   "api/services/client_errors.py": "delete"},
+    # Lane R1b, measured at f4cec49be: TERM-089 (c26c8f863) appended its two /api/wire/archive
+    # rows to REACHED_FROM_FREE_PAGE right after wave 5's five editor-widget rows. The hunk's
+    # pre-wave-5 side is empty, so the resolution is exactly TERM-089's block: wave 5's rows go,
+    # TERM-089's stay (its PAID_NOW rows merged cleanly).
+    "2c3ed3093": {"tests/test_paywall_gate_free_tier.py": ("hunks", [
+        "    # TERM-089 (2026-09-28): the Morning Wire page itself mounts WireArchive, the\n"
+        "    # replay of PAST issues. Verdict, made out loud: today's wire stays free, past\n"
+        "    # issues are paid. The component renders NOTHING and fetches NOTHING unless\n"
+        "    # `useIsPaid()` is true (WireArchive.test.jsx asserts no request for a free\n"
+        "    # member), so a free member's page never sends the 402 this file proves.\n"
+        "    \"/api/wire/archive\":\n"
+        "        \"WireArchive on /morning-wire, rendered and fetched only for a paid \"\n"
+        "        \"member; a free member sees today's wire exactly as before.\",\n"
+        "    \"/api/wire/archive/\":\n"
+        "        \"Same component, the by-date read behind its date picker; same gate.\",\n"])},
     "8167f7aa0": {
         "app/src/pages/journal-2-0/lib/tiptap.js": ("hunks", "all-ours", {
             "import_after": ("import StarterKit from '@tiptap/starter-kit'",
@@ -176,12 +248,21 @@ RULES: dict[str, dict] = {
 }
 
 # Every recorded resolution is PINNED to the conflict it was measured on: sha256 (first 16 hex)
-# of the conflict hunks' two sides (a hunk rule) or of the file being deleted (a delete rule),
-# recorded at MEASURED_AT with `--record-pins`. A different conflict on the same path STOPS.
+# of the conflict hunks' two sides (a hunk rule) or of the previous step's file (a "delete" or
+# "ours" rule), recorded at MEASURED_AT with `--record-pins`. A different conflict on the same
+# path STOPS. Re-recorded at f4cec49be (lane R1b, 2026-09-29): the ten pins recorded at
+# 38bb9a421 came back byte-identical, so the chain below L2 still composes unchanged from the
+# new tip; the four new pins are the four conflicts TERM-078 and TERM-089 introduced.
 PINS: dict[str, dict[str, str]] = {
     "271a078b6": {
         "api/main.py": "64a4d181d834d6cc",
         "api/services/client_errors.py": "660c00227b8c0bc3",
+    },
+    "2c3ed3093": {
+        "tests/test_paywall_gate_free_tier.py": "3033a4865ff1c3ba",
+    },
+    "4f708a0d2": {
+        "api/routers/notebook_writing_help.py": "ecb06e27a7c24dea",
     },
     "8167f7aa0": {
         "app/src/pages/journal-2-0/lib/tiptap.js": "af62a614d13bcc04",
@@ -198,6 +279,8 @@ PINS: dict[str, dict[str, str]] = {
     },
     "f883e0996": {
         "api/main.py": "ca48146728a32293",
+        "api/routers/notebook_writing_help.py": "f84695dfd9aa2ba4",
+        "api/services/daily_counters.py": "258b54f4a653f1c3",
     },
 }
 
@@ -226,9 +309,14 @@ def _blob(tree: str, path: str) -> str | None:
 
 def _fingerprint(merged: str, prev: str, path: str, rule) -> str:
     """What a recorded rule was measured against: the conflict hunks' two sides for a hunk rule,
-    the file being deleted for a delete rule."""
+    the previous step's file for a whole-file rule ("delete" removes it, "ours" keeps it).
+
+    ⛔ A whole-file rule is never fingerprinted by its hunks: on a modify/delete conflict git
+    leaves the file with NO conflict markers, so the hunk fingerprint is sha256(b"") -- the same
+    for every such conflict, i.e. a pin that can never fail (measured 2026-09-29: the first
+    record of wave 7's `api/services/daily_counters.py` "ours" rule came back e3b0c44298fc1c14)."""
     import hashlib
-    if rule == "delete":
+    if rule in ("delete", "ours"):
         data = _git("cat-file", "blob", f"{prev}:{path}", ok=(0, 128)).stdout
     else:
         text = _git("cat-file", "blob", f"{merged}:{path}").stdout

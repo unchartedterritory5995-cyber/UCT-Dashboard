@@ -25,8 +25,15 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-28" / "chain" / "chain-primary-r2.jsonl"
+# Re-recorded at MEASURED_AT f4cec49be (L2 #242) by lane R1b, 2026-09-29. The 2026-09-28 record
+# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) is the same chain one landing
+# shorter, from 38bb9a421; it stays as the evidence of that rehearsal.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
+# The tip the chain was measured at BEFORE lane R1b moved MEASURED_AT. Every commit between it and
+# MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
+# is in REVIEWED_NOT_LANDINGS.
+PREVIOUS_MEASURED_AT = "38bb9a421"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -166,6 +173,62 @@ def test_no_notebook_landing_after_MEASURED_AT_is_left_out(chain):
                       capture_output=True).returncode != 0:
         pytest.skip(f"HEAD does not contain {chain.MEASURED_AT}: nothing newer to audit on this branch")
     assert chain.check_base(head) is None, chain.check_base(head)
+
+
+def test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed(chain):
+    """Lane R1b moved MEASURED_AT from 38bb9a421 to f4cec49be. Everything the census selects in
+    between was ruled on: a landing is in CHAIN, anything else in REVIEWED_NOT_LANDINGS. Derived
+    from the tool's census, never from a typed list of what was expected."""
+    rows = chain.notebook_landings(f"{PREVIOUS_MEASURED_AT}..{chain.MEASURED_AT}")
+    assert len(rows) >= 2, "non-vacuity: the census found nothing in the window it was asked about"
+    named = {full(s) for _k, s, _w in chain.CHAIN}
+    assert full(chain.MEASURED_AT) in named          # the newest landing is the measured tip
+    unruled = [f"{c['sha'][:9]} {c['subject'][:60]}" for c in rows
+               if c["sha"] not in named and c["sha"] not in chain.REVIEWED_NOT_LANDINGS]
+    assert not unruled, f"selected by the census, ruled on by nobody: {unruled}"
+
+
+def test_a_reviewed_commit_is_real_selected_by_path_only_and_never_a_landing(chain):
+    """REVIEWED_NOT_LANDINGS can only ever quiet the PATH criterion: an entry the SUBJECT criterion
+    selects is a landing and must be in CHAIN, and an entry the census does not select at all is a
+    stale ruling. Each reason is a sentence, not a placeholder."""
+    reviewed = chain.REVIEWED_NOT_LANDINGS
+    assert len(reviewed) >= 1
+    rows = {c["sha"]: c for c in chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")}
+    named = {full(s) for _k, s, _w in chain.CHAIN}
+    for sha, why in reviewed.items():
+        assert re.fullmatch(r"[0-9a-f]{40}", sha), f"{sha}: REVIEWED_NOT_LANDINGS keys are full shas"
+        assert sha not in named, f"{sha[:9]} is in CHAIN and in REVIEWED_NOT_LANDINGS"
+        assert sha in rows, f"{sha[:9]}: the census does not select it; the ruling is stale"
+        assert rows[sha]["by_path"] and not rows[sha]["by_subject"], (
+            f"{sha[:9]} is selected by SUBJECT: a Notebook landing, not a reviewed neighbour")
+        assert len(why.split()) >= 6, f"{sha[:9]}: the reason must say why it is not a landing"
+
+
+_EMPTY_FP = __import__("hashlib").sha256(b"").hexdigest()[:16]
+
+
+def test_no_pin_is_the_fingerprint_of_nothing(chain):
+    """A pin over no bytes matches every conflict of its kind, so it can never stop the chain. It is
+    what a whole-file rule recorded from its (absent) conflict markers used to produce."""
+    pins = [(s, p, fp) for s, per in chain.PINS.items() for p, fp in per.items()]
+    assert len(pins) >= 14
+    empty = [(s, p) for s, p, fp in pins if fp == _EMPTY_FP]
+    assert not empty, f"pins over no bytes: {empty}"
+    unpinned = [(s, p) for s, per in chain.RULES.items() for p in per if p not in chain.PINS.get(s, {})]
+    assert not unpinned, f"rules with no pin: {unpinned}"
+
+
+def test_a_later_edit_to_a_file_a_whole_file_rule_keeps_stops_the_chain(chain, monkeypatch):
+    """R1b: wave 7's revert keeps `api/services/daily_counters.py` ("ours": two later features
+    import it). A later commit that changes that file is not what the rule was measured on, so the
+    chain must stop at wave 7 -- before the fingerprint fix it resolved silently."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): a synthetic counter change",
+                           "api/services/daily_counters.py", lambda b: b + b"\n# synthetic\n")
+    monkeypatch.setattr(chain, "REVIEWED_NOT_LANDINGS", {sha: "synthetic terminal counter edit, test"})
+    assert chain.check_base(sha) is None
+    with pytest.raises(chain.ChainStopped, match=r"f883e0996: the conflict in api/services/daily_counters\.py"):
+        chain.run(sha, "wave7", emit=lambda _l: None)
 
 
 def test_the_tool_refuses_a_base_that_does_not_contain_MEASURED_AT(chain):
