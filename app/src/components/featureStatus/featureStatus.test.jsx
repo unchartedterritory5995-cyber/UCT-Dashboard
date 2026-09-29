@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, within, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { AuthContext } from '../../context/AuthContext'
+import { AuthContext, AuthProvider } from '../../context/AuthContext'
 import BetaMark from './BetaMark'
 import FeatureStatusStrip from './FeatureStatusStrip'
 import { readFeatureStatus, isPreview, FEATURE_STATUS_HREF } from './featureStatus'
@@ -154,6 +154,18 @@ describe('wired where members meet it', () => {
     rerender(withAuth(
       <BreadthChartsV2 keys={['breadth_score']} from="2026-06-01" to="2026-06-03" />, auth('released')))
     expect(within(screen.getByTestId('breadth-charts-v2')).queryByTestId('beta-mark')).toBeNull()
+  })
+
+  it('the REAL AuthProvider carries feature_status from /api/auth/me to the strip', async () => {
+    const me = { user: { id: 'u1', email: 'm@local.dev' }, plan: 'pro', feature_status: status(FLOW) }
+    vi.stubGlobal('fetch', vi.fn(async (url) => (
+      url === '/api/auth/me'
+        ? { ok: true, status: 200, json: async () => me }
+        : { ok: false, status: 404, json: async () => ({}) })))
+    render(<AuthProvider><MemoryRouter><FeatureStatusStrip /></MemoryRouter></AuthProvider>)
+    // before /me answers the strip says "not available" — then the payload arrives
+    expect(screen.getByTestId('feature-status-unmeasured')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByTestId('feature-status-here')).toHaveTextContent('Flow tab'))
   })
 
   it('the Support page shows the strip from the auth payload', async () => {
