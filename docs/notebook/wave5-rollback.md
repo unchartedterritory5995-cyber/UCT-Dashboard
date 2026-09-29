@@ -63,28 +63,50 @@ python tools/notebook_rollback_chain.py --list
 ⚠️ #225 and #201 fix CSS that wave 8 added. They cannot be kept below wave 8: measured, keeping
 them stops the wave-8 revert on `NotebookTab.module.css`.
 
-**1. Build the rollback commit.** This uses objects only. It touches no worktree, no index, and no
-ref. Its last line names the commit and the next command:
+**1. Build the rollback chain.** This uses objects only. It touches no worktree, no index, and no
+ref. It writes ONE commit per reverted landing, each on top of the last, so the result is a chain
+of commits on top of `--from`. Its last line names the chain's tip and the next command:
 
 ```sh
 python tools/notebook_rollback_chain.py --from origin/master --through wave7
 # {"result": "<sha>", "tree": "<tree>", ..., "next": "git switch -c rollback/notebook-through-wave7 <sha>"}
 ```
 
-- **Exit 2 with `{"stopped": ...}`** means master has a conflict the tool has no rule for: a
-  commit newer than `MEASURED_AT` touches a file the revert touches. Read *If the tool stops*.
-  Never resolve it by editing the tool's rule for a different file.
+- **Exit 2 with `{"stopped": ...}`** means the tool refused, and the message says why and what to
+  re-measure. It refuses, failing closed on anything it did not measure, when:
+  - `--from` does not contain `MEASURED_AT` (the tree the chain and its rules were measured on);
+  - a commit after `MEASURED_AT` looks like a Notebook landing that `CHAIN` does not name. Its
+    subject names the Notebook, OR it changes the Notebook's own paths;
+  - a conflict is not the one its rule was measured on. Every rule is pinned to the conflict's
+    content (`PINS`), so a later commit that changed those lines stops the chain;
+  - a conflict has no rule at all;
+  - `--through` names a kept hotfix (`204`, `203`).
+  Read *If the tool stops*. Never resolve a stop by editing the rule or the pin for a different
+  conflict.
+- **A first line `{"warning": ...}`** means `--from` is newer than `MEASURED_AT` but passed every
+  refusal above. Steps 2 and 3 are then MANDATORY, not advisable.
 - Every step's JSON line names its conflicts and the rule that resolved each. It also reports
   `schema_identical_to_tip`, which must be `true` on every line, and `schema_change_undone`,
   which lists the table changes the step would have made and the tool put back.
 
-**2. Check it, in a worktree of its own.** Run each command in its own call, never through a pipe:
+**2. Check it.** Run each command in its own call, never through a pipe.
+
+First, in a checkout OF THE BASE (`--from`, not the rollback branch), run the rollback rail. It
+proves the census and the tool still agree with git at that base. It rebuilds the measured chain
+tree for tree, pins included, and checks every refusal:
+
+```sh
+python -m pytest tests/test_notebook_rollback_chain.py tests/test_notebook_schema_guard.py -q
+```
+
+Then check the rollback itself, in a worktree of its own:
 
 ```sh
 git worktree add ../notebook-rollback <sha>                  # write the .uct-session-owner file (CLAUDE.md)
 cd ../notebook-rollback && git switch -c rollback/notebook-through-wave7
-git diff origin/master HEAD -- app/src/pages/journal-2-0/lib/notebookSchema.js api/services/journal_two/notebook_schema.py
-#   ^ must print NOTHING
+git diff origin/master HEAD -- app/src/pages/journal-2-0/lib/notebookSchema.js api/services/journal_two/notebook_schema.py \
+  app/src/pages/journal-2-0/lib/notebookSchema.rail.test.js tests/test_notebook_schema_guard.py
+#   ^ must print NOTHING (the tables and their two rails stay at the tip)
 python -m pytest tests/test_notebook_schema_guard.py -q
 cd app && npx vitest run --maxWorkers=2 src/pages/journal-2-0/lib/notebookSchema.rail.test.js \
   src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer \
@@ -120,7 +142,10 @@ shutdown. The probe must show three things:
 **4. Ship it: a revert on master is a production deploy.** It is never an agent's call. It needs:
 - the owner's explicit "deploy";
 - a member-impact paragraph;
-- one master merge at a time.
+- one master merge at a time;
+- the rollback branch landing as ONE SQUASH-MERGE. Rolling forward is then one revert of that
+  squash. Merged as a chain instead, `git revert <result>` would undo only the last step;
+  the whole range `<from>..<result>` would have to be reverted.
 
 ⚠️ **The rollback changes what gates production promotion.** Through `L1b` it deletes
 `notebook-latency.yml` and `notebook-bytes.yml` (`promotion-gate: yes`) and takes `notebook-a11y.yml`
@@ -130,22 +155,34 @@ checks it removed. That is what lets it deploy at all: a kept a11y workflow woul
 revert deleted. After the deploy:
 - verify by a NEW BOOT (uptime reset);
 - verify by `hub_nav_smoke --auth`;
-- apply H15: a failing smoke is rolled FORWARD by reverting the rollback commit.
+- apply H15: a failing smoke is rolled FORWARD by reverting the rollback's one squash-merge.
 
 ### If the tool stops
 
-The rules in `tools/notebook_rollback_chain.py` (`RULES`) were measured at `MEASURED_AT`. A newer
-commit on master that touches the same lines as a Notebook squash stops the chain, and the stop
-names the file. Resolve it the way every recorded rule does:
+The rules in `tools/notebook_rollback_chain.py` (`RULES`) and their pins (`PINS`) were measured at
+`MEASURED_AT`. A newer commit on master that changes the lines of a recorded conflict, or adds a
+new conflict, stops the chain, and the stop names the file. Resolve it the way every recorded rule
+does:
 - keep the newer work;
-- take out only the reverted landing's own lines;
-- add the rule;
+- take out only the reverted landing's own lines (`ours_drop` wherever it fits);
+- add the rule, then re-record the pins (`python tools/notebook_rollback_chain.py --record-pins
+  --through wave5`, run once `MEASURED_AT` is moved to the new tip);
 - re-run the tool, then the rail `tests/test_notebook_rollback_chain.py`;
 - rehearse the changed step on a sandbox.
 
+⛔⛔ **NEVER hand-pick `82c56dd63` below wave 5**, however the stop reads. That applies to a stop at
+the `8167f7aa0` pick too.
+- Measured: `82c56dd63` conflicts in five files whose context wave 5's revert removes.
+- Resolving those conflicts to the rolled-back side leaves its clean hunks calling `OWN_READ`,
+  `keepRefusedWords` and `lowerStamp`, with nothing defining them. `NoteEditorPage` then throws a
+  ReferenceError when it mounts, and the Notebook editor is down for every member.
+- A bundle rolled back through wave 5 declares 0 from every door and does not need it (*Why
+  `82c56dd63` rides along*).
+
 ⛔ A **new Notebook landing** makes the procedure stale: the chain cannot revert what it does not
-list. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out` goes red on it by name.
-The fix has four steps:
+list. The tool refuses to run on a base that holds one, and names it. Its subject or its paths are
+enough for the refusal. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out` goes red
+on it by name too. The fix has four steps:
 1. add the landing to `CHAIN`, newest first;
 2. run the tool from the new tip and record a rule for each conflict;
 3. rehearse the new step;
@@ -237,16 +274,31 @@ a stale tab's blank, at its own level, and the server accepts it. A bundle that
 declares 0 cannot do that: it sends 0 from every door, stamp or no stamp, and a
 level-1 note refuses it.
 
-What that means for each kind of rollback:
+What that means for each rollback depth (the procedure above, measured 2026-09-28):
 
-- **A full rollback** (Procedure A: every level-1 type unregistered) derives
-  **0**, so it is safe with or without `82c56dd63`. Keeping it costs nothing
-  and keeps the never-revert set a single rule, which is why the banner says
-  three commits and not "two, plus one when…".
-- **A partial rollback** (Procedure B, or any revert that leaves the level-1
-  types registered — reverting only G-064, say, which the *Coarse levels*
-  note below covers) still derives **1**. There `82c56dd63` is load-bearing:
-  without it the exact B1 overwrite is back.
+- **Down to `wave6`** (wave 5's squash is never reverted, so `82c56dd63` is in the tree). Through
+  `wave7` the bundle registers every type and declares **2**. Through `wave6`, the level-1 types
+  are all still registered and the level-2 types are not, so it declares **1** (measured: the
+  level-1 and level-0 notes' body PUTs declared 1). A bundle declaring 1 or more is exactly the
+  one the bold rule is about, and it carries `82c56dd63`.
+- **Through `wave5`** every level-1 type is unregistered, and the declaration is the largest N
+  whose every table type is registered, so the bundle derives **0** (measured: every body PUT the
+  probe sent declared 0). A bundle that declares 0 is safe without `82c56dd63`. The commit is also
+  NOT re-applied there, because it does not apply to that tree (*The keep-list*, 3). The
+  never-revert set a rollback re-applies is therefore **two** commits: `8167f7aa0` and
+  `fd87271fd`.
+- ⛔ A revert that leaves only SOME level-1 types registered (reverting only G-064, say) does NOT
+  derive 1. One unregistered level-1 type caps the declaration at 0 (*Coarse levels*, below).
+  The only way to derive 1 or more is to keep every level-1 type, which means keeping wave 5's
+  squash and, with it, `82c56dd63`.
+
+⚰️ **What this section said until 2026-09-28, and why it was wrong.** It described the full
+rollback as "Procedure A", which is now superseded (*History*), and ended: "Keeping it costs
+nothing and keeps the never-revert set a single rule, which is why the banner says three
+commits". It also said reverting only G-064 "still derives 1". Both were false:
+- `82c56dd63` cannot be kept below wave 5 (it does not apply);
+- one unregistered level-1 type makes the declaration 0, not 1.
+A reader following that text on a stopped chain would hand-pick the commit and break the editor.
 
 ⚰️ **What this section said before the fix round's re-review, and why it was
 wrong.** It argued that a rollback deploy is a bundle-transition window (no
@@ -316,7 +368,12 @@ The vitest rail goes red, because it imports `editorSchema`.
      `lowerStamp`, and nothing defines or imports them. The editor would throw a ReferenceError
      when it mounts (evidence `chain/82c56dd63-all-ours-leaves-undefined-names.txt`).
    - It is also not needed there: *Why `82c56dd63` rides along* shows that a bundle declaring 0
-     is safe without it. The wave-5 rollback measures 0 on every body PUT (*Measured*).
+     is safe without it. At the wave-5 rollback the declaration of 0 was **measured on one door**,
+     the editor's autosave: every body PUT the probe saw declared 0 (*Measured*). The other
+     client body-PUT doors were **established by reading the code**, not measured. In that tree
+     each calls `notebookSchemaHeaders()` with no argument, so it sends the same derived value:
+     `hooks/useJ2Notes.js`, `lib/importer/commit.js`, `lib/importer/enrichment.js`,
+     `lib/offline/useOutboxDrain.js`, and the Model Book `UpbEntryPage.jsx`.
    - ⚰️ The earlier text of this runbook said to cherry-pick all three commits "in that order" and
      called the third "reasoned, not yet re-simulated". Measured now, that pick cannot be applied
      to the rolled-back tree.
@@ -374,15 +431,18 @@ is gone.
 | `9C` | 9C `2e0598bfa` | 6 / 0 | untouched | `GET /api/admin/notebook-soak`: 422 JSON → HTML |
 | `wave7` | wave 7 `f883e0996` | 11 / 1 (`api/main.py`) | untouched | `GET /api/j2/personal/tokens`: 200 JSON → HTML |
 | `wave6` | wave 6 `271a078b6` | 9 / 2 (`api/main.py`, `client_errors.py`) | **the revert would drop the 8 level-2 entries; the tip's tables were put back** | `GET /api/j2/note-templates`: 200 JSON → HTML |
-| `wave5` | wave 5 `2c3ed3093`, then `8167f7aa0`, `fd87271fd` | 12 / 2 (both tables, modify/delete); `8167f7aa0` 3 / 3 (tables + `tiptap.js`); `fd87271fd` 0 | **the revert would delete both; the tip's tables were put back** | `GET /api/j2/notes/switcher`: 200 JSON → 404 |
+| `wave5` | wave 5 `2c3ed3093`, then `8167f7aa0`, `fd87271fd` | 13 / 0 (the tables and their rails, kept at the tip by rule); `8167f7aa0` 5 / 1 (`tiptap.js`; the rest kept by rule); `fd87271fd` 1 / 0 (a kept rail) | **the revert would delete both; the tip's tables and rails were put back** | `GET /api/j2/notes/switcher`: 200 JSON → 404 |
 
-Every conflict outside shipped code was in `docs/`, `tools/`, `scripts/` or `CLAUDE.md`. Those
-paths are kept by rule, so those conflicts are never resolved at all. The resolutions for shipped
+Counts are round 2's (`chain/chain-primary-r2.jsonl`; round 1 is `chain/chain-primary.jsonl`,
+which differs only at `wave6` and `wave5`). Every conflict outside shipped code was in `docs/`,
+`tools/`, `scripts/`, `CLAUDE.md`, or the two schema tables and their two rails. Those paths are
+kept by rule, so those conflicts are never resolved at all. The resolutions for shipped
 code are `RULES` in `tools/notebook_rollback_chain.py`, measured at `38bb9a421`.
 
-**Each step removed exactly its own landing.** Each door moved at its own step and at no other.
-Every door of a landing not yet reverted still answered as it does on the tip, at every step
-before its own (`sandbox-results.md` §A). The kept #203 depth cap answered 400 from the tip down
+**Each landing's door FIRST moved at its own step.** Every door of a landing not yet reverted
+still answered as it does on the tip at every step before its own (`sandbox-results.md` §A).
+Two doors move a second time, at the wave-5 step, because the routes they ride on were created by
+wave 5: L1c's switcher-recall door goes 200 → 404, and wave 9's export-format door goes 200 → 405. The kept #203 depth cap answered 400 from the tip down
 to the wave-5 rollback.
 
 **The never-revert set, per step.** Three notes were created on the TIP: level 0 (text only),
@@ -604,8 +664,10 @@ same rolled-back bundle. The note stays safe but cannot be edited until the
 features return.
 
 **Open tabs.** There is no service worker. A tab opened before the rollback
-deploy keeps the wave-5 bundle until it reloads. That bundle reads every type,
-declares 1, and saves normally, which is correct. Nothing needs to be flushed.
+deploy keeps the bundle it loaded, the TIP's, until it reloads. That bundle reads every type,
+declares **2**, and saves normally, which is correct. It carries `82c56dd63`, so a body it
+forwards from a rolled-back tab's capture (unstamped, so 0) goes out at `min(0, 2) = 0`.
+Nothing needs to be flushed.
 
 **Coarse levels.** Rolling back only one of the two level-1 feature sets, such as
 G-064 alone, still drops the declaration to 0 for every level-1 note, including

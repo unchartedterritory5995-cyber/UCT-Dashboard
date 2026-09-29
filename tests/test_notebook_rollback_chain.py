@@ -27,10 +27,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
 RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-28" / "chain" / "chain-primary-r2.jsonl"
 WAVE5 = "2c3ed3093"
-# A Notebook landing: a one-parent commit whose SUBJECT names the Notebook (or wave 9C, the
-# Notebook's soak instrument) and which changes shipped code (app/ or api/). Docs-only Notebook
-# commits and other workstreams' commits that touch Journal files are not landings.
-SUBJECT = re.compile(r"(?i)\bnotebook\b|^wave 9c\b")
+# The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
+# file never restates it; it proves the two criteria agree where they were measured and that the
+# tool refuses a base whose census it has not measured.
 
 
 def _load():
@@ -67,51 +66,118 @@ def full(rev: str) -> str:
     return _git("rev-parse", "--verify", f"{rev}^{{commit}}").strip()
 
 
-def landings(rng: str) -> list[str]:
-    """Notebook landings in `rng`, newest first (full SHAs)."""
-    out = []
-    for line in _git("log", "--format=%H %P%x09%s", rng).splitlines():
-        head, subject = line.split("\t", 1)
-        sha, *parents = head.split()
-        if len(parents) != 1 or not SUBJECT.search(subject):
-            continue
-        files = _git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).splitlines()
-        if any(f.startswith(("app/", "api/")) for f in files):
-            out.append(sha)
-    return out
+def synthetic_commit(parent: str, subject: str, path: str, edit) -> str:
+    """A commit built from OBJECTS ONLY on top of `parent` (temporary index, no ref, no worktree):
+    `edit(old_bytes) -> new_bytes` applied to `path`. Unreferenced; git gc reclaims it."""
+    import os
+    import tempfile
+    fd, idx = tempfile.mkstemp(prefix="nb-rb-test-idx-")
+    os.close(fd)
+    os.remove(idx)
+    env = dict(os.environ, GIT_INDEX_FILE=idx)
+    try:
+        def g(*a, inp=None):
+            r = subprocess.run(["git", "-C", str(ROOT), *a], capture_output=True, env=env, input=inp)
+            assert r.returncode == 0, r.stderr
+            return r.stdout
+        g("read-tree", parent)
+        old = subprocess.run(["git", "-C", str(ROOT), "cat-file", "blob", f"{parent}:{path}"],
+                             capture_output=True).stdout
+        blob = g("hash-object", "-w", "--stdin", inp=edit(old)).decode().strip()
+        g("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}")
+        tree = g("write-tree").decode().strip()
+        return g("commit-tree", tree, "-p", parent, "-m", subject).decode().strip()
+    finally:
+        if os.path.exists(idx):
+            os.remove(idx)
 
 
 def test_the_census_can_see_a_landing_and_can_refuse_a_neighbour(chain):
     """Non-vacuity: the derivation finds wave 5 and the tip it was measured at, and refuses two
     commits that sit right beside them -- a docs-only Notebook commit and another workstream's
     commit whose MESSAGE says notebook."""
-    found = landings(f"{WAVE5}^..{chain.MEASURED_AT}")
+    found = [c["sha"] for c in chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")]
     assert full(WAVE5) in found and full(chain.MEASURED_AT) in found
     assert full("dc2bdfeaa") not in found    # docs(notebook): ... -- docs only
     assert full("a8a91025d") not in found    # fix(voice): ... -- its body mentions the Notebook
 
 
-def test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT(chain):
-    found = landings(f"{WAVE5}^..{chain.MEASURED_AT}")
+def test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT_and_both_criteria_agree(chain):
+    rows = chain.notebook_landings(f"{WAVE5}^..{chain.MEASURED_AT}")
     named = [full(s) for _k, s, _w in chain.CHAIN]
-    assert found == named, (
+    assert [c["sha"] for c in rows] == named, (
         "tools/notebook_rollback_chain.py CHAIN must list every Notebook landing, newest first.\n"
-        f"  landings git finds : {found}\n  CHAIN names        : {named}")
+        f"  landings git finds : {[c['sha'][:9] for c in rows]}\n"
+        f"  CHAIN names        : {[n[:9] for n in named]}")
+    split = [(c["sha"][:9], c["by_subject"], c["by_path"]) for c in rows
+             if not (c["by_subject"] and c["by_path"])]
+    assert not split, f"the subject and path criteria disagree on: {split}"
 
 
 def test_no_notebook_landing_after_MEASURED_AT_is_left_out(chain):
-    """A landing newer than the measured tip makes the procedure stale: the chain cannot revert
-    it, and nothing about it was rehearsed. Add it to CHAIN (newest first), run the tool from
-    the new tip, record a rule for any conflict it stops on, rehearse the new step on a sandbox,
-    and move MEASURED_AT."""
-    if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", chain.MEASURED_AT, "HEAD"],
+    """The tool's own refusal, asked of this branch's HEAD. A landing newer than the measured tip
+    makes the procedure stale; the message the tool prints says what to re-measure."""
+    head = full("HEAD")
+    if subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", chain.MEASURED_AT, head],
                       capture_output=True).returncode != 0:
         pytest.skip(f"HEAD does not contain {chain.MEASURED_AT}: nothing newer to audit on this branch")
-    newer = landings(f"{chain.MEASURED_AT}..HEAD")
-    named = {full(s) for _k, s, _w in chain.CHAIN}
-    missing = [s[:9] for s in newer if s not in named]
-    assert not missing, (f"Notebook landings after {chain.MEASURED_AT} that the rollback chain does not "
-                         f"name: {missing}. " + (test_no_notebook_landing_after_MEASURED_AT_is_left_out.__doc__ or ""))
+    assert chain.check_base(head) is None, chain.check_base(head)
+
+
+def test_the_tool_refuses_a_base_that_does_not_contain_MEASURED_AT(chain):
+    older = full("4bba30b73")                 # #225: one landing BELOW the measured tip
+    with pytest.raises(chain.ChainStopped, match=r"does not contain MEASURED_AT"):
+        chain.run(older, "wave9", emit=lambda _l: None)
+
+
+def test_the_tool_refuses_an_uncharted_landing_selected_by_subject_and_path(chain):
+    sha = synthetic_commit(full(chain.MEASURED_AT), "fix(notebook): a landing the chain does not name",
+                           "app/src/pages/journal-2-0/tabs/NotebookTab.module.css",
+                           lambda b: b + b"/* synthetic */\n")
+    with pytest.raises(chain.ChainStopped, match=sha[:9] + r".*subject and path"):
+        chain.run(sha, "L1c", emit=lambda _l: None)
+
+
+def test_the_tool_refuses_a_landing_the_subject_criterion_misses(chain):
+    """M6: a Notebook hotfix whose subject never says 'notebook' is caught by its PATHS."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "hotfix(j2): H14 -- a synthetic door fix",
+                           "api/services/journal_two/notes.py", lambda b: b + b"\n# synthetic\n")
+    with pytest.raises(chain.ChainStopped, match=sha[:9] + r".*selected by path"):
+        chain.run(sha, "L1c", emit=lambda _l: None)
+
+
+def test_a_non_notebook_commit_on_top_runs_and_warns(chain):
+    """Control for the refusals: a later commit that is neither Notebook work nor on a recorded
+    conflict's lines runs, and the run says the check list and rehearsal are mandatory."""
+    sha = synthetic_commit(full(chain.MEASURED_AT), "docs(terminal): synthetic, not Notebook work",
+                           "docs/notebook/wave5-rollback.md", lambda b: b + b"\n")
+    lines = []
+    final = chain.run(sha, "L1c", emit=lines.append)
+    assert "MANDATORY" in json.loads(lines[0]).get("warning", "")
+    assert final["from"] == sha
+
+
+def test_a_later_commit_on_a_recorded_conflicts_lines_stops_the_chain(chain):
+    """I1: a later master commit mounts a new (non-Notebook) router beside the journal_two mount.
+    The wave-8 revert's recorded rule was measured on a hunk without that line, so the chain must
+    STOP rather than resolve it; before the pins it exited 0 and dropped the new mount."""
+    mount = b"app.include_router(journal_two_router.router, dependencies=_OPEN_READS)\n"
+
+    def add_router(b):
+        assert b.count(mount) == 1
+        return b.replace(mount, mount + b"app.include_router(terminal_synthetic_router.router)\n")
+    sha = synthetic_commit(full(chain.MEASURED_AT), "feat(terminal): mount a synthetic router",
+                           "api/main.py", add_router)
+    assert chain.check_base(sha) is None      # not a Notebook landing: the census lets it through
+    with pytest.raises(chain.ChainStopped, match=r"api/main\.py is not the one"):
+        chain.run(sha, "wave7", emit=lambda _l: None)
+
+
+def test_through_a_kept_hotfix_is_refused_not_skipped(chain):
+    for key in [k for k, s, _w in chain.CHAIN if s in chain.KEPT]:
+        with pytest.raises(chain.ChainStopped, match="kept server hotfix"):
+            chain.plan(key)
+    assert chain.plan("203", revert_hotfixes=True)[-1][1] == "c6a8a9d3a"
 
 
 def test_the_chain_is_newest_first_one_parent_squashes(chain):
@@ -172,3 +238,34 @@ def test_the_runbooks_chain_table_is_the_tools_chain():
     mod = _load()
     assert [(k, s) for k, s, _w, _kept in rows] == [(k, s[:9]) for k, s, _w in mod.CHAIN]
     assert {s for _k, s, _w, kept in rows if kept} == {s[:9] for s in mod.KEPT}
+
+
+_HISTORY = re.compile(r"^## .*History", re.M)
+_PICK_WORDS = re.compile(r"(?i)cherry-pick|re-appl|hand-pick|pick it|re-pick")
+_NEGATION = re.compile(r"(?i)\b(not|never|cannot)\b")
+
+
+def _chunks_outside_history(text: str) -> list[str]:
+    """The runbook minus its History section, split into paragraphs and list items. A chunk that
+    opens with the tombstone mark describes superseded text and is exempt."""
+    m = _HISTORY.search(text)
+    if m:
+        nxt = re.search(r"^## ", text[m.end():], re.M)
+        text = text[:m.start()] + (text[m.end() + nxt.start():] if nxt else "")
+    chunks = re.split(r"\n\s*\n|\n(?=\s*(?:[-*]|\d+\.) )", text)
+    return [c for c in chunks if not c.lstrip("> ").startswith("⚰")]
+
+
+def test_the_runbook_never_recommends_re_applying_82c56dd63_below_wave5(chain):
+    """I3 (review round 1): outside History, every passage that talks about picking or re-applying
+    82c56dd63 says NOT/never/cannot -- hand-picking it onto a wave-5 rollback leaves names undefined
+    and the editor throws on mount. The tool agrees (GUARD_PICKS), and the explicit NEVER sentence
+    is present."""
+    text = DOC.read_text(encoding="utf-8")
+    hits = [c for c in _chunks_outside_history(text) if "82c56dd63" in c and _PICK_WORDS.search(c)]
+    assert len(hits) >= 2, f"non-vacuity: expected the keep-list and the stop section, found {len(hits)}"
+    bad = [c.strip()[:160] for c in hits if not _NEGATION.search(c)]
+    assert not bad, f"a passage outside History recommends picking 82c56dd63: {bad}"
+    assert not re.search(r"cherry-pick\s+82c56dd63", _HISTORY.split(text)[0]), "a command picks 82c56dd63"
+    assert "NEVER hand-pick `82c56dd63` below wave 5" in text
+    assert "82c56dd63" not in chain.GUARD_PICKS

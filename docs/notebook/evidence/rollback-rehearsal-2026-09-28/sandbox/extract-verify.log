@@ -15,3 +15,5 @@ p13b-fd87271fd: tree 900580af63 -- 14733 files expected, 14733 re-hashed, IDENTI
 [exited with code 0]
 p08-7e3f9e117: tree 26993a3d49 -- 15132 files expected, 15132 re-hashed, IDENTICAL
 # "FAILED p08": that extraction deadlocked after writing every file (tarfile stops at the end-of-archive marker while git still writes its padding into a full pipe); it was stopped by hand, the drain was added to rehearse.py, and the tree was re-verified on the line above.
+r2-p12-271a078b6: tree bfb45998cd -- 14816 files expected, 14816 re-hashed, IDENTICAL   (round 2; copied from the console at extraction, 2026-09-28, `rehearse.py extract`; a re-run now would count the built app/dist as extra)
+r2-p13b-fd87271fd: tree 832bd5b759 -- 14733 files expected, 14733 re-hashed, IDENTICAL   (round 2; same source)
