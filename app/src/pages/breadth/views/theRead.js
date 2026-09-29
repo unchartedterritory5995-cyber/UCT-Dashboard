@@ -242,7 +242,29 @@ function attributionClause(data) {
   return {
     key: 'attribution', source: '/api/breadth-monitor/score-components (SWR cache)',
     text: `Score attribution ${total}${move} (${present} of ${data.components.length} inputs).`,
+    citation: totalCitation(data, total),
   }
+}
+
+/**
+ * ⭐ TERM-060 — THE ATTRIBUTION TOTAL CARRIES A CHECKED CITATION POINTER.
+ *
+ * The server attaches `claims.total` to the payload this clause already reads:
+ * a pointer into the canonical address book (`uct://…breadth_score/D?as_of=`)
+ * and the server's check of the stated total against the stored value. The
+ * Read still fetches nothing — the check travels inside the cached payload.
+ *
+ * ⛔ THE CLAIM IS BOUND TO THE NUMBER THIS SENTENCE STATES. A claim whose
+ * `stated` is not the `total` printed here is about some other number, so it is
+ * discarded rather than lent to this one — and a clause with no usable claim
+ * renders "citation unavailable", never a citation it does not have.
+ */
+function totalCitation(data, total) {
+  const claim = data?.claims?.total
+  const bound = claim && typeof claim.pointer === 'string'
+    && claim.check && typeof claim.check === 'object'
+    && num(claim.stated) === total
+  return { figure: total, row: bound ? { uctUri: claim.pointer, check: claim.check } : null }
 }
 
 /**

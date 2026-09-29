@@ -493,3 +493,37 @@ describe('ordinal', () => {
       .toEqual(['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '23rd', '100th'])
   })
 })
+
+describe('TERM-060 — the attribution total carries its checked pointer, bound to the number it states', () => {
+  const claim = (over = {}) => ({
+    v: 1, pointer: 'uct://breadth_snapshot_numeric.breadth_score/D?as_of=2026-08-28',
+    stated: 80, decimals: 0,
+    check: { verdict: 'verified', reason: 'match', status: 'resolved', resolved_value: 80 },
+    ...over,
+  })
+  const cite = (data) => clause(read({ attributionData: data }), 'attribution').citation
+
+  it('passes the server’s pointer and check through untouched, for the figure the sentence prints', () => {
+    const c = cite({ ...ATTRIBUTION, claims: { total: claim() } })
+    expect(c.figure).toBe(80)
+    expect(c.row).toEqual({ uctUri: claim().pointer, check: claim().check })
+  })
+
+  it('a payload with no claim cites nothing — the strip then says "citation unavailable"', () => {
+    expect(cite(ATTRIBUTION).row).toBeNull()
+  })
+
+  it('a claim about a DIFFERENT number is never lent to this one', () => {
+    expect(cite({ ...ATTRIBUTION, claims: { total: claim({ stated: 81 }) } }).row).toBeNull()
+  })
+
+  it('a claim with no check, or no pointer, is not a citation', () => {
+    expect(cite({ ...ATTRIBUTION, claims: { total: claim({ check: null }) } }).row).toBeNull()
+    expect(cite({ ...ATTRIBUTION, claims: { total: claim({ pointer: null }) } }).row).toBeNull()
+  })
+
+  it('the sentence itself is unchanged by the citation', () => {
+    expect(clause(read({ attributionData: { ...ATTRIBUTION, claims: { total: claim() } } }), 'attribution').text)
+      .toBe('Score attribution 80, +10.0 from the prior session (2 of 2 inputs).')
+  })
+})

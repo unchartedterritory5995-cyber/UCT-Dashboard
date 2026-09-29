@@ -33,6 +33,7 @@ import { Fragment } from 'react'
 import useSWR from 'swr'
 import { composeRead } from './theRead'
 import { analoguesKey, attributionKey } from './breadthEndpoints'
+import Cited from '../../../components/provenance/Cited'
 import styles from './theRead.module.css'
 // ⛔ ITS OWN MODULE, not a second export beside the component: this is the one
 // place the view layer is allowed to touch the composer's sentence, and it is
@@ -60,15 +61,21 @@ export default function TheReadStrip({
       <span className={styles.kicker}>The Read</span>
       {read.clauses.length ? (
         <p className={styles.body}>
-          {read.clauses.map(c => (
-            <span key={c.key} className={styles.clause} data-testid={`the-read-clause-${c.key}`}>
-              {splitFigures(c.text).map((part, i) => (
-                i % 2
-                  ? <b key={i} className={styles.num}>{part}</b>
-                  : <Fragment key={i}>{part}</Fragment>
-              ))}
-            </span>
-          ))}
+          {read.clauses.map(c => {
+            const words = splitFigures(c.text).map((part, i) => (
+              i % 2
+                ? <b key={i} className={styles.num}>{part}</b>
+                : <Fragment key={i}>{part}</Fragment>
+            ))
+            return (
+              <span key={c.key} className={styles.clause} data-testid={`the-read-clause-${c.key}`}>
+                {/* TERM-060: a clause that states a stored figure renders its
+                    pointer through the ONE provenance renderer — never a
+                    component of its own. `row: null` is "citation unavailable". */}
+                {c.citation ? <Cited row={c.citation.row}>{words}</Cited> : words}
+              </span>
+            )
+          })}
         </p>
       ) : (
         /* ⛔ NOT A HEDGE, AND NOT A BLANK PANEL. Nothing composable is a fact

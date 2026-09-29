@@ -115,9 +115,86 @@ function TranscriptCited({ children, transcript, onOpenSource }) {
   )
 }
 
+// ── The checked-claim row (TERM-060 / FB-I1-02) ──────────────────────────────
+//
+//   <Cited row={ {uctUri, check: {verdict, reason, status, resolved_value,
+//                                 resolved_as_of}} } />
+//
+// A FOURTH row shape, additive: a `uctUri` row that also carries the server's
+// check of the stated figure against the value that address resolves to
+// (`api/services/canonical/claims.py`). A `uctUri` row WITHOUT `check` still
+// renders exactly as before.
+//
+// ⛔ ONLY `verdict === 'verified'` READS AS CITED. Every other verdict — a
+// mismatch, an unresolvable address, a malformed claim, an unknown verdict —
+// puts a visible note beside the figure, so a claim that failed its check is
+// never silently shown as verified. The note is on the page, not behind the
+// toggle.
+const CHECK_REASON_TEXT = {
+  match: 'Checked: the stated figure matches the stored value',
+  value_differs: 'Checked: the stated figure does not match the stored value',
+  as_of_differs: 'Checked: the stored value is from a different session',
+  not_a_number: 'Not checked: the stored value is not a number',
+  malformed: 'Not checked: the citation is malformed',
+}
+const CHECK_STATUS_TEXT = {
+  not_computable: 'Not checked: the stored value could not be read',
+  empty: 'Not checked: nothing is stored for that session',
+  unknown_metric: 'Not checked: the address names no declared figure',
+  unresolved_entity: 'Not checked: the address names no known instrument',
+}
+
+function checkLine(check) {
+  if (check.reason === 'not_resolved') {
+    return CHECK_STATUS_TEXT[check.status] || 'Not checked: the address did not resolve'
+  }
+  return CHECK_REASON_TEXT[check.reason] || 'Not checked'
+}
+
+function ClaimCited({ children, uctUri, check }) {
+  const panelId = useId()
+  const [open, setOpen] = useState(false)
+  const verdict = check.verdict === 'verified' || check.verdict === 'mismatch'
+    ? check.verdict : 'unverified'
+  const stored = check.resolved_value != null
+    ? `Stored value: ${check.resolved_value}${check.resolved_as_of ? ` (${check.resolved_as_of})` : ''}`
+    : null
+  const parts = [`Address: ${uctUri}`, stored, checkLine(check)].filter(Boolean)
+  return (
+    <span className={styles.wrap} data-testid="cited-claim" data-verdict={verdict}>
+      {children}
+      {verdict !== 'verified' && (
+        <span className={styles.unavailableNote} role="note" data-testid="cited-check-note">
+          {verdict === 'mismatch' ? 'does not match the stored record' : 'not verified'}
+        </span>
+      )}
+      <button
+        type="button"
+        className={styles.toggle}
+        data-testid="cited-toggle"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label="Show citation detail"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <UIcon name="info" size={11} />
+      </button>
+      {open && (
+        <span id={panelId} className={styles.panel} role="note" data-testid="cited-panel">
+          {parts.map((p) => <span key={p} className={styles.panelRow}>{p}</span>)}
+        </span>
+      )}
+    </span>
+  )
+}
+
 export default function Cited({ children, row = null, onOpenSource = null }) {
   const panelId = useId()
   const [open, setOpen] = useState(false)
+
+  if (row && typeof row.uctUri === 'string' && row.check && typeof row.check === 'object') {
+    return <ClaimCited uctUri={row.uctUri} check={row.check}>{children}</ClaimCited>
+  }
 
   if (row && row.transcript && typeof row.transcript === 'object') {
     return (
