@@ -229,6 +229,24 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
         _same(_column(name, bars, "D", False), exp[name], name)
 
 
+def test_a_DAILY_series_keyed_by_ISO_DATES_reads_each_date_as_its_session_open():
+    """⭐⭐ Q-T1 (2026-09-28). The chart's daily bars arrive keyed by an ISO date;
+    each reads as its session's opening instant, 09:30 America/New_York — the
+    instant TradingView stamps as a daily bar's ``time``. The fixture's dates
+    cross both DST changes, so a fixed UTC offset would miss half of them. And
+    the same dates under ``"W"`` stay blank: a week's key day is unmeasured."""
+    doc = _doc()
+    bars = doc["iso_daily_bars"]
+    for name in sorted(doc["iso_daily_expected"]):
+        _same(_column(name, bars, "D", False), doc["iso_daily_expected"][name], name)
+    for name in sorted(doc["iso_weekly_expected"]):
+        _same(_column(name, bars, "W", False), doc["iso_weekly_expected"][name], name)
+    assert set(doc["iso_daily_expected"]["hour"]) == {9}
+    assert set(doc["iso_daily_expected"]["minute"]) == {30}
+    assert {(t % 86400) / 3600 for t in doc["iso_daily_expected"]["time"]} == {13.5, 14.5}
+    assert all(v is None for v in doc["iso_weekly_expected"]["time"])
+
+
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
     """⛔⛔ THE ONE CLOCK VALUE THAT READS A SECOND BAR, AND THE DEFECT IT CARRIED.
 

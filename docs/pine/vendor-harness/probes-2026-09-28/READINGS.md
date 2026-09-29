@@ -70,3 +70,16 @@ Found by the bool-cast probes' B07/B08 rows (`t = time(timeframe.period, "0930-1
 So the engine's session membership does not evaluate against the daily bar's open time.
 Not fixed here — queued. Any corpus script using `time(…, session)` as a condition on a daily
 chart is affected.
+
+**RESOLVED on `pine/time-session-daily` (2026-09-28).** Root cause: the product's daily bars
+arrive keyed by an ISO date, and `computeClock`'s unit gate blanked every time-derived column on
+a date — bare `time`, `hour`, `minute`, `dayofweek` — so every session read was `na`, the
+exchange-zone form included (S03 on the harness 1D capture read `na` on all 300 bars; unreported
+only because S15 refuses that whole script at the door). `pineVocabularyWave.test.js` passed S11
+because it fed the vendor's raw unix-second bars, never the product's shape. The fixed-zone
+arithmetic was right; its input was blank. Rule: a daily bar keyed by a date opened at 09:30
+America/New_York on that date (`indicators.js::barOpenInstant`, mirrored by
+`indicator_compute.bar_open_instant`) — it reproduces the vendor's `t` on all 8,473 + 8,472 rows.
+Re-grade: `vw-bool-cast-spy-1d` MATCH (B07/B08 8473/8473), `vw-bool-cast-spy-60` still MATCH;
+both v4 captures stay INCONCLUSIVE at the member door on `pine:role-order` (`valuewhen`), an
+unrelated wall. Rail: `app/src/components/chart/engine/ast/sessionClockDailyBars.test.js`.
