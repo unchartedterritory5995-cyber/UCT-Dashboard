@@ -90,8 +90,9 @@ describe('ruling 1 — a selector that reads a KNOB is never folded', () => {
     expect(plot.colorPalette).toEqual(['#00e5ff', 'rgba(0, 0, 0, 0)'])
     const cond = r.rows.find((row) => plot.colorMode === `column:${row.key}`)
     // The selector is the declared IDENTIFIER — evaluated against whatever the
-    // member sets it to — never the author's `false` welded in.
-    expect(cond.source).toBe('show ? 0 : 1')
+    // member sets it to — never the author's `false` welded in. (`!= 0` is
+    // ruling 2's: an `na` selector takes the else branch.)
+    expect(cond.source).toBe('show != 0 ? 0 : 1')
     expect(r.definition.inputs.some((i) => i.key === 'show')).toBe(true)
   })
 

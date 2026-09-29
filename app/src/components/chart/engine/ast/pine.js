@@ -15979,6 +15979,45 @@ function settledColourNode(node, env, ctx) {
   return cur
 }
 
+/** ⭐⭐ 2026-09-28 (OWNER RULING 2) — AN `na` SELECTOR TAKES THE ELSE BRANCH.
+ *
+ *  Pine's rule for a colour conditional: when the condition is `na`, the result
+ *  is the else branch. This engine's `?:` answers NaN for a NaN test
+ *  (`interpret.js::TERNARY`, shared by the runtime VM), so a palette's index
+ *  column went NaN on every bar a selector was `na` and the binder drew the
+ *  series colour there — a colour neither the script nor TradingView chose.
+ *
+ *  ⭐ THE FIX IS ONE OPERATOR THIS TABLE ALREADY OWNS: a selector `t` becomes
+ *  `t != 0`, and `!=` is a comparison, and a comparison against NaN answers 0
+ *  (`cmp` — the NaN rule both kernels pin). So a `na` selector reads false and
+ *  the else branch is taken; a known one reads exactly as before. No new node,
+ *  no new function, no second arithmetic.
+ *
+ *  ⛔ ONLY THE SELECTION SPINE — the tests of the `?:` chain that picks the
+ *  palette entry, never a ternary nested inside a test (that is a VALUE, and its
+ *  semantics are the value lane's). ⛔ And only where the selector CAN be `na`:
+ *  a comparison, a literal, and `!`/`&&`/`||` over those can never be NaN, so a
+ *  rule made of them keeps its formula byte for byte. */
+function naSelectorTakesElse(ast) {
+  const CMP = new Set(['>', '<', '>=', '<=', '==', '!='])
+  const neverNa = (n, depth = 0) => {
+    if (!n || depth > 64) return false
+    if (n.type === 'num') return Number.isFinite(n.value)
+    if (n.type !== 'op') return false
+    if (CMP.has(n.name)) return true
+    if (n.name === '!' || n.name === '&&' || n.name === '||' || n.name === '?:') {
+      return (n.args || []).every((a) => neverNa(a, depth + 1))
+    }
+    return false
+  }
+  const spine = (n, depth = 0) => {
+    if (!n || depth > 64 || n.type !== 'op' || n.name !== '?:' || !Array.isArray(n.args) || n.args.length !== 3) return n
+    const [t, a, b] = n.args
+    return cOp('?:', [neverNa(t) ? t : cOp('!=', [t, cNum(0)]), spine(a, depth + 1), spine(b, depth + 1)])
+  }
+  return spine(ast)
+}
+
 /** The presentation ONE output call declares. Returns only what was actually
  *  written — an absent argument is absent, never a default invented here, so a
  *  consumer can tell "the author said line" from "the author said nothing". */
@@ -16920,7 +16959,9 @@ function outputPresentation(args, ctx) {
         // refuses leaves the plot imported and `colorDynamicArity` saying why.
         if (rule && rule.indexTree && ctx && ctx.resolver) {
           try {
-            const ast = resolveColourTree(ctx.resolver, rule, rule.indexTree)
+            // ⭐ 2026-09-28 (owner ruling 2) — an `na` selector takes the else
+            // branch, as Pine's does; see `naSelectorTakesElse`.
+            const ast = naSelectorTakesElse(resolveColourTree(ctx.resolver, rule, rule.indexTree))
             const formula = printFormula(ast)
             verifyRoundTrip(formula, ast)
             pres.colorPalette = rule.palette.slice()
