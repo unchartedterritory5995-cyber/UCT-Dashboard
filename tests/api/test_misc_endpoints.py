@@ -8,7 +8,12 @@ from api.middleware.auth_middleware import get_current_user_with_plan
 @pytest.mark.asyncio
 async def test_earnings_returns_structure():
     mock = {"bmo": [{"sym": "AAPL", "verdict": "Beat"}], "amc": []}
-    with patch("api.routers.earnings.get_earnings", return_value=mock):
+    # TERM-082: the route reads through its serve-stale slot, whose seam is
+    # `build_earnings` (the (payload, complete) builder), behind the cache.
+    from api.services.cache import cache
+    cache.invalidate("earnings")
+    with patch("api.routers.earnings.build_earnings", return_value=(mock, True)), \
+         patch("api.routers.bars.warm_bars_async", lambda *a, **k: None):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             r = await ac.get("/api/earnings")
     assert r.status_code == 200
