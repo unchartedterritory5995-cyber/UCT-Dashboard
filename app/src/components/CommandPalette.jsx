@@ -1,8 +1,9 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { forwardRef, useContext, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import CompanyLogo from './CompanyLogo'
 import UIcon from './ui/UIcon'
+import { AuthContext } from '../context/AuthContext'
 import { useJ2Favorites, useJ2Recents } from '../pages/journal-2-0/hooks/useJ2Notes'
 import { openCapture } from '../pages/journal-2-0/lib/captureBus'
 import { destinationFromLocation } from '../pages/journal-2-0/lib/captureContext'
@@ -70,6 +71,7 @@ function notebookNoteRowsMatch(q) {
 // "undefined. Enter for Research…" — invisible on screen, wrong out loud.
 function rowAriaLabel(r) {
   if (r._typed) return undefined // the visible "Go to NVDA" text is the name
+  if (r.kind === 'saved') return `${r.kindLabel}: ${r.name}. Enter to open.`
   if (r.kind === 'command') return r.label
   if (r.kind === 'note') {
     const where = r.context ? `, in ${r.context}` : ''
@@ -122,6 +124,16 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   // R1-N2: an Enter pressed before the answers that decide its target are in.
   // { query, ask, at } — it lands once they are, or at ENTER_WAIT_MS.
   const [pendingEnter, setPendingEnter] = useState(null)
+  // TERM-038: saved things as names -- chart layouts and watchlists the member owns,
+  // from /api/address/search. Asked ONLY while the flag rides the auth payload, so a
+  // dark deploy sends no extra request (the palette's request-count rails hold).
+  // Notes are left to the quick switcher above, which already searches titles.
+  // useContext, not useAuth(): the palette must render (flag off) outside a provider.
+  const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  const [savedRows, setSavedRows] = useState([])
+  const [savedFor, setSavedFor] = useState(null)
+  const [savedError, setSavedError] = useState(false)
+  const savedAbortRef = useRef(null)
 
   const inputRef = useRef(null)
   const openerRef = useRef(null)
@@ -177,6 +189,10 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
       setResultsFor(null)
       setNoteMatches([])
       setNotesFor(null)
+      setSavedRows([])
+      setSavedFor(null)
+      setSavedError(false)
+      if (savedAbortRef.current) savedAbortRef.current.abort()
       setPendingEnter(null)
       flushRef.current = null
       exhaustedRef.current = null
@@ -267,6 +283,33 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
           })
       }
 
+      if (savedAbortRef.current) savedAbortRef.current.abort()
+      if (addressSpaceEnabled && q.length >= 2) {
+        const sac = new AbortController()
+        savedAbortRef.current = sac
+        jsonFetcher(`/api/address/search?q=${encodeURIComponent(q)}`, { signal: sac.signal })
+          .then((data) => {
+            if (reqIdRef.current !== myReqId) return
+            const rows = Array.isArray(data?.results) ? data.results : []
+            setSavedRows(rows.filter((r) => r.kind !== 'note').slice(0, 6).map((r) => ({
+              kind: 'saved', id: r.address, name: r.name, kindLabel: r.kind_label,
+              savedKind: r.kind, to: r.to,
+            })))
+            setSavedError(Array.isArray(data?.unavailable) && data.unavailable.some((k) => k !== 'note'))
+            setSavedFor(q)
+          })
+          .catch((err) => {
+            if (err?.name === 'AbortError') return
+            if (reqIdRef.current !== myReqId) return
+            setSavedRows([])
+            setSavedError(true)
+            setSavedFor(q)
+          })
+      } else {
+        setSavedRows([])
+        setSavedFor(q)
+      }
+
       if (abortRef.current) abortRef.current.abort()
       const ac = new AbortController()
       abortRef.current = ac
@@ -294,7 +337,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     debounceRef.current = setTimeout(run, PALETTE_DEBOUNCE_MS)
     flushRef.current = () => { clearTimeout(debounceRef.current); run() }
     return () => { clearTimeout(debounceRef.current); flushRef.current = null }
-  }, [query, open])
+  }, [query, open, addressSpaceEnabled])
 
   const trimmedQuery = query.trim()
   const isHelp = trimmedQuery === '?'
@@ -359,7 +402,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   const noteMatchRows = isHelp ? [] : noteMatches
   const tickersSettled = !loading && resultsFor === trimmedQuery
   const notesSettled = !notesLoading && notesFor === trimmedQuery
-  const displayRows = useMemo(
+  const orderedRows = useMemo(
     () => orderPaletteRows({
       commands: notebookCommandRows,
       keywordNotes: notebookNoteRows,
@@ -371,6 +414,10 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
     }),
     [notebookCommandRows, notebookNoteRows, tickerRows, noteMatchRows, qUpper, tickersSettled],
   )
+  // TERM-038: saved rows go LAST, and only for the query as typed -- they never sit above
+  // a ticker or a note, so what a bare Enter opens is decided exactly as before.
+  const savedFresh = !isHelp && savedFor === trimmedQuery ? savedRows : []
+  const displayRows = useMemo(() => [...orderedRows, ...savedFresh], [orderedRows, savedFresh])
   // R1-N2 / R23-N4: does an Enter on the top row have to wait for the answers
   // first? For a ticker-led query, for BOTH of them.
   const mustWait = enterMustWait({
@@ -408,6 +455,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         close()
         return
       }
+      navigate(row.to)
+    } else if (row.kind === 'saved') {
       navigate(row.to)
     } else if (row.kind === 'note') {
       // Wave 10 (10D, R-16, study task T4): `switcher_used` — declared in wave 6, fired from
@@ -629,6 +678,14 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
                   )}
                   {r.badge && <span className={styles.resultExch}>{r.badge}</span>}
                 </>
+              ) : r.kind === 'saved' ? (
+                <>
+                  <span className={styles.resultLogo}><UIcon name={r.savedKind === 'watchlist' ? 'eye' : 'board'} size={15} /></span>
+                  <span className={styles.resultMain}>
+                    <span className={styles.resultName}>{r.name}</span>
+                  </span>
+                  <span className={styles.resultExch}>{r.kindLabel}</span>
+                </>
               ) : r._typed ? (
                 <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
               ) : (
@@ -646,6 +703,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
             </button>
           ))}
           {error && <div className={styles.resultError}>Search is briefly unavailable — Enter still opens the typed symbol.</div>}
+          {savedError && !isHelp && <div className={styles.resultError} data-testid="palette-saved-error">Saved layouts and watchlists are briefly unavailable — they are still there.</div>}
           {notesError && !isHelp && <div className={styles.resultError}>Note search is briefly unavailable — your notes are safe; try again in a moment.</div>}
         </div>
 
