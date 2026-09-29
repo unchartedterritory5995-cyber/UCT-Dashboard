@@ -119,16 +119,6 @@ function stripManifestProse() {
     enforce: 'pre',
     async transform(code, id) {
       const file = id.split('\\').join('/')
-      if (file.endsWith('/lib/marketClock/market_calendar.json')) {
-        // ⭐ Not prose: repetition. Lossless: `calendarCompact.test.js` proves the
-        // runtime's `expandCalendar` rebuilds the file exactly.
-        const { compactCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
-        const { doc, savedBytes } = compactCalendar(JSON.parse(code))
-        // eslint-disable-next-line no-console
-        console.log(`[uct] market_calendar: rows grouped and dates shortened, `
-          + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
-        return { code: JSON.stringify(doc), map: null }
-      }
       if (file.endsWith('/engine/ast/symbolScope.json')) {
         // ⭐ The second manifest, same rule: `symbolScopeProse.js::KEEP` decides and
         // `symbolScopeProse.test.js` derives it from what the runtime reads.

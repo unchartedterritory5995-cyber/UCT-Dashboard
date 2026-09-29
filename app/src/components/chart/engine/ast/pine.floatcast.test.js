@@ -94,12 +94,7 @@ describe('float(x) is the identity, and int(x) still is not', () => {
     const out = translatePine(src)
     const per = {}
     for (const o of out.outputs) if (o.refusal) per[o.refusal.guard] = (per[o.refusal.guard] || 0) + 1
-    // ⚰️ WAS `{ 'pine:state': 2, 'pine:cycle': 2 }`. Re-pinned 2026-09-28 (branch
-    // `pine/var-read-order`): the two `pine:cycle` outputs were the resolver
-    // meeting its own `var` build on a shared cycle stack; the build takes its own
-    // stack now and they reach `pine:state` — the sentence naming the real wall,
-    // a history read of the reassigned `current_state` (pine.guardCensus.test.js).
-    expect(per).toEqual({ 'pine:state': 4 })
+    expect(per).toEqual({ 'pine:state': 2, 'pine:cycle': 2 })
     // …and no output refuses on the cast any more.
     expect(per['pine:function']).toBeUndefined()
   })

@@ -169,7 +169,7 @@ export default function MemberPane({
   // is written under, applied at its caller.
   const [attach, setAttach] = useState({ state: 'idle', error: null })
   const doAttach = useCallback(async () => {
-    if (!onAttach || !built || !built.ok || built.saveable === false) return
+    if (!onAttach || !built || !built.ok) return
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
@@ -230,10 +230,7 @@ export default function MemberPane({
       {/* ⭐⭐ T5b — THE ONE CONTROL THAT LEAVES THE HARNESS. Present only when a
           caller supplied a place to put the result; absent on a default build,
           because this whole component already returned `null` above. */}
-      {/* ⛔ A RUNTIME-LANE PREVIEW IS NOT OFFERED AS A SAVE (`saveable: false`):
-          the store takes `compute.kind: 'ast'` alone, so the button's only outcome
-          would be a refusal. The disclosure above already says so in words. */}
-      {onAttach && built && built.saveable !== false && (
+      {onAttach && (
         <div data-testid="pine-member-pane-attach">
           <button
             type="button"

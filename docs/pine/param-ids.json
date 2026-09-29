@@ -275,8 +275,7 @@
     "__uct_param_1": "Show Filtered Price on chart",
     "__uct_param_2": "ATR Length",
     "__uct_param_3": "ATR Mult",
-    "__uct_param_4": "Enter Mult",
-    "__uct_param_5": "Response"
+    "__uct_param_4": "Enter Mult"
   },
   "corpus/committed/delta-imbalance-map-joat__b80f337fb3.pine": {},
   "corpus/committed/delta-rsi-oscillator-strategy__z4Yj46FVTX.pine": {
@@ -699,10 +698,8 @@
   "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine": {
     "__uct_param_1": "Pivot Point Period",
     "__uct_param_2": "Show Pivot Points",
-    "__uct_param_3": "ATR Factor",
-    "__uct_param_4": "ATR Period",
-    "__uct_param_5": "Show PP Center Line",
-    "__uct_param_6": "Show Support/Resistance"
+    "__uct_param_3": "Show PP Center Line",
+    "__uct_param_4": "Show Support/Resistance"
   },
   "corpus/committed/pivot-trendlines-with-breaks-hg__f1464ad5b7.pine": {},
   "corpus/committed/pmax-explorer__jN9HBNhynF.pine": {
@@ -771,27 +768,26 @@
     "__uct_param_5": "Auto EMA Lengths",
     "__uct_param_6": "Enable Developing HL/LH Hint",
     "__uct_param_7": "Enable Early Top Warning",
-    "__uct_param_8": "Early Top Cooldown",
-    "__uct_param_9": "Enable Liquidity Sweeps",
-    "__uct_param_10": "Alert On First OTE Entry",
-    "__uct_param_11": "Enable OTE / Fibonacci",
-    "__uct_param_12": "Alert TP1",
-    "__uct_param_13": "Enable TP Reference Extensions",
-    "__uct_param_14": "Alert TP2",
-    "__uct_param_15": "Enable MTF Scanner",
-    "__uct_param_16": "Enable Confluence",
-    "__uct_param_17": "Weight: Structure",
-    "__uct_param_18": "Weight: Liquidity",
-    "__uct_param_19": "Enable HTF Reaction Zones",
-    "__uct_param_20": "Weight: HTF Zone",
-    "__uct_param_21": "Weight: OTE",
-    "__uct_param_22": "Enable Breaker Zones",
-    "__uct_param_23": "Weight: Breaker Retest",
-    "__uct_param_24": "Enable FVG Zones",
-    "__uct_param_25": "Weight: FVG",
-    "__uct_param_26": "Weight: Momentum / Trend",
-    "__uct_param_27": "Weight: MTF Context",
-    "__uct_param_28": "Weight: Trendline Pressure"
+    "__uct_param_8": "Enable Liquidity Sweeps",
+    "__uct_param_9": "Alert On First OTE Entry",
+    "__uct_param_10": "Enable OTE / Fibonacci",
+    "__uct_param_11": "Alert TP1",
+    "__uct_param_12": "Enable TP Reference Extensions",
+    "__uct_param_13": "Alert TP2",
+    "__uct_param_14": "Enable MTF Scanner",
+    "__uct_param_15": "Enable Confluence",
+    "__uct_param_16": "Weight: Structure",
+    "__uct_param_17": "Weight: Liquidity",
+    "__uct_param_18": "Enable HTF Reaction Zones",
+    "__uct_param_19": "Weight: HTF Zone",
+    "__uct_param_20": "Weight: OTE",
+    "__uct_param_21": "Enable Breaker Zones",
+    "__uct_param_22": "Weight: Breaker Retest",
+    "__uct_param_23": "Enable FVG Zones",
+    "__uct_param_24": "Weight: FVG",
+    "__uct_param_25": "Weight: Momentum / Trend",
+    "__uct_param_26": "Weight: MTF Context",
+    "__uct_param_27": "Weight: Trendline Pressure"
   },
   "corpus/committed/renko-candles-overlay__d76a18d49e.pine": {},
   "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine": {
@@ -848,11 +844,7 @@
   "corpus/committed/smart-money-concepts-by-welotrades__0bff41a2e5.pine": {
     "__uct_param_1": "TF #2🕑",
     "__uct_param_2": "TF #1🕑:",
-    "__uct_param_3": "♻ Filter Degrees °:",
-    "__uct_param_4": "",
-    "__uct_param_5": "EQL & EQH📐:",
-    "__uct_param_6": "",
-    "__uct_param_7": "Swing Points📏:"
+    "__uct_param_3": "EQL & EQH📐:"
   },
   "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine": {
     "__uct_param_1": "High Interest Threshold"
@@ -871,17 +863,16 @@
   "corpus/committed/smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6.pine": {
     "__uct_param_1": "Enable BOS/CHoCH Section",
     "__uct_param_2": "Break with Candle's Body",
-    "__uct_param_3": "Enable Current Structure Section",
-    "__uct_param_4": "MA 1 Show",
-    "__uct_param_5": "MA 2 Show",
-    "__uct_param_6": "MA 3 Show",
-    "__uct_param_7": "MA 4 Show",
-    "__uct_param_8": "MA 5 Show",
-    "__uct_param_9": "MA 6 Show",
-    "__uct_param_10": "MA 7 Show",
-    "__uct_param_11": "MA 8 Show",
-    "__uct_param_12": "MA 9 Show",
-    "__uct_param_13": "MA 10 Show"
+    "__uct_param_3": "MA 1 Show",
+    "__uct_param_4": "MA 2 Show",
+    "__uct_param_5": "MA 3 Show",
+    "__uct_param_6": "MA 4 Show",
+    "__uct_param_7": "MA 5 Show",
+    "__uct_param_8": "MA 6 Show",
+    "__uct_param_9": "MA 7 Show",
+    "__uct_param_10": "MA 8 Show",
+    "__uct_param_11": "MA 9 Show",
+    "__uct_param_12": "MA 10 Show"
   },
   "corpus/committed/smoothed-gaussian-trend-filter-algoalpha__69de2e99a0.pine": {
     "__uct_param_1": "Poles",
@@ -1123,7 +1114,12 @@
     "__uct_param_1": "Pivot Left Bars",
     "__uct_param_2": "Pivot Right Bars"
   },
-  "tests/fixtures/pine_oos/high_engagement__23-sweep-reversal-map-plus-herman.pine": {},
+  "tests/fixtures/pine_oos/high_engagement__23-sweep-reversal-map-plus-herman.pine": {
+    "__uct_param_1": "Swing length",
+    "__uct_param_2": "Local structure length",
+    "__uct_param_3": "ATR length",
+    "__uct_param_4": "Minimum sweep penetration (ATR)"
+  },
   "tests/fixtures/pine_oos/high_engagement__24-coppock-curve-multi-filter-markittick.pine": {
     "__uct_param_1": "Long ROC Length",
     "__uct_param_2": "Short ROC Length",

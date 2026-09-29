@@ -144,23 +144,11 @@ describe('the Pine guard census, by name', () => {
 // The read now refuses `pine:collection` at the write, so `pine:collection` is
 // reached again and `pine:constant-only` is not — by the corpora; its own cases
 // still pin it (see the 09-07 note above).
-// ⚰️ 2026-09-28 (branch `pine/var-read-order`): `pine:cycle` JOINS THIS LIST
-// AGAIN. Its only corpus firing was `02-ict`'s two `trigger_condition` shapes,
-// and the "cycle" was the resolver meeting its own `var` build on the SHARED
-// cycle stack: `previous_state = nz(current_state[1])` read inside the update of
-// `current_state`. A `var` build now takes its own stack (a binding the outer
-// resolution is inside is legally re-read inside the update, where it means a
-// different tree — `partialStateRead`), so those two outputs reach the sentence
-// that actually describes them: `pine:state`, "`current_state[1]` reads what
-// `current_state` held on an earlier bar, and this script reassigns it". Still a
-// refusal, now naming the construct. The guard stays live and is pinned by the
-// constructed self-cycles in `pine.test.js` / `pine.depth.test.js`.
 const EXPECTED_UNEXERCISED = [
   'pine:arity',
   'pine:character',
   'pine:colour-value',
   'pine:constant-only',
-  'pine:cycle',
   'pine:declaration-library',
   'pine:drawing',
   'pine:empty',

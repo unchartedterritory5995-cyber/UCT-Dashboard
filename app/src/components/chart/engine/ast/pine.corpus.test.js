@@ -388,19 +388,6 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // stopped refusing for it too, and the guard stays live for a right-hand
     // side that genuinely answers one value and for mismatched arity, railed by
     // 86 constructed cases in `pine.tuples` / `pine.tupleBuiltins`.
-    // ⭐ 10 → 10 ON 2026-09-28 (branch `pine/var-read-order`), TWO MOVERS THAT
-    // CANCEL — which is exactly why the number is read beside WHICH guard moved.
-    //   `pine:cycle`  LEAVES. It is the 2026-08-31 movement run backwards: 02-ict's
-    //                 two `trigger_condition` refusals were the resolver meeting its
-    //                 own `var` build on a SHARED cycle stack. The build takes its
-    //                 own stack now, so they reach `pine:state` ("`current_state[1]`
-    //                 reads what `current_state` held on an earlier bar, and this
-    //                 script reassigns it") — still refused, by the sentence that
-    //                 names the construct.
-    //   `pine:budget` JOINS. 20-smc-toolkit's structure columns, read by position,
-    //                 need lookback 1013 > 960; the screener lane refuses them by
-    //                 name instead of offering a column it cannot save. The fold
-    //                 before read `trend_initialized` as its initializer `false`.
     expect(fired.size).toBe(10)
   })
 
@@ -593,14 +580,7 @@ describe('the whole corpus, in one number', () => {
     // running band, i.e. a trailing stop in the wrong place. It refuses at pine:state
     // now. A count that went down because a wrong answer stopped being produced is a
     // count that got MORE true, not less.
-    // ⚰️ 14 → 13 ON 2026-09-28 (branch `pine/var-read-order`), SAME READING. A `var`
-    // read before its own `:=` is now the previous bar's final value. The named
-    // mover is `20-smc-toolkit-udt`: its structure columns had read
-    // `trend_initialized` as its initializer `false` (the snapshot's old formula
-    // carried the `!0`), so the trend re-initialised on every break. Read by
-    // position they need lookback 1013 > 960, and the screener lane now refuses
-    // them `pine:budget` rather than offer a column that cannot be saved.
-    expect(translating).toBe(13)
+    expect(translating).toBe(14)
     // ⚰️⚰️ 60 → 53 THE SAME DAY, AND THE SEVEN THAT LEFT WERE NEVER THERE.
     // The count went DOWN while a script was ADDED, which is the only reason
     // anybody looked: −8 from `03-rsi-directional-momentum-scanner`, +1 from 15.
@@ -651,14 +631,7 @@ describe('the whole corpus, in one number', () => {
     // identity for a rightward shift) and the Chikou span is the undisplaced `close`
     // with `displace: -25`, the ruling `pine.displace.test.js` already pins. All three
     // read bars on every session, so none is a folded-constant phantom.
-    // ⚰️ 49 → 43 ON 2026-09-28 (branch `pine/var-read-order`), SIX NAMED COLUMNS:
-    // `20-smc-toolkit-udt`'s four (see the `translating` pin above) and
-    // `03-rsi-directional-momentum-scanner`'s `Cont 1st Short` / `Cont 1st Long`,
-    // which had read the `state` latch as an accumulator of its reset alone
-    // (`nz(self, 0) == 3 || … ? 0 : …` — a latch that is never set). Read by
-    // position, `state` and its partner each read the other before setting their
-    // own, and both columns refuse `pine:state` (`route: 'runtime'`).
-    expect(columns).toBe(43)
+    expect(columns).toBe(49)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus

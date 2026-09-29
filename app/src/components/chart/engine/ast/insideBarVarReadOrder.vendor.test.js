@@ -29,22 +29,23 @@
 // ⭐⭐ THE RUNTIME LANE ALREADY HAS IT RIGHT, bar for bar, from bar 0. The
 // per-bar VM executes statements in order, which is the rule by construction.
 //
-// ⚠️⚠️ THE COLUMNAR DOOR — WAS A KNOWN DIVERGENCE, IS NOW A NAMED REFUSAL THAT
-// ROUTES (2026-09-28, branch `pine/var-read-order`, owner ruling on PR #241).
-// It used to diverge twice, and never drew a mark where the vendor draws 76:
-//   1. every output resolved against the END-of-program env, so
-//      `plotshape(breakout and not breakoutOccurred)` read the latch already
-//      set by this bar's own `breakout` → it could never fire;
-//   2. a `var` read between two of its reassignments folded into an
+// ⚠️⚠️ KNOWN DIVERGENCE — THE COLUMNAR DOOR (what the member pane attaches
+// today). It diverges twice, and the second makes this script unreachable for
+// it without a new capability, which is why it is pinned here rather than
+// fixed in the vendor-na lane (2026-09-28):
+//   1. every output is resolved against the END-of-program env, so
+//      `plotshape(breakout and not breakoutOccurred)` reads the latch already
+//      set by this bar's own `breakout` → it can never fire;
+//   2. a `var` read between two of its reassignments is folded into an
 //      accumulator of the reassignments ABOVE the read only — here a latch that
-//      is reset and never set.
-// Both are corrected in `pine.js` (`positionEnv`, `partialStateRead`). For THIS
-// script the correction ends in a refusal, and that is the honest columnar
-// answer: the two latches each read the other before setting their own, so
-// their previous bars are coupled and `accum` carries one `self`. The refusal
-// carries `route: 'runtime'`; the member door sends such a script to the
-// per-bar runtime lane, which draws both columns bar for bar
-// (`runtimePaneRoute.vendor.test.js`, behind `VITE_PINE_RUNTIME_PANE_ENABLED`).
+//      is reset and never set — instead of those reassignments applied to the
+//      previous bar's FINAL value.
+// Correcting both is a Pine-semantics change (prototype and census on branch
+// `pine/var-read-position-proto`), and for THIS script it still cannot produce a
+// column: the two latches each read the other before setting their own, so
+// their previous bars are coupled, and `accum` carries one `self`. The honest
+// columnar answer would be a refusal; the right answer is the runtime lane.
+// This case goes red the day the door changes, which is the point of it.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -167,26 +168,19 @@ describe('⭐⭐ a `var` read before a later `:=` holds the previous bar\'s FINA
     expect(marks(asMarks(shapes[0].col))).toBe(42)
   })
 
-  it('⛔ the columnar door REFUSES it — coupled latches — and names the lane that can draw it', () => {
-    // ⚰️ WAS: "KNOWN DIVERGENCE: the columnar door never draws a breakout or a
-    // breakdown mark" — both shapes translated to an `accum(…)` column that was
-    // 0 on all 632 bars where the vendor draws 42 and 34. That pin went red the
-    // day the door stopped reading the latch at the end of the bar, which is
-    // what it was written to do. Re-pinned 2026-09-28 to the corrected answer.
+  it('⚠️ KNOWN DIVERGENCE: the columnar door never draws a breakout or a breakdown mark', () => {
+    // ⛔ THIS PINS THE WRONG ANSWER ON PURPOSE, labelled as one (see the header):
+    // it goes red the day the door stops reading the latch at the end of the bar.
     const t = translatePine(SOURCE, { strict: true, basePeriod: 'D' })
-    expect(t.ok).toBe(false)
-    const shapes = t.outputs.filter((o) => o.kind === 'plotshape')
+    const shapes = t.outputs.filter((o) => o.formula && /accum\(/.test(o.formula))
     expect(shapes.length).toBe(2)
     for (const o of shapes) {
-      // No column is emitted — a refusal, never a quiet chart.
-      expect(o.formula == null || o.formula === '').toBe(true)
-      expect(o.refusal && o.refusal.guard).toBe('pine:state')
-      expect(o.refusal.route).toBe('runtime')
-      expect(o.refusal.message).toMatch(/Occurred`/)
-      expect(o.refusal.message).toMatch(/carry each other/)
+      const got = Array.from(interpret(parseFormula(o.formula).ast, bars, {}, undefined, undefined,
+        { tf: 'D', newestBarIsForming: false }))
+      expect(got.filter((v) => v === 1)).toEqual([])
     }
-    // …where the vendor draws 42 and 34 (the first case above), so a refusal
-    // here is the columnar lane declining, not a claim that nothing is drawn.
+    // …where the vendor draws 42 and 34 (the first case above), so the door's
+    // silence is a divergence and not an agreement on a quiet chart.
     expect(marks(VENDOR_UP) + marks(VENDOR_DOWN)).toBe(76)
   })
 })

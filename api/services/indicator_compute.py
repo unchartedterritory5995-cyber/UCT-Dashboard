@@ -49,10 +49,6 @@ from datetime import date, datetime, timedelta
 from math import isfinite, sqrt
 from typing import Dict, List, Optional, Tuple, Union
 
-#: The ONE calendar, read for the C8 close columns as TradingView applies it
-#: (2026-09-28). Stdlib plus the ``nyse_calendar`` leaf, so this pulls no service in.
-from api.services.tradingview_session import tradingview_close_minute as _tv_close_minute
-
 Number = float
 MaybeNum = Optional[float]
 
@@ -1451,23 +1447,16 @@ CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
 #: ⭐⭐ ``time_close``, ``time_close("D")`` AND ``timeframe.change("W"/"M")`` --
 #: the last four names above (2026-09-28, objects triage C8). Mirrors
 #: ``indicators.js::CLOCK_TIME_DERIVED``'s doc comment value for value; read
-#: that one for the readings and what is blank. In short: ``timeclose`` is the
-#: session close AS TRADINGVIEW'S CALENDAR APPLIES IT (intraday
-#: ``min(open + span, close)``, daily the day's close, weekly the close of the
-#: week's last vendor session), ``dayclosetime`` is the close on the date the
-#: bar opened, and ``weekfirst`` / ``monthfirst`` are ``sessionfirst``'s rule
-#: over an ISO week / a month. ⭐ The close is read from the ONE calendar
-#: (``tradingview_session.tradingview_close_minute``, 2026-09-28): 13:00 on a half-day
-#: the vendor honours, no session on a closure it honours. 0 mismatches on every
-#: 1D / 60m / W bar, where the regular-session template counted 13 / 13 and 52 /
-#: 52 and 1.
+#: that one for the readings, the counted early-close/holiday mismatch and what
+#: is blank. In short: ``timeclose`` is the regular-session TEMPLATE close
+#: (intraday ``min(open + span, 16:00)``, daily 16:00, weekly Friday 16:00),
+#: ``dayclosetime`` is 16:00 on the date the bar opened, and ``weekfirst`` /
+#: ``monthfirst`` are ``sessionfirst``'s rule over an ISO week / a month.
+#: ⛔ NO CALENDAR HERE EITHER: the vendor's 13 early closes and holiday weeks
+#: are counted, not reproduced (1D 13/8,473; 60m 13 and 52 of 20,616; W 52 and
+#: 1 of 1,758).
 _RTH_OPEN_MINUTE = 9 * 60 + 30
-
-
-def _ymd_plus_days(y: int, m: int, d: int, k: int) -> int:
-    """``YYYYMMDD`` of the calendar date ``k`` days after ``y-m-d``."""
-    x = date(y, m, d) + timedelta(days=k)
-    return x.year * 10000 + x.month * 100 + x.day
+_RTH_CLOSE_MINUTE = 16 * 60
 
 #: ⭐⭐ THE OPENING TIMESTAMP OF THE ET CALENDAR DAY CONTAINING THIS BAR,
 #: BROADCAST TO EVERY BAR OF THAT DAY. Mirrors ``indicators.js``'s own
@@ -1788,65 +1777,35 @@ def bar_close_state(bars: List[dict], tf, now: Optional[float] = None,
 #: TradingView stamps a daily bar with the instant its session opened (all 8,473
 #: SPY 1D rows of ``vw-bool-cast-spy-1d-2026-09-28.json``), and the chart's
 #: daily bars arrive keyed by an ISO date, so the date is translated into that
-#: instant once and every time-derived column reads it. ⭐ WEEKLY and MONTHLY
-#: too (2026-09-28): the open of the period's FIRST vendor session
-#: (``nyse_calendar.tradingview_close_minute``) -- measured on all 1,758 SPY
-#: weekly rows; monthly is the same rule over a month and is UNMEASURED (no
-#: monthly capture exists). Any date in the Monday-first ISO week / the month
-#: maps to the same instant, so the product's Friday key (``_resample_weekly_iso``)
-#: and its 1st-of-month key (``_resample_monthly_iso``) need no special case.
-#: The screen's ``YYYYMMDD`` ints stay behind the unit gate.
+#: instant once and every time-derived column reads it. DAILY and ISO only: a
+#: ``W``/``M`` date and the screen's ``YYYYMMDD`` ints stay behind the unit gate.
 DAILY_SESSION_OPEN_ET_MINUTE = 9 * 60 + 30
 _ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
-
-
-def _first_vendor_session(start: date, span: int) -> Optional[date]:
-    """The first day from ``start`` on, within ``span`` days, the vendor trades."""
-    for k in range(span):
-        d = start + timedelta(days=k)
-        if _tv_close_minute(d.year * 10000 + d.month * 100 + d.day) is not None:
-            return d
-    return None
-
-
-def _et_wall_instant(d: date, minute_of_day: int) -> float:
-    """The unix instant of ``minute_of_day`` New York wall-clock on ``d``."""
-    return float(int(datetime(d.year, d.month, d.day, minute_of_day // 60,
-                              minute_of_day % 60, tzinfo=_et_zone()).timestamp()))
 
 
 def bar_open_instant(t, tf: Optional[str] = None) -> Optional[float]:
     """A bar's ``t`` as unix seconds, or ``None`` when it is not readable as one.
 
     A number passes the unit gate as it always has. An ISO date on a ``"D"``
-    series becomes its session's opening instant; on a ``"W"`` / ``"M"`` series,
-    the opening instant of its week's / month's first vendor session. Anything
-    else is ``None``, and one ``None`` blanks the whole series in
-    ``compute_clock``. Mirrors ``indicators.js::barOpenInstant``.
+    series becomes its session's opening instant; anything else is ``None``, and
+    one ``None`` blanks the whole series in ``compute_clock``.
     """
     if isinstance(t, bool):
         return None
     if isinstance(t, (int, float)):
         return float(t) if isfinite(float(t)) and t >= VWAP_MIN_INSTANT else None
-    if tf not in ("D", "W", "M") or not isinstance(t, str):
+    if tf != "D" or not isinstance(t, str):
         return None
     m = _ISO_DATE_RE.match(t)
     if not m:
         return None
     try:
-        day: Optional[date] = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        opened = datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)),
+                          DAILY_SESSION_OPEN_ET_MINUTE // 60,
+                          DAILY_SESSION_OPEN_ET_MINUTE % 60, tzinfo=_et_zone())
     except ValueError:
         return None
-    if tf == "W":
-        day = _first_vendor_session(day - timedelta(days=day.weekday()), 5)
-    elif tf == "M":
-        first = day.replace(day=1)
-        nxt = (first.replace(year=first.year + 1, month=1) if first.month == 12
-               else first.replace(month=first.month + 1))
-        day = _first_vendor_session(first, (nxt - first).days)
-    if day is None:
-        return None
-    instant = _et_wall_instant(day, DAILY_SESSION_OPEN_ET_MINUTE)
+    instant = float(int(opened.timestamp()))
     return instant if instant >= VWAP_MIN_INSTANT else None
 
 
@@ -2120,60 +2079,33 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         prev_week = week
         prev_month = mon
 
-        # ``timeclose`` / ``dayclosetime``: the session close AS TRADINGVIEW
-        # APPLIES IT (``tradingview_session.tradingview_close_minute``): 13:00 on a
-        # half-day the vendor honours, else 16:00, and no session on a closure it
-        # honours. A wall-clock difference from this bar's own instant, exact
-        # because no DST change falls on a weekday. Mirrors ``computeClock``.
+        # ``timeclose`` / ``dayclosetime``: the regular-session TEMPLATE close,
+        # 16:00 on this bar's New York date as a wall-clock difference (no DST
+        # change falls between 09:30 and 16:00 on a weekday).
         weekday = 2 <= wd <= 6
         minute_of_day = h * 60 + int(minute[i])
-        since_midnight = minute_of_day * 60 + (t % 60)
-        close_minute = _tv_close_minute(day) if weekday else None
-        session_close = (None if close_minute is None
-                         else t + (close_minute * 60 - since_midnight))
+        close16 = t + (_RTH_CLOSE_MINUTE * 60 - (minute_of_day * 60 + (t % 60)))
         close = None
         dclose = None
-        if not known or not weekday:
-            pass  # unknown timeframe or a weekend bar: unmeasured
-        elif close_minute is None:
-            pass  # a closure the vendor honours: its session holds no bar that day
+        if not known or not weekday or tf == "M":
+            pass  # unknown timeframe, a weekend bar, or a monthly bar: unmeasured
         elif span is not None:
-            # a bar opening after the session closed (13:30 on a half-day) is
-            # outside it, exactly as an extended-hours bar is
-            if _RTH_OPEN_MINUTE <= minute_of_day < close_minute:
-                dclose = session_close
+            if _RTH_OPEN_MINUTE <= minute_of_day < _RTH_CLOSE_MINUTE:
+                dclose = close16
                 if tf == "60" and minute_of_day == _RTH_OPEN_MINUTE:
                     if grid60 == "product":
-                        close = min(t + 1800, session_close)
+                        close = t + 1800
                     elif grid60 == "vendor":
-                        close = min(t + span, session_close)
+                        close = min(t + span, close16)
                 else:
-                    close = min(t + span, session_close)
+                    close = min(t + span, close16)
         elif tf == "D":
-            close = session_close
-            dclose = session_close
+            close = close16
+            dclose = close16
         elif tf == "W":
-            # the LAST vendor session of this ISO week (2 = Monday .. 6 = Friday)
-            dclose = session_close
-            for back in range(6 - wd, -1, -1):
-                last = _tv_close_minute(_ymd_plus_days(y, mo, d, back))
-                if last is not None:
-                    close = t + back * 86400 + (last * 60 - since_midnight)
-                    break
-        elif tf == "M":
-            # ⚠️ UNMEASURED (no monthly capture): the weekly rule over a calendar
-            # month -- the close of its LAST vendor session, read through the wall
-            # clock because a DST change can fall inside a month.
-            dclose = session_close
-            month_start = date(y, mo, 1)
-            nxt = (date(y + 1, 1, 1) if mo == 12 else date(y, mo + 1, 1))
-            for back in range(1, (nxt - month_start).days - d + 2):
-                last_day = nxt - timedelta(days=back)
-                last = _tv_close_minute(last_day.year * 10000 + last_day.month * 100
-                                        + last_day.day)
-                if last is not None:
-                    close = _et_wall_instant(last_day, last)
-                    break
+            # Friday of this ISO week: 6 - dow days on (2 = Monday .. 6 = Friday).
+            close = close16 + (6 - wd) * 86400
+            dclose = close16
         time_close[i] = None if close is None else float(close)
         day_close[i] = None if dclose is None else float(dclose)
 

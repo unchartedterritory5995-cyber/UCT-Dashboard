@@ -23,7 +23,7 @@
 // screen". Where a test needs a capture shape no real capture has yet (colour,
 // objects), it is built here, from REAL vendor bars, and named synthetic.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -154,11 +154,11 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
   const SNIPPET = fs.readFileSync(path.join(REPO, 'tools/vendor_harness/tv_capture.js'), 'utf8')
 
   const each = (items) => ({ each: (cb) => { for (const [i, v] of items) { if (cb(i, v)) break } } })
-  function install({ studies, bars, interval = '1D', symbolInfo = {} }) {
+  function install({ studies, bars }) {
     const mainSeries = {
       bars: () => each([[-1000001, [0, 0, 0, 0, 0, 0]], ...bars.map((b, i) => [i, b])]),
-      symbolInfo: () => ({ name: 'SPY', pro_name: 'AMEX:SPY', exchange: 'NYSE Arca', timezone: 'America/New_York', pricescale: 100, minmov: 1, session: '0930-1600', type: 'fund', ...symbolInfo }),
-      interval: () => interval,
+      symbolInfo: () => ({ name: 'SPY', pro_name: 'AMEX:SPY', exchange: 'NYSE Arca', timezone: 'America/New_York', pricescale: 100, minmov: 1, session: '0930-1600', type: 'fund' }),
+      interval: () => '1D',
     }
     const sources = [
       { metaInfo: () => ({ id: 'Splits@tv-basicstudies', shortId: 'Splits' }), title: () => 'Splits' },
@@ -281,137 +281,6 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     vh = install({ studies: [mkStudy({ rows: [] })], bars: BARS })
     expect(() => vh.capture({ study: 'UCTVH', source: SRC })).toThrow(/no rows on the bar grid/)
     vh.cleanup()
-  })
-
-  // ── newestBarIsForming — DERIVED from the chart, never taken on trust ───────
-  //
-  // ⚰️ Measured 2026-09-28 (origin/pine/object-gc): AMEX:SPY 1W captured at
-  // 2026-09-29T01:12:16Z (Monday 21:12 ET) recorded `newestBarIsForming: false`
-  // — the batch's daily-only guess — while the week had four sessions to go, and
-  // TradingView's own `barstate.isconfirmed` plot read 0 on that bar
-  // (vw-clock-close-tfchange-spy-1w K17; vw-object-gc-{a,b,c,d}-spy-1w *01). The
-  // 1D capture of the same bar, same evening, read 1. Those bar times are used here.
-  describe('newestBarIsForming — the bar\'s own period end against the capture instant', () => {
-    const SPY = { timezone: 'America/New_York', session: '0930-1600' }
-    const MON_0928 = 1790602200         // 2026-09-28T13:30Z: SPY's 1D bar AND its 1W bar
-    const CAPTURED = '2026-09-29T01:12:16.482Z'
-    const at = (iso) => Date.parse(iso)
-    let vh
-    const state = (t, interval, iso, si = SPY) => vh._newestBarState(t, interval, si, at(iso))
-
-    it('⭐⭐ 1W on a Monday evening is FORMING; the same bar as 1D is closed (the capture that went wrong)', () => {
-      vh = install({ studies: [mkStudy()], bars: BARS })
-      const w = state(MON_0928, '1W', CAPTURED)
-      expect(w.forming).toBe(true)
-      expect(w.periodEndUTC).toBe('2026-10-02T20:00:00.000Z')      // Friday 16:00 ET
-      // ⛔ CONTROL: the identical bar on 1D closed at Monday 16:00 ET.
-      const d = state(MON_0928, '1D', CAPTURED)
-      expect(d.forming).toBe(false)
-      expect(d.periodEndUTC).toBe('2026-09-28T20:00:00.000Z')
-      // and a 1D bar in the middle of its own session is forming
-      expect(state(MON_0928, 'D', '2026-09-28T18:00:00Z').forming).toBe(true)
-      vh.cleanup()
-    })
-
-    it('1W closes at Friday\'s close — and on a holiday Friday, at Thursday\'s, when the symbol lists it', () => {
-      vh = install({ studies: [mkStudy()], bars: BARS })
-      expect(state(MON_0928, '1W', '2026-10-02T19:59:00Z').forming).toBe(true)
-      expect(state(MON_0928, '1W', '2026-10-02T20:01:00Z').forming).toBe(false)
-      const GOOD_FRIDAY_WEEK = Date.parse('2026-03-30T13:30:00Z') / 1000
-      const thursdayEvening = '2026-04-02T21:00:00Z'
-      const hol = state(GOOD_FRIDAY_WEEK, '1W', thursdayEvening, { ...SPY, session_holidays: '20260403' })
-      expect(hol.forming).toBe(false)
-      expect(hol.periodEndUTC).toBe('2026-04-02T20:00:00.000Z')
-      // ⛔ CONTROL: without the holiday list the week runs to Friday.
-      expect(state(GOOD_FRIDAY_WEEK, '1W', thursdayEvening).forming).toBe(true)
-      vh.cleanup()
-    })
-
-    it('60 m: the last bar of the session ends at the session close, not start + 60 min', () => {
-      vh = install({ studies: [mkStudy()], bars: BARS })
-      const LAST_60 = 1790364600          // 2026-09-25T19:30Z, SPY's 15:30 ET 60 m bar
-      expect(state(LAST_60, '60', '2026-09-25T19:45:00Z').forming).toBe(true)
-      const after = state(LAST_60, '60', '2026-09-25T20:05:00Z')
-      expect(after.forming).toBe(false)
-      expect(after.periodEndUTC).toBe('2026-09-25T20:00:00.000Z')
-      // ⛔ CONTROL: a mid-session bar runs its full 60 minutes.
-      const MID = Date.parse('2026-09-25T14:30:00Z') / 1000
-      expect(state(MID, '60', '2026-09-25T15:20:00Z').forming).toBe(true)
-      expect(state(MID, '60', '2026-09-25T15:31:00Z').forming).toBe(false)
-      vh.cleanup()
-    })
-
-    it('1M closes at the close of the month\'s last trading day', () => {
-      vh = install({ studies: [mkStudy()], bars: BARS })
-      const SEP = Date.parse('2026-09-01T13:30:00Z') / 1000
-      expect(state(SEP, '1M', CAPTURED).forming).toBe(true)
-      const end = state(SEP, 'M', '2026-09-30T20:01:00Z')        // Wednesday 30th, 16:01 ET
-      expect(end.forming).toBe(false)
-      expect(end.periodEndUTC).toBe('2026-09-30T20:00:00.000Z')
-      vh.cleanup()
-    })
-
-    it('⛔ what cannot be derived is null, never false', () => {
-      vh = install({ studies: [mkStudy()], bars: BARS })
-      expect(state(MON_0928, '2W', CAPTURED).forming).toBeNull()
-      expect(state(MON_0928, '1W', CAPTURED, { session: '0930-1600' }).forming).toBeNull()   // no timezone
-      expect(state(MON_0928, '1W', CAPTURED, { ...SPY, session: '1800-1700' }).forming).toBeNull()  // overnight
-      vh.cleanup()
-    })
-
-    // Through capture(): the double's bars end on the real Monday bar.
-    const WEEK_BARS = [[MON_0928 - 7 * 86400, 1, 2, 0.5, 1.5, 10], [MON_0928, 1.5, 2, 1, 1.8, 12]]
-    const weekStudy = () => mkStudy({ rows: [[MON_0928 - 7 * 86400, 1.5, 1, 0], [MON_0928, 1.8, 1.5, 1]] })
-    const captureAt = (iso, interval, opts) => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      vi.setSystemTime(new Date(iso))
-      try {
-        vh = install({ studies: [weekStudy()], bars: WEEK_BARS, interval })
-        const sum = vh.capture({ study: 'UCTVH', source: SRC, ...opts })
-        const cap = JSON.parse(Array.from({ length: sum.chunks }, (_, i) => vh.chunk(i).text).join(''))
-        vh.cleanup()
-        return { sum, cap }
-      } finally {
-        vi.useRealTimers()
-      }
-    }
-
-    it('⭐⭐ capture() records the DERIVED state over the caller\'s guess, and says so', () => {
-      const { sum, cap } = captureAt(CAPTURED, '1W', { newestBarIsForming: false })
-      expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
-      expect(cap.capturedAtUTC).toBe(CAPTURED)
-      expect(cap.newestBarIsForming).toBe(true)
-      expect(cap.newestBar).toMatchObject({
-        time: MON_0928, source: 'derived', derived: true, asserted: false,
-        periodEndUTC: '2026-10-02T20:00:00.000Z',
-      })
-      expect(cap.warnings.join('\n')).toMatch(/the caller asserted false.*recorded true/)
-      expect(sum).toMatchObject({ newestBarIsForming: true, newestBarIsFormingSource: 'derived' })
-    })
-
-    it('⛔ CONTROL — the same instant on 1D records closed, with no disagreement to report', () => {
-      const { cap } = captureAt(CAPTURED, '1D', { newestBarIsForming: false })
-      expect(validateCapture(cap).ok).toBe(true)
-      expect(cap.newestBarIsForming).toBe(false)
-      expect(cap.newestBar.source).toBe('derived')
-      expect(cap.warnings.join('\n')).not.toMatch(/the caller asserted/)
-      // 01:12Z is 5 h 12 min after the 16:00 ET close: past the confirmation window
-      expect(cap.warnings.join('\n')).not.toMatch(/TradingView confirms such a bar/)
-      // …and inside that window the capture says so rather than guessing
-      const early = captureAt('2026-09-28T23:30:00Z', '1D', {})
-      expect(early.cap.newestBarIsForming).toBe(false)
-      expect(early.cap.warnings.join('\n')).toMatch(/TradingView confirms such a bar/)
-    })
-
-    it('⛔ an underivable interval falls back to the caller\'s assertion — and to null, never false', () => {
-      const asserted = captureAt(CAPTURED, '2W', { newestBarIsForming: true })
-      expect(asserted.cap.newestBarIsForming).toBe(true)
-      expect(asserted.cap.newestBar.source).toBe('asserted')
-      const none = captureAt(CAPTURED, '2W', {})
-      expect(none.cap.newestBarIsForming).toBeNull()
-      expect(none.cap.newestBar.source).toBe('unknown')
-      expect(none.cap.warnings.join('\n')).toMatch(/newestBarIsForming not derived/)
-    })
   })
 })
 

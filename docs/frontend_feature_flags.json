@@ -46,14 +46,6 @@
         "app/src/components/chart/builder/memberPane/memberPaneDefinition.js::objectsOnlyPaneEnabled"
       ],
       "note": "A D2 revisit, owner decision 2026-09-20. `pine:objects-only` is a script that DRAWS -- a table, labels, boxes -- and offers no plot or alert condition, so `ok` is false for the SCREENER and the drawing is real. Measured: 19 of the 266 committed corpus scripts are in that state, plus the acceptance dashboard. OFF means the pane refuses them exactly as it did before. Rollback is the variable, not a revert. ARMED 2026-09-27 on owner ruling, and admission is governed by the partial-drawing rule (PR #207, owner ruling option b): a drawing that loses any removal is refused (or, for a plotting script, its drawings withheld), and any other partial drawing attaches with an 'N of M drawing elements in this script aren't supported yet' disclosure. Measured on the 266 corpus under #207: 47 attach flag-on, 11 refused for a lost removal, 30 disclosed. Rollback: set the variable to 0 (the CLI refuses an empty value; the gate reads anything but '1' as off)."
-    },
-    "VITE_PINE_RUNTIME_PANE_ENABLED": {
-      "status": "dark",
-      "since": "2026-09-28",
-      "readBy": [
-        "app/src/components/chart/engine/runtimePaneGate.js::runtimePaneEnabled"
-      ],
-      "note": "Deliberately off: routing a member's script to the per-bar runtime lane is a D2 revisit (the pane has drawn only the HOST lane's saved definition), so it ships dark as VITE_PINE_OBJECTS_ONLY_PANE_ENABLED did. On, a script whose every host refusal carries route 'runtime' (coupled `var` latches) is PREVIEWED through the runtime lane instead of refused, and is never offered as a save, because the store accepts compute.kind 'ast' only. Declared as a build ARG in Dockerfile.web. Reach and arming consequence: docs/feature_flags.json build_flags."
     }
   }
 }

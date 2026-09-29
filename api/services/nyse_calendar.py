@@ -38,23 +38,6 @@ back to the regular session and may read ``isrealtime`` for up to one session
 too long on a holiday or half-day -- named in ``docs/pine/barstate.md`` rather
 than papered over.
 
-⭐⭐ AND THEY RUN BACK TO 2000 (2026-09-29, the C8 ``time_close`` lane). The
-dataset's ``coverage_start`` moved from 2025-01-01 to 2000-01-01 with the rows
-between added to ``market_calendar.json`` itself (its ``source`` field states the
-evidence: the two libraries it already came from agree on every closure and
-13:00 half-day, the NYSE rules and the vendor's own SPY history agree on the
-closures, and the vendor's 60m volume on the 2015-2024 half-days). It starts at
-2000 because TradingView applies no closure before it, so nothing reads earlier.
-
-⛔⛔ WHAT TRADINGVIEW APPLIES IS NOT THIS CALENDAR, AND IT IS NOT SUBTRACTED FROM
-IT. The vendor's session ignores every closure before 2000, two unscheduled ones
-after it, every half-day before 2019 and two 2020 half-days. Those are facts
-about the vendor, measured; the NYSE really was shut and really did close at
-13:00, and ``breadth_session`` reconstructs from the tape and wants the truth.
-So the dataset holds the truth, and the vendor's exceptions are written ONCE in
-the clock layer -- ``api/services/tradingview_session.py`` and its browser twin
-``tradingViewSession.js`` -- which DERIVES the vendor's view from these sets.
-
 ⛔ HALF-DAYS ARE NOT CLOSURES AND THE TWO SETS MUST NOT BE UNIONED. A 1pm ET
 early close is a REAL SESSION that trades; a closure produces no bars at all.
 ``bars_fetch``'s own comment says half-days are *"intentionally NOT"* in the
@@ -89,12 +72,6 @@ NYSE_HOLIDAYS_YYYYMMDD: frozenset[int] = frozenset(
 NYSE_EARLY_CLOSES_YYYYMMDD: frozenset[int] = frozenset(
     _yyyymmdd(d) for d in _calendar().early_closes
 )
-
-#: The first day both sets are complete from (the dataset's ``coverage_start``).
-#: Before it, a date's absence from a set means UNKNOWN, not "a regular session"
-#: -- a reader that must tell the two apart (``breadth_session``) reads this
-#: rather than ``min(set)``.
-NYSE_CALENDAR_FROM_YYYYMMDD: int = _yyyymmdd(_calendar().coverage_start)
 
 
 #: ⚠️⚠️ HYPOTHESIS, NOT A MEASUREMENT — the hour TradingView appears to CONFIRM a

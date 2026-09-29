@@ -126,19 +126,12 @@ describe('getExtSession — outside nyseCalendar.js coverage (must degrade EXACT
     expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2026-12-31' })
   })
 
-  it('a real 1999 holiday (Christmas, observed Fri 12-24) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
-    // 2025, then 2024, were this probe. The dataset starts 2000-01-01 since the
-    // C8 time_close lane (2026-09-29), so 1999 is the nearest year that is not.
-    expect(hasCoverage(1999)).toBe(false) // the probe really is outside coverage
-    vi.setSystemTime(new Date('1999-12-24T15:00:00Z')) // Fri 10:00 EST, 1999 has no calendar table
-    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '1999-12-24' })
-  })
-
-  it('a real 2024 holiday (Christmas) is recognized now that the dataset covers 2000 onward', () => {
-    expect(hasCoverage(2024)).toBe(true)
-    vi.setSystemTime(new Date('2024-12-25T15:00:00Z')) // Wed 10:00 EST, Christmas Day
-    // The prior real session is the 12-24 half-day.
-    expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2024-12-24' })
+  it('a real 2024 holiday (Christmas) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
+    // 2025 was this probe until TERM-035 follow-up #1: the dataset starts
+    // 2025-01-01, so 2025 is now covered and 2024 is the nearest year that is not.
+    expect(hasCoverage(2024)).toBe(false) // the probe really is outside coverage
+    vi.setSystemTime(new Date('2024-12-25T15:00:00Z')) // Wed 10:00 EST, 2024 has no calendar table
+    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2024-12-25' })
   })
 
   it('a real 2025 holiday (Christmas) is now correctly recognized -- the dataset covers 2025', () => {

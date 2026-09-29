@@ -90,16 +90,11 @@ describe('⭐ the bar length is the vendor\'s, and one number per code', () => {
     for (const tf of [undefined, '3', '1H', '2D', '']) {
       expect(Array.from(computeClock(bars, tf).periodseconds).every(Number.isNaN), String(tf)).toBe(true)
     }
-    // ⭐ ABOVE THE UNIT GATE: the bar length does not depend on the clock. A
-    // date-keyed weekly bar HAS a clock since 2026-09-28 (its week's first
-    // session, Monday 09:30 here), and a screen's YYYYMMDD int still has none —
-    // the length is known either way.
+    // ⭐ ABOVE THE UNIT GATE: a weekly series keyed by dates blanks every
+    // time-derived column, and its bar length is still known.
     const weekly = computeClock([{ t: '2026-09-21' }], 'W')
-    expect(weekly.hour[0]).toBe(9)
+    expect(Number.isNaN(weekly.time[0])).toBe(true)
     expect(weekly.periodseconds[0]).toBe(604800)
-    const ints = computeClock([{ t: 20260921 }], 'W')
-    expect(Number.isNaN(ints.time[0])).toBe(true)
-    expect(ints.periodseconds[0]).toBe(604800)
   })
 })
 

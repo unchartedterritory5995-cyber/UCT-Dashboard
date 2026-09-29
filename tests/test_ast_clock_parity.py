@@ -233,64 +233,18 @@ def test_a_DAILY_series_keyed_by_ISO_DATES_reads_each_date_as_its_session_open()
     """⭐⭐ Q-T1 (2026-09-28). The chart's daily bars arrive keyed by an ISO date;
     each reads as its session's opening instant, 09:30 America/New_York — the
     instant TradingView stamps as a daily bar's ``time``. The fixture's dates
-    cross both DST changes, so a fixed UTC offset would miss half of them. The
-    same dates under ``"W"`` / ``"M"`` read as the open of their week's / month's
-    first vendor session (2026-09-28) -- several dates share one instant."""
+    cross both DST changes, so a fixed UTC offset would miss half of them. And
+    the same dates under ``"W"`` stay blank: a week's key day is unmeasured."""
     doc = _doc()
     bars = doc["iso_daily_bars"]
     for name in sorted(doc["iso_daily_expected"]):
         _same(_column(name, bars, "D", False), doc["iso_daily_expected"][name], name)
     for name in sorted(doc["iso_weekly_expected"]):
         _same(_column(name, bars, "W", False), doc["iso_weekly_expected"][name], name)
-    for name in sorted(doc["iso_monthly_expected"]):
-        _same(_column(name, bars, "M", False), doc["iso_monthly_expected"][name], name)
     assert set(doc["iso_daily_expected"]["hour"]) == {9}
     assert set(doc["iso_daily_expected"]["minute"]) == {30}
     assert {(t % 86400) / 3600 for t in doc["iso_daily_expected"]["time"]} == {13.5, 14.5}
-    # non-vacuity: 7 daily dates are 4 distinct weeks and 3 distinct months
-    assert len(set(doc["iso_weekly_expected"]["time"])) == 4
-    assert len(set(doc["iso_monthly_expected"]["time"])) == 3
-
-
-def test_WEEKLY_and_MONTHLY_bars_keyed_as_the_PRODUCT_keys_them_read_the_first_vendor_session():
-    """⭐⭐ 2026-09-28. ``/api/bars`` keys a weekly bar by the FRIDAY of its ISO
-    week and a monthly bar by the 1st of its month. Each reads as the open of its
-    period's first vendor session and closes at its last one. Weekly is measured
-    on all 1,758 SPY weeks; ⚠️ monthly is UNMEASURED (no monthly capture)."""
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    et = ZoneInfo("America/New_York")
-    doc = _doc()
-    for bars_key, exp_key, tf in (("iso_weekly_bars", "iso_weekly_keys_expected", "W"),
-                                  ("iso_monthly_bars", "iso_monthly_keys_expected", "M")):
-        for name in sorted(doc[exp_key]):
-            _same(_column(name, doc[bars_key], tf, False), doc[exp_key][name],
-                  f"{exp_key}.{name}")
-
-    def fmt(v):
-        return datetime.fromtimestamp(v, et).strftime("%Y-%m-%d %a %H:%M")
-
-    wk = doc["iso_weekly_keys_expected"]
-    assert [fmt(t) for t in wk["time"]] == [
-        "1999-02-15 Mon 09:30",   # before 2000 the vendor opens Monday, holiday or not
-        "2007-01-03 Wed 09:30",   # New Year's Monday + Ford's Tuesday
-        "2012-10-29 Mon 09:30",   # Sandy: not in the vendor's session
-        "2024-11-25 Mon 09:30",
-        "2024-12-30 Mon 09:30",   # the Friday key is in the NEXT year
-        "2026-01-20 Tue 09:30",   # MLK Monday
-        "2026-03-30 Mon 09:30",
-        "2026-06-29 Mon 09:30"]
-    assert [fmt(t) for t in wk["timeclose"]] == [
-        "1999-02-19 Fri 16:00", "2007-01-05 Fri 16:00", "2012-11-02 Fri 16:00",
-        "2024-11-29 Fri 13:00", "2025-01-03 Fri 16:00", "2026-01-23 Fri 16:00",
-        "2026-04-02 Thu 16:00",   # the Friday KEY is Good Friday itself
-        "2026-07-02 Thu 16:00"]   # and here July 3 (observed)
-    mo = doc["iso_monthly_keys_expected"]
-    assert [fmt(t) for t in mo["time"]] == [
-        "2025-09-02 Tue 09:30", "2026-01-02 Fri 09:30", "2026-02-02 Mon 09:30",
-        "2026-03-02 Mon 09:30", "2026-11-02 Mon 09:30", "2026-12-01 Tue 09:30"]
-    assert fmt(mo["timeclose"][3]) == "2026-03-31 Tue 16:00"    # EDT by then
-    assert fmt(mo["timeclose"][5]) == "2026-12-31 Thu 16:00"
+    assert all(v is None for v in doc["iso_weekly_expected"]["time"])
 
 
 def test_TIME_CLOSE_and_TIMEFRAME_CHANGE_match_the_other_lane_on_every_close_case():
@@ -327,45 +281,12 @@ def test_the_close_cases_are_not_vacuous():
     wk = exp["weekly_instants"]
     assert [c - t for c, t in zip(wk["timeclose"][:5], wk["time"][:5])] ==         [369000, 369000, 282600, 369000, 369000]
     assert wk["timeclose"][5] is None
-    # No timeframe: the close is unmeasured; the period flags still answer.
-    assert all(v is None for v in exp["daily_instants_no_tf"]["timeclose"])
-    # "M" (2026-09-28, UNMEASURED -- no monthly capture): the close of the
-    # month's LAST vendor session; November 2025's is the 13:00 half-day.
-    from datetime import datetime as _dt
-    from zoneinfo import ZoneInfo as _Z
-    _et = _Z("America/New_York")
-    assert [None if v is None else _dt.fromtimestamp(v, _et).strftime("%m-%d %H:%M")
-            for v in exp["daily_instants_monthly_tf"]["timeclose"]] == [
-        "10-31 16:00", "10-31 16:00", "11-28 13:00", "02-27 16:00", "03-31 16:00", None]
-    for tf_case in ("daily_instants_monthly_tf", "daily_instants_no_tf"):
-        assert exp[tf_case]["monthfirst"] == exp["daily_instants"]["monthfirst"]
+    # "M" and no timeframe: the close is unmeasured; the period flags still answer.
+    for blank in ("daily_instants_monthly_tf", "daily_instants_no_tf"):
+        assert all(v is None for v in exp[blank]["timeclose"])
+        assert exp[blank]["monthfirst"] == exp["daily_instants"]["monthfirst"]
     assert exp["daily_instants"]["weekfirst"][1:] == [0, 1, 1, 1, 0]
     assert exp["daily_instants"]["monthfirst"][1:] == [0, 1, 1, 1, 0]
-
-    # ⭐ THE CALENDAR AS TRADINGVIEW APPLIES IT (2026-09-28): a half-day the
-    # vendor honours closes at 13:00; 2018-12-24 (before 2019) and 2020-11-27
-    # (a 2020 half-day it keeps full) close at 16:00, as the vendor reads them.
-    half = exp["daily_half_days"]
-    assert [c - t for c, t in zip(half["timeclose"], half["time"])] == [
-        23400, 12600, 23400, 23400, 12600, 12600]
-    assert half["dayclosetime"] == half["timeclose"]
-    vend = exp["sixty_vendor_grid_half_days"]
-    assert vend["timeclose"][3] - vend["time"][3] == 3600      # 2020-11-27 12:30
-    assert vend["timeclose"][10] - vend["time"][10] == 1800    # 2025-11-28 12:30
-    assert vend["timeclose"][11] is None and vend["dayclosetime"][11] is None
-    prod = exp["sixty_product_grid_half_day"]
-    assert prod["timeclose"][3] - prod["time"][3] == 3600      # 12:00 -> 13:00
-    assert prod["timeclose"][4] is None                        # 13:00: after the close
-    # a weekly bar closes on the week's LAST vendor session: Friday 16:00 on the
-    # 1999 / 9-11 / Ford / Sandy weeks (the vendor's own readings), Friday 13:00
-    # after Thanksgiving, Thursday 13:00 before July 4, Thursday 16:00 before Good Friday
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    et = ZoneInfo("America/New_York")
-    wk = exp["weekly_holiday_weeks"]["timeclose"]
-    assert [datetime.fromtimestamp(v, et).strftime("%a %H:%M") for v in wk] == [
-        "Fri 16:00", "Fri 16:00", "Fri 16:00", "Fri 16:00",
-        "Fri 13:00", "Thu 13:00", "Thu 16:00"]
 
 
 def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():

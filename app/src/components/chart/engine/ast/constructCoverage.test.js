@@ -160,14 +160,7 @@ describe('🔴 THE RATCHET — a construct may only ever reach FURTHER', () => {
     // supertrend-explorer, 10-supertrend, 05-chandelier-exit): a stop computed over
     // a rolling 250 bars is a stop in the wrong place.
     // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
-    // ⚰️ 11 → 10, RE-FROZEN 2026-09-28 (branch `pine/var-read-order`), ONE NAMED
-    // MOVER: `20-smc-toolkit-udt`, which uses both constructs. Its structure columns
-    // read `trend_initialized` before its own `:=` and had folded it to the
-    // initializer `false` — `not trend_initialized` TRUE on every bar, the trend
-    // re-initialised on every break: a silent mistranslation, R-F's class. Read by
-    // position the fold needs lookback 1013 > 960 and the screener lane refuses it.
-    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
-    'persistent-state': 10,    // of 29 that use it
+    'persistent-state': 11,    // of 29 that use it
     'user-defined-fn': 11,    // of 24 that use it
     'bounded-loop': 5,     // of 13 that use it
     // 🔴🔴 4 → 3 ON 2026-09-07 IS THE ONE DOCUMENTED EXCEPTION TO "NEVER LOWER
@@ -178,14 +171,7 @@ describe('🔴 THE RATCHET — a construct may only ever reach FURTHER', () => {
     // (see `doorScorecard.test.js`'s RULED entry and
     // `pine.forLoopReassignSilentWrongResult.test.js`). This is a correctness
     // fix lowering a headline number, not a construct-coverage regression.
-    // ⚰️ 3 → 2, RE-FROZEN 2026-09-28 (branch `pine/var-read-order`), ONE NAMED
-    // MOVER: `20-smc-toolkit-udt`, which uses both constructs. Its structure columns
-    // read `trend_initialized` before its own `:=` and had folded it to the
-    // initializer `false` — `not trend_initialized` TRUE on every bar, the trend
-    // re-initialised on every break: a silent mistranslation, R-F's class. Read by
-    // position the fold needs lookback 1013 > 960 and the screener lane refuses it.
-    // ⛔ A RATCHET LOWERED WITHOUT ITS REASON IS A RATCHET DELETED. This is the reason.
-    collections: 2,     // of 10 that use it
+    collections: 3,     // of 10 that use it
     'drawing-objects': 7,     // of 23 that use it
     'session-clock': 1,     // of 7 that use it
     'type-cast': 0,     // of 5 that use it

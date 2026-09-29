@@ -99,18 +99,11 @@ describe('⭐⭐ a daily bar keyed by a DATE opens at its session open — the v
     })
   }
 
-  it('⛔ reads a D / W / M ISO date and nothing it cannot vouch for', () => {
+  it('⛔ reads a DAILY ISO date and nothing it cannot vouch for', () => {
     expect(barOpenInstant('1993-04-05', 'D')).toBe(734016600) // EDT: 13:30 UTC
     expect(barOpenInstant('1993-03-19', 'D')).toBe(732551400) // EST: 14:30 UTC
-    // ⭐ (2026-09-28) a weekly key reads as its week's first vendor session: the
-    // Monday 09:30 of 1993-04-05 whichever day of that ISO week keys it — even
-    // Good Friday, the product's Friday key that week (before 2000 the vendor
-    // opens Monday and ignores the closure)
-    expect(barOpenInstant('1993-04-05', 'W')).toBe(734016600)
-    expect(barOpenInstant('1993-04-09', 'W')).toBe(734016600)
-    // …and a monthly key (UNMEASURED: no monthly capture) its month's: April 1, EST
-    expect(barOpenInstant('1993-04-05', 'M')).toBe(733674600)
-    expect(barOpenInstant('1993-04-30', 'M')).toBe(733674600)
+    expect(barOpenInstant('1993-04-05', 'W')).toBe(null)      // a week's key day is unmeasured
+    expect(barOpenInstant('1993-04-05', 'M')).toBe(null)
     expect(barOpenInstant('1993-04-05', '60')).toBe(null)
     expect(barOpenInstant('1993-04-05', undefined)).toBe(null) // an absent tf never guesses daily
     expect(barOpenInstant(19930405, 'D')).toBe(null)          // the screen's YYYYMMDD int
@@ -125,9 +118,8 @@ describe('⭐⭐ a daily bar keyed by a DATE opens at its session open — the v
     expect(Array.from(cols.minute)).toEqual([30, 30])
     expect(Array.from(cols.time)).toEqual([734016600, 755188200])
     expect(Array.from(cols.dayofweek)).toEqual([2, 2])          // Mondays, Pine's day 2
-    // ⚰️ "A weekly series keyed the same way stays blank" until 2026-09-28: it
-    // reads its week's first session now, all-or-nothing as before.
-    expect(computeClock([{ t: '1993-04-05' }], 'W', false).hour[0]).toBe(9)
+    // A weekly series keyed the same way stays blank, all-or-nothing.
+    expect(Number.isNaN(computeClock([{ t: '1993-04-05' }], 'W', false).hour[0])).toBe(true)
   })
 })
 
