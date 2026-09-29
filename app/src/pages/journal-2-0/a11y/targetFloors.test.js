@@ -231,3 +231,53 @@ describe('L3: the timeline bar, the tag remove x and the calendar chip reach 24 
     expect(px(lastDecl(old, '.remove', 'width'))).toBeLessThan(24)
   })
 })
+
+// Wave 10 lane L3, fix round 1. The rendered verdict for both is the layout instrument's
+// run (docs/notebook/proof/l3-layout-0e72ad573/r1-*-after/); these hold the declarations.
+describe('L3 R1: a calendar note chip is a 44 px finger target on the touch tier (review I-1)', () => {
+  const calendar = rulesWithMedia(read(join(NB, 'NoteCalendarView.module.css')))
+
+  it('the touch tier floors `.chip` at --tap-min, AFTER the base 24 px rule so it wins', () => {
+    expect(lastDecl(calendar, '.chip', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    const base = calendar.findIndex((r) => r.selector === '.chip' && r.media === null && r.decls.has('min-height'))
+    const touch = calendar.findIndex((r) => r.selector === '.chip' && r.media === TOUCH && r.decls.has('min-height'))
+    expect(base).toBeGreaterThanOrEqual(0)
+    expect(touch).toBeGreaterThan(base)
+  })
+
+  it('CONTROL: without the touch rule the chip has no touch floor', () => {
+    const old = rulesWithMedia('.chip { min-height: 24px; }')
+    expect(lastDecl(old, '.chip', 'min-height', TOUCH)).toBeUndefined()
+  })
+})
+
+describe("L3 R1: the phone editor toolbar keeps the Log FAB's column clear (review I-3)", () => {
+  const PHONE = '(max-width: 640px)'
+  const editor = rulesWithMedia(read(join(NB, 'NoteEditorPage.module.css')))
+  const journal = rulesWithMedia(read(join(J2, 'JournalLayout.module.css')))
+  // Measured on 2239c3874 at 390 px (r1-fab-before/run.json): the FAB's box is x 14..102 and
+  // the toolbar row's box starts at x 44. The row's buttons must start right of 102.
+  const FAB_WIDTH_MEASURED = 88
+  const ROW_BOX_LEFT_MEASURED = 44
+
+  it("the FAB still sits where the clearance was measured from (JournalLayout `.logFab` left)", () => {
+    // If the FAB moves, the clearance below is stale: re-measure with the layout instrument.
+    expect(lastDecl(journal, '.logFab', 'left', PHONE)).toBe('14px')
+  })
+
+  it('at <=640 px the row starts its buttons right of the FAB', () => {
+    const pad = px(lastDecl(editor, '.toolbarRow', 'padding-left', PHONE))
+    expect(ROW_BOX_LEFT_MEASURED + pad).toBeGreaterThan(px(lastDecl(journal, '.logFab', 'left', PHONE)) + FAB_WIDTH_MEASURED)
+  })
+
+  it('the clearance is PHONE-ONLY: the FAB exists only at <=640 px', () => {
+    const leaks = editor.filter((r) => r.selector === '.toolbarRow' && r.media !== PHONE && r.decls.has('padding-left'))
+    expect(leaks.map((r) => r.media || 'base')).toEqual([])
+  })
+
+  it('CONTROL: the measured declarations (16 px row padding) put a button under the FAB', () => {
+    const old = rulesWithMedia('.toolbarRow { padding: 3px 16px 5px; }')
+    expect(lastDecl(old, '.toolbarRow', 'padding-left', PHONE)).toBeUndefined()
+    expect(ROW_BOX_LEFT_MEASURED + 16).toBeLessThan(14 + FAB_WIDTH_MEASURED)
+  })
+})
