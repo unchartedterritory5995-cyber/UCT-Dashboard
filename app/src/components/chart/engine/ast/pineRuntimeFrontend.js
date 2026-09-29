@@ -818,6 +818,35 @@ export const pointwiseTarget = (pineName, shapes = PINE_CALL_SHAPES) => {
  * @param {object} opts    { bars, inputs, interpretOpts }
  * @returns {{ok:boolean, ir?:object, refusal?:object, diagnostics:object}}
  */
+/** ⭐ C11 — the DECLARED type word in front of each parameter of a definition
+ *  header, `name → {word, typeArg}`: `method f(array<float> a, series int n) =>`
+ *  gives `a → {word:'array', typeArg:'float'}`, `n → {word:'int'}`.
+ *
+ *  ⛔ IT READS THE SAME SPAN `functionParams` DOES and decides nothing about
+ *  which names are parameters — that stays `functionParams`' answer. A word
+ *  directly followed by another identifier is a type or a qualifier, and the one
+ *  nearest the name wins (`series float x` is a float). An untyped parameter is
+ *  simply absent. */
+export function paramTypeHeads(toks, arrow) {
+  const out = new Map()
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return out
+  let last = null
+  for (let i = 2; i < close; i += 1) {
+    const t = toks[i]
+    if (isPunct(t, ',')) { last = null; continue }
+    if (!t || t.kind !== 'ident') { last = null; continue }
+    const next = toks[i + 1]
+    if (next && next.kind === 'ident') {
+      last = { word: String(t.value), typeArg: Array.isArray(t.typeArgs) ? t.typeArgs[0] : null }
+      continue
+    }
+    if (last) out.set(String(t.value), last)
+    last = null
+  }
+  return out
+}
+
 export function buildRuntimeIr(source, opts = {}) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
@@ -877,20 +906,50 @@ export function buildRuntimeIr(source, opts = {}) {
    *  as the walk goes and a definition may sit below a call inside another
    *  function body. */
   const definedNames = new Set()
+  /** ⭐⭐ C11 — THE PINE 6 `method` NAMES, AND HOW MANY TIMES EACH IS DECLARED.
+   *  A method is a user function whose receiver is argument 0; only a name
+   *  declared as a `method` may be called in the dotted form (`top.push2(x)`),
+   *  so this set — not `definedNames`, which also holds plain functions — is
+   *  what the call rewrite asks. The COUNT is kept because Pine overloads a
+   *  method by its receiver's TYPE, and this lane does not type a receiver: a
+   *  name declared twice refuses by name rather than binding whichever came
+   *  last. */
+  const methodDecls = new Map()
   const scanDefs = (list) => {
     for (const s of list || []) {
       const ts = s.header || []
       if (ts.length > 1 && ts[0].kind === 'ident') {
-        if (ts[0].value === 'method' && ts[1].kind === 'ident') definedNames.add(String(ts[1].value))
-        else if (isPunct(ts[1], '(') && findTop(ts, (x) => isPunct(x, '=>')) > 0) {
+        if (ts[0].value === 'method' && ts[1].kind === 'ident') {
+          definedNames.add(String(ts[1].value))
+          methodDecls.set(String(ts[1].value), (methodDecls.get(String(ts[1].value)) || 0) + 1)
+        } else if (isPunct(ts[1], '(') && findTop(ts, (x) => isPunct(x, '=>')) > 0) {
           const bare = splitMethodName(String(ts[0].value))
           definedNames.add(bare ? bare.method : String(ts[0].value))
+          plainFnNames.add(bare ? bare.method : String(ts[0].value))
         }
       }
       if (s.sub && s.sub.length) scanDefs(s.sub)
     }
   }
+  const plainFnNames = new Set()
   scanDefs(stmts)
+  /** A method this lane can bind: declared exactly once, and not also a plain
+   *  function of the same name (which Pine would resolve by argument types). */
+  const bindableMethod = (name) => methodDecls.get(name) === 1 && !plainFnNames.has(name)
+  /** `recv.m(a, b)` → the call node `m(recv, a, b)`, when `m` is a method this
+   *  script declared and this lane binds; otherwise null.
+   *  ⛔ ONLY A DECLARED `method`. A plain user function cannot be called in the
+   *  dotted form in Pine, and a built-in member (`a.size()`) belongs to the
+   *  collection rewrite — this never guesses between them. The receiver is
+   *  handed on as the NAME the member wrote, so an unbound one refuses by name
+   *  exactly as it would in argument 0 of the plain call. */
+  const methodCallOf = (node) => {
+    if (!node || node.type !== 'call' || typeof node.name !== 'string') return null
+    const uf = splitMethodName(node.name)
+    if (!uf || !methodDecls.has(uf.method)) return null
+    const recvArg = { name: null, value: { type: 'name', name: uf.recv, tok: node.tok }, tok: node.tok }
+    return { ...node, name: uf.method, args: [recvArg, ...(node.args || [])] }
+  }
 
   // ⛔⛔ RULING 3.3 — REFUSE BY NAME, NEVER BLANK.
   // ⭐⭐ SCANNED OVER TOKENS, NOT SOURCE TEXT. `lexPine` has already dropped comments
@@ -1970,6 +2029,12 @@ export function buildRuntimeIr(source, opts = {}) {
       typeArg,
     )
   }
+
+  /** A collection call on a line of its own: a void one leaves nothing, and one
+   *  that returns (`array.shift`, `array.pop`) has its single value dropped —
+   *  Pine evaluates it for its effect and discards the result. */
+  const arrayStmt = (node, scope) => exprStmt(
+    admitArrayCall(node, scope, true), isVoid(node.name) ? 0 : 1)
 
   /**
    * ⭐⭐⭐ A DRAWING USED AS A VALUE — `array.push(zones, box.new(…))`.
@@ -3476,6 +3541,15 @@ export function buildRuntimeIr(source, opts = {}) {
           const ctor = udtCtorOf(node)
           if (ctor) return lowerRecordNew(ctor, node, scope)
         }
+        // ⭐⭐ C11 — A SCRIPT'S OWN `method`, CALLED IN THE DOTTED FORM.
+        // `top.middlePrice()` is `middlePrice(top)`: the receiver becomes
+        // argument 0 and everything after is the ordinary user-function call —
+        // same arity check, same call site, same deferred refusal. See
+        // `methodCallOf`.
+        {
+          const mc = methodCallOf(node)
+          if (mc) return lowerExpr(mc, scope, opts)
+        }
         // ⭐⭐ A USER FUNCTION CALL — the 2E path. Each call gets its OWN call
         // site, and the site is what will own the invocation's persistent
         // locals: `f(1)` and `f(10)` on two lines are two sites, so a `var`
@@ -4762,10 +4836,23 @@ export function buildRuntimeIr(source, opts = {}) {
       // argument 0 and `ufcs.js` to route the call form to it — and one label
       // over both is exactly the mis-sizing `RUNTIME_REFUSALS`'s own header
       // records three previous instances of.
+      // ⭐⭐ C11 — AND IT IS NOW BOUND, AS EXACTLY THAT. `method f(T recv, …) =>`
+      // is `f(recv, …) =>` with a dotted call form, so the definition is the
+      // ordinary user-function definition below with the keyword taken off, and
+      // the call rewrite (`recv.f(…)` → `f(recv, …)`) lives with the calls.
+      // ⛔ AN OVERLOADED NAME STILL REFUSES. Pine picks among same-named methods
+      // by the receiver's TYPE, and this lane does not type a receiver — binding
+      // whichever came last would run a method the member did not call.
       if (word === 'method') {
-        note('runtime:udt-method')
-        throw new RuntimeRefusal('runtime:udt-method',
-          toks[1] && toks[1].kind === 'ident' ? `\`${toks[1].value}\`` : null, locate(first))
+        const mName = toks[1] && toks[1].kind === 'ident' ? String(toks[1].value) : null
+        if (!mName || !bindableMethod(mName)) {
+          note('runtime:udt-method')
+          throw new RuntimeRefusal('runtime:udt-method',
+            mName ? `\`${mName}\` is declared more than once (or also as a plain function), and Pine `
+              + 'chooses among them by the receiver\'s type, which this lane does not resolve' : null,
+            locate(first))
+        }
+        toks = toks.slice(1)
       }
       if (word === 'varip') { note('runtime:varip'); throw new RuntimeRefusal('runtime:varip', null, locate(first)) }
       // ⭐⭐ `for name = from to to [by step]`. `while` keeps the old refusal —
@@ -5451,13 +5538,15 @@ export function buildRuntimeIr(source, opts = {}) {
         // "array.push"; the dotted branch is for a different shape and never
         // sees it. Established from the refusal's own stack after two rounds of
         // reasoning about the wrong branch.
-        if (isVoid(word)) {
+        // ⭐ C11 — AND A COLLECTION CALL THAT RETURNS A VALUE IS A STATEMENT TOO
+        // (`array.shift(a)` to drop the oldest element), its one value dropped.
+        if (Object.prototype.hasOwnProperty.call(ARRAY_FNS, word)) {
           const callNode = parseWholeExpression(toks)
           if (!callNode || callNode.type !== 'call') {
             throw new RuntimeRefusal('runtime:statement',
               `\`${word}()\` is not a shape this front end reads`, locate(first))
           }
-          out.push(exprStmt(admitArrayCall(callNode, scope, true)))
+          out.push(arrayStmt(callNode, scope))
           continue
         }
         const f = callFamily(word)
@@ -5495,7 +5584,7 @@ export function buildRuntimeIr(source, opts = {}) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
             if (rew && ARRAY_FNS[rew.node.name]) {
-              out.push(exprStmt(admitArrayCall(rew.node, scope, true)))
+              out.push(arrayStmt(rew.node, scope))
               continue
             }
             note('runtime:array')
@@ -5526,8 +5615,15 @@ export function buildRuntimeIr(source, opts = {}) {
         // known only by its held refusal, and asking `fnByName` alone would send
         // the call to the columnar resolver to be told there is no such function,
         // about a function the member can see a few lines up.
-        if (isUserFn(word)) {
-          const callNode = parseWholeExpression(toks)
+        // ⭐⭐ C11 — `top.maintainPivot(ph)` ON A LINE OF ITS OWN is the same
+        // effect statement as `maintainPivot(top, ph)`, and is lowered as one.
+        const methodStmt = (() => {
+          const uf = splitMethodName(word)
+          return uf && methodDecls.has(uf.method) ? uf.method : null
+        })()
+        if (methodStmt || isUserFn(word)) {
+          const parsed = parseWholeExpression(toks)
+          const callNode = methodStmt ? methodCallOf(parsed) : parsed
           if (!callNode || callNode.type !== 'call') {
             throw new RuntimeRefusal('runtime:statement',
               `\`${word}()\` is not a shape this front end reads`, locate(first))
@@ -5542,7 +5638,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // `lowerExpr` has just compiled the body if it was not already, so
           // `returns` is settled by now; deriving it from the call site would be
           // a guess that is right until a helper returns a pair.
-          const fnIdx = fnByName.get(word)
+          const fnIdx = fnByName.get(methodStmt || word)
           const rec = fnIdx === undefined ? null : functions[fnIdx]
           out.push(exprStmt(lowered, rec && rec.returns ? rec.returns : 1))
           continue
@@ -5590,7 +5686,18 @@ export function buildRuntimeIr(source, opts = {}) {
     // does not read. The copy that used to live here counted `float` as a
     // parameter, which surfaced as a wrong ARITY — a refusal that named the call
     // site and said nothing about the real cause.
-    const params = functionParams(toks, arrow)
+    // ⭐ C11 — A PARAMETER TYPED WITH A USER TYPE (`method add(Acc this, …)`)
+    // is ONE parameter. `functionParams` skips Pine's own type words and counts
+    // any other word as a name, so `Acc this` read as two parameters and every
+    // call was refused for an arity nobody wrote. The declared-type walk below
+    // is the one that knows a word followed by a name is a type; a type this
+    // script DECLARED is removed from the list, nothing else is.
+    const rawParams = functionParams(toks, arrow)
+    const params = rawParams === null ? null : (() => {
+      const typed = paramTypeHeads(toks, arrow)
+      const typeWords = new Set([...typed.values()].map((t) => t.word))
+      return rawParams.filter((p) => !(udtTypes.has(p) && typeWords.has(p) && !typed.has(p)))
+    })()
     if (params === null) {
       // ⛔ THE REFUSAL STILL NAMES THE TOKEN. `null` means "not this shape", and
       // the member needs to know which token stopped it; a default value is the
@@ -5626,7 +5733,27 @@ export function buildRuntimeIr(source, opts = {}) {
     // can see two lines up.
     guardOuter = root
     const fnScope = new Scope(null)
-    params.forEach((p, k) => fnScope.declare(p, newSlot(p, false, k)))
+    const declaredTypes = paramTypeHeads(toks, arrow)
+    params.forEach((p, k) => {
+      const ps = fnScope.declare(p, newSlot(p, false, k))
+      // ⭐⭐ C11 — A PARAMETER DECLARED `array<T>` HOLDS A COLLECTION, and is
+      // marked so exactly as a binding is (`holdsArray` at the declaration):
+      // without the mark, `srcArray.push(v)` inside the body reads as a method
+      // on an unknown name and the one admitter never sees it. ⛔ ONLY THE
+      // DECLARED TYPE marks it — an untyped parameter stays unmarked, so an
+      // array passed to one is refused at its first member call rather than
+      // guessed at.
+      const ty = declaredTypes.get(p)
+      if (ty && ty.word === 'array') {
+        slots[ps].collection = true
+        slots[ps].elemText = ty.typeArg === 'string'
+        if (ty.typeArg && udtTypes.has(ty.typeArg)) slots[ps].elemUdt = ty.typeArg
+      }
+      // ⭐ AND ONE DECLARED AS A USER TYPE HOLDS A RECORD — the receiver of
+      // `method bump(Point this, …)` — marked from the DECLARED type, exactly as
+      // `markUdtSlot` marks a binding, so `this.x` reads as a field path.
+      if (ty && udtTypes.has(ty.word)) slots[ps].udt = ty.word
+    })
 
     // ⭐⭐ THE BODY IS ALSO KEPT AS AN AST, for the call sites that must lower it
     // THEMSELVES rather than share the compiled copy.
