@@ -274,6 +274,11 @@ def test_symbol_backlinks_look_up_each_hit_ONCE(conn):
     assert "note_id IN (" in sql, sql
     # bounded by the PAGE: its ids are the only note ids bound, never the whole set
     assert sorted(p for p in params if str(p).startswith("n")) == sorted(n["id"] for n in back["notes"])
+    # ... and the read is KEYED by them (the embeds' primary key, note_id first), never a walk of
+    # every embed of the symbol through (user_id, symbol) filtered afterwards
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    assert any("j2_note_embeds USING INDEX sqlite_autoindex_j2_note_embeds_1 (note_id=?)" in s
+               for s in steps), steps
     assert back["count"] == 6 and len(back["notes"]) == 2      # non-vacuity: total beyond the page
 
 
