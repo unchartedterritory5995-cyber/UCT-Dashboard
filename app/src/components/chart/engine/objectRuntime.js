@@ -41,6 +41,9 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
+// ⭐ `str.format`'s number rendering — the SAME module whose grammar the
+// translator compiled the pattern with (C15, objects-triage step 13).
+import { formatMessageNumber } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -193,6 +196,10 @@ export function beginObjects(program, ctx) {
    *  `fillBetween`. */
   let fillsReplaced = 0
   let fillsWithoutLines = 0
+  /** ⭐ TEXT EVALUATIONS THAT CAME BACK WITHHELD — a `str.format` number no
+   *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
+   *  text is then `null` and the render state does not draw it. */
+  let textsWithheld = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -533,6 +540,14 @@ export function beginObjects(program, ctx) {
         case 'lit': return t.s
         case 'num': {
           const n = Number(readNode(t.node, bar, loopVars))
+          // ⭐⭐ `str.format`'s `{N}` — `null` when no capture pins what the
+          // vendor would draw for THIS value. ⛔ Never a fallback to another
+          // format: a withheld text is not drawn; a guessed one is drawn wrong.
+          if (t.form === 'message') {
+            const s = formatMessageNumber(n, t.fmt)
+            if (s === null) textsWithheld += 1
+            return s
+          }
           return formatNumber(n, t.fmt)
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
@@ -542,7 +557,12 @@ export function beginObjects(program, ctx) {
           const v = readNode(t.node, bar, loopVars)
           return typeof v === 'string' ? v : ''
         }
-        case 'cat': return (t.args || []).map(textOf).join('')
+        // ⛔ ONE WITHHELD PART WITHHOLDS THE WHOLE TEXT — "+5x: " with its number
+        // missing is a different text from the vendor's, not a shorter one.
+        case 'cat': {
+          const parts = (t.args || []).map(textOf)
+          return parts.some((p) => p === null) ? null : parts.join('')
+        }
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
         default: return ''
       }
@@ -1084,6 +1104,7 @@ export function beginObjects(program, ctx) {
       ...(tablesReplaced ? { tablesReplaced } : {}),
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
+      ...(textsWithheld ? { textsWithheld } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

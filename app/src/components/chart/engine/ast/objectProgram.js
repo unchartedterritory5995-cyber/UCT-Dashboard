@@ -58,6 +58,8 @@
 // that must outlive its bar has to be stored in a register, which is exactly
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
+import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
 
@@ -319,6 +321,15 @@ function assertTextNode(v, where, depth = 0) {
       }
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
+      }
+      // ⭐ `form: 'message'` — the number as `str.format`'s `{N}` draws it
+      // (`pineTextFormat.js`). ⛔ Its pattern is one of the pinned ones or the
+      // document is refused: the runtime has no rendering for any other.
+      if (v.form !== undefined) {
+        if (v.form !== 'message') throw new Error(`${where}: unknown number form ${JSON.stringify(v.form)}`)
+        if (v.fmt !== undefined && !Object.hasOwn(MESSAGE_NUMBER_PATTERNS, v.fmt)) {
+          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture pins`)
+        }
       }
       return
     // ⭐⭐ A TREE WHOSE VALUE IS ALREADY TEXT, which `num` cannot express.

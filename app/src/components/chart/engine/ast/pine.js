@@ -135,6 +135,10 @@ import SYMBOL_SCOPE from './symbolScope.json'
 // held in ONE place. Every colour name this file resolves goes through it, with
 // the script's version; see `PALETTE_VERSION` below for how the version travels.
 import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pinePalette.js'
+// ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
+// runtime, both from ONE module so what this door admits and what the runtime
+// draws cannot drift (C15, objects-triage step 13).
+import { compileMessagePattern } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -13057,10 +13061,69 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  ⭐ ONE GUARD, NOT THREE. All three numeric mint sites route through here,
    *  so the rule is stated once and a fourth mint site cannot quietly skip it
    *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
-  const numNode = (ast, fmt) => {
+  const numNode = (ast, fmt, implicit = false) => {
     if (enumLeaves) return null
     const ref = internTree(ast)
-    return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+    if (!ref) return null
+    // ⭐⭐ A NUMBER NOBODY STRINGIFIED, INSIDE A `str.format` ARGUMENT, is
+    // formatted the way `{N}` formats it — not the way `str.tostring` would.
+    // ⛔ ONLY an implicit number: `str.format("{0}", str.tostring(x))` hands the
+    // pattern TEXT, and that text keeps `str.tostring`'s own rules.
+    if (implicit && messageNumber) return { t: 'num', tree: ref.tree, ...messageNumber }
+    return { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) }
+  }
+
+  /** ⭐ Set only while one `str.format` ARGUMENT is read (`strFormatNodeOf`),
+   *  cleared in a `finally` — the same discipline as `enumLeaves`. It is the
+   *  `{form:'message', fmt?}` an implicit number in that argument takes. */
+  let messageNumber = null
+
+  /**
+   * ⭐⭐ `str.format(pattern, arg0, …)` → literal parts and argument slots.
+   *
+   * The pattern must be a string this door can read at translate time; the
+   * grammar it may use is `compileMessagePattern`'s, which admits only what a
+   * vendor capture pins and refuses the rest BY NAME (`textFormatRefusals`).
+   *
+   * ⛔ AN ARGUMENT IS READ AS TEXT FIRST. A text argument (`"x"`, a name bound to
+   * text, `str.tostring(v)`) is inserted as-is, exactly as MessageFormat inserts
+   * a string; only an implicit NUMBER takes the `{N}` number form. A numeric
+   * element (`{0,number,#.##}`) over a text argument is refused — MessageFormat
+   * throws there, and a cell must not show what a throw would have shown.
+   */
+  const strFormatNodeOf = (node, scope, depth, inline, envAt) => {
+    const refuseFmt = (why) => {
+      diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+      diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+      return null
+    }
+    const args = node.args || []
+    if (!args.length || args.some((a) => a && a.name)) return refuseFmt('format:arguments')
+    let patNode = args[0].value
+    // ⭐ A pattern held in a name is still a literal the script fixed.
+    for (let hop = 0; patNode && patNode.type === 'name' && hop < 8; hop += 1) {
+      const opened = openName(patNode, scope, 0)
+      if (!opened) break
+      patNode = opened.node
+    }
+    if (!patNode || patNode.type !== 'string') return refuseFmt('format:pattern-not-literal')
+    const compiled = compileMessagePattern(String(patNode.value), args.length - 1)
+    if (!compiled.ok) return refuseFmt(compiled.why)
+    const parts = []
+    for (const p of compiled.parts) {
+      if (p.lit !== undefined) { parts.push({ t: 'lit', s: p.lit }); continue }
+      const prev = messageNumber
+      messageNumber = { form: 'message', ...(p.fmt ? { fmt: p.fmt } : {}) }
+      let t = null
+      try {
+        t = textNodeOf(args[p.arg + 1].value, scope, depth + 1, inline, envAt)
+      } finally { messageNumber = prev }
+      if (!t) return null
+      if (p.fmt && !(t.t === 'num' && t.form === 'message')) return refuseFmt('format:number-over-text')
+      parts.push(t)
+    }
+    if (!parts.length) return { t: 'lit', s: '' }
+    return parts.length === 1 ? parts[0] : { t: 'cat', args: parts }
   }
 
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
@@ -13093,13 +13156,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
-    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) })
+    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) }, undefined, true)
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
       return numNode(ast, fmt)
+    }
+    if (node.type === 'call' && node.name === 'str.format') {
+      return strFormatNodeOf(node, scope, depth, inline, envAt)
     }
     // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
     // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
@@ -13253,7 +13319,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
-    return numNode(ast)
+    // ⭐ INSIDE A `str.format` ARGUMENT THIS IS NOT A GUESS: a number is exactly
+    // what `{N}` is handed, and `messageNumber` says how it is drawn.
+    return numNode(ast, undefined, true)
   }
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
