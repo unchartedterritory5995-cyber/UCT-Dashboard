@@ -276,10 +276,14 @@ def test_every_cited_file_line_still_holds_its_fragment():
 def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
     # control, at the same pinned revision: the text with one fragment changed must be refused.
     text, rev = _written_at()
-    good = '`api/services/journal_two/notes.py`:4012 "def restore_note("'
-    assert good in text, 'non-vacuity: the control citation is not in the scorecard'
+    # The control citation's line is READ from the scorecard, never retyped: it moves every time
+    # notes.py does (4012 -> 4019 when lane PC's backlinks pass landed), and a typed number here
+    # failed as "not in the scorecard" rather than testing the verifier.
+    m = re.search(r'`api/services/journal_two/notes\.py`:(\d+) "def restore_note\("', text)
+    assert m, 'non-vacuity: the control citation is not in the scorecard'
+    good, line = m.group(0), m.group(1)
     _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1), rev=rev)
-    assert any('notes.py:4012' in p for p in problems), problems
+    assert any(f'notes.py:{line}' in p for p in problems), problems
 
 
 def test_a_recorded_revision_not_in_this_clone_is_unverifiable_never_a_pass():
