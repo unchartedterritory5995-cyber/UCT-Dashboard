@@ -46,6 +46,19 @@ folded in) and STORE_BACKUP_ENABLED with one real `--rehearse` PASS on workspace
 Pre-existing master red NOT ours: `usePreferences.additionsOnly` (Watchlists A12 9/25, Notebook wave 8 9/26).
 New owner question: TERM-055 — CARD 7's sentence needs `vendor`/`dividends` the adjustment-basis endpoint does not return.
 
+**⭐⭐ STATE AFTER THE RULINGS (2026-09-29, after a PC restart):** pushed `14cb488e5` = 2e139d2d7 (curriculum credits
+removed) + TERM-062 (count dropped), TERM-044 (transcript citations), TERM-021 read-new phase (dark), TERM-046 (Finviz
+short interest, dark `SHORT_INTEREST_SOURCE`), freshnessAge 60 s ceiling. **FLAGS NOT YET SET** (checked live: gate
+`shadow`, `/api/education/lessons` 404). The owner runs ONE command (the agent is refused flag writes):
+`railway variables --service web --set "OPEN_READS_GATE=enforce" --set "EDGAR_OWNERSHIP_ENABLED=1" --set
+"WATCHLIST_ALERTS_S7_ENABLED=1" --set "BREADTH_EOD_SOURCE=shadow" --set "BREADTH_DIVIDEND_BASIS=1" --set
+"EDU_CURRICULUM_ENABLED=1"` — then verify in-process + smoke, and update `docs/feature_flags.json`.
+**TERM-060 INTERRUPTED** by the account's weekly limit (subagents blocked until Oct 2, 6pm CT): uncommitted work is
+preserved in `C:/Users/Patrick/uct-dashboard/.claude/worktrees/agent-a67cd8cfb732683cd` (resolver, Cited, breadth
+TheReadStrip/theRead, test_canonical_address_book) — it was re-running tests when cut off. Do NOT delete that worktree.
+Still owed: TERM-049 (counts-only history; needs address-book stores), 021 arming (backup rehearsal), 018 gate after a
+week, 042 server mode after ~10 clean shadow sessions, 046 arming after one real pull shows Short Float/Ratio present.
+
 **⭐ OWNER RULINGS, 2026-09-29 ~07:30 ET (asked one by one; these SUPERSEDE the outstanding list below):**
 062 drop the pre-save fire COUNT, ship the rest · 053 OPEN_READS_GATE → **enforce now** (read the would-deny log first),
 `/api/stream/prices` stays OPEN, `/api/r/*` token left as is · 045 ARM `EDGAR_OWNERSHIP_ENABLED`, keep FMP/Finnhub for
