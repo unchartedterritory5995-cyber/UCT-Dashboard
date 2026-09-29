@@ -134,8 +134,12 @@ def record(compute_clock, source: dict) -> dict:
     for code in source["tf_booleans"]:
         arg = None if code == "__absent__" else code
         cols = compute_clock(bars, arg, False)
+        # ⭐ `periodseconds` (2026-09-28) is the same kind of answer as the four
+        # flags -- flat for the column, decided by the code alone, blank for a
+        # code nobody ships -- so it is pinned per code in the same block.
         tf_out[code] = {k: _canon(cols[k][0]) for k in
-                        ("isintraday", "isdaily", "isweekly", "ismonthly")}
+                        ("isintraday", "isdaily", "isweekly", "ismonthly",
+                         "periodseconds")}
     out["tf_booleans"] = tf_out
 
     # ── sessionfirst under slicing ───────────────────────────────────────────

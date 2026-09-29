@@ -2422,6 +2422,18 @@
       }
     },
     {
+      "id": "clock_periodseconds",
+      "source": "periodseconds",
+      "why": "the chart's bar length in SECONDS, carried with `opts: {tf: '15'}` so it reads 900 on every bar of these 5-minute bars. ⭐ THE TIMEFRAME IS THE CALLER'S CLAIM, NOT THE BAR SPACING, the same rule `clock_isdaily` holds: a lane that measured the gap between bars would answer 300 and be red here. It is the grid the session clock `time(timeframe.period, session)` is read on, and a COLUMN rather than a translate-time constant because a member's script is translated once and drawn on every timeframe",
+      "ast": {
+        "type": "series",
+        "name": "periodseconds"
+      },
+      "opts": {
+        "tf": "15"
+      }
+    },
+    {
       "id": "vwap_session",
       "source": "vwap()",
       "why": "⛔⛔ THE ONE ACCUMULATOR, MEASURED ACROSS THE LANES. `vwap()` binds `indicators.js::computeVWAP` and `indicator_compute.compute_vwap_raw` -- the session VWAP the chart draws and the one the alert engine fires on -- so this digest is what stops a formula's VWAP and the product's VWAP from ever becoming two numbers. ⭐ IT IS ALSO THE UTC-MIDNIGHT REGRESSION FIXTURE: these 579 bars carry the Friday 20:00 ET print that IS 00:00 UTC the next day, and the retired UTC-day bucketing wiped the accumulator there -- a measured $14.45 at the following open. A revert to it moves this digest in BOTH lanes. ⭐ AND IT IS THE FIRST ZERO-ARGUMENT CASE IN THIS CORPUS, which is the whole reason the entry is declarable at all: with no argument columns to pack there is no fabricated bar-index `t`, so the binding reads the real instant",

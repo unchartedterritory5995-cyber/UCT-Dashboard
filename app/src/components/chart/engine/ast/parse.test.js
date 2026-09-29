@@ -449,7 +449,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 27 clock, 15 operators, 76 functions and 137 scalars — 260 names, one grammar', () => {
+  it('declares 5 series, 28 clock, 15 operators, 76 functions and 137 scalars — 261 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -478,7 +478,12 @@ describe('the manifest', () => {
     // ⭐ 26 -> 27 (2026-09-20): `dayopentime` -- `sessionfirst`'s own `day`
     // key turned into a value, the anchor for Pine's `time(<timeframe>)`
     // one-argument form when the timeframe folds to "D". Same `series` node.
-    expect(Object.keys(TABLE.clock)).toHaveLength(27)
+    // ⭐ 27 -> 28 (2026-09-28): `periodseconds` -- the chart's bar length in
+    // seconds, the grid the session clock `time(timeframe.period, session)` is
+    // read on. A member's script is translated once and drawn on every
+    // timeframe, so the length cannot be folded at translation. Same `series`
+    // node; it reads `tf`, which `interpret` already takes.
+    expect(Object.keys(TABLE.clock)).toHaveLength(28)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
     // Its containment is on the DEFINITION (`_requirement_tags.window_dependent`),
@@ -688,9 +693,11 @@ describe('the manifest', () => {
     // ⭐ 122 -> 123 IS `atrPine` (2026-09-27) -- see the functions-count note
     // above. Scalar half untouched at 137, which is what makes the total
     // 260, not 259.
-    expect(bar.size).toBe(123)
+    // ⭐ 123 -> 124 IS `periodseconds` (2026-09-28) -- see the clock-count note
+    // above. Scalar half untouched at 137, which is what makes the total 261.
+    expect(bar.size).toBe(124)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(260)
+    expect(declared.size).toBe(261)
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS
     // COMMENT IS WHY IT TOOK UNTIL NOW. It versions what a READER must have, and
     // for Phase E that was exactly "the node types and the keys a persisted tree

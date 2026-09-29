@@ -1504,8 +1504,19 @@ CLOCK_LASTBAR_TIME = ("lastbartime", "lastbaryear", "lastbarmonth",
                       "lastbardayofmonth", "lastbarhour", "lastbarminute")
 
 CLOCK_COLUMNS = CLOCK_TIME_DERIVED + ("barindex", "isintraday", "isdaily",
-                                      "isweekly", "ismonthly") \
+                                      "isweekly", "ismonthly",
+                                      "periodseconds") \
     + CLOCK_EXTENT + CLOCK_REALTIME + CLOCK_LASTBAR_TIME
+
+#: How long one bar of the chart's timeframe is, in seconds -- Pine's
+#: ``timeframe.in_seconds()`` for the chart's own period. Mirrors
+#: ``indicators.js::CLOCK_PERIOD_SECONDS`` value for value; read that docstring
+#: for the vendor readings and for why it is a COLUMN (a member's script is
+#: translated once and evaluated on every timeframe, so a length folded at
+#: translation is the default base's on every chart). Declared, never parsed
+#: off the code; an unknown or absent code is blank, like the four booleans.
+CLOCK_PERIOD_SECONDS = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600,
+                        "D": 86400, "W": 604800, "M": 2628003}
 
 #: Seconds in one bar of an INTRADAY timeframe. Declared, never parsed off the
 #: code, for the reason ``CLOCK_INTRADAY_TFS`` states one screen up.
@@ -1830,6 +1841,10 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
             continue
         hit = (tf in CLOCK_INTRADAY_TFS) if code is None else (tf == code)
         cols[name] = [1.0 if hit else 0.0] * n
+    # The bar length is the same kind of fact: it reads no bar, so it sits
+    # above the unit gate with the four booleans and blanks exactly when they do.
+    if known:
+        cols["periodseconds"] = [float(CLOCK_PERIOD_SECONDS[tf])] * n
 
     # ``barindex`` is the loop counter and nothing else. It is here rather than
     # in ``ast_interpret`` so the clock has ONE owner: a second place that knew

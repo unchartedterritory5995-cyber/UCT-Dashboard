@@ -807,7 +807,9 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # bar-corpus case: `clock_dayopentime`. The scalar half is untouched at
     # 137 -- a per-bar clock column names no per-symbol column.
     # (2026-09-27) 122 -> 123: `atrPine` (Pine's `ta.atr`). Scalars untouched.
-    assert len(parts["bar"]) == 123 and len(parts["scalar"]) == 137
+    # (2026-09-28) 123 -> 124: `periodseconds`, the chart's bar length -- a
+    # per-binding clock column. New bar-corpus case: `clock_periodseconds`.
+    assert len(parts["bar"]) == 124 and len(parts["scalar"]) == 137
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
