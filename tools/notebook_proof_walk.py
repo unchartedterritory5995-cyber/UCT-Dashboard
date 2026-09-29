@@ -2649,6 +2649,7 @@ def f_text_color(W, door):
     pg.keyboard.press("Control+Home")
     pg.keyboard.press("Shift+Control+ArrowRight")
     pg.wait_for_timeout(300)   # the editor reads a native selection change asynchronously (see f_block_move)
+    open_format_more(pg, door)   # phone-only: "Text color and highlight" is a `.formatRun` member (G-131)
     b = btn(pg, "Text color and highlight")
     how += "; " + use(pg, door, b)
     grp = pg.get_by_role("group", name="Text color and highlight").filter(visible=True).first
@@ -2932,6 +2933,7 @@ def f_unlinked(W, door):
 def f_note_btn(name: str, check):
     def f(W, door):
         pg, nid = c_note(W, door)
+        open_more_note_actions(pg)   # "Archive"/"Lock" (G-150/G-151) live in NoteMoreMenu at EVERY width
         how = use(pg, door, btn(pg, name))
         pg.wait_for_timeout(1200)
         ok, why = check(W, pg, nid)
@@ -2956,6 +2958,7 @@ def f_split(W, door):
     other = W.fx.get("split_other") or W.note(f"Split other {W.run}", DOC(P("the other pane")))
     W.fx["split_other"] = other
     pg, nid = c_note(W, door)
+    open_more_note_actions(pg)   # "Open a note beside" (G-152) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"Open a note beside", re.I)).filter(visible=True).first)
     inp = pg.get_by_label("Find a note to open beside")
     inp.wait_for(state="visible", timeout=5000)
@@ -2984,6 +2987,7 @@ def f_today(W, door):
 
 def f_save_template(W, door):
     pg, nid = c_note(W, door, title=f"Tmpl {door} {W.run}")
+    open_more_note_actions(pg)   # "Save as template" (G-155) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, btn(pg, "Save as template"))
     pg.wait_for_timeout(1500)
     txt = pg.locator("body").inner_text()
@@ -3153,6 +3157,7 @@ def f_export(W, door):
     pg, nid = c_note(W, door)
     dl = {"n": 0}
     pg.on("download", lambda d: dl.__setitem__("n", dl["n"] + 1))
+    open_more_note_actions(pg)   # "Export" (G-169) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     menu = pg.get_by_role("menu", name="Export this note as")
     menu.wait_for(state="visible", timeout=5000)

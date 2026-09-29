@@ -1,0 +1,185 @@
+{
+ "doors": {
+  "desktop": "desk",
+  "touch": "phone",
+  "keyboard": "desk"
+ },
+ "rows": [
+  {
+   "row": "G-131",
+   "feature": "Text colour + highlight",
+   "cells": {
+    "desktop": {
+     "verdict": "BROKEN",
+     "detail": "no colour mark in the note",
+     "seconds": 4.4,
+     "screenshot": "r170025-census-G-131-desktop.png"
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; tap; swatch",
+     "seconds": 5.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x95; Tab x83 + Enter; swatch Tab x1 + Enter",
+     "seconds": 9.5
+    }
+   }
+  },
+  {
+   "row": "G-150",
+   "feature": "Archive state",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x3 + Enter",
+     "seconds": 5.0
+    }
+   }
+  },
+  {
+   "row": "G-151",
+   "feature": "Note lock (read-only)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x2 + Enter",
+     "seconds": 4.7
+    }
+   }
+  },
+  {
+   "row": "G-152",
+   "feature": "Split view",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.5
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by design: split view is desktop only (two panes need >= 1025 px)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x5 + Enter; result Tab x1 + Enter",
+     "seconds": 4.1
+    }
+   }
+  },
+  {
+   "row": "G-155",
+   "feature": "Member-made templates",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x4 + Enter",
+     "seconds": 4.9
+    }
+   }
+  },
+  {
+   "row": "G-169",
+   "feature": "Export formats",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x8 + Enter; menu item Enter",
+     "seconds": 3.7
+    }
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-no-door": "NO-DOOR",
+   "plant-broken-door": "BROKEN"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "door": "desktop",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.9
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 5.1
+    }
+   },
+   {
+    "door": "touch",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 9.2
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 5.6
+    }
+   },
+   {
+    "door": "keyboard",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 9.1
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 7.7
+    }
+   }
+  ]
+ }
+}
