@@ -367,7 +367,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-032 | `FB-A6-01` | Say "coverage n=0", not an empty transcript panel | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-033 | `FB-A8-02` | Six `.catch(() => null)` sites onto `sectionFetch.js` | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-034 | `FB-I1-03` | The I1 spec, railed rather than written | S doc / **M as checks** | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ⚰️ RECUT — partial ship |
+| TERM-035 | `FB-S11-01` | Market clock as code, with a horizon rail | S | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT `20cbef927` — authority + horizon rail + shared fixture; unmerged, no production reader yet; per-module migration listed in the census |
 | TERM-036 | `FB-D5-02` | Route dividends off yfinance onto Massive reference | S | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 
 ### 2.6 Band 4 — DEPENDENT (26). Register rows only; §2.9 says why.
@@ -1405,6 +1405,37 @@ the order is not asserted.
 - **ROLLBACK TIER.** `tier 4 pref / 3`.
 
 #### TERM-035 · `FB-S11-01` — The market clock as code, with a horizon rail ⚰️ RECUT
+- ✅ **BUILT `20cbef927` (2026-09-28). Unmerged, and no production path reads it yet.**
+  - **What exists:**
+    - One versioned dataset, `app/src/lib/marketClock/market_calendar.json` (v`2026-09-28.1`,
+      coverage 2025-01-01 to **horizon 2028-12-31**).
+    - The same functions on both sides, reading those bytes: `session_at` / `is_trading_day` /
+      `close_time` / `horizon` in `api/services/session_calendar.py`, and the same four in
+      `app/src/lib/marketClock/sessionCalendar.js`.
+    - Boundaries: pre-market from 04:00; RTH 09:30 to 16:00, or to 13:00 on a half-day; post-market
+      to 20:00 on every trading day. The half-day post-market end follows `marketClock.js` and
+      `voice_temporal_awareness`.
+  - **Where the dates come from:** `pandas_market_calendars` 5.4.0 and `exchange_calendars` 4.13.2,
+    which agree on every date for 2025 to 2029. The rows are also railed equal to
+    `nyse_calendar.py` (2025 to 2027) and `nyseCalendar.js` (2026 and 2027).
+  - **(a) Horizon rail, met.** `MIN_HORIZON_MONTHS = 12`.
+    - An injected-"today" control goes red.
+    - Shrinking the horizon to 2027-08-28 turns the real rail red.
+    - At the current horizon it first goes red on 2028-01-01.
+  - **(b) Half-day parity between client and server, met.**
+    - `tests/fixtures/market_calendar_cases.json` holds 67 session rows and 19 day rows (half-days,
+      holidays and both DST edges for 2026, 2027 and 2028). Both pytest and vitest read it.
+    - Every half-day in the dataset must have a row in it.
+    - Removing the 2026-11-27 half-day fails 6 tests on each side.
+    - Removing DST handling fails 19 on each side.
+  - **(c) Migration: none done.** `useMarketOpen` / `sessionModel.js` were deliberately not moved.
+    Moving the hook alone would split it from `marketClock.js`'s other readers in 2028. The single
+    migration point is `nyseCalendar.js`.
+  - **Disagreement found:** `tools/full_chart_diagnostic.py` is missing the 2025-01-09 closure and
+    uses a fixed EDT offset.
+  - **Census, results and the per-module follow-up list:**
+    `evidence/2026-09-29-term035-calendar-census/results.md`.
+  - Tests: `108 passed` (pytest) and `95 passed` (vitest).
 - **User outcome.** Every panel and every AI answer agrees on what session it is, and an expired
   calendar fails a test instead of quietly answering wrongly.
 - **Context.** ⚰️ **Not greenfield — a consolidation.** Item 16 sizes it **S** (*"the dataset is small
