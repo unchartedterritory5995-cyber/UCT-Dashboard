@@ -5,6 +5,7 @@ import RsBadge from '../../components/RsBadge'
 import RatingBadges from './RatingBadges'
 import UIcon from '../../components/ui/UIcon'
 import useFilingWatch from '../../hooks/useFilingWatch'
+import FilingWatchFrequency from '../../components/FilingWatchFrequency'
 import styles from './ResearchPage.module.css'
 
 // S7 filing watch — "Notify me about new SEC filings for {sym}". Placed in
@@ -38,19 +39,26 @@ function FilingWatchAction({ sym }) {
       filingWatch.createOrReactivate(sym)
     }
   }
+  // TERM-062: before saving (not watching, or suspended), say how often a watch
+  // on this ticker fired and the re-arm rule. Mounted only then, so it fetches
+  // only then.
+  const beforeSave = state === 'NOT_WATCHING' || state === 'SUSPENDED'
   return (
-    <button
-      type="button"
-      className={styles.hdrWatchBtn}
-      onClick={onClick}
-      disabled={busy}
-      title={copy.title(sym)}
-      aria-label={copy.title(sym)}
-      aria-pressed={state === 'ACTIVE'}
-    >
-      <UIcon name="document" size={14} gold={state === 'ACTIVE'} />
-      <span>{copy.label}</span>
-    </button>
+    <div className={styles.hdrWatch}>
+      <button
+        type="button"
+        className={styles.hdrWatchBtn}
+        onClick={onClick}
+        disabled={busy}
+        title={copy.title(sym)}
+        aria-label={copy.title(sym)}
+        aria-pressed={state === 'ACTIVE'}
+      >
+        <UIcon name="document" size={14} gold={state === 'ACTIVE'} />
+        <span>{copy.label}</span>
+      </button>
+      {beforeSave && <FilingWatchFrequency sym={sym} />}
+    </div>
   )
 }
 

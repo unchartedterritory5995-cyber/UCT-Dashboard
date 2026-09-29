@@ -1,9 +1,10 @@
-import { mutate as globalMutate } from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 // ⭐ `useMobileSWR` (2026-09-25): the filing-watch list is polled on every member
 // surface incl. phones, so the tick halves there and stops while hidden
 // (`hooks/pollingSites.rail.test.js`). `revalidateOnFocus` becomes true — a fresh
 // list on return is what a watch is for.
 import useMobileSWR from './useMobileSWR'
+import jsonFetcher from '../utils/jsonFetcher'
 import { useState, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 
@@ -101,6 +102,26 @@ export default function useFilingWatch() {
     }
   }, [])
 
+  // TERM-062: the published re-arm rule for this alert type rides the same list
+  // response (derived server-side from the constants the sweep applies).
+  const cooldown = data?.cooldown && typeof data.cooldown.sentence === 'string' ? data.cooldown : null
+
   return { enabled: !!s7FilingWatchEnabled, predicates, getWatch, watchState,
-           createOrReactivate, suspend, isLoading, revalidate }
+           createOrReactivate, suspend, isLoading, revalidate, cooldown }
+}
+
+// TERM-062: how often a filing watch on `sym` fired over the published window,
+// read from the durable alert record -- shown BEFORE a member saves one. Same
+// gate as the list (a dark feature makes no calls). Not polled: a count over 30
+// days does not move while a header is open. A failed read (jsonFetcher throws
+// on non-ok) leaves `data` unset, so the hook answers `null`, never a zero -- the
+// render shows nothing rather than "fired 0 times".
+export function useFilingWatchFrequency(sym) {
+  const { user, s7FilingWatchEnabled } = useAuth()
+  const s = sym?.toUpperCase()
+  const key = user && s7FilingWatchEnabled && s
+    ? `/api/alerts/taxonomy/document-arrival/frequency?ticker=${encodeURIComponent(s)}`
+    : null
+  const { data } = useSWR(key, jsonFetcher, { revalidateOnFocus: false })
+  return data && typeof data === 'object' ? data : null
 }

@@ -10,6 +10,7 @@
 .hdrCo { color: var(--text); font-weight: 600; font-size: 14px; }
 .hdrSub { font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
 .hdrRs { display: flex; align-items: center; }
+.hdrWatch { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
 .hdrWatchBtn {
   display: flex; align-items: center; gap: 6px;
   min-height: var(--tap-min);

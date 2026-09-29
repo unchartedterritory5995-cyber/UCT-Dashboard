@@ -15,6 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user, require_admin
+from api.services.alert_taxonomy import cooldowns as _cooldowns
 from api.services.alert_taxonomy import document_arrival as _doc_arrival
 from api.services.alert_taxonomy import predicates as _predicates
 from api.services.alert_taxonomy import receipts as _receipts
@@ -52,7 +53,35 @@ def list_document_arrival_alerts(active_only: bool = True, user: dict = Depends(
         "predicates": _predicates.list_predicates(
             type_id=_doc_arrival.TYPE_ID, user_id=user["id"], active_only=active_only,
         ),
+        # TERM-062: the published re-arm rule rides the list every filing-watch
+        # surface already polls -- no extra request to show it.
+        "cooldown": _cooldowns.published_cooldown(_doc_arrival.TYPE_ID),
     }
+
+
+@router.get("/api/alerts/taxonomy/document-arrival/frequency")
+def document_arrival_frequency(ticker: str = Query(..., max_length=32),
+                               user: dict = Depends(get_current_user)):
+    """TERM-062: how often a filing watch on `ticker` fired over the published
+    window, from the durable `alert_fires` record -- answerable BEFORE saving.
+    `fires` is null (not 0) when no watch covered the ticker in the window.
+    Counts and timestamps only: never whose watch, never a predicate id."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        raise HTTPException(status_code=422, detail="ticker is required")
+    entity_id = _predicates.resolve_entity_scope(sym)["id"]
+    freq = _cooldowns.fire_frequency(_doc_arrival.TYPE_ID, entity_id)
+    freq.pop("entity_id", None)   # an internal id; the member asked about a ticker
+    return {"ticker": sym, **freq,
+            "cooldown": _cooldowns.published_cooldown(_doc_arrival.TYPE_ID)}
+
+
+@router.get("/api/alerts/taxonomy/cooldowns")
+def published_alert_cooldowns(user: dict = Depends(get_current_user)):
+    """TERM-062: every member-facing trigger type's re-arm rule, derived from the
+    constants the alert code applies (alert_taxonomy/cooldowns.py)."""
+    return {"cooldowns": _cooldowns.published_cooldowns(),
+            "frequency_window_days": _cooldowns.FREQUENCY_WINDOW_DAYS}
 
 
 @router.delete("/api/alerts/taxonomy/document-arrival/{predicate_id}")

@@ -7177,7 +7177,12 @@ async def lifespan(app: FastAPI):
         # Independent of COMPASS_AUTOMATION_ENABLED -- alerts are not a
         # Compass/voice automation feature, so this is a standalone flag gate,
         # not routed through _add_compass_job.
-        if os.environ.get("ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED", "0") == "1":
+        # TERM-062: the flag and the cadence are READ from document_arrival, never
+        # restated here -- the same constants are published to members as this
+        # type's cooldown (alert_taxonomy/cooldowns.py), so a literal here would be
+        # a second authority. Rail: tests/test_alert_taxonomy_cooldowns.py.
+        from api.services.alert_taxonomy import document_arrival as _da_sched
+        if _da_sched.sweep_enabled():
             def _document_arrival_sweep_job():
                 try:
                     from api.services.alert_taxonomy.document_arrival import run_document_arrival_sweep
@@ -7190,11 +7195,12 @@ async def lifespan(app: FastAPI):
 
             _scheduler.add_job(
                 _document_arrival_sweep_job,
-                trigger=CronTrigger(minute="*/20", timezone=_ET),
+                trigger=CronTrigger(minute=f"*/{_da_sched.SWEEP_EVERY_MINUTES}", timezone=_ET),
                 id="alert_taxonomy_document_arrival",
                 max_instances=1, replace_existing=True,
             )
-            print("[startup] S7 document-arrival alerts ENABLED (every 20 min)")
+            print(f"[startup] S7 document-arrival alerts ENABLED "
+                  f"(every {_da_sched.SWEEP_EVERY_MINUTES} min)")
         else:
             print("[startup] S7 document-arrival alerts PAUSED "
                   "(set ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED=1 to resume)")
