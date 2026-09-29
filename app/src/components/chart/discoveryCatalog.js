@@ -33,7 +33,9 @@
 // be created — that is the whole point of `capability`. See its block below.
 
 import { catalogRows, userCatalogRows, BUILT_IN_ROWS } from './indicatorCatalog'
-import { isOverlayRemoved } from './chartDefaults'
+// ⭐ "Is there an average to restore?" is `maAdoption`'s question now: every
+// adopted slot carries `removed: true`, so the bare flag no longer means "gone".
+import { revivableSlotIndex } from './maAdoption'
 import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from './engine/sourceRef'
 import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
@@ -1040,8 +1042,7 @@ export const LIBRARY_HIDDEN_IDS = Object.freeze([DIRECT_SERIES_DEF_ID, 'ma'])
  * so the offer exists exactly when the action behind it would do something.
  */
 export function hiddenLibraryIds(settings) {
-  const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
-  const canRevive = overlays.some(isOverlayRemoved)
+  const canRevive = revivableSlotIndex(settings) >= 0
   return canRevive
     ? LIBRARY_HIDDEN_IDS.filter((id) => id !== 'ma')
     : LIBRARY_HIDDEN_IDS
@@ -1070,7 +1071,7 @@ export function hiddenLibraryIds(settings) {
  * *"Do NOT break removed-overlay revival"* — is met by not touching it.
  *
  * ⚠️ THE FIRST TOMBSTONE IS THE ONE NAMED, because it is the one `toggledRow`
- * revives (`list.findIndex(isOverlayRemoved)`). Naming a different one would be a
+ * revives (`maAdoption.revivableSlotIndex`). Naming a different one would be a
  * label that lies about what the click does.
  *
  * @param {object} row       a `BUILT_IN_ROWS` row
@@ -1080,7 +1081,7 @@ export function hiddenLibraryIds(settings) {
 export function libraryRowFor(row, settings) {
   if (!row || row.id !== 'ma' || row.builtIn !== 'overlay') return row
   const overlays = Array.isArray(settings?.overlays) ? settings.overlays : []
-  const dead = overlays.find(isOverlayRemoved)
+  const dead = overlays[revivableSlotIndex(settings)]
   if (!dead) return row
   // The same grammar `indicatorRegistry.listIndicators` gives a live overlay row
   // — `EMA 9`, `SMA 200` — so the offer and the row it restores read alike.
@@ -1103,7 +1104,7 @@ export function libraryRowFor(row, settings) {
     //
     // ⛔ `singleton` IS WHAT REMOVES THE SECOND CONTROL, and it is honest here for
     // the reason it is honest on Volume: there is exactly ONE tombstone this row
-    // revives (`toggledRow` takes `findIndex(isOverlayRemoved)`). Restore it and
+    // revives (`toggledRow` takes `revivableSlotIndex`). Restore it and
     // the row disappears, because `hiddenLibraryIds` stops revealing it.
     restores: true,
     singleton: true,

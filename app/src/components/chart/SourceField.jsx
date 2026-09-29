@@ -83,7 +83,10 @@ export default function SourceField({
       >
         {!known && <option value={UNAVAILABLE}>Source unavailable</option>}
         {groups.map((g) => (
-          <optgroup key={g.label} label={g.label}>
+          // ⚠️ NOT THE LABEL ALONE: one group per upstream instance, and two
+          // instances may share a name (a duplicated `SMA 5`). The first option's
+          // value carries the instance id, so label + value is unique.
+          <optgroup key={`${g.label}|${g.options[0]?.value ?? ''}`} label={g.label}>
             {g.options.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}

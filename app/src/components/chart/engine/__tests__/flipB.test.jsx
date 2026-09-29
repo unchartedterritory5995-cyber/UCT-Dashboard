@@ -5,6 +5,9 @@ import { resolve } from 'node:path'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 import { stripComments } from './sourceScan'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages } from '../../__fixtures__/adoptedAverages'
 
 /** `StockChart.jsx`, resolved from the vitest root (`app/`). */
 const STOCK_CHART_PATH = resolve(process.cwd(), 'src/components/StockChart.jsx')
@@ -220,7 +223,7 @@ const BARS = bars200.bars
 const RSI_INSTANCE = { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14, color: '#7b68ee' }, hidden: false }
 const BB_COLOUR = 'rgba(156,39,176,0.85)'
 const draw = (settingsOverride, extraProps) => render(
-  <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settingsOverride} {...extraProps} />,
+  <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={noDefaultAverages(settingsOverride)} {...extraProps} />,
 )
 /** Series created on RSI's own named price scale — the deleted legacy block used
  *  it too, which is why the binder count below is the discriminator. */
@@ -616,7 +619,7 @@ describe('Flip B — a shared chart link carries what now decides the picture', 
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ indicators: { rsi: { enabled: false } } }}
+        settingsOverride={noDefaultAverages({ indicators: { rsi: { enabled: false } } })}
         onSettingsPersist={(s) => persisted.push(s)} />,
     )
     window.history.replaceState({}, '', '/')
@@ -795,7 +798,7 @@ describe('Flip B — the right-click doors route through the one reader and the 
 const INTRADAY_BARS = intraday5m.bars
 const drawIntraday = (settingsOverride, extraProps) => render(
   <StockChart sym="AAPL" tf="5" barsOverride={INTRADAY_BARS}
-    settingsOverride={settingsOverride} {...extraProps} />,
+    settingsOverride={noDefaultAverages(settingsOverride)} {...extraProps} />,
 )
 /** Every series on MACD's own named scale — the deleted legacy block used it too,
  *  which is why the binding count is the discriminator and not this alone. */

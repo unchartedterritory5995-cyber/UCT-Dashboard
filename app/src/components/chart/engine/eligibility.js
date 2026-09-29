@@ -44,6 +44,9 @@
 // reason it is.
 
 import { parseColor } from '../../../utils/dividerColor'
+import { isVisibleOnTimeframe } from './instanceTimeframe'
+import { resolveInstanceFrames } from './calcTimeframeCapability'
+import { orderByDependency } from './sourceRef'
 
 /** `VWAP_TFS`, verbatim and in order — from `StockChart.jsx`, which no longer
  *  has it: VWAP is FLIPPED (B3 Task 11) and this is the only copy left.
@@ -137,8 +140,15 @@ export function eligibleInstances(instances, registry, ctx) {
   const kept = []
   const hidden = []
 
-  for (const inst of (Array.isArray(instances) ? instances : [])) {
-    if (!inst || typeof inst !== 'object') continue
+  // ⭐ THE CALCULATION FRAME OF EVERY INSTANCE ON THIS CHART, dependency-ordered so
+  // a dependent inherits its source's answer (`resolveInstanceFrames`). Only its
+  // GATED verdict is used here; the frame itself is the binder's to act on.
+  const list = Array.isArray(instances) ? instances.filter((i) => i && typeof i === 'object') : []
+  const frames = c.tf !== undefined && c.tf !== null
+    ? resolveInstanceFrames(orderByDependency(list, get).ordered, get, String(c.tf))
+    : new Map()
+
+  for (const inst of list) {
     const def = get(inst.defId)
     if (!def) { kept.push(inst); continue }   // ownership rules decide; not our call
 
@@ -149,8 +159,72 @@ export function eligibleInstances(instances, registry, ctx) {
     }
 
     const fold = FOLDS[def.id]
-    kept.push(fold ? fold(inst, c) : inst)
+    let out = fold ? fold(inst, c) : inst
+    if (def.meta && Array.isArray(def.meta.appearance)) out = averageLook(out, c)
+
+    // ⭐⭐ HIDDEN HERE ≠ GONE. Visibility (the member's "Show on") and a gated
+    // calculation frame (a 1h RSI on a Daily chart) both HIDE rather than DROP:
+    // the instance stays in the list as an in-memory `hidden: true` copy, which is
+    // exactly the state the whole engine already understands — no series
+    // (`planBindings`), no pane unless a VISIBLE guest needs one (`paneLayout`),
+    // and still COMPUTED when something visible reads it (`binder`'s
+    // `dependedOn`), so `MA(RSI)` shown on a timeframe where RSI is hidden keeps
+    // its source. `hiddenBy` is what stops the legend offering it as a greyed
+    // "click to show" chip — the member did not hide it, the timeframe did.
+    // ⛔ NOTHING IS WRITTEN. This is a copy for this render; the stored instance
+    // keeps every setting and draws again the moment the chart allows it.
+    if (inst.hidden !== true) {
+      if (!isVisibleOnTimeframe(inst, c.tf)) {
+        hidden.push({ inst, reason: 'visibility' })
+        out = { ...out, hidden: true, hiddenBy: 'visibility' }
+      } else {
+        const fr = frames.get(inst.instanceId)
+        if (fr && fr.gated) {
+          hidden.push({ inst, reason: `frame:${fr.gated}` })
+          out = { ...out, hidden: true, hiddenBy: 'frame' }
+        }
+      }
+    }
+    kept.push(out)
   }
 
   return { kept, hidden }
 }
+
+/**
+ * ⭐⭐ THE LOOK A MOVING AVERAGE HAS ALWAYS HAD ON EACH SURFACE — folded here, the
+ * same way VWAP's is, because these are facts about the CHART, not the average.
+ *
+ * `cs.overlays` averages were drawn by a renderer that read four surface props:
+ * smooth curves on the bold Model Book look (`/charts` uses it), axis-stretching
+ * unless `fitPriceToCandles`, value tags per `showMaLabels` (dropped while the last
+ * bar is scrolled off), and the 9-EMA repainted in the candle up-colour while it
+ * wears the stock default (`ema9MatchCandle`). Those averages are instances now
+ * (`maAdoption.js`), and this is what keeps them drawing exactly as they did — and
+ * gives an average added through + Add Indicator the same look.
+ *
+ * ⛔ ONLY ON PRICE. The overlay renderer only ever drew on the candles; an average
+ * of RSI in RSI's pane keeps its pane's placement rules untouched.
+ * ⛔ `renderLook` IS IN-MEMORY. `presentation.lineLookPatch` reads it; nothing
+ * persists it — this runs on the render copy `updateChart` builds.
+ */
+function averageLook(inst, c) {
+  const onPrice = typeof c.targetOf === 'function' ? c.targetOf(inst) === 'price' : false
+  if (!onPrice) return inst
+  const look = {
+    curved: !!(c.boldCandles || c.modelBookLook),
+    autoscale: c.fitPriceToCandles ? 'exclude' : 'default',
+  }
+  if (typeof c.showMaLabels === 'boolean') look.lastValue = c.showMaLabels && !c.lastBarOff
+  let inputs = inst.inputs
+  const stock = typeof inputs?.color === 'string' ? inputs.color.toLowerCase() : ''
+  if (c.ema9Color && inputs && inputs.maType === 'ema' && Number(inputs.period) === 9
+      && (!stock || stock === EMA9_STOCK_COLOR)) {
+    inputs = { ...inputs, color: c.ema9Color }
+  }
+  return { ...inst, inputs, renderLook: look }
+}
+
+/** `CHART_DEFAULTS.overlays[0].color` — the 9-EMA's stock colour; only an average
+ *  still wearing it takes the candle colour (a member's own pick always wins). */
+const EMA9_STOCK_COLOR = '#4ade80'

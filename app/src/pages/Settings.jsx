@@ -9,6 +9,7 @@ import AiMetersCard from './settings/AiMetersCard'
 import DeviceSyncCard from './settings/DeviceSyncCard'
 import ColorPicker from '../components/chart/ColorPicker'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from '../components/chart/chartDefaults'
+import { averageSlotView, writeAverageSlot } from '../components/chart/maAdoption'
 import useTagColors from '../hooks/useTagColors'
 import { ALERT_SOUNDS, previewSound } from '../utils/alertSound'
 import VoiceMemoryPanel from '../components/voice/VoiceMemoryPanel'
@@ -499,10 +500,9 @@ function ChartSettingsSection({ prefs, setPref }) {
     const next = { ...cs }
     const parts = path.split('.')
     if (parts.length === 3 && parts[0] === 'overlays') {
+      // ⭐ Through the adopted instance when there is one (`maAdoption.js`).
       const [, idx, field] = parts
-      next.overlays = next.overlays.map((o, i) =>
-        i === parseInt(idx) ? { ...o, [field]: field === 'period' ? parseInt(value) || o.period : value } : o
-      )
+      Object.assign(next, writeAverageSlot(next, parseInt(idx, 10), field, value))
     } else if (parts.length === 3) {
       const [section, sub, key] = parts
       next[section] = { ...next[section], [sub]: { ...next[section][sub], [key]: value } }
@@ -516,12 +516,13 @@ function ChartSettingsSection({ prefs, setPref }) {
     setPref('chart_settings', JSON.stringify(next))
   }, [cs, setPref])
 
+  // ⭐ A default average is a `movingAverage` INSTANCE now (`maAdoption.js`), so
+  // this editor reads and writes it through the adopted instance — the same
+  // average the chart draws and the Indicators tab edits.
   const updateOverlay = useCallback((idx, field, value) => {
-    const next = { ...cs }
-    next.overlays = next.overlays.map((o, i) =>
-      i === idx ? { ...o, [field]: field === 'period' ? (parseInt(value) || o.period) : value } : o
-    )
-    next.preset = 'custom'
+    const written = writeAverageSlot(cs, idx, field, value)
+    if (written === cs) return
+    const next = { ...written, preset: 'custom' }
     setPref('chart_settings', JSON.stringify(next))
   }, [cs, setPref])
 
@@ -610,7 +611,7 @@ function ChartSettingsSection({ prefs, setPref }) {
         {/* ── Indicators ── */}
         <div className={styles.chartSubsection}>
           <span className={styles.chartSubLabel}>Indicators</span>
-          {cs.overlays.map((ov, i) => (
+          {averageSlotView(cs).map((ov, i) => ov && (
             <div key={i} className={styles.overlayRow}>
               <label className={styles.chartToggle}>
                 <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
