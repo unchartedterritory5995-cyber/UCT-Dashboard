@@ -1,0 +1,94 @@
+//@version=5
+indicator("UCTPROBE_VW_OBJECT_GC_A", overlay = false)
+
+// ─── 2026-09-28 — OBJECT-LANE TRIAGE C7, PROBE A OF 4: THE CORPUS SPLIT, REPRODUCED
+//
+// `docs/pine/vendor-harness/objects-triage-2026-09-28.md` § C7. TradingView keeps
+// the NEWEST n objects by id (FIFO holds — measured), but n itself fits no rule:
+//
+//   script (corpus/committed/)   shape                                     cap  held
+//   contraction-box  (v5)        box.new at GLOBAL scope, EVERY bar,        50   50
+//                                coordinates na on most bars
+//   makuchaku FVG    (v4)        box.new inside `if`, SPORADIC, real        50   51
+//                                coordinates, one created on the last bar
+//   ultimate-pivot   (v5)        inside `if`, ~every bar, 9 lines + 9       50   51/51
+//                                labels per bar (labels unheld, real y)
+//   multi-tf S&D     (v5)        504 box.new(na,…) in ONE bar (isfirst,     500  504
+//                                for-loop, pushed into arrays), none after
+//
+// THE COMPETING RULES (the same letters in probes A–D):
+//   H1 STRICT        a create at the cap evicts the oldest first: live ≤ cap always
+//                    (OURS TODAY — `objectRuntime` evicts on create)
+//   H2 TRIM-THEN-ADD a create trims to cap THEN adds: cap+1 after any create
+//   H3 BAR-END       one trim pass when a bar finishes. H3a: the last bar's pass runs
+//                    (final = cap); H3b: it runs at the NEXT bar's start, so the final
+//                    bar keeps its creates (final = cap + creates on the last bar)
+//   H4 SPARE-THIS-BAR a trim never takes an object created on the trimming bar
+//   H5 SCOPE         global-scope creates are collected to cap, creates inside a local
+//                    block (`if`) keep one more — the only dimension that splits
+//                    contraction-box (50) from BOTH makuchaku and ultimate (51)
+//   H6 RATE          sporadic creation keeps one more than every-bar creation
+//   H7 NA-COORD      objects with na coordinates are counted/collected differently
+//   (H8 live-vs-ring and H9 var-exempt: probe C. H10 lazy/batched GC: probe D.)
+//
+// THIS PROBE reproduces the three one-per-call shapes at the CORPUS'S OWN CAP
+// (default ≈ 50 — no max_*_count, exactly like the three scripts). If it does NOT
+// read 50 / 51 / 51, the split is not a shape effect and probe B's pairwise reading
+// is moot; say so before grading B.
+//
+//   O1  boxes  "AB <bar>"   CONTRACTION shape — global scope, every bar, coordinates
+//                            na unless bar_index % 5 == 0
+//   O2  labels "AL <bar>"   MAKUCHAKU shape — inside `if`, on bar_index % 4 == 0 OR
+//                            the last bar (makuchaku created on its last bar), real
+//   O3  lines  (no text)    ULTIMATE shape — inside `if`, every bar, 3 per bar,
+//                            width = 1, 2, 3 in call order, unheld
+//
+//   held at the end    H1   H2   H3a  H3b  H4   H5   H6   H7
+//   O1 boxes           50   51   50   51   50   50   50   ≠O1 of B
+//   O2 labels          50   51   50   51   50   51   51   —
+//   O3 lines           50   51   50   53   50   51   50   —
+//   (the corpus says: 50 / 51 / 51)
+//
+// ⭐ READ BY ID, NOT BY COUNT ALONE. One monotonic id counter serves all families.
+// Per bar the calls run in THIS order: box (1 id), label (0 or 1), line w1, w2, w3
+// — so bar b's box id is the anchor, and every other id on b follows it. A held
+// set must be the newest n by id; a gap inside it is itself a finding. Box and
+// label text carry the bar; a line's bar is its id's position after that anchor.
+// The capture records `id`, `t` (text) and `w` (width); x/y are the vendor's own
+// indices, NOT bar_index — never read the bar off a coordinate.
+//
+//   A00  bar_index                       CONTROL
+//   A01  barstate.isconfirmed ? 1 : 0    last bar 0 = captured while FORMING (the
+//                                        corpus was read after the close: forming=false)
+//   A02  barstate.islast ? 1 : 0         marks the bar every "last bar" rule means
+//   A03  O2 created on this bar ? 1 : 0  the makuchaku condition, per bar
+//
+// ⛔ CAPTURE TWICE, inputs at defaults (none), AFTER THE CLOSE (the corpus's
+// condition): AMEX:SPY 1D (whatever history loads — only the end state is read)
+// and AMEX:SPY W (a different last bar, so a different bar_index % 4 phase).
+//
+// ours today (2026-09-28, `runOurSide` at d24d526e2 on the NYSE:RDDT 1D fixture's
+// 632 bars): TRANSLATES clean — 4 plots, 5 object ops, 0 drops. Holds 50 / 50 / 50
+// (H1): boxes AB 582..631 (40 of them undrawable, na coordinates — counted as
+// held), labels AL 436..628 by 4s + AL 631, lines 50.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(barstate.isconfirmed ? 1 : 0, "A01_isconfirmed")
+plot(barstate.islast ? 1 : 0, "A02_islast")
+
+// O1 — contraction-box shape: global scope, every bar, na coordinates on most bars
+realAB = bar_index % 5 == 0
+box.new(realAB ? bar_index : na, realAB ? 1.0 : na, realAB ? bar_index + 1 : na, realAB ? 0.0 : na, text = "AB " + str.tostring(bar_index))
+
+// O2 — makuchaku shape: inside `if`, sporadic, and always on the last bar
+makeAL = bar_index % 4 == 0 or barstate.islast
+if makeAL
+    label.new(bar_index, 1.0, "AL " + str.tostring(bar_index))
+plot(makeAL ? 1 : 0, "A03_O2_created_this_bar")
+
+// O3 — ultimate-pivot shape: inside `if` (a condition the compiler cannot fold;
+// true on every SPY bar), several per bar, unheld
+if close > 0
+    line.new(bar_index, 1.0, bar_index + 1, 1.0, width = 1)
+    line.new(bar_index, 2.0, bar_index + 1, 2.0, width = 2)
+    line.new(bar_index, 3.0, bar_index + 1, 3.0, width = 3)

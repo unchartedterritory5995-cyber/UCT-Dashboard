@@ -1,0 +1,113 @@
+//@version=6
+indicator("UCTPROBE_VW_CLOCK_CLOSE_TFCHANGE", overlay = false)
+
+// ─── 2026-09-28 — OBJECT-LANE TRIAGE C8: `time_close` AND `timeframe.change` ──
+//
+// `docs/pine/vendor-harness/objects-triage-2026-09-28.md` class C8: five corpus
+// scripts hold drawings we cannot place because we do not hold two clock
+// builtins. What those five actually spell (read from `corpus/committed/`):
+//
+//   liquidation-levels (v4)  label x = `time_close + k * timeframe.multiplier * 60000`
+//                            (xloc.bar_time)
+//   poor-man's vol. profile  24 `var label.new(time_close, …, xloc.bar_time)`
+//   (v4)                     then moved with `label.set_xy(…, time_close, …)`
+//   reverse-stochastic (v5)  x = `time_close + k * (time_close - time_close[1])`
+//   adr-pivots (v6)          `if timeframe.change(tf)` for tf = "D", "W", "M";
+//                            `time_close` INSIDE `request.security(tf)` (C10 — not
+//                            asked here: that is the MTF seam, not the clock)
+//   htf-footprint (v6)       `if timeframe.change(tf)`, tf default spelled "1W"
+//
+// So the rows are the bare variable, the function form, the bar's SPAN (what a
+// "+ k bars" offset is built from), the bar-to-bar spacing rsmi builds from
+// `time_close[1]`, and `timeframe.change` for the exact tf strings the corpus
+// passes — each against a CONTROL derived from a clock we already hold
+// (`time`, and `time(tf)` from `vw-time-tf.pine`).
+//
+// ⛔ The triage's warning is the reason for this probe: `time_close` on a daily
+// bar is believed to be the SESSION CLOSE (16:00), not the next bar's open — a
+// guessed `time + 1 day` would misplace every label drawn at it. Believed, not
+// captured. Nothing here is assumed.
+//
+//   row  reading                        what each answer would mean
+//   K00  bar_index                      CONTROL — the capture is the whole series
+//   K01  time_close, unix SECONDS       (compare with K08 and the capture's grid)
+//   K02  time_close("D"), SECONDS       the function form; on 1D must equal K01 if
+//                                       "the D close" is the bar's own close
+//   K03  (time_close - time) SECONDS    THE SPAN. 1D: 23400 = session close 16:00;
+//                                       86400 Mon–Thu / 259200 Fri = next bar's open.
+//                                       Early-close days (day after Thanksgiving,
+//                                       Dec 24): 12600 = the REAL close; 23400 = the
+//                                       session TEMPLATE. 60 RTH: 3600, and the 15:30
+//                                       bar reads 1800 (clipped at 16:00) or 3600.
+//                                       W: 369000 (Mon 09:30→Fri 16:00) vs 604800
+//                                       (→ next Monday open); holiday weeks move it.
+//                                       -1 = time_close is na
+//   K04  timeframe.change("D") ? 1 : 0  1D: 1 every bar (each bar a new day) or not;
+//                                       60: 1 only on the 09:30 bar; W: a tf LOWER
+//                                       than the chart — 1 every bar, 0, or error
+//   K05  timeframe.change("W") ? 1 : 0  1D: 1 on the first TRADING day of each week
+//                                       (a Tuesday after a holiday Monday) — or on a
+//                                       calendar Monday only; W: 1 every bar
+//   K06  timeframe.change("M") ? 1 : 0  W: the week whose OPEN is in the new month,
+//                                       or the week CONTAINING the 1st (K15 decides)
+//   K07  ta.change(time("D")) != 0      CONTROL for K04 — the same event from a known
+//                                       clock. K04 == K07 on every bar but bar 0 is the
+//                                       identity `timeframe.change(tf) ≡ new time(tf)`
+//   K08  time, unix SECONDS             CONTROL — must equal the capture's own bar
+//                                       times exactly; if not, K01/K02 are unreadable
+//                                       (plot precision), not wrong
+//   K09  hour(time_close)               exchange tz. 16 = session close; 9 = next open
+//   K10  minute(time_close)             0 = 16:00; 30 = 09:30 (next open)
+//   K11  dayofweek(time_close)          1D Friday bar: 6 (same day) vs 2 (Monday)
+//   K12  (time_close - time_close[1])   rsmi's spacing. 1D: 86400 Tue–Fri, 259200 on
+//        SECONDS                        Mondays — or something else if time_close is
+//                                       not a same-day clock; -1 on bar 0 (na)
+//   K13  (time_close("D") - time) SECS  60 RTH: every bar of a day points at THAT
+//                                       day's 16:00 (so 23400 on 09:30, 1800 on 15:30),
+//                                       or at the NEXT day; W: na (-1) or a value
+//   K14  ta.change(time("W")) != 0      CONTROL for K05
+//   K15  ta.change(time("M")) != 0      CONTROL for K06
+//   K16  timeframe.change("1W") ? 1 : 0 htf-footprint's literal spelling: must equal
+//                                       K05 on every bar (a spelling, not a period)
+//   K17  barstate.isconfirmed ? 1 : 0   0 on the last bar = it was FORMING when read,
+//                                       so its K01–K03 are an expected close, not a
+//                                       past one — read that bar separately
+//
+// ⛔ CAPTURE THREE TIMES, inputs at defaults (there are none):
+//   1. AMEX:SPY 1D, FULL history (≥ 1 early-close day and ≥ 1 holiday Monday;
+//      full history holds many of each) — the reading the door needs;
+//   2. AMEX:SPY 60, extended hours OFF (RTH), ≥ 300 bars — the 15:30 half-bar;
+//   3. AMEX:SPY W, full history — holiday weeks, "M" on a weekly bar.
+// A COMPILE FAILURE on any line is itself a reading — record the error text.
+//
+// ours today (2026-09-28, `enterMemberDoor` at d24d526e2): the WHOLE script is
+// REFUSED at the builder, cleanly, on its first unheld name — `pine:builtin`
+// "…does not hold `time_close`". Row by row (each alone beside K00):
+//   ACCEPTED  K00, K07, K08, K17
+//   REFUSED   K01 K03 K09–K12 `pine:builtin` (`time_close`); K02 K13
+//             `pine:function` (`time_close(…)`); K04–K06 K16 `pine:builtin`
+//             (`timeframe.change` — "holds no COLUMN for"); K14 K15 `pine:function`
+//             (`time(<tf>)` — only "D" folds)
+
+plot(bar_index, "K00_bar_index_CONTROL")
+
+secs(t) => na(t) ? -1.0 : t / 1000.0
+rel(t, base) => na(t) or na(base) ? -1.0 : (t - base) / 1000.0
+
+plot(secs(time_close),                         "K01_time_close_SECS")
+plot(secs(time_close("D")),                    "K02_time_closeD_SECS")
+plot(rel(time_close, time),                    "K03_span_time_close_minus_time_SECS")
+plot(timeframe.change("D") ? 1 : 0,            "K04_tfchange_D")
+plot(timeframe.change("W") ? 1 : 0,            "K05_tfchange_W")
+plot(timeframe.change("M") ? 1 : 0,            "K06_tfchange_M")
+plot(ta.change(time("D")) != 0 ? 1 : 0,        "K07_newDay_from_timeD_CONTROL")
+plot(secs(time),                               "K08_time_SECS_CONTROL")
+plot(na(time_close) ? -1 : hour(time_close),   "K09_hour_time_close")
+plot(na(time_close) ? -1 : minute(time_close), "K10_minute_time_close")
+plot(na(time_close) ? -1 : dayofweek(time_close), "K11_dayofweek_time_close")
+plot(rel(time_close, time_close[1]),           "K12_time_close_spacing_SECS")
+plot(rel(time_close("D"), time),               "K13_time_closeD_minus_time_SECS")
+plot(ta.change(time("W")) != 0 ? 1 : 0,        "K14_newWeek_from_timeW_CONTROL")
+plot(ta.change(time("M")) != 0 ? 1 : 0,        "K15_newMonth_from_timeM_CONTROL")
+plot(timeframe.change("1W") ? 1 : 0,           "K16_tfchange_1W_SPELLING")
+plot(barstate.isconfirmed ? 1 : 0,             "K17_isconfirmed_LAST_BAR_FORMING")
