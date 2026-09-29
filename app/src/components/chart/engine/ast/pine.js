@@ -13380,6 +13380,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
       if (!from || !to) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
+      // ⭐ `for … by <step>` — the step is a value like the bounds. ⛔ An
+      // unreadable step drops the loop exactly as an unreadable bound does.
+      // ⛔ AND THE RUNTIME LANE STILL REFUSES A STEPPED LOOP: it lowers loops
+      // from the raw `fromNode`/`toNode` and has no step to lower, so carrying
+      // one there would iterate a range the drawing does not.
+      const step = op.step ? valueRef(op.step.value) : null
+      if (op.step && (!step || iterTrees)) {
+        unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
+      }
       const outer = ops
       const body = []
       ops = body
@@ -13396,7 +13405,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // the only place that range is written down. Gated, so an ordinary
       // program carries no parse nodes.
       ops.push({
-        k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly,
+        k: 'loop', id: op.id, from, to, ...(step ? { step } : {}), body, when, ...lastBarOnly,
         ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
       })
       continue

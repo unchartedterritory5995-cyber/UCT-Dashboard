@@ -35,13 +35,19 @@ plot(close)
   // a loop the author wrote to skip. RISK-043 is NARROWED, not overturned, and
   // this control is re-pointed at a shape where it still holds rather than
   // deleted — a rail that stops discriminating is worse than no rail.
-  it('CONTROL: array.push on an OBJECT-family collection inside a STEPPED for IS STILL loopBlocked — RISK-043 stands where it still applies', () => {
+  // ⚰️ RE-POINTED AGAIN (2026-09-28): a STEPPED `for` is carried now — the
+  // loop op gained a `step` (see `objectLoopReader.test.js`) — so this control
+  // moved to `while`, the one loop shape that still refuses, rather than being
+  // deleted. A rail that stops discriminating is worse than no rail.
+  it('CONTROL: array.push on an OBJECT-family collection inside a WHILE IS STILL loopBlocked — RISK-043 stands where it still applies', () => {
     const src = `//@version=6
 indicator("t1b", overlay=true)
 lines = array.new_line()
 if barstate.islast
-    for i = 0 to 2 by 1
+    i = 0
+    while i < 3
         array.push(lines, na)
+        i += 1
 plot(close)
 `
     const t = translatePine(src, { strict: true })

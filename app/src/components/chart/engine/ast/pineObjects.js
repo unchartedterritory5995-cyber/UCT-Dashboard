@@ -488,6 +488,7 @@ export function collectObjectOps(stmts, h) {
           id: head.id,
           from: head.from,
           to: head.to,
+          ...(head.step ? { step: head.step } : {}),
           body,
           guards,
           locals: localScope,
@@ -815,18 +816,16 @@ export function collectObjectOps(stmts, h) {
    * A head this does not recognise returns null and the caller refuses the loop
    * exactly as it always did — a new shape is never guessed at.
    *
-   * ⛔ `by` IS REFUSED BY RETURNING NULL. The runtime's loop op steps by one
-   * toward its bound; carrying a `by` head without a step would draw every row
-   * of a loop the author wrote to skip, which is a wrong table rather than a
-   * missing one.
+   * ⭐⭐ `by <step>` IS READ AND CARRIED AS THE LOOP'S `step` (2026-09-28). It
+   * used to refuse the whole loop, because the loop op had no step and stepping
+   * by one would draw every row of a loop written to skip. The op has a step
+   * now, so the refusal's reason is gone. MEASURED against TradingView the same
+   * day: `heat-map-seasons` paints its gauge with `for i = 0 to 29 by 1` — the
+   * vendor holds 31 cells and we held 4, the loop dropped whole.
    *
-   * ⚠️ THE `by` AND `while` GUARDS ARE NOT INDEPENDENTLY PROVABLE, and that is
-   * recorded rather than implied. A mutation deleting either stays GREEN,
-   * because this parser already refuses both for a second reason: `while i < 3`
-   * has no top-level `=` at index 2, and `0 to 10 by 2` fails to parse as a
-   * bound expression. They are kept because they state the INTENT — a parser
-   * that grew more lenient would otherwise start stepping a `by` loop by one,
-   * silently — and NOT counted as guards this file can demonstrate.
+   * ⚠️ THE `while` GUARD IS NOT INDEPENDENTLY PROVABLE, and that is recorded
+   * rather than implied: `while i < 3` has no top-level `=` at index 2, so the
+   * parser refuses it for a second reason.
    */
   const parseForHead = (t) => {
     if (!t[1] || t[1].kind !== 'ident') return null
@@ -834,12 +833,19 @@ export function collectObjectOps(stmts, h) {
     if (eq !== 2) return null
     const toIdx = h.findTop(t, (x) => x.kind === 'ident' && x.value === 'to')
     if (toIdx <= eq) return null
-    if (h.findTop(t, (x) => x.kind === 'ident' && x.value === 'by') > toIdx) return null
+    const byIdx = h.findTop(t, (x) => x.kind === 'ident' && x.value === 'by')
+    if (byIdx >= 0 && byIdx < toIdx) return null
     try {
       const from = h.parseWholeExpression(t.slice(eq + 1, toIdx))
-      const to = h.parseWholeExpression(t.slice(toIdx + 1))
+      const to = h.parseWholeExpression(t.slice(toIdx + 1, byIdx > toIdx ? byIdx : t.length))
       if (!from || !to) return null
-      return { id: t[1].value, from: { value: from }, to: { value: to } }
+      const head = { id: t[1].value, from: { value: from }, to: { value: to } }
+      if (byIdx > toIdx) {
+        const step = h.parseWholeExpression(t.slice(byIdx + 1))
+        if (!step) return null
+        head.step = { value: step }
+      }
+      return head
     } catch { return null }
   }
 

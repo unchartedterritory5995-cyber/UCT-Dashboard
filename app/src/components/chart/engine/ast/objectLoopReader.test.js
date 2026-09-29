@@ -101,14 +101,19 @@ describe('⛔ the shapes the reader still refuses, BY NAME', () => {
     expect(blocked(t)).toBeGreaterThan(0)
   })
 
-  it('`for … by <step>` is refused rather than stepped by one', () => {
-    // Drawing every row of a loop the author wrote to skip is a WRONG table,
-    // which is worse than a missing one.
+  it('`for … by <step>` is carried WITH its step — never stepped by one', () => {
+    // ⚰️ THIS CASE USED TO ASSERT A REFUSAL, because the loop op had no step
+    // and stepping by one would draw every row of a loop written to skip. The
+    // op carries `step` now (2026-09-28, `heat-map-seasons`' `for i = 0 to 29
+    // by 1` gauge: vendor 31 cells, ours 4 with the loop dropped). The danger
+    // the refusal guarded against is still asserted: the step IS the author's.
     const t = T('var label lb = na\n'
       + 'for i = 0 to 10 by 2\n'
       + '    lb := label.new(bar_index - i, close, "x")\n')
-    expect(loopOf(t)).toBeUndefined()
-    expect(blocked(t)).toBeGreaterThan(0)
+    const loop = loopOf(t)
+    expect(loop).toBeDefined()
+    expect(loop.step).toEqual({ v: 'const', value: 2 })
+    expect(blocked(t)).toBe(0)
   })
 
   it('⛔⛔ AND A COUNTER DEPENDENCE THROUGH A BLOCK-LOCAL NAME IS STILL ONE', () => {

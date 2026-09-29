@@ -671,7 +671,13 @@ export function beginObjects(program, ctx) {
           // and treating that as 0 would draw a row of blanks that looks like
           // data. Drawing nothing is the honest answer for a list that is empty.
           if (!Number.isFinite(from) || !Number.isFinite(to)) break
-          const step = to >= from ? 1 : -1
+          // ⭐ `by <step>`: Pine steps by the step's SIZE in the direction
+          // `from → to` takes. ⛔ A step that is not a positive finite number
+          // runs ZERO times — `by 0` would never end, and a guessed 1 would
+          // draw rows the author wrote the step to skip.
+          const size = op.step === undefined ? 1 : Math.abs(Number(value(op.step)))
+          if (!Number.isFinite(size) || size <= 0) break
+          const step = to >= from ? size : -size
           const had = loopVars.has(op.id)
           const prev = loopVars.get(op.id)
           let ok = true

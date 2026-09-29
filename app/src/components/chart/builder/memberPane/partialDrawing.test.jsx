@@ -63,8 +63,27 @@ const CASES = [
     objectsOnly: true, kind: 'refused', what: 'a delete' },
   { cls: 'removal lost: a table clear', script: 'strong-start-rvol-dashboard__36140b1cbe',
     objectsOnly: true, kind: 'refused', what: 'a table clear' },
-  { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: 'sonarlab-order-blocks__0df0d45ee6',
-    objectsOnly: true, kind: 'refused', what: 'a delete and a change to the list it deletes from' },
+  // ⚰️ 2026-09-28 — sonarlab WAS the "lost BEFORE conversion" row: its delete
+  // loops are `for … by 1`, which the reader used to block whole (a reader-level
+  // loss, zero dropReasons). The loop op carries a `by` step now, so the loops
+  // are READ — and their bound `array.size(shortBoxes) - 1` cannot be, so the
+  // loss is now a counted `loop:bounds` drop whose body deletes. Same verdict
+  // (refused), a truer phrase. The before-conversion class keeps its own
+  // fixture below, because no committed script exhibits it any more.
+  { cls: 'removal lost: a loop that deletes, its bound unreadable', script: 'sonarlab-order-blocks__0df0d45ee6',
+    objectsOnly: true, kind: 'refused', what: 'a loop that deletes' },
+  { cls: 'removal lost BEFORE conversion (zero dropReasons)', script: '(fixture: a `while` that deletes)',
+    source: [
+      '//@version=5',
+      'indicator("before conversion", overlay = true)',
+      'var label lb = label.new(bar_index, high, "x")',
+      'i = 0',
+      'while i < 1',
+      '    label.delete(lb)',
+      '    i += 1',
+    ].join(String.fromCharCode(10)),
+    zeroDropReasons: true,
+    objectsOnly: true, kind: 'refused', what: 'a delete' },
   // ── plots + partial: drawn, disclosed ─────────────────────────────────────
   // ⚰️ 24 → 25, 2026-09-27 (H14). `int kSize = array.size(knnF1)` read a `var`
   // array that `array.push` grows inside an `if` at line 471, and the host walk
@@ -109,9 +128,12 @@ const drawingItems = () => {
 describe.each(CASES)('$cls — $script', (c) => {
   it(`door verdict and the rendered sentence (${c.kind})`, () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', c.objectsOnly ? '1' : '')
-    const source = corpus(c.script)
+    const source = c.source || corpus(c.script)
     const door = memberPaneDefinition({ source, id: DEF_ID })
     render(<MemberPane sym="SPY" tf="D" source={source} defId={DEF_ID} />)
+    // ⭐ The class is DEFINED by the drop ledger being empty — assert it, or a
+    // fixture that drifted into a counted drop would still pass as this class.
+    if (c.zeroDropReasons) expect(door.translation.objectDiagnostics.dropReasons).toEqual({})
 
     if (c.kind === 'refused') {
       expect(door.ok).toBe(false)
@@ -222,9 +244,14 @@ describe('plots + removal lost, with a real program — the drawing is WITHHELD,
 })
 
 describe('⛔ flag OFF, a drawing-only script is still refused with the sentence it always had', () => {
-  it('sonarlab-order-blocks: no pane, the pre-existing refusal, nothing drawn', () => {
+  // ⚰️ 2026-09-28 — re-pointed from sonarlab-order-blocks, whose host
+  // translation is no longer clean (its `for … by 1` delete loops are read now,
+  // and their array bounds are not), so its flag-OFF refusal is the
+  // objects-only sentence every lossy drawing-only script gets. This row is
+  // about a CLEAN drawing-only script meeting the flag switched off.
+  it('makuchaku fair-value-gaps (clean, drawing-only): no pane, the pre-existing refusal, nothing drawn', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '')
-    const source = corpus('sonarlab-order-blocks__0df0d45ee6')
+    const source = corpus('makuchaku039s-trade-tools-fair-value-gaps__b951deedc8')
     render(<MemberPane sym="SPY" tf="D" source={source} defId={DEF_ID} />)
     expect(screen.getByTestId('pine-member-pane-refusal').textContent)
       .toBe('this script declares nothing a chart can draw')

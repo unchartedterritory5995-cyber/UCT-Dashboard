@@ -151,6 +151,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'col2', 'row2',                              // master's clear rectangle
   'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
   'from', 'to',                                // the `loop` bounds
+  'step',                                      // …and its `by` step
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -630,6 +631,7 @@ export function assertObjectProgram(program) {
       }
       assertValueRef(op.from, `${where}.from`)
       assertValueRef(op.to, `${where}.to`)
+      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`)
       if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
       if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
     } else if (op.k === 'create') {
