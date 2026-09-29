@@ -30,7 +30,9 @@ const presOf = (src, i = 0, opts = {}) => translate(src, opts).outputs[i].presen
 
 describe('ruling 1 — a constant-selected colour is the branch the default takes', () => {
   it('⭐⭐ an `input.string` theme chain draws the DEFAULT\'s colour, alpha and all', () => {
-    const src = `${theme('Aurora')}plot(close, "a", thA)\nplot(close, "b", color.new(thB, 60))\n`
+    // `color.new` over a chain is Artemis' own shape (`color.new(thVpBuy, 70)`),
+    // and it is what the legacy reading could not open.
+    const src = `${theme('Aurora')}plot(close, "a", color.new(thA, 0))\nplot(close, "b", color.new(thB, 60))\n`
     const t = translate(src)
     expect(t.outputs[0].presentation.color).toBe('#00e5ff')
     expect(t.outputs[0].presentation.colorDynamic).toBeUndefined()
@@ -39,9 +41,9 @@ describe('ruling 1 — a constant-selected colour is the branch the default take
   })
 
   it('⛔ NON-VACUITY: a different default takes a different branch — nothing is hard-coded', () => {
-    expect(presOf(`${theme('Ember')}plot(close, "a", thA)\n`).color).toBe('#ff9d00')
+    expect(presOf(`${theme('Ember')}plot(close, "a", color.new(thA, 0))\n`).color).toBe('#ff9d00')
     // …including the ELSE of the chain, reached through every arm.
-    expect(presOf(`${theme('Obsidian')}plot(close, "a", thA)\n`).color).toBe('#089981')
+    expect(presOf(`${theme('Obsidian')}plot(close, "a", color.new(thA, 0))\n`).color).toBe('#089981')
   })
 
   it('⭐ a chain deeper than the walkers\' depth budget still settles', () => {
@@ -60,7 +62,7 @@ describe('ruling 1 — a constant-selected colour is the branch the default take
   })
 
   it('⭐ a default whose branch is `na` is the ABSENT colour, not an unsaid one', () => {
-    const p = presOf('mode = input.string("off", "Mode")\nplot(close, "a", mode == "off" ? na : color.red)\n')
+    const p = presOf(`${theme('Aurora')}mode = input.string("off", "Mode")\nplot(close, "a", mode == "off" ? na : color.new(thA, 0))\n`)
     expect(p.color).toBe('#000000')
     expect(p.opacity).toBe(0)
     expect(p.colorDynamic).toBeUndefined()
@@ -71,9 +73,14 @@ describe('ruling 1 — a constant-selected colour is the branch the default take
     expect(p.colorCondition.formula).toBe('close > open')
     // A shallow chain of LITERAL leaves was carried before this ruling, as a
     // palette of every arm with the constant selectors inside the index; it
-    // stays exactly that (same palette, same ids, same formula).
+    // stays exactly that (same palette, same ids, same formula) — and draws the
+    // default's colour already, because its index folds.
     const q = presOf(`${theme('Aurora')}plot(close, "b", close > open ? thA : thB)\n`)
     expect(q.colorPalette).toEqual(['#00e5ff', '#ff9d00', '#089981', '#ce93d8', '#419fec', '#f23645'])
+    const r = presOf(`${theme('Aurora')}plot(close, "c", thA)\n`)
+    expect(r.color).toBeUndefined()
+    expect(r.colorPalette).toEqual(['#00e5ff', '#ff9d00', '#089981'])
+    expect(r.colorIndex.formula).toBe('0')
   })
 })
 

@@ -16896,6 +16896,8 @@ function outputPresentation(args, ctx) {
   // default for a colourless plot is a RENDERING rule and is applied at the member
   // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
+  // A colour whose default settles on `na` (ruling 1) is absent, like `color = na`.
+  let settledNa = false
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
     // literal, and `color.new(base, <literal>)`. `staticColourOf` is the same
@@ -16905,24 +16907,21 @@ function outputPresentation(args, ctx) {
     // `parseArguments` returns Pine's own positional-and-named shape, so reading
     // `args[0].type` looks at the PAIR and finds nothing — the second time this
     // wave read one level too shallow and got a silent "the author said nothing".
-    let flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
+    const flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
     // ⭐⭐ 2026-09-28 (OWNER RULING 1) — THE SECOND PASS, AND ONLY FOR A COLOUR THE
     // FIRST ONE COULD NOT SAY. A colour whose ternaries are selected by a
     // translation-time constant (an `input.string` default, a literal) is read
     // with those selectors folded to the branch the default takes — see
     // `constantColourSelector`. ⛔ It runs only where the legacy reading found
-    // no static colour AND carried no rule (below), so every colour this door
-    // already carried keeps its bytes, its formula and its parameter ids.
+    // no static colour AND carried no rule (the conditional branch below), so
+    // every colour this door already carried keeps its bytes, its formula and
+    // its parameter ids. ⚰️ Measured: run before the legacy CONDITIONAL, it
+    // turned Oliver Kell's three carried `is_dark ? … : …` pairs (a constant
+    // `theme_mode == …` selector the legacy index already folded) into flat
+    // colours — the same pixels, a different document.
     const foldCtx = (ctx && ctx.resolver && ctx.env && !isNaColourLeaf(c.value))
       ? { ...ctx, foldSelectors: { n: 0 } } : null
-    let foldedFlat = false
-    let settlesOnNa = false
-    if (!flat && foldCtx) {
-      flat = staticColourOf(c.value, ctx.env, 0, foldCtx)
-      foldedFlat = !!flat
-      if (!flat) settlesOnNa = isNaColourLeaf(settledColourNode(c.value, ctx.env, foldCtx))
-    }
-    if (!flat && (isNaColourLeaf(c.value) || settlesOnNa)) {
+    if (!flat && isNaColourLeaf(c.value)) {
       // ⭐⭐ 2026-09-28 — `color = na` IS A COLOUR: THE ABSENT ONE. Pine draws the
       // plot in nothing (its values still feed `fill()` and the data window), and
       // TradingView records it as `rgba(0,0,0,0)` in the study's own style state.
@@ -16935,7 +16934,7 @@ function outputPresentation(args, ctx) {
       pres.opacity = 0
     } else if (flat) {
       pres.color = flat
-      const a = colourHelperAlpha(c.value, ctx && ctx.env, foldedFlat ? foldCtx : ctx)
+      const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
       if (a !== null) pres.opacity = a
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
@@ -16998,14 +16997,29 @@ function outputPresentation(args, ctx) {
       // live wherever it is already a knob: a declared input resolves to its
       // IDENTIFIER whatever the mint does, and that is what the member door uses.
       if (!carried && foldCtx) {
-        foldCtx.foldSelectors.n = 0
-        const folded = colourConditional(c.value, ctx.env, 0, foldCtx)
-        if (folded && foldCtx.foldSelectors.n > 0) {
-          carried = carry({ ...folded, withholdMint: true })
-          if (carried) {
-            delete pres.colorDynamicArity
-            delete pres.colorNaGated
-          }
+        // (a) the whole colour folds to ONE static colour — Artemis' Signal Line
+        // (`thSig`) and `color.new(thVpBuy, 70)`, each alpha kept.
+        const foldedFlat = staticColourOf(c.value, ctx.env, 0, foldCtx)
+        if (foldedFlat) {
+          pres.color = foldedFlat
+          const a = colourHelperAlpha(c.value, ctx.env, foldCtx)
+          if (a !== null) pres.opacity = a
+          carried = true
+        } else if (isNaColourLeaf(settledColourNode(c.value, ctx.env, foldCtx))) {
+          // (b) the default's branch is `na` — the ABSENT colour, as `color = na` is.
+          pres.color = '#000000'
+          pres.opacity = 0
+          settledNa = true
+          carried = true
+        } else {
+          // (c) a rule over folded leaves.
+          foldCtx.foldSelectors.n = 0
+          const folded = colourConditional(c.value, ctx.env, 0, foldCtx)
+          if (folded && foldCtx.foldSelectors.n > 0) carried = carry({ ...folded, withholdMint: true })
+        }
+        if (carried) {
+          delete pres.colorDynamicArity
+          delete pres.colorNaGated
         }
       }
       // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 49 of the 60
@@ -17091,7 +17105,7 @@ function outputPresentation(args, ctx) {
   const tr = numberValue((arg('transp') || {}).value)
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
-  if (tr !== null && !(c && isNaColourLeaf(c.value))) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
   return pres
 }
 
