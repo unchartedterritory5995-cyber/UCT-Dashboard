@@ -173,7 +173,9 @@ window.__l3 = (() => {
       if (!occ) occ = {cls: classify(hit, jh), hit: desc(hit),
                        layer: desc(hit.closest('[role=dialog],[role=tooltip],[role=status],[role=group],header,section,aside,nav,div') || hit),
                        popup: !!(popup && popup.contains(hit) && !popup.contains(el)),
-                       modal: !!(hit.closest('[aria-modal="true"]') || (hit.querySelector && hit.querySelector('[aria-modal="true"]')))};
+                       modal: !!(hit.closest('[aria-modal="true"]') || (hit.querySelector && hit.querySelector('[aria-modal="true"]'))),
+                       // RECORD-ONLY: the hit and the control belong to one hub (its pad is the touch surface)
+                       sameHub: !!(hit.closest('[data-testid="hub-root"]') && hit.closest('[data-testid="hub-root"]') === el.closest('[data-testid="hub-root"]'))};
     });
     out.tested = tested; out.covered = covered; out.centreCovered = centreCovered;
     out.occluded = !!occ && (centreCovered || covered >= 3);
@@ -247,6 +249,10 @@ window.__l3 = (() => {
                    hidden, disabled: !!(el.disabled || el.getAttribute('aria-disabled') === 'true'),
                    minW: parseFloat(cs.minWidth) || 0, minH: parseFloat(cs.minHeight) || 0,
                    inPopup: !!(popup && popup.contains(el)), plant: el.getAttribute('data-l3-plant') || ''};
+      // RECORD-ONLY (added after the BEFORE run; no verdict reads it): the <label> that wraps an
+      // input takes its clicks too, so WCAG 2.5.8 counts it as part of the target.
+      const lab = el.labels && el.labels[0];
+      if (lab && lab.contains(el)) { const lb = lab.getBoundingClientRect(); rec.labelBox = [Math.round(lb.width * 10) / 10, Math.round(lb.height * 10) / 10]; }
       if (el.tagName === 'A') { const p = el.parentElement; const own = (el.innerText || '').trim().length;
         const around = p ? (p.innerText || '').trim().length : 0; rec.inlineLink = !!p && around > own + 20 && cs.display === 'inline'; }
       return rec;
