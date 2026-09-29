@@ -13,6 +13,7 @@
   "adopters": [
     "app/src/components/chart/builder/EvidenceTab.jsx",
     "app/src/components/screener/ScanResults.jsx",
+    "app/src/pages/Breadth.jsx",
     "app/src/pages/ProvenanceDemo.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",

@@ -65,6 +65,32 @@ const _ICON_BY_TIER = {
 // leaving the `!== 'real_time'` test here and moving only the formatting would
 // have split one decision across two systems.
 
+/** TERM-059 — the AGE CLAUSE, for a value the CALLER has already judged must
+ *  show its age (`freshnessAge.js::mustShowAge`). This component still decides
+ *  nothing: the caller mounts it with `age` only when the authority said so,
+ *  exactly as `sessionStale` arrives already computed.
+ *
+ *  `age = { cadence, asOfDate }` — `cadence` is the series' own publication
+ *  rhythm in words ("weekly"), `asOfDate` the value's own calendar as-of
+ *  (`YYYY-MM-DD`) or `null` when the value is undated.
+ *
+ *  ⛔ THE DATE IS RENDERED AS GIVEN, NEVER PARSED. A calendar date has no time
+ *  and no zone; `new Date('2026-06-17')` is UTC midnight, the PREVIOUS evening in
+ *  New York, and feeding it to the time-of-day as-of clause above would print
+ *  "as of 8:00 PM ET" for a survey that was never timed at all.
+ *
+ *  ⛔ AN UNDATED VALUE SAYS "undated", never nothing: an unknown age is not a
+ *  fresh one (`freshnessAge.js`, reason `no_timestamp`). */
+function AgeClause({ cadence = null, asOfDate = null }) {
+  const when = asOfDate ? `as of ${asOfDate}` : 'undated'
+  return (
+    <span className={styles.age} data-testid="freshness-age">
+      <UIcon name="clock" size={12} />
+      <span>{cadence ? `${cadence} · ${when}` : when}</span>
+    </span>
+  )
+}
+
 /** One badge for one freshness-shaped value or one `fields[]` row (PRD-S8
  *  §9.5 composite support — "delayed price, live volume" on one row). */
 function Tier({ freshnessClass, asOf, label: labelOverride, testIdSuffix = '' }) {
@@ -106,23 +132,35 @@ export default function FreshnessBadge({
   fields = null,
   disclosureRequired = null,
   disclosureText = null,
+  age = null,
 }) {
   const [, setTick] = useState(0)
+  // An age clause is a calendar date, fixed for the life of the render, so a
+  // badge carrying one has nothing to re-render every second. That matters at
+  // the first consumer: one NAAIM badge per Monitor row would otherwise be one
+  // interval per row.
+  const ticks = age == null
   // `ChartMarketClock.jsx`'s existing ticking idiom, reused verbatim
   // (SPEC-S8 §9) rather than a second pattern — this badge's "as of HH:MM"
   // text is a formatted-once string per render, so the tick only needs to
   // trigger a re-render; it holds no clock state of its own.
   useEffect(() => {
+    if (!ticks) return undefined
     const id = setInterval(() => setTick((t) => t + 1), 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [ticks])
 
   const primary = mapD1Freshness(freshnessClass)
   const requiresDisclosure = disclosureRequired ?? primary.disclosureRequired
+  const hasFields = Array.isArray(fields) && fields.length > 0
+  // ⭐ An age clause STANDS IN for the tier when there is no D1 class to state:
+  // printing UNKNOWN beside an as-of the caller KNOWS would contradict itself.
+  // With a class (or composite fields) present, both render.
+  const ageOnly = age != null && freshnessClass == null && !hasFields
 
   return (
     <span className={styles.wrap} data-testid="freshness-badge">
-      {Array.isArray(fields) && fields.length > 0 ? (
+      {ageOnly ? null : hasFields ? (
         // Composite row (PRD-S8 §9.5): one Tier per field, each independently
         // labeled — never collapsed to a single freshness for the whole row.
         fields.map((f, i) => (
@@ -137,6 +175,8 @@ export default function FreshnessBadge({
       ) : (
         <Tier freshnessClass={freshnessClass} asOf={asOf} />
       )}
+
+      {age != null && <AgeClause cadence={age.cadence} asOfDate={age.asOfDate} />}
 
       {sessionState?.label && (
         <span

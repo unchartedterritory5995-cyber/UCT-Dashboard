@@ -30,6 +30,17 @@
 
 .tierAsOf { color: var(--text-muted); font-weight: 400; }
 
+/* TERM-059 age clause — a calendar as-of beside a slower-than-daily value. One
+   line, never wraps: its first consumer sits in a fixed-height table cell. */
+.age {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .sourceStaleNote,
 .sessionStaleNote {
   display: inline-flex;
