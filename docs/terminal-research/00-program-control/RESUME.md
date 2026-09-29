@@ -2,7 +2,26 @@
 
 ---
 
-## ⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 early: SECOND DEPLOY LIVE, and a third batch on the branch
+## ⭐⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 00:15–01:00 ET: THREE MORE DEPLOYS, pushed by the agent on owner instruction
+
+The owner said "push that autonomously yourself and proceed" (2026-09-29). Each push was after hours, one at a time,
+each deploy settled + `hub_nav_smoke --auth` exit 0 before the next:
+- `76bbbe126` — TERM-082 ranks 1-2 (`/api/snapshot`, `/api/movers` serve last-good), TERM-035, TERM-012. Smoke PASS.
+- `85b9e97cd` — TERM-035 follow-up #1: `nyseCalendar.js` + `nyse_calendar.py` (hence `bars_fetch`, `liveflow_monitor`)
+  DERIVE from `market_calendar.json`; client coverage now 2025-2028; runway alert names the JSON. Smoke PASS.
+- `15a100749` — TERM-082 rank 3 (`/api/earnings` + `/api/earnings-gaps` serve last-good; `/api/push` kicks one refresh
+  and a build straddling a push is discarded). Smoke: see the next block / the session log.
+⚠️ flow_worker_watch_coverage flagged `massive.py`, `nyse_calendar.py`/`session_calendar.py`, `engine.py` in turn; each
+traced INERT (flow-worker's closure calls none of the changed functions; same-name hits were other modules). flow-worker
+was never restarted, so it runs pre-change copies — behaviour identical through 2027. Every service builds the whole
+repo, so the JSON dataset ships to flow-worker on its next watched redeploy.
+Known clock-dependent red (pre-existing): `test_bars_server_include_today::test_todays_daily_bar_stamps_today_and_caches`
+fails before 09:30 ET. `freshnessAge.test.js` times out only when run beside 15 other files (77/77 alone).
+In flight: TERM-082 ranks 4 (theme live overlay) + 6 (calendar day-metrics-batch).
+
+---
+
+## ⭐⭐⭐⭐ 2026-09-29 early: SECOND DEPLOY LIVE, and a third batch on the branch
 
 **Deployed to production 2026-09-29 ~01:50Z as `337507afd`** (everything in the block below, plus TERM-073, the
 AI-spend caps, the TERM-021 ceiling, the verdict 429 copy and TERM-091 dark). flow-worker was NOT restarted (watched
