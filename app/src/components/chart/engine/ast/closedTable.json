@@ -3133,6 +3133,7 @@
     "sector": "TEXT, and the one exclusion a user will feel. `sector == \"Technology\"` is INEXPRESSIBLE here -- granting it means string literals in the parser, both interpreters, the linter and the read-back, which is a phase of its own. Sector filtering stays in the classic screener UI",
     "industry": "TEXT, for the same reason as `sector`",
     "exchange": "TEXT, for the same reason as `sector`",
+    "security_type": "TEXT, for the same reason as `sector` -- a Stock / ADR / ETF bucket label (#176), filtered by the classic screener's Type control, not by a formula",
     "ma_stack": "TEXT -- a rendered arrangement of moving averages, not a magnitude. The individual distances are declared as scalars instead",
     "candle_type": "TEXT -- a classification label. The measured components (body, wicks, close position) are declared as scalars instead",
     "snapshot_date": "an `as_of` SOURCE. Declaring it as a scalar would let a formula compute on its own freshness stamp -- and it is TEXT besides",
