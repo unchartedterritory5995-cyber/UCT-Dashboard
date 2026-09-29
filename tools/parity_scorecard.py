@@ -3527,7 +3527,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8263, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8258, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
