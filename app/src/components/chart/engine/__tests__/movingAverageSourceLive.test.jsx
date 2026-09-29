@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { noDefaultAverages } from '../../__fixtures__/adoptedAverages'
 
 // ─── PHASE 9 · THE AVERAGE DRAWS ITS OWN SOURCE ─────────────────────────────────
 //
@@ -201,7 +204,7 @@ const draw = (settings, extra = {}) => render(
   <StockChart
     sym="NVDA" tf="D"
     barsOverride={BARS}
-    settingsOverride={settings}
+    settingsOverride={noDefaultAverages(settings)}
     onSettingsPersist={(next) => persisted.push(next)}
     {...extra}
   />,
@@ -459,7 +462,7 @@ describe('§P9 · the pane-by-owner placement no longer eats the instance', () =
       <StockChart
         sym="NVDA" tf="D"
         barsOverride={BARS}
-        settingsOverride={settings}
+        settingsOverride={noDefaultAverages(settings)}
         onSettingsPersist={(next) => persisted.push(next)}
       />
     )

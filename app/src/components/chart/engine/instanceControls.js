@@ -74,7 +74,10 @@ import {
 } from './displayTarget'
 import { parsePaneOfTarget } from './sourceRef'
 import { PLOT_STYLES, resolvePlotStyle, DOT_SIZES, DEFAULT_DOT_SIZE,
-         CANDLE_COLOR_KEYS } from './presentation'
+         CANDLE_COLOR_KEYS, LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES,
+         DEFAULT_LINE_WIDTH_CHOICE, DEFAULT_LINE_STYLE_CHOICE } from './presentation'
+import { CALC_TIMEFRAMES, normalizeVisibility } from './instanceTimeframe'
+import { calcTimeframeCapability } from './calcTimeframeCapability'
 
 function resolveRegistry(registry) {
   if (typeof registry === 'function') return (id) => registry(id)
@@ -831,4 +834,154 @@ export function setInstanceDisplayTarget(cs, instanceId, target, registry) {
   })
 
   return { ...withInstances(cs, next, registry), volumeOverlayIndicators }
+}
+
+// ─── 2026-09-28: stroke, calculation timeframe, visibility, duplicate ─────────
+
+/** Rewrite ONE live instance through `fn`, deleting `presentation` when it empties.
+ *  `fn` returning the same object is a refusal and the blob comes back unchanged. */
+function rewriteInstance(cs, instanceId, registry, fn) {
+  if (!cs || typeof cs !== 'object') return cs
+  if (!findInstance(cs, instanceId)) return cs
+  let changed = false
+  const next = cs.indicatorInstances.map((i) => {
+    if (!i || i.instanceId !== instanceId || !isLiveInstance(i)) return i
+    const out = fn(i)
+    if (out === i) return i
+    changed = true
+    if (out.presentation && !Object.keys(out.presentation).length) {
+      const { presentation: _drop, ...rest } = out
+      return rest
+    }
+    return out
+  })
+  return changed ? withInstances(cs, next, registry) : cs
+}
+
+/**
+ * The STROKE and Overlap controls a definition declares in `meta.appearance`.
+ *
+ * ⛔ PRESENTATION, NEVER INPUTS. An older client DROPS an instance carrying an
+ * input key its definition does not declare (`validateInstance`), so storing a
+ * line width as an input would erase the member's average on a rollback; an
+ * unknown `presentation` key is preserved and ignored.
+ *
+ * ⛔ THE DEFAULT DELETES, like every other optional key here — a chart that has
+ * never touched a control is byte-identical to one that set it back.
+ *
+ * @param {'lineWidth'|'lineStyle'|'overlap'} key
+ */
+export function setInstanceAppearance(cs, instanceId, key, value, registry) {
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  const declared = def && def.meta && Array.isArray(def.meta.appearance) ? def.meta.appearance : []
+  if (!declared.includes(key)) return cs
+  let write
+  if (key === 'lineWidth') {
+    const w = Number(value)
+    if (!LINE_WIDTH_CHOICES.includes(w)) return cs
+    write = w === DEFAULT_LINE_WIDTH_CHOICE ? undefined : w
+  } else if (key === 'lineStyle') {
+    if (!LINE_STYLE_CHOICES.includes(value)) return cs
+    write = value === DEFAULT_LINE_STYLE_CHOICE ? undefined : value
+  } else if (key === 'overlap') {
+    if (typeof value !== 'boolean') return cs
+    write = value ? true : undefined
+  } else {
+    return cs   // `offset` is declared and shown, and deliberately not writable yet
+  }
+  return rewriteInstance(cs, instanceId, registry, (i) => {
+    const presentation = { ...(i.presentation || {}) }
+    if (write === undefined) {
+      if (!(key in presentation)) return i
+      delete presentation[key]
+    } else {
+      if (presentation[key] === write) return i
+      presentation[key] = write
+    }
+    return { ...i, presentation }
+  })
+}
+
+/**
+ * CALCULATION TIMEFRAME — which bars compute this instance. `null` (or any value
+ * outside `CALC_TIMEFRAMES`) is CHART, stored as the ABSENT key.
+ *
+ * ⛔ REFUSED FOR A DEFINITION THE CAPABILITY GATE SAYS NO TO, and for an instance
+ * whose source is another instance (it INHERITS that frame — writing one here would
+ * be a stored value nothing reads).
+ */
+export function setInstanceCalculationTimeframe(cs, instanceId, tf, registry) {
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  const cap = calcTimeframeCapability(def, inst)
+  const code = typeof tf === 'string' && CALC_TIMEFRAMES.includes(tf) ? tf : null
+  if (code && (!cap.ok || cap.inherits)) return cs
+  return rewriteInstance(cs, instanceId, registry, (i) => {
+    if (!code) {
+      if (!('calculationTimeframe' in i)) return i
+      const { calculationTimeframe: _drop, ...rest } = i
+      return rest
+    }
+    return i.calculationTimeframe === code ? i : { ...i, calculationTimeframe: code }
+  })
+}
+
+/**
+ * VISIBILITY — on which chart timeframes this instance draws. ALL is the absent
+ * key; a preset is stored as its WORD (so a future intraday timeframe inherits
+ * `intraday`); only Custom stores codes. Presentation only — nothing about the
+ * instance's calculation, source, display or identity is touched.
+ */
+export function setInstanceVisibility(cs, instanceId, visibility, registry) {
+  const norm = normalizeVisibility(visibility)
+  return rewriteInstance(cs, instanceId, registry, (i) => {
+    if (!norm) {
+      if (!('visibility' in i)) return i
+      const { visibility: _drop, ...rest } = i
+      return rest
+    }
+    const same = JSON.stringify(normalizeVisibility(i.visibility)) === JSON.stringify(norm)
+    return same && 'visibility' in i ? i : { ...i, visibility: norm }
+  })
+}
+
+/**
+ * DUPLICATE — a copy of THIS instance under a NEW stable identity.
+ *
+ * ⭐⭐ EVERYTHING THE MEMBER CONFIGURED TRAVELS: definition, inputs (source,
+ * period, type, colour…), calculation timeframe, display target (with its
+ * provenance marker), presentation (plot style, stroke, overlap) and visibility.
+ * (2026-09-28, owner: "Duplicating an indicator should copy … while producing a
+ * NEW stable indicator identity.") The copy is VISIBLE even if the original is
+ * hidden — a member duplicating wants to see the result.
+ *
+ * ⛔ NOT COPIED: the id (new), `scope` (kept — the copy belongs to the same chart),
+ * and a member rename (`display.name`) — two rows answering to one custom name
+ * would be indistinguishable; the copy names itself from its inputs.
+ *
+ * ⚰️ THIS REPLACES `addInstance(defId)` AS WHAT DUPLICATE MEANS, on BOTH doors (the
+ * legend popover and the Inspector) — one verb, one behaviour.
+ */
+export function duplicateInstance(cs, instanceId, registry) {
+  const inst = findInstance(cs, instanceId)
+  if (!inst) return cs
+  const def = resolveRegistry(registry)(inst.defId)
+  if (!def) return cs
+  const list = cs.indicatorInstances
+  const { instanceId: _id, display, hidden: _hidden, ...rest } = inst
+  const copy = JSON.parse(JSON.stringify(rest))
+  const keptDisplay = display && typeof display === 'object'
+    ? Object.fromEntries(Object.entries(display).filter(([k]) => k !== 'name')) : null
+  const added = {
+    ...copy,
+    instanceId: newInstanceId(inst.defId, list),
+    ...(keptDisplay && Object.keys(keptDisplay).length ? { display: keptDisplay } : {}),
+    hidden: false,
+  }
+  const indicators = { ...(cs.indicators || {}) }
+  indicators[inst.defId] = { ...(indicators[inst.defId] || {}), enabled: true }
+  return { ...withInstances(cs, [...list, added], registry), indicators }
 }

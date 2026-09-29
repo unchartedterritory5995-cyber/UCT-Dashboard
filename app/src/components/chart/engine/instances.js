@@ -321,6 +321,15 @@ function cloneInstance(inst) {
 const FROZEN_SHIPPED_STACK_ORDER = [
   // the nine stacked oscillators, TOP-TO-BOTTOM
   'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
+  // ⭐ 2026-09-28 — THE MOVING AVERAGE, AHEAD OF THE FIVE PRICE OVERLAYS. The
+  // `cs.overlays` averages always drew in the overlay block ABOVE the candles'
+  // insertion point and BELOW every engine price overlay, and listed first in the
+  // legend. They are now `movingAverage` instances (`maAdoption.js`), so this
+  // rank IS where they draw and list; appended after `donchian` it would have
+  // lifted every member's EMA 9 over their Bollinger band and under it in the
+  // legend. No v1 blob carries a `movingAverage` (it post-dates v1), so the
+  // seeded order of everything else is unchanged.
+  'movingAverage',
   // the five price overlays, in REGISTRY order
   'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
 ]

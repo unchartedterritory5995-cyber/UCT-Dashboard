@@ -19,11 +19,20 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { CHART_DEFAULTS, mergeChartSettings, mergeSettingsOverride } from '../../chartDefaults'
+import { CHART_DEFAULTS, mergeChartSettings as mergeChartSettingsReal, mergeSettingsOverride } from '../../chartDefaults'
 import { migrateLegacyToInstances, SHIPPED_STACK_ORDER } from '../instances'
 import { computePaneLayout } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
 import { REGISTRY_SIZES } from '../registrySizes'
+// ⭐ maAdoption.js (2026-09-28): the four default averages are engine instances.
+// This suite measures other things, so its blobs delete them unless they name `overlays`.
+import { withoutAdopted } from '../../__fixtures__/adoptedAverages'
+// (No chart is rendered here, so the adopted averages are simply left out of the
+// instance list this suite enumerates.)
+const mergeChartSettings = (x) => {
+  const m = mergeChartSettingsReal(x)
+  return { ...m, indicatorInstances: withoutAdopted(m.indicatorInstances) }
+}
 
 /** The repo root — same walk `enumerationSites.test.js` uses, and it THROWS BY
  *  NAME rather than returning a path that does not exist, because the Task-12
@@ -215,8 +224,12 @@ describe('a blob written before the engine existed', () => {
       .toHaveLength(9)
     expect([...SHIPPED_STACK_ORDER.slice(0, 9)].sort(),
       'the nine head entries are not the nine pane definitions').toEqual([...shippedPaneIds].sort())
+    // ⭐ 2026-09-28 — `movingAverage` SITS AHEAD OF THE FIVE PRICE OVERLAYS
+    // (`instances.js`). It is where every member's default averages live now
+    // (`maAdoption.js`), and those always drew BELOW the engine price overlays and
+    // listed above them; ranking it there is what keeps that on-screen order.
     expect(SHIPPED_STACK_ORDER.slice(9))
-      .toEqual(registryOrder.filter(id => !shippedPaneIds.includes(id)))
+      .toEqual(['movingAverage', ...registryOrder.filter(id => !shippedPaneIds.includes(id) && id !== 'movingAverage')])
     // ⭐ EIGHT SINCE PHASE C TASK 13. The derived line above is the claim that
     // matters — the tail IS everything outside the shipped nine, in registry
     // order — and it grew with the registry on its own. This literal is the
@@ -229,11 +242,12 @@ describe('a blob written before the engine existed', () => {
     // alphabetical and not hand-chosen — which is the property this literal is
     // the record of.
     expect(SHIPPED_STACK_ORDER.slice(9))
-      .toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
+      // ⭐ 2026-09-28 — `movingAverage` FIRST: see the derived assertion above.
+      .toEqual(['movingAverage', 'bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap', 'atrBands',
         // ⭐ `dollarVolume` LANDS AFTER `dataSeries` AND BEFORE `rsLine` — registry
         // order again, and the evidence for it: it is a NATIVE registered last, so
         // it is appended after the natives and still precedes the server lane.
-        'movingAverage', 'dataSeries', 'dollarVolume', 'rsLine'])
+        'dataSeries', 'dollarVolume', 'rsLine'])
   })
 
   it('runs ONCE — a v2 blob is passed through untouched, by identity', () => {
@@ -444,18 +458,25 @@ describe('a blob written before the engine existed', () => {
     // them is a definition authored later, which `computeShippedStackOrder`
     // APPENDS by design (a new indicator must not be dropped from the fold, and
     // it must not be inserted into a stack order that already shipped).
-    expect(SHIPPED_STACK_ORDER.slice(0, 14)).toEqual([
+    // ⭐ 2026-09-28 — ONE DELIBERATE INSERTION, and it PRESERVES what is on screen
+    // rather than disturbing it: `movingAverage` is where the `cs.overlays` averages
+    // live now (`maAdoption.js`), and those have always drawn under the five price
+    // overlays and above the candles' insertion point. Appended, every member's EMA 9
+    // would have jumped over their Bollinger band. The fourteen retired entries keep
+    // their relative order exactly.
+    expect(SHIPPED_STACK_ORDER.slice(0, 15)).toEqual([
       'rsi', 'stoch', 'mfi', 'williamsR', 'cci', 'macd', 'adx', 'atr', 'obv',
+      'movingAverage',
       'bb', 'vwap', 'sar', 'ichimoku', 'donchian',
     ])
     // ⭐ `dataSeries` IS APPENDED LIKE THE THREE BEFORE IT — authored after the
     // stack order shipped, so `computeShippedStackOrder` puts it at the end by
     // design rather than inserting it into an order members already have.
-    expect(SHIPPED_STACK_ORDER.slice(14))
+    expect(SHIPPED_STACK_ORDER.slice(15))
       // ⭐ `dollarVolume` IS APPENDED HERE TOO, for the same reason as the four
       // before it: it postdates the shipped stack order, so it goes on the END
       // rather than into a z-order members already have on screen.
-      .toEqual(['avwap', 'atrBands', 'movingAverage', 'dataSeries', 'dollarVolume', 'rsLine'])
+      .toEqual(['avwap', 'atrBands', 'dataSeries', 'dollarVolume', 'rsLine'])
     // ✅ AND IT IS APPLIED AT B5 TASK 13 — in the FOLD, which is what makes
     // `orderedPaneKeys` (which walks the instance list) produce it without a sort
     // of its own. Task 12 measured that Flip C shipped without it and left the
