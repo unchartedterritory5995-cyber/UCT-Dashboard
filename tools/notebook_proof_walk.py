@@ -549,14 +549,29 @@ FORMSTATE_JS = r"""(root) => { const R = root ? document.querySelector(root) : d
   return Array.from(R.querySelectorAll('input,select,textarea')).map(e =>
     (e.type === 'checkbox' || e.type === 'radio') ? (e.checked ? '1' : '0') : String(e.value || '').slice(0, 40)).join('|'); }"""
 
-# The Notebook tab's own root: the parent of its skip link (NotebookTab.jsx renders
-# `<a href="#notebook-pane">` as the wrap's first child). Tagged so every sweep scopes to it.
+# The Notebook tab's own root: the skip link's TARGET, not its parent (WK, wave 10 clause a).
+# NotebookTab.jsx renders `<a href="#notebook-pane">`; since F4's <SkipLinkPortal> (wave 10,
+# `components/skipLinks.jsx`) that anchor is portaled into the app shell's skip-link slot (a
+# bare `<span data-skip-link-slot>` sibling of `<main>`), so `skip.parentElement` is app-chrome,
+# not the Notebook. The anchor's semantic target never moved -- it is still `#notebook-pane`
+# (`NotebookTab.jsx`'s own `<div id="notebook-pane">`, which DOES contain `.ProseMirror` once a
+# note is open). Resolve the href, not the DOM position. Tagged so every sweep scopes to it.
 MARK_ROOT_JS = r"""() => {
   for (const e of document.querySelectorAll('[data-proof-root]')) e.removeAttribute('data-proof-root');
   const skip = document.querySelector('a[href="#notebook-pane"]');
-  const r = skip ? skip.parentElement : null;
+  const href = skip ? skip.getAttribute('href') : null;
+  const id = href && href.startsWith('#') ? href.slice(1) : null;
+  const r = id ? document.getElementById(id) : null;
   if (r) r.setAttribute('data-proof-root', 'notebook');
   return !!r; }"""
+
+# CONTROL for MARK_ROOT_JS (clause a): on an editor surface the marked root must actually
+# CONTAIN the editor. A root marked wrong (e.g. the old `skip.parentElement` shape, which is a
+# bare app-chrome span) contains no `.ProseMirror` at all -- this is what proves the fix can
+# fail, not just that it happens to pass today.
+MARK_ROOT_CONTAINS_EDITOR_JS = r"""() => {
+  const r = document.querySelector('[data-proof-root="notebook"]');
+  return !!(r && r.querySelector('.ProseMirror')); }"""
 
 # Visible text lines of the page (the silent sweep's reading), plus live regions.
 TEXT_JS = r"""() => {
@@ -707,6 +722,22 @@ GEOM_JS = r"""() => {
 }"""
 
 # The planted defects, one per instrument, each tagged `data-proof-plant` and removed after.
+#
+# ⛔ Clause b (WK, wave 10): WK's deadclick control read the plant-dead control LIVE, naming
+# the voice orb cluster's (GlobalVoiceLayer) own DOM churn as the cause and asking for the F7
+# idiom -- learn/exclude app-chrome self-mutations by REGION, never a hardcoded selector. That
+# idiom already exists here (`chrome()`/`ctlChrome` in EFFECT_JS above, added by F7 for exactly
+# this: "the voice orb reacts to ANY pointer activity"): a mutation outside `<main>` (and outside
+# any open dialog/menu/popup) is excluded UNLESS the clicked control itself also lives outside
+# `<main>`. The reason it was defeated is clause a, not a missing mechanism: this plant is
+# inserted into `root` (the MARK_ROOT_JS-tagged element), and the old MARK_ROOT_JS marked a bare
+# app-chrome span (`skip.parentElement`, outside `<main>`) -- so the plant itself read as chrome
+# (`ctlChrome = true`), which switches the exclusion OFF for a control that "lives there" by
+# name (correct for a real chrome control; wrong here, since the plant was mis-scoped, not
+# actually chrome). Fixing clause a alone restores `ctlChrome` to false (the plant's real root,
+# `#notebook-pane`, is inside `<main>`), and F7's existing region check recovers on its own --
+# verified live (wk2 diagnostic run): plant-dead/plant-dead-styled/plant-live/plant-poller all
+# read DEAD/DEAD/LIVE/IN-WINDOW with ONLY clause a's fix applied, no change below this line.
 PLANT_DEADCLICK_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
   const box = document.createElement('div'); box.setAttribute('data-proof-plant', 'deadclick');
@@ -761,6 +792,26 @@ PLANT_GEOMETRY_JS = r"""(root) => {
   wrap.appendChild(under); wrap.appendChild(cover);
   box.appendChild(small); box.appendChild(wrap); box.appendChild(wide);
   R.insertBefore(box, R.firstChild); return true; }"""
+
+# CONTROL support (wk2, clause a's second-order finding): `plant-wide` assumed a 1400px
+# element would always show as page/main OVERFLOW. On `nb-list` at >640px the marked root
+# (`#notebook-pane`, correct since clause a) has `overflow-y: auto`, which per the CSS
+# overflow-pairing rule computes `overflow-x: auto` too (NotebookTab.module.css `.main`,
+# no `overflow-x` of its own) -- a real, working horizontal scroller, exactly the
+# "REACHABLE, not overflow" case `judge_geometry`'s own offender walk already excludes on
+# purpose. The old MARK_ROOT_JS (clause a) planted into an unclipped app-chrome span with no
+# such scroller, which is why this control read as passing before -- by accident, not by
+# testing this surface's real containment. A plant a real auto-scroller correctly contains
+# is still evidence the instrument SAW it; this names that ancestor rather than assuming
+# "not overflow" means "not found".
+WIDE_REACHABLE_JS = r"""() => {
+  const el = document.querySelector('[data-proof-control="plant-wide"]');
+  if (!el) return false;
+  for (let a = el.parentElement; a; a = a.parentElement) {
+    const cs = getComputedStyle(a);
+    if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && a.scrollWidth > a.clientWidth + 1) return true;
+  }
+  return false; }"""
 
 PLANT_AXE_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
@@ -1029,16 +1080,29 @@ def goto(W: World, pg, path: str) -> None:
     dismiss_intro(pg)
 
 
-def mark_root(pg, timeout: float = 25.0) -> str:
+def mark_root(pg, timeout: float = 25.0, *, expect_editor: bool = False) -> str:
     end = time.time() + timeout * PATIENCE["f"]
     while time.time() < end:
         try:
             if pg.evaluate(MARK_ROOT_JS):
+                if expect_editor and not pg.evaluate(MARK_ROOT_CONTAINS_EDITOR_JS):
+                    # CONTROL (clause a): a note is open (the caller only sets expect_editor
+                    # once `.ProseMirror` is already visible somewhere on the page -- see
+                    # open_note()), so a root that does not contain it is marked WRONG, not
+                    # merely early. Raise rather than silently scoping every downstream probe
+                    # to an empty root, which is exactly what read as UNREACHED/INCONCLUSIVE
+                    # across 9a/2c/5d/6c/2b before this fix.
+                    raise RuntimeError(
+                        "MARK_ROOT_JS marked a root that does not contain .ProseMirror on an "
+                        "editor surface -- the skip link's target moved and the marker is "
+                        "reading the wrong element")
                 return ROOT
+        except RuntimeError:
+            raise
         except Exception:  # noqa: BLE001 -- navigating
             pass
         pg.wait_for_timeout(400)
-    raise RuntimeError("the Notebook root (its skip link's parent) never rendered")
+    raise RuntimeError("the Notebook root (its skip link's target, #notebook-pane) never rendered")
 
 
 def mark_popup(loc) -> str:
@@ -1158,7 +1222,7 @@ def s_publish_folder(W, pg) -> str:
 def open_note(W, pg, nid: str) -> str:
     goto(W, pg, f"/journal/notebook?note={nid}")
     pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=_t(30000))
-    root = mark_root(pg)
+    root = mark_root(pg, expect_editor=True)
     pg.wait_for_timeout(1500)
     return root
 
@@ -1207,6 +1271,7 @@ def s_ed_color(W, pg) -> str:
     press(pg, ed)
     pg.keyboard.press("Control+Home")
     pg.keyboard.press("Shift+Control+ArrowRight")
+    open_format_more(pg)   # phone-only: "Text color and highlight" is a `.formatRun` member
     press(pg, pg.get_by_role("button", name="Text color and highlight").filter(visible=True).first)
     return mark_popup(pg.get_by_role("group", name="Text color and highlight").filter(visible=True).first)
 
@@ -1254,12 +1319,14 @@ def s_ed_writing_help(W, pg) -> str:
 
 def s_ed_history(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # "Version history" lives in NoteMoreMenu
     press(pg, pg.get_by_role("button", name="Version history").filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name="Version history"))
 
 
 def s_ed_palette(W, pg) -> str:
     s_note(W, pg)
+    open_format_more(pg)   # phone-only: "Insert widget" is a `.formatRun` member (group -d)
     press(pg, pg.get_by_role("button", name="Insert widget").filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name="Insert widget"))
 
@@ -1272,6 +1339,7 @@ def s_ed_share(W, pg) -> str:
 
 def s_ed_export(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # NoteExportControls (the "Export" door) lives in NoteMoreMenu
     press(pg, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     return mark_popup(pg.get_by_role("menu", name="Export this note as"))
 
@@ -1286,6 +1354,7 @@ def s_ed_ask(W, pg) -> str:
 
 def s_ed_delete(W, pg) -> str:
     s_note(W, pg)
+    open_more_note_actions(pg)   # "Delete" is the LAST action in NoteMoreMenu
     press(pg, pg.get_by_role("button", name=re.compile(r"^Delete$")).filter(visible=True).first)
     return mark_popup(pg.get_by_role("dialog", name=re.compile("Delete this note")).filter(visible=True).first)
 
@@ -1658,27 +1727,40 @@ def geometry_sweep(W: World, only: list[str]) -> dict:
         w = VIEWPORTS[mode]["width"]
         pg, tap, root, acct = open_surface(W, surface_by_id("nb-list"), mode)
         try:
-            r0 = pg.evaluate(GEOM_JS)
-            before, _ = _merge_findings([r0], w)
+            # ⛔ wk2: was a single unscrolled `pg.evaluate(GEOM_JS)`. At <=640px
+            # `NotebookTab.module.css`'s phone query drops `.main`'s scroll containment
+            # (`overflow: visible`; "Phones keep normal page scroll") and stacks the folder
+            # panel ABOVE the notes list, so the plant box -- inserted at the root's DOM top --
+            # can render below the first screenful on a populated list. A single unscrolled
+            # read missed it (small/covered read "missed at 390" once clause a's fix put the
+            # plant in the REAL root instead of an unclipped app-chrome span that never had
+            # this problem). `_geo_read` is the exact two-reading (top + scrolled) mechanism
+            # every real surface cell already uses for this same reason -- give the control
+            # the same robustness rather than a second, weaker reading path.
+            r0 = _geo_read(pg)
+            before, _ = _merge_findings(r0, w)
             pg.evaluate(PLANT_GEOMETRY_JS, root)
             pg.wait_for_timeout(400)
-            r1 = pg.evaluate(GEOM_JS)
-            after, _ = _merge_findings([r1], w)
+            r1 = _geo_read(pg)
+            after, _ = _merge_findings(r1, w)
+            wide_reachable = pg.evaluate(WIDE_REACHABLE_JS)
             pg.evaluate(UNPLANT_JS, "geometry")
         finally:
             pg.close()
         keys_before = {(f["kind"], f.get("control") or f.get("what")) for f in before}
         new = [f for f in after if (f["kind"], f.get("control") or f.get("what")) not in keys_before]
 
-        def widest(r):
-            return max([r.get("docScrollW", 0)] + [p.get("scrollW", 0) for p in r.get("pageScrollers", [])])
+        def widest(readings):
+            return max(max([r.get("docScrollW", 0)] + [p.get("scrollW", 0) for p in r.get("pageScrollers", [])])
+                       for r in readings)
         grew = widest(r1) - widest(r0)
-        wide = any(f["kind"] in ("overflow", "cutoff") for f in new) or grew >= 400 or any(
+        wide = any(f["kind"] in ("overflow", "cutoff") for f in new) or grew >= 400 or wide_reachable or any(
             "plant-wide" in json.dumps(f.get("widened_by", [])) for f in after)
         small = any(f["kind"] == "tap" and f.get("control") == "Planted small control" for f in new)
         covered = any(f["kind"] == "occluded" and f.get("control") == "Planted covered control" for f in new)
         want_small = w <= TOUCH_MAX_WIDTH
-        ctl_rows.append({"mode": mode, "width": w, "wide_found": wide, "page_grew_px": grew, "small_found": small,
+        ctl_rows.append({"mode": mode, "width": w, "wide_found": wide, "page_grew_px": grew,
+                         "wide_reachable_in_scroller": wide_reachable, "small_found": small,
                          "small_expected": want_small, "covered_found": covered, "new_findings": new})
         if not wide:
             got["plant-wide"] = f"missed at {w}"
@@ -2381,7 +2463,7 @@ def c_note(W, door: str, body=None, title=None, acct: str = "seasoned") -> tuple
     pg, tap = W.page(acct, DOOR_MODE[door])
     goto(W, pg, f"/journal/notebook?note={nid}")
     pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=30000)
-    mark_root(pg)
+    mark_root(pg, expect_editor=True)
     pg.wait_for_timeout(1200)
     return pg, nid
 
@@ -2401,6 +2483,65 @@ def focus_editor(pg, door: str) -> str:
         tgt.click(timeout=6000)
     pg.keyboard.press("Control+End")
     return "editor " + ("tapped" if door == "touch" else "clicked")
+
+
+def open_format_more(pg, door: str | None = None) -> bool:
+    """On the touch tier, ALL FOUR toolbar `.formatRun` groups (font/size/colour, headings,
+    blockquote/code/links/images/files, and more -- lane D3P, one "Format" disclosure controls
+    all four via one `aria-controls`) sit behind that single disclosure below 640px
+    (NoteEditorPage.jsx `formatToggle`/`data-format-open`); at <=640 they are not VISIBLE at
+    all until it opens. `.formatToggle` itself is `display:none` above 640px (base rule), so
+    this is a safe no-op at desktop/tablet widths -- callers with a known non-touch door still
+    pass door="desktop"/"keyboard" to skip the lookup outright; callers with no width context
+    (a Surface's own `open()`) pass nothing and let the toggle's own absence decide.
+
+    Found live (wave 10 lane WK2): with the root-scoping fix (clause a) landed, G-160
+    (OCR/text from images and docx) still read touch=NO-DOOR, and G-159 (Camera scan with OCR,
+    touch-only) was in WK's own "believed genuine" NO-DOOR list -- both reach for their
+    toolbar button directly and neither opened this disclosure first. The SAME gap sat behind
+    three more UNREACHED surfaces this lane's live full run then found (axe: ed-history/
+    ed-export/ed-delete UNREACHED at all 3 themes; geometry: the same three plus ed-color at
+    390) -- their Surface `open()` functions (`s_ed_history` etc.) reach directly for a button
+    that is a `.formatRun` member too, at the one width where it is collapsed.
+
+    Not a feature's own door (mirrors focus_editor()): never sets door_used, so a control
+    genuinely missing AFTER this opens still reads NO-DOOR, not StepMissing."""
+    if door is not None and door != "touch":
+        return False
+    toggle = pg.get_by_role("button", name="Format", exact=True).filter(visible=True).first
+    if not toggle.count():
+        return False
+    if toggle.get_attribute("aria-expanded") == "true":
+        return False
+    if is_touch(pg):
+        toggle.tap(timeout=4000)
+    else:
+        toggle.click(timeout=4000)
+    pg.wait_for_timeout(300)
+    return True
+
+
+def open_more_note_actions(pg) -> bool:
+    """The editor's "More note actions" disclosure (NoteMoreMenu.jsx) -- Duplicate, Lock,
+    Archive, Save as template, Open a note beside, the file doors, the word count, and Delete
+    LAST -- is `hidden={!open}` until this button opens it, at EVERY width (unlike
+    `open_format_more`'s phone-only toggle: this one is the door's own overflow menu, not a
+    responsive collapse). Found live (wave 10 lane WK2): `s_ed_history`/`s_ed_export`/
+    `s_ed_delete` reach directly for "Version history"/"Export"/"Delete" and time out --
+    exactly WK's own 5d UNREACHED-write note ("Lock"/"Archive"/"Save as template"/"Delete" each
+    sit in this menu) and the same-shaped axe/geometry UNREACHED this lane's own full run
+    found for the read side. Not a feature's own door: never sets door_used."""
+    toggle = pg.get_by_role("button", name="More note actions", exact=True).filter(visible=True).first
+    if not toggle.count():
+        return False
+    if toggle.get_attribute("aria-expanded") == "true":
+        return False
+    if is_touch(pg):
+        toggle.tap(timeout=4000)
+    else:
+        toggle.click(timeout=4000)
+    pg.wait_for_timeout(300)
+    return True
 
 
 def ed_html(pg) -> str:
@@ -2508,6 +2649,7 @@ def f_text_color(W, door):
     pg.keyboard.press("Control+Home")
     pg.keyboard.press("Shift+Control+ArrowRight")
     pg.wait_for_timeout(300)   # the editor reads a native selection change asynchronously (see f_block_move)
+    open_format_more(pg, door)   # phone-only: "Text color and highlight" is a `.formatRun` member (G-131)
     b = btn(pg, "Text color and highlight")
     how += "; " + use(pg, door, b)
     grp = pg.get_by_role("group", name="Text color and highlight").filter(visible=True).first
@@ -2596,12 +2738,17 @@ def f_outline(W, door):
 
 
 def f_word_count(W, door):
+    """Owner ruling D-3 (wave 10) moved word count + reading time off the bare note page and
+    into the editor's "More note actions" menu (NoteMoreMenu.jsx, `<NoteStats>` rendered as its
+    child, `hidden={!open}` until the disclosure opens). Checking the page directly -- what this
+    probe did before -- always reads NO-DOOR on all 3 doors now; that is an instrument gap (WK,
+    wave 10), not a missing feature. Open the door first, by mouse, tap or keyboard alike."""
     pg, nid = c_note(W, door)
-    t = pg.get_by_text(re.compile(r"\b\d[\d,]* words?\b")).filter(visible=True).first
-    ok = t.count() and t.is_visible()
+    how = use(pg, door, btn(pg, "More note actions"))
+    ok = wait_true(lambda: pg.get_by_text(re.compile(r"\b\d[\d,]* words?\b")).filter(visible=True).count() > 0, 5)
     if not ok:
-        raise NoDoor("no word count visible")
-    return "shown on the note page"
+        raise NoDoor("the More note actions menu opened but no word count is shown inside it")
+    return how + "; shown in the More note actions menu"
 
 
 def f_find_replace(W, door):
@@ -2786,6 +2933,7 @@ def f_unlinked(W, door):
 def f_note_btn(name: str, check):
     def f(W, door):
         pg, nid = c_note(W, door)
+        open_more_note_actions(pg)   # "Archive"/"Lock" (G-150/G-151) live in NoteMoreMenu at EVERY width
         how = use(pg, door, btn(pg, name))
         pg.wait_for_timeout(1200)
         ok, why = check(W, pg, nid)
@@ -2810,6 +2958,7 @@ def f_split(W, door):
     other = W.fx.get("split_other") or W.note(f"Split other {W.run}", DOC(P("the other pane")))
     W.fx["split_other"] = other
     pg, nid = c_note(W, door)
+    open_more_note_actions(pg)   # "Open a note beside" (G-152) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"Open a note beside", re.I)).filter(visible=True).first)
     inp = pg.get_by_label("Find a note to open beside")
     inp.wait_for(state="visible", timeout=5000)
@@ -2838,6 +2987,7 @@ def f_today(W, door):
 
 def f_save_template(W, door):
     pg, nid = c_note(W, door, title=f"Tmpl {door} {W.run}")
+    open_more_note_actions(pg)   # "Save as template" (G-155) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, btn(pg, "Save as template"))
     pg.wait_for_timeout(1500)
     txt = pg.locator("body").inner_text()
@@ -2873,6 +3023,7 @@ def f_scan(W, door):
     if door != "touch":
         raise NotDriven("N/A by design: the Scan button is the touch tier's (a camera door)")
     pg, nid = c_note(W, door)
+    open_format_more(pg, door)
     b = btn(pg, "Scan a document with the camera")
     fc = {"n": 0}
     pg.on("filechooser", lambda f: fc.__setitem__("n", fc["n"] + 1))
@@ -2885,6 +3036,7 @@ def f_scan(W, door):
 
 def f_attach_docx(W, door):
     pg, nid = c_note(W, door)
+    open_format_more(pg, door)
     path = W.art / f"census-{door}.docx"
     path.write_bytes(_docx_bytes(f"Census docx word zqcensus{door}"))
     fc = {}
@@ -3005,6 +3157,7 @@ def f_export(W, door):
     pg, nid = c_note(W, door)
     dl = {"n": 0}
     pg.on("download", lambda d: dl.__setitem__("n", dl["n"] + 1))
+    open_more_note_actions(pg)   # "Export" (G-169) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     menu = pg.get_by_role("menu", name="Export this note as")
     menu.wait_for(state="visible", timeout=5000)

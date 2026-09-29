@@ -1,0 +1,42 @@
+Captured live, before any edit to tools/notebook_rollback_chain.py (worktree notebook-w10-r1c,
+lane R1c, 2026-09-29), by running:
+
+    python tools/notebook_rollback_chain.py --check --from origin/master
+
+Exit code: 2
+
+{"check": "stale", "from": "0812b5ec3617ece9432b79b29a33498669b2b117", "measured_at": "f4cec49be", "stopped": "15 commit(s) after MEASURED_AT f4cec49be look like Notebook landings the chain does not name: 0812b5ec3 'Notebook 10/10 — wave 10 L5: symbol backlinks in one pass (~2x), per-c' (selected by subject and path: api/services/journal_two/notes.py, tests/test_journal_two_notes_read_plans.py, tests/test_notebook_perf_scale_w10.py, tests/test_parity_scorecard.py); 1be4b9a2b 'Revert \"Merge origin/master into the deploy integration branch\" (wave ' (selected by path: app/src/components/screener/reachable.test.js, app/vite.config.js); 7bd834b9f 'Notebook 10/10 — wave 10 L4: phone editor toolbar + first-run defer (D' (selected by subject and path: app/src/components/firstRun/firstRunStage.js, app/src/pages/journal-2-0/a11y/targetFloors.test.js, app/src/pages/journal-2-0/components/VoiceInputButton.jsx, app/src/pages/journal-2-0/components/notebook/NoteBoardView.jsx, app/src/pages/journal-2-0/components/notebook/NoteBoardView.module.css); ea93f1528 'feat(term-021): read-new phase — the board reads the document, a templ' (selected by path: api/routers/auth.py); 57f634836 'feat(settings): TERM-052 publish density ceilings and non-autosaving l' (selected by path: app/src/pages/Settings.jsx); d50694379 'feat(breadth): TERM-059 — the NAAIM column states its own as-of at the' (selected by path: app/src/components/screener/reachable.test.js); 584896582 'feat(term-042): server-computed EOD breadth row, dark behind BREADTH_E' (selected by path: api/main.py); 20bbfd05d 'perf(clock): ship market_calendar.json compact so the Notebook stays i' (selected by path: app/vite.config.js); 9cfb3c963 'feat(term-037): the panel set as a by-product of the surface set' (selected by path: app/src/components/screener/reachable.test.js); 2994ab6f3 'feat(term-053): close the dependency-less route families ARCH-06 named' (selected by path: api/main.py); 71fdb71ad 'feat(alerts): TERM-062 publish the filing-watch cooldown; show fire-fr' (selected by path: api/main.py); 3e5153f1d \"perf(build): strip symbolScope.json's prose from the bundle (Notebook \" (selected by path: app/vite.config.js); e90fddc34 'feat(term-039): member-facing feature status, derived from the ledger ' (selected by path: api/routers/auth.py, app/src/pages/Support.jsx); bb72f1305 'feat(pine): route what the columnar lane cannot represent to the per-b' (selected by path: app/src/components/screener/reachable.test.js); 3646a4c19 'test(pine): param ids re-pinned after new inputs minted; a partial-rig' (selected by path: app/src/components/screener/reachable.test.js). Add each landing to CHAIN newest first (or, if a person rules it is NOT one, to REVIEWED_NOT_LANDINGS with the reason), re-run from the new tip, record a rule and a pin for each conflict, rehearse the new step on a sandbox, and move MEASURED_AT."}
+
+Census: 15 commits selected between f4cec49be and 0812b5ec3617ece9432b79b29a33498669b2b117 (=
+origin/master at lane R1c's start). 2 selected by subject AND path (the two landings: L5
+0812b5ec3, L4 7bd834b9f). 13 selected by path only (all thirteen read one by one and ruled NOT
+Notebook landings; see REVIEWED_NOT_LANDINGS in tools/notebook_rollback_chain.py and the
+per-commit reasoning below).
+
+Per-commit disposition (all 13 path-only commits):
+  1be4b9a2b  revert of an accidental Pine-branch merge; touches reachable.test.js (Pine
+             AWAITING_A_DECISION entries) and vite.config.js (removes the market_calendar.json
+             strip block 20bbfd05d re-adds) -- no Notebook file
+  ea93f1528  TERM-021: watchlist_columns preference key in auth.py's _PREFERENCE_KEYS dict
+  57f634836  TERM-052: one SEARCH_INDEX keyword string widened in Settings.jsx
+  d50694379  TERM-059: reachable.test.js AWAITING_A_DECISION entry retired (Breadth)
+  584896582  TERM-042: one lifespan startup block added to api/main.py (BREADTH_EOD_SOURCE)
+  20bbfd05d  perf(clock): market_calendar.json compact, same vite.config.js manifest-strip plugin
+             as 3e5153f1d; "Notebook stays in budget" = the shared bundle byte budget
+  9cfb3c963  TERM-037: reachable.test.js AWAITING_A_DECISION entry retired (surfaces/panelSet)
+  2994ab6f3  TERM-053: api/main.py gex_router mount gains get_current_user (ARCH-06 auth fix)
+  71fdb71ad  TERM-062: api/main.py filing-watch sweep reads its flag from document_arrival.py
+             instead of an inline os.environ check
+  3e5153f1d  perf(build): symbolScope.json prose strip, same vite.config.js plugin as 20bbfd05d;
+             also excluded by SUBJECT (NOTEBOOK_SUBJECT requires "wave" after "notebook")
+  e90fddc34  TERM-039: auth.py _breadth_dc_flags refactor (unrelated) + FeatureStatusStrip
+             import+render added to Support.jsx -- RAISED a new conflict at wave 8's revert
+             (see below); not itself a Notebook code change
+  bb72f1305  feat(pine): reachable.test.js AWAITING_A_DECISION entries retired (runtime pane)
+  3646a4c19  test(pine): reachable.test.js AWAITING_A_DECISION ledger line-count drift only
+
+None of the 13 touches app/src/pages/journal-2-0/**, api/services/journal_two/** or any
+notebook_*.py router. One of them (e90fddc34) added an import+render to app/src/pages/Support.jsx
+that collides with wave 8's own revert at that exact file -- a genuine NEW conflict, resolved with
+a new rule (RULES["caf6d1b9e"]["app/src/pages/Support.jsx"]) and pinned
+(PINS["caf6d1b9e"]["app/src/pages/Support.jsx"] = "7e83b493575ccb6f").

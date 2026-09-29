@@ -3121,5 +3121,8 @@
       "tier": "member"
     }
   ],
-  "excluded_no_rate_family": []
+  "excluded_no_rate_family": [
+    "/api/address/resolve",
+    "/api/address/search"
+  ]
 }

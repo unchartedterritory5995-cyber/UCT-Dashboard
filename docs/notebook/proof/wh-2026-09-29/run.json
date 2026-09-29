@@ -1,0 +1,66 @@
+{
+  "tool": "notebook_wh_writing_help_prod_check",
+  "clause": "12a — writing help with provenance",
+  "base": "https://uctintelligence.com",
+  "started_utc": "2026-09-29T21:12:58.660081+00:00",
+  "steps": [
+    {
+      "at": "2026-09-29T21:13:00.974325+00:00",
+      "name": "login",
+      "ok": true,
+      "http_status": 200
+    },
+    {
+      "at": "2026-09-29T21:13:01.093264+00:00",
+      "name": "account_check",
+      "ok": true,
+      "http_status": 200,
+      "email": "bench@uctintelligence.internal",
+      "domain": "uctintelligence.internal",
+      "role": "member",
+      "paid_equiv": true
+    },
+    {
+      "at": "2026-09-29T21:13:01.374449+00:00",
+      "name": "create_note",
+      "ok": true,
+      "note_id": "b777cc7589554e3fac40cd61ad59cbf0",
+      "title": "WH provenance check 20260929T211301Z"
+    },
+    {
+      "at": "2026-09-29T21:13:06.855414+00:00",
+      "name": "note_open",
+      "ok": true,
+      "screenshot": "01-note-open.png"
+    },
+    {
+      "at": "2026-09-29T21:13:12.710378+00:00",
+      "name": "panel_open",
+      "ok": true,
+      "screenshot": "02-panel-open.png"
+    },
+    {
+      "at": "2026-09-29T21:13:12.805578+00:00",
+      "name": "action_requested",
+      "ok": true,
+      "choice": "Rewrite shorter"
+    },
+    {
+      "at": "2026-09-29T21:13:13.570425+00:00",
+      "name": "draft_result",
+      "ok": false,
+      "outcome": "error",
+      "error_text": "Something went wrong writing that. Nothing was changed in your note.",
+      "screenshot": "03-draft-result.png"
+    },
+    {
+      "at": "2026-09-29T21:13:13.713765+00:00",
+      "name": "best_effort_cleanup",
+      "ok": true,
+      "note_id": "b777cc7589554e3fac40cd61ad59cbf0"
+    }
+  ],
+  "verdict": "FAILED",
+  "reason": "product refused: Something went wrong writing that. Nothing was changed in your note.",
+  "finished_utc": "2026-09-29T21:13:13.571528+00:00"
+}

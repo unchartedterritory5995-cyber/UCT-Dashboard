@@ -1,0 +1,404 @@
+{
+ "tags": [
+  "wcag2a",
+  "wcag2aa",
+  "wcag21a",
+  "wcag21aa",
+  "wcag22aa"
+ ],
+ "themes": [
+  "dark",
+  "oled",
+  "light"
+ ],
+ "runs": [
+  {
+   "surface": "ed-color",
+   "theme": "dark",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 7
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "dark",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "dark",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "dark",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 4
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "dark",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "dark",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-color",
+   "theme": "oled",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 6
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "oled",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "oled",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "oled",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 4
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "oled",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "oled",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-color",
+   "theme": "light",
+   "manifest": [
+    "editor-color"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 7
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-history",
+   "theme": "light",
+   "manifest": [
+    "editor-history"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": []
+   }
+  },
+  {
+   "surface": "ed-palette",
+   "theme": "light",
+   "manifest": [
+    "editor-palette"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 2
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-export",
+   "theme": "light",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 4
+     }
+    ]
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "theme": "light",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "theme_applied": "light",
+   "status": "MEASURED",
+   "root": "[data-proof-popup]",
+   "verdict": "PASS",
+   "violations": 0,
+   "rules": [],
+   "axe": {
+    "version": "4.13.0",
+    "scoped": true,
+    "violations": [],
+    "incomplete": [
+     {
+      "id": "color-contrast",
+      "count": 1
+     }
+    ]
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "color-contrast": "found",
+   "button-name": "found"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "theme": "dark",
+    "applied": "dark",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   },
+   {
+    "theme": "oled",
+    "applied": "oled",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   },
+   {
+    "theme": "light",
+    "applied": "light",
+    "pref_status": {
+     "seasoned": 200,
+     "fresh": 200,
+     "fresh-list": 200
+    },
+    "contrast_found": true,
+    "button_name_found": true
+   }
+  ]
+ }
+}

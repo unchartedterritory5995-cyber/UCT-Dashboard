@@ -77,7 +77,27 @@ def _call(router, monkeypatch, **over):
     rt, bi = router
     from api.services import breadth_live as live
     monkeypatch.setattr(live, "compute_live", lambda force=False: _payload(**over))
-    return rt.get_breadth_live(), bi
+    # The write gates below belong to the ONE writer, the scheduler tick (owner ruling
+    # 2026-09-29: a member request never writes Breadth state).
+    return rt.sample_live_for_scheduler(), bi
+
+
+def test_a_member_request_never_writes_breadth_state(router, monkeypatch):
+    """GET /api/breadth-monitor/live is READ-ONLY: no intraday path row, no V1 OHLC row."""
+    rt, bi = router
+    from api.services import breadth_live as live
+    from api.services import breadth_daily_ohlc as ohlc
+    writes = []
+    monkeypatch.setattr(ohlc, "update_intraday", lambda *a, **k: writes.append(a))
+    monkeypatch.setattr(live, "compute_live", lambda force=False: _payload())
+    out = rt.get_breadth_live()
+    assert out["ok"] is True and out["row"]["pct_above_50sma"] == 65.3
+    assert bi.session_path(SESSION) == {}
+    assert writes == []
+    # …and the scheduler tick is the one that writes
+    rt.sample_live_for_scheduler()
+    assert bi.session_path(SESSION)["pct_above_50sma"][0][1] == 65.3
+    assert len(writes) == 1
 
 
 def test_a_live_sample_is_kept_and_comes_back_as_a_path(router, monkeypatch):

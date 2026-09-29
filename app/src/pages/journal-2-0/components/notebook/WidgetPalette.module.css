@@ -39,6 +39,10 @@
   font-size: 12px;
   padding: 4px 6px;
   border-radius: 5px;
+  /* WK, proof walk wk-7bd834b9f (clause 6c): "Close insert panel" measured
+     21.8x24 at 820 -- 2.2px short of the product's own 24px WCAG 2.5.8 floor
+     (a11y/targetFloors.test.js). Height already clears it; width did not. */
+  min-width: 24px;
 }
 .headBtn:hover { color: var(--accent); }
 .typeList { display: flex; flex-direction: column; gap: 6px; }

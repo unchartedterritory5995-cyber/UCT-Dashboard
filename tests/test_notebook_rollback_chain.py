@@ -19,6 +19,13 @@ mutation that reverts the whole-file fingerprint fix is killed by the TREE-REBUI
 (test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees: the recorded pin no longer
 matches, so the chain stops), NOT by test_no_pin_is_the_fingerprint_of_nothing -- PINS is a typed
 table, and reverting the code does not change what is typed in it.
+
+Lane R1c, 2026-09-29: MEASURED_AT moved again, from f4cec49be to 0812b5ec3 (L4 #251, L5 #252).
+Both new landings revert with 0 conflicts; the ten pins recorded at f4cec49be came back
+byte-identical. One new conflict was found four steps further down, at wave 8's own revert
+(`caf6d1b9e`, `app/src/pages/Support.jsx`): TERM-039 (e90fddc34, REVIEWED_NOT_LANDINGS) added an
+import+render that sits on lines wave 8's revert also touches. New mutation record:
+docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/mutations-r1c.log.
 """
 from __future__ import annotations
 
@@ -32,15 +39,16 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT f4cec49be (L2 #242) by lane R1b, 2026-09-29. The 2026-09-28 record
-# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) is the same chain one landing
-# shorter, from 38bb9a421; it stays as the evidence of that rehearsal.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29" / "chain" / "chain-through-wave5.jsonl"
+# Re-recorded at MEASURED_AT 0812b5ec3 (L4 #251 + L5 #252) by lane R1c, 2026-09-29. The R1b record
+# (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) is the same chain two landings
+# shorter, from f4cec49be; it stays as the evidence of that rehearsal. The R1 2026-09-28 record
+# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) is shorter still, from 38bb9a421.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29-r1c" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1b moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1c moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "38bb9a421"
+PREVIOUS_MEASURED_AT = "f4cec49be"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
