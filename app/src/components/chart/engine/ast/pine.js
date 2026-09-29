@@ -15311,6 +15311,20 @@ function translatePineResult(source, opts = {}) {
         inputsFolded: [],
         refusal: fromError(err),
       }
+      // ⭐ A ROUTED REFUSAL KEEPS WHAT THE AUTHOR SAID IT LOOKS LIKE (2026-09-28).
+      // A refusal that names the runtime lane (`route: 'runtime'`) is a row that
+      // lane will DRAW, and the colour, shape and location the author wrote are
+      // properties of the call, not of the value it could not fold — the runtime
+      // document carries them from here (`memberPaneDefinition`). Measured on the
+      // RDDT capture: without it both marks drew in the platform default blue
+      // where TradingView draws green and red. Only for a routed refusal: every
+      // other refused row keeps exactly the shape it always had.
+      if (err && err.route) {
+        try {
+          const pargs = parseArguments(new Cursor(out.toks.slice(2)))
+          row.presentation = outputPresentation(pargs, { env, resolver, kind: out.kind })
+        } catch { /* a presentation that cannot be read is simply not carried */ }
+      }
     }
     // ⭐⭐ R22a / d2 — A MESSAGE THIS LANE CANNOT CARRY IS SAID, NOT DROPPED.
     //

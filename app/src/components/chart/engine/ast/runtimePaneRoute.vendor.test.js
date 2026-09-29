@@ -95,6 +95,12 @@ describe('⭐⭐ a script the columnar lane refuses for a structural reason rout
     expect(built.definition.compute.kind).toBe('runtime')
     expect(built.definition.compute.source).toBe(SOURCE)
     expect(built.rows.map((r) => r.output)).toEqual([0, 1])
+    // ⭐ THE AUTHOR'S COLOURS RIDE THE ROUTED ROWS (`color=color.green` /
+    // `color.red`). Without them both marks drew in the platform default blue and
+    // the vendor harness graded 42 + 34 colour mismatches on correct values.
+    expect(built.rows[0].color).toMatch(/4caf50/i)
+    expect(built.rows[1].color).not.toMatch(/2962ff/i)
+    expect(built.rows[1].color).toBeTruthy()
     expect(built.notes.some((n) => /bar by bar/.test(n.note))).toBe(true)
 
     const { installed, errors } = registry.installUserDefinitions([built.definition])
