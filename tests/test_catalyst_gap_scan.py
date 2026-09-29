@@ -99,8 +99,9 @@ def test_discovery_extraction_filters_bare_words_to_universe(monkeypatch):
     """Perplexity prose is full of AWS/EV/GMM-style non-tickers. Bare words
     must validate against the cap universe; cashtags bypass (trusted).
     (Perplexity discovery returned 0-2 usable tickers before 2026-06-12.)"""
-    from api.services.catalyst import news_match
-    monkeypatch.setattr(news_match, "_UNIVERSE", {"NVDA", "INTC", "RKLB"})
+    # TERM-064: the universe is the ONE ticker resolver's, not news_match's copy.
+    from api.services import ticker_resolver
+    monkeypatch.setattr(ticker_resolver, "_UNI", {"NVDA", "INTC", "RKLB"})
     text = ("$NVDA — earnings beat. Intel (INTC) wins contract. Rocket Lab "
             "RKLB joins index. AWS revenue up; EV demand strong; GMM rallies.")
     syms = sources._extract_tickers_from_text(text)
