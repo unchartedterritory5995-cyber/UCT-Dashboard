@@ -266,3 +266,43 @@ source the vendor ran (`capture.source.text`) and compares every output on every
   float→bool cast, which the door passes through as a bare `&&`/`!` that propagates `na`
   instead of reading it as false. That — not the session clock — is its next wall.
 
+## QUEUED — 2026-09-28 (branch `pine/mintick`): `syminfo.mintick` is served per exchange; two probes owed
+
+**What shipped.** `syminfo.mintick` now resolves on the chart pane and in the runtime lane from
+`symbolScope.json::tick_size` — the vendor's `minmov / pricescale`, keyed by our store's exchange
+spelling, each entry naming the witnesses whose captures above show it: **NASDAQ** (AAPL, SNDL,
+NKLA), **NYSE** (BRK.A, RDDT), **NYSE Arca** (AMEX:SPY) — all `1 / 100`. Every other exchange
+refuses by name. The screener lane refuses at the door. Rail:
+`app/src/components/chart/engine/ast/syminfoMintick.test.js` re-reads every witness against these
+files, so a new row below becomes a served exchange by DATA alone (add the entry with
+`minmov`, `pricescale`, `witnesses`, `captured`, `how`) and the rail checks it.
+
+### 8. `vw-deadband-ticks.pine` — the band `syminfo.mintick` builds, on the script it walled
+**Source (exact):** `tools/visual_conformance/probes/vw-deadband-ticks.pine`, sha256
+`e915aecdda6a0fd7ca59871ef367dc22f3ae29baa3bed35d2373f4c7173c5461` (5689 bytes, LF). It is
+`corpus/committed/deadband-hysteresis-filter-backquant__3fb3d09595.pine` with three edits —
+title `UCTPROBE_VW_DEADBAND_TICKS`, `overlay = false`, Threshold Mode default **"Ticks"** — plus
+D00 `bar_index` (control), D01 `syminfo.mintick`, D02 `baseTau`, D03 `dbhf`.
+**Capture:** **1D**, **full history** (`startsAtBar0` — `dbhf` is a `var` seeded at bar 0) on
+**AMEX:SPY**, **NASDAQ:AAPL**, **NYSE:BRK.A**.
+**What we would have to match:** D01 = 0.01 and D02 = 0.1 on every bar; D03 bar by bar on the
+tail. In Ticks mode a mis-seeded state decays by ~0.8 per bar (step 0.2 of the excess over a 0.1
+band), so record how many LEADING bars disagree against a 5,000-bar fetch rather than assuming
+none do. ⚠️ Our side: on `pine/vocab-2` alone the runtime lane stops on deadband's `input.color`
+(line 30); merged with `pine/runtime-walls-4` it builds on SPY, and Ticks mode moves the plotted
+DBHF on 1039 of 1040 bars of the SPY 1D bars in `vw-mintick-spy-1d-2026-09-27.json` against ATR
+mode — measured in a throwaway merge, not on either branch. **No vendor capture of this script
+exists yet**, so no value of it is claimed to match.
+
+### 9. `vw-mintick.pine` re-run — the classes the table does NOT serve
+**Source (exact):** `tools/visual_conformance/probes/vw-mintick.pine`, unchanged (sha256
+`a29789ca6330d097ce29e998029f7f4821d5dddbbae64a11e685a1d09461b441`, the source of all ten captures
+above). **Capture:** **1D, ≥ 5 bars** each, on **AMEX:IMO** (NYSE American — its Pine prefix
+`AMEX` is shared with NYSE Arca, so SPY is not evidence for it), **CBOE:ARKK** (Cboe BZX),
+**NASDAQ:QQQ** (a NASDAQ fund), **AMEX:XLK** (a second NYSE Arca fund), one **NASDAQ-listed
+warrant** and one **unit**, one **NYSE preferred** share.
+**What a row needs:** M01 and M02 constant on every bar, AND the witness symbol's exchange as
+our store spells it (`GET /api/ticker-meta/<SYM>` → `exchange`). ⛔ The warrant / unit /
+preferred legs are the open risk in what already ships: they carry the SAME store exchange as
+common stock (`NASDAQ`, `NYSE`) and have never been captured. If any reads other than
+`1 / 100`, the NASDAQ/NYSE rows are too broad and must be narrowed before anything else.

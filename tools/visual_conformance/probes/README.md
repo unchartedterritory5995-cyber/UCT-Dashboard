@@ -25,6 +25,7 @@ text that produced a fixture is versioned beside it.
 | `vw-clock-vwap.pine` | CONFIRMS two identities shipped on `pine/vocabulary-wave`: `field(time)` = bare field, `ta.vwap(hlc3)` = `vwap()` | #5 |
 | `vw-mintick.pine` | `syminfo.mintick` across price regimes and asset classes (data, not semantics) | #6 |
 | `vw-alma.pine` | `ta.alma` — alone in its file, like `r11-alma.pine` | #7 |
+| `vw-deadband-ticks.pine` | `deadband-hysteresis` in **Ticks** mode, where `syminfo.mintick * tickThresh` IS the band — the corpus script with three edits (title, overlay, default mode) + D00–D03 | 2026-09-28 · `docs/pine/capture-queue-2026-09-27.md` → "QUEUED — 2026-09-28" |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.
 

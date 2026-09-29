@@ -880,7 +880,7 @@ export const REFUSALS = Object.freeze({
     + 'runtime',
   'canonicalise:textop':
     'a text question is written `text_contains(<text>, <text>)` (or startswith / '
-    + 'endswith / eq / ne, and `text_length(<text>)`), and each operand is either '
+    + 'endswith / eq / ne, and `text_length(<text>)` / `text_tonumber(<text>)`), and each operand is either '
     + "a quoted string or a `syminfo('<field>')` — never an expression, because "
     + 'the answer has to be settled the moment a symbol is chosen',
   'canonicalise:text-escapes':
@@ -1133,6 +1133,9 @@ const offset = (value, child) => ({ type: 'offset', value, args: [child] })
  *  absent for that reason rather than for lack of demand. */
 const TEXTOP_ARITY = Object.freeze({
   contains: 2, startswith: 2, endswith: 2, length: 1, eq: 2, ne: 2,
+  // ⭐ 2026-09-28 — `syminfo.mintick`: a NUMBER a symbol settles, carried as the
+  // vendor's decimal text and read back by this one consumer (`bind.js`).
+  tonumber: 1,
 })
 
 /** An operand of a text question: a quoted string, or a symbol-scoped field.

@@ -3441,9 +3441,11 @@ export default function StockChart({
   // `symbolScope.json::confirmed` holds a witness for that spelling.
   //
   // ⛔ NOTHING ELSE IS THREADED, AND THAT IS THE MANIFEST'S DECISION RATHER THAN
-  // AN OMISSION. `mintick`, `type`, `currency`, `session`, `pointvalue` and
-  // `description` are in `symbolScope.json::unserved` — refused BY NAME at the
-  // door, each with a reason a member can act on — and `tickerid` is DERIVED
+  // AN OMISSION. `type`, `currency`, `session`, `pointvalue` and `description`
+  // are in `symbolScope.json::unserved` — refused BY NAME at the door, each with
+  // a reason a member can act on. `mintick` (2026-09-28) is DERIVED from this
+  // same `exchange` via `symbolScope.json::tick_size` — no extra field — and
+  // `tickerid` is DERIVED
   // from ticker + witnessed prefix, so supplying it here would put a second
   // authority on the one string the whole witness table exists to settle.
   //

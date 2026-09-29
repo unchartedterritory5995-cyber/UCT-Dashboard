@@ -277,6 +277,83 @@ keeps the member pane on the host lane), and its `if` STATEMENTS already read `n
 **Also left:** `alertcondition(<numeric>)` and `plotshape(<numeric>)` are output channels, not
 tree bool contexts — a scan reads a condition as `<ast> != 0`, which is already the cast.
 
+## ⭐ 2026-09-28 — `syminfo.mintick`: SERVED PER WITNESSED EXCHANGE, REFUSED BY NAME ELSEWHERE (branch `pine/mintick`)
+
+> Base `pine/vocab-2` (`d7646568e`, PR #234). The wall: **deadband-hysteresis-filter-backquant**
+> (`base := syminfo.mintick * tickThresh`), named "still walled" on `pine/runtime-walls-4`.
+
+**The source, and what it covers.** Nothing this app fetches carries a tick size — `ticker_meta`
+(yfinance → FMP → Finnhub) returns name/sector/industry/exchange, the Massive/Polygon bar and
+snapshot payloads carry prices, and a grep of `api/` and `app/src` for `tick_size`/`min_tick`/
+`pricescale` finds nothing. What the app DOES already hold per symbol is our store's **exchange**
+(`api/services/ticker_meta.py::_YF_EXCHANGE`, threaded to the chart as `{ticker, exchange}` by
+`StockChart.jsx::symbolMeta` for the prefix witness table). The vendor's side is in the captures:
+every TradingView capture's `symbol` block carries `minmov` + `pricescale`, and the ten
+`vw-mintick-*` files show plot M01 = `minmov / pricescale` on every bar (ES1! 25/100 = 0.25).
+
+| store exchange | vendor tick | witnesses (capture) | served |
+|---|---|---|---|
+| NASDAQ | 1 / 100 | NASDAQ:AAPL $341, NASDAQ:SNDL $1.40, NASDAQ:NKLA $0.18 (`vw-mintick-*`) | ✅ |
+| NYSE | 1 / 100 | NYSE:BRK.A $758,505 (`vw-mintick-brka`), NYSE:RDDT (harness `*-rddt-*` symbol blocks) | ✅ |
+| NYSE Arca | 1 / 100 | AMEX:SPY (`vw-mintick-spy`) — counts ONLY because it is `confirmed['NYSE Arca'].witness`; `AMEX` is shared with NYSE American | ✅ |
+| NYSE American · Cboe BZX | — | none | ❌ refuses |
+| OTC | 0.0001 on OTC:AITX | measured NOT uniform — a listing property, not a venue one | ❌ refuses |
+| unmapped / FMP free text / absent · index · future · forex · crypto | 0.01 / 0.25 / 0.00001 / 0.01 | measured, all different, none reachable by this key | ❌ refuses |
+
+⭐ Price regime does not decide it for a listed name (NKLA at $0.18 and BRK.A at $758k are both
+0.01), so the exchange is the key and the price is not an input.
+⚠️ **Unverified:** warrants, units, rights and preferred shares carry the same store exchange as
+common stock and were never captured; probe #9 in the capture queue covers them.
+
+**The design — one channel, no new node type.** `syminfo.mintick` enters exactly where
+`syminfo.ticker` does: `bind.js::bindingConstants({symbol})` (Python mirror
+`ast_bind.binding_constants`). `symbolConstantsWith(confirmed, symbol, ticks)` adds
+`syminfo.mintick` = the decimal TEXT `tickText(minmov, pricescale)` (integer arithmetic, so both
+lanes spell `0.00001` identically) for an exchange in `tick_size`, and nothing otherwise. The Pine
+door (`pine.js::BUILTIN_SYMBOL_NUMERIC`) emits `textop tonumber(symtext mintick)` — a text question
+with a numeric answer, so `symtext` still lives only under a `textop` and every walker already
+prices it at zero bars. `foldBound` turns it into a `num` wherever it sits; unsettled, the
+evaluator refuses `interpret:bind-time-text` naming `syminfo.mintick`, and the fold's
+`NotFoldable` carries `pending_measurement.mintick`. `tonumber` accepts one decimal spelling in
+both lanes and stops by name on anything else.
+
+| lane | value | when it cannot |
+|---|---|---|
+| host (chart pane, `translatePine` strict → `computeFor` with `ctx.symbol`) | the exchange's tick | refused at evaluation, naming `syminfo.mintick` |
+| runtime (`buildRuntimeIr` with `opts.symbol`) | same, through `columnOf → foldBound` | same |
+| object (`objectColumns`, `bindConstsFor`) | same | same |
+| screener (`translatePine` without strict — saved, swept server-side) | — | **refused at the door**: its rows carry no exchange (`symbolScope.json::unserved_on_a_screen`); the `math.max(…, syminfo.mintick)` offer is now the screen's alone |
+
+**What deadband-hysteresis does now.** On this base, in the runtime lane: without a symbol it
+still refuses at line 52 naming `syminfo.mintick`; on AMEX:SPY (NYSE Arca) it walks past it
+(27 → 44 statements lowered) to its next wall, **`pine:input-kind` — `color longColor =
+input.color(...)` at line 30**, a runtime-lane gap `pine/runtime-walls-*` works on. On
+NYSE American it refuses naming `syminfo.mintick`. In a throwaway merge with
+`pine/runtime-walls-4` it **builds** on SPY, and Threshold Mode "Ticks" moves the plotted DBHF on
+1039 of 1040 bars against "ATR" — the tick reaches the band. ⛔ **No vendor capture of this
+script exists**, so no value is claimed to match; `vw-deadband-ticks.pine` is queued
+(capture-queue #8, SPY/AAPL/BRK.A 1D, full history, exact source + sha there).
+
+**Corpus effect (37 committed scripts name `syminfo.mintick`).** `tools/corpus_metric.json`
+regenerated: host 46 / screener 52 — **unchanged**; `pine:builtin` left the host guards of
+`chart-champions-part-1-npoc-levels-vwaps` (next wall `time(<timeframe>)`, line 84),
+`optimized-keltner-channels-sltp-strategy-for-btc` and `renderingnature-smc-reversal-engine-v71`.
+Runtime lane: 2 of the 37 stopped on `syminfo.mintick` without a symbol; with SPY none do
+(chart-champions → `runtime:object-op` line 78, deadband → `pine:input-kind` line 30).
+`docs/pine/param-ids.json`: merge writer re-run, **no id moved**.
+
+**Rails.** `app/src/components/chart/engine/ast/syminfoMintick.test.js` (17: witnesses re-read
+against the captures; M01 = minmov/pricescale on all ten `vw-mintick` files; OTC counter-example;
+per-symbol two answers; uncovered → `NotFoldable` naming the field; door host/screen/offer/text;
+host `computeFor` close+1 on SPY and a named refusal on IMO and on no symbol; runtime `var`
+accumulator 0.01/bar on SPY; deadband past its wall) · `tests/test_ast_bind_mintick.py` (Python
+lane) · 4 new rows in `tests/fixtures/ast/bind_fold_parity.json` (both lanes). Re-pinned by
+measurement: `symbolScope`, `symbolRosterSpeaks`, `symbolFoldParity`, `refusalLocationSeam`
+(fixture now `syminfo.pointvalue`), `pineMathCeilAccept`, `pineTimenowAccept`.
+**Mutation-proved** (byte-exact capture/restore, sha-verified): binding never supplies mintick
+(JS 9 red · PY 5), a silent 0.01 default for any exchange (JS 7 · PY 6), screener door stops
+refusing (1), offer fires on the host lane (1), `tonumber` made lenient (1).
+
 ---
 
 ## ⭐ 2026-09-27 — THE VOCABULARY WAVE: which names are the LAST wall (branch `pine/vocabulary-wave`)
