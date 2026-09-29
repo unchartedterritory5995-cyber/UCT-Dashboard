@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-29",
   "scripts": 266,
-  "host_ok": 51,
-  "screener_ok": 56,
+  "host_ok": 52,
+  "screener_ok": 57,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -1769,10 +1769,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:offset-literal"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:offset-literal"
+        "pine:reassign"
       ]
     },
     {
@@ -1810,14 +1810,10 @@
     },
     {
       "file": "pivot-high-low-points__hoTsDQRY3L.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:offset-literal"
-      ],
-      "screenerGuards": [
-        "pine:offset-literal"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "pivot-point-supertrend__HN4w1eNW3B.pine",

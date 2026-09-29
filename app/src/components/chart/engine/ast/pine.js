@@ -7422,7 +7422,25 @@ export class Resolver {
         // guard below — and the canonical node at the end — sees the same plain
         // integer a written literal would have given them.
         if (node.n && typeof node.n === 'object' && node.n.expr) {
-          const folded = this.resolve(node.n.expr)
+          let folded = this.resolve(node.n.expr)
+          // ⭐⭐ C9 (2026-09-29) — AN OFFSET IS A WINDOW, SO IT FOLDS LIKE ONE.
+          // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)` reaches here
+          // as an `op` tree, and at the member door (which hands a declared input
+          // back as an IDENTIFIER) even a bare `high[len]` did — so the same
+          // `drmLen` that `sma(close, drmLen)` folds to 14 in this pass refused as
+          // an offset. Pine computes both before bar 0 (`simple int`).
+          // `foldWindow` is the window arm's own fold: it hands back only an exact
+          // whole number ≥ 0, so `15 / 2`, a negative and a bar read still refuse
+          // below, and the input is recorded window-bound BEFORE the fold erases
+          // it — the caller refuses that knob by name rather than hand back one
+          // that moves a window and leaves this offset at the default.
+          // ⛔ A series offset (`x[bar_index - k]`) still refuses here: that is a
+          // per-bar read, not a window, and it is served (if at all) by the
+          // object lane's own absolute-bar read, never by this node.
+          if (folded.type !== 'num') {
+            for (const n of declaredInputNames(folded)) this.windowBoundInputs.add(n)
+            folded = foldWindow(folded)
+          }
           if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
             throw new PineRefusal('pine:offset-literal',
               `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
@@ -10190,15 +10208,24 @@ export class Resolver {
    *  sentence (true: a pivot's bar counts are its window), exactly as it does for
    *  `sma(close, len)`. Anything else passes through unchanged, so the default
    *  (non-declare) path is byte-identical and `pivotAtConfirmation`'s own refusal
-   *  still answers a count that is genuinely not a whole number. */
+   *  still answers a count that is genuinely not a whole number.
+   *
+   *  ⭐⭐ C9 (2026-09-29) — CONSTANT ARITHMETIC FOLDS HERE TOO, declared input or
+   *  not. `pivSpan = math.max(drmLen / 2, 2)` reaches this slot as an `op` tree
+   *  in the pass that holds `drmLen` as a literal (the object lane, the second
+   *  member-door pass), and a pivot refused `pine:arity` over a count Pine itself
+   *  computes before bar 0 — the same `7` the window arm already folds
+   *  `sma(close, pivSpan)` to in the same pass. `foldWindow` hands back only an
+   *  exact whole number ≥ 0 or the node untouched, so a fraction (`15 / 2`) or a
+   *  bar read still meets `pivotAtConfirmation`'s own refusal. A bare `num` is
+   *  returned as-is, so a literal count stays byte-identical. */
   foldPivotBars(resolvedArgs) {
     if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
     const from = resolvedArgs.length - 2
     return resolvedArgs.map((node, i) => {
       if (i < from) return node
-      const declared = declaredInputNames(node)
-      if (!declared.size) return node
-      for (const n of declared) this.windowBoundInputs.add(n)
+      if (!node || typeof node !== 'object' || node.type === 'num') return node
+      for (const n of declaredInputNames(node)) this.windowBoundInputs.add(n)
       return foldWindow(node)
     })
   }
@@ -14578,10 +14605,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
-  const scopeFor = (locals) => {
-    if (!locals || !locals.length) return env
-    if (scopeCache.has(locals)) return scopeCache.get(locals)
-    const scoped = new Map(env)
+  const scopeFor = (locals, base = env) => {
+    if (!locals || !locals.length) return base
+    let byLocals = scopeCache.get(base)
+    if (!byLocals) { byLocals = new Map(); scopeCache.set(base, byLocals) }
+    if (byLocals.has(locals)) return byLocals.get(locals)
+    const scoped = new Map(base)
     for (const b of locals) {
       // ⭐⭐ A LOCAL OF AN INLINED FUNCTION BODY — the walk never saw these
       // statements (they are a per-call-site rewrite; see `objectFnInline.js`),
@@ -14600,7 +14629,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `poor-man039s-volume-profile`, `row0_text = ""` then
       // `for … row0_text := row0_text + "#"` drew its label with the text "" —
       // TradingView draws `####…`. The overrule's verdict wins.
-      const top = env.get(b.name)
+      const top = base.get(b.name)
       if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
         scoped.set(b.name, top)
         continue
@@ -14619,9 +14648,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
       if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)
     }
-    scopeCache.set(locals, scoped)
+    byLocals.set(locals, scoped)
     return scoped
   }
+  /** ⭐⭐ C9 — the base env for one reader op: the env as it stands once the
+   *  op's own top-level statement has run (`envAfterTop`, stamped as `op.top` by
+   *  the collector), never the end of the program. See `pineObjects.js`. */
+  const baseFor = (op) => (objectOpts.envAfterTop && op && Number.isInteger(op.top)
+    ? objectOpts.envAfterTop(op.top) : env)
 
   let ops = []
   // ⭐⭐ OBJECTS WHOSE CONTENT WAS WRITTEN BY A STEP THIS CHART LOST (2026-09-28,
@@ -14647,7 +14681,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const convertList = (list) => {
   for (const op of list) {
     diagnostics.attemptedOps += 1
-    scopeEnv = scopeFor(op.locals)
+    scopeEnv = scopeFor(op.locals, baseFor(op))
     loopIds = op.loopIds || []
     const g = guardOf(op.guards)
     if (g === undefined) {
@@ -14684,7 +14718,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops = body
       convertList(op.body || [])
       ops = outer
-      scopeEnv = scopeFor(op.locals)
+      scopeEnv = scopeFor(op.locals, baseFor(op))
       loopIds = op.loopIds || []
       // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
       // empty body draws nothing"), so a loop whose every op was dropped is
@@ -15328,12 +15362,24 @@ function translatePineResult(source, opts = {}) {
     vec.writers = (arrayWrites.get(name) || []).slice()
     return vec
   }
+  /** ⭐⭐ C9 (2026-09-29) — THE REASSIGNED NAMES' BINDINGS AS THEY STAND AT THE
+   *  START OF EACH TOP-LEVEL STEP, in source order. An object op collected under
+   *  top-level statement `T` reads the entry of the first step AFTER `T` — the
+   *  env once `T` (a whole `if` chain included) has run — through the same
+   *  `positionEnv` rule the output loop applies. See `pineObjects.js`'s `top`. */
+  const topStepEnvs = []
+  const snapReassigned = () => {
+    const snap = new Map()
+    for (const name of reassigned.keys()) if (env.has(name)) snap.set(name, env.get(name))
+    return snap
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
     si += 1
     const toks = stmt.header
     const first = toks[0]
+    if (first && Number.isInteger(first.line)) topStepEnvs.push({ line: first.line, envAt: snapReassigned() })
 
     // `[a, b] = f()` — a tuple destructure, read by the SHARED reader so this
     // walk and `foldStatements` can never disagree about one construct.
@@ -16233,6 +16279,19 @@ function translatePineResult(source, opts = {}) {
     return scoped || env
   }
 
+  /** The env an object op collected under the top-level statement starting at
+   *  `line` resolves against: the first recorded step after it, else the end of
+   *  the program (which is what every op read before C9). */
+  const objectEnvAfterTop = (line) => {
+    if (!Number.isInteger(line)) return env
+    for (const step of topStepEnvs) {
+      if (step.line <= line) continue
+      if (!step.positioned) step.positioned = positionEnv(step)
+      return step.positioned
+    }
+    return env
+  }
+
   const resolved = []
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
@@ -16816,6 +16875,7 @@ function translatePineResult(source, opts = {}) {
     }, bindingByStatement, {
       rawTrees: opts.objectRawTrees === true,
       iterTrees: opts.objectIterTrees === true,
+      envAfterTop: objectEnvAfterTop,
     })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the

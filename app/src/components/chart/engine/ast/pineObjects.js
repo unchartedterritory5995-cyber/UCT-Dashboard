@@ -315,13 +315,45 @@ export function collectObjectOps(stmts, h) {
    * Carrying the block's own bindings with each op is the difference between a
    * dashboard with content and an empty frame.
    */
+  // ⭐⭐ C9 (2026-09-29) — WHICH TOP-LEVEL STATEMENT EACH OP BELONGS TO.
+  // Pine runs the script top to bottom once per bar, so a `var` read by an op
+  // holds the value it has at THAT statement — the reassignments written below
+  // it have not run yet on this bar. The output loop already resolves each plot
+  // against the env as it stands at the plot's line (`positionEnv`); the object
+  // pass resolved every op against the END of the program, so a line drawn from
+  // the previous pivot (`line.new(pHH_bx, pHH_ox, …)` above `pHH_ox := cHH_o`)
+  // was drawn from the CURRENT one. `top` is the first line of the top-level
+  // statement an op was collected under — for a helper's inlined body, the
+  // CALL's statement, where its body runs — and `buildObjectProgram` resolves
+  // the op against the env at the end of that statement. Non-enumerable, so a
+  // reader op compared structurally is unchanged.
+  let walkDepth = 0
+  let topMark = null
+  const stampTop = (op, line) => {
+    if (!op || typeof op !== 'object' || Object.prototype.hasOwnProperty.call(op, 'top')) return
+    Object.defineProperty(op, 'top', { value: line, enumerable: false, configurable: true })
+    for (const b of op.body || []) stampTop(b, line)
+  }
+  const flushTop = () => {
+    if (!topMark) return
+    for (let i = topMark.from; i < topMark.sink.length; i += 1) stampTop(topMark.sink[i], topMark.line)
+    topMark = null
+  }
   const walk = (list, guards, inLoop, scope) => {
+    walkDepth += 1
+    try { walkList(list, guards, inLoop, scope) } finally { walkDepth -= 1 }
+  }
+  const walkList = (list, guards, inLoop, scope) => {
     let prevIfCond = null
     let localScope = scope
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     for (const st of splitCommaStatements(list, h)) {
       const t = st.header
       if (!t || !t.length) continue
+      if (walkDepth === 1) {
+        flushTop()
+        topMark = { line: t[0].line, sink: ops, from: ops.length }
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
 
@@ -1443,5 +1475,6 @@ export function collectObjectOps(stmts, h) {
   }
 
   walk(stmts, [], false, [])
+  flushTop()
   return { decls, ops, diagnostics }
 }
