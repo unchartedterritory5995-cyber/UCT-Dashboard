@@ -406,7 +406,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM | FB | short title | SZ | DEP | ROLLBACK | PAR | STATE |
 |---|---|---|---|---|---|---|---|
 | TERM-063 | `FB-S2-01` | The keyboard registry, before any more palette | M | d0·b0 | tier 4 pref / 3 | Partial | BUILDABLE |
-| TERM-064 | `FB-S2-02` | One ticker resolver | M | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
+| TERM-064 | `FB-S2-02` | One ticker resolver | M | d0·b0 | tier 4 pref / 3 | Yes | ✅ BUILT `b5bebfe12` (not pushed) — `api/services/ticker_resolver.py`: one precedence/grammar/spelling/universe, stop words per input kind; AI Search, catalyst discovery and RSS headlines delegate; tweet ingest (A8 M5) + frontend = follow-up. Evidence `10-roadmap/evidence/2026-09-29-term064/results.md` |
 | TERM-065 | `FB-S10-01` | Extract the DataGrid seed before a sixth grid | M | d0·b0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-066 | `FB-S10-02` | One `format` module | M | d0·b0 | tier 4 pref / 3 | Partial | BUILDABLE |
 | TERM-067 | `FB-S10-03` | A form-control layer | M | d0·b0 | tier 4 pref / 3 | Partial | ⛔ census first |
