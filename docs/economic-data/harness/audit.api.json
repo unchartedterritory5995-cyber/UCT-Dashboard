@@ -1,0 +1,403 @@
+{
+  "cpi": {
+    "audit": {
+      "scenario": "cpi",
+      "src": "api",
+      "errors": [
+        "USCPI: error",
+        "nothing to draw: no series loaded"
+      ],
+      "series": {
+        "USCPI": {
+          "status": "error"
+        }
+      },
+      "bindings": [],
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 0,
+      "ok": null
+    }
+  },
+  "fedfunds": {
+    "audit": {
+      "scenario": "fedfunds",
+      "src": "api",
+      "errors": [
+        "USFEDFUNDSU: error",
+        "USFEDFUNDSL: error",
+        "USEFFR: error",
+        "nothing to draw: no series loaded"
+      ],
+      "series": {
+        "USFEDFUNDSU": {
+          "status": "error"
+        },
+        "USFEDFUNDSL": {
+          "status": "error"
+        },
+        "USEFFR": {
+          "status": "error"
+        }
+      },
+      "bindings": [],
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 0,
+      "ok": null
+    }
+  },
+  "crude": {
+    "audit": {
+      "scenario": "crude",
+      "src": "api",
+      "errors": [
+        "USCRUDEINV: error",
+        "nothing to draw: no series loaded"
+      ],
+      "series": {
+        "USCRUDEINV": {
+          "status": "error"
+        }
+      },
+      "bindings": [],
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 0,
+      "ok": null
+    }
+  },
+  "claims": {
+    "audit": {
+      "scenario": "claims",
+      "src": "api",
+      "errors": [
+        "USICSA: error",
+        "nothing to draw: no series loaded"
+      ],
+      "series": {
+        "USICSA": {
+          "status": "error"
+        }
+      },
+      "bindings": [],
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 0,
+      "ok": null
+    }
+  },
+  "gdp": {
+    "audit": {
+      "scenario": "gdp",
+      "src": "api",
+      "errors": [
+        "USRGDPQA: error",
+        "nothing to draw: no series loaded"
+      ],
+      "series": {
+        "USRGDPQA": {
+          "status": "error"
+        }
+      },
+      "bindings": [],
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 0,
+      "ok": null
+    }
+  },
+  "overlay-d": {
+    "audit": {
+      "scenario": "overlay-d",
+      "title": "(e) Overlay · daily host (SYNTHETIC) + CPI pane + NFP change pane",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [
+        "USCPI: error",
+        "USNFPCHG: error"
+      ],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "D",
+        "bars": 714,
+        "first": "2024-01-02",
+        "last": "2026-09-25"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        },
+        "USNFPCHG": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        }
+      },
+      "bindings": [],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 714,
+      "fit": {
+        "from": 0,
+        "to": 717
+      },
+      "fitTime": {
+        "from": "2024-01-02",
+        "to": "2026-09-25"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 268.88,
+          "to": 448.13
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 223.88,
+          "to": 403.13
+        },
+        "requested": -45,
+        "shift": -45,
+        "visibleTime": {
+          "from": "2024-11-08",
+          "to": "2025-07-21"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -89.63,
+          "to": 89.63
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-02",
+          "to": "2024-05-07"
+        },
+        "firstBarTime": "2024-01-02"
+      },
+      "ok": true
+    }
+  },
+  "overlay-w": {
+    "audit": {
+      "scenario": "overlay-w",
+      "title": "(f) Overlay · weekly host (SYNTHETIC) + CPI + NFP change",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [
+        "USCPI: error",
+        "USNFPCHG: error"
+      ],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "W",
+        "bars": 143,
+        "first": "2024-01-01",
+        "last": "2026-09-21"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        },
+        "USNFPCHG": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        }
+      },
+      "bindings": [],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 143,
+      "fit": {
+        "from": 0,
+        "to": 146
+      },
+      "fitTime": {
+        "from": "2024-01-01",
+        "to": "2026-09-21"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 54.75,
+          "to": 91.25
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 45.75,
+          "to": 82.25
+        },
+        "requested": -9,
+        "shift": -9,
+        "visibleTime": {
+          "from": "2024-11-11",
+          "to": "2025-08-04"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -18.25,
+          "to": 18.25
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-01",
+          "to": "2024-05-13"
+        },
+        "firstBarTime": "2024-01-01"
+      },
+      "ok": true
+    }
+  },
+  "overlay-5": {
+    "audit": {
+      "scenario": "overlay-5",
+      "title": "(f) Overlay · 5-minute host (SYNTHETIC, 04:00-20:00 ET) + CPI",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [
+        "USCPI: error",
+        "USEFFR: error"
+      ],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "5",
+        "bars": 1152,
+        "first": "9/10/2026, 04:00:00 ET",
+        "last": "9/17/2026, 19:55:00 ET"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        },
+        "USEFFR": {
+          "status": "error",
+          "points": 0,
+          "nullPoints": 0,
+          "firstAvailable": null,
+          "lastAvailable": null,
+          "firstPeriod": null,
+          "lastPeriod": null,
+          "maxAgeDays": 200,
+          "formatKey": null,
+          "valuedBars": 0,
+          "interiorGaps": 0
+        }
+      },
+      "bindings": [],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 1152,
+      "fit": {
+        "from": 0,
+        "to": 1155
+      },
+      "fitTime": {
+        "from": 1789012800,
+        "to": 1789674900
+      },
+      "zoomIn": {
+        "range": {
+          "from": 433.13,
+          "to": 721.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 361.13,
+          "to": 649.88
+        },
+        "requested": -72,
+        "shift": -72,
+        "visibleTime": {
+          "from": 1789149900,
+          "to": 1789467000
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -144.37,
+          "to": 144.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": 1789012800,
+          "to": 1789056300
+        },
+        "firstBarTime": 1789027200
+      },
+      "ok": true
+    }
+  }
+}

@@ -94,6 +94,45 @@ function periodAgeDays(refSec, pe) {
 }
 
 /**
+ * The index of the point each bar takes (-1 where none applies) -- the one walk
+ * `projectAsOf` and the economic lane share, so the VALUE and the OBSERVATION
+ * PERIOD a legend prints can never come from two different points.
+ *
+ * @param {object} [opts]
+ * @param {number|null} [opts.nowSec]            cap for W/M reference times
+ * @param {number} [opts.maxPeriodAgeDays=200]   staleness limit (Infinity = none)
+ * @param {boolean} [opts.strict=false]          ⭐ INTRADAY ONLY: a point applies to
+ *   a bar [a, b) only when `t < b`, i.e. it lands IN the bar that contains the
+ *   instant. The default (`t <= b`, the fundamentals rule, unchanged) lets an
+ *   08:30:00 release reach the 08:25-08:30 bar whose close printed BEFORE it --
+ *   harmless for filings, a one-bar look-ahead for scheduled macro releases.
+ *   D/W/M reference times are 16:00 ET and are unaffected.
+ * @returns {Int32Array}
+ */
+export function projectAsOfIndices(points, bars, tf, { nowSec = null, maxPeriodAgeDays = MAX_PERIOD_AGE_DAYS, strict = false } = {}) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const out = new Int32Array(n).fill(-1)
+  const pts = Array.isArray(points) ? points : []
+  if (!n || !pts.length) return out
+  const intradayStrict = strict === true && !DAILY_TFS.has(tf)
+  // Bars are ascending, so one forward pointer walks the points once: O(n + m).
+  let j = -1
+  for (let i = 0; i < n; i++) {
+    const b = bars[i]
+    const t = b && typeof b === 'object' ? b.t : undefined
+    if (t === undefined || t === null) continue
+    const ref = referenceTime(t, tf, nowSec)
+    if (intradayStrict) { while (j + 1 < pts.length && pts[j + 1].t < ref) j++ }
+    else { while (j + 1 < pts.length && pts[j + 1].t <= ref) j++ }
+    if (j < 0) continue
+    const p = pts[j]
+    if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
+    out[i] = j
+  }
+  return out
+}
+
+/**
  * @param {Array<{t:number,v:number,pe:string}>} points  sparse PIT observations
  * @param {Array<{t:string|number}>} bars                the chart's bars
  * @param {string} tf                                    'D' | 'W' | 'M' | '5m' | ...
@@ -104,17 +143,11 @@ export function projectAsOf(points, bars, tf, { nowSec = null, maxPeriodAgeDays 
   const out = new Array(n).fill(NaN)
   const pts = Array.isArray(points) ? points : []
   if (!n || !pts.length) return out
-  // Bars are ascending, so one forward pointer walks the points once: O(n + m).
-  let j = -1
+  const idx = projectAsOfIndices(pts, bars, tf, { nowSec, maxPeriodAgeDays })
   for (let i = 0; i < n; i++) {
-    const b = bars[i]
-    const t = b && typeof b === 'object' ? b.t : undefined
-    if (t === undefined || t === null) continue
-    const ref = referenceTime(t, tf, nowSec)
-    while (j + 1 < pts.length && pts[j + 1].t <= ref) j++
+    const j = idx[i]
     if (j < 0) continue
     const p = pts[j]
-    if (p.pe && periodAgeDays(ref, p.pe) > maxPeriodAgeDays) continue
     // ⛔ A GAP POINT (`v: null`, method `gap`) says "the newest filed period is
     // unknown" -- it ENDS the previous value; it is never bridged over.
     out[i] = Number.isFinite(p.v) ? p.v : NaN
