@@ -684,11 +684,16 @@ def take(pg, path: Path) -> str:
     return path.name
 
 
-def run_config(br, H, base: str, notes: dict, pass_: str, width: int, storage, art: Path, only: set | None) -> list[dict]:
+def run_config(br, H, base: str, notes: dict, pass_: str, width: int, storage, art: Path, only: set | None,
+               height: int | None = None, hint_seen: bool = False, tag: str = "") -> list[dict]:
     w, h, touch, mobile = VIEWPORTS[width]
+    if height:   # fix round 1: the same tier at another phone height (the FAB is bottom-anchored)
+        h = height
     ctx = br.new_context(viewport={"width": w, "height": h}, has_touch=touch, is_mobile=mobile,
                          reduced_motion="reduce", storage_state=storage)
     ctx.add_init_script("try { localStorage.setItem('voice.orb.coachmarkSeen', '1'); } catch (e) {}")
+    if hint_seen:   # fix round 1: the dictation first-run hint already seen (steady state)
+        ctx.add_init_script("try { localStorage.setItem('voice.dictation.hintSeen', '1'); } catch (e) {}")
     rows = []
     pg = ctx.new_page()
     errors: list[str] = []
@@ -787,6 +792,10 @@ def main() -> int:
     ap.add_argument("--passes", default="orb,hub")
     ap.add_argument("--widths", default="390,820,1200")
     ap.add_argument("--only", default="", help="comma list of surfaces (default all)")
+    ap.add_argument("--heights", default="", help="fix round 1: comma list of viewport heights for the <=640 tier "
+                    "(default: the tier's own); each labels its rows <pass>@<h>")
+    ap.add_argument("--hint-seen", default="no", choices=["no", "yes", "both"],
+                    help="fix round 1: mark the dictation first-run hint seen (steady state); 'both' runs each")
     a = ap.parse_args()
     if a.self_check:
         return self_check()
@@ -832,7 +841,12 @@ def main() -> int:
                 for wdt in widths:
                     if wdt not in PASSES[pass_]:
                         continue
-                    res["rows"].extend(run_config(br, H, base, notes, pass_, wdt, storage, art, only))
+                    heights = [int(x) for x in a.heights.split(",") if x] if wdt <= 640 else []
+                    for hgt in (heights or [None]):
+                        for seen in ({"no": [False], "yes": [True], "both": [False, True]}[a.hint_seen]):
+                            label = pass_ + (f"@{hgt}" if hgt else "") + ("+hintseen" if seen else "")
+                            res["rows"].extend(run_config(br, H, base, notes, label, wdt, storage, art, only,
+                                                          height=hgt, hint_seen=seen))
             br.close()
         sb.wait_checkpoint("post-prewarm (+120s)", 200)
     except Exception as e:  # noqa: BLE001
