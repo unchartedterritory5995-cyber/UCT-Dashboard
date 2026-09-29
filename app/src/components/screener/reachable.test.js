@@ -744,6 +744,23 @@ const AWAITING_A_DECISION = {
     'TERM-006 age authority — the ruling plus its rails, landed with NO '
     + 'consumer BY DECISION; adoption is TERM-059. Wire it, or delete it; do '
     + 'not leave it looking shipped.',
+  // ── TERM-035 MARKET CALENDAR AUTHORITY — STAGED, NOT YET READ (2026-09-29) ─
+  //
+  // `sessionCalendar.js` is the client half of TERM-035's one market calendar
+  // (`app/src/lib/marketClock/market_calendar.json`, read byte-for-byte by
+  // `api/services/session_calendar.py` too), with a horizon rail and a shared
+  // half-day fixture both sides test against. It lands with NO consumer on
+  // purpose: the live readers (`useMarketOpen`, `sessionModel`, `sessionStale`,
+  // `FreshnessBadge`, `nextOpenHint`) all go through `marketClock.js` ->
+  // `nyseCalendar.js`, and moving only one of them would make a SECOND client
+  // authority for every 2028 date. The one-step migration is to point
+  // `nyseCalendar.js` at the JSON (follow-up #1 in
+  // `docs/terminal-research/10-roadmap/evidence/2026-09-29-term035-calendar-census/results.md`).
+  // Expiry: that migration lands (drop this entry), or the module is deleted.
+  'app/src/lib/marketClock/sessionCalendar.js':
+    'TERM-035 calendar authority, staged with NO consumer by decision; the '
+    + 'migration is pointing nyseCalendar.js at market_calendar.json. Wire it '
+    + 'that way, or delete it.',
   }
 
 /**
@@ -803,6 +820,7 @@ const PARKING_EXPIRES = {
   // (Its expiry, 2026-11-30, was deleted 2026-09-25 with the block: CP2 mounted
   // the component, so the parking note had nothing left to outlive.)
   'TERM-006 AGE AUTHORITY — SHIPPED WITHOUT A CONSUMER (2026-09-26)': '2026-11-30',   // landed 2026-09-26 with the authority itself; TERM-059 resolves it
+  'TERM-035 MARKET CALENDAR AUTHORITY — STAGED, NOT YET READ (2026-09-29)': '2026-11-30',   // resolved by pointing nyseCalendar.js at market_calendar.json
 }
 
 /** ⛔ A DATE COMPARISON, NOT A DURATION. Both sides are ISO `YYYY-MM-DD`, which
