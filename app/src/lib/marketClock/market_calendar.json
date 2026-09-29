@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "version": "2026-09-28.1",
+  "exchange": "NYSE",
+  "timezone": "America/New_York",
+  "coverage_start": "2025-01-01",
+  "horizon": "2028-12-31",
+  "source": "Derived 2026-09-28 from pandas_market_calendars 5.4.0 (NYSE) and exchange_calendars 4.13.2 (XNYS); the two agree on every holiday and early close 2025-2029. The 2025-2027 rows are also byte-for-byte the dates in api/services/nyse_calendar.py and the 2026-2027 rows the dates in app/src/lib/marketClock/nyseCalendar.js (railed by tests/test_session_calendar.py and sessionCalendar.test.js). Horizon stops at 2028 because that is the last year NYSE has published; refresh from nyse.com/markets/hours-calendars.",
+  "sessions": {
+    "pre_start": "04:00",
+    "open": "09:30",
+    "close": "16:00",
+    "post_end": "20:00"
+  },
+  "holidays": [
+    { "date": "2025-01-01", "name": "New Year's Day" },
+    { "date": "2025-01-09", "name": "National Day of Mourning (President Jimmy Carter)" },
+    { "date": "2025-01-20", "name": "Martin Luther King, Jr. Day" },
+    { "date": "2025-02-17", "name": "Washington's Birthday" },
+    { "date": "2025-04-18", "name": "Good Friday" },
+    { "date": "2025-05-26", "name": "Memorial Day" },
+    { "date": "2025-06-19", "name": "Juneteenth National Independence Day" },
+    { "date": "2025-07-04", "name": "Independence Day" },
+    { "date": "2025-09-01", "name": "Labor Day" },
+    { "date": "2025-11-27", "name": "Thanksgiving Day" },
+    { "date": "2025-12-25", "name": "Christmas Day" },
+
+    { "date": "2026-01-01", "name": "New Year's Day" },
+    { "date": "2026-01-19", "name": "Martin Luther King, Jr. Day" },
+    { "date": "2026-02-16", "name": "Washington's Birthday" },
+    { "date": "2026-04-03", "name": "Good Friday" },
+    { "date": "2026-05-25", "name": "Memorial Day" },
+    { "date": "2026-06-19", "name": "Juneteenth National Independence Day" },
+    { "date": "2026-07-03", "name": "Independence Day (observed)" },
+    { "date": "2026-09-07", "name": "Labor Day" },
+    { "date": "2026-11-26", "name": "Thanksgiving Day" },
+    { "date": "2026-12-25", "name": "Christmas Day" },
+
+    { "date": "2027-01-01", "name": "New Year's Day" },
+    { "date": "2027-01-18", "name": "Martin Luther King, Jr. Day" },
+    { "date": "2027-02-15", "name": "Washington's Birthday" },
+    { "date": "2027-03-26", "name": "Good Friday" },
+    { "date": "2027-05-31", "name": "Memorial Day" },
+    { "date": "2027-06-18", "name": "Juneteenth National Independence Day (observed)" },
+    { "date": "2027-07-05", "name": "Independence Day (observed)" },
+    { "date": "2027-09-06", "name": "Labor Day" },
+    { "date": "2027-11-25", "name": "Thanksgiving Day" },
+    { "date": "2027-12-24", "name": "Christmas Day (observed)" },
+
+    { "date": "2028-01-17", "name": "Martin Luther King, Jr. Day" },
+    { "date": "2028-02-21", "name": "Washington's Birthday" },
+    { "date": "2028-04-14", "name": "Good Friday" },
+    { "date": "2028-05-29", "name": "Memorial Day" },
+    { "date": "2028-06-19", "name": "Juneteenth National Independence Day" },
+    { "date": "2028-07-04", "name": "Independence Day" },
+    { "date": "2028-09-04", "name": "Labor Day" },
+    { "date": "2028-11-23", "name": "Thanksgiving Day" },
+    { "date": "2028-12-25", "name": "Christmas Day" }
+  ],
+  "early_closes": [
+    { "date": "2025-07-03", "name": "Day before Independence Day", "close": "13:00" },
+    { "date": "2025-11-28", "name": "Day after Thanksgiving", "close": "13:00" },
+    { "date": "2025-12-24", "name": "Christmas Eve", "close": "13:00" },
+
+    { "date": "2026-11-27", "name": "Day after Thanksgiving", "close": "13:00" },
+    { "date": "2026-12-24", "name": "Christmas Eve", "close": "13:00" },
+
+    { "date": "2027-11-26", "name": "Day after Thanksgiving", "close": "13:00" },
+
+    { "date": "2028-07-03", "name": "Day before Independence Day", "close": "13:00" },
+    { "date": "2028-11-24", "name": "Day after Thanksgiving", "close": "13:00" }
+  ]
+}

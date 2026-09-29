@@ -173,3 +173,80 @@ class ServeStale:
 
         threading.Thread(target=_bg, daemon=True,
                          name=f"{self.name}-refresh").start()
+
+
+# ── Which tier answered (TERM-082, PROD-C7) ──────────────────────────────────
+#
+# `ServeStale.serve` returns a value and says nothing about where it came from,
+# so a served-stale payload is indistinguishable from a fresh one. PROD-C7
+# requires staleness to be visible on the response. The labels are the ones
+# `/api/bars` already emits on its `Server-Timing` header
+# (`bars_fetch._mark_serve`) — "mem", "stale-swr", "fetch", "inflight-wait" —
+# and CARD 16 already rules on `stale-swr`, so no new vocabulary is invented.
+
+#: Served from the real TTL cache.
+TIER_FRESH = "mem"
+#: Served from the last-good slot while a refresh runs behind the caller.
+TIER_STALE = "stale-swr"
+#: Built synchronously by this caller (cold start, or the slot was too old).
+TIER_BUILD = "fetch"
+#: Waited on another caller's in-flight build and took its result.
+TIER_WAIT = "inflight-wait"
+
+
+def serve_with_tier(
+    stale: ServeStale,
+    key: str,
+    *,
+    fresh: Callable[[], Any],
+    build: Callable[[], Any],
+    good: Callable[[Any], bool],
+) -> tuple[Any, str, float | None]:
+    """`stale.serve(...)`, plus WHICH tier answered and the age of a stale
+    answer: `(value, tier, stale_age_seconds)`.
+
+    Observes the callbacks rather than changing `ServeStale`, so the ten
+    existing consumers are untouched. `stale_age_seconds` is set only for
+    `TIER_STALE` and is read from the slot the moment the TTL cache missed —
+    before the background refresh can overwrite it."""
+    caller = threading.get_ident()
+    seen = {"fresh_calls": 0, "fresh_hit": False, "built": False, "age": None}
+
+    def _fresh():
+        seen["fresh_calls"] += 1
+        value = fresh()
+        if value is not None:
+            seen["fresh_hit"] = True
+        elif seen["fresh_calls"] == 1:
+            _v, age = stale.peek(key)
+            seen["age"] = age
+        return value
+
+    def _build():
+        # The background refresh runs on its own thread; only a build on the
+        # CALLER's thread means this request paid for it.
+        if threading.get_ident() == caller:
+            seen["built"] = True
+        return build()
+
+    value = stale.serve(key, fresh=_fresh, build=_build, good=good)
+    if seen["built"]:
+        return value, TIER_BUILD, None
+    if seen["fresh_hit"]:
+        return value, TIER_FRESH, None
+    if seen["fresh_calls"] >= 2:
+        # Queued on the build lock and took the winner's freshly remembered
+        # payload — current, not stale.
+        return value, TIER_WAIT, None
+    return value, TIER_STALE, seen["age"]
+
+
+def server_timing(name: str, tier: str, dur_ms: float,
+                  stale_age_s: float | None = None) -> str:
+    """The `Server-Timing` value, in `/api/bars`' exact shape:
+    `<name>;desc="<tier>";dur=<ms>` plus a `stale-age;dur=<ms>` sub-metric
+    when a stale payload answered (bars adds phase sub-metrics the same way)."""
+    out = f'{name};desc="{tier}";dur={dur_ms:.1f}'
+    if tier == TIER_STALE and stale_age_s is not None:
+        out += f", stale-age;dur={stale_age_s * 1000.0:.0f}"
+    return out

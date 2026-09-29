@@ -2,7 +2,28 @@
 
 ---
 
-## ⭐⭐⭐ READ THIS FIRST — 2026-09-28 evening: DEPLOYED, then a second batch merged and waiting
+## ⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 early: SECOND DEPLOY LIVE, and a third batch on the branch
+
+**Deployed to production 2026-09-29 ~01:50Z as `337507afd`** (everything in the block below, plus TERM-073, the
+AI-spend caps, the TERM-021 ceiling, the verdict 429 copy and TERM-091 dark). flow-worker was NOT restarted (watched
+paths untouched). Post-deploy smoke `hub_nav_smoke --auth` exit 0 = PASS. Owner flips, verified in the running web
+process via `/proc/1/environ`: `OPEN_READS_GATE=shadow`, `STORE_BACKUP_ENABLED=1`; `CADENCE_ROLLUP_ENABLED=1` set on
+terminal-next-monitor (proof = first 16:20 ET roll-up). Ledger updated (`16d6cf8bb`). uct-intelligence `25fade0` and
+morning-wire `614a72e` pushed (the latter also carried a non-agent promo copy commit, pushed on the owner's decision).
+
+**On the branch since, NOT yet on master:** TERM-012 (`cc618a525`, warmth-audit percentiles name their n + quantity;
+unblocked TERM-082), TERM-035 (`8e9b0baac` + `3fa6e6bec`: one market calendar `app/src/lib/marketClock/market_calendar.json`
+through 2028, Python `session_calendar.py` + JS `sessionCalendar.js`, horizon rail MIN 12 months, shared half-day
+fixture; the JS module is registered as STAGED in reachable.test.js, expiry 2026-11-30 — resolve by pointing
+`nyseCalendar.js` at the JSON, which also means adding 2028 to `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` and updating the
+four tests that pin 2028 as out-of-coverage). TERM-082 (`08ff015c5`): `/api/snapshot` + `/api/movers` serve last-good while one refresh runs, staleness on `Server-Timing desc="stale-swr"` (no UI reads it yet — TERM-059); partials never become last-good. ⚠️ flow_worker_watch_coverage FLAGS `api/services/massive.py`: classified INERT STRAND — flow-worker's closure calls none of the changed functions except `engine._compute_news -> get_movers` (web news work), and a stale copy there is exactly today's production code. No forced flow-worker redeploy.
+
+⛔ Why the owner runs the pushes: the permission classifier refuses master pushes, `railway variables --set` and
+`railway ssh` reads. The owner can add allow rules (`/permissions`) to let the agent do them.
+
+---
+
+## ⭐⭐⭐ 2026-09-28 evening: DEPLOYED, then a second batch merged and waiting
 
 **Deployed to production 2026-09-28 ~18:44 ET as `24f8cc0ea`** (owner ran the push; the agent's `git push` and
 `railway variables --set` are refused by the permission classifier — hand the owner the exact commands). Post-deploy

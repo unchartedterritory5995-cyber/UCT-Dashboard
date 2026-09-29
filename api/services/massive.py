@@ -15,6 +15,7 @@ import httpx
 
 from api.services import yf_util
 from api.services.cache import cache
+from api.services.cache_policy import set_by_completeness
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
 
@@ -1902,8 +1903,36 @@ def get_snapshot() -> dict:
     futures = {"BTC": _make_entry(yf_snaps["BTC"]) if yf_snaps.get("BTC") else dict(_EMPTY)}
 
     data = {"futures": futures, "etfs": etfs}
-    cache.set("snapshot", data, ttl=15)
+    # cache_policy's rule (TERM-082): a snapshot with ANY leg unpriced is a
+    # partial — still served (the legs that did resolve are real), but on the
+    # short TTL so the missing leg self-heals fast, and `/api/snapshot`'s
+    # serve-stale slot never remembers it as the last-good fallback.
+    set_by_completeness("snapshot", data, complete=snapshot_complete(data),
+                        ttl_ok=SNAPSHOT_TTL, ttl_partial=SNAPSHOT_TTL_PARTIAL)
     return data
+
+
+#: `/api/snapshot`'s TTL. A partial (a leg priced "—") gets the short one.
+SNAPSHOT_TTL = 15
+SNAPSHOT_TTL_PARTIAL = 5
+
+
+def snapshot_complete(data: Any) -> bool:
+    """True when every leg of a `get_snapshot()` payload carries a price.
+
+    Derived from the payload's own legs — never a truthiness check on the
+    merged dict (cache_policy): a failed leg is `{"price": "—"}`, which is a
+    non-empty dict and would read as present."""
+    if not isinstance(data, dict):
+        return False
+    legs = [
+        *((data.get("etfs") or {}).values()),
+        *((data.get("futures") or {}).values()),
+    ]
+    if not legs:
+        return False
+    return all(isinstance(leg, dict) and leg.get("price") not in (None, "", "—")
+               for leg in legs)
 
 
 #: The gap that makes a stock a "mover", in percent, ABSOLUTE.
@@ -1923,7 +1952,21 @@ MOVER_THRESHOLD_PCT = 3.0
 
 
 def _fetch_finviz_movers_live() -> tuple[list, list]:
+    """(ripping, drilling) — see `_fetch_finviz_movers_checked`, which also
+    says whether the fetch actually succeeded. The 2-tuple shape is kept for
+    the callers and tests written against it."""
+    ripping, drilling, _ok = _fetch_finviz_movers_checked()
+    return ripping, drilling
+
+
+def _fetch_finviz_movers_checked() -> tuple[list, list, bool]:
     """Fetch current session top % movers from Finviz Elite screener.
+
+    The third element is True only when BOTH exports answered (TERM-082,
+    cache_policy's rule): a failed export parses to `[]`, which is
+    indistinguishable from a genuinely quiet tape unless the failure is
+    carried out beside the lists. A missing token is a failure, not a quiet
+    tape.
 
     Quality filters applied at URL level:
       sh_price_o5        = price > $5
@@ -1938,7 +1981,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
 
     token = os.environ.get("FINVIZ_API_KEY", "")
     if not token:
-        return [], []
+        return [], [], False
 
     _qf = "sh_price_o5,sh_avgvol_o300,sh_mktcap_smallover"
     _headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/csv"}
@@ -1953,6 +1996,8 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
     # 200.
     _qc = "1,2,66"
 
+    failed = {"n": 0}
+
     def _fetch_rows(order: str) -> list[dict]:
         url = (
             f"https://elite.finviz.com/export.ashx"
@@ -1964,6 +2009,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
             reader = csv.DictReader(io.StringIO(r.text))
             return list(reader)
         except Exception:
+            failed["n"] += 1
             return []
 
     # Keyword check on Company name — instant, no yfinance calls needed.
@@ -2008,7 +2054,7 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
         if len(drilling) >= 12:
             break
 
-    return ripping, drilling
+    return ripping, drilling, failed["n"] == 0
 
 
 def _build_movers_discovery() -> dict:
@@ -2032,7 +2078,7 @@ def _build_movers_discovery() -> dict:
         engine_drilling = [m for m in engine_drilling if not _is_leveraged_etf(m["sym"])]
 
     # Finviz Elite live screener — quality-filtered (price>$5, avgvol>300K, mktcap>$300M)
-    fv_ripping, fv_drilling = _fetch_finviz_movers_live()
+    fv_ripping, fv_drilling, fv_ok = _fetch_finviz_movers_checked()
 
     engine_syms_rip = {m["sym"] for m in engine_ripping}
     engine_syms_drl = {m["sym"] for m in engine_drilling}
@@ -2057,7 +2103,9 @@ def _build_movers_discovery() -> dict:
         ripping  = [m for m in ripping  if m["sym"] in cap_uni]
         drilling = [m for m in drilling if m["sym"] in cap_uni]
 
-    return {"ripping": ripping, "drilling": drilling}
+    # `complete` is internal to the movers cache layers (get_movers builds a
+    # fresh dict from the two lists and never returns this one).
+    return {"ripping": ripping, "drilling": drilling, "complete": fv_ok}
 
 
 def get_movers() -> dict:
@@ -2082,12 +2130,36 @@ def get_movers() -> dict:
     cached = cache.get("movers")
     if cached is not None:
         return cached
+    data, _complete = build_movers()
+    return data
 
-    # ── Layer 1: discovery (expensive — Finviz HTTP, cached 120s) ─────────────
+
+#: `/api/movers`' TTLs. A partial (a Finviz export or the Massive overlay
+#: failed) is still served, on the short TTL, and never remembered as the
+#: serve-stale fallback (cache_policy's rule, TERM-082).
+MOVERS_TTL = 30
+MOVERS_TTL_PARTIAL = 10
+MOVERS_DISCOVERY_TTL = 60
+MOVERS_DISCOVERY_TTL_PARTIAL = 15
+
+
+def build_movers() -> tuple[dict, bool]:
+    """Recompute the movers payload, write the TTL cache, and say whether it
+    is complete. Always computes the price layer — the caller has already
+    decided the cache missed (`get_movers` and `/api/movers`' serve-stale
+    slot are the two callers)."""
+    # ── Layer 1: discovery (expensive — Finviz HTTP, cached 60s) ──────────────
     discovery = cache.get("movers_discovery")
     if discovery is None:
         discovery = _build_movers_discovery()
-        cache.set("movers_discovery", discovery, ttl=60)
+        set_by_completeness(
+            "movers_discovery", discovery,
+            complete=bool(discovery.get("complete")),
+            ttl_ok=MOVERS_DISCOVERY_TTL, ttl_partial=MOVERS_DISCOVERY_TTL_PARTIAL,
+        )
+    # A discovery entry written before `complete` existed (a deploy carry-over
+    # via cache_snapshot) was cached as good by the old code — read it so.
+    complete = bool(discovery.get("complete", True))
 
     ripping  = list(discovery["ripping"])
     drilling = list(discovery["drilling"])
@@ -2099,6 +2171,7 @@ def get_movers() -> dict:
             live = _get_client().get_batch_snapshots(all_syms)
         except Exception:
             live = {}
+            complete = False
 
         def _apply_live(items: list, positive: bool) -> list:
             result = []
@@ -2134,5 +2207,6 @@ def get_movers() -> dict:
     drilling = sorted(drilling, key=_abs_pct, reverse=True)
 
     data = {"ripping": ripping, "drilling": drilling}
-    cache.set("movers", data, ttl=30)
-    return data
+    set_by_completeness("movers", data, complete=complete,
+                        ttl_ok=MOVERS_TTL, ttl_partial=MOVERS_TTL_PARTIAL)
+    return data, complete
