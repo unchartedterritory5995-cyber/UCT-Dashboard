@@ -384,3 +384,63 @@ describe('L3 R1: a calendar note chip is a 44 px finger target on the touch tier
     expect(lastDecl(old, '.chip', 'min-height', TOUCH)).toBeUndefined()
   })
 })
+
+// Wave 10 lane WK (proof walk wk-7bd834b9f, clause 6c). The find bar's OWN sibling
+// controls (`.navBtn`/`.closeBtn`/`.textBtn`) already floor to --tap-min at the touch
+// tier; the find input itself was the one left out -- measured 248x18 at 390 and
+// 195x18 at 820 (geometry sweep, `tag: INPUT`, `control: "Find in note"`, surface
+// ed-find). Below the product's own 24 px WCAG floor this file otherwise holds
+// everything to, not merely the stricter 44 px instrument reading.
+describe('WK: the Find-in-note input gets the same touch floor as its row-mates (NoteFindBar.module.css)', () => {
+  const find = rulesWithMedia(read(join(NB, 'NoteFindBar.module.css')))
+
+  it('the input floors to --tap-min at the touch tier, same as .navBtn/.closeBtn/.textBtn', () => {
+    expect(lastDecl(find, '.input', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+    expect(lastDecl(find, '.navBtn', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+    expect(lastDecl(find, '.closeBtn', 'min-height', TOUCH)).toBe('var(--tap-min, 44px)')
+  })
+
+  it('the floor is TOUCH-ONLY: no min-height on `.input` outside the touch query', () => {
+    const leaks = find.filter((r) => r.selector === '.input' && r.media !== TOUCH && r.decls.has('min-height'))
+    expect(leaks.map((r) => r.media || 'base')).toEqual([])
+  })
+
+  it("the phone query's `.input { width: 100% }` is untouched by the floor", () => {
+    expect(lastDecl(find, '.input', 'width', '(max-width: 640px)')).toBe('100%')
+  })
+
+  it('CONTROL: the measured declaration (font-size only, no min-height) fails the floor check', () => {
+    const old = rulesWithMedia(`@media (max-width: 1024px) { .input { font-size: 16px; } }`)
+    expect(lastDecl(old, '.input', 'min-height', TOUCH)).toBeUndefined()
+  })
+})
+
+// Wave 10 lane WK2 (proof walk wk-7bd834b9f, clause 6c -- two more sub-24px targets from the
+// same geometry.json the WK block above reads): the import wizard's "How do I get my export
+// file?" accordion toggle (195.4x23 at both 390 and 820) and the widget palette's "Close insert
+// panel" x (21.8x24 at 820 -- height already clears the floor, width did not).
+describe('WK2: the export-guide accordion toggle reaches 24px height (ImportWizard.module.css)', () => {
+  const wiz = rulesWithMedia(read(join(NB, 'import', 'ImportWizard.module.css')))
+
+  it('the accordion header has a 24px height floor outside any @media', () => {
+    expect(px(lastDecl(wiz, '.accordionHeader', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (padding only, no min-height) fails the floor check', () => {
+    const old = rulesWithMedia('.accordionHeader { padding: 4px 0; font-size: 13px; }')
+    expect(lastDecl(old, '.accordionHeader', 'min-height')).toBeUndefined()
+  })
+})
+
+describe('WK2: the widget palette head buttons reach 24px width (WidgetPalette.module.css)', () => {
+  const pal = rulesWithMedia(read(join(NB, 'WidgetPalette.module.css')))
+
+  it('"Close insert panel" (and its row-mate "‹ Back") get a 24px width floor', () => {
+    expect(px(lastDecl(pal, '.headBtn', 'min-width'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (padding only, no min-width) fails the floor check', () => {
+    const old = rulesWithMedia('.headBtn { padding: 4px 6px; font-size: 12px; }')
+    expect(lastDecl(old, '.headBtn', 'min-width')).toBeUndefined()
+  })
+})

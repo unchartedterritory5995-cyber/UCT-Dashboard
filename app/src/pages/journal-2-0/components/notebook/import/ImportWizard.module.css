@@ -109,6 +109,10 @@
   font-weight: 600;
   cursor: pointer;
   padding: 4px 0;
+  /* WK, proof walk wk-7bd834b9f (clause 6c): measured 195.4x23 at both 390 and
+     820 -- 1px short of the product's own 24px WCAG 2.5.8 floor
+     (a11y/targetFloors.test.js). */
+  min-height: 24px;
 }
 /* ── scanning / running steps ── */
 .scanningWrap,
