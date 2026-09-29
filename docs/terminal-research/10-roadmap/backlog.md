@@ -438,7 +438,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-088 | item 15 `ACC-02` | ⭐⭐ The decision record gets a member surface | M | d1 behind 023 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-089 | item 15 `ACC-10` | A replay surface for the Morning Wire payload archive | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-090 | item 15 `ACC-06` | The episodic-pivot base rate, beside the flag | S | d0 | tier 4 pref / 3 | Yes | BUILDABLE |
-| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ✅ BUILT `ffe8a3f40`, DARK (`EDU_CURRICULUM_ENABLED`) |
+| TERM-091 | item 15 `ACC-13` | Load `docs/curriculum/` into the shipped education store | M | d0 | **TIER-NONE** | Yes | ✅ BUILT `ffe8a3f40`, DARK (`EDU_CURRICULUM_ENABLED`) · ⭐ OWNER RULING 2026-09-29: show the text lessons (arm EDU_CURRICULUM_ENABLED) and credit NO third party — credits are still derived/stored internally but no read route returns them (`SHOW_THIRD_PARTY_CREDIT = False`). |
 | TERM-092 | CARD 27 | Re-time the wire missed-run watchdog past 09:30, + a rail | **XS** | d0 | tier 4 pref / 3 | Yes | ⛔ owner deploy |
 | TERM-093 | item 14 `WF-C13`/`WF-C09` | The "what else was open, named" capture | S | d0 | **TIER-NONE** | Yes | ⛔ owner subject |
 
