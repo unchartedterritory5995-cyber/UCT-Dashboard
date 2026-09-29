@@ -113,6 +113,8 @@ class EconService:
         self.ticks = 0
         self.booted = False
         self._last_cal = self._last_state = self._last_status = None
+        self._last_backup: Optional[int] = None
+        self.last_backup: Optional[dict] = None
         self.calendar_summary: dict = {}
         self.recent_jobs: deque = deque(maxlen=50)
         self._snapshot: dict = {"service": {"version": SERVICE_VERSION, "booted": False}}
@@ -234,10 +236,31 @@ class EconService:
                          f" error={secrets.redact(err)[:300]}" if err else "")
         if results or self._last_state is None or now - self._last_state >= STATE_EVERY_S:
             self._refresh_states(now)
+        self._maybe_backup(now)
         if results or self._last_status is None or now - self._last_status >= STATUS_EVERY_S:
             self._build_status(now)
             self._publish_meta(now)
         return results
+
+    def _maybe_backup(self, now: int) -> None:
+        """Daily verified online backup of econ.db (backup.py). Armed by ECON_BACKUP=1; never
+        blocks the loop on failure. Skipped while jobs are running only in the sense that it runs
+        between ticks (the SQLite online backup is consistent with the live writer anyway)."""
+        import os
+        if os.environ.get("ECON_BACKUP", "0") != "1":
+            return
+        path = getattr(self.store, "path", None)
+        if not path or path == ":memory:":
+            return
+        from . import backup
+        if self._last_backup is not None and now - self._last_backup < backup.BACKUP_EVERY_S:
+            return
+        self._last_backup = now
+        try:
+            self.last_backup = backup.run_backup(path, now)
+        except Exception as e:  # noqa: BLE001
+            self.last_backup = {"ok": False, "error": secrets.safe_exc(e)}
+            log.error("econ.service: backup failed: %s", self.last_backup["error"])
 
     def run_forever(self, max_ticks: Optional[int] = None) -> None:
         if not self.booted:
@@ -269,6 +292,8 @@ class EconService:
         snap = build_status(self.store, now, entries=self.entries(), started_at=self.started_at,
                             heartbeat_at=self.heartbeat_at, owner=self.owner, ticks=self.ticks,
                             recent_jobs=list(self.recent_jobs), calendar_summary=self.calendar_summary)
+        lb = self.last_backup or {}
+        snap["backup"] = {k: lb.get(k) for k in ("ok", "day", "bytes", "uploaded")} if lb else None
         with self._snapshot_lock:
             self._snapshot = snap
         self._last_status = now
