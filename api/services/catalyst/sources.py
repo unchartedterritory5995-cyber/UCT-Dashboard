@@ -384,47 +384,17 @@ def _pull_rss_signals() -> dict[str, list[dict]]:
 #   A1 (always-on): "what are today's top catalyst movers right now?"
 #   D1 (pre-market only): "biggest pre-market movers + why" — fires 4–9am ET
 
-# Extract `$TICKER` or bare uppercase 1-5 letter sequences treated as tickers.
-# Bare-word path requires a leading word boundary AND match against a
-# minimal common-words exclusion to avoid garbage like "USA" or "CEO".
-_DISCOVERY_TICKER_RE = re.compile(r"\$([A-Z]{1,5})\b|\b([A-Z]{2,5})\b")
-_NON_TICKER_WORDS = {
-    "USA", "CEO", "CFO", "COO", "ETF", "IPO", "FDA", "SEC", "USD", "EUR", "GBP",
-    "JPY", "CAD", "AUD", "AI", "ML", "EPS", "QOQ", "YOY", "AMC", "BMO", "RTH",
-    "NYSE", "PRE", "POST", "FED", "JPM", "GS", "EBIT", "EBITDA", "FY", "FQ",
-    "GAAP", "NON",
-}
-
-
 def _extract_tickers_from_text(text: str) -> set[str]:
-    """Pull plausible tickers from Perplexity prose. Cashtags trusted;
-    bare uppercase words filtered against a tiny stoplist."""
-    if not text:
-        return set()
-    tickers: set[str] = set()
-    for cashtag, bareword in _DISCOVERY_TICKER_RE.findall(text):
-        sym = cashtag or bareword
-        if not sym:
-            continue
-        sym = sym.upper()
-        if cashtag:  # trusted
-            tickers.add(sym)
-        elif sym not in _NON_TICKER_WORDS and 2 <= len(sym) <= 5:
-            tickers.add(sym)
-    # Drop the forex/crypto false-positives we already exclude elsewhere
-    tickers -= {"USD", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF", "CNY", "HKD", "NZD"}
-    # Bare-word guesses (no $) must be real cap-universe symbols — Perplexity
-    # prose is littered with AWS/EV/GMM-style non-tickers. Cashtags bypass
-    # this (explicit + trusted). Fail-open if the universe can't load.
-    try:
-        from api.services.catalyst import news_match
-        uni = news_match.universe_set()
-        if uni:
-            cashtags = {(c or "").upper() for c, _ in _DISCOVERY_TICKER_RE.findall(text) if c}
-            tickers = {t for t in tickers if t in cashtags or t in uni}
-    except Exception:
-        pass
-    return tickers
+    """Plausible tickers in Perplexity list-mode prose.
+
+    TERM-064: the ONE ticker resolver's DISCOVERY_PROSE context
+    (`api/services/ticker_resolver.py`) — cashtags trusted, bare uppercase words
+    against the cap universe and this pass's stop words (moved there verbatim,
+    with the forex codes derived from A8's M5 exclusions). A class share comes
+    back as `BRK-B`, never `BRK`.
+    """
+    from api.services import ticker_resolver
+    return set(ticker_resolver.resolve_tickers(text, ticker_resolver.DISCOVERY_PROSE))
 
 
 # List-mode system prompt for the discovery queries. The module default in

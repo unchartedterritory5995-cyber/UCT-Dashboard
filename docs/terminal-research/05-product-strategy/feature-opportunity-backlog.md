@@ -384,6 +384,7 @@ ARCH-07-OBS signals, which all belong to **S12** but read better together than s
 - **Depends on.** Nothing hard. `FB-S3-01` would make it resolve to an entity rather than a string, but the collapse is worth doing first.
 - **Anti-pattern risked.** **DOC-2** (a second authority over one value) is exactly what it closes. ⭐ F-01's structural fix applies: derive one from the other and **prove it by moving the source**, not by a comment claiming agreement.
 - **Known it worked.** An AST rail naming any second resolver, with a control; and a fixture ticker with a known-ambiguous resolution returns the same answer from all four former call sites.
+- ✅ **BUILT `b5bebfe12` (TERM-064, 2026-09-29, not pushed).** `api/services/ticker_resolver.py` holds `_extract_tickers`' precedence, one grammar, one universe and one spelling (`BRK-B`; the dot form only at `massive.to_polygon_symbol`). Stop words stay per input kind (member query, model prose, headline), moved into the authority verbatim. Three of the four families delegate (AI Search, catalyst discovery, RSS headlines); the tweet ingest reads A8's M5 grammar (TERM-075) and is a recorded follow-up. Rails: `tests/test_ticker_resolver.py`. Evidence: `10-roadmap/evidence/2026-09-29-term064/results.md`.
 
 #### FB-S2-03 — A published address space: saved things become names
 - **Statement.** Every saved object — board, screen, watchlist, definition, note, chart — gets a stable name that is typeable in the palette and resolvable anywhere, and the address set is generated from the object registries.
