@@ -2,7 +2,7 @@
   "measured_at": "2026-09-28",
   "scripts": 266,
   "host_ok": 46,
-  "screener_ok": 52,
+  "screener_ok": 53,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -276,14 +276,12 @@
     {
       "file": "auto-trendline-dojiemoji__c21f83602c.pine",
       "host": false,
-      "screener": false,
+      "screener": true,
       "hostGuards": [
-        "pine:state",
-        "pine:roundtrip"
+        "pine:state"
       ],
       "screenerGuards": [
-        "pine:state",
-        "pine:roundtrip"
+        "pine:state"
       ]
     },
     {
@@ -941,13 +939,13 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function-def",
         "pine:cycle",
+        "pine:function-def",
         "pine:state"
       ],
       "screenerGuards": [
-        "pine:function-def",
         "pine:cycle",
+        "pine:function-def",
         "pine:state"
       ]
     },
@@ -1555,11 +1553,11 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:function-def",
+        "pine:builtin",
         "pine:function"
       ],
       "screenerGuards": [
-        "pine:function-def",
+        "pine:builtin",
         "pine:function"
       ]
     },
@@ -1864,11 +1862,11 @@
       "screener": false,
       "hostGuards": [
         "pine:declaration-strategy",
-        "pine:function-def"
+        "pine:state"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
-        "pine:function-def"
+        "pine:state"
       ]
     },
     {
@@ -2010,11 +2008,13 @@
       "screener": true,
       "hostGuards": [
         "pine:text-value",
-        "pine:function-def"
+        "pine:request",
+        "pine:tuple"
       ],
       "screenerGuards": [
         "pine:text-value",
-        "pine:function-def"
+        "pine:request",
+        "pine:tuple"
       ]
     },
     {
@@ -2733,10 +2733,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:function-def"
+        "pine:role-order"
       ],
       "screenerGuards": [
-        "pine:function-def"
+        "pine:role-order"
       ]
     },
     {

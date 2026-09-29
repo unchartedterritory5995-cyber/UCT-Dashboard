@@ -4991,6 +4991,23 @@ function barOffsetNode(child, n, table, tok, wrote) {
   // `try { … } catch`: the canonical vocabulary is a value this module can read,
   // so "does the engine have a bar offset" is answered by the engine.
   if (NODE_TYPES.includes('offset')) {
+    // ⭐⭐ 2026-09-28 — AN OFFSET OF AN OFFSET IS ONE OFFSET: `(x[m])[n]` IS
+    // `x[m + n]` at every bar, NaN prefix and lookback included, for ANY series
+    // `x`. Pine writes it through a name all the time —
+    //
+    //     h = request.security(syminfo.tickerid, 'D', high[1], …)
+    //     plot(h, color = h == nz(h[1]) ? color.new(color.green, 10) : na)
+    //
+    // — and the canonical grammar has exactly ONE spelling for it (`parse.js`
+    // refuses `x[m][n]` as `canonicalise:offset-chained`, so the tree keeps one
+    // `astHash`). ⚰️ This emitted the chain anyway, the round trip refused it,
+    // and the whole colour rule fell back to "dynamic": Ultimate Pivot Points'
+    // PD_H/PD_L drew the pane's gold on 631 bars where TradingView drew nothing
+    // (vendor harness, RDDT 1D 2026-09-28), and a plain `plot(h == h[1] ? 1 : 0)`
+    // refused outright.
+    if (child && child.type === 'offset' && Number.isInteger(child.value) && Array.isArray(child.args) && child.args.length === 1) {
+      return { type: 'offset', value: child.value + n, args: child.args }
+    }
     return { type: 'offset', value: n, args: [child] }
   }
 
@@ -5375,6 +5392,15 @@ export class Resolver {
      *  .md` §1 corrects. See `resolveInput`'s own comment for why it is keyed
      *  on the ORIGINAL CALL NODE'S IDENTITY rather than on `boundName`. */
     this.paramMint = opts.paramMint || null
+    /** ⭐ 2026-09-28 (owner ruling 1) — A RECORDER, `null` for every walk but one.
+     *  `constantColourSelector` sets a Set here while it asks whether a colour
+     *  conditional's selector is a translation-time constant, and `resolveInput`
+     *  adds the bound name of every numeric input the question reached. A selector
+     *  that reads one reads a KNOB — the member can turn it, in whichever lane
+     *  holds it (a declared identifier, a Track F literal, a re-translation with
+     *  `inputValues`) — so it is never folded to its default: the colour rule
+     *  carries it and the chart evaluates it against the knob's current value. */
+    this.knobReads = null
     /** name → the binding it holds after the WHOLE program walk. Read only by
      *  the `[n]` guard, which needs to know whether a read of a reassigned name
      *  is the last word on it. */
@@ -9653,6 +9679,11 @@ export class Resolver {
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
     }
+    // ⭐ 2026-09-28 — see `knobReads`. Recorded before any refusal below, so a
+    // question that reaches a knob says so even when the knob cannot resolve.
+    if (this.knobReads && NUMERIC.has(kind) && typeof node.boundName === 'string') {
+      this.knobReads.add(node.boundName)
+    }
     if (!NUMERIC.has(kind)) {
       const why = RETIRED_INPUT_KIND[kind]
       throw new PineRefusal('pine:input-kind',
@@ -11774,12 +11805,15 @@ function trailingDeclarationName(stmts) {
   return nameTok.value
 }
 
-function foldStatements(stmts, ctx, env, trace = null) {
+function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = false } = {}) {
   let value = null
   // ⭐ WHETHER `value` CAME FROM THE LAST STATEMENT — see the function-def
   // branch's stale-value guard. False after any statement that sets no value.
   let fresh = false
   let i = 0
+  // The index of the body's LAST statement — a blank header is not one.
+  let lastStatement = stmts.length - 1
+  while (lastStatement >= 0 && !(stmts[lastStatement].header || [])[0]) lastStatement -= 1
   /** ⭐⭐ R2 STEP 1 — THE WALK RECORDS WHAT IT BOUND, PER STATEMENT.
    *  `ctx.bindingByStatement` is the object pass's ONLY source for a block
    *  local's value. See `scopeFor`'s header for the defect this replaces. */
@@ -11952,6 +11986,26 @@ function foldStatements(stmts, ctx, env, trace = null) {
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
       record(st, nameTok.value)
+      // ⭐⭐ 2026-09-28 — A DECLARATION THAT ENDS A FUNCTION BODY IS ITS VALUE.
+      // Pine returns the value of a body's LAST statement, and a declaration's
+      // value is the value it declares:
+      //
+      //     maColor(_ma, _maRef) =>
+      //         diffMA = change(_ma)
+      //         macol = diffMA>=0 and _ma>_maRef ? LIME : … : GRAY     ← returned
+      //
+      // ⚰️ This walk kept `value` only for a BARE trailing expression, so that
+      // function was refused as "ends in no value this engine can read" — and
+      // Madrid Moving Average Ribbon's eighteen lines, every one coloured through
+      // it, drew in the pane's gold where TradingView drew lime/maroon/red/
+      // green/gray (vendor harness, RDDT 1D 2026-09-28: 628 of 632 bars on MMA05).
+      // ⛔ ONLY the LAST statement. An earlier declaration is a local, never the
+      // value, and a later bare expression still overrides it as before.
+      // ⛔ ONLY A FUNCTION BODY (`declarationIsValue`, passed by the `=>` walk
+      // alone). That is where TradingView's answer was MEASURED; an `if`/`switch`
+      // arm ending in a declaration keeps refusing at `pine:block` until a
+      // capture says what the vendor does there.
+      if (declarationIsValue && i === lastStatement) { value = env.get(nameTok.value); fresh = true }
       i += 1
       continue
     }
@@ -14519,7 +14573,7 @@ function translatePineResult(source, opts = {}) {
         const beforeFn = new Map(fnEnv)
         const bodyTrace = {}
         let value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace)
+          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace, { declarationIsValue: true })
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
         // ⭐ A BODY WHOSE LAST STATEMENT IS A DECLARATION RETURNS WHAT IT DECLARES
         // — see `trailingDeclarationName`. The binding read here is the one the
@@ -15223,7 +15277,7 @@ function translatePineResult(source, opts = {}) {
         // ⭐⭐ WAVE B: what the AUTHOR said this output should look like.
         // ⭐ C1-A: the env and this output's resolver, so a colour CONDITION can
         // be resolved into a real tree here rather than guessed at downstream.
-        presentation: outputPresentation(args, { env, resolver, kind: out.kind }),
+        presentation: displacedPresentation(outputPresentation(args, { env, resolver, kind: out.kind }), shift),
         // ⭐ THE HANDLE TRAVELS WITH THE ROW so a hidden column can be labelled by the
         // name its author gave it (`mPlot`) rather than by the SCRIPT's title, which is
         // the label that made this a mistranslation in the first place.
@@ -15244,6 +15298,12 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ 2026-09-28 — A RIGHTWARD DISPLACEMENT'S SIZE, for a reader that must
+      // tell `plot(x, offset = N)` from `plot(x[N])`: the tree is identical, and
+      // TradingView exports the first UNSHIFTED (the vendor harness, `leadBy`).
+      // Non-enumerable like `_bareRole`: a hand-off, not part of the row's shape,
+      // so no digest and no persisted copy sees it.
+      if (shift > 0) Object.defineProperty(row, '_treeShift', { value: shift, enumerable: false })
       // ⭐ 2026-09-26 — A LEFTWARD DISPLACEMENT'S RELATION TO ITS INPUT, for the
       // chart door (`memberPaneDefinition`) to carry onto the saved plot so a
       // definition-parameter edit moves the drawing too. Non-enumerable, like
@@ -16066,6 +16126,16 @@ export function colourHexByName(name, version) {
   return pineColourHex(name, version)
 }
 
+/** The DEFAULT a generic `input(…)` call carries: `defval =` when named, else
+ *  the first positional argument. Undefined when there is none. */
+function inputDefaultNode(node) {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  if (named) return named.value
+  const first = args.find((a) => a && !a.name)
+  return first ? first.value : undefined
+}
+
 const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
 const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
 
@@ -16075,6 +16145,149 @@ const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
 // `hline` produced an empty level list while the code looked correct. Read
 // `parsePrimary`: `{ type: 'number' }`, `{ type: 'string' }`, `{ type: 'colour' }`.
 const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
+
+/** ⭐⭐ 2026-09-28 (OWNER RULING 1) — A COLOUR TERNARY WHOSE SELECTOR IS A
+ *  TRANSLATION-TIME CONSTANT IS THE BRANCH IT TAKES. Returns the node the chain
+ *  settles on (the first node that is not a constant-selected ternary), or `node`
+ *  itself when nothing folds.
+ *
+ *  ⭐ THE RULING, VERBATIM IN SPIRIT: our chart draws what TradingView draws for
+ *  the same script at its DEFAULT settings. Artemis Oscillator Pro colours seven
+ *  plots through `themeChoice == "Aurora" ? … : themeChoice == "Ember" ? … : …`
+ *  over an `input.string`, and TradingView drew the Aurora branch where we drew
+ *  the pane's gold on every bar. `input.string` has no knob in this product —
+ *  the Resolver reads its default (`stringValueOf`) and nothing can override it —
+ *  so its default IS the only value the chart will ever have, and the branch it
+ *  selects is the colour.
+ *
+ *  ⛔⛔ A SELECTOR THAT READS A KNOB IS NEVER FOLDED, and that is the half of the
+ *  ruling that keeps the member's settings live. A numeric/bool input the member
+ *  can turn (a declared identifier on the member door, a Track F literal, a
+ *  re-translation with `inputValues`) is detected by the Resolver's own
+ *  `knobReads` recorder while the selector is resolved; the conditional is then
+ *  left to the colour RULE, which the chart evaluates against the knob's current
+ *  value. Folding it here would freeze the author's default into a colour the
+ *  member's control no longer moves — the half-applied trap.
+ *
+ *  ⛔ THE SELECTOR IS ASKED OF THE RESOLVER — `constantBranchOf`'s question — so
+ *  "constant" means exactly what it means everywhere else in this file (a string
+ *  comparison, a literal, a fold). And the question is SIDE-EFFECT FREE: nothing
+ *  is minted (`paramMint` withheld, R36), no note is written, and the input and
+ *  window records it may touch are restored, because a question about a colour
+ *  must not change which knobs the document declares.
+ *
+ *  ⭐ A `na` SELECTOR TAKES THE ELSE BRANCH — owner ruling 2, Pine's rule. `NaN`
+ *  is falsy, so `test.value ? yes : no` already answers it that way.
+ *
+ *  Only when the caller opted in (`ctx.foldSelectors`, a shared counter the
+ *  caller reads afterwards to learn that a fold happened). */
+function constantColourSelector(node, env, ctx) {
+  const r = ctx && ctx.resolver
+  if (!r || !ctx.foldSelectors || !node || node.type !== 'ternary') return node
+  let cur = node
+  // ⛔ BOUNDED: an `a ? x : b ? y : …` chain is folded iteratively, so a theme
+  // chain eleven arms deep does not spend the walkers' depth budget of eight.
+  for (let k = 0; k < 64 && cur && cur.type === 'ternary'; k += 1) {
+    const used = new Map(r.usedInputs)
+    const win = new Set(r.windowBoundInputs)
+    const disp = new Set(r.displacementBoundInputs)
+    const minted = r.paramMint
+    const sink = r.noteSink
+    const prevEnv = r.env
+    const prevKnobs = r.knobReads
+    const knobs = new Set()
+    let test = null
+    r.paramMint = null
+    r.noteSink = () => {}
+    r.knobReads = knobs
+    try {
+      if (ctx.inline) test = r.resolveInFrame(ctx.inline, cur.test)
+      else {
+        if (env) r.env = env
+        test = r.resolve(cur.test)
+      }
+    } catch {
+      test = null
+    } finally {
+      r.env = prevEnv
+      r.paramMint = minted
+      r.noteSink = sink
+      r.knobReads = prevKnobs
+      r.usedInputs.clear()
+      for (const [k2, v] of used) r.usedInputs.set(k2, v)
+      r.windowBoundInputs.clear()
+      for (const v of win) r.windowBoundInputs.add(v)
+      r.displacementBoundInputs.clear()
+      for (const v of disp) r.displacementBoundInputs.add(v)
+    }
+    if (!test || test.type !== 'num' || knobs.size) break
+    ctx.foldSelectors.n += 1
+    cur = test.value ? cur.yes : cur.no
+  }
+  return cur
+}
+
+/** The node a colour expression SETTLES on once its names are followed and its
+ *  constant selectors folded (`constantColourSelector`) — bounded. Used to tell
+ *  "the default's branch is `na`" (the absent colour) from "a colour this door
+ *  cannot say". */
+function settledColourNode(node, env, ctx) {
+  let cur = node
+  let e = env
+  for (let k = 0; k < 32 && cur; k += 1) {
+    if (cur.type === 'name') {
+      const b = e && typeof e.get === 'function' ? e.get(cur.name) : null
+      if (!b || b.kind !== 'expr') break
+      cur = b.node
+      e = b.env || e
+      continue
+    }
+    if (cur.type !== 'ternary') break
+    const taken = constantColourSelector(cur, e, ctx)
+    if (taken === cur) break
+    cur = taken
+  }
+  return cur
+}
+
+/** ⭐⭐ 2026-09-28 (OWNER RULING 2) — AN `na` SELECTOR TAKES THE ELSE BRANCH.
+ *
+ *  Pine's rule for a colour conditional: when the condition is `na`, the result
+ *  is the else branch. This engine's `?:` answers NaN for a NaN test
+ *  (`interpret.js::TERNARY`, shared by the runtime VM), so a palette's index
+ *  column went NaN on every bar a selector was `na` and the binder drew the
+ *  series colour there — a colour neither the script nor TradingView chose.
+ *
+ *  ⭐ THE FIX IS ONE OPERATOR THIS TABLE ALREADY OWNS: a selector `t` becomes
+ *  `t != 0`, and `!=` is a comparison, and a comparison against NaN answers 0
+ *  (`cmp` — the NaN rule both kernels pin). So a `na` selector reads false and
+ *  the else branch is taken; a known one reads exactly as before. No new node,
+ *  no new function, no second arithmetic.
+ *
+ *  ⛔ ONLY THE SELECTION SPINE — the tests of the `?:` chain that picks the
+ *  palette entry, never a ternary nested inside a test (that is a VALUE, and its
+ *  semantics are the value lane's). ⛔ And only where the selector CAN be `na`:
+ *  a comparison, a literal, and `!`/`&&`/`||` over those can never be NaN, so a
+ *  rule made of them keeps its formula byte for byte. */
+function naSelectorTakesElse(ast) {
+  const CMP = new Set(['>', '<', '>=', '<=', '==', '!='])
+  const neverNa = (n, depth = 0) => {
+    if (!n || depth > 64) return false
+    if (n.type === 'num') return Number.isFinite(n.value)
+    if (n.type !== 'op') return false
+    if (CMP.has(n.name)) return true
+    if (n.name === '!' || n.name === '&&' || n.name === '||' || n.name === '?:') {
+      return (n.args || []).every((a) => neverNa(a, depth + 1))
+    }
+    return false
+  }
+  const spine = (n, depth = 0) => {
+    if (!n || depth > 64 || n.type !== 'op' || n.name !== '?:' || !Array.isArray(n.args) || n.args.length !== 3) return n
+    const [t, a, b] = n.args
+    return cOp('?:', [neverNa(t) ? t : cOp('!=', [t, cNum(0)]), spine(a, depth + 1), spine(b, depth + 1)])
+  }
+  return spine(ast)
+}
 
 /** The presentation ONE output call declares. Returns only what was actually
  *  written — an absent argument is absent, never a default invented here, so a
@@ -16087,6 +16300,11 @@ const numberValue = (v) => (v && v.type === 'number' ? Number(v.value) : null)
  *  plain `color=` can never disagree about what counts as a colour. */
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is its branch.
+  if (node.type === 'ternary') {
+    const taken = constantColourSelector(node, env, ctx)
+    return taken !== node ? staticColourOf(taken, env, depth + 1, ctx) : null
+  }
   if (node.type === 'name') {
     // ⭐⭐ R35c — A PARAMETER IS THE CALLER'S ARGUMENT, read from the frame this
     // walk pushed. The frame entry is `{kind:'expr', node, env}` — the SAME
@@ -16141,6 +16359,20 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   // the value without claiming the control.
   if (node.type === 'call' && node.name === 'input.color') {
     return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+  }
+  // ⭐⭐ 2026-09-28 — v4's `input(<colour>, type = input.color)` IS THE SAME PICKER.
+  // Before `input.color` existed, a colour input was the generic `input()` whose
+  // DEFAULT is a colour (v4 infers the type from it, and `type = input.color`
+  // only says so out loud). Its default is a static colour exactly as
+  // `input.color`'s is. ⚰️ Measured against TradingView (vendor harness, RDDT 1D
+  // 2026-09-28): Liquidation Levels colours its ten lines `color = c_x1` …
+  // `c_x5`, each `input(color.aqua, …, type = input.color)`, and all ten drew in
+  // the pane's gold where TradingView drew aqua/lime/yellow/orange/red.
+  // ⛔ ONLY a default that IS a colour: `input(14)` or `input(close)` answers
+  // null here because its first argument folds to no colour — this reads the
+  // value, it never guesses a type.
+  if (node.type === 'call' && node.name === 'input') {
+    return staticColourOf(inputDefaultNode(node), env, depth + 1, ctx)
   }
   if (node.type === 'call' && node.name === 'color.new') {
     // ⛔⛔ A DYNAMIC TRANSPARENCY MAKES THE WHOLE COLOUR DYNAMIC.
@@ -16234,9 +16466,19 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
     return bound && bound.kind === 'expr'
       ? colourHelperAlpha(bound.node, bound.env || env, ctx, depth + 1) : null
   }
+  // ⭐ 2026-09-28 (ruling 1) — the same door `staticColourOf` opens, so a
+  // constant-selected branch keeps its own transparency.
+  if (node.type === 'ternary') {
+    const taken = constantColourSelector(node, env, ctx)
+    return taken !== node ? colourHelperAlpha(taken, env, ctx, depth + 1) : null
+  }
   if (node.type !== 'call') return null
   if (node.name === 'input.color') {
     return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+  }
+  // The v4 generic `input(<colour>)` — the same door `staticColourOf` opens.
+  if (node.name === 'input') {
+    return colourHelperAlpha(inputDefaultNode(node), env, ctx, depth + 1)
   }
   // ⭐ R35c — THE SAME DOOR THE COLOUR WENT THROUGH. A helper whose colour folds
   // but whose transparency does not would render Clouds' twenty bands at one flat
@@ -16513,18 +16755,21 @@ function openColourHelper(node, env, ctx) {
  */
 /** How many DISTINCT static colours a nested colour conditional wants, or 0 when
  *  any leaf is not a static colour. Bounded like every other chase here. */
-function staticColourArity(node, env, depth = 0, seen = new Set()) {
+function staticColourArity(node, env, depth = 0, seen = new Set(), ctx = null) {
   if (!node || depth > 8) return 0
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
-    if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen)
+    if (b && b.kind === 'expr') return staticColourArity(b.node, b.env || env, depth + 1, seen, ctx)
   }
   if (node.type === 'ternary') {
-    const y = staticColourArity(node.yes, env, depth + 1, seen)
-    const n = staticColourArity(node.no, env, depth + 1, seen)
+    // ⭐ 2026-09-28 (ruling 1) — a constant-selected branch counts as ONE leaf.
+    const taken = constantColourSelector(node, env, ctx)
+    if (taken !== node) return staticColourArity(taken, env, depth + 1, seen, ctx)
+    const y = staticColourArity(node.yes, env, depth + 1, seen, ctx)
+    const n = staticColourArity(node.no, env, depth + 1, seen, ctx)
     return (y && n) ? seen.size : 0
   }
-  const hex = staticColourOf(node, env)
+  const hex = staticColourOf(node, env, 0, ctx)
   if (!hex) return 0
   seen.add(hex)
   return seen.size
@@ -16544,22 +16789,59 @@ function staticColourArity(node, env, depth = 0, seen = new Set()) {
  * — which the resolver already canonicalises like any other series, so the chain
  * becomes one hidden column and `colorPalette[column[i]]` is the bar's colour.
  *
- * ⛔ EVERY LEAF A STATIC COLOUR OR NOTHING. One leaf this grammar cannot fold
- * (a gradient, a series alpha, `na`) and the whole chain declines — carrying the
+ * ⛔ EVERY LEAF A STATIC COLOUR, `na`, OR NOTHING. One leaf this grammar cannot
+ * fold (a gradient, a series alpha) and the whole chain declines — carrying the
  * readable branches would paint the unreadable ones a neighbour's colour.
  * ⛔ A NAME BOUND TO A TERNARY IS INLINED, never handed to the resolver as a
  * name: resolved as written, `iff_2` is a COLOUR expression and the index tree
  * would carry the colour, not its position.
- * ⚠️ One opacity for the whole palette, the same rule the two-colour path keeps:
- * leaves that disagree on alpha carry no alpha rather than one leaf's.
+ *
+ * ⭐⭐ 2026-09-28 — `na` IS A LEAF, AND IT IS A TRANSPARENT ONE. Pine draws nothing
+ * where a plot's colour is `na` (`cond ? color.green : na` shows the line only
+ * while `cond` holds). That was declined as "no per-point visibility for a
+ * line" — but a per-point colour whose alpha is 0 IS per-point visibility, and
+ * the palette already carries a colour per point. Measured against TradingView
+ * (vendor harness, RDDT 1D 2026-09-28): Ultimate Pivot Points' three
+ * `x == nz(x[1]) ? color.new(c, 10) : na` lines and Zero-Lag MA's
+ * `up : dn : na` chain drew in the pane's gold where TradingView drew green,
+ * red or orange at 90% — and drew a line where TradingView drew none.
+ * ⛔ A chain of ONLY `na` leaves carries nothing (it is a hidden plot, not a
+ * colour rule) and declines.
+ *
+ * ⭐⭐ 2026-09-28 — AND EACH ENTRY KEEPS ITS OWN ALPHA. When every colour leaf
+ * agrees on one transparency it rides the plot's `opacity`, exactly as before;
+ * when they DISAGREE, the alpha is baked into that entry (`rgba(…)`, which
+ * `pool.paletteOf` and `designTokens.withAlpha` already read), instead of the
+ * whole palette being drawn opaque. ⚰️ Measured: Momentum Volatility Scanner's
+ * histogram (`weakUp = input.color(color.new(#81C784, 40))` beside opaque
+ * `upMomentum`) drew `#81c784ff` where TradingView drew `#81c78499` on 532 bars.
+ * Two leaves with one hex and two alphas are two entries, never one.
  */
-function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas: [] }) {
+const TRANSPARENT_PALETTE_ENTRY = 'rgba(0, 0, 0, 0)'
+const isNaColourLeaf = (n) => !!n && ((n.type === 'name' && n.name === 'na')
+  || (n.type === 'call' && n.name === 'na'))
+
+/** `#RRGGBB` at alpha `a` (0..1) → `rgba(r, g, b, a)`; null for anything else. */
+function paletteEntryWithAlpha(hex, a) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex))
+  if (!m || !Number.isFinite(a)) return null
+  const ch = [m[1], m[2], m[3]].map((x) => parseInt(x, 16))
+  return `rgba(${ch[0]}, ${ch[1]}, ${ch[2]}, ${Math.round(a * 1e4) / 1e4})`
+}
+
+function colourIndexChain(node, env, ctx, depth = 0, acc = { entries: [], keys: [] }) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
     const b = env && typeof env.get === 'function' ? env.get(node.name) : null
     if (b && b.kind === 'expr' && b.node && b.node.type === 'ternary') {
       return colourIndexChain(b.node, b.env || env, ctx, depth + 1, acc)
     }
+  }
+  // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is ONE leaf, its
+  // branch; only the selectors that vary bar to bar (or read a knob) index.
+  if (node.type === 'ternary') {
+    const taken = constantColourSelector(node, env, ctx)
+    if (taken !== node) return colourIndexChain(taken, env, ctx, depth + 1, acc)
   }
   if (node.type === 'ternary') {
     const yes = colourIndexChain(node.yes, env, ctx, depth + 1, acc)
@@ -16568,12 +16850,33 @@ function colourIndexChain(node, env, ctx, depth = 0, acc = { palette: [], alphas
     if (!no) return null
     return { tree: { ...node, yes: yes.tree, no: no.tree }, acc }
   }
-  const hex = staticColourOf(node, env, 0, ctx)
-  if (!hex) return null
-  let idx = acc.palette.indexOf(hex)
-  if (idx < 0) { idx = acc.palette.length; acc.palette.push(hex) }
-  acc.alphas.push(colourHelperAlpha(node, env, ctx))
+  let entry
+  if (isNaColourLeaf(node)) {
+    entry = { na: true, key: 'na' }
+  } else {
+    const hex = staticColourOf(node, env, 0, ctx)
+    if (!hex) return null
+    const alpha = colourHelperAlpha(node, env, ctx)
+    entry = { hex, alpha, key: `${hex}@${alpha}` }
+  }
+  let idx = acc.keys.indexOf(entry.key)
+  if (idx < 0) { idx = acc.keys.length; acc.keys.push(entry.key); acc.entries.push(entry) }
   return { tree: { type: 'number', value: idx }, acc }
+}
+
+/** A finished chain's `acc` → `{palette, opacity}`, or null when no entry is a
+ *  colour. See `colourIndexChain` for the alpha rule. */
+function chainPalette(acc) {
+  const colours = acc.entries.filter((e) => !e.na)
+  if (!colours.length || acc.entries.length < 2) return null
+  const a0 = colours[0].alpha
+  const agree = colours.every((e) => e.alpha === a0)
+  const palette = acc.entries.map((e) => {
+    if (e.na) return TRANSPARENT_PALETTE_ENTRY
+    if (agree || e.alpha === null || e.alpha >= 1) return e.hex
+    return paletteEntryWithAlpha(e.hex, e.alpha) || e.hex
+  })
+  return { palette, opacity: agree && a0 !== null ? a0 : null }
 }
 
 function colourConditional(node, env, depth = 0, ctx = null) {
@@ -16585,7 +16888,42 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     }
     return null
   }
+  // ⭐⭐ 2026-09-28 — A USER COLOUR HELPER WHOSE TAIL IS A CONDITIONAL IS OPENED,
+  // and its conditional carried exactly as if it were written inline.
+  //
+  // ⚰️ MEASURED against TradingView (vendor harness, RDDT 1D, 2026-09-28):
+  // Madrid Moving Average Ribbon colours all eighteen of its lines through
+  //
+  //     maColor(_ma, _maRef) =>
+  //         diffMA = change(_ma)
+  //         macol = diffMA>=0 and _ma>_maRef ? LIME : … : GRAY
+  //
+  // and every one drew in the pane's gold — 628 of 632 bars wrong on MMA05 —
+  // because this walker followed a NAME to its ternary but stopped at a CALL.
+  // `staticColourOf` has opened helpers since R35c; only the conditional reader
+  // was missing the same step.
+  //
+  // ⛔ THE CONDITION RESOLVES IN THE HELPER'S FRAME, via `Resolver.resolveInFrame`
+  // — the one substitution mechanism in this file — so `_ma`, `_maRef` and the
+  // local `diffMA` read what the CALL passed. The answer carries its `inline`
+  // frame for `outputPresentation` to hand back to the resolver.
+  // ⛔ ONE LEVEL. A helper met while already inside one declines (`resolveInFrame`
+  // pushes exactly one frame), rather than resolving the inner condition against
+  // the outer call's arguments.
+  if (node.type === 'call') {
+    if (ctx && ctx.inline) return null
+    const helper = openColourHelper(node, env, ctx)
+    if (!helper) return null
+    const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
+    return inner ? { ...inner, inline: helper.inline, withholdMint: true } : null
+  }
   if (node.type !== 'ternary') return null
+  // ⭐ 2026-09-28 (ruling 1) — a constant-selected conditional is the conditional
+  // (or colour) its branch is.
+  {
+    const taken = constantColourSelector(node, env, ctx)
+    if (taken !== node) return colourConditional(taken, env, depth + 1, ctx)
+  }
   const up = staticColourOf(node.yes, env, 0, ctx)
   const down = staticColourOf(node.no, env, 0, ctx)
   if (!up || !down) {
@@ -16602,23 +16940,31 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     // is measured per output rather than estimated once.
     // ⭐ `cond ? <colour> : na` IS A VISIBILITY GATE WEARING A COLOUR ARGUMENT,
     // and it is the single largest uncarried class in the corpus. Pine hides the
-    // plot on those bars; this schema has no per-point visibility for a line, and
-    // carrying only the INNER colour would draw a line exactly where the author
-    // hid one — a confident wrong picture, which is worse than declining.
-    // Reported under its own name so the gap register can carry the capability
-    // rather than the symptom.
-    const isNa = (n) => !!n && ((n.type === 'name' && n.name === 'na')
-      || (n.type === 'call' && n.name === 'na'))
-    if (isNa(node.yes) || isNa(node.no)) return { naGated: true }
-    const arity = staticColourArity(node, env)
+    // plot on those bars. Carrying only the INNER colour would draw a line exactly
+    // where the author hid one — a confident wrong picture — so it was declined
+    // as `naGated`.
+    // ⭐⭐ 2026-09-28 — NOW CARRIED, because `na` is a TRANSPARENT palette entry
+    // (`colourIndexChain`): the line is drawn in the author's colour where the
+    // condition holds and in nothing where it does not. `naGated` remains the
+    // answer only for a gate whose other leaves this grammar cannot read.
+    const hasNa = isNaColourLeaf(node.yes) || isNaColourLeaf(node.no)
+    // ⛔ The context reaches the arity count ONLY on the ruling-1 pass: counted
+    // with it, a helper leaf becomes countable and the legacy pass would start
+    // carrying (and minting for) chains it has never carried.
+    const arity = staticColourArity(node, env, 0, new Set(), ctx && ctx.foldSelectors ? ctx : null)
     // ⭐⭐ …AND NOW CARRIED: see `colourIndexChain`. The arity stays on the
     // answer so a chain the RESOLVER then refuses still reports its size.
-    const chain = arity > 2 ? colourIndexChain(node, env, ctx) : null
-    if (chain && chain.acc.palette.length >= 2) {
-      const al = chain.acc.alphas
-      const opacity = (al.length && al.every((x) => x !== null && x === al[0])) ? al[0] : null
-      return { arity, indexTree: chain.tree, palette: chain.acc.palette, opacity }
+    const chain = (arity > 2 || hasNa || (!up !== !down)) ? colourIndexChain(node, env, ctx) : null
+    const pal = chain ? chainPalette(chain.acc) : null
+    if (pal) {
+      return {
+        arity: pal.palette.length, indexTree: chain.tree, palette: pal.palette, opacity: pal.opacity,
+        // A chain that carries only because `na` became an entry is new — see
+        // `resolveColourTree`.
+        withholdMint: chain.acc.entries.some((e) => e.na),
+      }
     }
+    if (hasNa) return { naGated: true }
     return arity > 2 ? { arity } : null
   }
   // The transparency of either branch, if they agree on one. Two DIFFERENT
@@ -16626,6 +16972,21 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   // them would silently apply it to both.
   const a = colourHelperAlpha(node.yes, env, ctx)
   const b = colourHelperAlpha(node.no, env, ctx)
+  // ⭐ 2026-09-28 (ruling 1 pass only) — TWO BRANCHES THAT DISAGREE ON ALPHA ARE
+  // A PALETTE, not a pair. `useAdapt ? thA : color.new(thA, 60)` folds to one hex
+  // twice; carried as `colorUp`/`colorDown` it would draw both opaque. The chain
+  // bakes each entry's own alpha (`chainPalette`). ⛔ Only on the ruling-1 pass,
+  // so a pair this lane already carried keeps its shape and its formula.
+  if (ctx && ctx.foldSelectors && a !== b) {
+    const chain = colourIndexChain(node, env, ctx)
+    const pal = chain ? chainPalette(chain.acc) : null
+    if (pal) {
+      return {
+        arity: pal.palette.length, indexTree: chain.tree, palette: pal.palette, opacity: pal.opacity,
+        withholdMint: true,
+      }
+    }
+  }
   const opacity = (a !== null && b !== null && a === b) ? a : null
   return { test: node.test, up, down, opacity }
 }
@@ -16711,6 +17072,29 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
   return out
 }
 
+/** A colour rule's deciding tree → a canonical tree. A rule read out of a user
+ *  colour helper (`colourConditional`'s `inline`) resolves inside that helper's
+ *  call frame — its parameters and locals mean what the CALL passed — through
+ *  `Resolver.resolveInFrame`; anything else resolves at the output's own scope,
+ *  exactly as before. */
+function resolveColourTree(resolver, cond, tree) {
+  const resolveIt = () => (cond && cond.inline ? resolver.resolveInFrame(cond.inline, tree) : resolver.resolve(tree))
+  if (!(cond && cond.withholdMint)) return resolveIt()
+  // ⛔⛔ R36 — A NEWLY CARRIED COLOUR RULE RESOLVES; IT DOES NOT MINT (see
+  // `colourNumericFold` for the measured cost). ⚰️ Measured 2026-09-28:
+  // carrying `cond ? c : na` and helper-returned conditionals minted the inputs
+  // their conditions read, mid-output, and renumbered every later
+  // `__uct_param_N` (chart-champions-part-1: 15 ids moved — the paramIds rail).
+  // ⛔ ONLY the rules this carry ADDED (`withholdMint`, set by
+  // `colourConditional`). The two-colour and all-static chain rules carried
+  // before it have minted since they landed, and their ids are in the pinned
+  // map: withholding there too was MEASURED to move 41 ids across 9 scripts.
+  // `finally`, because `resolve` refusing is the ordinary case.
+  const minted = resolver.paramMint
+  resolver.paramMint = null
+  try { return resolveIt() } finally { resolver.paramMint = minted }
+}
+
 /** ⭐ THE LEADING POSITIONAL PARAMETERS OF THE THREE SERIES OUTPUTS, by Pine's own
  *  signature. `plot(close, "T", color.red)` names its colour by POSITION, and
  *  this door used to read names only — the colour was dropped and the row drew
@@ -16725,6 +17109,42 @@ const POSITIONAL_PRESENTATION = Object.freeze({
   plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
+
+/** ⭐⭐ 2026-09-28 — A RIGHTWARD `offset = N` MOVES THE COLOUR WITH THE VALUE.
+ *
+ *  The value's tree is `x[N]` (see `foldDisplacement`'s caller): what stands at
+ *  bar j is bar j-N's. A colour rule resolved beside it is the UNdisplaced
+ *  `cond`, so bar j drew bar j-N's value in bar j's colour — a plot Pine never
+ *  draws. TradingView keeps a plot's value and its colour in ONE study-data row,
+ *  keyed to the bar that computed them, and draws that row N bars right; the
+ *  colour of a point is the colour its own bar computed. Measured through the
+ *  vendor harness, whose `leadBy` reads our column N bars ahead to meet the
+ *  vendor's unshifted export: the values agreed and 1,025 of 2,028 colours did
+ *  not, until the rule was shifted with the value.
+ *
+ *  ⛔ Through `barOffsetNode`, the one place an offset is built (it folds
+ *  `(x[m])[n]` to `x[m+n]`), and the printed formula must read back — a rule
+ *  that cannot is DECLINED (`colorDynamic`), never drawn undisplaced. */
+function displacedPresentation(pres, shift) {
+  if (!(shift > 0) || !pres) return pres
+  for (const k of ['colorCondition', 'colorIndex']) {
+    const rule = pres[k]
+    if (!rule || !rule.ast) continue
+    try {
+      const ast = barOffsetNode(rule.ast, shift, null, null, null)
+      const formula = printFormula(ast)
+      verifyRoundTrip(formula, ast)
+      pres[k] = { ...rule, ast, formula }
+    } catch {
+      delete pres[k]
+      delete pres.colorUp
+      delete pres.colorDown
+      delete pres.colorPalette
+      pres.colorDynamic = true
+    }
+  }
+  return pres
+}
 
 function outputPresentation(args, ctx) {
   const pres = {}
@@ -16747,6 +17167,8 @@ function outputPresentation(args, ctx) {
   // default for a colourless plot is a RENDERING rule and is applied at the member
   // door (`memberPaneDefinition`, `DEFAULT_SERIES_COLOUR`), where rows are built.
   const c = arg('color')
+  // A colour whose default settles on `na` (ruling 1) is absent, like `color = na`.
+  let settledNa = false
   if (c) {
     // ⭐ ONE READER FOR ALL THREE STATIC FORMS — a named `color.x`, a `#RRGGBB`
     // literal, and `color.new(base, <literal>)`. `staticColourOf` is the same
@@ -16757,7 +17179,31 @@ function outputPresentation(args, ctx) {
     // `args[0].type` looks at the PAIR and finds nothing — the second time this
     // wave read one level too shallow and got a silent "the author said nothing".
     const flat = staticColourOf(c.value, ctx && ctx.env, 0, ctx)
-    if (flat) {
+    // ⭐⭐ 2026-09-28 (OWNER RULING 1) — THE SECOND PASS, AND ONLY FOR A COLOUR THE
+    // FIRST ONE COULD NOT SAY. A colour whose ternaries are selected by a
+    // translation-time constant (an `input.string` default, a literal) is read
+    // with those selectors folded to the branch the default takes — see
+    // `constantColourSelector`. ⛔ It runs only where the legacy reading found
+    // no static colour AND carried no rule (the conditional branch below), so
+    // every colour this door already carried keeps its bytes, its formula and
+    // its parameter ids. ⚰️ Measured: run before the legacy CONDITIONAL, it
+    // turned Oliver Kell's three carried `is_dark ? … : …` pairs (a constant
+    // `theme_mode == …` selector the legacy index already folded) into flat
+    // colours — the same pixels, a different document.
+    const foldCtx = (ctx && ctx.resolver && ctx.env && !isNaColourLeaf(c.value))
+      ? { ...ctx, foldSelectors: { n: 0 } } : null
+    if (!flat && isNaColourLeaf(c.value)) {
+      // ⭐⭐ 2026-09-28 — `color = na` IS A COLOUR: THE ABSENT ONE. Pine draws the
+      // plot in nothing (its values still feed `fill()` and the data window), and
+      // TradingView records it as `rgba(0,0,0,0)` in the study's own style state.
+      // ⚰️ It reached this door as "a colour expression we cannot say" and drew in
+      // the pane's gold — measured on Artemis Oscillator Pro's `VP Base`
+      // (`plot(vpShow ? 50 : na, "VP Base", color=na)`), a gold line at 50 on
+      // 632 of 632 bars where TradingView drew nothing. Carried as black at zero
+      // opacity: the same colour TradingView stores, and invisible either way.
+      pres.color = '#000000'
+      pres.opacity = 0
+    } else if (flat) {
       pres.color = flat
       const a = colourHelperAlpha(c.value, ctx && ctx.env, ctx)
       if (a !== null) pres.opacity = a
@@ -16773,36 +17219,79 @@ function outputPresentation(args, ctx) {
       // the plot still imports, and the colour falls back to the honest
       // "demanded and uncarried" marker below.
       const cond = ctx && ctx.env ? colourConditional(c.value, ctx.env, 0, ctx) : null
-      let carried = false
       // ⭐ A RULE THIS SCHEMA CANNOT HOLD REPORTS ITS SIZE — see `colourConditional`.
       if (cond && cond.arity) pres.colorDynamicArity = cond.arity
       if (cond && cond.naGated) pres.colorNaGated = true
-      // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
-      // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
-      // refuses leaves the plot imported and `colorDynamicArity` saying why.
-      if (cond && cond.indexTree && ctx && ctx.resolver) {
-        try {
-          const ast = ctx.resolver.resolve(cond.indexTree)
-          const formula = printFormula(ast)
-          verifyRoundTrip(formula, ast)
-          pres.colorPalette = cond.palette.slice()
-          pres.colorIndex = { ast, formula }
-          if (cond.opacity !== null) pres.opacity = cond.opacity
-          delete pres.colorDynamicArity
-          carried = true
-        } catch { /* falls through to colorDynamic */ }
+      const carry = (rule) => {
+        let did = false
+        // ⭐⭐ AN N-WAY CHAIN: a palette and the index column that picks from it.
+        // ⛔ Same fail-soft as the two-colour case below: a chain the resolver
+        // refuses leaves the plot imported and `colorDynamicArity` saying why.
+        if (rule && rule.indexTree && ctx && ctx.resolver) {
+          try {
+            // ⭐ 2026-09-28 (owner ruling 2) — an `na` selector takes the else
+            // branch, as Pine's does; see `naSelectorTakesElse`.
+            const ast = naSelectorTakesElse(resolveColourTree(ctx.resolver, rule, rule.indexTree))
+            const formula = printFormula(ast)
+            verifyRoundTrip(formula, ast)
+            pres.colorPalette = rule.palette.slice()
+            pres.colorIndex = { ast, formula }
+            if (rule.opacity !== null) pres.opacity = rule.opacity
+            delete pres.colorDynamicArity
+            did = true
+          } catch { /* falls through to colorDynamic */ }
+        }
+        if (rule && rule.up && ctx && ctx.resolver) {
+          try {
+            const ast = resolveColourTree(ctx.resolver, rule, rule.test)
+            const formula = printFormula(ast)
+            verifyRoundTrip(formula, ast)
+            pres.colorUp = rule.up
+            pres.colorDown = rule.down
+            pres.colorCondition = { ast, formula }
+            if (rule.opacity !== null) pres.opacity = rule.opacity
+            did = true
+          } catch { /* falls through to colorDynamic */ }
+        }
+        return did
       }
-      if (cond && cond.up && ctx && ctx.resolver) {
-        try {
-          const ast = ctx.resolver.resolve(cond.test)
-          const formula = printFormula(ast)
-          verifyRoundTrip(formula, ast)
-          pres.colorUp = cond.up
-          pres.colorDown = cond.down
-          pres.colorCondition = { ast, formula }
-          if (cond.opacity !== null) pres.opacity = cond.opacity
+      let carried = carry(cond)
+      // ⭐⭐ 2026-09-28 (OWNER RULING 1) — …AND A RULE THE LEGACY READING COULD NOT
+      // CARRY IS READ AGAIN WITH ITS CONSTANT SELECTORS FOLDED. Artemis' DRM
+      // Oscillator line is `oscVal >= obLevelF ? thOb : … : color.new(thOb, 60)`,
+      // every leaf an eleven-arm theme chain over an `input.string`: folded, the
+      // leaves are five static colours and the rule is an ordinary palette.
+      // ⛔⛔ IT RESOLVES; IT DOES NOT MINT (`withholdMint`, R36). A rule carried
+      // for the first time here must not create a member-visible parameter
+      // mid-output and renumber every id after it — the 15 pinned ids the colour
+      // lane measured moving in chart-champions. A knob the rule reads is still
+      // live wherever it is already a knob: a declared input resolves to its
+      // IDENTIFIER whatever the mint does, and that is what the member door uses.
+      if (!carried && foldCtx) {
+        // (a) the whole colour folds to ONE static colour — Artemis' Signal Line
+        // (`thSig`) and `color.new(thVpBuy, 70)`, each alpha kept.
+        const foldedFlat = staticColourOf(c.value, ctx.env, 0, foldCtx)
+        if (foldedFlat) {
+          pres.color = foldedFlat
+          const a = colourHelperAlpha(c.value, ctx.env, foldCtx)
+          if (a !== null) pres.opacity = a
           carried = true
-        } catch { /* falls through to colorDynamic */ }
+        } else if (isNaColourLeaf(settledColourNode(c.value, ctx.env, foldCtx))) {
+          // (b) the default's branch is `na` — the ABSENT colour, as `color = na` is.
+          pres.color = '#000000'
+          pres.opacity = 0
+          settledNa = true
+          carried = true
+        } else {
+          // (c) a rule over folded leaves.
+          foldCtx.foldSelectors.n = 0
+          const folded = colourConditional(c.value, ctx.env, 0, foldCtx)
+          if (folded && foldCtx.foldSelectors.n > 0) carried = carry({ ...folded, withholdMint: true })
+        }
+        if (carried) {
+          delete pres.colorDynamicArity
+          delete pres.colorNaGated
+        }
       }
       // ⭐⭐ A COLOUR THAT IS AN EXPRESSION IS THE INDICATOR TALKING. 49 of the 60
       // OOS scripts colour conditionally, and for a `plotcandle` it is the entire
@@ -16885,7 +17374,9 @@ function outputPresentation(args, ctx) {
   }
 
   const tr = numberValue((arg('transp') || {}).value)
-  if (tr !== null) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
+  // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
+  // opacity 0 whatever transparency the author also wrote.
+  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) pres.opacity = Math.max(0, Math.min(1, 1 - tr / 100))
   return pres
 }
 

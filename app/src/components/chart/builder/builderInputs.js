@@ -675,7 +675,9 @@ function annotate(translation, windowBound, displacementBound = new Set()) {
  *  (`_displaceFrom` / `_displaceParams`, 2026-09-26). Re-attach them, still
  *  non-enumerable, so the annotated row carries what the raw row carried. */
 function carryHandoffs(from, to) {
-  for (const k of ['_displaceFrom', '_displaceParams']) {
+  // `_treeShift` (2026-09-28): a rightward `offset = N` the tree already holds as
+  // `x[N]`, handed to readers that must tell the two apart (the vendor harness).
+  for (const k of ['_displaceFrom', '_displaceParams', '_treeShift']) {
     if (Object.prototype.hasOwnProperty.call(from, k)) {
       Object.defineProperty(to, k, { value: from[k], enumerable: false })
     }

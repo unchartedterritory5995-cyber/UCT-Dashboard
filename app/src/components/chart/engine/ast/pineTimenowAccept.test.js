@@ -206,7 +206,10 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // what it declares, so `f_round_up_to_tick` folds and the script meets its
       // next wall — `syminfo.mintick`, the value it passes that helper. Still
       // refuses, still not on `timenow`.
-      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:builtin', /syminfo\.mintick/],
+      // ⚰️ …AND AGAIN at integration (2026-09-28): `syminfo.mintick` is served
+      // (#238), so the script meets the wall after that one — a
+      // `time(<timeframe>)` anchor for a period other than "D".
+      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function', /OPENING TIMESTAMP/],
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]
     for (const [file, guard, messagePattern] of cases) {

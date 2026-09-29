@@ -36,6 +36,8 @@ import {
 import {
   REL_TOL, tolerancePolicy, valuesAgree, normalizeColor, mapPlots, comparePlot, plotVerdict,
   compareCapture, compareObjects, VERDICTS,
+  decodePackedColour, unescapeVendorTitle, readingOf, coloursAgree, NO_COLOUR, vendorColorsFor,
+  vendorPlotRoles,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, declaredPlotTitles } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide, toProductBars, tfCodeOf, isoDateIn } from './ourSide'
@@ -365,6 +367,111 @@ describe('3 · the comparator', () => {
     expect(plotVerdict(r, { colorMeasured: true, colorResolvable: true }).verdict).toBe('DIVERGE')
   })
 
+  // ── colour readings the 2026-09-28 live batch (47 RDDT 1D captures) forced ──
+  describe('colour readings — measured on the 2026-09-28 live batch', () => {
+    it('a palette-less colorer value IS the colour, packed 0xAABBGGRR — red in the LOWEST byte', () => {
+      // Each pair measured against a colour the script's source states literally.
+      expect(decodePackedColour(0xff5252ff)).toBe('#ff5252ff')   // sector-rotation, v5 color.red
+      expect(decodePackedColour(0xff50af4c)).toBe('#4caf50ff')   // sector-rotation, v5 color.green
+      expect(decodePackedColour(0xff35d8fd)).toBe('#fdd835ff')   // dual-view, input.color(color.yellow)
+      expect(decodePackedColour(0xb39e9e9e)).toBe('#9e9e9eb3')   // momentum-vol, color.new(color.gray, 30)
+      expect(decodePackedColour(0x4dd4bc00)).toBe('#00bcd44d')   // artemis, color.new(#00bcd4, 70)
+      // ⛔ CONTROL — the byte order is not symmetric: pure red and pure blue.
+      expect(decodePackedColour(0xff0000ff)).toBe('#ff0000ff')
+      expect(decodePackedColour(0xffff0000)).toBe('#0000ffff')
+      // ⛔ Not a packed colour ⇒ null, never a guess.
+      for (const bad of [-1, 2 ** 32, 1.5, '4278190335', null, undefined]) expect(decodePackedColour(bad)).toBeNull()
+    })
+
+    it('vendorColorsFor: no palette ⇒ decode; `null` on a reported bar ⇒ the na colour; no row ⇒ unknown', () => {
+      const times = [1, 2, 3]
+      const plain = { study: { styleState: {} } }
+      const packed = [{ id: 'plot_1', target: 'plot_0', column: 2 }]
+      const rows = new Map([['1', [1, 5, 0xff0000ff]], ['2', [2, 5, null]]])
+      expect(vendorColorsFor(plain, { id: 'plot_0' }, packed, rows, times).colors)
+        .toEqual(['#ff0000ff', NO_COLOUR, undefined])
+      // The palette path reads `null` the same way — measured on Ultimate Pivot
+      // Points, whose palette has NO entry for the `na` branch at all.
+      const pal = { study: { styleState: {}, palettes: { palette_0: { valToIndex: { 4: 0 }, colors: { 0: { color: 'rgba(76,175,80,0.9)' } } } } } }
+      const withPal = [{ id: 'plot_1', target: 'plot_0', palette: 'palette_0', column: 2 }]
+      const rows2 = new Map([['1', [1, 5, 4]], ['2', [2, 5, null]]])
+      expect(vendorColorsFor(pal, { id: 'plot_0' }, withPal, rows2, times).colors)
+        .toEqual(['#4caf50e6', NO_COLOUR, undefined])
+      // ⛔ One undecodable value makes the whole reading undecodable, naming the bar.
+      const u = vendorColorsFor(plain, { id: 'plot_0' }, packed, new Map([['1', [1, 5, 1.5]]]), [1])
+      expect(u.colors).toBeNull()
+      expect(u.reason).toMatch(/at bar 0 is not a packed colour/)
+    })
+
+    it('every fully transparent colour is one drawing; alpha may differ by ONE 8-bit unit, never two', () => {
+      expect(coloursAgree('#00000000', '#c9a84c00')).toBe(true)      // nothing is nothing
+      expect(coloursAgree('#ffd60019', '#ffd6001a')).toBe(true)      // color.new(c, 90): 25.5 units
+      expect(coloursAgree('#ffd60019', '#ffd6001b')).toBe(false)     // ⛔ two units is a real alpha
+      expect(coloursAgree('#ffd60019', '#ffd70019')).toBe(false)     // ⛔ RGB is exact
+      expect(coloursAgree('#c9a84c00', '#c9a84c02')).toBe(false)     // ⛔ nothing vs two units of something
+      expect(coloursAgree('#ff5252ff', '#ff5252ff')).toBe(true)
+      // …and comparePlot uses it: a transparent line of any RGB agrees with the na colour.
+      const r = comparePlot({ times: [1, 2], vendor: [1, 2], ours: [1, 2], vendorColors: [NO_COLOUR, NO_COLOUR], ourColors: ['#00000000', '#c9a84cff'], tol })
+      expect(r.colorCompared).toBe(2)
+      expect(r.firstDivergence).toMatchObject({ bar: 1, kind: 'color', vendorColor: NO_COLOUR, ourColor: '#c9a84cff' })
+    })
+
+    it('a colour divergence prints the two COLOURS, never the two equal values', () => {
+      // ⚰️ Artemis' VP Base printed "color: vendor 50 vs ours 50" — which read as a
+      // comparator mistaking a value column for a colour.
+      const r = comparePlot({ times: [1], vendor: [50], ours: [50], vendorColors: [NO_COLOUR], ourColors: ['#c9a84cff'], tol })
+      expect(readingOf(r.firstDivergence)).toBe('color: vendor #00000000 vs ours #c9a84cff at value 50')
+      expect(plotVerdict(r, { colorMeasured: true, colorResolvable: true }).reason).toMatch(/vendor #00000000 vs ours #c9a84cff/)
+      // CONTROL — a VALUE divergence still prints the values
+      const v = comparePlot({ times: [1], vendor: [50], ours: [51], tol })
+      expect(readingOf(v.firstDivergence)).toBe('value: vendor 50 vs ours 51')
+    })
+
+    it('an undecodable vendor colour is INCONCLUSIVE, never MATCH; a plot drawn on NO bar is complete on values', () => {
+      const drawn = comparePlot({ times: [1, 2], vendor: [1, 2], ours: [1, 2], vendorColors: null, ourColors: ['#ff0000ff', '#ff0000ff'], tol })
+      // ⚰️ was MATCH: a palette-less colorer read `colors: null` and nothing was compared
+      expect(plotVerdict(drawn, { colorMeasured: true, colorResolvable: true, vendorColorReason: 'x' }))
+        .toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/could not be decoded — x/) })
+      // A plot that is `na` on every bar draws no colour on either platform.
+      const never = comparePlot({ times: [1, 2], vendor: [null, null], ours: [NaN, NaN], vendorColors: ['#ff0000ff', '#ff0000ff'], ourColors: null, tol })
+      expect(never.colorComparable).toBe(0)
+      expect(plotVerdict(never, { colorMeasured: true, colorResolvable: false }).verdict).toBe('MATCH')
+      // ⛔ CONTROL — ONE bar drawn in a known colour against an unresolved one is INCONCLUSIVE
+      const once = comparePlot({ times: [1, 2], vendor: [null, 2], ours: [NaN, 2], vendorColors: ['#ff0000ff', '#ff0000ff'], ourColors: null, tol })
+      expect(once.colorComparable).toBe(1)
+      expect(plotVerdict(once, { colorMeasured: true, colorResolvable: false, ourColorReason: 'why' }))
+        .toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/could not be resolved \(why\)/) })
+    })
+
+    it('an HTML-escaped vendor title is unescaped before it is mapped', () => {
+      // measured: `plot(ph, "Pivot High's")` reads back `Pivot High&#039;s`
+      expect(unescapeVendorTitle('Pivot High&#039;s')).toBe("Pivot High's")
+      expect(unescapeVendorTitle('a &amp; b &lt;c&gt; &quot;d&quot; &#x41;')).toBe('a & b <c> "d" A')
+      expect(unescapeVendorTitle('&nbsp;kept')).toBe('&nbsp;kept')   // ⛔ unknown entity left as written
+      expect(unescapeVendorTitle(null)).toBeNull()
+      const roles = vendorPlotRoles({ study: { plots: [{ id: 'plot_0', type: 'line', title: 'Pivot High&#039;s' }] } })
+      expect(roles.value[0].title).toBe("Pivot High's")
+    })
+
+    it('an EMPTY plotchar glyph draws nothing, so its colour is not graded — its values are', () => {
+      const mk = (char) => ({
+        symbol: { pricescale: 100 },
+        history: { startsAtBar0: true },
+        bars: { rows: [[1, 1, 1, 1, 1, 1], [2, 1, 1, 1, 1, 1]] },
+        plotValues: { rows: [[1, 5], [2, 6]] },
+        study: { plots: [{ id: 'plot_0', type: 'chars', title: 'c' }], styles: { plot_0: { char, text: '' } }, styleState: { plot_0: { color: '#2962FF' } } },
+      })
+      const ours = { ok: true, plots: [{ title: 'c', key: 'value', column: [5, 6], colors: ['#c9a84cff', '#c9a84cff'], lookback: 0 }] }
+      const empty = compareCapture(mk(''), ours).plots[0]
+      expect(empty).toMatchObject({ verdict: 'MATCH', color: 'not graded — an empty plotchar glyph draws nothing' })
+      // ⛔ CONTROL — a visible glyph in the wrong colour DIVERGEs
+      expect(compareCapture(mk('X'), ours).plots[0].verdict).toBe('DIVERGE')
+      // ⛔ CONTROL — the empty glyph's VALUES are still graded
+      const moved = compareCapture(mk(''), { ...ours, plots: [{ ...ours.plots[0], column: [5, 7] }] }).plots[0]
+      expect(moved.verdict).toBe('DIVERGE')
+    })
+  })
+
   it('objects: counts and texts, never coordinates (v1)', () => {
     const v = { counts: { lines: 1, labels: 0, boxes: 0, tables: 1, tableCells: 1 }, texts: { labels: [], tableCells: ['UCT'] } }
     expect(compareObjects(v, { ok: true, counts: { ...v.counts }, texts: { labels: [], tableCells: ['UCT'] } }).verdict).toBe('MATCH')
@@ -497,6 +604,86 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       const g2 = gradeCapture(differ).verdict
       expect(g2.verdict).toBe('DIVERGE')
       expect(g2.plots[0].stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
+    })
+
+    // A per-bar two-colour vendor state over the real bars: palette index 0 on
+    // an up bar, 1 on a down bar, keyed — like the value — to the COMPUTING bar.
+    const upDown = (src, { shiftVendor = 0 } = {}) => {
+      const plots = [
+        { id: 'plot_0', type: 'line', title: 'c' },
+        { id: 'plot_1', type: 'colorer', target: 'plot_0', palette: 'palette_0' },
+      ]
+      const idxAt = (k) => (rows[k] && rows[k][4] > rows[k][1] ? 0 : 1)
+      const vals = rows.map((r, k) => [r[0], r[4], idxAt(k + shiftVendor)])
+      return captureFrom({
+        source: src, rows, plots, values: vals,
+        extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } }, palettes: { palette_0: { colors: { 0: { color: '#00FF00' }, 1: { color: '#FF0000' } } } } } },
+      })
+    }
+
+    it('⭐ an OFFSET plot\'s colour is read where the renderer DREW it — the computing bar\'s colour, shifted with its value', () => {
+      // ⚰️ 2026-09-28: liquidity-pools (offset -4) and price-action-as-in-book
+      // (-5) graded 46 and 26 bars "vendor #787b86ff vs ours none" — the harness
+      // read the point at the UNdisplaced bar, where the renderer drew nothing.
+      const src = '//@version=6\nindicator("uct-offset-colour")\nplot(close, "c", color = close > open ? #00FF00 : #FF0000, offset = -2)\n'
+      const g = gradeCapture(upDown(src)).verdict
+      const p = g.plots.find((x) => x.id === 'plot_0')
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.stats.colorCompared).toBeGreaterThan(1000)
+      // ⛔ CONTROL — a vendor whose colours sit two bars late (what reading the
+      // undisplaced point amounts to) DIVERGEs on colour.
+      const late = gradeCapture(upDown(src, { shiftVendor: 2 })).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(late.verdict).toBe('DIVERGE')
+      expect(late.stats.firstDivergence.kind).toBe('color')
+    })
+
+    it('⭐ a POSITIVE offset: TradingView exports the UNSHIFTED series, so our `x[N]` column is read N bars ahead', () => {
+      // ⚰️ position-size-calculator (`offset = 20`) graded 20 bars "vendor 0 vs
+      // ours na": the vendor's bar 0..19 are its own computed values, ours were
+      // the displaced column's warm-up.
+      const src = '//@version=6\nindicator("uct-offset-right")\nplot(close, "c", color = close > open ? #00FF00 : #FF0000, offset = 3)\n'
+      const g = gradeCapture(upDown(src)).verdict
+      const p = g.plots.find((x) => x.id === 'plot_0')
+      expect(p.verdict, p.reason).toBe('MATCH')
+      expect(p.treeShift).toBe(3)
+      expect(p.stats.oursUnread).toBe(3)                         // the last 3 bars: never drawn on our chart
+      expect(p.stats.compared).toBe(rows.length - 3)
+      expect(p.stats.colorCompared).toBeGreaterThan(1000)
+      // ⛔ CONTROL — a vendor that exported the DISPLACED series (close[3]) DIVERGEs
+      const c = upDown(src)
+      const shifted = clone(c)
+      shifted.plotValues.rows.forEach((r, k) => { r[1] = k >= 3 ? c.plotValues.rows[k - 3][1] : null })
+      const bad = gradeCapture(sealCapture(shifted)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(bad.verdict).toBe('DIVERGE')
+      // ⛔ CONTROL — `plot(close[3])` WITHOUT an offset is a different plot, and is not realigned
+      const noOffset = '//@version=6\nindicator("uct-offset-right")\nplot(close[3], "c", color = close[3] > open[3] ? #00FF00 : #FF0000)\n'
+      const q = gradeCapture(upDown(noOffset)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(q.treeShift).toBeUndefined()
+      expect(q.verdict).toBe('DIVERGE')
+    })
+
+    it('⭐ `cond ? colour : na` — drawn in nothing where TradingView drew nothing, read as the colour the renderer was handed', () => {
+      // The vendor's palette holds ONLY the green entry; a down bar's colorer
+      // reads `null` — the Ultimate Pivot Points shape, measured 2026-09-28.
+      const src = '//@version=6\nindicator("uct-na-colour")\nplot(close, "c", color = close > open ? color.new(#00FF00, 10) : na)\n'
+      const plots = [
+        { id: 'plot_0', type: 'line', title: 'c' },
+        { id: 'plot_1', type: 'colorer', target: 'plot_0', palette: 'palette_0' },
+      ]
+      const mk = (idx) => captureFrom({
+        source: src, rows, plots, values: rows.map((r) => [r[0], r[4], idx(r)]),
+        extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } }, palettes: { palette_0: { valToIndex: { 4: 0 }, colors: { 0: { color: 'rgba(0,255,0,0.9)' } } } } } },
+      })
+      const g = gradeCapture(mk((r) => (r[4] > r[1] ? 4 : null))).verdict.plots.find((x) => x.id === 'plot_0')
+      // ⚰️ The harness used to REPLACE the drawn colour's alpha with the plot's
+      // opacity, reading the renderer's `rgba(0, 0, 0, 0)` as a visible #000000e6.
+      expect(g.verdict, g.reason).toBe('MATCH')
+      expect(g.stats.colorCompared).toBeGreaterThan(1000)
+      // ⛔ CONTROL — a vendor that coloured EVERY bar green disagrees on the down bars
+      const all = gradeCapture(mk(() => 4)).verdict.plots.find((x) => x.id === 'plot_0')
+      expect(all.verdict).toBe('DIVERGE')
+      expect(all.stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#00ff00e6' })
+      expect(all.stats.firstDivergence.ourColor).toMatch(/00$/)
     })
 
     it('objects: a table the script draws is counted, and its cell text compared', () => {

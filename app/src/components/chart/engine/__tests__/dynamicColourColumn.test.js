@@ -43,7 +43,8 @@ const DEF = {
   ],
 }
 
-/** trend: 1,1,0,0,NaN,1 → up,up,down,down,(none),up */
+/** trend: 1,1,0,0,NaN,1 → up,up,down,down,down,up — an `na` condition takes the
+ *  else branch (owner ruling 2, 2026-09-28: Pine's rule). */
 const COLUMNS = {
   value: [1, 2, 3, 4, 5, 6],
   trend: [1, 1, 0, 0, NaN, 1],
@@ -104,27 +105,31 @@ describe('columnColorsForPlot — the resolver', () => {
 describe('⭐⭐ the points handed to the renderer carry the per-point colour', () => {
   it('one colour per bar, decided by the condition column', () => {
     const points = pointsDrawn()
-    expect(points.map((p) => p.color)).toEqual([UP, UP, DOWN, DOWN, undefined, UP])
+    expect(points.map((p) => p.color)).toEqual([UP, UP, DOWN, DOWN, DOWN, UP])
     // ⛔ AND THE VALUES ARE UNTOUCHED. A colour rule that moved a number would be
     // a far worse defect than one that drew the wrong colour.
     expect(points.map((p) => p.value)).toEqual([1, 2, 3, 4, 5, 6])
   })
 
-  it('⛔ a NON-FINITE condition leaves the point uncoloured, not "down"', () => {
-    // Bar 4's condition is NaN. Painting it `down` would show the "false" colour
-    // through every warmup bar of the condition's own lookback — a real signal,
-    // invented. `na` means the author said nothing.
+  it('⭐⭐ a NON-FINITE condition takes the ELSE branch — "down", as Pine does', () => {
+    // ⚰️ THIS ASSERTED THE OPPOSITE: bar 4's NaN condition left the point
+    // uncoloured (the series colour), on the reasoning that `na` is the author
+    // saying nothing. Owner ruling 2 (2026-09-28): Pine's `cond ? a : b` with
+    // `cond` na IS `b`, and TradingView draws it — measured on Trend Duration
+    // Forecast's HMA, whose NaN-seeded state drew gold where TradingView drew
+    // coloDN on 195 bars.
     const points = pointsDrawn()
-    expect(points[4]).toEqual({ time: BARS[4].t, value: 5 })
-    expect('color' in points[4]).toBe(false)
+    expect(points[4]).toEqual({ time: BARS[4].t, value: 5, color: DOWN })
   })
 
   it('⛔ NON-VACUITY: flipping the condition column flips the colours', () => {
     // Without this, a harness that emitted one constant colour would pass the
     // case above by accident.
+    // ⭐ And the `na` bar stays `down` when every KNOWN bar flips: the else
+    // branch is the rule's, not a side the column happened to be on.
     const flipped = { value: COLUMNS.value, trend: [0, 0, 1, 1, NaN, 0] }
     const points = pointsDrawn(DEF, flipped)
-    expect(points.map((p) => p.color)).toEqual([DOWN, DOWN, UP, UP, undefined, DOWN])
+    expect(points.map((p) => p.color)).toEqual([DOWN, DOWN, UP, UP, DOWN, DOWN])
   })
 
   it('⛔ MUTATION CONTROL: a plot with no colorMode gets no per-point colours', () => {
