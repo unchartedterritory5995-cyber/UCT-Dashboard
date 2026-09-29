@@ -1,0 +1,79 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.F.F.................................................................... [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 72%]
+.........s.............................................................. [ 96%]
+...........                                                              [100%]
+=================================== FAILURES ===================================
+________________________ test_returns_rows_and_coverage ________________________
+
+client = (<starlette.testclient.TestClient object at 0x7f7aaf202150>, <module 'api.services.buzz_store' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/buzz_store.py'>)
+
+    def test_returns_rows_and_coverage(client):
+        c, store = client
+        import time
+        ts = int(time.time()) - 60
+        store.record_mentions([(str(1000 + i), "CH1", f"u{i}", "NVDA", ts, "exact") for i in range(4)])
+        r = c.get("/api/r/buzz", params={"token": "secret-token", "window": "today"})
+        assert r.status_code == 200
+        body = r.json()
+>       assert body["rows"][0]["ticker"] == "NVDA"
+E       IndexError: list index out of range
+
+tests/api/test_buzz_render_panel.py:34: IndexError
+_________ test_the_payload_never_carries_member_identity_or_jump_links _________
+
+client = (<starlette.testclient.TestClient object at 0x7f7aaf840da0>, <module 'api.services.buzz_store' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/buzz_store.py'>)
+
+    def test_the_payload_never_carries_member_identity_or_jump_links(client):
+        c, store = client
+        import time
+        ts = int(time.time()) - 60
+        store.record_mentions([(str(2000 + i), "CH1", f"u{i}", "NVDA", ts, "exact")
+                               for i in range(6)])
+        store.record_mentions([(str(3000 + i), "CH1", f"v{i}", "AMD", ts, "exact")
+                               for i in range(2)])
+        body = c.get("/api/r/buzz", params={"token": "secret-token",
+                                            "window": "today"}).json()
+    
+        # The whole tree, not just the top level: rows, tail, heat and singles are
+        # where a per-message field would actually land.
+        leaked = _FORBIDDEN & set(_all_keys(body))
+        assert leaked == set(), f"identity fields in a public payload: {sorted(leaked)}"
+    
+        # And the shape is pinned, so a NEW key has to be a deliberate edit here.
+        assert set(body) == {"window", "label", "rows", "tail", "singles",
+                             "heat", "totals", "coverage", "asOf"}
+>       assert set(body["rows"][0]) == {"ticker", "mentions", "people", "spark", "hot"}
+E       IndexError: list index out of range
+
+tests/api/test_buzz_render_panel.py:91: IndexError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/api/test_delta_snapshot.py::test_base_then_delta_round_trip
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:611: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(tmpdir)
+
+tests/api/test_delta_snapshot.py::test_base_then_delta_round_trip
+tests/api/test_delta_snapshot.py::test_sync_with_deltas_is_idempotent
+tests/api/test_delta_snapshot.py::test_sync_with_deltas_is_idempotent
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/data_sync.py:1195: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tar.extractall(tmpdir)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/api/test_health.py:24: app/dist not built — run npm run build first
+FAILED tests/api/test_buzz_render_panel.py::test_returns_rows_and_coverage - IndexError: list index out of range
+FAILED tests/api/test_buzz_render_panel.py::test_the_payload_never_carries_member_identity_or_jump_links - IndexError: list index out of range
+2 failed, 296 passed, 1 skipped, 6 warnings in 25.83s
