@@ -16,7 +16,7 @@ unblocked TERM-082), TERM-035 (`8e9b0baac` + `3fa6e6bec`: one market calendar `a
 through 2028, Python `session_calendar.py` + JS `sessionCalendar.js`, horizon rail MIN 12 months, shared half-day
 fixture; the JS module is registered as STAGED in reachable.test.js, expiry 2026-11-30 — resolve by pointing
 `nyseCalendar.js` at the JSON, which also means adding 2028 to `bars_fetch._NYSE_HOLIDAYS_YYYYMMDD` and updating the
-four tests that pin 2028 as out-of-coverage). TERM-082 (serve_stale widening) in flight.
+four tests that pin 2028 as out-of-coverage). TERM-082 (`08ff015c5`): `/api/snapshot` + `/api/movers` serve last-good while one refresh runs, staleness on `Server-Timing desc="stale-swr"` (no UI reads it yet — TERM-059); partials never become last-good. ⚠️ flow_worker_watch_coverage FLAGS `api/services/massive.py`: classified INERT STRAND — flow-worker's closure calls none of the changed functions except `engine._compute_news -> get_movers` (web news work), and a stale copy there is exactly today's production code. No forced flow-worker redeploy.
 
 ⛔ Why the owner runs the pushes: the permission classifier refuses master pushes, `railway variables --set` and
 `railway ssh` reads. The owner can add allow rules (`/permissions`) to let the agent do them.
