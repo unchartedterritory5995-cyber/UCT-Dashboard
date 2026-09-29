@@ -3184,7 +3184,24 @@ export default function StockChart({
   const j2Raw = useJ2ChartMarkers(sym, resolvedTf)
   // Curated book charts opt out of the viewer's personal Journal 2.0 overlay so
   // their own BUY/SELL trade markers don't bleed onto setup examples.
-  const j2 = hideJournalOverlay ? EMPTY_J2 : j2Raw
+  //
+  // ⛔ AN EMPTY OVERLAY IS THE STABLE CONSTANT, NEVER THE HOOK'S OWN OBJECT.
+  // `useJ2Positions`/`useJ2Trades` answer `data?.positions ?? []`, a NEW array on
+  // every render whenever the endpoints have not handed back an array (signed
+  // out, a 401, a failed fetch, the moments before the fetch lands). So
+  // `useJ2ChartMarkers` rebuilt its `{markers, priceLines}` on every render,
+  // `mergedMarkers`/`mergedPriceLines` followed, `updateChart` was a new callback
+  // on every render, and ANY re-render of this component — a crosshair move, a
+  // menu opening, a timer — re-ran the whole paint: every series re-styled, every
+  // price line torn down and rebuilt. A signed-in member's endpoints answer
+  // arrays that SWR keeps by identity, so they already took this stable path;
+  // an empty overlay now takes it too. Found as the "a legend hover re-styled a
+  // series" flake in `stockChartWiring.test.jsx` (2026-09-28), whose rail is
+  // "a re-render that changes nothing reaches the renderer not at all".
+  const j2 = hideJournalOverlay
+    || !(j2Raw?.markers?.length || j2Raw?.priceLines?.length)
+    ? EMPTY_J2
+    : j2Raw
 
   // ── Signature indicators (dark-pool levels · GEX walls · flow-confirmed breakouts) ──
   // Sits with the other overlay data hooks that feed the two merge memos below.
