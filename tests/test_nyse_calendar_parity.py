@@ -1,33 +1,56 @@
-"""nyseCalendar.js (frontend, bundled) held to bars_fetch.py's/liveflow_monitor.py's
-own independently hand-maintained NYSE calendar tables (backend).
+"""nyseCalendar.js (frontend, bundled) and bars_fetch.py's/liveflow_monitor.py's
+NYSE tables (backend) held to ONE dataset: ``market_calendar.json``.
 
-Seam 7 (Dual NYSE Calendar Architecture Adjudication, 2026-09-07): Phase A found
-all three of this repo's independent, hand-typed calendar tables (frontend
-`nyseCalendar.js`, backend `bars_fetch.py::_NYSE_HOLIDAYS_YYYYMMDD`, and a
-previously-unrecorded third one in `voice_temporal_awareness.py`) already agree
-on every overlapping date -- but nothing enforced that agreement; it was
-discipline, not construction. This is that construction, for the two tables an
-owner-authorized architecture decision kept as separate runtime-local datasets
-(Option D: leave both, add a deterministic parity guard) rather than collapsing
-into a single network-fetched authority (`useMarketCalendar.js`/
-`GET /api/market-calendar` already does that for the ONE consumer -- the
-Dashboard session pill -- that can tolerate the round trip; chart/session-state
-needs zero-latency local truth, which is why `nyseCalendar.js` stays bundled).
+Seam 7 (Dual NYSE Calendar Architecture Adjudication, 2026-09-07) found the
+frontend ``nyseCalendar.js`` and the backend ``bars_fetch._NYSE_HOLIDAYS_YYYYMMDD``
+were two independently hand-typed tables that happened to agree, and built this
+file as the deterministic parity guard between them: it parsed the JS source's
+date literals with a regex and compared them, year by year, to the backend set.
 
-⛔ THE JS SOURCE IS PARSED, NOT RE-TYPED. Retyping nyseCalendar.js's dates into
-this file would just be a FOURTH hand-maintained copy -- the exact defect class
-this test exists to catch. A regex read of the real file is fragile against a
-genuine reformat, so `test_the_parser_itself_finds_a_nonempty_set_per_year`
-guards against the parser silently extracting nothing and this test passing
-vacuously green with zero real comparisons made.
+⭐ TERM-035 follow-up #1 (2026-09-28) REMOVED THE SECOND TABLE INSTEAD OF
+GUARDING IT. Both sides now derive from
+``app/src/lib/marketClock/market_calendar.json``:
+
+* client  ``nyseCalendar.js`` -> ``sessionCalendar.js`` -> the JSON
+* server  ``nyse_calendar.py`` -> ``session_calendar.py`` -> the JSON, and
+  ``bars_fetch`` / ``liveflow_monitor`` re-export the leaf's objects.
+
+So "both tables agree" became "both load the same JSON", and this file asserts
+exactly that, in four parts:
+
+1. THE CLIENT STAYS DERIVED. ``nyseCalendar.js`` reads ``./sessionCalendar``,
+   which reads ``./market_calendar.json`` -- the file ``session_calendar.py``
+   opens -- and ``nyseCalendar.js`` carries no ISO date literal outside a
+   comment. A retyped table is the defect this file exists to catch, so the
+   no-literal check has a control proving it fires on the old table's shape.
+2. THE BACKEND EQUALS THE JSON, per year, read with ``json.load`` directly
+   (not through ``session_calendar``), with a non-vacuity floor per year.
+3. THE BACKEND ANSWERS THE SHARED FIXTURE. The derivation makes (2) close to
+   a tautology, so the independent check is ``tests/fixtures/
+   market_calendar_cases.json``: every day row and every in-RTH session row is
+   answered by the backend sets themselves. The same fixture is answered on the
+   client by ``sessionCalendar.test.js`` (including through
+   ``marketClock.sessionState``), so a date removed from the JSON goes red on
+   BOTH runtimes.
+4. THE LEAF STAYS A LEAF, and the re-exports stay the leaf's objects.
+
+⚰️ The regex parser this file used to carry
+(``_js_dates_for_export``/``_js_covered_years``) was deleted with the literals
+it parsed: once the JS derives, that parser finds nothing, and a parity test
+over an empty set is the vacuous green it was built to prevent.
 """
 from __future__ import annotations
 
+import ast
+import json
 import pathlib
 import re
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
+from api.services import session_calendar
 from api.services.bars_fetch import _NYSE_HOLIDAYS_YYYYMMDD
 from api.services.liveflow_monitor import _NYSE_EARLY_CLOSES_YYYYMMDD
 from api.services.nyse_calendar import (
@@ -35,76 +58,213 @@ from api.services.nyse_calendar import (
     NYSE_HOLIDAYS_YYYYMMDD as _LEAF_HOLIDAYS,
 )
 
-_JS_PATH = (
-    pathlib.Path(__file__).resolve().parents[1]
-    / "app" / "src" / "lib" / "marketClock" / "nyseCalendar.js"
-)
+_ROOT = pathlib.Path(__file__).resolve().parents[1]
+_CLOCK_DIR = _ROOT / "app" / "src" / "lib" / "marketClock"
+_JS_PATH = _CLOCK_DIR / "nyseCalendar.js"
+_SESSION_JS_PATH = _CLOCK_DIR / "sessionCalendar.js"
+_JSON_PATH = _CLOCK_DIR / "market_calendar.json"
+_FIXTURE_PATH = _ROOT / "tests" / "fixtures" / "market_calendar_cases.json"
+_LEAF_PATH = _ROOT / "api" / "services" / "nyse_calendar.py"
+_SESSION_PY_PATH = _ROOT / "api" / "services" / "session_calendar.py"
 
-_DATE_RE = re.compile(r"date: '(\d{4}-\d{2}-\d{2})'")
+_ET = ZoneInfo("America/New_York")
 
+_RAW = json.loads(_JSON_PATH.read_text(encoding="utf-8"))
+_FIXTURE = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
 
-def _js_source() -> str:
-    return _JS_PATH.read_text(encoding="utf-8")
-
-
-def _js_dates_for_export(export_name: str) -> set[str]:
-    """Dates inside one `export const <export_name> = Object.freeze([...])`
-    block, scoped to that block only (never the whole file) so a holidays
-    export can't accidentally absorb an early-closes block below it."""
-    src = _js_source()
-    m = re.search(
-        rf"export const {re.escape(export_name)} = Object\.freeze\(\[(.*?)\]\)",
-        src, re.DOTALL,
-    )
-    assert m, f"{export_name} not found in nyseCalendar.js -- has it been renamed?"
-    return set(_DATE_RE.findall(m.group(1)))
+#: Every year the dataset claims, from its own coverage span -- never typed.
+_DATASET_YEARS = tuple(range(int(_RAW["coverage_start"][:4]), int(_RAW["horizon"][:4]) + 1))
 
 
-def _yyyymmdd_to_iso(dates: frozenset[int]) -> set[str]:
-    return {f"{d // 10000:04d}-{(d // 100) % 100:02d}-{d % 100:02d}" for d in dates}
+def _ymd(iso: str) -> int:
+    return int(iso.replace("-", ""))
 
 
-_BACKEND_HOLIDAYS_ISO = _yyyymmdd_to_iso(_NYSE_HOLIDAYS_YYYYMMDD)
-_BACKEND_EARLY_CLOSES_ISO = _yyyymmdd_to_iso(_NYSE_EARLY_CLOSES_YYYYMMDD)
-
-def _js_covered_years() -> tuple[int, ...]:
-    """The years nyseCalendar.js DECLARES, read from its own ``COVERED_YEARS``.
-
-    ⛔ DERIVED, NEVER RETYPED. This was a hand-typed ``(2026, 2027)`` sitting
-    beside the ``COVERED_YEARS`` that owns it -- the repo's most-repeated defect
-    (the writer-index ``FOUR``, the COT router's "4 routes", the setup catalog's
-    "24"). It fails in the SILENT direction: add 2028 to nyseCalendar.js and the
-    parity assertions below simply never run on it, so a brand-new year's dates
-    -- the ones most likely to be wrong, because they were just hand-entered --
-    are the ones nothing compares. The test would stay green and say nothing.
-    """
-    m = re.search(r"export const COVERED_YEARS = Object\.freeze\(\[([^\]]*)\]\)",
-                  _js_source())
-    assert m, "COVERED_YEARS not found in nyseCalendar.js -- has it been renamed?"
-    return tuple(int(y) for y in re.findall(r"\d{4}", m.group(1)))
+def _iso(yyyymmdd: int) -> str:
+    return f"{yyyymmdd // 10000:04d}-{(yyyymmdd // 100) % 100:02d}-{yyyymmdd % 100:02d}"
 
 
-_FRONTEND_YEARS = _js_covered_years()
+_JSON_HOLIDAYS = {_ymd(h["date"]) for h in _RAW["holidays"]}
+_JSON_EARLY_CLOSES = {_ymd(e["date"]) for e in _RAW["early_closes"]}
 
 
-class TestTheParserItselfIsNotVacuous:
-    """A regex is fragile against a genuine reformat of the JS file -- if it
-    ever silently starts extracting nothing, every comparison below would
-    pass with zero dates compared, which is a false green, not a real one."""
+# --------------------------------------------------------------------------
+# 1. The client stays derived
+# --------------------------------------------------------------------------
 
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
-    def test_the_parser_itself_finds_a_nonempty_holiday_set_per_year(self, year):
-        dates = _js_dates_for_export(f"NYSE_HOLIDAYS_{year}")
-        assert len(dates) >= 8, (
-            f"NYSE_HOLIDAYS_{year} parsed to only {len(dates)} dates -- "
-            "either the file was reformatted in a way this parser can't read, "
-            "or the table itself lost entries. Either way, investigate before "
-            "trusting the parity assertions below."
+_ISO_LITERAL = re.compile(r"""['"`]\d{4}-\d{2}-\d{2}['"`]""")
+
+
+def _strip_js_comments(src: str) -> str:
+    src = re.sub(r"/\*.*?\*/", "", src, flags=re.DOTALL)
+    return re.sub(r"(?m)//.*$", "", src)
+
+
+def _iso_literals_in_code(src: str) -> list[str]:
+    return _ISO_LITERAL.findall(_strip_js_comments(src))
+
+
+class TestTheClientIsDerived:
+    def test_nyseCalendar_js_imports_sessionCalendar(self):
+        src = _JS_PATH.read_text(encoding="utf-8")
+        assert re.search(r"""from\s+['"]\./sessionCalendar(\.js)?['"]""", src), (
+            "nyseCalendar.js no longer imports ./sessionCalendar -- it has stopped "
+            "deriving from market_calendar.json and is a second client calendar again."
         )
 
-    def test_the_parser_finds_the_backend_tables_too(self):
-        assert len(_BACKEND_HOLIDAYS_ISO) >= 20
-        assert len(_BACKEND_EARLY_CLOSES_ISO) >= 3
+    def test_sessionCalendar_js_imports_the_json_the_backend_reads(self):
+        src = _SESSION_JS_PATH.read_text(encoding="utf-8")
+        assert re.search(r"""from\s+['"]\./market_calendar\.json['"]""", src)
+        assert session_calendar.DATASET_PATH.resolve() == _JSON_PATH.resolve(), (
+            "session_calendar.py opens a different file from the one the browser "
+            f"bundles: {session_calendar.DATASET_PATH} vs {_JSON_PATH}"
+        )
+
+    def test_nyseCalendar_js_types_no_date(self):
+        found = _iso_literals_in_code(_JS_PATH.read_text(encoding="utf-8"))
+        assert not found, (
+            f"nyseCalendar.js carries date literal(s) {found}: a retyped table beside "
+            "market_calendar.json is a second authority over the same dates. Add "
+            "dates to the JSON, never to this file."
+        )
+
+    def test_the_no_literal_check_can_fire(self):
+        """Control: the check above must SEE the shape the file used to have,
+        and must ignore a date that only appears in a comment."""
+        old_shape = "export const X = Object.freeze([\n  { date: '2026-01-01', name: 'x' },\n])\n"
+        assert _iso_literals_in_code(old_shape) == ["'2026-01-01'"]
+        assert _iso_literals_in_code("// e.g. '2026-01-01'\n/* '2027-01-01' */\nconst a = 1\n") == []
+
+
+# --------------------------------------------------------------------------
+# 2. The backend equals the JSON
+# --------------------------------------------------------------------------
+
+class TestTheBackendEqualsTheDataset:
+    def test_the_dataset_years_are_not_vacuous(self):
+        assert len(_DATASET_YEARS) >= 4, _DATASET_YEARS
+
+    @pytest.mark.parametrize("year", _DATASET_YEARS)
+    def test_full_closures_equal_the_json(self, year):
+        ours = {d for d in _JSON_HOLIDAYS if d // 10000 == year}
+        theirs = {d for d in _NYSE_HOLIDAYS_YYYYMMDD if d // 10000 == year}
+        assert len(ours) >= 8, f"{year}: the dataset lists only {len(ours)} closures"
+        assert ours == theirs, (
+            f"{year}: only in market_calendar.json {sorted(map(_iso, ours - theirs))}; "
+            f"only in bars_fetch._NYSE_HOLIDAYS_YYYYMMDD {sorted(map(_iso, theirs - ours))}"
+        )
+
+    @pytest.mark.parametrize("year", _DATASET_YEARS)
+    def test_half_days_equal_the_json(self, year):
+        ours = {d for d in _JSON_EARLY_CLOSES if d // 10000 == year}
+        theirs = {d for d in _NYSE_EARLY_CLOSES_YYYYMMDD if d // 10000 == year}
+        assert ours == theirs, (
+            f"{year}: only in market_calendar.json {sorted(map(_iso, ours - theirs))}; "
+            f"only in liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD {sorted(map(_iso, theirs - ours))}"
+        )
+
+    def test_nothing_in_the_backend_falls_outside_the_dataset(self):
+        assert not (_NYSE_HOLIDAYS_YYYYMMDD - _JSON_HOLIDAYS)
+        assert not (_NYSE_EARLY_CLOSES_YYYYMMDD - _JSON_EARLY_CLOSES)
+
+    def test_every_early_close_is_13_00(self):
+        """The backend's half-day set is a set of dates: it cannot carry a close
+        time, and every reader of it assumes 13:00 ET. A dataset row closing at
+        any other time would be silently read as 13:00 on the server."""
+        odd = [e for e in _RAW["early_closes"] if e["close"] != "13:00"]
+        assert not odd, f"early closes not at 13:00 ET: {odd}"
+
+    @pytest.mark.parametrize("year", _DATASET_YEARS)
+    def test_no_full_holiday_is_also_an_early_close(self, year):
+        both = {d for d in _JSON_HOLIDAYS & _JSON_EARLY_CLOSES if d // 10000 == year}
+        assert not both, f"{year}: {sorted(map(_iso, both))} are both a closure and a half-day"
+
+
+# --------------------------------------------------------------------------
+# 3. The backend answers the shared fixture (the independent check)
+# --------------------------------------------------------------------------
+
+def _backend_closed_all_day(d: date) -> bool:
+    return d.weekday() >= 5 or int(d.strftime("%Y%m%d")) in _NYSE_HOLIDAYS_YYYYMMDD
+
+
+def _mid_rth_session_rows():
+    """Session rows at an ET wall time between 09:30 and 13:00 -- inside RTH on
+    every trading day, half-days included -- so 'closed' there means only one
+    thing: the whole day is shut."""
+    rows = []
+    for c in _FIXTURE["sessions"]:
+        et = datetime.fromisoformat(c["ts"].replace("Z", "+00:00")).astimezone(_ET)
+        m = et.hour * 60 + et.minute
+        if 9 * 60 + 30 <= m < 13 * 60:
+            rows.append((c["ts"], et.date(), c["expect"], c["why"]))
+    return rows
+
+
+_MID_RTH_ROWS = _mid_rth_session_rows()
+
+
+class TestTheBackendAnswersTheSharedFixture:
+    def test_the_fixture_comparison_is_not_vacuous(self):
+        assert len(_FIXTURE["days"]) >= 15
+        assert len(_MID_RTH_ROWS) >= 15
+        assert any(not c["trading_day"] for c in _FIXTURE["days"])
+        assert any(d.year == int(_RAW["horizon"][:4]) and want == "closed" and d.weekday() < 5
+                   for _, d, want, _ in _MID_RTH_ROWS), "no horizon-year holiday row to compare"
+
+    @pytest.mark.parametrize("row", _FIXTURE["days"], ids=lambda c: c["date"])
+    def test_day_rows(self, row):
+        d = date.fromisoformat(row["date"])
+        assert (not _backend_closed_all_day(d)) is row["trading_day"], row["why"]
+        if row["close_utc"] is not None:
+            close_et = datetime.fromisoformat(row["close_utc"].replace("Z", "+00:00")).astimezone(_ET)
+            is_half = int(d.strftime("%Y%m%d")) in _NYSE_EARLY_CLOSES_YYYYMMDD
+            assert is_half is (close_et.hour == 13), (
+                f"{row['date']}: fixture closes at {close_et:%H:%M} ET but the backend "
+                f"half-day set says {'half-day' if is_half else 'full day'} ({row['why']})"
+            )
+
+    @pytest.mark.parametrize("row", _MID_RTH_ROWS, ids=lambda r: r[0])
+    def test_mid_rth_session_rows(self, row):
+        ts, d, want, why = row
+        assert _backend_closed_all_day(d) is (want == "closed"), f"{ts}: {why}"
+
+
+# --------------------------------------------------------------------------
+# 4. The leaf stays a leaf; the re-exports stay the leaf's objects
+# --------------------------------------------------------------------------
+
+def _imported_modules(path: pathlib.Path) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    out: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            out.update(a.name for a in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            out.add(node.module)
+    return out
+
+
+class TestTheLeafStaysALeaf:
+    """``nyse_calendar`` exists so ``ast_interpret`` and ``scan_evaluator`` can
+    read the two sets without importing a service. Deriving it from
+    ``session_calendar`` keeps that only while ``session_calendar`` is itself
+    stdlib-only."""
+
+    def test_nyse_calendar_imports_only_session_calendar_from_api(self):
+        api_imports = {m for m in _imported_modules(_LEAF_PATH) if m.startswith("api")}
+        assert api_imports == {"api.services.session_calendar"}, api_imports
+
+    def test_session_calendar_imports_nothing_from_api(self):
+        api_imports = {m for m in _imported_modules(_SESSION_PY_PATH) if m.startswith("api")}
+        assert not api_imports, (
+            f"session_calendar.py imports {api_imports}: nyse_calendar is no longer "
+            "a dependency-free leaf, and every reader of it now drags a service in."
+        )
+
+    def test_the_import_probe_can_see_an_api_import(self):
+        """Control: the probe must see an api.* import where one exists."""
+        assert "api.services.session_calendar" in _imported_modules(_LEAF_PATH)
 
 
 class TestTheReExportIsTheLeafTheEngineActuallyReads:
@@ -112,19 +272,10 @@ class TestTheReExportIsTheLeafTheEngineActuallyReads:
 
     Both NYSE tables moved to the dependency-free leaf ``api/services/nyse_calendar.py``
     on 2026-09-09; ``bars_fetch`` and ``liveflow_monitor`` re-export them under
-    their historical names so all 55 read sites kept working, and this file was
-    deliberately left importing those names to prove exactly that.
+    their historical names so all 55 read sites kept working.
 
-    ⭐ BUT NOTHING PINNED THE TWO TOGETHER. ``ast_interpret`` imports the LEAF
-    (``_nyse_full_closures`` / ``_nyse_early_closes``), so if a future edit gave
-    ``bars_fetch`` its own literal again -- which is precisely the state the leaf
-    refactor undid -- every assertion above would keep passing against a table the
-    engine no longer reads, while the engine and the browser silently disagreed
-    about which days the market is shut. A second authority over one value, with
-    a green test standing over it.
-
-    Identity, not equality: two equal frozensets built from two literals are the
-    thing being forbidden, so ``==`` would accept the defect.
+    ⭐ Identity, not equality: two equal frozensets built from two sources are
+    the thing being forbidden, so ``==`` would accept the defect.
     """
 
     def test_bars_fetch_reexports_the_very_same_holiday_object(self):
@@ -139,50 +290,4 @@ class TestTheReExportIsTheLeafTheEngineActuallyReads:
         assert _NYSE_EARLY_CLOSES_YYYYMMDD is _LEAF_EARLY_CLOSES, (
             "liveflow_monitor._NYSE_EARLY_CLOSES_YYYYMMDD is no longer the leaf's "
             "object -- see the sibling test above for why that is not cosmetic."
-        )
-
-
-class TestFullHolidayParity:
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
-    def test_frontend_and_backend_agree_on_every_full_holiday(self, year):
-        frontend = _js_dates_for_export(f"NYSE_HOLIDAYS_{year}")
-        backend = {d for d in _BACKEND_HOLIDAYS_ISO if d.startswith(str(year))}
-        missing_from_backend = frontend - backend
-        missing_from_frontend = backend - frontend
-        assert not missing_from_backend, (
-            f"nyseCalendar.js's NYSE_HOLIDAYS_{year} has dates bars_fetch.py's "
-            f"_NYSE_HOLIDAYS_YYYYMMDD does not: {sorted(missing_from_backend)}"
-        )
-        assert not missing_from_frontend, (
-            f"bars_fetch.py's _NYSE_HOLIDAYS_YYYYMMDD has {year} dates "
-            f"nyseCalendar.js's NYSE_HOLIDAYS_{year} does not: "
-            f"{sorted(missing_from_frontend)}"
-        )
-
-
-class TestEarlyCloseParity:
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
-    def test_frontend_and_backend_agree_on_every_early_close(self, year):
-        frontend = _js_dates_for_export(f"NYSE_EARLY_CLOSES_{year}")
-        backend = {d for d in _BACKEND_EARLY_CLOSES_ISO if d.startswith(str(year))}
-        assert frontend == backend, (
-            f"Early-close mismatch for {year}: frontend={sorted(frontend)} "
-            f"backend(liveflow_monitor)={sorted(backend)}"
-        )
-
-
-class TestNoFullHolidayIsAlsoAnEarlyClose:
-    """A date cannot be both a full closure and a half day -- catches the
-    exact class of subtlety these tables have to get right by hand every
-    year (e.g. July 3 2026 is a full holiday because July 4 falls on a
-    Saturday; Dec 24 2027 is a full holiday because Dec 25 falls on a
-    Saturday -- neither is also listed as an early close)."""
-
-    @pytest.mark.parametrize("year", _FRONTEND_YEARS)
-    def test_frontend_holidays_and_early_closes_are_disjoint(self, year):
-        holidays = _js_dates_for_export(f"NYSE_HOLIDAYS_{year}")
-        early = _js_dates_for_export(f"NYSE_EARLY_CLOSES_{year}")
-        assert not (holidays & early), (
-            f"{year}: date(s) {sorted(holidays & early)} are listed as BOTH "
-            "a full holiday and an early close in nyseCalendar.js"
         )

@@ -10,6 +10,7 @@ import {
   isDailyTailStaleForPaint, isDailyTailStale, isDailyTodayCloseProvisionalForPaint,
   expectedLatestDailySessionET,
 } from './marketSession'
+import { hasCoverage } from '../lib/marketClock/nyseCalendar'
 
 describe('isDailyTailStaleForPaint', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -151,10 +152,12 @@ describe('expectedLatestDailySessionET — S11 holiday/early-close awareness (Te
     expect(expectedLatestDailySessionET()).toBe('2026-07-02')
   })
 
-  it('outside calendar coverage (a 2028 date, no real table, after Seam 7 extended coverage through 2027): degrades to weekday-only behavior — a real MLK-day-equivalent Monday is NOT treated as a holiday', () => {
-    // 2028-01-17 is a Monday with no entry in nyseCalendar's 2026-2027 table.
-    vi.setSystemTime(new Date('2028-01-17T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
-    expect(expectedLatestDailySessionET()).toBe('2028-01-17')
+  it('outside calendar coverage (a 2030 date, past the dataset horizon): degrades to weekday-only behavior — a real MLK-day-equivalent Monday is NOT treated as a holiday', () => {
+    // 2030-01-21 is MLK Day 2030 (third Monday), past market_calendar.json's
+    // 2028-12-31 horizon. 2028-01-17 was this probe until TERM-035 follow-up #1.
+    expect(hasCoverage(2030)).toBe(false) // the probe really is outside coverage
+    vi.setSystemTime(new Date('2030-01-21T22:00:00Z')) // 17:00 EST, after the ordinary 16:00 close
+    expect(expectedLatestDailySessionET()).toBe('2030-01-21')
   })
 
   it('a real 2027 holiday (MLK Day, Mon 2027-01-18) is now correctly recognized -- Seam 7 extended coverage through 2027', () => {

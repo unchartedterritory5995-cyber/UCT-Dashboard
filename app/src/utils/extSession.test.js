@@ -11,6 +11,7 @@
 // EST (UTC-5).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { getExtSession, getExtSessionCached, anchorNoonSec } from './extSession'
+import { hasCoverage } from '../lib/marketClock/nyseCalendar'
 
 describe('getExtSession — ordinary trading days (regression: unchanged from before Seam 6)', () => {
   beforeEach(() => vi.useFakeTimers())
@@ -111,9 +112,11 @@ describe('getExtSession — outside nyseCalendar.js coverage (must degrade EXACT
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
-  it('an ordinary weekday outside coverage (2028, after Seam 7 extended coverage through 2027) still reads as rth — no throw, no guess, same as before Seam 6', () => {
-    vi.setSystemTime(new Date('2028-01-04T15:00:00Z')) // Tue 10:00 EST, 2028 has no calendar table
-    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2028-01-04' })
+  it('an ordinary weekday outside coverage (2030, past the dataset horizon) still reads as rth — no throw, no guess, same as before Seam 6', () => {
+    // 2028 was this probe until TERM-035 follow-up #1 moved coverage to 2028-12-31.
+    expect(hasCoverage(2030)).toBe(false) // the probe really is outside coverage
+    vi.setSystemTime(new Date('2030-01-08T15:00:00Z')) // Tue 10:00 EST, 2030 has no calendar table
+    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2030-01-08' })
   })
 
   it('a real 2027 holiday (New Year\'s Day) is now correctly recognized -- Seam 7 extended coverage through 2027', () => {
@@ -123,9 +126,19 @@ describe('getExtSession — outside nyseCalendar.js coverage (must degrade EXACT
     expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2026-12-31' })
   })
 
-  it('a real 2025 holiday (Christmas) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
-    vi.setSystemTime(new Date('2025-12-25T15:00:00Z')) // Thu 10:00 EST, 2025 has no calendar table
-    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2025-12-25' })
+  it('a real 2024 holiday (Christmas) outside coverage is NOT recognized -- degrades honestly, exactly as before', () => {
+    // 2025 was this probe until TERM-035 follow-up #1: the dataset starts
+    // 2025-01-01, so 2025 is now covered and 2024 is the nearest year that is not.
+    expect(hasCoverage(2024)).toBe(false) // the probe really is outside coverage
+    vi.setSystemTime(new Date('2024-12-25T15:00:00Z')) // Wed 10:00 EST, 2024 has no calendar table
+    expect(getExtSession()).toEqual({ session: 'rth', anchorDate: '2024-12-25' })
+  })
+
+  it('a real 2025 holiday (Christmas) is now correctly recognized -- the dataset covers 2025', () => {
+    vi.setSystemTime(new Date('2025-12-25T15:00:00Z')) // Thu 10:00 EST, Christmas 2025
+    // Same shape as the 2027 New Year's case above: a holiday morning reads
+    // 'post' anchored on the prior trading day (Wed 2025-12-24, a half-day).
+    expect(getExtSession()).toEqual({ session: 'post', anchorDate: '2025-12-24' })
   })
 })
 

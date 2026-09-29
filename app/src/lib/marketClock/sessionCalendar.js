@@ -23,11 +23,13 @@
 // whether an answer was calendar-backed. The horizon rail lives in
 // tests/test_session_calendar.py.
 //
-// ⚠️ NOT YET READ by any shipped surface. marketClock.js / nyseCalendar.js stay
-// the client clock until nyseCalendar.js is repointed at this dataset (see the
-// TERM-035 census). sessionCalendar.test.js holds this module equal to
-// nyseCalendar.js's dates and to marketClock.sessionState on every fixture row
-// both cover, so the two cannot drift apart silently in the meantime.
+// READ IN PRODUCTION since TERM-035 follow-up #1: nyseCalendar.js builds its
+// per-year holiday / early-close tables and COVERED_YEARS from HOLIDAY_ROWS,
+// EARLY_CLOSE_ROWS, COVERAGE_START and horizon() below, so marketClock.js and
+// every reader behind it (useMarketOpen, sessionModel, sessionStale,
+// FreshnessBadge, freshnessAge, extSession, marketSession) answer from this
+// dataset. sessionCalendar.test.js still holds marketClock.sessionState equal
+// to this module on every shared-fixture row both cover.
 
 import DATA from './market_calendar.json'
 
@@ -46,6 +48,16 @@ const EARLY_CLOSES = new Map(DATA.early_closes.map((e) => [e.date, _hm(e.close)]
 
 export const CALENDAR_VERSION = DATA.version
 export const COVERAGE_START = DATA.coverage_start
+
+/** Every full closure in the dataset, `{ date, name }`, frozen. */
+export const HOLIDAY_ROWS = Object.freeze(
+  DATA.holidays.map((h) => Object.freeze({ date: h.date, name: h.name })),
+)
+
+/** Every early close in the dataset, `{ date, name, close }` ('HH:MM' ET), frozen. */
+export const EARLY_CLOSE_ROWS = Object.freeze(
+  DATA.early_closes.map((e) => Object.freeze({ date: e.date, name: e.name, close: e.close })),
+)
 
 const _ET_PARTS = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/New_York',

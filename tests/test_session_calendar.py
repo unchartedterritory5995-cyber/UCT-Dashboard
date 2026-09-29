@@ -11,6 +11,10 @@ Four things are railed here:
    with every row, which is the client/server parity the ticket asks for.
 3. NO SECOND LIST. On every year both cover, the dataset equals
    ``api/services/nyse_calendar.py`` exactly (full closures and half-days).
+   Since TERM-035 follow-up #1 that module DERIVES its sets from this dataset,
+   so this now pins the derivation; the independent check is the shared
+   fixture, which ``tests/test_nyse_calendar_parity.py`` also puts to the
+   backend sets.
 4. THE DATASET IS HONEST ABOUT ITS HORIZON: every year it claims is populated.
 """
 from __future__ import annotations
