@@ -375,6 +375,26 @@ window.__l3 = (() => {
 })();
 """
 
+# Fix round 1 (record-only): does every note chip in a day cell sit wholly inside its cell?
+CAL_JS = r"""() => {
+  const grid = document.querySelector('[role="grid"]');
+  if (!grid) return {grid: false};
+  const out = [];
+  for (const cell of grid.querySelectorAll('[role="gridcell"]')) {
+    const chips = Array.from(cell.querySelectorAll('button')).filter(b => b.getClientRects().length);
+    if (!chips.length) continue;
+    const cb = cell.getBoundingClientRect(); const cs = getComputedStyle(cell);
+    out.push({cell: [Math.round(cb.x), Math.round(cb.y), Math.round(cb.width), Math.round(cb.height)],
+              minHeight: cs.minHeight, overflow: cs.overflow,
+              chips: chips.map(b => { const r = b.getBoundingClientRect();
+                return {name: (b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 40),
+                        box: [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height * 10) / 10],
+                        inside: r.top >= cb.top - 0.5 && r.bottom <= cb.bottom + 0.5 && r.left >= cb.left - 0.5 && r.right <= cb.right + 0.5}; })});
+  }
+  return {grid: true, cells: out};
+}"""
+
+
 def ensure_lib(pg) -> None:
     pg.evaluate("() => { if (window.__l3) return true; " + LIB_JS + " return true; }")
 
@@ -676,7 +696,16 @@ def seed(H, req, base: str) -> dict:
         if c.status not in (200, 201):
             raise H.SetupFailed(f"seeding {title!r}: HTTP {c.status} {c.text()[:200]}")
         out[title] = c.json()["note"]["id"]
-    return {"rich": out["L3 rich note"], "ids": out, "today": today}
+    # Fix round 1: date six notes in THIS month (three on one day) through the product's own
+    # note-update door, so the calendar puts chips INTO day cells (the cell budget is what
+    # ruling 1 asks about). builtin:review_date is the code-defined date property.
+    ym = time.strftime("%Y-%m")
+    dated = {}
+    for i, day in enumerate(["10", "10", "10", "12", "18", "25"]):
+        nid = out[f"L3 note {i:02d}"]
+        r = req.put(base + f"/api/j2/notes/{nid}", data={"properties": {"builtin:review_date": f"{ym}-{day}"}})
+        dated[f"L3 note {i:02d}"] = {"date": f"{ym}-{day}", "http": r.status}
+    return {"rich": out["L3 rich note"], "ids": out, "today": today, "dated": dated}
 
 
 def take(pg, path: Path) -> str:
@@ -734,6 +763,8 @@ def run_config(br, H, base: str, notes: dict, pass_: str, width: int, storage, a
                             shots.append({"control": f["control"], "shot": nm})
                         pg.evaluate("() => window.__l3.unmark()")
                 row["finding_shots"] = shots
+                if name == "calendar":   # fix round 1, RECORD-ONLY: each day-cell chip against its cell
+                    row["calendar_cells"] = pg.evaluate(CAL_JS)
                 if name == "list":
                     # the in-product plants: same code path, same surface
                     top0(pg)
@@ -834,7 +865,7 @@ def main() -> int:
                 if pr.status not in (200, 201):   # a validator that refuses the coach-mark field: the switch alone
                     hub_pref = {"enabled": pass_ == "hub"}
                     pr = mctx.request.post(base + "/api/auth/preferences", data={"key": "joystick_hub", "value": json.dumps(hub_pref)})
-                res.setdefault("setup", {})[pass_] = {"member": member[0], "notes": len(notes["ids"]), "hub_pref": hub_pref,
+                res.setdefault("setup", {})[pass_] = {"member": member[0], "notes": len(notes["ids"]), "dated": notes.get("dated"), "hub_pref": hub_pref,
                                                       "hub_pref_http": pr.status}
                 storage = mctx.storage_state()
                 mctx.close()
