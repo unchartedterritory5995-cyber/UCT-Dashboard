@@ -26,6 +26,11 @@ text that produced a fixture is versioned beside it.
 | `vw-mintick.pine` | `syminfo.mintick` across price regimes and asset classes (data, not semantics) | #6 |
 | `vw-alma.pine` | `ta.alma` — alone in its file, like `r11-alma.pine` | #7 |
 | `vw-deadband-ticks.pine` | `deadband-hysteresis` in **Ticks** mode, where `syminfo.mintick * tickThresh` IS the band — the corpus script with three edits (title, overlay, default mode) + D00–D03 | 2026-09-28 · `docs/pine/capture-queue-2026-09-27.md` → "QUEUED — 2026-09-28" |
+| `vw-clock-close-tfchange.pine` | `time_close` / `time_close("D")` / the bar's span / `timeframe.change("D"/"W"/"M"/"1W")` against `time(tf)` controls — is a 1D `time_close` the 16:00 session close or the next open, does a 60m 15:30 bar clip at 16:00, does a weekly span include the weekend. Capture SPY 1D full, SPY 60 RTH, SPY W. Ours today: refused (`time_close`) | objects triage 2026-09-28 · C8 |
+| `vw-object-gc-a.pine` | the corpus's 50-vs-51 split reproduced at the default cap: contraction-box, makuchaku and ultimate-pivot shapes, one family each | objects triage · C7 (1 of 4) |
+| `vw-object-gc-b.pine` | A with ONE dimension changed per family — na coordinates, sporadic rate, `if` scope — at the same default cap | C7 (2 of 4) |
+| `vw-object-gc-c.pine` | caps 5/7/3: does `label.delete` free a slot (live vs ring), are `var`-held boxes exempt (touched or not), what a last-bar burst over the cap keeps | C7 (3 of 4) |
+| `vw-object-gc-d.pine` | `label.all`/`line.all`/`box.all` sizes before/after creates per bar (WHEN the collector trims), and multi-tf's burst-with-nothing-after, array-held vs unheld. Vendor-only: ours refuses `label.all` | C7 (4 of 4) |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.
 

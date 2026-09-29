@@ -158,8 +158,13 @@ export function buildTable(tb, doc) {
   for (const cells of rows) {
     const tr = doc.createElement('tr')
     for (const { col, cell, drawn } of cells) {
+      // ⭐ `table.merge_cells` — a covered address is part of the cell that
+      // spans it and gets no element of its own.
+      if (cell && cell.covered) continue
       const td = doc.createElement('td')
       td.setAttribute('data-uct-cell-col', String(col))
+      if (cell && cell.colspan > 1) td.colSpan = cell.colspan
+      if (cell && cell.rowspan > 1) td.rowSpan = cell.rowspan
       if (!drawn) {
         td.setAttribute('data-uct-cell', 'empty')
         setStyle(td, { padding: '0', width: '0', fontSize: '0' })

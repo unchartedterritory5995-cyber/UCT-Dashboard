@@ -185,19 +185,6 @@ export function decodePackedColour(n) {
  *  unescaped title on both platforms, so that is the one the mapping compares.
  *  ⛔ Only the five entities HTML escaping emits (plus the numeric forms); an
  *  unknown `&name;` is left exactly as written rather than guessed. */
-export function unescapeVendorTitle(t) {
-  if (typeof t !== 'string' || !t.includes('&')) return t
-  return t.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (m, e) => {
-    const k = e.toLowerCase()
-    if (k === 'amp') return '&'
-    if (k === 'lt') return '<'
-    if (k === 'gt') return '>'
-    if (k === 'quot') return '"'
-    if (k === 'apos') return "'"
-    const code = k.startsWith('#x') ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10)
-    return Number.isInteger(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : m
-  })
-}
 
 // ── VENDOR PLOT ROLES ────────────────────────────────────────────────────────
 //
@@ -210,6 +197,40 @@ export function unescapeVendorTitle(t) {
 // capture and reported as NOT COMPARED BY v1, by name — never silently dropped.
 const VALUE_TYPES = new Set(['line', 'shapes', 'chars', 'arrows'])
 
+// ⭐⭐ THE VENDOR'S STUDY METAINFO ARRIVES HTML-ESCAPED. Measured on the
+// 2026-09-28 batch: `extrapolated-pivot-connector` titles its plots
+// `Pivot High&#039;s` / `Pivot Low&#039;s` (the script writes `Pivot High's`),
+// and `makuchaku039s-…` / `poor-man039s-…` carry `&#039;` in their study
+// description. Compared raw, the title mapping (M1) looked for a plot of ours
+// literally named `Pivot High&#039;s` and reported both plots UNMAPPED — a
+// verdict about the capture's encoding, not about either engine.
+//
+// ⛔ METAINFO ONLY. Every entity in the 47 captures sits in a study/plot/style
+// TITLE or DESCRIPTION; not one object text (label, cell) carries one. A label
+// text is the script's own string, so decoding it would rewrite a literal
+// `&amp;` an author typed — an unmeasured transformation applied to data.
+//
+// ⛔ ONE PASS. `&amp;#039;` decodes to `&#039;`, never to `'`: decoding twice
+// would turn a title that genuinely contains the text `&#039;` into something
+// the author did not write.
+const NAMED_ENTITIES = Object.freeze({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" })
+export function decodeVendorText(s) {
+  if (typeof s !== 'string' || s.indexOf('&') < 0) return s
+  return s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, body) => {
+    if (body[0] === '#') {
+      const code = body[1] === 'x' || body[1] === 'X' ? parseInt(body.slice(2), 16) : parseInt(body.slice(1), 10)
+      return Number.isFinite(code) && code >= 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole
+    }
+    const named = NAMED_ENTITIES[body.toLowerCase()]
+    return named === undefined ? whole : named
+  })
+}
+
+/** The same decode, under the name the colour lane's plot-title mapping
+ *  (`vendorPlotRoles`, M1) was written against. ONE implementation: two copies
+ *  of an entity decoder drift the first time one of them learns an entity. */
+export const unescapeVendorTitle = decodeVendorText
+
 export function vendorPlotRoles(capture) {
   const plots = (capture.study && capture.study.plots) || []
   const styles = (capture.study && capture.study.styles) || {}
@@ -218,7 +239,7 @@ export function vendorPlotRoles(capture) {
   const notDrawn = []
   const notCompared = []
   plots.forEach((p, idx) => {
-    const title = unescapeVendorTitle((p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null)
+    const title = decodeVendorText((p.title !== undefined ? p.title : (styles[p.id] && styles[p.id].title)) ?? null)
     const rec = { ...p, title, column: idx + 1 }
     if (VALUE_TYPES.has(p.type)) value.push(rec)
     // ⛔ A colorer on a FILLED AREA colours the fill, not a plot. v1 does not
@@ -607,7 +628,7 @@ export function vendorColorsFor(capture, valuePlot, colorers, rowsByTime, times)
 export function compareCapture(capture, ours, opts = {}) {
   const base = {
     id: capture && capture.id,
-    script: capture && capture.study && (capture.study.title || capture.study.shortDescription),
+    script: capture && capture.study && decodeVendorText(capture.study.title || capture.study.shortDescription),
     symbol: capture && capture.symbol && (capture.symbol.pro_name || capture.symbol.name),
     timeframe: capture && capture.timeframe,
     format: capture && capture.adaptedFrom ? capture.adaptedFrom.format : 'harness-v1',

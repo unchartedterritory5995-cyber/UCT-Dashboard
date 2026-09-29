@@ -253,10 +253,15 @@ describe('C3B — the resource envelope', () => {
     })
     const r = evaluateObjects(prog, ctxOf(100))
     expect(r.status).toBe(OBJECT_STATUS.OK)
-    expect(r.live.length).toBe(5)
-    // ⭐ AND THEY ARE THE LAST FIVE BARS, NOT THE FIRST FIVE — the direction is
-    // the whole defect, and a length check alone cannot see it.
-    expect(r.live.map((o) => o.createdBar)).toEqual([95, 96, 97, 98, 99])
+    // ⭐ 2026-09-28: Pine collects in BATCHES (`objectPool.GC_BATCH`) — nothing
+    // goes until the count passes cap + 5, then it is cut back to the cap. One
+    // line per bar at cap 5: bar 10's create makes 11 → cut to 5, and every
+    // sixth bar after. 100 creates land 89 past that first cut, 89 mod 6 = 5,
+    // so ten are held. (This asserted exactly five while the rule was strict.)
+    expect(r.live.length).toBe(10)
+    // ⭐ AND THEY ARE THE LAST TEN BARS, NOT THE FIRST — the direction is the
+    // whole defect, and a length check alone cannot see it.
+    expect(r.live.map((o) => o.createdBar)).toEqual([90, 91, 92, 93, 94, 95, 96, 97, 98, 99])
   })
 
   it('⛔ a family with NO Pine eviction rule still REFUSES with a named reason', () => {
@@ -273,6 +278,128 @@ describe('C3B — the resource envelope', () => {
     const r = evaluateObjects(prog, ctxOf(100))
     expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
     expect(r.reason).toMatch(/more than 3 live table objects/)
+  })
+
+  describe('⭐⭐ a table at an occupied POSITION replaces the table that was there', () => {
+    // ⚰️ MEASURED 2026-09-28 against TradingView (NYSE:RDDT 1D): a non-`var`
+    // `table.new` on every bar holds ONE table at the last bar
+    // (`heat-map-seasons`, `ict-ipda-look-back`), while three tables at three
+    // positions are all held (`artemis-oscillator-pro`). We refused the run at
+    // the ninth table and stopped stepping.
+    const tableAt = (site, position, extra = {}) => ({
+      k: 'create', family: 'table', site, into: null, when: null,
+      props: { position: { v: 'const', value: position } }, ...extra,
+    })
+
+    it('one table per bar at one position: the run completes holding the NEWEST one', () => {
+      const prog = P({
+        ops: [
+          tableAt('t', 'bottom_center'),
+          // a line drawn AFTER the table on every bar — lost entirely when the
+          // table refusal stopped the run at bar 8
+          { k: 'create', family: 'line', site: 'l', into: null, when: null, props: { x1: { v: 'bar' } } },
+        ],
+      })
+      const r = evaluateObjects(prog, ctxOf(40))
+      expect(r.status).toBe(OBJECT_STATUS.OK)
+      const tables = r.live.filter((o) => o.family === 'table')
+      expect(tables).toHaveLength(1)
+      expect(tables[0].createdBar).toBe(39)
+      expect(r.live.filter((o) => o.family === 'line')).toHaveLength(40)
+      expect(r.stats.tablesReplaced).toBe(39)
+    })
+
+    it('`position.top_right` and the string "top_right" name ONE slot', () => {
+      const prog = P({ ops: [tableAt('a', 'position.top_right'), tableAt('b', 'top_right')] })
+      const r = evaluateObjects(prog, ctxOf(1))
+      expect(r.live.filter((o) => o.family === 'table').map((o) => o.site)).toEqual(['b'])
+    })
+
+    it('⛔ CONTROL — tables at DIFFERENT positions are all held', () => {
+      const prog = P({ ops: [tableAt('a', 'top_right', { once: true }), tableAt('b', 'bottom_right', { once: true }), tableAt('c', 'middle_right', { once: true })] })
+      const r = evaluateObjects(prog, ctxOf(5))
+      expect(r.live.filter((o) => o.family === 'table').map((o) => o.site)).toEqual(['a', 'b', 'c'])
+      expect(r.stats.tablesReplaced).toBeUndefined()
+    })
+
+    it('⛔ CONTROL — a table whose position did not resolve is never guessed onto a slot', () => {
+      const prog = P({
+        limits: { table: 3 },
+        ops: [{ k: 'create', family: 'table', site: 'a', into: null, when: null, props: { position: { v: 'const', value: undefined } } }],
+      })
+      const r = evaluateObjects(prog, ctxOf(10))
+      expect(r.status).toBe(OBJECT_STATUS.LIMIT_EXCEEDED)
+      expect(r.reason).toMatch(/more than 3 live table objects/)
+    })
+
+    it('the replaced table leaves every register that named it, like any removal', () => {
+      const prog = P({
+        regs: [{ id: 'old', family: 'table' }],
+        ops: [
+          tableAt('a', 'top_right', { into: 'old', when: { v: 'graph', node: 0 } }),
+          tableAt('b', 'top_right', { when: { v: 'graph', node: 1 } }),
+          { k: 'cell', target: { r: 'reg', id: 'old' }, col: { v: 'const', value: 0 }, row: { v: 'const', value: 0 }, when: { v: 'graph', node: 2 }, props: { text: { v: 'const', value: 'x' } } },
+        ],
+      })
+      const r = evaluateObjects(prog, ctxOf(3, { 0: onBars(3, [0]), 1: onBars(3, [1]), 2: onBars(3, [2]) }))
+      expect(r.live.map((o) => o.site)).toEqual(['b'])
+      expect(r.stats.writesToDeleted).toBe(1)
+    })
+  })
+
+  describe('⭐⭐ `linefill.new` — one fill per pair of lines, and none without them', () => {
+    // ⚰️ MEASURED 2026-09-28 against TradingView (NYSE:RDDT 1D): `liquidity-pools`
+    // calls `linefill.new(upper, lower)` on every bar for two `var` pairs; the
+    // vendor holds 91 fills for 182 lines. We held 500 — one per call, evicting
+    // through the envelope, plus one per bar between two `na` handles.
+    const REGS = [{ id: 'a', family: 'line' }, { id: 'b', family: 'line' }, { id: 'c', family: 'line' }, { id: 'f', family: 'linefill' }]
+    const lineOnce = (site, into) => ({ k: 'create', family: 'line', site, into, once: true, when: { v: 'graph', node: 9 }, props: {} })
+    const fill = (site, l1, l2, extra = {}) => ({
+      k: 'create', family: 'linefill', site, into: null, when: null,
+      props: { line1: { r: 'reg', id: l1 }, line2: { r: 'reg', id: l2 } }, ...extra,
+    })
+    const fills = (r) => r.live.filter((o) => o.family === 'linefill')
+    // node 9 fires from bar 3 on, so bars 0..2 run `linefill.new(na, na)`
+    const ctx = (n) => ctxOf(n, { 9: Array.from({ length: n }, (_, i) => (i >= 3 ? 1 : 0)) })
+
+    it('the same two lines filled on every bar hold ONE fill — the newest', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('fa', 'a', 'b')] }), ctx(20))
+      expect(r.status).toBe(OBJECT_STATUS.OK)
+      expect(fills(r)).toHaveLength(1)
+      expect(fills(r)[0].createdBar).toBe(19)
+      expect(r.stats.fillsReplaced).toBe(16)          // bars 3..19 made 17 fills; 16 replaced
+      expect(r.stats.fillsWithoutLines).toBe(3)       // bars 0..2 had no lines to fill between
+    })
+
+    it('the pair is UNORDERED — `linefill.new(b, a)` replaces `linefill.new(a, b)`', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('f1', 'a', 'b'), fill('f2', 'b', 'a')] }), ctx(4))
+      expect(fills(r).map((o) => o.site)).toEqual(['f2'])
+    })
+
+    it('⛔ CONTROL — two DIFFERENT pairs keep two fills', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), lineOnce('lc', 'c'), fill('f1', 'a', 'b'), fill('f2', 'a', 'c')] }), ctx(6))
+      expect(fills(r).map((o) => o.site)).toEqual(['f1', 'f2'])
+    })
+
+    it('⛔ a fill naming a line that is not there makes nothing, and its handle reads `na`', () => {
+      const r = evaluateObjects(P({
+        regs: REGS,
+        ops: [
+          { k: 'create', family: 'line', site: 'la', into: 'a', when: null, props: {} },
+          fill('fa', 'a', 'b', { into: 'f' }),
+          { k: 'update', target: { r: 'reg', id: 'f' }, when: null, props: { color: { v: 'const', value: '#ff0000' } } },
+        ],
+      }), ctxOf(3))
+      expect(fills(r)).toHaveLength(0)
+      expect(r.stats.fillsWithoutLines).toBe(3)
+      expect(r.stats.writesToDeleted).toBe(3)       // the setter found `na`, never a stale fill
+    })
+
+    it('⛔ a `var` fill made between `na` lines is `na` for good — not retried when lines appear', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('fa', 'a', 'b', { once: true })] }), ctx(8))
+      expect(fills(r)).toHaveLength(0)
+      expect(r.stats.fillsWithoutLines).toBe(1)
+    })
   })
 
   it('⛔ a runaway ops-per-bar is bounded too', () => {

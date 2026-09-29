@@ -2607,7 +2607,17 @@ export function lexPine(src) {
       let lastBreak = -1
       const eat = (k) => { if (text[k] === '\n') { newlines += 1; lastBreak = k } }
       while (j < text.length && text[j] !== ch) {
-        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1]; j += 2; continue }
+        // ⭐⭐ `\n` IS A NEWLINE, NOT THE LETTER `n`. This branch used to keep
+        // whatever followed the backslash, which is right for `\\`, `\"` and
+        // `\'` and wrong for the one escape the corpus writes most (380 of 389
+        // backslash sequences in the 2026-09-28 batch). MEASURED against
+        // TradingView the same day: `position-size-calculator` builds its label
+        // from `"\n Account Balance : " + …` and the vendor's label text carries
+        // real line breaks, where ours read `n Account Balance : 1000n Risk…`.
+        // ⛔ ONLY `n`. Pine's other escapes are not evidenced by any capture, and
+        // a letter mapped to a control character on a guess is a text the author
+        // did not write.
+        if (text[j] === '\\' && j + 1 < text.length) { eat(j + 1); out += text[j + 1] === 'n' ? '\n' : text[j + 1]; j += 2; continue }
         eat(j)
         out += text[j]
         j += 1
@@ -13669,6 +13679,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
       if (!from || !to) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
+      // ⭐ `for … by <step>` — the step is a value like the bounds. ⛔ An
+      // unreadable step drops the loop exactly as an unreadable bound does.
+      // ⛔ AND THE RUNTIME LANE STILL REFUSES A STEPPED LOOP: it lowers loops
+      // from the raw `fromNode`/`toNode` and has no step to lower, so carrying
+      // one there would iterate a range the drawing does not.
+      const step = op.step ? valueRef(op.step.value) : null
+      if (op.step && (!step || iterTrees)) {
+        unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
+      }
       const outer = ops
       const body = []
       ops = body
@@ -13685,7 +13704,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // the only place that range is written down. Gated, so an ordinary
       // program carries no parse nodes.
       ops.push({
-        k: 'loop', id: op.id, from, to, body, when, ...lastBarOnly,
+        k: 'loop', id: op.id, from, to, ...(step ? { step } : {}), body, when, ...lastBarOnly,
         ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
       })
       continue
@@ -13846,6 +13865,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const row2 = raw.end_row ? valueRef(raw.end_row) : row
       if (!col2 || !row2) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
+    } else if (op.k === 'merge') {
+      // ⭐ `table.merge_cells(table_id, start_column, start_row, end_column,
+      // end_row)` — all four are REQUIRED in Pine, so unlike `table.clear` there
+      // is no default to apply; an unreadable one drops the merge by name.
+      const target = targetRef(op.target)
+      if (!target) { dropped('merge:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const [col, row, col2, row2] = ['start_column', 'start_row', 'end_column', 'end_row']
+        .map((k) => (raw[k] ? valueRef(raw[k]) : null))
+      if (!col || !row || !col2 || !row2) { dropped('merge:range'); continue }
+      ops.push({ k: 'mergecells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }

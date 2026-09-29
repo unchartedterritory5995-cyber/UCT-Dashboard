@@ -1,8 +1,8 @@
 {
-  "measured_at": "2026-09-28",
+  "measured_at": "2026-09-29",
   "scripts": 266,
-  "host_ok": 46,
-  "screener_ok": 53,
+  "host_ok": 49,
+  "screener_ok": 56,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -159,14 +159,10 @@
     },
     {
       "file": "atr-bands__ad60b125e6.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:statement"
-      ],
-      "screenerGuards": [
-        "pine:statement"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "atr-god-strategy-by-tradesmart__4369755a29.pine",
@@ -1553,7 +1549,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin",
         "pine:function"
       ],
       "screenerGuards": [
@@ -2370,9 +2365,11 @@
     },
     {
       "file": "sonarlab-order-blocks__0df0d45ee6.pine",
-      "host": true,
+      "host": false,
       "screener": false,
-      "hostGuards": [],
+      "hostGuards": [
+        "pine:objects-only"
+      ],
       "screenerGuards": [
         "pine:objects-only"
       ]
@@ -2520,14 +2517,10 @@
     },
     {
       "file": "support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:role-order"
-      ],
-      "screenerGuards": [
-        "pine:role-order"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "support-and-resistance__1505.pine",
@@ -2542,14 +2535,10 @@
     },
     {
       "file": "support-and-resistance__UgNPprOr8h.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:role-order"
-      ],
-      "screenerGuards": [
-        "pine:role-order"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "support-and-resistance__c4792aabd0.pine",
@@ -2730,14 +2719,10 @@
     },
     {
       "file": "trendlines__43QQg9nDN0.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:role-order"
-      ],
-      "screenerGuards": [
-        "pine:role-order"
-      ]
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "trendlinesample__61d59f90bc.pine",
@@ -2863,12 +2848,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:block",
-        "pine:role-order"
+        "pine:block"
       ],
       "screenerGuards": [
-        "pine:block",
-        "pine:role-order"
+        "pine:block"
       ]
     },
     {

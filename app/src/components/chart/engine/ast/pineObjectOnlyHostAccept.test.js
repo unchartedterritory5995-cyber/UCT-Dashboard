@@ -49,8 +49,14 @@ describe('⭐⭐ an object-only script (no plot, no alertcondition) with a clean
     expect(screener.refusal.guard).toBe('pine:objects-only')
   })
 
-  it('a second real corpus script (order blocks) also clears the host lane cleanly', () => {
-    const src = fs.readFileSync(path.join(CORPUS, 'sonarlab-order-blocks__0df0d45ee6.pine'), 'utf8')
+  // ⚰️ 2026-09-28 — was `sonarlab-order-blocks`, which "cleared" only because
+  // its `for … by 1` delete loops were blocked at the reader, where no drop is
+  // counted. The loop op reads `by` now; those loops' bounds are array sizes it
+  // cannot read, so the loss is counted and the script is honestly not clean.
+  // `ict-ipda-look-back` is a real object-only corpus script that IS clean —
+  // and matches TradingView on every object family (vendor capture 2026-09-28).
+  it('a second real corpus script (ICT IPDA look-back) also clears the host lane cleanly', () => {
+    const src = fs.readFileSync(path.join(CORPUS, 'ict-ipda-look-back__f85b4c8956.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     expect(t.ok).toBe(true)
     expect(t.objects.ops.length).toBeGreaterThan(0)

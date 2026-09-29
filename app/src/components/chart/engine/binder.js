@@ -649,8 +649,12 @@ export function createBinder({ chart, LWC }) {
         // that reads one refuses outright without it. Passing `inputs` and `tf`
         // and not `symbol` is what made v2's two tables the only part of that
         // document a member could not see.
+        // ⭐ AND WHETHER THE NEWEST BAR IS STILL FORMING — the same tri-state
+        // step 1 hands `computeFor`, for the same reason: `barstate.isconfirmed`
+        // in an object guard reads `na` without it (`objectReaderFor`).
         const reader = objectReaderFor(def, bars, {
           inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
+          newestBarIsForming: ctx.newestBarIsForming ?? null,
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {

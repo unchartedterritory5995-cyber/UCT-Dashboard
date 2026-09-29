@@ -176,7 +176,9 @@ function drawnColours(def, bars, ctx) {
 function objectsOf(def, bars, ctx) {
   if (!def.objects || !(def.objects.ops || []).length) return { drawsObjects: false }
   try {
-    const reader = objectReaderFor(def, bars, { inputs: undefined, tf: ctx.tf, symbol: ctx.symbol })
+    const reader = objectReaderFor(def, bars, {
+      inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
+    })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,

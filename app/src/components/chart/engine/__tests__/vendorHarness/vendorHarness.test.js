@@ -36,7 +36,7 @@ import {
 import {
   REL_TOL, tolerancePolicy, valuesAgree, normalizeColor, mapPlots, comparePlot, plotVerdict,
   compareCapture, compareObjects, VERDICTS,
-  decodePackedColour, unescapeVendorTitle, readingOf, coloursAgree, NO_COLOUR, vendorColorsFor,
+  decodePackedColour, unescapeVendorTitle, decodeVendorText, readingOf, coloursAgree, NO_COLOUR, vendorColorsFor,
   vendorPlotRoles,
 } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, declaredPlotTitles } from '../../../../../../../tools/vendor_harness/adapters.mjs'
@@ -332,6 +332,40 @@ describe('3 · the comparator', () => {
       expect(m.pairs.map((p) => p.rule)).toEqual(['M2-position-untitled', 'M2-position-untitled'])
       const bad = mapPlots([{ id: 'p0', title: 'Plot' }, { id: 'p1', title: 'Plot 2' }], [{ title: '', key: 'a' }, { title: 'named', key: 'b' }])
       expect(bad.pairs).toEqual([])
+    })
+    // ⭐ MEASURED 2026-09-28: `extrapolated-pivot-connector`'s capture titles its
+    // plots `Pivot High&#039;s` — TradingView's metainfo is HTML-escaped — and
+    // both plots read UNMAPPED against a script that writes `Pivot High's`.
+    it("a vendor title TradingView HTML-escaped maps by title to the script's own spelling", () => {
+      const capture = {
+        study: {
+          plots: [{ id: 'plot_0', type: 'line', title: 'Pivot High&#039;s' }, { id: 'plot_1', type: 'line' }],
+          styles: { plot_1: { title: 'Pivot Low&#039;s' } },
+        },
+      }
+      const roles = vendorPlotRoles(capture)
+      expect(roles.value.map((p) => p.title)).toEqual(["Pivot High's", "Pivot Low's"])
+      const m = mapPlots(roles.value, [{ title: "Pivot High's", key: 'value' }, { title: "Pivot Low's", key: 'out2' }])
+      expect(m.pairs.map((p) => [p.vendor.id, p.ours.key, p.rule]))
+        .toEqual([['plot_0', 'value', 'M1-title'], ['plot_1', 'out2', 'M1-title']])
+      expect(m.unmappedVendor).toEqual([])
+    })
+    it('⛔ CONTROL — the escaped spelling itself matches nothing, so the decode is what pairs them', () => {
+      const m = mapPlots([{ id: 'plot_0', title: 'Pivot High&#039;s' }], [{ title: "Pivot High's", key: 'value' }])
+      expect(m.pairs).toEqual([])
+      expect(m.unmappedVendor[0].reason).toMatch(/no plot on our side is titled "Pivot High&#039;s"/)
+    })
+    it('the decode is ONE pass and leaves anything that is not an entity alone', () => {
+      expect(decodeVendorText('&amp;#039;')).toBe('&#039;')
+      expect(decodeVendorText('R&D & co')).toBe('R&D & co')
+      expect(decodeVendorText('&#x27;&quot;&lt;&gt;&apos;')).toBe(`'"<>'`)
+      expect(decodeVendorText('&bogus;')).toBe('&bogus;')
+      expect(decodeVendorText(null)).toBe(null)
+    })
+    it("⛔ an OBJECT text is the script's own string and is never decoded", () => {
+      const v = { counts: { labels: 1 }, texts: { labels: ['R&amp;D'] } }
+      const o = { ok: true, counts: { labels: 1 }, texts: { labels: ['R&D'] } }
+      expect(compareObjects(v, o).texts[0].agree).toBe(false)
     })
     it('M0 by selector, refusing zero or several matches', () => {
       const f = [{ title: 'a', formula: 'sma(close, 20)', key: 'value' }, { title: 'b', formula: 'ema(close, 20)', key: 'out2' }]

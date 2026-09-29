@@ -311,6 +311,9 @@ export function toRenderState(live, opts = {}) {
           // value, and the two would disagree the first time the canonical
           // ordering changed.
           text_formatting: c.props.text_formatting,
+          // ⭐ `table.merge_cells` — present only on a merged top-left cell.
+          ...(c.props.colspan > 1 ? { colspan: c.props.colspan } : {}),
+          ...(c.props.rowspan > 1 ? { rowspan: c.props.rowspan } : {}),
         })),
       })
     } else if (o.family === 'linefill') {
