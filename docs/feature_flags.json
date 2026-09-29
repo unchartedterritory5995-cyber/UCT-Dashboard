@@ -1343,6 +1343,17 @@
       ],
       "note": "Armed 2026-09-02 on web. Decided rather than left pending: the surface was complete and its safety property was verified against real data before the flip, not assumed. Measured read-only over C:/data/bars.db: 30 symbols x 2024-01-01..2026-06-30 returned a closed coverage receipt (18750 bars in window, 18750 answered, 0 not computable) and reported NO EDGE for close > sma(close,50) - 53.7% strategy against a 53.9% baseline - which is the behaviour of a backtester that is not flattering itself. The lookahead refusal fires by name on every screen reading a scalar we hold no history of (rs_rank, market_cap, pe_ttm), including a bar formula ANDed with one. Bounded and gated: require_paid, INLINE_MAX_SYMBOLS=50 above which it queues off the request thread, and a 1.2M-cell ceiling. The auth rail (tests/test_screener_auth_surface.py) SKIPS while the flag is off, so it was run with the flag on before arming: 213 backtest tests pass in both states, 0 skipped when on. Rollback is this variable alone."
     },
+    "SHORT_INTEREST_SOURCE": {
+      "status": "pending",
+      "since": "2026-09-29",
+      "where": [],
+      "default": "yfinance",
+      "values": [
+        "yfinance",
+        "finviz"
+      ],
+      "note": "TERM-046 (FB-A7-02), owner ruling 2026-09-29: short interest from FINVIZ (licensing register T-48, ANSWERED, LA), not FINRA direct and not yfinance. A MODE, not a gate (text), read per call in api/services/short_interest.py::source(); the vocabulary is SHORT_INTEREST_MODE_FLAGS there. SERVICE: web (every consumer of get_short_interest runs in-process on web: voice get_short_interest tool, AI Search's agent tool, the wisdom street reader; the whole-market Finviz artifact and the new history DB live on web's volume). yfinance (default; unset or any unrecognised value) = today's source byte-for-byte (railed against a frozen golden of the pre-TERM-046 code in tests/test_short_interest_source.py); nothing reads the Finviz artifact and nothing writes history. finviz = get_short_interest reads the screener's existing nightly whole-market Elite export (finviz_universe.run_pull, 02:45 ET, ONE request, 90 s timeout; NO new call): short_pct_of_float = Short Float (c=30), days_to_cover = Short Ratio (c=31), shares_short DERIVED = Short Float x Shares Float, short_pct_of_shares_outstanding DERIVED, shares_short_prior_month only from this module's own history (None until it exists), crowded None when the short float is unknown (never 'low'). as_of is the INFERRED FINRA settlement date (15th / month-end business day, published 7 business days later, +1 for Finviz ingest), never the pull date; on the one ambiguous business day per half-month it is None with both candidates named. Output keeps every consumer field in the same order and adds as_of_date / as_of_basis / as_of_candidates / pulled_at / derived_fields / licensing_class (LA, ('finviz','short_interest') in provider_licensing_class) / freshness. While armed, the nightly pull also appends one dated row per ticker per settlement to SHORT_INTEREST_HISTORY_DB_PATH (default /data/short_interest_history.db; INSERT OR IGNORE, first-write-wins, ambiguous pulls write nothing, never backfilled). BEFORE ARMING: one real pull on the pod to confirm Short Float/Short Ratio are not in missing_headers (they are measured columns today). REVERSAL: unset it (or set yfinance) and verify a new boot; the history DB is left in place and is inert."
+    },
     "SMOKE_LOGIN_LINK_ENABLED": {
       "status": "armed",
       "where": [

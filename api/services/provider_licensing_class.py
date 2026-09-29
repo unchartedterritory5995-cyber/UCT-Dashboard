@@ -93,6 +93,9 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
     ("sec_edgar", "ownership"): LicensingClassEntry(
         "A", "Form 13F information tables read from EDGAR — public domain, same row as Form 4 (TERM-045).", "T-83",
     ),
+    ("finviz", "short_interest"): LicensingClassEntry(
+        "LA", "Short float / short ratio (and short interest derived from them) off the Finviz Elite whole-market export — T-48, ANSWERED (see T-47): LA. Still single-sourced; the owner ruling of 2026-09-29 makes it the short-interest source (TERM-046).", "T-48",
+    ),
     # No ("fmp", "ipo") row: the licensing register's IPO-calendar row (T-52)
     # covers Finnhub's leg, not FMP's `stable/ipos-calendar` specifically — no
     # research exists for that pair, so it is left unregistered and correctly
