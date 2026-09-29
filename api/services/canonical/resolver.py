@@ -50,9 +50,12 @@ this module, its test file, and its two named entries in
 ``tests/test_canonical_address_book.py``; there is no data to migrate or
 restore.
 
-⛔ NO PRODUCT CALLER. Nothing in ``api/`` imports this module, and
-``tests/test_canonical_address_book.py`` fails BY NAME on the first one — so no
-member-visible answer changes, and a consumer needs its own approval line.
+⛔ ONE NAMED PRODUCT CALLER, AND THE NEXT ONE FAILS BY NAME. Until TERM-060
+nothing in ``api/`` imported this module. TERM-060 added the claim checker
+(``claims.py``, part of this module's own surface) and ONE caller of it, each
+named with its approval line in ``tests/test_canonical_address_book.py``
+(``_RESOLVER_SURFACE`` / ``_ALLOWED_RESOLVER_CALLERS``). Any other module that
+imports either fails there by name until it has a line of its own.
 
 ⚠️ POINT-IN-TIME IS NOT MODELLED (SPEC §8.4). ``as_of=`` selects the newest
 stored value keyed at or before the instant; the value is whatever the store
@@ -133,6 +136,47 @@ _ADDRESS_RE = re.compile(
     r"(?:\?(?P<query>[^#]*))?$"
 )
 _QUERY_KEYS = ("as_of", "provider")
+
+
+def format_address(metric: str, *, entity: Optional[str] = None, tf: Optional[str] = None,
+                   as_of: Optional[str] = None) -> str:
+    """TERM-060: the address for (metric, entity, timeframe, as_of), in the ONE
+    grammar ``resolve`` parses. Additive; ``resolve`` does not use it.
+
+    It builds, it does not validate — whether the metric is declared or the
+    timeframe is on the axis is ``resolve``'s answer to give, with a status. The
+    one refusal here is a string the grammar could not parse back into the same
+    parts: that would be a pointer that silently names something else."""
+    out = _SCHEME + str(metric)
+    if entity:
+        out += f"@{entity}"
+    if tf:
+        out += f"/{tf}"
+    if as_of:
+        out += f"?as_of={as_of}"
+    parts = parse_address(out)
+    if parts != {"metric": str(metric), "entity": entity or None, "tf": tf or None,
+                 "as_of": as_of or None, "provider": None}:
+        raise ValueError(f"{out!r} does not round-trip through the address grammar")
+    return out
+
+
+def parse_address(address: str) -> Optional[dict]:
+    """TERM-060: the parts of an address, or None when the grammar does not
+    parse it. The same ``_ADDRESS_RE`` ``resolve`` matches — never a second
+    copy of the grammar. A repeated or unknown query key is None, as
+    ``resolve`` refuses it."""
+    m = _ADDRESS_RE.match(address.strip()) if isinstance(address, str) else None
+    if not m:
+        return None
+    query: dict = {}
+    for part in filter(None, (m.group("query") or "").split("&")):
+        k, sep, v = part.partition("=")
+        if not sep or k not in _QUERY_KEYS or k in query:
+            return None
+        query[k] = v
+    return {"metric": m.group("metric"), "entity": m.group("entity"), "tf": m.group("tf"),
+            "as_of": query.get("as_of"), "provider": query.get("provider")}
 
 
 @dataclass(frozen=True)

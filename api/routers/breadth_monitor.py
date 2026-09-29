@@ -1023,9 +1023,46 @@ def get_breadth_score_components(date: str,
     """
     _require_iso_date(date)
     try:
-        return svc.score_components(date, days=days)
+        out = svc.score_components(date, days=days)
     except Exception as e:
         raise HTTPException(status_code=503, detail=str(e))
+    return _with_total_claim(out)
+
+
+#: TERM-060 — the address-book metric the attribution `total` IS. The endpoint's
+#: docstring already says it: "Per-component attribution behind `breadth_score`".
+SCORE_TOTAL_METRIC = "breadth_snapshot_numeric.breadth_score"
+
+
+def _with_total_claim(out):
+    """TERM-060 (FB-I1-02): the attribution `total` leaves carrying a
+    machine-checkable pointer to the stored `breadth_score` for its session,
+    already CHECKED — The Read states this number in prose ("Score attribution
+    72.4 …") and may not fetch, so the check travels inside the payload it
+    already reads from the SWR cache.
+
+    ⛔ ADDITIVE. Every existing key is untouched; `claims` is new. A body with
+    no scored total (ok:false, a declined session) gets no claim — there is no
+    number to cite.
+
+    ⛔ NEVER A 5xx OVER A CITATION. `check_claim` does not raise; this guards
+    anyway, because a failure to CHECK must leave the payload as it was and
+    the claim absent — and an absent claim renders "citation unavailable",
+    never verified.
+
+    The approval line for this caller: `tests/test_canonical_address_book.py`
+    `_ALLOWED_RESOLVER_CALLERS` (owner delegation, 2026-09-29)."""
+    if not isinstance(out, dict) or not out.get("ok"):
+        return out
+    total, session = out.get("total"), out.get("date")
+    if isinstance(total, bool) or not isinstance(total, (int, float)) or not session:
+        return out
+    try:
+        from api.services.canonical import claims
+        claim = claims.checked_claim(SCORE_TOTAL_METRIC, total, tf="D", as_of=session)
+    except Exception:                                     # noqa: BLE001 — see docstring
+        return out
+    return {**out, "claims": {"total": claim}}
 
 
 @router.get("/api/breadth-monitor/live")

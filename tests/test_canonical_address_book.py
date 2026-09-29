@@ -318,10 +318,39 @@ _NAMED_BOOK_READERS = {
         "GATE-S7-INDICATOR-CONDITION line 3 (pre-existing at 73040c87f)",
 }
 
-#: ⛔ The modules allowed to CALL the resolver. EMPTY: CP3 ships the resolver
-#: with no consumer, so no member-visible answer can change. A consumer is its
-#: own approval line and fails here by name until it has one.
-_ALLOWED_RESOLVER_CALLERS: dict = {}
+#: ⛔ THE RESOLVER'S OWN SURFACE — modules that ARE the resolver, not callers of
+#: it. Importing ANY of them is calling the resolver: TERM-060's checker resolves
+#: on behalf of whoever imports it, so a caller that went through `claims` and
+#: not `resolver` must not be invisible to the rail below. Each is named with the
+#: line that admitted it; `test_the_resolver_surface_is_exactly_the_named_modules`
+#: fails on a stale name.
+_RESOLVER_SURFACE = {
+    "api/services/canonical/resolver.py":
+        "TERM-020 (D2 CP3) — resolve(address) -> Resolution, SPEC-D2 §3",
+    "api/services/canonical/claims.py":
+        "TERM-060 (FB-I1-02) — the claim wire format + check_claim; it resolves "
+        "every pointer it checks, so importing it is calling the resolver",
+}
+
+#: ⛔ The modules allowed to CALL the resolver (directly, or through a module of
+#: its surface above). CP3 shipped it with none. A consumer is its own approval
+#: line and fails here by name until it has one.
+#:
+#: Approval-line format (owner delegation, 2026-09-29 — RESUME.md "OWNER
+#: RULINGS"): caller path -> what it resolves · why · the test that covers it ·
+#: "approved under the owner's 2026-09-29 delegation". Logged in the same words
+#: in docs/terminal-research/00-program-control/RESUME.md.
+_ALLOWED_RESOLVER_CALLERS: dict = {
+    "api/routers/breadth_monitor.py": (
+        "TERM-060 — resolves uct://breadth_snapshot_numeric.breadth_score/D?as_of=<session> "
+        "for the Score Attribution `total` (GET /api/breadth-monitor/score-components/{date}) · "
+        "why: The Read (Breadth > Views) states that number in prose and may not fetch, so the "
+        "pointer and its check travel in the payload it already reads; a total that does not "
+        "match the stored breadth_score is flagged, never shown as verified · test: "
+        "tests/test_term060_claims.py (route + checker) and "
+        "app/src/pages/breadth/views/TheReadStrip.test.jsx (rendered output) · "
+        "approved under the owner's 2026-09-29 delegation"),
+}
 
 
 def _book_readers(root: pathlib.Path) -> tuple[set, int]:
@@ -406,27 +435,57 @@ def test_a_third_reader_fails_the_narrowed_rail_by_name(tmp_path):
     assert sorted(readers - set(_NAMED_BOOK_READERS)) == sorted(readers)
 
 
+def _surface_modules() -> set:
+    """The dotted module names of `_RESOLVER_SURFACE` — importing any is calling."""
+    return {p[:-3].replace("/", ".") for p in _RESOLVER_SURFACE}
+
+
 def _resolver_callers(root: pathlib.Path) -> set:
+    surface = _surface_modules()
     out = set()
     for p in (root / "api").rglob("*.py"):
         rel = str(p.relative_to(root)).replace(chr(92), "/")
-        if rel == "api/services/canonical/resolver.py":
+        if rel in _RESOLVER_SURFACE:
             continue
         try:
             imports = _imported_modules_at(p, root)
         except SyntaxError:
             continue
-        if "api.services.canonical.resolver" in imports:
+        if imports & surface:
             out.add(rel)
     return out
 
 
 def test_no_product_path_calls_the_resolver_unless_named():
-    """⛔ CP3 IS DARK BY CONSTRUCTION: the resolver has no product caller, so no
-    member-visible answer changed. The first caller fails here by name."""
+    """⛔ Every product caller has an approval line; the next one fails here by
+    name. TERM-060 added exactly one (owner delegation, 2026-09-29)."""
     callers = _resolver_callers(_REPO)
     unnamed = sorted(callers - set(_ALLOWED_RESOLVER_CALLERS))
     assert unnamed == [], f"a product path resolves addresses without a line: {unnamed}"
+    stale = sorted(set(_ALLOWED_RESOLVER_CALLERS) - callers)
+    assert stale == [], (
+        f"_ALLOWED_RESOLVER_CALLERS names a module that no longer calls the resolver: "
+        f"{stale} — a stale line would let the next real caller slip in beside it")
+
+
+def test_every_resolver_caller_line_carries_the_approval_fields():
+    """The owner's 2026-09-29 delegation: a caller is approved when it has a test
+    and a written reason. A line missing either is not an approval line."""
+    for path, line in _ALLOWED_RESOLVER_CALLERS.items():
+        assert "TERM-" in line and "why:" in line, (path, "no ticket / no reason")
+        assert "test:" in line and "tests/" in line, (path, "no covering test named")
+        assert "approved under the owner's 2026-09-29 delegation" in line, path
+        for named in [w.strip(" ·()") for w in line.split() if w.startswith(("tests/", "app/src/"))]:
+            assert (_REPO / named).exists(), (path, f"names a test that does not exist: {named}")
+
+
+def test_the_resolver_surface_is_exactly_the_named_modules():
+    for rel in _RESOLVER_SURFACE:
+        assert (_REPO / rel).exists(), f"_RESOLVER_SURFACE names a missing module: {rel}"
+    # claims.py IS a caller of resolver.py — that is why it must be surface,
+    # not silently exempt: the rail would otherwise see it as the unlisted one.
+    assert "api.services.canonical.resolver" in _imported_modules_at(
+        _REPO / "api" / "services" / "canonical" / "claims.py", _REPO)
 
 
 def test_the_resolver_caller_detector_can_fire(tmp_path):
@@ -435,6 +494,24 @@ def test_the_resolver_caller_detector_can_fire(tmp_path):
     (svc / "consumer.py").write_text(
         "from api.services.canonical.resolver import resolve\n", encoding="utf-8")
     assert _resolver_callers(tmp_path) == {"api/services/consumer.py"}
+
+
+def test_a_caller_that_goes_through_the_CHECKER_is_still_a_caller(tmp_path):
+    """TERM-060: the checker resolves on its callers' behalf, so importing it is
+    calling the resolver. Planted, in both spellings; an unlisted one fails the
+    rail by name. Control: a module that only mentions it in prose does not."""
+    svc = tmp_path / "api" / "routers"
+    svc.mkdir(parents=True)
+    (svc / "planted.py").write_text(
+        "from api.services.canonical import claims\n", encoding="utf-8")
+    (svc / "planted_fn.py").write_text(
+        "def f():\n    from api.services.canonical.claims import check_claim\n    return check_claim\n",
+        encoding="utf-8")
+    (svc / "prose.py").write_text('"""uses api.services.canonical.claims"""\nX = 1\n',
+                                  encoding="utf-8")
+    callers = _resolver_callers(tmp_path)
+    assert callers == {"api/routers/planted.py", "api/routers/planted_fn.py"}
+    assert sorted(callers - set(_ALLOWED_RESOLVER_CALLERS)) == sorted(callers)
 
 
 def test_the_book_is_committed_data_not_a_build_artifact():
