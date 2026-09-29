@@ -1,0 +1,122 @@
+/* app/src/components/provenance/AbsenceReceipt.module.css
+   The shared "why isn't X here" receipt (TERM-057). One look on every curated
+   surface that mounts it. Touch targets reach 44px at <=1024px. */
+
+.wrap { display: flex; flex-direction: column; margin-bottom: 12px; }
+.toggle + .panel { margin-top: 8px; }
+
+.toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+.toggle:hover { color: var(--ut-cream); border-color: var(--ut-cream); }
+
+.panel {
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.inputRow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--ut-cream);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.check {
+  background: var(--ut-gold);
+  border: none;
+  color: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  padding: 4px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 11px;
+}
+.check:disabled { opacity: 0.5; cursor: wait; }
+
+/* The host stays a real box (a live region on `display: contents` loses its
+   role in some engines); it holds no margin of its own, so empty it costs 0px. */
+.pending { margin: 8px 0 0; font-size: 12px; color: var(--text-muted); }
+
+.receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+}
+.receipt[data-kind='on_list'],
+.receipt[data-kind='qualifies_now'] { border-left-color: var(--ut-gold); }
+.receipt[data-kind='excluded_by_gate'],
+.receipt[data-kind='quota_full'],
+.receipt[data-kind='cut_by_curator'] { border-left-color: var(--color-warning); }
+.receipt[data-kind='failed'] { border-left-color: var(--loss); }
+.receipt[data-kind='not_evaluated'] { border-left-style: dashed; }
+
+.headline {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  font-weight: 600;
+}
+
+.detail { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+
+.facts { margin: 0; font-size: 11px; color: var(--text-muted); }
+
+.source { margin: 0; font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+.details { font-size: 11px; color: var(--text-muted); }
+
+.summary { cursor: pointer; }
+
+.signals { margin: 6px 0 0; display: grid; gap: 2px; }
+.signalRow { display: flex; gap: 8px; }
+.signalRow dt { min-width: 150px; }
+.signalRow dd { margin: 0; color: var(--text-bright); overflow-wrap: anywhere; }
+
+@media (max-width: 1024px) {
+  .toggle,
+  .check,
+  .input,
+  .summary {
+    min-height: var(--tap-min, 44px);
+  }
+  .toggle { padding: 0 14px; }
+  .check { padding: 0 16px; }
+  .summary { display: flex; align-items: center; }
+}
+
+@media (max-width: 640px) {
+  .signalRow { flex-direction: column; gap: 0; }
+  .signalRow dt { min-width: 0; }
+}
