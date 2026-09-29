@@ -1,0 +1,1285 @@
+{
+ "doors": {
+  "desktop": "desk",
+  "touch": "phone",
+  "keyboard": "desk"
+ },
+ "rows": [
+  {
+   "row": "G-129",
+   "feature": "Syntax highlighting (code block)",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-129-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-129-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.8,
+     "screenshot": "r121705-census-G-129-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-130",
+   "feature": "Math, inline + block",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-130-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-130-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-130-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-131",
+   "feature": "Text colour + highlight",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-131-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-131-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-131-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-132",
+   "feature": "Callout icon and colour picker",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-132-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-132-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-132-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-133",
+   "feature": "Image captions + alignment",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-134",
+   "feature": "Table UI (rows/columns/header)",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-134-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-134-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-134-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-135",
+   "feature": "Drag handles and block reordering",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.hover: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror p\").nth(1)\n",
+     "seconds": 32.6,
+     "screenshot": "r121705-census-G-135-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror p\").nth(1)\n",
+     "seconds": 32.5,
+     "screenshot": "r121705-census-G-135-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-135-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-136",
+   "feature": "Table of contents / outline",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.6
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x74 + Enter",
+     "seconds": 4.4
+    }
+   }
+  },
+  {
+   "row": "G-137",
+   "feature": "Word count + reading time",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no word count visible",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-137-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no word count visible",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-137-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no word count visible",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-137-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-138",
+   "feature": "Find and replace",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.inner_html: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 33.5,
+     "screenshot": "r121705-census-G-138-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.inner_html: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 33.6,
+     "screenshot": "r121705-census-G-138-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-138-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-139",
+   "feature": "Emoji picker",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-139-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-139-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-139-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-140",
+   "feature": "@date mentions",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-140-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-140-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-140-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-141",
+   "feature": "Web embeds + link bookmarks",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-141-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-141-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-141-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-142",
+   "feature": "Multi-column layout",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-142-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-142-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-142-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-143",
+   "feature": "Heading levels H4-H6",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-143-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-143-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-143-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-144",
+   "feature": "Undo/redo control on touch",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Undo/Redo control is the touch tier's (hidden at >= 1025 px, where Ctrl+Z is the door)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-144-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "the control is not in the page",
+     "seconds": 2.7,
+     "screenshot": "r121705-census-G-144-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-145",
+   "feature": "Quick switcher over all notes",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; typed the title; option chosen",
+     "seconds": 2.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; typed the title; option chosen",
+     "seconds": 2.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Ctrl+K; typed the title; option chosen",
+     "seconds": 2.2
+    }
+   }
+  },
+  {
+   "row": "G-146",
+   "feature": "Bulk operations",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no select boxes on the list",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-146-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no select boxes on the list",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-146-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no select boxes on the list",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-146-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-147",
+   "feature": "Nested tags",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x62 + Enter",
+     "seconds": 4.8
+    }
+   }
+  },
+  {
+   "row": "G-148",
+   "feature": "Unlinked mentions",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 1.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 1.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x99 + Enter",
+     "seconds": 3.8
+    }
+   }
+  },
+  {
+   "row": "G-149",
+   "feature": "Timeline view",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x73 + Enter",
+     "seconds": 5.1
+    }
+   }
+  },
+  {
+   "row": "G-150",
+   "feature": "Archive state",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-150-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-150-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-150-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-151",
+   "feature": "Note lock (read-only)",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-151-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-151-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-151-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-152",
+   "feature": "Split view",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.7,
+     "screenshot": "r121705-census-G-152-desktop.png"
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by design: split view is desktop only (two panes need >= 1025 px)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-152-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-153",
+   "feature": "Reminders with notifications",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-154",
+   "feature": "Tasks view across notes",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x74 + Enter",
+     "seconds": 5.4
+    }
+   }
+  },
+  {
+   "row": "G-155",
+   "feature": "Member-made templates",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-155-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.4,
+     "screenshot": "r121705-census-G-155-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-155-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-156",
+   "feature": "A real daily note",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x84 + Enter",
+     "seconds": 5.2
+    }
+   }
+  },
+  {
+   "row": "G-158",
+   "feature": "Lightweight relations",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click; click; click",
+     "seconds": 3.5
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; tap; tap",
+     "seconds": 3.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x102 + Enter; Tab x8 + Enter; Tab x2 + Enter; Tab x111 + Enter",
+     "seconds": 7.3
+    }
+   }
+  },
+  {
+   "row": "G-159",
+   "feature": "Camera scan with OCR",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Scan button is the touch tier's (a camera door)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.8,
+     "screenshot": "r121705-census-G-159-touch.png"
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Scan button is the touch tier's (a camera door)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-160",
+   "feature": "OCR/text from images and docx",
+   "cells": {
+    "desktop": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.6,
+     "screenshot": "r121705-census-G-160-desktop.png"
+    },
+    "touch": {
+     "verdict": "INCONCLUSIVE",
+     "detail": "TimeoutError: Locator.tap: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-160-touch.png"
+    },
+    "keyboard": {
+     "verdict": "BROKEN",
+     "detail": "no attachment chip",
+     "seconds": 25.3,
+     "screenshot": "r121705-census-G-160-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-161",
+   "feature": "Email-to-notebook",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; the address shows",
+     "seconds": 1.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; a new address replaced the old one",
+     "seconds": 1.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x44 + Enter; Tab x1 + Enter; a new address replaced the old one",
+     "seconds": 2.4
+    }
+   }
+  },
+  {
+   "row": "G-162",
+   "feature": "Dictation in the editor",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic control is present; dictation needs a microphone the sandbox browser has not got",
+     "seconds": 2.6,
+     "screenshot": "r121705-census-G-162-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic control is present; dictation needs a microphone the sandbox browser has not got",
+     "seconds": 2.4,
+     "screenshot": "r121705-census-G-162-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic is reachable (Tab x96); dictation needs a microphone the sandbox browser has not got",
+     "seconds": 4.1,
+     "screenshot": "r121705-census-G-162-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-165",
+   "feature": "Writing help",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "click; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 2.8,
+     "screenshot": "r121705-census-G-165-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "tap; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 2.8,
+     "screenshot": "r121705-census-G-165-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "Tab x79 + Enter; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 4.3,
+     "screenshot": "r121705-census-G-165-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-064",
+   "feature": "Ask insert",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "click; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-064-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "tap; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 2.5,
+     "screenshot": "r121705-census-G-064-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "Tab x74 + Enter; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 3.7,
+     "screenshot": "r121705-census-G-064-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-080",
+   "feature": "Share links",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.2
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.1
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x76 + Enter; Tab x3 + Enter",
+     "seconds": 4.1
+    }
+   }
+  },
+  {
+   "row": "G-167",
+   "feature": "Publish to web (note)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.2
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.2
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x76 + Enter; Tab x4 + Enter",
+     "seconds": 4.2
+    }
+   }
+  },
+  {
+   "row": "G-167f",
+   "feature": "Publish to web (folder)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.6
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x66 + Enter",
+     "seconds": 4.2
+    }
+   }
+  },
+  {
+   "row": "G-085",
+   "feature": "Personal API (token)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.9
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x39 + Enter",
+     "seconds": 3.6
+    }
+   }
+  },
+  {
+   "row": "G-044",
+   "feature": "Mobile capture (share target)",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the share target is the phone's share sheet (Android PWA); iOS rides Shortcuts over the personal API (a device run, S-2)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "destination chosen; tap; the source is a document of the chosen note; the sheet said 'Saved link to Census keyboard 1790702976\\nOpen'",
+     "seconds": 2.8
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the share target is the phone's share sheet (Android PWA); iOS rides Shortcuts over the personal API (a device run, S-2)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-169",
+   "feature": "Export formats",
+   "cells": {
+    "desktop": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.5,
+     "screenshot": "r121705-census-G-169-desktop.png"
+    },
+    "touch": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.4,
+     "screenshot": "r121705-census-G-169-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.4,
+     "screenshot": "r121705-census-G-169-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-171",
+   "feature": "First-run tour + sample notebook",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "tour shown: False; Skip tour; click",
+     "seconds": 1.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tour shown: False; Skip tour; tap",
+     "seconds": 21.0
+    },
+    "keyboard": {
+     "verdict": "NO-DOOR",
+     "detail": "not reached with Tab in 220 presses",
+     "seconds": 23.1,
+     "screenshot": "r121705-census-G-171-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-172",
+   "feature": "Help-centre articles",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.1
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.3
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x38 + Enter",
+     "seconds": 4.9
+    }
+   }
+  },
+  {
+   "row": "G-026",
+   "feature": "Template picker (built-in)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.1
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x87 + Enter; Tab x7 + Enter",
+     "seconds": 4.9
+    }
+   }
+  },
+  {
+   "row": "G-021",
+   "feature": "Graph view (+ its list mode)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; list mode control present: True",
+     "seconds": 3.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; list mode control present: True",
+     "seconds": 2.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x80 + Enter; list mode control present: True",
+     "seconds": 5.5
+    }
+   }
+  },
+  {
+   "row": "G-043",
+   "feature": "Browser extension",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-127",
+   "feature": "Semantic retrieval",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-157",
+   "feature": "Pages inside pages",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-163",
+   "feature": "Cold-start offline",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-081",
+   "feature": "Comments / co-editing",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-164",
+   "feature": "Real-device matrix",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-166",
+   "feature": "AI over attachments",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-093",
+   "feature": "Sync connectors (read-only)",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-168",
+   "feature": "Accessibility (property)",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-170",
+   "feature": "Error reporting and telemetry",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    }
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-no-door": "NO-DOOR",
+   "plant-broken-door": "BROKEN"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "door": "desktop",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.5
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 4.8
+    }
+   },
+   {
+    "door": "touch",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.9
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 4.7
+    }
+   },
+   {
+    "door": "keyboard",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.5
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 4.8
+    }
+   }
+  ]
+ }
+}

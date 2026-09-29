@@ -1,0 +1,31 @@
+{
+    "271a078b6": {
+        "api/main.py": "64a4d181d834d6cc",
+        "api/services/client_errors.py": "660c00227b8c0bc3"
+    },
+    "2c3ed3093": {
+        "tests/test_paywall_gate_free_tier.py": "3033a4865ff1c3ba"
+    },
+    "4f708a0d2": {
+        "api/routers/notebook_writing_help.py": "ecb06e27a7c24dea"
+    },
+    "8167f7aa0": {
+        "app/src/pages/journal-2-0/lib/tiptap.js": "af62a614d13bcc04"
+    },
+    "caf6d1b9e": {
+        "api/main.py": "e19c020e021008a4",
+        "api/routers/auth.py": "5525f10d14838f71",
+        "api/services/journal_two/public_note_payload.py": "77da29e1bdb202e7",
+        "app/src/pages/Support.jsx": "7e83b493575ccb6f",
+        "tests/test_share_publish_authorization.py": "9f65da1bb6ff25e2"
+    },
+    "d9e887ca0": {
+        "app/src/components/CommandPalette.jsx": "01c1a8f549ba6de9",
+        "tests/test_alert_destination.py": "c50343b6f961eb35"
+    },
+    "f883e0996": {
+        "api/main.py": "ca48146728a32293",
+        "api/routers/notebook_writing_help.py": "f84695dfd9aa2ba4",
+        "api/services/daily_counters.py": "258b54f4a653f1c3"
+    }
+}
