@@ -26,6 +26,7 @@ as a new arrival.
 """
 from __future__ import annotations
 
+import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -46,6 +47,38 @@ PARAMS_SCHEMA = {
 }
 _FETCH_COUNT = 5  # newest N filings per (ticker, form_type) -- only [0] is used as the
                   # watermark comparison, the rest give the sweep context for logging/debug
+
+# ── TERM-062 (FB-S7-02): the cooldown this type APPLIES, as constants ────────
+# `cooldowns.published_cooldowns()` reads these at call time and publishes them to
+# members, so each one must also be what the code below (and api/main.py's
+# scheduler) actually consumes -- rails in tests/test_alert_taxonomy_cooldowns.py
+# move each one and require both the publication and the behaviour to follow.
+
+#: The env flag that decides whether the sweep is scheduled at all. api/main.py
+#: gates the job on `sweep_enabled()`, and the publication says "paused" off it.
+SWEEP_FLAG = "ALERT_TAXONOMY_DOCUMENT_ARRIVAL_ENABLED"
+#: The sweep cadence -- api/main.py builds `CronTrigger(minute=f"*/{N}")` from it.
+#: Must divide 60 (a cron step restarts at :00), or "every N minutes" is false.
+SWEEP_EVERY_MINUTES = 20
+#: The filing field a fire's re-arm key is built from (`fire_key_for`): one alert
+#: per distinct value, ever -- `alert_fires`' UNIQUE(predicate_id, fire_key).
+FIRE_KEY_GRAIN = "accession"
+#: At most this many fires per predicate per sweep. `_evaluate_one` compares only
+#: the newest filing against the watermark, so several filings landing between
+#: two checks produce ONE alert, for the newest; the intermediate ones are
+#: skipped. Published so a member is told, not surprised.
+MAX_FIRES_PER_SWEEP = 1
+
+
+def sweep_enabled() -> bool:
+    """Whether the document-arrival sweep is scheduled. Read per call; the
+    process environment is fixed at boot, so this is the boot decision."""
+    return os.environ.get(SWEEP_FLAG, "0") == "1"
+
+
+def fire_key_for(filing: dict[str, Any]) -> str:
+    """The re-arm key for one filing -- the ONE place it is built."""
+    return f"occ:{filing[FIRE_KEY_GRAIN]}"
 
 _ET = ZoneInfo("America/New_York")  # matches api/services/alerts.py's _now_et() exactly,
                                      # so a reconstructed row sorts correctly beside ephemeral ones
@@ -128,7 +161,8 @@ def _evaluate_one(predicate: dict[str, Any], fetch_cache: dict[tuple, dict]) -> 
     if not newest.get("accession") or newest["accession"] == last_seen:
         return {"predicate_id": predicate["id"], "outcome": "no_new_filing"}
 
-    fire_key = f"occ:{newest['accession']}"
+    # ⛔ `newest` only -- this is what MAX_FIRES_PER_SWEEP publishes (TERM-062).
+    fire_key = fire_key_for(newest)
     as_of = _parse_filed_date_epoch(newest.get("filed", ""))
     fire_id = _receipts.record_fire(
         predicate_id=predicate["id"],

@@ -15,6 +15,11 @@ vi.mock('../context/AuthContext', () => ({
 }))
 
 import useFilingWatch from './useFilingWatch'
+import { SWRConfig } from 'swr'
+
+const FreshCache = ({ children }) => (
+  <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
+)
 
 function predicate(id, sym, { suspended = false, created_at = 100 } = {}) {
   return {
@@ -156,5 +161,22 @@ describe('useFilingWatch — ownership isolation (client never assumes cross-use
     for (const [url] of global.fetch.mock.calls) {
       expect(String(url)).toMatch(/^\/api\/alerts\/taxonomy\/document-arrival/)
     }
+  })
+})
+
+// TERM-062 -- the published re-arm rule rides the list response.
+describe('useFilingWatch -- published cooldown', () => {
+  it('exposes the cooldown the list response carries', async () => {
+    const cooldown = { type_id: 'document-arrival', sentence: 'Checked every 20 minutes.' }
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ predicates: [], cooldown }) }))
+    const { result } = renderHook(() => useFilingWatch(), { wrapper: FreshCache })
+    await waitFor(() => expect(result.current.cooldown).toEqual(cooldown))
+  })
+
+  it('is null when the response has no sentence (an old server, a malformed body)', async () => {
+    global.fetch = vi.fn(async () => ({ ok: true, json: async () => ({ predicates: [], cooldown: { sentence: 5 } }) }))
+    const { result } = renderHook(() => useFilingWatch(), { wrapper: FreshCache })
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.cooldown).toBeNull()
   })
 })

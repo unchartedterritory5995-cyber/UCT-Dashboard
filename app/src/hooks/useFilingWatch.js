@@ -101,6 +101,10 @@ export default function useFilingWatch() {
     }
   }, [])
 
+  // TERM-062: the published re-arm rule for this alert type rides the same list
+  // response (derived server-side from the constants the sweep applies).
+  const cooldown = data?.cooldown && typeof data.cooldown.sentence === 'string' ? data.cooldown : null
+
   return { enabled: !!s7FilingWatchEnabled, predicates, getWatch, watchState,
-           createOrReactivate, suspend, isLoading, revalidate }
+           createOrReactivate, suspend, isLoading, revalidate, cooldown }
 }
