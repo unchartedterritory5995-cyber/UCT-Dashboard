@@ -183,6 +183,11 @@ export function beginObjects(program, ctx) {
   /** Tables removed because a newer one was created at the same position — see
    *  `replaceTableAt`. Counted apart from `deleted`, which the SCRIPT did. */
   let tablesReplaced = 0
+  /** Fills removed because a newer `linefill.new` named the same two lines, and
+   *  fills never made because a line they name is not on the chart — see
+   *  `fillBetween`. */
+  let fillsReplaced = 0
+  let fillsWithoutLines = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -356,6 +361,45 @@ export function beginObjects(program, ctx) {
       if (ctx.trace) events.push({ bar, k: 'replace', family: 'table', id: inst.id })
       return
     }
+  }
+
+  /**
+   * ⭐⭐ `linefill.new(l1, l2)` — ONE FILL PER PAIR OF LINES, AND NONE WITHOUT THEM.
+   *
+   * Pine's manual (Fills → linefills): *"A pair of lines can only have one
+   * linefill between them, so successive calls to linefill.new using the same
+   * two lines will replace one linefill with another."* And a fill between lines
+   * that are not on the chart fills nothing.
+   *
+   * ⚰️ MEASURED against TradingView (2026-09-28, NYSE:RDDT 1D):
+   * `liquidity-pools` calls `linefill.new(upper, lower)` on EVERY bar for two
+   * `var` line pairs. The vendor holds 91 fills for its 182 lines — exactly one
+   * per pair. We held 500: one per call, evicting through the house envelope,
+   * plus a fill per bar between two `na` handles before the first swing.
+   *
+   * Returns `{skip: true}` when a line is not live (the create makes nothing and
+   * its handle reads `na`), after removing the fill this one replaces.
+   * ⛔ THE PAIR IS UNORDERED: `linefill.new(b, a)` names the same two lines.
+   */
+  function fillBetween(props, bar) {
+    const ids = fillRefs({ props })
+    const lines = ids.filter((id) => { const o = live.get(id); return o && o.family === 'line' })
+    if (lines.length < 2 || lines[0] === lines[1]) {
+      fillsWithoutLines += 1
+      return { skip: true }
+    }
+    const [a, b] = lines
+    const onA = fillsOfLine.get(a)
+    for (const fid of onA ? [...onA] : []) {
+      const f = live.get(fid)
+      const other = f ? fillRefs(f) : []
+      if (other.length === 2 && ((other[0] === a && other[1] === b) || (other[0] === b && other[1] === a))) {
+        reap(f)
+        fillsReplaced += 1
+        if (ctx.trace) events.push({ bar, k: 'replace', family: 'linefill', id: f.id })
+      }
+    }
+    return { skip: false }
   }
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
@@ -672,6 +716,17 @@ export function beginObjects(program, ctx) {
           // object's own position decides whether an old one leaves first.
           const props = resolveProps(op.props, {})
           if (op.family === 'table') replaceTableAt(tablePosition(props), bar)
+          if (op.family === 'linefill' && fillBetween(props, bar).skip) {
+            // ⭐ `linefill.new` with a line that is not there returns `na`: the
+            // handle it was assigned to is cleared, exactly as a create that
+            // never happened leaves it.
+            if (op.into) regs.set(op.into, null)
+            // ⛔ A `var` initialiser runs ONCE whatever it returned — `var lf =
+            // linefill.new(na, na)` is `na` for good, not retried until lines
+            // appear.
+            if (op.once) firedOnce.add(op.site)
+            break
+          }
           const pooled = EVICTS.has(op.family)
           while (pooled && counts[op.family] >= limits[op.family]) {
             const victim = oldestOf(op.family)
@@ -933,6 +988,8 @@ export function beginObjects(program, ctx) {
     stats: {
       created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
       ...(tablesReplaced ? { tablesReplaced } : {}),
+      ...(fillsReplaced ? { fillsReplaced } : {}),
+      ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

@@ -342,6 +342,61 @@ describe('C3B — the resource envelope', () => {
     })
   })
 
+  describe('⭐⭐ `linefill.new` — one fill per pair of lines, and none without them', () => {
+    // ⚰️ MEASURED 2026-09-28 against TradingView (NYSE:RDDT 1D): `liquidity-pools`
+    // calls `linefill.new(upper, lower)` on every bar for two `var` pairs; the
+    // vendor holds 91 fills for 182 lines. We held 500 — one per call, evicting
+    // through the envelope, plus one per bar between two `na` handles.
+    const REGS = [{ id: 'a', family: 'line' }, { id: 'b', family: 'line' }, { id: 'c', family: 'line' }, { id: 'f', family: 'linefill' }]
+    const lineOnce = (site, into) => ({ k: 'create', family: 'line', site, into, once: true, when: { v: 'graph', node: 9 }, props: {} })
+    const fill = (site, l1, l2, extra = {}) => ({
+      k: 'create', family: 'linefill', site, into: null, when: null,
+      props: { line1: { r: 'reg', id: l1 }, line2: { r: 'reg', id: l2 } }, ...extra,
+    })
+    const fills = (r) => r.live.filter((o) => o.family === 'linefill')
+    // node 9 fires from bar 3 on, so bars 0..2 run `linefill.new(na, na)`
+    const ctx = (n) => ctxOf(n, { 9: Array.from({ length: n }, (_, i) => (i >= 3 ? 1 : 0)) })
+
+    it('the same two lines filled on every bar hold ONE fill — the newest', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('fa', 'a', 'b')] }), ctx(20))
+      expect(r.status).toBe(OBJECT_STATUS.OK)
+      expect(fills(r)).toHaveLength(1)
+      expect(fills(r)[0].createdBar).toBe(19)
+      expect(r.stats.fillsReplaced).toBe(16)          // bars 3..19 made 17 fills; 16 replaced
+      expect(r.stats.fillsWithoutLines).toBe(3)       // bars 0..2 had no lines to fill between
+    })
+
+    it('the pair is UNORDERED — `linefill.new(b, a)` replaces `linefill.new(a, b)`', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('f1', 'a', 'b'), fill('f2', 'b', 'a')] }), ctx(4))
+      expect(fills(r).map((o) => o.site)).toEqual(['f2'])
+    })
+
+    it('⛔ CONTROL — two DIFFERENT pairs keep two fills', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), lineOnce('lc', 'c'), fill('f1', 'a', 'b'), fill('f2', 'a', 'c')] }), ctx(6))
+      expect(fills(r).map((o) => o.site)).toEqual(['f1', 'f2'])
+    })
+
+    it('⛔ a fill naming a line that is not there makes nothing, and its handle reads `na`', () => {
+      const r = evaluateObjects(P({
+        regs: REGS,
+        ops: [
+          { k: 'create', family: 'line', site: 'la', into: 'a', when: null, props: {} },
+          fill('fa', 'a', 'b', { into: 'f' }),
+          { k: 'update', target: { r: 'reg', id: 'f' }, when: null, props: { color: { v: 'const', value: '#ff0000' } } },
+        ],
+      }), ctxOf(3))
+      expect(fills(r)).toHaveLength(0)
+      expect(r.stats.fillsWithoutLines).toBe(3)
+      expect(r.stats.writesToDeleted).toBe(3)       // the setter found `na`, never a stale fill
+    })
+
+    it('⛔ a `var` fill made between `na` lines is `na` for good — not retried when lines appear', () => {
+      const r = evaluateObjects(P({ regs: REGS, ops: [lineOnce('la', 'a'), lineOnce('lb', 'b'), fill('fa', 'a', 'b', { once: true })] }), ctx(8))
+      expect(fills(r)).toHaveLength(0)
+      expect(r.stats.fillsWithoutLines).toBe(1)
+    })
+  })
+
   it('⛔ a runaway ops-per-bar is bounded too', () => {
     const ops = Array.from({ length: 12 }, (_, i) => ({
       k: 'create', family: 'label', site: `s${i}`, into: null, when: null, props: {},
