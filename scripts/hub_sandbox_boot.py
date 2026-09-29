@@ -199,6 +199,14 @@ NON_MODEL_KEYS = (
 #     api_key of "" plus this token still SENDS a request (reviewer-verified,
 #     SDK 0.83.0), and ai_search_personal.py:273-274 / wisdom/evals/
 #     grounding.py:155 construct a client without checking the key first.
+#
+# ⛔ BLANK IS NOT "NO REQUEST" FOR THIS ONE (measured, SDK 0.83.0): the SDK only
+# defaults a None token, keeps "" and sends `Authorization: Bearer `, which passes
+# its own header check -- so a client built without a key check still sends a
+# CREDENTIAL-LESS request (a 401, never billed). Only an UNSET token refuses
+# before sending, and an unset token can be re-supplied by a setdefault .env
+# loader and then billed. Controller ruling, lane SK fix round 1 (2026-09-29):
+# KEEP BLANK -- a billable re-supply is the worse failure.
 SDK_IMPLICIT_KEYS = (
     "ANTHROPIC_AUTH_TOKEN",
 )
