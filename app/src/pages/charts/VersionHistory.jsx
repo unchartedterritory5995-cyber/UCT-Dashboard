@@ -43,6 +43,7 @@ export const KEY_LABELS = {
   charts_vol_pane_pct: 'Volume pane size',
   charts_active_template: 'Open layout name',
   watchlist_settings: 'Watchlist settings',
+  watchlist_columns: 'Watchlist columns',
   theme_tracker_settings: 'Theme Tracker settings',
   fundamentals_settings: 'Fundamentals settings',
   breadth_widget_settings: 'Breadth settings',

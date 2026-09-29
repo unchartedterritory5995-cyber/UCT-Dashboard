@@ -25,10 +25,26 @@ WHAT THIS SLICE IS: the destination store and its document model, running as a S
   * ATOMIC compare-and-set writes: a write names the version it was based on, and a stale base
     is refused with ``VersionConflict`` — never a silent last-write-wins overwrite.
   * A schema version on every row from the first commit (``SCHEMA_VERSION``).
-  * WRITE-BOTH / READ-OLD: while ``WORKSPACE_DOC_STORE_ENABLED`` is on, every workspace-key write
-    to ``POST /api/auth/preferences`` is ALSO mirrored here — after a pre-write snapshot, so the
-    value a write replaces is always kept as the version before it. ``user_preferences`` stays
-    the authority every client reads. With the flag off nothing here runs and no file is created.
+  * WRITE-BOTH: while ``WORKSPACE_DOC_STORE_ENABLED`` is on, every workspace-key write to
+    ``POST /api/auth/preferences`` is ALSO mirrored here — after a pre-write snapshot, so the
+    value a write replaces is always kept as the version before it. The mirror is ONE atomic
+    read-modify-write (the head is read inside the write transaction), so concurrent board
+    writes can no longer race each other out of the document. ``user_preferences`` keeps being
+    written on every path, so disarming is a flag flip with no data migration.
+  * READ-NEW (the read-new phase): while armed, ``GET /api/auth/preferences`` reads the board's
+    keys from the document HEAD through the shim (``read_prefs``) — same keys, same bytes — and
+    falls back to ``user_preferences`` when the document is absent, tombstoned or unreadable,
+    never to a default. Every armed response carries ``X-Workspace-Doc`` naming which it served.
+    Where the two stores DISAGREE about a key, the rule is deterministic and recorded in the
+    WRITE-BACK LEDGER (``workspace_writebacks``): a document write that must also land in
+    ``user_preferences`` (a template apply, a restore) appends a ``pending`` row IN THE SAME
+    TRANSACTION as its version, and a ``done`` row once every key is written back. A key covered
+    by an outstanding write-back is served from the document (the doc is ahead: the write-back
+    was interrupted); any other disagreement can only come from a mirror that failed or a write
+    made while the flag was off, so the OLD store is ahead and is served. Both are healed on the
+    read that finds them. This is what makes a template apply ONE write (``apply_patch``): a
+    crash between the document append and the last ``user_preferences`` write cannot leave a
+    half-applied board, because the member reads the document.
 
 ⛔ THE DOCUMENT NEVER RENAMES OR RESHAPES A KEY (GOVERNING_PRINCIPLES §13, MG-4). A version holds
 ``{"schema_version": 1, "board": "charts", "prefs": {<pref key>: <the exact TEXT user_preferences
@@ -38,8 +54,11 @@ store exists to close. ``prefs_from_doc`` is the read-fallback shim: it returns 
 the same bytes the old store would, so the read-new phase can serve either without a rename.
 
 ⛔ REVERSAL (TIER-NONE, written in the same commit): unset ``WORKSPACE_DOC_STORE_ENABLED``. The
-mirror stops, every route answers 404, ``user_preferences`` was never displaced as the authority,
-and the store file is left exactly as it is. Never delete the file or its rows to "undo" an
+mirror stops, every route answers 404, ``GET /api/auth/preferences`` serves ``user_preferences``
+byte-for-byte again (it was written on every path, so it holds the board), and the store file
+is left exactly as it is. ⚠️ Before disarming, ``stats()["writebacks_outstanding"]`` should be 0:
+an outstanding write-back is a key only the document holds. A read by that member while armed
+completes it; the admin health route reports the count. Never delete the file or its rows to "undo" an
 arming — item 37: stopping a dark run is never a DELETE against member data. Unsetting the flag
 also stops retention: ``prune_versions`` returns before any I/O while it is off, so the rows that
 remain are exactly the rows that were there when it was switched off.
@@ -81,8 +100,15 @@ WORKSPACE_PREF_KEYS = frozenset({
     "charts_workspace_layout",
     "fundamentals_settings",
     "theme_tracker_settings",
+    "watchlist_columns",
     "watchlist_settings",
 })
+
+#: The board key that carries the Watchlist column layout (``localStorage['uct.watchlist.cols']``,
+#: which the Watchlist widget still reads and writes). Folded into the document while armed so a
+#: column layout is versioned with the board it belongs to; the localStorage value is never
+#: deleted by the fold (``ChartsWorkspace.jsx`` owns the one-time migration read).
+WATCHLIST_COLUMNS_KEY = "watchlist_columns"
 
 #: Keys whose value is plain text rather than a JSON document (``setChartsTheme(t)`` writes the
 #: theme id raw; the volume-pane split is cleared with ``''``). A parse check on these would be a
@@ -123,6 +149,14 @@ _WRITE_LOCK = threading.Lock()
 #: the log. Durable parse failures live in their own table.
 _HOOK_FAILURES = {"snapshot": 0, "mirror": 0, "prune": 0}
 
+#: Per-process counters for the READ-NEW path: which store answered, and why. A fallback is
+#: reported here, in the log, and in the ``X-Workspace-Doc`` header — never absorbed.
+_READ_COUNTS = {"document": 0, "absent": 0, "tombstone": 0, "unreadable": 0,
+                "old_newer": 0, "doc_newer": 0, "heal_failed": 0}
+
+WRITEBACK_PENDING = "pending"
+WRITEBACK_DONE = "done"
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS workspace_doc_versions (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -154,6 +188,18 @@ CREATE TABLE IF NOT EXISTS workspace_parse_failures (
 );
 CREATE INDEX IF NOT EXISTS idx_workspace_parse_failures_user
   ON workspace_parse_failures(user_id, board_id);
+
+CREATE TABLE IF NOT EXISTS workspace_writebacks (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     TEXT    NOT NULL,
+  board_id    TEXT    NOT NULL,
+  version     INTEGER NOT NULL,
+  keys_json   TEXT    NOT NULL,
+  state       TEXT    NOT NULL,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_workspace_writebacks_user
+  ON workspace_writebacks(user_id, board_id, version);
 
 CREATE TABLE IF NOT EXISTS workspace_doc_prune_log (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,11 +381,16 @@ def stats() -> dict:
         versions = c.execute("SELECT COUNT(*) FROM workspace_doc_versions").fetchone()[0]
         failures = c.execute("SELECT COUNT(*) FROM workspace_parse_failures").fetchone()[0]
         pruned = c.execute("SELECT COALESCE(SUM(pruned_count), 0) FROM workspace_doc_prune_log").fetchone()[0]
+        outstanding = c.execute(
+            "SELECT COUNT(*) FROM workspace_writebacks p WHERE p.state=? AND NOT EXISTS ("
+            " SELECT 1 FROM workspace_writebacks d WHERE d.user_id=p.user_id AND d.board_id=p.board_id"
+            " AND d.version=p.version AND d.state=?)", (WRITEBACK_PENDING, WRITEBACK_DONE)).fetchone()[0]
     return {"documents": docs, "versions": versions, "parse_failures": failures,
-            "pruned_versions": pruned,
+            "pruned_versions": pruned, "writebacks_outstanding": outstanding,
             "retention": {"days": RETAIN_DAYS, "newest": RETAIN_NEWEST, "ceiling": RETAIN_CEILING,
                           "max_per_call": PRUNE_MAX_PER_CALL},
-            "hook_failures_this_process": dict(_HOOK_FAILURES), "enabled": is_enabled()}
+            "hook_failures_this_process": dict(_HOOK_FAILURES),
+            "reads_this_process": dict(_READ_COUNTS), "enabled": is_enabled()}
 
 
 # ── writes: every one of them APPENDS ─────────────────────────────────────────
@@ -373,25 +424,57 @@ def _record_failures(c: sqlite3.Connection, user_id: str, board_id: str, version
     return n
 
 
-def _cas_append(user_id: str, board_id: str, *, base_version: int, doc: Optional[dict], source: str,
-                restored_from: Optional[int] = None, audit: Optional[dict] = None) -> dict:
+def _live_prefs(h) -> dict:
+    """The prefs of a LIVE head row, or ``{}`` for no head / a tombstone. Raises on a body that
+    does not parse — a writer must never merge onto a document it could not read."""
+    if h is None or h["tombstone"]:
+        return {}
+    return prefs_from_doc(json.loads(h["doc_json"]))
+
+
+def _live_prefs_of(h: Optional[dict]) -> dict:
+    """The prefs of a live head as returned by ``head()``; ``{}`` for none or a tombstone."""
+    if h is None or h["tombstone"]:
+        return {}
+    return prefs_from_doc(h["doc"])
+
+
+def _cas_append(user_id: str, board_id: str, *, base_version: Optional[int], doc: Optional[dict] = None,
+                patch: Optional[dict] = None, source: str, restored_from: Optional[int] = None,
+                audit: Optional[dict] = None, writeback_keys: Optional[list] = None) -> dict:
     """The ONE write primitive: compare-and-set on the head version, then append.
 
     ``BEGIN IMMEDIATE`` takes the write lock before the head is read, so no second writer can
     land between the check and the insert; ``UNIQUE(user_id, board_id, version)`` is the fence
     behind it. A document byte-identical to a live head appends nothing (an autosaving client
-    must not grow the history with no-op versions)."""
+    must not grow the history with no-op versions).
+
+    Two shapes of write, never both: ``doc`` is a whole document (``None`` = a tombstone), and
+    ``patch`` is a set of keys merged onto the head's prefs INSIDE this transaction — so a
+    read-modify-write can never interleave with another writer. ``base_version=None`` skips the
+    compare (the mirror: the old store already accepted the write, so it lands on whatever the
+    head is). ``writeback_keys`` appends a ``pending`` row to the write-back ledger in the SAME
+    transaction as the version, so "the document is ahead of user_preferences" is durable the
+    instant it is true."""
     if source not in SOURCES:
         raise ValueError(f"unknown source {source!r}")
-    if doc is not None:
+    if patch is not None:
+        if doc is not None:
+            raise ValueError("a write is a whole document or a patch, never both")
+        validate_doc({"schema_version": SCHEMA_VERSION, "board": board_id, "prefs": dict(patch)}, board_id)
+    elif doc is not None:
         validate_doc(doc, board_id)
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         c.execute("BEGIN IMMEDIATE")
         try:
             h = _head_row(c, user_id, board_id)
             head_v = h["version"] if h else 0
-            if int(base_version) != head_v:
+            if base_version is not None and int(base_version) != head_v:
                 raise VersionConflict(int(base_version), head_v)
+            if patch is not None:
+                doc = {"schema_version": SCHEMA_VERSION, "board": board_id,
+                       "prefs": {**_live_prefs(h), **patch}}
+                validate_doc(doc, board_id)
             if doc is None and (h is None or h["tombstone"]):
                 c.execute("ROLLBACK")
                 return {"appended": False, "version": head_v, "tombstone": True}
@@ -402,12 +485,58 @@ def _cas_append(user_id: str, board_id: str, *, base_version: int, doc: Optional
             new_v = head_v + 1
             _append(c, user_id, board_id, new_v, doc=doc, source=source, restored_from=restored_from)
             failures = _record_failures(c, user_id, board_id, new_v, audit or {})
+            if writeback_keys:
+                _record_writeback(c, user_id, board_id, new_v, writeback_keys, WRITEBACK_PENDING)
             c.execute("COMMIT")
         except BaseException:
             if c.in_transaction:
                 c.execute("ROLLBACK")
             raise
     return {"appended": True, "version": new_v, "tombstone": doc is None, "parse_failures": failures}
+
+
+# ── the write-back ledger ────────────────────────────────────────────────────
+def _record_writeback(c: sqlite3.Connection, user_id: str, board_id: str, version: int,
+                      keys, state: str) -> None:
+    c.execute(
+        "INSERT INTO workspace_writebacks (user_id, board_id, version, keys_json, state, created_at)"
+        " VALUES (?,?,?,?,?,?)",
+        (user_id, board_id, int(version), json.dumps(sorted(keys), separators=(",", ":")), state,
+         int(_clock())),
+    )
+
+
+def _outstanding(c: sqlite3.Connection, user_id: str, board_id: str) -> dict:
+    """``{version: [keys]}`` for every ``pending`` write-back with no ``done`` row after it."""
+    rows = c.execute(
+        "SELECT p.version, p.keys_json FROM workspace_writebacks p"
+        " WHERE p.user_id=? AND p.board_id=? AND p.state=? AND NOT EXISTS ("
+        "  SELECT 1 FROM workspace_writebacks d WHERE d.user_id=p.user_id AND d.board_id=p.board_id"
+        "  AND d.version=p.version AND d.state=?)",
+        (user_id, board_id, WRITEBACK_PENDING, WRITEBACK_DONE)).fetchall()
+    return {int(r["version"]): list(json.loads(r["keys_json"])) for r in rows}
+
+
+def outstanding_writebacks(user_id: str, board_id: str = BOARD_CHARTS) -> dict:
+    with contextlib.closing(_connect()) as c:
+        return _outstanding(c, user_id, board_id)
+
+
+def mark_writeback_done(user_id: str, board_id: str, versions) -> None:
+    """APPEND a ``done`` row per version: every key it carried is now in ``user_preferences``."""
+    versions = sorted({int(v) for v in versions})
+    if not versions:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            for v in versions:
+                _record_writeback(c, user_id, board_id, v, [], WRITEBACK_DONE)
+            c.execute("COMMIT")
+        except BaseException:
+            if c.in_transaction:
+                c.execute("ROLLBACK")
+            raise
 
 
 def write(user_id: str, board_id: str, doc: dict, *, base_version: int, source: str = "write") -> dict:
@@ -432,7 +561,7 @@ def restore(user_id: str, board_id: str, target_version: int, *, base_version: i
         raise LookupError(f"version {target_version} does not exist or is a tombstone")
     doc = target["doc"]
     res = _cas_append(user_id, board_id, base_version=base_version, doc=doc, source="restore",
-                      restored_from=int(target_version))
+                      restored_from=int(target_version), writeback_keys=sorted(prefs_from_doc(doc)))
     res["doc"] = doc
     res["restored_from"] = int(target_version)
     return res
@@ -463,20 +592,139 @@ def ensure_snapshot(user_id: str, prefs_reader: Callable[[str], dict],
 def mirror_pref(user_id: str, key: str, value: Optional[str], board_id: str = BOARD_CHARTS) -> dict:
     """Fold one confirmed ``user_preferences`` write into the document as the next version.
 
-    The old store has already accepted the write and is the authority, so the mirror's base is
-    whatever the head is right now; a concurrent mirror that lands first is retried once on its
-    new head rather than overwritten."""
-    for _attempt in range(2):
-        h = head(user_id, board_id)
-        base_doc = h["doc"] if (h is not None and not h["tombstone"]) else empty_doc(board_id)
-        doc = {"schema_version": SCHEMA_VERSION, "board": board_id,
-               "prefs": {**base_doc["prefs"], key: value}}
-        try:
-            return _cas_append(user_id, board_id, base_version=h["version"] if h else 0, doc=doc,
-                               source="mirror", audit={key: value})
-        except VersionConflict:
-            continue
-    raise VersionConflict(-1, -1)
+    The old store has already accepted the write, so the mirror lands on whatever the head is
+    right now. ⛔ The head is read INSIDE the write transaction (``patch=``): the read and the
+    append are one step, so two concurrent mirrors cannot race each other out of the document.
+    ⚰️ It used to read the head, build the merge outside the lock and retry once on a conflict —
+    three concurrent board writes (a template apply from a client that predates the one-write
+    path fires seven) could lose a key from the document for good, and read-new would then serve
+    the stale value."""
+    return _cas_append(user_id, board_id, base_version=None, patch={key: value},
+                       source="mirror", audit={key: value})
+
+
+def apply_patch(user_id: str, board_id: str, patch: dict, *, base_version: int,
+                prefs_reader: Callable[[str], dict]) -> dict:
+    """A template apply as ONE document write: every key of ``patch`` lands in ONE version, on
+    the head the client named, or nothing does (``VersionConflict``).
+
+    The version and its ``pending`` write-back row are one transaction; the caller writes the
+    same values into ``user_preferences`` and then ``mark_writeback_done``. A crash anywhere in
+    between leaves the document complete and the ledger saying so — read-new serves the document
+    for those keys, and the next read finishes the write-back.
+
+    A board that has no live document yet is COPIED first (the migration), and a client that
+    named that empty state (base 0, or the tombstone it saw) is rebased onto the copy: a copy of
+    what the client already read is not a competing edit. A patch the schema refuses is refused
+    BEFORE that copy, so a refused apply leaves nothing behind."""
+    validate_doc({"schema_version": SCHEMA_VERSION, "board": board_id, "prefs": dict(patch)}, board_id)
+    h = head(user_id, board_id)
+    head_v = h["version"] if h else 0
+    if (h is None or h["tombstone"]) and int(base_version) == head_v:
+        base_version = ensure_snapshot(user_id, prefs_reader, board_id)["version"]
+    return _cas_append(user_id, board_id, base_version=base_version, patch=dict(patch), source="write",
+                       audit=dict(patch), writeback_keys=sorted(patch))
+
+
+# ── READ-NEW: the board's keys, read from the document head ─────────────────
+def read_prefs(user_id: str, prefs: dict, prefs_writer: Callable[[str, str, Optional[str]], None],
+               board_id: str = BOARD_CHARTS) -> tuple:
+    """``(served_prefs, stamp)`` for ``GET /api/auth/preferences``.
+
+    ⛔ WITH THE FLAG OFF THIS RETURNS ``(prefs, None)`` — THE SAME OBJECT — BEFORE ANY I/O. No
+    file is opened or created, and the caller sends no header. That is the byte-identical rail.
+
+    Armed, the board's keys are read from the document head through ``prefs_from_doc`` (the
+    read-fallback shim: same keys, same bytes). Every other key is ``prefs`` untouched.
+
+      * no document / a tombstoned head / a body that cannot be read or validated → ``prefs`` as
+        they are, stamped ``fallback; reason=…``, counted, and logged when unreadable. The old
+        store is the fallback, never a default.
+      * a key the document does not carry → the old store's value (or absence) stands.
+      * a key the two stores DISAGREE about → the write-back ledger decides (module docstring):
+        covered by an outstanding write-back → the document's value, and the write-back is
+        completed here; otherwise → the old store's value, and the document is healed with it.
+
+    Healing is best-effort and bounded: it runs only on a disagreement, makes the two agree, and
+    never raises into the read. ``prefs_writer`` is ``set_user_preference``; it is passed in so
+    this module keeps no path of its own to the old store."""
+    if not is_enabled():
+        return prefs, None
+    try:
+        with contextlib.closing(_connect()) as c:
+            h = _head_row(c, user_id, board_id)
+            if h is None:
+                _READ_COUNTS["absent"] += 1
+                return prefs, "fallback; reason=absent"
+            if h["tombstone"]:
+                _READ_COUNTS["tombstone"] += 1
+                return prefs, f"fallback; reason=tombstone; v={h['version']}"
+            doc = validate_doc(json.loads(h["doc_json"]), board_id)
+            outstanding = _outstanding(c, user_id, board_id)
+    except Exception as exc:  # noqa: BLE001 -- an unreadable document is served from the old store
+        _READ_COUNTS["unreadable"] += 1
+        logger.warning("[workspace_doc] read-new fell back to user_preferences for %s: %s", user_id, exc)
+        return prefs, "fallback; reason=unreadable"
+
+    head_v = int(h["version"])
+    doc_prefs = prefs_from_doc(doc)
+    covered = {k for keys in outstanding.values() for k in keys}
+    served = dict(prefs)
+    doc_newer: list = []
+    old_newer: dict = {}
+    for key in sorted(WORKSPACE_PREF_KEYS):
+        if key not in doc_prefs:
+            continue                                   # the old store's value (or absence) stands
+        if key in prefs and prefs[key] == doc_prefs[key]:
+            continue                                   # agree: same bytes either way
+        if key in covered:
+            served[key] = doc_prefs[key]               # the document is ahead of an interrupted write-back
+            doc_newer.append(key)
+        elif key in prefs:
+            old_newer[key] = prefs[key]                # a failed mirror or a write made while dark
+    _READ_COUNTS["document"] += 1
+    if doc_newer:
+        _READ_COUNTS["doc_newer"] += 1
+    if old_newer:
+        _READ_COUNTS["old_newer"] += 1
+    _heal(user_id, board_id, doc_newer, old_newer, outstanding, prefs_writer)
+    stamp = f"document; v={head_v}"
+    if doc_newer:
+        stamp += f"; doc_newer={','.join(doc_newer)}"
+    if old_newer:
+        stamp += f"; old_newer={','.join(sorted(old_newer))}"
+    return served, stamp
+
+
+def _heal(user_id, board_id, doc_newer, old_newer, outstanding, prefs_writer) -> None:
+    """Make the two stores agree after a read found them apart. Never raises.
+
+    The write-back is completed with the head's CURRENT value, re-read here rather than carried
+    from the read above, so a board write that landed on the document in between is what reaches
+    ``user_preferences``. ⚠️ Residual, stated: a board write whose ``user_preferences`` half has
+    landed and whose mirror has not, in the same instant as this completion, can be overwritten
+    in the old store. It needs an interrupted write-back AND a concurrent write to the same key
+    inside one request's width."""
+    try:
+        if old_newer:
+            _cas_append(user_id, board_id, base_version=None, patch=dict(old_newer), source="mirror",
+                        audit=dict(old_newer))
+        if outstanding:
+            current = _live_prefs_of(head(user_id, board_id))
+            failed = False
+            for key in doc_newer:
+                if key not in current:
+                    continue
+                try:
+                    prefs_writer(user_id, key, current[key])
+                except Exception as exc:  # noqa: BLE001 -- reported, and the ledger stays open
+                    failed = True
+                    logger.warning("[workspace_doc] write-back completion failed %s/%s: %s", user_id, key, exc)
+            if not failed:
+                mark_writeback_done(user_id, board_id, outstanding.keys())
+    except Exception as exc:  # noqa: BLE001 -- healing must never fail a member's read
+        _READ_COUNTS["heal_failed"] += 1
+        logger.warning("[workspace_doc] heal after read failed for %s: %s", user_id, exc)
 
 
 # ── retention: the ONLY place a row is ever removed ──────────────────────────

@@ -567,6 +567,18 @@
       ]
     },
     {
+      "key": "watchlist_columns",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Charts",
+      "kind": "setting",
+      "label": "Watchlist columns on the Charts board",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/charts/ChartsWorkspace.jsx"
+      ]
+    },
+    {
       "key": "watchlist_digest",
       "store": "server-preference",
       "scope": "cross-device",
@@ -2276,6 +2288,7 @@
       "files": [
         "app/src/pages/Watchlists.jsx",
         "app/src/pages/charts/ChartsWorkspace.jsx",
+        "app/src/pages/charts/boardDocument.js",
         "app/src/pages/watchlist/watchlistTemplates.js"
       ]
     },
