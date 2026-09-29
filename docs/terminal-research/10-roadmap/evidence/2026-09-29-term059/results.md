@@ -1,6 +1,7 @@
 # TERM-059 — Label a stale or proxied value at the value (FB-A11-03)
 
-Base: `5acc73133` (worktree branch `worktree-agent-a1dc629f36e5c7e4a`). Scope built: the
+Base: `5acc73133` (worktree branch `worktree-agent-a1dc629f36e5c7e4a`). Built in `d50694379`
+(not pushed). Scope built: the
 Breadth Monitor's **NAAIM** column only. Every other stale/proxied value the spec names is
 listed under *Follow-ups* below, not built.
 
