@@ -1075,7 +1075,22 @@ def get_breadth_live(force: bool = False,
     put/call print, UCT exposure), taken verbatim from the newest stored row
     and stamped with that row's date. Keeping them in a separate bag is the
     point — a carried-forward number must never read as a live one.
+
+    ⛔ READ-ONLY. A member request never writes Breadth state (owner ruling 2026-09-29): the
+    intraday path and the V1 daily-OHLC accumulation are written ONLY by the per-minute
+    scheduler tick (`sample_live_for_scheduler`), which is their one owner.
     """
+    return _live_payload(force=force, persist=False)
+
+
+def sample_live_for_scheduler() -> dict:
+    """The ONE writer of the intraday session path + V1 live OHLC (scheduler-owned, web pod).
+    Non-canonical by construction: under BREADTH_AUTHORITY=v2 nothing it writes is served as a
+    V2 value (the authority seam owns every session from 2026-03-23)."""
+    return _live_payload(force=False, persist=True)
+
+
+def _live_payload(force: bool, persist: bool) -> dict:
     from api.services import breadth_live as live
 
     try:
@@ -1115,7 +1130,7 @@ def get_breadth_live(force: bool = False,
     # basis, so the line cannot step when coverage drifts mid-session.
     try:
         from api.services import breadth_intraday
-        if (payload.get("session_live") and payload.get("anchored")
+        if (persist and payload.get("session_live") and payload.get("anchored")
                 and not payload.get("degraded") and not payload["superseded"]):
             breadth_intraday.record(payload["session_date"], payload["row"])
             # Roll today's permanent per-metric OHLC (open/high/low/close) from this
@@ -1250,6 +1265,21 @@ def breadth_dividends_refresh(request: Request, background: bool = True):
     threading.Thread(target=bdiv.refresh, name="breadth-dividends-refresh",
                      daemon=True).start()
     return {"started": True, **bdiv.health()}
+
+
+@router.get("/api/breadth-monitor/pit-export")
+def breadth_pit_export(since: str = "2026-01-01", _auth: None = Depends(require_push_secret)):
+    """The collector's stored UCT lists, read-only, for the V2 producer's PIT provenance gate.
+    PUSH_SECRET-gated (a service credential, never a member) — a named Depends, so the auth
+    census can see it."""
+    return {"ok": True, "since": since, "sessions": svc.pit_export(since)}
+
+
+@router.get("/api/breadth-monitor/authority")
+def breadth_authority_status(_auth: None = Depends(require_push_secret)):
+    """Which methodology owns which UCT session right now (read-only). PUSH_SECRET-gated."""
+    from api.services import breadth_authority as ba
+    return ba.status()
 
 
 @router.get("/api/breadth-monitor/live/store")
