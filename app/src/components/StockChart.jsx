@@ -787,7 +787,7 @@ import KeyboardHelpOverlay from './chart/KeyboardHelpOverlay'
 import PositionPanel from './chart/PositionPanel'
 import { UCT_DRAW_GOLD } from './chart/drawingColors'
 import UIcon from './ui/UIcon'
-import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth } from '../utils/barsBackfill'
+import { FIRST_PAINT_BARS, firstPaintBarsFor, fullBarsFor, shouldBackfill, nextBackfillDepth, spliceDeepLeftOfFresh } from '../utils/barsBackfill'
 // ⭐⭐ THE PANE-KEY HALF OF `displayTarget`. `computePaneLayout` is handed
 // INSTANCES and geometry; it has no `cs`, and the three questions below are all
 // answered FROM `cs` — who follows whom, who hosts a pane, and who still needs
@@ -7383,6 +7383,24 @@ export default function StockChart({
     () => (_dailyForAgg ? resample(_dailyForAgg, 'D', resolvedTf) : null),
     [_dailyForAgg, resolvedTf],
   )
+  // ⛔⛔ THE SERVER HAS ANSWERED: DRAW THE DEEP HISTORY, WITH THE SERVER'S WINDOW ON THE
+  // RIGHT. When the paint authority refuses the cache (`_splitDeepPaintable` false —
+  // chiefly 'provisional-close', true for every today-dated tail from the bell to
+  // midnight ET) the arm below used to fall straight to `data.bars`: the 600-bar split
+  // tail. Deep history was fetched, merged and persisted, then never drawn — every
+  // daily chart "began" 600 sessions back each weekday evening and Origin framed there
+  // (2026-09-28; the 2026-09-02 "stops at 2024" bug through a new door).
+  // The authority's concern is a STALE TAIL on screen. `spliceDeepLeftOfFresh` takes
+  // from the cache only bars OLDER than the server window, so the tail is the server's
+  // verbatim and that concern cannot arise. Usefulness (`_splitDeepUsable`: identity,
+  // basis, value sanity) still gates it — a wrong-basis deep set is never spliced.
+  // Only reached where the arm previously drew `data.bars`; every other outcome is
+  // unchanged, and the pre-server arm keeps its refusal untouched.
+  const _splitDeepBehindFresh = useMemo(
+    () => ((_netMatches && !data.delta && _splitDeepUsable && !(_idbFresh || _splitDeepPaintable))
+      ? spliceDeepLeftOfFresh(idbBars, data.bars) : null),
+    [_netMatches, data, idbBars, _splitDeepUsable, _idbFresh, _splitDeepPaintable],
+  )
   const bars = _isCustomTf
     ? customBars   // custom TF: the resampled base bars (null until the base loads)
     : _overrideArr
@@ -7401,7 +7419,7 @@ export default function StockChart({
             // would otherwise win on length alone and put its old tail on screen; the
             // merge effect heals it one commit later and the deep history then arrives
             // as a LEFT-side prepend, which moves no right-edge geometry at all.
-            ? (((_idbFresh || _splitDeepPaintable) && idbBars.length > data.bars.length) ? idbBars : data.bars)
+            ? (((_idbFresh || _splitDeepPaintable) && idbBars.length > data.bars.length) ? idbBars : (_splitDeepBehindFresh || data.bars))
             : ((_idbFresh || (_splitDeepPaintable && _fpEdge))
                 // Fix 2 cold-tail: paint the deep SEALED history the moment it arrives, even while
                 // the /api/bars tail is still pending/hung — turns a cold-ticker 20s blank into an
