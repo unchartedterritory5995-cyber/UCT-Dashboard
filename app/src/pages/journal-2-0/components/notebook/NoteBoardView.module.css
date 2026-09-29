@@ -54,6 +54,12 @@
   padding-bottom: 8px;
   min-height: 0;
   flex: 1;
+  /* D5 fix round 1 (M4): the ONE declaration of the fade width -- the mask rule below
+     reads it via var(), never a second "40px" literal, and it also sets
+     scroll-padding-inline-end so a column brought into view by keyboard/scrollIntoView
+     stops clear of the fade instead of landing dimmed under it. */
+  --board-fade-w: 40px;
+  scroll-padding-inline-end: var(--board-fade-w);
   /* Wave 10 follow-up F5 (design review D-5; proof walk 10E-1 6b). The row scrolled, but
      not ALONE, and nothing showed that it did:
      * Each card's visually-hidden "Move <note> to" label is `position: absolute`, and
@@ -74,6 +80,38 @@
   position: relative;
   scrollbar-width: thin;
   scrollbar-color: var(--text-muted) transparent;
+}
+
+/* Wave 10 D-5 follow-up (design-recheck row D-5: the F5 fix stopped the page
+   from panning and gave the row a thin token-coloured thumb, but no capture
+   with scrollbars shown ever proved that thumb paints -- a pixel scan under
+   the columns at 1200/820 "finds nothing above black"). A mask on the
+   scroller's OWN right edge, applied only while `moreRight` (NoteBoardView.jsx)
+   says a column sits past the visible edge -- so it is honest at every width
+   with no @media (the scroll arithmetic that decides it is width-agnostic).
+   Masks, not an overlay + background-colour, so it reads correctly on ANY
+   theme background -- the same idiom `VideosSection.module.css`'s
+   `.chipsFadeR` already uses on the Desk's chip row, for the identical
+   reason: an overlay div would need to match a backdrop colour that changes
+   per theme, and a mask never needs to know it.
+   No new DOM node: the fade changes only what is PAINTED on the scroller
+   that already holds the real column content, never what is in the
+   accessibility tree, so there is nothing here to mark aria-hidden and the
+   scroller's own focusability/tab order is untouched.
+   No transition: mask-image cannot be relied on to interpolate across
+   engines, and an instant swap introduces no motion, so there is nothing to
+   gate behind prefers-reduced-motion in the first place.
+   An ATTRIBUTE selector, not a second class: `.columns`'s own `className`
+   stays byte-identical to what NoteBoardView.scrollsAlone.test.js already
+   reads by exact substring, so this cue costs that rail nothing to keep
+   passing.
+   scroll-padding-inline-end (M4, above on .columns) shares this SAME --board-fade-w
+   custom property rather than restating 40px a second time -- keeping the fade and the
+   scroll-stop-short distance from ever drifting apart.
+   Rail: NoteBoardView.scrollFade.test.jsx. */
+.columns[data-board-scroll-more="true"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--board-fade-w)), transparent);
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--board-fade-w)), transparent);
 }
 
 .column {

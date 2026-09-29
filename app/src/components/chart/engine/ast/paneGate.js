@@ -172,6 +172,29 @@ export function paneGate(t, opts = {}) {
   return { ok: true, reason: null, guard: null }
 }
 
+/** ⭐⭐ MAY THIS REFUSED SCRIPT BE DRAWN BY THE PER-BAR RUNTIME LANE INSTEAD?
+ *  (owner principle, PR #241, 2026-09-28)
+ *
+ *  True only when the host lane refused, and EVERY refusal it gave is one that
+ *  names the runtime lane as where the script can be drawn (`route: 'runtime'`,
+ *  set by `pine.js` on the refusal it raises for two coupled `var`s). One refusal
+ *  of any other kind and the answer is no: a script with a second, unrelated
+ *  wall is not drawable by routing alone, and drawing its routable half would be
+ *  the partial picture this module exists to prevent.
+ *
+ *  ⛔ A PURE DECISION, like `paneGate`. Whether the route is switched ON is the
+ *  caller's to read (`runtimePaneGate.runtimePaneEnabled`); whether the runtime
+ *  lane actually builds the script is asked afterwards, of the lane itself.
+ *
+ *  @returns {boolean} */
+export function runtimeRouteOf(t) {
+  if (!t || typeof t !== 'object' || t.mode !== PANE_LANE || t.ok === true) return false
+  const refusals = [...(t.refusals || [])]
+  if (t.refusal && !refusals.includes(t.refusal)) refusals.push(t.refusal)
+  if (!refusals.length) return false
+  return refusals.every((r) => !!r && r.route === 'runtime')
+}
+
 /** ⭐ The same decision as a predicate, for a call site that only branches.
  *  Derived from `paneGate` rather than restated — two authorities over one
  *  value is the defect this module exists to prevent. */

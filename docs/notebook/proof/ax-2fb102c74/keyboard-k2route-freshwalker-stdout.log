@@ -1,0 +1,14 @@
+SANDBOX IDENTITY: http://127.0.0.1:8235 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10-ax\docs\plans\joystick\sandbox-runs\2026-09-29T07-13-54.md (identity 461673940a37..., data dir C:\data-w10ax)
+[      PASS] C0 control: unreachable found=False after 12; trap detected=True; trail=["button 'Alpha'", "button 'Trap one'", "button 'Trap two'", "button 'Trap one'"
+[      PASS] S2-10 editor: reach the body: div 'Note body' (editable) found=True
+[      PASS] S2-11 editor: slash menu: open: [{'role': 'listbox', 'label': 'Insert block'}]; after Escape: []; focus div 'Note body' (editable)
+[      PASS] S2-12 editor: emoji menu: open: [{'role': 'listbox', 'label': 'Insert emoji'}]; after Escape []
+[      PASS] S2-13 editor: [[ note link: picker options ['Beta rates note']; links 0 -> 1 (new: ['Beta rates note']); picker after Enter None; focus div 'Note body' (editable)
+[      PASS] S2-13b editor: [[ keyboard selection: options ['Delta plain', 'Alpha thesis NVDA']; selected after ArrowDown ['Alpha thesis NVDA']; inserted ['Alpha thesis NVDA']; focus div 'Not
+[      PASS] S2-13c editor: [[ picker Escape: picker before Escape ['Gamma earnings']; after Escape None; links 2 -> 2; focus div 'Note body' (editable); '[[Gamx' in the body=True
+[      PASS] S2-14 editor: @ date: date chips 0 -> 1 (new: ['2026-09-30'], tomorrow ET 2026-09-30); '@tomorrow' left as text=False; menus []; focus div 'Note body' (editable)
+[      PASS] S2-14c editor: @ date CONTROL: date chips 1 -> 1; '@notaday' left as text=True
+[      PASS] S2-15 editor: find and replace: after Ctrl+F input [searchbox] 'Find in note'; after Ctrl+H input [searchbox] 'Find in note'; after Escape div 'Note body' (editable)
+[      PASS] S2-16 editor: table created and walked: in table after insert=True; rows 3 -> 6
+[      PASS] S2-17 editor: leave a table by keyboard (2.1.2): after the tries: {'Escape': {'inTable': True, 'inEditor': True, 'text': '', 'rows': 6}, 'Control+Enter': {'inTable': True, 'inEditor': True,
+[      FAIL] S2-18 editor: move a block with the keys: first block 'A plain note with no folder.' -> 'A plain note with no folder.'

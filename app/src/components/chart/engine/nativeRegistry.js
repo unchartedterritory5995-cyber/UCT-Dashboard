@@ -141,6 +141,7 @@ import {
   AVWAP_ANCHORS,
 } from '../indicators'
 import { serverColumnsFor } from './serverCompute'
+import { runtimePaneEnabled } from './runtimePaneGate'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -1813,7 +1814,42 @@ export function hasAnyFinite(col) {
  * column set is the same thing `hasData` already reads for a warmup pad: the
  * binding draws nothing this paint and draws on the next.
  */
+/** ⭐⭐ THE RUNTIME LANE'S COMPUTE, REGISTERED BY THE DOOR THAT MINTS ITS
+ *  DOCUMENTS (`builder/memberPane/runtimePaneDefinition.js`), not imported here.
+ *
+ *  ⛔ WHY A REGISTRATION AND NOT AN IMPORT: this module is on every chart's path,
+ *  and the runtime lane (front end + lowering + VM) is only reachable from a
+ *  member pane that routed a script to it. Importing it here would ship it to
+ *  every chart for a document only the member pane can produce. Unregistered, a
+ *  runtime definition computes NOTHING and says why (`columnErrors`) — it never
+ *  throws on the paint path. */
+let _runtimeLane = null
+export function registerRuntimeLane(fn) {
+  _runtimeLane = typeof fn === 'function' ? fn : null
+}
+
+function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
+  const keys = Object.keys((def.compute && def.compute.outputs) || {})
+  const reasonFor = (guard, message) => withColumnErrors({},
+    Object.fromEntries(keys.map((k) => [k, { guard, message }])))
+  if (!_runtimeLane) {
+    return reasonFor('runtime:unregistered',
+      'the per-bar runtime lane is not loaded in this client, so this definition computes nothing')
+  }
+  try {
+    return _runtimeLane(def, bars, inputs, ctx)
+  } catch (err) {
+    // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
+    // paint path — the binder would otherwise skip the whole instance silently.
+    return reasonFor((err && err.guard) || ENGINE_ERROR,
+      String((err && err.message) || err))
+  }
+}
+
 export function computeFor(def, bars, inputs, ctx) {
+  if (def?.compute?.kind === 'runtime') {
+    return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
+  }
   if (def?.compute?.kind === 'server') {
     return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
@@ -2400,6 +2436,14 @@ export function validateUserDefinitions(rawDefs) {
 
   for (const def of base.defs) {
     const kind = def.compute.kind
+    // ⭐⭐ THE RUNTIME LANE IS ADMITTED ONLY WHILE ITS GATE IS ON (2026-09-28).
+    // It is not in `SUPPORTED_KINDS` — that list is also the registry's lane
+    // partition and the shipped-definition contract — so the admission is its
+    // own clause, asked of the ONE gate the member pane's router also asks.
+    if (kind === 'runtime' && runtimePaneEnabled()) {
+      defs.push(def)
+      continue
+    }
     if (!SUPPORTED_KINDS.includes(kind)) {
       errors.push(
         `${def.id}: compute.kind ${JSON.stringify(kind)} is declared but this client cannot run it ` +

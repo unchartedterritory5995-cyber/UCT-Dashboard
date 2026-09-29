@@ -214,14 +214,19 @@ export function makeBarClock(bars, tf) {
       // `YYYY-MM-DD` shape, and the chart's own future slots decide the rest.
       const hit = openKey.get(sec)
       if (hit !== undefined) return hit
+      // ⛔ A WEEKLY / MONTHLY series places ONLY on a loaded bar (2026-09-28). Its
+      // bars now open at their period's first vendor session (`barOpenInstant`),
+      // so a loaded week answers above; but the day the product KEYS a future
+      // week by (its Friday, a month by its 1st) is a product convention, not the
+      // opening date, and a projection written in the opening date's shape would
+      // miss the chart's own future slot. Dropped and counted rather than guessed.
+      if (tf === 'W' || tf === 'M') return null
       const p = etClockAt(sec)
       if (!p) return null
       const iso = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`
       // ⛔ NOT THE OPENING INSTANT OF ITS DATE ⇒ NO BAR. Where a daily chart puts
       // 12:00 or 08:30 on a date was never measured, and snapping it to that
       // date's bar would be a guess wearing a coordinate. Dropped and counted.
-      // A weekly or monthly date has no measured opening instant at all
-      // (`barOpenInstant` answers null there), so nothing is placed on it either.
       return barOpenInstant(iso, tf) === sec ? iso : null
     },
   }

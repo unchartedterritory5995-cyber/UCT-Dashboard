@@ -104,12 +104,12 @@
     "timeclose": {
       "lookback": 0,
       "yields": "num",
-      "sentence": "the instant the bar's period ENDS, in SECONDS since 1970, on the regular-session template: 16:00 New York on a daily bar's date, Friday 16:00 of a weekly bar's week, and the next bar boundary clipped at 16:00 on an intraday bar that opens inside 09:30-16:00. This engine's answer for Pine's time_close. The real early close (13:00) and a holiday-shortened week are NOT known here and read the template instead; blank on a monthly bar, a weekend bar, an extended-hours bar, and on a 60-minute chart's 09:30 bar when the series does not show which grid it is on"
+      "sentence": "the instant the bar's period ENDS, in SECONDS since 1970, at the session close as TradingView's calendar applies it: 16:00 New York (13:00 on a half-day the vendor honours) on a daily bar's date, the close of the LAST session of a weekly bar's week (Thursday when Friday is a holiday) or, unmeasured, of a monthly bar's month, and the next bar boundary clipped at that close on an intraday bar that opens inside the session. This engine's answer for Pine's time_close. Blank on a weekend bar, an extended-hours bar or one opening after a half-day's close, and on a 60-minute chart's 09:30 bar when the series does not show which grid it is on"
     },
     "dayclosetime": {
       "lookback": 0,
       "yields": "num",
-      "sentence": "16:00 New York, in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day. This engine's answer for Pine's time_close(\"D\"); the real early close (13:00) is not known here. Blank on a monthly bar, a weekend bar and an extended-hours bar"
+      "sentence": "the session close, 16:00 New York (13:00 on a half-day the vendor honours), in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day, and on a weekly or monthly bar the close of its FIRST session. This engine's answer for Pine's time_close(\"D\"). Blank on a weekend bar and an extended-hours bar"
     },
     "weekfirst": {
       "lookback": 1,

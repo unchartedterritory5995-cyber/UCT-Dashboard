@@ -1,0 +1,19 @@
+{
+ "base": "http://127.0.0.1:8235",
+ "healthy": true,
+ "post_boot_checkpoint": true,
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-ax\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T08-14-02.md",
+ "flags": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": 1790687723.3310413
+}

@@ -134,6 +134,18 @@ def record(compute_clock, source: dict) -> dict:
                                          sorted(source["expected"]))
     out["iso_weekly_expected"] = _columns(compute_clock(iso_bars, "W", False),
                                           sorted(source["expected"]))
+    out["iso_monthly_expected"] = _columns(compute_clock(iso_bars, "M", False),
+                                           sorted(source["expected"]))
+
+    # ── WEEKLY / MONTHLY BARS KEYED AS THE PRODUCT KEYS THEM (2026-09-28) ────
+    # `/api/bars` dates a weekly bar by the FRIDAY of its ISO week and a monthly
+    # bar by the 1st of its month. Each reads as the open of its period's first
+    # vendor session; the cases carry holiday weeks, a pre-2000 week, the year
+    # boundary, holiday and weekend 1sts and both DST months.
+    out["iso_weekly_keys_expected"] = _columns(
+        compute_clock(source["iso_weekly_bars"], "W", False), sorted(source["expected"]))
+    out["iso_monthly_keys_expected"] = _columns(
+        compute_clock(source["iso_monthly_bars"], "M", False), sorted(source["expected"]))
 
     # ── `time_close` / `timeframe.change` (C8, 2026-09-28) ──────────────────
     # Each case is a named series and the timeframe it is read under. The 60m
@@ -202,9 +214,10 @@ def record(compute_clock, source: dict) -> dict:
         "(`indicators.js::barOpenInstant` / `indicator_compute.bar_open_instant`), "
         "which is the instant TradingView stamps as a daily bar's `time`; the "
         "series crosses both DST changes, so a fixed UTC offset would miss half "
-        "of it. Under tf \"W\" (`iso_weekly_expected`) the same dates stay "
-        "blank: which day a weekly bar is keyed by is unmeasured, so it is not "
-        "guessed."
+        "of it. Under tf \"W\" (`iso_weekly_expected`) and \"M\" "
+        "(`iso_monthly_expected`) the same dates read as the open of their "
+        "week's / month's first vendor session (2026-09-28): any date in the "
+        "period maps to the same instant, so several daily dates share one."
     )
     out["_close_cases"] = (
         "⭐⭐ `time_close`, `time_close(\"D\")` AND `timeframe.change` (C8, "
@@ -212,15 +225,29 @@ def record(compute_clock, source: dict) -> dict:
         "read under; `close_expected` is what both lanes compute for it. The rules "
         "were measured on AMEX:SPY at full history "
         "(`tests/fixtures/vendor/harness/vw-clock-close-tfchange-spy-*`) and are "
-        "stated in `indicators.js::CLOCK_TIME_DERIVED`: the regular-session "
-        "TEMPLATE close (the vendor's 13 early closes and holiday weeks are "
-        "counted there, not reproduced), and the one 60m bar — 09:30 — whose close "
-        "depends on which grid the series is on."
+        "stated in `indicators.js::CLOCK_TIME_DERIVED`: the session close as "
+        "TradingView's calendar applies it (13:00 on a half-day it honours, the "
+        "week's LAST session on a holiday week, read from the one calendar since "
+        "2026-09-28; the `*_half_days` and `weekly_holiday_weeks` cases pin it), "
+        "and the one 60m bar — 09:30 — whose close depends on which grid the "
+        "series is on."
+    )
+    out["_iso_weekly_monthly"] = (
+        "⭐⭐ WEEKLY AND MONTHLY BARS KEYED AS THE PRODUCT KEYS THEM (2026-09-28): "
+        "`iso_weekly_bars` carry the FRIDAY of each ISO week "
+        "(`bars_fetch._resample_weekly_iso`, holiday Fridays included) and "
+        "`iso_monthly_bars` the 1st of each month (`_resample_monthly_iso`). "
+        "`time` is the open of the period's FIRST session as TradingView's "
+        "calendar applies it (Monday 09:30, Tuesday after a holiday Monday, "
+        "Monday on every week before 2000); `timeclose` the close of its LAST "
+        "session. Weekly is measured on all 1,758 SPY weeks; ⚠️ MONTHLY IS "
+        "UNMEASURED -- no monthly capture exists, so it is the weekly rule over "
+        "a month."
     )
     out["_recorder"] = (
         "⛔ GENERATED — DO NOT HAND-EDIT. Rewrite with "
         "`python tools/record_clock_parity.py`; check with `--check`. Inputs "
-        "(`bars`, `non_instant_bars`, `iso_daily_bars`, `close_cases`, `tf`, and the `tf_booleans` / "
+        "(`bars`, `non_instant_bars`, `iso_daily_bars`, `iso_weekly_bars`, `iso_monthly_bars`, `close_cases`, `tf`, and the `tf_booleans` / "
         "`sliced_sessionfirst` key sets) are READ from this file and written back "
         "unchanged — only the expected blocks are recomputed, so the series the "
         "numbers describe stays nameable. Canonical by construction: sorted keys, "
@@ -308,7 +335,8 @@ def main() -> int:
 
     missing = [k for k in ("bars", "tf", "non_instant_bars", "expected",
                            "non_instant_expected", "tf_booleans",
-                           "sliced_sessionfirst", "iso_daily_bars", "close_cases")
+                           "sliced_sessionfirst", "iso_daily_bars", "close_cases",
+                           "iso_weekly_bars", "iso_monthly_bars")
                if k not in source]
     if missing:
         print("⛔ INPUTS NOT RECOVERABLE FROM THE FIXTURE: " + ", ".join(missing))

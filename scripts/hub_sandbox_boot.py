@@ -111,6 +111,13 @@ KILL_LIST = {
     "COT_NARRATIVE_ENABLED": "0",
     "BRAIN_PACK_ENABLED": "0",
 
+    # Wisdom Loop model jobs (api/services/wisdom/core/flags.py:54/58/62, all
+    # default "0"). Pinned explicitly so an operator shell that armed one
+    # cannot start a paid extract/vision/audit run from a sandbox boot.
+    "WISDOM_EXTRACT_ENABLED": "0",
+    "WISDOM_EXTRACT_AUDIT_ENABLED": "0",
+    "WISDOM_VISION_ENABLED": "0",
+
     # Outbound channels — BLANKED, not unset (see the note above).
     "DISCORD_WEBHOOK_URL": "",
     "DISCORD_TSDR_WEBHOOK_URL": "",
@@ -125,6 +132,128 @@ KILL_LIST = {
     "DATA_SYNC_BUCKET": "",
     "DATA_SYNC_ENDPOINT": "",
 }
+
+
+# ── Model-provider keys: BLANKED unless the caller opts in ───────────────────
+#
+# ⛔ WHY. The operator's environment passes straight into this process, and the
+# app's boot warm spends it: `api/main.py` -> `_start_dashboard_warm_background`
+# -> calendar enrichment -> `engine._generate_earnings_preview`, plus
+# `earnings_enrichment` key-quotes and `stock_brief` profiles. One committed
+# sandbox log (docs/notebook/proof/d2-after-04fadfaa5/sandbox-boot.log) carries
+# 71 distinct Anthropic request ids from ONE boot, all refused only because the
+# key's credit was exhausted. Sandbox boots run many times a day from several
+# lanes; a UI probe needs no model at all.
+#
+# ⭐ BLANK, NEVER POP -- and what blanking does and does NOT beat. Nothing in
+# api/ calls load_dotenv, but three hand-rolled .env loaders are reachable from
+# the app, and they differ:
+#   * api/services/build_intraday_cache.py:24-34 -- IN-REPO, at import,
+#     `os.environ.setdefault(k, v)` from `<repo>/.env` and `$UCT_INTEL_PATH/.env`.
+#     Imported lazily (deep-cache builder, api/main.py:5000, gated
+#     DEEP_CACHE_ENABLED and skipped on a default sandbox boot; and
+#     breadth_combined_pass / breadth_wick_recon). setdefault never overrides,
+#     so a BLANK key survives it; an UNSET key would be re-supplied.
+#   * uct_intelligence fmp_data.py / massive_data.py `_load_env` -- OUT OF REPO
+#     (imported via api/routers/intelligence.py:55 `uct_intelligence.api`).
+#     `if key not in os.environ` -- a BLANK key survives it too.
+#   * morning_wire_engine.load_env -- OUT OF REPO, runs at import
+#     (C:\Users\Patrick\morning-wire\morning_wire_engine.py:117,
+#     `if val and not os.environ.get(key)`) and reads `.env` relative to the
+#     CWD. That test treats "" as missing, so it DOES re-supply a blank key.
+#     LATENT, not closed: it is reachable only when `<repo>/../morning-wire`
+#     exists (api/services/engine.py:44 puts it on sys.path) and something
+#     imports it (engine.py:461, a breadth fallback). For a worktree under
+#     uct-worktrees\ that path does not exist; for the main checkout
+#     C:\Users\Patrick\uct-dashboard it DOES. No launcher-side env value can
+#     stop it; only a product change could. Recorded, not railed.
+#
+# ⭐ THE LIST IS CLASSIFIED, NOT TYPED FROM MEMORY. `tests/test_hub_sandbox_
+# model_keys.py` derives every `*_API_KEY` literal read in `api/**` by AST and
+# requires the union of the two tuples below to EQUAL it, so a provider key
+# added tomorrow reds that rail until someone decides which tuple it joins.
+MODEL_PROVIDER_KEYS = (
+    "ANTHROPIC_API_KEY",         # api/services/engine.py:80 (the warm's client)
+    "WISDOM_ANTHROPIC_API_KEY",  # api/services/wisdom/extract/batch.py:68 -> :107
+    "OPENAI_API_KEY",            # api/services/voice_openai.py:118
+    "PERPLEXITY_API_KEY",        # api/services/perplexity_search.py:430
+)
+
+# Read in api/**, and NOT a paid model/embedding provider: market-data, news,
+# e-mail and earnings-audio vendors. Left untouched — the sandbox's pages need
+# their data, and this lane's scope is model spend only.
+NON_MODEL_KEYS = (
+    "ALPHAVANTAGE_API_KEY", "BULLFLOW_API_KEY", "EARNINGS_AUDIO_API_KEY",
+    "FINNHUB_API_KEY", "FINVIZ_API_KEY", "FMP_API_KEY", "FRED_API_KEY",
+    "MASSIVE_API_KEY", "POLYGON_API_KEY", "RESEND_API_KEY", "THEFLY_API_KEY",
+    "TWITTERAPI_IO_API_KEY", "UW_API_KEY",
+)
+
+# Credentials a provider SDK reads from the environment ON ITS OWN, with no
+# literal anywhere in api/ -- so the `*_API_KEY` derivation above cannot see
+# them. Kept OUT of MODEL_PROVIDER_KEYS so that tuple's "every name has a read
+# site in api/" check stays true. Derived from the SDK clients api/ constructs
+# (anthropic.Anthropic / AsyncAnthropic, openai.OpenAI) by
+# tests/test_hub_sandbox_model_keys.py, which reads the installed SDK source:
+#   anthropic/_client.py  ANTHROPIC_AUTH_TOKEN -- a Bearer credential. An
+#     api_key of "" plus this token still SENDS a request (reviewer-verified,
+#     SDK 0.83.0), and ai_search_personal.py:273-274 / wisdom/evals/
+#     grounding.py:155 construct a client without checking the key first.
+#
+# ⛔ BLANK IS NOT "NO REQUEST" FOR THIS ONE (measured, SDK 0.83.0): the SDK only
+# defaults a None token, keeps "" and sends `Authorization: Bearer `, which passes
+# its own header check -- so a client built without a key check still sends a
+# CREDENTIAL-LESS request (a 401, never billed). Only an UNSET token refuses
+# before sending, and an unset token can be re-supplied by a setdefault .env
+# loader and then billed. Controller ruling, lane SK fix round 1 (2026-09-29):
+# KEEP BLANK -- a billable re-supply is the worse failure.
+SDK_IMPLICIT_KEYS = (
+    "ANTHROPIC_AUTH_TOKEN",
+)
+
+# Read implicitly by those same SDK clients and deliberately NOT blanked: none
+# of them authorises a request. A base URL only redirects (and blanking it to ""
+# would hand the SDK an empty URL); OpenAI org/project ids only scope a key that
+# is already blanked; the webhook secret verifies inbound webhooks.
+SDK_NON_CREDENTIAL_ENV = (
+    "ANTHROPIC_BASE_URL",
+    "OPENAI_BASE_URL", "OPENAI_ORG_ID", "OPENAI_PROJECT_ID", "OPENAI_WEBHOOK_SECRET",
+)
+
+# The wisdom extract path has a THIRD credential source after the two env names:
+# the OS keyring (api/services/wisdom/extract/batch.py:74 key_from_keyring,
+# consulted at :114 when both env keys are empty -- i.e. exactly when this
+# policy has blanked them). keyring honours PYTHON_KEYRING_BACKEND for the whole
+# process, and its null backend answers every lookup with None.
+KEYRING_NULL_BACKEND = "keyring.backends.null.Keyring"
+
+# The env-var form of `--allow-model-keys`, for callers that start this script
+# through a harness (tools/notebook_perf_harness.Sandbox) rather than argv.
+ALLOW_MODEL_KEYS_ENV = "HUB_SANDBOX_ALLOW_MODEL_KEYS"
+
+
+def model_keys_opted_in(flag, environ=None):
+    """True only on the explicit flag or `HUB_SANDBOX_ALLOW_MODEL_KEYS=1`."""
+    environ = os.environ if environ is None else environ
+    return bool(flag) or environ.get(ALLOW_MODEL_KEYS_ENV, "") == "1"
+
+
+def apply_model_key_policy(environ, allow):
+    """Blank every model-provider key in `environ` unless `allow`. Returns the
+    one boot line that says which happened (names only, never a value)."""
+    if allow:
+        return ("  Model keys   : OPT-IN -- passed through unchanged "
+                f"({', '.join(MODEL_PROVIDER_KEYS + SDK_IMPLICIT_KEYS)}; keyring "
+                "untouched); paid model calls are POSSIBLE")
+    for key in MODEL_PROVIDER_KEYS:
+        environ[key] = ""
+    for key in SDK_IMPLICIT_KEYS:
+        environ[key] = ""
+    environ["PYTHON_KEYRING_BACKEND"] = KEYRING_NULL_BACKEND
+    return ("  Model keys   : BLANKED "
+            + ", ".join(MODEL_PROVIDER_KEYS + SDK_IMPLICIT_KEYS)
+            + "; keyring -> null backend"
+            + f" (opt in: --allow-model-keys or {ALLOW_MODEL_KEYS_ENV}=1)")
 
 
 def _norm(path):
@@ -238,7 +367,7 @@ def _start_violation_reporter(conftest):
 
 
 def apply_sandbox_env(sandbox, test_email="hubtest@local.dev",
-                      reclaim_conftest_temp=True):
+                      reclaim_conftest_temp=True, allow_model_keys=False):
     """Point every shared-root path at `sandbox`; arm the tripwire. Returns pins.
 
     ⭐ SEPARATE FROM `main()` SO A RAIL CAN CALL IT. `tests/test_hub_sandbox_
@@ -281,6 +410,10 @@ def apply_sandbox_env(sandbox, test_email="hubtest@local.dev",
     os.environ["PUSH_SECRET"] = "hub-sandbox-local-only-not-the-real-secret"
     for key, value in KILL_LIST.items():
         os.environ[key] = value
+
+    # Before `api.main` is imported, so no import-time reader or boot thread
+    # sees a model key the caller did not opt in to.
+    print(apply_model_key_policy(os.environ, allow_model_keys), flush=True)
 
     return pins
 
@@ -335,6 +468,9 @@ def main():
     ap.add_argument("--test-email", default="hubtest@local.dev")
     ap.add_argument("--port", type=int, default=8077)
     ap.add_argument("--host", default="0.0.0.0")
+    ap.add_argument("--allow-model-keys", action="store_true",
+                    help="pass ANTHROPIC/OPENAI/PERPLEXITY keys through (PAID model "
+                         f"calls possible). Default blanks them. Env form: {ALLOW_MODEL_KEYS_ENV}=1")
     args = ap.parse_args()
 
     sandbox = os.path.abspath(args.data_dir)
@@ -364,7 +500,8 @@ def main():
     print(f"  [pre-boot] integrity log: {log_file}")
     print(f"  [pre-boot] sandbox identity: {nonce} (served at {sid.IDENTITY_PATH})")
 
-    pins = apply_sandbox_env(sandbox, args.test_email)
+    pins = apply_sandbox_env(sandbox, args.test_email,
+                             allow_model_keys=model_keys_opted_in(args.allow_model_keys))
     import conftest
 
     # Seed the synthetic wire fixture so Home / Wire / Breadth render something

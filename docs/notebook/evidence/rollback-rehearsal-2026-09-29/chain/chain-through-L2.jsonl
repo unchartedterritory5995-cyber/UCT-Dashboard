@@ -1,0 +1,2 @@
+{"op": "revert", "squash": "f4cec49be", "conflicts": [], "product_conflicts": [], "schema_change_undone": [], "tree": "f412bdecfab5ddca5654049d832dc759f847cd8e", "schema_identical_to_tip": true, "key": "L2", "what": "wave 10 L2 #242", "commit": "5947e811f56db25fa06142c97eef65fb34b76ccd"}
+{"result": "5947e811f56db25fa06142c97eef65fb34b76ccd", "tree": "f412bdecfab5ddca5654049d832dc759f847cd8e", "through": "L2", "from": "f4cec49be44d2a050b8b4a91c65fd7c7314f0cf0", "next": "git switch -c rollback/notebook-through-L2 5947e811f56db25fa06142c97eef65fb34b76ccd"}

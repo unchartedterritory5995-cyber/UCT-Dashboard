@@ -24,12 +24,15 @@
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\hub-sandbox.ps1
 #         powershell -ExecutionPolicy Bypass -File scripts\hub-sandbox.ps1 -SkipBuild
+#         ... -AllowModelKeys   pass model-provider keys through (PAID calls possible);
+#                               without it the launcher blanks them.
 
 param(
     [string]$DataDir = 'C:\data-hubtest',
     [string]$TestEmail = 'hubtest@local.dev',
     [int]$Port = 8077,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$AllowModelKeys
 )
 
 $ErrorActionPreference = 'Stop'
@@ -85,5 +88,8 @@ Write-Host ''
 
 Push-Location $repoRoot
 try {
-    python scripts/hub_sandbox_boot.py --data-dir $DataDir --test-email $TestEmail --port $Port
+    $launcherArgs = @('scripts/hub_sandbox_boot.py', '--data-dir', $DataDir,
+                      '--test-email', $TestEmail, '--port', $Port)
+    if ($AllowModelKeys) { $launcherArgs += '--allow-model-keys' }
+    python @launcherArgs
 } finally { Pop-Location }

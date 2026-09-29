@@ -1,0 +1,150 @@
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGaGY3YYSbYULCBAxLQ'}
+2026-09-29 01:37:29,491 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-29 01:37:33,413 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for BETA (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:37:33,643 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:37:33,644 WARNING api.services.engine: enrichment failed for NEOG (preview): cannot schedule new futures after interpreter shutdown
+2026-09-29 01:37:33,815 WARNING api.services.engine: AI preview failed for NEOG: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGagBqoQcnQFrppCUuq'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L2\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGagBqoQcnQFrppCUuq'}
+2026-09-29 01:37:36,551 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for APOG (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:37:36,616 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:37:36,617 WARNING api.services.engine: enrichment failed for PENG (preview): cannot schedule new futures after interpreter shutdown
+2026-09-29 01:37:36,795 WARNING api.services.engine: AI preview failed for PENG: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGatyHVPNGkPN6yp1gG'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L2\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGatyHVPNGkPN6yp1gG'}
+2026-09-29 01:37:36,856 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:37:36,856 WARNING api.services.engine: enrichment failed for RPM (preview): cannot schedule new futures after interpreter shutdown
+2026-09-29 01:37:37,096 WARNING api.services.engine: AI preview failed for RPM: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGavGuvxY3fJqfUGGWN'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L2\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGavGuvxY3fJqfUGGWN'}
+2026-09-29 01:37:43,906 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for LW (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:37:43,981 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:37:43,981 WARNING api.services.engine: enrichment failed for STZ (preview): cannot schedule new futures after interpreter shutdown
+2026-09-29 01:37:44,129 WARNING api.services.engine: AI preview failed for STZ: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGbSNfMqHoeZH1iM5rJ'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L2\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGbSNfMqHoeZH1iM5rJ'}
+2026-09-29 01:37:49,483 WARNING api.services.stock_brief.service: stock_brief profile generation returned nothing for NEOG (Anthropic call failed or empty � will retry after cooldown)
+2026-09-29 01:37:49,560 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/company-news)
+2026-09-29 01:37:49,560 WARNING api.services.engine: enrichment failed for WS (preview): cannot schedule new futures after interpreter shutdown
+2026-09-29 01:37:49,711 WARNING api.services.engine: AI preview failed for WS: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGbrBssVmEaa6mkArL2'}
+Traceback (most recent call last):
+  File "C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1b\t\s-L2\api\services\engine.py", line 1995, in _generate_earnings_preview
+    msg = client.messages.create(
+        model=_EARNINGS_AI_MODEL,
+    ...<5 lines>...
+        messages=[{"role": "user", "content": prompt}],
+    )
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_utils\_utils.py", line 282, in wrapper
+    return func(*args, **kwargs)
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\resources\messages\messages.py", line 996, in create
+    return self._post(
+           ~~~~~~~~~~^
+        "/v1/messages",
+        ^^^^^^^^^^^^^^^
+    ...<30 lines>...
+        stream_cls=Stream[RawMessageStreamEvent],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1364, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\anthropic\_base_client.py", line 1137, in request
+    raise self._make_status_error_from_response(err.response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfXGbrBssVmEaa6mkArL2'}

@@ -1,0 +1,44 @@
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_5xw7ue04\auth.db
+
+=== Seeding + measuring 50,000 notes + 10,000 attachments (20 reps after 2 warmup) ===
+  seed 14.6s  db 487.1 MB  active 47,590 trashed 979 archived 1,431  attachments 10,000 (30,000 pages, 2.3s)
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        0.51ms     0.62ms     0.68ms
+  count_notes (whole library)                              3.72ms     4.03ms     4.24ms
+  GET /notes default (list+count)                          4.50ms     4.92ms     4.96ms
+  list_notes (FTS, common term ~30%)                      17.10ms    18.99ms    22.04ms
+  count_notes (FTS, common term ~30%)                     13.31ms    13.73ms    13.90ms
+  GET /notes q=common (list+count)                        33.19ms    39.00ms    39.77ms
+  list_notes (FTS, rare term, 1 note)                     13.05ms    19.11ms    19.25ms
+  GET /notes q=rare (list+count)                          18.33ms    24.22ms    25.25ms
+  GET /notes q=common, relevance (search box)             64.05ms    71.98ms    82.67ms
+  GET /notes q=rare, relevance (search box)               18.71ms    24.18ms    25.38ms
+  GET /notes tag=setups (list+count)                      17.16ms    18.32ms    18.90ms
+  GET /notes embed_symbol (list+count)                    32.81ms    33.79ms    34.94ms
+  tag_counts (whole library)                              43.82ms    44.88ms    45.02ms
+  tag_tree (whole library)                                46.60ms    47.78ms    48.74ms
+  GET /notes/tags (tags+tree)                             46.50ms    47.59ms    50.78ms
+  folder_note_counts (whole library)                       5.32ms     6.17ms     6.32ms
+  notes_for_folders (heavy + 2 others)                     4.35ms     4.58ms     4.64ms
+  get_symbol_backlinks                                    27.98ms    40.58ms    41.67ms
+  switcher_search (word start)                            28.51ms    29.46ms    29.80ms
+  switcher_search (fuzzy, in order)                       38.39ms    46.72ms    47.19ms
+  list_tasks (open, ?view=tasks)                          39.55ms    45.84ms    47.67ms
+  switcher_search (body fallback, common term)            90.53ms    96.49ms    98.91ms
+  switcher_search (body fallback, rare term)              45.50ms    53.52ms    53.59ms
+  GET /notes/documents/search q=common (search box)       24.10ms    24.73ms    25.84ms
+  GET /notes/documents/search q=rare (search box)          1.58ms     1.63ms     1.72ms
+  GET /notes/{id}/documents (note with 50 documents)       6.26ms     9.65ms    12.71ms
+  OK all correctness checks passed
+
+report: C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/qs/qs-50k.json
+VERDICT: PASS -- every budgeted op under its p95 budget: search < 100 ms at 50,000 notes; reads < 100 ms at 50,000 notes; tasks < 150 ms at 50,000 notes; attachments < 100 ms at 50,000 notes

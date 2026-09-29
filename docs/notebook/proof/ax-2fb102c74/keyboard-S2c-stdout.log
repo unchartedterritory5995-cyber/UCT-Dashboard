@@ -1,0 +1,14 @@
+SANDBOX IDENTITY: http://127.0.0.1:8235 proved it is the sandbox that writes C:\Users\Patrick\uct-worktrees\notebook-w10-ax\docs\plans\joystick\sandbox-runs\2026-09-29T07-13-54.md (identity 461673940a37..., data dir C:\data-w10ax)
+[      PASS] C0 control: unreachable found=False after 12; trap detected=True; trail=["button 'Alpha'", "button 'Trap one'", "button 'Trap two'", "button 'Trap one'"
+[      PASS] S2-20 editor door: Ask: on open focus input 'Your question about This note' (inDialog=Ask This note); dialogs [{'role': 'dialog', 'modal': None, 'label': 'Ask This 
+[      PASS] S2-21 editor door: Writing help: on open focus div [dialog] 'Writing help' (inDialog=dialog); dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}] menus [{'role': 'dia
+[      FAIL] S2-22 editor door: Version history: not reached; tail ["button 'Delete Active theses'", "button 'All notes 5'", "button 'Unfiled 4'", "button 'Archived 0'", "button 'Trash 0'",
+[      PASS] S2-23 editor door: Outline: on open focus button 'Close outline' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Close outline'", "button 'Close outline
+[      PASS] S2-24 editor door: Text colour: on open focus button 'Default text color' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Gray text'", "button 'Red text'", 
+[      PASS] S2-25 editor door: Share: on open focus div [dialog] 'Share this note' (inDialog=Share this note); dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Share this n
+[      FAIL] S2-26 editor door: Export menu: not reached; tail ["button 'Delete Active theses'", "button 'All notes 5'", "button 'Unfiled 4'", "button 'Archived 0'", "button 'Trash 0'",
+[      FAIL] S2-27 editor door: Open beside: not reached; tail ["button 'Delete Active theses'", "button 'All notes 5'", "button 'Unfiled 4'", "button 'Archived 0'", "button 'Trash 0'",
+[      FAIL] S2-28 editor door: Delete confirmation: not reached; tail ["button 'Delete Active theses'", "button 'All notes 5'", "button 'Unfiled 4'", "button 'Archived 0'", "button 'Trash 0'",
+[      PASS] S2-29 editor door: Add property: on open focus button 'Add property' (inDialog=None); dialogs [] menus []; Tab path inside ["button 'Suggest values with Co", "button 'Thesis
+[      FAIL] S2-30 editor: lock: not reached; tail ["button 'H1'", "button 'H2'", "button '• List'", "button '1. List'", "button '❝'", "button '</>'"]
+[      FAIL] S2-31 editor: archive: not reached; tail ["button 'H1'", "button 'H2'", "button '• List'", "button '1. List'", "button '❝'", "button '</>'"]

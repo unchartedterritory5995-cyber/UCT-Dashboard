@@ -1,0 +1,15 @@
+{
+  "data_dir": "C:\\data-w10sk",
+  "port": 8233,
+  "hold_s": 60,
+  "started": "2026-09-29T02:31:41-0500",
+  "healthy": true,
+  "healthy_at": "2026-09-29T02:32:29-0500",
+  "alive_after_hold": true,
+  "healthy_after_hold": true,
+  "stop_how": "graceful to the shutdown checkpoint, then forced exit",
+  "stopped_at": "2026-09-29T02:34:07-0500",
+  "port_released": true,
+  "exit_code": 1,
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-sk\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T02-31-42.md"
+}

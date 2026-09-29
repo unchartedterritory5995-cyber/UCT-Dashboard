@@ -566,10 +566,27 @@ def remeasure_breaches(stats: dict[str, dict], ops: dict, lines: dict[str, float
     return again
 
 
+CONNECTION_MODELS = ("shared", "per-call")
+
+
 def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool = False,
              work_dir: str | None = None, remeasure_lines: dict[str, float] | None = None,
              attachments: int = 0, ratio_spec: dict | None = None,
-             slow_ops: dict[str, float] | None = None, members: int = 1) -> dict:
+             slow_ops: dict[str, float] | None = None, members: int = 1,
+             connection: str = "shared") -> dict:
+    """`connection` is the access model every timed read runs under:
+
+    * ``"shared"`` -- ONE long-lived connection for the whole tier (the default, and what every
+      budget line was calibrated against).
+    * ``"per-call"`` -- a FRESH connection per call, opened by production's own
+      `auth_db.get_connection()` pointed at this tier's database. That is how the product reads
+      the notes store (a new connection per request, no pool, no cache_size), and it is the model
+      clause 14d's curve is read under (wave 10 ruling, 2026-09-29: lane PC measured the shared
+      model's super-linear shape as SQLite's 2 MB page cache spilling on a ~490 MB database, a
+      property of the instrument's connection, not of the product; see
+      docs/notebook/gate-runs/wave10-PC/README.md)."""
+    if connection not in CONNECTION_MODELS:
+        raise ValueError(f"connection must be one of {CONNECTION_MODELS}, not {connection!r}")
     global USER_ID       # --members seeds the others under their own ids, then restores it
     tmp_dir = tempfile.mkdtemp(prefix=f"j2_bench_{n}_", dir=work_dir)
     db_path = os.path.join(tmp_dir, "bench.db")
@@ -620,41 +637,57 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     U = USER_ID
     now_et = datetime(2026, 9, 25, 12, tzinfo=note_tasks.ET)  # == TODAY in ET
 
-    def pair(**kw):
+    def pair(c, **kw):
         # What `GET /notes` runs: the page and its true total, one call (wave 7).
-        return notes_svc.list_and_count_notes(U, conn=conn, **kw)
+        return notes_svc.list_and_count_notes(U, conn=c, **kw)
 
-    def tags_pair():
+    def tags_pair(c):
         # What `GET /notes/tags` runs: both halves from one grouping pass (wave 7).
-        return notes_svc.tag_counts_and_tree(U, conn=conn)
+        return notes_svc.tag_counts_and_tree(U, conn=c)
 
-    ops = {
-        "list_notes (page 1, default sort)": lambda: notes_svc.list_notes(U, conn=conn),
-        "count_notes (whole library)": lambda: notes_svc.count_notes(U, conn=conn),
-        "GET /notes default (list+count)": lambda: pair(),
-        "list_notes (FTS, common term ~30%)": lambda: notes_svc.list_notes(U, q=_COMMON_MARKER, conn=conn),
-        "count_notes (FTS, common term ~30%)": lambda: notes_svc.count_notes(U, q=_COMMON_MARKER, conn=conn),
-        "GET /notes q=common (list+count)": lambda: pair(q=_COMMON_MARKER),
-        "list_notes (FTS, rare term, 1 note)": lambda: notes_svc.list_notes(U, q=_RARE_MARKER, conn=conn),
-        "GET /notes q=rare (list+count)": lambda: pair(q=_RARE_MARKER),
+    op_fns = {
+        "list_notes (page 1, default sort)": lambda c: notes_svc.list_notes(U, conn=c),
+        "count_notes (whole library)": lambda c: notes_svc.count_notes(U, conn=c),
+        "GET /notes default (list+count)": lambda c: pair(c),
+        "list_notes (FTS, common term ~30%)": lambda c: notes_svc.list_notes(U, q=_COMMON_MARKER, conn=c),
+        "count_notes (FTS, common term ~30%)": lambda c: notes_svc.count_notes(U, q=_COMMON_MARKER, conn=c),
+        "GET /notes q=common (list+count)": lambda c: pair(c, q=_COMMON_MARKER),
+        "list_notes (FTS, rare term, 1 note)": lambda c: notes_svc.list_notes(U, q=_RARE_MARKER, conn=c),
+        "GET /notes q=rare (list+count)": lambda c: pair(c, q=_RARE_MARKER),
         # What the search box itself asks for (FolderSidebar: sort=relevance, limit=100).
-        "GET /notes q=common, relevance (search box)": lambda: pair(q=_COMMON_MARKER, sort="relevance", limit=100),
-        "GET /notes q=rare, relevance (search box)": lambda: pair(q=_RARE_MARKER, sort="relevance", limit=100),
-        "GET /notes tag=setups (list+count)": lambda: pair(tag="setups"),
-        "GET /notes embed_symbol (list+count)": lambda: pair(embed_symbol=truth["embed_symbol"]),
-        "tag_counts (whole library)": lambda: notes_svc.tag_counts(U, conn=conn),
-        "tag_tree (whole library)": lambda: notes_svc.tag_tree(U, conn=conn),
+        "GET /notes q=common, relevance (search box)": lambda c: pair(c, q=_COMMON_MARKER, sort="relevance", limit=100),
+        "GET /notes q=rare, relevance (search box)": lambda c: pair(c, q=_RARE_MARKER, sort="relevance", limit=100),
+        "GET /notes tag=setups (list+count)": lambda c: pair(c, tag="setups"),
+        "GET /notes embed_symbol (list+count)": lambda c: pair(c, embed_symbol=truth["embed_symbol"]),
+        "tag_counts (whole library)": lambda c: notes_svc.tag_counts(U, conn=c),
+        "tag_tree (whole library)": lambda c: notes_svc.tag_tree(U, conn=c),
         "GET /notes/tags (tags+tree)": tags_pair,
-        "folder_note_counts (whole library)": lambda: notes_svc.folder_note_counts(U, conn=conn),
+        "folder_note_counts (whole library)": lambda c: notes_svc.folder_note_counts(U, conn=c),
         "notes_for_folders (heavy + 2 others)":
-            lambda: notes_svc.notes_for_folders(U, [heavy["id"], others[0], others[1]], conn=conn),
-        "get_symbol_backlinks": lambda: notes_svc.get_symbol_backlinks(U, truth["embed_symbol"], conn=conn),
-        "switcher_search (word start)": lambda: notes_svc.switcher_search(U, "nvda setup", conn=conn),
-        "switcher_search (fuzzy, in order)": lambda: notes_svc.switcher_search(U, "ntvds", conn=conn),
-        "list_tasks (open, ?view=tasks)": lambda: note_tasks.list_tasks(U, status="open", now=now_et, conn=conn),
-        "switcher_search (body fallback, common term)": lambda: notes_svc.switcher_search(U, _COMMON_MARKER, conn=conn),
-        "switcher_search (body fallback, rare term)": lambda: notes_svc.switcher_search(U, _RARE_MARKER, conn=conn),
+            lambda c: notes_svc.notes_for_folders(U, [heavy["id"], others[0], others[1]], conn=c),
+        "get_symbol_backlinks": lambda c: notes_svc.get_symbol_backlinks(U, truth["embed_symbol"], conn=c),
+        "switcher_search (word start)": lambda c: notes_svc.switcher_search(U, "nvda setup", conn=c),
+        "switcher_search (fuzzy, in order)": lambda c: notes_svc.switcher_search(U, "ntvds", conn=c),
+        "list_tasks (open, ?view=tasks)": lambda c: note_tasks.list_tasks(U, status="open", now=now_et, conn=c),
+        "switcher_search (body fallback, common term)": lambda c: notes_svc.switcher_search(U, _COMMON_MARKER, conn=c),
+        "switcher_search (body fallback, rare term)": lambda c: notes_svc.switcher_search(U, _RARE_MARKER, conn=c),
     }
+
+    def _bind(fn):
+        if connection == "shared":
+            return lambda: fn(conn)
+
+        def per_call():
+            from api.services import auth_db   # production's own opener, never a restatement
+            with _auth_db_is(db_path):
+                c = auth_db.get_connection()
+            try:
+                return fn(c)
+            finally:
+                c.close()
+        return per_call
+
+    ops = {label: _bind(fn) for label, fn in op_fns.items()}
     assert list(ops) == TIMED_OPS, "TIMED_OPS and the op table drifted"
     if atruth is not None:
         from api.routers import journal_two as j2_router   # lazily: only an attachment tier needs it
@@ -788,6 +821,7 @@ def run_tier(n: int, *, reps: int, warmup: int, paragraphs: int, keep_db: bool =
     return {
         "n": n,
         "members": max(1, members),
+        "connection": connection,
         "notes_all_members": notes_all_members,
         "active": truth["active"], "trashed": truth["trashed"], "archived": truth["archived"],
         "seed_ms": round(seed_ms, 1),
@@ -870,6 +904,11 @@ def main(argv: list[str] | None = None) -> int:
                     help="seed this many members, each with a library of the tier's size, and "
                          "time the first one's reads (review M-4: an unscoped read pays for "
                          "every member's notes)")
+    ap.add_argument("--connection", choices=CONNECTION_MODELS, default="shared",
+                    help="access model for the timed reads: one shared connection (default; what "
+                         "the budget lines were calibrated on) or a fresh production-opened "
+                         "connection per call (per-call; the model clause 14d's curve is read "
+                         "under, ruling 2026-09-29)")
     ap.add_argument("--slow-op", action="append", default=None, metavar="LABEL=MS",
                     help="add MS of sleep to one timed op: feeds a check a slowed op on purpose")
     args = ap.parse_args(argv)
@@ -965,6 +1004,7 @@ def main(argv: list[str] | None = None) -> int:
             "remeasure_budgets": remeasure_keys,
             "timed_ops": TIMED_OPS + (ATTACHMENT_OPS if args.attachments else []),
             "attachments": args.attachments, "curve": bool(args.curve), "ratio_budget": args.ratio,
+            "connection": args.connection,
             "members": args.members,
             "slow_ops": slow_ops,
         },
@@ -979,7 +1019,7 @@ def main(argv: list[str] | None = None) -> int:
         r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
                      keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines,
                      attachments=args.attachments, ratio_spec=ratio_spec, slow_ops=slow_ops,
-                     members=args.members)
+                     members=args.members, connection=args.connection)
         report["tiers"].append(r)
         print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
               f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}"

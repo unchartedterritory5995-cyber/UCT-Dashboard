@@ -1,0 +1,17 @@
+tip f4cec49be: 4 unresolved api imports already at the tip (not the chain's): [('api/alert_tester.py', 'api.bullflow_mcp_probe'), ('api/main.py', 'api.nightly_side_heal'), ('api/services/pattern_backtest.py', 'api.services.pattern_engine.registry'), ('api/services/scenario_simulator.py', 'api.services.journal_two.accounts_service')]
+L2               tree f412bdecfa: 0 new unresolved api import(s) []
+L1c              tree 5436303ddb: 0 new unresolved api import(s) []
+225              tree 0c88f59b3d: 0 new unresolved api import(s) []
+L1b              tree 5a2f7c27cf: 0 new unresolved api import(s) []
+L1a              tree c8f7738a51: 0 new unresolved api import(s) []
+wave9            tree 00ad383b59: 0 new unresolved api import(s) []
+201              tree da257db32d: 0 new unresolved api import(s) []
+wave8            tree 0a11a4bd58: 0 new unresolved api import(s) []
+9C               tree 7bca83f337: 0 new unresolved api import(s) []
+wave7            tree aca09c134b: 1 new unresolved api import(s) [('api/services/ai_meters.py', 'api.services.journal_two.writing_help')]
+wave6            tree c027b8d260: 1 new unresolved api import(s) [('api/services/ai_meters.py', 'api.services.journal_two.writing_help')]
+wave5            tree 3fc3d842fb: 1 new unresolved api import(s) [('api/services/ai_meters.py', 'api.services.journal_two.writing_help')]
+guard-8167f7aa0  tree 0961f3644a: 1 new unresolved api import(s) [('api/services/ai_meters.py', 'api.services.journal_two.writing_help')]
+guard-fd87271fd  tree 7cc3616b79: 1 new unresolved api import(s) [('api/services/ai_meters.py', 'api.services.journal_two.writing_help')]
+wave5 paywall test: parses; TERM-089 rows kept: True ; wave-5 rows gone: True
+   control at the tip: wave-5 rows present: True

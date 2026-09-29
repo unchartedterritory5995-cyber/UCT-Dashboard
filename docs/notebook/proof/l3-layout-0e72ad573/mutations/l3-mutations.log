@@ -1,0 +1,5 @@
+{"mutation": "M1-timeline-floor-removed", "file": "NoteTimelineView.module.css", "rc": 1, "totals": "Tests  2 failed | 20 passed (22)", "verdict": "RED", "restored_sha_ok": true}
+{"mutation": "M2-timeline-floor-after-touch", "file": "NoteTimelineView.module.css", "rc": 1, "totals": "Tests  1 failed | 21 passed (22)", "verdict": "RED", "restored_sha_ok": true}
+{"mutation": "M3-tag-remove-20", "file": "NoteTagsField.module.css", "rc": 1, "totals": "Tests  1 failed | 21 passed (22)", "verdict": "RED", "restored_sha_ok": true}
+{"mutation": "M4-calendar-floor-removed", "file": "NoteCalendarView.module.css", "rc": 1, "totals": "Tests  1 failed | 21 passed (22)", "verdict": "RED", "restored_sha_ok": true}
+{"control_all_restored": {"rc": 0, "totals": "Tests  22 passed (22)"}}

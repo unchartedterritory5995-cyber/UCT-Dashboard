@@ -1,0 +1,70 @@
+# step 13b: cherry-pick fd87271fd (re-apply guard fd87271fd); tree 900580af6379b84fe29b3721d4131edaf786afa8
+# vitest run --maxWorkers=2 src/pages/journal-2-0/lib/notebookSchema.rail.test.js src/hub/writePathsTransitive.test.js src/hub/writePaths.test.js src/pages/journal-2-0/lib/importer
+# absent in this tree: ['src/pages/journal-2-0/lib/offline/writtenSchemaDrain.test.js', 'src/pages/journal-2-0/lib/offline/writtenSchemaCapture.test.js', 'src/pages/journal-2-0/components/notebook/NoteEditorPage.writtenSchema.test.jsx']
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/r1rb/t/p13b-fd87271fd/app[39m
+
+ [32m✓[39m src/hub/writePathsTransitive.test.js [2m([22m[2m10 tests[22m[2m)[22m[32m 188[2mms[22m[39m
+ [32m✓[39m src/hub/writePaths.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/commit.test.js [2m([22m[2m18 tests[22m[2m)[22m[33m 2236[2mms[22m[39m
+     [33m[2m✓[22m[39m confirms, uploads media, rewrites bodies, and reports the summary [33m 2215[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/generic.test.js [2m([22m[2m20 tests[22m[2m)[22m[33m 652[2mms[22m[39m
+     [33m[2m✓[22m[39m markdown checklists reach convert.htmlToNote as real taskItems (integration) [33m 573[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/notion.test.js [2m([22m[2m15 tests[22m[2m)[22m[32m 58[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/convert.test.js [2m([22m[2m13 tests[22m[2m)[22m[33m 4378[2mms[22m[39m
+     [33m[2m✓[22m[39m measures a long meeting/daily-notes log (hundreds of bullets + checkboxes) [33m 1327[2mms[22m[39m
+     [33m[2m✓[22m[39m measures the many-short-headings shape — the ~9x worst case [33m 1603[2mms[22m[39m
+     [33m[2m✓[22m[39m measures many inline images (chart screenshots pasted into a review note) [33m 434[2mms[22m[39m
+     [33m[2m✓[22m[39m a body near the derived ceiling (MAX_BODY_JSON_BYTES / worst-case blowup) still converts to a plain, valid TipTap doc [33m 916[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidianParity.contract.test.js [2m([22m[2m8 tests[22m[2m)[22m[32m 123[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/obsidian.test.js [2m([22m[2m14 tests[22m[2m)[22m[32m 67[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js [2m([22m[2m3 tests[22m[2m)[22m[33m 350[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/serverConvert.contract.test.js [2m([22m[2m29 tests[22m[2m)[22m[32m 113[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/evernote.test.js [2m([22m[2m5 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [31m❯[39m src/pages/journal-2-0/lib/notebookSchema.rail.test.js [2m([22m[2m13 tests[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 127[2mms[22m[39m
+     [32m✓[39m holds every node and mark name the live editor schema registers[32m 82[2mms[22m[39m
+     [32m✓[39m sends the declaration derived from THIS bundle’s editor schema[32m 13[2mms[22m[39m
+     [32m✓[39m the outbox drain’s PUT[32m 1[2mms[22m[39m
+     [32m✓[39m the shared note PUT when it carries a body[32m 17[2mms[22m[39m
+     [32m✓[39m the Model Book playbook entry’s body write[32m 1[2mms[22m[39m
+     [32m✓[39m the importer’s media-rewrite PUT[32m 5[2mms[22m[39m
+     [32m✓[39m the enrichment undo’s PUT (revertChartEmbed)[32m 0[2mms[22m[39m
+     [32m✓[39m the classifier tells a body, a metadata write and a declaration apart (control)[32m 1[2mms[22m[39m
+     [32m✓[39m finds the doors that exist today (non-vacuity)[32m 0[2mms[22m[39m
+     [32m✓[39m no door PUTs a body without declaring the schema it can read[32m 0[2mms[22m[39m
+[31m     [31m×[31m declares the newest level when every type is registered[39m[32m 5[2mms[22m[39m
+     [32m✓[39m drops below a level one of whose types is missing — the rollback case[32m 0[2mms[22m[39m
+     [32m✓[39m never declares below 0, and an unreadable schema is the oldest client[32m 0[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/enrichment.test.js [2m([22m[2m7 tests[22m[2m)[22m[32m 167[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/intake.test.js [2m([22m[2m6 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m src/pages/journal-2-0/lib/importer/registry.test.js [2m([22m[2m9 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/pages/journal-2-0/lib/notebookSchema.rail.test.js[2m > [22mderiveDeclaredSchema[2m > [22mdeclares the newest level when every type is registered
+[31m[1mAssertionError[22m: expected 2 to be 1 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 1[39m
+[31m+ 2[39m
+
+[36m [2m❯[22m src/pages/journal-2-0/lib/notebookSchema.rail.test.js:[2m298:17[22m[39m
+    [90m296| [39m
+    [90m297| [39m  [34mit[39m([32m'declares the newest level when every type is registered'[39m[33m,[39m () [33m=>[39m {
+    [90m298| [39m    [34mexpect[39m(top)[33m.[39m[34mtoBe[39m([34m1[39m)
+    [90m   | [39m                [31m^[39m
+    [90m299| [39m    [34mexpect[39m([34mderiveDeclaredSchema[39m([34mfake[39m()))[33m.[39m[34mtoBe[39m(top)
+    [90m300| [39m  })
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m14 passed[39m[22m[90m (15)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m174 passed[39m[22m[90m (175)[39m
+[2m   Start at [22m 18:01:17
+[2m   Duration [22m 21.05s[2m (transform 6.74s, setup 2.41s, import 18.68s, tests 8.55s, environment 9.59s)[22m
+
+
+# rc 1 in 22 s
