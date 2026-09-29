@@ -32,6 +32,22 @@ table names, row counts and timestamps only, never a row's contents.
     ``account_tombstones.replay_on_attachment_tree``). On by default from the command
     line; ``--no-attachments`` skips it.
 
+⛔⛔ WAVE 10 (lane AD) — ``--archive``, THE ARCHIVE LINEAGE (manifest exception (d)).
+``tools/archive_authdb_backup.py`` copies one backup into ``authdb/archive/`` where it
+is NEVER pruned — kept indefinitely, by design, which means it is also always "too old"
+by MAX_AGE_HOURS. ``--archive`` points the fetch/list at ``ARCHIVE_PREFIX`` instead of
+the regular weekly-backup prefix and lifts ONLY the freshness rule (an archive object
+being old, or its key not carrying a datable timestamp, is not itself a defect there).
+Every other check — integrity, required tables, and above all R-9's tombstone replay —
+runs UNCHANGED: the exact same ``tombstone_check`` / ``account_tombstones.replay_on_db``
+a weekly restore uses, so an archive restore fails closed on the identical rule, never a
+second copy of the replay logic. ``--write-restored`` still refuses without a PASS and
+without the off-site tombstones having been read.
+
+    python tools/authdb_restore_drill.py --archive --list
+    python tools/authdb_restore_drill.py --archive --report archive-drill.md
+    python tools/authdb_restore_drill.py --archive --write-restored restored.db
+
 The weekly schedule line for the owner's machine: ``--print-schedule``.
 
 Exit codes: 0 PASS · 1 FAIL (the backup is not restorable, or too old, or a
@@ -62,6 +78,9 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from api.services import authdb_backup, data_sync  # noqa: E402  (stdlib-only at import)
+# The ONE prefix the archive tool writes to -- reused, never retyped (a second copy of
+# this string would be a second authority over the same value).
+from tools.archive_authdb_backup import ARCHIVE_PREFIX  # noqa: E402
 
 PASS, FAIL, INCONCLUSIVE = 0, 1, 2
 MAX_AGE_HOURS = 30
@@ -122,12 +141,15 @@ def refuse_shared_root(path: Path) -> None:
         raise SystemExit(f"REFUSED: {resolved} is under the shared data root {root}")
 
 
-def list_backups(client, bucket: str) -> list[dict]:
-    """Every backup object, newest first. Paginates; raises Inconclusive on error."""
+def list_backups(client, bucket: str, *, prefix: str | None = None) -> list[dict]:
+    """Every object under `prefix` (default the regular weekly-backup lineage,
+    `authdb_backup.KEY_PREFIX`; pass `ARCHIVE_PREFIX` for the never-pruned archive
+    lineage instead), newest first. Paginates; raises Inconclusive on error."""
+    prefix = prefix or authdb_backup.KEY_PREFIX
     out, token = [], None
     try:
         while True:
-            kw = {"Bucket": bucket, "Prefix": authdb_backup.KEY_PREFIX}
+            kw = {"Bucket": bucket, "Prefix": prefix}
             if token:
                 kw["ContinuationToken"] = token
             resp = client.list_objects_v2(**kw)
@@ -140,10 +162,11 @@ def list_backups(client, bucket: str) -> list[dict]:
     return sorted(out, key=lambda o: o["Key"], reverse=True)
 
 
-def fetch_newest(client, bucket: str, work: Path) -> tuple[Path, str]:
-    backups = list_backups(client, bucket)
+def fetch_newest(client, bucket: str, work: Path, *, prefix: str | None = None) -> tuple[Path, str]:
+    prefix = prefix or authdb_backup.KEY_PREFIX
+    backups = list_backups(client, bucket, prefix=prefix)
     if not backups:
-        raise Inconclusive(f"no backups under {authdb_backup.KEY_PREFIX} in bucket {bucket}")
+        raise Inconclusive(f"no objects under {prefix} in bucket {bucket}")
     key = backups[0]["Key"]
     dest = work / Path(key).name
     try:
@@ -184,7 +207,11 @@ def examine(db_path: Path) -> dict:
     return result
 
 
-def verdict(result: dict, taken: dt.datetime | None, now: dt.datetime) -> tuple[int, list[str]]:
+def verdict(result: dict, taken: dt.datetime | None, now: dt.datetime, *,
+            age_limit_hours: float | None = MAX_AGE_HOURS) -> tuple[int, list[str]]:
+    """`age_limit_hours=None` exempts BOTH the "too old" and the "unknown age" reasons --
+    the archive lineage (`ARCHIVE_PREFIX`) is kept forever BY DESIGN (never pruned), so
+    neither an old snapshot nor an undatable key name is itself a defect there."""
     reasons = []
     if result["error"]:
         reasons.append(f"database error: {result['error']}")
@@ -192,10 +219,11 @@ def verdict(result: dict, taken: dt.datetime | None, now: dt.datetime) -> tuple[
         reasons.append(f"integrity_check: {result['integrity']}")
     if result["missing"]:
         reasons.append(f"missing tables: {', '.join(result['missing'])}")
-    if taken is None:
-        reasons.append("snapshot time unknown (key does not carry a timestamp)")
-    elif now - taken > dt.timedelta(hours=MAX_AGE_HOURS):
-        reasons.append(f"newest backup is {(now - taken).total_seconds() / 3600:.1f}h old (limit {MAX_AGE_HOURS}h)")
+    if age_limit_hours is not None:
+        if taken is None:
+            reasons.append("snapshot time unknown (key does not carry a timestamp)")
+        elif now - taken > dt.timedelta(hours=age_limit_hours):
+            reasons.append(f"newest backup is {(now - taken).total_seconds() / 3600:.1f}h old (limit {age_limit_hours}h)")
     return (FAIL if reasons else PASS), reasons
 
 
@@ -386,11 +414,14 @@ def attachment_check(client, bucket, work: Path, *, file: str | None = None,
 
 
 def render(source: str, taken, size: int, result: dict, code: int, reasons: list[str], now,
-           tomb: dict | None = None, att: dict | None = None) -> str:
+           tomb: dict | None = None, att: dict | None = None, *, is_archive: bool = False) -> str:
     word = {PASS: "PASS", FAIL: "FAIL", INCONCLUSIVE: "INCONCLUSIVE"}[code]
+    lineage = (f"ARCHIVE (`{ARCHIVE_PREFIX}` -- never pruned, no freshness limit)" if is_archive
+               else f"weekly backup (`{authdb_backup.KEY_PREFIX}`, {MAX_AGE_HOURS}h freshness limit)")
     lines = [
         f"# auth.db restore drill - {word}", "",
         f"- run at: {now.isoformat(timespec='seconds')}",
+        f"- lineage: {lineage}",
         f"- source: `{source}` ({size:,} bytes compressed)",
         f"- snapshot taken: {taken.isoformat() if taken else 'unknown'}",
         f"- integrity_check: {result['integrity']}",
@@ -444,6 +475,18 @@ def render(source: str, taken, size: int, result: dict, code: int, reasons: list
 def run(args, client=None, bucket=None, now=None, store=None) -> int:
     now = now or dt.datetime.now(dt.timezone.utc)
     work = Path(tempfile.mkdtemp(prefix="uct-restore-drill-"))
+    # ⛔⛔ WAVE 10 (lane AD, clause 7b exception (d)) -- THE ARCHIVE LINEAGE. `authdb/archive/`
+    # is never pruned (`tools/archive_authdb_backup.py`) so its objects are OLD BY DESIGN; the
+    # regular MAX_AGE_HOURS freshness rule would fail every one of them on sight. `--archive`
+    # points the fetch/list at that prefix instead and lifts ONLY the freshness rule -- every
+    # other check (integrity, required tables, and above all the R-9 tombstone replay below)
+    # runs exactly as it does for a weekly backup. Nothing about tombstone replay changes: the
+    # SAME `tombstone_check` / `account_tombstones.replay_on_db` a weekly restore uses is what
+    # runs here, so an archive restore fails closed on the identical rule -- no off-site
+    # tombstones read, no PASS, nothing written.
+    is_archive = bool(getattr(args, "archive", False))
+    src_prefix = ARCHIVE_PREFIX if is_archive else authdb_backup.KEY_PREFIX
+    age_limit = None if is_archive else MAX_AGE_HOURS
     try:
         refuse_shared_root(work)
         if args.report:
@@ -467,12 +510,12 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
             if not (client and bucket):
                 raise Inconclusive("R2 credentials not set (DATA_SYNC_ENDPOINT_URL / _ACCESS_KEY / _SECRET_KEY / _BUCKET)")
             if args.list:
-                for o in list_backups(client, bucket):
+                for o in list_backups(client, bucket, prefix=src_prefix):
                     t = snapshot_time(o["Key"])
                     age = f"{(now - t).total_seconds() / 3600:.1f}h" if t else "?"
                     print(f"{o['Key']}  {o.get('Size', 0):>12,} bytes  age {age}")
                 return PASS
-            src, source = fetch_newest(client, bucket, work)
+            src, source = fetch_newest(client, bucket, work, prefix=src_prefix)
         tomb = None
         try:
             db = gunzip(src, work)
@@ -483,7 +526,7 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
         else:
             result = examine(db)
         taken = snapshot_time(source)
-        code, reasons = verdict(result, taken, now)
+        code, reasons = verdict(result, taken, now, age_limit_hours=age_limit)
         # ⛔⛔ R-9: every restore replays the tombstones. Only on a database that opened.
         if db is not None and not result["error"]:
             tomb = tombstone_check(db, resolve_store(client, bucket, store), taken)
@@ -515,7 +558,8 @@ def run(args, client=None, bucket=None, now=None, store=None) -> int:
                 reasons.append(f"attachments: {att['why']}")
             elif att["verdict"] == "INCONCLUSIVE" and code == PASS:
                 code = INCONCLUSIVE
-        report = render(source, taken, src.stat().st_size, result, code, reasons, now, tomb, att)
+        report = render(source, taken, src.stat().st_size, result, code, reasons, now, tomb, att,
+                        is_archive=is_archive)
         print(report)
         if args.report:
             # The scheduled task writes into a dated folder that may not exist yet (the staged
@@ -573,6 +617,11 @@ def main(argv=None) -> int:
                     help=f"attachment files to sha-check (default {ATTACHMENT_SAMPLE})")
     ap.add_argument("--write-restored", help="write the tombstone-replayed database here, for a REAL "
                                              "restore (refuses the shared data root)")
+    ap.add_argument("--archive", action="store_true",
+                    help=f"drill the ARCHIVE lineage ({ARCHIVE_PREFIX}, never pruned -- "
+                         "tools/archive_authdb_backup.py) instead of the regular weekly backups. "
+                         "No freshness limit (kept forever by design); every other check, INCLUDING "
+                         "the R-9 tombstone replay, runs unchanged and still fails closed")
     ap.add_argument("--print-schedule", action="store_true", help="print the weekly schedule line and exit")
     args = ap.parse_args(argv)
     if args.print_schedule:
