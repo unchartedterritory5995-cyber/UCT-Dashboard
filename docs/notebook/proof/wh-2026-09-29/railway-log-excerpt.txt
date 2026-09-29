@@ -1,0 +1,16 @@
+    raise self._make_status_error_from_response(response) from None
+    async with client.messages.stream(**kwargs, timeout=note_ask._SYNTH_TIMEOUT) as stream:
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfYRMefWQiVtxUeJhEN7U'}
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.12/site-packages/anthropic/lib/streaming/_messages.py", line 325, in __aenter__
+  File "/opt/venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 2277, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+    raw_stream = await self.__api_request
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                 ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1941, in request
+2026-09-29 21:13:14,559 ERROR api.routers.notebook_writing_help: [writing-help] synthesis failed action=rewrite
+Traceback (most recent call last):
+  File "/app/api/routers/notebook_writing_help.py", line 185, in gen
+    async for delta in wh.stream_text(kwargs):
+  File "/app/api/services/journal_two/writing_help.py", line 267, in stream_text

@@ -1,0 +1,18 @@
+{
+  "tool": "wh_cleanup_verify (ad-hoc, scratchpad script, not committed)",
+  "note_id": "b777cc7589554e3fac40cd61ad59cbf0",
+  "title": "WH provenance check 20260929T211301Z",
+  "login_http": 200,
+  "me_email": "bench@uctintelligence.internal",
+  "live_list_http": 200,
+  "live_list_ids": [],
+  "trash_list_http": 200,
+  "trash_list_ids": [
+    "b777cc7589554e3fac40cd61ad59cbf0"
+  ],
+  "gone_from_live_list": true,
+  "present_in_trash": true,
+  "single_note_get_http_after_delete": 404,
+  "logout_http": 200,
+  "note": "Independent read-back after the probe run, confirming the best-effort DELETE (fired by the probe finally block after the writing-help step failed) landed correctly: the note is absent from the live list, present in the trash view, and a direct GET on it 404s. No writing-help call was made in this verification step."
+}
