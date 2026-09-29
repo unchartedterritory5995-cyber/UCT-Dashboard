@@ -292,6 +292,20 @@ export function layoutTables(state) {
     for (const c of t.cells || []) {
       if (c.row < rows && c.col < cols) grid[c.row][c.col] = c
     }
+    // ⭐ A MERGED CELL COVERS its rectangle: every other address in it is
+    // marked `covered`, so the renderer spans the top-left cell over them
+    // instead of drawing them beside it.
+    for (const c of t.cells || []) {
+      const cs = c.colspan > 1 ? c.colspan : 1
+      const rs = c.rowspan > 1 ? c.rowspan : 1
+      if (cs === 1 && rs === 1) continue
+      for (let r = c.row; r < Math.min(rows, c.row + rs); r += 1) {
+        for (let k = c.col; k < Math.min(cols, c.col + cs); k += 1) {
+          if (r === c.row && k === c.col) continue
+          grid[r][k] = { ...(grid[r][k] || { col: k, row: r, text: '' }), covered: true }
+        }
+      }
+    }
     return {
       id: t.id,
       anchor: TABLE_ANCHORS[t.position] || TABLE_ANCHORS.top_right,

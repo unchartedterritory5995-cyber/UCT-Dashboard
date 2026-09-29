@@ -1074,6 +1074,21 @@ export function collectObjectOps(stmts, h) {
       })
       return
     }
+    // ⭐⭐ `table.merge_cells(t, c0, r0, c1, r1)` — a RECTANGLE drawn as ONE
+    // cell. Carried rather than listed as unsupported: the reader's refusal drew
+    // the header one column wide and dropped the covered cells from the table.
+    // MEASURED against TradingView (2026-09-28, NYSE:RDDT 1D):
+    // `momentum-volatility-scanner` writes a header with `table.merge_cells(t, 0, 0, 1, 0)`
+    // and the vendor records cell (0,0) with colspan 2 AND the covered cell (1,0)
+    // as a cell of its own with empty text — 12 cells, where we held 11 and drew
+    // the header one column wide.
+    if (ns === 'table' && method === 'merge_cells') {
+      ops.push({
+        k: 'merge', target, args: rest,
+        guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
+      })
+      return
+    }
     if (ns === 'table' && method === 'cell') {
       ops.push({
         k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),

@@ -13566,6 +13566,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const row2 = raw.end_row ? valueRef(raw.end_row) : row
       if (!col2 || !row2) { lostRemoval('clear:range', op); dropped('clear:range'); continue }
       ops.push({ k: 'clearcells', target, col, row, col2, row2, when, ...lastBarOnly })
+    } else if (op.k === 'merge') {
+      // ⭐ `table.merge_cells(table_id, start_column, start_row, end_column,
+      // end_row)` — all four are REQUIRED in Pine, so unlike `table.clear` there
+      // is no default to apply; an unreadable one drops the merge by name.
+      const target = targetRef(op.target)
+      if (!target) { dropped('merge:target'); continue }
+      const raw = namedOrPositional(op.args, CLEAR_POSITIONAL)
+      const [col, row, col2, row2] = ['start_column', 'start_row', 'end_column', 'end_row']
+        .map((k) => (raw[k] ? valueRef(raw[k]) : null))
+      if (!col || !row || !col2 || !row2) { dropped('merge:range'); continue }
+      ops.push({ k: 'mergecells', target, col, row, col2, row2, when, ...lastBarOnly })
     } else if (op.k.startsWith('coll_')) {
       const id = collId.get(op.coll)
       if (!id) { dropped('coll:unknown'); continue }

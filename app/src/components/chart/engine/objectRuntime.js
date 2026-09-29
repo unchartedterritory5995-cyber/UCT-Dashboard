@@ -53,6 +53,10 @@ export const OBJECT_STATUS = Object.freeze({
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+/** The most addresses one `table.merge_cells` may span — Pine's own table is at
+ *  most 100 × 100 and anything larger is an argument that was never a size. */
+const MAX_MERGE_AREA = 10000
+
 /** Truthiness for a guard column. ⛔ `NaN` IS FALSE, deliberately: a condition
  *  that has not warmed up yet has not fired, and treating an unknown as a fire
  *  is how an object appears on bar 0 of every chart. */
@@ -856,6 +860,43 @@ export function beginObjects(program, ctx) {
         // documents that it draws the same box either way; there is no such
         // sentence here, so normalising would invent one. Clearing nothing is
         // the direction that cannot destroy a cell the author still wanted.
+        // ⭐⭐ `table.merge_cells(t, c0, r0, c1, r1)` — THE RECTANGLE BECOMES ONE
+        // CELL. The top-left cell carries the span (`colspan`, `rowspan`) and
+        // every covered address becomes a cell of its own — empty unless written —
+        // because that is what TradingView holds: `momentum-volatility-scanner`'s
+        // capture records (0,0) with colspan 2 and (1,0) as an empty cell.
+        // ⛔ AN INVERTED OR ONE-CELL RECTANGLE MERGES NOTHING, and a rectangle
+        // outside the table's own declared size merges nothing either (Pine
+        // raises there); the area is also capped, so an unbounded pair of
+        // arguments can never walk a million addresses.
+        case 'mergecells': {
+          const target = resolveRef(op.target)
+          const inst = target === null ? null : live.get(target)
+          if (!inst) { writesToDeleted += 1; break }
+          const c0 = Number(value(op.col))
+          const r0 = Number(value(op.row))
+          const c1 = Number(value(op.col2))
+          const r1 = Number(value(op.row2))
+          if (![c0, r0, c1, r1].every((n) => Number.isInteger(n) && n >= 0)) break
+          if (c1 < c0 || r1 < r0 || (c1 === c0 && r1 === r0)) break
+          const cols = inst.props && inst.props.columns
+          const rows = inst.props && inst.props.rows
+          if ((Number.isInteger(cols) && c1 >= cols) || (Number.isInteger(rows) && r1 >= rows)) break
+          if ((c1 - c0 + 1) * (r1 - r0 + 1) > MAX_MERGE_AREA) break
+          let map = cells.get(inst.id)
+          if (!map) { map = new Map(); cells.set(inst.id, map) }
+          for (let r = r0; r <= r1; r += 1) {
+            for (let c = c0; c <= c1; c += 1) {
+              const key = `${c},${r}`
+              if (!map.has(key)) map.set(key, {})
+            }
+          }
+          const head = `${c0},${r0}`
+          map.set(head, { ...map.get(head), colspan: c1 - c0 + 1, rowspan: r1 - r0 + 1 })
+          updated += 1
+          if (ctx.trace) events.push({ bar, k: 'mergecells', id: inst.id })
+          break
+        }
         case 'clearcells': {
           const target = resolveRef(op.target)
           const inst = target === null ? null : live.get(target)

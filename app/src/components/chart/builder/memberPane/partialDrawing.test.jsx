@@ -91,9 +91,22 @@ const CASES = [
   // number the script never has. It now refuses, and is counted, not drawn.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
     objectsOnly: false, kind: 'partial', text: partial(25, 38) },
-  { cls: 'plots + partial the reader never carried', script: 'momentum-volatility-scanner__4d1deaa855',
+  // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
+  // was a name the reader never carried. It is carried now (and the script
+  // matches TradingView on every object family), so it is a CLEAN row, and the
+  // reader-name class keeps a fixture — no committed script shows it any more.
+  { cls: 'clean plots + objects, completed by `table.merge_cells`', script: 'momentum-volatility-scanner__4d1deaa855',
+    objectsOnly: false, kind: 'clean' },
+  { cls: 'plots + partial the reader never carried', script: '(fixture: `line.set_xloc`)',
+    source: [
+      '//@version=5',
+      'indicator("reader partial", overlay = true)',
+      'plot(close)',
+      'var line l = line.new(bar_index, close, bar_index + 1, close)',
+      'line.set_xloc(l, time, time + 1, xloc.bar_time)',
+    ].join(String.fromCharCode(10)),
     objectsOnly: false, kind: 'partial',
-    text: /^This script uses `table\.merge_cells`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
   // ⚠️ Since the call-site inliner this corpus row's program is EMPTY (all 7 of
   // its drawing steps are refused calls to its own helpers), so it proves the
