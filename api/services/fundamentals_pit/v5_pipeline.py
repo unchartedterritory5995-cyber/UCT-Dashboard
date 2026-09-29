@@ -30,7 +30,26 @@ PERIODIC = frozenset({"10-K", "10-Q", "10-K/A", "10-Q/A", "10-KT", "10-QT", "10-
 LAG_S = 3600                    # companyfacts may trail a filing; before this, "no facts yet" is not an answer
 PERIODIC_FACTS_DEADLINE_S = 48 * 3600
 MAX_ATTEMPTS = 20
-MAX_WITHHOLDING_FLIPS = 3
+# BATCH ANOMALY RAIL for company-wide split-sensitive withholding. MEASURED on the frozen artifact (2026-09-29,
+# cutover investigation P14): 361 companies are withheld; the year their withholding first appeared ran 2011-2025 at
+# 5-58 companies/year (2023: 58, the maximum; 2024: 43; 2025: 41), each triggered by an ordinary filing. At the MAX
+# observed rate a business day expects 58/252 = 0.23 new withholdings. A batch spanning d business days is held when
+# its count k has Poisson tail P(X >= k | lambda = 0.23 d) < 0.001 -- i.e. far outside anything history produced.
+# (d = 1 -> hold at 4; d = 5 -> 7; d = 7 -> 8; tested.) Individual events are classified per company (v5_validate).
+WITHHOLD_RATE_PER_BUSINESS_DAY = 58 / 252
+WITHHOLD_ANOMALY_P = 0.001
+
+
+def withholding_anomaly_threshold(span_business_days: int) -> int:
+    import math
+    lam = WITHHOLD_RATE_PER_BUSINESS_DAY * max(1, span_business_days)
+    k, cdf, term = 0, 0.0, math.exp(-lam)
+    while True:
+        if 1.0 - cdf < WITHHOLD_ANOMALY_P:
+            return k
+        cdf += term
+        k += 1
+        term *= lam / k
 
 
 class Batch:
@@ -329,10 +348,12 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 continue
             parent_obj = PUB.read_json(target, PUB.obj_key(companies[cik])) if cik in companies else None
             bd, sc = pend.get(cik, (None, False))
-            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc)
+            new_accns = [a for (a,) in conn.execute("SELECT accn FROM filing WHERE cik=? AND public_at>=? ORDER BY public_at",
+                                                    (cik, bd))] if bd is not None else []
+            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc, new_accns=new_accns)
             results[cik] = r
-            if r["guard"].get("withholding_flip"):
-                flips.append(cik)
+            if r.get("withholding"):
+                flips.append(r["withholding"])
             if r["ok"]:
                 bodies[s] = body
                 companies[cik] = s
@@ -344,8 +365,16 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                                  (cik, int(now), b.id, json.dumps(r["errors"])))
         tickers = P.ticker_index(conn)
         batch_errors = []
-        if len(flips) > MAX_WITHHOLDING_FLIPS:
-            batch_errors.append(f"{len(flips)} split-sensitive withholding flips in one batch (> {MAX_WITHHOLDING_FLIPS})")
+        p_lf = ((parent.get("horizon") or {}).get("latest_filing") or {}).get("public_at")
+        n_lf = conn.execute("SELECT max(public_at) FROM filing").fetchone()[0]
+        span = len(DISC.business_days(dt.datetime.fromtimestamp(p_lf, ET).date(), dt.datetime.fromtimestamp(n_lf, ET).date()))             if p_lf and n_lf else 1
+        newly_withheld = [w for w in flips if w["direction"] == "withheld"]
+        thr = withholding_anomaly_threshold(span)
+        b.rec["withholding_rail"] = {"span_business_days": max(1, span), "threshold": thr, "newly_withheld": len(newly_withheld),
+                                     "rate_per_business_day": round(WITHHOLD_RATE_PER_BUSINESS_DAY, 4), "p": WITHHOLD_ANOMALY_P}
+        if len(newly_withheld) >= thr:
+            batch_errors.append(f"withholding anomaly: {len(newly_withheld)} companies newly withheld over {max(1, span)} "
+                                f"business day(s) (hold at >= {thr}: Poisson tail < {WITHHOLD_ANOMALY_P} at the max historical rate)")
         if len(tickers) < 0.99 * len(parent.get("tickers") or {}):
             batch_errors.append(f"ticker index shrank {len(parent.get('tickers') or {})} -> {len(tickers)}")
         if len(companies) < len(parent["companies"]):
@@ -356,7 +385,7 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                    "latest_filing": {"accn": latest[0], "public_at": latest[1]} if latest else None,
                    "queue": dict(conn.execute("SELECT state, count(*) FROM v5_queue GROUP BY state").fetchall())}
         b.rec["validation"] = {"changed": len(changed), "unchanged_after_derive": len(unchanged), "quarantined": quarantined,
-                               "withholding_flips": flips, "batch_errors": batch_errors,
+                               "withholding_events": flips, "batch_errors": batch_errors,
                                "failures": {str(c): r["errors"] for c, r in results.items() if not r["ok"]},
                                "retro_allowed": {str(c): r["guard"]["retro_allowed"] for c, r in results.items() if r["guard"]["retro_allowed"]},
                                "impossible_dates_new": {str(c): r["warnings"]["impossible_dates_new"] for c, r in results.items()
@@ -380,7 +409,9 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                      "base_sha256": VP.FROZEN_SHA256, "base_run_id": VP.RUN_ID},
             "changed": sorted(changed), "quarantined": sorted(quarantined),
             "validation": {"ok": True, "changed": len(changed), "retro_allowed": len(b.rec["validation"]["retro_allowed"]),
-                           "withholding_flips": flips}})
+                           "withholding_events": [{k: w[k] for k in ("cik", "direction", "classification",
+                                                   "triggering_filings", "affected_metric_families",
+                                                   "previously_served_points_removed")} for w in flips]}})
         b.state("READY_TO_PUBLISH", version=vid)
         if not publish:
             b.rec["candidate_manifest"] = {k: v for k, v in manifest.items() if k not in ("companies", "tickers")}

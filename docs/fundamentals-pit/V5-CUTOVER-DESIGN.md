@@ -108,7 +108,13 @@ Per changed company:
    an unexplained retroactive change → the company is quarantined (its parent object is kept) and the batch
    records it.
 4. **Scope** — only companies with new inputs may change.
-5. **Withholding flips** — allowed (it is the V4/V5 rule) but recorded; > 3 in one batch withholds the batch.
+5. **Withholding changes** — every company that newly becomes (or stops being) company-wide withheld is CLASSIFIED
+   with evidence (triggering filings, split-ledger change, verification findings, affected metric families,
+   previously served points removed). EXPLAINED iff the ledger changed in the batch or a finding's window ends on/after
+   the company's earliest newly-known filing; UNEXPLAINED quarantines that company (its previous version is kept).
+   **Batch anomaly rail:** at the maximum historical rate (58 new withholdings/year in 2023 = 0.23 per business day),
+   a batch spanning d business days is HELD when its newly-withheld count k has Poisson tail P(X ≥ k) < 0.001
+   (d=1 → 4, d=5 → 7, d=7 → 8).
 6. **Impossible dates** — a NEW point with `period_end` after its day is a WARNING (recorded), not a block: the rule
    is the frozen methodology and the value was public at `t_eff`.
 
@@ -150,7 +156,7 @@ across time inside one served series. Candidate rule changes are listed for an o
   and filings. Stored data unchanged.
 - **Split-sensitive withholding** — 361 cos; the first failing window is usually a routine 10-Q (median 26 filings
   in); 24-58 companies a year newly fail, each removing its whole EPS / share / dividend history from the served
-  version. Kept (same as V4 today); every flip is recorded and > 3 per batch holds the batch.
+  version. Kept (owner ruling: V6 work). Every change is classified per company (§6.5) under a Poisson batch rail.
 
 ## 9. Rollback
 

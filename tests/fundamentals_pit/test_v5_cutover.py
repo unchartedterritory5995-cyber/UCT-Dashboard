@@ -271,6 +271,50 @@ def test_pit_guard_allows_split_sensitive_history_only_with_a_split_change():
     assert VAL.pit_guard(parent, new2, 10, split_changed=True)["retro_unexplained"] == ["revenue_ttm"]
 
 
+def _wh_parent(withheld):
+    return {"withheld_split_sensitive": withheld, "metrics": {"eps_diluted_ttm": [[1, 1.0, "2020-03-31", "x"], [2, 1.1, "2020-06-30", "x"]],
+                                                            "revenue_ttm": [[1, 5.0, "2020-03-31", "x"]]}}
+
+
+def test_withholding_triggered_by_a_new_filing_is_explained_with_its_evidence(monkeypatch):
+    monkeypatch.setattr(S, "build_info", lambda c, cik, v: {"detail": {"split_verification": {"status": "unverified",
+        "reasons": [["window_disagrees", "2026-05-01", "2026-09-28", 3, 1.0, 2.0]]}}})
+    b = int(dt.datetime(2026, 9, 28, 20, tzinfo=dt.timezone.utc).timestamp())
+    w = VAL.classify_withholding(None, 1, _wh_parent(False), {"withheld_split_sensitive": True, "metrics": {}}, b, False, ["A-1"])
+    assert w["classification"] == "EXPLAINED" and w["direction"] == "withheld"
+    assert w["triggering_filings"] == ["A-1"] and w["affected_metric_families"] == ["eps_diluted_ttm"]
+    assert w["previously_served_points_removed"] == 2 and w["findings_from_new_filings"]
+
+
+def test_withholding_with_no_new_evidence_is_unexplained_and_quarantines(monkeypatch):
+    monkeypatch.setattr(S, "build_info", lambda c, cik, v: {"detail": {"split_verification": {"status": "unverified",
+        "reasons": [["window_disagrees", "2019-01-01", "2020-01-01", 3, 1.0, 2.0]]}}})
+    b = int(dt.datetime(2026, 9, 28, 20, tzinfo=dt.timezone.utc).timestamp())
+    w = VAL.classify_withholding(None, 1, _wh_parent(False), {"withheld_split_sensitive": True, "metrics": {}}, b, False, ["A-1"])
+    assert w["classification"] == "UNEXPLAINED"
+    assert VAL.classify_withholding(None, 1, _wh_parent(False), {"withheld_split_sensitive": True, "metrics": {}}, b, True, [])["classification"] == "EXPLAINED"
+    assert VAL.classify_withholding(None, 1, _wh_parent(True), {"withheld_split_sensitive": True, "metrics": {}}, b, False, []) is None
+
+
+def test_withholding_anomaly_threshold_is_the_poisson_tail_of_the_measured_rate():
+    assert [PL.withholding_anomaly_threshold(d) for d in (1, 5, 7)] == [4, 7, 8]
+
+
+def test_a_withholding_cluster_holds_the_batch(env, monkeypatch):
+    cur0 = PUB.read_current(env["t"])
+    real = VAL.validate_company
+    def fake(conn, cik, **kw):
+        r = real(conn, cik, **kw)
+        r["withholding"] = {"cik": cik, "direction": "withheld", "classification": "EXPLAINED", "triggering_filings": [],
+                            "affected_metric_families": [], "previously_served_points_removed": 0}
+        return r
+    monkeypatch.setattr(VAL, "validate_company", fake)
+    monkeypatch.setattr(PL, "withholding_anomaly_threshold", lambda span: 1)
+    rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
+    assert rec["state"] == "WITHHELD" and "withholding anomaly" in rec["validation"]["batch_errors"][0]
+    assert PUB.read_current(env["t"]) == cur0
+
+
 # ── serving seam + rollback ─────────────────────────────────────────────────
 def test_serving_defaults_to_v4_and_follows_the_control_object(env):
     SV.clear_cache()

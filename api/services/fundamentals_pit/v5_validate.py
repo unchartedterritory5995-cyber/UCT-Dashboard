@@ -8,12 +8,16 @@ Per changed company:
                 Every served point with t < B must equal the parent version's -- except split-sensitive metrics when the
                 company's split rows changed or its split verification flipped (the frozen methodology re-bases per-share
                 values on today's split ledger and withholds them company-wide when the ledger fails).
-  withholding   a flip is legal but recorded (the batch decides how many it tolerates)
+  withholding   every NEW company-wide split-sensitive withholding (or release) is CLASSIFIED with its evidence:
+                EXPLAINED iff the company's split ledger changed in this batch, or a split-verification finding's
+                window ends on/after the company's earliest newly-known filing (the new filing produced the
+                finding). Otherwise UNEXPLAINED -> the company is quarantined (its previous version is kept).
   dates         a NEW point whose period ends after its day is a WARNING (frozen rule; value was public at t)
 """
 from __future__ import annotations
 
 import datetime as dt
+import json
 import math
 
 from . import derive as D, store as S
@@ -23,7 +27,7 @@ from .split_ledger import SPLIT_SENSITIVE_METRICS, verify
 
 HARD = ("NONDETERMINISTIC", "LOOKAHEAD_SOURCE_AFTER_T", "SOURCE_NOT_A_FILING_OF_CIK", "PERIOD_REGRESSED",
         "GAP_WITH_SOURCES", "GAP_AS_FIRST_POINT", "GAP_NOT_NEWER_THAN_PREVIOUS", "NONFINITE_VALUE",
-        "REDUNDANT_REPEAT_POINT", "RETROACTIVE_CHANGE")
+        "REDUNDANT_REPEAT_POINT", "RETROACTIVE_CHANGE", "UNEXPLAINED_WITHHOLDING_CHANGE")
 
 
 def derive_rows(conn, cik: int) -> set[tuple]:
@@ -99,6 +103,36 @@ def pit_guard(parent: dict | None, new: dict, boundary: int | None, *, split_cha
     return {"retro_allowed": allowed, "retro_unexplained": bad, "withholding_flip": flip}
 
 
+def classify_withholding(conn, cik: int, parent: dict | None, new: dict, boundary: int | None,
+                         split_changed: bool, new_accns: list | None = None) -> dict | None:
+    """None when the withholding status did not change; else the evidence record + EXPLAINED/UNEXPLAINED."""
+    if parent is None:
+        return None
+    was, now_ = bool(parent.get("withheld_split_sensitive")), bool(new.get("withheld_split_sensitive"))
+    if was == now_:
+        return None
+    info = S.build_info(conn, cik, 5) or {"detail": {}}
+    ver = (info["detail"] or {}).get("split_verification") or {}
+    reasons = ver.get("reasons") or []
+    bday = dt.datetime.fromtimestamp(boundary, dt.timezone.utc).date().isoformat() if boundary else None
+    triggered_by_new = [r for r in reasons if isinstance(r, (list, tuple)) and len(r) >= 3 and r[0] == "window_disagrees"
+                        and bday is not None and str(r[2]) >= bday]
+    conflict = [r for r in reasons if isinstance(r, (list, tuple)) and r and r[0] == "ledger_conflict"]
+    fam = sorted(m for m in set(parent.get("metrics") or {}) | set(new.get("metrics") or {}) if m in SPLIT_SENSITIVE_METRICS)
+    removed = sum(len((parent.get("metrics") or {}).get(m, [])) for m in fam) if now_ else 0
+    if now_:
+        explained = bool(split_changed or triggered_by_new or (conflict and split_changed))
+    else:                                              # released: the new data/ledger made verification pass again
+        explained = bool(split_changed or boundary is not None)
+    return {"cik": cik, "direction": "withheld" if now_ else "released",
+            "classification": "EXPLAINED" if explained else "UNEXPLAINED",
+            "rule": "split_ledger.verify: split-sensitive metrics are withheld company-wide while the ledger is unverified "
+                    "(derive.build_company, frozen V5 methodology)",
+            "triggering_filings": new_accns or [], "boundary": boundary, "split_ledger_changed": split_changed,
+            "verification_status": ver.get("status"), "findings": reasons[:6], "findings_from_new_filings": triggered_by_new[:6],
+            "affected_metric_families": fam, "previously_served_points_removed": removed}
+
+
 def new_impossible_dates(new: dict, boundary: int | None) -> list:
     out = []
     for m, pts in (new.get("metrics") or {}).items():
@@ -114,7 +148,7 @@ def new_impossible_dates(new: dict, boundary: int | None) -> list:
 
 
 def validate_company(conn, cik: int, *, parent: dict | None, new: dict, boundary: int | None,
-                     split_changed: bool) -> dict:
+                     split_changed: bool, new_accns: list | None = None) -> dict:
     rows = stored_rows(conn, cik)
     counts = invariants(conn, cik, rows)
     if derive_rows(conn, cik) != rows:
@@ -122,6 +156,9 @@ def validate_company(conn, cik: int, *, parent: dict | None, new: dict, boundary
     guard = pit_guard(parent, new, boundary, split_changed=split_changed)
     if guard["retro_unexplained"]:
         counts["RETROACTIVE_CHANGE"] = len(guard["retro_unexplained"])
+    wh = classify_withholding(conn, cik, parent, new, boundary, split_changed, new_accns)
+    if wh and wh["classification"] == "UNEXPLAINED":
+        counts["UNEXPLAINED_WITHHOLDING_CHANGE"] = 1
     errors = {k: v for k, v in counts.items() if k in HARD and v}
-    return {"cik": cik, "ok": not errors, "errors": errors, "guard": guard,
+    return {"cik": cik, "ok": not errors, "errors": errors, "guard": guard, "withholding": wh,
             "warnings": {"impossible_dates_new": new_impossible_dates(new, boundary)[:20]}}
