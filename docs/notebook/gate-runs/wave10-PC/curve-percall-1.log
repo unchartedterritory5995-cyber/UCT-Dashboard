@@ -1,0 +1,179 @@
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[notebook-migration] migrated=0 skipped=0 errored=0
+[auth] Database ready at C:\Users\Patrick\AppData\Local\Temp\uct_tests_authdb_qtsrez6v\auth.db
+
+=== Seeding + measuring 1,000 notes (20 reps after 2 warmup) ===
+  seed 0.6s  db 9.3 MB  active 954 trashed 22 archived 24
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        6.95ms     8.43ms    10.98ms
+  count_notes (whole library)                              4.07ms     5.22ms     6.74ms
+  GET /notes default (list+count)                          7.20ms     9.55ms     9.96ms
+  list_notes (FTS, common term ~30%)                      26.72ms    29.76ms    31.28ms
+  count_notes (FTS, common term ~30%)                      5.43ms     6.52ms     9.84ms
+  GET /notes q=common (list+count)                        29.73ms    31.17ms    36.67ms
+  list_notes (FTS, rare term, 1 note)                     17.24ms    19.46ms    21.50ms
+  GET /notes q=rare (list+count)                          18.59ms    20.07ms    20.13ms
+  GET /notes q=common, relevance (search box)             30.98ms    32.94ms    34.04ms
+  GET /notes q=rare, relevance (search box)               18.11ms    19.68ms    19.94ms
+  GET /notes tag=setups (list+count)                       8.95ms    10.37ms    10.42ms
+  GET /notes embed_symbol (list+count)                    14.95ms    17.49ms    19.19ms
+  tag_counts (whole library)                               6.40ms     9.10ms     9.94ms
+  tag_tree (whole library)                                 6.55ms     7.33ms     8.19ms
+  GET /notes/tags (tags+tree)                              6.81ms    11.86ms    11.99ms
+  folder_note_counts (whole library)                       3.87ms     5.74ms     7.80ms
+  notes_for_folders (heavy + 2 others)                    11.86ms    14.77ms    15.38ms
+  get_symbol_backlinks                                     4.91ms     5.70ms     5.89ms
+  switcher_search (word start)                             6.88ms     7.52ms     7.70ms
+  switcher_search (fuzzy, in order)                       16.80ms    36.06ms    46.84ms
+  list_tasks (open, ?view=tasks)                           6.09ms     7.16ms     7.31ms
+  switcher_search (body fallback, common term)            19.79ms    22.46ms    23.04ms
+  switcher_search (body fallback, rare term)              15.50ms    27.84ms    28.41ms
+  OK all correctness checks passed
+
+=== Seeding + measuring 5,000 notes (20 reps after 2 warmup) ===
+  seed 3.8s  db 41.6 MB  active 4,775 trashed 93 archived 132
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        6.54ms     7.50ms     7.80ms
+  count_notes (whole library)                              5.30ms     6.09ms     6.58ms
+  GET /notes default (list+count)                          8.61ms    11.34ms    12.03ms
+  list_notes (FTS, common term ~30%)                      33.05ms    37.66ms    46.86ms
+  count_notes (FTS, common term ~30%)                      8.58ms    10.11ms    14.19ms
+  GET /notes q=common (list+count)                        35.22ms    43.07ms    46.79ms
+  list_notes (FTS, rare term, 1 note)                     20.36ms    30.46ms    35.81ms
+  GET /notes q=rare (list+count)                          22.20ms    23.49ms    23.92ms
+  GET /notes q=common, relevance (search box)             44.63ms    48.91ms    51.23ms
+  GET /notes q=rare, relevance (search box)               23.59ms    27.69ms    31.55ms
+  GET /notes tag=setups (list+count)                      14.38ms    16.70ms    20.14ms
+  GET /notes embed_symbol (list+count)                    23.45ms    25.67ms    25.73ms
+  tag_counts (whole library)                              15.51ms    17.65ms    18.42ms
+  tag_tree (whole library)                                16.43ms    18.33ms    23.52ms
+  GET /notes/tags (tags+tree)                             16.59ms    17.73ms    21.88ms
+  folder_note_counts (whole library)                       6.14ms     9.59ms    16.51ms
+  notes_for_folders (heavy + 2 others)                    23.67ms    29.12ms    29.55ms
+  get_symbol_backlinks                                     8.29ms    18.11ms    22.07ms
+  switcher_search (word start)                            14.71ms    22.36ms    23.70ms
+  switcher_search (fuzzy, in order)                       65.43ms    74.00ms    86.25ms
+  list_tasks (open, ?view=tasks)                          19.17ms    22.17ms    22.65ms
+  switcher_search (body fallback, common term)            73.83ms    88.28ms    95.62ms
+  switcher_search (body fallback, rare term)              57.51ms    70.71ms    83.84ms
+  OK all correctness checks passed
+
+=== Seeding + measuring 10,000 notes (20 reps after 2 warmup) ===
+  seed 8.7s  db 82.1 MB  active 9,542 trashed 191 archived 267
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        7.14ms     8.60ms     9.59ms
+  count_notes (whole library)                              7.56ms     8.67ms     9.49ms
+  GET /notes default (list+count)                         10.09ms    12.16ms    12.44ms
+  list_notes (FTS, common term ~30%)                      33.30ms    36.73ms    38.70ms
+  count_notes (FTS, common term ~30%)                     12.52ms    15.34ms    15.48ms
+  GET /notes q=common (list+count)                        45.19ms    60.25ms    60.96ms
+  list_notes (FTS, rare term, 1 note)                     22.80ms    24.66ms    24.83ms
+  GET /notes q=rare (list+count)                          27.53ms    34.33ms    43.58ms
+  GET /notes q=common, relevance (search box)             70.55ms    82.32ms    82.69ms
+  GET /notes q=rare, relevance (search box)               28.29ms    31.96ms    32.47ms
+  GET /notes tag=setups (list+count)                      20.57ms    36.78ms    38.57ms
+  GET /notes embed_symbol (list+count)                    32.15ms    35.93ms    45.64ms
+  tag_counts (whole library)                              30.47ms    31.93ms    44.62ms
+  tag_tree (whole library)                                31.54ms    34.76ms    35.95ms
+  GET /notes/tags (tags+tree)                             34.18ms    39.01ms    44.53ms
+  folder_note_counts (whole library)                       8.73ms    14.40ms    20.02ms
+  notes_for_folders (heavy + 2 others)                    23.14ms    30.80ms    31.94ms
+  get_symbol_backlinks                                    12.27ms    15.11ms    19.39ms
+  switcher_search (word start)                            23.62ms    27.93ms    34.90ms
+  switcher_search (fuzzy, in order)                       76.61ms    90.04ms    90.63ms
+  list_tasks (open, ?view=tasks)                          34.83ms    40.71ms    42.15ms
+  switcher_search (body fallback, common term)           112.13ms   129.81ms   130.86ms
+  switcher_search (body fallback, rare term)              70.99ms    88.14ms    89.79ms
+  OK all correctness checks passed
+
+=== Seeding + measuring 25,000 notes (20 reps after 2 warmup) ===
+  seed 25.5s  db 203.6 MB  active 23,784 trashed 498 archived 718
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        5.67ms     6.20ms     6.28ms
+  count_notes (whole library)                             10.00ms    10.68ms    11.77ms
+  GET /notes default (list+count)                         12.25ms    13.94ms    14.12ms
+  list_notes (FTS, common term ~30%)                      38.80ms    41.91ms    48.98ms
+  count_notes (FTS, common term ~30%)                     22.03ms    23.79ms    23.93ms
+  GET /notes q=common (list+count)                        58.42ms    62.78ms    80.66ms
+  list_notes (FTS, rare term, 1 note)                     28.10ms    30.36ms    31.17ms
+  GET /notes q=rare (list+count)                          38.53ms    46.50ms    48.68ms
+  GET /notes q=common, relevance (search box)            119.73ms   137.87ms   139.87ms
+  GET /notes q=rare, relevance (search box)               39.58ms    47.89ms    72.11ms
+  GET /notes tag=setups (list+count)                      32.93ms    36.39ms    45.19ms
+  GET /notes embed_symbol (list+count)                    56.50ms    67.98ms    68.15ms
+  tag_counts (whole library)                              64.52ms    68.74ms    70.71ms
+  tag_tree (whole library)                                65.46ms    73.81ms    76.73ms
+  GET /notes/tags (tags+tree)                             68.25ms    74.81ms    83.23ms
+  folder_note_counts (whole library)                      12.13ms    13.18ms    13.99ms
+  notes_for_folders (heavy + 2 others)                    20.68ms    23.56ms    26.35ms
+  get_symbol_backlinks                                    21.91ms    23.29ms    23.36ms
+  switcher_search (word start)                            44.60ms    50.26ms    51.39ms
+  switcher_search (fuzzy, in order)                       89.15ms   101.33ms   102.73ms
+  list_tasks (open, ?view=tasks)                          66.38ms    70.63ms    71.81ms
+  switcher_search (body fallback, common term)           158.58ms   170.64ms   176.16ms
+  switcher_search (body fallback, rare term)              87.50ms    98.15ms    99.09ms
+  OK all correctness checks passed
+
+=== Seeding + measuring 50,000 notes (20 reps after 2 warmup) ===
+  seed 47.9s  db 406.4 MB  active 47,590 trashed 979 archived 1,431
+  op                                                         p50       p95       max
+  list_notes (page 1, default sort)                        6.60ms     7.45ms     7.85ms
+  count_notes (whole library)                             17.00ms    20.34ms    21.25ms
+  GET /notes default (list+count)                         20.45ms    22.27ms    22.71ms
+  list_notes (FTS, common term ~30%)                      52.74ms    59.88ms    63.00ms
+  count_notes (FTS, common term ~30%)                     41.03ms    49.60ms    52.72ms
+  GET /notes q=common (list+count)                        94.79ms    99.33ms   102.58ms
+  list_notes (FTS, rare term, 1 note)                     43.65ms    49.23ms    50.70ms
+  GET /notes q=rare (list+count)                          57.62ms    63.55ms    65.40ms
+  GET /notes q=common, relevance (search box)            201.18ms   254.24ms   261.24ms
+  GET /notes q=rare, relevance (search box)               63.55ms    80.48ms    92.09ms
+  GET /notes tag=setups (list+count)                      69.75ms    83.66ms    92.86ms
+  GET /notes embed_symbol (list+count)                   103.19ms   111.94ms   119.26ms
+  tag_counts (whole library)                             126.30ms   137.66ms   172.28ms
+  tag_tree (whole library)                               138.62ms   179.78ms   199.29ms
+  GET /notes/tags (tags+tree)                            140.02ms   164.09ms   166.95ms
+  folder_note_counts (whole library)                      22.09ms    25.01ms    26.69ms
+  notes_for_folders (heavy + 2 others)                    22.97ms    31.52ms    33.02ms
+  get_symbol_backlinks                                    42.77ms    51.78ms    69.15ms
+  switcher_search (word start)                            88.75ms   121.00ms   122.53ms
+  switcher_search (fuzzy, in order)                      117.36ms   127.46ms   134.04ms
+  list_tasks (open, ?view=tasks)                         141.63ms   166.97ms   175.17ms
+  switcher_search (body fallback, common term)           310.74ms   359.56ms   383.06ms
+  switcher_search (body fallback, rare term)             164.01ms   241.13ms   244.89ms
+  OK all correctness checks passed
+
+=== Curve: log-log slope of p50 over [1000, 5000, 10000, 25000, 50000] (bound: fit <= 1.1, last segment <= 1.3) ===
+  list_notes (page 1, default sort)                    slope -0.028  last segment  0.220
+  count_notes (whole library)                          slope  0.354  last segment  0.765
+  GET /notes default (list+count)                      slope  0.244  last segment  0.740
+  list_notes (FTS, common term ~30%)                   slope  0.156  last segment  0.443
+  count_notes (FTS, common term ~30%)                  slope  0.509  last segment  0.897
+  GET /notes q=common (list+count)                     slope  0.283  last segment  0.698
+  list_notes (FTS, rare term, 1 note)                  slope  0.218  last segment  0.636
+  GET /notes q=rare (list+count)                       slope  0.283  last segment  0.580
+  GET /notes q=common, relevance (search box)          slope  0.481  last segment  0.749
+  GET /notes q=rare, relevance (search box)            slope  0.307  last segment  0.683
+  GET /notes tag=setups (list+count)                   slope  0.503  last segment  1.083
+  GET /notes embed_symbol (list+count)                 slope  0.484  last segment  0.869
+  tag_counts (whole library)                           slope  0.767  last segment  0.969
+  tag_tree (whole library)                             slope  0.777  last segment  1.082
+  GET /notes/tags (tags+tree)                          slope  0.774  last segment  1.037
+  folder_note_counts (whole library)                   slope  0.428  last segment  0.865
+  notes_for_folders (heavy + 2 others)                 slope  0.146  last segment  0.152
+  get_symbol_backlinks                                 slope  0.542  last segment  0.965
+  switcher_search (word start)                         slope  0.644  last segment  0.993
+  switcher_search (fuzzy, in order)                    slope  0.472  last segment  0.397
+  list_tasks (open, ?view=tasks)                       slope  0.791  last segment  1.093
+  switcher_search (body fallback, common term)         slope  0.673  last segment  0.971
+  switcher_search (body fallback, rare term)           slope  0.559  last segment  0.906
+
+report: docs/notebook/gate-runs/wave10-PC/curve-percall-1.json
+VERDICT: PASS -- curve: every op's slope <= 1.1
+rc=0
