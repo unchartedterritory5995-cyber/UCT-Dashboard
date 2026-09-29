@@ -112,11 +112,16 @@ describe('⭐⭐ the corpus scripts this wave completes — at the door AND on t
   it('⭐ contraction-box: one line per doji AND only the boxes inside Pine\'s 50-box window', () => {
     const r = drawn(read('contraction-box-doji-lines__'))
     // Every bar creates a box (na corners when the condition is false), so the
-    // 50-box pool evicts all but the last 50 — and only those with real
+    // 50-box pool collects all but the newest few — and only those with real
     // corners are painted. A runtime that skipped the na creates would keep
     // boxes from the whole history, which TradingView never shows.
-    expect(r.run.counts.box).toBe(50)
-    expect(r.byFamily.box).toBeLessThan(50)
+    // ⭐ 2026-09-28 (C7): Pine collects in BATCHES — a create past 50 + 5 cuts
+    // the pool back to 50 — so 600 one-per-bar creates hold 50 + (544 mod 6) =
+    // 54, not exactly 50. On the vendor's own 632-bar RDDT capture of this
+    // script the same rule holds exactly 50, id for id.
+    expect(r.run.counts.box).toBe(50 + ((BARS.length - 56) % 6))
+    expect(r.run.counts.box).toBe(54)
+    expect(r.byFamily.box).toBeLessThan(r.run.counts.box)
     expect(r.byFamily.line).toBeGreaterThan(0)
   })
 })
