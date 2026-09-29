@@ -11,7 +11,8 @@
 //     study: 'UCTVH …',                     //   substring of the study's title — must match exactly one
 //     source: '<the exact Pine you pasted>',//   hashed here (sha256) and carried verbatim
 //     id: 'my-script-spy-1d-2026-09-27',    //   optional; becomes the capture id
-//     newestBarIsForming: false,            //   say so when capturing after the close
+//     newestBarIsForming: false,            //   optional: DERIVED from the chart (see newestBarState);
+//                                           //   an assertion is used only when that cannot answer
 //     startsAtBar0: false,                  //   true ONLY if the loaded history reaches bar 0
 //     chunkSize: 60000,                     //   characters per chunk for transport
 //   })                                      // → summary {ok, chars, fnv1a, chunks, …}
@@ -212,6 +213,140 @@
     return out
   }
 
+  // ── is the newest bar still forming? ──────────────────────────────────────
+  //
+  // ⚰️ 2026-09-28: this was whatever the CALLER passed, and the unattended batch
+  // passes a guess that only knows about daily bars (`batch_capture.py
+  // newest_bar_forming`: "a weekday inside 09:30-16:00 ET"). SPY 1W captured on
+  // a Monday evening was recorded `newestBarIsForming: false` while the week had
+  // four sessions to go — and TradingView's own `barstate.isconfirmed` plot read
+  // 0 on that bar (vw-clock-close-tfchange-spy-1w-2026-09-28, K17; the four
+  // vw-object-gc-*-spy-1w captures, *01_isconfirmed). Our side then read 1: a
+  // DIVERGE manufactured by the capture's metadata, not by either engine.
+  //
+  // ⭐ Derived here from what the chart itself holds — the newest bar's own
+  // time, the chart's interval, the symbol's session / timezone / holidays —
+  // against the capture instant. The newest bar is forming while its PERIOD
+  // (the regular session that closes it) has not ended:
+  //   * intraday N minutes: the bar's start + N minutes, capped at the end of
+  //     the session segment it opened in (SPY's 15:30 60m bar ends at 16:00);
+  //   * 1D: that trading day's session close;
+  //   * 1W / 1M: the session close of the LAST trading day of the bar's week /
+  //     month (weekdays of the session, minus `session_holidays` when the
+  //     symbol carries them).
+  // It is the ENGINE's own definition (`bar_close_state`: scheduled close > now),
+  // so the harness hands our side the state production would hand it.
+  // ⛔ UNKNOWN IS null, NEVER false: a multi-period interval (2W, 3M), an
+  // unreadable session or a missing timezone cannot be derived, and the caller's
+  // assertion (if any) is used and said to be used.
+  // ⚠️ NOT modelled: early closes (TradingView's `corrections`) — a half-day
+  // captured between 13:00 and 16:00 ET reads forming. And TradingView confirms
+  // a D/W/M bar some hours AFTER the regular close (measured between 19:22 and
+  // 20:55 ET, docs/pine/barstate.md ruling 3.1), so a capture inside that window
+  // is warned about rather than guessed at.
+  const DAY_MS = 86400000
+  function zoneParts(ms, tz) {
+    const f = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short',
+    })
+    const p = {}
+    for (const x of f.formatToParts(new Date(ms))) p[x.type] = x.value
+    const wd = { Sun: 1, Mon: 2, Tue: 3, Wed: 4, Thu: 5, Fri: 6, Sat: 7 }[p.weekday]
+    return { y: +p.year, m: +p.month, d: +p.day, hh: +p.hour % 24, mm: +p.minute, ss: +p.second, wd }
+  }
+  /** Wall-clock (y, m, d, minutes after midnight) in `tz` → epoch ms. */
+  function zonedToUtc(y, m, d, minutes, tz) {
+    const guess = Date.UTC(y, m - 1, d, 0, minutes)
+    const offsetAt = (ms) => {
+      const p = zoneParts(ms, tz)
+      return Date.UTC(p.y, p.m - 1, p.d, p.hh, p.mm, p.ss) - Math.floor(ms / 1000) * 1000
+    }
+    let utc = guess - offsetAt(guess)
+    utc = guess - offsetAt(utc)
+    return utc
+  }
+  /** TradingView's session string → segments in minutes, and the session days
+   *  (1 = Sunday … 7 = Saturday; omitted days mean Monday–Friday). */
+  function parseSession(session) {
+    const s = String(session || '').trim()
+    if (!s) return null
+    if (/^24x7$/i.test(s)) return { segments: [{ start: 0, end: 1440 }], days: new Set([1, 2, 3, 4, 5, 6, 7]) }
+    const segments = []
+    let days = null
+    for (const part of s.split(',')) {
+      const m = /^(\d{2})(\d{2})-(\d{2})(\d{2})(?::([1-7]+))?$/.exec(part.trim())
+      if (!m) return null
+      const start = +m[1] * 60 + +m[2]
+      let end = +m[3] * 60 + +m[4]
+      if (end === 0) end = 1440
+      if (end <= start) return null            // an overnight session is not derived here
+      segments.push({ start, end })
+      if (m[5]) days = new Set(m[5].split('').map(Number))
+    }
+    return { segments, days: days || new Set([2, 3, 4, 5, 6]) }
+  }
+  function parseInterval(interval) {
+    const s = String(interval || '').trim().toUpperCase()
+    let m = /^(\d+)$/.exec(s)
+    if (m) return { unit: 'min', n: +m[1] }
+    m = /^(\d+)S$/.exec(s)
+    if (m) return { unit: 'sec', n: +m[1] }
+    m = /^(\d*)([DWM])$/.exec(s)
+    if (m) return { unit: m[2], n: m[1] ? +m[1] : 1 }
+    return null
+  }
+  function newestBarState(barTimeSec, interval, si, nowMs) {
+    const out = (forming, periodEnd, rule) => ({
+      forming, periodEndUTC: periodEnd === null ? null : new Date(periodEnd).toISOString(), rule,
+    })
+    const spec = parseInterval(interval)
+    if (!spec) return out(null, null, `interval ${JSON.stringify(interval)} is not one this derivation reads`)
+    if (!Number.isFinite(barTimeSec)) return out(null, null, 'the newest bar has no time')
+    const tz = si && si.timezone
+    const sess = parseSession(si && si.session)
+    const barMs = barTimeSec * 1000
+    if (spec.unit === 'min' || spec.unit === 'sec') {
+      let end = barMs + spec.n * (spec.unit === 'min' ? 60000 : 1000)
+      let rule = `bar start + ${spec.n}${spec.unit === 'min' ? ' min' : ' s'}`
+      if (tz && sess) {
+        const p = zoneParts(barMs, tz)
+        const hm = p.hh * 60 + p.mm
+        const seg = sess.segments.find((g) => hm >= g.start && hm < g.end)
+        if (seg) {
+          const segEnd = zonedToUtc(p.y, p.m, p.d, seg.end, tz)
+          if (segEnd < end) { end = segEnd; rule += ', capped at the session segment\'s end' }
+        }
+      }
+      return out(nowMs < end, end, rule)
+    }
+    if (spec.n !== 1) return out(null, null, `a ${spec.n}${spec.unit} bar's period is not derived here`)
+    if (!tz || !sess) return out(null, null, 'the symbol carries no readable session or timezone')
+    const holidays = new Set(String((si && si.session_holidays) || '').split(',').map((x) => x.trim()).filter(Boolean))
+    const close = Math.max(...sess.segments.map((g) => g.end))
+    const p0 = zoneParts(barMs, tz)
+    const day0 = Date.UTC(p0.y, p0.m - 1, p0.d)                 // the bar's local calendar date
+    const isTradingDay = (dayUtc) => {
+      const dt = new Date(dayUtc)
+      const ymd = `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}`
+      return sess.days.has(dt.getUTCDay() + 1) && !holidays.has(ymd)
+    }
+    let last = day0
+    if (spec.unit === 'W') {
+      const toSunday = (7 - new Date(day0).getUTCDay()) % 7    // the week runs Monday..Sunday
+      for (let k = 0; k <= toSunday; k += 1) if (isTradingDay(day0 + k * DAY_MS)) last = day0 + k * DAY_MS
+    } else if (spec.unit === 'M') {
+      const dt0 = new Date(day0)
+      const monthEnd = Date.UTC(dt0.getUTCFullYear(), dt0.getUTCMonth() + 1, 0)
+      for (let d = day0; d <= monthEnd; d += DAY_MS) if (isTradingDay(d)) last = d
+    }
+    const ld = new Date(last)
+    const end = zonedToUtc(ld.getUTCFullYear(), ld.getUTCMonth() + 1, ld.getUTCDate(), close, tz)
+    const what = spec.unit === 'D' ? 'the session close of the bar\'s trading day'
+      : `the session close of the last trading day of the bar's ${spec.unit === 'W' ? 'week' : 'month'}`
+    return out(nowMs < end, end, `${what}${holidays.size ? ' (session_holidays read)' : ''}`)
+  }
+
   const declaredTitle = (src) => {
     const m = /\bindicator\s*\(\s*(?:title\s*=\s*)?"([^"]*)"/.exec(String(src || ''))
     return m ? m[1] : null
@@ -288,6 +423,34 @@
       value: state && state.inputs && inp.id in state.inputs ? state.inputs[inp.id] : null,
     }))
 
+    // ⭐ THE NEWEST BAR'S STATE IS DERIVED FROM THE CHART, never taken on trust
+    // (see `newestBarState`). A caller's assertion is kept beside it, used only
+    // when nothing can be derived, and a disagreement is a warning, by name.
+    const capturedMs = Date.now()
+    const asserted = typeof o.newestBarIsForming === 'boolean' ? o.newestBarIsForming : null
+    const newest = bars[bars.length - 1][0]
+    let derived
+    try {
+      derived = newestBarState(newest, interval, si, capturedMs)
+    } catch (e) {
+      derived = { forming: null, periodEndUTC: null, rule: `the derivation threw: ${String((e && e.message) || e)}` }
+    }
+    const forming = derived.forming !== null ? derived.forming : asserted
+    const formingSource = derived.forming !== null ? 'derived' : (asserted !== null ? 'asserted' : 'unknown')
+    if (derived.forming !== null && asserted !== null && asserted !== derived.forming) {
+      warnings.push(`newestBarIsForming: the caller asserted ${asserted}, but the newest bar's period `
+        + `(${derived.rule}) ends ${derived.periodEndUTC} and the capture is at ${new Date(capturedMs).toISOString()} `
+        + `— recorded ${derived.forming}, the chart's own answer`)
+    }
+    if (derived.forming === null) warnings.push(`newestBarIsForming not derived: ${derived.rule}`)
+    const unitDWM = /^\d*[DWM]$/i.test(String(interval || '').trim())
+    if (unitDWM && derived.forming === false && derived.periodEndUTC
+        && capturedMs - Date.parse(derived.periodEndUTC) < 5 * 3600000) {
+      warnings.push('the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a '
+        + 'bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md '
+        + 'ruling 3.1), so the vendor\'s own barstate.isconfirmed may still read 0 on it')
+    }
+
     const title = hits[0].title
     const srcTitle = declaredTitle(o.source)
     if (srcTitle && ![title, mi.description, mi.shortDescription].some((t) => t && String(t).startsWith(srcTitle))) {
@@ -297,8 +460,8 @@
     const body = {
       schema: 'uct.vendor-capture/v1',
       id: o.id || String(srcTitle || title || 'capture').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-      capturedAtUTC: new Date().toISOString(),
-      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: 1 },
+      capturedAtUTC: new Date(capturedMs).toISOString(),
+      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: 2 },
       page: { url: tryOr(() => location.href, null), visibilityState: tryOr(() => document.visibilityState, null), hasFocus: tryOr(() => document.hasFocus(), null) },
       symbol: {
         name: si.name || null, full_name: si.full_name || null, pro_name: si.pro_name || null,
@@ -307,7 +470,15 @@
         pricescale: num(si.pricescale), minmov: num(si.minmov), currency: si.currency_code || null,
       },
       timeframe: interval,
-      newestBarIsForming: typeof o.newestBarIsForming === 'boolean' ? o.newestBarIsForming : null,
+      newestBarIsForming: forming,
+      newestBar: {
+        time: newest,
+        source: formingSource,
+        derived: derived.forming,
+        periodEndUTC: derived.periodEndUTC,
+        rule: derived.rule,
+        asserted,
+      },
       history: { startsAtBar0: o.startsAtBar0 === true, why: o.startsAtBar0 === true ? (o.startsAtBar0Why || 'asserted by the capturer') : 'not asserted' },
       source: { text: o.source, sha256: sha256Hex(o.source), chars: o.source.length, declaredTitle: srcTitle },
       census: c.control,
@@ -347,6 +518,8 @@
       studyRows: rows.length,
       plots: plots.map((p) => `${p.id}:${p.type}:${p.title}`),
       objects: body.objects ? body.objects.counts : null,
+      newestBarIsForming: forming,
+      newestBarIsFormingSource: formingSource,
       census: c.control,
       warnings,
       chars: text.length,
@@ -370,6 +543,6 @@
     return { globalsLeft: window.__uctVH === undefined ? [] : ['__uctVH'] }
   }
 
-  window.__uctVH = { studies, capture, chunk, cleanup, _fnv1a: fnv1a, _sha256Hex: sha256Hex }
+  window.__uctVH = { studies, capture, chunk, cleanup, _fnv1a: fnv1a, _sha256Hex: sha256Hex, _newestBarState: newestBarState }
   return 'uct vendor harness ready: __uctVH.studies(), .capture({study, source, …}), .chunk(i), .cleanup()'
 })()
