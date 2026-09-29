@@ -4960,6 +4960,18 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] breadth self-heal wiring error (non-fatal): {e}")
 
+    # TERM-042: the server-computed EOD breadth row (BREADTH_EOD_SOURCE, text,
+    # default `collector`). start_job() starts NOTHING in `collector` mode, so the
+    # default boot is today's process thread for thread. `shadow` grades a bars.db
+    # row against the collector's; `server` (with BREADTH_EOD_SERVER_FROM) writes it.
+    # Web pod: breadth_snapshots lives on web's volume.
+    try:
+        from api.services import breadth_eod_source as _breadth_eod
+        if _breadth_eod.start_job():
+            print(f"[startup] breadth EOD source job armed (mode={_breadth_eod.mode()})")
+    except Exception as e:
+        print(f"[startup] breadth EOD source wiring error (non-fatal): {e}")
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:

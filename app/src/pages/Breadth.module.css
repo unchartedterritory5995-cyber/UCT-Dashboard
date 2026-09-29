@@ -394,6 +394,17 @@
   font-style: italic;
 }
 
+/* TERM-059 — the value's own as-of, inline beside the number. Inline, never a
+   second line: every Monitor row is a fixed 32px (MONITOR_ROW_H) and the table
+   is white-space:nowrap, so the clause must not add height. Not interactive, so
+   it carries no tap target of its own. */
+.valueAge {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 6px;
+  line-height: 1;
+}
+
 .scoreSummary {
   display: flex;
   align-items: center;

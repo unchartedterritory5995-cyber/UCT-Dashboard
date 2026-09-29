@@ -30,6 +30,8 @@ import BreadthViews from './breadth/BreadthViews'
 import UnmountReporter from './breadth/UnmountReporter'
 import useBreadthUrlState from './breadth/useBreadthUrlState'
 import useBreadthHubSection, { resolveBreadthTabs } from '../hub/sections/breadthSection'
+import FreshnessBadge from '../components/provenance/FreshnessBadge'
+import { naaimAge } from './breadth/naaimAge'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -260,7 +262,10 @@ export const COLS = [
   { key: 'aaii_neutral',  label: 'Neutral',    group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_bears',    label: 'AAII Bears', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
   { key: 'aaii_spread', label: 'B-B Sprd', group: G.SENTIMENT, fmt: v => fmtDec(v, 1) },
-  { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
+  // TERM-059: the weekly survey states its own as-of AT THE VALUE. `age` hands
+  // the cell TERM-006's verdict (freshnessAge.js) for this row; the cell only
+  // renders it. See breadth/naaimAge.js for why "now" is the row's session.
+  { key: 'naaim', label: 'NAAIM', group: G.SENTIMENT, fmt: v => fmtDec(v, 2), age: naaimAge },
   { key: 'cboe_putcall', label: 'CBOE P/C', group: G.SENTIMENT, fmt: v => fmtDec(v, 2) },
 ]
 
@@ -1301,6 +1306,14 @@ export default function Breadth() {
                       ? (liveBreadth.carried?.has(col.key) ? 'carried'
                         : liveBreadth.accuracy?.[col.key] ?? null)
                       : null
+                    // TERM-059: a slower-than-daily value states its as-of at
+                    // the value when the age authority says it must.
+                    const age = col.age ? col.age(row) : null
+                    const ageTitle = age?.mustLabel
+                      ? (age.asOfDate
+                        ? `${col.label}: ${age.cadence} survey dated ${age.asOfDate}`
+                        : `${col.label}: ${age.cadence} reading with no survey date`)
+                      : null
                     return (
                       <td
                         key={col.key}
@@ -1313,7 +1326,8 @@ export default function Breadth() {
                               : liveBreadth.partial?.has(col.key) && row._live
                                 ? 'Builds through the session — only complete at the close'
                                 : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
-                                  : isDrillable ? 'Click to see stocks' : undefined
+                                  : ageTitle ? ageTitle
+                                    : isDrillable ? 'Click to see stocks' : undefined
                         }
                         onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
                         {...(isDrillable ? {
@@ -1330,6 +1344,11 @@ export default function Breadth() {
                         } : {})}
                       >
                         {fmtCell(col, val)}
+                        {age?.mustLabel && (
+                          <span className={styles.valueAge} data-value-age={col.key}>
+                            <FreshnessBadge age={{ cadence: age.cadence, asOfDate: age.asOfDate }} />
+                          </span>
+                        )}
                       </td>
                     )
                   })}

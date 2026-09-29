@@ -8,11 +8,16 @@
     "costs one reviewable line in a diff, with the reason in the commit message.",
     "Paths are repo-relative with forward slashes, sorted, and the file is LF with a",
     "trailing newline: the rail asserts these bytes are exactly what its writer",
-    "produces, so appending one adopter is a one-line diff."
+    "produces, so appending one adopter is a one-line diff.",
+    "coverage_line_exempt (TERM-047) is the OPPOSITE kind of list: SHRINK-ONLY and hand-edited.",
+    "Each key is a derived result surface that renders no CoverageLine; each value is ONE line",
+    "starting with its kind (not-a-result-set: / no-counts: / delegates:). The rail fails by name",
+    "on an entry that outlives its gap, and no generator ever adds one."
   ],
   "adopters": [
     "app/src/components/chart/builder/EvidenceTab.jsx",
     "app/src/components/screener/ScanResults.jsx",
+    "app/src/pages/Breadth.jsx",
     "app/src/pages/ProvenanceDemo.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",
@@ -22,6 +27,18 @@
     "app/src/pages/research/tabs/DecisionRecordTab.jsx",
     "app/src/pages/research/tabs/FlowTab.jsx",
     "app/src/pages/research/tabs/NewsTab.jsx",
-    "app/src/pages/research/tabs/OwnershipTab.jsx"
-  ]
+    "app/src/pages/research/tabs/OwnershipTab.jsx",
+    "app/src/pages/screener/shell/ScannerShell.jsx"
+  ],
+  "coverage_line_exempt": {
+    "app/src/components/screener/MethodologyPanel.jsx": "not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count",
+    "app/src/components/screener/RunNowButton.jsx": "delegates: hands the finished run to its parent via onResult(toScanResultsPayload(run)); app/src/components/screener/ScanResults.jsx renders that run's four counts",
+    "app/src/components/screener/StructureProvenance.jsx": "not-a-result-set: renders the structure-library catalogue from /api/screener/structures (criteria and their sources), not symbols a screen matched",
+    "app/src/pages/charts/widgets/PeriodSortResults.jsx": "no-counts: /api/scans/period-change(-groups) return results + count + partial only (scan_period.py); dropped and not-computable are never measured, so two of the four would be invented",
+    "app/src/pages/charts/widgets/ScannerResults.jsx": "no-counts: the six preset scans return results + count + as_of only (scan_volume.py, scan_gainers.py, scan_ipo.py); no evaluated/dropped/not-computable split exists server-side",
+    "app/src/pages/charts/widgets/VolumeScanWidget.jsx": "no-counts: /api/volume-scan/live returns total + shown + universe_top (volume_live.get_live); a surge leaderboard with no evaluated/dropped/not-computable split server-side",
+    "app/src/pages/screener/ScreensManager.jsx": "delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts",
+    "app/src/pages/screener/shell/PresetChips.jsx": "not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results",
+    "app/src/pages/screener/shell/SaveScanButton.jsx": "not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results"
+  }
 }

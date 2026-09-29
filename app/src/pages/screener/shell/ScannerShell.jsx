@@ -13,6 +13,8 @@ import useScreenerScan from '../hooks/useScreenerScan'
 import useColumnPresets from '../hooks/useColumnPresets'
 import useScreenerCount from '../hooks/useScreenerCount'
 import FilterChips from '../FilterChips'
+import { joinedScanReceipts } from '../ScanFilterChip'
+import CoverageLine from '../../../components/provenance/CoverageLine'
 import ChartsGallery from '../ChartsGallery'
 import ScreensManager from '../ScreensManager'
 import { COLUMN_DEFS } from '../columnDefs'
@@ -194,6 +196,31 @@ export default function ScannerShell({ embedded = false }) {
     () => (liveSortOn ? sortRowsLive(rows, s.sort, prices) : rows),
     [liveSortOn, rows, s.sort, prices])
 
+  /* TERM-047 — THE SCAN FILTER'S OWN RECEIPT, BESIDE THE ROWS IT FILTERED.
+   *
+   * A `My Scans` filter joins the screen to that scan's LAST SWEEP, so a symbol
+   * the sweep could not compute is silently absent from these rows — the exact
+   * "a screen that loses symbols looks like a quiet market" case CoverageLine
+   * exists for. The BACKEND already returns all four counts (`/api/screener/meta`
+   * → the scan category's `scans[].latest`, off `scan_store.latest_coverage_for`),
+   * and the filter chip beside this showed only three of them. Nothing here is
+   * computed: the receipt is handed to CoverageLine whole, and CoverageLine owns
+   * the refusal when its arithmetic does not close.
+   *
+   * WHICH SWEEP IS DECIDED IN ONE PLACE — `joinReceipt` (ScanFilterChip.jsx),
+   * which the chip's applied branch also asks: only a join that APPLIED on this
+   * request, and only when the meta's latest is the SAME sweep (`as_of`) the join
+   * used. A stale meta, a never-swept scan or an unapplied join renders nothing
+   * here, never a zeroed receipt.
+   *
+   * A plain screen (no scan filter) has no four-count receipt on the wire —
+   * `/api/screener/scan` returns `total` and, for a ranked screen, a
+   * matched/ranked pair — so no line is drawn for it, and none is invented. */
+  const scanReceipts = useMemo(() => joinedScanReceipts({
+    scans: (meta?.filters || []).find(f => f.key === 'scan')?.scans,
+    scanJoins: result?.scan_joins,
+  }), [meta, result])
+
   const retry = () => setRetryNonce(n => n + 1)
   const isEmpty = result && total === 0
   const hasMore = rows.length < total
@@ -337,6 +364,17 @@ export default function ScannerShell({ embedded = false }) {
               watchlist. Self-contained (owns useFlagged); safe to always mount. */}
           <FlaggedActions />
         </div>
+        {scanReceipts.length > 0 && (
+          <div className={styles.scanCoverage} data-testid="scan-join-coverage">
+            {scanReceipts.map(r => (
+              <section key={r.def_hash} className={styles.scanCoverageItem}
+                aria-label={`Coverage of the scan filter ${r.label}`}>
+                <p className={styles.scanCoverageLabel}>Scan filter: {r.label}</p>
+                <CoverageLine coverage={r.latest} />
+              </section>
+            ))}
+          </div>
+        )}
         {error && (
           <div className={styles.scanError} role="alert">
             Scan failed — {String(error.message || error)}.
