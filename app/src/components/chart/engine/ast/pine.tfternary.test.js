@@ -123,3 +123,52 @@ plot(security(tickerid, res, close))`))
     expect(folded).toContain('input')
   })
 })
+
+/**
+ * ⭐⭐ C10 (2026-09-29) — A CONDITION BUILT ONLY OF CONSTANTS FOLDS, WHATEVER ITS
+ * SPELLING. `linear-regression-channel-…-existing-trend-lines` writes its MTF
+ * toggle `TF_Choise == false ? timeframe.period : TF`; the condition resolves to
+ * `op('==', num 0, num 0)`, which is a constant and not a `num`, so the toggle
+ * refused while `TF_Choise ? TF : timeframe.period` — the same script — read.
+ * Its five channel lines are TradingView's, id for id, once it reads
+ * (`__tests__/c10SecurityObjects.vendor.test.js`).
+ */
+describe('a timeframe chosen by a ternary whose condition is a constant EXPRESSION', () => {
+  const v6 = (body) => `//@version=6\nindicator("t")\n${body}\n`
+  const SMA = { type: 'call', name: 'sma', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 10 }] }
+  const treeOf = (out) => {
+    expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
+    return out.outputs.find((o) => o.refusal === null).ast
+  }
+
+  it('⭐ `flag == false ? timeframe.period : tf` at a false default reads the chart\'s own timeframe', () => {
+    expect(treeOf(translatePine(v6(
+      `flag = input.bool(false, "Time Frame")
+TF = input.timeframe("60", "")
+plot(request.security(syminfo.tickerid, flag == false ? timeframe.period : TF, ta.sma(close, 10)))`)))).toEqual(SMA)
+  })
+
+  it('⛔ …and at a TRUE default reads its OTHER arm, and refuses the 60-minute timeframe', () => {
+    const out = translatePine(v6(
+      `flag = input.bool(true, "Time Frame")
+TF = input.timeframe("60", "")
+plot(request.security(syminfo.tickerid, flag == false ? timeframe.period : TF, ta.sma(close, 10)))`))
+    expect(out.refusal).toBeTruthy()
+    expect(out.refusal.guard).toBe('pine:request')
+  })
+
+  it('⭐ `not flag ? …` folds both ways: the chart\'s own at false, weekly at true', () => {
+    const body = (d) => `flag = input.bool(${d}, "HTF")
+plot(request.security(syminfo.tickerid, not flag ? timeframe.period : "W", close))`
+    expect(treeOf(translatePine(v6(body('false'))))).toEqual({ type: 'series', name: 'close' })
+    expect(treeOf(translatePine(v6(body('true')))))
+      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+  })
+
+  it('⛔ a comparison that reads the BARS never folds — `bar_index == 0 ? …` refuses', () => {
+    const out = translatePine(v6(
+      `plot(request.security(syminfo.tickerid, bar_index == 0 ? timeframe.period : "W", close))`))
+    expect(out.refusal).toBeTruthy()
+    expect(out.refusal.guard).toBe('pine:request')
+  })
+})

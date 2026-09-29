@@ -73,10 +73,29 @@ const CASES = [
   // behind guards this chart cannot read. The labels those setters write are
   // WITHHELD (`content:lost`) — before, two of them were drawn BLANK where
   // TradingView shows `PDH` / `PDL`. Same verdict: partial, drawn.
+  // 195 of 203 since C16 (2026-09-29): its `line.delete(_hline.pop())` is read
+  // as the two Pine operations it is — the delete AND the pop — so each of its
+  // six lost deletes brings its lost pop with it (`guard:coll_pop`, six more
+  // steps attempted and dropped). Same verdict: partial, drawn.
   { cls: 'partial objects-only, lost deletes remove nothing drawn', script: 'htf-liquidity-dashboard-tfo__ec8f8316a4',
-    objectsOnly: true, kind: 'partial', text: partial(189, 197) },
+    objectsOnly: true, kind: 'partial', text: partial(195, 203) },
+  // ⭐ C16 (2026-09-29) — the corpus's bounded-eviction idiom, served whole:
+  // `if array.size(rays) > maxRays` + `line.delete(array.shift(rays))`. This row
+  // was the 'removal lost: a delete' fixture until the shift became a readable
+  // target; that class keeps a fixture of its own below.
+  { cls: 'clean objects-only, a bounded eviction (C16)', script: 'rsi-horizontal-resistance-levels__a3f8454f81',
+    objectsOnly: true, kind: 'clean' },
   // ── partial with a removal, drawing-only: refused by name ────────────────
-  { cls: 'removal lost: a delete', script: 'rsi-horizontal-resistance-levels__a3f8454f81',
+  { cls: 'removal lost: a delete', script: '(fixture: a delete under a guard this chart cannot read)',
+    source: [
+      '//@version=5',
+      'indicator("lost delete", overlay = true)',
+      'var line l = na',
+      'if close > open',
+      '    l := line.new(bar_index, close, bar_index + 1, close)',
+      'if line.get_y1(l) * 2 > close',
+      '    line.delete(l)',
+    ].join(String.fromCharCode(10)),
     objectsOnly: true, kind: 'refused', what: 'a delete' },
   { cls: 'removal lost: a table clear', script: 'strong-start-rvol-dashboard__36140b1cbe',
     objectsOnly: true, kind: 'refused', what: 'a table clear' },
@@ -94,15 +113,21 @@ const CASES = [
   // bar. The overrule now holds there too, no create converts, and the script
   // is refused as drawing nothing this chart can place (`pine:no-output`). The
   // class keeps a fixture shaped on sonarlab's own delete loop.
+  // ⚰️ C16 (2026-09-29) — and that loop's bound `array.size(shortBoxes) - 1` IS
+  // readable now (a drawing list's length is object state the runtime holds), so
+  // the fixture's bound reads a NUMERIC array instead — `array.size(tops)`, a
+  // value this chart still cannot hold — to keep the class it exists for.
   { cls: 'removal lost: a loop that deletes, its bound unreadable', script: '(fixture: sonarlab\'s delete loop)',
     source: [
       '//@version=5',
       'indicator("loop deletes", overlay = true, max_boxes_count = 500)',
       'var shortBoxes = array.new_box()',
+      'var tops = array.new_float()',
       'if close > open',
       '    b = box.new(left=bar_index, top=high, bottom=low, right=bar_index + 1)',
       '    array.push(shortBoxes, b)',
-      'for i = array.size(shortBoxes) - 1 to 0 by 1',
+      '    array.push(tops, high)',
+      'for i = array.size(tops) - 1 to 0 by 1',
       '    sbox = array.get(shortBoxes, i)',
       '    if close > box.get_top(sbox)',
       '        array.remove(shortBoxes, i)',
@@ -135,8 +160,14 @@ const CASES = [
   // four MTF column-label cells are carried — and they equal the vendor's
   // records on the RDDT 1D capture ("15m","1h","4h","1D"; tableCells 9 → 13,
   // nothing drawn the vendor lacks). Fewer unsupported, none drawn wrong.
+  // ⭐ 22 → 17, 2026-09-29 (C10, fix-order step 20). The MTF panel's value
+  // column: a timeframe below the chart's own is forced `— n/a` by a test that
+  // folds on every bar, so the 15m/1h/4h requests it never shows are no longer
+  // read (the object pass's dead-arm rescue), and the `D` request is read as the
+  // chart's own through a six-hop preset chain. All five cells equal the
+  // vendor's records ("◮ MIXED", "— n/a" ×3, "▼ BEAR"; tableCells 13 → 18).
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(22, 38) },
+    objectsOnly: false, kind: 'partial', text: partial(17, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the

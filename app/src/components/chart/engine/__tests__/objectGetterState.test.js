@@ -221,15 +221,15 @@ describe('C14 — the runtime half, on hand-built programs', () => {
     expect(evaluateObjects(prog, ctx(1)).live.map((o) => o.props.y)).toEqual([5])
   })
 
-  it('⛔ a handle a DELETE empties is not read: its getter is withheld at conversion (`state:lost`)', () => {
+  it('⭐ a handle a DELETE empties reads `na` (the runtime empties the register; C16 rails the same)', () => {
     const t = tr(`var line l = na
 if close > open
     label.new(bar_index, line.get_y1(l))
     l := line.new(bar_index, high, bar_index + 1, high)
 if close < open
     line.delete(l)`)
-    expect(t.objectDiagnostics.dropReasons['state:lost']).toBe(1)
-    expect(opsOf(t).some((o) => o.k === 'create' && o.family === 'label')).toBe(false)
+    expect(t.objectDiagnostics.dropReasons['state:lost']).toBeUndefined()
+    expect(opsOf(t).some((o) => o.k === 'create' && o.family === 'label')).toBe(true)
   })
 
   it('⛔ a handle written off a recurrence (the warm-up curtain may withhold it) is not read either', () => {
@@ -247,6 +247,6 @@ if close > open
     const num = { v: 'num', id: 'n0' }
     const base = { nums: [{ id: 'n0', init: null }] }
     expect(() => assertObjectProgram(P({ ...base, ops: [{ k: 'loop', id: 'i', from: { v: 'const', value: 0 }, to: { v: 'const', value: 1 }, body: [{ k: 'setnum', num: 'n0', value: GET, when: null }] }] }))).toThrow(/bad setnum/)
-    expect(() => assertObjectProgram(P({ ...base, ops: [{ ...mk(), props: { x: { v: 'bar' }, y: { v: 'op', op: '+', args: [num, { v: 'const', value: 1 }] } } }] }))).toThrow(/legal only in the guard/)
+    expect(() => assertObjectProgram(P({ ...base, ops: [{ ...mk(), props: { x: { v: 'bar' }, y: { v: 'op', op: '+', args: [num, { v: 'const', value: 1 }] } } }] }))).toThrow(/legal only in a guard/)
   })
 })

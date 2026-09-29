@@ -149,6 +149,10 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
 const COLLECTION_CALLS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift']))
+/** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
+ *  pass does not carry leaves a drawing collection diverged. */
+const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
+  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
 
 /**
  * Walk the statement tree and pull out every object operation, with the guard
@@ -173,6 +177,10 @@ export function collectObjectOps(stmts, h) {
   const diagnostics = {
     loopBlocked: [], getters: [], unsupported: [], outOfScope: [],
     refusedCalls: [], inlinedCalls: 0,
+    // ⭐ C16 — every DRAWING collection a change to which this pass could not
+    // carry (inside a loop it cannot run, or a method it does not read). The
+    // converter treats each as diverged from TradingView's (`divergedColls`).
+    lostColls: [],
   }
   let siteSeq = 0
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
@@ -631,6 +639,30 @@ export function collectObjectOps(stmts, h) {
           })
           continue
         }
+        // ⭐⭐ C16 — `box b = array.get(bs, i)` / `b = bs.get(i)`: A HANDLE READ
+        // OUT OF A DRAWING COLLECTION, into a name the lines below act through.
+        //
+        //     for i = array.size(bull_boxes) - 1 to 0
+        //         box b = array.get(bull_boxes, i)          ← institutional-smc
+        //         if low < box.get_bottom(b)
+        //             box.delete(b)
+        //             array.remove(bull_boxes, i)
+        //
+        // It is a COPY taken NOW, which is Pine's rule: `b` keeps naming the box
+        // it read even after `array.remove` shifts the slots under it, so the op
+        // is an eager register write (`copy` → `setreg`), never a lazy alias of
+        // the slot. ⛔ Not for a `var` (initialised once) and not over a name
+        // already declared as another family or as a collection.
+        const fromColl = word !== 'var' && word !== 'varip' ? collGetOf(rhs) : null
+        if (fromColl && (!held || (held.kind !== 'coll' && held.family === fromColl.family))) {
+          if (inLoop) { diagnostics.loopBlocked.push('array.get'); continue }
+          if (!held) decls.set(name, { family: fromColl.family, kind: 'local' })
+          ops.push({
+            k: 'copy', into: name, fromColl: fromColl.coll, index: fromColl.index,
+            guards, locals: localScope, loopIds: [...loopIds], at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
         if (rhs.length && rhs[0].kind === 'ident') {
           const ns = nsOf(rhs[0].value)
           if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(rhs[0].value) === 'new') {
@@ -712,6 +744,14 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_CALLS.has(method)) {
             emitCollection(method, t, guards, inLoop, st, localScope)
             continue
+          }
+          // ⭐ C16 — `array.unshift(bs, b)`, `array.insert`, … on a DRAWING
+          // collection: a change this pass does not carry, so the collection is
+          // named as diverged rather than left to disagree silently.
+          if (COLLECTION_MUTATORS.has(method)) {
+            const a = argsOf(t)
+            const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') diagnostics.lostColls.push(c)
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -928,6 +968,78 @@ export function collectObjectOps(stmts, h) {
     } catch { return null }
   }
 
+  /** ⭐ C16 — a right-hand side that is EXACTLY `array.get(bs, i)` or
+   *  `bs.get(i)` on a declared DRAWING collection → `{coll, family, index}`,
+   *  else null. ⛔ `bs.get` yields to a script's own `get` method. */
+  const collGetOf = (toks) => {
+    if (!toks || toks.length < 3 || toks[0].kind !== 'ident' || !h.isPunct(toks[1], '(')) return null
+    const head = String(toks[0].value)
+    const args = argsOf(toks)
+    if (!args || args.some((a) => a && a.name)) return null
+    let coll = null
+    let index = null
+    if (head === 'array.get') {
+      const c = args.length === 2 && args[0].value
+      if (c && c.type === 'name') { coll = c.name; index = args[1].value }
+    } else {
+      const split = splitMethodName(head)
+      if (split && split.method === 'get' && args.length === 1 && !isDefined('get')) {
+        coll = split.recv
+        index = args[0].value
+      }
+    }
+    const d = coll ? decls.get(coll) : null
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family) || !index) return null
+    return { coll, family: d.family, index }
+  }
+
+  /** ⭐ C16 — a VALUE that takes an element OUT of a declared drawing
+   *  collection: `array.shift(bs)` / `bs.shift()`, `array.pop(bs)` / `bs.pop()`,
+   *  `array.remove(bs, i)` / `bs.remove(i)` → `{coll, family, method, index}`
+   *  (`index` is the removed slot, as a parse node), else null. */
+  const poppedFrom = (v) => {
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const args = v.args || []
+    if (args.some((a) => a && a.name)) return null
+    let coll = null
+    let method = null
+    let index = null
+    const m = /^array\.(shift|pop|remove)$/.exec(name)
+    if (m) {
+      const c = args[0] && args[0].value
+      if (!c || c.type !== 'name') return null
+      coll = c.name
+      method = m[1]
+      if (method === 'remove') {
+        if (args.length !== 2) return null
+        index = args[1].value
+      } else if (args.length !== 1) return null
+    } else {
+      const split = splitMethodName(name)
+      if (!split || !['shift', 'pop', 'remove'].includes(split.method) || isDefined(split.method)) return null
+      coll = split.recv
+      method = split.method
+      if (method === 'remove') {
+        if (args.length !== 1) return null
+        index = args[0].value
+      } else if (args.length !== 0) return null
+    }
+    const d = decls.get(coll)
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return null
+    const tok = v.tok
+    const name0 = { type: 'name', name: coll, tok }
+    if (method === 'shift') index = { type: 'number', value: 0, tok }
+    if (method === 'pop') {
+      index = {
+        type: 'binary', op: '-', tok,
+        left: { type: 'call', name: 'array.size', args: [{ value: name0 }], tok },
+        right: { type: 'number', value: 1, tok },
+      }
+    }
+    return { coll, family: d.family, method, index }
+  }
+
   /** The `<family>.new` this token span NAMES anywhere, or null.
    *
    *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
@@ -1068,7 +1180,16 @@ export function collectObjectOps(stmts, h) {
   }
 
   function emitMethod(ns, method, toks, guards, inLoop, st, scope) {
-    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.${method}`); return }
+    if (inLoop) {
+      diagnostics.loopBlocked.push(`${ns}.${method}`)
+      // ⭐ C16 — a blocked `box.delete(array.shift(bs))` loses the SHIFT too.
+      if (method === 'delete') {
+        const a = argsOf(toks)
+        const p = a && a[0] ? poppedFrom(a[0].value) : null
+        if (p) diagnostics.lostColls.push(p.coll)
+      }
+      return
+    }
     const args = argsOf(toks)
     if (!args || !args.length) { diagnostics.unsupported.push(`${ns}.${method}`); return }
     emitMethodOn(ns, method, args[0], args.slice(1), toks[0], guards, st, scope)
@@ -1086,6 +1207,28 @@ export function collectObjectOps(stmts, h) {
    *  postfix caller supplies differently is WHERE the target came from. */
   function emitMethodOn(ns, method, target, rest, at, guards, st, scope) {
     if (method === 'delete') {
+      // ⭐⭐ C16 — `box.delete(array.shift(bs))`: TWO Pine operations in one
+      // statement — the slot leaves the array and the box it held is deleted.
+      // Carried as exactly those two, in an order with the same end state (a
+      // delete no longer touches the array — `reap`): delete what the slot
+      // holds, then remove the slot. Without this the target was unreadable
+      // and the delete was lost, leaving every evicted zone on the chart.
+      const popped = target && target.value ? poppedFrom(target.value) : null
+      if (popped && popped.family === ns) {
+        const tok = target.value.tok
+        const slot = {
+          type: 'call', name: 'array.get', tok,
+          args: [{ value: { type: 'name', name: popped.coll, tok } }, { value: popped.index }],
+        }
+        const line = st.header[0].line
+        ops.push({ k: 'delete', family: ns, target: { name: null, value: slot, tok }, guards, locals: scope, loopIds: [...loopIds], at, line })
+        ops.push({
+          k: `coll_${popped.method}`, coll: popped.coll,
+          args: popped.method === 'remove' ? [{ value: popped.index }] : [],
+          guards, locals: scope, loopIds: [...loopIds], at, line,
+        })
+        return
+      }
       ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line })
       return
     }
@@ -1223,6 +1366,21 @@ export function collectObjectOps(stmts, h) {
     // `b.delete`, which is the bare-call branch's business — so this is the
     // whole of what the object program can resolve today.
     if (!recv || recv.type !== 'call') return false
+    // ⭐ C16 — `bs.shift().delete()` is `box.delete(array.shift(bs))`, read by
+    // the same two-op rule (`emitMethodOn`'s delete).
+    if (node.name === 'delete') {
+      const popped = poppedFrom(recv)
+      if (popped) {
+        if (inLoop) {
+          diagnostics.loopBlocked.push(`${popped.family}.delete`)
+          diagnostics.lostColls.push(popped.coll)
+          return true
+        }
+        emitMethodOn(popped.family, 'delete', { name: null, value: recv, tok: toks[0] },
+          node.args || [], toks[0], guards, st, scope)
+        return true
+      }
+    }
     // ⭐⭐ `ls.get(i).set_x2(n)` IS `array.get(ls, i).set_x2(n)`, AND IT BECOMES
     // THE SAME NODE BEFORE ANYTHING ELSE LOOKS AT IT. Rewriting the receiver
     // here rather than teaching `targetRef` a second shape is what keeps ONE
@@ -1282,8 +1440,12 @@ export function collectObjectOps(stmts, h) {
     // chart forever the last time this pass met it.
     if (!args) { diagnostics.unsupported.push(`${ns}.${method}`); return true }
     if (d.kind === 'coll') {
-      if (!COLLECTION_CALLS.has(method)) { diagnostics.unsupported.push(`array.${method}`); return true }
-      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return true }
+      if (!COLLECTION_CALLS.has(method)) {
+        diagnostics.unsupported.push(`array.${method}`)
+        if (COLLECTION_MUTATORS.has(method)) diagnostics.lostColls.push(recv)
+        return true
+      }
+      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(recv); return true }
       emitCollectionOn(method, recv, args, toks, guards, st, scope)
       return true
     }
@@ -1310,7 +1472,7 @@ export function collectObjectOps(stmts, h) {
     // ⭐ RISK-043 STILL STANDS FOR WHAT IT PROTECTS — an object-family collection
     // op inside a loop this reader cannot execute is still refused and still
     // counted. This is WHEN irrelevance is noticed, not what happens after.
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(collName); return }
     emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
   }
 
@@ -1551,5 +1713,7 @@ export function collectObjectOps(stmts, h) {
     }
   }
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
-  return { decls, ops, diagnostics, scalars, varWrites }
+  // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
+  // own `size` method, the rule `isDefined` applies to every method form here.
+  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined }
 }

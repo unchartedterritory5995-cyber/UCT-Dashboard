@@ -2,11 +2,13 @@
 //
 // ⭐⭐ THE OBJECT PROGRAM'S LIVE-GUARD VOCABULARY — WHERE IT IS LEGAL, AND WHERE NOT.
 //
-// `{v:'get'|'bool'|'cmp'|'cross'}` read object state that only the runtime
-// holds (see `LIVE_GUARD_KINDS` in objectProgram.js). The door keeps them in
-// the one place they are sound — an op's guard, outside any loop body — and
-// refuses a live node that reads no object state, so pure logic can never
-// migrate out of the tree into a second boolean algebra.
+// `{v:'get'|'size'|'bool'|'cmp'|'cross'}` read object state that only the
+// runtime holds (see `LIVE_GUARD_KINDS` in objectProgram.js). The door keeps
+// them where they are sound — an op's guard, a loop bound, a collection index
+// (C16, 2026-09-29) — refuses a CROSSING inside a loop body (it is observed once
+// per bar; a body runs several times a bar), and refuses a live node that reads
+// no object state, so pure logic can never migrate out of the tree into a second
+// boolean algebra.
 import { describe, it, expect } from 'vitest'
 import {
   assertObjectProgram, bindObjectProgram, graphNodesReferenced, treeRefsReferenced,
@@ -53,12 +55,42 @@ describe('⛔ …and nowhere else', () => {
   // (`objectGetterState.test.js`). Inside arithmetic it is still refused.
   it("a getter inside a PROPERTY's arithmetic is refused", () => {
     const op = { ...label(null), props: { x: { v: 'bar' }, y: { v: 'op', op: '+', args: [GET, { v: 'const', value: 1 }] } } }
-    expect(() => assertObjectProgram(prog(op))).toThrow(/legal only in the guard/)
+    expect(() => assertObjectProgram(prog(op))).toThrow(/legal only in a guard/)
   })
 
-  it('a live guard inside a LOOP BODY is refused', () => {
+  it('a CROSSING inside a LOOP BODY is refused — it is observed once per bar', () => {
     const loop = { k: 'loop', id: 'i', from: { v: 'const', value: 0 }, to: { v: 'const', value: 1 }, body: [label(CROSS)] }
-    expect(() => assertObjectProgram(prog(loop))).toThrow(/legal only in the guard/)
+    expect(() => assertObjectProgram(prog(loop))).toThrow(/a cross in a loop body/)
+  })
+
+  it('⭐ C16 — a getter or length COMPARISON inside a loop body is legal: one answer per iteration', () => {
+    const cmp = { v: 'cmp', op: '<', args: [{ v: 'tree', tree: 0 }, GET] }
+    const loop = { k: 'loop', id: 'i', from: { v: 'const', value: 0 }, to: { v: 'const', value: 1 }, body: [label(cmp)] }
+    expect(() => assertObjectProgram(prog(loop))).not.toThrow()
+    // ⛔ CONTROL — the same crossing one level up (the loop's own guard) is legal
+    const outer = { ...loop, when: CROSS, body: [label(null)] }
+    expect(() => assertObjectProgram(prog(outer))).not.toThrow()
+  })
+
+  it('⭐ C16 — a length reads a DECLARED collection, in a guard, a loop bound and a slot index', () => {
+    const size = { v: 'size', coll: 'c0' }
+    const colls = { colls: [{ id: 'c0', family: 'box', cap: 10 }] }
+    expect(() => assertObjectProgram(prog(label({ v: 'cmp', op: '>=', args: [size, { v: 'const', value: 3 }] }), colls))).not.toThrow()
+    const loop = { k: 'loop', id: 'i', from: { v: 'op', op: '-', args: [size, { v: 'const', value: 1 }] }, to: { v: 'const', value: 0 }, body: [label(null)] }
+    expect(() => assertObjectProgram(prog(loop, colls))).not.toThrow()
+    const del = { k: 'delete', target: { r: 'coll', id: 'c0', index: { v: 'op', op: '-', args: [size, { v: 'const', value: 1 }] } }, when: null }
+    expect(() => assertObjectProgram(prog(del, colls))).not.toThrow()
+    expect(() => assertObjectProgram(prog(label({ v: 'cmp', op: '>=', args: [{ ...size, coll: 'c9' }, { v: 'const', value: 3 }] }), colls)))
+      .toThrow(/undeclared size/)
+    // ⛔ a latch is read only after the op that sets it
+    expect(() => assertObjectProgram(prog(label({ v: 'bool', op: 'not', args: [{ v: 'latch', id: 'l0' }] }))))
+      .toThrow(/undeclared latch/)
+    const latched = { programVersion: 1, regs: [{ id: 'r0', family: 'box' }], colls: [],
+      ops: [{ k: 'latch', id: 'l0', cond: { v: 'cmp', op: '<', args: [{ v: 'tree', tree: 0 }, GET] } }, label({ v: 'latch', id: 'l0' })] }
+    expect(() => assertObjectProgram(latched)).not.toThrow()
+    // ⛔ …and still never a property
+    const inProp = { ...label(null), props: { x: { v: 'bar' }, y: size } }
+    expect(() => assertObjectProgram(prog(inProp, colls))).toThrow(/legal only in a guard/)
   })
 
   it('a live node that reads NO object state is refused — pure logic belongs in a tree', () => {
@@ -75,7 +107,7 @@ describe('⛔ …and nowhere else', () => {
 
   it('an unknown boolean, comparison or crossing direction', () => {
     expect(() => assertObjectProgram(prog(label({ v: 'bool', op: 'xor', args: [CROSS, CROSS] })))).toThrow(/unknown boolean/)
-    expect(() => assertObjectProgram(prog(label({ v: 'cmp', op: '==', args: [{ v: 'tree', tree: 0 }, GET] })))).toThrow(/unknown comparison/)
+    expect(() => assertObjectProgram(prog(label({ v: 'cmp', op: '===', args: [{ v: 'tree', tree: 0 }, GET] })))).toThrow(/unknown comparison/)
     expect(() => assertObjectProgram(prog(label({ ...CROSS, dir: 'sideways' })))).toThrow(/'over' or 'under'/)
   })
 })
