@@ -98,3 +98,29 @@ def test_an_all_stale_sample_IS_computable_which_it_was_not_before():
     nowait = sorted(warm_ms + stale_ms)
     assert nowait, "an all-stale sample must still yield a no-wait population"
     assert m.pct_of(nowait, 0.95) == 150.0
+
+
+def test_forty_stale_swr_samples_produce_a_p95_line_naming_n_and_the_quantity():
+    """TERM-012 (a)+(b): the ticket's own control, a 40-sample stale-swr fixture."""
+    m = _load()
+    stale_ms = sorted(float(100 + i) for i in range(40))
+    line = m.pct_line("no-wait latency", stale_ms)
+    assert "p95=" in line and "n=40" in line
+    assert m.QUANTITY in line, "a percentile that does not name its quantity is TERM-012's defect"
+
+
+def test_the_p95_index_on_forty_samples_is_38_the_second_largest():
+    """INST-8/DOC-1: on n=40 the nearest-rank p95 is index 38, the second largest."""
+    m = _load()
+    vals = list(range(40))
+    assert m.pct_of(vals, 0.95) == 38
+
+
+def test_both_buckets_print_through_the_one_line_helper():
+    """Neither the no-wait nor the COLD print may bypass pct_line (and so drop n or the quantity)."""
+    import pathlib
+    src = pathlib.Path(_load().__file__).read_text(encoding="utf-8")
+    code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
+    assert code.count('pct_line("no-wait latency"') == 1
+    assert code.count('pct_line("COLD latency"') == 1
+    assert "pct_of(nowait" not in code and "pct_of(cold_ms" not in code

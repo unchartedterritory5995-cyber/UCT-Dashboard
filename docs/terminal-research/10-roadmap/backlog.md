@@ -334,7 +334,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM | FB | short title | SZ | DEP | ROLLBACK | PAR | STATE |
 |---|---|---|---|---|---|---|---|
 | TERM-011 | `FB-S7-03` | A second delivery channel; split ops from business events | S | d0·**b6** | tier 0–2 | Yes | BUILDABLE |
-| TERM-012 | `FB-OBS-01` | Make CARD 16's p95 gate measurable | S | d0·b1 | tier 4 pref / 3 | Yes | ⚰️ RECUT |
+| TERM-012 | `FB-OBS-01` | Make CARD 16's p95 gate measurable | S | d0·b1 | tier 4 pref / 3 | Yes | ✅ BUILT 2026-09-29 |
 | TERM-013 | `FB-OBS-02` | Read the drop counters on a schedule | M | d1·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-014 | `FB-OBS-03` | RSS-slope reader + per-subsystem attribution | L | d2·b1 | tier 4 pref / 3 | Yes | HELD via 007 |
 | TERM-015 | `FB-OBS-04` | Cadence heartbeat + daily dead-man roll-up | M | d1·b3 | tier 4 pref / 3 | Yes | BUILDABLE |
@@ -424,7 +424,7 @@ three values · `PAR` = Part CCI's `Parallelizable?`, bounded by item 29's real 
 | TERM-079 | `FB-S4-01` | Typed context channels, one list-consuming panel | M | d0·b0 | tier 4 pref / 3 | Yes | ⭐ cheapest leverage |
 | TERM-080 | `FB-S9-03` | Per-route rate limits before any programmatic client | M | d0·b1 | tier 4 pref / 3 | Partial | BUILDABLE |
 | TERM-081 | `FB-S9-04` | Give `entitlements.py` the column it reads | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
-| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | ⛔ needs 012 |
+| TERM-082 | `FB-D4-01` | Widen `serve_stale` past five consumers | M | d0·b1 | tier 4 pref / 3 | Yes | BUILDABLE (012 built) |
 | TERM-083 | `FB-X1-02` | A backup rail, and a restore **rehearsal** | M | d0·b1 | tier 4 pref / 3 | Yes | BUILDABLE |
 | TERM-084 | `FB-X2-02` | TTL and rotation on the ICS export token | S | d0·b0 | **TIER-NONE** | Yes | BUILDABLE |
 | TERM-085 | `FB-X3-01` | One wire sentence naming today's explaining surface | S | d0·b0 | tier 4 pref / 3 | Yes ⚠️ other repo | BUILDABLE |
@@ -593,6 +593,13 @@ over all of them.
   four tickets in the register that comes back without a build.
 
 #### TERM-012 · `FB-OBS-01` — Make CARD 16's p95 gate measurable ⚰️ RECUT
+- ✅ **BUILT 2026-09-29.** (a) and (c) had already shipped: `stale-swr` is its own `STALE_SERVED` bucket, counted as
+  served in the no-wait p95, and an uncomputable gate prints NOT COMPUTABLE. The gap was (b): no line named its
+  quantity. `tools/bars_warmth_audit.py` now prints every percentile through `pct_line`, which carries `n` and
+  `QUANTITY` (client wall-clock, incl. TLS/CDN/network, not `Server-Timing dur`). Rails in
+  `tests/test_bars_warmth_audit_buckets.py`: the 40-sample stale-swr fixture, the n=40 → index 38 boundary, and
+  both buckets routed through the helper. ⚠️ `pct_of` ≠ `flow_router._diag_percentile` (index 38 vs 37 at n=40),
+  kept deliberately for continuity with recorded p95s; named in the code, not unified.
 - **User outcome.** The programme's only performance gate can be evaluated at all, so "fast enough"
   stops being an opinion.
 - **Context.** ⚰️ **The recut.** Item 17 §3.7 and ARCH-07-OBS G-2 rest on a control:
