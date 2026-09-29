@@ -131,37 +131,98 @@ import logging
 import asyncio
 
 _logger = logging.getLogger(__name__)
-_correction_queue: asyncio.Queue | None = None
+
+# ── bar_correction fan-out: one bounded queue PER CONNECTION ─────────────────
+# ⚰️ This was ONE process-wide `asyncio.Queue()` that every /api/stream/prices
+# connection drained with `get_nowait()`, so a correction reached exactly ONE
+# connected client -- whichever generator woke first -- and could be taken by a
+# connection not even watching that symbol. Every other chart kept the
+# uncorrected bar. With no connection open it also grew without bound.
+#
+# The shape is copied from `bar_broadcaster.BarBroadcaster`: each subscriber is
+# a bounded `asyncio.Queue(maxsize)` plus the loop that owns it, a put is
+# dispatched with `call_soon_threadsafe`, and a full queue drops its OLDEST item
+# (a correction is a last-value-wins overwrite of a bar, so freshness beats
+# completeness). Keyed by SYMBOL -- the /prices stream subscribes by ticker, not
+# by (sym, tf), and corrections are only produced for tf="1"; the event still
+# carries its tf and the client applies it by (sym, tf). This matches how the
+# same stream already scopes `tick`/`bar_close` to a connection's tickers.
+# Drops are counted here, NOT in `bar_broadcaster._bars_dropped_total`, which is
+# bars-lane telemetry read by the bars rail monitor.
+#
+# In-process state, like every other SSE registry on the web pod: ONE uvicorn
+# process. A second process would hold its own registry.
+CORRECTION_QUEUE_MAXSIZE = 64
+
+_correction_lock = threading.Lock()
+# queue -> (owner loop, frozenset of upper-cased symbols it watches)
+_correction_subscribers: dict = {}
+_corrections_dropped_total = 0
 
 
-def _ensure_queue() -> asyncio.Queue:
-    global _correction_queue
-    if _correction_queue is None:
-        _correction_queue = asyncio.Queue()
-    return _correction_queue
+def subscribe_corrections(symbols) -> asyncio.Queue:
+    """Register one SSE connection for corrections to `symbols`. Must be called
+    from the coroutine that will drain the queue (its running loop owns it).
+    Pair with `unsubscribe_corrections(q)` in that coroutine's `finally`."""
+    q: asyncio.Queue = asyncio.Queue(maxsize=CORRECTION_QUEUE_MAXSIZE)
+    loop = asyncio.get_running_loop()
+    syms = frozenset(str(s).upper() for s in symbols if str(s).strip())
+    with _correction_lock:
+        _correction_subscribers[q] = (loop, syms)
+    return q
+
+
+def unsubscribe_corrections(q) -> None:
+    """Drop a subscriber. Idempotent; `None` is a no-op."""
+    if q is None:
+        return
+    with _correction_lock:
+        _correction_subscribers.pop(q, None)
+
+
+def correction_subscriber_count() -> int:
+    with _correction_lock:
+        return len(_correction_subscribers)
+
+
+def _safe_put_correction(q: asyncio.Queue, msg: dict) -> None:
+    """Runs on the queue's owner loop via call_soon_threadsafe. Drop-oldest on
+    a full queue, exactly as `BarBroadcaster._safe_put` does for bars."""
+    global _corrections_dropped_total
+    try:
+        q.put_nowait(msg)
+    except asyncio.QueueFull:
+        try:
+            q.get_nowait()
+            q.put_nowait(msg)
+            _corrections_dropped_total += 1
+        except Exception:
+            pass
 
 
 def emit_correction_sync(sym: str, tf: str, corrected: dict) -> None:
-    """Enqueue a correction event for the SSE generator. Sync-safe."""
-    try:
-        q = _correction_queue
-        if q is not None:
-            q.put_nowait({"type": "bar_correction", "sym": sym.upper(), "tf": tf, "bar": corrected})
-    except Exception:
-        pass
-
-
-def get_correction_queue():
-    return _ensure_queue()
+    """Fan a correction out to EVERY connection watching `sym`. Sync-safe and
+    never blocks: a slow consumer's full queue drops its oldest item."""
+    sym_u = sym.upper()
+    msg = {"type": "bar_correction", "sym": sym_u, "tf": tf, "bar": corrected}
+    with _correction_lock:
+        targets = [(q, loop) for q, (loop, syms) in _correction_subscribers.items()
+                   if sym_u in syms]
+    for q, loop in targets:
+        try:
+            loop.call_soon_threadsafe(_safe_put_correction, q, msg)
+        except RuntimeError:
+            # Owner loop already closed -- that connection is gone. Skip.
+            pass
 
 
 async def reconciliation_worker():
     """Background task: every 60s, run minute-close reconciliation for all tracked candles.
 
     For each (ticker, tf="1") tracked, fetch the REST snapshot and reconcile.
-    On disagreement, replace the bar in state and enqueue a bar_correction event.
+    On disagreement, replace the bar in state and fan a bar_correction event
+    out to every connection watching the symbol.
     """
-    _ensure_queue()
     import os
     from api.services import bars_fetch, candle_reconcile
     if os.environ.get("REALTIME_RECONCILE_ENABLED", "1") != "1":
