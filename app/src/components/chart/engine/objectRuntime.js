@@ -167,6 +167,10 @@ export function beginObjects(program, ctx) {
   /** table instanceId → Map<"col,row", props> — cells are addressed, not listed */
   const cells = new Map()
   const regs = new Map((program.regs || []).map((r) => [r.id, null]))
+  /** ⭐ C14 — scalars only getters write (`program.nums`), written in op order.
+   *  ⛔ Where a getter can be answered exactly is the CONVERTER's ruling
+   *  (`pine.js` `staleReads` / `statePass`): this runtime only holds them. */
+  const nums = new Map((program.nums || []).map((n) => [n.id, n.init ?? NaN]))
   /** ⭐⭐ REGISTER HISTORY — what each register held at the END of each recent
    *  bar, newest last, for Pine's `l[n]` on a drawing variable (see
    *  `MAX_HANDLE_BACK`). ⛔ Sized by the deepest `back` the PROGRAM reads, so a
@@ -677,6 +681,7 @@ export function beginObjects(program, ctx) {
         }
         case 'cmp': return BINARY[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
+        case 'num': return nums.get(ref.id) ?? NaN
         default: return undefined
       }
     }
@@ -1076,6 +1081,10 @@ export function beginObjects(program, ctx) {
         }
         case 'setreg': {
           regs.set(op.reg, op.value === null ? null : resolveRef(op.value))
+          break
+        }
+        case 'setnum': {
+          nums.set(op.num, numOf(value(op.value)))
           break
         }
         case 'push': {

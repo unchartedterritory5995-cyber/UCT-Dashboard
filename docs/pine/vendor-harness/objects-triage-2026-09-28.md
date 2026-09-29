@@ -86,7 +86,7 @@ byte capture afterwards):
 | C11 | arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus | large |
 | C12 | values or `var` state computed across a multi-statement block | atr-sr, market-structure (position-size-calc and rsi-swing re-traced to `syminfo.root`/C10 and C14) | **done, steps 13–15**, down to the owner-gated warm-up curtain |
 | C13 | user drawing functions the inliner refuses (`in-expression`, `conditional-history`, `loop`) | adr, OHLM, TSR | medium, per refusal kind |
-| C14 | object getters in a coordinate or guard | (secondary) rsi-swing, ultimate, trend-duration | medium |
+| C14 | object getters in a coordinate, a text or `var` state | (secondary) rsi-swing, ultimate, trend-duration, OHLM, PTA | **step 21** — served where exact; what remains stops on C12 (read before write), C11, C15 — § C14 |
 | C15 | text builtins / constants in value position (`str.format`, `size.*`, `position.*`) | (secondary) | **done, step 14** — liquidation-levels, rsmi MATCH; the rest stop on C9/C10/C11/C12 (What is left, rank 9) |
 | C16 | `table.merge_cells` | momentum-volatility-scanner | small |
 | C17 | ~~a function definition read inside a guard~~ — no script's primary cause once `liquidity-heatmap` was traced to C10 | — | — |
@@ -118,6 +118,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 16 | C12 a `var` read through `ta.crossover` / `[k]` inside its own update folds (`y[1]` of a variable is last bar's `self`) | `4ae19a95d` | 19 / 47 | 171 / 238 ᵃ | `institutional-smc-order-flow-matrix-pro` lines 0 → 13, labels 16 → 29 (vendor 18 / 34): the 13 are TradingView's last 13 in order, level and kind; the 5 missing all break before bar 250 (the warm-up curtain) |
 | 17 | C12 an op that reads a `var` on a bar where its value DEPENDS on the not-computable warm-up prefix is withheld, not drawn off a `NaN` read as Pine's `na` — measured per bar by two probe runs (`objectColumns.unknownMask`) | `911348fba` | 19 / 47 | 171 / 238 ᵃ | `market-structure-by-leviathan` labels 21 → 18, lines 5 (vendor 22 / 6): the removed "LH" at 230.41 was WRONG (TradingView: "HH"); every object still drawn is TradingView's last 23 of 28, in order, word and level. A static horizon was measured and rejected (it withheld all 5 correct BOS lines and a line of a MATCH). Harness dir: 1 capture changed, inventory identical; census unchanged |
 | 18 | C11 arrays / UDTs / methods, **runtime front end only** — a script's own `method` binds (`recv.m(a)` → `m(recv, a)`, single-declaration only), the array members the nine scripts write (`first/last/shift/pop/unshift/remove/concat/indexof/includes/max/min/sum/avg`), and a function body READS a main-program variable (`LOAD_GLOBAL_LOCAL/PERSIST`, opcodes 93/94) — see § C11 | `8009fce4e`, `b5924ca44` | 18 / 47 → 18 / 47 (runtime flag on: 19 → 19) | 167 / 238 → 167 / 238 (runtime flag on: 174 / 245 → 174 / 245) | **none, measured.** All nine C11 scripts attach on the HOST lane, so the runtime pane route never engages for them, and the runtime OBJECT lane (`runtime/objectLane.js`) is wired to no product path. The changes are real and railed but move no graded family. Against base `1a11a652b`, both runtime flag states: 47 captures 0 entries changed, committed harness dir (120 captures) 0 changed, member-door census 266 × 2 objects-flag states 0 rows changed (control: the runtime flag itself moves 4 census rows and 1 capture at the same tree, so the diff can see a change). `runtime:function-global-state` is gone from the object-lane peel of max-pain, dual-view and vdubus; each now stops on a host-lane wall |
+| 21 | C14 drawing getters answered by the object runtime where Pine reads them — a name every write of which is a bare getter (`x := label.get_y(l)`, block local `x = l.get_x()`) becomes a scalar written by a `setnum` op AT ITS STATEMENT'S PLACE in the bar and read as `{v:'num'}` (a whole coordinate, a guard operand, a text `if` operand); a bare getter as a whole coordinate is `{v:'get'}` read at the op (in an inlined body only on the body's own handle). Refused by name: a getter inside arithmetic, a getter's history, a scalar also written another way, a getter on state this program lost or the runtime could make unknowable (`state:lost` — a lost setter, create or handle; a handle a delete empties; a handle written off a recurrence the warm-up curtain may withhold). Two walls found on the way and closed: the handle an `if … else` helper returns is copied per arm; a name read ABOVE its own later write in the bar is refused by name (`readBeforeWrite`) — the object pass read it at its END-OF-BAR binding. See § C14 | this branch | 21 / 47 → 21 / 47 | 183 / 252 → 179 / 245 | **none moved to MATCH, measured** — see § C14. `pro-trading-art-double-top-bottom-with-alert` DIVERGE (lines 7/0, labels 14/0) → door refusal: its only surviving steps were `topLine.get_y2()` crossings on a line family with lost creates (the tuple helper, C11) — a getter on a handle this program never fills; it attached an empty pane whose four agreeing families were 0/0 coincidences. Committed harness dir: 1 changed (the same). Member-door census 266 × 2: 2 rows (the same script, both flags); attach on 60 → 59 |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -432,6 +433,64 @@ name, never drawn approximately):
 No capture is needed for any of these: none is a question about what TradingView
 does. Each is a grammar or lane gap, and the next C11 step is routing object
 programs into the runtime object lane once one of the nine builds end to end.
+
+## C14 — drawing getters (2026-09-29, step 21)
+
+**Getter forms, measured per script** (source of the four scripts the other lanes named):
+
+| script | form | where | status after step 21 |
+|---|---|---|---|
+| `rsi-swing-indicator` | `last := label.get_y(l)` ×2 — a `var` written only by a getter, inside an `if` | read in the label text `last < high ? "HH" : "LH"` (via `obLabelText()`) | **served** (`setnum`/`num`) — but see the wall below |
+| `rsi-swing-indicator` | `l_ts = label.get_x(l)`, `l_price = label.get_y(l)` ×2 each — block locals | `line.new(…, x2 = l_ts, y2 = l_price)` | **served** |
+| `rsi-swing-indicator` | `labelhh := createOverBoughtLabel(true)` — helper whose body is `if … else` of two `label.new` | the handle the getters read | **served** (per-arm copy) — it was a SILENT loss: no copy op and no drop, the handle never filled |
+| `high-low-open-mid-ranges` | `line.get_y1(hline)` inline, a y coordinate (in `f_line2`, inlined, body's own handle) | label y | served as `{v:'get'}` |
+| `high-low-open-mid-ranges` | `line.get_y1(hline)[1]`, `line.get_y1(h1)[1]` — a getter's HISTORY; `str.tostring(b1)` a getter in text | label text | refused by name (history of object state is not held); the labels stay withheld on C15 (`higherTF` text) regardless |
+| `trend-duration-forecast-chartprime` | `LengthLine.get_x1() + bearishCount.avg() + 1`, `math.avg(get_x1(), get_x2())` | `set_x2` / `set_x` | refused (getter in arithmetic, and `.avg()` of an array is C11) |
+| `pro-trading-art-double-top-bottom-with-alert` | `ta.crossunder(close, topLine.get_y2())` | guard (served since 2026-09-27) | now WITHHELD, `state:lost`: `topLine` is filled only by `[Line, A, B] = drawLL(…)` (C11), so the line family has lost creates and the getter reads a handle this program never fills |
+| `ultimate-pivot-points` | `line.get_x2(pLine) != bar_index` | guard | still refused: `!=` is not a live comparison (`LIVE_CMP_OPS`); nine `set_x2` updates, coordinates only — MATCH unaffected |
+
+**The rule (Pine semantics).** A getter returns the property the program last set
+on that object — state the object runtime holds. Pine evaluates it where the
+statement stands, so the runtime answers it in op order: a scalar write is a
+`setnum` op at its statement's place, under that statement's guards; a whole-
+coordinate getter is read at its op (an argument is evaluated at the call). A
+getter on an empty handle is `na` — measured: rsi-swing's first line has a null
+`y2`, and its first overbought label reads "LH" (`na < high` is false).
+
+**Exactness guards (each railed in `objectGetterState.test.js`, mutation-proved):**
+a scalar qualifies only when every write to it anywhere is a bare getter outside
+loops and function bodies, declared once; a getter on a register whose family lost
+a create, or whose property a lost setter writes, is withheld after conversion
+(`state:lost`, fixed point with the content pass); so is one whose handle a delete
+empties (Pine keeps the handle; what its getter then answers is not measured) or a
+step writes off a recurrence (`accum`, which the warm-up curtain may withhold on a
+bar Pine runs it). These are ruled out AT CONVERSION: the object runtime carries
+only `nums`, `setnum` and `{v:'num'}` — ⚠️ the Notebook first-open budget
+(`tools/notebook_perf_budgets.py`) had 365 B of headroom and this step spends 350 B
+of it (2,260,428 → 2,260,778 B, budget 2,260,793 B), which is why the validator does
+not re-check a crossing in a text condition or a scalar's id (the converter never
+emits either).
+
+**Why no graded script moved.** `rsi-swing-indicator`'s getters now convert, and its
+next wall is not C14: `if (laststate == 2 and isOverbought)` (line 85) is read
+ABOVE `laststate := 1/2` (lines 108/115). The object pass resolved a top-level name
+against the walk's FINAL binding — `accum(0, os ? 2 : ob ? 1 : self)`, the END-OF-BAR
+value — which on every overbought bar is 1, so the guard was false on 632 of 632
+bars (measured). A read AFTER an earlier write of the bar is right already (the
+walk records that value per statement: smc's `last_ph_s` reads `ph ? ph :
+accum(…)[1]`). Step 21 therefore refuses by name an object op whose resolved trees
+contain a name's end-of-bar binding while a write of that name follows the read
+(`readBeforeWrite`); a read that folds away (`prevBreakoutDir == -1 and choch` with
+`choch` false) is kept. It moved nothing on the 47 or the harness dir (market-
+structure and smc keep every object, checked). Also measured: with the guards read
+wrong, rsi-swing's move guards are 1,059–3,243-node trees costing 3–32 s EACH to
+evaluate on 632 bars — the program must not reach a member before that is fixed.
+
+**What would settle it:** binding a name read before its first write of the bar
+to the fold's previous-bar value (`accum(…)[1]`, the seed on bar 0) — a C12 walk
+change, no capture needed (Pine semantics) — plus a bound on those tree sizes. A
+getter's history (`l.get_y1()[1]`) needs the register-history ring to carry
+properties; `!=`/`==` over a live getter needs a probe of `!=` with an `na` operand.
 
 ## What is left, ranked by scripts it would move
 
