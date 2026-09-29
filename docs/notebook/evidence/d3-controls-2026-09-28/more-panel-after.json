@@ -1,0 +1,287 @@
+{
+ "meta": {
+  "tool": "more_panel_probe",
+  "tip": "a9f319b3d",
+  "nonce": "2e5f9cbfc76871deeee6a80545aa9633",
+  "started": "2026-09-28T14:57:03-0500",
+  "finished": "2026-09-28T14:59:58-0500"
+ },
+ "cases": {
+  "390-unlocked": {
+   "viewport": [
+    390,
+    844
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     35,
+     450,
+     260,
+     477
+    ],
+    "trigger": [
+     251,
+     400,
+     44
+    ],
+    "viewport": 390,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "unlock_after": 200
+  },
+  "390-locked": {
+   "viewport": [
+    390,
+    844
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "lock_status": 200,
+   "open": {
+    "panel": [
+     16,
+     450,
+     260,
+     477
+    ],
+    "trigger": [
+     141,
+     400,
+     44
+    ],
+    "viewport": 390,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  },
+  "390-lock_while_open": {
+   "viewport": [
+    390,
+    844
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     35,
+     450,
+     260,
+     477
+    ],
+    "trigger": [
+     251,
+     400,
+     44
+    ],
+    "viewport": 390,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "after_lock": {
+    "panel": [
+     16,
+     450,
+     260,
+     499
+    ],
+    "trigger": [
+     141,
+     400,
+     44
+    ],
+    "viewport": 390,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  },
+  "820-unlocked": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     397,
+     426,
+     260,
+     477
+    ],
+    "trigger": [
+     613,
+     376,
+     44
+    ],
+    "viewport": 820,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "unlock_after": 200
+  },
+  "820-locked": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "lock_status": 200,
+   "open": {
+    "panel": [
+     287,
+     426,
+     260,
+     477
+    ],
+    "trigger": [
+     503,
+     376,
+     44
+    ],
+    "viewport": 820,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  },
+  "820-lock_while_open": {
+   "viewport": [
+    820,
+    1180
+   ],
+   "touch": true,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     397,
+     426,
+     260,
+     477
+    ],
+    "trigger": [
+     613,
+     376,
+     44
+    ],
+    "viewport": 820,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "after_lock": {
+    "panel": [
+     287,
+     426,
+     260,
+     499
+    ],
+    "trigger": [
+     503,
+     376,
+     44
+    ],
+    "viewport": 820,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  },
+  "1200-unlocked": {
+   "viewport": [
+    1200,
+    800
+   ],
+   "touch": false,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     900,
+     256,
+     240,
+     335
+    ],
+    "trigger": [
+     1103,
+     223,
+     37
+    ],
+    "viewport": 1200,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "unlock_after": 200
+  },
+  "1200-locked": {
+   "viewport": [
+    1200,
+    800
+   ],
+   "touch": false,
+   "unlock_first": 200,
+   "lock_status": 200,
+   "open": {
+    "panel": [
+     900,
+     256,
+     240,
+     335
+    ],
+    "trigger": [
+     1103,
+     223,
+     37
+    ],
+    "viewport": 1200,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  },
+  "1200-lock_while_open": {
+   "viewport": [
+    1200,
+    800
+   ],
+   "touch": false,
+   "unlock_first": 200,
+   "open": {
+    "panel": [
+     900,
+     256,
+     240,
+     335
+    ],
+    "trigger": [
+     1103,
+     223,
+     37
+    ],
+    "viewport": 1200,
+    "on_screen": true,
+    "writing_help_in_header": true
+   },
+   "after_lock": {
+    "panel": [
+     900,
+     256,
+     240,
+     357
+    ],
+    "trigger": [
+     1103,
+     223,
+     37
+    ],
+    "viewport": 1200,
+    "on_screen": true,
+    "writing_help_in_header": false
+   },
+   "unlock_after": 200
+  }
+ }
+}

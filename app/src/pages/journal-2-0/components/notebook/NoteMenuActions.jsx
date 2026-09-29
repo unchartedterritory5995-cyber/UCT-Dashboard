@@ -32,11 +32,12 @@
  * Archive. They now say busy with `aria-disabled` (a second press is still refused, by
  * `run`'s own guard), so the member stays on the button that now reads Unlock/Unarchive.
  * The same for the two inline doors: closing the template-name form (Cancel, or a saved
- * template) or the Open-beside search (Escape) puts focus back on the button that opened
- * it, which re-mounts in its place -- never <body>.
+ * template) puts focus back on the button that opened it, which re-mounts in its place;
+ * closing the Open-beside search (Escape) puts it back on its door, which since wave 10
+ * lane K2 STAYS while the search is open (a disclosure button) -- never <body>.
  * Rail: NoteMenuActions.test.jsx ("keyboard" block).
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { noteIsArchived, setNoteArchived } from '../../lib/noteArchive'
 import { noteIsLocked, setNoteLock } from '../../lib/lockedNote'
@@ -79,11 +80,12 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
   // F4 / A2R-07: which door's button to hand focus back to once its inline form has closed.
   const templateBtnRef = useRef(null)
   const besideBtnRef = useRef(null)
-  const refocusRef = useRef(null) // null | 'template' | 'beside'
+  const refocusRef = useRef(null) // null | 'template' (Open beside's door stays, K2)
+  const besidePickerId = useId()
   useEffect(() => {
     const which = refocusRef.current
     if (!which) return
-    const btn = which === 'template' ? templateBtnRef.current : besideBtnRef.current
+    const btn = templateBtnRef.current
     if (!btn) return   // the form is still up; try again after the next render
     refocusRef.current = null
     const active = document.activeElement
@@ -218,29 +220,38 @@ export default function NoteMenuActions({ note, onChanged, onOpenBeside, besideE
           <button type="button" className={styles.btn} onClick={() => { refocusRef.current = 'template'; setTemplateDraft(null) }}>Cancel</button>
         </form>
       )}
-      {onOpenBeside && (pickingBeside ? (
-        // The quick switcher's own search; the note itself is never offered —
-        // a note opens in one pane at a time.
-        <NoteSearchPicker
-          onPick={(picked) => { setPickingBeside(false); onOpenBeside(picked) }}
-          onCancel={() => { refocusRef.current = 'beside'; setPickingBeside(false) }}
-          exclude={[note.id, ...besideExclude]}
-          inputLabel="Find a note to open beside"
-          listLabel="Notes to open beside"
-          placeholder="Open beside…"
-        />
-      ) : (
+      {/* Wave 10 lane K2 (walk row S2-27): the door STAYS while its search is open -- a
+          disclosure button (`aria-expanded`) with the search after it -- so Escape has a
+          control to hand focus back to, and a screen reader hears what opened. The search is
+          one of the editor's contained disclosures: Tab stays in it while focus is in it. */}
+      {onOpenBeside && (
         <button
           ref={besideBtnRef}
           type="button"
           className={styles.btn}
-          onClick={() => { setStatus(null); setPickingBeside(true) }}
+          onClick={() => { setStatus(null); setPickingBeside((v) => !v) }}
+          aria-expanded={pickingBeside}
+          aria-controls={pickingBeside ? besidePickerId : undefined}
           title="Show another note beside this one"
         >
           <UIcon name="columns" size={13} gold={false} />
           Open a note beside…
         </button>
-      ))}
+      )}
+      {onOpenBeside && pickingBeside && (
+        // The quick switcher's own search; the note itself is never offered —
+        // a note opens in one pane at a time.
+        <span id={besidePickerId}>
+          <NoteSearchPicker
+            onPick={(picked) => { setPickingBeside(false); onOpenBeside(picked) }}
+            onCancel={() => { setPickingBeside(false); besideBtnRef.current?.focus() }}
+            exclude={[note.id, ...besideExclude]}
+            inputLabel="Find a note to open beside"
+            listLabel="Notes to open beside"
+            placeholder="Open beside…"
+          />
+        </span>
+      )}
       {status && (
         <span
           className={status.tone === 'error' ? styles.statusError : styles.status}

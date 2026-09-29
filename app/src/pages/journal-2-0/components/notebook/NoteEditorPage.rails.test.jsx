@@ -83,7 +83,12 @@ describe('NoteEditorPage watch rails', () => {
 // existed but were split across one crowded header line — this pins the
 // dedicated toolbar ROW that groups them, discoverable as one surface.
 describe('NoteEditorPage editor toolbar row', () => {
-  it('groups the formatting cluster AND the PNG/Print exports in one labeled toolbar row', async () => {
+  // ⛔ MOVED ON PURPOSE (wave 10 lane K2, design finding D-3): this rail pinned PNG and Print
+  // INSIDE the toolbar row. D-3 measured five rows of controls above the title at 1200 px; the
+  // file doors (PNG, Print, Export) now sit in "More note actions", Notion's "…", so the
+  // formatting row fits one line. What the owner asked for -- the font and the file doors
+  // one press from the top of the note -- is what this now pins, by name.
+  it('the toolbar row is the formatting cluster; PNG / Print / Export are one press away, in "More note actions" (K2)', async () => {
     const NoteEditorPage = (await import('./NoteEditorPage')).default
     render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
     const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
@@ -92,8 +97,12 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(q.getByLabelText('Text size')).toBeInTheDocument()
     expect(q.getByText('B')).toBeInTheDocument()
     expect(q.getByText('H1')).toBeInTheDocument()
-    expect(q.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
-    expect(q.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
+    expect(q.queryByTitle('Download this note as a PNG image')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    const more = within(screen.getByRole('group', { name: 'More note actions' }))
+    expect(more.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
+    expect(more.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
+    expect(more.getByRole('button', { name: /^Export/ })).toBeInTheDocument()
   })
 
   /**

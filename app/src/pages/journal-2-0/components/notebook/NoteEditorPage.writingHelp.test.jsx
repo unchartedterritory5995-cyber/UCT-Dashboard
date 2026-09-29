@@ -111,7 +111,8 @@ describe('writing help — dark, and paid-only', () => {
   it('flag ON and paid: the toolbar entry and the slash item are there', async () => {
     latchNotebookFlags({ notebook_writing_help_enabled: true })
     const editor = await mount()
-    expect(screen.getByRole('button', { name: 'Writing help' }).closest('[role="toolbar"]')).toBeTruthy()
+    // K2 (D-3): the entry moved from the formatting row to the note's header row
+    expect(screen.getByRole('button', { name: 'Writing help' }).closest('header')).toBeTruthy()
     const { blockItemsAvailable } = await import('./SlashMenu')
     expect(blockItemsAvailable(editor).some((i) => i.title === 'Writing help')).toBe(true)
   })

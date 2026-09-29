@@ -54,7 +54,7 @@
 import React from 'react'
 import { render, screen, act, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createFakeIndexedDbFactory, settleIdb } from '../../lib/offline/__fixtures__/fakeIndexedDb'
@@ -315,6 +315,12 @@ function proveThereIsQueuedWork(where) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Wave 10 K2 review M-1: the page is imported lazily (`import('./NoteEditorPage')` inside an
+// effect), so the FIRST test that mounts it paid the whole cold import and transform -- measured
+// 1-5 s, load-dependent -- inside a 4 s `findBy`, and went red at its first line having exercised
+// nothing about a queued send. The module is warmed once here, before any test's clock starts.
+beforeAll(async () => { await import('./NoteEditorPage') }, 60000)
+
 describe('⛔⛔ the harness is the PRODUCT, not a restatement of it', () => {
   const tabSrc = fs.readFileSync(
     path.join(process.cwd(), 'src', 'pages', 'journal-2-0', 'tabs', 'NotebookTab.jsx'), 'utf8',
