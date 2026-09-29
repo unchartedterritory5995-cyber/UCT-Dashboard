@@ -276,10 +276,14 @@ def test_every_cited_file_line_still_holds_its_fragment():
 def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
     # control, at the same pinned revision: the text with one fragment changed must be refused.
     text, rev = _written_at()
-    good = '`api/services/journal_two/notes.py`:4012 "def restore_note("'
-    assert good in text, 'non-vacuity: the control citation is not in the scorecard'
+    # The control citation's line is READ from the scorecard, never retyped: it moves every time
+    # notes.py does (4012 -> 4019 when lane PC's backlinks pass landed), and a typed number here
+    # failed as "not in the scorecard" rather than testing the verifier.
+    m = re.search(r'`api/services/journal_two/notes\.py`:(\d+) "def restore_note\("', text)
+    assert m, 'non-vacuity: the control citation is not in the scorecard'
+    good, line = m.group(0), m.group(1)
     _, problems = psc.verify(text.replace(good, good.replace('restore_note(', 'restore_notes('), 1), rev=rev)
-    assert any('notes.py:4012' in p for p in problems), problems
+    assert any(f'notes.py:{line}' in p for p in problems), problems
 
 
 def test_a_recorded_revision_not_in_this_clone_is_unverifiable_never_a_pass():
@@ -749,13 +753,28 @@ def test_core_action_events_resolves_constant_references_and_refuses_what_it_can
 def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     text = _text(SCORECARD)
     paths = psc.cited_b0_paths(text)
-    assert len(paths) == 26, (len(paths), paths)
+    # Lane RS (2026-09-29) added 16 evidence paths the 3b/3c/6c/7a/9a/9d/14a/14b/14d cells now cite:
+    # AX's re-measurement at 2fb102c74, the quiet-slot command-1 and curve runs, the copied-in Sunday
+    # KEEP verdict and hand-run restore drill, lane R1's and R1b's rollback rehearsals, and the L2/L4-era
+    # layout proofs (L3/D3P/D5). 26 (F3's count) + 16 = 42.
+    assert len(paths) == 42, (len(paths), paths)
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b.py',
               'docs/notebook/evidence/wave9-9b-8a0098029/browser_check_9b_pass2.py',
-              'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'):
+              'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py',
+              'docs/notebook/proof/ax-2fb102c74/README.md',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-50k.log',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-curve.log',
+              'docs/notebook/proof/quiet-slot-2026-09-29/qs-curve2.log',
+              'docs/notebook/evidence/evidence-gate-soak-only-2026-09-28-KEEP.md',
+              'docs/notebook/evidence/evidence-restore-drill-2026-09-28-hand-PASS.md',
+              'docs/notebook/evidence/rollback-rehearsal-2026-09-28/sandbox-results.md',
+              'docs/notebook/evidence/rollback-rehearsal-2026-09-29/objects.log',
+              'docs/notebook/proof/l3-layout-0e72ad573/r2-after/run.json',
+              'docs/notebook/proof/d3p-raw/after-r2/run.json',
+              'docs/notebook/proof/d5-after-round1-fix/probe.json'):
         assert p in paths, p
     # any form counts: a path in an integrity record's parenthesis, a quote's evidence, a WALK instrument
     planted = ('## §B\n(`docs/notebook/evidence/x/integrity.md`) [R17 evidence `docs/notebook/proof/q.jsonl` '

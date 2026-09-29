@@ -1,0 +1,48 @@
+{
+ "integrity": "CLEAN",
+ "integrity_detail": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-ax\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T08-14-02.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 08:14:09",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 08:15:23",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 08:17:20",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 08:20:19",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "stop": "graceful (rc 0)",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-ax\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T08-14-02.md",
+ "base": "http://127.0.0.1:8235",
+ "healthy": true
+}

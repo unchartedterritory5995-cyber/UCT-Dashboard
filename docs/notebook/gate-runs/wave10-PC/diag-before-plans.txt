@@ -1,0 +1,96 @@
+##### tier 25000  sizes={'page_size': 4096, 'page_count': 49888, 'db_mb': 204.3, 'j2_notes_indexes': ['sqlite_autoindex_j2_notes_1', 'idx_j2_notes_user_updated', 'idx_j2_notes_user_folder', 'idx_j2_notes_user_ticker', 'idx_j2_notes_user_created', 'idx_j2_notes_user_deleted', 'idx_j2_notes_daily', 'idx_j2_notes_switcher_live', 'idx_j2_notes_live_cover', 'idx_j2_notes_live_tasks', 'idx_j2_notes_live_folder_title', 'idx_j2_notes_id_live', 'idx_j2_notes_user_import'], 'file_bytes': 204341248}
+== count_notes (whole library)
+  SQL: SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL
+      3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+== folder_note_counts (whole library)
+  SQL: SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id
+      6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+== get_symbol_backlinks
+  SQL: SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL
+      2|0|CO-ROUTINE x
+      3|2|COMPOUND QUERY
+      4|3|LEFT-MOST SUBQUERY
+      8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      18|3|UNION USING TEMP B-TREE
+      21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)
+      39|0|SCAN x
+      42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)
+  SQL: SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd
+      2|0|CO-ROUTINE x
+      3|2|COMPOUND QUERY
+      4|3|LEFT-MOST SUBQUERY
+      8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      18|3|UNION USING TEMP B-TREE
+      21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)
+      39|0|MATERIALIZE e
+      47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      53|39|USE TEMP B-TREE FOR GROUP BY
+      96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)
+      103|0|SCAN x
+      106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)
+      126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN
+      153|0|USE TEMP B-TREE FOR ORDER BY
+== list_tasks (open, ?view=tasks)
+  SQL: SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'
+      2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)
+  SQL: PRAGMA table_info(j2_notes)
+      (not a SELECT)
+  SQL: SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC
+      6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)
+      14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN
+== tag_counts (whole library)
+  SQL: SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'
+      2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)
+  SQL: SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag
+      6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)
+      13|0|LIST SUBQUERY 1
+      16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+      27|13|CREATE BLOOM FILTER
+##### tier 50000  sizes={'page_size': 4096, 'page_count': 99693, 'db_mb': 408.3, 'j2_notes_indexes': ['sqlite_autoindex_j2_notes_1', 'idx_j2_notes_user_updated', 'idx_j2_notes_user_folder', 'idx_j2_notes_user_ticker', 'idx_j2_notes_user_created', 'idx_j2_notes_user_deleted', 'idx_j2_notes_daily', 'idx_j2_notes_switcher_live', 'idx_j2_notes_live_cover', 'idx_j2_notes_live_tasks', 'idx_j2_notes_live_folder_title', 'idx_j2_notes_id_live', 'idx_j2_notes_user_import'], 'file_bytes': 408342528}
+== count_notes (whole library)
+  SQL: SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL
+      3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+== folder_note_counts (whole library)
+  SQL: SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id
+      6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+== get_symbol_backlinks
+  SQL: SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL
+      2|0|CO-ROUTINE x
+      3|2|COMPOUND QUERY
+      4|3|LEFT-MOST SUBQUERY
+      8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      18|3|UNION USING TEMP B-TREE
+      21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)
+      39|0|SCAN x
+      42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)
+  SQL: SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd
+      2|0|CO-ROUTINE x
+      3|2|COMPOUND QUERY
+      4|3|LEFT-MOST SUBQUERY
+      8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      18|3|UNION USING TEMP B-TREE
+      21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)
+      39|0|MATERIALIZE e
+      47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)
+      53|39|USE TEMP B-TREE FOR GROUP BY
+      96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)
+      103|0|SCAN x
+      106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)
+      126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN
+      153|0|USE TEMP B-TREE FOR ORDER BY
+== list_tasks (open, ?view=tasks)
+  SQL: SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'
+      2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)
+  SQL: PRAGMA table_info(j2_notes)
+      (not a SELECT)
+  SQL: SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC
+      6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)
+      14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN
+== tag_counts (whole library)
+  SQL: SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'
+      2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)
+  SQL: SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag
+      6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)
+      13|0|LIST SUBQUERY 1
+      16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)
+      27|13|CREATE BLOOM FILTER

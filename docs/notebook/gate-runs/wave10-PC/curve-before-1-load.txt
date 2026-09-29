@@ -1,0 +1,33 @@
+2026-09-29T07:23:20 tag=curve-before-1-start cpu=65 free_mb=14757 foreign_procs=6
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=21172 node.exe :: C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\driver\node.exe C:\Users\Patrick\AppData\Roaming\Python\Python314
+    pid=26112 chrome-headless-shell.exe :: C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-fi
+    pid=26436 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=gpu
+    pid=44156 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=uti
+    pid=31520 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=ren
+2026-09-29T07:25:55 tag=curve-before-1-end cpu=53 free_mb=14078 foreign_procs=21
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=21172 node.exe :: C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\driver\node.exe C:\Users\Patrick\AppData\Roaming\Python\Python314
+    pid=26112 chrome-headless-shell.exe :: C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-fi
+    pid=26436 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=gpu
+    pid=44156 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=uti
+    pid=31520 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=ren
+    pid=24068 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=23600 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=19740 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=39200 python.exe :: C:\Python314\python.exe -m pytest tests/test_alert_taxonomy_cooldowns.py tests/test_alert_taxonomy_document_arrival.py tests/test_alert_taxo
+    pid=45892 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=27436 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=38196 bash.exe :: "C:\Program Files\Git\usr\bin\bash.exe" "/c/Program Files/nodejs/npx" vitest run src/components/calendar/CallRecapSection.citations.test.jsx
+    pid=23980 bash.exe :: "C:\Program Files\Git\usr\bin\bash.exe" "/c/Program Files/nodejs/npx" vitest run src/components/calendar/CallRecapSection.citations.test.jsx
+    pid=42320 node.exe :: "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/components/calendar/CallRecapSec
+    pid=29252 cmd.exe :: C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/components/calendar/CallRecapSection.citations.test.jsx src/components/provenance/Cited.
+    pid=36708 node.exe :: "node"   "C:\Users\Patrick\uct-dashboard\.claude\worktrees\agent-abf0e77a224a4d5e3\app\node_modules\.bin\\..\vitest\vitest.mjs" run src/comp
+    pid=42784 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=28180 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=5920 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=26604 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/

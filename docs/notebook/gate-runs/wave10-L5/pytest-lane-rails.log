@@ -1,0 +1,44 @@
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+............F........................................................... [ 38%]
+........................................................................ [ 77%]
+..........................................                               [100%]
+================================== FAILURES ===================================
+______ test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line _______
+
+    def test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line():
+        # control, at the same pinned revision: the text with one fragment changed must be refused.
+        text, rev = _written_at()
+        good = '`api/services/journal_two/notes.py`:4012 "def restore_note("'
+>       assert good in text, 'non-vacuity: the control citation is not in the scorecard'
+E       AssertionError: non-vacuity: the control citation is not in the scorecard
+E       assert '`api/services/journal_two/notes.py`:4012 "def restore_note("' in '# Notebook parity scorecard — every ledger row, the 16 standards, the honest misses\n\n**Date:** 2026-09-29 (the wave...moment..."), HTTP 403 to curl and to WebFetch (R15); `https://evernote.com/features/note-taking` — HTTP 404 (R14).\n\n'
+
+tests\test_parity_scorecard.py:280: AssertionError
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 7304 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 186 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_parity_scorecard.py::test_the_scorecard_row_set_equals_the_ledgers_both_parsed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_notebook_perf_scale_w10.py: 215 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\fastapi\routing.py:233: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    is_coroutine = asyncio.iscoroutinefunction(dependant.call)
+
+tests/test_notebook_perf_scale_w10.py: 215 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\starlette\_utils.py:39: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or (callable(obj) and asyncio.iscoroutinefunction(obj.__call__))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_parity_scorecard.py::test_the_verifier_can_fail_on_a_fragment_that_is_not_on_its_line
+1 failed, 185 passed, 7921 warnings in 345.24s (0:05:45)

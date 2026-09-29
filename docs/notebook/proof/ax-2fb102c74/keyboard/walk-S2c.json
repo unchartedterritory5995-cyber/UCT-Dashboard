@@ -1,0 +1,312 @@
+{
+ "meta": {
+  "tool": "keyboard_walk",
+  "started": "2026-09-29T07:29:54-0500",
+  "base": "http://127.0.0.1:8235",
+  "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-ax\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T07-13-54.md",
+  "only": [
+   "S2c"
+  ],
+  "browser": "chromium (playwright)",
+  "viewport": "1280x800 unless a step says otherwise",
+  "tip": "2fb102c74",
+  "nonce": "461673940a3709dfa802bfb39b2ab301",
+  "browser_version": "145.0.7632.6",
+  "account_paid": true,
+  "finished": "2026-09-29T07:35:20-0500"
+ },
+ "steps": [
+  {
+   "id": "C0",
+   "section": "control",
+   "keys": "Tab x12; Tab x8 inside a trap",
+   "expected": "unreachable button NOT found; trap detected",
+   "observed": "unreachable found=False after 12; trap detected=True; trail=[\"button 'Alpha'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\", \"button 'Trap two'\", \"button 'Trap one'\"]",
+   "verdict": "PASS",
+   "t": "07:29:56"
+  },
+  {
+   "id": "S2-20",
+   "section": "editor door: Ask",
+   "keys": "Tab x72 to button 'Ask a question about this note'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus input 'Your question about This note' (inDialog=Ask This note); dialogs [{'role': 'dialog', 'modal': None, 'label': 'Ask This note'}] menus [{'role': 'dialog', 'label': 'Ask This note'}]; Tab path inside [\"button 'Close Ask'\", \"input 'Your question about Thi\", \"button 'Close Ask'\"]; after Escape button 'Ask a question about this note'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:31:17",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Ask a question about this note",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": "false",
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     581,
+     222,
+     59,
+     28
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-21",
+   "section": "editor door: Writing help",
+   "keys": "Tab x77 to button 'Writing help'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus div [dialog] 'Writing help' (inDialog=dialog); dialogs [{'role': 'dialog', 'modal': 'true', 'label': ''}] menus [{'role': 'dialog', 'label': 'Writing help\u00d7Working on the whole noteSummarizeRewrite short'}]; Tab path inside [\"button 'Close'\", \"button 'Summarize'\", \"button 'Rewrite shorter'\"]; after Escape button 'Writing help'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:31:38",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Writing help",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": null,
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     988,
+     223,
+     102,
+     26
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-22",
+   "section": "editor door: Version history",
+   "keys": "Tab",
+   "expected": "'Version history' reachable",
+   "observed": "not reached; tail [\"button 'Delete Active theses'\", \"button 'All notes 5'\", \"button 'Unfiled 4'\", \"button 'Archived 0'\", \"button 'Trash 0'\", \"button 'Expand Research'\"]",
+   "verdict": "FAIL",
+   "t": "07:32:03",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-23",
+   "section": "editor door: Outline",
+   "keys": "Tab x78 to button 'Outline'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus button 'Close outline' (inDialog=None); dialogs [] menus []; Tab path inside [\"button 'Close outline'\", \"button 'Close outline'\", \"button 'Close outline'\"]; after Escape button 'Outline'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:32:23",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Outline",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": "false",
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     1098,
+     223,
+     77,
+     26
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-24",
+   "section": "editor door: Text colour",
+   "keys": "Tab x84 to button 'Text color and highlight'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus button 'Default text color' (inDialog=None); dialogs [] menus []; Tab path inside [\"button 'Gray text'\", \"button 'Red text'\", \"button 'Orange text'\"]; after Escape button 'Text color and highlight'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:32:44",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Text color and highlight",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": "false",
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     614,
+     264,
+     27,
+     24
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-25",
+   "section": "editor door: Share",
+   "keys": "Tab x74 to button 'Share'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus div [dialog] 'Share this note' (inDialog=Share this note); dialogs [{'role': 'dialog', 'modal': 'true', 'label': 'Share this note'}] menus [{'role': 'dialog', 'label': 'Share this note'}]; Tab path inside [\"button 'Close'\", \"select 'Link stops working'\", \"button 'Create link'\"]; after Escape button 'Share'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:33:03",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Share",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": "false",
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     719,
+     223,
+     71,
+     26
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-26",
+   "section": "editor door: Export menu",
+   "keys": "Tab",
+   "expected": "'Export menu' reachable",
+   "observed": "not reached; tail [\"button 'Delete Active theses'\", \"button 'All notes 5'\", \"button 'Unfiled 4'\", \"button 'Archived 0'\", \"button 'Trash 0'\", \"button 'Expand Research'\"]",
+   "verdict": "FAIL",
+   "t": "07:33:29",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-27",
+   "section": "editor door: Open beside",
+   "keys": "Tab",
+   "expected": "'Open beside' reachable",
+   "observed": "not reached; tail [\"button 'Delete Active theses'\", \"button 'All notes 5'\", \"button 'Unfiled 4'\", \"button 'Archived 0'\", \"button 'Trash 0'\", \"button 'Expand Research'\"]",
+   "verdict": "FAIL",
+   "t": "07:33:54",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-28",
+   "section": "editor door: Delete confirmation",
+   "keys": "Tab",
+   "expected": "'Delete confirmation' reachable",
+   "observed": "not reached; tail [\"button 'Delete Active theses'\", \"button 'All notes 5'\", \"button 'Unfiled 4'\", \"button 'Archived 0'\", \"button 'Trash 0'\", \"button 'Expand Research'\"]",
+   "verdict": "FAIL",
+   "t": "07:34:19",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-29",
+   "section": "editor door: Add property",
+   "keys": "Tab x102 to button 'Add property'; Enter; Tab x6; Escape",
+   "expected": "it opens by keyboard, focus goes into it, Escape closes it and focus returns to the opener (2.4.3)",
+   "observed": "on open focus button 'Add property' (inDialog=None); dialogs [] menus []; Tab path inside [\"button 'Suggest values with Co\", \"button 'Thesis Status'\", \"button 'Confidence'\"]; after Escape button 'Add property'; dialogs left []",
+   "verdict": "PASS",
+   "t": "07:34:41",
+   "sc": "2.1.1/2.4.3",
+   "opener": {
+    "tag": "button",
+    "role": "",
+    "name": "Add property",
+    "id": "",
+    "testid": "",
+    "type": "button",
+    "expanded": "false",
+    "pressed": null,
+    "selected": null,
+    "checked": null,
+    "contenteditable": false,
+    "rect": [
+     414,
+     529,
+     88,
+     28
+    ],
+    "inViewport": true,
+    "focusVisible": true,
+    "indicator": true,
+    "outline": "solid 2px rgb(220, 187, 94)",
+    "shadow": "",
+    "inDialog": null,
+    "path": "/journal/notebook?note=4fd8b22f065f40d8951bd286cdc899ff"
+   }
+  },
+  {
+   "id": "S2-30",
+   "section": "editor: lock",
+   "keys": "Tab",
+   "expected": "reachable",
+   "observed": "not reached; tail [\"button 'H1'\", \"button 'H2'\", \"button '\u2022 List'\", \"button '1. List'\", \"button '\u275d'\", \"button '</>'\"]",
+   "verdict": "FAIL",
+   "t": "07:35:01",
+   "sc": "2.1.1"
+  },
+  {
+   "id": "S2-31",
+   "section": "editor: archive",
+   "keys": "Tab",
+   "expected": "reachable",
+   "observed": "not reached; tail [\"button 'H1'\", \"button 'H2'\", \"button '\u2022 List'\", \"button '1. List'\", \"button '\u275d'\", \"button '</>'\"]",
+   "verdict": "FAIL",
+   "t": "07:35:20",
+   "sc": "2.1.1"
+  }
+ ],
+ "census": {},
+ "shots": [],
+ "errors": [],
+ "seed": {
+  "reused": true,
+  "notes": 5
+ }
+}

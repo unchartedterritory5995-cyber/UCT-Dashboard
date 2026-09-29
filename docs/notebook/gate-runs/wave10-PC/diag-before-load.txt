@@ -1,0 +1,30 @@
+2026-09-29T07:14:58 tag=diag-start cpu=31 free_mb=14220 foreign_procs=10
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=20780 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790566099733-w06bz2.sh 2>/dev/null ||
+    pid=23580 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790566099733-w06bz2.sh 2>/
+    pid=21256 bash.exe :: "C:\Program Files\Git\usr\bin\bash.exe" "/c/Program Files/nodejs/npx" vitest run src/pages/journal-2-0/a11y/ --maxWorkers=2
+    pid=21176 bash.exe :: "C:\Program Files\Git\usr\bin\bash.exe" "/c/Program Files/nodejs/npx" vitest run src/pages/journal-2-0/a11y/ --maxWorkers=2
+    pid=19472 node.exe :: "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.js" vitest run src/pages/journal-2-0/a11y/ --maxWor
+    pid=24196 cmd.exe :: C:\WINDOWS\system32\cmd.exe /d /s /c vitest run src/pages/journal-2-0/a11y/ --maxWorkers=2
+    pid=12712 node.exe :: "node"   "C:\Users\Patrick\uct-worktrees\notebook-w10-ax\app\node_modules\.bin\\..\vitest\vitest.mjs" run src/pages/journal-2-0/a11y/ --maxW
+    pid=37192 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+    pid=43996 node.exe :: "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experimental-import-meta-resolve --require C:/Users/Patrick/
+2026-09-29T07:17:47 tag=diag-end cpu=71 free_mb=14986 foreign_procs=14
+    pid=27308 python.exe :: C:\Python314\python.exe -u -c "import runpy, signal, sys
+if hasattr(signal, 'SIGBREAK'):
+    signal.signal(signal.SIGBREAK, lambda *a: None)
+    pid=21172 node.exe :: C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\playwright\driver\node.exe C:\Users\Patrick\AppData\Roaming\Python\Python314
+    pid=26112 chrome-headless-shell.exe :: C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe --disable-fi
+    pid=26436 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=gpu
+    pid=44156 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=uti
+    pid=31520 chrome-headless-shell.exe :: "C:\Users\Patrick\AppData\Local\ms-playwright\chromium_headless_shell-1208\chrome-headless-shell-win64\chrome-headless-shell.exe" --type=ren
+    pid=36568 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=36800 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=3688 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=45772 python.exe :: C:\Python314\python.exe -m pytest tests/test_alert_taxonomy_cooldowns.py tests/test_auth_surface_runtime.py tests/test_auth_surface_reads.py
+    pid=39924 bash.exe :: "C:\Program Files\Git\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/dev/null ||
+    pid=628 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=30272 bash.exe :: "C:\Program Files\Git\bin\..\usr\bin\bash.exe" -c "source /c/Users/Patrick/.claude/shell-snapshots/snapshot-bash-1790565955820-zrawle.sh 2>/
+    pid=26960 python.exe :: C:\Python314\python.exe -m pytest tests/test_education_curriculum.py tests/test_no_shadowed_definitions.py -q -p no:cacheprovider

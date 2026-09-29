@@ -1,0 +1,2671 @@
+{
+ "meta": {
+  "argv": [
+   "docs/notebook/gate-runs/wave10-PC/diag_curve.py",
+   "--tiers",
+   "1000,5000,10000,25000,50000",
+   "--rounds",
+   "2",
+   "--json",
+   "docs/notebook/gate-runs/wave10-PC/diag-before.json",
+   "--work-dir",
+   "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/pc"
+  ],
+  "started_at": "2026-09-29T07:15:10",
+  "git_head": "2fb102c7411c9ccb338f66888b881c93591dbd19",
+  "git_dirty": "?? docs/notebook/gate-runs/wave10-PC/",
+  "sqlite": "3.50.4"
+ },
+ "tiers": [
+  {
+   "n": 1000,
+   "build_s": 0.8,
+   "sizes": {
+    "page_size": 4096,
+    "page_count": 2272,
+    "db_mb": 9.3,
+    "j2_notes_indexes": [
+     "sqlite_autoindex_j2_notes_1",
+     "idx_j2_notes_user_updated",
+     "idx_j2_notes_user_folder",
+     "idx_j2_notes_user_ticker",
+     "idx_j2_notes_user_created",
+     "idx_j2_notes_user_deleted",
+     "idx_j2_notes_daily",
+     "idx_j2_notes_switcher_live",
+     "idx_j2_notes_live_cover",
+     "idx_j2_notes_live_tasks",
+     "idx_j2_notes_live_folder_title",
+     "idx_j2_notes_id_live",
+     "idx_j2_notes_user_import"
+    ],
+    "file_bytes": 9306112
+   },
+   "truth": {
+    "active": 954,
+    "open_tasks": 116,
+    "backlink_notes": 98
+   },
+   "plans": {
+    "count_notes (whole library)": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL",
+      "plan": [
+       "3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "folder_note_counts (whole library)": [
+     {
+      "sql": "SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id",
+      "plan": [
+       "6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "get_symbol_backlinks": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|SCAN x",
+       "42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)"
+      ]
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|MATERIALIZE e",
+       "47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "53|39|USE TEMP B-TREE FOR GROUP BY",
+       "96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)",
+       "103|0|SCAN x",
+       "106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+       "126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN",
+       "153|0|USE TEMP B-TREE FOR ORDER BY"
+      ]
+     }
+    ],
+    "list_tasks (open, ?view=tasks)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "PRAGMA table_info(j2_notes)",
+      "plan": "(not a SELECT)"
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
+      "plan": [
+       "6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)",
+       "14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+      ]
+     }
+    ],
+    "tag_counts (whole library)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag",
+      "plan": [
+       "6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)",
+       "13|0|LIST SUBQUERY 1",
+       "16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)",
+       "27|13|CREATE BLOOM FILTER"
+      ]
+     }
+    ]
+   },
+   "timings": [
+    {
+     "round": 0,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.047,
+       "p95_ms": 0.079,
+       "max_ms": 0.09,
+       "min_ms": 0.044,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.141,
+       "p95_ms": 0.368,
+       "max_ms": 2.558,
+       "min_ms": 0.117,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.66,
+       "p95_ms": 0.741,
+       "max_ms": 0.781,
+       "min_ms": 0.588,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 1.143,
+       "p95_ms": 1.326,
+       "max_ms": 1.44,
+       "min_ms": 0.936,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.474,
+       "p95_ms": 1.564,
+       "max_ms": 1.642,
+       "min_ms": 0.921,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.061,
+       "p95_ms": 0.069,
+       "max_ms": 0.071,
+       "min_ms": 0.045,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.085,
+       "p95_ms": 0.09,
+       "max_ms": 0.094,
+       "min_ms": 0.083,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.383,
+       "p95_ms": 0.65,
+       "max_ms": 0.656,
+       "min_ms": 0.317,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 0.606,
+       "p95_ms": 0.686,
+       "max_ms": 0.724,
+       "min_ms": 0.583,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 0.905,
+       "p95_ms": 1.0,
+       "max_ms": 1.131,
+       "min_ms": 0.871,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.046,
+       "p95_ms": 0.047,
+       "max_ms": 0.05,
+       "min_ms": 0.044,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.143,
+       "p95_ms": 0.175,
+       "max_ms": 0.18,
+       "min_ms": 0.086,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.616,
+       "p95_ms": 0.718,
+       "max_ms": 0.735,
+       "min_ms": 0.564,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 1.112,
+       "p95_ms": 1.174,
+       "max_ms": 1.244,
+       "min_ms": 0.704,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 0.915,
+       "p95_ms": 1.427,
+       "max_ms": 1.468,
+       "min_ms": 0.878,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.094,
+       "p95_ms": 0.113,
+       "max_ms": 0.117,
+       "min_ms": 0.088,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.137,
+       "p95_ms": 0.159,
+       "max_ms": 0.201,
+       "min_ms": 0.128,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.513,
+       "p95_ms": 0.565,
+       "max_ms": 0.572,
+       "min_ms": 0.491,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 0.568,
+       "p95_ms": 0.652,
+       "max_ms": 1.149,
+       "min_ms": 0.553,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.258,
+       "p95_ms": 1.507,
+       "max_ms": 1.587,
+       "min_ms": 0.845,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 3.529,
+       "p95_ms": 4.715,
+       "max_ms": 4.811,
+       "min_ms": 2.204,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 4.259,
+       "p95_ms": 5.933,
+       "max_ms": 9.564,
+       "min_ms": 3.272,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 4.62,
+       "p95_ms": 5.575,
+       "max_ms": 5.686,
+       "min_ms": 4.054,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 4.992,
+       "p95_ms": 5.417,
+       "max_ms": 5.528,
+       "min_ms": 4.045,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 5.714,
+       "p95_ms": 6.141,
+       "max_ms": 6.533,
+       "min_ms": 4.704,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.06,
+       "p95_ms": 0.123,
+       "max_ms": 0.174,
+       "min_ms": 0.056,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.112,
+       "p95_ms": 0.127,
+       "max_ms": 0.138,
+       "min_ms": 0.105,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.496,
+       "p95_ms": 0.642,
+       "max_ms": 0.709,
+       "min_ms": 0.451,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 0.959,
+       "p95_ms": 1.166,
+       "max_ms": 1.173,
+       "min_ms": 0.909,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.188,
+       "p95_ms": 1.277,
+       "max_ms": 1.319,
+       "min_ms": 1.139,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.062,
+       "p95_ms": 0.066,
+       "max_ms": 0.067,
+       "min_ms": 0.06,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.111,
+       "p95_ms": 0.113,
+       "max_ms": 0.114,
+       "min_ms": 0.109,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.56,
+       "p95_ms": 0.615,
+       "max_ms": 0.627,
+       "min_ms": 0.46,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 0.879,
+       "p95_ms": 0.92,
+       "max_ms": 0.981,
+       "min_ms": 0.859,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.171,
+       "p95_ms": 1.234,
+       "max_ms": 1.247,
+       "min_ms": 1.137,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.058,
+       "p95_ms": 0.062,
+       "max_ms": 0.062,
+       "min_ms": 0.056,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.108,
+       "p95_ms": 0.142,
+       "max_ms": 0.143,
+       "min_ms": 0.106,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.445,
+       "p95_ms": 0.481,
+       "max_ms": 0.541,
+       "min_ms": 0.424,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 0.91,
+       "p95_ms": 1.137,
+       "max_ms": 1.228,
+       "min_ms": 0.882,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.375,
+       "p95_ms": 1.456,
+       "max_ms": 1.61,
+       "min_ms": 0.982,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.085,
+       "p95_ms": 0.088,
+       "max_ms": 0.096,
+       "min_ms": 0.083,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.154,
+       "p95_ms": 0.155,
+       "max_ms": 0.156,
+       "min_ms": 0.148,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 0.56,
+       "p95_ms": 0.675,
+       "max_ms": 0.721,
+       "min_ms": 0.366,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 1.128,
+       "p95_ms": 1.244,
+       "max_ms": 1.264,
+       "min_ms": 0.693,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 1.368,
+       "p95_ms": 1.537,
+       "max_ms": 1.593,
+       "min_ms": 0.908,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 3.693,
+       "p95_ms": 4.515,
+       "max_ms": 4.772,
+       "min_ms": 2.437,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 3.825,
+       "p95_ms": 4.822,
+       "max_ms": 4.925,
+       "min_ms": 3.022,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.048,
+       "p95_ms": 5.361,
+       "max_ms": 5.469,
+       "min_ms": 4.022,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 5.377,
+       "p95_ms": 6.152,
+       "max_ms": 6.174,
+       "min_ms": 4.884,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 5.074,
+       "p95_ms": 5.633,
+       "max_ms": 6.208,
+       "min_ms": 4.687,
+       "reps": 20
+      }
+     }
+    }
+   ]
+  },
+  {
+   "n": 5000,
+   "build_s": 3.1,
+   "sizes": {
+    "page_size": 4096,
+    "page_count": 10210,
+    "db_mb": 41.8,
+    "j2_notes_indexes": [
+     "sqlite_autoindex_j2_notes_1",
+     "idx_j2_notes_user_updated",
+     "idx_j2_notes_user_folder",
+     "idx_j2_notes_user_ticker",
+     "idx_j2_notes_user_created",
+     "idx_j2_notes_user_deleted",
+     "idx_j2_notes_daily",
+     "idx_j2_notes_switcher_live",
+     "idx_j2_notes_live_cover",
+     "idx_j2_notes_live_tasks",
+     "idx_j2_notes_live_folder_title",
+     "idx_j2_notes_id_live",
+     "idx_j2_notes_user_import"
+    ],
+    "file_bytes": 41820160
+   },
+   "truth": {
+    "active": 4775,
+    "open_tasks": 721,
+    "backlink_notes": 490
+   },
+   "plans": {
+    "count_notes (whole library)": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL",
+      "plan": [
+       "3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "folder_note_counts (whole library)": [
+     {
+      "sql": "SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id",
+      "plan": [
+       "6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "get_symbol_backlinks": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|SCAN x",
+       "42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)"
+      ]
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|MATERIALIZE e",
+       "47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "53|39|USE TEMP B-TREE FOR GROUP BY",
+       "96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)",
+       "103|0|SCAN x",
+       "106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+       "126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN",
+       "153|0|USE TEMP B-TREE FOR ORDER BY"
+      ]
+     }
+    ],
+    "list_tasks (open, ?view=tasks)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "PRAGMA table_info(j2_notes)",
+      "plan": "(not a SELECT)"
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
+      "plan": [
+       "6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)",
+       "14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+      ]
+     }
+    ],
+    "tag_counts (whole library)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag",
+      "plan": [
+       "6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)",
+       "13|0|LIST SUBQUERY 1",
+       "16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)",
+       "27|13|CREATE BLOOM FILTER"
+      ]
+     }
+    ]
+   },
+   "timings": [
+    {
+     "round": 0,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.266,
+       "p95_ms": 0.318,
+       "max_ms": 0.391,
+       "min_ms": 0.203,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.535,
+       "p95_ms": 0.649,
+       "max_ms": 0.722,
+       "min_ms": 0.382,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.771,
+       "p95_ms": 2.928,
+       "max_ms": 2.96,
+       "min_ms": 2.456,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.389,
+       "p95_ms": 7.357,
+       "max_ms": 8.058,
+       "min_ms": 5.465,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 6.847,
+       "p95_ms": 7.548,
+       "max_ms": 8.42,
+       "min_ms": 6.409,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.31,
+       "p95_ms": 0.328,
+       "max_ms": 0.332,
+       "min_ms": 0.299,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.614,
+       "p95_ms": 0.628,
+       "max_ms": 0.723,
+       "min_ms": 0.574,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.465,
+       "p95_ms": 2.966,
+       "max_ms": 3.03,
+       "min_ms": 2.114,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.254,
+       "p95_ms": 6.707,
+       "max_ms": 6.766,
+       "min_ms": 5.861,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 6.52,
+       "p95_ms": 7.266,
+       "max_ms": 7.273,
+       "min_ms": 5.891,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.242,
+       "p95_ms": 0.306,
+       "max_ms": 0.335,
+       "min_ms": 0.222,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.481,
+       "p95_ms": 0.607,
+       "max_ms": 0.608,
+       "min_ms": 0.377,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.474,
+       "p95_ms": 2.629,
+       "max_ms": 2.735,
+       "min_ms": 2.342,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.613,
+       "p95_ms": 7.39,
+       "max_ms": 7.679,
+       "min_ms": 5.442,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 7.131,
+       "p95_ms": 9.009,
+       "max_ms": 14.885,
+       "min_ms": 6.124,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.249,
+       "p95_ms": 0.33,
+       "max_ms": 0.336,
+       "min_ms": 0.189,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.583,
+       "p95_ms": 0.593,
+       "max_ms": 0.602,
+       "min_ms": 0.579,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.424,
+       "p95_ms": 3.111,
+       "max_ms": 3.18,
+       "min_ms": 1.874,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 5.924,
+       "p95_ms": 7.487,
+       "max_ms": 7.506,
+       "min_ms": 5.522,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 7.325,
+       "p95_ms": 7.555,
+       "max_ms": 7.968,
+       "min_ms": 6.674,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 4.943,
+       "p95_ms": 5.277,
+       "max_ms": 5.318,
+       "min_ms": 4.014,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 4.858,
+       "p95_ms": 5.83,
+       "max_ms": 5.917,
+       "min_ms": 3.591,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 8.506,
+       "p95_ms": 9.081,
+       "max_ms": 9.409,
+       "min_ms": 7.605,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 12.661,
+       "p95_ms": 14.399,
+       "max_ms": 15.314,
+       "min_ms": 11.796,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 12.286,
+       "p95_ms": 14.096,
+       "max_ms": 14.182,
+       "min_ms": 11.067,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.311,
+       "p95_ms": 0.347,
+       "max_ms": 0.35,
+       "min_ms": 0.305,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.472,
+       "p95_ms": 0.515,
+       "max_ms": 0.567,
+       "min_ms": 0.376,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.435,
+       "p95_ms": 3.207,
+       "max_ms": 3.221,
+       "min_ms": 2.349,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.894,
+       "p95_ms": 7.649,
+       "max_ms": 8.367,
+       "min_ms": 6.163,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 6.888,
+       "p95_ms": 7.317,
+       "max_ms": 7.442,
+       "min_ms": 6.602,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.344,
+       "p95_ms": 0.565,
+       "max_ms": 0.711,
+       "min_ms": 0.323,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.586,
+       "p95_ms": 0.623,
+       "max_ms": 0.689,
+       "min_ms": 0.46,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.549,
+       "p95_ms": 2.891,
+       "max_ms": 3.19,
+       "min_ms": 2.357,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.757,
+       "p95_ms": 20.671,
+       "max_ms": 30.28,
+       "min_ms": 6.348,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 7.28,
+       "p95_ms": 7.904,
+       "max_ms": 8.082,
+       "min_ms": 7.078,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.264,
+       "p95_ms": 0.334,
+       "max_ms": 0.407,
+       "min_ms": 0.251,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.506,
+       "p95_ms": 0.553,
+       "max_ms": 0.572,
+       "min_ms": 0.486,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.811,
+       "p95_ms": 3.13,
+       "max_ms": 3.282,
+       "min_ms": 2.563,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.691,
+       "p95_ms": 7.441,
+       "max_ms": 8.78,
+       "min_ms": 6.0,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 7.674,
+       "p95_ms": 13.189,
+       "max_ms": 18.88,
+       "min_ms": 6.95,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.242,
+       "p95_ms": 0.275,
+       "max_ms": 1.592,
+       "min_ms": 0.231,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 0.458,
+       "p95_ms": 0.504,
+       "max_ms": 0.506,
+       "min_ms": 0.448,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 2.538,
+       "p95_ms": 3.036,
+       "max_ms": 3.752,
+       "min_ms": 2.384,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 6.83,
+       "p95_ms": 8.004,
+       "max_ms": 10.339,
+       "min_ms": 5.995,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 7.47,
+       "p95_ms": 13.82,
+       "max_ms": 25.286,
+       "min_ms": 6.963,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 5.313,
+       "p95_ms": 10.018,
+       "max_ms": 11.517,
+       "min_ms": 4.708,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 5.658,
+       "p95_ms": 8.084,
+       "max_ms": 8.906,
+       "min_ms": 4.956,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 10.17,
+       "p95_ms": 29.111,
+       "max_ms": 36.102,
+       "min_ms": 8.802,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 17.473,
+       "p95_ms": 29.817,
+       "max_ms": 33.288,
+       "min_ms": 13.881,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 13.801,
+       "p95_ms": 16.64,
+       "max_ms": 16.833,
+       "min_ms": 12.245,
+       "reps": 20
+      }
+     }
+    }
+   ]
+  },
+  {
+   "n": 10000,
+   "build_s": 6.8,
+   "sizes": {
+    "page_size": 4096,
+    "page_count": 20153,
+    "db_mb": 82.5,
+    "j2_notes_indexes": [
+     "sqlite_autoindex_j2_notes_1",
+     "idx_j2_notes_user_updated",
+     "idx_j2_notes_user_folder",
+     "idx_j2_notes_user_ticker",
+     "idx_j2_notes_user_created",
+     "idx_j2_notes_user_deleted",
+     "idx_j2_notes_daily",
+     "idx_j2_notes_switcher_live",
+     "idx_j2_notes_live_cover",
+     "idx_j2_notes_live_tasks",
+     "idx_j2_notes_live_folder_title",
+     "idx_j2_notes_id_live",
+     "idx_j2_notes_user_import"
+    ],
+    "file_bytes": 82546688
+   },
+   "truth": {
+    "active": 9542,
+    "open_tasks": 1420,
+    "backlink_notes": 984
+   },
+   "plans": {
+    "count_notes (whole library)": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL",
+      "plan": [
+       "3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "folder_note_counts (whole library)": [
+     {
+      "sql": "SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id",
+      "plan": [
+       "6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "get_symbol_backlinks": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|SCAN x",
+       "42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)"
+      ]
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|MATERIALIZE e",
+       "47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "53|39|USE TEMP B-TREE FOR GROUP BY",
+       "96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)",
+       "103|0|SCAN x",
+       "106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+       "126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN",
+       "153|0|USE TEMP B-TREE FOR ORDER BY"
+      ]
+     }
+    ],
+    "list_tasks (open, ?view=tasks)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "PRAGMA table_info(j2_notes)",
+      "plan": "(not a SELECT)"
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
+      "plan": [
+       "6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)",
+       "14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+      ]
+     }
+    ],
+    "tag_counts (whole library)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag",
+      "plan": [
+       "6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)",
+       "13|0|LIST SUBQUERY 1",
+       "16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)",
+       "27|13|CREATE BLOOM FILTER"
+      ]
+     }
+    ]
+   },
+   "timings": [
+    {
+     "round": 0,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.613,
+       "p95_ms": 0.731,
+       "max_ms": 4.867,
+       "min_ms": 0.563,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.203,
+       "p95_ms": 2.866,
+       "max_ms": 5.25,
+       "min_ms": 1.135,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.413,
+       "p95_ms": 5.799,
+       "max_ms": 5.97,
+       "min_ms": 5.128,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 18.51,
+       "p95_ms": 19.885,
+       "max_ms": 19.978,
+       "min_ms": 16.843,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.367,
+       "p95_ms": 16.762,
+       "max_ms": 34.289,
+       "min_ms": 13.433,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.513,
+       "p95_ms": 0.559,
+       "max_ms": 0.561,
+       "min_ms": 0.492,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.112,
+       "p95_ms": 1.536,
+       "max_ms": 1.9,
+       "min_ms": 0.937,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.74,
+       "p95_ms": 7.006,
+       "max_ms": 7.097,
+       "min_ms": 5.051,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 15.127,
+       "p95_ms": 21.137,
+       "max_ms": 29.217,
+       "min_ms": 12.383,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.737,
+       "p95_ms": 16.155,
+       "max_ms": 17.741,
+       "min_ms": 14.161,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.54,
+       "p95_ms": 0.669,
+       "max_ms": 0.756,
+       "min_ms": 0.495,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.064,
+       "p95_ms": 1.242,
+       "max_ms": 1.636,
+       "min_ms": 0.953,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.533,
+       "p95_ms": 5.955,
+       "max_ms": 6.258,
+       "min_ms": 4.991,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 13.359,
+       "p95_ms": 14.262,
+       "max_ms": 14.585,
+       "min_ms": 12.448,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.932,
+       "p95_ms": 16.231,
+       "max_ms": 28.272,
+       "min_ms": 13.837,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.495,
+       "p95_ms": 0.521,
+       "max_ms": 0.545,
+       "min_ms": 0.479,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.126,
+       "p95_ms": 1.315,
+       "max_ms": 1.368,
+       "min_ms": 0.756,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.804,
+       "p95_ms": 6.725,
+       "max_ms": 7.305,
+       "min_ms": 5.051,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 13.576,
+       "p95_ms": 15.192,
+       "max_ms": 15.471,
+       "min_ms": 12.019,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.604,
+       "p95_ms": 15.953,
+       "max_ms": 16.266,
+       "min_ms": 13.607,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 6.58,
+       "p95_ms": 9.084,
+       "max_ms": 9.186,
+       "min_ms": 5.684,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 7.154,
+       "p95_ms": 10.705,
+       "max_ms": 13.128,
+       "min_ms": 6.355,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 13.29,
+       "p95_ms": 14.918,
+       "max_ms": 14.965,
+       "min_ms": 11.476,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 24.367,
+       "p95_ms": 27.414,
+       "max_ms": 27.707,
+       "min_ms": 20.97,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 22.367,
+       "p95_ms": 24.629,
+       "max_ms": 25.258,
+       "min_ms": 19.745,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.615,
+       "p95_ms": 0.68,
+       "max_ms": 0.691,
+       "min_ms": 0.507,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.044,
+       "p95_ms": 1.12,
+       "max_ms": 1.139,
+       "min_ms": 0.835,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.854,
+       "p95_ms": 6.869,
+       "max_ms": 7.042,
+       "min_ms": 5.54,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 20.404,
+       "p95_ms": 38.252,
+       "max_ms": 42.517,
+       "min_ms": 17.648,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.458,
+       "p95_ms": 16.219,
+       "max_ms": 17.712,
+       "min_ms": 13.62,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.635,
+       "p95_ms": 0.702,
+       "max_ms": 0.725,
+       "min_ms": 0.59,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.094,
+       "p95_ms": 1.219,
+       "max_ms": 1.221,
+       "min_ms": 0.994,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.533,
+       "p95_ms": 5.947,
+       "max_ms": 6.133,
+       "min_ms": 5.018,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 13.379,
+       "p95_ms": 14.656,
+       "max_ms": 15.916,
+       "min_ms": 12.566,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.462,
+       "p95_ms": 16.013,
+       "max_ms": 16.535,
+       "min_ms": 13.787,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.579,
+       "p95_ms": 0.754,
+       "max_ms": 0.846,
+       "min_ms": 0.515,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.238,
+       "p95_ms": 1.369,
+       "max_ms": 1.398,
+       "min_ms": 1.022,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.876,
+       "p95_ms": 6.582,
+       "max_ms": 6.747,
+       "min_ms": 5.221,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 13.226,
+       "p95_ms": 15.619,
+       "max_ms": 17.029,
+       "min_ms": 11.949,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 14.179,
+       "p95_ms": 15.246,
+       "max_ms": 15.778,
+       "min_ms": 13.251,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 0.522,
+       "p95_ms": 0.565,
+       "max_ms": 0.575,
+       "min_ms": 0.48,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 1.051,
+       "p95_ms": 1.115,
+       "max_ms": 1.124,
+       "min_ms": 1.027,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 5.873,
+       "p95_ms": 6.206,
+       "max_ms": 6.352,
+       "min_ms": 5.022,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 12.877,
+       "p95_ms": 14.073,
+       "max_ms": 15.035,
+       "min_ms": 11.605,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 13.803,
+       "p95_ms": 14.832,
+       "max_ms": 14.898,
+       "min_ms": 12.789,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 5.503,
+       "p95_ms": 6.88,
+       "max_ms": 8.567,
+       "min_ms": 5.121,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 6.321,
+       "p95_ms": 7.329,
+       "max_ms": 8.096,
+       "min_ms": 5.839,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 12.761,
+       "p95_ms": 14.264,
+       "max_ms": 14.81,
+       "min_ms": 11.38,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 23.496,
+       "p95_ms": 28.713,
+       "max_ms": 32.091,
+       "min_ms": 20.826,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 22.214,
+       "p95_ms": 25.24,
+       "max_ms": 29.38,
+       "min_ms": 20.13,
+       "reps": 20
+      }
+     }
+    }
+   ]
+  },
+  {
+   "n": 25000,
+   "build_s": 14.8,
+   "sizes": {
+    "page_size": 4096,
+    "page_count": 49888,
+    "db_mb": 204.3,
+    "j2_notes_indexes": [
+     "sqlite_autoindex_j2_notes_1",
+     "idx_j2_notes_user_updated",
+     "idx_j2_notes_user_folder",
+     "idx_j2_notes_user_ticker",
+     "idx_j2_notes_user_created",
+     "idx_j2_notes_user_deleted",
+     "idx_j2_notes_daily",
+     "idx_j2_notes_switcher_live",
+     "idx_j2_notes_live_cover",
+     "idx_j2_notes_live_tasks",
+     "idx_j2_notes_live_folder_title",
+     "idx_j2_notes_id_live",
+     "idx_j2_notes_user_import"
+    ],
+    "file_bytes": 204341248
+   },
+   "truth": {
+    "active": 23784,
+    "open_tasks": 3402,
+    "backlink_notes": 2450
+   },
+   "plans": {
+    "count_notes (whole library)": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL",
+      "plan": [
+       "3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "folder_note_counts (whole library)": [
+     {
+      "sql": "SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id",
+      "plan": [
+       "6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "get_symbol_backlinks": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|SCAN x",
+       "42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)"
+      ]
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|MATERIALIZE e",
+       "47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "53|39|USE TEMP B-TREE FOR GROUP BY",
+       "96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)",
+       "103|0|SCAN x",
+       "106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+       "126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN",
+       "153|0|USE TEMP B-TREE FOR ORDER BY"
+      ]
+     }
+    ],
+    "list_tasks (open, ?view=tasks)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "PRAGMA table_info(j2_notes)",
+      "plan": "(not a SELECT)"
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
+      "plan": [
+       "6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)",
+       "14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+      ]
+     }
+    ],
+    "tag_counts (whole library)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag",
+      "plan": [
+       "6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)",
+       "13|0|LIST SUBQUERY 1",
+       "16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)",
+       "27|13|CREATE BLOOM FILTER"
+      ]
+     }
+    ]
+   },
+   "timings": [
+    {
+     "round": 0,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.207,
+       "p95_ms": 1.468,
+       "max_ms": 1.628,
+       "min_ms": 1.165,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.84,
+       "p95_ms": 3.147,
+       "max_ms": 3.469,
+       "min_ms": 2.553,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 25.85,
+       "p95_ms": 29.796,
+       "max_ms": 29.927,
+       "min_ms": 23.916,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 43.417,
+       "p95_ms": 49.081,
+       "max_ms": 50.908,
+       "min_ms": 36.475,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 43.142,
+       "p95_ms": 52.036,
+       "max_ms": 59.673,
+       "min_ms": 38.611,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.406,
+       "p95_ms": 1.757,
+       "max_ms": 1.876,
+       "min_ms": 1.243,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.995,
+       "p95_ms": 3.392,
+       "max_ms": 3.614,
+       "min_ms": 2.459,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 14.951,
+       "p95_ms": 16.65,
+       "max_ms": 22.708,
+       "min_ms": 13.827,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 36.901,
+       "p95_ms": 42.216,
+       "max_ms": 43.468,
+       "min_ms": 34.23,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 38.201,
+       "p95_ms": 43.965,
+       "max_ms": 45.385,
+       "min_ms": 35.786,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.497,
+       "p95_ms": 1.683,
+       "max_ms": 1.886,
+       "min_ms": 1.259,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 3.094,
+       "p95_ms": 3.311,
+       "max_ms": 3.413,
+       "min_ms": 2.653,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 14.756,
+       "p95_ms": 15.967,
+       "max_ms": 18.151,
+       "min_ms": 13.413,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 34.538,
+       "p95_ms": 36.437,
+       "max_ms": 44.983,
+       "min_ms": 25.195,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 41.75,
+       "p95_ms": 51.795,
+       "max_ms": 52.062,
+       "min_ms": 35.78,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.168,
+       "p95_ms": 1.449,
+       "max_ms": 1.712,
+       "min_ms": 1.118,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.693,
+       "p95_ms": 3.133,
+       "max_ms": 3.367,
+       "min_ms": 2.476,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 15.691,
+       "p95_ms": 20.331,
+       "max_ms": 24.702,
+       "min_ms": 13.904,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 35.611,
+       "p95_ms": 40.493,
+       "max_ms": 41.92,
+       "min_ms": 29.824,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 40.652,
+       "p95_ms": 49.244,
+       "max_ms": 51.898,
+       "min_ms": 33.628,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 8.71,
+       "p95_ms": 10.202,
+       "max_ms": 11.313,
+       "min_ms": 8.226,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 10.992,
+       "p95_ms": 13.06,
+       "max_ms": 13.29,
+       "min_ms": 9.32,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 33.117,
+       "p95_ms": 41.15,
+       "max_ms": 47.671,
+       "min_ms": 29.044,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 54.024,
+       "p95_ms": 66.432,
+       "max_ms": 66.954,
+       "min_ms": 45.552,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 55.802,
+       "p95_ms": 82.004,
+       "max_ms": 89.146,
+       "min_ms": 47.266,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.388,
+       "p95_ms": 2.228,
+       "max_ms": 4.36,
+       "min_ms": 1.224,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.525,
+       "p95_ms": 3.22,
+       "max_ms": 4.693,
+       "min_ms": 2.388,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 27.874,
+       "p95_ms": 30.486,
+       "max_ms": 34.597,
+       "min_ms": 25.226,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 46.842,
+       "p95_ms": 52.721,
+       "max_ms": 53.584,
+       "min_ms": 42.23,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 43.684,
+       "p95_ms": 46.065,
+       "max_ms": 46.153,
+       "min_ms": 41.359,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.497,
+       "p95_ms": 1.788,
+       "max_ms": 2.03,
+       "min_ms": 1.23,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.545,
+       "p95_ms": 3.237,
+       "max_ms": 3.275,
+       "min_ms": 2.314,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 14.311,
+       "p95_ms": 17.125,
+       "max_ms": 21.383,
+       "min_ms": 12.82,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 35.506,
+       "p95_ms": 44.257,
+       "max_ms": 44.273,
+       "min_ms": 30.116,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 40.235,
+       "p95_ms": 51.147,
+       "max_ms": 56.585,
+       "min_ms": 34.764,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.14,
+       "p95_ms": 1.345,
+       "max_ms": 1.354,
+       "min_ms": 1.074,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.397,
+       "p95_ms": 2.456,
+       "max_ms": 2.592,
+       "min_ms": 2.248,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 15.42,
+       "p95_ms": 16.674,
+       "max_ms": 19.327,
+       "min_ms": 13.063,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 37.055,
+       "p95_ms": 52.058,
+       "max_ms": 58.834,
+       "min_ms": 30.519,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 41.195,
+       "p95_ms": 48.45,
+       "max_ms": 50.006,
+       "min_ms": 33.859,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 1.347,
+       "p95_ms": 1.952,
+       "max_ms": 2.327,
+       "min_ms": 1.151,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 2.427,
+       "p95_ms": 3.292,
+       "max_ms": 5.124,
+       "min_ms": 2.316,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 14.439,
+       "p95_ms": 21.087,
+       "max_ms": 26.772,
+       "min_ms": 13.367,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 33.004,
+       "p95_ms": 43.744,
+       "max_ms": 44.668,
+       "min_ms": 30.443,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 37.133,
+       "p95_ms": 42.545,
+       "max_ms": 59.503,
+       "min_ms": 32.689,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 8.822,
+       "p95_ms": 13.176,
+       "max_ms": 17.929,
+       "min_ms": 7.309,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 10.137,
+       "p95_ms": 11.988,
+       "max_ms": 14.832,
+       "min_ms": 8.488,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 28.209,
+       "p95_ms": 30.816,
+       "max_ms": 31.088,
+       "min_ms": 26.088,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 50.984,
+       "p95_ms": 66.433,
+       "max_ms": 71.901,
+       "min_ms": 44.057,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 54.972,
+       "p95_ms": 74.218,
+       "max_ms": 82.074,
+       "min_ms": 46.381,
+       "reps": 20
+      }
+     }
+    }
+   ]
+  },
+  {
+   "n": 50000,
+   "build_s": 38.3,
+   "sizes": {
+    "page_size": 4096,
+    "page_count": 99693,
+    "db_mb": 408.3,
+    "j2_notes_indexes": [
+     "sqlite_autoindex_j2_notes_1",
+     "idx_j2_notes_user_updated",
+     "idx_j2_notes_user_folder",
+     "idx_j2_notes_user_ticker",
+     "idx_j2_notes_user_created",
+     "idx_j2_notes_user_deleted",
+     "idx_j2_notes_daily",
+     "idx_j2_notes_switcher_live",
+     "idx_j2_notes_live_cover",
+     "idx_j2_notes_live_tasks",
+     "idx_j2_notes_live_folder_title",
+     "idx_j2_notes_id_live",
+     "idx_j2_notes_user_import"
+    ],
+    "file_bytes": 408342528
+   },
+   "truth": {
+    "active": 47590,
+    "open_tasks": 6860,
+    "backlink_notes": 4897
+   },
+   "plans": {
+    "count_notes (whole library)": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL",
+      "plan": [
+       "3|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "folder_note_counts (whole library)": [
+     {
+      "sql": "SELECT folder_id, COUNT(*) AS c FROM j2_notes WHERE user_id = 'bench_user' AND deleted_at IS NULL AND archived_at IS NULL GROUP BY folder_id",
+      "plan": [
+       "6|0|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)"
+      ]
+     }
+    ],
+    "get_symbol_backlinks": [
+     {
+      "sql": "SELECT COUNT(*) AS c FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|SCAN x",
+       "42|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)"
+      ]
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at,       COALESCE(e.refs, 0) AS refs,       e.widgets AS widgets FROM (SELECT note_id FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol IN ('AMD') UNION SELECT note_id FROM j2_note_mentions WHERE user_id = 'bench_user' AND symbol IN ('AMD')) x CROSS JOIN j2_notes n ON n.id = x.note_id LEFT JOIN (  SELECT note_id, COUNT(*) AS refs, GROUP_CONCAT(DISTINCT widget_id) AS widgets  FROM j2_note_embeds WHERE user_id = 'bench_user' AND symbol = 'AMD' GROUP BY note_id ) e ON e.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL ORDER BY n.upd",
+      "plan": [
+       "2|0|CO-ROUTINE x",
+       "3|2|COMPOUND QUERY",
+       "4|3|LEFT-MOST SUBQUERY",
+       "8|4|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "18|3|UNION USING TEMP B-TREE",
+       "21|18|SEARCH j2_note_mentions USING INDEX idx_j2_note_mentions_user_sym (user_id=? AND symbol=?)",
+       "39|0|MATERIALIZE e",
+       "47|39|SEARCH j2_note_embeds USING INDEX idx_j2_note_embeds_user_sym (user_id=? AND symbol=?)",
+       "53|39|USE TEMP B-TREE FOR GROUP BY",
+       "96|39|USE TEMP B-TREE FOR group_concat(DISTINCT)",
+       "103|0|SCAN x",
+       "106|0|SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=? AND user_id=? AND deleted_at=?)",
+       "126|0|SEARCH e USING AUTOMATIC COVERING INDEX (note_id=?) LEFT-JOIN",
+       "153|0|USE TEMP B-TREE FOR ORDER BY"
+      ]
+     }
+    ],
+    "list_tasks (open, ?view=tasks)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_task_digest@2'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "PRAGMA table_info(j2_notes)",
+      "plan": "(not a SELECT)"
+     },
+     {
+      "sql": "SELECT n.id, n.title, n.updated_at, d.tasks_json, CASE WHEN d.note_id IS NULL THEN n.body_json END AS body_json FROM j2_notes n LEFT JOIN j2_note_task_digest d ON d.note_id = n.id WHERE n.user_id = 'bench_user' AND n.deleted_at IS NULL AND n.archived_at IS NULL AND instr(n.body_json, 'taskItem') > 0 ORDER BY n.updated_at DESC",
+      "plan": [
+       "6|0|SEARCH n USING INDEX idx_j2_notes_live_tasks (user_id=? AND deleted_at=? AND archived_at=?)",
+       "14|0|SEARCH d USING INDEX sqlite_autoindex_j2_note_task_digest_1 (note_id=?) LEFT-JOIN"
+      ]
+     }
+    ],
+    "tag_counts (whole library)": [
+     {
+      "sql": "SELECT 1 FROM j2_schema_builds WHERE name = 'j2_note_tag_index@1'",
+      "plan": [
+       "2|0|SEARCH j2_schema_builds USING COVERING INDEX sqlite_autoindex_j2_schema_builds_1 (name=?)"
+      ]
+     },
+     {
+      "sql": "SELECT t.tag, group_concat(t.note_rowid) FROM j2_note_tag_index t WHERE t.user_id = 'bench_user' AND t.note_rowid IN (SELECT j2_notes.rowid FROM j2_notes WHERE j2_notes.user_id = 'bench_user' AND j2_notes.deleted_at IS NULL AND j2_notes.archived_at IS NULL) GROUP BY t.tag",
+      "plan": [
+       "6|0|SEARCH t USING COVERING INDEX idx_j2_note_tag_index_tag (user_id=?)",
+       "13|0|LIST SUBQUERY 1",
+       "16|13|SEARCH j2_notes USING COVERING INDEX idx_j2_notes_live_folder_title (user_id=? AND deleted_at=? AND archived_at=?)",
+       "27|13|CREATE BLOOM FILTER"
+      ]
+     }
+    ]
+   },
+   "timings": [
+    {
+     "round": 0,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 9.775,
+       "p95_ms": 13.615,
+       "max_ms": 13.64,
+       "min_ms": 7.541,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 13.874,
+       "p95_ms": 17.504,
+       "max_ms": 19.021,
+       "min_ms": 10.211,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 54.375,
+       "p95_ms": 65.466,
+       "max_ms": 67.351,
+       "min_ms": 49.349,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 89.45,
+       "p95_ms": 95.453,
+       "max_ms": 106.499,
+       "min_ms": 77.698,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 84.691,
+       "p95_ms": 101.388,
+       "max_ms": 119.409,
+       "min_ms": 78.261,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.273,
+       "p95_ms": 2.474,
+       "max_ms": 3.233,
+       "min_ms": 2.16,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 4.572,
+       "p95_ms": 5.99,
+       "max_ms": 6.831,
+       "min_ms": 4.089,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 26.227,
+       "p95_ms": 29.886,
+       "max_ms": 30.489,
+       "min_ms": 23.583,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 57.505,
+       "p95_ms": 60.678,
+       "max_ms": 64.34,
+       "min_ms": 52.771,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 78.454,
+       "p95_ms": 91.435,
+       "max_ms": 96.822,
+       "min_ms": 67.883,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.673,
+       "p95_ms": 6.889,
+       "max_ms": 18.829,
+       "min_ms": 2.296,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 5.299,
+       "p95_ms": 8.005,
+       "max_ms": 8.775,
+       "min_ms": 4.64,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 28.723,
+       "p95_ms": 36.719,
+       "max_ms": 37.625,
+       "min_ms": 26.197,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 62.369,
+       "p95_ms": 80.918,
+       "max_ms": 86.221,
+       "min_ms": 57.379,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 67.992,
+       "p95_ms": 77.627,
+       "max_ms": 80.07,
+       "min_ms": 51.191,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.392,
+       "p95_ms": 2.593,
+       "max_ms": 4.656,
+       "min_ms": 2.313,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 5.526,
+       "p95_ms": 6.15,
+       "max_ms": 6.252,
+       "min_ms": 4.354,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 28.273,
+       "p95_ms": 31.693,
+       "max_ms": 34.075,
+       "min_ms": 26.706,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 64.058,
+       "p95_ms": 79.089,
+       "max_ms": 113.134,
+       "min_ms": 55.893,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 72.17,
+       "p95_ms": 81.686,
+       "max_ms": 85.574,
+       "min_ms": 65.519,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 0,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 12.436,
+       "p95_ms": 15.032,
+       "max_ms": 16.182,
+       "min_ms": 10.966,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 15.476,
+       "p95_ms": 17.557,
+       "max_ms": 19.577,
+       "min_ms": 14.312,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 53.945,
+       "p95_ms": 60.666,
+       "max_ms": 64.6,
+       "min_ms": 37.035,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 92.731,
+       "p95_ms": 100.592,
+       "max_ms": 125.037,
+       "min_ms": 73.519,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 98.389,
+       "p95_ms": 106.149,
+       "max_ms": 109.24,
+       "min_ms": 83.27,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "bench",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 9.653,
+       "p95_ms": 10.246,
+       "max_ms": 10.686,
+       "min_ms": 6.66,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 12.259,
+       "p95_ms": 13.715,
+       "max_ms": 14.861,
+       "min_ms": 11.076,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 51.831,
+       "p95_ms": 65.149,
+       "max_ms": 65.634,
+       "min_ms": 49.705,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 87.153,
+       "p95_ms": 103.45,
+       "max_ms": 109.678,
+       "min_ms": 81.422,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 86.688,
+       "p95_ms": 112.79,
+       "max_ms": 123.255,
+       "min_ms": 79.291,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache64",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.312,
+       "p95_ms": 2.425,
+       "max_ms": 2.518,
+       "min_ms": 2.238,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 5.678,
+       "p95_ms": 6.163,
+       "max_ms": 6.396,
+       "min_ms": 4.539,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 31.1,
+       "p95_ms": 38.869,
+       "max_ms": 41.898,
+       "min_ms": 27.015,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 62.354,
+       "p95_ms": 71.773,
+       "max_ms": 72.043,
+       "min_ms": 57.49,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 75.717,
+       "p95_ms": 85.977,
+       "max_ms": 88.941,
+       "min_ms": 68.811,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "cache256",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.412,
+       "p95_ms": 8.157,
+       "max_ms": 8.566,
+       "min_ms": 2.302,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 4.646,
+       "p95_ms": 5.201,
+       "max_ms": 5.241,
+       "min_ms": 4.52,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 28.934,
+       "p95_ms": 35.265,
+       "max_ms": 35.668,
+       "min_ms": 26.543,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 62.22,
+       "p95_ms": 76.625,
+       "max_ms": 89.558,
+       "min_ms": 59.667,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 76.072,
+       "p95_ms": 84.706,
+       "max_ms": 91.978,
+       "min_ms": 68.77,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "mmap512",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 2.362,
+       "p95_ms": 2.917,
+       "max_ms": 3.441,
+       "min_ms": 2.271,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 4.707,
+       "p95_ms": 5.966,
+       "max_ms": 7.811,
+       "min_ms": 4.515,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 29.908,
+       "p95_ms": 33.75,
+       "max_ms": 37.604,
+       "min_ms": 26.982,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 64.503,
+       "p95_ms": 71.918,
+       "max_ms": 72.246,
+       "min_ms": 57.621,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 78.909,
+       "p95_ms": 92.443,
+       "max_ms": 92.495,
+       "min_ms": 66.981,
+       "reps": 20
+      }
+     }
+    },
+    {
+     "round": 1,
+     "setting": "percall",
+     "ops": {
+      "count_notes (whole library)": {
+       "p50_ms": 13.78,
+       "p95_ms": 16.724,
+       "max_ms": 18.431,
+       "min_ms": 12.789,
+       "reps": 20
+      },
+      "folder_note_counts (whole library)": {
+       "p50_ms": 15.783,
+       "p95_ms": 19.891,
+       "max_ms": 22.525,
+       "min_ms": 13.372,
+       "reps": 20
+      },
+      "get_symbol_backlinks": {
+       "p50_ms": 59.26,
+       "p95_ms": 64.616,
+       "max_ms": 67.1,
+       "min_ms": 52.167,
+       "reps": 20
+      },
+      "list_tasks (open, ?view=tasks)": {
+       "p50_ms": 94.111,
+       "p95_ms": 109.339,
+       "max_ms": 114.662,
+       "min_ms": 83.503,
+       "reps": 20
+      },
+      "tag_counts (whole library)": {
+       "p50_ms": 91.663,
+       "p95_ms": 100.629,
+       "max_ms": 101.814,
+       "min_ms": 84.76,
+       "reps": 20
+      }
+     }
+    }
+   ]
+  }
+ ]
+}

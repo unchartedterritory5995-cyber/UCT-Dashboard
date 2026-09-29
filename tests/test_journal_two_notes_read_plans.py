@@ -252,10 +252,40 @@ def test_symbol_backlinks_read_no_note_row(conn):
     perf-budgets.md §7)."""
     plans = _plans(conn, lambda c: notes_svc.get_symbol_backlinks(U, "AMD", conn=c))
     entered = [(sql, steps) for sql, steps in plans if "JOIN j2_notes n" in sql]
-    assert len(entered) == 2, [s for s, _ in plans]      # non-vacuity: the count AND the list
+    assert entered, [s for s, _ in plans]      # non-vacuity: the read still enters the notes
     for sql, steps in entered:
         assert any("SEARCH n USING COVERING INDEX idx_j2_notes_id_live (id=?" in s for s in steps), steps
     assert notes_svc.get_symbol_backlinks(U, "AMD", conn=conn)["count"] == 6
+
+
+def test_symbol_backlinks_look_up_each_hit_ONCE(conn):
+    """Wave 10 (lane PC): the count and the page come from ONE pass over the symbol's note
+    set -- the total is the window count before the LIMIT -- and the embed detail is read for
+    the page's ids alone. Two passes looked every hit up in `idx_j2_notes_id_live` twice and
+    grouped every embed of the symbol to decorate five rows: about twice the time at every
+    curve tier (docs/notebook/perf-budgets.md §9)."""
+    rec = Recorder(conn)
+    back = notes_svc.get_symbol_backlinks(U, "AMD", limit=2, conn=rec)
+    entered = [s for s, _ in rec.statements if "JOIN j2_notes n" in s]
+    assert len(entered) == 1, entered
+    detail = [(s, p) for s, p in rec.statements if "FROM j2_note_embeds" in s and "GROUP BY note_id" in s]
+    assert len(detail) == 1, [s for s, _ in rec.statements]
+    sql, params = detail[0]
+    assert "note_id IN (" in sql, sql
+    # bounded by the PAGE: its ids are the only note ids bound, never the whole set
+    assert sorted(p for p in params if str(p).startswith("n")) == sorted(n["id"] for n in back["notes"])
+    # ... and the read is KEYED by them (the embeds' primary key, note_id first), never a walk of
+    # every embed of the symbol through (user_id, symbol) filtered afterwards
+    steps = [r[3] for r in conn.execute("EXPLAIN QUERY PLAN " + sql, params)]
+    assert any("j2_note_embeds USING INDEX sqlite_autoindex_j2_note_embeds_1 (note_id=?)" in s
+               for s in steps), steps
+    assert back["count"] == 6 and len(back["notes"]) == 2      # non-vacuity: total beyond the page
+    # The page's order names its tiebreak. Today the note-id set is a UNION, which already hands
+    # the ids over in id order, so removing `, n.id` changes no answer on this plan (measured,
+    # docs/notebook/gate-runs/wave10-PC/mutation-backlinks-M3-tie.txt) -- a behavioural test
+    # cannot see it. The tiebreak is what keeps the page stable the day the plan changes, so the
+    # rail holds the SQL itself, as the trash order's rail does.
+    assert "ORDER BY n.updated_at DESC, n.id" in entered[0], entered[0]
 
 
 def test_a_documents_pages_are_found_by_user_and_document_not_by_user_alone(conn):
