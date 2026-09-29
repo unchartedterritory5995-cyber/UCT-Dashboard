@@ -1,8 +1,19 @@
 """
-Live market regime endpoint — the voice regime classifier's output, read by the
-Dashboard's regime panel.
+Live market regime endpoint — the voice regime classifier's output.
 
-GET /api/regime  →  {regime, label, confidence, reasons[], signals{}, narration}
+GET /api/regime             →  {regime, label, confidence, reasons[], signals{},
+                                narration, vocabulary_version}
+GET /api/regime/vocabulary  →  the CLOSED, VERSIONED regime vocabulary (TERM-041):
+                                {version, closed, regimes[{id,label,band}], bands[],
+                                 band_default, unknown{id,label,band}}
+
+⚠️ Corrected 2026-09-29 (TERM-041): this docstring said the endpoint was "read by
+the Dashboard's regime panel". `app/src` has no reader of `/api/regime` today; its
+readers are server-side (voice, grade_ticker, portfolio_heat) through the service.
+
+⛔ Both routes return ONLY words from the authority's published vocabulary — a
+failed classifier returns the declared REGIME_UNKNOWN sentinel, never a label this
+router types for itself (`tests/test_regime_vocabulary.py`).
 
 🔴 WAS ANONYMOUS (auth/paywall sweep, 2026-08-09), and its own docstring called
 itself *"public-ish"* — a description of the accident, not a ruling. The regime
@@ -41,17 +52,29 @@ def regime_get(fresh: bool = False,
                _user: dict = Depends(require_paid)):
     """Return the current market regime classification. 15-min cached
     server-side; pass ?fresh=1 to force a recompute."""
+    from api.services import voice_regime_classifier as vrc
     try:
-        from api.services.voice_regime_classifier import get_current_regime
-        return get_current_regime(fresh=fresh)
+        return vrc.get_current_regime(fresh=fresh)
     except Exception as e:  # noqa: BLE001
-        # Graceful fallback so the panel can render an empty/error state
+        # Graceful fallback so a reader can render an empty/error state — with
+        # the authority's DECLARED sentinel, never a label invented here.
         return {
-            "regime": "unknown",
-            "label": "Unknown",
+            "regime": vrc.REGIME_UNKNOWN,
+            "label": vrc.REGIME_UNKNOWN_LABEL,
             "confidence": 0.0,
             "reasons": [],
             "signals": {},
             "narration": "Regime classifier unavailable.",
+            "vocabulary_version": vrc.REGIME_VOCABULARY_VERSION,
             "error": str(e),
         }
+
+
+@router.get("/api/regime/vocabulary")
+def regime_vocabulary_get(_user: dict = Depends(require_paid)):
+    """The published regime vocabulary (TERM-041 / FB-A11-02): the closed enum
+    of regime ids, in order, with each one's words and sizing band, plus the
+    "could not answer" sentinel and a version that changes only deliberately.
+    Served straight from the authority — never restated here."""
+    from api.services.voice_regime_classifier import regime_vocabulary
+    return regime_vocabulary()

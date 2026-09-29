@@ -29,7 +29,35 @@ from typing import Any
 
 _log = logging.getLogger(__name__)
 
+#: ⛔ THE PUBLISHED VOCABULARY (TERM-041 / FB-A11-02) — CLOSED and VERSIONED.
+#: REGIMES, REGIME_DISPLAY, REGIME_BAND, REGIME_BANDS, BAND_DEFAULT and the
+#: REGIME_UNKNOWN sentinel ARE the vocabulary, served verbatim by
+#: `GET /api/regime/vocabulary`. `tests/test_regime_vocabulary.py` pins every one
+#: of them per version: changing any of them without bumping this number AND
+#: appending the new version there goes red, by design. ORDER is published too
+#: (S7 path B scans labels in this order).
+REGIME_VOCABULARY_VERSION = 1
+
 REGIMES = ("bull_trend", "bull_correction", "distribution", "chop", "bear_trend")
+
+#: The words a member reads for each id — the ONE home. Every surface renders
+#: `label_of(id)`, never `id.replace("_", " ")` or a typed string.
+REGIME_DISPLAY = {
+    "bull_trend": "Bull trend",
+    "bull_correction": "Bull correction",
+    "distribution": "Distribution",
+    "chop": "Chop",
+    "bear_trend": "Bear trend",
+}
+
+#: The declared "the classifier could not answer" value. ⛔ NOT a regime — an
+#: honest blank, never rendered as one of REGIMES (and never a sixth label a
+#: fallback types for itself, which is what `/api/regime` used to do).
+REGIME_UNKNOWN = "unknown"
+REGIME_UNKNOWN_LABEL = "Unknown"
+
+#: The closed set of sizing bands, most to least permissive.
+REGIME_BANDS = ("GREEN", "YELLOW", "ORANGE", "RED")
 
 #: The ONE home of the label -> sizing-band derivation. grade_ticker's verdict
 #: gate, brain_service's sizing band and grade_watchlist's watch-only synthesis
@@ -52,6 +80,32 @@ def band_of(label: Any) -> str:
     the label is missing or not one of REGIMES. Read at call time, so the
     band follows this module wherever it moves."""
     return REGIME_BAND.get(str(label or "").lower(), BAND_DEFAULT)
+
+
+def label_of(regime: Any) -> str:
+    """The member-facing words for a regime id. CLOSED: anything that is not
+    one of REGIMES (None, the sentinel, a pretty label, junk) renders as
+    REGIME_UNKNOWN_LABEL — a surface can never show a word outside the enum.
+    Read at call time, so the words follow this module wherever they move."""
+    if isinstance(regime, str) and regime in REGIME_DISPLAY:
+        return REGIME_DISPLAY[regime]
+    return REGIME_UNKNOWN_LABEL
+
+
+def regime_vocabulary() -> dict:
+    """The publication (`GET /api/regime/vocabulary`): the closed enum, in
+    order, with each member's words and band, plus the sentinel. Built from the
+    module's values at call time — never a second copy."""
+    return {
+        "version": REGIME_VOCABULARY_VERSION,
+        "closed": True,
+        "regimes": [{"id": r, "label": REGIME_DISPLAY[r], "band": REGIME_BAND[r]}
+                    for r in REGIMES],
+        "bands": list(REGIME_BANDS),
+        "band_default": BAND_DEFAULT,
+        "unknown": {"id": REGIME_UNKNOWN, "label": REGIME_UNKNOWN_LABEL,
+                    "band": BAND_DEFAULT},
+    }
 
 
 def _to_float(v: Any) -> float | None:
@@ -249,14 +303,8 @@ def get_current_regime(*, fresh: bool = False) -> dict:
     signals = _fetch_signals()
     regime, confidence, reasons = _classify(signals)
 
-    # Human-readable narration
-    pretty = {
-        "bull_trend": "Bull trend",
-        "bull_correction": "Bull correction",
-        "distribution": "Distribution",
-        "chop": "Chop",
-        "bear_trend": "Bear trend",
-    }[regime]
+    # Human-readable narration — the published words (TERM-041), not a copy
+    pretty = label_of(regime)
     conf_word = "high" if confidence >= 0.5 else "moderate" if confidence >= 0.3 else "low"
     narration_parts = [f"Regime: {pretty} ({conf_word} confidence)."]
     if reasons:
@@ -270,6 +318,7 @@ def get_current_regime(*, fresh: bool = False) -> dict:
         "signals": signals,
         "narration": narration,
         "label": pretty,
+        "vocabulary_version": REGIME_VOCABULARY_VERSION,
     }
     try:
         cache.set(_CACHE_KEY, out, ttl=_TTL_SECONDS)

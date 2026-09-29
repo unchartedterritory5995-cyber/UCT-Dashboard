@@ -110,6 +110,15 @@ def _default_regime_fn():
             "narration": r.get("narration")}
 
 
+def _regime_label(regime_id) -> str | None:
+    """Display words for the regime id, from the ONE authority; None when there
+    is no regime at all (the page then hides the stat, as before)."""
+    if not regime_id:
+        return None
+    from api.services.voice_regime_classifier import label_of
+    return label_of(regime_id)
+
+
 def portfolio_heat(user_id, account_id=None, account_size=None, *,
                    positions_fn=None, regime_fn=None, cap_fn=None) -> dict:
     positions_fn = positions_fn or _default_positions_fn
@@ -197,6 +206,9 @@ def portfolio_heat(user_id, account_id=None, account_size=None, *,
         "account_size_is_default": account_size_is_default,
         "room_to_add_pct": room,
         "regime": regime.get("regime"),
+        # The words a member reads — the authority's published display (TERM-041),
+        # never the raw id and never a local restatement.
+        "regime_label": _regime_label(regime.get("regime")),
         "sources": [f"open positions ({len(positions)})",
                     "risk-heat vs 10% Desjardins cap",
                     f"regime {regime.get('regime')}"],
