@@ -74,7 +74,21 @@ the template gallery, the editor header's More menu (D-3) and keyboard 9d.
 ⚠️ #225 and #201 fix CSS that wave 8 added. They cannot be kept below wave 8: measured, keeping
 them stops the wave-8 revert on `NotebookTab.module.css`.
 
-**1. Build the rollback chain.** This uses objects only. It touches no worktree, no index, and no
+**1. Check that the chain is current, then build it.** First ask the tool whether it was measured
+on the base you are about to roll back:
+
+```sh
+python tools/notebook_rollback_chain.py --check --from origin/master
+# {"check": "current", ...}  exit 0 -> build the chain below
+# {"check": "stale", "stopped": "<why>", ...}  exit 2 -> re-measure first ("If the tool stops")
+```
+
+`--check` asks exactly what the build asks before it writes anything, and the build still asks it
+itself. A stale answer names each uncharted commit. Most are other workstreams' commits that touch a
+shared file. Measured 2026-09-29 07:19Z: origin/master `9f9d60b4b` is stale by two path-only
+commits after `f4cec49be` (`evidence/.../check-origin-master.log`).
+
+The build uses objects only. It touches no worktree, no index, and no
 ref. It writes ONE commit per reverted landing, each on top of the last, so the result is a chain
 of commits on top of `--from`. Its last line names the chain's tip and the next command:
 
@@ -87,8 +101,11 @@ python tools/notebook_rollback_chain.py --from origin/master --through wave7
   re-measure. It refuses, failing closed on anything it did not measure, when:
   - `--from` does not contain `MEASURED_AT` (the tree the chain and its rules were measured on);
   - a commit after `MEASURED_AT` looks like a Notebook landing that neither `CHAIN` nor
-    `REVIEWED_NOT_LANDINGS` names. Either of two things is enough: its subject names the
-    Notebook, OR it touches a file in the Notebook file set. That set is DERIVED from git: the
+    `REVIEWED_NOT_LANDINGS` names. Either of two things is enough. The first is its subject: it
+    takes a landing's form (`Notebook … wave …`, `fix(notebook):` or `hotfix(notebook):`, or
+    `Wave 9C`), read off `CHAIN`'s own squash subjects; a subject that only MENTIONS the Notebook,
+    such as 3e5153f1d's "(Notebook bytes back under budget)", no longer counts. The second is that
+    it touches a file in the Notebook file set. That set is DERIVED from git: the
     union of the files every `CHAIN` landing's squash changed, minus the kept paths;
   - a conflict is not the one its rule was measured on. Every rule is pinned to the conflict's
     content (`PINS`), so a later commit that changed those lines stops the chain;
@@ -198,8 +215,10 @@ the `8167f7aa0` pick too.
 
 ⛔ A **new Notebook landing** makes the procedure stale: the chain cannot revert what it does not
 list. The tool refuses to run on a base that holds one, and names it. Its subject or one of its
-files is enough for the refusal. The rail `test_no_notebook_landing_after_MEASURED_AT_is_left_out`
-goes red on it by name too.
+files is enough for the refusal, and `--check` names it (step 1). The rails do NOT look at a live
+base. They assert that the chain is current AT `MEASURED_AT`, and they rail `--check` on synthetic
+commits. ⚰️ Until 2026-09-29 a rail asked `HEAD`, and it went red whenever the world moved on
+(another workstream's commit on master, a lane's own commits) while the chain was still correct.
 
 ⚠️ **The file criterion is broad on purpose, and that is its cost.** The Notebook file set is 834
 files at `MEASURED_AT` `f4cec49be` (815 at `38bb9a421`; L2 added 19). It includes shared files every
@@ -500,9 +519,16 @@ the record the rail rebuilds tree for tree):
     on a wave-7 rollback loses the Ask Notebook row from the AI allowances card while Ask itself
     stays. That is TERM-078's code, not this chain's: raised, not fixed here
     (`sandbox/ai-meters-warnings.log`);
-  - its door census `api/services/ai_doors.py` still names `api/routers/notebook_writing_help.py`
-    after the wave-7 revert. `tests/test_ai_doors_census.py` was NOT run in a rolled-back tree
-    (this lane runs pytest only on its own files). Expect it red there; it is not in step 2's list.
+  - **Expect these rails red in a rolled-back tree.** Neither was run there, because this lane
+    runs pytest only on its own files, and neither is in step 2's list. Both were established from
+    the objects and confirmed by the lane's reviewer:
+    - `tests/test_ai_doors_census.py` (TERM-078), **from `L1a` down**. The L1a revert deletes
+      `api/services/journal_two/property_autofill.py` (absent in tree `c8f7738a51`), and
+      `ai_doors.py:94` still describes it as a door. From `wave7` down it also names the deleted
+      writing-help router;
+    - `api/services/journal_two/test_coach_chat_spend_caps.py:209` (`c7a8a7309`, the Compass
+      caps), **from `wave7` down**. It patches `coach_chat_tools._TOOLS_UNGATED`, which the wave-7
+      revert takes out of `coach_chat_tools.py`, so the test fails with an AttributeError.
 
 **The sandbox rehearsal, 2026-09-29.** The method is lane R1's
 (`evidence/rollback-rehearsal-2026-09-29/rehearse.py`, `probe.py`, `results.py`):

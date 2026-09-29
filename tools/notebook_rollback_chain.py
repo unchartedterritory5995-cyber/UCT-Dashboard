@@ -3,6 +3,7 @@
     python tools/notebook_rollback_chain.py --through wave7              # from origin/master
     python tools/notebook_rollback_chain.py --through wave5 --from <rev>
     python tools/notebook_rollback_chain.py --list                        # the chain and keep-list
+    python tools/notebook_rollback_chain.py --check --from origin/master  # current (0) or stale (2)?
 
 It never touches a worktree, an index (only a temporary GIT_INDEX_FILE) or a ref. It writes ONE
 commit per step, each the parent of the next (so the result is a chain of commits on top of
@@ -98,8 +99,9 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 
 # The landing census (what counts as a Notebook landing past MEASURED_AT): two criteria, and a
 # one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
-#   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject names the Notebook (or
-#     wave 9C, its soak instrument). Over wave5^..MEASURED_AT this selects exactly CHAIN.
+#   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject takes one of the forms a
+#     Notebook LANDING's squash subject takes (`NOTEBOOK_SUBJECT`). Over wave5^..MEASURED_AT this
+#     selects exactly CHAIN.
 #   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
 #     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
 #     later change there cannot make a revert wrong). Review round 2 (2026-09-28): a hand-typed
@@ -108,7 +110,17 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 #     App.jsx` and `api/main.py` are in it, so another workstream's commit that touches them is
 #     flagged too. Each such commit needs a REVIEWED_NOT_LANDINGS entry with a reason; that is the
 #     intended fail-closed behaviour, not noise to tune away.
-NOTEBOOK_SUBJECT = re.compile(r"(?i)\bnotebook\b|^wave 9c\b")
+# The three forms CHAIN's own squash subjects take, read off them (a rail iterates CHAIN and asserts
+# every entry is still selected by this pattern):
+#   "Notebook [10/10 — ]wave N ..."            -- every wave squash (5 to 10 L2);
+#   "fix(notebook): ..." / "hotfix(notebook): ..." -- the H14 hotfixes #201 #203 #204 #225;
+#   "Wave 9C: ..."                              -- the soak instrument.
+# ⚰️ Until fix round 1 of lane R1b (2026-09-29) this was `\bnotebook\b` ANYWHERE in the subject,
+# which selected 3e5153f1d "perf(build): ... (Notebook bytes back under budget)" -- a build fix
+# the REVIEWED rail may not rule out (a subject-selected commit is a landing), so the next
+# re-measure would have had to add a build perf fix to the chain and revert it. A Notebook change
+# in any other form is still caught by the PATH criterion.
+NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebook\):|wave 9c\b)")
 # Commits a person reviewed and ruled NOT a Notebook landing although a criterion selects them:
 # {full sha: why}. Each one is selected by PATH only (never by subject: a subject-selected commit
 # is a landing and belongs in CHAIN); the rail re-derives that. Lane R1b, 2026-09-29: the twelve
@@ -556,6 +568,9 @@ def main(argv=None) -> int:
     ap.add_argument("--revert-hotfixes", action="store_true",
                     help=f"revert the kept server hotfixes {sorted(KEPT)} as well")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--check", action="store_true",
+                    help="is the chain current at --from? Prints the verdict; exit 0 current, 2 stale "
+                         "(re-measure first: wave5-rollback.md, 'If the tool stops')")
     ap.add_argument("--record-pins", action="store_true",
                     help="run --through from MEASURED_AT with pins NOT enforced and print the pins "
                          "measured there (paste into PINS; the rail rebuilds and checks them)")
@@ -565,6 +580,13 @@ def main(argv=None) -> int:
         run(MEASURED_AT, a.through or "wave5", a.revert_hotfixes, emit=lambda _l: None, pins=got)
         print(json.dumps(got, indent=4, sort_keys=True))
         return 0
+    if a.check:
+        # The same question run() asks before it builds anything (run() still asks it itself).
+        tip = _out("rev-parse", "--verify", f"{a.start}^{{commit}}").strip()
+        why = check_base(tip)
+        print(json.dumps({"check": "stale" if why else "current", "from": tip,
+                          "measured_at": MEASURED_AT, **({"stopped": why} if why else {})}))
+        return 2 if why else 0
     if a.list:
         for key, squash, what in CHAIN:
             print(f"{key:6} {squash}  {what}{'  [KEPT unless --revert-hotfixes]' if squash in KEPT else ''}")
