@@ -1,0 +1,5 @@
+F1 RED rc=1 [R2: App.jsx's Notebook literal drifts from NOTEBOOK_SEGMENT] app/src/App.jsx :: Test Files  1 failed (1) | Tests  1 failed | 21 passed (22) :: restored sha 7fdd731e21b6 == capture == HEAD: True
+F2 RED rc=1 [R2: App.jsx's research literal drifts from NOTEBOOK_RESEARCH_SEGMENT] app/src/App.jsx :: Test Files  1 failed (1) | Tests  1 failed | 21 passed (22) :: restored sha 7fdd731e21b6 == capture == HEAD: True
+F3 RED rc=1 [R2: the constant drifts from App.jsx's literal] app/src/pages/journal-2-0/lib/journalRoutes.js :: Test Files  1 failed (1) | Tests  11 failed | 11 passed (22) :: restored sha 48ea098c3ebf == capture == HEAD: True
+F4 RED rc=1 [R2: the research constant drifts from App.jsx's literal] app/src/pages/journal-2-0/lib/journalRoutes.js :: Test Files  1 failed (1) | Tests  2 failed | 20 passed (22) :: restored sha 48ea098c3ebf == capture == HEAD: True
+CONTROL unmutated tree rc=0 :: Test Files  1 passed (1) | Tests  22 passed (22)
