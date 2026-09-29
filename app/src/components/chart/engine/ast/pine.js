@@ -11775,7 +11775,7 @@ function tupleRefusalTail(call, names, env) {
   const supplied = call.args || []
   // ⭐⭐ TASK 3 — `ta.supertrend` NAMES ITS OWN REASON, NOT THE GENERIC LIST.
   //
-  // `closedTable.json::series.supertrend`'s own top-level note already states
+  // `closedTable.json::_functions_excluded.supertrend` already states
   // this in full: Supertrend carries state that depends on its OWN PREVIOUS
   // VALUE (the band ratchet + the direction flip), which this grammar — a
   // pure expression tree over sealed primitives, no self-reference — cannot
