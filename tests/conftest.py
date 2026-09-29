@@ -281,6 +281,30 @@ def _reset_signature_serve_stale():
     _clear()
 
 
+@pytest.fixture(autouse=True)
+def _reset_snapshot_movers_serve_stale():
+    """Clear `/api/snapshot`'s and `/api/movers`' serve-stale slots (TERM-082).
+
+    Same hazard as the Calendar fixture above: each route keeps its last
+    COMPLETE payload in a module-level slot, so one test's faked snapshot or
+    movers list would answer — as a stale-swr hit — for the next test that
+    expects to drive a build of its own. Looked up via sys.modules so the
+    fixture never imports either router into an unrelated test."""
+    import sys
+
+    def _clear():
+        for mod_name, slot_name in (("api.routers.snapshot", "_SNAPSHOT_STALE"),
+                                    ("api.routers.movers", "_MOVERS_STALE")):
+            mod = sys.modules.get(mod_name)
+            slot = getattr(mod, slot_name, None) if mod is not None else None
+            if slot is not None:
+                slot._slots.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def _setup_j2_database():
     """Initialize the J2 schema in the test auth.db.
