@@ -1,0 +1,24 @@
+{
+  "suite": "pytest",
+  "collected": 2757,
+  "passed": 2728,
+  "failed": 27,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 766.62,
+  "failed_files": [
+    "tests/test_screener_saved.py",
+    "tests/test_screener_wave1_columndefs.py",
+    "tests/test_screener_wave2_analyst_store.py",
+    "tests/test_screener_wave2_earnings_dates.py",
+    "tests/test_secret_scrub.py",
+    "tests/test_shared_data_root_guard.py",
+    "tests/test_shared_state_landmines.py",
+    "tests/test_spa_head_reachability.py",
+    "tests/test_starter_library.py",
+    "tests/test_term048_watchlist_alerts_s7.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "27 failed, 2728 passed, 2 skipped, 14785 warnings in 766.62s (0:12:46)",
+  "ok": true
+}
