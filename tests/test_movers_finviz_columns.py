@@ -53,7 +53,11 @@ def test_every_column_the_parser_reads_is_pinned_in_the_request(monkeypatch):
     whether this function works."""
     import inspect
 
-    src = inspect.getsource(massive._fetch_finviz_movers_live)
+    # TERM-082 moved the parsing into `_fetch_finviz_movers_checked` (the live
+    # function is now a 2-tuple wrapper over it), so read both: the columns are
+    # whatever either one reads.
+    src = inspect.getsource(massive._fetch_finviz_movers_live) + inspect.getsource(
+        massive._fetch_finviz_movers_checked)
     read_names = set(re.findall(r'row\.get\(\s*"([A-Za-z ]+)"', src))
     assert read_names, "found no row.get() column reads — the probe itself is broken"
 
