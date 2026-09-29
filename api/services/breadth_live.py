@@ -1067,15 +1067,24 @@ def universe(snapshot_date: Optional[str] = None) -> tuple[list[str], Optional[s
     return [], newest_date
 
 
+# The mode table `feature_flag_index.mode_flags` reads by AST, so the ledger can
+# declare this flag (it carries no ENABLED marker, so the gate index never saw it).
+BREADTH_DIVIDEND_MODE_FLAGS = {
+    "BREADTH_DIVIDEND_BASIS": ("0", ("0", "1")),
+}
+
+
 def dividend_basis_enabled() -> bool:
     """Ships DARK — an explicit "1" turns it on.
 
     Inverted relative to `BREADTH_LIVE_ENABLED` on purpose: this one rewrites
     the numbers the page already shows, so the deploy must be a no-op and the
     change must be a deliberate flip, made only after the A/B below is run
-    against production data.
+    against production data. (Armed on web 2026-09-29 under the owner's TERM-042
+    ruling; see docs/feature_flags.json.)
     """
-    return os.environ.get("BREADTH_DIVIDEND_BASIS", "0") == "1"
+    default, _allowed = BREADTH_DIVIDEND_MODE_FLAGS["BREADTH_DIVIDEND_BASIS"]
+    return os.environ.get("BREADTH_DIVIDEND_BASIS", default) == "1"
 
 
 def _apply_dividend_basis(tickers: list[str], dates: list[int],
