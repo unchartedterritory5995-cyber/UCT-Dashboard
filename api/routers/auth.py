@@ -193,6 +193,16 @@ def _notebook_flag_key(env_name: str) -> str:
     return env_name.lower()
 
 
+def _address_space_enabled() -> bool:
+    """TERM-038: the command palette's Saved rows -- the SAME reader the address
+    routes' dark gate uses. Never raises."""
+    try:
+        from api.services import address_space
+        return bool(address_space.is_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _ticker_history_enabled() -> bool:
     """TERM-049: the Research "History" tab's switch -- the SAME reader the route's
     dark gate uses. Never raises."""
@@ -450,6 +460,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         "decision_record_enabled": _decision_record_enabled(),
         # TERM-049: the Research "History" tab. Same one-authority rule as above.
         "ticker_history_enabled": _ticker_history_enabled(),
+        "address_space_enabled": _address_space_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the
         # Technical tab above: unset means "not turned on yet", so a forgotten

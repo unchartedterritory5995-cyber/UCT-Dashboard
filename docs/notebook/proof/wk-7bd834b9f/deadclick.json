@@ -1,0 +1,4047 @@
+{
+ "telemetry_never_evidence": [
+  "/api/j2/telemetry",
+  "/api/client-errors"
+ ],
+ "surfaces": [
+  {
+   "surface": "nb-first-run-clicks",
+   "mode": "desk",
+   "manifest": [],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-home",
+   "mode": "desk",
+   "manifest": [
+    "ResearchHome"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-list",
+   "mode": "phone",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-table",
+   "mode": "desk",
+   "manifest": [
+    "tab-table"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-board",
+   "mode": "desk",
+   "manifest": [
+    "tab-board"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-calendar",
+   "mode": "desk",
+   "manifest": [
+    "tab-calendar"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-timeline",
+   "mode": "desk",
+   "manifest": [
+    "tab-timeline"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-graph",
+   "mode": "desk",
+   "manifest": [
+    "graph-canvas"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-tasks",
+   "mode": "desk",
+   "manifest": [
+    "tasks-view"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-search",
+   "mode": "desk",
+   "manifest": [
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-trash",
+   "mode": "desk",
+   "manifest": [
+    "note-card-states"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to notes list",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to notes list",
+     "field": false,
+     "box": [
+      8,
+      -190,
+      63,
+      99
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-bulk",
+   "mode": "desk",
+   "manifest": [
+    "bulk-action-bar"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] input[type=\\\"checkbox\\\"][aria-label^=\\\"Select \\\"]\").first\n"
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "desk",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      947,
+      61,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Proof rich r121705 1790705352]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._templatesBtn_nzwvp_463",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Blank note",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Blank note",
+     "field": false,
+     "box": [
+      297,
+      126,
+      686,
+      61
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Untitled]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts",
+      "GET /api/j2/notes/{id}/facts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=465a9394fb5f46c8b53df60d9d8826dd",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Daily Game Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Daily Game Plan",
+     "field": false,
+     "box": [
+      297,
+      286,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Untitled]"
+     ],
+     "requests": [
+      "GET /api/breadth",
+      "GET /api/j2/positions",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=4af726d6199445fd834bf3d14783991b",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Post-Market Debrief",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Post-Market Debrief",
+     "field": false,
+     "box": [
+      528,
+      286,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Game Plan — Sep 29]",
+      "attributes:type:INPUT[Select Untitled]"
+     ],
+     "requests": [
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/{id}",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=9a68f52cf63144aeb3aab7a7356b08b7",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Weekly Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Weekly Plan",
+     "field": false,
+     "box": [
+      760,
+      286,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Debrief — Sep 29]",
+      "attributes:type:INPUT[Select Game Plan — Sep 29]"
+     ],
+     "requests": [
+      "GET /api/breadth",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=49a62a0320394a239798cac7a2fa06fd",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Weekly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Weekly Review",
+     "field": false,
+     "box": [
+      297,
+      458,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Weekly Plan — wk of Sep 28]",
+      "attributes:type:INPUT[Select Debrief — Sep 29]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=85ef4fae12264a9b88a5095ccdf6789d",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Long/Short Thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Long/Short Thesis",
+     "field": false,
+     "box": [
+      297,
+      661,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Weekly Review — wk of Sep 28]",
+      "attributes:type:INPUT[Select Weekly Plan — wk of Sep 28]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=8d919db8e4404992aa2a5d113c870ae1",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Trade Post-Mortem",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Trade Post-Mortem",
+     "field": false,
+     "box": [
+      297,
+      893,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Investment Thesis]",
+      "attributes:type:INPUT[Select Weekly Review — wk of Sep 28]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=c182fadd35e04dfd8ffed8789d01a9af",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Swing Position Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Swing Position Log",
+     "field": false,
+     "box": [
+      528,
+      893,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Trade Post-Mortem]",
+      "attributes:type:INPUT[Select Investment Thesis]"
+     ],
+     "requests": [
+      "GET /api/j2/positions",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=4c0465c0825b4128a83dc8b04d6b35af",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Earnings Play Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Earnings Play Plan",
+     "field": false,
+     "box": [
+      760,
+      893,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Swing Position Log]",
+      "attributes:type:INPUT[Select Trade Post-Mortem]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=3c1d4f6caf2042be910dd4e4a11cbdde",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Tilt Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Tilt Log",
+     "field": false,
+     "box": [
+      297,
+      1107,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_nzwvp_463",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=b2bbc7b337044b16b76e78e1af1211d8",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ]
+    },
+    {
+     "key": "BUTTON||Documenting a setup?",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Documenting a setup?",
+     "field": false,
+     "box": [
+      297,
+      1285,
+      686,
+      61
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "childList::SPAN",
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::MAIN._main_6uhgd_19",
+      "childList::MAIN._main_6uhgd_19"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/ModelBook-C_Yjx444.js",
+      "GET /assets/StockChart-D5EtwSxd.js",
+      "GET /assets/vendor-charts-DHOb9Clg.js",
+      "GET /assets/darkPoolCluster-atDS86Ke.js",
+      "GET /assets/ColorPanel-cOUjbPIW.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/model-book?view=builder",
+     "mutating": [
+      "POST /api/auth/track"
+     ]
+    }
+   ],
+   "resets": 12,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 12,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 12
+   }
+  },
+  {
+   "surface": "nb-import",
+   "mode": "desk",
+   "manifest": [
+    "import-wizard"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      907,
+      177,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select Tilt Log — Sep 29]",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]",
+      "attributes:type:INPUT[Select Trade Post-Mortem]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._importBtn_nzwvp_485",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Connect Roam Research",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Connect Roam Research",
+     "field": false,
+     "box": [
+      337,
+      269,
+      193,
+      30
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._textInput_5v6ni_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Connect Craft",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Connect Craft",
+     "field": false,
+     "box": [
+      538,
+      269,
+      128,
+      30
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._textInput_5v6ni_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Choose files",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Choose files",
+     "field": false,
+     "box": [
+      490,
+      485,
+      135,
+      36
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "filechooser"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON.btn",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Choose a folder",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Choose a folder",
+     "field": false,
+     "box": [
+      634,
+      485,
+      156,
+      36
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "filechooser"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON.btn",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "INPUT||Files to import",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "",
+     "name": "Files to import",
+     "field": false,
+     "box": [
+      337,
+      242,
+      1,
+      1
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <p class=\"_label_hcz0f_13\">Or connect an app — your notes stay in sync autom…</p> from <div class=\"_wrap_hcz0f_1\">…</div> subtree intercepts pointer events"
+    },
+    {
+     "key": "INPUT||Folder to import",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "",
+     "name": "Folder to import",
+     "field": false,
+     "box": [
+      337,
+      242,
+      1,
+      1
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <p class=\"_label_hcz0f_13\">Or connect an app — your notes stay in sync autom…</p> from <div class=\"_wrap_hcz0f_1\">…</div> subtree intercepts pointer events"
+    },
+    {
+     "key": "BUTTON||How do I get my export file?",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "How do I get my export file?",
+     "field": false,
+     "box": [
+      337,
+      588,
+      195,
+      23
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Files to import]._hiddenInput_109q3_175",
+      "attributes:type:INPUT[Folder to import]._hiddenInput_109q3_175",
+      "attributes:aria-expanded:BUTTON._accordionHeader_109q3_201",
+      "childList::DIV._accordion_109q3_193"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._accordionHeader_109q3_201",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 8,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 8,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 6,
+    "OCCLUDED": 2
+   }
+  },
+  {
+   "surface": "nb-saved-view",
+   "mode": "desk",
+   "manifest": [
+    "saved-view-editor"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      797,
+      300,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select all notes in view]",
+      "attributes:type:INPUT[Select Tilt Log — Sep 29]",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._saveViewBtn_nzwvp_615",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "INPUT||e.g. Active Theses",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "",
+     "name": "e.g. Active Theses",
+     "field": true,
+     "box": [
+      449,
+      397,
+      382,
+      40
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._input_18tfo_21",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Cancel",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Cancel",
+     "field": false,
+     "box": [
+      650,
+      453,
+      78,
+      33
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select all notes in view]",
+      "attributes:type:INPUT[Select Tilt Log — Sep 29]",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._saveViewBtn_nzwvp_615",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Save view",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save view",
+     "field": false,
+     "box": [
+      735,
+      453,
+      96,
+      33
+     ],
+     "verdict": "DISABLED"
+    }
+   ],
+   "resets": 3,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 4,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 3,
+    "DISABLED": 1
+   }
+  },
+  {
+   "surface": "nb-publish-folder",
+   "mode": "desk",
+   "manifest": [
+    "publish-folder-sheet"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      817,
+      283,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select Tilt Log — Sep 29]",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]",
+      "attributes:type:INPUT[Select Trade Post-Mortem]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Publish Sample notebook]._iconBtn_11rmh_813",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Cancel",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Cancel",
+     "field": false,
+     "box": [
+      709,
+      443,
+      66,
+      34
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select Tilt Log — Sep 29]",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]",
+      "attributes:type:INPUT[Select Trade Post-Mortem]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Publish Sample notebook]._iconBtn_11rmh_813",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Publish",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Publish",
+     "field": false,
+     "box": [
+      783,
+      443,
+      70,
+      34
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "focus",
+      "state",
+      "clipboard"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._action_1fcpz_75",
+      "characterData::BUTTON._action_1fcpz_75",
+      "childList::DIV._panel_1fcpz_9",
+      "childList::DIV._panel_1fcpz_9"
+     ],
+     "requests": [
+      "POST /api/j2/publish/folders/{id}",
+      "POST /api/j2/telemetry"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 3,
+     "background_ignored": [],
+     "focus_after": "BUTTON._action_1fcpz_75",
+     "url_after": null,
+     "mutating": [
+      "POST /api/j2/publish/folders/{id}"
+     ]
+    }
+   ],
+   "resets": 3,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 3,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 3
+   }
+  },
+  {
+   "surface": "nb-note",
+   "mode": "desk",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to note",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to note",
+     "field": false,
+     "box": [
+      8,
+      -149,
+      56,
+      78
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "nb-note",
+   "mode": "phone",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to note",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to note",
+     "field": false,
+     "box": [
+      8,
+      -149,
+      56,
+      78
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "ed-slash",
+   "mode": "desk",
+   "manifest": [
+    "editor-slash"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n"
+  },
+  {
+   "surface": "ed-find",
+   "mode": "desk",
+   "manifest": [
+    "editor-find"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Show replace",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Show replace",
+     "field": false,
+     "box": [
+      739,
+      447,
+      24,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded",
+      "state"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON[Hide replace]._navBtn_njx46_97",
+      "attributes:aria-label:BUTTON[Hide replace]._navBtn_njx46_97",
+      "attributes:type:INPUT[Find in note]._input_njx46_57",
+      "childList::DIV[Find in note]._bar_njx46_1"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Hide replace]._navBtn_njx46_97",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "INPUT|searchbox|Find in note",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "searchbox",
+     "name": "Find in note",
+     "field": true,
+     "box": [
+      771,
+      451,
+      200,
+      15
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Find in note]._input_njx46_57",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Match case",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Match case",
+     "field": false,
+     "box": [
+      979,
+      447,
+      25,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Find in note]._input_njx46_57",
+      "attributes:aria-pressed:BUTTON[Match case]._navBtn_njx46_97",
+      "attributes:type:INPUT[Upload image]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Match case]._navBtn_njx46_97",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Whole word",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Whole word",
+     "field": false,
+     "box": [
+      1013,
+      447,
+      24,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Find in note]._input_njx46_57",
+      "attributes:aria-pressed:BUTTON[Whole word]._navBtn_njx46_97",
+      "attributes:type:INPUT[Upload image]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Whole word]._navBtn_njx46_97",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Previous match",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Previous match",
+     "field": false,
+     "box": [
+      1093,
+      447,
+      24,
+      24
+     ],
+     "verdict": "DISABLED"
+    },
+    {
+     "key": "BUTTON||Next match",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Next match",
+     "field": false,
+     "box": [
+      1125,
+      447,
+      24,
+      24
+     ],
+     "verdict": "DISABLED"
+    },
+    {
+     "key": "BUTTON||Close find",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close find",
+     "field": false,
+     "box": [
+      1157,
+      447,
+      24,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._column_txeqr_333",
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]",
+      "attributes:type:INPUT[Scan a document with the camera — photo]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV[Note body].tiptap",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 5,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 7,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 5,
+    "DISABLED": 2
+   }
+  },
+  {
+   "surface": "ed-outline",
+   "mode": "desk",
+   "manifest": [
+    "editor-outline"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close outline",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close outline",
+     "field": false,
+     "box": [
+      1183,
+      254,
+      24,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "childList::DIV._chrome_txeqr_17",
+      "attributes:class:BUTTON[Outline]._chromeBtn_txeqr_1485",
+      "attributes:aria-expanded:BUTTON[Outline]._chromeBtn_txeqr_1485",
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Outline]._chromeBtn_txeqr_1485",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||H#",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "H1",
+     "field": false,
+     "box": [
+      959,
+      284,
+      250,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._toolBtn_txeqr_79",
+      "attributes:aria-current:BUTTON._item_1ox0u_105",
+      "attributes:class:BUTTON._item_1ox0u_105",
+      "attributes:aria-current:BUTTON._item_1ox0u_105"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "DIV[Note body].tiptap",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||H#",
+     "nth": 2,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "H2",
+     "field": false,
+     "box": [
+      959,
+      312,
+      250,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:DIV[Note body].tiptap",
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]",
+      "attributes:type:INPUT[Scan a document with the camera — photo]"
+     ],
+     "requests": [
+      "GET /api/voice/insights/unspoken"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [
+      "GET /api/voice/insights/unspoken"
+     ],
+     "focus_after": "DIV[Note body].tiptap",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||H#",
+     "nth": 3,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "H3",
+     "field": false,
+     "box": [
+      959,
+      339,
+      250,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:DIV[Note body].tiptap",
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]",
+      "attributes:type:INPUT[Scan a document with the camera — photo]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "DIV[Note body].tiptap",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 1,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 4,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 4
+   }
+  },
+  {
+   "surface": "ed-color",
+   "mode": "desk",
+   "manifest": [
+    "editor-color"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n"
+  },
+  {
+   "surface": "ed-table",
+   "mode": "desk",
+   "manifest": [
+    "editor-table"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror table td\").first\n"
+  },
+  {
+   "surface": "ed-emoji",
+   "mode": "desk",
+   "manifest": [
+    "editor-emoji"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n"
+  },
+  {
+   "surface": "ed-note-link",
+   "mode": "desk",
+   "manifest": [
+    "editor-note-link"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n"
+  },
+  {
+   "surface": "ed-link-paste",
+   "mode": "desk",
+   "manifest": [
+    "editor-link-paste"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror\").first\n"
+  },
+  {
+   "surface": "ed-writing-help",
+   "mode": "desk",
+   "manifest": [
+    "editor-writing-help"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      867,
+      213,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]",
+      "attributes:type:INPUT[Scan a document with the camera — photo]",
+      "attributes:type:INPUT[Upload file attachment]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Summarize",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Summarize",
+     "field": false,
+     "box": [
+      377,
+      307,
+      83,
+      26
+     ],
+     "verdict": "CURRENT-NO-OP",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [
+      "GET /api/voice/insights/unspoken"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [
+      "GET /api/voice/insights/unspoken"
+     ],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Rewrite shorter",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Rewrite shorter",
+     "field": false,
+     "box": [
+      466,
+      307,
+      103,
+      26
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Rewrite clearer",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Rewrite clearer",
+     "field": false,
+     "box": [
+      575,
+      307,
+      103,
+      26
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Rewrite more formally",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Rewrite more formally",
+     "field": false,
+     "box": [
+      684,
+      307,
+      139,
+      26
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Continue writing",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Continue writing",
+     "field": false,
+     "box": [
+      377,
+      339,
+      108,
+      26
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Translate",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Translate",
+     "field": false,
+     "box": [
+      491,
+      339,
+      72,
+      26
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "attributes:class:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "attributes:aria-pressed:BUTTON._choice_1gfhg_19",
+      "childList::DIV._body_futca_219"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._choice_1gfhg_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Write it",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Write it",
+     "field": false,
+     "box": [
+      751,
+      550,
+      74,
+      29
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._choice_1gfhg_19",
+      "attributes:disabled:BUTTON._choice_1gfhg_19",
+      "attributes:disabled:BUTTON._choice_1gfhg_19",
+      "attributes:disabled:BUTTON._choice_1gfhg_19"
+     ],
+     "requests": [
+      "POST /api/j2/notes/{id}/writing-help/stream"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": [
+      "POST /api/j2/notes/{id}/writing-help/stream"
+     ]
+    },
+    {
+     "key": "BUTTON||Cancel",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Cancel",
+     "field": false,
+     "box": [
+      833,
+      550,
+      70,
+      29
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]",
+      "attributes:type:INPUT[Scan a document with the camera — photo]",
+      "attributes:type:INPUT[Upload file attachment]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 9,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 9,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 8,
+    "CURRENT-NO-OP": 1
+   }
+  },
+  {
+   "surface": "ed-history",
+   "mode": "desk",
+   "manifest": [
+    "editor-history"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=\"Version history\").filter(visible=True).first\n"
+  },
+  {
+   "surface": "ed-palette",
+   "mode": "desk",
+   "manifest": [
+    "editor-palette"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close insert panel",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close insert panel",
+     "field": false,
+     "box": [
+      1185,
+      256,
+      22,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._chrome_txeqr_17",
+      "attributes:class:BUTTON[Insert widget]._toolBtn_txeqr_79",
+      "attributes:type:INPUT[Add a tag to this note]._input_mnqq8_15",
+      "attributes:type:INPUT[Upload image]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Chart",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Chart",
+     "field": false,
+     "box": [
+      961,
+      288,
+      246,
+      65
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV[Insert widget]._panel_uaaey_11",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV[Insert widget]._panel_uaaey_11"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._symInput_uaaey_145",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||MTF stack",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "MTF stack",
+     "field": false,
+     "box": [
+      961,
+      359,
+      246,
+      50
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV[Insert widget]._panel_uaaey_11",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV[Insert widget]._panel_uaaey_11"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._symInput_uaaey_145",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Before / after",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Before / after",
+     "field": false,
+     "box": [
+      961,
+      415,
+      246,
+      50
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV[Insert widget]._panel_uaaey_11",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV._panelHead_uaaey_41",
+      "childList::DIV[Insert widget]._panel_uaaey_11"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._symInput_uaaey_145",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 4,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 4,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 4
+   }
+  },
+  {
+   "surface": "ed-share",
+   "mode": "desk",
+   "manifest": [
+    "NoteShareControls"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      817,
+      205,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded",
+      "state"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON._chromeBtn_txeqr_1485"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chromeBtn_txeqr_1485",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "SELECT||Never",
+     "nth": 1,
+     "tag": "SELECT",
+     "role": "",
+     "name": "Never",
+     "field": true,
+     "box": [
+      542,
+      344,
+      115,
+      31
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "SELECT._select_asxd7_77",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Create link",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Create link",
+     "field": false,
+     "box": [
+      427,
+      383,
+      88,
+      34
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "state",
+      "clipboard"
+     ],
+     "dom_samples": [
+      "attributes:disabled:SELECT._select_asxd7_77",
+      "attributes:disabled:BUTTON._action_asxd7_103",
+      "childList::SECTION._section_asxd7_19",
+      "childList::SECTION._section_asxd7_19"
+     ],
+     "requests": [
+      "POST /api/j2/notes/{id}/share",
+      "POST /api/j2/telemetry"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 2,
+     "background_ignored": [],
+     "focus_after": "BUTTON._action_asxd7_103",
+     "url_after": null,
+     "mutating": [
+      "POST /api/j2/notes/{id}/share"
+     ]
+    },
+    {
+     "key": "BUTTON||Publish this note",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Publish this note",
+     "field": false,
+     "box": [
+      427,
+      512,
+      121,
+      34
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "state",
+      "clipboard"
+     ],
+     "dom_samples": [
+      "attributes:disabled:SELECT._select_asxd7_77",
+      "attributes:disabled:BUTTON._action_asxd7_103",
+      "attributes:disabled:BUTTON._action_asxd7_103",
+      "childList::SECTION._section_asxd7_19"
+     ],
+     "requests": [
+      "POST /api/j2/publish/notes/{id}",
+      "POST /api/j2/telemetry"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._action_asxd7_103",
+     "url_after": null,
+     "mutating": [
+      "POST /api/j2/publish/notes/{id}"
+     ]
+    }
+   ],
+   "resets": 4,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 4,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 4
+   }
+  },
+  {
+   "surface": "ed-export",
+   "mode": "desk",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=re.compile(r\"^Export$\")).filter(visible=True).first\n"
+  },
+  {
+   "surface": "ed-ask",
+   "mode": "desk",
+   "manifest": [
+    "ask-panel"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close Ask",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close Ask",
+     "field": false,
+     "box": [
+      525,
+      186,
+      23,
+      20
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "childList::DIV._wrap_sp9kv_9",
+      "attributes:aria-expanded:BUTTON[Ask a question about this note]._askToggle_sp9kv_19"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Ask a question about this note]._askToggle_sp9kv_19",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "INPUT||What did I say about…",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "",
+     "name": "What did I say about…",
+     "field": true,
+     "box": [
+      170,
+      217,
+      324,
+      30
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <aside data-tour=\"sidebar\" class=\"_sidebar_11rmh_1\">…</aside> from <div class=\"_sidebarSlot_nzwvp_75\">…</div> subtree intercepts pointer events"
+    },
+    {
+     "key": "BUTTON||Ask",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Ask",
+     "field": false,
+     "box": [
+      500,
+      217,
+      48,
+      30
+     ],
+     "verdict": "DISABLED"
+    }
+   ],
+   "resets": 2,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 3,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 1,
+    "OCCLUDED": 1,
+    "DISABLED": 1
+   }
+  },
+  {
+   "surface": "ed-delete",
+   "mode": "desk",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"button\", name=re.compile(r\"^Delete$\")).filter(visible=True).first\n"
+  },
+  {
+   "surface": "ed-property",
+   "mode": "desk",
+   "manifest": [
+    "editor-thesis"
+   ],
+   "controls": [
+    {
+     "key": "A||Skip to note",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Skip to note",
+     "field": false,
+     "box": [
+      8,
+      -149,
+      56,
+      78
+     ],
+     "verdict": "SKIPPED",
+     "reason": "a skip link: its door is the keyboard (shown on focus)"
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 1,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "SKIPPED": 1
+   }
+  },
+  {
+   "surface": "doc-preview",
+   "mode": "desk",
+   "manifest": [
+    "document-preview-pdf"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "TimeoutError: Locator.click: Timeout 6000ms exceeded.\nCall log:\n  - waiting for locator(\"[data-proof-root=\\\"notebook\\\"] .ProseMirror a[data-type=\\\"attachmentChip\\\"]\").first\n"
+  },
+  {
+   "surface": "nb-research",
+   "mode": "desk",
+   "manifest": [
+    "ticker-research"
+   ],
+   "controls": [
+    {
+     "key": "A||Today",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Today",
+     "field": false,
+     "box": [
+      246,
+      13,
+      95,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._today_u3quv_9"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/TodaySurface-CG0P9sO0.js",
+      "GET /assets/ImportCsvModal-BUoRICM0.js",
+      "GET /assets/Sparkline-RqqTVHJW.js",
+      "GET /assets/optionCalcs-CLU8gfZl.js",
+      "GET /assets/useJ2BrokerPerformance-D1iyoOTA.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "A||Trades",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Trades",
+     "field": false,
+     "box": [
+      342,
+      13,
+      99,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._wrap_1i2do_1"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/TradesSurface-BkeYMKHf.js",
+      "GET /assets/TradeJournalTab-BcbPgl7R.js",
+      "GET /assets/ImportCsvModal-BUoRICM0.js",
+      "GET /assets/Sparkline-RqqTVHJW.js",
+      "GET /assets/optionCalcs-CLU8gfZl.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/trades",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "A||Calendar",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Calendar",
+     "field": false,
+     "box": [
+      444,
+      13,
+      115,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._wrap_1gjfn_1"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/CalendarSurface-CO-rrwNy.js",
+      "GET /assets/CalendarTab-DjRYMldV.js",
+      "GET /assets/useJ2Calendar-BDmo3sXG.js",
+      "GET /assets/featureFlags-DDtfe8CA.js",
+      "GET /assets/chartScreenshot-oxhLOArj.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/calendar",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "A||Notebook",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Notebook",
+     "field": false,
+     "box": [
+      561,
+      13,
+      120,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "attributes:style:DIV._wrap_nzwvp_1"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/NotebookSurface-B-bKCFle.js",
+      "GET /assets/NotebookFlagGate-DednhtWi.js",
+      "GET /assets/FolderSidebar-DlPauR6V.js",
+      "GET /assets/ConfirmModal-fjLfhQTV.js",
+      "GET /assets/tiptap-Bxe7bodx.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/notebook",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "A||Insights",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Insights",
+     "field": false,
+     "box": [
+      683,
+      13,
+      107,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._wrap_1fdth_1"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/InsightsSurface-N_N3Rc2j.js",
+      "GET /assets/AnalyticsTab-Dh1UXre4.js",
+      "GET /assets/index-CHIa68J2.js",
+      "GET /assets/index-B7xOssF6.js",
+      "GET /assets/chartFont-CDkg7iii.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/insights",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "A||Compass",
+     "nth": 1,
+     "tag": "A",
+     "role": "",
+     "name": "Compass",
+     "field": false,
+     "box": [
+      792,
+      13,
+      117,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/CompassSurface-DLguYFvT.js",
+      "GET /assets/CompassTab-Bv8KX6nu.js",
+      "GET /assets/useCompassOverview-CbE4RRET.js",
+      "GET /assets/CompassTab-CfswekjQ.css",
+      "POST /api/j2/broker/sync"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/compass",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "BUTTON||Log Trade",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Log Trade",
+     "field": false,
+     "box": [
+      776,
+      73,
+      112,
+      32
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON._logTradeBtn_z41fg_215",
+      "childList::DIV._logTradeWrap_z41fg_203",
+      "childList::DIV._logTradeWrap_z41fg_203"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._logTradeBtn_z41fg_215",
+     "url_after": null,
+     "mutating": [],
+     "state_left_changed": true
+    },
+    {
+     "key": "BUTTON||Show keyboard shortcuts",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Show keyboard shortcuts",
+     "field": false,
+     "box": [
+      899,
+      73,
+      32,
+      32
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._root_z41fg_11"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Show keyboard shortcuts]._shortcutsBtn_z41fg_81",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Default",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Default",
+     "field": false,
+     "box": [
+      941,
+      75,
+      179,
+      29
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON._pill_1id9g_11",
+      "childList::DIV._wrap_1id9g_1"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._pill_1id9g_11",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Generate report",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Generate report",
+     "field": false,
+     "box": [
+      1130,
+      73,
+      32,
+      32
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV._root_z41fg_11"
+     ],
+     "requests": [
+      "GET /api/j2/accounts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Generate report]._shortcutsBtn_z41fg_81",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Open Portfolio Settings",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Open Portfolio Settings",
+     "field": false,
+     "box": [
+      1172,
+      72,
+      46,
+      34
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV._root_z41fg_11"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Open Portfolio Settings]._settingsPill_z41fg_137",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||More",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "More",
+     "field": false,
+     "box": [
+      1228,
+      73,
+      32,
+      32
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "expanded"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON[More]._shortcutsBtn_z41fg_81",
+      "childList::DIV._moreWrap_z41fg_205",
+      "childList::DIV._moreWrap_z41fg_205"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[More]._shortcutsBtn_z41fg_81",
+     "url_after": null,
+     "mutating": [],
+     "state_left_changed": true
+    },
+    {
+     "key": "BUTTON||Notebook",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Notebook",
+     "field": false,
+     "box": [
+      86,
+      139,
+      71,
+      22
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::DIV._content_z41fg_493",
+      "childList::DIV._content_z41fg_493",
+      "attributes:style:DIV._wrap_nzwvp_1"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/NotebookSurface-B-bKCFle.js",
+      "GET /assets/NotebookFlagGate-DednhtWi.js",
+      "GET /assets/FolderSidebar-DlPauR6V.js",
+      "GET /assets/ConfirmModal-fjLfhQTV.js",
+      "GET /assets/tiptap-Bxe7bodx.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/notebook",
+     "mutating": [
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "BUTTON||Ask a question about this research",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Ask a question about this research",
+     "field": false,
+     "box": [
+      530,
+      183,
+      59,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus",
+      "expanded"
+     ],
+     "dom_samples": [
+      "attributes:aria-expanded:BUTTON[Ask a question about this research]._askToggle_sp9kv_19",
+      "childList::DIV._wrap_sp9kv_9"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT._input_sp9kv_167",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||New note",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "New note",
+     "field": false,
+     "box": [
+      597,
+      183,
+      94,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/maintenance",
+      "GET /assets/NotebookSurface-B-bKCFle.js",
+      "GET /assets/NotebookFlagGate-DednhtWi.js",
+      "GET /assets/FolderSidebar-DlPauR6V.js",
+      "GET /assets/ConfirmModal-fjLfhQTV.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=5496a76488f44f739849defbc963314f",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    },
+    {
+     "key": "BUTTON||New thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "New thesis",
+     "field": false,
+     "box": [
+      700,
+      183,
+      102,
+      28
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:disabled:BUTTON.btn"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/maintenance",
+      "GET /assets/NotebookSurface-B-bKCFle.js",
+      "GET /assets/NotebookFlagGate-DednhtWi.js",
+      "GET /assets/FolderSidebar-DlPauR6V.js",
+      "GET /assets/ConfirmModal-fjLfhQTV.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8238/journal/notebook?note=6df306fa429f456780be226c5a903998",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/broker/sync",
+      "POST /api/j2/broker/fills/check",
+      "POST /api/auth/track"
+     ]
+    }
+   ],
+   "resets": 11,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 16,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 16
+   }
+  },
+  {
+   "surface": "settings-cards",
+   "mode": "desk",
+   "manifest": [
+    "settings-personal-api",
+    "settings-inbound-email",
+    "settings-browser-capture",
+    "SharingCard"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 1,
+     "size": 1
+    }
+   ],
+   "enumerated": 0,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {}
+  },
+  {
+   "surface": "capture-dialog",
+   "mode": "desk",
+   "manifest": [
+    "capture-dialog"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      847,
+      187,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "state"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "SELECT||SAVE TO",
+     "nth": 1,
+     "tag": "SELECT",
+     "role": "",
+     "name": "SAVE TO",
+     "field": true,
+     "box": [
+      466,
+      261,
+      406,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "SELECT._destPicker_1fhjq_145",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "TEXTAREA||What are you thinking?",
+     "nth": 1,
+     "tag": "TEXTAREA",
+     "role": "",
+     "name": "What are you thinking?",
+     "field": true,
+     "box": [
+      397,
+      349,
+      486,
+      134
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "TEXTAREA._textarea_1fhjq_39",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Saving something from the web? Capture a source",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Saving something from the web? Capture a source",
+     "field": false,
+     "box": [
+      397,
+      523,
+      270,
+      14
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "state"
+     ],
+     "dom_samples": [
+      "childList::DIV._body_futca_219",
+      "childList::DIV._body_futca_219",
+      "childList::DIV._body_futca_219",
+      "attributes:for:LABEL._label_1fhjq_37"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Cancel",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Cancel",
+     "field": false,
+     "box": [
+      760,
+      580,
+      63,
+      25
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "state"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Save",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Save",
+     "field": false,
+     "box": [
+      831,
+      580,
+      52,
+      25
+     ],
+     "verdict": "DISABLED"
+    }
+   ],
+   "resets": 5,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 6,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 5,
+    "DISABLED": 1
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-dead": "LIVE",
+   "plant-dead-styled": "DEAD",
+   "plant-live": "LIVE",
+   "plant-poller": "IN-WINDOW"
+  },
+  "ok": false,
+  "why": "plant-dead: got 'LIVE', must be 'DEAD'",
+  "raw": {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Planted dead control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead control",
+     "field": false,
+     "box": [
+      4,
+      4,
+      126,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._orbCluster_15gv2_303",
+      "childList::DIV._orbCluster_15gv2_303",
+      "childList::DIV._orbCluster_15gv2_303",
+      "attributes:class:DIV._orbCluster_15gv2_303"
+     ],
+     "requests": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted dead control]",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Planted dead styled control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead styled control",
+     "field": false,
+     "box": [
+      138,
+      4,
+      165,
+      44
+     ],
+     "verdict": "DEAD",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 4,
+     "background_ignored": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted dead styled control]",
+     "url_after": null,
+     "mutating": []
+    },
+    {
+     "key": "BUTTON||Planted live control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted live control",
+     "field": false,
+     "box": [
+      311,
+      4,
+      120,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::BUTTON[Planted live control]"
+     ],
+     "requests": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted live control]",
+     "url_after": null,
+     "mutating": []
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 3,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 2,
+    "DEAD": 1
+   }
+  }
+ },
+ "noise_endpoints": []
+}

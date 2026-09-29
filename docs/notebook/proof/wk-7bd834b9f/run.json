@@ -1,0 +1,153 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "census": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 36,
+   "seconds": 819.2
+  },
+  "geometry": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 1618,
+   "seconds": 751.2
+  },
+  "axe": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 711.0
+  },
+  "silent": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 905.0
+  },
+  "deadclick": {
+   "control_ok": false,
+   "control_why": "plant-dead: got 'LIVE', must be 'DEAD'",
+   "findings": 0,
+   "seconds": 917.0
+  }
+ },
+ "tip": "7bd834b9f106c45eb6d1dfceb8d6cbc6190c2187",
+ "sweeps": [
+  "deadclick",
+  "silent",
+  "geometry",
+  "axe",
+  "census"
+ ],
+ "only": [],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-29T12:16:01-0500",
+ "data_dir": "C:\\data-w10wk2",
+ "base": "http://127.0.0.1:8238",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8238 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-wk\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T12-16-04.md (identity e68054802d57..., data dir C:\\data-w10wk2)"
+ },
+ "axe_core": {
+  "path": "app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r121705",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "91d670640d934476bd2a32fa66cc0d89",
+  "share_url": "/share/n/ag9AtvDUoLAIX6hNDPk9WcG5gQJBn43D",
+  "publish_url": "/p/sDsqucOuERskqLXdBksK6g",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "b86bfcf7bdfc45e6b7b49341e3e39927",
+  "first_run_account": "fresh1",
+  "first_run_note": "13090e8514b14fd3b3a17598e6d6d951",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 63.0,
+ "findings_total": 1654,
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful (rc 0)",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\proof\\wk-7bd834b9f\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\proof\\wk-7bd834b9f\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown",
+   "post-prewarm (+120s)"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 12:16:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 12:17:05",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 12:18:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 13:26:41",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "finished": "2026-09-29T13:26:43-0500"
+}

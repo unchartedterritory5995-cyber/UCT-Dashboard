@@ -36,6 +36,7 @@ import os
 import re
 import sqlite3
 from datetime import date, datetime, timedelta
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
@@ -138,10 +139,13 @@ def room_lane(sym: str, since: date) -> list[dict]:
 
     start = int(datetime.combine(since, datetime.min.time(), tzinfo=ET).timestamp())
     per_day: dict[str, int] = {}
-    with contextlib.closing(buzz_store.connect()) as c:
-        for (ts,) in c.execute("SELECT ts FROM mentions WHERE ticker = ? AND ts >= ?", (sym, start)):
-            d = datetime.fromtimestamp(int(ts), ET).date().isoformat()
-            per_day[d] = per_day.get(d, 0) + 1
+    # buzz_store.connect() is the PROCESS-WIDE shared connection (the ingest poller, /buzz
+    # and the scheduled boards all use it). Never close it: closing it here took every
+    # buzz read and write on the pod down after the first History request (2026-09-29).
+    c = buzz_store.connect()
+    for (ts,) in c.execute("SELECT ts FROM mentions WHERE ticker = ? AND ts >= ?", (sym, start)):
+        d = datetime.fromtimestamp(int(ts), ET).date().isoformat()
+        per_day[d] = per_day.get(d, 0) + 1
     return [{"date": d, "lane": "room", "mentions": n,
              "text": f"Mentioned {n} time{'s' if n != 1 else ''} in the community room",
              "source": "buzz_mentions", "as_of": d, "ref": f"buzz_mentions#{sym}@{d}"}
@@ -149,6 +153,41 @@ def room_lane(sym: str, since: date) -> list[dict]:
 
 
 _LANE_FNS = {"wire": wire_lane, "book": book_lane, "catalysts": catalysts_lane, "room": room_lane}
+
+
+# ── Coverage: the first date each lane's STORE holds, whatever the ticker ──────────
+# A lane that answers "0 rows" over a window its store does not reach is not saying
+# "nothing happened" -- it is saying "we were not recording". The Morning Wire archive
+# began 2026-09-28, so "0 wire mentions in 90 days" read as "never named" for every
+# ticker until this was added. None = the store holds nothing yet.
+
+def _wire_covers_from() -> Optional[str]:
+    from api.services import wire_archive
+    held = wire_archive.held_dates()
+    return held[0] if held else None
+
+
+def _book_covers_from() -> Optional[str]:
+    from api.services import uct20_nav
+    dates = sorted(c["date"] for c in uct20_nav._load_compositions() if c.get("date"))
+    return dates[0] if dates else None
+
+
+def _catalysts_covers_from() -> Optional[str]:
+    from api.services.catalyst import store
+    with contextlib.closing(store._connect()) as c:
+        row = c.execute("SELECT MIN(market_date) FROM catalysts").fetchone()
+    return row[0] if row and row[0] else None
+
+
+def _room_covers_from() -> Optional[str]:
+    from api.services import buzz_store
+    row = buzz_store.connect().execute("SELECT MIN(ts) FROM mentions").fetchone()  # shared: never close
+    return datetime.fromtimestamp(int(row[0]), ET).date().isoformat() if row and row[0] else None
+
+
+_COVERAGE_FNS = {"wire": _wire_covers_from, "book": _book_covers_from,
+                 "catalysts": _catalysts_covers_from, "room": _room_covers_from}
 
 
 def history(sym: str, days: int = DEFAULT_DAYS) -> dict:
@@ -163,7 +202,11 @@ def history(sym: str, days: int = DEFAULT_DAYS) -> dict:
     for name in LANES:
         try:
             rows = _LANE_FNS[name](sym, since)
-            lanes[name] = {"status": "ok", "count": len(rows)}
+            covers_from = _COVERAGE_FNS[name]()
+            lanes[name] = {"status": "ok", "count": len(rows), "covers_from": covers_from,
+                           # True when the store starts AFTER the window opens: rows
+                           # before `covers_from` were never recorded, not absent.
+                           "partial": covers_from is None or covers_from > since.isoformat()}
             timeline.extend(rows)
         except Exception as e:  # noqa: BLE001 — one lane's store must not sink the others
             logger.warning("[ticker-history] %s lane failed for %s: %s", name, sym, e)
