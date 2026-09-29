@@ -1258,17 +1258,16 @@ def breadth_dividends_refresh(request: Request, background: bool = True):
 
 
 @router.get("/api/breadth-monitor/pit-export")
-def breadth_pit_export(request: Request, since: str = "2026-01-01"):
+def breadth_pit_export(since: str = "2026-01-01", _auth: None = Depends(require_push_secret)):
     """The collector's stored UCT lists, read-only, for the V2 producer's PIT provenance gate.
-    PUSH_SECRET-gated (a service credential, never a member)."""
-    _check_auth(request)
+    PUSH_SECRET-gated (a service credential, never a member) — a named Depends, so the auth
+    census can see it."""
     return {"ok": True, "since": since, "sessions": svc.pit_export(since)}
 
 
 @router.get("/api/breadth-monitor/authority")
-def breadth_authority_status(request: Request):
+def breadth_authority_status(_auth: None = Depends(require_push_secret)):
     """Which methodology owns which UCT session right now (read-only). PUSH_SECRET-gated."""
-    _check_auth(request)
     from api.services import breadth_authority as ba
     return ba.status()
 

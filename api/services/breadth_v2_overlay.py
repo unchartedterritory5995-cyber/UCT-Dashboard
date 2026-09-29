@@ -88,8 +88,10 @@ def activate(ema_rule: bool = True) -> dict:
         raise RuntimeError("pinned module digest mismatch: %s" % bad)
     import api.services
     api.services.__path__.insert(0, PINNED_DIR)
-    from api.services import breadth_live as bl
-    from api.services import breadth_corrected_pass as cp
+    import importlib
+    bl = importlib.import_module("api.services.breadth_live")
+    # resolvable ONLY through the overlay just installed (it is not a master module)
+    cp = importlib.import_module("api.services.breadth_corrected_pass")
     if not os.path.abspath(bl.__file__).startswith(PINNED_DIR) or not os.path.abspath(cp.__file__).startswith(PINNED_DIR):
         raise RuntimeError("overlay did not take: %s / %s" % (bl.__file__, cp.__file__))
     if cp.METHODOLOGY != BASE_METHODOLOGY:
