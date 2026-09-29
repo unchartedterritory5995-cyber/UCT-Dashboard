@@ -120,6 +120,11 @@ def test_f_the_derived_close_is_checked_against_the_canonical_calendar():
     assert ok13 and "agrees" in detail13, detail13
     bad13, _ = bsess.validate_against_calendar("2013-11-29", 16 * 60 - 1)
     assert bad13 is False
+    # ⛔ The era is the dataset's coverage_start, not its first ROW: the first
+    # 2000 row is MLK Day (01-17), and a regular session a week before it is
+    # covered and confirmed -- a floor read off min(set) would call it unknown.
+    ok00, detail00 = bsess.validate_against_calendar("2000-01-10", 16 * 60 - 1)
+    assert ok00 and "agrees" in detail00, detail00
     # ...while a date before the dataset's coverage_start still says so.
     old_ok, old_detail = bsess.validate_against_calendar("1999-11-26", 13 * 60 - 1)
     assert old_ok and "unverifiable" in old_detail, old_detail
