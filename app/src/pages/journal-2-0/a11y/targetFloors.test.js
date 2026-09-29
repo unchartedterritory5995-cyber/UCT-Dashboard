@@ -186,3 +186,68 @@ describe('a folder row keeps its name tappable on the touch tier (S6-02)', () =>
     expect(lastDecl(old, '.rowWrap .row', 'min-width', TOUCH)).toBeUndefined()
   })
 })
+
+// Wave 10 lane L3 (clause 6c, "no layout regressions at 390/820/1200"): three targets the
+// layout instrument measured under 24 px with no spacing to excuse them
+// (docs/notebook/proof/l3-layout-0e72ad573/before/run.json; after/ holds the re-measure):
+//   * a timeline note bar, 81x20 at 1200, stacked 3 px from the next bar;
+//   * a tag's "Remove tag" x, 20x20 at 1200, within 12 px of the Subtitle field;
+//   * a calendar note chip, 22.3 px tall at 820 and 1200, beside the hub's fixed
+//     "Notebook actions" button at 820.
+// Structural, like the rest of this file; the rendered verdict is the instrument's.
+describe('L3: the timeline bar, the tag remove x and the calendar chip reach 24 px', () => {
+  const timeline = rulesWithMedia(read(join(NB, 'NoteTimelineView.module.css')))
+  const tags = rulesWithMedia(read(join(NB, 'NoteTagsField.module.css')))
+  const calendar = rulesWithMedia(read(join(NB, 'NoteCalendarView.module.css')))
+
+  it('a timeline bar has a 24 px height floor outside any @media', () => {
+    expect(px(lastDecl(timeline, '.chip', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it("...and the touch tier's 44 px floor still wins: same selector, LATER in the file", () => {
+    const base = timeline.findIndex((r) => r.selector === '.chip' && r.media === null && r.decls.has('min-height'))
+    const touch = timeline.findIndex((r) => r.selector === '.chip' && r.media === TOUCH && r.decls.has('min-height'))
+    expect(lastDecl(timeline, '.chip', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(base, 'the base floor exists').toBeGreaterThanOrEqual(0)
+    expect(touch, 'the touch floor comes after it').toBeGreaterThan(base)
+  })
+
+  it('the tag remove x is at least 24x24, and keeps its 44 px floor on the touch tier', () => {
+    expect(px(lastDecl(tags, '.remove', 'width'))).toBeGreaterThanOrEqual(24)
+    expect(px(lastDecl(tags, '.remove', 'height'))).toBeGreaterThanOrEqual(24)
+    expect(lastDecl(tags, '.remove', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(lastDecl(tags, '.remove', 'min-width', TOUCH)).toBe('var(--tap-min)')
+  })
+
+  it('a calendar note chip has a 24 px height floor', () => {
+    expect(px(lastDecl(calendar, '.chip', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declarations (20 px bar, 20x20 x, no chip floor) fail these checks', () => {
+    const old = rulesWithMedia(`.chip { padding: 2px 8px; font-size: 12px; }
+      .remove { width: 20px; height: 20px; }
+      @media (max-width: 1024px) { .chip { min-height: var(--tap-min); } }`)
+    expect(lastDecl(old, '.chip', 'min-height')).toBeUndefined()
+    expect(px(lastDecl(old, '.remove', 'width'))).toBeLessThan(24)
+  })
+})
+
+// Wave 10 lane L3, fix round 1. The rendered verdict is the layout instrument's run
+// (docs/notebook/proof/l3-layout-0e72ad573/r1-after/, calendar_cells); this holds the declaration.
+// (Round 1's phone-toolbar Log FAB clearance and its rails were reverted in fix round 2.)
+describe('L3 R1: a calendar note chip is a 44 px finger target on the touch tier (review I-1)', () => {
+  const calendar = rulesWithMedia(read(join(NB, 'NoteCalendarView.module.css')))
+
+  it('the touch tier floors `.chip` at --tap-min, AFTER the base 24 px rule so it wins', () => {
+    expect(lastDecl(calendar, '.chip', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    const base = calendar.findIndex((r) => r.selector === '.chip' && r.media === null && r.decls.has('min-height'))
+    const touch = calendar.findIndex((r) => r.selector === '.chip' && r.media === TOUCH && r.decls.has('min-height'))
+    expect(base).toBeGreaterThanOrEqual(0)
+    expect(touch).toBeGreaterThan(base)
+  })
+
+  it('CONTROL: without the touch rule the chip has no touch floor', () => {
+    const old = rulesWithMedia('.chip { min-height: 24px; }')
+    expect(lastDecl(old, '.chip', 'min-height', TOUCH)).toBeUndefined()
+  })
+})
