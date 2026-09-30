@@ -25,7 +25,7 @@
  * settings, legend rows, the inspector -- ever sees more than one plot.
  */
 import { parseFundamentalSource } from './fundamentalGrammar'
-import { parseEconomicSource } from './economicGrammar'
+import { parseEconomicSource } from './econMark'
 
 /** Pool keys that draw a CONNECTED line, and so can bridge a gap. A histogram
  *  bar is per-point and draws nothing on whitespace, so it is never split. */
