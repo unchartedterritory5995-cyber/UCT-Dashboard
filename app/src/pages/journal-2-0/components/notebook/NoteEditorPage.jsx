@@ -66,7 +66,7 @@ import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
-import TableToolbar, { tableAtSelection } from './TableToolbar'
+import TableToolbar from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
@@ -220,24 +220,74 @@ export function canRunHistory(editor, cmd) {
  * Wave 10 (TY, standard 4 -- typing budget): the toolbar-sync SIGNATURE the
  * `transaction` / `selectionUpdate` listeners below compare against, so a
  * keystroke that leaves every one of these values unchanged triggers NO
- * re-render of the whole editor page -- see `toolbarStateReducer`. Every
- * field here is exactly what the toolbar JSX reads live from `editor` during
- * render (grep `editor.isActive(` / `editor.getAttributes(` / `canRunHistory(`
- * in this file); a field added to the toolbar's render reads must be added
- * here too, or the toolbar can go stale behind a bailed-out render.
- * `isActive` / `getAttributes` resolve against the CURRENT SELECTION, never a
- * document walk, so this is O(1) per keystroke regardless of note size.
+ * re-render of the whole editor page -- see `toolbarStateReducer`.
  *
- * ⛔⛔ `inTable` is NOT an inline `editor.isActive(` read in THIS file's JSX --
- * it is `<TableToolbar editor={editor} />`'s OWN render body computing
- * `tableAtSelection(editor.state)` unconditionally, live, with no subscription
- * of its own (unlike `LinkPasteMenu`, which owns its own `editor.on('transaction', …)`
- * and is unaffected by this reducer). TableToolbar therefore depends entirely
- * on ITS PARENT re-rendering to notice the caret moving into or out of a
- * table -- exactly the dependency this reducer exists to cut, so it has to be
- * named here or the bar stops appearing/disappearing behind a bailed-out
- * render (measured: `NoteEditorPage.wave6.test.jsx`'s "Add a row" case hung
- * forever behind exactly this gap before it was added).
+ * ⛔⛔ THE AUDIT (owner finding, L12 full proof walk 62e252649, G-131 touch
+ * BROKEN after this reducer landed): every value the NoteEditorPage SUBTREE
+ * reads from `editor.state` / `editor.isActive` / `editor.getAttributes` /
+ * `editor.can()` at RENDER time, live, with no subscription of its own --
+ * cross-referenced against the field that covers it. A component with its OWN
+ * `editor.on('transaction', …)` (LinkPasteMenu, NoteStats, NoteOutline, and
+ * -- added by this same finding -- TableToolbar) is NOT in this list: it
+ * re-renders itself and this reducer cannot make it stale. TableToolbar was
+ * the first one FOUND this way (`NoteEditorPage.wave6.test.jsx`'s "Add a row"
+ * hung behind the bailout before it got a field), but it reads FAR more than
+ * one boolean at render time -- `tableAtSelection`, then six commands' worth
+ * of `editor.can()` for its row/column buttons' disabled state, `sortable`,
+ * `ctx`, `width`, `header` -- every one of them selection- or doc-dependent,
+ * and every table EDIT is itself a transaction that touches none of the
+ * fields below. Enumerating all of those here would have been both fragile
+ * and the wrong shape; giving the bar its own subscription (mirroring
+ * LinkPasteMenu) is what removed `inTable` from this signature entirely. A
+ * component that only reads `editor` inside an EVENT HANDLER (CaptureInboxTray's
+ * `place()`, the task-jump effect, the conflict-merge path) is not in this
+ * list either -- those run at click/effect time, never render time, so they
+ * always see the live editor regardless of this bailout.
+ *
+ *   read (file:line)                                           | field
+ *   ------------------------------------------------------------|----------------
+ *   NoteEditorPage.jsx isActive('bold')                          | bold
+ *   NoteEditorPage.jsx isActive('italic')                        | italic
+ *   NoteEditorPage.jsx isActive('heading',{level:1})             | h1
+ *   NoteEditorPage.jsx isActive('heading',{level:2})             | h2
+ *   NoteEditorPage.jsx isActive('bulletList')                    | bulletList
+ *   NoteEditorPage.jsx isActive('orderedList')                   | orderedList
+ *   NoteEditorPage.jsx isActive('blockquote')                    | blockquote
+ *   NoteEditorPage.jsx isActive('codeBlock')                     | codeBlock
+ *   NoteEditorPage.jsx getAttributes('textStyle').fontFamily     | fontFamily
+ *   NoteEditorPage.jsx getAttributes('textStyle').fontSize       | fontSize
+ *   NoteEditorPage.jsx getAttributes('textColor').color          | textColor
+ *   NoteEditorPage.jsx canRunHistory(editor,'undo'/'redo')       | canUndo/canRedo
+ *   TextColorMenu.jsx `editor.getAttributes('textColor').color`  | textColor (shared)
+ *   TextColorMenu.jsx `editor.isActive('highlight')`             | highlightActive
+ *   TextColorMenu.jsx `editor.getAttributes('highlight').color`  | highlightColor
+ *
+ * `isActive` / `getAttributes` resolve against the CURRENT SELECTION, never a
+ * document walk, so every row above is O(1) per keystroke regardless of note
+ * size. A field added to ANY of these render reads -- this file's JSX or a
+ * child that does not self-subscribe -- must be added here too, or it goes
+ * stale behind a bailed-out render; `NoteEditorPage.toolbarSignatureAudit.test.js`
+ * greps this file and TextColorMenu.jsx for exactly this shape and fails BY
+ * NAME on an uncovered one. A component whose render-time reads are numerous
+ * or fine-grained (TableToolbar's shape) should get ITS OWN subscription
+ * instead of growing this list -- re-rendering one small floating bar every
+ * keystroke costs nothing the typing budget measures.
+ *
+ * ⛔⛔ `selectionEmpty` (`editor.state.selection.empty`) closes the gap the
+ * walk actually exercises: `TextColorMenu.jsx`'s `apply()` calls
+ * `editor.chain().focus().setTextColor(...)`, and a color/highlight command
+ * run against an EMPTY selection sets a STORED MARK for the next character
+ * typed -- it colors NOTHING already on the page, so the note's HTML shows no
+ * mark at all ("no colour mark in the note" is exactly what that produces).
+ * `select text -> open the picker -> pick a swatch` is a SELECTION
+ * transitioning empty -> non-empty immediately before the picker opens --
+ * precisely the shape none of the other fields track, since none of them
+ * describe "is there a selection", only what marks/blocks apply to wherever
+ * it is. Tracked as a BOOLEAN, not the selection's `from`/`to` range:
+ * continuous typing keeps the cursor collapsed throughout (`empty` stays
+ * `true` the entire time), so the typing budget's win is UNCHANGED -- only
+ * the act of selecting text (or replacing one), which is not itself a
+ * keystroke the 16 ms/char budget measures, now pays the one render it needs.
  */
 export function readToolbarFormatState(editor) {
   return {
@@ -252,9 +302,11 @@ export function readToolbarFormatState(editor) {
     fontFamily: editor.getAttributes('textStyle').fontFamily || '',
     fontSize: editor.getAttributes('textStyle').fontSize || '',
     textColor: editor.getAttributes('textColor').color || '',
+    highlightActive: editor.isActive('highlight'),
+    highlightColor: editor.isActive('highlight') ? (editor.getAttributes('highlight').color || 'yellow') : '',
     canUndo: canRunHistory(editor, 'undo'),
     canRedo: canRunHistory(editor, 'redo'),
-    inTable: Boolean(!editor.isDestroyed && editor.isEditable && tableAtSelection(editor.state)),
+    selectionEmpty: Boolean(editor.state?.selection?.empty),
   }
 }
 

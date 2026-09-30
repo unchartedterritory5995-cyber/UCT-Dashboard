@@ -23,25 +23,26 @@
 import { describe, it, expect } from 'vitest'
 import { readToolbarFormatState, toolbarStateReducer } from './NoteEditorPage'
 
-/** A minimal stand-in exposing exactly what `readToolbarFormatState` reads. */
+/** A minimal stand-in exposing exactly what `readToolbarFormatState` reads,
+ *  incl. TextColorMenu's `highlightActive`/`highlightColor` (the other child
+ *  that reads `editor` at render time with no subscription of its own) and
+ *  the selection-emptiness gap the L12 full proof walk (G-131, touch) found.
+ *  TableToolbar is NOT represented here: it got its OWN `editor.on('transaction', …)`
+ *  subscription (see TableToolbar.jsx, TableToolbar.test.jsx) rather than a
+ *  field, because it reads far more at render time than one boolean. */
 function fakeEditor(overrides = {}) {
   const state = {
     bold: false, italic: false, h1: false, h2: false, bulletList: false,
     orderedList: false, blockquote: false, codeBlock: false,
     fontFamily: '', fontSize: '', textColor: '',
-    canUndo: true, canRedo: false, inTable: false,
+    highlightActive: false, highlightColor: '',
+    canUndo: true, canRedo: false, selectionEmpty: true,
     ...overrides,
   }
-  // `readToolbarFormatState` also calls `tableAtSelection(editor.state)` (TableToolbar's
-  // OWN predicate, imported and reused -- never a second copy) -- a minimal $from stand-in
-  // that either has no ancestors (depth 0, not in a table) or one 'table' ancestor.
-  const $from = state.inTable
-    ? { depth: 1, node: (d) => (d === 1 ? { type: { name: 'table' } } : null), before: () => 0 }
-    : { depth: 0 }
   return {
     isDestroyed: false,
     isEditable: true,
-    state: { selection: { $from } },
+    state: { selection: { empty: state.selectionEmpty } },
     isActive: (name, attrs) => {
       if (name === 'bold') return state.bold
       if (name === 'italic') return state.italic
@@ -49,6 +50,7 @@ function fakeEditor(overrides = {}) {
       if (name === 'orderedList') return state.orderedList
       if (name === 'blockquote') return state.blockquote
       if (name === 'codeBlock') return state.codeBlock
+      if (name === 'highlight') return state.highlightActive
       if (name === 'heading' && attrs?.level === 1) return state.h1
       if (name === 'heading' && attrs?.level === 2) return state.h2
       return false
@@ -56,6 +58,7 @@ function fakeEditor(overrides = {}) {
     getAttributes: (type) => {
       if (type === 'textStyle') return { fontFamily: state.fontFamily, fontSize: state.fontSize }
       if (type === 'textColor') return { color: state.textColor }
+      if (type === 'highlight') return { color: state.highlightColor }
       return {}
     },
     can: () => ({ undo: () => state.canUndo, redo: () => state.canRedo }),
@@ -69,13 +72,16 @@ describe('readToolbarFormatState', () => {
       bold: true, italic: false, h1: false, h2: false, bulletList: false,
       orderedList: false, blockquote: false, codeBlock: false,
       fontFamily: 'Georgia', fontSize: '', textColor: '',
-      canUndo: true, canRedo: true, inTable: false,
+      highlightActive: false, highlightColor: '',
+      canUndo: true, canRedo: true, selectionEmpty: true,
     })
   })
 
-  it('inTable reflects TableToolbar\'s own predicate (tableAtSelection), reused not restated', () => {
-    expect(readToolbarFormatState(fakeEditor({ inTable: false })).inTable).toBe(false)
-    expect(readToolbarFormatState(fakeEditor({ inTable: true })).inTable).toBe(true)
+  it('highlightColor is only read while a highlight is active (matches TextColorMenu.jsx\'s own guard)', () => {
+    expect(readToolbarFormatState(fakeEditor({ highlightActive: false, highlightColor: 'stale' })).highlightColor)
+      .toBe('') // not active: the field TextColorMenu shows is 'no highlight', not a leftover colour
+    expect(readToolbarFormatState(fakeEditor({ highlightActive: true, highlightColor: 'blue' })).highlightColor)
+      .toBe('blue')
   })
 })
 
@@ -125,16 +131,30 @@ describe('toolbarStateReducer -- the bailout that stops a keystroke re-rendering
     expect(s3).not.toBe(s1)
   })
 
-  it('the caret entering or leaving a table produces a NEW reference (regression: TableToolbar reads tableAtSelection live at its OWN render with no subscription of its own, and relies entirely on THIS reducer re-rendering its parent -- NoteEditorPage.wave6.test.jsx caught this live, "Add a row" never appeared behind a bailed-out render before `inTable` was added)', () => {
-    const outside = fakeEditor({ inTable: false })
-    const inside = fakeEditor({ inTable: true })
-    const s1 = toolbarStateReducer(null, outside)
-    const s2 = toolbarStateReducer(s1, inside)
+  it('G-131 (owner finding, L12 walk 62e252649, touch): selecting text (empty -> non-empty) produces a NEW reference even when no mark/block field moved -- TextColorMenu.apply() runs setTextColor()/setHighlight() against whatever selection is live at click time, and against an EMPTY selection that sets a stored mark for the next keystroke instead of colouring anything already on the page (\'no colour mark in the note\' is exactly that outcome). Tracked as the BOOLEAN empty flag, never the range itself, so continuous typing (selection stays collapsed throughout) pays no extra render', () => {
+    const collapsed = fakeEditor({ selectionEmpty: true })
+    const selected = fakeEditor({ selectionEmpty: false })
+    const s1 = toolbarStateReducer(null, collapsed)
+    const s2 = toolbarStateReducer(s1, selected)
     expect(s2).not.toBe(s1)
-    expect(s2.inTable).toBe(true)
-    const s3 = toolbarStateReducer(s2, outside)
+    expect(s2.selectionEmpty).toBe(false)
+    const s3 = toolbarStateReducer(s2, collapsed)
     expect(s3).not.toBe(s2)
-    expect(s3.inTable).toBe(false)
+  })
+
+  it('highlight state is tracked (Mod-Shift-H toggles it without opening the picker, per TextColorMenu.jsx\'s own header comment)', () => {
+    const s1 = toolbarStateReducer(null, fakeEditor({ highlightActive: false }))
+    const s2 = toolbarStateReducer(s1, fakeEditor({ highlightActive: true, highlightColor: 'yellow' }))
+    expect(s2).not.toBe(s1)
+    expect(s2.highlightActive).toBe(true)
+  })
+
+  it('CONTROL: 200 keystrokes of plain typing (selection stays collapsed the whole time) still return the SAME reference -- selectionEmpty/highlightActive do not cost the typing budget anything', () => {
+    const ed = fakeEditor({ selectionEmpty: true })
+    let s = toolbarStateReducer(null, ed)
+    const first = s
+    for (let i = 0; i < 200; i += 1) s = toolbarStateReducer(s, ed)
+    expect(s).toBe(first)
   })
 
   it('a destroyed editor is a no-op: the reducer returns prev unchanged', () => {
