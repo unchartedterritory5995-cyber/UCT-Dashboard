@@ -3129,6 +3129,7 @@
   ],
   "excluded_no_rate_family": [
     "/api/address/resolve",
-    "/api/address/search"
+    "/api/address/search",
+    "/api/adjustment-basis/{ticker}"
   ]
 }
