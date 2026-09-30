@@ -10,6 +10,7 @@
     python -m api.services.fundamentals_pit.v5_ops pointer VERSION --expect CURRENT --reason TEXT   # V5 rollback
     python -m api.services.fundamentals_pit.v5_ops shadow --symbols AAPL,TSLA --series ...     # (WEB) v4 vs v5
     python -m api.services.fundamentals_pit.v5_ops rollback-drill --dir /tmp/x                 # local, dark
+    python -m api.services.fundamentals_pit.v5_ops quarantine --cik C [--cik C2] --version V --reason TEXT
 
 Every write goes through v5_publish (immutable objects/manifests, pointer last). `serve` is the ONLY command that
 changes what members see.
@@ -66,6 +67,51 @@ def publish_base(target, p: dict | None = None) -> dict:
             conn.close()
     L.verify_base(p)
     return res
+
+
+def quarantine_companies(target, ciks: list[int], to_version: str, reason: str, p: dict | None = None) -> dict:
+    """Publish a new version = CURRENT with `ciks` restored to their object in `to_version` (their last valid
+    version); record the quarantine. Used when a published change is found unsound after the fact. Never deletes."""
+    import datetime as dt
+    p = p or VP.paths()
+    L.verify_base(p)
+    lease = L.Lease(p)
+    if not lease.acquire():
+        raise PUB.PublishError("pipeline lease is held; retry")
+    try:
+        cur = PUB.read_current(target)
+        parent = PUB.read_manifest(target, cur["version"], verify_sha=cur["manifest_sha256"])
+        src = PUB.read_manifest(target, to_version)
+        if src is None:
+            raise PUB.PublishError(f"version {to_version} does not exist")
+        companies = {int(c): s for c, s in parent["companies"].items()}
+        restored = {}
+        for c in ciks:
+            if str(c) not in src["companies"]:
+                raise PUB.PublishError(f"cik {c} not in {to_version}")
+            restored[c] = [companies.get(c), src["companies"][str(c)]]
+            companies[c] = src["companies"][str(c)]
+        vid = "v5-" + dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-q"
+        manifest = PUB.build_manifest(version_id=vid, parent=cur["version"], companies=companies, tickers=parent["tickers"], fields={
+            "kind": "quarantine", "batch_id": None, "horizon": parent.get("horizon"), "code": parent.get("code"),
+            "changed": sorted(ciks), "quarantined": sorted(ciks), "restored_from": to_version, "reason": reason,
+            "validation": {"ok": True, "basis": "restores each company's object from an earlier validated version"}})
+        res = PUB.publish_version(target, manifest, {}, expect_parent=cur["version"], parent_manifest=parent)
+        conn = L.connect_live(p)
+        try:
+            with conn:
+                for c in ciks:
+                    conn.execute("INSERT OR REPLACE INTO v5_quarantine VALUES (?,?,?,?)", (c, int(res["published_at"]), vid, reason))
+                conn.execute("INSERT INTO v5_version VALUES (?,?,?,?,?,?,?)",
+                             (vid, cur["version"], res["manifest_sha256"], res["published_at"], None, None, json.dumps(res)))
+        finally:
+            conn.close()
+        os.makedirs(p["versions"], exist_ok=True)
+        open(os.path.join(p["versions"], vid + ".json"), "wb").write(PUB.encode(manifest))
+        L.verify_base(p)
+        return {**res, "restored": {str(k): v for k, v in restored.items()}}
+    finally:
+        lease.release()
 
 
 def shadow(symbols: list[str], series: list[str], version_id: str | None = None) -> list[dict]:
@@ -186,6 +232,8 @@ def main(argv=None) -> int:
         out = PUB.write_serving(_target(a), a.arg, pin=a.pin, by=os.environ.get("USER") or "ops", reason=a.reason)
     elif a.cmd == "pointer":
         out = PUB.set_pointer(_target(a), a.arg, expect_current=a.expect, reason=a.reason)
+    elif a.cmd == "quarantine":
+        out = quarantine_companies(_target(a), a.cik, a.version, a.reason)
     elif a.cmd == "shadow":
         out = shadow([s for s in a.symbols.split(",") if s], [s for s in a.series.split(",") if s], a.version)
     elif a.cmd == "rollback-drill":

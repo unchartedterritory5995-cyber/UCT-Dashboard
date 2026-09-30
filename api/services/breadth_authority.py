@@ -120,12 +120,34 @@ _R2_MANIFEST = _R2_LIVE_PREFIX + "manifest.json"
 
 
 def mode() -> str:
+    """UCT authority (`BREADTH_AUTHORITY`)."""
     v = (os.environ.get("BREADTH_AUTHORITY") or "v1").strip().lower()
     return "v2" if v == "v2" else "v1"
 
 
 def in_force() -> bool:
     return mode() == "v2"
+
+
+# ── US: an INDEPENDENT authority over the whole V2 history (owner ruling 2026-09-29) ──────
+#: `BREADTH_AUTHORITY_US` governs `us` alone; `BREADTH_AUTHORITY` governs `uct` alone. V2 owns
+#: every `us` session it has — frozen 2008-01-02..2026-09-24 plus validated live publications —
+#: with NO 2026-03-23 boundary (that is UCT's), NO provisional tail (V1 `us` is the defective
+#: population, so it can never stand in for a V2 session) and NO PIT gaps (PIT is UCT's).
+US_UNIVERSE = "us"
+#: V1-only `us` metrics V2 does not produce — WITHHELD under V2 (never copied from V1).
+US_WITHHELD = ("up_on_volume", "down_on_volume", "hvc_52w", "up_vol_ratio")
+
+
+def us_mode() -> str:
+    v = (os.environ.get("BREADTH_AUTHORITY_US") or "v1").strip().lower()
+    return "v2" if v == "v2" else "v1"
+
+
+def serves(universe: Optional[str]) -> bool:
+    """Does V2 own `universe`'s OHLC history right now? (`uct` is composed by the Monitor/chart
+    overlay instead, so this answers only for `us`.) False = the V1 store answers, unchanged."""
+    return (universe or "").strip().lower() == US_UNIVERSE and us_mode() == "v2" and available()[0]
 
 
 def _root() -> str:
@@ -344,13 +366,16 @@ def available() -> tuple[bool, Optional[str]]:
 
 
 def token() -> str:
-    """Cache-key component: changes when the mode or any authoritative input changes."""
-    if not in_force():
+    """Cache-key component: changes when either authority or any authoritative input changes.
+    Byte-identical to its pre-US form while `BREADTH_AUTHORITY_US` is unset/v1."""
+    uct_v2, us_v2 = in_force(), us_mode() == "v2"
+    if not uct_v2 and not us_v2:
         return "v1"
     f = _FROZEN.get("stat")
     live = _load_live()
-    return "v2:%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
-                            max(live["sessions"]) if live["sessions"] else "-")
+    base = "%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
+                         max(live["sessions"]) if live["sessions"] else "-")
+    return ("v2:" if uct_v2 else "v1:") + base + (":us-v2" if us_v2 else "")
 
 
 def session_authority(date: str, collector_tail: tuple = ()) -> str:
@@ -574,6 +599,76 @@ def chart_bars(metric: str, collector_closes: dict, provisional_adv: Optional[di
     return out
 
 
+_US_MEMO: dict = {}
+
+
+def _frozen_metric(universe: str, metric: str) -> dict:
+    """{date: (o, h, l, c, source)} for one frozen universe/metric (verified replica, memoised)."""
+    f = _load_frozen()
+    if f is None:
+        return {}
+    key = (_FROZEN.get("stat"), universe, metric)
+    hit = _US_MEMO.get(key)
+    if hit is None:
+        c = sqlite3.connect("file:%s?mode=ro&immutable=1" % frozen_path(), uri=True)
+        try:
+            hit = {d: (o, h, l, cl, s) for d, o, h, l, cl, s in c.execute(
+                "SELECT date, o, h, l, c, source FROM breadth_daily_ohlc WHERE universe=? AND metric=?",
+                (universe, metric))}
+        finally:
+            c.close()
+        if len(_US_MEMO) > 80:
+            _US_MEMO.clear()
+        _US_MEMO[key] = hit
+    return hit
+
+
+def _live_universe(universe: str) -> dict:
+    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`."""
+    p = live_replica_path()
+    if not os.path.exists(p):
+        return {}
+    out: dict = {}
+    c = sqlite3.connect("file:%s?mode=ro" % p, uri=True)
+    try:
+        for d, m, o, h, l, cl, s in c.execute(
+                "SELECT r.date, r.metric, r.o, r.h, r.l, r.c, r.source FROM v2_live_row r "
+                "JOIN v2_live_session x ON x.date = r.date AND x.pub_id = r.pub_id "
+                "WHERE r.universe=? AND x.state='VALIDATED'", (universe,)):
+            out.setdefault(d, {})[m] = (o, h, l, cl, s)
+    finally:
+        c.close()
+    return out
+
+
+def universe_history(metric: str, universe: Optional[str], limit: int = 6000) -> Optional[dict]:
+    """The `breadth_daily_ohlc.history` answer under V2 for a universe V2 owns, else None.
+
+    {date: {o, h, l, c}} newest `limit` sessions: frozen V2 rows + validated live rows. A metric V2
+    does not produce (the four V1-only volume metrics, or anything outside the 35) is {} —
+    unavailable, never a V1 value and never a zero."""
+    if not serves(universe):
+        return None
+    u = US_UNIVERSE
+    if metric in US_WITHHELD or metric not in V2_METRICS:
+        return {}
+    rows = {d: r for d, r in _frozen_metric(u, metric).items()}
+    for d, byd in _live_universe(u).items():
+        if metric in byd and d > FROZEN_END:
+            rows[d] = byd[metric]
+    keep = sorted(rows)[-int(limit):] if limit else sorted(rows)
+    return {d: {"o": rows[d][0], "h": rows[d][1], "l": rows[d][2], "c": rows[d][3]} for d in keep}
+
+
+def universe_dates(universe: Optional[str], since: str = "") -> Optional[list]:
+    """The `breadth_daily_ohlc.dates_since` answer under V2 for a universe V2 owns, else None."""
+    if not serves(universe):
+        return None
+    f = _load_frozen() or {}
+    ds = set(f.get("sessions") or ()) | {d for d in _live_universe(US_UNIVERSE) if d > FROZEN_END}
+    return sorted(d for d in ds if d >= (since or ""))
+
+
 def status() -> dict:
     ok, why = available()
     f = _FROZEN.get("data") or {}
@@ -584,7 +679,8 @@ def status() -> dict:
                                   "FROM v2_live_conflict").fetchall()
     except Exception:
         conflicts = []
-    return {"mode": mode(), "v2_available": ok, "v2_unavailable_reason": why,
+    return {"mode": mode(), "us_mode": us_mode(), "us_withheld_metrics": list(US_WITHHELD),
+            "v2_available": ok, "v2_unavailable_reason": why,
             "boundaries": {"legacy_end": LEGACY_END, "v2_start": V2_START, "frozen_end": FROZEN_END,
                            "live_start": LIVE_START},
             "frozen": {"name": FROZEN_NAME, "sha256_expected": FROZEN_SHA256, "verified": bool(f),

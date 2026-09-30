@@ -218,8 +218,8 @@ def test_filing_cited_only_by_unretained_tags_is_no_financial_facts(env):
 def test_unexplained_retroactive_change_quarantines_the_company_and_keeps_the_parent(env, monkeypatch):
     cur0 = PUB.read_current(env["t"])
     real = VAL.pit_guard
-    monkeypatch.setattr(VAL, "pit_guard", lambda parent, new, boundary, split_changed:
-                        {**real(parent, new, boundary, split_changed=split_changed), "retro_unexplained": ["revenue_ttm"]})
+    monkeypatch.setattr(VAL, "pit_guard", lambda parent, new, boundary, split_changed, **kw:
+                        {**real(parent, new, boundary, split_changed=split_changed, **kw), "retro_unexplained": ["revenue_ttm"]})
     rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
     assert rec["state"] == "NO_CHANGE" and rec["validation"]["quarantined"] == [CIK]
     assert PUB.read_current(env["t"]) == cur0                                 # members never see it
@@ -313,6 +313,42 @@ def test_a_withholding_cluster_holds_the_batch(env, monkeypatch):
     rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
     assert rec["state"] == "WITHHELD" and "withholding anomaly" in rec["validation"]["batch_errors"][0]
     assert PUB.read_current(env["t"]) == cur0
+
+
+def test_a_ledger_that_loses_split_rows_is_never_an_explanation():
+    """MEASURED 2026-09-30: SEC dropped old tickers (PHGE, BTOG, RAY) from three companies' submissions; the ledger
+    (keyed by current tickers) lost genuine reverse splits and per-share history re-based / was withheld."""
+    parent = {"withheld_split_sensitive": False, "metrics": {"eps_diluted_ttm": [[1, -10.0, "2020-03-31", "x"]]}}
+    new = {"withheld_split_sensitive": False, "metrics": {"eps_diluted_ttm": [[1, -1.0, "2020-03-31", "x"]]}}
+    assert VAL.pit_guard(parent, new, 10, split_changed=True, ledger_lost=0)["retro_unexplained"] == []
+    assert VAL.pit_guard(parent, new, 10, split_changed=True, ledger_lost=2)["retro_unexplained"] == ["eps_diluted_ttm"]
+
+
+def test_withholding_from_lost_ledger_rows_is_unexplained(monkeypatch):
+    monkeypatch.setattr(S, "build_info", lambda c, cik, v: {"detail": {"split_verification": {"status": "unverified",
+        "reasons": [["window_disagrees", "2023-11-14", "2024-11-14", 2, 1.0, 0.1]]}}})
+    w = VAL.classify_withholding(None, 1, _wh_parent(False), {"withheld_split_sensitive": True, "metrics": {}}, None, True, [],
+                                 ledger_gained=0, ledger_lost=2)
+    assert w["classification"] == "UNEXPLAINED" and w["split_ledger_rows_lost"] == 2
+
+
+def test_no_new_filing_means_no_history_may_change():
+    parent = {"metrics": {"revenue_ttm": [[1, 5.0, "2020-03-31", "x"]]}}
+    new = {"metrics": {"revenue_ttm": [[1, 6.0, "2020-03-31", "x"]]}}
+    assert VAL.pit_guard(parent, new, None, split_changed=False)["retro_unexplained"] == ["revenue_ttm"]
+
+
+def test_quarantine_restores_a_company_from_an_earlier_version(env):
+    rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
+    base = PUB.read_manifest(env["t"], VP.BASE_VERSION_ID)
+    r = OPS.quarantine_companies(env["t"], [CIK], VP.BASE_VERSION_ID, "test", env["p"])
+    cur = PUB.read_current(env["t"])
+    man = PUB.read_manifest(env["t"], cur["version"], verify_sha=cur["manifest_sha256"])
+    assert cur["previous"] == rec["version"] and man["companies"][str(CIK)] == base["companies"][str(CIK)]
+    assert man["kind"] == "quarantine" and man["quarantined"] == [CIK]
+    live = L.connect_live(env["p"])
+    assert live.execute("SELECT cik FROM v5_quarantine").fetchall() == [(CIK,)]
+    live.close()
 
 
 # ── serving seam + rollback ─────────────────────────────────────────────────
