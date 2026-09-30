@@ -105,7 +105,7 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
     expect(d.definition.objects ?? null).toBeNull()
   })
 
-  it('⭐ the door\'s translation names the 78 `pine:state` as ONE construct and the ten lists', async () => {
+  it('⭐ the door\'s translation names the 78 `pine:state` as ONE construct and the lists still diverging', async () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     const cap = load()
     const { translatePine } = await import('../../ast/pine')
@@ -115,13 +115,30 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
       paramManifest: true, strict: true, colourInputs: true, objectRuntimeCheck: probeObjectRuntime,
     })
     const od = t.objectDiagnostics
-    expect(t.objects).toBeNull()
+    // ⭐ C25 — the translation now HOLDS a program: the floating candles' lists
+    // are made on bar 0 (the loop counter is known per pass), and of their
+    // creates only the two horizontal-line lists stay — the boxes and wicks a
+    // lost step would have MOVED are held (`geometry:lost`). The door still
+    // draws nothing (the test above: a lost removal withholds the drawing).
+    const creates = []
+    const scan = (list) => list.forEach((o) => { if (o.k === 'create') creates.push(o.family); if (o.k === 'loop') scan(o.body) })
+    scan(t.objects.ops)
+    expect(creates).toEqual(['line', 'line'])
+    expect(od.dropReasons['geometry:lost']).toBe(3)
     const state = od.guardRefusals.filter((e) => /pine:state/.test(e))
     expect(state.length).toBe(29)
-    for (const e of state) expect(e).toMatch(/pine:state `htf_[a-z_]+` \(a `var` carried in a loop of `update_drawings`\)$/)
-    expect(od.collsDiverged).toBe(10)
-    expect(od.collsDivergedWhy.filter((e) => /coll:push@4[1-3]\d$/.test(e))).toHaveLength(5)
-    expect(od.dropReasons['coll:diverged']).toBe(39)
+    // ⭐⭐ C25 — each names the WRITE that stops the loop scalar: pass 0's
+    // `htf_o := current_htf_open`, a var the block fold loses at the `while` of
+    // line 627 — the 212-slot windows' shortening loop (C22's boundary).
+    for (const e of state) {
+      expect(e).toMatch(/pine:state `htf_[a-z_]+` \(a `var` carried in a loop of `update_drawings`: its write at line 459 reads a value this reader cannot carry \(pine:reassign: `current_htf_open` .*at line 627/)
+    }
+    expect(od.loopScalars).toHaveLength(7)
+    // ⭐ C25 — five lists diverge (the historical four, `pattern_labels`) and
+    // their 18 reads are withheld; C21 measured ten lists and 39 reads.
+    expect(od.collsDiverged).toBe(5)
+    expect(od.collsDivergedWhy.filter((e) => /coll:push@4[1-3]\d$/.test(e))).toHaveLength(0)
+    expect(od.dropReasons['coll:diverged']).toBe(18)
     // ⭐ C23 — the runtime lane now BUILDS the script (was `pine:window-dependent`,
     // the first of seven walls); the drawing still stops on the host walls above.
     expect(od.runtimeRefused ?? null).toBeNull()

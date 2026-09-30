@@ -86,6 +86,13 @@ export const DROP_KEYS = Object.freeze({
     'an object whose text a lost setter writes — withheld, never drawn with its creation text'),
   'content:withheld': C(LOSS.PARTIAL,
     'a step on an object withheld because its text was lost — it acts on nothing drawn'),
+  // ⭐ C25 — the same for GEOMETRY: an object of a list whose handle a lost copy
+  // read (`b = array.get(bs, i)`) and a lost step then moved (`box.set_left(b, …)`)
+  // stays where it was made, which TradingView does not draw. Missing, never extra.
+  'geometry:lost': C(LOSS.PARTIAL,
+    'an object a lost step would have moved (its handle read out of a list this chart could not follow) — withheld, never drawn where it was made'),
+  'geometry:withheld': C(LOSS.PARTIAL,
+    'a step on an object withheld because a lost step would have moved it — it acts on nothing drawn'),
   // ⭐ C14 (2026-09-29) — a step that reads a drawing's state (`label.get_y(l)`)
   // which this program cannot carry (a lost setter, create or handle): withheld,
   // never drawn off the value this chart happens to hold. A missing object or a

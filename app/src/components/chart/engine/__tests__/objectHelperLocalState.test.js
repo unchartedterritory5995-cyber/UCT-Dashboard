@@ -24,7 +24,7 @@ import { translatePine } from '../ast/pine'
 const HEAD = '//@version=6\nindicator("h", overlay=true)\n'
 
 describe('C21 — a helper\'s own mutable local is named for what it is', () => {
-  it('⭐ a `var` carried in a loop of the helper', () => {
+  it('⭐ C25 — a `var` carried in a loop of the helper is CARRIED now: a loop scalar, read whole', () => {
     const t = translatePine(`${HEAD}var box b = box.new(bar_index, high, bar_index + 1, low)
 upd() =>
     for i = 0 to 1
@@ -36,9 +36,30 @@ upd() =>
 upd()
 plot(close)
 `)
-    expect(t.objectDiagnostics.guardRefusals).toEqual([
-      'update@10: pine:state `v` (a `var` carried in a loop of `upd`)',
-    ])
+    expect(t.objectDiagnostics.guardRefusals).toBeUndefined()
+    expect(t.objectDiagnostics.loopScalars).toEqual(['v: served'])
+  })
+
+  it('⭐ a `var` carried in a loop of the helper whose write cannot be carried — named with its write', () => {
+    const t = translatePine(`${HEAD}var box b = box.new(bar_index, high, bar_index + 1, low)
+var float acc = 0
+k = 0
+while k < 3
+    acc := acc + 1
+    k += 1
+upd() =>
+    for i = 0 to 1
+        var float v = na
+        if close > open
+            v := acc
+        if not na(v)
+            box.set_top(b, v)
+upd()
+plot(close)
+`)
+    const g = t.objectDiagnostics.guardRefusals || []
+    expect(g).toHaveLength(1)
+    expect(g[0]).toMatch(/^update@15: pine:state `v` \(a `var` carried in a loop of `upd`: its write at line 13 reads a value this reader cannot carry \(pine:reassign/)
   })
 
   it('⭐ a plain local the helper reassigns', () => {
@@ -84,26 +105,25 @@ plot(close)
     expect(d.collsDivergedWhy).toEqual(['ls: coll:insert@5'])
   })
 
-  it('⭐ dual-view: ten lists, each with the change it lost; the 78 are one construct', () => {
+  it('⭐ dual-view: the lists that still diverge, each with the change it lost; the 78 are one construct', () => {
     const src = fs.readFileSync(path.resolve(process.cwd(), '..',
       'corpus/committed/dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b.pine'), 'utf8')
     const t = translatePine(src, { strict: true })
     const d = t.objectDiagnostics
+    // ⭐ C25 — the five floating lists' bar-0 pushes read the loop counter, which
+    // is known per pass now: they no longer diverge (`objectLoopScalars.test.js`).
     expect(d.collsDivergedWhy).toEqual([
-      'candle_bodies: coll:push@412',
       'historical_candle_boxes: loop:bounds@771',
       'historical_candle_lower_wicks: loop:bounds@778',
       'historical_candle_upper_wicks: loop:bounds@777',
       'historical_pattern_labels: loop:bounds@802',
-      'horizontal_high_lines: coll:push@425',
-      'horizontal_low_lines: coll:push@430',
-      'lower_wicks: coll:push@421',
       'pattern_labels: guard:loop@906',
-      'upper_wicks: coll:push@417',
     ])
     const state = (d.guardRefusals || []).filter((e) => /pine:state/.test(e))
     expect(state.length).toBeGreaterThan(0)
-    expect(state.every((e) => /\(a `var` carried in a loop of `update_drawings`\)$/.test(e)), JSON.stringify(state))
+    // ⭐ C25 — and each names the write that stops the scalar: pass 0 reads
+    // `current_htf_open`, whose block the window's `while` (line 627) stops.
+    expect(state.every((e) => /\(a `var` carried in a loop of `update_drawings`: its write at line 459 reads a value this reader cannot carry \(pine:reassign: `current_htf_open`/.test(e)), JSON.stringify(state))
       .toBe(true)
   })
 })

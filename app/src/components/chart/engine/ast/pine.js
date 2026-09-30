@@ -13916,6 +13916,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
   // promise only a lane with loops can keep, which is why it is opt-in.
   const iterTrees = objectOpts.iterTrees === true
+  /** ⭐⭐ C25 — THE HOST LANE READS A PASS ITSELF: the counter's arithmetic
+   *  through locals and at a midpoint, a condition on the counter, a helper's
+   *  `var` carried in its loop (a runtime scalar), and the objects a lost step
+   *  would have moved. ⛔ Not for the runtime lane's own object pass
+   *  (`rawTrees`/`iterTrees`, `runtime/objectLane.js`): that lane evaluates each
+   *  pass itself and keeps exactly the program it had. */
+  const hostPasses = !rawTrees && !iterTrees
   /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
    *  stripped scan as the `max_*_count` ceilings), and whether the script calls
    *  the per-series `max_bars_back(x, n)` form. See `historyReadRef`. */
@@ -14011,7 +14018,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⭐ C16 — a collection change lost with its loop diverges the collection;
       // a handle copied out of one leaves its name unknown.
       if (b.k.startsWith('coll_')) lostColl(b.coll, `${via}@${b.line === undefined ? '?' : b.line}`)
-      if (b.k === 'copy' && b.fromColl && regId.has(b.into)) taintedRegs.add(regId.get(b.into))
+      if (b.k === 'copy') lostCopy(b)
     }
   }
   const dropped = (why) => {
@@ -15168,8 +15175,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  reference the runtime resolves once per bar and reuses for every row —
    *  forty rows of the same number, which reads as data. Refusing it drops the
    *  cell, which the diagnostics then count and name. */
-  const loopArgRef = (node) => {
-    if (!node) return null
+  const loopArgRef = (node, depth = 0) => {
+    if (!node || depth > 24) return null
     if (node.type === 'name' && loopIds.includes(node.name)) return { v: 'loop', id: node.name }
     // ⚰️ A `number` FAST PATH WAS WRITTEN HERE AND REMOVED. It returned
     // `{v:'const'}` for the `1` in `r + 1` so the literal would not cost a graph
@@ -15180,15 +15187,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // ⛔ A subtree with no counter in it is an ordinary value and takes the
     // ordinary path — this also terminates the mutual recursion with `valueRef`.
     if (!mentionsLoop(node)) return valueRef(node)
+    // ⭐⭐ C25 — A BLOCK LOCAL THAT HOLDS COUNTER ARITHMETIC IS THAT ARITHMETIC.
+    // `mentionsLoop` already follows a name into its binding to SEE the counter
+    // (`int candle_left = bar_index + 1 + i * 13`); this follows it the same way
+    // to SAY it, reading the binding in the scope it was bound in. ⛔ Only an
+    // `expr` binding: a local the loop or block reassigns is opaque here and keeps
+    // its refusal (`openName` answers null for it).
+    if (hostPasses && node.type === 'name') {
+      const opened = openName(node, scopeEnv, 0)
+      if (!opened) return null
+      const saved = scopeEnv
+      scopeEnv = opened.env
+      try { return loopArgRef(opened.node, depth + 1) } finally { scopeEnv = saved }
+    }
     // ⛔ THE RAW PARSE SHAPE IS `{type:'binary', op, left, right}`, NOT the
     // canonical `{type:'op', name, args}` the resolver emits. Written against
     // the canonical shape first, this matched nothing and every counter
     // arithmetic refused — with `loopValuesUnresolved` counting it, which is how
     // it was found rather than by reading.
     if (node.type === 'binary' && OBJECT_VALUE_OPS.includes(node.op)) {
-      const a = loopArgRef(node.left)
-      const b = loopArgRef(node.right)
+      const a = loopArgRef(node.left, depth + 1)
+      const b = loopArgRef(node.right, depth + 1)
       return (a && b) ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    // ⭐ C25 — `math.round(x)`, ONE argument (`math.round(x, precision)` is not
+    // an address and keeps its refusal); `OBJECT_VALUE_UNARY`.
+    if (hostPasses && node.type === 'call' && node.name === 'math.round' && Array.isArray(node.args)
+        && node.args.length === 1 && !node.args[0].name) {
+      const a = loopArgRef(node.args[0].value, depth + 1)
+      return a ? { v: 'op', op: 'round', args: [a] } : null
     }
     return null
   }
@@ -15290,6 +15317,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
     if (stateOk) {
       const s = stateOperand(node)
+      if (s) return s
+    }
+    // ⭐ C25 — a loop scalar, whole, inside its loop (`scalarRef` says where).
+    if (loopIds.length) {
+      const s = scalarRef(node)
       if (s) return s
     }
     if (node.type === 'string') return { v: 'const', value: node.value }
@@ -15464,6 +15496,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // filled from such a read is unknown too (`taintedRegs`).
   const divergedColls = new Set()
   const taintedRegs = new Set()
+  /** ⭐⭐ C25 — register id → the list a LOST copy would have read it out of
+   *  (`b = array.get(bs, i)` that this program could not carry). The copy's
+   *  loss leaves `b` unknown (`taintedRegs`), so whatever acts through `b` is
+   *  withheld — and a withheld step that would have MOVED an object there
+   *  (`box.set_left(b, …)`) leaves every object of that list where it was made,
+   *  which TradingView does not draw. `geometryLost` names the list; the
+   *  content pass withholds its objects (`withholdContent`). */
+  const lostCopyColl = new Map()
+  const lostCopy = (op) => {
+    if (!op || !op.fromColl || !regId.has(op.into)) return
+    taintedRegs.add(regId.get(op.into))
+    if (collId.has(op.fromColl)) lostCopyColl.set(regId.get(op.into), collId.get(op.fromColl))
+  }
+  const geometryLost = []
+  /** A lost update through a lost copy that writes its object's REQUIRED
+   *  geometry → the list the copy read (see `lostCopyColl`). ⛔ Only the lost
+   *  COPY case: an update whose own target is known is the target's to carry
+   *  (C22's per-bar geometry mark), and a style setter moves nothing. */
+  const geometryLostBy = (family, propNames, target) => {
+    if (!hostPasses || !target || target.r !== 'reg' || !lostCopyColl.has(target.id)) return
+    const req = REQUIRED[family]
+    if (req && (propNames || []).some((k) => req.has(k))) geometryLost.push({ r: 'coll', id: lostCopyColl.get(target.id) })
+  }
   /** ⭐ C21 — list name → the FIRST change it lost, `<drop key>@<line>`
    *  (`objectDiagnostics.collsDivergedWhy`). `dual-view` withholds 39 reads of
    *  ten lists; the count alone named none of the pushes that made them diverge. */
@@ -15685,7 +15740,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // ⛔ Everything else — a getter inside arithmetic, a colour, a cell, a loop,
   // a getter's history (`line.get_y1(l)[1]`) — stays refused, by name.
   const scalarDecls = collected.scalars || new Map()
-  const hasGetnum = new Set(collected.ops.filter((o) => o.k === 'getnum').map((o) => o.name))
+  // ⭐ C25 — loop bodies included: a loop scalar is written inside its loop.
+  const hasGetnum = new Set()
+  const scanGetnum = (list) => {
+    for (const o of list || []) { if (o.k === 'getnum') hasGetnum.add(o.name); if (o.k === 'loop') scanGetnum(o.body) }
+  }
+  scanGetnum(collected.ops)
   const numId = new Map()
   const nums = []
   for (const [name, d] of scalarDecls) {
@@ -15694,8 +15754,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     numId.set(name, id)
     nums.push({ id, init: d.init })
   }
+  // ⭐⭐ C25 — A HELPER'S `var` CARRIED IN A LOOP (`pineObjects.js`, `loopScalars`):
+  // one runtime scalar per call site, initialised once, written by every `:=`
+  // where it stands in the loop (`setnum`), read whole inside that loop. Declared
+  // `loop: true` so the program validator admits it in a loop body and nowhere
+  // a C14 scalar may not be read.
+  const loopScalarDecls = collected.loopScalars || new Map()
+  const loopNumNames = new Set()
+  for (const [name, d] of loopScalarDecls) {
+    if (!hostPasses || d.refused || !hasGetnum.has(name)) continue
+    const id = `n${nums.length}`
+    numId.set(name, id)
+    loopNumNames.add(name)
+    nums.push({ id, init: d.init, loop: true })
+  }
   /** Scalars one of whose writes this program cannot carry — never read. */
   const lostScalars = new Set()
+  /** ⭐ C25 — loop scalar name → why it is not carried (read by its refusal). */
+  const loopScalarWhy = new Map()
+  for (const [name, d] of loopScalarDecls) if (d.refused) loopScalarWhy.set(name, d.refused)
   /** ⭐ Set only while a create/update's own props convert, outside loops. */
   let stateOk = false
   let stateOp = null
@@ -15705,16 +15782,22 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (inline && inline.bound && Array.isArray(inline.bound.params)
       && inline.bound.params.includes(node.name)) return null
     if (lostScalars.has(node.name)) return null
+    // ⭐ C25 — a loop scalar is read inside its loop, a C14 scalar outside every loop.
+    if (loopNumNames.has(node.name) !== loopIds.length > 0) return null
     return { v: 'num', id: numId.get(node.name) }
   }
-  const mentionsScalar = (node, depth = 0) => {
+  /** `onlyBar`: only the C14 scalars (written once per bar), not a loop's. */
+  const mentionsScalar = (node, depth = 0, onlyBar = false) => {
     if (!numId.size || !node || typeof node !== 'object' || depth > 32) return false
-    if (node.type === 'name' && numId.has(node.name)) return true
+    // ⭐ C25 — a LOST loop scalar is no state to read: it is the resolver's to
+    // refuse (`pine:state`, named) or to fold away under a constant condition.
+    if (node.type === 'name' && numId.has(node.name) && !(onlyBar && loopNumNames.has(node.name))
+      && !(loopNumNames.has(node.name) && lostScalars.has(node.name))) return true
     for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
-      if (mentionsScalar(node[k], depth + 1)) return true
+      if (mentionsScalar(node[k], depth + 1, onlyBar)) return true
     }
     return Array.isArray(node.args)
-      && node.args.some((a) => mentionsScalar(a && a.value !== undefined ? a.value : a, depth + 1))
+      && node.args.some((a) => mentionsScalar(a && a.value !== undefined ? a.value : a, depth + 1, onlyBar))
   }
   const readsState = (node) => hasObjectGetter(node) || mentionsScalar(node)
   /** A WHOLE value that reads object state → its `get`/`num` ref, else null. */
@@ -15747,6 +15830,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       return null
     }
+    // ⭐ C25 — a counter-dependent operand (`i`, `i - 1`) is the counter's own
+    // arithmetic (`loopArgRef`), never a per-bar tree.
+    if (hostPasses && loopIds.length && mentionsLoop(node)) return loopArgRef(node)
     const ast = canonicalOf(node)
     return ast ? internTree(ast) : null
   }
@@ -16005,10 +16091,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  subject AND what it is, so `dual-view`'s 78 read as one construct —
    *  update@491: pine:state `htf_o` (a `var` carried in a loop of `update_drawings`). */
   const HELPER_SUBJECT = [
-    [/`([^`]+)` is a `var` declared inside a loop of the function `([^`]+)`/,
-      (m) => `\`${m[1]}\` (a \`var\` carried in a loop of \`${m[2]}\`)`],
+    [/`([^`]+)` is a `var` declared inside a loop of the function `([^`]+)`[^;]*;\s*(.+)$/,
+      (m) => `\`${m[1]}\` (a \`var\` carried in a loop of \`${m[2]}\`: ${m[3]})`],
     [/`([^`]+)` changes as the function `([^`]+)`/, (m) => `\`${m[1]}\` (reassigned inside \`${m[2]}\`)`],
   ]
+  /** ⭐ C25 — why a counted loop was dropped for its bounds (`loop:bounds`), by
+   *  line: the bound's own refusal where the resolver gave one. */
+  const noteLoopBounds = (op, why) => {
+    diagnostics.loopBoundsWhy = diagnostics.loopBoundsWhy || []
+    const e = `loop@${op.line === undefined ? '?' : op.line}: ${why}`
+    if (!diagnostics.loopBoundsWhy.includes(e)) diagnostics.loopBoundsWhy.push(e)
+  }
   const noteGuardRefusal = (op, err) => {
     const guard = (err && err.guard) || null
     if (!guard) return
@@ -16027,10 +16120,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
   }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
+  /** ⭐ C25 — the first carried loop scalar a node reads, or null. */
+  const firstLoopScalarIn = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 32) return null
+    if (node.type === 'name' && loopNumNames.has(node.name)) return node.name
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
+      const n = firstLoopScalarIn(node[k], depth + 1)
+      if (n) return n
+    }
+    for (const a of Array.isArray(node.args) ? node.args : []) {
+      const n = firstLoopScalarIn(a && a.value !== undefined ? a.value : a, depth + 1)
+      if (n) return n
+    }
+    return null
+  }
   /** A guard expression that reads a getter → its live reference, or null. */
   const liftLive = (node) => {
     if (!node) return null
-    if (!readsState(node)) return liveOperand(node)
+    // ⭐ C25 — `na(x)` of a loop scalar read whole: `not (x == x)`, the existing
+    // comparison's own `na` rule (a comparison with `na` is false) — no new kind.
+    if (node.type === 'call' && node.name === 'na' && Array.isArray(node.args) && node.args.length === 1
+        && !node.args[0].name) {
+      const x = scalarRef(node.args[0].value)
+      if (x && loopNumNames.has(node.args[0].value.name)) {
+        return { v: 'bool', op: 'not', args: [{ v: 'cmp', op: '==', args: [x, x] }] }
+      }
+    }
+    // ⭐ C25 — a condition on the loop COUNTER is decided per pass, like one on
+    // object state: lifted into the live grammar (`cmp`/`bool` over `loopArgRef`).
+    if (!readsState(node) && !(hostPasses && loopIds.length && mentionsLoop(node))) return liveOperand(node)
     if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
       const a = liftLive(node.arg)
       return a ? { v: 'bool', op: 'not', args: [a] } : null
@@ -16128,11 +16246,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⭐⭐ A CONDITION THAT READS A GETTER — lifted, never folded into a tree.
       // ⛔ Not inside a counted loop: a body op runs several times a bar, and a
       // crossing observed "once per bar" has no single answer there.
-      if (readsState(node)) {
+      // ⭐⭐ C25 — …AND ONE THAT READS THE LOOP COUNTER (`if i == 0 and …`): its
+      // answer is per PASS, which no tree can say. Lifted and latched exactly as
+      // a state condition is — evaluated where the `if` stands, on every pass.
+      if (readsState(node) || (hostPasses && loopIds.length && mentionsLoop(node))) {
         // ⛔ C14 — a scalar is written once per bar; a loop body reads it per iteration.
-        if (loopIds.length && mentionsScalar(node)) return undefined
+        // ⭐ C25 — a LOOP scalar is written per pass, where it stands: read per pass.
+        if (loopIds.length && mentionsScalar(node, 0, true)) return undefined
         const live = liftLive(node)
-        if (!live) return undefined
+        if (!live) {
+          // ⭐ C25 — named: the loop scalar this condition could not lift, as the
+          // resolver would have refused it (its binding's own sentence).
+          if (!lastCanonRefusal) {
+            const nm = firstLoopScalarIn(node)
+            const b = nm ? scopeEnv.get(nm) : null
+            if (b && b.kind === 'opaque') lastCanonRefusal = { guard: b.guard, message: b.message }
+          }
+          return undefined
+        }
         // ⭐⭐ C16 — INSIDE A COUNTED LOOP a `get`/`size` comparison has one
         // answer per ITERATION, and the runtime evaluates the body op per
         // iteration (`low < box.get_bottom(b)` for each zone in institutional-
@@ -16288,15 +16419,32 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // across the loop's passes and the bars, written under conditions from
       // arrays — only a run of the function holds it.
       const carried = !!(meta.carried && meta.carried.has(b.name))
+      // ⭐⭐ C25 — A CARRIED `var` IS A LOOP SCALAR WHERE IT CAN BE (`loopScalars`),
+      // read whole by the object runtime; a read that still reaches the resolver
+      // is refused with WHY: the write or declaration that could not be carried,
+      // or — the scalar carried — that this read sits inside an expression. Read
+      // lazily: the reason is settled when the writes are planned, after this
+      // binding may already have been made.
+      if (carried) {
+        return {
+          kind: 'opaque',
+          guard: 'pine:state',
+          get message() {
+            const why = loopScalarWhy.get(b.name)
+              || (numId.has(b.name) && !lostScalars.has(b.name)
+                ? 'read here inside an expression, where the object runtime reads it only whole'
+                : 'no write of it is carried')
+            return `${HELPER_LOCAL_CLAUSE} — \`${shown}\` is a \`var\` declared inside a loop of the function `
+              + `\`${meta.fn}\` (one variable across the loop's passes and the bars); ${why}`
+          },
+          at: null,
+        }
+      }
       return {
         kind: 'opaque',
         guard: 'pine:state',
-        message: carried
-          ? `${HELPER_LOCAL_CLAUSE} — \`${shown}\` is a \`var\` declared inside a loop of the function `
-            + `\`${meta.fn}\`: one variable, carried from pass to pass and from bar to bar and rewritten `
-            + 'under conditions, so only a run of the function holds its value here'
-          : `${HELPER_LOCAL_CLAUSE} — \`${shown}\` changes as the function \`${meta.fn}\``
-            + ' runs, and a value read here would be its first value rather than its current one',
+        message: `${HELPER_LOCAL_CLAUSE} — \`${shown}\` changes as the function \`${meta.fn}\``
+          + ' runs, and a value read here would be its first value rather than its current one',
         at: null,
       }
     }
@@ -16441,6 +16589,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (op.k !== 'update' || !target) return
     const content = CONTENT[op.family]
     if (content && (op.props || []).some((name) => content.has(name))) contentLost.push(target)
+    // ⭐ C25 — and its geometry, where the handle came out of a list by a lost copy.
+    geometryLostBy(op.family, op.props, target)
   }
   // ⭐ A NON-`var` OBJECT NAME IS FRESH EVERY BAR, and modelling it as a plain
   // register would let yesterday's object survive into a bar where Pine had `na`.
@@ -16509,7 +16659,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (op.k === 'getnum') {
       const plan = getnumPlan.get(op)
       if (!plan || lostScalars.has(op.name)) continue
-      ops.push({ k: 'setnum', num: numId.get(op.name), value: plan.value, when: plan.g.when, ...plan.g.extra })
+      // ⭐ C25 — a loop scalar's guard is built HERE, into this loop's body, so a
+      // latch it needs stands where the `if` stands (see `planGetnums`).
+      let g = plan.g
+      if (op.loopScalar) {
+        scopeEnv = scopeFor(op.locals, op)
+        loopIds = op.loopIds || []
+        g = guardOf(op.guards, op)
+        // ⛔ Planned readable, so it IS readable here (same scope, same tokens); a
+        // write silently skipped would leave every read of the scalar wrong.
+        if (g === undefined) throw new Error(`loop scalar ${op.name}: its guard read at planning and not at conversion`)
+      }
+      ops.push({ k: 'setnum', num: numId.get(op.name), value: plan.value, when: g.when, ...g.extra })
       continue
     }
     diagnostics.attemptedOps += 1
@@ -16560,7 +16721,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (op.k === 'update') { contentLostBy(op, targetRef(op.target)); stateLostBy(op, targetRef(op.target)) }
       if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
       if (op.k.startsWith('coll_')) lostColl(op.coll, `guard:${op.k}@${op.line === undefined ? '?' : op.line}`)
-      if (op.k === 'copy' && op.fromColl && regId.has(op.into)) taintedRegs.add(regId.get(op.into))
+      if (op.k === 'copy') lostCopy(op)
       dropped(`guard:${op.k}`)
       continue
     }
@@ -16572,12 +16733,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (op.k === 'loop') {
       // ⭐ C16 — a bound may read a drawing collection's length
       // (`for i = array.size(bs) - 1 to 0`), evaluated when the loop starts.
+      lastCanonRefusal = null
       const from = liveOrValueRef(op.from && op.from.value)
       const to = liveOrValueRef(op.to && op.to.value)
       // ⛔ A BOUND THIS ENGINE CANNOT SAY IS NOT GUESSED AT. `for i = 0 to
       // n` with an unreadable `n` would otherwise run zero times or forever,
       // and both draw a table nobody wrote.
-      if (!from || !to) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
+      if (!from || !to) {
+        noteLoopBounds(op, shortWhy(lastCanonRefusal))
+        unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
+      }
       // ⭐ `for … by <step>` — the step is a value like the bounds. ⛔ An
       // unreadable step drops the loop exactly as an unreadable bound does.
       // ⛔ AND THE RUNTIME LANE STILL REFUSES A STEPPED LOOP: it lowers loops
@@ -16585,6 +16750,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // one there would iterate a range the drawing does not.
       const step = op.step ? liveOrValueRef(op.step.value) : null
       if (op.step && (!step || iterTrees)) {
+        noteLoopBounds(op, 'a `by` step this reader cannot carry')
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
       // ⛔⛔ C16 — AN END BOUND THAT READS A LENGTH THE BODY CHANGES IS NOT
@@ -16595,6 +16761,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `for i = array.size(bs) - 1 to 0` with an `array.remove` in its body is
       // carried and `for i = 0 to array.size(bs) - 1` with one would not be.
       if (liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
+        noteLoopBounds(op, 'an end bound that reads a list length its body changes')
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
       const outer = ops
@@ -16607,7 +16774,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
       // empty body draws nothing"), so a loop whose every op was dropped is
       // dropped too — named, not silently emitted as a build error.
-      if (!body.length) { dropped('loop:empty'); continue }
+      // ⭐ C25 — and one left holding only LATCHES (a condition on the counter
+      // whose every reader was dropped) draws nothing either.
+      if (hostPasses ? !body.some((b) => b.k !== 'latch') : !body.length) { dropped('loop:empty'); continue }
       // ⭐ IN PER-ITERATION MODE THE RAW BOUNDS RIDE ALONG. The runtime lane
       // must lower a loop over the SAME range the drawing uses, and this op is
       // the only place that range is written down. Gated, so an ordinary
@@ -16709,7 +16878,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (!reg || !value) {
         // ⛔ C16 — a handle read out of a collection that could not be carried
         // leaves `b` unknown, so what acts through `b` is withheld below.
-        if (op.fromColl && reg) taintedRegs.add(reg)
+        lostCopy(op)
         dropped('copy:source'); continue
       }
       ops.push({ k: 'setreg', reg, value, when, ...lastBarOnly })
@@ -16862,12 +17031,65 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // that reads the scalar may convert first. A write whose getter or guard this
   // program cannot carry makes the scalar unreadable everywhere.
   const getnumPlan = new Map()
-  for (const op of collected.ops) {
+  const PLAN_COUNTERS = ['loopValuesUnresolved', 'unresolvedValues', 'enumUnreadable', 'droppedProps']
+  /** ⭐ C25 — what a loop scalar's `:=` writes: another loop scalar whole, or a
+   *  value with no object state in it — a tree, counter arithmetic, a constant. */
+  const loopScalarValue = (node) => {
+    const s = scalarRef(node)
+    if (s) return s
+    if (readsState(node)) return null
+    return valueRef(node)
+  }
+  const shortWhy = (err) => {
+    if (!err) return 'a value this reader cannot compute'
+    // the refusal's own specifics — the text after its generic clause
+    const parts = String(err.message || '').split(/\s+—\s+/)
+    const m = parts.length > 1 ? parts.slice(1).join(' — ') : parts[0]
+    return `${err.guard || 'refused'}${m ? `: ${m.length > 140 ? `${m.slice(0, 140)}…` : m}` : ''}`
+  }
+  const planGetnums = (list) => {
+  for (const op of list) {
+    if (op.k === 'loop') { planGetnums(op.body || []); continue }
     if (op.k !== 'getnum' || !numId.has(op.name)) continue
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
     let node = null
     try { node = parseWholeExpression(op.rhs) } catch { node = null }
+    if (op.loopScalar) {
+      // ⭐ C25 — written per pass where it stands; its guard is read like any op's.
+      lastCanonRefusal = null
+      // ⛔ A PLAN IS A QUESTION, NOT A CONVERSION: the counters it would bump are
+      // put back, so they count what the program converts — once.
+      const counters = PLAN_COUNTERS.map((k) => diagnostics[k])
+      const gettersSeen = diagnostics.getters.length
+      const value = node ? loopScalarValue(node) : null
+      // ⛔ ASKED WITHOUT EMITTING: a condition on the counter or on another
+      // scalar becomes a LATCH, which `latchOf` pushes into the sink being
+      // converted — and nothing is being converted yet. The real guard is built
+      // where the write is converted (`convertList`), into its loop's body.
+      let g
+      const savedOps = ops
+      const savedLatchIds = new Map(latchIds)
+      const savedLatchCond = new Map(latchCond)
+      ops = []
+      try { g = value ? guardOf(op.guards, op) : undefined } finally {
+        ops = savedOps
+        latchIds.clear(); for (const [k, v] of savedLatchIds) latchIds.set(k, v)
+        latchCond.clear(); for (const [k, v] of savedLatchCond) latchCond.set(k, v)
+        PLAN_COUNTERS.forEach((k, i) => { if (counters[i] === undefined) delete diagnostics[k]; else diagnostics[k] = counters[i] })
+        diagnostics.getters.length = gettersSeen
+      }
+      if (!value || g === undefined) {
+        lostScalars.add(op.name)
+        if (!loopScalarWhy.has(op.name)) {
+          loopScalarWhy.set(op.name, `its write at line ${op.line} ${value ? 'stands under a condition' : 'reads a value'} `
+            + `this reader cannot carry (${shortWhy(lastCanonRefusal)})`)
+        }
+        continue
+      }
+      getnumPlan.set(op, { value, g })
+      continue
+    }
     const value = node && !op.inlined ? getterRef(node) : null
     // ⛔ A scalar written under a condition that itself reads object state would
     // need that condition latched where the `if` stands; not carried — refused.
@@ -16879,6 +17101,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const stale = staleReads(op, { k: 'setnum', when: g.when })
     if (stale.length) { noteReadBeforeWrite(op, stale); lostScalars.add(op.name); continue }
     getnumPlan.set(op, { value, g })
+  }
+  }
+  // ⭐ C25 — to a fixed point: a loop scalar written from another that turned
+  // out lost is lost too (its plan read a scalar no `setnum` will ever write).
+  for (let seen = -1; seen !== lostScalars.size;) {
+    seen = lostScalars.size
+    getnumPlan.clear()
+    planGetnums(collected.ops)
   }
   scopeEnv = env
   loopIds = []
@@ -17079,8 +17309,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (o.k === 'create') lostCreate(o.family)
       if (o.k === 'delete') lostRemoval('coll:diverged', { k: 'delete', family: famOf(o.target) })
       if (o.k === 'clearcells' || o.k === 'clear') lostRemoval('coll:diverged', { k: 'clear' })
-      if (o.k === 'update' && CONTENT[famOf(o.target)]
-        && Object.keys(o.props || {}).some((k) => CONTENT[famOf(o.target)].has(k))) contentLost.push(o.target)
+      if (o.k === 'update') contentLostBy({ k: 'update', family: famOf(o.target), props: Object.keys(o.props || {}) }, o.target)
       dropped('coll:diverged')
     }
     const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); if (o.k !== 'latch') lose(o) } }
@@ -17126,40 +17355,50 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // the lost step would have reached.
   statePass()
   const withholdContent = () => {
-  if (contentLost.length) {
-    const regs = new Set()
-    const sites = new Set()
-    const colls = new Set()
-    const mark = (r) => {
-      if (!r) return false
-      const set = r.r === 'reg' ? regs : r.r === 'site' ? sites : r.r === 'coll' ? colls : null
-      if (!set || set.has(r.id)) return false
-      set.add(r.id)
-      return true
-    }
-    const hit = (r) => !!r && ((r.r === 'reg' && regs.has(r.id))
-      || (r.r === 'site' && sites.has(r.id)) || (r.r === 'coll' && colls.has(r.id)))
-    for (const r of contentLost) mark(r)
+  if (contentLost.length || geometryLost.length) {
     const each = (list, fn) => {
       for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
     }
-    for (let changed = true; changed;) {
-      changed = false
-      each(ops, (o) => {
-        if (o.k === 'setreg' && o.value) {
-          if (regs.has(o.reg) && mark(o.value)) changed = true
-          if (hit(o.value) && mark({ r: 'reg', id: o.reg })) changed = true
-        }
-        if ((o.k === 'push' || o.k === 'collset') && o.value) {
-          if (colls.has(o.coll) && mark(o.value)) changed = true
-          if (hit(o.value) && mark({ r: 'coll', id: o.coll })) changed = true
-        }
-      })
+    /** The handles `seeds` can reach, through every register copy and list write
+     *  in BOTH directions — the one spread both kinds of loss use. */
+    const spread = (seeds) => {
+      const regs = new Set()
+      const sites = new Set()
+      const colls = new Set()
+      const mark = (r) => {
+        if (!r) return false
+        const set = r.r === 'reg' ? regs : r.r === 'site' ? sites : r.r === 'coll' ? colls : null
+        if (!set || set.has(r.id)) return false
+        set.add(r.id)
+        return true
+      }
+      const hit = (r) => !!r && ((r.r === 'reg' && regs.has(r.id))
+        || (r.r === 'site' && sites.has(r.id)) || (r.r === 'coll' && colls.has(r.id)))
+      for (const r of seeds) mark(r)
+      for (let changed = true; changed;) {
+        changed = false
+        each(ops, (o) => {
+          if (o.k === 'setreg' && o.value) {
+            if (regs.has(o.reg) && mark(o.value)) changed = true
+            if (hit(o.value) && mark({ r: 'reg', id: o.reg })) changed = true
+          }
+          if ((o.k === 'push' || o.k === 'collset') && o.value) {
+            if (colls.has(o.coll) && mark(o.value)) changed = true
+            if (hit(o.value) && mark({ r: 'coll', id: o.coll })) changed = true
+          }
+        })
+      }
+      const withheld = (o) => (o.k === 'create'
+        ? (o.into && regs.has(o.into)) || sites.has(o.site)
+        : ['update', 'delete'].includes(o.k) ? hit(o.target)
+          : (o.k === 'push' || o.k === 'collset') ? hit(o.value) : false)
+      return { regs, sites, colls, hit, withheld }
     }
-    const withheld = (o) => (o.k === 'create'
-      ? (o.into && regs.has(o.into)) || sites.has(o.site)
-      : ['update', 'delete'].includes(o.k) ? hit(o.target)
-        : (o.k === 'push' || o.k === 'collset') ? hit(o.value) : false)
+    const content = spread(contentLost)
+    // ⭐ C25 — an object a lost step would have MOVED (`geometryLost`) is held
+    // the same way, and counted under its own name.
+    const geometry = spread(geometryLost)
+    const hit = (r) => content.hit(r) || geometry.hit(r)
     const prune = (list) => {
       const out = []
       for (const o of list) {
@@ -17169,8 +17408,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           out.push({ ...o, body })
           continue
         }
-        if (withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('content:lost'); continue }
-        if (withheld(o)) { dropped('content:withheld'); continue }
+        if (content.withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('content:lost'); continue }
+        if (content.withheld(o)) { dropped('content:withheld'); continue }
+        if (geometry.withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('geometry:lost'); continue }
+        if (geometry.withheld(o)) { dropped('geometry:withheld'); continue }
         // A copy of a withheld handle is `na` — the object it names is not drawn.
         if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
         out.push(o)
@@ -17178,7 +17419,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return out
     }
     ops = prune(ops)
-    diagnostics.contentWithheld = { regs: regs.size, sites: sites.size, colls: colls.size }
+    if (contentLost.length) {
+      diagnostics.contentWithheld = { regs: content.regs.size, sites: content.sites.size, colls: content.colls.size }
+    }
+    if (geometryLost.length) {
+      diagnostics.geometryWithheld = { regs: geometry.regs.size, sites: geometry.sites.size, colls: geometry.colls.size }
+    }
   }
   }
   // ⭐ C14 — a withheld create makes its family unknown to a getter, and a
@@ -17197,6 +17443,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     divergedPass()
     withholdContent()
     while (statePass()) withholdContent()
+  }
+  // ⭐ C25 — every loop scalar, served or with the reason it is not.
+  if (loopScalarDecls.size) {
+    diagnostics.loopScalars = [...loopScalarDecls.keys()].map((n) => {
+      const shown = String(n).split(INLINE_SUFFIX)[0]
+      const served = numId.has(n) && !lostScalars.has(n) && !lostNums.has(numId.get(n))
+      return served ? `${shown}: served` : `${shown}: ${loopScalarWhy.get(n) || 'no write of it is carried'}`
+    }).sort()
   }
   if (nums.length) {
     diagnostics.getterScalars = {
@@ -17269,10 +17523,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   scanUse(ops)
   const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
   const usedNums = new Set()
-  for (const o of keptOps) {
-    if (o.k === 'setnum') usedNums.add(o.num)
-    for (const s of stateReadsOfOp(o)) if (s.v === 'num') usedNums.add(s.id)
+  // ⭐ C25 — into loop bodies too: a loop scalar is written and read there.
+  const scanNums = (list) => {
+    for (const o of list) {
+      if (o.k === 'setnum') usedNums.add(o.num)
+      for (const s of stateReadsOfOp(o)) if (s.v === 'num') usedNums.add(s.id)
+      if (o.k === 'loop' && Array.isArray(o.body)) scanNums(o.body)
+    }
   }
+  scanNums(keptOps)
   // ⛔⛔ THE SEARCH DESCENDS INTO LOOP BODIES. `some()` over the top level was
   // right while every op was top-level, and became wrong the day a `create`
   // could sit inside a `loop` — a script whose ONLY constructor is in a loop

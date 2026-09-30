@@ -568,7 +568,7 @@ const INVARIANT_WORDS = new Set(['true', 'false', 'na', 'and', 'or', 'not'])
 /** Punctuation that combines values without reading another bar or writing a name. */
 const INVARIANT_PUNCT = new Set(['(', ')', ',', '?', ':', '==', '!=', '<', '>', '<=', '>=',
   '+', '-', '*', '/', '%', '='])
-const isMutator = (tk) => tk && tk.kind === 'punct' && typeof tk.value === 'string'
+export const isMutator = (tk) => tk && tk.kind === 'punct' && typeof tk.value === 'string'
   && tk.value.length >= 2 && tk.value.endsWith('=')
   && !['==', '!=', '<=', '>=', '=>'].includes(tk.value)
 
@@ -683,7 +683,7 @@ export function isBareGetterAt(toks, from, h) {
 }
 
 /** `toks[from..]` is a numeric literal or `na` → `{init}` (null for `na`), else null. */
-function literalInit(t, from, h) {
+export function literalInit(t, from, h) {
   const rest = t.slice(from)
   if (rest.length === 1 && rest[0].kind === 'ident' && rest[0].value === 'na') return { init: null }
   if (rest.length === 1 && rest[0].kind === 'number' && Number.isFinite(Number(rest[0].value))) {
