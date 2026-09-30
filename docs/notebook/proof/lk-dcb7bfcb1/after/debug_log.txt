@@ -1,0 +1,40 @@
+[seed] target note id=cc13a0e0428e4d7a93d2426e3370486c title='Beta thesis AMD'
+[seed] source note id=9bcf6faa89794f25bac7fa8103ffa7dc
+[console:error] Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+[net] GET http://127.0.0.1:8461/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/folder-counts -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/favorites -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes?folder_id=__archived__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/recents -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes?sort=updated&limit=1&deleted=true -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/tags -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/excerpts -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/facts -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/documents -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/evidence-candidates -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes?sort=updated -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes?sort=title -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/thesis-summary -> 200
+[step] ProseMirror ready
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/related-from -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/trade-ref/resolve -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/backlinks -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/properties -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/unlinked-mentions -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes/recents -> 200
+[net] POST http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc/opened -> 200
+[net] GET http://127.0.0.1:8461/api/j2/notes?q=Beta%20thesis%20A&limit=8 -> 200
+[net] PUT http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc -> 200
+[dump right after typing the full title] {'popupPresent': True, 'listboxPresent': True, 'listboxText': 'No matching notes', 'noteLinkCount': 0}
+[dump after search debounce] {'popupPresent': True, 'listboxPresent': True, 'listboxText': 'No matching notes', 'noteLinkCount': 0}
+[net] GET http://127.0.0.1:8461/api/j2/notes?q=Beta%20thesis%20AMD&limit=8 -> 200
+[net] PUT http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc -> 200
+[dump after autosave debounce] {'popupPresent': True, 'listboxPresent': True, 'listboxText': 'Beta thesis AMD', 'noteLinkCount': 0}
+[check] popup survived search+autosave: True
+[net] GET http://127.0.0.1:8461/api/j2/notes/link-targets?ids=cc13a0e0428e4d7a93d2426e3370486c -> 200
+[dump after picking the result] {'popupPresent': False, 'listboxPresent': False, 'listboxText': None, 'noteLinkCount': 0}
+[net] PUT http://127.0.0.1:8461/api/j2/notes/9bcf6faa89794f25bac7fa8103ffa7dc -> 200
+[server] source note bodyJson contains noteLink to target: True
+[server] target note's backlinks include the source note: True
+[RESULT] true

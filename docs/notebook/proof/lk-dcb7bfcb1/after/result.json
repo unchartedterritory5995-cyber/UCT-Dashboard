@@ -1,0 +1,44 @@
+{
+  "ok": true,
+  "source_id": "9bcf6faa89794f25bac7fa8103ffa7dc",
+  "target_id": "cc13a0e0428e4d7a93d2426e3370486c",
+  "popup_survived_search_and_autosave": true,
+  "dump_after_typing": {
+    "popupPresent": true,
+    "listboxPresent": true,
+    "listboxText": "No matching notes",
+    "noteLinkCount": 0
+  },
+  "dump_after_search": {
+    "popupPresent": true,
+    "listboxPresent": true,
+    "listboxText": "No matching notes",
+    "noteLinkCount": 0
+  },
+  "dump_after_autosave": {
+    "popupPresent": true,
+    "listboxPresent": true,
+    "listboxText": "Beta thesis AMD",
+    "noteLinkCount": 0
+  },
+  "dump_after_pick": {
+    "popupPresent": false,
+    "listboxPresent": false,
+    "listboxText": null,
+    "noteLinkCount": 0
+  },
+  "server_body_has_link": true,
+  "server_backlinks_has_source": true,
+  "backlinks_raw": {
+    "count": 1,
+    "notes": [
+      {
+        "id": "9bcf6faa89794f25bac7fa8103ffa7dc",
+        "title": "LK source note",
+        "updatedAt": "2026-09-30T05:19:02.395484+00:00",
+        "refs": 1,
+        "context": "See"
+      }
+    ]
+  }
+}
