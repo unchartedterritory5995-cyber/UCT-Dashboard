@@ -85,6 +85,8 @@ describe('⭐⭐ THE CAPABILITY MATRIX — derived from definitions, pinned by n
     expect(verdict('movingAverage', { inputs: { source: 'volume' } })).toEqual({ ok: false, reason: 'volume' })
     expect(verdict('movingAverage', { inputs: { source: 'sym:QQQ:close' } })).toEqual({ ok: true })
     expect(verdict('movingAverage', { inputs: { source: '@legacy:rsi::rsi' } })).toEqual({ ok: true, inherits: 'legacy:rsi' })
+    // An economic series is as-of on its RELEASE time — no bar frame to compute in.
+    expect(verdict('movingAverage', { inputs: { source: 'econ:USCPI' } })).toEqual({ ok: false, reason: 'economic' })
   })
 })
 

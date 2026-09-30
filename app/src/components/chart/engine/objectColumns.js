@@ -26,7 +26,7 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret, maxLookback } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor } from './nativeRegistry'
+import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -163,6 +163,40 @@ export function readsBoundedState(tree) {
 
 const sameValue = (a, b) => a === b || (a !== a && b !== b)
 
+/** ⭐⭐ C17 — THE PROBE VALUES A TREE NEEDS, NOT ONLY ±PREFIX_PROBE.
+ *
+ *  An EQUALITY cannot see a prefix filled with ±1e12: `laststate == 1` answers
+ *  false for `NaN`, for `+1e12` and for `-1e12` alike, so every bar before the
+ *  curtain read as KNOWN-false — while Pine's `laststate` there is a real 0, 1
+ *  or 2. ⚰️ MEASURED on `rsi-swing-indicator` (NYSE:RDDT 1D, 2026-09-28): the
+ *  guards `laststate == 2 and isOverbought` / `laststate == 1 and isOversold`
+ *  were never withheld before bar 250, so the run believed no swing label had
+ *  been made there; its first label then read `last_actual_label_hh_price` at
+ *  its declared 0 and said "HH" where TradingView's says "LH".
+ *
+ *  So a tree is probed once more at every finite literal an `==` / `!=`
+ *  compares against: a prefix equal to it is exactly the value that flips the
+ *  comparison. ⚠️ An equality between the state and another SERIES is still
+ *  blind (no literal to probe at) — named, not solved. */
+export function probeValuesOf(tree) {
+  const out = new Set([PREFIX_PROBE, -PREFIX_PROBE])
+  const stack = [tree]
+  let seen = 0
+  while (stack.length && seen < 100000) {
+    const n = stack.pop()
+    seen += 1
+    if (!n || typeof n !== 'object') continue
+    const args = Array.isArray(n.args) ? n.args : null
+    if (n.type === 'op' && (n.name === '==' || n.name === '!=') && args) {
+      for (const a of args) {
+        if (a && a.type === 'num' && typeof a.value === 'number' && Number.isFinite(a.value)) out.add(a.value)
+      }
+    }
+    if (args) for (const a of args) stack.push(a)
+  }
+  return [...out]
+}
+
 /** The bars on which `col` (the tree's real column) depends on a recurrence
  *  prefix, as a `Uint8Array`, or `null` when there are none.
  *
@@ -177,8 +211,9 @@ const sameValue = (a, b) => a === b || (a !== a && b !== b)
  *  dependence carried through one past the bound is not seen — it reads as
  *  today's behaviour, never as a new withheld object.
  *
- *  `memos` is keyed by the probed length, one pair of maps per length, because a
- *  memoised column is only valid for the series it was computed over. */
+ *  `memos` is keyed by the probed length, then by the probe value (one memo per
+ *  value, `probeValuesOf`), because a memoised column is only valid for the
+ *  series and the prefix it was computed over. */
 export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new Map()) {
   if (!col || !readsBoundedState(tree)) return null
   let reach
@@ -186,19 +221,22 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   const n = Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
   if (n <= 0) return null
   const probeBars = n < bars.length ? bars.slice(0, n + 1) : bars
-  if (!memos.has(probeBars.length)) memos.set(probeBars.length, [new Map(), new Map()])
-  const [memoHi, memoLo] = memos.get(probeBars.length)
-  let hi
-  let lo
+  if (!memos.has(probeBars.length)) memos.set(probeBars.length, new Map())
+  const bySign = memos.get(probeBars.length)
+  // ⭐ C17 — one probe per value `probeValuesOf` names, each with its own memo
+  // (a column computed at one probe value must never answer for another).
+  const probed = []
   try {
-    hi = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoHi, prefixProbe: PREFIX_PROBE })
-    lo = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoLo, prefixProbe: -PREFIX_PROBE })
+    for (const p of probeValuesOf(tree)) {
+      if (!bySign.has(p)) bySign.set(p, new Map())
+      probed.push(interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: bySign.get(p), prefixProbe: p }))
+    }
   } catch {
     return null
   }
   let mask = null
   for (let i = 0; i < n; i++) {
-    if (!sameValue(col[i], hi[i]) || !sameValue(col[i], lo[i])) {
+    if (probed.some((pc) => !sameValue(col[i], pc[i]))) {
       if (!mask) mask = new Uint8Array(col.length)
       mask[i] = 1
     }
@@ -243,7 +281,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   for (const node of wanted) {
     try {
       const tree = intern(fold(nodeTree(graph, node)))
-      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null }
+      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
       columns.set(node, col)
       const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
@@ -361,6 +400,10 @@ export function objectReaderFor(definition, bars, opts = {}) {
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
     newestBarIsForming: opts.newestBarIsForming ?? null,
+    // ⭐ C12w — the listing exception, decided by the SAME gate the plot lane
+    // asks (`historyFromListingFor`), so an object and the plot beside it can
+    // never read two different answers about where the series starts.
+    historyFromListing: historyFromListingFor(definition, opts),
     fold,
   }
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
@@ -398,7 +441,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   for (const i of graphNodesReferenced(bound)) {
     try {
       const tree = intern(fold(trees[i]))
-      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming }
+      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+        ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
       columns.set(i, col)
       const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)

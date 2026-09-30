@@ -1655,3 +1655,16 @@
     min-height: var(--tap-min);
   }
 }
+
+/* TERM-055: the split-adjustment label in the chart toolbar. Quiet by design:
+   it states a fact about the data, it is not a control. */
+.adjustmentLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  padding: 0 6px;
+  cursor: help;
+}
+@media (max-width: 640px) {
+  .adjustmentLabel { display: none; }
+}

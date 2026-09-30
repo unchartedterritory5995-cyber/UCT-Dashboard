@@ -21,9 +21,14 @@ const fmt = (v) => {
     : v >= 100 ? v.toFixed(v % 1 ? 2 : 0) : v.toFixed(2)
 }
 
+const hasLevel = (v) => v != null && v !== '' && Number.isFinite(Number(v)) && Number(v) > 0
+
 function Row({ r }) {
+  // A row with NO entry, stop or target used to print "E — S — T1 — T2 —".
+  // That reads as broken levels; the truth is there is no trigger today.
+  const noTrigger = !['entry', 'stop', 't1', 't2'].some((k) => hasLevel(r[k]))
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 4px', borderBottom: '1px solid #1b1b1b' }}>
+    <div data-testid="book-row" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '11px 4px', borderBottom: '1px solid #1b1b1b' }}>
       <span style={{ width: 34, textAlign: 'right', color: '#4c4c46', fontWeight: 800, fontSize: 20, fontVariantNumeric: 'tabular-nums', flex: '0 0 auto' }}>{r.rank}</span>
       <img src={`/api/ticker-logo/${r.sym}?v=2`} alt="" style={{ width: 34, height: 34, borderRadius: 8, background: '#1c1c1c', objectFit: 'contain', flex: '0 0 auto' }} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -31,16 +36,22 @@ function Row({ r }) {
           <span style={{ color: '#c9a84c', fontWeight: 800, fontSize: 18, letterSpacing: '0.4px' }}>{r.sym}</span>
           <span style={{ color: '#8b8f84', fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.theme}</span>
         </div>
-        <div style={{ display: 'flex', gap: 16, marginTop: 3, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', color: '#d4d4d4' }}>
-          <span><span style={{ color: '#3cb868', fontWeight: 700 }}>E</span> {fmt(r.entry)}</span>
-          <span><span style={{ color: '#e74c3c', fontWeight: 700 }}>S</span> {fmt(r.stop)}</span>
-          <span><span style={{ color: '#c9a84c', fontWeight: 700 }}>T1</span> {fmt(r.t1)}</span>
-          <span><span style={{ color: '#c9a84c', fontWeight: 700 }}>T2</span> {fmt(r.t2)}</span>
-        </div>
+        {noTrigger ? (
+          <div data-testid="no-trigger" style={{ marginTop: 3, fontSize: 12.5, color: '#6f6f69', fontStyle: 'italic' }}>No trigger today</div>
+        ) : (
+          <div style={{ display: 'flex', gap: 16, marginTop: 3, fontSize: 12.5, fontVariantNumeric: 'tabular-nums', color: '#d4d4d4' }}>
+            <span><span style={{ color: '#3cb868', fontWeight: 700 }}>E</span> {fmt(r.entry)}</span>
+            <span><span style={{ color: '#e74c3c', fontWeight: 700 }}>S</span> {fmt(r.stop)}</span>
+            <span><span style={{ color: '#c9a84c', fontWeight: 700 }}>T1</span> {fmt(r.t1)}</span>
+            <span><span style={{ color: '#c9a84c', fontWeight: 700 }}>T2</span> {fmt(r.t2)}</span>
+          </div>
+        )}
       </div>
-      <span style={{ fontSize: 11, color: '#9aa08f', border: '1px solid #2a2a26', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{r.setup}</span>
-      <span style={{ width: 52, textAlign: 'center', flex: '0 0 auto', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 8, padding: '5px 0', color: '#c9a84c', fontWeight: 800, fontSize: 14, fontVariantNumeric: 'tabular-nums' }}>
-      {Number.isFinite(Number(r.score)) ? Number(r.score).toFixed(1) : '—'}</span>
+      {/* Setup-type pill only. The UCT score badge that sat right of it was
+          removed by owner ruling 2026-09-29: the letter shows no internal scores. */}
+      {r.setup ? (
+        <span style={{ fontSize: 11, color: '#9aa08f', border: '1px solid #2a2a26', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap', flex: '0 0 auto' }}>{r.setup}</span>
+      ) : null}
     </div>
   )
 }
@@ -89,7 +100,7 @@ export default function BookRender() {
           {rows.map((r) => <Row key={r.sym} r={r} />)}
         </div>
         <div style={{ height: 22, background: '#161616', display: 'flex', alignItems: 'center', padding: '0 18px', color: '#666', fontSize: 10 }}>
-          <span>Leadership 20 · entry / stop / targets · UCT score</span>
+          <span>Leadership 20 · entry / stop / targets · setup type</span>
           <span style={{ marginLeft: 'auto', color: '#c9a84c' }}>uctintelligence.com</span>
         </div>
       </div>

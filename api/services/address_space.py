@@ -185,6 +185,118 @@ def resolve(user_id: str, address: str) -> Optional[dict]:
     return None
 
 
+# ── TERM-056: addresses written in PUBLIC text (the Floor) ──────────────────────────
+# Owner ruling 2026-09-29: on the Floor an address links ONLY when the object is shared.
+# Resolution is against the AUTHOR's objects, never the reader's: "L:12" in a post means the
+# poster's layout 12. Outcomes per address:
+#   shared  -> {address, kind, kind_label, name, to, shared: True}   (a door every reader can use)
+#   private -> {address, kind, kind_label, shared: False}            (NO name: a private title is
+#                                                                      not the Floor's to publish)
+#   not the author's / unknown -> omitted, so ordinary text ("W:3 in a row") never gets a chip.
+_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWN]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
+MAX_TEXT_ADDRESSES = 8
+
+
+def addresses_in_text(text: str) -> list[str]:
+    seen, out = set(), []
+    for m in _TEXT_ADDRESS_RE.finditer(text or ""):
+        a = f"{m.group(1)}:{m.group(2)}"
+        if a not in seen:
+            seen.add(a)
+            out.append(a)
+    return out[:MAX_TEXT_ADDRESSES]
+
+
+def _shared_layout(author_id: str, obj_id: str) -> Optional[dict]:
+    from api.services import charts_layout_service as svc
+    if not obj_id.isdigit():
+        return None
+    row = svc.get(int(obj_id))
+    if not row:
+        return None
+    if row["scope"] == "global":                       # prebuilt: every member can open it
+        return {"name": row["name"], "to": f"/charts?openLayout={row['id']}", "shared": True}
+    if str(row["user_id"]) != str(author_id):
+        return None
+    st = svc.share_status(author_id, row["id"])
+    if st and st.get("token"):
+        return {"name": row["name"], "to": f"/charts?openShared={quote(st['token'])}", "shared": True}
+    return {"shared": False}
+
+
+def _shared_watchlist(author_id: str, obj_id: str) -> Optional[dict]:
+    from api.services import watchlist_service as svc
+    conn = svc.get_connection()
+    try:
+        r = conn.execute("SELECT id, user_id, name, is_public, is_flagged_list FROM watchlists WHERE id = ?",
+                         (obj_id,)).fetchone()
+    finally:
+        conn.close()
+    if not r or str(r["user_id"]) != str(author_id):
+        return None
+    if r["is_public"]:
+        return {"name": r["name"], "to": f"/charts?openWatchlist=community:{quote(str(r['id']))}", "shared": True}
+    return {"shared": False}
+
+
+def _shared_note(author_id: str, obj_id: str) -> Optional[dict]:
+    # A note has no Floor-visible share in this slice: the author's own note is "private".
+    try:
+        from api.services.journal_two import notes as svc
+        note = svc.get_note(author_id, obj_id)
+    except Exception:  # noqa: BLE001 -- not theirs, or unreadable: no chip, never an error
+        return None
+    return {"shared": False} if note else None
+
+
+_SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist, "note": _shared_note}
+
+
+def shared_links(author_id: Optional[str], text: str) -> list[dict]:
+    """The chips for one piece of public text written by `author_id` (see the block above)."""
+    if not author_id:
+        return []
+    out = []
+    for addr in addresses_in_text(text):
+        kind, obj_id = parse(addr)
+        try:
+            hit = _SHARED_RESOLVERS[kind](str(author_id), obj_id)
+        except Exception as e:  # noqa: BLE001 -- one store must not break a feed
+            logger.warning("[address-space] shared resolve %s failed: %s", addr, e)
+            continue
+        if hit is None:
+            continue
+        row = {"address": addr, "kind": kind, "kind_label": KINDS[kind].label, "shared": hit["shared"]}
+        if hit["shared"]:
+            row.update(name=hit["name"], to=hit["to"])
+        out.append(row)
+    return out
+
+
+def text_of_body(body) -> str:
+    """Plain text of a Floor body (TipTap JSON string, or already plain)."""
+    import json
+    if not body:
+        return ""
+    try:
+        doc = json.loads(body) if isinstance(body, str) else body
+    except (TypeError, ValueError):
+        return str(body)
+    parts: list[str] = []
+
+    def walk(n):
+        if isinstance(n, dict):
+            if isinstance(n.get("text"), str):
+                parts.append(n["text"])
+            for ch in n.get("content") or []:
+                walk(ch)
+        elif isinstance(n, list):
+            for ch in n:
+                walk(ch)
+    walk(doc)
+    return " ".join(parts)
+
+
 # ── The census the rail derives the kinds from ───────────────────────────────────
 _OWNER_COLS = {"user_id", "owner_id", "owner_user_id", "author_id"}
 _NAME_COLS = {"name", "title", "label"}

@@ -1,0 +1,158 @@
+{
+ "_meta": {
+  "source": "C:\\Users\\blake\\uct-econ-phase0\\licensing.md (terms fetched live 2026-09-28). Quoted text is VERBATIM from the agency page; do not paraphrase a required notice.",
+  "placeholders": "{access_date} = date UCT retrieved the data (ISO); {publication_date} = agency publication date; {data_name} = e.g. 'Effective Federal Funds Rate (EFFR)'; {publisher} = 'UCT Intelligence'; {year} = current year",
+  "rule": "notice_required=true means the text MUST appear wherever the data is shown (per-chart source line and the app's 'Sources & notices' page). notice_required=false means citation is requested/courteous only."
+ },
+ "bls": {
+  "agency": "U.S. Bureau of Labor Statistics",
+  "notice_required": true,
+  "access_date_required": true,
+  "text": "Source: U.S. Bureau of Labor Statistics. Data retrieved from BLS.gov on {access_date}. BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.",
+  "required_verbatim": "BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.",
+  "terms_quote": "Users of the public API should cite the date that data were accessed or retrieved using the API. Users must clearly state that \"BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.\"",
+  "derived_rule": "Users may not modify or falsely represent content accessed through BLS.gov and still cite the source as BLS.gov -- label UCT-derived values as UCT calculations.",
+  "source_url": "https://www.bls.gov/developers/termsOfService.htm"
+ },
+ "bea": {
+  "agency": "U.S. Bureau of Economic Analysis",
+  "notice_required": true,
+  "text": "This product uses the Bureau of Economic Analysis (BEA) Data API but is not endorsed or certified by BEA.",
+  "required_verbatim": "This product uses the Bureau of Economic Analysis (BEA) Data API but is not endorsed or certified by BEA.",
+  "derived_rule": "You may not modify or falsely represent content accessed through the API and still claim the source is the BEA.",
+  "source_url": "https://apps.bea.gov/api/_pdf/bea_api_tos.pdf"
+ },
+ "census": {
+  "agency": "U.S. Census Bureau",
+  "notice_required": true,
+  "text": "This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.",
+  "required_verbatim": "This product uses the Census Bureau Data API but is not endorsed or certified by the Census Bureau.",
+  "derived_rule": "You may not modify or falsely represent content accessed through the API and still claim the source is the Census Bureau.",
+  "source_url": "https://www.census.gov/data/developers/about/terms-of-service.html"
+ },
+ "fhfa": {
+  "agency": "Federal Housing Finance Agency",
+  "notice_required": true,
+  "text": "This product uses FHFA Data but is neither endorsed nor certified by FHFA.",
+  "required_verbatim": "This product uses FHFA Data but is neither endorsed nor certified by FHFA.",
+  "trademark_note": "\"FHFA House Price Index\u00ae\" and \"FHFA HPI\u00ae\" are registered marks -- use descriptively only. \"Source: FHFA\u00ae\" is allowed to identify the source.",
+  "source_url": "https://www.fhfa.gov/about/fhfa-policies/api-terms-of-service"
+ },
+ "nyfed": {
+  "agency": "Federal Reserve Bank of New York",
+  "notice_required": true,
+  "text": "The {data_name} is subject to the Terms of Use posted at newyorkfed.org. The New York Fed is not responsible for publication of the {data_name} by {publisher}, does not sanction or endorse any particular republication, and has no liability for your use.",
+  "reference_rate_template_verbatim": "The [NAME OF DATA or CONTENT]* is subject to the Terms of Use posted at newyorkfed.org. The New York Fed is not responsible for publication of the [DATA NAME] by [NAME OF PUBLISHER], does not [sanction] or [endorse] any particular republication, and has no liability for your use.",
+  "default_attribution_verbatim": "\u00a9 [year] Federal Reserve Bank of New York. Content from the New York Fed subject to the Terms of Use at newyorkfed.org.",
+  "default_attribution": "\u00a9 {year} Federal Reserve Bank of New York. Content from the New York Fed subject to the Terms of Use at newyorkfed.org.",
+  "name_use_notice_verbatim": "[User]* is not affiliated with the New York Fed. The New York Fed does not sanction, endorse, or recommend any products or services offered by [user].",
+  "dtcc_note_verbatim": "The Secured Overnight Financing Rate (SOFR) Data and Broad General Collateral Rate (BGCR) Data are calculated using data provided under a license granted to the New York Fed by DTCC Solutions LLC \u2026 Solutions, its affiliates, and third parties from which they obtained data have no liability for the content of this material.",
+  "applies": "Reference rates (EFFR, SOFR, OBFR, target range fields) carry the reference-rate notice; SOFR/BGCR also the DTCC note; other New York Fed content (RRP operations, Empire State survey, GSCPI) the default attribution. Modified content must be labelled as modified and not attributed to the New York Fed.",
+  "source_url": "https://www.newyorkfed.org/privacy/termsofuse"
+ },
+ "nyfed_sce": {
+  "agency": "Federal Reserve Bank of New York (Survey of Consumer Expectations)",
+  "notice_required": true,
+  "text": "Source: Survey of Consumer Expectations, \u00a92013-2020 Federal Reserve Bank of New York. The SCE data are available without charge at https://www.newyorkfed.org/microeconomics/sce and may be used subject to license terms posted there. The New York Fed disclaims any responsibility for this analysis and interpretation of Survey of Consumer Expectations data.",
+  "source_url": "https://www.newyorkfed.org/microeconomics/sce"
+ },
+ "eia": {
+  "agency": "U.S. Energy Information Administration",
+  "notice_required": true,
+  "text": "Source: U.S. Energy Information Administration ({publication_date})",
+  "terms_quote": "if you use or reproduce any of our information products, you should use an acknowledgment, which includes the publication date, such as: 'Source: U.S. Energy Information Administration (Oct 2008).'",
+  "source_url": "https://www.eia.gov/about/copyrights_reuse.php"
+ },
+ "fed_board": {
+  "agency": "Board of Governors of the Federal Reserve System",
+  "notice_required": false,
+  "text": "Source: Board of Governors of the Federal Reserve System",
+  "terms_quote": "Unless otherwise indicated, information on Board's website is in the public domain and may be copied and distributed without permission. Please cite to the Board as the source of the information.",
+  "exclusion": "Discontinued pre-2016 H.15 third-party series (ICE swaps, Moody's, Bond Buyer, Eurodollar, Freddie Mac) are NOT Board content -- never redistribute.",
+  "source_url": "https://www.federalreserve.gov/disclaimer.htm"
+ },
+ "fiscaldata": {
+  "agency": "U.S. Treasury, Bureau of the Fiscal Service",
+  "notice_required": false,
+  "text": "Source: U.S. Treasury, Fiscal Data",
+  "terms_quote": "The data is offered free, without restriction, and available to copy, adapt, redistribute, or otherwise use for non-commercial or commercial purposes.",
+  "source_url": "https://fiscaldata.treasury.gov/about-us/"
+ },
+ "treasury": {
+  "agency": "U.S. Department of the Treasury",
+  "notice_required": false,
+  "text": "Source: U.S. Department of the Treasury",
+  "terms_quote": "No terms-of-use or copyright statement found (17 U.S.C. \u00a7105 U.S. Government work); attribution courteous, not required.",
+  "source_url": "https://home.treasury.gov/subfooter/site-policies-and-notices"
+ },
+ "dol": {
+  "agency": "U.S. Department of Labor",
+  "notice_required": false,
+  "text": "Source: U.S. Department of Labor",
+  "terms_quote": "Materials created by the federal government are generally part of the public domain and may be used, reproduced and distributed without permission\u2026 However, such materials may not be used in a manner that implies any affiliation or endorsement by the DOL\u2026 You may properly credit public domain materials obtained from a DOL website to the U.S. Department of Labor",
+  "source_url": "https://www.dol.gov/general/aboutdol/copyright"
+ },
+ "cleveland": {
+  "agency": "Federal Reserve Bank of Cleveland",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Cleveland. Licensed under Creative Commons Attribution-ShareAlike 4.0 International (https://creativecommons.org/licenses/by-sa/4.0/). Accessed on {access_date}.",
+  "suggested_citation_verbatim": "\"Median Consumer Price Index.\" Federal Reserve Bank of Cleveland. https://doi.org/10.26509/frbc-mediancpi. Accessed on [date].",
+  "clearance_note": "YELLOW (low): page-level CC BY-SA 4.0 vs site-wide non-commercial terms -- written confirmation advisable before enabling.",
+  "source_url": "https://www.clevelandfed.org/indicators-and-data/median-cpi"
+ },
+ "atlanta": {
+  "agency": "Federal Reserve Bank of Atlanta",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Atlanta",
+  "terms_quote": "The Bank hereby grants permission to reproduce Bank-owned content \u2026 provided that such reproductions are not for commercial gain or monetary profit and that appropriate attribution to the Federal Reserve Bank of Atlanta is made on all such reproductions.",
+  "clearance_note": "YELLOW: commercial display needs written permission.",
+  "source_url": "https://www.atlantafed.org/terms-of-use"
+ },
+ "dallas": {
+  "agency": "Federal Reserve Bank of Dallas",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Dallas",
+  "terms_quote": "Reproduction of the Bank's information, data, or materials contained herein may be made without limitation as to quantity, provided it is not distributed for the purpose of private gain and is appropriately credited to the Bank.",
+  "clearance_note": "YELLOW: written permission required for a paid product.",
+  "source_url": "https://www.dallasfed.org/fed/disclaimer"
+ },
+ "philly": {
+  "agency": "Federal Reserve Bank of Philadelphia",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Philadelphia",
+  "terms_quote": "The content provided on this website may be used for informational, educational, and research purposes only.",
+  "clearance_note": "YELLOW: written permission required for a paid product.",
+  "source_url": "https://www.philadelphiafed.org/about-us/privacy-notice"
+ },
+ "richmond": {
+  "agency": "Federal Reserve Bank of Richmond",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Richmond",
+  "terms_quote": "grants permission to reproduce written materials \u2026 provided however, that reproduction is not for the purpose of private and/or commercial gain",
+  "clearance_note": "YELLOW: written permission required.",
+  "source_url": "https://www.richmondfed.org/terms_and_conditions"
+ },
+ "kc": {
+  "agency": "Federal Reserve Bank of Kansas City",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Kansas City",
+  "terms_quote": "Reproduction of any information contained on our website may be made without limitation as to number, provided that it is not for the purpose of private gain.",
+  "clearance_note": "YELLOW: written permission required.",
+  "source_url": "https://www.kansascityfed.org/about-us/disclaimer/"
+ },
+ "chicago": {
+  "agency": "Federal Reserve Bank of Chicago",
+  "notice_required": true,
+  "text": "Source: Federal Reserve Bank of Chicago",
+  "clearance_note": "YELLOW: Chicago Fed terms were NOT fetched in Phase 0 -- review before any permission request.",
+  "source_url": "https://www.chicagofed.org/"
+ },
+ "freddie": {
+  "agency": "Freddie Mac",
+  "notice_required": true,
+  "text": "Source: Freddie Mac Primary Mortgage Market Survey",
+  "terms_quote": "No redistribution / commercialization absent express written license. You may not redistribute Data, publish Data, or commercially exploit Data or derived products/services without a separate written agreement or license from Freddie Mac.",
+  "clearance_note": "YELLOW (high): written license required before storing/serving PMMS history.",
+  "source_url": "https://www.freddiemac.com/terms"
+ }
+}

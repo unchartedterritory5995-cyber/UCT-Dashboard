@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed } from './interpret.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -11611,7 +11611,16 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
  *
  *  ⚠️ IT IS ALSO WHY A LONG SCRIPT CAN STILL MEET `budget:lookback`: 250 plus
  *  whatever the update itself reaches. That refusal is accurate — the script
- *  wants more history than this engine will hold — and it names itself. */
+ *  wants more history than this engine will hold — and it names itself.
+ *
+ *  ⭐⭐ C12w — THE ONE EXCEPTION (ruling R-W, 2026-09-29). When the CALLER proves
+ *  the series starts at the symbol's first-ever bar, our bar 0 is the vendor's,
+ *  and `interpret.js::listingPass` carries the state from bar 0 instead — publishing
+ *  a bar only where every bar-0 reading this tree admits agrees (a tree does not
+ *  record which `self` reads were bare and which were `x[1]`; `varSeedOf` marks the
+ *  one seed that cannot stand for both). The window stays the default everywhere
+ *  else, and nothing here changes: the fact reaches `interpret` as
+ *  `historyFromListing`, never through this translation. */
 const PINE_STATE_WARMUP = 250
 
 /** ⭐⭐ WHAT A `var`'S ACCUMULATOR IS SEEDED WITH — its initializer, or `na`.
@@ -11683,11 +11692,20 @@ const PINE_STATE_WARMUP = 250
  *  (`PINE_STATE_WARMUP`). What neither can reproduce is a value set more than `W`
  *  bars ago and still carried: there the history spelling shows a GAP and the bare
  *  spelling shows its initializer, where Pine shows the old value. How often a real
- *  chart meets that is UNMEASURED — no vendor capture holds such a bar. */
+ *  chart meets that is UNMEASURED — no vendor capture holds such a bar.
+ *
+ *  ⭐⭐ C12w — THE MIXED CASE WITH A REAL INITIALIZER IS WRITTEN `-(0 / 0)`
+ *  (`interpret.js::ambiguousVarSeed`). Same `na`, same bounded window, byte for
+ *  byte; the difference is for the listing pass (ruling R-W), which reads a
+ *  seed as "what every unguarded bar-0 read of this `var` returns". That is true
+ *  of every seed this function writes EXCEPT this one: its bare read is the
+ *  initializer, which the `na` seed does not carry. When the initializer is
+ *  itself `na` (`var float x = na`, the usual spelling) the two agree and plain
+ *  `0 / 0` stays — so only scripts with such a `var` see their tree move. */
 const historySeed = () => cOp('/', [cNum(0), cNum(0)])
 const varSeedOf = (seed, reads) => {
   if (!reads) return seed
-  if (reads.history > 0) return historySeed()
+  if (reads.history > 0) return reads.bare > 0 && !isStaticNa(seed) ? ambiguousVarSeed() : historySeed()
   if (reads.guarded > 0 && reads.bare === 0) return historySeed()
   return seed
 }
@@ -13801,6 +13819,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  exists only in the frame the caller built. Resolving that against the
    *  caller's scope answers `undefined` for the parameter and refuses the cell.
    *  Every existing call site passes nothing and behaves exactly as before. */
+  /** ⭐ C17 — the refusal the last unresolvable tree threw (`guardRefusals`). */
+  let lastCanonRefusal = null
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
@@ -13836,14 +13856,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return makeResolver(envOverride || scopeEnv).resolve(node)
     } catch (err) {
       diagnostics.unresolvedValues += 1
-      // ⭐ C11c — WHICH refusal, by its guard: a count per guard, so a sharper
-      // name (an array read as a window, not "a user-defined type") is visible
-      // in the diagnostics. The sentence itself stays internal, as before.
-      const g = err && err.guard
-      if (g) {
-        diagnostics.unresolvedGuards = diagnostics.unresolvedGuards || {}
-        diagnostics.unresolvedGuards[g] = (diagnostics.unresolvedGuards[g] || 0) + 1
-      }
+      lastCanonRefusal = err
       return null
     }
   }
@@ -15538,6 +15551,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (!diagnostics.readBeforeWrite.includes(e)) diagnostics.readBeforeWrite.push(e)
     }
   }
+  /** ⭐⭐ C17 — WHY A `guard:<kind>` DROP HAPPENED, BY NAME. The drop key says
+   *  only "its condition cannot be read"; this names the refusal the condition's
+   *  tree threw and the name it stopped on — `artemis-oscillator-pro`'s four
+   *  `guard:create` (`✦ OB`, `✦ OS`, `R▲`, `R▼`) are one construct:
+   *  `var int meObCount … meObCount := meObWeak ? meObCount + 1 : 0`, a running
+   *  count whose `self + 1` arm never forgets its seed (`forgetsItsSeed`), so the
+   *  bounded accumulator would count over the last 250 bars, not since the reset
+   *  (`pine:state`). Diagnostics only: the drop, its key and its class are as
+   *  they were. */
+  const REFUSED_SUBJECT = [
+    /`([^`]+)` builds on its own previous bar/,
+    /`([^`]+)` reads its own running value/,
+    /`([^`]+)` changes at line/,
+    /`([^`]+)` is written at line/,
+    /— `([^`]+)`$/,
+  ]
+  const noteGuardRefusal = (op, err) => {
+    const guard = (err && err.guard) || null
+    if (!guard) return
+    const msg = String((err && err.message) || '')
+    let subject = null
+    for (const re of REFUSED_SUBJECT) {
+      const m = re.exec(msg)
+      if (m) { subject = m[1]; break }
+    }
+    diagnostics.guardRefusals = diagnostics.guardRefusals || []
+    const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` \`${subject}\`` : ''}`
+    if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
+  }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** A guard expression that reads a getter → its live reference, or null. */
   const liftLive = (node) => {
@@ -16004,8 +16046,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.attemptedOps += 1
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
+    lastCanonRefusal = null
     const g = guardOf(op.guards, op)
     if (g === undefined) {
+      noteGuardRefusal(op, lastCanonRefusal)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
@@ -16403,11 +16447,6 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     for (const i of opRefs(o).trees) for (const a of ambiguityOfTree(i)) if (!out.includes(a)) out.push(a)
     return out
   }
-  const readsRecurrence = (node, d = 0) => {
-    if (!node || typeof node !== 'object' || d > 400) return false
-    if (node.type === 'call' && Object.prototype.hasOwnProperty.call(RECURRENCES, node.name)) return true
-    return Array.isArray(node.args) && node.args.some((a) => readsRecurrence(a, d + 1))
-  }
   /** One round; true when it withheld anything (see the loop after the content pass). */
   const statePass = () => {
     let any = false
@@ -16427,25 +16466,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     let reads = false
     every(ops, (o) => { if (stateReadsOfOp(o).length) reads = true })
-    // ⭐ WHAT THE RUNTIME COULD MAKE UNKNOWABLE, ruled out here (the runtime
-    // holds no taint of its own): a handle a step writes off a recurrence,
-    // which the warm-up curtain may withhold on a bar Pine runs it
-    // (`objectColumns.unknownMask`). ⚠️ A handle a DELETE empties is NOT ruled
-    // out: the runtime's `reap` empties the register, so its getter reads `na`
-    // — the reading C16 serves and rails (`objectLatchedGuards.test.js`).
-    if (reads) {
-      // ⭐ C11c — a step withheld on a bar a window reduction is unmeasured is
-      // the same hazard for a getter as one the curtain withholds.
-      const recurs = (o) => [...opRefs(o).trees].some((i) => readsRecurrence(trees[i]))
-        || opAmbiguity(o).length > 0
-      every(ops, (o) => {
-        const t = o.k === 'setreg' ? { r: 'reg', id: o.reg }
-          : o.k === 'create' ? (o.into ? { r: 'reg', id: o.into } : null) : o.target
-        if (!t || o.k === 'delete' || !recurs(o)) return
-        if (t.r === 'reg') stateLostProps.set(t.id, '*')
-        else stateLostFamilies.add(t.r === 'coll' ? (colls.find((c) => c.id === t.id) || {}).family || null : null)
-      })
-    }
+    // ⭐⭐ C17 — WHAT THE WARM-UP CURTAIN COULD MAKE UNKNOWABLE IS THE RUNTIME'S
+    // NOW, NOT THIS PASS'S. A handle a step writes off a recurrence was ruled
+    // out here wholesale (`state:lost`) because the runtime held no taint of its
+    // own. It does now (`objectRuntime.js` `regTaint`): an op the curtain
+    // withholds on a bar marks what it would have written, per property, and
+    // every reader of it is withheld on that bar — while the bars the curtain
+    // does NOT withhold are Pine's own values, served. ⚰️ The blanket rule cost
+    // `rsi-swing-indicator` its whole program (12 ops). What stays here is what
+    // this CONVERSION lost: a setter, create or handle it could not carry.
     const sweep = (list) => {
       const kept = []
       for (const o0 of list) {

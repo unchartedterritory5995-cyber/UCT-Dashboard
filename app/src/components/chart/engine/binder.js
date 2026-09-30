@@ -73,11 +73,13 @@ import {
 } from './sourceRef'
 import { projectionFor, clippedBarsFor } from './symbolProjection'
 import { fundamentalColumn } from './fundamentalSource'
+import { economicColumn, economicPlotStyle, observationAtFor } from './economicSource'
+import { economicMeta } from './economicSeries'
 import { fundamentalFormatOfInstance, fundamentalPriceFormat } from './fundamentalFormat'
 import { ohlcCapabilityOf, barHasOhlc, outputIsSource } from './ohlcCapability'
-import { sourceCapabilityOf } from './sourceCapability'
+import { sourceCapabilityOf, SCALAR_STYLES } from './sourceCapability'
 import { resolvePlotStyle, resolveCandleColors } from './presentation'
-import { splitGapRuns, hasFundamentalLineage, isConnectedPool, valueAtFor } from './gapRuns'
+import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapRuns'
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
@@ -387,6 +389,17 @@ function splitFor(points) {
   return sp
 }
 
+/** `time -> 'Aug 2026'` for an economic column, one per (column, adjustTime). */
+const observationMemo = new WeakMap()
+function observationAtOf(column, bars, adjustTime) {
+  let m = observationMemo.get(column)
+  if (!m || m.adjustTime !== adjustTime || m.bars !== bars) {
+    m = { adjustTime, bars, f: observationAtFor(column, bars, adjustTime) }
+    observationMemo.set(column, m)
+  }
+  return m.f
+}
+
 const valueAtMemo = new WeakMap()
 function valueAtOf(points) {
   let f = valueAtMemo.get(points)
@@ -655,6 +668,9 @@ export function createBinder({ chart, LWC }) {
         const reader = objectReaderFor(def, bars, {
           inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
           newestBarIsForming: ctx.newestBarIsForming ?? null,
+          // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
+          // document's own declaration is asked inside `objectReaderFor`.
+          ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
@@ -706,7 +722,9 @@ export function createBinder({ chart, LWC }) {
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}`
+      // ⭐ C12w — and whether the series was read from its listing bar: the same
+      // bars can draw a different picture once that statement arrives.
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -1022,6 +1040,9 @@ export function createBinder({ chart, LWC }) {
     // and that stays true for a hidden instance nobody reads, and STOPS being
     // true the moment one does. Hiding a QQQ series must not silently take
     // `MA(QQQ)` down with it: the eye icon is about what is DRAWN.
+    // ⭐ instanceId -> the ECONOMIC column a passthrough instance plots, so its
+    // binding can tell the legend which observation PERIOD each bar shows.
+    const econObs = new Map()
     const dependedOn = new Set()
     for (const inst of instances) {
       if (!inst || inst.hidden === true) continue
@@ -1101,7 +1122,7 @@ export function createBinder({ chart, LWC }) {
           const entry = frameMap ? frameMap.get(frameKey(frame, parsed.symbol)) : null
           const secBars = entry && Array.isArray(entry.bars) && entry.bars.length ? entry.bars : null
           series = secBars ? projectionFor(secBars, parsed.field, calcBars) : null
-        } else if (parsed && parsed.kind === 'fundamental' && frame) {
+        } else if (parsed && (parsed.kind === 'fundamental' || parsed.kind === 'economic') && frame) {
           series = null   // gated by `calcTimeframeCapability`; never reached
         } else if (parsed && parsed.kind === 'symbol') {
           const entry = secondary ? secondary.get(parsed.symbol) : null
@@ -1128,6 +1149,18 @@ export function createBinder({ chart, LWC }) {
               return sb ? projectionFor(sb, 'close', bars) : null
             },
           })
+        } else if (parsed && parsed.kind === 'economic') {
+          // ⭐⭐ AN ECONOMIC OBSERVATION SERIES — AS-OF ON ITS RELEASE TIME, with a
+          // per-frequency max age (`economicSource.js`); or, on a series-native
+          // timeline (the econ PRIMARY chart), each row exactly. Resolved from
+          // `ctx.economics` (Map symbol -> entry), never from the bars lane.
+          series = economicColumn(parsed, {
+            bars, tf: ctx.tf, economics: ctx.economics || null,
+            econPlacement: ctx.econPlacement, nowSec: ctx.nowSec ?? null,
+          })
+          if (series && series.__econ && outputIsSource(def) && !econObs.has(inst.instanceId)) {
+            econObs.set(inst.instanceId, series)
+          }
         }
         sourceCols = sourceCols || {}
         sourceCols[key] = series
@@ -1152,7 +1185,11 @@ export function createBinder({ chart, LWC }) {
       // key for the day one takes two.
       const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
 
+      // ⭐ C12w — the listing statement is part of what the columns were computed
+      // from: it can arrive AFTER the bars (the listing date is its own fetch), and
+      // a memo keyed only on the bars would keep the curtained columns.
       const sig = inputsSignature(inst.inputs) + sourceSig
+        + (!frame && ctx.historyFromListing === true ? '|listing' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
@@ -1193,7 +1230,11 @@ export function createBinder({ chart, LWC }) {
             source: primarySource, sources: sourceCols,
             newestBarIsForming: frame
               ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
-              : (ctx.newestBarIsForming ?? null) }))
+              : (ctx.newestBarIsForming ?? null),
+            // ⭐ C12w — ONLY the chart's own series can start at the listing
+            // bar: a framed instance computes on its frame's bars, which the
+            // caller's statement does not describe.
+            ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}) }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -1323,6 +1364,12 @@ export function createBinder({ chart, LWC }) {
       const declared = sourceInputsOf(idef, instance)
       if (!declared.length) return null
       const parsed = parseSource(declared[0][1])
+      // ⭐ AN ECONOMIC SOURCE STARTS IN ITS REGISTRY STYLE (step for a policy
+      // target, histogram for a signed change) and can NEVER wear candles.
+      if (parsed && parsed.kind === 'economic') {
+        const style = economicPlotStyle(economicMeta(parsed.symbol, ctx.economics || null))
+        return { defaultStyle: outputIsSource(idef) ? style : null, allowedStyles: SCALAR_STYLES }
+      }
       if (!parsed || parsed.kind !== 'symbol' || !parsed.symbol) return null
       const pres = typeof ctx.sourcePresentationOf === 'function'
         ? ctx.sourcePresentationOf(parsed.symbol) : null
@@ -1797,7 +1844,7 @@ export function createBinder({ chart, LWC }) {
       // valid run; the primary keeps the newest run and every time slot, the rest
       // are drawn by run series this binding owns. Everything else is untouched:
       // `gapBreak` false means the exact calls this pass always made.
-      const gapBreak = isConnectedPool(b.poolKey) && hasFundamentalLineage(b.inst, instances)
+      const gapBreak = isConnectedPool(b.poolKey) && hasPitLineage(b.inst, instances)
       const split = gapBreak ? splitFor(points) : null
       const drawn = split ? split.primary : points
       if (firstBindNeedsSetData(b, planMode)) {
@@ -1879,6 +1926,8 @@ export function createBinder({ chart, LWC }) {
         runOptions: runSeries.length ? runSeriesOptions(p.options) : null,
         // The legend's reading of a gap-breaking line at a bar (`readout.chipsFrom`).
         ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
+        // The legend's OBSERVATION PERIOD for an economic passthrough (`Aug 2026`).
+        ...(econObs.has(b.instanceId) ? { observationAt: observationAtOf(econObs.get(b.instanceId), bars, adjustTime) } : {}),
       })
     }
 

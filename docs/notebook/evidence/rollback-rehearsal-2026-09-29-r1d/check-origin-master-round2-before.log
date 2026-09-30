@@ -1,0 +1,25 @@
+Captured live, after checkpoint 2 pushed and this lane's own MEASURED_AT was at 8d08da86f, but
+before adding L8/cd9ecc833 to CHAIN/REVIEWED_NOT_LANDINGS (worktree notebook-w10-r1d, lane R1d,
+2026-09-29). The controller reported L8 (#255) had landed on master; this is the tool's own
+verdict against the fetched origin/master tip at that moment (6f563c158), by running:
+
+    python tools/notebook_rollback_chain.py --check --from 6f563c158
+
+Output (verbatim, one JSON line):
+
+{"check": "stale", "from": "6f563c1588339528931209d64bdcc5058e876cc9", "measured_at": "8d08da86f",
+ "stopped": "2 commit(s) after MEASURED_AT 8d08da86f look like Notebook landings the chain does
+ not name: 6f563c158 'Notebook 10/10 — wave 10 L8: scorecard re-score 34/61 (7b, 12a) + writ'
+ (selected by path: tests/test_parity_scorecard.py); cd9ecc833 'feat(fundamentals): V5 cutover
+ foundation -- frozen base, versioned pu' (selected by path: api/main.py). Add each landing to
+ CHAIN newest first (or, if a person rules it is NOT one, to REVIEWED_NOT_LANDINGS with the
+ reason), re-run from the new tip, record a rule and a pin for each conflict, rehearse the new
+ step on a sandbox, and move MEASURED_AT."}
+
+exit code: 2
+
+Note: while this was being resolved, origin/master moved once more, from 6f563c158 to 5b4da7874
+(`breadth(v2 cutover): McClellan + cumulative A/D bridges across the 2026-03-23 boundary`,
+unrelated breadth work, selected by neither criterion -- confirmed via
+`notebook_landings('6f563c158^..5b4da7874')`, empty for that commit). Merged into this branch as
+`2b0f965b2`.

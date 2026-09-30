@@ -1,0 +1,11 @@
+/* BRK-01 increment 1 — the option chain grid. */
+.head { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin: 4px 0 10px; font-size: 13px; color: var(--text); }
+.expiry select { margin-left: 6px; min-height: var(--tap-min); background: var(--bg-surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 2px 6px; }
+.muted { color: var(--text-muted); font-size: 12px; }
+.note { color: var(--text-muted); font-size: 13px; padding: 12px 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: 8px; }
+.grid { border-collapse: collapse; width: 100%; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.grid th, .grid td { padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+.grid thead th { color: var(--text-muted); font-weight: 600; position: sticky; top: 0; background: var(--bg-surface); }
+.strike, .strikeHead { text-align: center !important; font-weight: 700; color: var(--text-heading); background: var(--bg-surface); position: sticky; left: 0; }
+.atm td { background: color-mix(in srgb, var(--ut-gold, #c9a84c) 12%, transparent); }

@@ -1,0 +1,759 @@
+{
+ "service": {
+  "version": "econ-release-p1.1",
+  "booted": true,
+  "owner": "Braccos-PC:69928:bb904db9da73",
+  "started_at": 1790666030,
+  "uptime_s": 25171,
+  "heartbeat_at": 1790691201,
+  "ticks": 422,
+  "generated_at": 1790691201
+ },
+ "registry": {
+  "total": 237,
+  "enabled": 42,
+  "cohort": 43,
+  "enabled_cohort": 42
+ },
+ "enabled_series": 42,
+ "states": {
+  "CURRENT": 42
+ },
+ "next_releases": [
+  {
+   "calendar_key": "nyfed:rrp",
+   "date": "2026-09-29",
+   "time": "13:15",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-29",
+   "symbols": [
+    "USRRP"
+   ]
+  },
+  {
+   "calendar_key": "fiscal:dts",
+   "date": "2026-09-29",
+   "time": "16:00",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-28",
+   "symbols": [
+    "USTGA"
+   ]
+  },
+  {
+   "calendar_key": "fed:h15",
+   "date": "2026-09-29",
+   "time": "16:15",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-28",
+   "symbols": [
+    "UST10Y",
+    "UST10Y2Y",
+    "UST2Y"
+   ]
+  },
+  {
+   "calendar_key": "fiscal:dtp",
+   "date": "2026-09-29",
+   "time": "16:15",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-28",
+   "symbols": [
+    "USDEBT"
+   ]
+  },
+  {
+   "calendar_key": "nyfed:sofr",
+   "date": "2026-09-30",
+   "time": "08:00",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-29",
+   "symbols": [
+    "USSOFR"
+   ]
+  },
+  {
+   "calendar_key": "bea:gdp",
+   "date": "2026-09-30",
+   "time": "08:30",
+   "tz": "America/New_York",
+   "precision": "exact",
+   "source": "authoritative_feed",
+   "period_label": "2026Q2/rev2",
+   "symbols": [
+    "USDEBTGDP",
+    "USGDP",
+    "USRGDP",
+    "USRGDPQA"
+   ]
+  },
+  {
+   "calendar_key": "bea:pio",
+   "date": "2026-09-30",
+   "time": "08:30",
+   "tz": "America/New_York",
+   "precision": "exact",
+   "source": "authoritative_feed",
+   "period_label": "2026-08",
+   "symbols": [
+    "USCOREPCE",
+    "USPCEPI",
+    "USPCEPIYOY"
+   ]
+  },
+  {
+   "calendar_key": "nyfed:effr",
+   "date": "2026-09-30",
+   "time": "09:00",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-29",
+   "symbols": [
+    "USEFFR",
+    "USFEDFUNDSL",
+    "USFEDFUNDSU"
+   ]
+  },
+  {
+   "calendar_key": "eia:wpsr",
+   "date": "2026-09-30",
+   "time": "10:30",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-25",
+   "symbols": [
+    "USCRUDEINV"
+   ]
+  },
+  {
+   "calendar_key": "dol:claims",
+   "date": "2026-10-01",
+   "time": "08:30",
+   "tz": "America/New_York",
+   "precision": "rule",
+   "source": "rule",
+   "period_label": "2026-09-26",
+   "symbols": [
+    "USICSA"
+   ]
+  }
+ ],
+ "last_success_by_provider": {
+  "bea": 1790649646,
+  "bls": 1790690580,
+  "census": 1790649662,
+  "dol": 1790649663,
+  "eia": 1790690280,
+  "fed_ddp": 1790649635,
+  "fhfa": 1790686820,
+  "fiscaldata": 1790649711,
+  "nyfed": 1790686800,
+  "nyfed_esms": 1790649716
+ },
+ "delayed": [],
+ "validation_failures": [],
+ "providers": {
+  "bea": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649646,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649646
+  },
+  "bls": {
+   "consecutive_failures": 0,
+   "last_error": "SourceUnavailable: POST https://api.bls.gov/publicAPI/v1/timeseries/data/ failed after 5 attempt(s) (last: status 503)",
+   "last_error_at": 1790690460,
+   "last_success_at": 1790690580,
+   "backoff_until": null,
+   "last_acquisition_at": 1790690580
+  },
+  "census": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649662,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649662
+  },
+  "dol": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649663,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649663
+  },
+  "eia": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790690280,
+   "backoff_until": null,
+   "last_acquisition_at": 1790690280
+  },
+  "fed_ddp": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649635,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649635
+  },
+  "fhfa": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790686820,
+   "backoff_until": null,
+   "last_acquisition_at": 1790686820
+  },
+  "fiscaldata": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649711,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649711
+  },
+  "nyfed": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790686800,
+   "backoff_until": null,
+   "last_acquisition_at": 1790686800
+  },
+  "nyfed_esms": {
+   "consecutive_failures": 0,
+   "last_error": null,
+   "last_error_at": null,
+   "last_success_at": 1790649716,
+   "backoff_until": null,
+   "last_acquisition_at": 1790649716
+  }
+ },
+ "retry": [],
+ "quota": {
+  "bls": {
+   "day": "2026-09-29",
+   "used": 21,
+   "limit": 25
+  }
+ },
+ "keys_configured": {
+  "bls": false,
+  "bea": false,
+  "census": false,
+  "eia": false
+ },
+ "calendars": [
+  {
+   "calendar_key": "bea:gdp",
+   "provider": "bea_feed",
+   "source": "authoritative_feed",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-09-30",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "authoritative_feed",
+    "period_label": "2026Q2/rev2"
+   }
+  },
+  {
+   "calendar_key": "bea:pio",
+   "provider": "bea_feed",
+   "source": "authoritative_feed",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-09-30",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "authoritative_feed",
+    "period_label": "2026-08"
+   }
+  },
+  {
+   "calendar_key": "bls:cpi",
+   "provider": "bls_2026",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-14",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "time_configured",
+    "source": "configured",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "bls:eci",
+   "provider": "bls_2026",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-30",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "time_configured",
+    "source": "configured",
+    "period_label": "2026Q3"
+   }
+  },
+  {
+   "calendar_key": "bls:empsit",
+   "provider": "bls_2026",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-02",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "time_configured",
+    "source": "configured",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "bls:jolts",
+   "provider": "bls_2026",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-11-03",
+    "time": "10:00",
+    "tz": "America/New_York",
+    "precision": "time_configured",
+    "source": "configured",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "bls:ppi",
+   "provider": "bls_2026",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-15",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "time_configured",
+    "source": "configured",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "census:ft900",
+   "provider": "census_page",
+   "source": "authoritative_page",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-06",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "authoritative_page",
+    "period_label": "2026-08"
+   }
+  },
+  {
+   "calendar_key": "census:m3adv",
+   "provider": "census_page",
+   "source": "authoritative_page",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-27",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "authoritative_page",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "census:resconst",
+   "provider": "census_page",
+   "source": "authoritative_page",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-20",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "authoritative_page",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "dol:claims",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-10-01",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-26"
+   }
+  },
+  {
+   "calendar_key": "eia:gasdiesel",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-10-06",
+    "time": "10:00",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-10-05"
+   }
+  },
+  {
+   "calendar_key": "eia:wpsr",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-30",
+    "time": "10:30",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-25"
+   }
+  },
+  {
+   "calendar_key": "fed:g17",
+   "provider": "fed_g17",
+   "source": "configured",
+   "coverage_end": "2027-12-31",
+   "next_event": {
+    "date": "2026-10-16",
+    "time": "09:15",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "configured",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "fed:h15",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-29",
+    "time": "16:15",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-28"
+   }
+  },
+  {
+   "calendar_key": "fed:h41",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-10-01",
+    "time": "16:30",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-30"
+   }
+  },
+  {
+   "calendar_key": "fed:h6",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-10-27",
+    "time": "13:00",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "fhfa:hpi_monthly",
+   "provider": "fhfa_hpi",
+   "source": "configured",
+   "coverage_end": "2027-12-31",
+   "next_event": {
+    "date": "2026-10-27",
+    "time": "09:00",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "configured",
+    "period_label": "2026-08"
+   }
+  },
+  {
+   "calendar_key": "fiscal:dtp",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-29",
+    "time": "16:15",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-28"
+   }
+  },
+  {
+   "calendar_key": "fiscal:dts",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-29",
+    "time": "16:00",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-28"
+   }
+  },
+  {
+   "calendar_key": "fiscal:mts",
+   "provider": "fiscal_feed",
+   "source": "authoritative_feed",
+   "coverage_end": "2027-01-05",
+   "next_event": {
+    "date": "2026-10-01",
+    "time": null,
+    "tz": "America/New_York",
+    "precision": "unknown",
+    "source": "authoritative_feed",
+    "period_label": "2026-09"
+   }
+  },
+  {
+   "calendar_key": "nyfed:effr",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-30",
+    "time": "09:00",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-29"
+   }
+  },
+  {
+   "calendar_key": "nyfed:esms",
+   "provider": "nyfed_esms",
+   "source": "configured",
+   "coverage_end": "2026-12-31",
+   "next_event": {
+    "date": "2026-10-15",
+    "time": "08:30",
+    "tz": "America/New_York",
+    "precision": "exact",
+    "source": "configured",
+    "period_label": "2026-10"
+   }
+  },
+  {
+   "calendar_key": "nyfed:rrp",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-29",
+    "time": "13:15",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-29"
+   }
+  },
+  {
+   "calendar_key": "nyfed:sofr",
+   "provider": "rule",
+   "source": "rule",
+   "coverage_end": null,
+   "next_event": {
+    "date": "2026-09-30",
+    "time": "08:00",
+    "tz": "America/New_York",
+    "precision": "rule",
+    "source": "rule",
+    "period_label": "2026-09-29"
+   }
+  }
+ ],
+ "calendar_refresh": {
+  "bea_feed": {
+   "ok": true,
+   "events": 45,
+   "changed": 0,
+   "withdrawn": 0
+  },
+  "census_page": {
+   "ok": true,
+   "events": 122,
+   "changed": 0,
+   "withdrawn": 0
+  },
+  "fiscal_feed": {
+   "ok": true,
+   "events": 3,
+   "changed": 0,
+   "withdrawn": 0
+  },
+  "configured": {
+   "ok": true,
+   "events": 66,
+   "changed": 0,
+   "withdrawn": 0
+  },
+  "rule": {
+   "ok": true,
+   "events": 229,
+   "changed": 0,
+   "withdrawn": 0
+  }
+ },
+ "recent_jobs": [
+  {
+   "at": 1790683080,
+   "adapter": "nyfed",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 0,
+   "error": null
+  },
+  {
+   "at": 1790683200,
+   "adapter": "nyfed",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 1,
+   "error": null
+  },
+  {
+   "at": 1790686680,
+   "adapter": "fhfa",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 0,
+   "error": null
+  },
+  {
+   "at": 1790686680,
+   "adapter": "nyfed",
+   "purpose": "live",
+   "symbols": 3,
+   "status": "ran",
+   "written": 0,
+   "error": null
+  },
+  {
+   "at": 1790686800,
+   "adapter": "fhfa",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 0,
+   "error": null
+  },
+  {
+   "at": 1790686800,
+   "adapter": "nyfed",
+   "purpose": "live",
+   "symbols": 3,
+   "status": "ran",
+   "written": 3,
+   "error": null
+  },
+  {
+   "at": 1790686820,
+   "adapter": "fhfa",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 24,
+   "error": null
+  },
+  {
+   "at": 1790687482,
+   "adapter": "bls",
+   "purpose": "backfill",
+   "symbols": 9,
+   "status": "ran",
+   "written": 965,
+   "error": null
+  },
+  {
+   "at": 1790690280,
+   "adapter": "eia",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 1,
+   "error": null
+  },
+  {
+   "at": 1790690400,
+   "adapter": "bls",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 0,
+   "error": "SourceUnavailable: POST https://api.bls.gov/publicAPI/v1/timeseries/data/ failed after 5 attempt(s) (last: status 503)"
+  },
+  {
+   "at": 1790690460,
+   "adapter": "bls",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 0,
+   "error": "SourceUnavailable: POST https://api.bls.gov/publicAPI/v1/timeseries/data/ failed after 5 attempt(s) (last: status 503)"
+  },
+  {
+   "at": 1790690580,
+   "adapter": "bls",
+   "purpose": "live",
+   "symbols": 1,
+   "status": "ran",
+   "written": 2,
+   "error": null
+  }
+ ],
+ "adapter_import_errors": {},
+ "_note": "GET http://localhost:8787/status of the LOCAL dev service (keyless; keys_configured = presence booleans only), captured 2026-09-29T14:13:32Z"
+}

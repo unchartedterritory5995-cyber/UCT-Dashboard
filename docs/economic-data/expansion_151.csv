@@ -1,0 +1,111 @@
+symbol,name,category,frequency,status,adapter,provider_series_id,derivation,calendar_key,calendar_known,primary_bucket,flags,unverified_ids,depends_on_not_enabled,other_reasons,note
+USCORECPINSA,Core CPI (NSA),Inflation & Prices,M,enabled,bls,CUUR0000SA0L1E,,bls:cpi,yes,A NO CODE,A,,,,ALREADY ENABLED (registry cohort=True though catalog says LAUNCH); nothing to do
+USCPIFOOD,CPI Food (SA),Inflation & Prices,M,disabled,bls,CUSR0000SAF1,,bls:cpi,yes,A NO CODE,A,,,,
+USCPIENERGY,CPI Energy (SA),Inflation & Prices,M,disabled,bls,CUSR0000SA0E,,bls:cpi,yes,A NO CODE,A,,,,
+USCPISHELTER,CPI Shelter (SA),Inflation & Prices,M,disabled,bls,CUSR0000SAH1,,bls:cpi,yes,A NO CODE,A,,,,
+USCPIOER,CPI Owners' Equivalent Rent (SA),Inflation & Prices,M,disabled,bls,CUSR0000SEHC,,bls:cpi,yes,A NO CODE,A,,,,
+USCPISVCXSH,CPI Services Less Rent of Shelter (SA),Inflation & Prices,M,disabled,bls,CUSR0000SASL2RS,,bls:cpi,yes,A NO CODE,A,,,,
+USCPISVCXEN,CPI Services Less Energy Services (SA),Inflation & Prices,M,disabled,bls,CUSR0000SASLE,,bls:cpi,yes,A NO CODE,A,,,,
+USCPICOREGDS,CPI Commodities Less Food & Energy (Core Goods) (SA),Inflation & Prices,M,disabled,bls,CUSR0000SACL1E,,bls:cpi,yes,A NO CODE,A,,,,
+USCPIUSEDCAR,CPI Used Cars & Trucks (SA),Inflation & Prices,M,disabled,bls,CUSR0000SETA02,,bls:cpi,yes,A NO CODE,A,,,,
+USCORECPIMOM,Core CPI MoM % (SA),Inflation & Prices,M,disabled,derived,,mom_pct(USCORECPI),bls:cpi,yes,A NO CODE,A,,,,
+USCPISHYOY,CPI Shelter YoY %,Inflation & Prices,M,disabled,derived,,yoy_pct(USCPISHELTER),bls:cpi,yes,A NO CODE,A,,USCPISHELTER(LAUNCH/disabled),,
+USCPISCXSYOY,CPI Services ex Shelter YoY %,Inflation & Prices,M,disabled,derived,,yoy_pct(USCPISVCXSH),bls:cpi,yes,A NO CODE,A,,USCPISVCXSH(LAUNCH/disabled),,
+USPPICORE,PPI Final Demand less Foods & Energy (SA),Inflation & Prices,M,disabled,bls,WPSFD49104,,bls:ppi,yes,A NO CODE,A,,,,"ID verified; only the FRED cross-ref is ""?"" (not a blocker)"
+USPPIFDNSA,PPI Final Demand (NSA),Inflation & Prices,M,unverified,bls,WPUFD4,,bls:ppi,yes,D SOURCE CONFIRMATION,D,USPPIFDNSA,,,WPUFD4 unverified: only the WPU prefix format was proven (via WPUFD49104)
+USPPIYOY,PPI Final Demand YoY %,Inflation & Prices,M,unverified,derived,,yoy_pct(USPPIFDNSA),bls:ppi,yes,D SOURCE CONFIRMATION,D,USPPIFDNSA,USPPIFDNSA(LAUNCH/unverified),,yoy_pct; blocked on its unverified input USPPIFDNSA
+USPPIMOM,PPI Final Demand MoM % (SA),Inflation & Prices,M,disabled,derived,,mom_pct(USPPIFD),bls:ppi,yes,A NO CODE,A,,,,
+USCOREPPIYOY,Core PPI YoY %,Inflation & Prices,M,disabled,derived,,yoy_pct(USPPICORE),bls:ppi,yes,A NO CODE,A,,USPPICORE(LAUNCH/disabled),,
+USIMPPRICE,Import Price Index: All Commodities (NSA),Inflation & Prices,M,disabled,bls,EIUIR,,bls:mxp,NO,F OTHER,F,,,calendar gap bls:mxp,bls:mxp has no calendar (bls_2026.json carries only cpi/empsit/ppi/eci/jolts) -> NO_EXPECTATION currentness
+USPROD,Nonfarm Business Labor Productivity (% chg q/q SAAR),Employment & Labor,Q,disabled,bls,PRS85006092,,bls:prod,NO,F OTHER,F,,,calendar gap bls:prod,Q series (BLS adapter maps Q01-Q04); bls:prod has no calendar
+USULC,Nonfarm Business Unit Labor Costs (% chg q/q SAAR),Employment & Labor,Q,disabled,bls,PRS85006112,,bls:prod,NO,F OTHER,F,,,calendar gap bls:prod,Q series; bls:prod has no calendar
+USU6,U-6 Underemployment Rate,Employment & Labor,M,disabled,bls,LNS13327709,,bls:empsit,yes,A NO CODE,A,,,,
+USLFPR,Labor Force Participation Rate,Employment & Labor,M,disabled,bls,LNS11300000,,bls:empsit,yes,A NO CODE,A,,,,
+USEPOP,Employment-Population Ratio,Employment & Labor,M,disabled,bls,LNS12300000,,bls:empsit,yes,A NO CODE,A,,,,
+USEPOP2554,Prime-Age (25-54) Employment-Population Ratio,Employment & Labor,M,disabled,bls,LNS12300060,,bls:empsit,yes,A NO CODE,A,,,,
+USPRIVNFP,Private Nonfarm Payrolls,Employment & Labor,M,disabled,bls,CES0500000001,,bls:empsit,yes,A NO CODE,A,,,,
+USMFGNFP,Manufacturing Payrolls,Employment & Labor,M,disabled,bls,CES3000000001,,bls:empsit,yes,A NO CODE,A,,,,
+USGOVNFP,Government Payrolls,Employment & Labor,M,disabled,bls,CES9000000001,,bls:empsit,yes,A NO CODE,A,,,,
+USAHE,"Average Hourly Earnings, All Private",Employment & Labor,M,disabled,bls,CES0500000003,,bls:empsit,yes,A NO CODE,A,,,,
+USAWH,"Average Weekly Hours, All Private",Employment & Labor,M,disabled,bls,CES0500000002,,bls:empsit,yes,A NO CODE,A,,,,
+USAHEYOY,Avg Hourly Earnings YoY %,Employment & Labor,M,disabled,derived,,yoy_pct(USAHE),bls:empsit,yes,A NO CODE,A,,USAHE(LAUNCH/disabled),,
+USJOLTSQ,JOLTS Quits (level),Employment & Labor,M,disabled,bls,JTS000000000000000QUL,,bls:jolts,yes,A NO CODE,A,,,,bls:jolts dates come from a secondary calendar (lower confidence) - not a blocker
+USJOLTSQR,JOLTS Quits Rate,Employment & Labor,M,disabled,bls,JTS000000000000000QUR,,bls:jolts,yes,A NO CODE,A,,,,
+USJOLTSH,JOLTS Hires (level),Employment & Labor,M,disabled,bls,JTS000000000000000HIL,,bls:jolts,yes,A NO CODE,A,,,,
+USJOLTSL,JOLTS Layoffs & Discharges (level),Employment & Labor,M,disabled,bls,JTS000000000000000LDL,,bls:jolts,yes,A NO CODE,A,,,,
+USCCSA,"Continuing Jobless Claims (SA, insured unemployment)",Employment & Labor,W,unverified,dol,"DOL ETA national claims (continued, SA)",,dol:claims,yes,D SOURCE CONFIRMATION,D,USCCSA,,,dol adapter already supports measure=continued (XML history path; the press-PDF fast path is initial-only). Column/ID unverified
+USICSA4W,Initial Claims 4-Week Average,Employment & Labor,W,disabled,derived,,sma(USICSA),dol:claims,yes,A NO CODE,A,,,,sma n=4 over enabled USICSA
+USGDP,Nominal GDP (SAAR),Growth & GDP,Q,enabled,bea,NIPA T10105 L1 (A191RC),,bea:gdp,yes,A NO CODE,A,,,,ALREADY ENABLED (registry cohort=True though catalog says LAUNCH); nothing to do
+USFSPDP,Real Final Sales to Private Domestic Purchasers,Growth & GDP,Q,disabled,bea,NIPA T10406 L8 (LB000003),,bea:gdp,yes,A NO CODE,A,,,,
+USRNRFI,Real Nonresidential Fixed Investment,Growth & GDP,Q,disabled,bea,NIPA T10106 L9 (A008RX),,bea:gdp,yes,A NO CODE,A,,,,
+USPERSINC,Personal Income,Consumer,M,disabled,bea,NIPA T20600 L1 (A065RC),,bea:pio,yes,A NO CODE,A,,,,
+USDPI,Disposable Personal Income,Consumer,M,disabled,bea,NIPA T20600 L27 (A067RC),,bea:pio,yes,A NO CODE,A,,,,
+USRDPI,Real Disposable Personal Income,Consumer,M,disabled,bea,NIPA T20600 L37 (A067RX),,bea:pio,yes,A NO CODE,A,,,,
+USPCE,Personal Consumption Expenditures (nominal),Consumer,M,disabled,bea,NIPA T20600 L29 (DPCERC) / T20805 L1,,bea:pio,yes,A NO CODE,A,,,,NIPA T20600 L29
+USRPCE,Real Personal Consumption Expenditures,Consumer,M,disabled,bea,NIPA T20806 L1 (DPCERX),,bea:pio,yes,A NO CODE,A,,,,
+USSAVRATE,Personal Saving Rate,Consumer,M,disabled,bea,NIPA T20600 L35 (A072RC),,bea:pio,yes,A NO CODE,A,,,,percent (no unit_mult)
+USPCESVCXHE,PCE Price: Services ex Energy & Housing,Inflation & Prices,M,disabled,bea,NIPA T20804 L28 (IA001260),,bea:pio,yes,A NO CODE,A,,,,price index (no unit_mult)
+USPCEPIMOM,PCE Price Index MoM %,Inflation & Prices,M,disabled,derived,,mom_pct(USPCEPI),bea:pio,yes,A NO CODE,A,,,,
+USCOREPCEYOY,Core PCE YoY %,Inflation & Prices,M,disabled,derived,,yoy_pct(USCOREPCE),bea:pio,yes,A NO CODE,A,,,,
+USCOREPCEMOM,Core PCE MoM %,Inflation & Prices,M,disabled,derived,,mom_pct(USCOREPCE),bea:pio,yes,A NO CODE,A,,,,
+USCORPPROF,Corporate Profits w/ IVA & CCAdj,Growth & GDP,Q,disabled,bea,NIPA T61600D L1 (A051RC),,bea:gdp,yes,F OTHER,F,,,calendar semantics (profits not in advance GDP),"NIPA T61600D flat file = no adapter code, BUT calendar_key bea:gdp makes currentness expect each NEW quarter at the ADVANCE GDP release; profits first appear with the 2nd estimate (Q4 with the 3rd) -> DELAYED after every advance. Needs a calendar/period rule bea_events cannot express today"
+USCURACCT,Current Account Balance,Trade,Q,unverified,bea,"ITA Indicator=BalCurrAcct, AreaOrCountry=AllCountries, Frequency=QSA",,bea:ita,NO,B NEW ADAPTER CODE,B;D;F,USCURACCT,,calendar gap bea:ita,"BEA ITA dataset: bea.py raises ""dataset not implemented"" for anything but NIPA (needs ITA API/keyed or ITA file path + QSA frequency); ITA indicator code unverified; bea:ita not a known calendar (BEA_RELEASES = GDP + PIO only)"
+USRETAILXA,Retail & Food Services ex Motor Vehicles & Parts,Consumer,M,disabled,census,marts/44Y72/SM,,census:marts,yes,F OTHER,F,,,retail basis conflict,marts/44Y72 verified; inherits the open USRETAIL basis conflict (econ_export/MRTS DB vs marts_current Table 1 differ ~5%) - owner decision before presenting as advance retail sales
+USRETAILCTRL,Retail Sales Control Group (UCT-computed),Consumer,M,unverified,derived,,"sub(USRETAIL,USRETAILMV,USRETAILGAS,USRETAILBM,USRETAILFS)",census:marts,yes,D SOURCE CONFIRMATION,D;F,USRETAIL;USRETAILMV,USRETAIL(COHORT/unverified);USRETAILMV(LATER/unverified);USRETAILGAS(LATER/disabled);USRETAILBM(LATER/disabled);USRETAILFS(LATER/disabled),retail basis conflict; LATER inputs,"UCT-computed sub() (op supported): needs USRETAIL (COHORT, unverified) + USRETAILMV (LATER, unverified ""441"") + USRETAILGAS/BM/FS (LATER, disabled) onboarded; retail basis conflict"
+USRETAILMOM,Retail Sales MoM %,Consumer,M,disabled,derived,,mom_pct(USRETAIL),census:marts,yes,D SOURCE CONFIRMATION,D;F,USRETAIL,USRETAIL(COHORT/unverified),retail basis conflict,"mom_pct over USRETAIL, itself still status=unverified (retail basis conflict)"
+USRETCTRLMOM,Retail Control Group MoM %,Consumer,M,unverified,derived,,mom_pct(USRETAILCTRL),census:marts,yes,D SOURCE CONFIRMATION,D;F,USRETAIL;USRETAILMV,USRETAILCTRL(LAUNCH/unverified),retail basis conflict,mom_pct over USRETAILCTRL (see above)
+USPERMIT,"Building Permits, Total (SAAR)",Housing,M,disabled,census,resconst/APERMITS/TOTAL,,census:resconst,yes,A NO CODE,A,,,,
+USNEWHOME,New Home Sales (SAAR),Housing,M,disabled,census,ressales/ASOLD/TOTAL,,census:ressales,yes,A NO CODE,A,,,,ressales is in census EXPORT_PROGRAM; census:ressales calendar known
+USNHMSUPPLY,New Home Months' Supply,Housing,M,disabled,census,ressales/FORSALE/MONSUP,,census:ressales,yes,A NO CODE,A,,,,ressales data_type MONSUP
+USCONSTSPD,"Construction Spending, Total (SAAR)",Housing,M,disabled,census,vip/AXXXX/T,,census:vip,yes,A NO CODE,A,,,,vip is in census EXPORT_PROGRAM
+USCORECAPEX,Core Capital Goods Orders (Nondefense ex Aircraft),Manufacturing & Business,M,disabled,census,m3/NXA/NO,,census:m3adv,yes,A NO CODE,A;F,,,params/calendar mismatch (advance_program),calendar_key census:m3adv but params lack advance_program=advm3 (USDURGOODS has it) -> the advance-release event expects a month the full-M3 fetch lacks for ~1 week. Registry-param fix only
+USFACTORD,Factory Orders (Total Manufacturing New Orders),Manufacturing & Business,M,disabled,census,m3/MTM/NO,,census:m3,yes,A NO CODE,A,,,,
+USBUSINV,Total Business Inventories,Manufacturing & Business,M,disabled,census,mtis/TOTBUS/IM,,census:mtis,yes,A NO CODE,A,,,,mtis is in census EXPORT_PROGRAM; census:mtis calendar known
+USBUSISR,Total Business Inventories/Sales Ratio,Manufacturing & Business,M,disabled,census,mtis/TOTBUS/IR,,census:mtis,yes,A NO CODE,A,,,,mtis ratio data_type IR
+USEXPORTS,Exports of Goods & Services,Trade,M,disabled,census,ftd/BOPGS/EXP,,census:ft900,yes,A NO CODE,A,,,,"ftd BOPGS/EXP, same program as enabled USTRADEBAL"
+USIMPORTS,Imports of Goods & Services,Trade,M,disabled,census,ftd/BOPGS/IMP,,census:ft900,yes,A NO CODE,A,,,,"ftd BOPGS/IMP, same program as enabled USTRADEBAL"
+USGOODSBAL,Trade Balance: Goods (BOP basis),Trade,M,unverified,census,ftd/BOPG/BAL?,,census:ft900,yes,D SOURCE CONFIRMATION,D,USGOODSBAL,,,"ftd/BOPG/BAL ""?"" - BOPG returned NA for Jan-2026; category/data_type unconfirmed"
+USPRIME,Bank Prime Loan Rate,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFSPBLP_N.B,,fed:h15,yes,A NO CODE,A,,,,
+USDISCRATE,Primary Credit (Discount) Rate,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFSRP_F02_N.B,,fed:h15,yes,A NO CODE,A,,,,
+UST3M,3M Treasury Constant Maturity Yield,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCM03_N.B,,fed:h15,yes,A NO CODE,A,,,,H.15 via existing fed_ddp; params.alt treasury_curve is an OPTIONAL authority upgrade (no treasury_curve module exists) - not required
+UST6M,6M Treasury Constant Maturity Yield,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCM06_N.B,,fed:h15,yes,A NO CODE,A,,,,as UST3M (alt treasury_curve optional)
+UST1Y,1Y Treasury Constant Maturity Yield,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCY01_N.B,,fed:h15,yes,A NO CODE,A,,,,as UST3M (alt treasury_curve optional)
+UST5Y,5Y Treasury Constant Maturity Yield,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCY05_N.B,,fed:h15,yes,A NO CODE,A,,,,as UST3M (alt treasury_curve optional)
+UST30Y,30Y Treasury Constant Maturity Yield,Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCY30_N.B,,fed:h15,yes,A NO CODE,A,,,,as UST3M (alt treasury_curve optional)
+UST5YTIPS,5Y TIPS Real Yield (constant maturity),Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCY05_XII_N.B,,fed:h15,yes,A NO CODE,A,,,,
+UST10YTIPS,10Y TIPS Real Yield (constant maturity),Rates & Fed,D,disabled,fed_ddp,H15/H15/RIFLGFCY10_XII_N.B,,fed:h15,yes,A NO CODE,A,,,,
+UST10Y3M,10Y-3M Treasury Spread,Rates & Fed,D,disabled,derived,,"spread(UST10Y,UST3M)",fed:h15,yes,A NO CODE,A,,UST3M(LAUNCH/disabled),,
+UST10YBE,10Y Breakeven Inflation,Rates & Fed,D,disabled,derived,,"spread(UST10Y,UST10YTIPS)",fed:h15,yes,A NO CODE,A,,UST10YTIPS(LAUNCH/disabled),,
+UST5YBE,5Y Breakeven Inflation,Rates & Fed,D,disabled,derived,,"spread(UST5Y,UST5YTIPS)",fed:h15,yes,A NO CODE,A,,UST5Y(LAUNCH/disabled);UST5YTIPS(LAUNCH/disabled),,
+USFEDUST,Fed Holdings: U.S. Treasury Securities,Money & Liquidity,W,disabled,fed_ddp,H41/H41/RESPPALGUO_N.WW,,fed:h41,yes,A NO CODE,A,,,,
+USRESBAL,Reserve Balances with Federal Reserve Banks,Money & Liquidity,W,disabled,fed_ddp,H41/H41/RESH4R_N.WW,,fed:h41,yes,A NO CODE,A,,,,
+USTGAFED,"Treasury General Account (H.4.1, Wed level)",Money & Liquidity,W,disabled,fed_ddp,H41/H41/RESPPLLDT_N.WW,,fed:h41,yes,A NO CODE,A,,,,
+USM1,M1 Money Stock (SA),Money & Liquidity,M,disabled,fed_ddp,H6/H6_M1/M1.M,,fed:h6,yes,A NO CODE,A,,,,dataset H6_M1 - confirm the Board dataset id (cf. the H6 -> H6_M2 correction)
+USMONBASE,Monetary Base (NSA),Money & Liquidity,M,unverified,fed_ddp,H6/H6_MBASE/RESMO14A_N.M,,fed:h6,yes,D SOURCE CONFIRMATION,D,USMONBASE,,,H6_MBASE units unverified
+USM2YOY,M2 YoY %,Money & Liquidity,M,disabled,derived,,yoy_pct(USM2),fed:h6,yes,A NO CODE,A,,,,
+USBANKCRED,"Bank Credit, All Commercial Banks (weekly SA)",Credit & Banking,W,disabled,fed_ddp,H8/H8/B1001NCBA,,fed:h8,NO,F OTHER,F,,,calendar gap fed:h8,"fed_ddp is release-agnostic (FRB_H8_xml.zip exists, 8.4 MB); fed:h8 has no calendar"
+USCILOANS,"Commercial & Industrial Loans, All Commercial Banks (weekly SA)",Credit & Banking,W,disabled,fed_ddp,H8/H8/B1023NCBA,,fed:h8,NO,F OTHER,F,,,calendar gap fed:h8,fed_ddp release-agnostic; fed:h8 has no calendar
+USDEPOSITS,"Deposits, All Commercial Banks (monthly SA)",Credit & Banking,M,unverified,fed_ddp,H8/H8/B1058NCBAM,,fed:h8,NO,D SOURCE CONFIRMATION,D;F,USDEPOSITS,,calendar gap fed:h8,"H.8 monthly mnemonic B1058NCBAM unverified (""weekly variant only""); fed:h8 no calendar"
+USCONSCRED,"Consumer Credit Outstanding, Total (SA)",Credit & Banking,M,disabled,fed_ddp,G19/CCOUT/DTCTL.M,,fed:g19,NO,F OTHER,F,,,calendar gap fed:g19,"fed_ddp release-agnostic (G.19 release zip exists); fed:g19 has no calendar (G.19 RSS arrivals exist, no schedule)"
+USCONSCREDCHG,Consumer Credit Monthly Change,Credit & Banking,M,disabled,derived,,diff(USCONSCRED),fed:g19,NO,F OTHER,F,,USCONSCRED(LAUNCH/disabled),calendar gap fed:g19,diff over USCONSCRED; inherits the fed:g19 calendar gap
+USMFGPROD,Manufacturing Production (NAICS),Manufacturing & Business,M,disabled,fed_ddp,G17/IP_MAJOR_INDUSTRY_GROUPS/IP.GMF.S,,fed:g17,yes,A NO CODE,A,,,,
+USCAPUTIL,"Capacity Utilization, Total Industry",Manufacturing & Business,M,disabled,fed_ddp,G17/CAPUTL/CAPUTL.B50001.S,,fed:g17,yes,A NO CODE,A,,,,
+USDOLLARIDX,Nominal Broad U.S. Dollar Index,Trade,D,unverified,fed_ddp,H10/H10/JRXWTFB_N.B,,fed:h10,NO,D SOURCE CONFIRMATION,D;F,USDOLLARIDX,,calendar gap fed:h10,fed_ddp release-agnostic (H.10 release zip exists); start date unverified; fed:h10 has no calendar
+USSCEINF1Y,NY Fed SCE Median 1-Yr-Ahead Inflation Expectations,Inflation & Prices,M,unverified,regional_fed_file,"SCE chart-data xlsx (Inflation expectations, 1-yr median)",,nyfed:sce,NO,B NEW ADAPTER CODE,B;D;F,USSCEINF1Y,,calendar gap nyfed:sce,no regional_fed_file adapter (NY Fed SCE chart-data xlsx); column unverified; nyfed:sce not a known calendar
+USTIC,Foreign Holdings of U.S. Treasuries (Major Foreign Holders total),Trade,M,unverified,treasury_tic,treasury.gov/resource-center/data-chart-center/tic mfh.txt (Grand Total),,treasury:tic,NO,B NEW ADAPTER CODE,B;D;F,USTIC,,calendar gap treasury:tic,no treasury_tic adapter (mfh.txt text table); row unverified; treasury:tic not a known calendar
+USIORB,Interest Rate on Reserve Balances,Rates & Fed,D,unverified,fed_policy,(no DDP mnemonic found in H.15 package),,fed:policy,NO,B NEW ADAPTER CODE,B;D;F,USIORB,,calendar gap fed:policy,no fed_policy adapter (no DDP mnemonic; IORB page / FOMC implementation note); fed:policy not a known calendar
+USDEBTPUB,Debt Held by the Public,Government & Fiscal,D,disabled,fiscaldata,v2/accounting/od/debt_to_penny : debt_held_public_amt,,fiscal:dtp,yes,A NO CODE,A,,,,same debt_to_penny shape as enabled USDEBT
+USMTSREC,Monthly Federal Receipts (MTS),Government & Fiscal,M,disabled,fiscaldata,v1/accounting/mts/mts_table_1 : current_month_gross_rcpt_amt,,fiscal:mts,yes,A NO CODE,A,,,,same mts_table_1 shape as enabled USMTSDEF
+USMTSOUT,Monthly Federal Outlays (MTS),Government & Fiscal,M,disabled,fiscaldata,v1/accounting/mts/mts_table_1 : current_month_gross_outly_amt,,fiscal:mts,yes,A NO CODE,A,,,,same mts_table_1 shape as enabled USMTSDEF
+USMTSINT,Monthly Interest on Treasury Debt Securities (MTS),Government & Fiscal,M,unverified,fiscaldata,v1/accounting/mts/mts_table_5 : 'Interest on Treasury Debt Securities (Gross)' current_month_gross_outly_amt?,,fiscal:mts,yes,B NEW ADAPTER CODE,B;D,USMTSINT,,,"mts_table_5 without row_key falls into the fiscaldata DAILY path -> period_start=period_end=record_date, which validate.py rejects for M (needs month bounds); table-5 row label unverified (alt v2/accounting/od/interest_expense needs the same monthly shape)"
+USDEFICIT12M,"Federal Deficit, 12-Month Rolling Sum",Government & Fiscal,M,disabled,derived,,sum(USMTSDEF),fiscal:mts,yes,A NO CODE,A,,,,sum n=12 over enabled USMTSDEF
+USSPR,Strategic Petroleum Reserve Stocks,Energy,W,disabled,eia,PET.WCSSTUS1.W,,eia:wpsr,yes,A NO CODE,A,,,,
+USCRUDEPROD,U.S. Crude Oil Field Production (weekly),Energy,W,disabled,eia,PET.WCRFPUS2.W,,eia:wpsr,yes,A NO CODE,A,,,,
+USGASINV,Total Motor Gasoline Inventories,Energy,W,disabled,eia,PET.WGTSTUS1.W,,eia:wpsr,yes,A NO CODE,A,,,,"ID verified; history_start ""?"" only - confirm at backfill"
+USDISTINV,Distillate Fuel Oil Inventories,Energy,W,disabled,eia,PET.WDISTUS1.W,,eia:wpsr,yes,A NO CODE,A,,,,
+USREFUTIL,Refinery Utilization (% of operable capacity),Energy,W,disabled,eia,PET.WPULEUS3.W,,eia:wpsr,yes,A NO CODE,A,,,,"ID verified; history_start ""?"" only - confirm at backfill"
+USDIESELPRICE,Retail Diesel Price (U.S. average),Energy,W,disabled,eia,PET.EMD_EPD2D_PTE_NUS_DPG.W,,eia:gasdiesel,yes,A NO CODE,A,,,,
+USNATGASSTOR,Natural Gas Working Gas in Storage (Lower 48),Energy,W,unverified,eia,NG.NW2_EPG0_SWO_R48_BCF.W,,eia:ngs,NO,D SOURCE CONFIRMATION,D;F,USNATGASSTOR,,calendar gap eia:ngs,eia adapter is generic over <NS>.<CODE>.<F> (dnav/ng LeafHandler) but only PET routes were proven live; ID unverified; eia:ngs not a known calendar (Thu 10:30 rule missing)
+USNATGASCHG,Natural Gas Storage Weekly Change (injection/withdrawal),Energy,W,unverified,derived,,diff(USNATGASSTOR),eia:ngs,NO,D SOURCE CONFIRMATION,D;F,USNATGASSTOR,USNATGASSTOR(LAUNCH/unverified),calendar gap eia:ngs,diff over unverified USNATGASSTOR; eia:ngs calendar gap
+USCRUDEINVCHG,Crude Inventories ex SPR Weekly Change,Energy,W,disabled,derived,,diff(USCRUDEINV),eia:wpsr,yes,A NO CODE,A,,,,
+USFHFAHPIYOY,FHFA HPI YoY %,Housing,M,disabled,derived,,yoy_pct(USFHFAHPI),fhfa:hpi_monthly,yes,A NO CODE,A,,,,yoy_pct over enabled USFHFAHPI

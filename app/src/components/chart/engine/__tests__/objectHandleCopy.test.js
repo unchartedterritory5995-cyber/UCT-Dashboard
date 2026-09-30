@@ -106,6 +106,29 @@ describe('⭐⭐ C11c — a tuple of returned handles hands each caller name its
     expect(ours.map((l) => [l.props.x1, l.props.y1, l.props.x2])).toEqual(want.map((l) => [l.x1, l.y1, l.x2]))
   })
 
+  it('an `and` with a KNOWN false operand is not unknown: a setter Pine never runs does not blank the line', () => {
+    // `topLine` is unknown on the bars the curtain withholds its copy (the
+    // guard reads a `var`); `extend` is an input, false — so the `set_x2` never
+    // runs in Pine, and the line keeps its creation x2 and stays drawn.
+    const t = tr(`extend = input.bool(false, "e")
+var float lastDown = 0.0
+var line topLine = na
+if close > open and high > lastDown
+    topLine := line.new(bar_index, high, bar_index + 1, high)
+if close < open
+    lastDown := low
+if ta.crossunder(close, topLine.get_y2()) and extend
+    topLine.set_x2(bar_index + 50)`)
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const r = run(t)
+    // the curtain made `topLine` unknown on its first bars — the case at issue
+    expect(r.stats.withheldUnknown).toBeGreaterThan(0)
+    const lines = r.live.filter((o) => o.family === 'line')
+    expect(lines.length).toBeGreaterThan(5)
+    expect(lines.every((l) => l.props.x2 === l.props.x1 + 1)).toBe(true)
+    expect(r.stats.objectsTainted || 0).toBe(0)
+  })
+
   it('⛔ a tuple whose length is not the caller\'s refuses by name', () => {
     const t = tr(`drawLL(start, price) =>
     Line = line.new(x1=start, y1=price, x2=start + 1, y2=price)

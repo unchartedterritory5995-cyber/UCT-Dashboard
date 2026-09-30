@@ -506,6 +506,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/community/members/{member_id}/calls",
+      "rate_limit_family": "community-content",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/community/spaces",
       "rate_limit_family": "community-content",
       "tier": "member"
@@ -809,6 +815,18 @@
       "path": "/api/earnings/transcript/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/econ/catalog",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
+      "path": "/api/econ/series/{symbol}",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
     },
     {
       "method": "GET",
@@ -2258,6 +2276,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/chain",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/expirations",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/ownership/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -3111,6 +3141,7 @@
   ],
   "excluded_no_rate_family": [
     "/api/address/resolve",
-    "/api/address/search"
+    "/api/address/search",
+    "/api/adjustment-basis/{ticker}"
   ]
 }

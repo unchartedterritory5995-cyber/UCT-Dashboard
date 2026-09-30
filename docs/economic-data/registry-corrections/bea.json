@@ -1,0 +1,331 @@
+[
+ {
+  "symbol": "USGDP",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling). Live: A191RC 2026Q2 = 32,486,066."
+ },
+ {
+  "symbol": "USGDP",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling). Live: A191RC 2026Q2 = 32,486,066."
+ },
+ {
+  "symbol": "USGDP",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USRGDP",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling). Live: A191RX 2026Q2 = 24,269,613 (= FRED GDPC1 24,269.613 bn, Phase 0 proofs.md)."
+ },
+ {
+  "symbol": "USRGDP",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling). Live: A191RX 2026Q2 = 24,269,613 (= FRED GDPC1 24,269.613 bn, Phase 0 proofs.md)."
+ },
+ {
+  "symbol": "USRGDP",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USGDI",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A261RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USGDI",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A261RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USGDI",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USFSPDP",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): LB000003 DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USFSPDP",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): LB000003 DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USFSPDP",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A008RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A008RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USRRESINV",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A011RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRRESINV",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A011RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRRESINV",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USPERSINC",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A065RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USPERSINC",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A065RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USPERSINC",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USDPI",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A067RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USDPI",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A067RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USDPI",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USRDPI",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A067RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRDPI",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A067RX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRDPI",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USPCE",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): DPCERC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USPCE",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): DPCERC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USPCE",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USRPCE",
+  "field_path": "units.raw",
+  "old": "Billions chained 2017 USD, SAAR",
+  "new": "Millions chained 2017 USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): DPCERX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRPCE",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): DPCERX DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USRPCE",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "units.raw",
+  "old": "Billions USD, SAAR",
+  "new": "Millions USD, SAAR",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A051RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A051RC DefaultScale=-6 (millions). NIPA flat files and the BEA API (UNIT_MULT=6) publish levels in MILLIONS since the 2023 comprehensive update; the adapter returns values as published (no rescaling)."
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "source.params.unit_mult",
+  "old": null,
+  "new": 6,
+  "evidence": "Keyed-mode scale-drift guard: bea.py REFUSES (MalformedPayload) a BEA API payload whose UNIT_MULT differs from params.unit_mult. 6 = millions per BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt)"
+ },
+ {
+  "symbol": "USDEBTGDP",
+  "field_path": "derivation.params.scale",
+  "old": 1e-07,
+  "new": 0.0001,
+  "evidence": "Consequence of USGDP units -> MILLIONS (see USGDP units.scale). 100 * USD / (millions USD * 1e6) = 1e-4. With the old 1e-7 the ratio would read 1000x too small. OUTSIDE the bea adapter: coordinator/derive owner to confirm."
+ },
+ {
+  "symbol": "USDEBTGDP",
+  "field_path": "derivation.params.scale_note",
+  "old": "100 * USD / (billions USD * 1e9) -> percent of GDP",
+  "new": "100 * USD / (millions USD * 1e6) -> percent of GDP",
+  "evidence": "see derivation.params.scale"
+ },
+ {
+  "symbol": "USGDP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Phase 1 bea adapter live verification 2026-09-29 (docs/economic-data/verification/bea.txt): A191RC on T10105:1 CONFIRMED in BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt); full history fetched keyless from NipaDataQ.txt (Last-Modified 2026-08-26 12:30 GMT = release time).",
+  "evidence": "tools/econ/verify_bea.py output"
+ },
+ {
+  "symbol": "USRGDP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Phase 1 bea adapter live verification 2026-09-29 (docs/economic-data/verification/bea.txt): A191RX on T10106:1 CONFIRMED in BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt); full history fetched keyless from NipaDataQ.txt (Last-Modified 2026-08-26 12:30 GMT = release time).",
+  "evidence": "tools/econ/verify_bea.py output"
+ },
+ {
+  "symbol": "USRGDPQA",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Phase 1 bea adapter live verification 2026-09-29 (docs/economic-data/verification/bea.txt): A191RL on T10101:1 CONFIRMED in BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt); full history fetched keyless from NipaDataQ.txt (Last-Modified 2026-08-26 12:30 GMT = release time).",
+  "evidence": "tools/econ/verify_bea.py output"
+ },
+ {
+  "symbol": "USPCEPI",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Phase 1 bea adapter live verification 2026-09-29 (docs/economic-data/verification/bea.txt): DPCERG on T20804:1 CONFIRMED in BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt); full history fetched keyless from NipaDataM.txt (Last-Modified 2026-08-26 12:30 GMT = release time).",
+  "evidence": "tools/econ/verify_bea.py output"
+ },
+ {
+  "symbol": "USCOREPCE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Phase 1 bea adapter live verification 2026-09-29 (docs/economic-data/verification/bea.txt): DPCCRG on T20804:25 CONFIRMED in BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt); full history fetched keyless from NipaDataM.txt (Last-Modified 2026-08-26 12:30 GMT = release time).",
+  "evidence": "tools/econ/verify_bea.py output"
+ },
+ {
+  "symbol": "USRGDPYOY",
+  "field_path": "source.provider_series_id",
+  "old": "NIPA T10111 L1 (A191RO)?",
+  "new": "NIPA T10111 L1 (A191RO)",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RO is listed on T10111:1 ('Gross domestic product'); the '?' is settled."
+ },
+ {
+  "symbol": "USRGDPYOY",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RO listed on T10111:1."
+ },
+ {
+  "symbol": "USGDPDEF",
+  "field_path": "source.provider_series_id",
+  "old": "NIPA T10104 L1 (A191RG)?",
+  "new": "NIPA T10104 L1 (A191RG)",
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RG is listed on T10104:1 ('Gross domestic product'); the '?' is settled."
+ },
+ {
+  "symbol": "USGDPDEF",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "BEA SeriesRegister.txt (apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-29; tests/econ/fixtures/bea/SeriesRegister_trim.txt): A191RG listed on T10104:1."
+ }
+]

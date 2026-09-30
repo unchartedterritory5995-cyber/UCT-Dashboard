@@ -1,0 +1,39 @@
+# verify_bea  run 2026-09-29T01:56:40Z  mode=keyless (NIPA flat files)
+# fetched 2 payload(s) in 15.8s
+# payload bea:flat:NipaDataQ.txt:A191RC,A191RL,A191RX  status=200  bytes=35,397,935  sha256=7fa7dfb39b765e5c  source_published_at=2026-08-26T12:30:05Z  warnings=[]
+# payload bea:flat:NipaDataM.txt:DPCCRG,DPCERG  status=200  bytes=36,732,002  sha256=dd14f325cc4b73c6  source_published_at=2026-08-26T12:30:02Z  warnings=[]
+
+symbol     provider id                 count oldest      newest         newest value  units(raw) | published
+USGDP      NIPA T10105 L1 (A191RC)       318 1947-01-01  2026-04-01   32,486,066.000  Billions USD, SAAR | 2026-08-26T12:30:05Z  (NA rows: 0)
+USRGDP     NIPA T10106 L1 (A191RX)       318 1947-01-01  2026-04-01   24,269,613.000  Billions chained 2017 USD, SAAR | 2026-08-26T12:30:05Z  (NA rows: 0)
+USRGDPQA   NIPA T10101 L1 (A191RL)       317 1947-04-01  2026-04-01            1.500  Percent, annualized | 2026-08-26T12:30:05Z  (NA rows: 0)
+USPCEPI    NIPA T20804 L1 (DPCERG)       811 1959-01-01  2026-07-01          131.659  Index 2017=100 | 2026-08-26T12:30:02Z  (NA rows: 0)
+USCOREPCE  NIPA T20804 L25 (DPCCRG)      811 1959-01-01  2026-07-01          130.658  Index 2017=100 | 2026-08-26T12:30:02Z  (NA rows: 0)
+
+# SeriesRegister.txt identity/scale check
+USGDP      A191RC 'Gross domestic product' / Current Dollars / Level  T10105:1 CONFIRMED  DefaultScale=-6 (millions)  registry units.raw='Billions USD, SAAR'
+USRGDP     A191RX 'Gross domestic product' / Chained Dollars / Level  T10106:1 CONFIRMED  DefaultScale=-6 (millions)  registry units.raw='Billions chained 2017 USD, SAAR'
+USRGDPQA   A191RL 'Gross domestic product' / Fisher Quantity Index / Percent change, annual rate  T10101:1 CONFIRMED  DefaultScale=0 (as-is)  registry units.raw='Percent, annualized'
+USPCEPI    DPCERG 'Personal consumption expenditures' / Fisher Price Index / Level  T20804:1 CONFIRMED  DefaultScale=0 (as-is)  registry units.raw='Index 2017=100'
+USCOREPCE  DPCCRG 'PCE excluding food and energy' / Fisher Price Index / Level  T20804:25 CONFIRMED  DefaultScale=0 (as-is)  registry units.raw='Index 2017=100'
+
+# Phase 0 comparison
+USRGDP     2026-04-01 phase0=24,269,613.0 now=24269613.0  MATCH   [proofs.md: A191RX 2026Q2 24,269,613 ($M ch.2017) = GDPC1 24,269.613 ($bn)]
+USRGDPQA   2026-04-01 phase0=1.5 now=1.5  MATCH   [proofs.md: A191RL 2026Q2 1.5 = A191RL1Q225SBEA 1.5]
+USPCEPI    2026-07-01 phase0=131.659 now=131.659  MATCH   [proofs/bea_nipam_sample.txt: DPCERG 2026M07 131.659]
+USCOREPCE  2026-07-01 phase0=130.658 now=130.658  MATCH   [proofs/bea_nipam_sample.txt: DPCCRG 2026M07 130.658]
+
+# ---------------------------------------------------------------- analysis (agent, 2026-09-29)
+# Command: python tools/econ/verify_bea.py   (keyless; no BEA_API_KEY configured locally)
+# Newest values vs Phase 0 proofs.md: USRGDP, USRGDPQA, USPCEPI, USCOREPCE all MATCH exactly.
+#   Secondary reference: Phase 0 cross-checked A191RX 2026Q2 against FRED GDPC1 (24,269.613 bn = 24,269,613 M)
+#   and A191RL against A191RL1Q225SBEA (1.5). A fresh FRED read today timed out (fredgraph.csv, 5 attempts);
+#   nothing from FRED is stored.
+# USGDP (A191RC) 2026Q2 = 32,486,066 has no Phase 0 value; identity confirmed via SeriesRegister (T10105:1).
+# UNITS: every NIPA LEVEL (A191RC, A191RX, ...) has DefaultScale -6 => the flat files AND the API (UNIT_MULT 6)
+#   publish MILLIONS. The registry says "Billions" with scale 1e9 -> correction written
+#   (registry-corrections/bea.json), including the knock-on USDEBTGDP ratio scale 1e-7 -> 1e-4.
+# source_published_at = flat-file Last-Modified: Q 2026-08-26T12:30:05Z, M 2026-08-26T12:30:02Z
+#   (GDP 2nd estimate + Personal Income & Outlays, 08:30 ET). Next BEA release (GDP 3rd + PIO)
+#   2026-09-30 08:30 ET -- after this run; not waited for.
+# Cost: two ~35 MB files, 15.8 s total; latest-mode polls are conditional (ETag/If-Modified-Since -> 304).

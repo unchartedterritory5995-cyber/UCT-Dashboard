@@ -6,6 +6,7 @@ import Reactions from './Reactions'
 import ReplyBox from './ReplyBox'
 import Comment from './Comment'
 import ChartCard from './ChartCard'
+import AddressChips from './AddressChips'
 
 const CSORTS = {
   top: (a, b) => b.votes - a.votes,
@@ -55,6 +56,7 @@ export default function PostDetail({ post, dispatch, onBack, me, canAnswer }) {
 
           <h1 className="post-title">{post.title}</h1>
           <RenderDoc body={post.body} className="post-body" />
+          <AddressChips links={post.addressLinks} />
           {post.chart && <ChartCard {...post.chart} height={230} />}
 
           {post.tickers.length > 0 && (

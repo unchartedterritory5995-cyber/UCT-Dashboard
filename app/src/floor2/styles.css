@@ -219,6 +219,10 @@
 
 .floorx .tickers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .floorx .ticker-chip { font-size: 12.5px; font-weight: 600; color: var(--ut-gold); background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow); padding: 2px 9px; border-radius: var(--radius-md); }
+.floorx .address-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.floorx .address-chip { font-size: 12.5px; font-weight: 600; color: var(--ut-gold); background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow); padding: 2px 9px; border-radius: var(--radius-md); text-decoration: none; }
+.floorx .address-chip-private { color: var(--text-muted, var(--text)); background: transparent; border-style: dashed; font-weight: 500; }
+@media (max-width: 1024px) { .floorx .address-chip { min-height: var(--tap-min); display: inline-flex; align-items: center; } }
 .floorx .tk { color: var(--ut-gold); font-weight: 600; }
 .floorx .search-hl { color: var(--ut-gold-bright); font-weight: 700; background: none; }
 

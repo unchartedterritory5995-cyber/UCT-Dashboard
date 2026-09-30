@@ -64,7 +64,11 @@ async def zoom_webhook(request: Request):
     return {"ignored": event}
 
 @router.get("/sessions-status")
-async def sessions_status(request: Request):
+def sessions_status(request: Request):
+    # ⛔ A plain `def`, never `async def`: this handler awaits nothing and reads SQLite, so as
+    # `async def` it ran ON the event loop and froze every request on the pod while it read.
+    # Captured live 2026-09-29 by the watchdog: a 5,019 ms stall 58 s after boot, the loop
+    # thread inside insights_status -> list_videos() -> fetchall(). `def` runs on the threadpool.
     """Diagnostics: recent recording jobs (status/error/youtube_id). Gated by
     the PUSH_SECRET bearer so it can be curled without a browser session."""
     expected = os.environ.get("PUSH_SECRET", "")
@@ -439,7 +443,11 @@ def recap_source(video_id: int, request: Request):
 
 
 @router.get("/insights-status")
-async def insights_status(request: Request, limit: int = 8):
+def insights_status(request: Request, limit: int = 8):
+    # ⛔ A plain `def`, never `async def`: this handler awaits nothing and reads SQLite, so as
+    # `async def` it ran ON the event loop and froze every request on the pod while it read.
+    # Captured live 2026-09-29 by the watchdog: a 5,019 ms stall 58 s after boot, the loop
+    # thread inside insights_status -> list_videos() -> fetchall(). `def` runs on the threadpool.
     """Diagnostics for the session-insights backfill pass: pending queue +
     recent pass results/errors + per-video fail streaks (all from
     `desk_session_insights.get_insights_status()`) plus the last `limit`

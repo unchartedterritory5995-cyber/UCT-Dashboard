@@ -68,6 +68,12 @@ export const PINE_ARRAY_MAX = 100000
 /** A latch whose condition read the warm-up curtain (`readUnknown`). */
 const LATCH_UNKNOWN = Symbol('latch-unknown')
 
+/** ⭐ C17 — the fields that decide WHETHER an op runs, or WHAT it acts on
+ *  (`guardTainted`). */
+const GUARD_FIELDS = Object.freeze(['when', 'col', 'row', 'index', 'col2', 'row2',
+  'startCol', 'startRow', 'endCol', 'endRow', 'from', 'to', 'step'])
+const NO_PROPS = Object.freeze([])
+
 /** The most addresses one `table.merge_cells` may span — Pine's own table is at
  *  most 100 × 100 and anything larger is an argument that was never a size. */
 const MAX_MERGE_AREA = 10000
@@ -192,6 +198,101 @@ export function beginObjects(program, ctx) {
     ? new Map((program.regs || []).map((r) => [r.id, []])) : null
   const colls = new Map((program.colls || []).map((c) => [c.id, []]))
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
+
+  /** ⭐⭐ C17 — REGISTER TAINT: WHAT A WITHHELD OP WOULD HAVE WRITTEN IS UNKNOWN.
+   *
+   *  An op withheld on a bar because it reads the warm-up curtain
+   *  (`readUnknown`), or because it reads something already tainted, is an op
+   *  Pine may have run there. Whatever it would have written — a handle, a
+   *  scalar, an object's properties, a list, a latch — is then not known to be
+   *  what this run holds, so it is marked here, PER BAR and PER PROPERTY, and
+   *  anything that later READS it is withheld on that bar in turn. A clean write
+   *  (the op ran, and everything it read was known) clears the mark.
+   *
+   *  ⚰️ MEASURED on `rsi-swing-indicator` (NYSE:RDDT 1D, 2026-09-28): with the
+   *  converter's blanket `state:lost` lifted, the run drew 8 labels / 8 lines
+   *  whose x and y are TradingView's last 8 — and the first two label TEXTS and
+   *  the first line's x2/y2 were WRONG, because they read `label.get_y` of labels
+   *  Pine made before the curtain and this run never could. A missing object is
+   *  a gap; a wrong one is a lie.
+   *
+   *  ⛔ KEYED ON "UNKNOWN AT THIS BAR", NEVER ON A BAR NUMBER. The curtain is
+   *  whatever `readUnknown` answers (and a caller whose `var`s run from bar 0
+   *  passes none), so a series that starts at the symbol's first bar makes the
+   *  same ops known and the taint simply never forms.
+   *
+   *  ⭐ A GUARD-LEVEL read (a guard, a handle an op acts on, an address, a loop
+   *  bound) withholds the op and taints its outputs. A VALUE read (a property a
+   *  create or update writes, a scalar's source) lets the op run — Pine ran it —
+   *  and taints only that property, so the NEXT reader of the clean ones is
+   *  exact. ⛔ An object still carrying a tainted property at the end of the run
+   *  is not drawn (`finish`): it is held, and counted, as withheld. */
+  const regTaint = new Set()
+  /** instanceId → Set<prop> | '*' ('*': its existence or every property). */
+  const instTaint = new Map()
+  const numTaint = new Set()
+  /** A list whose length (and so every slot) is unknown. */
+  const collLenTaint = new Set()
+  /** Per list, a boolean per slot, kept in step with `colls`. */
+  const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, []]))
+  /** table instanceId → Set<"col,row"> | '*'. */
+  const cellTaint = new Map()
+  /** A `var` initialiser withheld where it stood: Pine may already have run it. */
+  const onceUnknown = new Set()
+  /** A crossing stepped with an unknown operand: its carried pair is unknown
+   *  through the NEXT bar. `cross` node → last bar it is unknown on. */
+  const crossTaintUntil = new Map()
+  const regHistTaint = regHist ? new Map((program.regs || []).map((r) => [r.id, []])) : null
+  let withheldTainted = 0
+  /** The graph nodes one value reads, once per value object. */
+  const valueNodes = new WeakMap()
+  const nodesOfValue = (v) => {
+    let found = valueNodes.get(v)
+    if (!found) { found = graphNodesReferenced({ ops: [{ k: 'setnum', when: v }] }); valueNodes.set(v, found) }
+    return found
+  }
+  /** ⭐ THE FAST PATH: until the first mark forms, nothing can read one, so no
+   *  op pays for asking. A run with no curtain (the runtime lane) never forms
+   *  one. ⛔ Set by every writer of a mark below, never cleared. */
+  let taintSeen = false
+  const taintInst = (id, props) => {
+    if (id === null || id === undefined || !live.has(id)) return
+    const cur = instTaint.get(id)
+    if (cur === '*') return
+    taintSeen = true
+    if (props === '*') { instTaint.set(id, '*'); return }
+    if (!props.length) return
+    const s = cur || new Set()
+    for (const p of props) s.add(p)
+    instTaint.set(id, s)
+  }
+  const cleanInstProp = (id, prop) => {
+    const cur = instTaint.get(id)
+    if (!cur || cur === '*') return
+    cur.delete(prop)
+    if (!cur.size) instTaint.delete(id)
+  }
+  const instPropTainted = (id, prop) => {
+    const cur = instTaint.get(id)
+    return !!cur && (cur === '*' || cur.has(prop))
+  }
+  /** A cell a clean clear removed is not drawn, so its mark goes with it. */
+  const pruneCellTaint = (id, map) => {
+    const cur = cellTaint.get(id)
+    if (!cur || cur === '*') return
+    for (const k of [...cur]) if (!map.has(k)) cur.delete(k)
+    if (!cur.size) cellTaint.delete(id)
+  }
+  const taintCell = (id, key) => {
+    if (id === null || id === undefined || !live.has(id)) return
+    const cur = cellTaint.get(id)
+    if (cur === '*') return
+    taintSeen = true
+    if (key === '*') { cellTaint.set(id, '*'); return }
+    const s = cur || new Set()
+    s.add(key)
+    cellTaint.set(id, s)
+  }
   const counts = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const peak = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   /** How many objects Pine's collector cut, per family — see `collect` and
@@ -375,6 +476,9 @@ export function beginObjects(program, ctx) {
   function reap(inst) {
     live.delete(inst.id)
     cells.delete(inst.id)
+    // ⭐ C17 — a gone object carries no taint: nothing can draw or read it.
+    instTaint.delete(inst.id)
+    cellTaint.delete(inst.id)
     counts[inst.family] -= 1
     for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
     // ⭐⭐ C16 (2026-09-29) — A COLLECTION KEEPS THE HANDLE. Pine's
@@ -542,6 +646,8 @@ export function beginObjects(program, ctx) {
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
     const siteNow = new Map()
+    /** ⭐ C17 — site ids whose create was WITHHELD on this bar (`taintOutputs`). */
+    const siteTaint = new Set()
     /** counter id → its value for the iteration being executed RIGHT NOW.
      *  ⛔ PER BAR, and cleared with the bar: a counter that outlived its loop
      *  would let a later op read a stale index and write the wrong row. */
@@ -796,6 +902,12 @@ export function beginObjects(program, ctx) {
         const step = (node.dir === 'over' ? CARRIED2.crossOver : CARRIED2.crossUnder).step
         const r = step(st, 0, a, b)
         crossNow.set(node, Number.isNaN(r) ? 0 : r)
+        // ⭐ C17 — an unknown operand makes this bar's answer AND the pair it
+        // carries into the next bar unknown.
+        if ((readUnknown || taintSeen) && (valueUnknown(node.args[0]) || valueUnknown(node.args[1]))) {
+          taintSeen = true
+          crossTaintUntil.set(node, bar + 1)
+        }
       }
     }
 
@@ -835,6 +947,151 @@ export function beginObjects(program, ctx) {
       return out
     }
 
+    // ── ⭐⭐ C17 — READING THE TAINT (see `regTaint` above) ──────────────────
+    /** Is this handle unknown on this bar? A register whose last write was
+     *  withheld, its history on a bar it was, a site whose create was withheld,
+     *  a list slot (or whole list) a withheld op may have changed. */
+    const refTainted = (r, depth = 0) => {
+      if (!isObj(r) || depth > 48) return false
+      switch (r.r) {
+        case 'reg': {
+          if (!r.back) return regTaint.has(r.id)
+          const h = regHistTaint && regHistTaint.get(r.id)
+          if (!h || h.length < r.back) return false
+          return h[h.length - r.back] === true
+        }
+        case 'site': return siteTaint.has(r.id)
+        case 'coll': {
+          if (collLenTaint.has(r.id) || tainted(r.index, depth + 1)) return true
+          const i = Number(value(r.index))
+          const s = collSlotTaint.get(r.id)
+          return !!s && Number.isInteger(i) && s[i] === true
+        }
+        default: return false
+      }
+    }
+    const textTainted = (t, depth) => {
+      if (!isObj(t) || depth > 48) return false
+      if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
+      if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
+      return false
+    }
+    const colorTainted = (c, depth) => {
+      if (!isObj(c) || depth > 48) return false
+      if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
+      return false
+    }
+    /** Does this value read anything tainted? (Graph columns on the warm-up
+     *  curtain are `readUnknown`'s, asked per op by `unknownAt`.) */
+    const tainted = (v, depth = 0) => {
+      if (!taintSeen || !isObj(v) || depth > 48) return false
+      if (v.r) return refTainted(v, depth)
+      switch (v.v) {
+        case 'num': return numTaint.has(v.id)
+        case 'size': return collLenTaint.has(v.coll)
+        case 'latch': return latches.get(v.id) === LATCH_UNKNOWN
+        case 'cross': return (crossTaintUntil.get(v) ?? -1) >= bar
+        case 'get': {
+          if (refTainted(v.target, depth + 1)) return true
+          const id = resolveRef(v.target)
+          return id !== null && instPropTainted(id, v.prop)
+        }
+        case 'text': return textTainted(v.node, depth + 1)
+        case 'color': return colorTainted(v.node, depth + 1)
+        // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
+        // the unknown one holds (`logical`: a false or `na` operand makes the
+        // result falsy either way) — the same certainty C17's known-false
+        // guard skip rests on. ⚰️ Measured on pro-trading-art: `ta.crossunder(
+        // close, topLine.get_y2()) and extendSignal` (an input, false) latched
+        // UNKNOWN whenever `topLine` was, withheld the `set_x2` Pine never ran
+        // and blanked TradingView's first double-top line. ⛔ Not `or`: a true
+        // operand beside an `na` one is `na`, not true.
+        case 'bool':
+          if (v.op === 'and' && Array.isArray(v.args)
+              && v.args.some((a) => !valueUnknown(a) && !truthy(numOf(value(a))))) return false
+          return Array.isArray(v.args) && v.args.some((a) => tainted(a, depth + 1))
+        default: return Array.isArray(v.args) && v.args.some((a) => tainted(a, depth + 1))
+      }
+    }
+    /** A value that is tainted OR reads a graph column the curtain withholds. */
+    const valueUnknown = (v) => {
+      if (tainted(v)) return true
+      if (!readUnknown || !isObj(v)) return false
+      for (const n of nodesOfValue(v)) if (readUnknown(n, bar)) return true
+      return false
+    }
+    const guardTainted = (op) => {
+      if (!taintSeen) return false
+      if (op.once && onceUnknown.has(op.site)) return true
+      if (op.requiresLive && regTaint.has(op.requiresLive)) return true
+      if (op.requiresEmpty && regTaint.has(op.requiresEmpty)) return true
+      for (const f of GUARD_FIELDS) if (op[f] != null && tainted(op[f])) return true
+      if (op.target && refTainted(op.target)) return true
+      // a handle a property names (a linefill's two lines) decides what exists
+      for (const v of Object.values(op.props || {})) if (isObj(v) && v.r && refTainted(v)) return true
+      for (const at of atNodesOf(op)) if (tainted(at.args[1])) return true
+      return false
+    }
+    /** The objects an op on `r` may act on: the one it resolves to, or — a
+     *  list whose length or index is unknown — every object in the list. */
+    const targetsOf = (r) => {
+      if (!isObj(r)) return []
+      if (r.r === 'coll' && (collLenTaint.has(r.id) || valueUnknown(r.index))) {
+        return (colls.get(r.id) || []).filter((x) => x !== null && x !== undefined)
+      }
+      const id = resolveRef(r)
+      return id === null || id === undefined ? [] : [id]
+    }
+    /** ⭐ WHAT A WITHHELD OP WOULD HAVE WRITTEN BECOMES UNKNOWN. A create keeps
+     *  the register's old value (Pine's guard may have been false) but marks it;
+     *  an update or delete marks whatever the handle holds now. */
+    const taintOutputs = (op) => {
+      taintSeen = true
+      switch (op.k) {
+        case 'create':
+          if (op.into) regTaint.add(op.into)
+          if (op.once) onceUnknown.add(op.site)
+          siteTaint.add(op.site)
+          break
+        case 'update':
+          for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
+          break
+        case 'delete':
+          for (const id of targetsOf(op.target)) taintInst(id, '*')
+          break
+        case 'cell':
+        case 'cellpatch': {
+          const known = !valueUnknown(op.col) && !valueUnknown(op.row)
+          const c = known ? Number(value(op.col)) : NaN
+          const r = known ? Number(value(op.row)) : NaN
+          const key = Number.isInteger(c) && Number.isInteger(r) ? `${c},${r}` : '*'
+          for (const id of targetsOf(op.target)) taintCell(id, key)
+          break
+        }
+        case 'mergecells':
+        case 'clear':
+        case 'clearcells':
+          for (const id of targetsOf(op.target)) taintCell(id, '*')
+          break
+        case 'setreg': regTaint.add(op.reg); break
+        case 'setnum': numTaint.add(op.num); break
+        case 'push':
+        case 'collset':
+        case 'collremove':
+        case 'collclear':
+          collLenTaint.add(op.coll)
+          break
+        case 'loop': for (const b of op.body || []) taintOutputs(b); break
+        case 'latch': latches.set(op.id, LATCH_UNKNOWN); break
+        default: break
+      }
+    }
+    /** Withhold one op on this bar, marking what it would have written. */
+    const withholdTainted = (op) => { withheldTainted += 1; taintOutputs(op) }
+    /** The properties of an op's props whose VALUE is unknown. */
+    const taintedProps = (props) => (!taintSeen ? NO_PROPS : Object.entries(props || {})
+      .filter(([, v]) => isObj(v) && !v.r && tainted(v)).map(([k]) => k))
+
     /** Execute a list of ops in order. Answers FALSE when the bar's envelope is
      *  spent, so a loop stops the whole bar rather than its own body only.
      *
@@ -850,7 +1107,9 @@ export function beginObjects(program, ctx) {
       // unknowable condition (the warm-up curtain) is remembered as unknown, and
       // every op reading it is withheld and counted below, never run off a guess.
       if (op.k === 'latch') {
-        latches.set(op.id, unknownAt(op, bar) || withheldAt(op) ? LATCH_UNKNOWN : truthy(value(op.cond)))
+        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) ? LATCH_UNKNOWN : truthy(value(op.cond))
+        if (latched === LATCH_UNKNOWN) taintSeen = true
+        latches.set(op.id, latched)
         continue
       }
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
@@ -868,14 +1127,32 @@ export function beginObjects(program, ctx) {
       // ⭐ `not na(l)` / `na(l)` are LIVENESS tests on a handle, answered here
       // because only the runtime holds the registers. They are flags rather
       // than values so that object state can never leak into the pure graph.
-      if (op.requiresLive && regs.get(op.requiresLive) === null) continue
-      if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar) || readsUnknownLatch(op.when) || withheldAt(op)) { withheldUnknown += 1; continue }
+      // ⭐ C17 — a liveness test on a handle that is itself unknown answers
+      // nothing: the op is withheld below, never skipped as if it were certain.
+      const handleUnknown = (op.requiresLive && regTaint.has(op.requiresLive))
+        || (op.requiresEmpty && regTaint.has(op.requiresEmpty))
+      if (!handleUnknown && op.requiresLive && regs.get(op.requiresLive) === null) continue
+      if (!handleUnknown && op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) {
+        // ⭐ C17 — a guard that is itself KNOWN and false is a certain skip:
+        // Pine did not run the op either, so nothing it would write is unknown.
+        if (op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
+        withheldUnknown += 1
+        taintOutputs(op)
+        continue
+      }
+      // ⭐⭐ C11c — a step whose value reads an UNMEASURED window reduction on this
+      // bar (`op.withhold`) is withheld, and — C17's rule — marks everything it
+      // would have written. ⛔ No known-false shortcut: its guard may itself read
+      // the reduction, so its falseness is as unmeasured as its value.
+      if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
+      // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
+      if (handleUnknown || guardTainted(op)) { withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
       if (op.k !== 'loop') {
         const at = atCheck(op)
         if (at === 'error') return false
-        if (at === 'unknown') { withheldUnknown += 1; continue }
+        if (at === 'unknown') { withheldUnknown += 1; taintOutputs(op); continue }
       }
       opsThisBar += 1
       opsExecuted += 1
@@ -952,7 +1229,7 @@ export function beginObjects(program, ctx) {
             // ⭐ `linefill.new` with a line that is not there returns `na`: the
             // handle it was assigned to is cleared, exactly as a create that
             // never happened leaves it.
-            if (op.into) regs.set(op.into, null)
+            if (op.into) { regs.set(op.into, null); regTaint.delete(op.into) }
             // ⛔ A `var` initialiser runs ONCE whatever it returned — `var lf =
             // linefill.new(na, na)` is `na` for good, not retried until lines
             // appear.
@@ -994,6 +1271,10 @@ export function beginObjects(program, ctx) {
             family: op.family, id, site: op.site, createdBar: bar, props,
           }
           live.set(id, inst)
+          // ⭐ C17 — Pine made this object here; a property whose VALUE read
+          // something tainted is what stays unknown on it.
+          taintInst(id, taintedProps(op.props))
+          if (op.into) regTaint.delete(op.into)
           // ⭐ A fill records which lines own it AT CREATE, because that is the
           // only moment both refs are resolved. `linefill.set_color` is the only
           // update Pine offers and it cannot move a fill to different lines, so
@@ -1014,6 +1295,13 @@ export function beginObjects(program, ctx) {
           const inst = target === null ? null : live.get(target)
           if (!inst) { writesToDeleted += 1; break }
           resolveProps(op.props, inst.props)
+          // ⭐ C17 — a clean write clears its property; a tainted value marks it.
+          if (taintSeen) {
+            const bad = new Set(taintedProps(op.props))
+            for (const k of Object.keys(op.props || {})) {
+              if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
+            }
+          }
           updated += 1
           if (ctx.trace) events.push({ bar, k: 'update', id: inst.id })
           break
@@ -1058,6 +1346,13 @@ export function beginObjects(program, ctx) {
           const key = `${col},${row}`
           const cur = map.get(key) || {}
           map.set(key, resolveProps(op.props, cur))
+          // ⭐ C17 — a cell written from a tainted value is unknown; a whole
+          // `table.cell` written clean is known again (a patch is only part of it).
+          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (taintedProps(op.props).length) taintCell(inst.id, key)
+          else if (op.k === 'cell') {
+            const ct = cellTaint.get(inst.id)
+            if (ct && ct !== '*') { ct.delete(key); if (!ct.size) cellTaint.delete(inst.id) }
+          }
           updated += 1
           if (ctx.trace) events.push({ bar, k: op.k, id: inst.id, col, row })
           break
@@ -1144,6 +1439,7 @@ export function beginObjects(program, ctx) {
               cellsCleared += 1
             }
           }
+          pruneCellTaint(inst.id, map)
           if (ctx.trace) events.push({ bar, k: 'clearcells', id: inst.id })
           break
         }
@@ -1176,6 +1472,7 @@ export function beginObjects(program, ctx) {
           for (let c = startCol; c <= endCol; c += 1) {
             for (let r = startRow; r <= endRow; r += 1) map.delete(`${c},${r}`)
           }
+          pruneCellTaint(inst.id, map)
           updated += 1
           if (ctx.trace) events.push({ bar, k: 'clear', id: inst.id, startCol, startRow, endCol, endRow })
           break
@@ -1194,10 +1491,12 @@ export function beginObjects(program, ctx) {
         }
         case 'setreg': {
           regs.set(op.reg, op.value === null ? null : resolveRef(op.value))
+          if (taintSeen && op.value !== null && refTainted(op.value)) regTaint.add(op.reg); else regTaint.delete(op.reg)
           break
         }
         case 'setnum': {
           nums.set(op.num, numOf(value(op.value)))
+          if (tainted(op.value)) numTaint.add(op.num); else numTaint.delete(op.num)
           break
         }
         case 'push': {
@@ -1225,8 +1524,12 @@ export function beginObjects(program, ctx) {
             break
           }
           // ⭐ C11b — `array.unshift(bs, b)` is the same add at the FRONT (`front`).
-          if (op.front) arr.unshift(inst)
-          else arr.push(inst)
+          // ⭐ C17 — the slot keeps whether the handle pushed into it was known,
+          // at the same end.
+          {
+            const slotTaint = taintSeen && refTainted(op.value)
+            if (op.front) { arr.unshift(inst); collSlotTaint.get(op.coll).unshift(slotTaint) } else { arr.push(inst); collSlotTaint.get(op.coll).push(slotTaint) }
+          }
           break
         }
         case 'collset': {
@@ -1234,18 +1537,27 @@ export function beginObjects(program, ctx) {
           const i = Number(value(op.index))
           const inst = resolveRef(op.value)
           // ⭐ C16 — `array.set(bs, i, na)` stores `na`, exactly as `push` above.
-          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) arr[i] = inst
+          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) {
+            arr[i] = inst
+            collSlotTaint.get(op.coll)[i] = taintSeen && refTainted(op.value)
+          }
           break
         }
         case 'collremove': {
           const arr = colls.get(op.coll)
           const i = Number(value(op.index))
-          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) arr.splice(i, 1)
+          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) {
+            arr.splice(i, 1)
+            collSlotTaint.get(op.coll).splice(i, 1)
+          }
           break
         }
         case 'collclear': {
           const arr = colls.get(op.coll)
           if (arr) arr.length = 0
+          // ⭐ C17 — a list emptied where Pine empties it is known again.
+          if (collSlotTaint.has(op.coll)) collSlotTaint.get(op.coll).length = 0
+          collLenTaint.delete(op.coll)
           break
         }
         default:
@@ -1260,6 +1572,10 @@ export function beginObjects(program, ctx) {
       for (const [rid, h] of regHist) {
         h.push(regs.get(rid) ?? null)
         if (h.length > histDepth) h.shift()
+        // ⭐ C17 — `l[n]` on a bar the handle was unknown is unknown too.
+        const th = regHistTaint.get(rid)
+        th.push(regTaint.has(rid))
+        if (th.length > histDepth) th.shift()
       }
     }
   }
@@ -1305,6 +1621,31 @@ export function beginObjects(program, ctx) {
   }
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
+  // ⭐⭐ C17 — AN OBJECT STILL CARRYING A TAINTED PROPERTY IS NOT DRAWN. Its
+  // text, a coordinate, or its very existence reads what a withheld op wrote,
+  // so drawing it would show a value TradingView may not hold. It is counted as
+  // withheld, never drawn and never dropped silently. A fill on a withheld line
+  // goes with it (a fill spans its two lines); a table whose cells are all
+  // unknown goes whole, and a known table drops only its unknown cells.
+  const taintHeld = new Set()
+  for (const o of live.values()) {
+    if (withheldFams.has(o.family)) continue
+    if (instTaint.has(o.id) || (o.family === 'table' && cellTaint.get(o.id) === '*')) taintHeld.add(o.id)
+  }
+  for (const o of live.values()) {
+    if (o.family !== 'linefill' || withheldFams.has(o.family) || taintHeld.has(o.id)) continue
+    if (fillRefs(o).some((id) => taintHeld.has(id))) taintHeld.add(o.id)
+  }
+  for (const id of taintHeld) {
+    const o = live.get(id)
+    withheld[o.family] = (withheld[o.family] || 0) + 1
+    heldCounts[o.family] -= 1
+  }
+  const cellsHeld = (id) => {
+    const all = cellsOf(cells.get(id))
+    const ct = cellTaint.get(id)
+    return ct && ct !== '*' ? all.filter((c) => !ct.has(`${c.col},${c.row}`)) : all
+  }
   // ⭐ C9 — a Pine runtime error draws NOTHING on TradingView, so nothing is
   // held here: the objects made before the error are not a smaller picture of
   // the script, they are a picture TradingView never shows.
@@ -1313,20 +1654,23 @@ export function beginObjects(program, ctx) {
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
-  const ordered = stopped ? [] : [...live.values()].filter((o) => !withheldFams.has(o.family))
+  const ordered = stopped ? [] : [...live.values()]
+    .filter((o) => !withheldFams.has(o.family) && !taintHeld.has(o.id))
     .sort((a, b) => a.id - b.id)
+  const cellsDropped = stopped ? 0 : ordered.reduce((n, o) => (o.family === 'table'
+    ? n + cellsOf(cells.get(o.id)).length - cellsHeld(o.id).length : n), 0)
 
   return {
     status,
     reason,
-    ...(withheldFams.size ? { withheld } : {}),
+    ...(withheldFams.size || taintHeld.size ? { withheld } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,
       site: o.site,
       createdBar: o.createdBar,
       props: { ...o.props },
-      ...(o.family === 'table' ? { cells: cellsOf(cells.get(o.id)) } : {}),
+      ...(o.family === 'table' ? { cells: cellsHeld(o.id) } : {}),
     })),
     counts: heldCounts,
     stats: {
@@ -1336,6 +1680,11 @@ export function beginObjects(program, ctx) {
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      // ⭐ C17 — ops withheld because they read a tainted value; objects and
+      // cells held but not drawn because a property of theirs is still tainted.
+      ...(withheldTainted ? { withheldTainted } : {}),
+      ...(taintHeld.size ? { objectsTainted: taintHeld.size } : {}),
+      ...(cellsDropped ? { cellsTainted: cellsDropped } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

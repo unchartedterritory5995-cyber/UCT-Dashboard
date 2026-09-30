@@ -202,6 +202,12 @@
   },
   {
    "method": "GET",
+   "path": "/api/econ/status",
+   "kind": "public",
+   "reason": "Economic-data currentness snapshot (owner contract, docs/economic-data/PHASE1-DESIGN.md 'Member API'): per-series state + period labels + next release date/time only, NEVER an observation value (whitelisted in api/services/econ/serving.py::_sanitize_status, pinned by tests/econ/test_router.py). A published snapshot, never computed per request. 404 unless ECON_ENABLED=1."
+  },
+  {
+   "method": "GET",
    "path": "/api/health",
    "kind": "public",
    "reason": "Liveness probe; Railway's healthcheckPath and external monitors call it without a session."

@@ -1728,6 +1728,26 @@ L1C_TAG = 'notebook-wave10-L1c-tip2-2026-09-28'  # tip2: the landing tree change
 # fail the "unchanged since the landing" tie. The RS tag is created at THIS lane's own final commit,
 # after every evidence file below is committed -- never before, or the tie is vacuous.
 RS_TAG = 'notebook-wave10-RS-2026-09-29'
+# ⛔ Lane RS2 (2026-09-29): RS_TAG resolves (2d74f25e3), but that commit is on the SEPARATE, still
+# un-landed `feat/notebook-w10-rs` branch -- not an ancestor of THIS tree's HEAD. Whoever wrote wave
+# 10 L5's squash (0812b5ec3, PR #252, "parity re-score 32/61") copied RS's evidence files and this
+# tool's RS-era state into master WITHOUT preserving a provable git ancestry to RS_TAG's commit, so
+# `evidence_index` has been unable to verify 'wave 10 RS' on every tree descended from L5 since before
+# this lane started (verified: the same single failure, same cause, on the pristine pre-RS2 tree).
+# Not this lane's evidence to re-derive or re-litigate -- the files are already committed, unchanged,
+# reachable from HEAD since 0812b5ec3 (`git log --follow` on each path below confirms it). RS2_TIP2_TAG
+# re-anchors the SAME wave to a tag THIS tree can prove, without touching a byte of the evidence itself
+# or any clause's verdict. If lane RS's own branch later lands for real, its landing should replace this
+# with a proper squash-tied entry; this is a stopgap so `--write` can run on this tree in the meantime.
+RS2_TIP2_TAG = 'notebook-wave10-RS-tip2-2026-09-29'
+# Lane RS2 (this re-score, 2026-09-29): a second new wave entry, same shape as RS's own -- RS's branch
+# never landed on this tree (its tag is not an ancestor of HEAD here), so RS2 cannot tie evidence to
+# 'wave 10 RS' on THIS branch. RS2 carries: L6's own landing record (PR #253, already an ancestor of
+# HEAD -- classification.md + its pytest log) and the corrected production writing-help run
+# (wh-2026-09-29b, cherry-picked from notebook-w10-wh at 152fbb062). Neither existed at any earlier
+# registered wave's landing. The RS2 tag is created at THIS lane's own final commit, after every
+# evidence file below is committed.
+RS2_TAG = 'notebook-wave10-RS2-2026-09-29'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1737,7 +1757,8 @@ B0_WAVES = (
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
     ('wave 10 L1c', L1C_TAG, None, None),
-    ('wave 10 RS', RS_TAG, None, None),
+    ('wave 10 RS', RS2_TIP2_TAG, None, None),
+    ('wave 10 RS2', RS2_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1808,6 +1829,11 @@ B0_EVIDENCE = (
     (f'{PROOF}/l3-layout-0e72ad573/r2-after/run.json', 'wave 10 RS'),
     (f'{PROOF}/d3p-raw/after-r2/run.json', 'wave 10 RS'),
     (f'{PROOF}/d5-after-round1-fix/probe.json', 'wave 10 RS'),
+    # Lane RS2 (2026-09-29): L6's own landing (PR #253, 7b) and the corrected production writing-help
+    # run (12a). Neither existed at any earlier registered wave's landing, so both tie to 'wave 10 RS2'.
+    ('docs/notebook/gate-runs/wave10-L6/classification.md', 'wave 10 RS2'),
+    ('docs/notebook/gate-runs/wave10-L6/pytest-l6.log', 'wave 10 RS2'),
+    (f'{PROOF}/wh-2026-09-29b/README.md', 'wave 10 RS2'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2401,6 +2427,21 @@ def build(pages_dir=None):
         return f'TEST `{fname}` — run by F3: `{F3_LOG}`, "{F3_TOT}"'
 
 
+    # Wave 10, lane AD/L6 (PR #253): the archive-restore rail's own run, committed at the L6 landing
+    # (docs/notebook/gate-runs/wave10-L6/pytest-l6.log) before this re-score. Totals read, never typed.
+    L6_LOG = 'docs/notebook/gate-runs/wave10-L6/pytest-l6.log'
+    _l6_text = open(os.path.join(ROOT, L6_LOG), encoding='utf-8', errors='replace').read()
+    _l6_tot = [l.strip() for l in _l6_text.splitlines() if re.search(r'\d+ passed', l)]
+    L6_TOT = _l6_tot[-1] if _l6_tot else ''
+    if not L6_TOT or re.search(r'failed|error', L6_TOT):
+        PROBLEMS.append(f'{L6_LOG}: no clean totals line ({L6_TOT!r})')
+
+
+    def test_l6(fname):
+        _check_log(L6_LOG, L6_TOT, fname)
+        return f'TEST `{fname}` — run by L6: `{L6_LOG}`, "{L6_TOT}"'
+
+
     # F3 fix round 1 (review I-5): the telemetry wiring rails, run once by F3 on this tree (scoped vitest,
     # verbose, no colour codes) and committed before the scorecard was written; totals read, never typed.
     F3VT_LOG = 'docs/notebook/evidence/wave10-f3/vitest-f3-telemetry-rails-r3.log'  # fix round 3: + the outbox door's rail (T8)
@@ -2675,7 +2716,7 @@ def build(pages_dir=None):
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
       {'N': ['N_callout'], 'E': ['E_editmode'], 'O': ['O_callout', 'O_tables']},
       'B01/B02: headings, lists, tables, callouts, code and math in one editor.')
-    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 34, "label: 'New Note'"), walk9('B08_quick_switcher')],
+    R('G-031', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 35, "label: 'New Note'"), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_palette']}, 'B08: Ctrl+K opened the palette.')
     R('G-032', ('P', 'P', 'NV'), [code(f'{NB}/NoteFindBar.jsx', 8, 'Replace all'), walk9('B20_more_older_rows')],
       {'N': ['N_find'], 'E': ['E_find'], 'O': NFO}, 'B20: Ctrl+F opened the find bar.')
@@ -2809,7 +2850,7 @@ def build(pages_dir=None):
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3199, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
-    R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 6, 'useJ2Favorites'), walk9('B08_quick_switcher')],
+    R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
     R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 28, 'import ConfirmModal'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B20 read the "Delete this note?" dialog.')
@@ -2826,7 +2867,7 @@ def build(pages_dir=None):
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 24, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 25, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -2973,7 +3014,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1086, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1122, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -3251,7 +3292,7 @@ def build(pages_dir=None):
     ]
     C[7] = [
         ('restore rehearsed end-to-end on a schedule', 'NOT MET',
-         [code('tools/authdb_restore_drill.py', 547, 'SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"'), D(15, 'restore-drill tool'),
+         [code('tools/authdb_restore_drill.py', 591, 'SCHEDULE_TASK = "UCT-AuthDB-Restore-Drill"'), D(15, 'restore-drill tool'),
           RESTORE_INTEGRITY, RESTORE_TOMBSTONES, RESTORE_ATTACH],
          'the drill now checks attachments and replays tombstones, and its weekly task is staged. The hand re-run '
          'this cell used to owe now reads a full PASS: integrity_check ok, 0 tombstones outstanding after replay, '
@@ -3259,16 +3300,21 @@ def build(pages_dir=None):
          'first run (the tarball predated the manifest) and proves the mechanism works end-to-end -- but a PASS run '
          'by hand is not a PASS triggered BY the schedule, and the clause reads literally "on a schedule". The '
          'staged weekly task has not yet produced an unattended PASS. Owed: observe its next scheduled fire', BUILD),
-        ('account deletion purges backups', 'NOT MET',
+        ('account deletion purges backups', 'MET',
          [record('docs/account-deletion-manifest.md', 183, 'The deletion writes a TOMBSTONE, as its FIRST write'),
-          record('docs/account-deletion-manifest.md', 213, 'one known exception to "snapshots expire"'),
-          record('docs/account-deletion-manifest.md', 221, 'the owner decided on 2026-09-27 to KEEP it'),
-          test_f3('tests/test_account_tombstones.py')],
-         'a deletion writes a tombstone first and every restore replays it (ruling R-9, built in 10C); one exception '
-         'stands: an authdb/archive/ snapshot is never pruned and has no replaying restore path. The owner decided to '
-         'KEEP it (2026-09-27; manifest exception (d), corrected in F3 fix round 1), so the lever is no longer a '
-         'decision: build an archive restore path that runs account_tombstones.replay_on_db before the restored copy '
-         'serves anyone, or prune the archive (which reopens the owner\'s decision)', BUILD),
+          record('docs/account-deletion-manifest.md', 219, 'CLOSED, wave 10 lane AD'),
+          code('tools/authdb_restore_drill.py', 620, 'ap.add_argument("--archive"'),
+          record('docs/notebook/gate-runs/wave10-L6/classification.md', 13, 'Landing: PASS'),
+          test_f3('tests/test_account_tombstones.py'), test_l6('tests/test_authdb_archive_restore.py')],
+         'wave 10 lane AD (PR #253, landed L6) closed the one exception this cell used to carry: '
+         'authdb/archive/ objects are kept forever by design (never pruned), and `authdb_restore_drill.py '
+         '--archive` now drills that lineage through the SAME tombstone-replay code a regular restore uses '
+         '(`tombstone_check()` -> `account_tombstones.replay_on_db`/`.replay_on_attachment_tree`), lifting only '
+         'the freshness-age check -- never the replay. `tests/test_authdb_archive_restore.py` drills a seeded '
+         'archive snapshot end-to-end (member deleted after the snapshot, `--archive --write-restored` refuses '
+         'to bring them back) and is mutation-proved fail-closed two ways (replay call skipped, tombstone read '
+         'erroring); both it and the regular-restore rail pass on the L6 landing tree (126 passed). A deletion '
+         'now purges (or is replayed out of) every backup lineage this repo has, regular and archive alike', None),
         ('round-trip export verified every release', 'MET',
          [test_vt('app/src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js')],
          'the round-trip rail is a vitest file, so every six-shard landing gate runs it', None),
@@ -3357,11 +3403,20 @@ def build(pages_dir=None):
         ('grounded, cited, refusing when unsupported', 'MET',
          [test_py('tests/test_ask_evidence.py'), test_py('tests/test_ask_prompt_injection.py'),
           test_vt('app/src/pages/journal-2-0/lib/askCitation.parity.test.js')], '', None),
-        ('writing help with provenance', 'NOT MEASURED',
-         [walk9('B15_writing_help'), walk10('B7_autofill_no_key', 'INCONCLUSIVE'), test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js'),
-          test_f3('tests/test_property_autofill.py')],
-         'the panel is live with provenance railed, and autofill is built (G-165); no output has been observed in a '
-         'browser: no sandbox holds a model key. Owed: a pass as bench@ on production, where the gate is armed', BUILD),
+        ('writing help with provenance', 'MET',
+         [record(f'{PROOF}/wh-2026-09-29b/README.md', 8, 'a member'),
+          record(f'{PROOF}/wh-2026-09-29b/README.md', 14, 'Rewrite shorter" returned 148 characters'),
+          record(f'{PROOF}/wh-2026-09-29b/README.md', 16, 'Written with Compass writing help: Rewrite'),
+          record(f'{PROOF}/wh-2026-09-29b/README.md', 19, 'output, provenance and insert-on-accept were all observed on production'),
+          test_vt('app/src/pages/journal-2-0/lib/writingHelp.test.js'), test_f3('tests/test_property_autofill.py')],
+         'the owed pass landed: run b, as `bench@uctintelligence.internal` (a member, not admin), on production '
+         'after the vendor credit was restored -- "Rewrite shorter" returned real output, the inserted block '
+         'carried both the visible provenance label and an aria-label naming the model and action, and Accept '
+         'inserted it into the note (`document_changed_by_accept: true`). The probe process itself exited 1 on a '
+         'cleanup read-back race (one read 1.5s after delete, fixed in the same lane by polling the note by id); '
+         'an independent read-back found the test note gone (404 direct, absent live, present in trash) -- the '
+         'product path, not the probe bug, is what this clause reads on. The earlier run (wh-2026-09-29/) found '
+         'the vendor credit exhausted and observed no output; this run is what closed it', None),
         ('semantic retrieval', 'NOT MET', [flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark')], 'dark until zero retention in writing (G-127)', OWNER),
         ('all on verified vendor terms', 'NOT MET',
          [record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 34, 'Published terms relied on, not a signed agreement')], 'owner/external', OWNER),
@@ -3472,7 +3527,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8252, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8258, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),

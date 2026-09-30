@@ -1,0 +1,150 @@
+INFO:     127.0.0.1:56398 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/accounts/4d7b0b03-f356-468e-bf8a-6c9e3625c7af/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55917 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55917 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55917 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/positions?account_id=4d7b0b03-f356-468e-bf8a-6c9e3625c7af HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55917 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:55917 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64330 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59954 - "POST /api/j2/notes/cfde82cc69264d12a222106387fb68b1/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56645 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55917 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56398 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1/reviews HTTP/1.1" 200 OK
+2026-09-29 19:18:08,852 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:08,921 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:08,999 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:08,999 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:09,071 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:09,106 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:09,189 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:09,190 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:09,672 ERROR yfinance: HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: VLUTF"}}}
+2026-09-29 19:18:09,938 ERROR yfinance: $VLUTF: possibly delisted; no price data found  (period=2y) (Yahoo error = "No data found, symbol may be delisted")
+2026-09-29 19:18:11,371 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:11,371 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:11,472 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:11,472 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+INFO:     127.0.0.1:50766 - "PUT /api/j2/notes/cfde82cc69264d12a222106387fb68b1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50766 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+2026-09-29 19:18:14,003 INFO api.main: [startup] hot tier warmed: 0 entries
+2026-09-29 19:18:14,369 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:14,403 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+[breadth-heal] boot pass: 0 healed of last 10
+2026-09-29 19:18:14,481 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:14,482 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:14,548 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:14,548 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:14,548 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:14,549 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:15,162 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:15,162 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:15,162 WARNING api.services.earnings_estimates: FMP get_price_target_consensus failed for KARNF: local FMP budget exhausted for /stable/price-target-consensus
+2026-09-29 19:18:15,162 WARNING api.services.engine: FMP quarterly history failed for KARNF: local FMP budget exhausted for /stable/earnings
+INFO:     127.0.0.1:50766 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+2026-09-29 19:18:16,966 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/recommendation)
+2026-09-29 19:18:16,967 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:18:17,057 INFO api.main: [dashboard-warm] enrichment ok
+2026-09-29 19:18:17,061 INFO api.main: [dashboard-warm] flow-curated ok
+INFO:     127.0.0.1:63820 - "GET /api/j2/notes/cfde82cc69264d12a222106387fb68b1 HTTP/1.1" 200 OK
+[darkpool_agg] prewarm: cache already warm � skip
+2026-09-29 19:18:30,956 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 19:18:30 CDT)" (scheduled at 2026-09-29 19:18:30.943211-05:00)
+2026-09-29 19:18:30,963 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 19:19:30 CDT)" executed successfully
+2026-09-29 19:18:31,298 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 19:19:31 CDT)" (scheduled at 2026-09-29 19:18:31.296540-05:00)
+2026-09-29 19:18:31,299 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-29 19:18:31,299 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 19:19:31 CDT)" executed successfully
+2026-09-29 19:18:31,346 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 20:19:31 EDT)" (scheduled at 2026-09-29 20:18:31.344771-04:00)
+2026-09-29 19:18:31,347 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 20:19:31 EDT)" executed successfully
+2026-09-29 19:18:31,391 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 19:19:31 CDT)" (scheduled at 2026-09-29 19:18:31.377448-05:00)
+2026-09-29 19:18:31,397 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-29 19:18:31,397 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 19:19:31 CDT)" executed successfully
+2026-09-29 19:18:44,046 INFO api.services.industry_map: [industry_map] prewarm bulk skipped � fresh (204 rows)
+2026-09-29 19:18:46,870 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 500/3177 warmed=185 failed=315
+2026-09-29 19:18:59,035 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-29 19:18:59,237 INFO api.routers.calendar: Calendar: econ loaded � FF 0 events / 0 days, FMP filled 24 across 5 uncovered days
+2026-09-29 19:18:59,238 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set � bulk refresh skipped
+2026-09-29 19:18:59,419 INFO api.services.ticker_logos: [logo-hires] starting: 699 cached logos to upgrade
+2026-09-29 19:19:01,773 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:01,775 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:01,776 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:04,253 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:04,270 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:06,030 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-29 19:19:06,030 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-30 00:19:06 UTC], next run at: 2026-09-30 00:19:06 UTC)" (scheduled at 2026-09-30 00:19:06.017423+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': False, 'reason': 'already-ran', 'day': '2026-09-29'}
+2026-09-29 19:19:06,036 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-30 00:19:06 UTC], next run at: 2026-09-30 00:19:06 UTC)" executed successfully
+2026-09-29 19:19:06,984 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:06,984 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 19:19:07,160 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/297 syms; week-2 5 day(s)/7 syms
+2026-09-29 19:19:24,798 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+2026-09-29 19:19:28,474 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 750/3177 warmed=373 failed=377
+2026-09-29 19:19:29,042 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-29 19:19:29,042 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-29 19:19:30,951 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:30 CDT)" (scheduled at 2026-09-29 19:19:30.943211-05:00)
+2026-09-29 19:19:30,963 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:30 CDT)" executed successfully
+2026-09-29 19:19:31,307 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:31 CDT)" (scheduled at 2026-09-29 19:19:31.296540-05:00)
+2026-09-29 19:19:31,310 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-29 19:19:31,315 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:31 CDT)" executed successfully
+2026-09-29 19:19:31,354 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 20:20:31 EDT)" (scheduled at 2026-09-29 20:19:31.344771-04:00)
+2026-09-29 19:19:31,355 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 20:20:31 EDT)" executed successfully
+2026-09-29 19:19:31,369 INFO apscheduler.executors.default: Running job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 20:21:31 EDT)" (scheduled at 2026-09-29 20:19:31.365348-04:00)
+2026-09-29 19:19:31,384 INFO apscheduler.executors.default: Job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 20:21:31 EDT)" executed successfully
+2026-09-29 19:19:31,385 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:31 CDT)" (scheduled at 2026-09-29 19:19:31.377448-05:00)
+2026-09-29 19:19:31,385 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-29 19:19:31,386 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 19:20:31 CDT)" executed successfully
+2026-09-29 19:19:37,550 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-29 19:19:49,712 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/profile2)
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-29 19:19:51,197 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-09-29 19:19:51,200 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running � nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-09-29 19:19:51,201 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-09-29 19:19:51,516 INFO api.services.cache_snapshot: [cache-snapshot] saved 941/954 entries (3420.5 KB)
+[shutdown] cache snapshot saved: 941 entries, 3421 KB
+2026-09-29 19:19:51,523 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-09-29 19:19:51,524 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [41540]
+2026-09-29 19:19:53,179 INFO api.services.rs_ranking: [rs_ranking] Cached 3621 RS rankings
+2026-09-29 19:19:53,181 INFO api.main: [rs-rankings] warmed: 3621 entries
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1d\t2\s-L8\docs\plans\joystick\sandbox-runs\2026-09-29T19-16-42.md
+2026-09-29 19:20:09,302 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1000/3177 warmed=550 failed=450

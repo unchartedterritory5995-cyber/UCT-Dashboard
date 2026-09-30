@@ -26,7 +26,7 @@ import { translatePine } from '../../engine/ast/pine'
 import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/pinePalette'
 import { paneGate, paneObjectsGate, runtimeRouteOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
-import { registerRuntimeLane } from '../../engine/nativeRegistry'
+import { registerRuntimeLane, PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimeColumnsFor, probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
@@ -644,6 +644,14 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     ...(definition.meta || {}),
     disclosures: notes.map((n) => ({ name: n.name, note: n.note })),
     requirementTags,
+    // ⭐⭐ C12w — THIS DOCUMENT'S `accum` RECURRENCES ARE PINE TRANSLATIONS
+    // (`pine.js`: `var` state and self-reference), so a series proven to start at
+    // the symbol's first-ever bar may seed them there (ruling R-W,
+    // `nativeRegistry.historyFromListingFor`). `meta` is the sanctioned home —
+    // ignore-and-preserve through validation, the round trip and the server —
+    // and it rides OUTSIDE the trees, so no tree hash moves. A document without
+    // it (saved before this, or from another translator) keeps the bounded window.
+    recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
   }
 
   return {

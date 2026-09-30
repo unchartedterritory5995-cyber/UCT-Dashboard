@@ -1675,7 +1675,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
           // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
           // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
           undefined, { tf: ctx && ctx.tf,
-            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null, crossMemo })
+            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+            ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}), crossMemo })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -1712,8 +1713,34 @@ function astColumnsFor(def, bars, inputs, ctx) {
   return {
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
-        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null }),
+        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}) }),
   }
+}
+
+/** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
+ *  member door (`memberPaneDefinition`) stamps it; nothing else does. */
+export const PINE_RECURRENCE_ORIGIN = 'pine'
+
+/** Whether the listing exception (ruling R-W) applies to THIS document on THIS
+ *  bar series: `interpret`'s `historyFromListing`.
+ *
+ *  Two facts, both required, and neither inferred:
+ *   - the CALLER states the series starts at the symbol's first-ever bar
+ *     (`ctx.historyFromListing === true` — `StockChart` derives it from the
+ *     listing date, the vendor harness from the capture's `startsAtBar0`);
+ *   - the DOCUMENT declares its `accum` recurrences are Pine translations
+ *     (`meta.recurrenceOrigin === 'pine'`).
+ *
+ *  ⛔ WHY THE SECOND ONE EXISTS. `accum` is shared by three translators and only
+ *  one of them means "carried since the first bar". TC2000's `CountTrue(b, x)`
+ *  (`pcf.js`) IS a window of `x` bars — run from bar 0 it would count the whole
+ *  history, a different indicator. A document that says nothing is left exactly
+ *  as it was.
+ *  ⛔ Absent, `false`, or anything but `true` on either side means NO. */
+export function historyFromListingFor(def, ctx) {
+  return !!(ctx && ctx.historyFromListing === true
+    && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
 }
 
 /** Merge a caller's inputs over the definition's declared defaults. */

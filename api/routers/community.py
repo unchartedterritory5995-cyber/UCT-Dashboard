@@ -101,6 +101,16 @@ def _attach_authors(items):
         if aid and bmap.get(aid):
             author["badges"] = bmap[aid]
         i["author"] = author
+        # TERM-056 (owner ruling 2026-09-29): an address written on the Floor links ONLY when
+        # the AUTHOR shared the object; a private one is marked private, never named.
+        if "body" in i and ":" in (i.get("body") or ""):
+            try:
+                from api.services import address_space
+                links = address_space.shared_links(aid, address_space.text_of_body(i["body"]))
+                if links:
+                    i["address_links"] = links
+            except Exception:  # noqa: BLE001 -- a chip must never break a feed
+                pass
     return items
 
 
@@ -993,6 +1003,30 @@ def member_profile(member_id: str, user: dict = Depends(require_community)):
         badges = []
     return {"id": member_id, "name": info["name"], "is_mentor": info["is_mentor"],
             "badges": badges, "joined_at": joined, **store.member_activity(member_id)}
+
+
+class CallRecordIn(BaseModel):
+    enabled: bool
+
+
+@router.get("/members/{member_id}/calls")
+def member_calls(member_id: str, user: dict = Depends(require_community)):
+    """TERM-009: a member's call record -- every $TICKER they mentioned and how it has moved
+    since, losses included. OPT-IN (owner ruling 2026-09-29): another member sees it only
+    while its owner has published it; the owner always sees their own, marked private."""
+    from api.services import community_call_record
+    mine = str(member_id) == str(user.get("id"))
+    public = store.call_record_enabled(member_id)
+    if not public and not mine:
+        raise HTTPException(status_code=404, detail="This member does not share a call record")
+    return {**community_call_record.build(member_id), "public": public, "mine": mine}
+
+
+@router.put("/me/call-record")
+def set_my_call_record(body: CallRecordIn, user: dict = Depends(require_community)):
+    """Publish or hide YOUR call record. Hiding never deletes a message or a mark."""
+    store.set_call_record(user["id"], body.enabled)
+    return {"public": store.call_record_enabled(user["id"])}
 
 
 @router.get("/chat/search")

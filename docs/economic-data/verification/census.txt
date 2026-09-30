@@ -1,0 +1,49 @@
+# verify_census  run 2026-09-29T01:57:26Z  mode=keyless (census.gov econ_export CSV)
+# params overlay (proposed corrections): {"USRETAIL": {"recent_flags": ["a", "p"]}, "USHOUST": {"recent_flags": ["p"]}, "USDURGOODS": {"advance_program": "advm3"}}
+
+symbol      provider id            count oldest      newest       newest value flag  units(raw)
+USRETAIL    marts/44X72/SM           416 1992-01-01  2026-08-01        737,763 a     Millions USD   (NA rows 0; 7,401 B; 0.5s)
+            request_key=census:export:MARTS:44X72:SM:SA:1992-2026  published=None  warnings=[]
+            last 4: 2026-05=731,415, 2026-06=732,898, 2026-07=729,538(p), 2026-08=737,763(a)
+USHOUST     resconst/ASTARTS/TOTAL   812 1959-01-01  2026-08-01          1,275 p     Thousands of units, SAAR   (NA rows 0; 12,391 B; 0.7s)
+            request_key=census:export:RESCONST:ASTARTS:TOTAL:SA:1959-2026  published=None  warnings=[]
+            last 4: 2026-05=1,182, 2026-06=1,439, 2026-07=1,309, 2026-08=1,275(p)
+USDURGOODS  m3/MDM/NO                415 1992-02-01  2026-08-01        338,604 a     Millions USD   (NA rows 0; 7,815 B; 2.0s)
+            request_key=census:export:M3:MDM:NO:SA:1992-2026+census:export:M3ADV:MDM:NO:SA:2026-2026  published=None  warnings=[]
+            last 4: 2026-05=333,842, 2026-06=335,779, 2026-07=339,392, 2026-08=338,604(a)
+USTRADEBAL  ftd/BOPGS/BAL            391 1994-01-01  2026-07-01        -88,576 -     Millions USD   (NA rows 0; 7,254 B; 1.0s)
+            request_key=census:export:FTD:BOPGS:BAL:SA:1992-2026  published=None  warnings=[]
+            last 4: 2026-04=-52,883, 2026-05=-75,752, 2026-06=-71,182, 2026-07=-88,576
+
+# Phase 0 comparison
+USRETAIL    2026-08-01 phase0=773,947 now=737763.0  MISMATCH   [proofs.md + proofs/census_marts_current.xlsx Table 1 SA total Aug.(a)]
+USHOUST     2026-08-01 phase0=1,275 now=1275.0  MATCH   [proofs.md: starts Aug 1,275k SAAR (newresconst.xlsx)]
+
+# ---------------------------------------------------------------- analysis (agent, 2026-09-29)
+# Command: python tools/econ/verify_census.py --params-json '{"USRETAIL":{"recent_flags":["a","p"]},
+#          "USHOUST":{"recent_flags":["p"]},"USDURGOODS":{"advance_program":"advm3"}}'
+#   (the overlay = the params proposed in registry-corrections/census.json; keyless, no CENSUS_API_KEY)
+# Keyless source: https://www.census.gov/econ_export/?format=csv&mode=report&default=false&errormode=Dep
+#   &charttype=&chartmode=&chartadjn=&submit=GET+DATA&program=<PROG>&startYear=<y0>&endYear=<y1>
+#   &categories[]=<cat>&dataType=<dt>&geoLevel=US&adjusted=1
+#   TRAP: sending notAdjusted=0&errorData=0 (unchecked boxes as 0) returns the NSA *CV* series instead
+#   (observed live: "Not Seasonally Adjusted CV of Sales", all NA) -> the adapter omits them and verifies
+#   the CSV preamble before trusting any value. Last-Modified = extraction time -> no source_published_at.
+#   https://www.census.gov/econ_getzippedfile/?programCodes=MARTS ("download all data") answered 400/empty.
+#
+# USHOUST   Aug-2026 1,275        vs Phase 0 1,275 (newresconst.xlsx)           MATCH
+# USTRADEBAL Jul-2026 -88,576     vs FT-900 exh1.xlsx (LM 2026-09-24) -88,576   MATCH (Jan-Jun 2026 identical too)
+#            (Aug FT-900 not yet released; FTD BOPGS/BAL starts 1994-01, not 1992-01 -> correction)
+# USDURGOODS full M3 ends Jul-2026 339,392; M3ADV has Aug-2026 338,604 (advance) -> overlay flagged 'a'.
+#            No Phase 0 value; no independent secondary reachable (FRED timed out).
+# USRETAIL  Aug-2026 737,763 (a)  vs Phase 0 773,947 (marts_current.xlsx Table 1)  *** MISMATCH ***
+#   The econ_export series is internally consistent with Census's MRTS history file
+#   (mrtssales92-present.xlsx, LM 2026-09-28: ADJUSTED total Jul-2026(p) 729,538, Jun 732,898,
+#   Aug-2025 700,218 -- identical to the export), but marts_current.xlsx Table 1 (the advance release
+#   table, "Source: Advance Monthly Retail Trade Survey, September 16, 2026") shows a level ~4.3-4.9% higher
+#   for EVERY month it prints: Aug-26 773,947 vs 737,763; Jul-26 764,462 vs 729,538; Jun-26 768,587 vs
+#   732,898; Aug-25 730,037 vs 700,218. NSA totals differ the same way (Jul-26 784,603 vs MRTS 749,213).
+#   MoM growth is similar (Table 2: +1.2%; export +1.13%). Root cause NOT established (candidate: a
+#   basis/benchmark difference between the advance table and the time-series database). Both are official
+#   Census products; the adapter serves the time-series database (= EITS codes). OWNER/COORDINATOR DECISION
+#   NEEDED before USRETAIL is shown as "advance retail sales" next to the headline figure.

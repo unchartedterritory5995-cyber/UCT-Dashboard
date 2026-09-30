@@ -137,6 +137,60 @@ describe('⭐⭐ C11c — a fixed window (push + shift, na pre-filled)', () => {
   })
 })
 
+describe('⭐⭐ C11c × C17 — a step withheld on an unmeasured reduction marks what it would write', () => {
+  it('a getter on the handle it would have set is withheld until a KNOWN write, then reads Pine\'s value', () => {
+    const t = tr(`${FIXED_HEAD}var label l = na
+if close > open
+    l := label.new(bar_index, top.sum(), "S")
+if not na(l)
+    label.new(bar_index, l.get_y(), "G")`)
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const r = run(t)
+    const { amb } = replayFixed()
+    const firstKnown = BARS.findIndex((_, i) => up(i) && !amb[i])
+    expect(firstKnown).toBeGreaterThan(0)
+    const g = byText(r).G || []
+    // before the first KNOWN create, the handle is unknown: no G is drawn
+    expect(g.filter(([b]) => b < firstKnown)).toEqual([])
+    // from it on, every bar draws G at the newest S's y — Pine's value
+    const s = byText(r).S
+    expect(g.length).toBe(N - firstKnown)
+    for (const [b, y] of g) {
+      const newest = s.filter(([sb]) => sb <= b).pop()
+      expect(y).toBe(newest[1])
+    }
+    expect(r.stats.withheldUnknown).toBeGreaterThan(0)
+  })
+
+  it('⛔ a known handle re-set on an ambiguous bar is unknown there: the getter is withheld, not read stale', () => {
+    // an `na` joins the window every 11th bar, so the sum is unmeasured on the
+    // up bars while it is inside — AFTER `l` already holds a known label
+    const t = tr(`var top = array.new_float(3)
+if close > open
+    top.push(bar_index % 11 == 0 ? na : high)
+    top.shift()
+var label l = na
+if close > open
+    l := label.new(bar_index, top.sum(), "S")
+label.new(bar_index, l.get_y(), "G")`)
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const r = run(t)
+    // Pine, bar by bar: which up bars have an na in the window after the push
+    const arr = [NaN, NaN, NaN]
+    const ambUp = []
+    for (let i = 0; i < N; i += 1) {
+      if (up(i)) { arr.push(i % 11 === 0 ? NaN : BARS[i].h); arr.shift() }
+      if (up(i) && arr.some((x) => !Number.isFinite(x))) ambUp.push(i)
+    }
+    const firstKnown = BARS.findIndex((_, i) => up(i) && !ambUp.includes(i))
+    const lateAmb = ambUp.filter((b) => b > firstKnown)
+    expect(lateAmb.length).toBeGreaterThan(3)
+    const gBars = (byText(r).G || []).map(([b]) => b)
+    // on those bars `l` may hold a label whose y is unmeasured: no G there
+    expect(gBars.filter((b) => lateAmb.includes(b))).toEqual([])
+  })
+})
+
 const PUSH = `var hist = array.new_float()
 if close > open
     hist.push(high)
@@ -249,7 +303,8 @@ plot(top.max())
 if close > n.get(0)
     label.new(bar_index, high, "X")`)
     expect(t.objectDiagnostics.droppedOps).toBeGreaterThan(0)
-    expect(t.objectDiagnostics.unresolvedGuards).toEqual({ 'pine:collection': 1 })
+    // C17's `guardRefusals` names the guard and its subject (one diagnostic)
+    expect(t.objectDiagnostics.guardRefusals).toEqual(['create@5: pine:collection'])
   })
 
   it('a read method that WRITES is not inlined as a read', () => {

@@ -1276,10 +1276,14 @@ def breadth_pit_export(since: str = "2026-01-01", _auth: None = Depends(require_
 
 
 @router.get("/api/breadth-monitor/authority")
-def breadth_authority_status(_auth: None = Depends(require_push_secret)):
-    """Which methodology owns which UCT session right now (read-only). PUSH_SECRET-gated."""
+def breadth_authority_status(check: bool = False, _auth: None = Depends(require_push_secret)):
+    """Which methodology owns which UCT session right now (read-only). PUSH_SECRET-gated.
+    `?check=1` also re-derives the pinned bridge seeds from the live V1 stores (drift check)."""
     from api.services import breadth_authority as ba
-    return ba.status()
+    out = ba.status()
+    if check:
+        out["seed_check"] = ba.seed_check()
+    return out
 
 
 @router.get("/api/breadth-monitor/live/store")

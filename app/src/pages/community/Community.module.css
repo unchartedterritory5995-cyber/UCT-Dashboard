@@ -553,3 +553,21 @@
   .avatarNudge a { display: inline-flex; align-items: center; min-height: var(--tap-min); }
   .avatarNudge button { min-width: var(--tap-min); min-height: var(--tap-min); }
 }
+
+/* TERM-009: a member's call record on their profile card. */
+.callRecordList {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 12px;
+}
+.callRecordToggle {
+  margin-top: 6px;
+  min-height: var(--tap-min, 44px);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}

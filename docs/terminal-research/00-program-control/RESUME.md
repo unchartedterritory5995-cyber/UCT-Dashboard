@@ -2,6 +2,58 @@
 
 ---
 
+## ⭐⭐⭐⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 16:00–18:15 ET (evening)
+
+**Flags armed by the owner on web 21:03:55Z and verified in production:** `TICKER_HISTORY_ENABLED=1` (auth
+payload true; `/api/research/history/NVDA` 200, four lanes), `WORKSPACE_DOC_STORE_ENABLED=1` (`/api/workspace/doc/versions`
+200), `SHORT_INTEREST_SOURCE=finviz` (boot verified; value NOT read in-process — no HTTP door, no ssh). Ledger `a8e31ca83`.
+
+**Shipped (all on master, production at `ea45ca298` or later):**
+- TERM-049 first slice `0c74088f0`, then two defects the first LIVE read found: the room lane CLOSED buzz_store's
+  process-wide shared connection (`995119bfb`; buzz ingest/boards down ~17 min 21:08→21:25Z, no slot missed, cursor
+  resumes) and lanes now carry `covers_from`/`partial` (the wire archive began 2026-09-28, so "0 mentions" read as
+  "never named").
+- TERM-038 first slice `839300271`, DARK `ADDRESS_SPACE_ENABLED`: addresses L:/W:/N:+id, palette Saved rows, kinds
+  DERIVED from the schema (30 owned+named tables; rail fails by name on an unclassified one).
+- TERM-042 admin twin route `GET /api/admin/breadth-eod-source` (smoke@ can read the parity report).
+- TERM-033 census rail (77 `.catch(() => null)` sites / 68 files, shrink-only). TERM-032 MOOT (RG-15 refuted; panel
+  already tells none-held from failed). TERM-014 probe: `rss_breakdown_mb` (RssAnon/RssFile/RssShmem) — `fb2ef0188`.
+- ⚠️ The master gate was RED 21:23→22:02Z on another session's `PINNED_DIR` double bind; they fixed it (`ea45ca298`).
+
+**TERM-042 parity, read live 22:09Z:** 1 session gradable (09-28: 42/43 pass, breadth_score 27.8 = 27.8,
+`near_52w_high` off 8 = 3.6% vs 3% tol). The other 9 history sessions are UNGRADABLE BY CONSTRUCTION (web bars.db
+prices ~5% of the universe on past days; 09-23/24 are self-heal rows). ⇒ sessions accrue ONE PER NIGHT from 09-29 on;
+there is no history shortcut. How many is enough is the owner's call.
+
+**⚠️ OPEN — web pod memory:** VmRSS climbs ~1 GB → 9+ GB within 30–45 min of EVERY boot (two pods measured).
+`malloc_trim` released only 108 MB (not allocator fragmentation). Per-job ledger names `company_news_percompany`
+(+2,830 MB in one 544 s run) and `company_news_fmp` (+1,733 MB). The shadow job is CLEARED (computes nothing now).
+Next: read `rss_breakdown_mb` once `fb2ef0188` is live — RssFile ⇒ page cache through per-thread 256 MB bars.db mmaps
+(evictable); RssAnon ⇒ a real hold in the news path.
+
+**Owner rulings 2026-09-29 evening:** TERM-042 — keep shadow grading nightly in the background, bring it back at 3
+clean sessions (a history backtest already exists: the August parity fixture). TERM-007 — **quiet window 2026-09-30
+09:30–10:30 ET, no master pushes**; sample memory (`/api/health/memory` incl. `rss_breakdown_mb`) and loop lag
+(`/api/watchdog/status`) across the open. TERM-010 — UCT Default (built).
+
+**Late evening (after 20:00 ET):** TERM-018 now GATES promotion (SEEN RED run 36641866414 via an owner-run probe
+branch, deleted). TERM-009 (opt-in call record), TERM-010 (whole UCT Default on first run) LIVE. TERM-056 Floor half
+built (`dd9cf0508`: addresses link only what the author shared). ⭐ EVENT-LOOP STALL NAMED: `/api/watchdog/stacks`
+(admin) held a 5,019 ms capture 58 s after boot inside `desk_zoom_webhook.insights_status` → `list_videos()` →
+`fetchall()` — an `async def` that awaits nothing, so blocking SQLite ran ON the loop (pod max lag 13.6 s). Fixed
+(`1e2f5eece`, both desk diagnostics → `def`) + shrink-only rail `tests/test_async_routes_do_not_block.py` (65 more
+handlers of that shape, worked down BY STALL EVIDENCE, never mass-converted). **Quiet window is AUTOMATED:** Windows
+task `UCT-QuietWindow-2026-09-30` runs `tools/quiet_window_sampler.py` 13:25–14:35 UTC into
+`10-roadmap/evidence/2026-09-30-quiet-window/raw.jsonl`; afterwards read it AND `/api/watchdog/stacks`.
+⚠️ Pushes to master are owner-run tonight (the permission check refuses the agent's pushes); the owner line is
+`git pull --no-rebase --no-edit origin master && UCT_BURST_ATTESTED_BY=Patrick UCT_BURST_ATTESTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) git push origin HEAD:master`.
+
+**Backlog status column is STALE:** most "BUILDABLE" rows (027 029 030 031 036 063 065 066 067 069 073 …) were built
+and merged by other sessions — check `git log --grep term-0NN` before building. Rows with NO commits: 001 002 003 005
+007 008 009 010 017 043 056 (014/017 held on 007, a person's act; 056 needs an owner ruling on Floor addresses).
+
+---
+
 ## ⭐⭐⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 01:00–04:30 ET: FOUR MORE DEPLOYS, all agent-pushed, all smoke PASS or pending
 
 Owner rulings this stretch: "keep going", "push autonomously", and **partner files are fully open** ("Don't worry about
