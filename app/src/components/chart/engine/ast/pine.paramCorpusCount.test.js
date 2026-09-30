@@ -174,14 +174,7 @@ expect(totalDistinctParams, 'sum of distinct parameter ids across all 13 scripts
     // screener lane refuses it (`pine:budget`). It was the script whose single
     // `swing_length` parameter expanded to 570 locators, which is why one wrong
     // script moves the locator total by 578.
-    // ⭐ 156 → 276 ON 2026-09-29 (branch `pine/c12-block-state`, triage C12), ONE
-    // NAMED MOVER: `02-ict-retracement-to-order-block-screener` 26 → 146, its one
-    // parameter (`i_period`) unchanged. Its four Retrace outputs read
-    // `nz(current_state[1])` above three reassignments of that `var` inside
-    // `trigger()`, which refused `pine:state` until `selfOffsetLag` knew the
-    // chain's own partial binding; they translate now, and each nests the Donchian
-    // window `i_period` feeds. Distinct ids and scripts are unchanged.
-expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 13 scripts').toBe(276)
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 13 scripts').toBe(156)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {
