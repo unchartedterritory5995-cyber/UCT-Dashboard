@@ -1259,6 +1259,12 @@
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     },
+    "OPTIONS_CHAIN_ENABLED": {
+      "status": "pending",
+      "since": "2026-09-29",
+      "where": [],
+      "note": "BRK-01 increment 1 (roadmap §3.3): the Research > Options tab, a member-facing option chain (calls | strike | puts, bid/ask/last, IV, delta/gamma/theta/vega, OI, volume) off the licensed Massive chain (api/services/polygon_options.py, the one implementation since TERM-069). ENABLEMENT GATE, default OFF, read per request by GET /api/research/options/{sym}/chain + /expirations (404 while off, paid-gated when on) and the auth payload's options_chain_enabled. Live half measured CLEARED 2026-09-29 against our key: 88/88 near-the-money SPY contracts returned greeks, IV and OI with REAL-TIME quotes. IV RANK is NOT served (needs IV history -- the open Massive vendor question). Read-only by charter: no run/execute/send affordance. Rollback: set 0 (a DELETE does not restart web)."
+    },
     "PANEL_PREWARM_ENABLED": {
       "status": "armed",
       "where": [
