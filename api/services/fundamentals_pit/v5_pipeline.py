@@ -97,7 +97,10 @@ def changes(conn, before: dict, after: dict) -> dict:
     new_times = [p for a, p in after["filings"].items() if a not in before["filings"]]
     new_times += [fid_pub[f] for f, n in after["facts"].items() if n > before["facts"].get(f, 0) and f in fid_pub]
     new_times += [after["filings"].get(s[0]) for s in after["signals"] - before["signals"] if after["filings"].get(s[0])]
+    gained = [r for r in after["splits"] if r not in before["splits"]]
+    lost = [r for r in before["splits"] if r not in after["splits"]]
     return {"boundary": min(new_times) if new_times else None, "split_changed": before["splits"] != after["splits"],
+            "split_gained": len(gained), "split_lost": len(lost),
             "new_filings": len([a for a in after["filings"] if a not in before["filings"]]),
             "new_fact_rows": sum(max(0, n - before["facts"].get(f, 0)) for f, n in after["facts"].items()),
             "new_signals": len(after["signals"] - before["signals"])}
@@ -316,6 +319,10 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 sc = ch["split_changed"] or cik in pend_split
                 with conn:
                     conn.execute("INSERT OR REPLACE INTO v5_pending VALUES (?,?,?,?)", (cik, bnd, int(sc), int(now)))
+                    if ch["split_changed"]:
+                        conn.execute("INSERT INTO v5_ledger_change VALUES (?,?,?) ON CONFLICT(cik) DO UPDATE SET "
+                                     "gained=gained+excluded.gained, lost=lost+excluded.lost",
+                                     (cik, ch["split_gained"], ch["split_lost"]))
                 touched[cik] = ch
         b.rec["acquisition"] = {**acq_rep, "failed": acq_rep["failed"][:30], "failed_n": len(acq_rep["failed"]),
                                 "companies_with_new_inputs": len(touched)}
@@ -348,9 +355,11 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 continue
             parent_obj = PUB.read_json(target, PUB.obj_key(companies[cik])) if cik in companies else None
             bd, sc = pend.get(cik, (None, False))
+            lg = conn.execute("SELECT gained, lost FROM v5_ledger_change WHERE cik=?", (cik,)).fetchone() or (0, 0)
             new_accns = [a for (a,) in conn.execute("SELECT accn FROM filing WHERE cik=? AND public_at>=? ORDER BY public_at",
                                                     (cik, bd))] if bd is not None else []
-            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc, new_accns=new_accns)
+            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc, new_accns=new_accns,
+                                     ledger_gained=lg[0], ledger_lost=lg[1])
             results[cik] = r
             if r.get("withholding"):
                 flips.append(r["withholding"])
@@ -417,11 +426,12 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
             b.rec["candidate_manifest"] = {k: v for k, v in manifest.items() if k not in ("companies", "tickers")}
             b.state("READY_TO_PUBLISH", finished_at=int(time.time()))
             return b.rec
-        res = PUB.publish_version(target, manifest, bodies, expect_parent=parent_vid)
+        res = PUB.publish_version(target, manifest, bodies, expect_parent=parent_vid, parent_manifest=parent)
         with conn:
             conn.execute("INSERT INTO v5_version VALUES (?,?,?,?,?,?,?)",
                          (vid, parent_vid, res["manifest_sha256"], res["published_at"], b.id, None, json.dumps(res)))
             conn.execute("DELETE FROM v5_pending WHERE cik IN (%s)" % ",".join(str(c) for c in changed + unchanged))
+            conn.execute("DELETE FROM v5_ledger_change WHERE cik IN (%s)" % ",".join(str(c) for c in changed + unchanged))
             conn.execute("DELETE FROM v5_quarantine WHERE cik IN (%s)" % ",".join(str(c) for c in changed))
         os.makedirs(p["versions"], exist_ok=True)
         open(os.path.join(p["versions"], vid + ".json"), "wb").write(PUB.encode(manifest))

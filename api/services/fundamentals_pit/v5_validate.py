@@ -91,10 +91,17 @@ def _rows_before(art: dict | None, metric: str, b: int) -> list:
     return [r for r in (art.get("metrics") or {}).get(metric, []) if r[0] < b]
 
 
-def pit_guard(parent: dict | None, new: dict, boundary: int | None, *, split_changed: bool) -> dict:
-    """Metrics whose history before `boundary` changed, split into allowed (split-sensitive, explained) and not."""
-    if parent is None or boundary is None:
+def pit_guard(parent: dict | None, new: dict, boundary: int | None, *, split_changed: bool, ledger_lost: int = 0) -> dict:
+    """Metrics whose history before `boundary` changed, split into allowed (split-sensitive, explained) and not.
+
+    No new filing (boundary None) => NO history may change except the explained split-sensitive cases.
+    ⛔ MEASURED 2026-09-30 (production catch-up): SEC dropped a company's old ticker from its submissions, the split
+    ledger (keyed by current tickers) LOST that ticker's genuine reverse splits, and per-share history re-based or was
+    withheld. A ledger that LOSES rows is not an explanation; only a ledger that GAINS rows (a new split) is."""
+    if parent is None:
         return {"retro_allowed": [], "retro_unexplained": []}
+    boundary = boundary if boundary is not None else float("inf")
+    split_changed = split_changed and not ledger_lost
     flip = bool(parent.get("withheld_split_sensitive")) != bool(new.get("withheld_split_sensitive"))
     allowed, bad = [], []
     for m in sorted(set(parent.get("metrics") or {}) | set(new.get("metrics") or {})):
@@ -104,7 +111,8 @@ def pit_guard(parent: dict | None, new: dict, boundary: int | None, *, split_cha
 
 
 def classify_withholding(conn, cik: int, parent: dict | None, new: dict, boundary: int | None,
-                         split_changed: bool, new_accns: list | None = None) -> dict | None:
+                         split_changed: bool, new_accns: list | None = None, ledger_gained: int = 0,
+                         ledger_lost: int = 0) -> dict | None:
     """None when the withholding status did not change; else the evidence record + EXPLAINED/UNEXPLAINED."""
     if parent is None:
         return None
@@ -120,15 +128,19 @@ def classify_withholding(conn, cik: int, parent: dict | None, new: dict, boundar
     conflict = [r for r in reasons if isinstance(r, (list, tuple)) and r and r[0] == "ledger_conflict"]
     fam = sorted(m for m in set(parent.get("metrics") or {}) | set(new.get("metrics") or {}) if m in SPLIT_SENSITIVE_METRICS)
     removed = sum(len((parent.get("metrics") or {}).get(m, [])) for m in fam) if now_ else 0
-    if now_:
-        explained = bool(split_changed or triggered_by_new or (conflict and split_changed))
+    ledger_new_split = bool(split_changed and not ledger_lost)
+    if ledger_lost:                                    # genuine split rows lost via ticker metadata: never an explanation
+        explained = False
+    elif now_:
+        explained = bool(ledger_new_split or triggered_by_new or (conflict and ledger_new_split))
     else:                                              # released: the new data/ledger made verification pass again
-        explained = bool(split_changed or boundary is not None)
+        explained = bool(ledger_new_split or boundary is not None)
     return {"cik": cik, "direction": "withheld" if now_ else "released",
             "classification": "EXPLAINED" if explained else "UNEXPLAINED",
             "rule": "split_ledger.verify: split-sensitive metrics are withheld company-wide while the ledger is unverified "
                     "(derive.build_company, frozen V5 methodology)",
             "triggering_filings": new_accns or [], "boundary": boundary, "split_ledger_changed": split_changed,
+            "split_ledger_rows_gained": ledger_gained, "split_ledger_rows_lost": ledger_lost,
             "verification_status": ver.get("status"), "findings": reasons[:6], "findings_from_new_filings": triggered_by_new[:6],
             "affected_metric_families": fam, "previously_served_points_removed": removed}
 
@@ -148,15 +160,16 @@ def new_impossible_dates(new: dict, boundary: int | None) -> list:
 
 
 def validate_company(conn, cik: int, *, parent: dict | None, new: dict, boundary: int | None,
-                     split_changed: bool, new_accns: list | None = None) -> dict:
+                     split_changed: bool, new_accns: list | None = None, ledger_gained: int = 0,
+                     ledger_lost: int = 0) -> dict:
     rows = stored_rows(conn, cik)
     counts = invariants(conn, cik, rows)
     if derive_rows(conn, cik) != rows:
         counts["NONDETERMINISTIC"] = 1
-    guard = pit_guard(parent, new, boundary, split_changed=split_changed)
+    guard = pit_guard(parent, new, boundary, split_changed=split_changed, ledger_lost=ledger_lost)
     if guard["retro_unexplained"]:
         counts["RETROACTIVE_CHANGE"] = len(guard["retro_unexplained"])
-    wh = classify_withholding(conn, cik, parent, new, boundary, split_changed, new_accns)
+    wh = classify_withholding(conn, cik, parent, new, boundary, split_changed, new_accns, ledger_gained, ledger_lost)
     if wh and wh["classification"] == "UNEXPLAINED":
         counts["UNEXPLAINED_WITHHOLDING_CHANGE"] = 1
     errors = {k: v for k, v in counts.items() if k in HARD and v}
