@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import ResponsiveTable from '../../../../components/mobile/ResponsiveTable'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
@@ -101,37 +100,29 @@ export default function NotesTableView({
   // fallback here matches the OTHER caller that renders this view with no
   // `sort` prop at all -- `sort` is never undefined once NotebookTab has
   // mounted).
-  const titleActive = sort === 'title'
-  const updatedActive = sort === 'updated' || !sort
-
-  // FX4 (wave 10, proof-walk item 1): Title/Updated are now a TWO-STATE
-  // toggle, same shape as every user-defined property column's
-  // `propertySort` below -- clicking the header that is ALREADY the active
-  // sort reverses direction instead of being a no-op. That no-op was the
-  // dead click the L11 sweep found (`docs/notebook/proof/l11-52deeb767/`):
-  // FX2's `aria-sort` told assistive tech the CURRENT state, but nothing told
-  // a click there was somewhere left to go.
-  // `reversed` is local to this mounted table and resets the moment `sort`
-  // itself changes -- from EITHER side (the toolbar `<select>` or clicking
-  // the OTHER header) -- so a freshly-activated field always starts at its
-  // natural direction rather than inheriting the previous field's flip.
-  // Natural direction mirrors the server's own fixed `ORDER BY`
-  // (`notes.py::list_notes`): title is `COLLATE NOCASE ASC`, updated is
-  // `updated_at DESC`. The server has no reverse-direction sort key, so the
-  // reversal is applied client-side, over whatever page of `notes` is
-  // currently loaded -- computed fresh every render (never a stale snapshot),
-  // so a `loadMore` append while reversed stays internally consistent: the
-  // WHOLE currently-loaded set flips together, every time.
-  const [reversed, setReversed] = useState(false)
-  useEffect(() => { setReversed(false) }, [sort])
-  const titleDir = titleActive ? (reversed ? 'desc' : 'asc') : null
-  const updatedDir = updatedActive ? (reversed ? 'asc' : 'desc') : null
+  //
+  // FX4 (wave 10, proof-walk item 1 -- coordinator round 2, server-driven):
+  // Title/Updated are a real two-state toggle, same shape as a `propertySort`
+  // column, and the direction is carried IN `sort` itself
+  // (`updated`/`updated_asc`, `title`/`title_desc`) -- never local component
+  // state. A client-side reverse of whatever page happened to be loaded was
+  // rejected: `list_notes` pages 100 at a time, so reversing page 1 of
+  // `updated` would show the 100 NEWEST notes, backwards, labelled
+  // oldest-first, for any member with more than 100 notes. The real reverse
+  // keys are server-side ORDER BY entries (`notes.py::list_notes`:
+  // `updated_asc` = `updated_at ASC, id ASC`, `title_desc` = `title COLLATE
+  // NOCASE DESC, id ASC`), so caret/aria-sort and the actual row order can
+  // never disagree.
+  const titleActive = sort === 'title' || sort === 'title_desc'
+  const updatedActive = sort === 'updated' || sort === 'updated_asc' || !sort
+  const titleDir = sort === 'title_desc' ? 'desc' : titleActive ? 'asc' : null
+  const updatedDir = sort === 'updated_asc' ? 'asc' : updatedActive ? 'desc' : null
 
   const titleHeader = (
     <button
       type="button"
       className={styles.sortBtn}
-      onClick={() => (titleActive ? setReversed((r) => !r) : onSortChange('title'))}
+      onClick={() => onSortChange(sort === 'title' ? 'title_desc' : 'title')}
     >
       Title{sortIcon(titleActive, titleDir || 'asc')}
     </button>
@@ -140,7 +131,7 @@ export default function NotesTableView({
     <button
       type="button"
       className={styles.sortBtn}
-      onClick={() => (updatedActive ? setReversed((r) => !r) : onSortChange('updated'))}
+      onClick={() => onSortChange(sort === 'updated' || !sort ? 'updated_asc' : 'updated')}
     >
       Updated {sortIcon(updatedActive, updatedDir || 'desc')}
     </button>
@@ -246,17 +237,10 @@ export default function NotesTableView({
     })),
   ]
 
-  // FX4: reverse the whole currently-loaded set when the active built-in
-  // column has been flipped off its natural direction. Recomputed every
-  // render straight from the live `notes` prop -- never a captured snapshot
-  // -- so a `loadMore` append while reversed is still showing every row,
-  // consistently reversed, on the very next render.
-  const displayNotes = reversed && (titleActive || updatedActive) ? [...notes].reverse() : notes
-
   return (
     <ResponsiveTable
       columns={columns}
-      rows={displayNotes}
+      rows={notes}
       rowKey={(n) => n.id}
       mode="card"
       cardTitle={(n) => (selection ? (

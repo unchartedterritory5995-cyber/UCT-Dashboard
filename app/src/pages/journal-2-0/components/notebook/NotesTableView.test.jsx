@@ -233,13 +233,13 @@ describe('NotesTableView — select/multi_select option color', () => {
  * ancestor than the view-mode buttons' `aria-pressed` fix, and deliberately
  * so (a sort button isn't a toggle in the `aria-pressed` sense).
  *
- * ⚰️ This docstring used to say the re-click stayed a genuine no-op (no
- * reverse direction implemented, `sortIcon`'s own `dir` a hardcoded
- * literal) -- true when FX2 landed, no longer true: FX4 (below) gave both
- * columns a real direction toggle, so these `aria-sort` values now also
- * change on a click, not only on a `sort` prop switch. These tests are
- * unchanged and still pass -- they pin the FIRST render's state, which
- * FX4 did not touch.
+ * ⚰️ This docstring twice described a client-side re-click behavior (first
+ * "a genuine no-op", then "FX4 gives it a local direction toggle") that no
+ * longer exists: FX4's final, server-driven form (below) computes `aria-sort`
+ * from the `sort` PROP alone, same as FX2 shipped it -- a click calls
+ * `onSortChange` and changes nothing until the parent re-renders with a new
+ * `sort`. These tests pin exactly that: one render, one `sort` value, one
+ * `aria-sort` reading.
  */
 describe('⛔⛔ FX2 — sortable header cells carry aria-sort (proof-walk item 2)', () => {
   it('the default sort (updated, descending) is announced on the Updated header cell', () => {
@@ -266,86 +266,75 @@ describe('⛔⛔ FX2 — sortable header cells carry aria-sort (proof-walk item 
 })
 
 /**
- * ⛔⛔ FX4 (wave 10, proof-walk item 1): Title/Updated are now a TWO-STATE
- * toggle, same shape as a `propertySort` column -- clicking the header that
- * is ALREADY the active sort reverses direction (caret + `aria-sort` + row
- * order), rather than being the no-op the L11 sweep found
+ * ⛔⛔ FX4 (wave 10, proof-walk item 1 -- coordinator round 2, SERVER-DRIVEN):
+ * Title/Updated are a real two-state toggle, but the direction lives IN the
+ * `sort` value itself (`updated`/`updated_asc`, `title`/`title_desc`), never
+ * in local component state. A first pass reversed the currently-loaded page
+ * client-side and was rejected: `list_notes` pages 100 notes at a time, so
+ * reversing page 1 of `updated` would show the 100 NEWEST notes, backwards,
+ * labelled oldest-first, for any member past their first page -- a lie a
+ * member would act on. This component now only ever COMPUTES what to ask
+ * for (`onSortChange` with the toggled value) and RENDERS what `sort` says
+ * (caret + `aria-sort`) -- the actual reordering is the server's, exercised
+ * separately in `tests/test_journal_two_notes_sort_directions.py`.
+ * Was the no-op the L11 sweep found
  * (`docs/notebook/proof/l11-52deeb767/deadclick.json`, "UPDATED", desktop
- * nb-table: no DOM change, no request, no URL change). Clicking the OTHER
- * header is unchanged -- it switches field via `onSortChange`, never
- * toggles a direction locally.
+ * nb-table: no DOM change, no request, no URL change) -- a click now always
+ * calls `onSortChange`, on both the active and the inactive header.
  */
-describe('⛔⛔ FX4 — Title/Updated headers toggle direction on a repeat click (proof-walk item 1)', () => {
-  const rowOrder = () => Array.from(document.querySelectorAll('[data-note-card-id]'))
-    .map((el) => el.getAttribute('data-note-card-id'))
-  // chevronDown = "M6 9.5l6 6 6-6", chevronUp = "M6 14.5l6-6 6 6" (UIcon.jsx) --
-  // read the rendered glyph's own path, not the icon registry, so this stays
-  // a DOM assertion rather than a mock of the icon component.
-  const caretDirOf = (btn) => (btn.querySelector('path')?.getAttribute('d') === 'M6 14.5l6-6 6 6' ? 'up' : 'down')
-
-  it('clicking Updated while it is already the active sort reverses direction -- aria-sort, the caret and row order all flip, then flip back', () => {
-    setup({ sort: 'updated' })
-    const updatedHeader = screen.getByRole('columnheader', { name: /Updated/ })
-    const updatedBtn = within(updatedHeader).getByRole('button')
-    expect(updatedHeader).toHaveAttribute('aria-sort', 'descending')
-    expect(caretDirOf(updatedBtn)).toBe('down')
-    expect(rowOrder()).toEqual(['n1', 'n2'])
-
-    fireEvent.click(updatedBtn)
-    expect(updatedHeader).toHaveAttribute('aria-sort', 'ascending')
-    expect(caretDirOf(updatedBtn)).toBe('up')
-    expect(rowOrder()).toEqual(['n2', 'n1'])
-
-    fireEvent.click(updatedBtn)
-    expect(updatedHeader).toHaveAttribute('aria-sort', 'descending')
-    expect(caretDirOf(updatedBtn)).toBe('down')
-    expect(rowOrder()).toEqual(['n1', 'n2'])
-  })
-
-  it('clicking Updated while active does NOT call onSortChange -- the field is unchanged, only direction toggles locally', () => {
+describe('⛔⛔ FX4 — Title/Updated headers ask for the toggled sort value (proof-walk item 1, server-driven)', () => {
+  it('clicking Updated while it is already the active (descending) sort asks for updated_asc', () => {
     const { onSortChange } = setup({ sort: 'updated' })
     fireEvent.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'))
-    expect(onSortChange).not.toHaveBeenCalled()
+    expect(onSortChange).toHaveBeenCalledWith('updated_asc')
   })
 
-  it('clicking Title while it is already the active sort reverses direction the same way', () => {
-    setup({ sort: 'title' })
+  it('clicking Updated again while sort=updated_asc asks for the natural updated (descending)', () => {
+    const { onSortChange } = setup({ sort: 'updated_asc' })
+    fireEvent.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'))
+    expect(onSortChange).toHaveBeenCalledWith('updated')
+  })
+
+  it('sort=updated_asc renders as the active, ASCENDING Updated sort -- aria-sort and the caret both agree', () => {
+    setup({ sort: 'updated_asc' })
+    const updatedHeader = screen.getByRole('columnheader', { name: /Updated/ })
+    expect(updatedHeader).toHaveAttribute('aria-sort', 'ascending')
+    const path = within(updatedHeader).getByRole('button').querySelector('path')
+    // chevronUp = "M6 14.5l6-6 6 6" (UIcon.jsx) -- read the rendered glyph's
+    // own path, not the icon registry, so this is a DOM assertion, not a
+    // mock of the icon component.
+    expect(path.getAttribute('d')).toBe('M6 14.5l6-6 6 6')
+  })
+
+  it('clicking Title while it is already the active (ascending) sort asks for title_desc', () => {
+    const { onSortChange } = setup({ sort: 'title' })
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Title' }).querySelector('button'))
+    expect(onSortChange).toHaveBeenCalledWith('title_desc')
+  })
+
+  it('clicking Title again while sort=title_desc asks for the natural title (ascending)', () => {
+    const { onSortChange } = setup({ sort: 'title_desc' })
+    fireEvent.click(screen.getByRole('columnheader', { name: 'Title' }).querySelector('button'))
+    expect(onSortChange).toHaveBeenCalledWith('title')
+  })
+
+  it('sort=title_desc renders as the active, DESCENDING Title sort', () => {
+    setup({ sort: 'title_desc' })
     const titleHeader = screen.getByRole('columnheader', { name: 'Title' })
-    const titleBtn = within(titleHeader).getByRole('button')
-    expect(titleHeader).toHaveAttribute('aria-sort', 'ascending')
-    expect(caretDirOf(titleBtn)).toBe('up')
-    expect(rowOrder()).toEqual(['n1', 'n2'])
-
-    fireEvent.click(titleBtn)
     expect(titleHeader).toHaveAttribute('aria-sort', 'descending')
-    expect(caretDirOf(titleBtn)).toBe('down')
-    expect(rowOrder()).toEqual(['n2', 'n1'])
+    const path = titleHeader.querySelector('button path')
+    expect(path.getAttribute('d')).toBe('M6 9.5l6 6 6-6') // chevronDown
   })
 
-  it('clicking the INACTIVE header still just switches field -- onSortChange fires, direction is not toggled locally, row order is untouched by this component', () => {
+  it('clicking the INACTIVE header asks for that field\'s NATURAL direction, never its reverse', () => {
     const { onSortChange } = setup({ sort: 'updated' })
     fireEvent.click(screen.getByRole('button', { name: 'Title' }))
     expect(onSortChange).toHaveBeenCalledWith('title')
-    expect(rowOrder()).toEqual(['n1', 'n2'])
   })
 
-  it("switching the active field resets direction to that field's natural default, even after a prior reversal", () => {
-    const { onSortChange, rerender } = setup({ sort: 'updated' })
-    fireEvent.click(within(screen.getByRole('columnheader', { name: /Updated/ })).getByRole('button'))
-    expect(screen.getByRole('columnheader', { name: /Updated/ })).toHaveAttribute('aria-sort', 'ascending')
-
-    // The parent reacting to onSortChange('title') elsewhere would re-render
-    // with sort='title' -- simulate that hand-off directly rather than
-    // wiring up NotebookTab in this unit test.
-    rerender(
-      <NotesTableView
-        notes={notes} propertyDefs={defs} sort="title"
-        onSortChange={onSortChange} propertySort={null} onPropertySortChange={vi.fn()}
-        onQuickFilter={vi.fn()} onOpenNote={vi.fn()}
-      />,
-    )
-    expect(screen.getByRole('columnheader', { name: 'Title' })).toHaveAttribute('aria-sort', 'ascending')
-    expect(rowOrder()).toEqual(['n1', 'n2'])
+  it('a directional sort value clears aria-sort off the OTHER header, same as the plain values', () => {
+    setup({ sort: 'updated_asc' })
+    expect(screen.getByRole('columnheader', { name: 'Title' })).not.toHaveAttribute('aria-sort')
   })
 })
 
