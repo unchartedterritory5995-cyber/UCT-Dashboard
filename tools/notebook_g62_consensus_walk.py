@@ -414,6 +414,10 @@ with sync_playwright() as p:
         # wait for. Wait on the position's own ticker trigger instead (below).
         page.goto(f"{BASE}/journal/trades")
         dismiss_intro(page)
+        # Open Positions renders in LIST view by default; PositionsTable's
+        # TickerPopup trigger lives in the TABLE view's actions column only
+        # (measured on the L13 sandbox, 2026-09-30: 0 ticker-* testids in List).
+        page.get_by_role("button", name="Table", exact=True).first.click()
         page.wait_for_timeout(600)
         trigger = page.locator('[data-testid="ticker-AAPL"]')
         try:
@@ -425,7 +429,9 @@ with sync_playwright() as p:
                           "step at whichever sub-tab TradesSurface lands on by default")
             return
         trigger.first.click()
-        btn = page.get_by_role("button", name="Save analyst consensus to Notebook")
+        # The accessible NAME is the aria-label "Save <SYM>'s analyst consensus to Notebook";
+        # the title is the fixed string. Match the title (run 2 matched neither).
+        btn = page.get_by_title("Save analyst consensus to Notebook", exact=True)
         try:
             btn.first.wait_for(state="visible", timeout=6000)
             btn_present = True
