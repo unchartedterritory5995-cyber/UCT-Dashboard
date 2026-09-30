@@ -402,6 +402,20 @@ INSTRUMENT_JS = r"""
   // window mark, via MARK_JS's `reqMark`) is drawn from, and tags it `bg` when it was sent from
   // inside a pre-armed timer callback. `setHeader` is the caller's own way to attach a header
   // (fetch's `Headers`, XHR's `setRequestHeader`) -- `stamp` itself never touches the network.
+  //
+  // ⛔⛔ wave 10 lane WK7, round 2 (controller ruling): SAME-ORIGIN ONLY. A non-safelisted
+  // custom header on a CROSS-origin request forces a CORS preflight; a third-party server that
+  // does not explicitly allow `x-uct-proof-seq`/`x-uct-proof-bg` REJECTS the real request, so
+  // stamping unconditionally would make the instrument break a genuine product request during
+  // the walk -- exactly the thing it must never do. `sameOrigin` resolves the request's URL
+  // against `location.href` (fetch: the string/URL/Request's own `.url`; XHR: captured in a
+  // wrapped `open`, since `send` alone never sees it) and `stamp` is skipped entirely -- no
+  // header, no `Headers` object built, no touched `init` -- for anything that resolves
+  // elsewhere. A cross-origin request is therefore NEVER perturbed by this instrument, full
+  // stop; see the comment above `click_one`'s window-membership block for what an unstamped
+  // request means for a verdict.
+  const resolveURL = (u) => { try { return new URL(String(u), location.href); } catch (e) { return null; } };
+  const sameOrigin = (u) => { const r = resolveURL(u); return !!r && r.origin === location.origin; };
   const stamp = (setHeader) => {
     const seq = ++P.reqSeq;
     try { setHeader('x-uct-proof-seq', String(seq)); if (P.bgDepth > 0) setHeader('x-uct-proof-bg', '1'); } catch (e) {}
@@ -410,17 +424,27 @@ INSTRUMENT_JS = r"""
   const f0 = window.fetch;
   if (typeof f0 === 'function') window.fetch = function (input, init) {
     try {
-      const h = new Headers((input && typeof input === 'object' && input.headers) || undefined);
-      if (init && init.headers) { const extra = new Headers(init.headers); extra.forEach((v, k) => h.set(k, v)); }
-      stamp((k, v) => h.set(k, v));
-      init = Object.assign({}, init, {headers: h});
+      const isReq = input && typeof input === 'object' && 'url' in input;
+      const url = isReq ? input.url : input;
+      if (sameOrigin(url)) {
+        const h = new Headers((input && typeof input === 'object' && input.headers) || undefined);
+        if (init && init.headers) { const extra = new Headers(init.headers); extra.forEach((v, k) => h.set(k, v)); }
+        stamp((k, v) => h.set(k, v));
+        init = Object.assign({}, init, {headers: h});
+      }
     } catch (e) {}
     return f0.call(this, input, init);
   };
   const XO = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
   if (XO) {
-    const s0 = XO.send;
-    XO.send = function () { stamp((k, v) => this.setRequestHeader(k, v)); return s0.apply(this, arguments); };
+    const o0 = XO.open, s0 = XO.send;
+    XO.open = function (method, url) { this.__proofUrl = url; return o0.apply(this, arguments); };
+    XO.send = function () {
+      if (this.__proofUrl !== undefined && sameOrigin(this.__proofUrl)) {
+        stamp((k, v) => this.setRequestHeader(k, v));
+      }
+      return s0.apply(this, arguments);
+    };
   }
 })();
 """
@@ -1026,8 +1050,20 @@ def _proof_headers(r) -> tuple[int | None, bool]:
     whether it was sent from inside a pre-armed timer (`bg`). Both travel on the wire as headers
     -- never a second, separately-paced list -- so they are available whenever Playwright's CDP
     delivery happens to catch up, regardless of HOW LATE that is. `seq` is `None` for a request
-    the instrumentation never saw (not fetch/XHR -- unchanged from before this lane: those were
-    never classified either way)."""
+    the instrumentation never saw fit to stamp:
+      - not fetch/XHR at all (unchanged from before this lane: those were never classified
+        either way), or
+      - ⛔⛔ round 2: CROSS-ORIGIN. `INSTRUMENT_JS`'s `stamp` is same-origin-only BY DESIGN (a
+        non-safelisted header on a cross-origin request forces a CORS preflight, and a
+        third-party server that does not allow ours would reject the real request -- this
+        instrument must never perturb what the product does). A cross-origin request is
+        therefore honestly reported as `seq=None, bg=False` -- NEVER guessed at either
+        direction: not silently folded into `bg` (we do not know it came from a pre-armed
+        timer), and not given a manufactured `seq` that would claim precision this request
+        was never given the chance to prove. See the comment above `click_one`'s
+        window-membership block for what an unstamped request means for a verdict: it falls
+        back to the coarse, pre-WK7 `n0`-only boundary -- the ONLY thing this lane could not
+        make precise without breaking the product it is supposed to be observing."""
     try:
         h = r.headers or {}
     except Exception:  # noqa: BLE001
@@ -2386,6 +2422,19 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
     # `n0` stays as a cheap, always-SAFE lower bound -- Python's own list only grows, and CDP
     # preserves send order on one connection, so nothing genuinely post-click can land before it
     # -- `seq`/`bg` REFINE that coarse set; they do not replace the need to bound it somewhere.
+    #
+    # ⛔⛔ round 2: `stamp` is SAME-ORIGIN ONLY (see the comment above it in INSTRUMENT_JS) -- a
+    # third-party server that does not allow our headers would reject a stamped cross-origin
+    # request, and the instrument must never break a real product request to measure it. A
+    # cross-origin `r` therefore always has `r["seq"] is None` and `r.get("bg")` falsy -- the
+    # `r.get("seq") is None` branch above is what keeps it in `candidates` on the `n0` bound
+    # ALONE, exactly as any request would have been judged before this lane, and it is NEVER
+    # promoted into `bg` (we do not know it came from a pre-armed timer, so it is not claimed
+    # as background) or given any seq-based precision it was never able to earn. WHAT THIS
+    # MEANS FOR A VERDICT: an unstamped (cross-origin, or non-fetch/XHR) request that lands in
+    # the coarse `n0..now` window still counts as click evidence -- the same residual risk this
+    # whole lane exists to close for same-origin traffic, left open ON PURPOSE for cross-origin
+    # traffic, because closing it would mean breaking the product being observed.
     mark_seq = m.get("reqMark")
     candidates = tap.reqs[n0:]
     if mark_seq is not None:

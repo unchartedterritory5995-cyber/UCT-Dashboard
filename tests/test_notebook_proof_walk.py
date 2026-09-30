@@ -94,6 +94,157 @@ def _loopback_doc_with_delayed_endpoint(doc_html: str, slow_path: str, slow_seco
         thread.join(timeout=5)
 
 
+# ── wave 10 lane WK7, round 2: a real THIRD-PARTY origin ────────────────────────────────────
+# `INSTRUMENT_JS`'s `stamp` must never fire cross-origin (a non-safelisted header forces a CORS
+# preflight, and a third-party server that does not explicitly allow ours would reject the real
+# request -- this instrument must never perturb a genuine product request). This server plays
+# that third party: it records the RAW headers of every request it actually receives (a
+# preflight OPTIONS included), which is what "the server or route actually received" means --
+# not what the page's own JS believes it sent. Answers everything permissively so a MUTATED
+# (broken) build's preflight still completes and lands on the wire where this can see it,
+# rather than the browser silently blocking it before the evidence exists.
+class _OriginRecordingHandler(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Methods", "*")
+
+    def do_OPTIONS(self):  # noqa: N802
+        self.server.received.append(dict(self.headers.items()))  # type: ignore[attr-defined]
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):  # noqa: N802
+        self.server.received.append(dict(self.headers.items()))  # type: ignore[attr-defined]
+        body = b"{}"
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):  # noqa: D401
+        pass
+
+
+@contextlib.contextmanager
+def _recording_cross_origin_server():
+    """A second real `127.0.0.1` server, on its OWN port -- a different port is a different
+    origin to Chrome, and both ends being real loopback addresses (never a `page.route()`-only
+    synthetic hostname) avoids the Private Network Access trap documented above."""
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _OriginRecordingHandler)
+    srv.received = []
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield srv
+    finally:
+        srv.shutdown()
+        thread.join(timeout=5)
+
+
+def _run_cross_origin_probe(real_browser) -> dict:
+    """One run: a real page on real loopback origin A fires (1) a fetch to real loopback
+    origin B (a different PORT, hence cross-origin to Chrome) and (2) a same-origin fetch back
+    to A. Returns what B's OWN server actually received on the wire (never what the page
+    believes it sent) plus the same-origin request's Tap-recorded `seq`."""
+    with _recording_cross_origin_server() as cross, \
+         _loopback_doc_with_delayed_endpoint(
+             '<div data-proof-root="notebook"></div>', "/api/wk7-same-origin-control", 0.0) as doc_url:
+        def open_fixture(W_, pg):
+            pg.goto(doc_url)
+            return '[data-proof-root="notebook"]'
+
+        surf = W.Surface("t-cross-origin", open_fixture, sweeps=("deadclick",))
+        world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+        ctx = world.new_context("acct", "desk")
+        pg = ctx.new_page()
+        try:
+            root = surf.open(world, pg)
+            tap = W.Tap(pg)
+            cross_url = f"http://127.0.0.1:{cross.server_address[1]}/api/third-party"
+            pg.evaluate("(u) => fetch(u).catch(() => {})", cross_url)
+            pg.evaluate("() => fetch('/api/wk7-same-origin-control').catch(() => {})")
+            pg.wait_for_timeout(400)
+            same_origin = [r for r in tap.reqs if "wk7-same-origin-control" in r["url"]]
+        finally:
+            pg.close()
+            ctx.close()
+        return {"cross_received": list(cross.received),
+                "same_origin_seq": same_origin[0]["seq"] if same_origin else None}
+
+
+def test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does(real_browser):
+    """The shipped fix: a genuinely cross-origin request (a real, different loopback origin)
+    reaches the third party's OWN wire with no `x-uct-proof-seq`/`x-uct-proof-bg` -- read off
+    what that server actually received, not off any client-side belief -- while the ordinary
+    same-origin request in the SAME run is still stamped, proving the origin check narrows
+    rather than disables the whole mechanism."""
+    result = _run_cross_origin_probe(real_browser)
+    # ⛔ NON-VACUITY: the third party must have actually been reached, or "no proof headers"
+    # proves nothing.
+    assert result["cross_received"], f"the cross-origin server received nothing: {result}"
+    for headers in result["cross_received"]:
+        assert "x-uct-proof-seq" not in headers, headers
+        assert "x-uct-proof-bg" not in headers, headers
+    assert result["same_origin_seq"] is not None, (
+        f"the same-origin control was never stamped either -- the origin check is not merely "
+        f"narrow, it is dead: {result}")
+
+
+def test_mutation_removing_the_origin_check_reds_the_cross_origin_rail(real_browser):
+    """Mutation-proof for the CORS fix, per `feedback_mutation_check_never_git_checkout`:
+    capture the source's own bytes, remove fetch's `sameOrigin` gate (stamp unconditionally,
+    the pre-round-2 shape), show the SAME cross-origin probe above now leaks proof headers onto
+    the third party's wire, then restore the captured bytes via `os.replace` and verify the
+    restore by sha256 -- never `git checkout`."""
+    target = REPO / "tools" / "notebook_proof_walk.py"
+    original = target.read_bytes()
+    original_sha = hashlib.sha256(original).hexdigest()
+
+    old = b"if (sameOrigin(url)) {"
+    assert original.count(old) == 1, "the origin-gate line is not present exactly once"
+    new = b"if (true) {"
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="wk7_mutate_origin_"))
+    capture_path = tmp_dir / "notebook_proof_walk.captured"
+    tmp_write = capture_path.with_suffix(".tmp")
+    tmp_write.write_bytes(original)
+    os.replace(tmp_write, capture_path)
+    assert hashlib.sha256(capture_path.read_bytes()).hexdigest() == original_sha, (
+        "the capture did not read back identically -- refusing to mutate on an unproven capture")
+
+    def _write_atomic(data: bytes) -> None:
+        tmp = target.with_suffix(".wk7mutorigin.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, target)
+
+    try:
+        mutated = original.replace(old, new)
+        assert mutated != original, "the mutation applied nothing"
+        assert hashlib.sha256(mutated).hexdigest() != original_sha
+        _write_atomic(mutated)
+        importlib.reload(W)
+
+        result = _run_cross_origin_probe(real_browser)
+        carried = [h for h in result["cross_received"]
+                   if "x-uct-proof-seq" in h or "x-uct-proof-bg" in h]
+        assert carried, (
+            f"MUTATION DID NOT RED: removing the origin check still sent no proof headers "
+            f"cross-origin (result: {result}) -- the origin gate may not be doing the work "
+            f"this test thinks it is")
+    finally:
+        _write_atomic(capture_path.read_bytes())
+        restored_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+        assert restored_sha == original_sha, (
+            f"RESTORE FAILED: {target} is not byte-identical to the captured original "
+            f"(sha {restored_sha[:16]} != {original_sha[:16]})")
+        importlib.reload(W)
+        assert W.self_check() == 0, "post-restore self_check failed -- the module did not come back clean"
+
+
 def test_the_judges_self_check_passes():
     assert W.self_check() == 0
 
@@ -337,7 +488,7 @@ def test_the_geometry_control_requires_the_mislabel_and_restscroll_plants():
 # longer exists. `Headers` is a Node global (undici-backed since Node 18), no polyfill needed.
 _NODE_HARNESS = r"""
 globalThis.window = globalThis;
-globalThis.location = {href: 'http://sandbox.test/journal/notebook'};
+globalThis.location = {href: 'http://sandbox.test/journal/notebook', origin: 'http://sandbox.test'};
 globalThis.document = {documentElement: null, addEventListener() {}};
 globalThis.navigator = {};
 globalThis.__calls = [];
