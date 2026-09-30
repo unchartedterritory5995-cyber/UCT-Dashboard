@@ -148,7 +148,7 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 /** Named but NOT built — reported with its count rather than half-implemented. */
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
-const COLLECTION_CALLS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift']))
+const COLLECTION_CALLS = Object.freeze(new Set(['push', 'unshift', 'set', 'remove', 'clear', 'pop', 'shift']))
 /** ⭐ C11b — every operator that REASSIGNS an existing name (Pine reference). */
 const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=', '%=']))
 /** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
@@ -1371,7 +1371,7 @@ export function collectObjectOps(stmts, h) {
   /** The argument of `array.<method>` that carries an OBJECT, after the
    *  collection itself. `push(coll, v)` → 0; `set(coll, i, v)` → 1. Every other
    *  collection call takes an index or nothing, so it has no create position. */
-  const VALUE_ARG = Object.freeze({ push: 0, set: 1 })
+  const VALUE_ARG = Object.freeze({ push: 0, unshift: 0, set: 1 })
 
   /** `<array.get(coll, i)>.<method>(args)` as a STATEMENT → the same op the
    *  name form emits, or false if this reader does not read this shape.

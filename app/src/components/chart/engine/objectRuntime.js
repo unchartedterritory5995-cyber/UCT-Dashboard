@@ -1148,7 +1148,9 @@ export function beginObjects(program, ctx) {
             fail(`collection ${op.coll} exceeded Pine's array size of ${PINE_ARRAY_MAX} (bar ${bar})`)
             break
           }
-          arr.push(inst)
+          // ⭐ C11b — `array.unshift(bs, b)` is the same add at the FRONT (`front`).
+          if (op.front) arr.unshift(inst)
+          else arr.push(inst)
           break
         }
         case 'collset': {
