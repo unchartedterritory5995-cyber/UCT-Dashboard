@@ -25,8 +25,12 @@ import { readToolbarFormatState, toolbarStateReducer } from './NoteEditorPage'
 
 /** A minimal stand-in exposing exactly what `readToolbarFormatState` reads,
  *  incl. TextColorMenu's `highlightActive`/`highlightColor` (the other child
- *  that reads `editor` at render time with no subscription of its own) and
- *  the selection-emptiness gap the L12 full proof walk (G-131, touch) found.
+ *  that reads `editor` at render time with no subscription of its own), the
+ *  selection-emptiness gap the L12 full proof walk (G-131, touch) found, and
+ *  `canBlockquote` (G-131 SECOND finding, L12 full walk 62e252649, desktop):
+ *  `editor.can().toggleBlockquote()` -- the schema genuinely refuses the
+ *  toggle with the caret inside a list item, which the button now surfaces
+ *  as `disabled` instead of a silent dead click.
  *  TableToolbar is NOT represented here: it got its OWN `editor.on('transaction', …)`
  *  subscription (see TableToolbar.jsx, TableToolbar.test.jsx) rather than a
  *  field, because it reads far more at render time than one boolean. */
@@ -36,7 +40,7 @@ function fakeEditor(overrides = {}) {
     orderedList: false, blockquote: false, codeBlock: false,
     fontFamily: '', fontSize: '', textColor: '',
     highlightActive: false, highlightColor: '',
-    canUndo: true, canRedo: false, selectionEmpty: true,
+    canUndo: true, canRedo: false, selectionEmpty: true, canBlockquote: true,
     ...overrides,
   }
   return {
@@ -61,7 +65,11 @@ function fakeEditor(overrides = {}) {
       if (type === 'highlight') return { color: state.highlightColor }
       return {}
     },
-    can: () => ({ undo: () => state.canUndo, redo: () => state.canRedo }),
+    can: () => ({
+      undo: () => state.canUndo,
+      redo: () => state.canRedo,
+      toggleBlockquote: () => state.canBlockquote,
+    }),
   }
 }
 
@@ -70,7 +78,7 @@ describe('readToolbarFormatState', () => {
     const s = readToolbarFormatState(fakeEditor({ bold: true, fontFamily: 'Georgia', canRedo: true }))
     expect(s).toEqual({
       bold: true, italic: false, h1: false, h2: false, bulletList: false,
-      orderedList: false, blockquote: false, codeBlock: false,
+      orderedList: false, blockquote: false, canBlockquote: true, codeBlock: false,
       fontFamily: 'Georgia', fontSize: '', textColor: '',
       highlightActive: false, highlightColor: '',
       canUndo: true, canRedo: true, selectionEmpty: true,
@@ -140,6 +148,18 @@ describe('toolbarStateReducer -- the bailout that stops a keystroke re-rendering
     expect(s2.selectionEmpty).toBe(false)
     const s3 = toolbarStateReducer(s2, collapsed)
     expect(s3).not.toBe(s2)
+  })
+
+  it('G-131 (SECOND finding, L12 full walk 62e252649, desktop): canBlockquote is tracked -- entering/leaving a context the schema refuses (caret moving in/out of a list item) re-renders the button so its `disabled` state never goes stale behind a bailed-out render (mutation target: dropping this field from readToolbarFormatState would let it stick)', () => {
+    const allowed = fakeEditor({ canBlockquote: true })
+    const refused = fakeEditor({ canBlockquote: false })
+    const s1 = toolbarStateReducer(null, allowed)
+    const s2 = toolbarStateReducer(s1, refused)
+    expect(s2).not.toBe(s1)
+    expect(s2.canBlockquote).toBe(false)
+    const s3 = toolbarStateReducer(s2, allowed)
+    expect(s3).not.toBe(s2)
+    expect(s3.canBlockquote).toBe(true)
   })
 
   it('highlight state is tracked (Mod-Shift-H toggles it without opening the picker, per TextColorMenu.jsx\'s own header comment)', () => {

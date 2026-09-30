@@ -61,8 +61,10 @@ const NOTE_EDITOR_PAGE_READS = {
   "highlightActive: editor.isActive('highlight'),": 'highlightActive',
   "highlightColor: editor.isActive('highlight') ? (editor.getAttributes('highlight').color || 'yellow') : '',": 'highlightActive/highlightColor',
   "selectionEmpty: Boolean(editor.state?.selection?.empty),": 'selectionEmpty',
-  // canRunHistory's own body.
-  'try { return Boolean(editor.can()[cmd]?.()) } catch { return false }': 'canUndo/canRedo (via canRunHistory)',
+  // canRunHistory's own body -- shared by canUndo/canRedo AND canBlockquote
+  // (G-131 second finding: canRunHistory(editor, 'toggleBlockquote')), one
+  // source line covers every caller.
+  'try { return Boolean(editor.can()[cmd]?.()) } catch { return false }': 'canUndo/canRedo/canBlockquote (via canRunHistory)',
   // the toolbar JSX -- LIVE reads at NoteEditorPage's OWN render time, each
   // covered by the signature field of the same name above.
   "value={editor.getAttributes('textStyle').fontFamily || ''}": 'fontFamily',

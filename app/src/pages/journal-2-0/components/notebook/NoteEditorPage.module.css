@@ -260,6 +260,11 @@
   background: rgba(220, 187, 94, 0.15);
   color: var(--accent);
 }
+/* G-131 (second finding): a tool that the schema refuses in the current
+   context (e.g. Quote inside a list) is DISABLED with a reason (the
+   button's `title`), not silently dead -- see ToolButton's own comment. */
+.toolBtnDisabled { opacity: 0.4; cursor: not-allowed; }
+.toolBtnDisabled:hover { background: transparent; }
 /* Wave 7 G5: the camera "Scan" door exists on the touch tier only (shown in
    the `max-width: 1024px` block at the end of this file); a desktop has no
    rear camera to photograph a page with. Its tap floor is `.toolBtn`'s. */

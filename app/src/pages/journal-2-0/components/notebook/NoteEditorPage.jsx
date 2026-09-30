@@ -288,6 +288,34 @@ export function canRunHistory(editor, cmd) {
  * `true` the entire time), so the typing budget's win is UNCHANGED -- only
  * the act of selecting text (or replacing one), which is not itself a
  * keystroke the 16 ms/char budget measures, now pays the one render it needs.
+ *
+ * ⛔⛔ `canBlockquote` (second G-131 finding, L12 full walk 62e252649 +
+ * `docs/notebook/proof/l12full-62e252649/deadclick.json`): the dead-click
+ * sweep read the ❝ button DEAD right after "1. List" on BOTH `nb-note` and
+ * `ed-property`. Measured directly (`editor.can().toggleBlockquote()`,
+ * `app/src/pages/journal-2-0/lib/__bqProbe.test.js`, real buildExtensions()):
+ * the selection was collapsed inside an ordered-list item's paragraph, and
+ * `toggleBlockquote().run()` genuinely returns `false` there and changes
+ * NOTHING -- the same click on a plain paragraph (no list) works exactly as
+ * expected (`can()===true`, HTML gains a `<blockquote>`). This is PROSEMIRROR
+ * SCHEMA, not a regression: `listItem`'s content expression is `paragraph
+ * block*`, so wrapping its one paragraph in a blockquote would leave the
+ * listItem without the leading `paragraph` the schema requires, and
+ * `findWrapping` correctly refuses. It was refused before e1999ca5f too --
+ * the pre-bailout walk's "LIVE" verdict
+ * (`docs/notebook/proof/l12dc-0100a3032/deadclick.json`) was a FALSE
+ * POSITIVE: its only recorded effects were `attributes:type` mutations on
+ * two unrelated INPUT elements (Add-a-tag, Upload-image) -- collateral DOM
+ * churn from the OLD whole-page re-render, not the blockquote toggle. And
+ * `blockquote: editor.isActive('blockquote')` was already in THIS reducer
+ * the moment e1999ca5f introduced it (verified: `git show
+ * e1999ca5f -- NoteEditorPage.jsx | grep blockquote`), so the button's
+ * pressed state was never missing from the signature either -- 3b6e6fde4
+ * changes NOTHING about this outcome. The real gap: nothing told the MEMBER
+ * the click did nothing. `canBlockquote` closes it -- mirrors
+ * `canUndo`/`canRedo`'s `canRunHistory(editor, cmd)` pattern exactly, so the
+ * button now renders `disabled` with a reason instead of silently eating
+ * the tap.
  */
 export function readToolbarFormatState(editor) {
   return {
@@ -298,6 +326,7 @@ export function readToolbarFormatState(editor) {
     bulletList: editor.isActive('bulletList'),
     orderedList: editor.isActive('orderedList'),
     blockquote: editor.isActive('blockquote'),
+    canBlockquote: canRunHistory(editor, 'toggleBlockquote'),
     codeBlock: editor.isActive('codeBlock'),
     fontFamily: editor.getAttributes('textStyle').fontFamily || '',
     fontSize: editor.getAttributes('textStyle').fontSize || '',
@@ -585,13 +614,23 @@ export function NoteLinkedTradeChips({ noteId }) {
  * press never runs it twice: the `mousedown` that ran it marks the press, and the `click` that
  * follows is swallowed. A key pressed on the button clears that mark first, so a keyboard
  * activation always acts. Rail: NoteEditorPage.toolButtonKeyboard.test.jsx.
+ *
+ * ⛔ `disabled` (G-131 second finding): a native `disabled` button receives
+ * NO mousedown/click at all from the browser, so passing it through is
+ * sufficient on its own -- the G-160 press/click dedup above still only
+ * matters for an ENABLED button and is untouched for one. `title` doubles as
+ * the disabled-state REASON when the caller passes one; a member who taps a
+ * disabled tool sees why, rather than a click that silently did nothing
+ * (`lesson: a control that can be dismissed [here: refused] needs the member
+ * to know it, not just a developer reading the registry`).
  */
-function ToolButton({ active, onClick, label, title }) {
+function ToolButton({ active, onClick, label, title, disabled }) {
   const ranOnPressRef = useRef(false)
   return (
     <button
       type="button"
-      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
+      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''} ${disabled ? styles.toolBtnDisabled : ''}`}
+      disabled={disabled}
       onMouseDown={(e) => { e.preventDefault(); ranOnPressRef.current = true; onClick() }}
       onKeyDown={() => { ranOnPressRef.current = false }}
       onClick={() => {
@@ -3935,6 +3974,8 @@ export default function NoteEditorPage({
               active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               label="❝"
+              disabled={!canRunHistory(editor, 'toggleBlockquote')}
+              title={canRunHistory(editor, 'toggleBlockquote') ? undefined : "Quote isn't available inside a list -- exit the list first"}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}
