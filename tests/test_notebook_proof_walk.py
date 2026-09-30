@@ -114,6 +114,20 @@ def test_axe_is_the_repo_s_exact_pin():
     assert "wcag2aa" in W.AXE_TAGS and "wcag22aa" in W.AXE_TAGS
 
 
+# ── wave 10 lane WK3: a shared, junctioned app/node_modules can predate axe-core ────────────
+# Measured live: this lane's `app/node_modules` is a junction into another lane's install
+# (notebook-k) that has no `axe-core` directory at all (its package.json never declared the
+# dependency), so `run_sweeps` -- which reads axe.min.js unconditionally before seeding, for
+# EVERY sweep, not only axe -- raised FileNotFoundError before a single control ran. The fix
+# is a read-only override, defaulting to the exact same path every other worktree resolves.
+
+def test_axe_core_path_defaults_to_the_pinned_junction_path_and_can_be_overridden(monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_PROOF_WALK_AXE_CORE", raising=False)
+    assert W._axe_core_path() == W.REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    monkeypatch.setenv("NOTEBOOK_PROOF_WALK_AXE_CORE", "C:/elsewhere/axe.min.js")
+    assert W._axe_core_path() == W.Path("C:/elsewhere/axe.min.js")
+
+
 def test_the_census_probes_every_shipped_inventory_row():
     # every §B1 row the ledger calls shipped (DONE / PARTIAL) must have a census probe; a row the
     # census forgot would read as "every path works" by omission

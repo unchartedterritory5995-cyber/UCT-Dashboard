@@ -3492,11 +3492,25 @@ def findings_count(sweep: str, out: dict) -> int:
     raise ValueError(f"no finding count defined for {sweep!r}")
 
 
+def _axe_core_path() -> Path:
+    """The repo's exact-pinned axe-core build (`app/package.json`'s `axe-core` devDependency,
+    checked by `test_axe_is_the_repo_s_exact_pin`). `NOTEBOOK_PROOF_WALK_AXE_CORE` is a
+    read-only escape hatch for a worktree whose `app/node_modules` is a JUNCTION into another
+    lane's install that predates axe-core's introduction to this program (wave 10 lane WK3,
+    measured live: the junction target had no `axe-core` directory at all, so EVERY sweep --
+    not just axe -- failed before seeding, since this path is read unconditionally at the top
+    of `run_sweeps`). Never written by this tool. Unset (the default, every other worktree
+    whose junction already carries the pin) resolves the identical path as before."""
+    override = os.environ.get("NOTEBOOK_PROOF_WALK_AXE_CORE")
+    return Path(override) if override else REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+
+
 def run_sweeps(base: str, art: Path, sweeps: list[str], only: list[str]) -> None:
     from playwright.sync_api import sync_playwright
-    axe_path = REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    axe_path = _axe_core_path()
     axe_src = axe_path.read_text(encoding="utf-8")
-    res["axe_core"] = {"path": str(axe_path.relative_to(REPO)), "bytes": len(axe_src)}
+    axe_rel = str(axe_path.relative_to(REPO)) if REPO in axe_path.resolve().parents else str(axe_path)
+    res["axe_core"] = {"path": axe_rel, "bytes": len(axe_src)}
     with sync_playwright() as p:
         browser = p.chromium.launch()
         W = World(browser, base, art)
