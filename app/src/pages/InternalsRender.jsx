@@ -36,6 +36,29 @@ const VISIBLE_KEYS = new Set(
   (TREEMAP_DEF?.[0]?.items || []).map((i) => i.metricKey).filter((k) => !NEWSLETTER_DUP_KEYS.has(k)),
 )
 
+// ?spy=765.30&qqq=739.28&label=pre-market — the letter's own SPY/QQQ prints
+// (owner ruling 2026-09-29: the internals panel showed the live snapshot, which
+// disagreed with the pre-market numbers the letter quotes). Either symbol may be
+// given alone; a missing/invalid one keeps its live price. The label defaults to
+// "pre-market" and is capped so a URL cannot write a paragraph into the image.
+// No param at all = null = exactly the old behaviour.
+export function parsePriceOverride(sp) {
+  const num = (k) => {
+    const raw = sp.get(k)
+    if (raw == null || raw === '') return null
+    const v = Number(raw)
+    return Number.isFinite(v) && v > 0 ? v : null
+  }
+  const spy = num('spy')
+  const qqq = num('qqq')
+  if (spy == null && qqq == null) return null
+  const label = String(sp.get('label') ?? 'pre-market').replace(/[^\w .\-:/]/g, '').trim().slice(0, 24)
+  const out = {}
+  if (spy != null) out.SPY = { price: spy, label }
+  if (qqq != null) out.QQQ = { price: qqq, label }
+  return out
+}
+
 function Panel({ title, w, children, footer }) {
   return (
     <div id="panel-export" style={{ width: w, background: '#0a0a0a', color: '#fff', fontFamily: "'Instrument Sans',-apple-system,'Segoe UI',sans-serif" }}>
@@ -60,6 +83,7 @@ export default function InternalsRender() {
   const token = sp.get('token') || ''
   const variant = (sp.get('variant') || 'exposure').toLowerCase()
   const w = Math.min(1200, Math.max(560, parseInt(sp.get('w') || '860', 10)))
+  const priceOverride = parsePriceOverride(sp)
   const [breadth, setBreadth] = useState(null)
   const [row, setRow] = useState(null)
   const [err, setErr] = useState('')
@@ -100,7 +124,7 @@ export default function InternalsRender() {
 
   const exposureBlock = (
     <div style={{ maxWidth: w - 36 }}>
-      <MarketBreadth data={breadth || {}} />
+      <MarketBreadth data={breadth || {}} priceOverride={priceOverride} />
     </div>
   )
   const treemapBlock = (

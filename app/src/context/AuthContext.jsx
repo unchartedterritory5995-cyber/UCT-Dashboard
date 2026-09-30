@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
   const [decisionRecordEnabled, setDecisionRecordEnabled] = useState(false)
   const [tickerHistoryEnabled, setTickerHistoryEnabled] = useState(false)
   const [addressSpaceEnabled, setAddressSpaceEnabled] = useState(false)
+  const [optionsChainEnabled, setOptionsChainEnabled] = useState(false)
   // S7 filing watch. Default FALSE like the Technical tab: an enablement
   // gate must never default to exposed while the payload is still loading.
   const [s7FilingWatchEnabled, setS7FilingWatchEnabled] = useState(false)
@@ -90,6 +91,7 @@ export function AuthProvider({ children }) {
     ['decision_record_enabled', (d) => d.decision_record_enabled === true, setDecisionRecordEnabled],
     ['ticker_history_enabled', (d) => d.ticker_history_enabled === true, setTickerHistoryEnabled],
     ['address_space_enabled', (d) => d.address_space_enabled === true, setAddressSpaceEnabled],
+    ['options_chain_enabled', (d) => d.options_chain_enabled === true, setOptionsChainEnabled],
     ['s7_filing_watch_enabled', (d) => d.s7_filing_watch_enabled === true, setS7FilingWatchEnabled],
     ['breadth_dc_v2_2_enabled', (d) => d.breadth_dc_v2_2_enabled === true, setBreadthDcV22Enabled],
     ['breadth_dc_v2_3_enabled', (d) => d.breadth_dc_v2_3_enabled === true, setBreadthDcV23Enabled],
@@ -298,7 +300,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, addressSpaceEnabled, optionsChainEnabled, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, watchlistCopyOrLinkEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -27,12 +27,33 @@ const revB = (m) => {
   if (!Number.isFinite(v) || v <= 0) return '—'
   return v >= 1000 ? `$${(v / 1000).toFixed(1)}B` : `$${v.toFixed(0)}M`
 }
-const eps = (v) => (Number.isFinite(Number(v)) ? `$${Number(v).toFixed(2)}` : '—')
+// Sign BEFORE the dollar: "-$5.34", never "$-5.34" (owner ruling 2026-09-29).
+// null/'' are "no figure" (Number(null) is 0 and would print "$0.00").
+const eps = (v) => {
+  if (v == null || v === '') return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const s = Math.abs(n).toFixed(2)
+  return n < 0 && s !== '0.00' ? `-$${s}` : `$${s}`
+}
+// Signed from the ROUNDED figure, so 0.3 reads "0%" (not "+0%") and -0.3 does
+// not borrow a minus it no longer has.
 const pct = (v) => {
-  if (v == null) return null              // null/undefined YoY -> omit (Number(null) is 0 -> "+0%")
+  if (v == null || v === '') return null  // null/undefined YoY -> omit (Number(null) is 0 -> "+0%")
   const n = Number(v)
   if (!Number.isFinite(n)) return null
-  return `${n > 0 ? '+' : ''}${Math.round(n)}%`
+  const r = Math.round(n) || 0
+  return `${r > 0 ? '+' : ''}${r}%`
+}
+
+// The pill beside the company name. `badge` (a wire-chosen string such as
+// "ON OUR WATCH LIST" / "IN THE BOOK") wins verbatim; a payload without it keeps
+// the old on_board -> "ON OUR BOARD" behaviour exactly (owner ruling 2026-09-29:
+// MU was only on the watch list and still wore "ON OUR BOARD").
+const badgeText = (e) => {
+  const b = typeof e?.badge === 'string' ? e.badge.trim() : ''
+  if (b) return b
+  return e?.on_board ? 'ON OUR BOARD' : ''
 }
 
 function StatCol({ label, labelColor, children, minWidth = 0 }) {
@@ -55,17 +76,41 @@ function KV({ k, v, vColor = '#cfcfcf', vWeight = 700 }) {
   )
 }
 
+// A change that ROUNDS to 0% is flat: no arrow, neutral grey — never a green ▲.
 function Growth({ label, v }) {
   const p = pct(v)
   if (p == null) return null
-  const up = Number(v) >= 0
+  const r = Math.round(Number(v)) || 0
+  const color = r > 0 ? '#22c55e' : r < 0 ? '#ef4444' : '#9aa08f'
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 14,
+    <span data-growth={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginRight: 14,
                    fontSize: 16, fontWeight: 800, fontVariantNumeric: 'tabular-nums',
-                   color: up ? '#22c55e' : '#ef4444' }}>
+                   color }}>
       <span style={{ fontSize: 12, color: '#9aa08f', fontWeight: 700 }}>{label}</span>
-      {up ? '▲' : '▼'} {p}
+      {r > 0 ? '▲ ' : r < 0 ? '▼ ' : ''}{p}
     </span>
+  )
+}
+
+// Company name + badge. The name WRAPS (two lines max) instead of ellipsing —
+// at the letter's 728px column the right-hand date/session/priced chips left
+// "Micron Technolog…". The badge drops to its own line when it cannot fit.
+function NameLine({ e }) {
+  const badge = badgeText(e)
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', columnGap: 10, rowGap: 4 }}>
+      <span style={{ color: '#c9a84c', fontWeight: 800, fontSize: 21, letterSpacing: '0.4px', flex: '0 0 auto' }}>{e.sym}</span>
+      {e.name ? (
+        <span data-testid="company-name" style={{ color: '#9aa08f', fontSize: 13.5, lineHeight: 1.25, minWidth: 0,
+                       whiteSpace: 'normal', overflowWrap: 'anywhere', display: '-webkit-box',
+                       WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{e.name}</span>
+      ) : null}
+      {badge && (
+        <span data-testid="row-badge" style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.5px', color: '#c9a84c',
+                       border: '1px solid rgba(201,168,76,0.45)', borderRadius: 999, padding: '2px 8px',
+                       whiteSpace: 'nowrap', flex: '0 0 auto' }}>{badge}</span>
+      )}
+    </div>
   )
 }
 
@@ -78,14 +123,7 @@ function Row({ e }) {
         <img src={`/api/ticker-logo/${e.sym}?v=2`} alt=""
              style={{ width: 40, height: 40, borderRadius: 9, background: '#1c1c1c', objectFit: 'contain', flex: '0 0 auto' }} />
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <span style={{ color: '#c9a84c', fontWeight: 800, fontSize: 21, letterSpacing: '0.4px' }}>{e.sym}</span>
-            <span style={{ color: '#9aa08f', fontSize: 13.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.name || ''}</span>
-            {e.on_board && (
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.5px', color: '#c9a84c',
-                             border: '1px solid rgba(201,168,76,0.45)', borderRadius: 999, padding: '2px 8px', whiteSpace: 'nowrap' }}>ON OUR BOARD</span>
-            )}
-          </div>
+          <NameLine e={e} />
         </div>
         <div style={{ textAlign: 'right', flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ color: '#e8e8e8', fontSize: 15.5, fontWeight: 800 }}>{e.label || ''}</span>

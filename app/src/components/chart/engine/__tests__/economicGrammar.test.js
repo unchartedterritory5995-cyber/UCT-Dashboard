@@ -87,3 +87,39 @@ describe('⛔⛔ econ is never routed to another lane', () => {
     expect(instanceLabel(defOf('dataSeries'), inst('econ:USCPI'))).toBe('USCPI')
   })
 })
+
+// ─── the entry-chunk byte budget: the econ mark module stays dependency-free ───
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+describe('econMark is byte-lean for the entry chunk', () => {
+  it('imports nothing, and sourceRef/gapRuns/fundamentalFormat take the parser from it (not the full grammar)', () => {
+    const here = (p) => readFileSync(fileURLToPath(new URL(p, import.meta.url)), 'utf8')
+    expect(here('../econMark.js')).not.toMatch(/^\s*import\s/m)
+    for (const f of ['../sourceRef.js', '../gapRuns.js', '../fundamentalFormat.js']) {
+      expect(here(f)).not.toMatch(/from '\.\/economicGrammar'/)
+    }
+  })
+})
+
+describe('econMark parser is exactly the canonical grammar', () => {
+  it('agrees on a corpus, incl. case, whitespace, colons and length edges', async () => {
+    const { parseEconomicSource } = await import('../econMark')
+    const { parseSource } = await import('../sourceRef')
+    const legacy = (v) => {   // the Phase 1 accepted definition, kept here as the oracle
+      if (typeof v !== 'string' || !v.startsWith('econ:')) return null
+      const body = v.slice(5)
+      if (!body || body.includes(':') || /\s/.test(body)) return null
+      const s = body.trim().toUpperCase()
+      return /^[A-Z][A-Z0-9_]{1,31}$/.test(s) ? { kind: 'economic', symbol: s } : null
+    }
+    const corpus = ['econ:USCPI', 'econ:uscpi', 'econ:UsCpI', 'ECON:USCPI', 'Econ:USCPI', 'econ:', 'econ:U', 'econ:US',
+      'econ:US_CPI', 'econ:1USCPI', 'econ:USCPI:close', 'econ: USCPI', 'econ:US CPI', 'econ:USCPI ', 'econ:' + 'A'.repeat(32),
+      'econ:' + 'A'.repeat(33), 'sym:QQQ:close', 'close', '', null, 42, 'econ:USÉ', 'econ:US-CPI']
+    for (const v of corpus) {
+      expect(parseEconomicSource(v)).toEqual(legacy(v))
+      const p = parseSource(v)
+      if (legacy(v)) expect(p).toEqual(legacy(v))
+      else expect(p === null || p.kind !== 'economic').toBe(true)
+    }
+  })
+})

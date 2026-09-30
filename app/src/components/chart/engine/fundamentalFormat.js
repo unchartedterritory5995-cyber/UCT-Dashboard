@@ -15,7 +15,7 @@
 // dependency-free for exactly this reason.
 import { parseFundamentalSource } from './fundamentalGrammar'
 import { catalogMetric } from './fundamentalSeries'
-import { parseEconomicSource } from './economicGrammar'
+import { parseEconomicSource } from './econMark'
 import { economicMeta } from './economicSeries'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
