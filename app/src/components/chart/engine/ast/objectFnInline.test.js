@@ -9,7 +9,6 @@
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
 import { evaluateObjects } from '../objectRuntime'
-import { guardIsBarInvariant } from './objectFnInline'
 
 const LF = String.fromCharCode(10)
 const src = (...lines) => ['//@version=5', 'indicator("t", overlay=true)', ...lines].join(LF)
@@ -254,73 +253,5 @@ describe('⭐⭐ a body\'s own locals', () => {
     const copy = opsOf(t).find((o) => o.k === 'setreg' && o.value && o.value.r === 'reg')
     expect(copy, 'no copy of the returned handle').toBeTruthy()
     expect(diag(t).droppedOps).toBe(0)
-  })
-})
-
-// ⭐⭐ C13 (2026-09-29) — A GUARD THAT CANNOT CHANGE FROM BAR TO BAR.
-// `high-low-open-mid-ranges` (NYSE:RDDT 1D) calls its range helpers under
-// `if tfbool` / `if i_q` / `if i_t` — three `input.bool`s — and every call was
-// refused as conditional-history. A guard built only from inputs and constants
-// holds on every bar or on none, so the call's history IS the every-bar history.
-describe('⭐⭐ a conditional call under a BAR-INVARIANT guard inlines', () => {
-  const body = ['f() =>', '    label.new(bar_index, ta.highest(high, 10), "x")']
-
-  it('⭐ `if <input.bool>` — the call inlines and carries its guard', () => {
-    const t = host(src('show = input.bool(true, "Show")', ...body, 'if show', '    f()'))
-    expect(diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']).toBeUndefined()
-    expect(diag(t).inlinedCalls).toBe(1)
-    expect(creates(t).length).toBe(1)
-    expect(creates(t)[0].when, 'the call\'s guard was lost').not.toBeNull()
-  })
-
-  it('⭐ a name DERIVED only from inputs and constants is invariant too (`a and not b`, `x == "Right"`)', () => {
-    const t = host(src('a = input.bool(true, "A")', 'b = input.bool(false, "B")',
-      'ex = input.string("Right", "Extend", options=["Right", "None"])',
-      'show = a and not b and ex == "Right"', ...body, 'if show', '    f()'))
-    expect(diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']).toBeUndefined()
-    expect(diag(t).inlinedCalls).toBe(1)
-  })
-
-  it('⛔ CONTROL — a SERIES guard still refuses (the bars it runs on are not every bar)', () => {
-    const t = host(src('show = input.bool(true, "Show")', ...body, 'if show and close > open', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ a name derived from a SERIES is not invariant (`up = close > open`)', () => {
-    const t = host(src('up = close > open', ...body, 'if up', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ an `input.source` is a SERIES, never invariant', () => {
-    const t = host(src('s = input.source(close, "Src")', ...body, 'if s > 0', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ a name REASSIGNED anywhere is not invariant', () => {
-    const t = host(src('show = input.bool(true, "Show")', 'if close > open', '    show := false',
-      ...body, 'if show', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ a name DECLARED TWICE (a block local of the same spelling) is not invariant', () => {
-    const t = host(src('show = input.bool(true, "Show")', 'if close > open', '    show = close > 1',
-      '    label.new(bar_index, low, "y")', ...body, 'if show', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ `barstate.islast` varies — the TSR `f_clearAll` shape still refuses', () => {
-    const t = host(src(...body, 'if barstate.islast', '    f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
-  })
-
-  it('⛔ an EMPTY guard — the unreadable marker the walk leaves — is never invariant', () => {
-    expect(guardIsBarInvariant([], new Set(['show']))).toBe(false)
-    expect(guardIsBarInvariant(null, new Set(['show']))).toBe(false)
-  })
-
-  it('⛔ a counted LOOP still refuses: its body runs several times per bar', () => {
-    const t = host(src('show = input.bool(true, "Show")', ...body, 'if show',
-      '    for i = 0 to 2', '        f()'))
-    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
   })
 })

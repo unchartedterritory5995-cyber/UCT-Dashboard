@@ -338,12 +338,6 @@ export function validateIr(p) {
         if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= nSlots) {
           throw new IrError(`${where}: slot ${e.slot} outside ${nSlots}`)
         }
-        // ⛔ A GLOBAL READ NAMES A MAIN-PROGRAM SLOT, and nothing else. A slot a
-        // function owns has no main-frame address; reading it at base 0 would
-        // read a DIFFERENT variable.
-        if (e.global === true && p.slots[e.slot].owner !== null && p.slots[e.slot].owner !== undefined) {
-          throw new IrError(`${where}: a global read names slot ${e.slot}, which a function owns`)
-        }
         return
       case EXPR.HIST:
         if (!Number.isInteger(e.back) || e.back < 0) {
@@ -733,10 +727,6 @@ export const clock = (field) => ({ kind: EXPR.CLOCK, field })
 export const session = (start, end) => ({ kind: EXPR.SESSION, start, end })
 export const column = (index) => ({ kind: EXPR.COLUMN, index })
 export const read = (slot) => ({ kind: EXPR.READ, slot })
-/** ⭐ C11 — a function body's read of a MAIN-program slot, at its value when
- *  the call runs. Addressed at the main frame (base 0), never frame-relative;
- *  `validateIr` refuses one naming a slot a function owns. */
-export const readGlobal = (slot) => ({ kind: EXPR.READ, slot, global: true })
 export const hist = (of, back) => ({ kind: EXPR.HIST, of, back })
 /** `e[n]` over a MATERIALISED series, where `n` is an expression. */
 export const histDyn = (of, back) => ({ kind: EXPR.HIST_DYN, of, back })

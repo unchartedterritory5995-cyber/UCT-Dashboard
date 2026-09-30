@@ -125,7 +125,7 @@ function stripManifestProse() {
         const { compactCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
         const { doc, savedBytes } = compactCalendar(JSON.parse(code))
         // eslint-disable-next-line no-console
-        console.log(`[uct] market_calendar: rows grouped, dates as day gaps, `
+        console.log(`[uct] market_calendar: rows grouped and dates shortened, `
           + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
         return { code: JSON.stringify(doc), map: null }
       }

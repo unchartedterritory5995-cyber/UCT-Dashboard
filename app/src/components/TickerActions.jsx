@@ -1,7 +1,7 @@
 // TickerActions — universal context menu for any ticker symbol.
 // Right-click (desktop) or long-press (touch) → color tagging, flag toggle,
 // add to watchlist, set price alert. On touch it renders as a bottom-sheet.
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useSWR from 'swr'
 import { useFlagged } from '../hooks/useFlagged'
@@ -12,10 +12,9 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from './mobile/Sheet'
 import UIcon from './ui/UIcon'
 import SymbolSearch from './chart/SymbolSearch'
+import { buildWidgetEmbedAttrs } from '../pages/journal-2-0/lib/widgetEmbedCore'
 import { targetsFor } from '../pages/journal-2-0/lib/captureTargets'
-// ⛔ `buildWidgetEmbedAttrs` / `sendCaptureToJournal` are LAZY (see the loader's
-// header): a static import here put the whole Pine chart engine in the entry chunk.
-import { loadJournalCapture, peekJournalCapture } from './journalCaptureLoader'
+import { sendCaptureToJournal } from '../pages/journal-2-0/lib/sendToJournal'
 import { captureEnabled } from '../widgets/captureRelease'
 import styles from './TickerActions.module.css'
 
@@ -154,20 +153,6 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
   // frames; the member is told what happened, in place, and closes the menu
   // themselves.
   const [sendResult, setSendResult] = useState(null)
-  // The capture core is loaded on demand (journalCaptureLoader.js). Warm it the
-  // moment a menu with the door opens, so by the time the member reaches "Send
-  // … chart to note" it is normally already resolved and the open below stays
-  // synchronous. A failed warm is swallowed HERE only because the click retries
-  // the load and reports its own failure.
-  const sendMenuSym = menu && captureOn ? menu.sym : null
-  useEffect(() => {
-    if (sendMenuSym) loadJournalCapture().catch(() => {})
-  }, [sendMenuSym])
-  // Which open is current: a load that resolves after the menu moved to another
-  // symbol (or after a second click) must not open a section for the old one.
-  const openSeq = useRef(0)
-  const menuSymRef = useRef(null)
-  menuSymRef.current = menu ? menu.sym : null
   // "+ Add to list" used to depend on a `lists` prop that NO call site passed,
   // so every surface in the app rendered "No lists yet". The menu now fetches
   // the user's lists itself when the picker opens; an explicit prop still wins
@@ -234,26 +219,10 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
 
   // Open the send-to-note section: build + freeze the capture ONCE, right here,
   // and resolve which destinations apply to it from that same frozen object.
-  //
-  // ⛔ The capture is frozen at the CLICK, before any wait for the lazy core —
-  // "frozen means anchored" at the moment the member asked, never at chunk load.
   function openSendNote() {
     const capture = tickerChartCapture(sym)
     setSendResult(null)
-    const open = ({ buildWidgetEmbedAttrs }) => {
-      setSendNote({ capture, targets: targetsFor('chart', buildWidgetEmbedAttrs('chart', capture)) })
-    }
-    const ready = peekJournalCapture()
-    if (ready) { open(ready); return }
-    const seq = ++openSeq.current
-    const forSym = sym
-    loadJournalCapture().then((mod) => {
-      if (seq !== openSeq.current || menuSymRef.current !== forSym) return
-      open(mod)
-    }, () => {
-      if (seq !== openSeq.current || menuSymRef.current !== forSym) return
-      setSendResult("couldn't open send-to-note — try again")
-    })
+    setSendNote({ capture, targets: targetsFor('chart', buildWidgetEmbedAttrs('chart', capture)) })
   }
 
   async function sendNoteTo(targetId) {
@@ -262,7 +231,6 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
     setSendResult('sending…')
     try {
       // The SAME frozen capture object the section opened with — never rebuilt.
-      const { sendCaptureToJournal } = await loadJournalCapture()
       setSendResult(await sendCaptureToJournal('chart', sendNote.capture, { label: sym, target: targetId }))
     } finally {
       setSending(false)
@@ -360,13 +328,9 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
         {/* Send chart to note (Wave R R-2e) — same bespoke-toggle pattern as
             Add to list / Compare / Set alert. */}
         {!captureOn ? null : !sendNote ? (
-          <>
-            <button className={styles.item} onClick={openSendNote}>
-              <UIcon name="journal" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send {sym} chart to note
-            </button>
-            {/* Only ever set here by a failed lazy load of the capture core. */}
-            {sendResult ? <span role="status" className={styles.sendNoteStatus}>{sendResult}</span> : null}
-          </>
+          <button className={styles.item} onClick={openSendNote}>
+            <UIcon name="journal" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Send {sym} chart to note
+          </button>
         ) : (
           <div className={styles.sendNoteSection}>
             {/* Say what is being frozen, in the member's words — the capture is a

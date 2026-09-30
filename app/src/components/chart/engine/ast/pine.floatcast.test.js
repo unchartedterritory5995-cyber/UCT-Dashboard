@@ -99,12 +99,7 @@ describe('float(x) is the identity, and int(x) still is not', () => {
     // meeting its own `var` build on a shared cycle stack; the build takes its own
     // stack now and they reach `pine:state` — the sentence naming the real wall,
     // a history read of the reassigned `current_state` (pine.guardCensus.test.js).
-    // ⭐ AND THAT WALL IS DOWN (2026-09-29, triage C12): `nz(current_state[1])`
-    // above `current_state`'s own reassignments folds to the accumulator's `self`
-    // (`Resolver.selfOffsetLag`), so all four translate. Two nest `trigger()` in
-    // `trigger()` and measure lookback 1032 > 960; the install door refuses them
-    // by name (`budget:lookback`) — a budget, never raised to fit.
-    expect(per).toEqual({})
+    expect(per).toEqual({ 'pine:state': 4 })
     // …and no output refuses on the cast any more.
     expect(per['pine:function']).toBeUndefined()
   })

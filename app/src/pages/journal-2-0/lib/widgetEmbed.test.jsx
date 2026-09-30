@@ -760,7 +760,7 @@ describe('stampChartSettings', () => {
   it('stamps the resolved own-chart blob (widget settings beat the seed), merged over defaults', async () => {
     const { stampChartSettings } = await import('./widgetEmbedCore')
     const editor = { storage: {} }
-    await stampChartSettings(editor, {
+    stampChartSettings(editor, {
       chart_settings: { background: '#111111' },
       charts_workspace_layout: {
         widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
@@ -775,7 +775,7 @@ describe('stampChartSettings', () => {
     const { stampChartSettings } = await import('./widgetEmbedCore')
     const bus = { emit: () => {} }
     const editor = { storage: { uctJournalWidgets: { crosshairBus: bus } } }
-    await stampChartSettings(editor, { chart_settings: { background: '#222222' } })
+    stampChartSettings(editor, { chart_settings: { background: '#222222' } })
     expect(editor.storage.uctJournalWidgets.crosshairBus).toBe(bus)
     expect(editor.storage.uctJournalWidgets.chartSettings.background).toBe('#222222')
   })
@@ -787,19 +787,6 @@ describe('stampChartSettings', () => {
     Object.defineProperty(hostile, 'storage', { get() { throw new Error('not ready') } })
     expect(() => stampChartSettings(hostile, {})).not.toThrow()
     expect(() => stampChartSettings({ storage: {} })).not.toThrow()
-  })
-
-  // ⭐ The settings module loads lazily (it carries the whole Pine engine), so
-  // the FIRST stamps of a fresh module resolve asynchronously. A stamp that
-  // resolves late must never overwrite a NEWER prefs stamp.
-  it('the newest prefs win when two stamps wait on the lazy settings load', async () => {
-    vi.resetModules()
-    const { stampChartSettings } = await import('./widgetEmbedCore')
-    const editor = { storage: {} }
-    const older = stampChartSettings(editor, { chart_settings: { background: '#000001' } })
-    const newer = stampChartSettings(editor, { chart_settings: { background: '#000002' } })
-    await Promise.all([older, newer])
-    expect(editor.storage.uctJournalWidgets.chartSettings.background).toBe('#000002')
   })
 })
 

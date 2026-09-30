@@ -377,23 +377,12 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
  *  `.clear()` on a NUMERIC array is therefore read as a table clear: a louder
  *  answer than the truth, never a quieter one.
  *
- *  ⭐ AND WHAT IT WOULD HAVE CREATED (`creates`, C13 2026-09-29). A create
- *  that never runs changes which objects Pine's collector cuts once the family
- *  reaches its cap (`objectRuntime.js`, `lostCreates`), so the families a
- *  refused body would have created are reported beside the ones it would have
- *  removed. A create in a body whose family the tokens cannot name (a user
- *  method's `.new` on a type) is not guessed: only `line.new`/`label.new`/
- *  `box.new`/… name one, and a refused call to a function this reader cannot
- *  find reports an unnamed family in `pine.js`.
- *
- *  @returns {{kinds: Object<string, number>, families: (string|null)[], creates: string[]}}
+ *  @returns {{kinds: Object<string, number>, families: (string|null)[]}}
  *    `kinds` counts reader op kinds (`delete`, `clear`, `coll_<method>`);
- *    `families` has one entry per removal, `null` when no family is named;
- *    `creates` has one entry per drawing constructor the body names. */
+ *    `families` has one entry per removal, `null` when no family is named. */
 export function bodyEffects(def, defs, objColls) {
   const kinds = {}
   const families = []
-  const creates = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -415,7 +404,7 @@ export function bodyEffects(def, defs, objColls) {
       if (DRAWN_FAMILIES.includes(ns)) {
         if (m === 'delete') { add('delete'); families.push(ns) } else if (ns === 'table' && m === 'clear') {
           add('clear'); families.push('table')
-        } else if (m === 'new') creates.push(ns)
+        }
         continue
       }
       if (ns === 'array') {
@@ -434,7 +423,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families, creates }
+  return { kinds, families }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */
@@ -501,153 +490,6 @@ export function pureFunctions(defs, drawFns) {
     }
   }
   return pure
-}
-
-// ─── ⭐⭐ A GUARD THAT CANNOT CHANGE FROM BAR TO BAR (C13, 2026-09-29) ────────
-//
-// The conditional-history refusal exists because a function's series history
-// advances only on the bars its call RUNS. That is a statement about guards
-// that VARY. A guard built only from inputs and constants — `if tfbool`,
-// `if i_q`, `if i_t and not hideTable` — holds on every bar or on none: the
-// call runs on every bar (its history is the every-bar history the columnar
-// model computes) or never runs at all (its ops never fire, and no history is
-// read). Either way inlining it is exact, and refusing it threw away a
-// drawing Pine draws identically.
-//
-// ⚰️ MEASURED 2026-09-29: `high-low-open-mid-ranges` (NYSE:RDDT 1D) calls its
-// range helpers under `if tfbool` / `if i_q` / `if i_t` — three `input.bool`s —
-// and 44 of its calls were refused as conditional-history. TradingView holds
-// 504 lines and 504 labels from exactly those calls.
-//
-// ⛔ AN ALLOWLIST, NEVER A DENYLIST, and every rule fails CLOSED:
-//   • a name is invariant only if it is declared ONCE in the WHOLE tree, at the
-//     TOP LEVEL, from an `input.*` call (never `input.source` — that is a
-//     series — and never a bare `input(…)`, which v4 uses for sources too), a
-//     literal, a constant (`color.red`, `extend.right`), a pure call over
-//     those, or other invariant names — and is NEVER reassigned anywhere
-//     (`:=`, `+=`, …), never a destructure target (`[a, b] = …`) and never a
-//     `for … in` variable. A second declaration ANYWHERE (a block local, a
-//     function-body local of the same spelling) excludes the name, so no
-//     block-local can shadow an invariant one at a call site;
-//   • a guard is invariant only if every one of its tokens is such an atom. A
-//     `[` (history, or an array literal), `:=`, an unknown call, or a series
-//     name (`close`, `bar_index`, `barstate.*`, `time`) makes it variant;
-//   • an EMPTY guard — the walk's "unreadable" marker — is variant.
-
-/** Namespaces whose dotted, UNCALLED members are constants for the whole run. */
-const CONSTANT_NAMESPACES = new Set(['color', 'extend', 'xloc', 'yloc', 'size', 'position',
-  'text', 'shape', 'location', 'display', 'format', 'dayofweek', 'font', 'plot', 'hline',
-  'line', 'label', 'box', 'currency', 'order', 'alert', 'barmerge', 'scale', 'adjustment',
-  'syminfo', 'timeframe'])
-/** `timeframe.*` members that vary bar to bar despite the namespace. */
-const VARYING_CONSTANT_MEMBERS = new Set(['timeframe.change'])
-/** Calls whose result is invariant when every argument is. ⛔ `math.random` is
- *  the one `math.*` that is not a function of its arguments. */
-const INVARIANT_CALLS = new Set(['color.new', 'color.rgb', 'color.r', 'color.g', 'color.b',
-  'color.t', 'int', 'float', 'bool', 'string', 'nz', 'na'])
-const INVARIANT_CALL_NAMESPACES = new Set(['math', 'str'])
-/** `input.*` kinds that return a SIMPLE value. ⛔ `input.source` is a series. */
-const INVARIANT_INPUTS = new Set(['input.bool', 'input.int', 'input.float', 'input.string',
-  'input.color', 'input.timeframe', 'input.session', 'input.symbol', 'input.text_area',
-  'input.price', 'input.time', 'input.enum'])
-const INVARIANT_WORDS = new Set(['true', 'false', 'na', 'and', 'or', 'not'])
-/** Punctuation that combines values without reading another bar or writing a name. */
-const INVARIANT_PUNCT = new Set(['(', ')', ',', '?', ':', '==', '!=', '<', '>', '<=', '>=',
-  '+', '-', '*', '/', '%', '='])
-const isMutator = (tk) => tk && tk.kind === 'punct' && typeof tk.value === 'string'
-  && tk.value.length >= 2 && tk.value.endsWith('=')
-  && !['==', '!=', '<=', '>=', '=>'].includes(tk.value)
-
-/** Is every token in `toks[from, to)` an invariant atom? `names` are the
- *  invariant names. */
-function allInvariant(toks, from, to, names) {
-  for (let i = from; i < to; i += 1) {
-    const tk = toks[i]
-    if (!tk) return false
-    if (tk.kind === 'number' || tk.kind === 'string' || tk.kind === 'colour') continue
-    if (tk.kind === 'punct') {
-      if (!INVARIANT_PUNCT.has(tk.value)) return false
-      continue
-    }
-    if (tk.kind !== 'ident' || tk.member) return false
-    const v = String(tk.value)
-    const next = toks[i + 1]
-    const called = next && next.kind === 'punct' && next.value === '('
-    if (called) {
-      if (INVARIANT_INPUTS.has(v)) {
-        // ⭐ The value of an input is fixed for the run whatever its
-        // arguments say (a title, an `options=[…]` list, a tooltip).
-        const close = closeOf(toks, i + 1)
-        if (close < 0 || close >= to) return false
-        i = close
-        continue
-      }
-      const ns = nsOf(v)
-      if (INVARIANT_CALLS.has(v) || (ns && INVARIANT_CALL_NAMESPACES.has(ns) && v !== 'math.random')) continue
-      return false
-    }
-    if (INVARIANT_WORDS.has(v)) continue
-    if (names.has(v)) continue
-    const ns = nsOf(v)
-    if (ns && CONSTANT_NAMESPACES.has(ns) && !VARYING_CONSTANT_MEMBERS.has(v)) continue
-    return false
-  }
-  return true
-}
-
-/** ⭐ Every top-level name whose value is fixed for the whole run. See the
- *  section header above for the rules, each of which fails closed. */
-export function barInvariantNames(stmts, h) {
-  const declared = new Map()
-  const mutated = new Set()
-  const scan = (list, top) => {
-    for (const st of list || []) {
-      const t = st.header || []
-      for (let i = 1; i < t.length; i += 1) {
-        if (isMutator(t[i]) && t[i - 1] && t[i - 1].kind === 'ident') mutated.add(String(t[i - 1].value))
-      }
-      // `[a, b] = …` anywhere, and `for x in` / `for [i, v] in`: names bound
-      // without a `name =` this scan reads — excluded outright.
-      const lead = t.length && t[0].kind === 'ident' && t[0].value === 'for' ? 1 : 0
-      if (t[lead] && h.isPunct(t[lead], '[')) {
-        for (let i = lead + 1; i < t.length && !h.isPunct(t[i], ']'); i += 1) {
-          if (t[i].kind === 'ident') mutated.add(String(t[i].value))
-        }
-      } else if (lead && t[1] && t[1].kind === 'ident') {
-        mutated.add(String(t[1].value))
-      }
-      const eq = t.length ? h.findTop(t, (x) => h.isPunct(x, '=')) : -1
-      if (eq > 0 && h.findTop(t, (x) => h.isPunct(x, '=>')) < 0) {
-        const nameTok = h.boundName(t, eq)
-        if (nameTok) {
-          const nm = String(nameTok.value)
-          const prev = declared.get(nm)
-          declared.set(nm, prev ? { twice: true } : { top, t, eq })
-        }
-      }
-      if (st.sub && st.sub.length) scan(st.sub, false)
-    }
-  }
-  scan(stmts, true)
-  const names = new Set()
-  let grew = true
-  while (grew) {
-    grew = false
-    for (const [nm, d] of declared) {
-      if (names.has(nm) || d.twice || !d.top || mutated.has(nm)) continue
-      if (d.eq + 1 >= d.t.length) continue
-      if (allInvariant(d.t, d.eq + 1, d.t.length, names)) { names.add(nm); grew = true }
-    }
-  }
-  return names
-}
-
-/** ⭐ Does this guard hold the same value on every bar? `names` comes from
- *  `barInvariantNames`, which already excludes any name declared twice, so a
- *  block local can never be mistaken for the input it shares a spelling with. */
-export function guardIsBarInvariant(toks, names) {
-  if (!toks || !toks.length) return false
-  return allInvariant(toks, 0, toks.length, names)
 }
 
 /** Why this body cannot be inlined under a CONDITIONAL call, or null.
