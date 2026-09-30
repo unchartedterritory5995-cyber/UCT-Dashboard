@@ -232,3 +232,18 @@ def test_the_lookup_still_REFUSES_a_toolkit_name_it_does_not_ship(old_db, two_to
     user = auth_service.validate_session(old_db["u-three"])
     assert ent.toolkit_for(user) == ent.DEFAULT_TOOLKIT
     assert ent.limits_for(user) == ent.TOOLKITS[ent.DEFAULT_TOOLKIT]
+
+
+# ─── an auth.db that was NEVER migrated still validates a session ────────────
+
+def test_an_UNMIGRATED_database_still_validates_a_session_and_never_raises(old_db):
+    """flow-worker runs `validate_session` for its cookie fallback and never calls
+    `auth_db.init_db`, so its auth.db can be the old shape. A missing `toolkit`
+    column must read as "no toolkit assigned" (the default), never an error."""
+    assert "toolkit" not in _user_cols()            # the control: really unmigrated
+    uid, tok = next(iter(old_db.items()))
+    user = auth_service.validate_session(tok)
+    assert user is not None and user["id"] == uid
+    assert "toolkit" not in user                    # absent key == DEFAULT_TOOLKIT
+    assert ent.toolkit_for(user) == ent.DEFAULT_TOOLKIT
+    assert "toolkit" not in _user_cols()            # reading never migrates

@@ -3,6 +3,7 @@ Auth service — user creation, password verification, session management.
 Pure business logic, no HTTP concerns.
 """
 
+import sqlite3
 import uuid
 import time
 import base64
@@ -133,13 +134,27 @@ def validate_session(token: str) -> dict | None:
         return None
     conn = get_connection()
     try:
-        row = conn.execute(
-            "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
-            "u.toolkit "
-            "FROM sessions s JOIN users u ON s.user_id = u.id "
-            "WHERE s.token = ?",
-            (token,),
-        ).fetchone()
+        try:
+            row = conn.execute(
+                "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
+                "u.toolkit "
+                "FROM sessions s JOIN users u ON s.user_id = u.id "
+                "WHERE s.token = ?",
+                (token,),
+            ).fetchone()
+        except sqlite3.OperationalError as e:
+            # TERM-081: an auth.db that never ran `auth_db.init_db` (flow-worker's
+            # cookie fallback never does) has no `users.toolkit`. Read it as "no
+            # toolkit assigned" -- the pre-TERM-081 projection -- never an error.
+            if "toolkit" not in str(e):
+                raise
+            row = conn.execute(
+                "SELECT s.user_id, s.expires_at, u.email, u.display_name, u.role, u.email_verified, u.created_at, "
+                "NULL AS toolkit "
+                "FROM sessions s JOIN users u ON s.user_id = u.id "
+                "WHERE s.token = ?",
+                (token,),
+            ).fetchone()
         if not row:
             return None
         expires = datetime.fromisoformat(row["expires_at"])
