@@ -21,6 +21,7 @@
     "app/src/pages/Breadth.jsx",
     "app/src/pages/ProvenanceDemo.jsx",
     "app/src/pages/breadth/views/TheReadStrip.jsx",
+    "app/src/pages/charts/widgets/AiSearchWidget.jsx",
     "app/src/pages/research/ResearchComparePage.jsx",
     "app/src/pages/research/components/ComparisonAskAi.jsx",
     "app/src/pages/research/tabs/AnalystRatingsTab.jsx",
@@ -41,6 +42,7 @@
     "app/src/pages/charts/widgets/VolumeScanWidget.jsx": "no-counts: /api/volume-scan/live returns total + shown + universe_top (volume_live.get_live); a surge leaderboard with no evaluated/dropped/not-computable split server-side",
     "app/src/pages/screener/ScreensManager.jsx": "delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts",
     "app/src/pages/screener/shell/PresetChips.jsx": "not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results",
+    "app/src/pages/screener/shell/ResultCards.jsx": "not-a-result-set: reaches /api/screener/saved-screens only through useScreenSpec's savedScreen= door (build D, 2026-09-30), which loads a saved SPEC to apply, never a result set; the screener's results carry their own CoverageLine",
     "app/src/pages/screener/shell/SaveScanButton.jsx": "not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results"
   }
 }
