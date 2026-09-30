@@ -445,10 +445,10 @@ export function productResult(row, { tf, bars } = {}) {
   const caps = components.map((c) => knownCapabilityOf(canonicalSymbol(c.id), tf, bars))
   const best = caps.find((c) => c && c.capability !== CAPABILITY.UNSUPPORTED) || caps[0] || {}
   const pres = presentationFor(row)
-  // ⭐ SEPARATE PANES AND ONE LOGICAL INDICATOR ARE THE ROW'S OWN CLAIMS
-  // (`registry.Product.pane_layout` / `grouped`), never inferred from the family.
-  const separate = str(row.pane_layout || row.paneLayout, '') === 'separate'
+  // ⭐ ONE LOGICAL INDICATOR IS THE ROW'S OWN CLAIM (`registry.Product.grouped`),
+  // never inferred from the family — and so is the title its shared pane wears.
   const grouped = row.grouped === true
+  const groupNote = str(row.group_note || row.groupNote, '')
   return result({
     id,
     kind,
@@ -471,9 +471,12 @@ export function productResult(row, { tf, bars } = {}) {
     ...best,
     create: {
       via: CREATE_VIA.PRODUCT,
-      ...(separate ? { layout: PRODUCT_LAYOUT.PANES } : {}),
-      // ⭐ THE GROUP'S NAME IS THE PRODUCT'S — what the member picked.
-      ...(grouped ? { group: { name } } : {}),
+      // ⭐ THE GROUP'S TITLE IS THE PRODUCT'S — `Nasdaq-100 E-Mini · COT` — with its
+      // quiet qualifier (`Net Contracts`); the shared pane's legend prints it once.
+      ...(grouped ? { group: {
+        name: str(row.group_title || row.groupTitle, name),
+        ...(groupNote ? { note: groupNote } : {}),
+      } } : {}),
       components: components.map((c) => ({
         source: symbolSource(canonicalSymbol(c.id), 'close'),
         // ⛔ THE MEMBER-FACING NAME, NOT THE ID. Absent, `createDirectSeries`
@@ -504,14 +507,30 @@ function productKindOf(row) {
 }
 
 /**
- * Where a product's components draw.
+ * Column geometry for N histograms sharing one pane — `{width, offset}` per series,
+ * as fractions of the bar slot.
  *
- * `SHARED` (the default — no key at all on the descriptor) is one pane on one scale,
- * AAII's layout. `PANES` gives every component its OWN pane, in component order, which
- * is what the COT datasets ask for: three groups' net positions on one scale would
- * flatten the smallest to a line.
+ * ⭐ SIDE BY SIDE, NEVER STACKED. N full-width histograms in one pane paint over one
+ * another, and a stack would draw their SUM, which is a number nobody reported. Each
+ * series instead takes an equal share of the slot, centred on its own offset, and
+ * every column grows from the SAME zero line on the SAME scale — so all N values
+ * stay independently readable at every bar.
  */
-export const PRODUCT_LAYOUT = Object.freeze({ SHARED: 'shared', PANES: 'panes' })
+export const GROUP_BARS_SPAN = 0.84
+
+/** The starting height of a grouped histogram product's ONE pane (a share of the
+ *  stack; `paneLayout` honours it as the host's default, a member's drag outranks it).
+ *  Above a lone data series' 0.15 because it holds three series under a four-line
+ *  legend. */
+export const GROUP_PANE_HEIGHT = 0.22
+
+const r4 = (x) => Math.round(x * 1e4) / 1e4
+
+export function sideBySideBars(n) {
+  if (!Number.isInteger(n) || n < 2) return []
+  const width = GROUP_BARS_SPAN / n
+  return Array.from({ length: n }, (_, i) => ({ width: r4(width), offset: r4((i - (n - 1) / 2) * width) }))
+}
 
 /**
  * Colour TOKENS a catalogue row may name for a component → the hex it resolves to.
@@ -730,10 +749,7 @@ export function createFromResult(cs, res, registry) {
       ? res.create.components.map((c) => (c && !c.presentation && familyDefault
         ? { ...c, presentation: familyDefault } : c))
       : res.create.components
-    return createProductSeries(cs, components, registry, {
-      layout: res.create.layout,
-      group: res.create.group,
-    })
+    return createProductSeries(cs, components, registry, { group: res.create.group })
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
@@ -981,11 +997,12 @@ export function liveDiscoveryRows(query, queryRows, browsedRows, matchesFn) {
 export function createProductSeries(cs, components, registry, opts) {
   if (!cs || typeof cs !== 'object') return cs
   if (!Array.isArray(components) || !components.length) return cs
-  // ⭐ `PANES` SKIPS THE ONE EXTRA ACT this function performs for a shared product —
-  // pointing components 2..N at the host's pane — so each keeps the `dataSeries`
-  // definition's own placement: a pane of its own, appended in creation order.
-  const separate = !!opts && opts.layout === PRODUCT_LAYOUT.PANES
   const group = opts && opts.group && typeof opts.group === 'object' ? opts.group : null
+  // ⭐ A GROUPED PRODUCT OF HISTOGRAMS SHARES ITS PANE SIDE BY SIDE — see
+  // `sideBySideBars`. Decided once, by position, before anything is created.
+  const allHistograms = components.every((c) => c && c.presentation
+    && c.presentation.plotStyle === 'histogram')
+  const bars = group && allHistograms ? sideBySideBars(components.length) : []
 
   let next = cs
   let hostId = null
@@ -993,10 +1010,15 @@ export function createProductSeries(cs, components, registry, opts) {
   for (const comp of components) {
     if (!comp || typeof comp.source !== 'string' || !comp.source) continue
     const before = next
+    const bar = bars[components.indexOf(comp)]
+    // ⭐ THE FIRST LANDED PART HOSTS THE PANE, so it alone carries the pane's height.
+    const hostHeight = bar && hostId === null ? { paneHeight: GROUP_PANE_HEIGHT } : null
     next = createDirectSeries(next, comp.source, registry, {
       name: comp.name || null,
       compact: comp.compact || null,
-      presentation: comp.presentation || null,
+      presentation: comp.presentation
+        ? (bar ? { ...comp.presentation, bar, ...hostHeight } : comp.presentation)
+        : null,
     })
     if (next === before) continue                    // refused — skip, do not abort
     const made = lastCreatedInstance(before, next)
@@ -1012,7 +1034,6 @@ export function createProductSeries(cs, components, registry, opts) {
       if (painted !== next) next = painted
     }
     placedIds.push(made.instanceId)
-    if (separate) continue
     if (hostId === null) {
       // ⭐ THE FIRST LANDED COMPONENT OWNS THE PANE and keeps its own default
       // placement. Writing a target for it would be writing `@<self>`, which
@@ -1035,12 +1056,14 @@ export function createProductSeries(cs, components, registry, opts) {
   // of the same dataset is a second group) and stable across a reload.
   if (group && placedIds.length > 1) {
     const gid = `grp:${placedIds[0]}`
-    const gname = typeof group.name === 'string' && group.name ? group.name : null
+    const stamp = { id: gid }
+    if (typeof group.name === 'string' && group.name) stamp.name = group.name
+    if (typeof group.note === 'string' && group.note) stamp.note = group.note
     const ids = new Set(placedIds)
     next = {
       ...next,
       indicatorInstances: next.indicatorInstances.map((i) => (i && ids.has(i.instanceId)
-        ? { ...i, group: gname ? { id: gid, name: gname } : { id: gid } }
+        ? { ...i, group: { ...stamp } }
         : i)),
     }
   }

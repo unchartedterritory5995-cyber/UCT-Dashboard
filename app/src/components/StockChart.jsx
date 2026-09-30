@@ -133,7 +133,7 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
-import { rendererPaneIndexOf } from './chart/engine/paneReadoutPlacement'
+import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -19449,6 +19449,19 @@ export default function StockChart({
               different legends: a vertical stack on Price and a running line on
               every pane below it. One architecture means one answer to "what is
               drawn here, and how do I manage it" wherever the plot lives. */}
+          {/* ⭐ ONE LOGICAL INDICATOR, ONE TITLE (2026-09-30). When every row in
+              this pane belongs to the same instance group (a COT dataset's three
+              participants), the group's name heads the stack once and the rows keep
+              their short participant names. Any other pane is untouched. */}
+          {(() => {
+            const g = paneGroupOf(row.chips, cs)
+            return g ? (
+              <div className={styles.paneLegendTitle} data-pane-group-title={g.id}>
+                {g.name}
+                {g.note ? <span className={styles.paneLegendNote}>{g.note}</span> : null}
+              </div>
+            ) : null
+          })()}
           {row.chips.map((c, ci) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}

@@ -904,15 +904,14 @@ class Product:
     #: ⛔ A product resolves so it can be a PRIMARY CHART identity; it still serves
     #: no bars of its own (`primary_component` below names the series that does).
     aliases: tuple = ()
-    #: ⭐ WHERE THE COMPONENTS DRAW. `shared` (the default, and AAII's) puts every
-    #: component in ONE pane on one scale; `separate` gives each its own pane, in
-    #: component order — the COT layout, where three groups' net positions differ by
-    #: an order of magnitude and one scale would flatten the smallest to a line.
-    pane_layout: str = "shared"
     #: ⭐ WHETHER THE COMPONENTS STAY ONE LOGICAL INDICATOR ON THE CHART — removed and
-    #: hidden together. Stamped by the client at creation; AAII predates it and keeps
-    #: its independent components.
+    #: hidden together, and their shared pane titled by `group_title`. Stamped by the
+    #: client at creation; AAII predates it and keeps its independent components.
     grouped: bool = False
+    #: The shared pane's title and its quiet qualifier (a grouped product only):
+    #: `Nasdaq-100 E-Mini · COT` / `Net Contracts`. Empty means the product's display.
+    group_title: str = ""
+    group_note: str = ""
     #: Colour TOKENS, one per component, resolved by the client's palette — never a raw
     #: hex here. Empty means "the client's default product palette".
     palette: tuple = ()
@@ -979,8 +978,9 @@ class Product:
                 for i, c in enumerate(SERIES.get(cid) for cid in self.components)
                 if c is not None
             ],
-            "pane_layout": self.pane_layout,
             "grouped": self.grouped,
+            "group_title": self.group_title or self.display,
+            "group_note": self.group_note,
             # The client's matcher has no server tokens; these are the words it may use.
             "tags": list(self.synonyms),
             "aliases": list(self.aliases), "status": ST_PUBLISHED,
@@ -1035,7 +1035,7 @@ def _cot_product(sym: str) -> Product:
         components=tuple(f"COT:{sym}:{code}" for code, _col, _n in COT_COMPONENTS),
         description=f"CFTC Commitments of Traders for {market} futures — the weekly net "
                     "position (long minus short contracts) of Commercials, Large "
-                    "Speculators and Small Speculators, each in its own pane.",
+                    "Speculators and Small Speculators, drawn together in one pane.",
         # ⚠️ NO BARE CONTRACT CODE AS AN ALIAS. `NQ`, `ES` and `GC` are things a
         # member types into the symbol box meaning the FUTURE; resolving them to a
         # positioning report would hijack that. Only COT-qualified spellings resolve.
@@ -1043,8 +1043,9 @@ def _cot_product(sym: str) -> Product:
         synonyms=tuple(t for t in ("COT", "COMMITMENTS OF TRADERS", "CFTC",
                                    "POSITIONING", "FUTURES POSITIONING", market.upper(),
                                    asset.upper()) if t),
-        pane_layout="separate",
         grouped=True,
+        group_title=f"{market} · COT",
+        group_note="Net Contracts",
         palette=("cot.commercials", "cot.largeSpecs", "cot.smallSpecs"),
     )
 

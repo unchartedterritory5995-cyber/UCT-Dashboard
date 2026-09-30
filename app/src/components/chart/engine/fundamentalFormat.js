@@ -18,6 +18,26 @@ import { catalogMetric } from './fundamentalSeries'
 import { parseEconomicSource } from './econMark'
 import { economicMeta } from './economicSeries'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import { marketIndicatorRecord } from '../../../hooks/useMarketIndicators'
+
+/**
+ * A MARKET-INDICATOR series' registry unit → the format it reads in, where the plain
+ * two-decimal default would misstate it. ⭐ ONE ROW TODAY: a COT net position is a
+ * whole number of CONTRACTS (`62,340`, never `62340.00`). Every other unit is absent
+ * and keeps the default, exactly as before.
+ */
+const MARKET_INDICATOR_UNIT_FORMAT = Object.freeze({ contracts: 'num0' })
+
+function marketIndicatorFormatOf(src) {
+  if (typeof src !== 'string' || !src.startsWith('sym:')) return null
+  // `sym:<SYMBOL>:<field>` — the symbol may itself contain ':' (`COT:NQ:COMM`).
+  const cut = src.lastIndexOf(':')
+  const sym = cut > 4 ? src.slice(4, cut) : ''
+  const row = sym ? marketIndicatorRecord(sym) : null
+  const fmt = row && Object.prototype.hasOwnProperty.call(MARKET_INDICATOR_UNIT_FORMAT, row.unit)
+    ? MARKET_INDICATOR_UNIT_FORMAT[row.unit] : null
+  return fmt || null
+}
 
 // Barrels always read in millions (a stock of crude is never "0.4B" or "426,398K").
 const MBBL_TIERS = Object.freeze([Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 })])
@@ -118,6 +138,8 @@ export function fundamentalFormatOfInputs(inputs) {
   // ⭐ An ECONOMIC source reads in its registry unit, scale included.
   const e = src ? parseEconomicSource(src) : null
   if (e) return formatKeyOf(economicMeta(e.symbol) && economicMeta(e.symbol).units)
+  const mi = marketIndicatorFormatOf(src)
+  if (mi) return mi
   const p = src ? parseFundamentalSource(src) : null
   if (!p || p.kind !== 'fundamental') return null
   const m = catalogMetric(p.metric)

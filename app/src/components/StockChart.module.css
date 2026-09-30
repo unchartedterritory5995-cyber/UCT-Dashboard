@@ -142,6 +142,27 @@
   font-weight: 500;
 }
 .paneLegend strong { font-weight: 600; }
+/* ⭐ A PANE THAT IS ONE LOGICAL INDICATOR WEARS ITS NAME ONCE (2026-09-30) — the COT
+   pane reads `NASDAQ-100 E-MINI · COT  Net Contracts` above its three participant
+   rows, so the market is never repeated three times. It spans the whole grid, uses
+   the legend's own two inks, and is a single compact line — a title, not a header. */
+.paneLegendTitle {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  white-space: nowrap;
+  margin-bottom: -3px;
+}
+.paneLegendNote {
+  margin-left: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
 /* ⚰️ `pointer-events: auto` WAS ON `.volLegItem` AND THE CONTAINER STAYED `none`,
    to keep the crosshair passing through the GAPS between readings. It worked
    exactly as designed and the design was wrong: the 12px gaps, the 7px padding and
