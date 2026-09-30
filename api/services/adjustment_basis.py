@@ -70,7 +70,7 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
     if tf not in ("D", "W", "M"):
         return UNDETERMINED
     try:
-        from api.services import bars_sanitize, bars_split_repair, bars_sqlite
+        from api.services import bars_sanitize, bars_sqlite
 
         meta = bars_sanitize._meta_cached(ticker)
         if meta is None:
@@ -94,12 +94,19 @@ def compute_adjustment_basis(ticker: str, tf: str) -> AdjustmentBasis:
             return AdjustmentBasis(splits=True, dividends=None,
                                     as_of=newest_declared, applied_by="vendor")
 
-        # a real gap exists between what's declared and what's stored:
-        # bars_sanitize heals it on every SERVE regardless of the flag below;
-        # bars_split_repair is the mechanism that would heal the STORE itself,
-        # when enabled -- name whichever one is the CANONICAL fix right now.
-        applied_by = "bars_split_repair" if bars_split_repair.enabled() else "bars_sanitize"
+        # a real gap exists between what's declared and what's stored.
+        # ⛔ It is healed ONLY when the serve path is allowed to adjust -- the
+        # same predicate `sanitize_daily_bars` asks. With the switch off the
+        # member sees the unadjusted cliff, so the honest answer is "not
+        # adjusted", never a label naming a heal that is not running.
+        # ⚰️ This said "bars_sanitize heals it on every SERVE regardless of the
+        # flag"; untrue since 2026-08-10, when the flag was moved in front of
+        # the adjustment. Production ran with the flag off and the label said
+        # "adjusted by UCT" over the cliff.
+        if not bars_sanitize.split_adjust_active():
+            return AdjustmentBasis(splits=False, dividends=None,
+                                    as_of=newest_declared, applied_by=None)
         return AdjustmentBasis(splits=True, dividends=None,
-                                as_of=newest_declared, applied_by=applied_by)
+                                as_of=newest_declared, applied_by="bars_split_repair")
     except Exception:
         return UNDETERMINED

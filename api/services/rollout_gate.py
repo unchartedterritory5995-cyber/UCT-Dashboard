@@ -230,6 +230,35 @@ def client_cohorts(user_id: Optional[str]) -> list[str]:
             if cohort_enabled_for(user_id, cohort, kill_switch=kill_switch)]
 
 
+def withdrawn_cohorts(user_id: Optional[str]) -> list[str]:
+    """Cohorts this user IS tagged into whose kill switch is OFF right now. ⛔ NEVER RAISES.
+
+    The client cannot derive this: `client_cohorts` is the EFFECTIVE list, so a switched-off
+    cohort reads the same as never having been in it. The MVP trial's withdrawal block
+    (`10-roadmap/2026-09-30-mvp-preregistration-ravi.md`) needs the difference -- the drill
+    chart disappears for the trial subject when `TERMINAL_NEXT_ENABLED` goes off, which is
+    also NOW-gate clause 4's "Rung 0 watched to kill".
+
+    ⛔ It READS tags while a switch is off, which `cohort_enabled_for` deliberately never does,
+    so the ONE caller (`_access_payload`) asks it for ADMINS ONLY: the trial group is admins
+    (rung S1), and a member's auth request gains no read at all. A failure answers [] -- the
+    surface stays as it is, which is the safe direction for a display.
+    """
+    if not user_id:
+        return []
+    out: list[str] = []
+    try:
+        from api.services import rollout
+
+        for cohort, kill_switch in sorted(COHORT_KILL_SWITCHES.items()):
+            if not kill_switch() and rollout.includes(str(user_id), cohort):
+                out.append(cohort)
+    except Exception:
+        log.exception("[rollout_gate] withdrawn-cohort lookup failed; reporting none")
+        return []
+    return out
+
+
 def require_cohort(cohort: str, *, kill_switch: Callable[[], bool]):
     """A FastAPI dependency: this route is reachable only inside `cohort`.
 

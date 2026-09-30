@@ -961,6 +961,17 @@
       ],
       "note": ""
     },
+    "GEX_CHAIN_SOURCE": {
+      "status": "pending",
+      "since": "2026-09-30",
+      "where": [],
+      "default": "schwab",
+      "values": [
+        "schwab",
+        "massive"
+      ],
+      "note": "LCQ-02 (licensing register): which option chain the gamma-exposure view is computed from. A MODE (text), read per call in api/gex_service.py::chain_source(); vocabulary GEX_CHAIN_MODE_FLAGS there. SERVICE: web. schwab (default; unset or unknown) = today exactly: Schwab /chains through the personal retail login, which is NOT a licence to redisplay to members. massive = the licensed Massive options snapshot, converted to Schwab's own shape (to_schwab_shape) so every line of the GEX arithmetic is unchanged; strikes within 15% of spot (the wall-search band), paginated under 48 pages / 25 s with truncation reported as chainTruncated. Measured 2026-09-30 against the live API: SPY 180d = 5,646 contracts / 22 expirations / 2.4 s, untruncated. Every GEX result now carries chainSource. Before flipping: read GET /api/gex/source-parity?ticker=SPY&dte=week (admin) during market hours -- totals, walls, zero gamma and per-strike agreement from both sources. Rollback: set schwab."
+    },
     "GRADE_TICKER_CONFIRMED_SOURCE_ENABLED": {
       "status": "dark",
       "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added.",

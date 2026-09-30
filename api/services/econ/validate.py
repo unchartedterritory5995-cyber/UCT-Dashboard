@@ -251,13 +251,16 @@ def check_mutation(spec, obs: list[RawObs], stored: dict) -> list[str]:
 
 
 def check_partial(obs: list[RawObs], stored: dict, start: Optional[str], end: Optional[str],
-                  spec=None) -> list[str]:
+                  spec=None, covered_periods: Optional[set] = None) -> list[str]:
     """A HISTORY fetch must cover every period we already hold in its range.
 
     Exception: a stored NULL of a DAILY series may be absent. Adapters now drop provider
     "no data" (holiday) rows of daily series (fed_ddp ND), so a DB written before that rule
     holds null rows the payload no longer carries; they were never observations."""
-    have = {o.period_start for o in obs}
+    # A history fetch may arrive as SEVERAL payloads for one series (BLS 10/20-year windows, DOL
+    # XML history + press PDF): coverage is judged over the UNION of the call's payloads, never
+    # per payload, or every window would "omit" the periods the other windows carry.
+    have = set(covered_periods) if covered_periods is not None else {o.period_start for o in obs}
     daily = spec is not None and _freq(spec) == "D"
     missing = sorted(p for p, r in stored.items()
                      if (start is None or p >= start) and (end is None or p <= end) and p not in have
@@ -314,7 +317,8 @@ def check_plausibility(obs: list[RawObs], stored: dict) -> list[str]:
 
 def validate_fetch(spec, fetch_result, store, *, now: Optional[float] = None, mode: str = "latest",
                    start: Optional[str] = None, end: Optional[str] = None,
-                   requested_ids: Optional[Iterable[str]] = None) -> tuple[list[RawObs], list[str]]:
+                   requested_ids: Optional[Iterable[str]] = None,
+                   covered_periods: Optional[set] = None) -> tuple[list[RawObs], list[str]]:
     """Validate this spec's slice of a FetchResult. Returns (accepted, reasons):
     accepted is EMPTY whenever reasons is non-empty (fail closed).
 
@@ -344,7 +348,7 @@ def validate_fetch(spec, fetch_result, store, *, now: Optional[float] = None, mo
     reasons += check_scale(spec, obs, stored)
     reasons += check_mutation(spec, obs, stored)
     if mode == "history":
-        reasons += check_partial(obs, stored, start, end, spec)
+        reasons += check_partial(obs, stored, start, end, spec, covered_periods=covered_periods)
     reasons += check_plausibility(obs, stored)
     if reasons:
         return [], _dedupe(reasons)

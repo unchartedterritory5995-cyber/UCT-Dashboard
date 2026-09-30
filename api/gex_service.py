@@ -56,6 +56,141 @@ CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains"
 WALL_MAX_DIST_PCT = float(os.environ.get("GEX_WALL_MAX_DIST_PCT", "15.0"))
 
 
+# ── Chain source (LCQ-02, 2026-09-29) ─────────────────────────────────────────
+# GEX has read Schwab's /chains through a personal retail login, which is not a licence to
+# redisplay to members; the licensing register's remedy (LCQ-02) is to re-source from Massive.
+# Measured 2026-09-29 against our own Massive key: the options snapshot carries greeks, IV and
+# OI on 88/88 near-the-money SPY contracts. `massive` builds a chain in SCHWAB'S OWN SHAPE
+# (callExpDateMap / putExpDateMap keyed "YYYY-MM-DD:dte" -> strike -> [contract]) so every line
+# of the GEX arithmetic below runs unchanged on either source.
+# ⛔ DEFAULT IS `schwab`: nothing changes for a member until the parity read
+# (`get_gex_source_parity`, admin route) says the two agree and the owner flips the variable.
+GEX_SOURCE_ENV = "GEX_CHAIN_SOURCE"
+GEX_SOURCES = ("schwab", "massive")
+# The vocabulary the flag ledger reads (feature_flag_index.mode_flags derives it by AST).
+# Keyed by the LITERAL name: feature_flag_index reads *_MODE_FLAGS keys as string constants.
+GEX_CHAIN_MODE_FLAGS = {"GEX_CHAIN_SOURCE": ("schwab", ("schwab", "massive"))}
+assert GEX_SOURCE_ENV in GEX_CHAIN_MODE_FLAGS and GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV][1] == GEX_SOURCES
+MASSIVE_STRIKE_BAND_PCT = 15.0   # the same band WALL_MAX_DIST_PCT searches
+_MASSIVE_MAX_PAGES = 48          # 48 x 250 contracts
+_MASSIVE_BUDGET_S = 25.0
+
+
+def chain_source() -> str:
+    default, _allowed = GEX_CHAIN_MODE_FLAGS[GEX_SOURCE_ENV]
+    v = (os.environ.get(GEX_SOURCE_ENV) or default).strip().lower()
+    return v if v in _allowed else default
+
+
+async def _fetch_chain_schwab(ticker: str, from_date: str, to_date: str) -> tuple:
+    """(data, error): Schwab /chains exactly as get_gex_data has always called it."""
+    token = await schwab.get_valid_token()
+    if not token:
+        return None, "Schwab not authenticated"
+    schwab_ticker = ticker
+    if ticker in {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}:
+        schwab_ticker = "$" + ticker
+    params = {
+        "symbol": schwab_ticker,
+        "contractType": "ALL",
+        "strikeCount": 60,
+        "includeUnderlyingQuote": "true",
+        "fromDate": from_date,
+        "toDate": to_date,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(CHAINS_URL, headers={"Authorization": f"Bearer {token}"}, params=params)
+            if r.status_code != 200:
+                logger.error(f"[gex] Schwab chains failed: {r.status_code} {r.text[:200]}")
+                return None, f"Schwab API error: {r.status_code}"
+            return r.json(), None
+    except Exception as e:
+        logger.error(f"[gex] fetch failed: {e}")
+        return None, str(e)
+
+
+def to_schwab_shape(results: list, spot: float, today) -> dict:
+    """Massive snapshot rows -> Schwab's /chains shape (the only fields GEX reads)."""
+    from datetime import date as _date
+    out = {"underlyingPrice": spot, "callExpDateMap": {}, "putExpDateMap": {}}
+    for c in results:
+        d = c.get("details") or {}
+        exp, strike, typ = d.get("expiration_date"), d.get("strike_price"), (d.get("contract_type") or "").lower()
+        if not exp or strike is None or typ not in ("call", "put"):
+            continue
+        try:
+            dte = (_date.fromisoformat(exp) - today).days
+        except ValueError:
+            continue
+        g = c.get("greeks") or {}
+        side = out["callExpDateMap" if typ == "call" else "putExpDateMap"]
+        side.setdefault(f"{exp}:{dte}", {}).setdefault(str(float(strike)), []).append({
+            "openInterest": c.get("open_interest") or 0,
+            "gamma": g.get("gamma") or 0,
+            "delta": g.get("delta") or 0,
+        })
+    return out
+
+
+async def _fetch_chain_massive(ticker: str, from_date: str, to_date: str) -> tuple:
+    """(data, error): the licensed Massive snapshot, in Schwab's shape. Strikes within
+    MASSIVE_STRIKE_BAND_PCT of spot (the band the wall search uses); paginated under a page
+    and wall-clock budget. A truncated walk is REPORTED (`massive_truncated`), never silent."""
+    import time as _time
+    from datetime import date as _date
+    from api.services import polygon_options as po
+    from api.services.massive import to_polygon_symbol
+    try:
+        key = po._api_key()
+    except RuntimeError as e:
+        return None, str(e)
+    sym = to_polygon_symbol(ticker)
+    url = f"{po._BASE}/v3/snapshot/options/{sym}"
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            first = await client.get(url, params={"apiKey": key, "limit": 1})
+            if first.status_code != 200:
+                return None, f"Massive API error: {first.status_code}"
+            rows = first.json().get("results") or []
+            spot = float(((rows[0] if rows else {}).get("underlying_asset") or {}).get("price") or 0)
+            if spot <= 0:
+                return None, f"No spot price for {ticker}"
+            band = spot * MASSIVE_STRIKE_BAND_PCT / 100.0
+            params = {"apiKey": key, "limit": 250,
+                      "expiration_date.gte": from_date, "expiration_date.lte": to_date,
+                      "strike_price.gte": round(spot - band, 2), "strike_price.lte": round(spot + band, 2)}
+            results, pages, truncated = [], 0, False
+            start = _time.monotonic()
+            nxt = None
+            while True:
+                if pages >= _MASSIVE_MAX_PAGES or _time.monotonic() - start > _MASSIVE_BUDGET_S:
+                    truncated = True
+                    break
+                # ⛔ A cursor URL carries its own query (filters, limit, cursor). Passing `params=`
+                # with it REPLACES that query in httpx -- measured: 15 rows/page, filters gone, the
+                # walk truncated at 48 pages on one expiration. Append the key to the string instead
+                # (polygon_options.get_chain does the same).
+                if nxt:
+                    r = await client.get(f"{nxt}{'&' if '?' in nxt else '?'}apiKey={key}")
+                else:
+                    r = await client.get(url, params=params)
+                if r.status_code != 200:
+                    return None, f"Massive API error: {r.status_code}"
+                body = r.json()
+                results.extend(body.get("results") or [])
+                pages += 1
+                nxt = body.get("next_url")
+                if not nxt:
+                    break
+    except Exception as e:
+        logger.error(f"[gex] massive fetch failed: {e}")
+        return None, str(e)
+    data = to_schwab_shape(results, spot, _date.today())
+    data.update(massive_contracts=len(results), massive_pages=pages, massive_truncated=truncated)
+    return data, None
+
+
 def _parse_schwab_exp_key(exp_key: str) -> Optional[str]:
     """Schwab returns expiration keys like '2026-07-17:39' (ISO date + DTE).
     Convert to M/D/YYYY format used in contract_keys."""
@@ -227,7 +362,8 @@ def classify_gex_state(
     }
 
 
-async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = False) -> dict:
+async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = False,
+                       source: Optional[str] = None) -> dict:
     """
     Fetch full options chain and compute GEX per strike.
 
@@ -245,9 +381,7 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
               Falls back to naive for any contract without DP data.
     """
     ticker = ticker.upper().strip()
-    token = await schwab.get_valid_token()
-    if not token:
-        return {"error": "Schwab not authenticated"}
+    src = source if source in GEX_SOURCES else chain_source()
 
     dte_map = {
         "0dte": 0, "1dte": 1, "2dte": 2, "3dte": 3,
@@ -259,31 +393,10 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
     from_date = datetime.now().strftime("%Y-%m-%d")
     to_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
 
-    schwab_ticker = ticker
-    index_tickers = {"SPX", "NDX", "VIX", "RUT", "DJX", "XSP", "XND"}
-    if ticker in index_tickers:
-        schwab_ticker = "$" + ticker
-
-    params = {
-        "symbol": schwab_ticker,
-        "contractType": "ALL",
-        "strikeCount": 60,
-        "includeUnderlyingQuote": "true",
-        "fromDate": from_date,
-        "toDate": to_date,
-    }
-    headers = {"Authorization": f"Bearer {token}"}
-
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            r = await client.get(CHAINS_URL, headers=headers, params=params)
-            if r.status_code != 200:
-                logger.error(f"[gex] Schwab chains failed: {r.status_code} {r.text[:200]}")
-                return {"error": f"Schwab API error: {r.status_code}"}
-            data = r.json()
-    except Exception as e:
-        logger.error(f"[gex] fetch failed: {e}")
-        return {"error": str(e)}
+    fetch = _fetch_chain_massive if src == "massive" else _fetch_chain_schwab
+    data, err = await fetch(ticker, from_date, to_date)
+    if err:
+        return {"error": err, "chain_source": src}
 
     spot = float(data.get("underlyingPrice") or 0)
     if spot <= 0:
@@ -522,7 +635,59 @@ async def get_gex_data(ticker: str, dte_filter: str = "all", adjusted: bool = Fa
         "regime": classification["regime"],
         "asymmetryPct": classification["asymmetry_pct"],
         "warnings": classification["warnings"],
+        # ── LCQ-02: which chain produced these numbers ────────────────
+        "chainSource": src,
+        "chainTruncated": bool(data.get("massive_truncated")),
     }
+
+
+def _wall_strike(w) -> Optional[float]:
+    return (w or {}).get("strike") if isinstance(w, dict) else None
+
+
+async def get_gex_source_parity(ticker: str, dte_filter: str = "week") -> dict:
+    """LCQ-02: GEX from Schwab and from Massive, side by side, BEFORE any member sees Massive.
+
+    Reports the headline numbers from each, the difference, and per-strike agreement over the
+    strikes both sources carry (sign agreement of net GEX, and the rank correlation of |GEX|).
+    No verdict: whether this is close enough to switch `GEX_CHAIN_SOURCE` is the owner's call."""
+    a = await get_gex_data(ticker, dte_filter, source="schwab")
+    b = await get_gex_data(ticker, dte_filter, source="massive")
+    out = {"ticker": ticker.upper(), "dteFilter": dte_filter, "schwab_error": a.get("error"),
+           "massive_error": b.get("error")}
+    if a.get("error") or b.get("error"):
+        return out
+
+    def head(x):
+        return {"spot": x["spot"], "totalGex": x["totalGex"], "zeroGamma": x["zeroGamma"],
+                "callWall": _wall_strike(x["callWall"]), "putWall": _wall_strike(x["putWall"]),
+                "strikes": len(x["strikes"]), "regime": x.get("regime")}
+
+    sa, sb = {s["strike"]: s["gex"] for s in a["strikes"]}, {s["strike"]: s["gex"] for s in b["strikes"]}
+    common = sorted(set(sa) & set(sb))
+    same_sign = sum(1 for k in common if (sa[k] >= 0) == (sb[k] >= 0))
+
+    def ranks(vals):
+        order = sorted(range(len(vals)), key=lambda i: vals[i])
+        r = [0.0] * len(vals)
+        for pos, i in enumerate(order):
+            r[i] = float(pos)
+        return r
+
+    rho = None
+    if len(common) >= 3:
+        ra, rb = ranks([abs(sa[k]) for k in common]), ranks([abs(sb[k]) for k in common])
+        n = len(common)
+        rho = round(1 - 6 * sum((x - y) ** 2 for x, y in zip(ra, rb)) / (n * (n * n - 1)), 3)
+    out.update(schwab=head(a), massive=head(b),
+               massive_truncated=b.get("chainTruncated"),
+               strikes_common=len(common),
+               sign_agreement=round(same_sign / len(common), 3) if common else None,
+               abs_gex_rank_correlation=rho,
+               total_gex_ratio=(round(b["totalGex"] / a["totalGex"], 3) if a["totalGex"] else None),
+               same_call_wall=_wall_strike(a["callWall"]) == _wall_strike(b["callWall"]),
+               same_put_wall=_wall_strike(a["putWall"]) == _wall_strike(b["putWall"]))
+    return out
 
 
 async def get_gex_compare(ticker: str, dte_filter: str = "all") -> dict:

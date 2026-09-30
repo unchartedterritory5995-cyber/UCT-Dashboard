@@ -410,6 +410,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         # this payload is the universal auth path (signup, login, /me), so an
         # exception here is a LOGIN OUTAGE rather than a dark surface.
         "cohorts": rollout_gate.client_cohorts(user.get("id")),
+        # ⭐ The MVP trial's withdrawal block (TERM-068 rung zero, NOW-gate clause 4): cohorts
+        # this user IS tagged into whose kill switch is OFF. ADMINS ONLY -- the trial group is
+        # admins, and a member's auth request must gain no tag read (see withdrawn_cohorts).
+        "cohorts_withdrawn": rollout_gate.withdrawn_cohorts(user.get("id")) if is_admin else [],
         # ── Joystick hub preview kill switch (Phase 2.5) ────────────────────
         # ⭐ READ AT REQUEST TIME, NOT AT IMPORT. That is the whole point: flipping
         # HUB_PREVIEW_ENABLED=false in Railway must hide the hub for everyone
