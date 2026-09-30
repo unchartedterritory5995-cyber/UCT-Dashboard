@@ -34,7 +34,10 @@ const NOT_EVALUATED = { ticker: 'ZZZZ', found: false, verdict: 'not_evaluated', 
 const EXCLUDED = {
   ticker: 'PENY', found: true, excluded_by_gate: true, verdict: 'excluded_by_gate',
   gate: 'quality', gate_reason: 'price $1.20 below $3 floor', market_date: '2026-09-29',
-  signal_summary: { price: 1.2, gap_pct: 12.5, sector: 'Tech' },
+  // market_cap is a WHOLE number on purpose: the S8 rail's fix (routing fmtSignal
+  // through formatNumberMax) must never pad it to "100.00" -- see the exact-text
+  // assertion below.
+  signal_summary: { price: 1.2, gap_pct: 12.5, sector: 'Tech', market_cap: 100 },
 }
 
 describe('"not evaluated" is never rendered as "excluded"', () => {
@@ -184,5 +187,18 @@ describe('the free-text lookup and its feedback host', () => {
     expect(sig).toHaveTextContent('Gap %12.5')
     expect(sig).toHaveTextContent('SectorTech')
     expect(sig.textContent).not.toMatch(/[{}"]/)
+  })
+
+  it('a whole-number signal is never padded with trailing zeros ("100", not "100.00")', async () => {
+    // ⛔ `toHaveTextContent` does a substring match, so it would pass on
+    // "100.00" too -- this checks the ACTUAL cell text, which the S8 rail's fix
+    // (fmtSignal -> formatNumberMax, max-only decimals) must keep byte-identical
+    // to the retired direct `.toLocaleString('en-US', {maximumFractionDigits:2})`.
+    await checkFixed('PENY', EXCLUDED)
+    const sig = screen.getByTestId('absence-receipt-signals')
+    const dd = [...sig.querySelectorAll('dt')]
+      .find((dt) => dt.textContent === 'Market cap')
+      ?.nextElementSibling
+    expect(dd?.textContent).toBe('100')
   })
 })
