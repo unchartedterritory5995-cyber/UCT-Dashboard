@@ -15928,7 +15928,9 @@ function translatePineResult(source, opts = {}) {
   const windowEnvAt = new Map()
   /** A `var` vector whose every write is a bounded window → its model, attached
    *  as `vec.window` (read by the OBJECT pass only — `resolveVectorRead`). The
-   *  refusal reason is kept (`vec.windowRefused`) so a read can name it. */
+   *  refusal reason is kept on the binding (`vec.windowRefused`) for diagnosis
+   *  only: no member-facing surface reads it yet (object diagnostics carry
+   *  counts, not sentences), so it must not be cited as one. */
   const withWindow = (vec, name, stmtIndex) => {
     if (!vec || !vec.persists || !vec.writers || !vec.writers.length) return vec
     const n0 = !vec.sizeNode ? 0

@@ -121,6 +121,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 18 | C11 arrays / UDTs / methods, **runtime front end only** — a script's own `method` binds (`recv.m(a)` → `m(recv, a)`, single-declaration only), the array members the nine scripts write (`first/last/shift/pop/unshift/remove/concat/indexof/includes/max/min/sum/avg`), and a function body READS a main-program variable (`LOAD_GLOBAL_LOCAL/PERSIST`, opcodes 93/94) — see § C11 | `8009fce4e`, `b5924ca44` | 18 / 47 → 18 / 47 (runtime flag on: 19 → 19) | 167 / 238 → 167 / 238 (runtime flag on: 174 / 245 → 174 / 245) | **none, measured.** All nine C11 scripts attach on the HOST lane, so the runtime pane route never engages for them, and the runtime OBJECT lane (`runtime/objectLane.js`) is wired to no product path. The changes are real and railed but move no graded family. Against base `1a11a652b`, both runtime flag states: 47 captures 0 entries changed, committed harness dir (120 captures) 0 changed, member-door census 266 × 2 objects-flag states 0 rows changed (control: the runtime flag itself moves 4 census rows and 1 capture at the same tree, so the diff can see a change). `runtime:function-global-state` is gone from the object-lane peel of max-pain, dual-view and vdubus; each now stops on a host-lane wall |
 | 19 | C16 a script that edits its own list of drawings — (a) a drawing collection keeps its slots (a delete or the collector never splices it; an `na` push is a slot); (b) `array.size` of a drawing list is object state the runtime answers, in a guard, a loop bound and a slot index; `box.delete(array.shift / pop / remove(bs))` is the delete AND the slot removal; `b = array.get(bs, i)` is an eager copy into `b`; a `get`/`size` comparison in a counted loop body is read per iteration; a loop whose END bound reads a length its body changes is refused; a list that lost a change is withheld from every read (`coll:diverged`); (c) an `if`'s object-state condition is LATCHED — evaluated once where it stands; an `input.string` default is the text a drawing carries — see § C16 | `bbf933ad5`, `e240eea43`, `b1ea4351e`, `d6b93d9e5` | 21 / 47 → 21 / 47 (base `105ea5f3d`) | 183 / 252 → 184 / 252 | `institutional-smc-order-flow-matrix-pro` boxes 0 → **2 / 2**, and every object we hold is TradingView's — creation order, price, caption and x rank (§ C16); `options-max-pain-calculator-backquant` cells 11 → 12 of 16 (the new cell, "Advanced", is TradingView's own — an `input.string` default; nothing drawn the vendor lacks). Committed harness dir (87 captures): the same 2 entries change, inventory and every plot verdict identical. Member-door census, 266 × both flags: 3 rows — `rsi-horizontal-resistance-levels` ATTACHES with the flag on (60 → 61 of 266), drawing its bounded eviction whole; its flag-off refusal becomes the clean-program sentence; `fair-value-gap` stays refused, its lost removal re-worded. Census build 46.3 / 53.4 s base vs 49.2 / 49.5 s (alternated); object lane over the 36 drawing captures 10.9 / 10.0 s base vs 10.6 / 9.3 s — no slowdown. Notebook first-open bytes on the current integration tip: 2,260,725 B of 2,260,793 |
 | 20 | C10 `request.security` feeding object text / coordinates / cells — **no new seam: the object pass already resolves through the plot lane's `Resolver`, so `securityAsNode` reaches it.** What stopped the C10 scripts was requests that Resolver could not read: a timeframe toggle whose test is a constant EXPRESSION (`TF_Choise == false ? …`, both lanes, `constantBranchOf`); in the OBJECT pass only (`Resolver.objectPass`), a dead ternary / `and`/`or` side that refuses is skipped when the test folds on every bar (text and colour readers too), and timeframe readers follow 16 hops, not 4; and, both lanes, a `timeframe.*` read inside a request at ANOTHER timeframe refuses by name instead of folding to the chart's own — see § C10 | `cefe12633`, `469177d5b`, `2b73a9ebf` | 21 → 22 / 47 (harness `summ` over `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1`, base `105ea5f3d`) | 183 → 184 / 252 | `linear-regression-channel-…-existing-trend-lines` lines 5/0 → **5/5, MATCH id for id** (ids 4418–4422, both y's within 1e-9 rel, styles, `time[100]`/`time` bar times; its two linefills 0 → 2 = vendor 2); `artemis-oscillator-pro` cells 13 → 18 of 21, the five new ones the vendor's (`◮ MIXED`, `— n/a` ×3, `▼ BEAR`), none drawn the vendor lacks. Committed harness dir (87 graded, 0 inventory): objects MATCH 42 → 43, overall MATCH 34 → 35, exactly those 2 entries changed. Member-door census 266 × 2: attach 39/60 unchanged; 1 row changed — linear-regression with the flag OFF moves from `pine:objects-only` to the clean-objects-only sentence its siblings already carry. `tools/corpus_metric.json` host_ok 51 → 52 (the same script) |
+| 23 | C11 on the HOST object lane (C11b) — (a) a drawing reads a name after its last reassignment, including a `var` read before this bar reassigns it and every reassignment in scope (`if`/`else`/`switch`/loops), with a first-level block fold that is exact and a recursive one that only fills what is missing; (b) a `var` NUMERIC array that one statement fills and a numeric cap keeps short is read as the series it is — slot j, newest first, is `ta.valuewhen(cond, value, j)` (`arrayWindows.js`), and `size`/`get`/`first`/`last` read through it; (c) a list of drawings carries `unshift` as a front insert — see § C11b | `c1e485959`, `22be3c546`, `13edcefd8`, `c7fdaf10b` | 22 → 23 / 47 (base `cac2bd01d`, objects pane on) | 185 → 190 / 252 | `ict-killzones-pivots-tfo` **MATCH** (cells 3/3 at TradingView's own addresses, pinned by `vendorHarness.c11bKillzones`); `htf-liquidity-dashboard-tfo` lines 6/0 → **6/6** and labels 6/0 → **6/6, id for id** (lines 1262–1267 at the vendor's prices; labels 1–6 with `PDH`/`PDL` at the last bar's levels; `vendorHarness.c11bHtfLiquidity`), its cells 3/30 unchanged (the other symbols' rows, C10). Committed harness dir (87): objects MATCH 43 → 44, families 241 → 246 of 308, overall 35 → 36; the same two entries changed. Member-door census 266 × both flags: 39 / 61, **0 rows changed** at every commit. On the way it closed a wrong-drawing class live on the member door (a drawing read a name's DECLARATION, never its reassignment — three measured probes, and nine corpus programs that read a stale value: five now read the right one, four are refused by name; § C11b, H14). Census build 52.3 / 52.4 s base vs 59.0 / 32.5 s tip (alternated; noisy, no slowdown measurable). Notebook first-open bytes 2,260,818 B at base AND tip (+25 B over its budget at base; tip delta 0 B) |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -620,11 +621,117 @@ alone — the text rescue, the colour rescue, the ternary rescue both ways round
 the `and`/`or` rescue, the 16 hops, the request-context refusal, the finite-subtree
 check, and the object-pass confinement — bytes restored and sha-verified.
 
+## C11b — arrays and reassigned names, read on the HOST object lane (2026-09-29, step 23)
+
+**The design question, settled by measurement.** Two ways to serve the nine C11
+scripts: (a) teach the host object reader to read numeric arrays and the names
+they depend on, or (b) route their drawing to the runtime object lane behind the
+dark `VITE_PINE_RUNTIME_PANE_ENABLED`. (b) was measured first and rejected on
+two counts:
+
+- **It does not build.** Peeling each script wall by wall through the runtime
+  object lane at base `cac2bd01d`: dual-view 26 walls and stuck
+  (`pine:statement`), htf-liquidity past 40 (the peel's cap), ict-killzones 18,
+  institutional-smc 17, k-clustering 34, max-pain stuck after 2 (`pine:block`,
+  a `while`), pro-trading-art 6, vdubus 15. One of the nine (trend-duration)
+  reaches a build, after 15.
+- **Where it builds, it answers at the wrong position.** The runtime object lane
+  evaluates a drawing's trees at the END of the bar or block, not where the op
+  stands: a label whose text is a count read before its own update showed the
+  post-update value (`"100"`), and a guard that reads a value the same block
+  then changes drew 0 labels where Pine draws them. Routing would have drawn
+  wrong.
+
+So (a): the host reader, extended one general Pine semantics at a time, each
+with a focused test and a mutation proof.
+
+**Re-measured first walls** (host object pass, first op whose guard or value
+refuses; objects pane on; base `cac2bd01d` → tip `c7fdaf10b`):
+
+| script | base | tip |
+|---|---|---|
+| dual-view | L487 `pine:state` — `var` state the bounded accumulator cannot hold (78 ops); its lists `coll:diverged` | unchanged — `var` state (C12), not an array question |
+| htf-liquidity | L135 `pine:type` — `s0d_highs.size` | L135 `pine:request` — the other symbols' rows (C10); its own-chart levels are drawn |
+| ict-killzones | L626 `pine:type` — `mg_lbls.size`, a loop bound on a UDT field | same first wall, but **MATCH**: its three cells no longer depend on it |
+| institutional-smc | L72 `pine:offset-literal` (C9) | unchanged (the C9 lane) |
+| k-clustering | L185 `pine:type` — `n_clust.get`, under a `while` | unchanged — a UDT holding arrays, and a convergence `while` |
+| max-pain | L225 `pine:block` — a `while` inside `calculate_max_pain_direct` | unchanged |
+| pro-trading-art | L24 `pine:type` — `top.first` | L24 `pine:collection` — `top` is now read as a window; the next walls are the script's own read-method `array.middlePrice` and two same-named `var lastStart` in sibling blocks (C12) |
+| trend-duration | L69 `pine:type` — `bullishCount.avg` | unchanged — `avg` is a reduction this reader does not fold, the array is read before its last write, its cap is an input, and its line reads getters (C14) |
+| vdubus | L193 `pine:collection` — `zzP` created inside a function | unchanged — arrays created per call |
+
+**What was built.**
+
+1. *A drawing reads a name after its last reassignment* (`c1e485959`). The
+   object pass joined a name's DECLARATION into each op's scope and never its
+   reassignment, so a drawing after `x := …` read the declared value — live on
+   the member door with the objects pane armed (H14): `x = 1.0; x := 2.0` drew a
+   label reading `1`, and a `flag = true` block made a script draw 31 labels
+   where Pine draws 17, each with a clean drop ledger. Every `:=`/`+=` is now
+   recorded where it happens, and a guard is read in ITS OWN scope (an `else`
+   arm starts from the scope before its chain). Thirteen corpus programs
+   changed: five now read the right value, four that drew from a stale one are
+   refused by name, four have no program either way.
+2. *A `var` read before this bar reassigns it carries its old value*
+   (`22be3c546`), with rails for the `else` and guard cases.
+3. *Every reassignment in scope* (`13edcefd8`): loops, `switch` and nested
+   blocks enter theirs; the closing-pass overrule only condemns a name whose
+   record is APPROXIMATE, and the recursive block fold fills only what the exact
+   first-level fold left missing. ⚠️ Relaxing the overrule first exposed the
+   recursion overwriting exact records — ict-killzones put `Low` in column 5
+   **while the harness read MATCH**, because the harness compares counts and
+   texts, never addresses. `vendorHarness.c11bKillzones` pins the addresses.
+4. *A bounded numeric window* (`c7fdaf10b`, `arrayWindows.js`). A `var` numeric
+   array that exactly ONE statement adds to (directly, under an `if`, or through
+   a user function or method) and ONE statement shortens under a numeric cap is
+   a window over a series: slot j, newest first, is
+   `ta.valuewhen(na(g) ? 0 : g, value, j)`, so a guard that is `na` on a bar is
+   false there, as Pine's `if` reads it. `size` is the sum of the filled slots;
+   `get(k)`/`first`/`last` map k to j by the array's own order (unshift: j = k;
+   a fixed-length push: j = cap − 1 − k). Refused by name, never guessed: two
+   places that add, a read before the last write, a cap that is an input, an
+   index that moves while a pushed window fills (`first` of a growing push
+   window), a window shortened by another array not filled in step with it, a
+   cap above 64, and reductions it does not fold (`max`/`min`/`avg`). The
+   refusal reason is kept on the binding for diagnosis only — object
+   diagnostics carry counts, not sentences, so a member does not see it yet.
+5. *A list of drawings carries `unshift`* as a front insert (`objectRuntime`
+   `front`), classified in `objectLoss.js`, with the runtime lane's
+   `COLLECTION_VALUE_ARG` derived to agree (`drawingAsValue.test.js`).
+
+**Mutation proofs** (each red, restored, sha-verified): M1–M13 on the
+reassignment read (commit messages of `c1e485959`, `22be3c546`, `13edcefd8`);
+W1–W10 on the windows — the window read bypassed, the fixed-window index map,
+the `na` coercion of the guard (it took a bool `na` guard to go red: a
+comparison with `na` already answers false in this engine), the
+read-before-write check, the runtime front insert, the size sum short by a slot,
+the twin check, `unshift` dropped from the collection calls, the front flag
+dropped at conversion, and the runtime value table without `unshift`.
+
+**Refused, and what would settle each** — none needs a capture; each is a
+grammar gap, not a question about what TradingView does:
+
+| script | refused on | would settle it |
+|---|---|---|
+| dual-view | `var` state across blocks; lists that lost a push (`coll:diverged`) | the C12 state lane |
+| htf-liquidity (cells) | nine other symbols' `request.security` | C10: another symbol's bars |
+| k-clustering | a UDT holding arrays; a convergence `while` | UDT field arrays in the host reader, and a bounded `while` |
+| max-pain | a numeric `while` building strikes inside a function | a bounded `while` in the value lane |
+| pro-trading-art | a script-declared read-method on a window (`array.middlePrice`); two sibling `var lastStart` | user read-methods over a window; block-scoped `var` (C12) |
+| trend-duration | `avg` over a window; a read before the last write; an input cap; getters (C14) | a folded reduction over a window, and C14 |
+| vdubus | arrays created inside a function body | per-call arrays in the host reader |
+| ict-killzones (secondary) | a loop bound on a UDT field (`mg_lbls.size`) | UDT fields — does not block its MATCH |
+
+Two latent hazards were NOTED, not fixed — neither reaches a member today, both
+scripts are refused at the door: a comma-joined `var a = …, var b = …`
+declaration is not recorded (so `smart-money-concepts-by-welotrades`' EQH guard
+would read final state), and neither is an `x = if …` declaration.
+
 ## What is left, ranked by scripts it would move
 
 | rank | class | scripts (primary) | what it needs |
 |---|---|---|---|
-| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11. **Step 19 (C16)** served the host-lane wall two of the nine hit FIRST on their drawing LISTS (length reads, eviction, list edits in loops — institutional-smc, dual-view): smc's zones now AGREE; dual-view and the other seven stop on UDTs, numeric arrays or `var` state — see § C16 |
+| 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11. **Step 19 (C16)** served the host-lane wall two of the nine hit FIRST on their drawing LISTS (length reads, eviction, list edits in loops — institutional-smc, dual-view): smc's zones now AGREE; dual-view and the other seven stop on UDTs, numeric arrays or `var` state — see § C16. **Step 23 (C11b)** served it on the HOST lane rather than routing (the runtime object lane builds one of the nine and answers at the wrong position): ict-killzones MATCH, htf-liquidity's lines and labels id for id; the other seven stop on `var` state, UDT fields, `while`, per-call arrays, user read-methods or reductions — see § C11b |
 | ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12 |
 | 3 | C10 `request.security` in object text/coordinates — **step 20: every form the seam computes is served** (linear-regression MATCH; artemis' MTF panel) | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the seam was already there (§ C10). What is left is refused BY NAME and each needs something the bar series does not hold: an intraday timeframe below the chart's own (artemis 15m/1h/4h values never shown; ema-ribbon 15/60/240 rows; liquidity-heatmap's pivots), another symbol (vold `USI:*`, htf-liquidity, position-size-calc), a multi-period code (`3M`, `3D`, `2M`), and a `timeframe.*` read inside a request at another timeframe (liquidity-heatmap's `resolutionInMinutes`) — the capture that settles each is in § C10 |
 | 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
