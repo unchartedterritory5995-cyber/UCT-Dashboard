@@ -89,25 +89,78 @@ def test_a_bare_contract_code_never_resolves_to_a_positioning_report():
     assert reg.resolve_product("cot:nq").id == "COT:NQ"
 
 
-def test_components_stay_out_of_the_browsable_list():
+def test_the_catalogue_lists_ONE_cot_row_and_no_market_or_component():
     cat = disc.catalogue(include_breadth=False)
-    listed = {r["id"] for r in cat["rows"]}
-    assert "COT:NQ" in listed
-    assert not any(i.startswith("COT:") and i.count(":") == 2 for i in listed)
+    listed = [r["id"] for r in cat["rows"] if r["family"] == reg.FAM_POSITIONING]
+    assert listed == ["COT"]
+    assert not any(r["id"].startswith("COT:") for r in cat["rows"])
 
 
-@pytest.mark.parametrize("q", ["COT", "Nasdaq", "Nasdaq-100", "E-mini", "Commercials",
-                               "Positioning", "NQ COT", "commitments of traders"])
-def test_search_finds_the_dataset_and_never_a_child(q):
-    hits = disc.search(q, limit=200, include_breadth=False)
-    ids = [h["id"] for h in hits]
-    if q.lower() in ("commercials", "positioning", "cot", "commitments of traders"):
-        assert "COT:ES" in ids and "COT:NQ" in ids
-    elif q.lower() == "e-mini":
-        assert "COT:ES" in ids and "COT:NQ" in ids
-    else:
-        assert "COT:NQ" in ids
-    assert not any(i.count(":") == 2 and i.startswith("COT:") for i in ids)
+def test_the_per_market_products_still_resolve_and_classify():
+    # A saved chart, a primary `COT:NQ` and every component keep working.
+    assert reg.resolve_product("COT:NQ").id == "COT:NQ"
+    comps = {c["id"] for c in disc.catalogue(include_breadth=False)["components"]}
+    assert {"COT:NQ:COMM", "COT:GC:SMALL", "COT:LE:LARGE"} <= comps
+
+
+def test_the_follow_row_is_a_grouped_cot_product_naming_no_market():
+    row = next(r for r in disc.catalogue(include_breadth=False)["rows"] if r["id"] == "COT")
+    assert row["display"] == "COT (Commitment of Traders)"
+    assert row["kind"] == "product" and row["grouped"] is True
+    assert row["group_note"] == "Net Contracts"
+    assert row["components"] == ["COT:AUTO:COMM", "COT:AUTO:LARGE", "COT:AUTO:SMALL"]
+    assert [c["palette"] for c in row["component_rows"]] == ["cot.commercials",
+                                                            "cot.largeSpecs", "cot.smallSpecs"]
+    assert row["source_type"] == reg.SRC_COT and row["presentation"] == reg.PRES_HISTOGRAM
+
+
+def test_the_follow_components_classify_but_never_serve(cot_db):
+    comps = {c["id"]: c for c in disc.catalogue(include_breadth=False)["components"]}
+    auto = comps["COT:AUTO:COMM"]
+    assert auto["unit"] == "contracts" and auto["ohlc_capable"] is False
+    assert auto["presentation"] == "histogram"
+    assert reg.resolve("COT:AUTO:COMM") is None
+    assert not ms.daily_bars("COT:AUTO:COMM")
+
+
+@pytest.mark.parametrize("q", ["COT", "Commitment of Traders", "commitments of traders",
+                               "Positioning", "CFTC", "Commercials"])
+def test_search_finds_the_ONE_cot_indicator(q):
+    ids = [h["id"] for h in disc.search(q, limit=200, include_breadth=False)]
+    assert "COT" in ids
+    assert not any(i.startswith("COT:") for i in ids)
+
+
+def test_a_retired_market_search_finds_no_market_row():
+    for q in ("NQ COT", "COT:NQ", "Nasdaq-100 E-Mini COT", "Gold COT"):
+        ids = [h["id"] for h in disc.search(q, limit=200, include_breadth=False)]
+        assert not any(i.startswith("COT:") for i in ids), (q, ids)
+
+
+# ── the chart-symbol map ─────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("sym,market", [
+    ("QQQ", "NQ"), ("NDX", "NQ"), ("SPY", "ES"), ("SPX", "ES"), ("VOO", "ES"),
+    ("SPYM", "ES"), ("GLD", "GC"), ("TLT", "ZB"), ("IWM", "QR"), ("RUT", "QR"), ("DIA", "YM"),
+    ("DJX", "YM"), ("VIX", "VI"), ("SLV", "SI"), ("USO", "CL"), ("UNG", "NG"),
+    ("IBIT", "BTC"), ("ETHA", "ETH"), ("UUP", "DX"), ("FXE", "E6"), ("qqq", "NQ"),
+])
+def test_a_related_symbol_maps_to_its_market(sym, market):
+    assert reg.cot_market_for(sym) == market
+
+
+@pytest.mark.parametrize("sym", ["AAPL", "NVDA", "TQQQ", "SQQQ", "SPXL", "UVXY", "NUGT",
+                                 "BOIL", "TMF", "SPLG", "", None, "COT:NQ"])
+def test_an_unrelated_or_levered_symbol_maps_to_nothing(sym):
+    assert reg.cot_market_for(sym) is None
+
+
+def test_every_mapped_market_is_one_the_cot_store_serves():
+    assert set(reg.COT_SYMBOL_MAP.values()) <= set(reg.COT_MARKETS)
+    payload = disc.catalogue(include_breadth=False)["cot_symbols"]
+    assert payload["QQQ"] == {"market": "NQ", "name": "Nasdaq-100 E-Mini"}
+    assert payload["GLD"] == {"market": "GC", "name": "Gold"}
+    assert "AAPL" not in payload
 
 
 # ── serving ──────────────────────────────────────────────────────────────────

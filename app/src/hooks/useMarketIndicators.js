@@ -23,7 +23,7 @@ let _cache = null          // { byKey: Map<string, row>, rows, families, dormant
 let _promise = null
 const _subs = new Set()
 
-const EMPTY = { byKey: new Map(), rows: [], families: [], dormant: [] }
+const EMPTY = { byKey: new Map(), rows: [], families: [], dormant: [], cotSymbols: null }
 
 function _index(data) {
   const byKey = new Map()
@@ -55,6 +55,9 @@ function _index(data) {
     // only; putting them in `byKey` would let `canonicalFamily` classify NYMO, which
     // would make it look chartable to every capability gate downstream.
     dormant: Array.isArray(data?.dormant) ? data.dormant : [],
+    // ⭐ chart symbol → the COT market the follow-the-chart COT indicator draws there
+    // (`registry.COT_SYMBOL_MAP`). ONE object per load, so a memo keyed on it is stable.
+    cotSymbols: data?.cot_symbols && typeof data.cot_symbols === 'object' ? data.cot_symbols : null,
   }
 }
 
@@ -286,6 +289,7 @@ export default function useMarketIndicators() {
     rows: cache?.rows || [],
     families: cache?.families || [],
     dormant: cache?.dormant || [],
+    cotSymbols: cache?.cotSymbols || null,
     get: (sym) => (cache && sym ? cache.byKey.get(String(sym).toUpperCase()) || null : null),
     all: () => cache?.rows || [],
   }

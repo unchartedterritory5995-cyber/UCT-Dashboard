@@ -102,7 +102,9 @@ window.fetch = (input, init) => {
 }
 
 const LEGEND_PARAM = new URLSearchParams(location.search).get('legend')
-const SYM = 'AAPL'
+// The starting chart symbol (`?sym=`); `window.__setHarnessSym` switches it live —
+// the follow-the-chart COT indicator is accepted by switching symbols (2026-09-30).
+const SYM0 = (new URLSearchParams(location.search).get('sym') || 'AAPL').toUpperCase()
 // The starting chart timeframe. Calculation-timeframe and visibility passes switch
 // it on one page with the buttons below or `window.__setHarnessTf` (2026-09-28).
 const TF0 = 'D'
@@ -210,6 +212,8 @@ function Harness() {
   // A timeframe switch forgets the old bars first, so the chart never draws
   // one timeframe's bars under another's label.
   const setTF = useCallback((t) => { setBars(null); setBarsErr(null); setTFState(t) }, [])
+  const [SYM, setSymState] = useState(SYM0)
+  const setSym = useCallback((x) => { setBars(null); setBarsErr(null); setSymState(String(x).toUpperCase()) }, [])
 
   // Real bars off the running backend. No auth on /api/bars, and a failure here
   // is reported rather than silently substituted — a harness drawing fixture
@@ -221,11 +225,12 @@ function Harness() {
       .then((j) => { if (!dead) setBars(Array.isArray(j.bars) ? j.bars : []) })
       .catch((e) => { if (!dead) setBarsErr(String(e)) })
     return () => { dead = true }
-  }, [TF])
+  }, [TF, SYM])
   // Scripted passes switch the chart timeframe WITHOUT a reload (the settings
   // blob lives in this component's state; a reload would discard it).
   useEffect(() => {
     window.__setHarnessTf = setTF
+    window.__setHarnessSym = setSym
     window.__harnessCs = cs
     window.__setHarnessCs = setCs
   }, [cs])

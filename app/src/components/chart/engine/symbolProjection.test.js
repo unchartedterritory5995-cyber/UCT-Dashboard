@@ -205,3 +205,34 @@ describe('projectionFor — stable array identity', () => {
     clearProjectionFor(secondary)
   })
 })
+
+describe('⭐ one day, two spellings — an index chart (unix-midnight keys) and a dated series', () => {
+  // `/api/bars/SPX` keys its days as unix seconds at UTC midnight; COT, stocks and
+  // breadth key them `YYYY-MM-DD`. Without this a COT pane on SPX drew nothing.
+  const day = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 1000
+  const DAYS = ['2026-09-28', '2026-09-29', '2026-09-30']
+
+  it('a dated series lands on an index chart, day for day', () => {
+    const primary = DAYS.map((d) => ({ t: day(d), c: 6000 }))
+    const cot = [{ t: '2026-09-28', c: -5 }, { t: '2026-09-30', c: 7 }]
+    expect(projectSymbolField(cot, 'close', primary)).toEqual([-5, NaN, 7])
+  })
+
+  it('and the other way: an index lands on a dated chart', () => {
+    const primary = DAYS.map((d) => ({ t: d, c: 100 }))
+    const spx = DAYS.map((d, k) => ({ t: day(d), c: 6000 + k }))
+    expect(projectSymbolField(spx, 'close', primary)).toEqual([6000, 6001, 6002])
+  })
+
+  it('same-kind keys still join EXACTLY — an intraday number never becomes a day', () => {
+    const t0 = day('2026-09-30')
+    const primary = [{ t: t0 + 300 }, { t: t0 + 600 }]
+    const other = [{ t: t0, c: 1 }, { t: t0 + 600, c: 2 }]
+    expect(projectSymbolField(other, 'close', primary)).toEqual([NaN, 2])
+  })
+
+  it('a non-midnight number is never read as a day', () => {
+    const primary = [{ t: day('2026-09-30') + 3600 }]
+    expect(projectSymbolField([{ t: '2026-09-30', c: 1 }], 'close', primary)).toEqual([NaN])
+  })
+})
