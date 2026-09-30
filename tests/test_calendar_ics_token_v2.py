@@ -303,3 +303,41 @@ def test_no_token_ever_reaches_a_log_line(env, caplog):
         text = rec.getMessage() + " " + repr(rec.args) + " " + str(rec.exc_text or "")
         for secret in set(seen) | signatures:
             assert secret not in text, f"token material logged by {rec.name}: {text[:200]}"
+
+
+# ── TERM-084 (c): `scope=all` is bounded, measured by an ANONYMOUS request ────
+
+def _anon_all(env, n):
+    rows = [(f"S{i:04d}", f"2026-10-{1 + i % 28:02d}", "bmo") for i in range(n)]
+    rows.sort(key=lambda x: (x[1], x[0]))
+    with mock.patch("api.routers.calendar._collect_reporters_for_ics", return_value=rows):
+        r = TestClient(env["client"].app).get("/api/calendar/export.ics",
+                                              params={"scope": "all"}, cookies={})
+    assert r.status_code == 200, r.text
+    return r.text, rows
+
+
+def test_an_anonymous_scope_all_is_capped_and_says_so(env):
+    cap = env["cal"].ICS_ALL_MAX_EVENTS
+    body, rows = _anon_all(env, cap + 250)
+    assert body.count("BEGIN:VEVENT") == cap + 1            # the cap + one truncation notice
+    assert f"showing the next {cap} of {cap + 250}" in body
+    first = rows[0][0]
+    assert f"{first}" in body                                # nearest reports kept
+    assert rows[-1][0] not in body                           # the far end is what is cut
+
+
+def test_under_the_cap_nothing_is_cut_and_no_notice_is_added(env):
+    body, rows = _anon_all(env, 40)
+    assert body.count("BEGIN:VEVENT") == 40
+    assert "showing the next" not in body
+
+
+def test_the_cap_does_not_touch_scope_mine(env):
+    cap = env["cal"].ICS_ALL_MAX_EVENTS
+    rows = [(f"M{i:04d}", "2026-10-01", "bmo") for i in range(cap + 5)]
+    with mock.patch("api.routers.calendar._collect_reporters_for_ics", return_value=rows):
+        r = env["client"].get("/api/calendar/export.ics",
+                              params={"scope": "mine", "token": _legacy(U1)})
+    assert r.status_code == 200
+    assert r.text.count("BEGIN:VEVENT") == cap + 5
