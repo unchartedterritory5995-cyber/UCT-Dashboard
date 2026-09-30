@@ -421,3 +421,105 @@ def test_the_seed_check_reports_drift_from_the_live_v1_stores(monitor):
     chk = ba.seed_check()
     assert chk["sessions"] == 5 and chk["ad"] == 50.0
     assert chk["ad_seed_matches"] is False and chk["lineage_matches"] is False      # a fixture, not production
+
+
+
+# ── US: independent authority over the full V2 history (owner ruling 2026-09-29) ─────────
+@pytest.fixture
+def us_store(monitor, monkeypatch):
+    """V1 `us` rows (the defective-population store) + the four V1-only volume metrics."""
+    from api.services import breadth_daily_ohlc as ohlc
+    rows = [(d, m, 1.0, 2.0, 0.5, 1.5) for d in SESSIONS for m in ("pct_above_50sma", "advancing", "declining",
+                                                                   "adv_decline", "universe_count") + ba.US_WITHHELD]
+    monkeypatch.setattr(ohlc, "compat_index_present", lambda c=None: False)
+    ohlc.write_bulk(rows, source="close_recon", universe="us")
+    return ohlc
+
+
+def test_us_stays_v1_while_its_own_gate_is_unset(us_store, monkeypatch):
+    monkeypatch.delenv("BREADTH_AUTHORITY_US", raising=False)
+    assert ba.us_mode() == "v1" and ba.in_force()                   # UCT is V2, US is not
+    h = us_store.history("pct_above_50sma", universe="us")
+    assert set(h) == set(SESSIONS) and all(v["c"] == 1.5 for v in h.values())
+    assert us_store.history("up_vol_ratio", universe="us")["2026-09-24"]["c"] == 1.5
+    assert ba.universe_history("pct_above_50sma", "us") is None
+
+
+def test_us_v2_owns_the_whole_history_with_no_uct_boundary_and_no_gaps(us_store, monkeypatch):
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    h = us_store.history("pct_above_50sma", universe="us")
+    assert set(h) == set(SESSIONS)                                  # 03-24/08-31/09-23 are NOT us gaps
+    for d in SESSIONS:
+        assert h[d]["c"] == _val(d, "pct_above_50sma")              # V2, never the V1 1.5
+    assert us_store.dates_since("us", "2026-09-01") == [d for d in SESSIONS if d >= "2026-09-01"]
+    assert ba.universe_history("pct_above_50sma", "uct") is None     # the store hook never reroutes uct
+
+
+@pytest.mark.parametrize("m", ba.US_WITHHELD)
+def test_the_four_v1_only_volume_metrics_are_withheld_under_v2(us_store, monkeypatch, m):
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    assert us_store.history(m, universe="us") == {}                 # unavailable — not V1, not zero
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v1")
+    assert us_store.history(m, universe="us")["2026-09-24"]["c"] == 1.5   # V1 exactly as before
+
+
+def test_us_live_publications_extend_the_tail(us_store, monkeypatch):
+    b, e = _pub(d="2026-09-25")
+    ba.adopt_publication(b, e)
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    h = us_store.history("pct_above_50sma", universe="us")
+    assert h["2026-09-25"]["c"] == 1.5 and max(h) == "2026-09-25"   # the live publication's us row
+    assert "2026-09-25" in us_store.dates_since("us", "2026-09-20")
+
+
+def test_uct_is_byte_identical_whatever_the_us_gate_says(us_store, monitor, monkeypatch):
+    import json as _j
+    from api.services import breadth_symbols as bs
+    out = {}
+    for us in ("v1", "v2"):
+        monkeypatch.setenv("BREADTH_AUTHORITY_US", us)
+        ba._DERIVED_MEMO.clear()
+        rows = monitor.get_history(15)
+        mc = bs._build_breadth_series("UCTMC", "mcclellan_osc")
+        out[us] = _j.dumps([rows, mc], sort_keys=True, default=str)
+    assert out["v1"] == out["v2"]
+
+
+def test_the_token_is_unchanged_while_us_is_v1_and_moves_when_it_switches(v2, monkeypatch):
+    monkeypatch.delenv("BREADTH_AUTHORITY_US", raising=False)
+    t1 = ba.token()
+    assert t1.startswith("v2:") and not t1.endswith("us-v2")
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    assert ba.token() == t1 + ":us-v2"
+    monkeypatch.setenv("BREADTH_AUTHORITY", "v1")
+    assert ba.token().startswith("v1:") and ba.token().endswith(":us-v2")     # US alone still keyed
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v1")
+    assert ba.token() == "v1"
+
+
+def test_us_market_indicators_recompute_from_v2_and_are_window_independent(us_store, monkeypatch):
+    from api.services.market_indicators import producers as mp
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    ad = mp.ad_line_for_universe("us")
+    run, want = 0.0, {}
+    for d in SESSIONS:
+        run += _val(d, "adv_decline")
+        want[d] = run
+    assert dict(zip(ad.dates, ad.values)) == want                  # full V2 history, from 0
+    z = mp.zweig_for_universe("us")
+    assert z.dates == SESSIONS and all(v is not None for v in z.values)
+    # the loaders read the WHOLE history regardless of any display window
+    full = mp.load_pair("advancing", "declining", "us")
+    short = mp.load_pair("advancing", "declining", "us", limit=3)
+    assert full[0][-3:] == short[0] and full[1][-3:] == short[1]
+    assert mp._authority_suffix().endswith(":us-v2")
+
+
+def test_breadth_deep_history_is_never_served_immutable(monkeypatch):
+    from api.routers import bars as br
+    from api.services import breadth_symbols as bs
+    bars = [{"t": "2026-09-%02d" % i, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0} for i in (21, 22, 23, 24, 25)]
+    monkeypatch.setattr(bs, "is_breadth_symbol", lambda t: t == "USA50")
+    monkeypatch.setattr(bs, "build_breadth_bars", lambda *a, **k: {"bars": bars})
+    r = br.serve_bars_history("USA50", "D", 400, "", "2026-09-24")
+    assert "immutable" not in r.headers["Cache-Control"]

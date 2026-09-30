@@ -1,9 +1,20 @@
-# promotion-gate: no — ADVISORY, and it says why in two lines. (1) It has never run on a
-#   GitHub runner: every check that gates promotion here was seen RED once and GREEN once
-#   on CI first (the Discord-render golden, the three notebook gates), and this one has not
-#   been. (2) A gating TERM-018 would also refuse a ROLLBACK: reverting a commit that added
-#   an observed guard deletes its site, and clause 1 goes red on exactly the push meant to
-#   restore production. Flipping this marker to `yes` is the owner's call, with (2) named.
+# promotion-gate: yes — owner ruling 2026-09-29 ("make it blocking"), with the rollback cost
+#   named to the owner before the ruling (below). Both conditions of the old advisory note are met:
+#   SEEN GREEN https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36639030189
+#     (master 3fb184cdf; the check had passed 67 of 67 runs across every branch)
+#   SEEN RED   https://github.com/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/36641866414
+#     (throwaway probe/term018-red b152be4d, owner-approved and deleted: one unrecorded
+#     chart_health_alerts.emit site -> "GUARDS WITH NO RED-BEFORE-GREEN OBSERVATION AND NO
+#     DECLARATION: api/services/term018_red_probe.py::probe::term018_red_probe::warning")
+#
+# ⛔ A RED HERE ON A MASTER COMMIT REFUSES PROMOTION (tools/promotion_gate.py) — AND THAT INCLUDES
+#   A ROLLBACK: reverting a commit that added an observed guard deletes its site, and clause 1 goes
+#   red on exactly the push meant to restore production. Recovery, in order:
+#     * a flake or infrastructure failure: `gh run rerun <run-id> --failed`, then promote by hand:
+#       `gh workflow run promote-production.yml -f sha=<sha>`
+#     * a rollback that removes an observed guard: take its row out of
+#       docs/terminal-research/12-decisions/gates/term-018-guard-observations.json in the SAME revert commit (edit
+#       as text), or promote the revert SHA by hand with the command above.
 # TERM-018 / FB-OBS-09 — "Prove every guard can fire. A shipping precondition."
 #
 # Runs `tests/test_term018_every_guard_can_fire.py`: every guard on the ops alert channel

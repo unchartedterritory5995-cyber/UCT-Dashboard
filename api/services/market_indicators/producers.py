@@ -300,7 +300,18 @@ def invalidate(key: Optional[str] = None) -> None:
 def build(series_id: str):
     """`registry` id → `DerivedSeries`, or None. The one door the serving layer uses."""
     sid = (series_id or "").strip().upper()
-    return _cached(f"derived::{sid}", lambda: _build_uncached(sid))
+    return _cached(f"derived::{sid}{_authority_suffix()}", lambda: _build_uncached(sid))
+
+
+def _authority_suffix() -> str:
+    """'' under V1 (keys unchanged); the Breadth authority token when V2 owns a universe, so a
+    switch or a rollback can never serve an indicator built under the other authority."""
+    try:
+        from api.services import breadth_authority as ba
+        t = ba.token()
+        return "" if t == "v1" else "::" + t
+    except Exception:
+        return ""
 
 
 def _build_uncached(sid: str) -> Optional[DerivedSeries]:
