@@ -267,6 +267,10 @@ SCHEDULE = (
     # below (20:20 UTC in EDT, 21:20 UTC in EST), because that cron lives in Railway's
     # service config and nothing in this repo can change it.
     ("cadence",    lambda d: True,  16, 20),   # daily 16:20 ET
+    # Owner ruling 2026-09-30: log the whole options universe forward, every trading
+    # day. Weekdays 16:30 ET (after the 16:15 options close), INSIDE the existing cron
+    # (20:30 UTC in EDT, 21:30 UTC in EST). ~13 min measured; holidays skip themselves.
+    ("options-log", lambda d: d < 5, 16, 30),  # weekdays 16:30 ET
 )
 
 #: The Railway cron that must cover every row above, in UTC, both halves of the
@@ -282,16 +286,33 @@ def due_jobs(now: dt.datetime | None = None) -> list[str]:
             if when(n.weekday()) and n.hour == h and n.minute == m]
 
 
+def job_options_log():
+    """Owner ruling 2026-09-30: record the whole options universe forward (see
+    api/services/options_universe_log.py). A configuration failure is an ALERT post,
+    never a crashed cron run that says nothing."""
+    from api.services import options_universe_log as log
+    try:
+        return log.receipt_text(log.run())
+    except Exception as e:  # noqa: BLE001 -- surfaced as an alert, by name
+        return ("Options log: FAILED", f"{type(e).__name__}: {e}", True)
+
+
 JOBS = {
     "ticking": job_ticking,
     "catalyst": job_catalyst_receipt,
     "gate-check": job_gate_check,
     "weekly": job_weekly,
     "cadence": job_cadence_rollup,
+    "options-log": job_options_log,
 }
 
 #: Jobs behind their own flag. A dark job reads nothing and posts nothing.
-JOB_GATES = {"cadence": rollup_enabled}
+def _options_log_enabled() -> bool:
+    from api.services import options_universe_log
+    return options_universe_log.is_enabled()
+
+
+JOB_GATES = {"cadence": rollup_enabled, "options-log": _options_log_enabled}
 #: Jobs whose channel is the TERM-011 OPS destination rather than the admin read.
 OPS_ROUTED_JOBS = frozenset({"cadence"})
 
