@@ -204,14 +204,18 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       'if w.size() > 0',
       '    label.new(bar_index, w.last(), "x")',
     ].join('\n') + '\n'))
-    it('an index that moves as a growing window fills (`first` of a pushed window)', () => refusedWith([
+    // ⚰️ `first` of a growing push window was refused here until C11c — its slot
+    // moves as the window fills, and C11c reads it as a pick over the window's
+    // length (`objectWindowReductions.test.js`). A literal index outside the
+    // window's slots is still an index that names nothing.
+    it('a literal index outside the window\'s slots', () => refusedWith([
       'var w = array.new_float()',
       'if close > open',
       '    w.push(high)',
       'if w.size() > 3',
       '    w.shift()',
       'if w.size() > 0',
-      '    label.new(bar_index, w.first(), "x")',
+      '    label.new(bar_index, w.get(3), "x")',
     ].join('\n') + '\n'))
     it('a window shortened by ANOTHER array\'s length that is not filled in step with it', () => refusedWith([
       'upd(a, b) =>',
@@ -228,13 +232,16 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       'if wb.size() > 0',
       '    label.new(bar_index, wb.get(0), "x")',
     ].join('\n') + '\n'))
-    it('a reduction it does not fold (`max`)', () => refusedWith([
+    // ⚰️ `max` was this rail's reduction until C11c folded `max`/`min`/`sum`/`avg`
+    // and `indexof` (withheld on a bar an element is na). `median` sorts, and
+    // what Pine answers over an na element is as unmeasured — not folded.
+    it('a reduction it does not fold (`median`)', () => refusedWith([
       'var w = array.new_float(3)',
       'if close > open',
       '    w.push(high)',
       '    w.shift()',
       'if not na(w.first())',
-      '    label.new(bar_index, w.max(), "x")',
+      '    label.new(bar_index, w.median(), "x")',
     ].join('\n') + '\n'))
   })
 })

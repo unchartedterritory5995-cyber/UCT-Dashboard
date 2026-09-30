@@ -774,6 +774,11 @@ export function beginObjects(program, ctx) {
       return 'ok'
     }
 
+    /** ⭐ C11c — is this step's value unmeasured on this bar? (`op.withhold`: a
+     *  window reduction over an `na` element or an empty window, whose answer
+     *  no capture pins.) Withheld and counted, never run off a guess. */
+    const withheldAt = (op) => op.withhold != null && truthy(value(op.withhold))
+
     /** Does this guard read a latch whose condition was unknowable? */
     const readsUnknownLatch = (v, depth = 0) => {
       if (!isObj(v) || v.v === 'graph' || v.v === 'tree' || depth > 32) return false
@@ -845,7 +850,7 @@ export function beginObjects(program, ctx) {
       // unknowable condition (the warm-up curtain) is remembered as unknown, and
       // every op reading it is withheld and counted below, never run off a guess.
       if (op.k === 'latch') {
-        latches.set(op.id, unknownAt(op, bar) ? LATCH_UNKNOWN : truthy(value(op.cond)))
+        latches.set(op.id, unknownAt(op, bar) || withheldAt(op) ? LATCH_UNKNOWN : truthy(value(op.cond)))
         continue
       }
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
@@ -865,7 +870,7 @@ export function beginObjects(program, ctx) {
       // than values so that object state can never leak into the pure graph.
       if (op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) { withheldUnknown += 1; continue }
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when) || withheldAt(op)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
       if (op.k !== 'loop') {
         const at = atCheck(op)
