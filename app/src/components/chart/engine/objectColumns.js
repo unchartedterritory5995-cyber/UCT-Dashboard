@@ -26,7 +26,7 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret, maxLookback } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor } from './nativeRegistry'
+import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -281,7 +281,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   for (const node of wanted) {
     try {
       const tree = intern(fold(nodeTree(graph, node)))
-      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null }
+      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
       columns.set(node, col)
       const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
@@ -399,6 +400,10 @@ export function objectReaderFor(definition, bars, opts = {}) {
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
     newestBarIsForming: opts.newestBarIsForming ?? null,
+    // ⭐ C12w — the listing exception, decided by the SAME gate the plot lane
+    // asks (`historyFromListingFor`), so an object and the plot beside it can
+    // never read two different answers about where the series starts.
+    historyFromListing: historyFromListingFor(definition, opts),
     fold,
   }
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
@@ -436,7 +441,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   for (const i of graphNodesReferenced(bound)) {
     try {
       const tree = intern(fold(trees[i]))
-      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming }
+      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+        ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
       columns.set(i, col)
       const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)

@@ -35,6 +35,7 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
+import { historyFromListingOf } from './chart/engine/listingSeed'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -8281,6 +8282,15 @@ export default function StockChart({
     return { date: first.t, low, listDate: String(ld).slice(0, 10) }
   }, [ipoInfo?.list_date, cs.markers?.ipo, resolvedTf, filteredBars, _bucketEventDate])
 
+  // ⭐⭐ C12w — DOES THE SERIES THE ENGINE COMPUTES ON START AT THE LISTING BAR?
+  // Ruling R-W: only then may a translated Pine `var` seed from bar 0 and lift the
+  // warm-up curtain. The rule lives in `listingSeed.historyFromListingOf` — daily,
+  // exact date equality, read off the SAME `filteredBars` the binder receives —
+  // never the IPO badge's five-day tolerance above, which only labels a candle.
+  const historyFromListing = useMemo(() => historyFromListingOf({
+    bars: filteredBars, tf: resolvedTf, listDate: ipoInfo?.list_date,
+  }), [filteredBars, resolvedTf, ipoInfo?.list_date])
+
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
     if (!filteredBars?.length) return null
@@ -12579,6 +12589,10 @@ export default function StockChart({
         // ⭐ It rides WITH the payload it describes, so a cached or delta response
         // carries the state of ITS OWN newest bar rather than of the wall clock.
         newestBarIsForming: data?.newest_bar_is_forming ?? null,
+        // ⭐ C12w — the listing statement (see `historyFromListing` above). The
+        // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
+        // another translator keeps its bounded window whatever this says.
+        historyFromListing,
         adjustTime,
         applyData: _applyData,
         // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
@@ -13599,7 +13613,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, historyFromListing, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

@@ -43,15 +43,19 @@ const capture = () => {
 
 afterEach(() => { vi.unstubAllEnvs() })
 
-function memberRun(cap) {
+function memberRun(cap, { listing = false } = {}) {
   // an objects-only script: the member door serves it through the objects-only
   // pane, ARMED in production (`VITE_PINE_OBJECTS_ONLY_PANE_ENABLED`)
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   const bars = toProductBars(cap)
   const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c17_rsi_swing', name: 'rsi swing' })
   expect(d.ok, d.reason).toBe(true)
+  // `listing`: the series is stated to start at the symbol's first-ever bar
+  // (C12w, ruling R-W) — the capture's `history.startsAtBar0`. Without it the
+  // warm-up curtain stands, which is every chart that does not start there.
   const reader = objectReaderFor(d.definition, bars, {
     tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: cap.newestBarIsForming ?? null,
+    ...(listing ? { historyFromListing: true } : {}),
   })
   const run = evaluateObjects(reader.program, {
     barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
@@ -114,5 +118,22 @@ describe('C17 — rsi-swing-indicator: every object drawn is TradingView\'s', ()
     expect(run.withheld).toEqual({ label: 2, line: 1 })
     expect(run.stats.objectsTainted).toBe(3)
     expect(run.stats.created).toBe(16) // ids stay TradingView's order: nothing skipped
+  })
+
+  it('⭐ from the listing (C12w) there is no curtain, no mark forms, and ALL 11 + 11 are TradingView\'s, id for id', () => {
+    const cap = capture()
+    expect(cap.history.startsAtBar0).toBe(true)
+    const { run } = memberRun(cap, { listing: true })
+    expect(run.stats.objectsTainted).toBeUndefined()
+    expect(run.stats.withheldTainted).toBeUndefined()
+    const vLabels = [...cap.objects.records.labels].sort((a, b) => a.id - b.id)
+    const vLines = [...cap.objects.records.lines].sort((a, b) => a.id - b.id)
+    const labels = run.live.filter((o) => o.family === 'label')
+    const lines = run.live.filter((o) => o.family === 'line')
+    expect(labels.map((o) => [o.id, o.props.y, o.props.text, o.props.yloc]))
+      .toEqual(vLabels.map((l) => [l.id, l.y, l.t, YLOC[l.yl]]))
+    // the first line's x2/y2 read an empty handle: `na`, as TradingView's `null`
+    expect(lines.map((o) => [o.id, o.props.y1, Number.isNaN(o.props.y2) ? null : o.props.y2]))
+      .toEqual(vLines.map((l) => [l.id, l.y1, l.y2]))
   })
 })

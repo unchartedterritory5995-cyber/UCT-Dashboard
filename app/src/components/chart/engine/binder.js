@@ -655,6 +655,9 @@ export function createBinder({ chart, LWC }) {
         const reader = objectReaderFor(def, bars, {
           inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
           newestBarIsForming: ctx.newestBarIsForming ?? null,
+          // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
+          // document's own declaration is asked inside `objectReaderFor`.
+          ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
         })
         if (!reader) return null
         const run = evaluateObjects(reader.program, {
@@ -706,7 +709,9 @@ export function createBinder({ chart, LWC }) {
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}`
+      // ⭐ C12w — and whether the series was read from its listing bar: the same
+      // bars can draw a different picture once that statement arrives.
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -1152,7 +1157,11 @@ export function createBinder({ chart, LWC }) {
       // key for the day one takes two.
       const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
 
+      // ⭐ C12w — the listing statement is part of what the columns were computed
+      // from: it can arrive AFTER the bars (the listing date is its own fetch), and
+      // a memo keyed only on the bars would keep the curtained columns.
       const sig = inputsSignature(inst.inputs) + sourceSig
+        + (!frame && ctx.historyFromListing === true ? '|listing' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
@@ -1193,7 +1202,11 @@ export function createBinder({ chart, LWC }) {
             source: primarySource, sources: sourceCols,
             newestBarIsForming: frame
               ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
-              : (ctx.newestBarIsForming ?? null) }))
+              : (ctx.newestBarIsForming ?? null),
+            // ⭐ C12w — ONLY the chart's own series can start at the listing
+            // bar: a framed instance computes on its frame's bars, which the
+            // caller's statement does not describe.
+            ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}) }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
