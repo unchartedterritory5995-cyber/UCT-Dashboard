@@ -195,8 +195,14 @@ describe('the program carries the runtime part as data, validated', () => {
   })
 
   it('⛔ a document whose objects read the runtime lane is never compacted to a graph', () => {
-    const d = door(WHILE_SUM)
+    // two plots, so the document IS one a graph could hold — the control proves it
+    const d = door('plot(close)\nplot(open)\n' + WHILE_SUM)
+    expect(d.definition.objects.runtime).toBeTruthy()
     const r = toGraphDocument(d.definition)
     expect(r.ok).toBe(false)
+    expect(r.reason).toMatch(/runtime lane/)
+    // ⛔ CONTROL — the same document without its runtime part compacts
+    const plain = { ...d.definition, objects: null }
+    expect(toGraphDocument(plain).ok).toBe(true)
   })
 })
