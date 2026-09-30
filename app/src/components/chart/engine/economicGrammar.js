@@ -28,7 +28,9 @@
 // Kept dependency-free so `sourceRef`, `gapRuns` and `fundamentalFormat` can
 // read it without joining the fetch/cache layer's import graph.
 
-export const ECON_MARK = 'econ:'
+import { ECON_MARK, parseEconomicSource } from './econMark'
+
+export { ECON_MARK, parseEconomicSource }
 /** The canonical id namespace the API speaks (`ECON:USCPI`). */
 export const ECON_NAMESPACE = 'ECON'
 
@@ -53,15 +55,6 @@ export function economicSource(symbol) {
  * `fund:`. `ECON:USCPI` is the API's canonical ID, not a source string; use
  * `economicSymbolOf` to read either.
  */
-export function parseEconomicSource(value) {
-  if (typeof value !== 'string' || !value.startsWith(ECON_MARK)) return null
-  const body = value.slice(ECON_MARK.length)
-  // No field, no nesting, no whitespace inside: `econ:AAPL:close`, `econ:`,
-  // `econ: USCPI` and `econ:US CPI` are all unreadable.
-  if (!body || body.includes(':') || /\s/.test(body)) return null
-  const symbol = _symbol(body)
-  return symbol ? { kind: 'economic', symbol } : null
-}
 
 /** Any spelling a caller may hold — `econ:USCPI`, `ECON:USCPI`, `USCPI` — to the
  *  bare registry symbol; null when it is none of them. For the fetch layer and a

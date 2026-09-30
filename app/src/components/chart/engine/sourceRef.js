@@ -2,7 +2,7 @@ import { SOURCE_BAR_FIELDS } from './defSchema'
 import { bindingKey } from './pool'
 import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
-import { ECON_MARK, parseEconomicSource } from './economicGrammar'
+import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
 
 function fundamentalOptionLabel(p) {
@@ -222,8 +222,7 @@ export function parseSource(value) {
     // symbol-less -- `{kind:'economic', symbol}`, a kind no bars/fundamental/
     // breadth reader matches, so it can never be fetched as a ticker. Malformed
     // (`econ:`, `econ:AAPL:close`) is `null`, never Close.
-    if (value.startsWith(ECON_MARK)) return parseEconomicSource(value)
-    return SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null
+    return parseEconomicSource(value) || (SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null)
   }
   const body = value.slice(1)
   const at = body.lastIndexOf(SEP)
@@ -561,6 +560,12 @@ export function wouldCycle(instances, defOf, instanceId, value) {
  * @param {string} selfInstanceId the instance the control belongs to
  * @returns {{label: string, options: {value: string, label: string}[]}[]}
  */
+const CURRENT_VALUE_GROUP = {
+  symbol: ['Symbol', (p) => symbolSourceLabel(p)],
+  economic: ['Economic', (p) => p.symbol],
+  fundamental: ['Fundamental', (p) => fundamentalOptionLabel(p)],
+}
+
 export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
   const groups = [{
     label: 'Price data',
@@ -575,25 +580,11 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
   // purpose (that is a later phase), so the current value is offered as itself,
   // which is the smallest thing that is correct.
   const cur = parseSource(currentValue)
-  if (cur && cur.kind === 'symbol') {
-    groups.push({
-      label: 'Symbol',
-      options: [{ value: currentValue, label: symbolSourceLabel(cur) }],
-    })
-  }
-  // Same rule for a fundamental: the stored value must be representable, or the
-  // select would blank it and the next change would overwrite it.
-  if (cur && cur.kind === 'economic') {
-    groups.push({ label: 'Economic', options: [{ value: currentValue, label: cur.symbol }] })
-  }
-  if (cur && cur.kind === 'fundamental') {
-    groups.push({
-      label: 'Fundamental',
-      // ⭐ The catalogue's NAME (`Revenue (Quarterly)`), never the storage id;
-      // the id only while the catalogue has not loaded.
-      options: [{ value: currentValue, label: fundamentalOptionLabel(cur) }],
-    })
-  }
+  // Same rule for every family whose value names something outside this chart: the
+  // stored value is offered as itself (a fundamental with its catalogue NAME, never the
+  // storage id; an economic series by its symbol). One table, so each family costs a row.
+  const g = cur && CURRENT_VALUE_GROUP[cur.kind]
+  if (g) groups.push({ label: g[0], options: [{ value: currentValue, label: g[1](cur) }] })
 
   const instances = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
   const indicators = []
@@ -658,8 +649,7 @@ function sourceStem(def, instance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null
   const parsed = parseSource(sources[0][1])
-  if (parsed && parsed.kind === 'economic') return parsed.symbol
-  return parsed && parsed.kind === 'symbol' ? parsed.symbol : null
+  return parsed && (parsed.kind === 'symbol' || parsed.kind === 'economic') ? parsed.symbol : null
 }
 
 /**
