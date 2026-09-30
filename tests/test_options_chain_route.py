@@ -63,3 +63,27 @@ def test_the_auth_payload_carries_the_flag(monkeypatch):
     assert auth._options_chain_enabled() is False
     monkeypatch.setenv(oc.ENABLED_ENV, "1")
     assert auth._options_chain_enabled() is True
+
+
+def test_expirations_walk_past_the_first_page(monkeypatch):
+    """Measured 2026-09-29: 1,000 SPY contracts covered only THREE expirations, so the member's
+    picker offered Wed/Thu/Fri and nothing else. The list walks forward past the last date seen."""
+    from api.services import polygon_options as po
+    monkeypatch.setattr(po, "_CACHE", po.TTLCache())
+    dates = [f"2026-10-{d:02d}" for d in range(1, 29)]           # 28 expirations
+    calls = []
+
+    def fake_get(url, params=None):
+        calls.append(dict(params))
+        after = params.get("expiration_date.gt")
+        todo = [d for d in dates if not after or d > after]
+        rows = [{"expiration_date": d} for d in todo[:3] for _ in range(334)][:1000]   # a full page = 3 dates
+        return {"results": rows}
+
+    monkeypatch.setattr(po, "_safe_get", fake_get)
+    out = po.list_expirations("SPY")
+    assert out["expirations"] == dates                            # every date, in order, no repeats
+    assert out["count"] == 28
+    assert calls[0].get("expiration_date.gte") and "expiration_date.gt" not in calls[0]
+    assert calls[1]["expiration_date.gt"] == "2026-10-03"         # starts past the last date seen
+    assert len(calls) <= po._EXP_QUERIES
