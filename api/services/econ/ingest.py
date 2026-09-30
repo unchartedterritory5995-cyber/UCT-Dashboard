@@ -622,6 +622,13 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
     _archive_results(out, archive_todo, purpose, store)
     ents = _registry_entries(entries)
     derived_specs = downstream_derived(touched, ents) if touched else []
+    if purpose == "backfill":
+        # A NEWLY ENABLED derived series whose parents were already stored (unchanged here)
+        # has never been computed: derive it now. Idempotent -- derive writes only differences.
+        have = {d["symbol"] for d in derived_specs}
+        for d in downstream_derived([_g(sp, "symbol") for sp in specs], ents):
+            if d["symbol"] not in have and store.period_bounds(d["symbol"])["count"] == 0:
+                derived_specs.append(d); have.add(d["symbol"])
     for d in derived_specs:
         cur.update_series_ops(store, d["symbol"], now, publish_pending_at=now)
         try:

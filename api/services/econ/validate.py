@@ -271,7 +271,7 @@ def check_partial(obs: list[RawObs], stored: dict, start: Optional[str], end: Op
     return []
 
 
-def check_plausibility(obs: list[RawObs], stored: dict) -> list[str]:
+def check_plausibility(obs: list[RawObs], stored: dict, exempt: Optional[set] = None) -> list[str]:
     """|period-over-period change| of a NEW or CHANGED value vs the series' own
     history of changes: beyond 12 sigma -> quarantine."""
     merged = {p: (float(r.value) if r.value is not None else None) for p, r in stored.items()}
@@ -303,7 +303,7 @@ def check_plausibility(obs: list[RawObs], stored: dict) -> list[str]:
             continue
         d = merged[p] - merged[order[i - 1]]
         z = abs(d - mu) / sd
-        if z > PLAUSIBILITY_SIGMA:
+        if z > PLAUSIBILITY_SIGMA and p not in (exempt or ()):
             bad.append((p, z))
     if bad:
         worst = max(bad, key=lambda x: x[1])
@@ -349,7 +349,12 @@ def validate_fetch(spec, fetch_result, store, *, now: Optional[float] = None, mo
     reasons += check_mutation(spec, obs, stored)
     if mode == "history":
         reasons += check_partial(obs, stored, start, end, spec, covered_periods=covered_periods)
-    reasons += check_plausibility(obs, stored)
+    # A registry-declared, evidenced exemption for ONE real historical period (e.g. the Sep-1945
+    # war-production collapse in manufacturing payrolls): that period alone skips the sigma
+    # rule; every other period of the series is still checked.
+    _val = (spec.get("validation") if isinstance(spec, dict) else getattr(spec, "raw", {}).get("validation")) or {}
+    _ex = {e.get("period") for e in (_val.get("plausibility_exempt") or []) if isinstance(e, dict) and e.get("evidence")}
+    reasons += check_plausibility(obs, stored, exempt=_ex)
     if reasons:
         return [], _dedupe(reasons)
     return obs, []
