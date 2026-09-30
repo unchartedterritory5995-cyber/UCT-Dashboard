@@ -96,6 +96,25 @@ def m3_remove_reviewed(text):
     return text.replace(needle, "", 1)
 
 
+def m4_drop_l8(text):
+    """Drop L8 from CHAIN entirely (round 2: the controller-note landing)."""
+    needle = '    ("L8", "6f563c158", "wave 10 L8 #255"),\n'
+    assert needle in text, "L8 CHAIN line not found"
+    return text.replace(needle, "", 1)
+
+
+def m5_remove_fundamentals_reviewed(text):
+    """Remove the Fundamentals V5 (cd9ecc833) REVIEWED_NOT_LANDINGS entry entirely (round 2)."""
+    needle = (
+        '    "cd9ecc83333ab0ffaf64b2185aab0d6d1b6c6fd3":\n'
+        '        "Fundamentals V5 cutover foundation, dark (no flag set, no V5 object published); touches "\n'
+        '        "only api/main.py, removing the web pod\'s own lifespan registration of the "\n'
+        '        "fundamentals_pit scheduler (moved to the worker pod), no Notebook route touched",\n'
+    )
+    assert needle in text, "cd9ecc833 REVIEWED_NOT_LANDINGS entry not found"
+    return text.replace(needle, "", 1)
+
+
 results = {}
 results["drop_L7_from_CHAIN"] = mutate_and_check(
     "drop_L7_from_CHAIN", m1_drop_l7,
@@ -105,6 +124,16 @@ results["tamper_new_pin"] = mutate_and_check(
     "tests/test_notebook_rollback_chain.py::test_rebuilding_from_MEASURED_AT_reproduces_the_rehearsed_trees")
 results["remove_reviewed_ruling"] = mutate_and_check(
     "remove_reviewed_ruling", m3_remove_reviewed,
+    "tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed")
+results["drop_L8_from_CHAIN"] = mutate_and_check(
+    # NOT test_the_chain_names_every_notebook_landing_up_to_MEASURED_AT: L8 is a
+    # CHAIN_BY_PATH_ONLY entry (never subject-selected), so its `by_subject`/`named_by_subject`
+    # comparison never mentions it either way -- that test cannot see this mutation. The test that
+    # DOES is the one asserting MEASURED_AT's own sha is in CHAIN, which L8 IS (MEASURED_AT == L8).
+    "drop_L8_from_CHAIN", m4_drop_l8,
+    "tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed")
+results["remove_fundamentals_reviewed_ruling"] = mutate_and_check(
+    "remove_fundamentals_reviewed_ruling", m5_remove_fundamentals_reviewed,
     "tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed")
 
 print("\n".join(LOG))
