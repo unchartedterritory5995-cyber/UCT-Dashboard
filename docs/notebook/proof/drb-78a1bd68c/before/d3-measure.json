@@ -1,0 +1,745 @@
+{
+ "tip": "78a1bd68c",
+ "instrument": "drb_d3_measure.py",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\drb-data",
+ "port": 8243,
+ "note": "DRB D3 check note",
+ "widths": {
+  "390-returning": {
+   "title_rect": [
+    60,
+    533,
+    270,
+    34
+   ],
+   "root_top": 253,
+   "rows_above_title": 5,
+   "controls_above_title": 14,
+   "rows": [
+    {
+     "row": 1,
+     "top": 261,
+     "bottom": 305,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ],
+      [
+       108,
+       67
+      ],
+      [
+       183,
+       62
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 313,
+     "bottom": 357,
+     "names": [
+      "Folder",
+      "Ticker",
+      "Outline"
+     ],
+     "x_w": [
+      [
+       56,
+       92
+      ],
+      [
+       156,
+       84
+      ],
+      [
+       248,
+       77
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 365,
+     "bottom": 409,
+     "names": [
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 421,
+     "bottom": 465,
+     "names": [
+      "Undo",
+      "Redo",
+      "Aa Format",
+      "B",
+      "I"
+     ],
+     "x_w": [
+      [
+       62,
+       47
+      ],
+      [
+       111,
+       47
+      ],
+      [
+       159,
+       78
+      ],
+      [
+       240,
+       44
+      ],
+      [
+       286,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 467,
+     "bottom": 511,
+     "names": [
+      "\u2022 List",
+      "Start voice input"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    44,
+    302
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     56,
+     365,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "390-first_visit": {
+   "title_rect": [
+    60,
+    533,
+    270,
+    34
+   ],
+   "root_top": 253,
+   "rows_above_title": 5,
+   "controls_above_title": 14,
+   "rows": [
+    {
+     "row": 1,
+     "top": 261,
+     "bottom": 305,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ],
+      [
+       108,
+       67
+      ],
+      [
+       183,
+       62
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 313,
+     "bottom": 357,
+     "names": [
+      "Folder",
+      "Ticker",
+      "Outline"
+     ],
+     "x_w": [
+      [
+       56,
+       92
+      ],
+      [
+       156,
+       84
+      ],
+      [
+       248,
+       77
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 365,
+     "bottom": 409,
+     "names": [
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       56,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 4,
+     "top": 421,
+     "bottom": 465,
+     "names": [
+      "Undo",
+      "Redo",
+      "Aa Format",
+      "B",
+      "I"
+     ],
+     "x_w": [
+      [
+       62,
+       47
+      ],
+      [
+       111,
+       47
+      ],
+      [
+       159,
+       78
+      ],
+      [
+       240,
+       44
+      ],
+      [
+       286,
+       44
+      ]
+     ]
+    },
+    {
+     "row": 5,
+     "top": 467,
+     "bottom": 511,
+     "names": [
+      "\u2022 List",
+      "Start voice input"
+     ],
+     "x_w": [
+      [
+       60,
+       44
+      ],
+      [
+       106,
+       44
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    44,
+    302
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     56,
+     365,
+     44,
+     44
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 9,
+    "delete_is_last": true
+   }
+  },
+  "1200-returning": {
+   "title_rect": [
+    414,
+    335,
+    698,
+    57
+   ],
+   "root_top": 213,
+   "rows_above_title": 2,
+   "controls_above_title": 24,
+   "rows": [
+    {
+     "row": 1,
+     "top": 221,
+     "bottom": 251,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Folder",
+      "Ticker",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       660,
+       37
+      ],
+      [
+       705,
+       59
+      ],
+      [
+       772,
+       62
+      ],
+      [
+       842,
+       76
+      ],
+      [
+       926,
+       84
+      ],
+      [
+       1018,
+       77
+      ],
+      [
+       1103,
+       37
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 263,
+     "bottom": 307,
+     "names": [
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image",
+      "Attach a file",
+      "Start voice input",
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       386,
+       112
+      ],
+      [
+       500,
+       58
+      ],
+      [
+       560,
+       26
+      ],
+      [
+       588,
+       24
+      ],
+      [
+       614,
+       27
+      ],
+      [
+       643,
+       33
+      ],
+      [
+       678,
+       33
+      ],
+      [
+       714,
+       44
+      ],
+      [
+       760,
+       50
+      ],
+      [
+       812,
+       24
+      ],
+      [
+       838,
+       35
+      ],
+      [
+       876,
+       32
+      ],
+      [
+       910,
+       32
+      ],
+      [
+       944,
+       32
+      ],
+      [
+       978,
+       44
+      ],
+      [
+       1024,
+       30
+      ],
+      [
+       1056,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    370,
+    786
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     1103,
+     223,
+     37,
+     27
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "Open a note beside\u2026",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 10,
+    "delete_is_last": true
+   }
+  },
+  "1200-first_visit": {
+   "title_rect": [
+    414,
+    380,
+    698,
+    57
+   ],
+   "root_top": 213,
+   "rows_above_title": 3,
+   "controls_above_title": 25,
+   "rows": [
+    {
+     "row": 1,
+     "top": 221,
+     "bottom": 251,
+     "names": [
+      "Add to Favorites",
+      "Ask a question about this note",
+      "Find in note",
+      "Folder",
+      "Ticker",
+      "Outline",
+      "More note actions"
+     ],
+     "x_w": [
+      [
+       660,
+       37
+      ],
+      [
+       705,
+       59
+      ],
+      [
+       772,
+       62
+      ],
+      [
+       842,
+       76
+      ],
+      [
+       926,
+       84
+      ],
+      [
+       1018,
+       77
+      ],
+      [
+       1103,
+       37
+      ]
+     ]
+    },
+    {
+     "row": 2,
+     "top": 263,
+     "bottom": 288,
+     "names": [
+      "Font family",
+      "Text size",
+      "B",
+      "I",
+      "Text color and highlight",
+      "H1",
+      "H2",
+      "\u2022 List",
+      "1. List",
+      "\u275d",
+      "</>",
+      "Insert link",
+      "Insert image",
+      "Attach a file"
+     ],
+     "x_w": [
+      [
+       386,
+       112
+      ],
+      [
+       500,
+       58
+      ],
+      [
+       560,
+       26
+      ],
+      [
+       588,
+       24
+      ],
+      [
+       614,
+       27
+      ],
+      [
+       643,
+       33
+      ],
+      [
+       678,
+       33
+      ],
+      [
+       714,
+       44
+      ],
+      [
+       760,
+       50
+      ],
+      [
+       812,
+       24
+      ],
+      [
+       838,
+       35
+      ],
+      [
+       876,
+       32
+      ],
+      [
+       910,
+       32
+      ],
+      [
+       944,
+       32
+      ]
+     ]
+    },
+    {
+     "row": 3,
+     "top": 297,
+     "bottom": 343,
+     "names": [
+      "Start voice input",
+      "Dismiss tip",
+      "Horizontal rule",
+      "Insert widget"
+     ],
+     "x_w": [
+      [
+       386,
+       44
+      ],
+      [
+       637,
+       44
+      ],
+      [
+       688,
+       30
+      ],
+      [
+       720,
+       63
+      ]
+     ]
+    }
+   ],
+   "editor_pane": [
+    370,
+    786
+   ],
+   "delete_on_screen": null,
+   "more_note_actions": {
+    "rect": [
+     1103,
+     223,
+     37,
+     27
+    ]
+   },
+   "inside_more_note_actions": {
+    "panel_label": "More note actions",
+    "items": [
+     "Version history",
+     "Duplicate note",
+     "Lock",
+     "Archive",
+     "Save as template",
+     "Open a note beside\u2026",
+     "PNG",
+     "Print",
+     "Export",
+     "Delete"
+    ],
+    "delete_place": 10,
+    "delete_is_last": true
+   }
+  }
+ },
+ "browser_version": "145.0.7632.6",
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drb\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-37-04.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drb\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-37-04.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 21:37:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 21:38:18",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 21:40:12",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 21:40:22",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drb\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-37-04.md",
+ "not_run": null
+}
