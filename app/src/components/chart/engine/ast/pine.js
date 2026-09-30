@@ -13351,6 +13351,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  exists only in the frame the caller built. Resolving that against the
    *  caller's scope answers `undefined` for the parameter and refuses the cell.
    *  Every existing call site passes nothing and behaves exactly as before. */
+  /** ⭐ C17 — the refusal the last unresolvable tree threw (`guardRefusals`). */
+  let lastCanonRefusal = null
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
@@ -13384,8 +13386,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // no longer re-parses — an earlier attempt at this welded a member's input
       // shut (`objectParams.test.js`), and the re-parse was why.
       return makeResolver(envOverride || scopeEnv).resolve(node)
-    } catch {
+    } catch (err) {
       diagnostics.unresolvedValues += 1
+      lastCanonRefusal = err
       return null
     }
   }
@@ -15080,6 +15083,35 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (!diagnostics.readBeforeWrite.includes(e)) diagnostics.readBeforeWrite.push(e)
     }
   }
+  /** ⭐⭐ C17 — WHY A `guard:<kind>` DROP HAPPENED, BY NAME. The drop key says
+   *  only "its condition cannot be read"; this names the refusal the condition's
+   *  tree threw and the name it stopped on — `artemis-oscillator-pro`'s four
+   *  `guard:create` (`✦ OB`, `✦ OS`, `R▲`, `R▼`) are one construct:
+   *  `var int meObCount … meObCount := meObWeak ? meObCount + 1 : 0`, a running
+   *  count whose `self + 1` arm never forgets its seed (`forgetsItsSeed`), so the
+   *  bounded accumulator would count over the last 250 bars, not since the reset
+   *  (`pine:state`). Diagnostics only: the drop, its key and its class are as
+   *  they were. */
+  const REFUSED_SUBJECT = [
+    /`([^`]+)` builds on its own previous bar/,
+    /`([^`]+)` reads its own running value/,
+    /`([^`]+)` changes at line/,
+    /`([^`]+)` is written at line/,
+    /— `([^`]+)`$/,
+  ]
+  const noteGuardRefusal = (op, err) => {
+    const guard = (err && err.guard) || null
+    if (!guard) return
+    const msg = String((err && err.message) || '')
+    let subject = null
+    for (const re of REFUSED_SUBJECT) {
+      const m = re.exec(msg)
+      if (m) { subject = m[1]; break }
+    }
+    diagnostics.guardRefusals = diagnostics.guardRefusals || []
+    const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` \`${subject}\`` : ''}`
+    if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
+  }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** A guard expression that reads a getter → its live reference, or null. */
   const liftLive = (node) => {
@@ -15546,8 +15578,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.attemptedOps += 1
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
+    lastCanonRefusal = null
     const g = guardOf(op.guards, op)
     if (g === undefined) {
+      noteGuardRefusal(op, lastCanonRefusal)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
