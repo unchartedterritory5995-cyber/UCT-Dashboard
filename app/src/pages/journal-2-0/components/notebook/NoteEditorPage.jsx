@@ -66,7 +66,7 @@ import TextColorMenu, { TEXT_COLOR_MENU_LABEL } from './TextColorMenu'
 import { isReplaceChord, modKeyLabel } from '../../lib/platform'
 import NoteStats from './NoteStats'
 import NoteOutline from './NoteOutline'
-import TableToolbar from './TableToolbar'
+import TableToolbar, { tableAtSelection } from './TableToolbar'
 import LinkPasteMenu from './LinkPasteMenu'
 import UnlinkedMentions from './UnlinkedMentions'
 import { TextSelection } from '@tiptap/pm/state'
@@ -214,6 +214,63 @@ const EMIT_NOTHING = { emitUpdate: false }
 export function canRunHistory(editor, cmd) {
   if (!editor || editor.isDestroyed || !editor.isEditable) return false
   try { return Boolean(editor.can()[cmd]?.()) } catch { return false }
+}
+
+/**
+ * Wave 10 (TY, standard 4 -- typing budget): the toolbar-sync SIGNATURE the
+ * `transaction` / `selectionUpdate` listeners below compare against, so a
+ * keystroke that leaves every one of these values unchanged triggers NO
+ * re-render of the whole editor page -- see `toolbarStateReducer`. Every
+ * field here is exactly what the toolbar JSX reads live from `editor` during
+ * render (grep `editor.isActive(` / `editor.getAttributes(` / `canRunHistory(`
+ * in this file); a field added to the toolbar's render reads must be added
+ * here too, or the toolbar can go stale behind a bailed-out render.
+ * `isActive` / `getAttributes` resolve against the CURRENT SELECTION, never a
+ * document walk, so this is O(1) per keystroke regardless of note size.
+ *
+ * ⛔⛔ `inTable` is NOT an inline `editor.isActive(` read in THIS file's JSX --
+ * it is `<TableToolbar editor={editor} />`'s OWN render body computing
+ * `tableAtSelection(editor.state)` unconditionally, live, with no subscription
+ * of its own (unlike `LinkPasteMenu`, which owns its own `editor.on('transaction', …)`
+ * and is unaffected by this reducer). TableToolbar therefore depends entirely
+ * on ITS PARENT re-rendering to notice the caret moving into or out of a
+ * table -- exactly the dependency this reducer exists to cut, so it has to be
+ * named here or the bar stops appearing/disappearing behind a bailed-out
+ * render (measured: `NoteEditorPage.wave6.test.jsx`'s "Add a row" case hung
+ * forever behind exactly this gap before it was added).
+ */
+export function readToolbarFormatState(editor) {
+  return {
+    bold: editor.isActive('bold'),
+    italic: editor.isActive('italic'),
+    h1: editor.isActive('heading', { level: 1 }),
+    h2: editor.isActive('heading', { level: 2 }),
+    bulletList: editor.isActive('bulletList'),
+    orderedList: editor.isActive('orderedList'),
+    blockquote: editor.isActive('blockquote'),
+    codeBlock: editor.isActive('codeBlock'),
+    fontFamily: editor.getAttributes('textStyle').fontFamily || '',
+    fontSize: editor.getAttributes('textStyle').fontSize || '',
+    textColor: editor.getAttributes('textColor').color || '',
+    canUndo: canRunHistory(editor, 'undo'),
+    canRedo: canRunHistory(editor, 'redo'),
+    inTable: Boolean(!editor.isDestroyed && editor.isEditable && tableAtSelection(editor.state)),
+  }
+}
+
+/**
+ * `prev` starts `null`, so the first call after mount always re-renders once
+ * (matches the old unconditional-bump behaviour). After that, returning the
+ * SAME object reference when nothing changed is what lets React bail out of
+ * re-rendering NoteEditorPage's subtree (`useReducer`'s documented
+ * Object.is bailout) -- never a value the render reads, only a value it is
+ * keyed on, so this changes WHEN the page re-renders, never WHAT it renders.
+ */
+export function toolbarStateReducer(prev, editor) {
+  if (!editor || editor.isDestroyed) return prev
+  const next = readToolbarFormatState(editor)
+  if (prev && Object.keys(next).every((k) => prev[k] === next[k])) return prev
+  return next
 }
 
 // G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
@@ -1956,12 +2013,15 @@ export default function NoteEditorPage({
   editorRef.current = editor
   const unreadable = useUnreadableNote(editor)
   // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
-  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
-  // counter on every selection/mark change to keep the toolbar in sync.
-  const [, bumpToolbar] = useReducer((x) => x + 1, 0)
+  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump
+  // on every selection/mark change to keep the toolbar in sync -- but through
+  // `toolbarStateReducer`, which bails out (same object reference) on a
+  // keystroke that changed neither the active marks/block nor undo/redo, so
+  // plain typing stops forcing a page-wide re-render (standard 4, O(1) check).
+  const [, bumpToolbar] = useReducer(toolbarStateReducer, null)
   useEffect(() => {
     if (!editor) return undefined
-    const update = () => bumpToolbar()
+    const update = () => bumpToolbar(editor)
     editor.on('transaction', update)
     editor.on('selectionUpdate', update)
     return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
@@ -2089,7 +2149,7 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!editor || editor.isDestroyed || unreadable || editor.isEditable === !locked) return
     editor.setEditable(!locked, false)
-    bumpToolbar()
+    bumpToolbar(editor)
   }, [editor, locked, unreadable])
 
   /**

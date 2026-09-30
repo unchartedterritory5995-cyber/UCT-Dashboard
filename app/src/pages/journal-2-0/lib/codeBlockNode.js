@@ -33,6 +33,7 @@ import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { CODE_LANGUAGES, PLAIN_TEXT_LABEL, canonicalLanguage, languageLabel, loadHighlighter, loadedHighlighter } from './codeLanguages'
 import { altKeyLabel, modKeyLabel } from './platform'
+import { stepsIntroduceNodeType } from './stepInsertsNodeType'
 
 export const CODE_LANGUAGE_PICKER_LABEL = 'Code block language'
 
@@ -76,6 +77,28 @@ const hasCodeBlock = (doc, name) => {
 }
 
 /**
+ * ⛔⛔ Wave 10 (TY, standard 4 -- typing budget): whether the doc has EVER held a
+ * `name` node since this editor mounted, tracked INCREMENTALLY instead of
+ * re-walked with `hasCodeBlock` on every keystroke -- which is what `view()`
+ * below used to do, forever, in every note that has never held a code block
+ * (nearly all of them), because nothing ever set `requested` to short-circuit
+ * it. STICKY on purpose: `view()`'s loader is the only reader, and it never
+ * asks again once it has EITHER started loading (`requested`) or the
+ * highlighter is already loaded (`loadedHighlighter()`) -- both of which
+ * happen at, or immediately after, the first `true` -- so re-proving a block
+ * might have since been deleted would buy nothing observable. `false` can only
+ * become `true` by THIS transaction inserting the node type
+ * (`stepsIntroduceNodeType`) or landing the selection inside one it just
+ * created (`touchesType` -- the very same signal the decoration rules below
+ * already trust for the "has code blocks" case). This changes NOTHING about
+ * what gets highlighted; only the decoration rules below decide that, and they
+ * are the pre-existing ones, byte for byte.
+ */
+function nextHasBlock(tr, prevHasBlock, touchesType, name) {
+  return prevHasBlock || touchesType || stepsIntroduceNodeType(tr, name)
+}
+
+/**
  * The highlighting plugin. Plain text until the highlighter has loaded; the load is
  * started by the FIRST code block a document holds (at mount, or when one is added),
  * and its arrival is one meta transaction that re-decorates the whole document.
@@ -86,37 +109,48 @@ function codeHighlightPlugin(name) {
     state: {
       init: (_, { doc }) => {
         const lowlight = loadedHighlighter()
-        return lowlight ? decorationsFor(doc, name, lowlight) : DecorationSet.empty
+        return {
+          decorations: lowlight ? decorationsFor(doc, name, lowlight) : DecorationSet.empty,
+          hasBlock: hasCodeBlock(doc, name),
+        }
       },
-      apply: (tr, decorationSet, oldState, newState) => {
+      apply: (tr, prev, oldState, newState) => {
         const lowlight = loadedHighlighter()
-        if (!lowlight) return DecorationSet.empty
-        if (tr.getMeta(codeHighlightPluginKey)?.highlighterReady) return decorationsFor(tr.doc, name, lowlight)
-        if (!tr.docChanged) return decorationSet.map(tr.mapping, tr.doc)
+        const meta = tr.getMeta(codeHighlightPluginKey)?.highlighterReady
+        if (!tr.docChanged) {
+          const hasBlock = prev.hasBlock
+          if (!lowlight) return { decorations: DecorationSet.empty, hasBlock }
+          if (meta) return { decorations: decorationsFor(tr.doc, name, lowlight), hasBlock }
+          return { decorations: prev.decorations.map(tr.mapping, tr.doc), hasBlock }
+        }
         // The stock lowlight plugin's rules for when a change can alter highlighting.
         const oldNodeName = oldState.selection.$head.parent.type.name
         const newNodeName = newState.selection.$head.parent.type.name
+        const touchesType = oldNodeName === name || newNodeName === name
+        const hasBlock = nextHasBlock(tr, prev.hasBlock, touchesType, name)
+        if (!lowlight) return { decorations: DecorationSet.empty, hasBlock }
+        if (meta) return { decorations: decorationsFor(tr.doc, name, lowlight), hasBlock }
         const oldNodes = findChildren(oldState.doc, (node) => node.type.name === name)
         const newNodes = findChildren(newState.doc, (node) => node.type.name === name)
-        if ([oldNodeName, newNodeName].includes(name)
+        if (touchesType
           || newNodes.length !== oldNodes.length
           || tr.steps.some((step) => step.from !== undefined && step.to !== undefined
             && oldNodes.some((node) => node.pos >= step.from && node.pos + node.node.nodeSize <= step.to))) {
-          return decorationsFor(tr.doc, name, lowlight)
+          return { decorations: decorationsFor(tr.doc, name, lowlight), hasBlock }
         }
-        return decorationSet.map(tr.mapping, tr.doc)
+        return { decorations: prev.decorations.map(tr.mapping, tr.doc), hasBlock }
       },
     },
     props: {
       decorations(state) {
-        return codeHighlightPluginKey.getState(state)
+        return codeHighlightPluginKey.getState(state).decorations
       },
     },
     view(editorView) {
       let destroyed = false
       let requested = false
-      const request = (doc) => {
-        if (requested || loadedHighlighter() || !hasCodeBlock(doc, name)) return
+      const request = (view) => {
+        if (requested || loadedHighlighter() || !codeHighlightPluginKey.getState(view.state).hasBlock) return
         requested = true
         loadHighlighter().then(() => {
           if (destroyed || editorView.isDestroyed) return
@@ -128,10 +162,10 @@ function codeHighlightPlugin(name) {
           requested = false
         })
       }
-      request(editorView.state.doc)
+      request(editorView)
       return {
         update(view, prevState) {
-          if (view.state.doc !== prevState.doc) request(view.state.doc)
+          if (view.state.doc !== prevState.doc) request(view)
         },
         destroy() { destroyed = true },
       }
