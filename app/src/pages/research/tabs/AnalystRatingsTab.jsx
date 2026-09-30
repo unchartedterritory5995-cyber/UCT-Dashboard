@@ -9,6 +9,7 @@ import { computeSessionStale } from '../../../components/provenance/sessionStale
 import { sessionModel } from '../../../components/dashboard/sessionModel'
 import useMarketOpen from '../../../hooks/useMarketOpen'
 import styles from '../ResearchPage.module.css'
+import AnalystRevisions from './AnalystRevisions'
 
 // 2026-09-03 dedicated Analyst Ratings slice (owner authorization). Same
 // per-card TrustStrip idiom as EstimatesTab.jsx's own copy (and every other
@@ -187,6 +188,8 @@ export default function AnalystRatingsTab({ sym }) {
       )}
 
       {empty && <div className={styles.fnote}>Analyst rating data is unavailable for this ticker.</div>}
+
+      <AnalystRevisions sym={sym} />
     </div>
   )
 }
