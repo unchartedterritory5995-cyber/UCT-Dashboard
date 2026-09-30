@@ -1,0 +1,55 @@
+//@version=6
+indicator("UCTPROBE_VW_LOWER_TF", overlay = false)
+
+// ─── 2026-09-30 C27 — `request.security` / `request.security_lower_tf` BELOW THE CHART ─
+//
+// The engine now holds the mechanism (`app/src/components/chart/engine/lowerTf.js`)
+// and refuses every read by name (`lower-tf:unwitnessed`) because two rules are
+// Pine's DOCUMENTATION, not a measurement:
+//
+//   (i)  which intrabar a lower-timeframe `request.security` answers on a 1D chart
+//        (documented: the LAST one, lookahead off) — L02, L03, L04;
+//   (ii) which session's intrabars a 1D chart's request reads (the chart symbol's
+//        regular session is the documented reading; extended hours would change
+//        every value) — L09, L10, L13, L14.
+//
+// The committed SPY 60m capture (`vw-bool-cast-spy-60-2026-09-28`, 20,616 bars since
+// 2015) already holds TradingView's own 60m bars, and the replay in
+// `vendorHarness.c27LowerTf.test.js` computes L02/L04/L09/L11 from them — so this
+// capture grades the mechanism value for value on the dates both hold.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, inputs at defaults, as much history as loads (≥ 300 bars;
+// the 60m capture's dates are the ones graded), AND AMEX:SPY 1W (L02 on a weekly
+// chart = the week's last 60m bar). Read S-rows only from a capture whose L00 moves.
+
+plot(bar_index, "L00_bar_index_CONTROL")
+plot(close,     "L01_close_CONTROL")
+
+// (i) which intrabar, and the child evaluated on the intraday series
+plot(request.security(syminfo.tickerid, "60", close),            "L02_60_close_last_intrabar")
+plot(request.security(syminfo.tickerid, "60", time) / 1000.0,    "L03_60_time_secs")
+plot(request.security(syminfo.tickerid, "60", ta.ema(close, 9)), "L04_60_ema9")
+plot(request.security(syminfo.tickerid, "15", close),            "L05_15_close")
+plot(request.security(syminfo.tickerid, "5", close),             "L06_5_close")
+
+// look-ahead ON below the chart — refused by name today (`lower-tf:lookahead`)
+plot(request.security(syminfo.tickerid, "60", close, lookahead = barmerge.lookahead_on),         "L07_60_close_lookahead_on")
+plot(request.security(syminfo.tickerid, "60", time, lookahead = barmerge.lookahead_on) / 1000.0, "L08_60_time_lookahead_on")
+
+// (ii) the intrabar array: how many 60m bars sit in a 1D bar, and where it starts
+a_close = request.security_lower_tf(syminfo.tickerid, "60", close)
+a_time  = request.security_lower_tf(syminfo.tickerid, "60", time)
+a_vol   = request.security_lower_tf(syminfo.tickerid, "60", volume)
+plot(array.size(a_close), "L09_ltf60_size_7_if_RTH_16_if_ETH")
+plot(array.size(a_time) > 0 ? array.get(a_time, 0) / 1000.0 : na, "L10_ltf60_first_time_secs")
+plot(array.size(a_close) > 0 ? array.get(a_close, array.size(a_close) - 1) : na, "L11_ltf60_last_close")
+plot(array.sum(a_vol), "L12_ltf60_volume_sum")
+
+// the session control: the extended session, spelled explicitly
+ext = ticker.modify(syminfo.tickerid, session.extended)
+plot(request.security(ext, "60", close), "L13_ext_60_close")
+plot(array.size(request.security_lower_tf(ext, "60", close)), "L14_ext_ltf60_size")
+
+// a code the store does not serve (refused `lower-tf:not-served`): its bucketing
+plot(request.security(syminfo.tickerid, "240", time) / 1000.0, "L15_240_time_secs")
+plot(request.security(syminfo.tickerid, "240", close),         "L16_240_close")

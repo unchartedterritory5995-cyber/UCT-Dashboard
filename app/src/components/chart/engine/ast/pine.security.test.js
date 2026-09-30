@@ -519,7 +519,16 @@ describe('ruling 3.5 — a timeframe literal that names the base', () => {
     // `5` refusal can only ever fail — my first version of this assertion did,
     // and the difference it reported was the one thing that SHOULD differ.
     const unservable = read("plot(request.security(syminfo.tickerid, '5', close))")
+    // ⭐ C27 (2026-09-30): `'5'` on a daily base is a timeframe BELOW the chart, and
+    // its sentence now also names why that is refused (`lowerTf.js`) — one clause,
+    // appended; the shared sentence around it is unchanged, which is what this
+    // compares. The clause is asserted to be there, and to be absent for `D` on 60.
+    const lowerClause = / Below the chart's own timeframe: [\s\S]*?(?= ⚠️ THIS IS NOT THE SAME REQUEST)/
+    expect(unservable.message).toMatch(lowerClause)
+    expect(unservable.message).toContain('lower-tf:unwitnessed')
+    expect(onHourly.message).not.toMatch(lowerClause)
     const strip = (m) => String(m).replace(/`[^`]+` is not one of them/, '<tf> is not one of them')
+      .replace(lowerClause, '')
     expect(strip(onHourly.message)).toBe(strip(unservable.message))
     expect(onHourly.message).toContain('`D` is not one of them')
   })

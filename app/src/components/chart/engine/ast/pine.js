@@ -100,6 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed } from './interpret.js'
+import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -6398,8 +6399,11 @@ export class Resolver {
           try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
         })
         if (!out) {
+          // ⭐ C27 — a tuple element of a request below the chart names why.
+          const lower = this.lowerTfDeclineOf(bound.call)
           throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\``, bound.at || locate(tok))
+            `${REFUSALS['pine:request']} — \`${name}\`${lower ? `: ${lower.why}` : ''}`,
+            bound.at || locate(tok))
         }
         return out
       } finally { this.env = prevEnv }
@@ -9370,6 +9374,16 @@ export class Resolver {
             locate(node.tok), decline.suggest)
         }
       }
+      // ⭐ C27 — the intrabar ARRAY form names its reason too (`lowerTf.js`).
+      if (name === 'request.security_lower_tf') {
+        const argv = node.args || []
+        const tfArg = argv.find((a) => a && a.name === 'timeframe') || argv.filter((a) => a && !a.name)[1]
+        const raw = tfArg ? this.timeframeLiteralOf(tfArg.value) : null
+        const code = raw === null ? '?'
+          : (PINE_TF_SPELLING[String(raw).trim().toUpperCase()] || String(raw))
+        const refusal = lowerTfRefusal({ code, base: this.basePeriod, array: true })
+        throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\`: ${refusal.why}`, locate(node.tok))
+      }
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     if (ns && !VALUE_NAMESPACES.has(ns)) {
@@ -9987,6 +10001,8 @@ export class Resolver {
     if (this.ownTimeframeOf(tfNode) === null) {
       const raw = this.timeframeLiteralOf(tfNode)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      const lower = this.lowerTfDeclineOf(node)
+      const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
         // was only ever correct by accident: `.join(' and ')` reads right for the
@@ -10000,13 +10016,37 @@ export class Resolver {
         return {
           suggest: 'timeframe.period',
           why: `this engine resamples ${names} from the daily bars it holds, and `
-            + `\`${String(raw)}\` is not one of them. ⚠️ THIS IS NOT THE SAME REQUEST: `
+            + `\`${String(raw)}\` is not one of them.${lowerWhy} ⚠️ THIS IS NOT THE SAME REQUEST: `
             + '`timeframe.period` reads the timeframe the chart is on rather than '
             + 'forcing one, so decide whether that is what you meant before you take it.',
         }
       }
     }
     return null
+  }
+
+  /** ⭐⭐ C27 — WHY A `request.security` BELOW THE CHART'S OWN TIMEFRAME IS NOT
+   *  SERVED, or null when the call is not such a request. A timeframe below the
+   *  chart reads intraday bars the chart does not hold — not a resample question —
+   *  and whether and how that is served is `lowerTf.js`'s answer alone
+   *  (`lowerTfRefusal`): look-ahead, another symbol, a code the store does not
+   *  serve, or the reading TradingView has not been captured giving. The ONE
+   *  reader here; both refusal sites (the call's own and a tuple element's) ask it. */
+  lowerTfDeclineOf(node) {
+    // ⛔ ONLY what `requestTargetOf` already read for this call (`requestCodes`):
+    // nothing here resolves an argument again, so naming a refusal is free.
+    if (!this.requestCodes || !this.requestCodes.has(node)) return null
+    const { code, other } = this.requestCodes.get(node)
+    if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
+    const args = node.args || []
+    const placed = positionaliseSecurityArgs(args)
+    if (!placed) return null
+    return lowerTfRefusal({
+      code,
+      base: this.basePeriod,
+      lookahead: this.requestLookaheadOf(args, placed) !== false,
+      other,
+    })
   }
 
   /** The `ticker.new(…)` / `tickerid(…)` call behind a symbol argument, however
@@ -10309,6 +10349,11 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⭐ C27 — what this call ASKED for, kept for `lowerTfDeclineOf`, so naming
+      // a refusal never resolves the timeframe argument a second time (a second
+      // read would charge the step budget for work already done).
+      if (!this.requestCodes) this.requestCodes = new WeakMap()
+      this.requestCodes.set(node, { code, other })
       if (!code) return null
 
       // ⭐⭐ A LITERAL THAT NAMES THE ENGINE'S OWN BASE IS THE IDENTITY (ruling 3.5,
@@ -10360,6 +10405,22 @@ export class Resolver {
     // their script AND the honest label, instead of a refusal for a thing we could
     // model. ⚠️ An UNRECOGNISED lookahead spelling still falls through to refused:
     // this admits the two declared values, never "anything that isn't off".
+    let live = this.requestLookaheadOf(args, placed)
+    if (live === null) return null
+
+    // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
+    // there is no period to be part-way through, so `lookahead_on` at
+    // `timeframe.period` is the identity the same way `lookahead_off` is.
+    if (live && !code) live = false
+
+    return { own, other, venue, code, live, positional }
+  }
+
+  /** ⭐ C27 — THE `lookahead` A REQUEST ASKS FOR: true (on), false (off), or null
+   *  for a spelling this door cannot read (the whole call then declines). Split
+   *  out of `requestTargetOf`, never copied, so `securityDeclineReason` names a
+   *  lower-timeframe look-ahead from the same reading. */
+  requestLookaheadOf(args, placed) {
     let live = false
     let sawLookahead = false
     for (const a of args) {
@@ -10423,13 +10484,7 @@ export class Resolver {
       const slot = placed[REQUEST_SECURITY_ARGS.indexOf('lookahead')]
       if (slot && slot.tok && slot.tok.value === 'true') live = true
     }
-
-    // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
-    // there is no period to be part-way through, so `lookahead_on` at
-    // `timeframe.period` is the identity the same way `lookahead_off` is.
-    if (live && !code) live = false
-
-    return { own, other, venue, code, live, positional }
+    return live
   }
 
   /**
