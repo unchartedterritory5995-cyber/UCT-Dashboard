@@ -1,0 +1,69 @@
+[
+ {
+  "symbol": "USMTSDEF",
+  "field_path": "source.params.sign",
+  "old": null,
+  "new": -1,
+  "evidence": "Live mts_table_1 2026-09-28: current_month_dfct_sur_amt is DEFICIT-POSITIVE (Aug 2026 +166,796,952,277.38 = outlays 526.83B - receipts 360.03B; Apr 2026 surplus -215.02B). sign:-1 gives surplus +/deficit - (FRED MTSDS133FMS convention; the histogram then shows deficits below zero). COORDINATOR DECIDES: dropping this row keeps the provider sign (+ = deficit), which should then be stated in the description. docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USMTSDEF",
+  "field_path": "revision.type",
+  "old": "minor_routine",
+  "new": "annual_benchmark",
+  "evidence": "Live mts_table_1 (all 3,117 rows, reports 2015-03-31..2026-08-31): every report restates all 12 prior-FY months; 92 of 155 months changed at least once, up to ~23 months after first print (e.g. 2015-05 82.39B -> 84.07B in the 2016-09-30 report). minor_routine (3-period window) would make validate.check_mutation reject those restatements. docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USMTSDEF",
+  "field_path": "history_start",
+  "old": "2015-10 (API); 1980s in PDF archive",
+  "new": "2013-10",
+  "evidence": "Live mts_table_1: the earliest report (record_date 2015-03-31) carries FY2014 months from October 2013; adapter oldest period 2013-10-01 (155 months). docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USMTSDEF",
+  "field_path": "source.provider_series_id",
+  "old": "v1/accounting/mts/mts_table_1 : current_month_dfct_sur_amt (record_type_cd=MTH)",
+  "new": "v1/accounting/mts/mts_table_1 : current_month_dfct_sur_amt (record_type_cd=MTH; month = classification_desc under parent 'FY yyyy'; newest report wins)",
+  "evidence": "Report/month grammar verified live 2026-09-28; docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USMTSDEF",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'",
+  "new": "Live Fiscal Data 2026-09-28: 155 months 2013-10..2026-08, Aug 2026 166,796,952,277.38 == Phase 0 $166.8B (docs/economic-data/verification/fiscaldata.txt)",
+  "evidence": "verify_fiscaldata run"
+ },
+ {
+  "symbol": "USTGA",
+  "field_path": "source.params.labels",
+  "old": null,
+  "new": {
+   "Federal Reserve Account": "close_today_bal",
+   "Treasury General Account (TGA)": "close_today_bal",
+   "Treasury General Account (TGA) Closing Balance": "open_today_bal"
+  },
+  "evidence": "Full operating_cash_balance scan 2026-09-28 (16,646 rows / 5,271 dates, exactly one TGA row per date): FRA 2005-10-03..2021-09-30, 'TGA' 2021-10-01..2022-04-15, 'TGA Closing Balance' 2022-04-18.. (value in open_today_bal, close_today_bal 'null' on all 1,114 rows). Splices are exact (215,160; 578,473). The adapter already has these as built-in defaults; making them explicit documents the eras. docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USTGA",
+  "field_path": "source.params.note",
+  "old": "Closing Balance row carries its value in open_today_bal; pre-Oct-2022 labels differ",
+  "new": "Closing Balance row carries its value in open_today_bal (from 2022-04-18); earlier labels 'Federal Reserve Account' (to 2021-09-30) and 'Treasury General Account (TGA)' (2021-10-01..2022-04-15) use close_today_bal; TT&L/SFP rows are not the TGA",
+  "evidence": "The registry note said 'pre-Oct-2022'; live data shows the switch on 2022-04-18. docs/economic-data/verification/fiscaldata.txt"
+ },
+ {
+  "symbol": "USTGA",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint + row verified live'",
+  "new": "Live Fiscal Data 2026-09-28: 5,271 business days 2005-10-03..2026-09-25 across 3 label eras, 09-25 945,290 == Phase 0 (docs/economic-data/verification/fiscaldata.txt)",
+  "evidence": "verify_fiscaldata run"
+ },
+ {
+  "symbol": "USDEBT",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'",
+  "new": "Live Fiscal Data 2026-09-28: 8,401 rows 1993-04-01..2026-09-25, 09-25 40,097,178,119,750.91 == Phase 0 (docs/economic-data/verification/fiscaldata.txt)",
+  "evidence": "verify_fiscaldata run"
+ }
+]

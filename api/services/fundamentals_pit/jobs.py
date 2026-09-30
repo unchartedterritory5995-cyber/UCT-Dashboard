@@ -136,8 +136,9 @@ def weekly_reconcile() -> dict:
         argv = ["--db", S.default_path(), "--bulk-companyfacts", man["companyfacts"],
                 "--bulk-submissions", man["submissions"], "--listed", "--workers", "4", "--beta",
                 "--splits-massive", f"{today.year - 1}-01-01", today.isoformat()]
-        for z in man["fs"]:
-            argv += ["--fs-zip", z]
+        # V5: restatement evidence comes ONLY from filing instances (the backfill's
+        # instance pass fills any filing a missed tick left unchecked); the FS data
+        # sets are not an input any more.
         rep = BF.run(argv)
         conn = _conn()
         try:

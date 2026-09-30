@@ -1,0 +1,12 @@
+{
+  "_doc": "EIA Weekly Petroleum Status Report HOLIDAY exceptions, transcribed from https://www.eia.gov/petroleum/supply/weekly/schedule.php ('Holiday Release Schedule': data week ending / alternate release date / release day / release time). The normal rule (Wednesday 10:30 a.m. ET for the week ending the previous Friday) lives in calendar.py. A holiday-affected week that is NOT listed here is published with precision 'unknown' rather than a guessed day. Rows: [week_ending_friday, alternate_release_date_ET, time_ET].",
+  "id": "eia_wpsr_holidays",
+  "coverage": {"start": "2026-01-01", "end": "2026-12-31"},
+  "imported_at": "2026-09-28",
+  "citations": {
+    "wpsr": "https://www.eia.gov/petroleum/supply/weekly/schedule.php (fetched 2026-09-28): 'Tables 1-14 ... released ... after 10:30 a.m. eastern time on Wednesday'; holiday rows w/e 2026-09-04 -> Thu 2026-09-10 12:00 p.m. (Labor Day); w/e 2026-10-09 -> Thu 2026-10-15 12:00 p.m. (Columbus Day); w/e 2026-11-06 -> Thu 2026-11-12 12:00 p.m. (Veterans Day)"
+  },
+  "exceptions": [["2026-01-16", "2026-01-22", "12:00"], ["2026-02-13", "2026-02-19", "12:00"],
+                 ["2026-05-22", "2026-05-28", "12:00"], ["2026-09-04", "2026-09-10", "12:00"],
+                 ["2026-10-09", "2026-10-15", "12:00"], ["2026-11-06", "2026-11-12", "12:00"]]
+}

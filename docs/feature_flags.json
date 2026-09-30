@@ -80,10 +80,12 @@
       "note": "TERM-075 (FB-A8-01), ENABLEMENT GATE, default OFF, read per call in api/services/a8_taxonomy.py::primary_mention_enabled(). SERVICE: web (tweet_store reads run in-process on web; the catalyst engine's tweet signal reads the same store). What it arms: the primary-vs-mentioned bit on the tweet story-to-ticker join. tweets.db tweet_tickers gains is_primary INTEGER NOT NULL DEFAULT 1 at _init_db (ADDITIVE: every existing row reads 1 = today's behaviour; nothing is rewritten), and the poller writes a8_taxonomy.resolve_primary's answer (rule lead_cashtag_v1: the first-named cashtag is the story's subject, the rest are mentions) on NEW rows whatever the flag says. Only while this flag is set do the three subject-count reads in tweet_store (tweets_for_ticker, tape, batch_counts) add AND tt.is_primary = 1, so a mention-only ticker stops counting as a subject on every surface that reads them: /api/tweets/ticker|tape|has-tweets-batch, the Movers tweet icons, the catalyst engine's tweet_mention_count, AI Search, voice tools, news adapters. feed() still lists every ticker a tweet names. Unset: every query text is byte-identical to before the column existed (tests/test_a8_primary_mention.py). Not armed: the owner decides, after reading how the lead-cashtag rule treats peer lists ($AAPL $MSFT $GOOGL: only AAPL stays a subject). REVERSAL: unset it; the column and its values are left in place and are inert."
     },
     "ADDRESS_SPACE_ENABLED": {
-      "status": "pending",
+      "status": "armed",
       "since": "2026-09-29",
-      "where": [],
-      "note": "TERM-038 (FB-S2-03), ENABLEMENT GATE, default OFF, read per call in api/services/address_space.py::is_enabled(). SERVICE: web. What it arms: GET /api/address/search?q= and GET /api/address/resolve?a= (404 while off, signed-in when on) and the command palette's Saved rows. Saved things become names: every chart layout (own + prebuilt), watchlist and note gets an address <prefix>:<id> (L/W/N), typeable by NAME in the palette and resolving to the page door that already opens it (/charts?openLayout=, /charts?openWatchlist=user:, /journal/notebook?note=). Keyed on id, so a rename keeps the address. The kinds are derived from the schema (every owned + named CREATE TABLE); tests/test_address_space.py fails by name on one that is neither a kind nor exempt with a reason. Rollback: set 0 (a DELETE does not restart web)."
+      "where": [
+        "web"
+      ],
+      "note": "ARMED on web 2026-09-29 22:26:45Z by the agent at the owner's instruction (\"Do it now\"). Verified in production as smoke@: auth payload address_space_enabled=true; anonymous search 401; a probe layout created through /api/charts/layouts was found by name as L:101, resolved, renamed and resolved again to the same address, deleted, then answered 404 -- nothing left behind. TERM-038 (FB-S2-03), ENABLEMENT GATE, default OFF, read per call in api/services/address_space.py::is_enabled(). SERVICE: web. What it arms: GET /api/address/search?q= and GET /api/address/resolve?a= (404 while off, signed-in when on) and the command palette's Saved rows. Saved things become names: every chart layout (own + prebuilt), watchlist and note gets an address <prefix>:<id> (L/W/N), typeable by NAME in the palette and resolving to the page door that already opens it (/charts?openLayout=, /charts?openWatchlist=user:, /journal/notebook?note=). Keyed on id, so a rename keeps the address. The kinds are derived from the schema (every owned + named CREATE TABLE); tests/test_address_space.py fails by name on one that is neither a kind nor exempt with a reason. Rollback: set 0 (a DELETE does not restart web)."
     },
     "AI_POPULATION_CAP_MODE": {
       "status": "dark",
@@ -810,6 +812,19 @@
       "note": "Deliberately off since the 2026-05-27 emergency cost pass, re-confirmed 2026-09-02. Railway redeploys wipe the in-memory cache, so the prewarm re-fired for every earnings ticker on every restart - roughly 60K Haiku/Sonnet tokens per redeploy, times several redeploys a day, which was the primary source of baseline daily burn. On-demand modal clicks still work through the synchronous cache-miss fallback, so the feature is not lost. Setting this to 1 restores the burn.",
       "where": []
     },
+    "ECON_ENABLED": {
+      "status": "dark",
+      "where": [],
+      "note": "Economic Data Phase 1 member API (api/routers/econ.py): GET /api/econ/catalog + /api/econ/series/{symbol} (require_bars_access, the chart-data gate) and the unauthenticated values-free /api/econ/status. SERVICE: web. Unset/0: every /api/econ/* route is the FastAPI 404 to every caller including admins (a router dependency, so it answers before auth and parameter validation); the frontend's `econ:` source reads 404 as UNSUPPORTED/NO_DATA and draws nothing. Dark until the econ service has ingested, validated and PUBLISHED artifacts (econ/v1/* in the data_sync bucket, ECON_SERVING_SOURCE=r2) -- arming before that makes every series an honest 404 no_data. Rollback = unset; published artifacts and econ.db are left in place. docs/economic-data/API.md."
+    },
+    "ECON_PUBLISH_R2": {
+      "status": "dark",
+      "where": [],
+      "exposure": "internal",
+      "default": "0",
+      "values": ["0", "1"],
+      "note": "Economic Data Phase 1 (api/services/econ/publish.py). SERVICE: the dedicated econ ingestion service only (python -m api.econ_main). 1 = publish series/vintages/catalog/status artifacts to the data_sync bucket under econ/v1/* so web can serve /api/econ/* with ECON_SERVING_SOURCE=r2; unset/0 = artifacts are written to the local ECON_ARTIFACT_DIR only and nothing leaves the service. INTERNAL exposure: the artifacts are served ONLY through the entitlement-gated /api/econ routes (require_bars_access) and the values-free status route; the bucket is not public and no edge cache keys them by URL alone. Never set during Phase 1 (owner no-deploy hold 2026-09-29). Rollback = unset; already-published objects are left in place."
+    },
     "EDGAR_OWNERSHIP_ENABLED": {
       "status": "armed",
       "since": "2026-09-29",
@@ -1243,6 +1258,14 @@
         "flow-worker"
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
+    },
+    "OPTIONS_CHAIN_ENABLED": {
+      "status": "armed",
+      "since": "2026-09-29",
+      "where": [
+        "web"
+      ],
+      "note": "ARMED on web 2026-09-30 03:25:09Z at the owner's instruction (\"arm it\"). Verified on production as smoke@: auth payload options_chain_enabled=true; SPY chain 200 (spot 764.20, ATM 764 call bid 2.54/ask 2.59, IV 16.6%, delta 0.52, OI 1,865; complete greeks calls 20/20, puts 15/20) and NVDA 200 (ATM 230 call IV 28.5%, OI 4,786); anonymous 401; iv_rank null with its reason. The same read found the picker listing only 3 SPY expirations -- fixed in 349bcff27 (forward walk: 32 SPY, 24 NVDA, 25 AAPL). BRK-01 increment 1 (roadmap §3.3): the Research > Options tab, a member-facing option chain (calls | strike | puts, bid/ask/last, IV, delta/gamma/theta/vega, OI, volume) off the licensed Massive chain (api/services/polygon_options.py, the one implementation since TERM-069). ENABLEMENT GATE, default OFF, read per request by GET /api/research/options/{sym}/chain + /expirations (404 while off, paid-gated when on) and the auth payload's options_chain_enabled. Live half measured CLEARED 2026-09-29 against our key: 88/88 near-the-money SPY contracts returned greeks, IV and OI with REAL-TIME quotes. IV RANK is NOT served (needs IV history -- the open Massive vendor question). Read-only by charter: no run/execute/send affordance. Rollback: set 0 (a DELETE does not restart web)."
     },
     "PANEL_PREWARM_ENABLED": {
       "status": "armed",

@@ -16,7 +16,7 @@ DERIVED, NOT ENUMERATED
 -----------------------
 Caches are discovered by walking `sys.modules` for live `TTLCache` instances
 rather than from a hand-written roster. There are at least four (`services.cache`,
-`routers.live_prices`, `services.discord_relay`, `services.fred_economic`) and a
+`routers.live_prices`, `services.discord_relay`, formerly `services.fred_economic`) and a
 typed list would omit the next one — which, being new, is exactly the one most
 likely to be leaking. Anything found without a module-level name is still
 reported, as `<unnamed>`.
@@ -60,6 +60,30 @@ def _rss_mb() -> float | None:
     try:  # non-Linux dev boxes
         import resource
         return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+    except Exception:
+        return None
+
+
+_RSS_PARTS = ("RssAnon", "RssFile", "RssShmem")
+
+
+def _rss_breakdown(path: str = "/proc/self/status") -> dict | None:
+    """VmRSS split into what the process OWNS vs what it merely MAPS (TERM-014).
+
+    `RssFile` is file-backed pages -- SQLite's memory maps (every thread's bars.db
+    connection maps up to 256 MB) and loaded libraries. They are evictable and are
+    counted once PER MAPPING, so a pod with many threads can report gigabytes of
+    "RSS" that is the page cache seen several times. `RssAnon` is heap and C-extension
+    memory: that is the number a leak moves. Measured 2026-09-29: VmRSS 9.2 GB with
+    malloc_trim releasing only 108 MB, so the split is the next question. None off Linux."""
+    try:
+        out = {}
+        with open(path) as f:
+            for line in f:
+                key = line.split(":", 1)[0]
+                if key in _RSS_PARTS:
+                    out[key] = round(int(line.split()[1]) / 1024, 1)
+        return out or None
     except Exception:
         return None
 
@@ -270,6 +294,7 @@ def snapshot(deep: bool = False) -> dict:
 
     out = {
         "rss_mb": _rss_mb(),
+        "rss_breakdown_mb": _rss_breakdown(),
         "gc_counts": list(gc.get_count()),
         "gc_tracked_objects": None,
         "caches": caches,

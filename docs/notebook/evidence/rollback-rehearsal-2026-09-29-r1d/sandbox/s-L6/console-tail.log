@@ -1,0 +1,150 @@
+INFO:     127.0.0.1:64705 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57629 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49698 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61262 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63365 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "POST /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64705 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5/reviews HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+  [post-boot (+15s)] shared data root CLEAN (62 db files byte-identical).
+2026-09-29 18:42:16,179 INFO api.services.ticker_logos_prewarm: [logo-prewarm] starting pass: 3640 universe, 2691 to warm, 949 already cached
+2026-09-29 18:42:16,311 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 250/2691 warmed=0 failed=250
+INFO:     127.0.0.1:55534 - "PUT /api/j2/notes/08183271f82844ca81b8108bb36c4bc5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+2026-09-29 18:42:20,885 INFO api.main: [scanner-warm] presets warm (0 still building)
+2026-09-29 18:42:20,885 INFO api.main: [startup] theme_index prewarm: 0 themes warmed
+INFO:     127.0.0.1:55534 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57727 - "GET /api/j2/notes/08183271f82844ca81b8108bb36c4bc5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /journal/notebook?note=f0da88b466204a16bb51b1752f06b0ec HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/watchlists?include_prebuilt=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/maintenance HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/auth/preferences HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/community/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/voice/insights/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/auth/avatar/cdb8e460-0bab-498f-8b0f-22df451a036b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/watchlists/flagged HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "POST /api/auth/track HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/indicator-alerts/delivery-health?limit=10 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/alerts?limit=20 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/ticker-tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/ticker-tags/public HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/ticker-tags/shared HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/watchlist-alerts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/j2/accounts/353008f6-6498-4450-ab53-3fde761e6428/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/watchlists?include_items=0 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/j2/accounts/comparison HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/accounts HTTP/1.1" 200 OK
+2026-09-29 18:42:24,152 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 44, 'fresh': 0}
+INFO:     127.0.0.1:54520 - "GET /api/j2/notes/folder-counts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/j2/note-folders HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/j2/notes?folder_id=__archived__&sort=updated&limit=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/j2/notes?sort=updated&limit=1&deleted=true HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/j2/notes/tags HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/notes/favorites HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/excerpts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/documents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/facts HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/j2/saved-views HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/evidence-candidates HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/j2/property-defs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/j2/positions?account_id=353008f6-6498-4450-ab53-3fde761e6428 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/j2/notes?sort=updated HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/j2/notes?sort=title HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/thesis-summary HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "POST /api/j2/broker/fills/check HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/intradaypack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "POST /api/j2/broker/sync?background=1 HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:62493 - "GET /api/barspack/manifest HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/voice/settings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/j2/inbox HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "POST /api/watchlists/flagged/sync HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/trade-ref/resolve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/properties HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62493 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/backlinks HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54781 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/related-from HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54520 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/unlinked-mentions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57080 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "POST /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/opened HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55534 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec/reviews HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "GET /api/j2/notes/recents HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "PUT /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58419 - "POST /api/j2/telemetry HTTP/1.1" 200 OK
+2026-09-29 18:42:30,833 INFO api.main: [startup] hot tier warmed: 0 entries
+[breadth-heal] boot pass: 0 healed of last 10
+2026-09-29 18:42:31,212 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 500/2691 warmed=56 failed=444
+INFO:     127.0.0.1:58419 - "GET /api/voice/insights/unspoken HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62645 - "GET /api/j2/notes/f0da88b466204a16bb51b1752f06b0ec HTTP/1.1" 200 OK
+[darkpool_agg] prewarm: cache already warm � skip
+2026-09-29 18:42:47,407 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 18:42:47 CDT)" (scheduled at 2026-09-29 18:42:47.394087-05:00)
+2026-09-29 18:42:47,416 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 18:43:47 CDT)" executed successfully
+2026-09-29 18:42:47,671 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 18:43:47 CDT)" (scheduled at 2026-09-29 18:42:47.661956-05:00)
+2026-09-29 18:42:47,672 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-29 18:42:47,673 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 18:43:47 CDT)" executed successfully
+2026-09-29 18:42:47,719 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 19:43:47 EDT)" (scheduled at 2026-09-29 19:42:47.708888-04:00)
+2026-09-29 18:42:47,720 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 19:43:47 EDT)" executed successfully
+2026-09-29 18:42:47,751 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 18:43:47 CDT)" (scheduled at 2026-09-29 18:42:47.739498-05:00)
+2026-09-29 18:42:47,756 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-29 18:42:47,757 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 18:43:47 CDT)" executed successfully
+2026-09-29 18:43:00,006 INFO apscheduler.executors.default: Running job "wisdom_sources_discord_listener (trigger: cron[minute='13,28,43,58'], next run at: 2026-09-29 19:58:00 EDT)" (scheduled at 2026-09-29 19:43:00-04:00)
+2026-09-29 18:43:00,013 INFO apscheduler.executors.default: Job "wisdom_sources_discord_listener (trigger: cron[minute='13,28,43,58'], next run at: 2026-09-29 19:58:00 EDT)" executed successfully
+2026-09-29 18:43:00,877 INFO api.services.industry_map: [industry_map] prewarm bulk skipped � fresh (407 rows)
+2026-09-29 18:43:10,564 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 750/2691 warmed=241 failed=509
+2026-09-29 18:43:15,867 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/calendar/earnings)
+2026-09-29 18:43:16,131 INFO api.services.ticker_logos: [logo-hires] starting: 1213 cached logos to upgrade
+2026-09-29 18:43:17,478 INFO api.routers.calendar: Calendar: econ loaded � FF 0 events / 0 days, FMP filled 24 across 5 uncovered days
+2026-09-29 18:43:17,487 WARNING api.services.industry_map: [industry_map] FINVIZ_API_KEY not set � bulk refresh skipped
+2026-09-29 18:43:20,044 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:20,325 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:20,363 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:21,566 INFO apscheduler.scheduler: Removed job notebook_task_reminders_catch_up
+2026-09-29 18:43:21,566 INFO apscheduler.executors.default: Running job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-29 23:43:21 UTC], next run at: 2026-09-29 23:43:21 UTC)" (scheduled at 2026-09-29 23:43:21.553764+00:00)
+[notebook-task-reminders] boot catch-up: {'ran': False, 'reason': 'already-ran', 'day': '2026-09-29'}
+2026-09-29 18:43:21,574 INFO apscheduler.executors.default: Job "register_task_reminder_job.<locals>._boundary.<locals>.body (trigger: date[2026-09-29 23:43:21 UTC], next run at: 2026-09-29 23:43:21 UTC)" executed successfully
+2026-09-29 18:43:23,431 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:23,532 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:26,358 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:26,387 WARNING api.services.finnhub_client: FINNHUB_API_KEY not set � Finnhub call skipped (/stock/price-target)
+2026-09-29 18:43:26,610 INFO api.main: [calendar-enrich-warm] current week 5 day(s)/297 syms; week-2 5 day(s)/7 syms
+2026-09-29 18:43:45,875 INFO api.services.rs_ranking: [rs_ranking] universe source=cap_universe.json n=3640
+2026-09-29 18:43:45,875 INFO api.services.rs_ranking: [rs_ranking] Computing RS scores for 3640 stocks...
+2026-09-29 18:43:47,401 INFO apscheduler.executors.default: Running job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" (scheduled at 2026-09-29 18:43:47.394087-05:00)
+2026-09-29 18:43:47,414 INFO apscheduler.executors.default: Job "run_scheduled_sweep (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" executed successfully
+2026-09-29 18:43:47,666 INFO apscheduler.executors.default: Running job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" (scheduled at 2026-09-29 18:43:47.661956-05:00)
+2026-09-29 18:43:47,668 INFO api.services.screener.live_tier: [screener-live] cycle skipped: disabled (session=None)
+2026-09-29 18:43:47,668 INFO apscheduler.executors.default: Job "register_screener_jobs.<locals>._run_live_tier (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" executed successfully
+2026-09-29 18:43:47,712 INFO apscheduler.executors.default: Running job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 19:44:47 EDT)" (scheduled at 2026-09-29 19:43:47.708888-04:00)
+2026-09-29 18:43:47,713 INFO apscheduler.executors.default: Job "_discord_chart_hot_warm (trigger: interval[0:01:00], next run at: 2026-09-29 19:44:47 EDT)" executed successfully
+2026-09-29 18:43:47,727 INFO apscheduler.executors.default: Running job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 19:45:47 EDT)" (scheduled at 2026-09-29 19:43:47.726420-04:00)
+2026-09-29 18:43:47,738 INFO apscheduler.executors.default: Job "_discord_flow_hot_warm (trigger: interval[0:02:00], next run at: 2026-09-29 19:45:47 EDT)" executed successfully
+2026-09-29 18:43:47,743 INFO apscheduler.executors.default: Running job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" (scheduled at 2026-09-29 18:43:47.739498-05:00)
+2026-09-29 18:43:47,744 WARNING api.services.buzz_ingest: [buzz] DISCORD_BOT_TOKEN is not set � cannot read 1216816863313657886. The poller is configured (BUZZ_CHANNELS) but has no credentials; see docs/runbooks/buzz-activation.md.
+2026-09-29 18:43:47,744 INFO apscheduler.executors.default: Job "_buzz_poll (trigger: interval[0:01:00], next run at: 2026-09-29 18:44:47 CDT)" executed successfully
+2026-09-29 18:43:54,155 INFO breadth_symbols: [breadth_symbols] warm pass done: {'refreshed': 0, 'fresh': 44}
+2026-09-29 18:43:55,868 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1000/2691 warmed=416 failed=584
+2026-09-29 18:44:00,014 INFO apscheduler.executors.default: Running job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-29 18:54:00 CDT)" (scheduled at 2026-09-29 18:44:00-05:00)
+2026-09-29 18:44:00,022 INFO apscheduler.executors.default: Job "lifespan.<locals>._ocr_requeue_abandoned (trigger: cron[minute='4/10'], next run at: 2026-09-29 18:54:00 CDT)" executed successfully
+  [post-prewarm (+120s)] shared data root CLEAN (62 db files byte-identical).
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-09-29 18:44:08,642 INFO api.massive_ws_worker: [massive-ws] stop(): consumer not running -- nothing to do
+[shutdown] Massive WS consumer stop: clean
+2026-09-29 18:44:08,652 INFO api.liveflow_worker_threaded: [liveflow-thread] stop(): worker not running � nothing to do
+[shutdown] Bullflow SSE worker stop: clean
+2026-09-29 18:44:08,653 INFO apscheduler.scheduler: Scheduler has been shut down
+2026-09-29 18:44:09,021 INFO api.services.cache_snapshot: [cache-snapshot] saved 935/949 entries (3441.6 KB)
+[shutdown] cache snapshot saved: 935 entries, 3442 KB
+2026-09-29 18:44:09,027 INFO api.daily_tracker: [tracker] Snapshot scheduler cancelled.
+2026-09-29 18:44:09,028 INFO api.daily_tracker: [tracker] Snapshot scheduler stopped.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [42284]
+2026-09-29 18:44:11,224 INFO api.services.rs_ranking: [rs_ranking] Cached 3621 RS rankings
+2026-09-29 18:44:11,229 INFO api.main: [rs-rankings] warmed: 3621 entries
+  [shutdown] shared data root CLEAN (62 db files byte-identical). Log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\r1d\t\s-L6\docs\plans\joystick\sandbox-runs\2026-09-29T18-41-02.md
+2026-09-29 18:44:41,179 INFO api.services.ticker_logos_prewarm: [logo-prewarm] 1250/2691 warmed=591 failed=659

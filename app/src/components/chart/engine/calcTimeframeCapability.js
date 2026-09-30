@@ -21,6 +21,8 @@
  *   · a DISPLACED plot is shifted in bars of ITS frame, which are not the chart's;
  *   · an OBJECT program draws in the bars it was evaluated on;
  *   · a FUNDAMENTAL source has its own as-of availability and no bar frame;
+ *   · an ECONOMIC source (`econ:`) likewise: it is as-of on its RELEASE time with
+ *     a per-frequency max age (`economicSource.js`), and has no bar frame;
  *   · VOLUME AS A MAGNITUDE: a daily volume average drawn over 5m volume bars reads
  *     as a 5m quantity a hundred times too large. `meta.calcTimeframe: false` on
  *     the definition, or a `volume` bar-field source, says so.
@@ -60,6 +62,7 @@ export function calcTimeframeCapability(def, inst) {
     const parsed = parseSource(sources[0][1])
     if (parsed && parsed.kind === 'instance') return { ok: true, inherits: parsed.instanceId }
     if (parsed && parsed.kind === 'fundamental') return { ok: false, reason: 'fundamental' }
+    if (parsed && parsed.kind === 'economic') return { ok: false, reason: 'economic' }
     if (parsed && parsed.kind === 'bar' && parsed.field === 'volume') return { ok: false, reason: 'volume' }
     if (parsed && parsed.kind === 'symbol' && parsed.field === 'volume') return { ok: false, reason: 'volume' }
   }
@@ -76,6 +79,7 @@ export const CAPABILITY_WORDS = Object.freeze({
   markers: 'Event markers follow the chart timeframe.',
   displaced: 'Shifted plots follow the chart timeframe.',
   fundamental: 'Fundamental data has its own reporting schedule.',
+  economic: 'Economic data has its own release schedule.',
   volume: 'Volume averages follow the chart timeframe.',
   unknown: 'Calculated on the chart timeframe.',
 })

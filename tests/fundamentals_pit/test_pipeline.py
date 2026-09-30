@@ -3,6 +3,8 @@ publish, snapshot-archive gate, provenance. No network: bulk archives and
 SEC fetchers are synthetic."""
 import json
 import zipfile
+
+import pytest
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +33,14 @@ FACTS = [("2023-01-01", "2023-09-30", 330, "A-23-3", "10-Q", "2023-11-01"),
          ("2023-01-01", "2023-12-31", 460, "A-24-1", "10-K", "2024-02-15")]
 ACCNS = [("A-23-3", "2023-11-01", "2023-11-01T20:00:00.000Z", "10-Q"),
          ("A-24-1", "2024-02-15", "2024-02-15T21:00:00.000Z", "10-K")]
+
+
+@pytest.fixture(autouse=True)
+def _offline_instances(monkeypatch):
+    """The V5 backfill takes restatement evidence from each filing's own instance; these
+    fixtures have no instances, and no test may reach SEC."""
+    from api.services.fundamentals_pit import sec_client as SEC
+    monkeypatch.setattr(SEC, "filing_instance", lambda cik, accn: None)
 
 
 def _zips(tmp: Path, facts=FACTS, accns=ACCNS):
@@ -198,21 +208,10 @@ def test_backfill_never_logs_request_urls(tmp_path):
     assert logging.getLogger("httpcore").level >= logging.WARNING
 
 
-def test_jobs_register_nothing_unless_enabled_and_the_store_exists(tmp_path, monkeypatch):
+def test_legacy_v4_jobs_are_not_registerable_any_more():
+    """They wrote the V4 store and overwrote V4 artifacts in place; the V5 pipeline replaced them (schedule.py)."""
     from api.services.fundamentals_pit import schedule as SCH
-    class Sched:
-        def __init__(self): self.ids = []
-        def add_job(self, fn, trigger, id, **kw): self.ids.append(id)
-    monkeypatch.delenv("FUNDAMENTALS_PIT_INCREMENTAL_ENABLED", raising=False)
-    s = Sched(); assert SCH.register_fundamentals_pit_jobs(s) == [] and s.ids == []
-    monkeypatch.setenv("FUNDAMENTALS_PIT_INCREMENTAL_ENABLED", "1")
-    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "missing.db"))
-    s = Sched(); assert SCH.register_fundamentals_pit_jobs(s) == []          # no store -> nothing
-    _run(tmp_path)
-    monkeypatch.setenv("FUNDAMENTALS_PIT_DB_PATH", str(tmp_path / "pit.db"))
-    s = Sched()
-    assert SCH.register_fundamentals_pit_jobs(s) == s.ids == [
-        "fundamentals_pit_tick", "fundamentals_pit_daily_beta", "fundamentals_pit_weekly_reconcile"]
+    assert not hasattr(SCH, "register_fundamentals_pit_jobs")
 
 
 def test_drain_does_not_retry_an_exhausted_filing_forever(tmp_path, monkeypatch):

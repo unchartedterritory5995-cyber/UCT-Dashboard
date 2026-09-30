@@ -32,6 +32,8 @@ _TIMEOUT = 12
 _CACHE = TTLCache()
 _CHAIN_TTL = 60   # 1 min — Greeks move with underlying
 _LIST_TTL = 3600  # 1 hour — expirations don't change intraday
+_EXP_QUERIES = 12  # forward-walk pages for list_expirations (each starts past the last date seen)
+_EXP_MAX = 40      # expirations kept — weeklies + monthlies + LEAPS for any liquid name
 
 _http = httpx.Client(
     timeout=httpx.Timeout(connect=3.0, read=15.0, write=5.0, pool=8.0),
@@ -70,29 +72,43 @@ def list_expirations(ticker: str) -> dict[str, Any]:
         return dict(cached)
 
     today = datetime.utcnow().date().isoformat()
+    # ⛔ ONE PAGE IS NOT THE LIST. The reference endpoint returns CONTRACTS, and a liquid
+    # underlying has hundreds per expiration: 1,000 SPY contracts sorted by date covered only
+    # THREE expirations (measured on production 2026-09-29 -- the member chain's picker offered
+    # Wed/Thu/Fri and nothing else). So walk FORWARD: each query starts strictly after the last
+    # date already seen, which is guaranteed new ground, bounded by _EXP_QUERIES and _EXP_MAX.
+    seen: list[str] = []
+    after = None
     try:
-        data = _safe_get(
-            f"{_BASE}/v3/reference/options/contracts",
-            params={
+        for _ in range(_EXP_QUERIES):
+            params = {
                 "underlying_ticker": api_sym,
                 "expired": "false",
-                "expiration_date.gte": today,
                 "limit": 1000,
                 "order": "asc",
                 "sort": "expiration_date",
-            },
-        )
+            }
+            if after:
+                params["expiration_date.gt"] = after
+            else:
+                params["expiration_date.gte"] = today
+            data = _safe_get(f"{_BASE}/v3/reference/options/contracts", params=params)
+            rows = data.get("results") or []
+            for c in rows:
+                exp = c.get("expiration_date")
+                if exp and exp not in seen:
+                    seen.append(exp)
+            if not rows or len(rows) < 1000 or len(seen) >= _EXP_MAX:
+                break
+            after = seen[-1]
     except RuntimeError as e:
         return {"error": str(e)}
     except httpx.HTTPError as e:
-        _log.warning("polygon expirations fetch failed: %s", e)
-        return {"error": f"polygon request failed: {e}", "ticker": sym}
-
-    seen: list[str] = []
-    for c in (data.get("results") or []):
-        exp = c.get("expiration_date")
-        if exp and exp not in seen:
-            seen.append(exp)
+        if not seen:
+            _log.warning("polygon expirations fetch failed: %s", e)
+            return {"error": f"polygon request failed: {e}", "ticker": sym}
+        _log.warning("polygon expirations walk stopped early for %s: %s", sym, e)
+    seen = seen[:_EXP_MAX]
     result = {"ticker": sym, "count": len(seen), "expirations": seen}
     _CACHE.set(cache_key, dict(result), _LIST_TTL)
     return result

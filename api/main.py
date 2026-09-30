@@ -6415,14 +6415,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] wisdom registration error: {e}")
 
-        # -- Historical PIT fundamentals: incremental SEC ingestion (worker only) --
-        try:
-            from api.services.fundamentals_pit.schedule import register_fundamentals_pit_jobs
-            _fpit = register_fundamentals_pit_jobs(_scheduler)
-            if _fpit:
-                print(f"[startup] fundamentals_pit jobs registered: {', '.join(_fpit)}")
-        except Exception as e:
-            print(f"[scheduler] fundamentals_pit registration error: {e}")
+        # -- Historical PIT fundamentals: NOT scheduled here. This scheduler runs on the WEB pod, which has no
+        #    fundamentals store; the V5 pipeline is owned by the WORKER
+        #    (api/worker_main.py -> fundamentals_pit.schedule.start_worker_scheduler).
 
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
@@ -9005,6 +9000,8 @@ app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
+from api.routers import econ as econ_router  # noqa: E402 -- beside its mount: keeps the line-keyed bars census stable
+app.include_router(econ_router.router)  # economic data member API; dark unless ECON_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(filings_router.router, dependencies=_OPEN_READS)
@@ -9014,6 +9011,8 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
+app.include_router(options_chain_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)

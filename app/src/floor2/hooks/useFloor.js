@@ -26,6 +26,9 @@ function adaptComment(p) {
     authorInfo: p.author || null,
     parentId: p.parent_post_id,
     body: p.body,
+    // TERM-056: addresses (L:12, W:abc) this comment names, resolved server-side against
+    // its AUTHOR's shared objects only.
+    addressLinks: p.address_links || [],
     chart: p.chart || null,
     votes: p.score ?? 0,
     myVote: p.my_vote ?? 0,
@@ -61,6 +64,7 @@ function adaptThread(t) {
     title: t.title,
     // body is a TipTap doc JSON string; components render it via renderBodyHTML.
     body: t.body || '',
+    addressLinks: t.address_links || [],
     tickers: t.tickers || [],
     chart: t.chart || null,
     votes: t.score ?? 0,

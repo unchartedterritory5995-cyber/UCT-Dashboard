@@ -2,14 +2,15 @@
 // Discord-style mini profile popover — opens when an avatar or author name is
 // clicked. Shows the avatar, verified journal badges, member-since, and floor
 // activity from GET /api/community/members/{id}. UCT Mentor gets a static card.
-import { useEffect, useMemo, useRef } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
+import { AuthContext } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import FloorAvatar from './FloorAvatar'
 import styles from '../Community.module.css'
 
 const CARD_W = 260
-const CARD_H = 190
+const CARD_H = 320  // TERM-009: room for the call record section
 
 function sinceLabel(joinedAt) {
   if (!joinedAt) return null
@@ -18,6 +19,65 @@ function sinceLabel(joinedAt) {
     if (Number.isNaN(d.getTime())) return null
     return d.toLocaleDateString([], { month: 'long', year: 'numeric' })
   } catch (_) { return null }
+}
+
+// TERM-009 (owner ruling 2026-09-29: OPT-IN PER MEMBER). How each $TICKER a member
+// mentioned has moved since -- losses included. Never "wins": a mention has no direction.
+// Another member's record appears only while its owner publishes it (the route 404s
+// otherwise, and this renders nothing); the owner always sees their own, and a switch.
+const moveText = (m) => (m == null ? 'no price now' : `${m >= 0 ? '+' : ''}${m.toFixed(1)}%`)
+
+export function CallRecord({ userId }) {
+  const me = useContext(AuthContext)?.user?.id
+  const mine = me != null && String(me) === String(userId)
+  const [busy, setBusy] = useState(false)
+  const { data, mutate } = useSWR(
+    userId ? `/api/community/members/${userId}/calls` : null,
+    (u) => fetch(u, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)),
+  )
+  if (!data) return null
+  const s = data.summary || {}
+  const toggle = async () => {
+    setBusy(true)
+    try {
+      const r = await fetch('/api/community/me/call-record', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !data.public }),
+      })
+      if (r.ok) await mutate()
+    } finally { setBusy(false) }
+  }
+  return (
+    <div className={styles.profileStat} data-testid="call-record">
+      <div>
+        <b>Call record</b>{!data.public && mine && ' · only you can see this'}
+      </div>
+      {s.marks ? (
+        <>
+          <div data-testid="call-record-summary">
+            Since each mention: <b>{s.up}</b> up · <b>{s.down}</b> down · <b>{s.flat}</b> flat
+            {s.median_move_pct != null && <> · median {moveText(s.median_move_pct)}</>}
+            {s.unpriced > 0 && <> · {s.unpriced} not priced now</>}
+          </div>
+          <ul className={styles.callRecordList}>
+            {(data.rows || []).slice(0, 5).map((r) => (
+              <li key={`${r.message_id}-${r.ticker}`}>
+                ${r.ticker} at ${Number(r.called_price).toFixed(2)} → {moveText(r.move_pct)}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div>No $TICKER mentions yet.</div>
+      )}
+      {mine && (
+        <button type="button" className={styles.callRecordToggle} onClick={toggle} disabled={busy}>
+          {data.public ? 'Stop sharing my call record' : 'Share my call record publicly'}
+        </button>
+      )}
+    </div>
+  )
 }
 
 export default function ProfileCard({ profile, onClose }) {
@@ -80,6 +140,7 @@ export default function ProfileCard({ profile, onClose }) {
             </div>
           )}
           {!data && <div className={styles.profileStat}>Loading…</div>}
+          <CallRecord userId={profile.userId} />
         </div>
       ) : (
         <div className={styles.profileStats}>

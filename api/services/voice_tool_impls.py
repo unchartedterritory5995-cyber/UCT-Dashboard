@@ -425,30 +425,34 @@ def _search_sec_filings(query: str = "", ticker: str = "", form_type: str = "",
         return {"error": f"SEC search unavailable: {e}"}
 
 
+_ECON_UNAVAILABLE = (
+    "Economic data series are not available to voice right now: the old FRED "
+    "lane was retired (FRED is not a licensed production source), and the "
+    "licensed UCT economic data service is not wired to voice yet. Say so "
+    "plainly; do not quote economic figures from memory as if they were live."
+)
+
+
 def _get_economic_series(series: str = "", periods: int = 6) -> dict:
-    """Live economic data series from FRED — yields, CPI, GDP, unemployment,
-    M2, Fed balance sheet, etc. Accepts friendly name ('10y_yield', 'cpi',
-    'unemployment') or raw FRED series ID."""
+    """Economic data series lookup. The FRED backend is RETIRED (see
+    api/services/fred_economic.py), so this degrades to an honest error dict.
+    Never calls FRED, whatever FRED_API_KEY says."""
     if not series or not (series := series.strip()):
         return {"error": "no series name provided"}
     try:
         from api.services.fred_economic import get_series
-        return get_series(series, periods=periods or 6)
-    except Exception as e:
+        out = dict(get_series(series, periods=periods or 6) or {})
+    except Exception as e:  # noqa: BLE001
         _log.warning("get_economic_series failed: %s", e)
-        return {"error": f"FRED unavailable: {e}"}
+        out = {"series_id": series}
+    out["error"] = _ECON_UNAVAILABLE
+    out["retired"] = True
+    return out
 
 
 def _list_economic_series() -> dict:
-    """List the curated economic-series catalog (friendly aliases + FRED IDs +
-    labels) so voice knows what's available to ask about."""
-    try:
-        from api.services.fred_economic import list_series_catalog
-        items = list_series_catalog()
-        return {"count": len(items), "series": items}
-    except Exception as e:
-        _log.warning("list_economic_series failed: %s", e)
-        return {"count": 0, "series": []}
+    """No economic-series catalog is offered while the FRED lane is retired."""
+    return {"count": 0, "series": [], "note": _ECON_UNAVAILABLE}
 
 
 def _web_search(query: str = "", max_tokens: int = 400,
@@ -2572,16 +2576,15 @@ def _register_all() -> None:
     _vt.voice_tool(
         name="get_economic_series",
         description=(
-            "Live economic data via FRED (Federal Reserve Economic Data). "
-            "Yields, CPI, GDP, unemployment, M2, Fed balance sheet, jobless "
-            "claims, oil, gold, DXY, VIX, etc. Accepts friendly name "
-            "('10y_yield', 'cpi', 'unemployment', 'fed_funds', 'm2', "
-            "'jobless_claims') or raw FRED series ID. Returns recent "
-            "observations newest-last. Call for any 'where is X right now', "
-            "'what's the curve looking like', 'how did CPI print' question."
+            "Economic data series (yields, CPI, GDP, unemployment, M2, claims). "
+            "CURRENTLY UNAVAILABLE: the former FRED source is retired (not "
+            "licensed for production) and the licensed UCT economic data "
+            "service is not wired to voice yet, so this returns an error. "
+            "If asked for a macro print, say live economic series are not "
+            "available in voice yet; use web_search for a sourced answer."
         ),
         parameters={
-            "series": {"type": "string", "description": "Friendly name or FRED series ID."},
+            "series": {"type": "string", "description": "Series name (e.g. 'cpi', '10y yield')."},
             "periods": {"type": "integer", "description": "How many recent observations (default 6, max 60)."},
         },
         contexts=["global"],
@@ -2590,8 +2593,9 @@ def _register_all() -> None:
     _vt.voice_tool(
         name="list_economic_series",
         description=(
-            "List the available economic data series so you know what you can "
-            "ask FRED for. Call once if unsure whether a series exists."
+            "List available economic data series. CURRENTLY returns an empty "
+            "list: the FRED source is retired and the licensed UCT economic "
+            "data service is not wired to voice yet."
         ),
         parameters={},
         contexts=["global"],

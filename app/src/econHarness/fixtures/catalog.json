@@ -1,0 +1,243 @@
+{
+ "series": [
+  {
+   "symbol": "USCPI",
+   "id": "ECON:USCPI",
+   "name": "CPI-U All Items (SA)",
+   "short_name": "CPI",
+   "description": "CPI-U All Items (SA)",
+   "category": "Inflation & Prices",
+   "subcategory": "",
+   "frequency": "M",
+   "week_anchor": "",
+   "units": {
+    "display": "Index 1982-84=100",
+    "fmt": "num2",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "line"
+   },
+   "source": {
+    "agency": "BLS",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "bls"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USNFPCHG",
+   "id": "ECON:USNFPCHG",
+   "name": "Nonfarm Payrolls, monthly change",
+   "short_name": "NFP chg",
+   "description": "Nonfarm Payrolls, monthly change",
+   "category": "Employment",
+   "subcategory": "",
+   "frequency": "M",
+   "week_anchor": "",
+   "units": {
+    "display": "Thousands of jobs",
+    "fmt": "k_persons",
+    "scale": 1000
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "histogram"
+   },
+   "source": {
+    "agency": "BLS",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "bls"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USFEDFUNDSU",
+   "id": "ECON:USFEDFUNDSU",
+   "name": "Fed Funds Target Range - Upper",
+   "short_name": "FF upper",
+   "description": "Fed Funds Target Range - Upper",
+   "category": "Rates",
+   "subcategory": "",
+   "frequency": "IRREG",
+   "week_anchor": "",
+   "units": {
+    "display": "Percent",
+    "fmt": "pct2",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "step"
+   },
+   "source": {
+    "agency": "NYFED",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "nyfed"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USFEDFUNDSL",
+   "id": "ECON:USFEDFUNDSL",
+   "name": "Fed Funds Target Range - Lower",
+   "short_name": "FF lower",
+   "description": "Fed Funds Target Range - Lower",
+   "category": "Rates",
+   "subcategory": "",
+   "frequency": "IRREG",
+   "week_anchor": "",
+   "units": {
+    "display": "Percent",
+    "fmt": "pct2",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "step"
+   },
+   "source": {
+    "agency": "NYFED",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "nyfed"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USEFFR",
+   "id": "ECON:USEFFR",
+   "name": "Effective Federal Funds Rate",
+   "short_name": "EFFR",
+   "description": "Effective Federal Funds Rate",
+   "category": "Rates",
+   "subcategory": "",
+   "frequency": "D",
+   "week_anchor": "",
+   "units": {
+    "display": "Percent",
+    "fmt": "pct2",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "line"
+   },
+   "source": {
+    "agency": "NYFED",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "nyfed"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USCRUDEINV",
+   "id": "ECON:USCRUDEINV",
+   "name": "U.S. Crude Oil Stocks ex SPR",
+   "short_name": "Crude stocks",
+   "description": "U.S. Crude Oil Stocks ex SPR",
+   "category": "Energy",
+   "subcategory": "",
+   "frequency": "W",
+   "week_anchor": "FRI",
+   "units": {
+    "display": "Thousand barrels",
+    "fmt": "mbbl",
+    "scale": 1000
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "line"
+   },
+   "source": {
+    "agency": "EIA",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "eia"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USICSA",
+   "id": "ECON:USICSA",
+   "name": "Initial Jobless Claims (SA)",
+   "short_name": "Init claims",
+   "description": "Initial Jobless Claims (SA)",
+   "category": "Employment",
+   "subcategory": "",
+   "frequency": "W",
+   "week_anchor": "SAT",
+   "units": {
+    "display": "Number of claims",
+    "fmt": "k_persons",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "line"
+   },
+   "source": {
+    "agency": "DOL",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "dol"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  },
+  {
+   "symbol": "USRGDPQA",
+   "id": "ECON:USRGDPQA",
+   "name": "Real GDP, % change annualized",
+   "short_name": "GDP q/q ann.",
+   "description": "Real GDP, % change annualized",
+   "category": "Output",
+   "subcategory": "",
+   "frequency": "Q",
+   "week_anchor": "",
+   "units": {
+    "display": "Percent, annualized",
+    "fmt": "pct1",
+    "scale": 1
+   },
+   "seasonal_adjustment": "SA",
+   "presentation": {
+    "style": "histogram"
+   },
+   "source": {
+    "agency": "BEA",
+    "dataset": "",
+    "official_url": "",
+    "attribution_key": "bea"
+   },
+   "aliases": [],
+   "synonyms": [],
+   "history_start": null
+  }
+ ],
+ "attributions": {
+  "bls": "Source: U.S. Bureau of Labor Statistics",
+  "bea": "Source: U.S. Bureau of Economic Analysis",
+  "eia": "Source: U.S. Energy Information Administration",
+  "dol": "Source: U.S. Department of Labor",
+  "nyfed": "Source: Federal Reserve Bank of New York"
+ }
+}

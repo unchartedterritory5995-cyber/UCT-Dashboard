@@ -33,9 +33,11 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
           {value == null ? '—' : Math.round(value)}
           {(bonus || isLeveraged) && value != null && <span className={styles.expBonus}><UIcon name="star-fill" size={12} /></span>}
         </span>
-        {delta != null && (
-          <span className={styles.expDelta} style={{ color: delta >= 0 ? 'var(--gain)' : 'var(--loss)' }}>
-            {delta >= 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
+        {/* A zero change is no change: no arrow (it printed "100 ↑0" in the
+            2026-09-29 letter). Only a real move earns ↑ / ↓. */}
+        {delta != null && Number(delta) !== 0 && Number.isFinite(Number(delta)) && (
+          <span className={styles.expDelta} style={{ color: delta > 0 ? 'var(--gain)' : 'var(--loss)' }}>
+            {delta > 0 ? `↑${delta}` : `↓${Math.abs(delta)}`}
           </span>
         )}
       </div>
@@ -55,7 +57,7 @@ function ExposureBar({ value, label = 'UCT EXPOSURE RATING', delta = null, bonus
 }
 
 // ─── Main component ──────────────────────────────────────────────────────────
-export default function MarketBreadth({ data: propData }) {
+export default function MarketBreadth({ data: propData, priceOverride = null }) {
   const { data: fetched } = useMobileSWR(propData !== undefined ? null : '/api/breadth', fetcher, { refreshInterval: 60000, marketHoursOnly: true })
   const data = propData !== undefined ? propData : fetched
   // The exposure rating this tile leads with is pushed by the morning wire and
@@ -143,7 +145,7 @@ export default function MarketBreadth({ data: propData }) {
         </div>
       )}
 
-      <MARelationship maData={maData} />
+      <MARelationship maData={maData} priceOverride={priceOverride} />
     </TileCard>
   )
 }

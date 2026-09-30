@@ -1,0 +1,30 @@
+[
+ {
+  "symbol": "USICSA",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "VERDICT in docs/economic-data/verification/dol.txt: the current advance SA week is available ~08:32 ET via the official GREEN keyless path oui.doleta.gov/unemploy/weeklyRedirect.php -> press/<YYYY>/<MMDDYY>.pdf (Apache, not Akamai; public domain), parsed with pypdf (requirements.txt) and cross-validated (prose == table, NSA/SF within 0.5%, file-name date == embargo date); history 1967-01-07.. from the r539cy XML with no gap on 2026-09-28. Live: wk 09/19 197,000 'a' == Phase 0; wk 08/29 207,000 == Phase 0. COORDINATOR DECIDES; condition: the scheduler polls the redirect from Thursday 08:30 ET."
+ },
+ {
+  "symbol": "USICSA",
+  "field_path": "source.provider_series_id",
+  "old": "DOL ETA national claims (initial, SA)",
+  "new": "DOL ETA r539cy national InitialClaims/SA (history XML) + weekly news release 'Initial Claims (SA)' (advance week, press PDF)",
+  "evidence": "Both paths verified live 2026-09-28; docs/economic-data/verification/dol.txt"
+ },
+ {
+  "symbol": "USICSA",
+  "field_path": "source.params.press",
+  "old": null,
+  "new": true,
+  "evidence": "Enables the advance-week PDF path (the adapter defaults to True; explicit for registry readers). docs/economic-data/verification/dol.txt"
+ },
+ {
+  "symbol": "USICSA",
+  "field_path": "source.verified_evidence",
+  "old": "C:\\Users\\blake\\uct-econ-phase0\\proofs.md cross-check: DOL r539cy SA initial claims wk 08/29 207,000 == ICSA. Keyless XML lags ~3 weeks: CURRENT-WEEK SOURCE UNRESOLVED (Phase 1 open item A).",
+  "new": "Live 2026-09-28: XML 3,113 weeks 1967-01-07..2026-08-29 (207,000 == Phase 0) + press/2026/092426.pdf advance wk 09/19 197,000 'a' (== Phase 0), 09/12 198,000, 09/05 207,000; embargo 08:30 ET, LM 08:32 ET (docs/economic-data/verification/dol.txt)",
+  "evidence": "verify_dol run; resolves Phase 1 open item A"
+ }
+]

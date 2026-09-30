@@ -1,0 +1,90 @@
+DOL CLAIMS adapter -- live verification (keyless, oui.doleta.gov only), run 2026-09-29T02:13Z
+Command: python -m tools.econ.verify_dol   (6 requests: 2 XML POSTs, 2 x 302 weeklyRedirect, 2 PDF GETs)
+
+SUMMARY
+symbol  source                                   count  oldest       newest        newest value     Phase 0                 result
+USICSA  r539cy national XML (history)             3113  1967-01-07   2026-08-29    207,000 SA       207,000 (XML wk 08/29)  MATCH
+USICSA  press PDF 2026/092426.pdf (advance)          3  2026-09-05   2026-09-19    197,000 SA 'a'   197,000 advance (PDF)   MATCH
+        (prior week 09/12 revised 198,000 == Phase 0 prose "revised up ... from 196,000 to 198,000": MATCH)
+Secondary reference: FRED ICSA 09/19 = 197,000 per Phase 0 proofs.md (a new manual FRED read timed out; not retried).
+Continuity: XML ends 08/29 and the PDF's third column is 09/05, so there is no gap on 2026-09-28.
+
+CROSS-VALIDATION OF THE PDF (all must pass, else MalformedPayload)
+  prose advance week 'September 19' == table week 1; prose SA 197,000 == table SA col 1
+  prose "previous week's level ... to 198,000" == table SA col 2; prose NSA 163,811 == table NSA col 1
+  NSA / (XML SF / 100) vs SA:  09/19 163,811/0.830 = 197,363 (0.184 %)   09/12 153,568/0.777 = 197,642 (0.181 %)
+                               09/05 177,695/0.857 = 207,345 (0.167 %)   tolerance 0.5 %
+  file name 092426 == embargo date Thursday, September 24, 2026; weeks are consecutive Saturdays 5 days before release.
+  The pdftotext layout used in Phase 1 (letter-spaced 'Initia l Cla ims', Change column on the wrong row) is also
+  parsed: the labels are space-tolerant, and the 3rd week is taken only when Change == col1 - col2, else it is
+  dropped (unit-tested on the real pdftotext text).
+
+PUBLICATION TIME
+  Embargo line "8:30 A.M. (Eastern) Thursday, September 24, 2026" = 2026-09-24T12:30:00Z. This is source_published_at
+  (payload and per row). File Last-Modified Thu 24 Sep 2026 12:32:12 GMT (08:32 ET) is a sanity check only: a
+  warning is raised if it is off the release morning. The prior release press/2026/091726.pdf has LM 12:31:17Z
+  (Phase 1). The PDF's own metadata ModDate is 2026-09-22 (the document was drafted before the embargo), so it is
+  NOT used.
+
+DEPENDENCY
+  PDF text uses pypdf (requirements.txt: pypdf>=5.0.0, already a runtime dependency of voice_document_service /
+  journal_two). NOTE: the local project venv did NOT have it installed. I installed pypdf 6.19.0 into
+  C:\Users\blake\projects\UCT-Dashboard\.venv to match requirements.txt. If pypdf is missing at runtime, history mode
+  degrades to XML-only with a warning, and latest mode raises SourceUnavailable (never a silent stale success).
+  No new dependency was added.
+
+======================================================================================================
+VERDICT: USICSA CAN BE PRODUCTION-READY  (recommendation: status disabled -> enabled; the coordinator decides)
+======================================================================================================
+Grounds:
+  1. GREEN official path for the CURRENT week. The advance SA figure is in the weekly news release on ETA's own
+     Apache host oui.doleta.gov: keyless, not Akamai, and the same document DOL's DataDashboard links to. DOL content
+     is public domain (dol.gov/general/aboutdol/copyright; licensing.md GREEN). No block is circumvented: the
+     www.dol.gov copy that 403s is never requested.
+  2. Timeliness: the file appeared at 08:32 ET for an 08:30 ET embargo (LM 12:32:12Z on 09/24, 12:31:17Z on 09/17).
+     weeklyRedirect.php switches its 302 Location to the new MMDDYY.pdf, so a poll from 08:30 ET (cheap 302,
+     Content-Length 0) detects the release within minutes, including holiday-shifted days. No holiday rule could be
+     fetched from DOL, so the date comes from the redirect, not an inferred rule.
+  3. Correctness: every advance figure is cross-validated against the prose, the table and the XML seasonal factor.
+     A layout change fails CLOSED (MalformedPayload), never with a wrong number.
+  4. History: 1967-01-07..(release - ~3 weeks) from the XML, with no gap to the PDF's third week on the verification
+     date. The advance week carries flag 'a' and is superseded by the following week's revised value (flag '').
+Conditions / residual risks:
+  a. The scheduler must drive latest-mode fetches from the redirect (Thursday 08:30 ET; Wed/Fri on holidays), with
+     the registry lag rule only as the backfill rule.
+  b. The XML lag is caused by a stated DOL database problem ("technical issues with our database", claims.asp,
+     updated 2026-09-11). If the lag grows past 3 weeks, history mode warns "gap: XML ends ..., PDF starts ...". The
+     latest weekly captures still store every week, but a fresh backfill would have holes until the XML catches up.
+  c. A PDF layout change stops currentness (the fail-closed behaviour is intended) until the parser is updated.
+  d. Seasonal-factor revisions (annual, spring) are covered by revision.type 'seasonal_factor_revision' (5-year
+     window).
+Registry correction written: docs/economic-data/registry-corrections/dol.json.
+
+RAW RUN OUTPUT
+# DOL claims live verification  2026-09-29T02:13Z  (keyless)
+
+USICSA  request_key=dol:r539cy:us:initial:SA:history:1967-2026
+  count=3113  NA=0  oldest=1967-01-01..1967-01-07  newest=2026-08-23..2026-08-29  newest_value=207000.0 flag=''  units='Number of claims'  bytes=1137818
+  source_published_at=None  warnings=[]
+    wk 2026-08-08  212,000  flag=''  row_published=None
+    wk 2026-08-15  207,000  flag=''  row_published=None
+    wk 2026-08-22  204,000  flag=''  row_published=None
+    wk 2026-08-29  207,000  flag=''  row_published=None
+
+USICSA  request_key=dol:press:2026-09-24:initial:SA
+  count=3  NA=0  oldest=2026-08-30..2026-09-05  newest=2026-09-13..2026-09-19  newest_value=197000.0 flag='a'  units='Number of claims'  bytes=699783
+  source_published_at=1790253000 = 2026-09-24T12:30:00Z = Thu 2026-09-24 08:30 ET  warnings=[]
+    wk 2026-09-05  207,000  flag=''  row_published=1790253000 = 2026-09-24T12:30:00Z = Thu 2026-09-24 08:30 ET
+    wk 2026-09-12  198,000  flag=''  row_published=1790253000 = 2026-09-24T12:30:00Z = Thu 2026-09-24 08:30 ET
+    wk 2026-09-19  197,000  flag='a'  row_published=1790253000 = 2026-09-24T12:30:00Z = Thu 2026-09-24 08:30 ET
+  Phase0 wk 2026-08-29 = (207000.0, '')  adapter = (207000.0, '')  -> MATCH
+  Phase0 wk 2026-09-19 = (197000.0, 'a')  adapter = (197000.0, 'a')  -> MATCH
+  Phase0 wk 2026-09-12 = (198000.0, '')  adapter = (198000.0, '')  -> MATCH
+
+current release: https://oui.doleta.gov/press/2026/092426.pdf  Last-Modified=Thu, 24 Sep 2026 12:32:12 GMT  embargo=1790253000 = 2026-09-24T12:30:00Z = Thu 2026-09-24 08:30 ET
+  prose: advance SA 197,000; prior revised 198000.0; advance NSA 163811.0
+  wk 2026-09-19: table SA 197,000  NSA 163,811  XML SF 83.0  NSA/SF 197,363  |dev| 0.184%
+  wk 2026-09-12: table SA 198,000  NSA 153,568  XML SF 77.7  NSA/SF 197,642  |dev| 0.181%
+  wk 2026-09-05: table SA 207,000  NSA 177,695  XML SF 85.7  NSA/SF 207,345  |dev| 0.167%
+
+http stats: {'by_host': {'oui.doleta.gov': {'200': 4, '302': 2}}, 'total': 6}

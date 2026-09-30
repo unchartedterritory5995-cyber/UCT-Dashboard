@@ -25,6 +25,41 @@ _lock = threading.Lock()
 _next_at = [0.0]
 
 
+# Lightweight, process-wide acquisition counters (the V5 rebuild reports them).
+STATS = {"requests": 0, "ok": 0, "retries": 0, "http_429": 0, "http_403": 0, "http_5xx": 0,
+         "network": 0, "not_found": 0, "gave_up": 0, "bytes": 0, "retry_after_waits": 0}
+_stats_lock = threading.Lock()
+RETRY_AFTER_CAP = 300.0
+
+
+def _bump(key: str, n: int = 1) -> None:
+    with _stats_lock:
+        STATS[key] += n
+
+
+def stats() -> dict:
+    with _stats_lock:
+        return dict(STATS)
+
+
+def _retry_after(err) -> float | None:
+    """Seconds the server asked us to wait (Retry-After: seconds or an HTTP date)."""
+    try:
+        v = err.headers.get("Retry-After") if getattr(err, "headers", None) is not None else None
+    except Exception:
+        return None
+    if not v:
+        return None
+    try:
+        return max(0.0, float(v))
+    except ValueError:
+        from email.utils import parsedate_to_datetime
+        try:
+            return max(0.0, parsedate_to_datetime(v).timestamp() - time.time())
+        except Exception:
+            return None
+
+
 class SecError(RuntimeError):
     def __init__(self, url: str, status: int | None, msg: str):
         super().__init__(f"{status} {url}: {msg}")
@@ -53,22 +88,37 @@ def get_bytes(url: str, retries: int = 4, timeout: float = 60.0, opener=None) ->
     last: Exception | None = None
     for attempt in range(retries + 1):
         _wait_turn()
+        _bump("requests")
         req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
+        wait = min(60.0, 2.0 ** attempt)
         try:
             with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:
                 body = r.read()
                 if r.headers.get("Content-Encoding") == "gzip":
                     body = gzip.decompress(body)
+                _bump("ok"); _bump("bytes", len(body))
                 return body
         except urllib.error.HTTPError as e:
             if e.code == 404:
+                _bump("not_found")
                 raise SecError(url, 404, "not found") from e
             last = e
+            kind = {429: "http_429", 403: "http_403"}.get(e.code, "http_5xx" if e.code >= 500 else None)
+            if kind:
+                _bump(kind)
             if e.code not in (403, 429, 500, 502, 503, 504):
                 raise SecError(url, e.code, str(e)) from e
+            ra = _retry_after(e)
+            if ra is not None:                         # the server's own instruction wins over our backoff
+                _bump("retry_after_waits")
+                wait = min(RETRY_AFTER_CAP, max(wait, ra))
         except (urllib.error.URLError, TimeoutError, ConnectionError) as e:
+            _bump("network")
             last = e
-        time.sleep(min(60.0, 2.0 ** attempt))
+        if attempt < retries:
+            _bump("retries")
+            time.sleep(wait)
+    _bump("gave_up")
     raise SecError(url, getattr(last, "code", None), f"gave up after {retries + 1} attempts: {last}")
 
 
