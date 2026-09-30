@@ -14,6 +14,7 @@ Cached for 1 hour (3600s). Universe: cap_universe from wire_data ($300M+).
 """
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
@@ -213,6 +214,42 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
+
+
+_warm_lock = threading.Lock()
+_warm_inflight = False
+
+
+def cached_rankings() -> list[dict] | None:
+    """The ranked list from the CACHE only; ``None`` when cold. Never computes."""
+    return cache.get(_CACHE_KEY)
+
+
+def kick_background_warm() -> bool:
+    """Start ONE background rebuild if none is running; True if this call started it.
+
+    ⛔ Single-flight. Measured 2026-09-30 08:08 ET (`/api/watchdog/stacks`): two
+    `/api/rs-rankings` requests were EACH running the full ~3,685-ticker rebuild
+    in their own request thread, 12 fetch workers apiece, during a 5 s
+    event-loop stall. A cold cache must cost one rebuild, off every request."""
+    global _warm_inflight
+    with _warm_lock:
+        if _warm_inflight:
+            return False
+        _warm_inflight = True
+
+    def _run():
+        global _warm_inflight
+        try:
+            compute_rs_scores(force=True)
+        except Exception:
+            logger.exception("[rs_ranking] background warm failed")
+        finally:
+            with _warm_lock:
+                _warm_inflight = False
+
+    threading.Thread(target=_run, name="rs-rankings-kick", daemon=True).start()
+    return True
 
 
 def cached_rank_map() -> dict:
