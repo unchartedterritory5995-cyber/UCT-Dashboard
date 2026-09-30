@@ -799,6 +799,14 @@ GEOM_JS = r"""() => {
 # `#notebook-pane`, is inside `<main>`), and F7's existing region check recovers on its own --
 # verified live (wk2 diagnostic run): plant-dead/plant-dead-styled/plant-live/plant-poller all
 # read DEAD/DEAD/LIVE/IN-WINDOW with ONLY clause a's fix applied, no change below this line.
+#
+# ⭐ wave 10 lane WK6 round 2: the poller's own tick period is the ONE place this number is
+# spelled out. `__PLANT_POLL_MS__` below is a plain string token, replaced with it right after
+# this literal -- an f-string would need every one of this template's own `{`/`}` escaped, which
+# is more fragile than a token substitution. `quiesce()`'s `QUIESCE_FLOOR_MS` is derived from the
+# SAME constant, never a second literal (l11dc-4dfc5e447/INVALID.md: a window shorter than one
+# full poller period can land entirely between two ticks and see neither).
+PLANT_POLL_INTERVAL_MS = 200
 PLANT_DEADCLICK_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
   const box = document.createElement('div'); box.setAttribute('data-proof-plant', 'deadclick');
@@ -822,9 +830,9 @@ PLANT_DEADCLICK_JS = r"""(root) => {
     if (!box.isConnected) { clearInterval(id); return; }
     if (performance.now() - t0 < 2500) return;
     fetch('/api/proof-plant/poll?t=' + Math.round(performance.now()), {credentials: 'include'}).catch(() => {});
-  }, 200);
+  }, __PLANT_POLL_MS__);
   R.insertBefore(box, R.firstChild);
-  return true; }"""
+  return true; }""".replace("__PLANT_POLL_MS__", str(PLANT_POLL_INTERVAL_MS))
 
 PLANT_SILENT_JS = r"""() => {
   const box = document.createElement('div'); box.setAttribute('data-proof-plant', 'silent');
@@ -997,18 +1005,38 @@ def dump(name: str, obj) -> None:
 
 
 class Tap:
-    """What one page did that the DOM cannot say: its requests and its browser doors."""
+    """What one page did that the DOM cannot say: its requests and its browser doors.
+
+    ⭐ wave 10 lane WK6 round 2: `inflight` + `last_activity` are what makes this the "request
+    tracking the instrument already has" (`quiesce()`'s docstring) rather than a second one --
+    `reqs` already recorded every request's START; this adds FINISH/FAIL so a caller can ask
+    "is anything outstanding right now", the question `quiesce()` needs answered to avoid
+    declaring quiet while a control's own fetch is still in flight
+    (l11dc-4dfc5e447/INVALID.md)."""
 
     def __init__(self, pg):
         self.reqs: list[dict] = []
+        self.inflight: set[int] = set()
+        self.last_activity: float = time.time()
         self.events = {"download": 0, "filechooser": 0, "popup": 0, "dialog": 0}
         self.popups = []
-        pg.on("request", lambda r: self.reqs.append({"t": time.time(), "method": r.method, "url": r.url}))
+        pg.on("request", self._on_request)
+        pg.on("requestfinished", self._on_request_done)
+        pg.on("requestfailed", self._on_request_done)
         pg.on("download", lambda d: self._ev("download"))
         pg.on("filechooser", lambda fc: self._ev("filechooser"))
         pg.on("popup", self._popup)
         pg.on("dialog", self._dialog)
         pg.on("pageerror", lambda e: res["pageerrors"].append(str(e)[:300]))
+
+    def _on_request(self, r):
+        self.reqs.append({"t": time.time(), "method": r.method, "url": r.url})
+        self.inflight.add(id(r))
+        self.last_activity = time.time()
+
+    def _on_request_done(self, r):
+        self.inflight.discard(id(r))
+        self.last_activity = time.time()
 
     def _ev(self, k):
         self.events[k] += 1
@@ -2114,54 +2142,112 @@ ACTION_TIMEOUT_MS = 3500   # click/tap -- Playwright's own native, already-bound
 # `SURFACE_DEADLINE_S`: 56-90 controls in 360s is 4-6s/control, and the two fixed waits alone
 # are 1.65s of that per non-reset click (`docs/notebook/proof/l11-52deeb767/README.md`, 2c).
 #
-# `quiesce()` polls the SAME MutationObserver feed `EFFECT_JS` already reads (`window.__proof
-# .muts`) and returns as soon as the page has been quiet for `QUIET_MS` -- capped at
-# `ceiling_ms`, which is passed the OLD constant (450 / 1200) so a control that genuinely keeps
-# mutating for the whole window waits EXACTLY as long as the flat sleep it replaces, never
-# longer. A control with nothing left to settle (the common case: a plain click, no debounce, no
-# fetch) returns after one `QUIET_MS` window instead of paying the whole ceiling.
+# `quiesce()` returns once the page has been quiet -- on BOTH the DOM (the SAME MutationObserver
+# feed `EFFECT_JS` reads, `window.__proof.muts`) AND the network (`Tap.inflight`/
+# `Tap.last_activity`) -- for `QUIET_MS`, never before `QUIESCE_FLOOR_MS` has elapsed, capped at
+# `ceiling_ms` (the OLD constant, 450 / 1200: a control that genuinely keeps mutating or keeps a
+# request open for the whole window waits EXACTLY as long as the flat sleep it replaces, never
+# longer). A control with nothing left to settle returns after `QUIESCE_FLOOR_MS` instead of
+# paying the whole ceiling -- most of the win, since `QUIESCE_FLOOR_MS` << the ceilings it caps.
 #
-# ⛔ IT MUST NOT SEED FROM MUTATION HISTORY FROM *BEFORE* THIS CALL. A first draft returned near
-# -instantly whenever `P.muts`' last entry was already older than `quiet_ms` -- which reads
-# right for "the page has been idle a while" and reads WRONG for "the click's own effect has
-# not started rendering yet": on a real page whose last unrelated mutation was, say, 300ms in
-# the past, that draft would declare quiescence on the very FIRST poll, before the click's own
-# React re-render had a chance to produce even one mutation -- misjudging a LIVE control as DEAD.
-# Caught by this lane's own "never settles" rail going GREEN when it should have gone RED (0.002s
-# instead of the ceiling). `_QUIESCE_RESET_JS` marks the length+time this SPECIFIC `quiesce()`
-# call started from, so `QUIESCE_JS` always requires at least one full `quiet_ms` window of
-# OBSERVED stability after the call begins -- never a backdated one.
-QUIET_MS = 120   # the minimum a settled control now waits (was the flat 450 / 1200 unconditionally)
+# ⛔⛔ ROUND 2 -- read this before touching either signal or the floor; both are load-bearing and
+# for DIFFERENT reasons (l11dc-4dfc5e447/INVALID.md, a real re-run of the deadclick sweep):
+#
+#   "`quiesce()` ends the click window after 120 ms without DOM mutations. It ignores network
+#    activity. The planted poller fetches every 200 ms, so no request lands inside the
+#    shortened window." -- round 1 (DOM-only, no floor) read every genuinely-dead planted
+#    control as settled almost instantly (nothing ever mutates), so `EFFECT_JS`'s
+#    `[hoverFrom..now)` observation window was routinely shorter than ONE full poller tick --
+#    `plant-poller: NOT-SEEN`, and the deadclick control failed before a single surface measured.
+#
+#   - **The FLOOR fixes the control above**, by construction: `QUIESCE_FLOOR_MS` is derived from
+#     `PLANT_POLL_INTERVAL_MS` (1.5x it, never a second literal), so the window always spans more
+#     than one full poller period regardless of phase.
+#   - **The floor alone does NOT fix a real control whose effect waits on a slow reply** -- "the
+#     same flaw affects real controls: a click whose visible effect waits on a server reply would
+#     read DEAD" -- a floor is a fixed budget; a control whose fetch takes LONGER than the floor
+#     would still read quiet (nothing currently happening) the instant the floor elapses, if
+#     nothing else were watching the network. The NETWORK check is what keeps waiting for as long
+#     as `Tap.inflight` is non-empty, up to the full ceiling, independent of the floor.
+#   - Neither one is dispensable in favour of the other: the floor answers "did we wait through at
+#     least one background cycle"; the network check answers "is something still outstanding right
+#     now". A rail for each is in `tests/test_notebook_proof_walk.py`, mutation-proved by dropping
+#     each independently.
+#
+# ⛔ IT MUST NOT SEED THE **DOM** SIGNAL FROM MUTATION HISTORY FROM *BEFORE* THIS CALL. A round-1
+# draft returned near-instantly whenever `P.muts`' last entry was already older than `quiet_ms` --
+# which reads right for "the page has been idle a while" and reads WRONG for "the click's own
+# effect has not started rendering yet": on a real page whose last unrelated mutation was, say,
+# 300ms in the past, that draft would declare quiescence on the very FIRST poll, before the
+# click's own React re-render had a chance to produce even one mutation -- misjudging a LIVE
+# control as DEAD. Caught by this lane's own "never settles" rail going GREEN when it should have
+# gone RED (0.002s instead of the ceiling). `_QUIESCE_RESET_JS` marks the length+time this
+# SPECIFIC `quiesce()` call started from, so `QUIESCE_DOM_JS` always requires at least one full
+# `quiet_ms` window of OBSERVED stability after the call begins -- never a backdated one.
+QUIET_MS = 120   # the minimum EITHER signal must stay stable before it counts as settled
                  # -- comfortably above a requestAnimationFrame tick, comfortably below the
                  # shortest debounce this file's own surfaces use (300ms) so a debounced write is
                  # never cut off mid-fire
 
-_QUIESCE_RESET_JS = r"""() => { const P = window.__proof;
-  if (P) { P.__wk6QLen = P.muts.length; P.__wk6QAt = performance.now(); } }"""
+QUIESCE_FLOOR_MS = int(PLANT_POLL_INTERVAL_MS * 1.5)   # 300ms -- derived, not guessed: exceeds
+                 # one full poller period (200ms) with a safety margin, so a window starting at
+                 # ANY phase relative to the poller's ticks still spans at least one of them.
+                 # Never restate the 200ms here -- PLANT_POLL_INTERVAL_MS is the one spelling.
 
-QUIESCE_JS = r"""(quietMs) => {
+_QUIESCE_RESET_JS = r"""() => { const P = window.__proof;
+  if (P) { const t = performance.now(); P.__wk6QLen = P.muts.length; P.__wk6QAt = t; P.__wk6QStart = t; } }"""
+
+# DOM + floor, together, in ONE native `wait_for_function` call (no per-poll Python round trip):
+# `floorMs` blocks an early return regardless of how quiet the DOM already is; once past it, the
+# DOM must additionally have been stable (no new `P.muts` entries) for `quietMs`.
+QUIESCE_DOM_JS = r"""(args) => {
+  const [quietMs, floorMs] = args;
   const P = window.__proof;
   if (!P) return true;
   const now = performance.now();
   const len = P.muts.length;
-  if (len !== P.__wk6QLen) { P.__wk6QLen = len; P.__wk6QAt = now; return false; }
+  if (len !== P.__wk6QLen) { P.__wk6QLen = len; P.__wk6QAt = now; }
+  if ((now - P.__wk6QStart) < floorMs) return false;
   return (now - P.__wk6QAt) >= quietMs;
 }"""
 
 
-def quiesce(pg, ceiling_ms: int, quiet_ms: int = QUIET_MS) -> None:
-    """Wait until the page's own mutation feed has been silent for `quiet_ms`, MEASURED FROM
-    THIS CALL (never backdated to an earlier mutation -- see the comment above `QUIET_MS`),
-    capped at `ceiling_ms` total -- the adaptive replacement for a flat
-    `pg.wait_for_timeout(ceiling_ms)`. A control that never quiesces (a live-updating poll, an
-    unresolved fetch) waits the FULL ceiling, exactly as the flat sleep it replaces did; a
+def quiesce(pg, tap: "Tap", ceiling_ms: int, quiet_ms: int = QUIET_MS,
+            floor_ms: int = QUIESCE_FLOOR_MS) -> None:
+    """Wait until the page has been quiet on BOTH signals this instrument already tracks -- the
+    DOM (`QUIESCE_DOM_JS`, MEASURED FROM THIS CALL, never before `floor_ms`; see the comment
+    above `QUIET_MS`) and the network (`Tap.inflight` / `Tap.last_activity` -- the SAME request
+    tracking `click_one`'s own judge already reads for `obs['requests']`, extended in `Tap` to
+    also know when a request FINISHES, never a second tracker) -- capped at `ceiling_ms` total,
+    the adaptive replacement for a flat `pg.wait_for_timeout(ceiling_ms)`. A control that never
+    quiesces on either axis waits the FULL ceiling, exactly as the flat sleep it replaces did; a
     `TimeoutError` from that case (or a closed page) is the expected outcome, not a failure, so
-    it is swallowed the same way the surrounding code already swallows a best-effort `hover()`."""
+    it is swallowed the same way the surrounding code already swallows a best-effort `hover()`.
+
+    Sequenced rather than merged into one poll loop, for cost: phase 1 is ONE native
+    `wait_for_function` call (the DOM+floor check runs entirely in the browser, no per-tick
+    Python<->CDP round trip); phase 2 is a Python-only loop over whatever ceiling budget phase 1
+    left, checking `tap.inflight`/`tap.last_activity` directly -- no `evaluate` call at all, so
+    it costs one `wait_for_timeout` per tick and nothing more. See the ROUND 2 comment above this
+    function for why both phases -- and the floor inside phase 1 -- are each load-bearing."""
+    started = time.monotonic()
+    deadline = started + ceiling_ms / 1000.0
     try:
         pg.evaluate(_QUIESCE_RESET_JS)
-        pg.wait_for_function(QUIESCE_JS, arg=quiet_ms, timeout=ceiling_ms)
+        pg.wait_for_function(QUIESCE_DOM_JS, arg=[quiet_ms, min(floor_ms, ceiling_ms)], timeout=ceiling_ms)
     except Exception:  # noqa: BLE001
         pass
+    while True:
+        now = time.monotonic()
+        if now >= deadline:
+            return
+        if not tap.inflight and (time.time() - tap.last_activity) * 1000.0 >= quiet_ms:
+            return
+        remaining_ms = (deadline - now) * 1000.0
+        try:
+            pg.wait_for_timeout(min(30.0, max(1.0, remaining_ms)))
+        except Exception:  # noqa: BLE001
+            return
 
 
 def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str) -> dict:
@@ -2185,8 +2271,29 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
             loc.hover(timeout=HOVER_TIMEOUT_MS)
         except Exception:  # noqa: BLE001
             pass
-    quiesce(pg, 450)
+    quiesce(pg, tap, 450)
     m = safe_evaluate(pg, MARK_JS)
+    # ⚠️ wave 10 lane WK6 round 2, a PRE-EXISTING boundary race, MEASURED not fully closed:
+    # `m["bgMark"]` is a JS-side index into `P.bgReqs`; `n0 = len(tap.reqs)` below is a
+    # Python-side index into a SEPARATE list, populated asynchronously as Playwright delivers
+    # "request" CDP messages on its own schedule. The two are supposed to mark "the same
+    # instant" and do not exactly -- a background request JS correctly counts as landing BEFORE
+    # `bgMark` can still appear in `tap.reqs` AFTER `n0` (its Python-side delivery simply lagged
+    # the JS-side push), producing an extra, unmatched "request" effect on a genuinely dead
+    # control. With the floor now guaranteeing a background poller ticks inside most windows
+    # (`QUIESCE_FLOOR_MS`), this pre-existing skew is exercised far more often than before.
+    # `wait_for_timeout` pumps Playwright's own dispatcher (see `wait_true`'s docstring above),
+    # draining most already-in-transit CDP messages before `n0` is read -- MEASURED to cut the
+    # rate substantially (stress-tested: ~1 in 25 draws down to ~1 in 40, `wk6_repro_plant3.py`
+    # in the session scratchpad), NOT to zero -- doubling the wait to 100ms bought no further
+    # improvement, so the residual is a genuine index/clock skew between two independently-paced
+    # channels, not a drainable queue. A real fix needs a SHARED checkpoint (e.g. a timestamp on
+    # both sides, not a list length) and is out of this lane's scope (quiesce sizing + dedup).
+    # This is exactly the class `deadclick_sweep`'s own `control_ok` check exists to catch: a
+    # residual miss here reads `[INVALID]`, never a silent wrong answer, and the controller
+    # re-runs -- `tests/test_notebook_proof_walk.py`'s own reproduction of this control retries
+    # on that same, documented tolerance, never a hidden flake mask.
+    pg.wait_for_timeout(50)
     fs0 = safe_evaluate(pg, FORMSTATE_JS, root)
     n0, ev0 = len(tap.reqs), dict(tap.events)
     try:
@@ -2199,7 +2306,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
         inter = next((ln.strip() for ln in msg.splitlines() if "intercepts pointer events" in ln), "")
         return {"verdict": "OCCLUDED" if inter else "NOT-ACTIONABLE",
                 "reason": (inter or msg.splitlines()[0])[:240], "reset": True}
-    quiesce(pg, 1200)
+    quiesce(pg, tap, 1200)
     reloaded = False
     try:
         reloaded = safe_evaluate(pg, "() => performance.timeOrigin") != origin0
