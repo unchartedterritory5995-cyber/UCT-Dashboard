@@ -1,0 +1,508 @@
+{
+ "telemetry_never_evidence": [
+  "/api/j2/telemetry",
+  "/api/client-errors"
+ ],
+ "surfaces": [
+  {
+   "surface": "nb-first-run-clicks",
+   "mode": "desk",
+   "manifest": [],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED3D40 (otid=0x000002147FDB7690) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-home",
+   "mode": "desk",
+   "manifest": [
+    "ResearchHome"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED2EC0 (otid=0x000002147FDB6070) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED2F80 (otid=0x000002147FDB6D00) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-list",
+   "mode": "phone",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED2380 (otid=0x000002147FDB6D30) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-table",
+   "mode": "desk",
+   "manifest": [
+    "tab-table"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED1800 (otid=0x000002147FCD1410) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-board",
+   "mode": "desk",
+   "manifest": [
+    "tab-board"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED0D40 (otid=0x000002147FD53D50) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-calendar",
+   "mode": "desk",
+   "manifest": [
+    "tab-calendar"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED0680 (otid=0x000002147FD53C60) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-timeline",
+   "mode": "desk",
+   "manifest": [
+    "tab-timeline"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FED0080 (otid=0x000002147FD53DB0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-graph",
+   "mode": "desk",
+   "manifest": [
+    "graph-canvas"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FECB080 (otid=0x000002147FD50030) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-tasks",
+   "mode": "desk",
+   "manifest": [
+    "tasks-view"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA05340 (otid=0x000002147FE0A130) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-search",
+   "mode": "desk",
+   "manifest": [
+    "folder-sidebar-edit"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA06880 (otid=0x000002147FE0A730) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-trash",
+   "mode": "desk",
+   "manifest": [
+    "note-card-states"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA07CC0 (otid=0x000002147FE0A280) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-bulk",
+   "mode": "desk",
+   "manifest": [
+    "bulk-action-bar"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA06100 (otid=0x000002147FE08270) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "desk",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA105C0 (otid=0x000002147FE0B420) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-import",
+   "mode": "desk",
+   "manifest": [
+    "import-wizard"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9FB4C0 (otid=0x000002147FE0B7B0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-saved-view",
+   "mode": "desk",
+   "manifest": [
+    "saved-view-editor"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9F8D40 (otid=0x000002147FE0BDE0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-publish-folder",
+   "mode": "desk",
+   "manifest": [
+    "publish-folder-sheet"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9F9040 (otid=0x000002147FE84F30) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-note",
+   "mode": "desk",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9F81C0 (otid=0x000002147FE84570) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-note",
+   "mode": "phone",
+   "manifest": [
+    "editor",
+    "editor-thesis",
+    "editor-nodes"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9F9940 (otid=0x000002147FE86A60) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-slash",
+   "mode": "desk",
+   "manifest": [
+    "editor-slash"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9EBD80 (otid=0x000002147FE876C0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-find",
+   "mode": "desk",
+   "manifest": [
+    "editor-find"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9EBAC0 (otid=0x000002147FD501E0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-outline",
+   "mode": "desk",
+   "manifest": [
+    "editor-outline"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9E9C00 (otid=0x000002147FD52EB0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-color",
+   "mode": "desk",
+   "manifest": [
+    "editor-color"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9E9340 (otid=0x000002147FD52C10) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-table",
+   "mode": "desk",
+   "manifest": [
+    "editor-table"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9EA400 (otid=0x000002147FD51CB0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-emoji",
+   "mode": "desk",
+   "manifest": [
+    "editor-emoji"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9B1840 (otid=0x000002147FD523D0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-note-link",
+   "mode": "desk",
+   "manifest": [
+    "editor-note-link"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147B9B2F00 (otid=0x000002147FD51B00) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-link-paste",
+   "mode": "desk",
+   "manifest": [
+    "editor-link-paste"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA2A8C0 (otid=0x000002147FD14ED0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-writing-help",
+   "mode": "desk",
+   "manifest": [
+    "editor-writing-help"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FECB340 (otid=0x000002147FD16F40) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-history",
+   "mode": "desk",
+   "manifest": [
+    "editor-history"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FECA9C0 (otid=0x000002147FD162E0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-palette",
+   "mode": "desk",
+   "manifest": [
+    "editor-palette"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FECA400 (otid=0x000002147FD15A70) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-share",
+   "mode": "desk",
+   "manifest": [
+    "NoteShareControls"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC99C0 (otid=0x000002147FD15950) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-export",
+   "mode": "desk",
+   "manifest": [
+    "NoteExportControls"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC8DC0 (otid=0x000002147FD15560) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-ask",
+   "mode": "desk",
+   "manifest": [
+    "ask-panel"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC3E80 (otid=0x000002147FD14E70) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-delete",
+   "mode": "desk",
+   "manifest": [
+    "unsent-trash"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC3580 (otid=0x000002147FC1F0C0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "ed-property",
+   "mode": "desk",
+   "manifest": [
+    "editor-thesis"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC2C80 (otid=0x000002147FC1F360) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "doc-preview",
+   "mode": "desk",
+   "manifest": [
+    "document-preview-pdf"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC2500 (otid=0x000002147FC1E250) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "nb-research",
+   "mode": "desk",
+   "manifest": [
+    "ticker-research"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC19C0 (otid=0x000002147FC1CE40) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "settings-cards",
+   "mode": "desk",
+   "manifest": [
+    "settings-personal-api",
+    "settings-inbound-email",
+    "settings-browser-capture",
+    "SharingCard"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEC0440 (otid=0x000002147FC1C8A0) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  },
+  {
+   "surface": "capture-dialog",
+   "mode": "desk",
+   "manifest": [
+    "capture-dialog"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147FEB4040 (otid=0x000002147FC1DE60) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-poller": "NOT-SEEN"
+  },
+  "ok": false,
+  "why": "plant-dead: got None, must be 'DEAD'; plant-dead-styled: got None, must be 'DEAD'; plant-live: got None, must be 'LIVE'; plant-poller: got 'NOT-SEEN', must be 'IN-WINDOW'",
+  "raw": {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [],
+   "resets": 0,
+   "prefs_restored": [],
+   "status": "UNREACHED",
+   "reason": "error: Cannot switch to a different thread\n\tCurrent:  <greenlet.greenlet object at 0x000002147BA06DC0 (otid=0x000002147FE09140) current active started main>\n\tExpected: <greenlet.greenlet object at 0x000002145ED74D40 (otid=0x000002145D5CE730) suspended active started main>"
+  }
+ },
+ "noise_endpoints": []
+}
