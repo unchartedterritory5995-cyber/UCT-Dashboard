@@ -52,6 +52,7 @@ CREATE TABLE state_run(issuer_id TEXT, class_key TEXT, start TEXT, end TEXT, sha
 CREATE TABLE regime(issuer_id TEXT, start TEXT, end TEXT, classes TEXT, kind TEXT, reason TEXT, note TEXT, components TEXT);
 CREATE TABLE cap_daily(cik INTEGER, d INTEGER, cap REAL, PRIMARY KEY(cik, d)) WITHOUT ROWID;
 CREATE TABLE gap_run(cik INTEGER, start INTEGER, end INTEGER, reason TEXT, n_days INTEGER);
+CREATE TABLE econ_request(cik INTEGER, accn TEXT, regime_start TEXT, regime_end TEXT);
 CREATE TABLE coverage(cik INTEGER PRIMARY KEY, primary_ticker TEXT, foreign_filer INTEGER, first_bar TEXT,
   listing_start TEXT, first_value TEXT, last_day TEXT, listed_days INTEGER, valued_days INTEGER,
   evidence_span_days INTEGER, evidence_span_valued INTEGER, internal_gap_days INTEGER, unexplained_days INTEGER,
@@ -102,7 +103,8 @@ def load_ref(path: str) -> dict:
                 return None
         r = Ref(t, int(d["cik"]) if d.get("cik") else None, dd(d.get("list_date")), d.get("active"),
                 dd(d.get("delisted_utc")), d.get("type"), d.get("composite_figi"), d.get("share_class_figi"),
-                [(dd(e.get("date")), e.get("type"), (e.get("ticker_change") or {}).get("ticker")) for e in events or []])
+                [(dd(e.get("date")), e.get("type"), (e.get("ticker_change") or {}).get("ticker")) for e in events or []],
+                d.get("share_class_shares_outstanding"), d.get("weighted_shares_outstanding"))
         sp = []
         for ex, frm, to in splits:
             try:
@@ -282,19 +284,27 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
     if not regimes:
         regimes = [[datetime(1900, 1, 1, tzinfo=timezone.utc), frozenset({"COMMON"}), None]]
 
-    # class economics (latest parsed 10-K/20-F)
-    econ, econ_accn = None, ""
+    # class economics: every parsed annual report, chosen PER REGIME (time-aware)
+    econs = []
     if D.txt is not None:
-        r = D.txt.execute("SELECT accn, result FROM econ WHERE cik=? ORDER BY filing_date DESC", (cik,)).fetchall()
-        for accn, res in r:
+        for accn, fd, res in D.txt.execute("SELECT accn, filing_date, result FROM econ WHERE cik=? ORDER BY filing_date", (cik,)):
             j = json.loads(res)
             if j.get("status") == "NO_FILE":
                 continue
-            econ = ClassEcon({k: tuple(v) for k, v in j["conversions"].items()},
-                             {k: tuple(v) for k, v in j["convertible_no_ratio"].items()},
-                             [(frozenset(c), s) for c, s in j["equal_rights"]], j["voting_only"], j["not_convertible"], j["complex"])
-            econ_accn = accn
-            break
+            econs.append((fd, accn, ClassEcon({k: tuple(v) for k, v in j["conversions"].items()},
+                                              {k: tuple(v) for k, v in j["convertible_no_ratio"].items()},
+                                              [(frozenset(c), s_) for c, s_ in j["equal_rights"]], j["voting_only"],
+                                              j["not_convertible"], j["complex"])))
+    annual = sorted((v["filing_date"], a) for a, v in filings.items() if v["form"] in ("10-K", "10-K405", "20-F", "40-F", "10-KT"))
+
+    def econ_for(lo: date, hi: date):
+        """The latest parsed annual report filed inside the regime (+400 days: the report describing its last year),
+        else the nearest parsed one before it; also the annual report the regime WANTS (for the econ harvest)."""
+        lo_s, hi_s = lo.isoformat(), (hi + timedelta(days=400)).isoformat()
+        inside = [e for e in econs if lo_s <= e[0] <= hi_s]
+        want = [a for fd, a in annual if lo_s <= fd <= hi_s]
+        pick = inside[-1] if inside else next((e for e in reversed(econs) if e[0] <= hi_s), None)
+        return (pick[2], pick[1]) if pick else (None, ""), (want[-1] if want else (annual[-1][1] if annual else None))
 
     # ADR: ordinary shares -> ADS-equivalent
     ptype = D.ref.get(primary, (None, []))[0]
@@ -311,6 +321,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
             if st == "OK" and accn in filings:
                 is_adr = True
                 ratio_stmts.append(RatioStatement(date.fromisoformat(filings[accn]["filing_date"]), v, accn, snip))
+
+    # multi-class SUSPECT: never price a non-dimensional (possibly all-class) total at one class's price
+    pref = D.ref.get(primary, (None, []))[0]
+    diverge = bool(pref and pref.share_class_shares and pref.weighted_shares
+                   and abs(pref.share_class_shares / pref.weighted_shares - 1) > 0.05)
+    multi_suspect = not is_adr and (len(listings) >= 2 or diverge)
 
     # per regime: structure, component class states, capitalization
     all_days = sorted({d for t in listings for d in bars[t][0]})
@@ -339,8 +355,15 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
             lmap = {"COMMON": primary}
         else:
             lmap = {k: v for k, v in listed.items() if k in ks}
+        (econ, econ_accn), wanted = econ_for(rdays[0], rdays[-1])
+        if ks != frozenset({"COMMON"}) and wanted:
+            w["econ_request"].append((cik, wanted, rdays[0].isoformat(), rdays[-1].isoformat()))
         res = resolve(classes, lmap, econ, econ_accn)
         st = res.structure
+        if ks == frozenset({"COMMON"}) and multi_suspect:
+            st = Structure("UNRESOLVED", reason=R.MULTI_CLASS,
+                           note=f"multi-class suspect ({len(listings)} equity tickers, share-class/total divergence={diverge}): "
+                                "per-class evidence required for this period")
         if is_adr and st.kind == "SINGLE":
             st = Structure("ADR", st.components, note="ADS-equivalent shares")
         struct_summary.append(st.kind if st.kind != "UNRESOLVED" else f"UNRESOLVED:{st.reason}")
@@ -481,7 +504,7 @@ def main(argv=None) -> int:
     db = sqlite3.connect(out_path)
     db.executescript(SCHEMA)
     ciks = [int(x) for x in a.ciks.split(",")] if a.ciks else [c for (c,) in D.inp.execute("SELECT cik FROM issuer ORDER BY cik")]
-    tables = ("security", "ticker_map", "observation", "state_run", "regime", "cap_daily", "gap_run", "coverage")
+    tables = ("security", "ticker_map", "observation", "state_run", "regime", "cap_daily", "gap_run", "coverage", "econ_request")
     stat = Counter()
     for i, cik in enumerate(ciks):
         w = {t: [] for t in tables}

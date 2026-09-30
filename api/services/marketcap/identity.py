@@ -41,6 +41,9 @@ class Ref:
     composite_figi: str | None = None
     share_class_figi: str | None = None
     events: list = field(default_factory=list)      # [(date, "ticker_change", new_ticker)]
+    # CURRENT counts, used ONLY as a multi-class DETECTION signal (never as a value: not PIT, no provenance)
+    share_class_shares: float | None = None
+    weighted_shares: float | None = None
 
 
 @dataclass

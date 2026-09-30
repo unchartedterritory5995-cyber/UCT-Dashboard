@@ -89,11 +89,15 @@ def ipo_one(cik, accn, form, fd, doc, start):
 
 
 def select_docs(inp, ciks: list, forms: tuple) -> list[tuple]:
+    """`ciks` is a list of CIKs (every filing of `forms`) or of [cik, accession] pairs (exactly those filings)."""
     q = ",".join("?" * len(forms))
     out = []
-    for cik in ciks:
-        out += inp.execute(f"SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE cik=? AND form IN ({q})",
-                           (cik, *forms)).fetchall()
+    for x in ciks:
+        if isinstance(x, list):
+            out += inp.execute("SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE cik=? AND accn=?", tuple(x)).fetchall()[:1]
+        else:
+            out += inp.execute(f"SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE cik=? AND form IN ({q})",
+                               (x, *forms)).fetchall()
     return out
 
 
