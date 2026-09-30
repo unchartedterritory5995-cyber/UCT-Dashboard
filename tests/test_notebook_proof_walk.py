@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 import time
 from pathlib import Path
 
@@ -370,101 +371,127 @@ def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sen
     assert re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", W.SILENT_EXEMPT[("POST", "/api/j2/notes/{id}/opened")]) is None
 
 
-# ── wave 10 lane WK4: the dead-click sweep's hang on `nb-bulk` ─────────────────────────────
-# WK3 measured a ~50-minute, ~0%-CPU stall inside the per-control click loop (
-# docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md), hard-killed with no shutdown
-# checkpoint, 32 of 44 surfaces left unmeasured. `page.evaluate(...)` takes no `timeout=` in
-# Playwright's Python API, so a call whose JS never yields control back cannot be bounded by
-# any explicit timeout inside `click_one` -- these rails exercise the wall-clock WATCHDOG that
-# wraps it instead, with the browser fully faked out (a real hang cannot be a pytest fixture).
+# ── wave 10 lane WK5: the deadclick deadline, redesigned around a PROCESS boundary, never a
+# THREAD ─────────────────────────────────────────────────────────────────────────────────────
+# WK4 (`e1ef47435`) wrapped `click_one` and a whole surface in `_run_with_deadline`, a wall-clock
+# watchdog that ran the wrapped call on a `threading.Thread` and, on overrun, closed its browser
+# context FROM THE OUTER thread. Playwright's sync API binds every object it hands back to the
+# ONE OS thread that created `sync_playwright()`; a second thread touching any of them raises
+# immediately ("Cannot switch to a different thread"), and every WK4 rail for this used a Python
+# FAKE for `click_one`/`deadclick_surface` that never touched a real Playwright object at all --
+# exactly the gap that let the real defect through undetected
+# (docs/notebook/proof/wk4-e1ef47435/README.md, "THE THREADING DEFECT": all 39 deadclick
+# surface x mode cells UNREACHED, the mechanism built to catch a hang never got the chance to).
+#
+# WK5 replaces both levels so NO Playwright object is ever touched from a second OS thread --
+# because none is ever touched by a second thread, full stop:
+#   - per CLICK (`safe_evaluate` + `_click_or_timeout`): stays on the ONE thread that owns the
+#     page. `page.evaluate`'s missing native timeout is answered with a JS-SIDE `Promise.race`,
+#     so a stuck async handler returns a bounded sentinel (`EvalTimeout`) instead of blocking
+#     Python's read of the CDP response -- an ordinary exception on the SAME thread, not a
+#     preemption from another one.
+#   - per SURFACE (`deadclick_surface_bounded`): a CHILD OS PROCESS, not a thread. The parent
+#     spawns `--deadclick-worker`, waits, and kills the process tree at the deadline -- it never
+#     calls a method on a Playwright object the child created, so the kill is safe regardless of
+#     what the child's single thread is doing, including a renderer wedged at the native level
+#     that even `safe_evaluate`'s JS-side timer cannot catch.
+#
+# The rails below for the per-click half use a REAL headless Chromium page (no server, never
+# `about:blank` navigated anywhere) precisely because a fake cannot prove the cross-thread call
+# is gone -- only a real Playwright object, driven for real, can.
 
-class _FakeCtx:
-    def __init__(self):
-        self.closed = False
-
-    def close(self):
-        self.closed = True
-
-
-def test_a_stuck_call_times_out_named_and_the_context_is_force_closed():
-    killed = {"n": 0}
-    ctx = _FakeCtx()
-
-    def hang():
-        time.sleep(0.3)          # stands in for a call with no way back within the budget
-        return "too late"
-
-    started = time.monotonic()
-    timed_out, result = W._run_with_deadline(hang, 0.05, lambda: (killed.__setitem__("n", killed["n"] + 1), ctx.close()))
-    elapsed = time.monotonic() - started
-    assert timed_out is True and result is None
-    assert elapsed < 0.6, f"waited for the hang instead of its own budget ({elapsed}s)"
-    assert killed["n"] == 1, "kill() was not called exactly once on a genuine timeout"
-    assert ctx.closed is True
-
-    # CONTROL: a call that returns within its budget is NOT reported as a timeout, and kill()
-    # is never invoked -- the watchdog only fires on an actual overrun
-    killed["n"] = 0
-    timed_out2, result2 = W._run_with_deadline(lambda: "on time", 5.0, lambda: killed.__setitem__("n", killed["n"] + 1))
-    assert timed_out2 is False and result2 == "on time"
-    assert killed["n"] == 0
-
-
-def test_a_hanging_click_is_named_TIMEOUT_and_the_next_control_still_runs(monkeypatch):
-    seen = []
-
-    def fake_click_one(W_, pg, tap, root, c, surf, mode):
-        seen.append(c["key"])
-        if c["key"] == "hang":
-            time.sleep(0.3)
-            return {"verdict": "LIVE", "reset": False}     # never reached within the budget
-        return {"verdict": "LIVE", "reset": False}
-
-    monkeypatch.setattr(W, "click_one", fake_click_one)
-    holder = {"ctx": _FakeCtx()}
-    started = time.monotonic()
-    r1 = W._click_or_timeout(None, None, None, None, {"key": "hang"}, None, None, holder, deadline=0.05)
-    elapsed = time.monotonic() - started
-    assert r1["verdict"] == "TIMEOUT" and r1["reset"] is True
-    assert elapsed < 0.6, f"the per-click guard waited for the hang instead of its own budget ({elapsed}s)"
-    assert holder["ctx"].closed is True, "the stuck control's context was not force-closed"
-    # the sweep continues: the NEXT control still runs and reads its own real verdict, not the
-    # previous control's timeout leaking forward
-    r2 = W._click_or_timeout(None, None, None, None, {"key": "ok"}, None, None, holder, deadline=5.0)
-    assert r2 == {"verdict": "LIVE", "reset": False}
-    assert seen == ["hang", "ok"], "the loop did not reach the control after the hang"
+@pytest.fixture(scope="module")
+def real_browser():
+    """Headless Chromium, launched once for this file's real-Playwright rails (no server, no
+    navigation past `about:blank` / `set_content`). Module-scoped because launching the browser
+    is the expensive part; each rail opens its own fresh page/context."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        try:
+            yield browser
+        finally:
+            browser.close()
 
 
-def test_a_hanging_surface_is_named_TIMEOUT_and_salvages_what_it_measured(monkeypatch):
-    monkeypatch.setattr(W, "SURFACE_DEADLINE_S", 0.05)
+def test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang(real_browser):
+    """`safe_evaluate` answers `page.evaluate`'s missing native `timeout=` (Playwright's Python
+    sync API has none at all). A script whose async work never resolves must return a bounded
+    `EvalTimeout`, on THIS thread, within its own budget -- not block forever, and not need a
+    second thread to rescue it."""
+    pg = real_browser.new_page()
+    try:
+        started = time.monotonic()
+        with pytest.raises(W.EvalTimeout):
+            W.safe_evaluate(pg, "() => new Promise(() => {})", timeout_ms=250)
+        elapsed = time.monotonic() - started
+        assert elapsed < 3.0, f"safe_evaluate waited past its own JS-side timer ({elapsed}s)"
+        # CONTROL: an ordinary synchronous script still returns its real value, promptly -- the
+        # wrapper does not turn every evaluate call into a timeout
+        assert W.safe_evaluate(pg, "() => 1 + 1", timeout_ms=250) == 2
+    finally:
+        pg.close()
 
-    def fake_deadclick_surface(W_, surf, mode, *, plant=False, handle=None):
-        # simulates the per-click guard having already recorded one control before something
-        # OUTSIDE its reach hangs (e.g. inside `fresh()`'s own `surf.open()`) -- the scenario
-        # this per-SURFACE guard exists for, distinct from the per-click one above
-        handle["rec"] = {"surface": surf.sid, "mode": mode, "manifest": [],
-                          "controls": [{"key": "c1", "verdict": "LIVE"}], "resets": 0}
-        time.sleep(0.3)
-        return handle["rec"]     # never reached within the budget
 
-    monkeypatch.setattr(W, "deadclick_surface", fake_deadclick_surface)
-    surf = W.surface_by_id("nb-bulk")
-    started = time.monotonic()
-    rec = W.deadclick_surface_bounded(None, surf, "desk")
-    elapsed = time.monotonic() - started
-    assert elapsed < 0.6, f"the per-surface guard waited for the real hang instead of its own budget ({elapsed}s)"
-    assert rec["status"] == "TIMEOUT"
-    assert rec["surface"] == "nb-bulk"
-    assert rec["controls"] == [{"key": "c1", "verdict": "LIVE"}], "the partial record was discarded, not salvaged"
+def test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT(monkeypatch, real_browser):
+    """`_click_or_timeout` end to end, over a REAL page: a control permanently covered by an
+    opaque overlay can never satisfy Playwright's own actionability check, so `click_one`'s
+    native `timeout=` on `.click()` bounds the wait (unchanged by this redesign -- that bound was
+    already Playwright-native before WK4 and never was the defect). This lane's own per-click
+    deadline then names a control that burned its whole budget TIMEOUT, rather than reporting it
+    as an ordinary OCCLUDED/NOT-ACTIONABLE verdict that happens to have taken the whole budget to
+    arrive."""
+    monkeypatch.setattr(W, "ACTION_TIMEOUT_MS", 400)
+    monkeypatch.setattr(W, "HOVER_TIMEOUT_MS", 400)
+    pg = real_browser.new_page()
+    try:
+        pg.set_content(
+            '<div data-proof-root="notebook">'
+            '  <div style="position:relative;width:120px;height:40px;">'
+            '    <button aria-label="Stuck button" style="width:100%;height:100%;">Stuck</button>'
+            '    <div style="position:absolute;inset:0;"></div>'
+            '  </div>'
+            '</div>')
+        # click_one reads window.__proof (MARK_JS etc.) -- normally installed by
+        # World.new_context's own ctx.add_init_script(INSTRUMENT_JS), which fires on a real
+        # navigation. `set_content` does not count as one (measured: an add_init_script'd
+        # marker never appears after it), so this page's instrumentation is run directly.
+        pg.evaluate(W.INSTRUMENT_JS)
+        listing = W.safe_evaluate(pg, W.CONTROLS_JS, '[data-proof-root="notebook"]')
+        ctl = next(c for c in listing if c["name"] == "Stuck button")
+        tap = W.Tap(pg)
+        surf = W.surface_by_id("nb-bulk")   # any real Surface; before_click is None here
+        started = time.monotonic()
+        r = W._click_or_timeout(None, pg, tap, '[data-proof-root="notebook"]', ctl, surf, "desk", deadline=0.1)
+        elapsed = time.monotonic() - started
+        assert r["verdict"] == "TIMEOUT", r
+        assert r["reset"] is True
+        assert elapsed < 3.0, f"a permanently non-actionable control waited past its native ceiling ({elapsed}s)"
+    finally:
+        pg.close()
 
-    # CONTROL: a surface that finishes within its budget is reported unchanged, not wrapped in
-    # a TIMEOUT record -- the guard only intervenes on an actual overrun
-    def fake_fast(W_, surf, mode, *, plant=False, handle=None):
-        return {"surface": surf.sid, "mode": mode, "manifest": [], "controls": [], "status": "MEASURED"}
 
-    monkeypatch.setattr(W, "deadclick_surface", fake_fast)
-    rec2 = W.deadclick_surface_bounded(None, surf, "desk")
-    assert rec2["status"] == "MEASURED"
+def test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED(real_browser):
+    """CONTROL for the two rails above: an ordinary, fully actionable control on a real page
+    goes through the WHOLE per-surface pipeline (`deadclick_surface`, in-process -- the process
+    boundary in `deadclick_surface_bounded` is a process-management concern, mutation-proved
+    separately below; it is not itself a Playwright interaction) and reads MEASURED, never
+    TIMEOUT. The deadline mechanism must not manufacture a timeout where there is none."""
+    def open_fixture(W_, pg):
+        pg.set_content(
+            '<div data-proof-root="notebook">'
+            '  <button aria-label="Plain button" '
+            '          onclick="this.setAttribute(\'aria-expanded\', \'true\')">Plain</button>'
+            '</div>')
+        return '[data-proof-root="notebook"]'
+
+    surf = W.Surface("t-plain", open_fixture, sweeps=("deadclick",))
+    world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+    rec = W.deadclick_surface(world, surf, "desk")
+    assert rec["status"] == "MEASURED", rec
+    assert rec["counts"], "no control was measured at all"
+    assert "TIMEOUT" not in rec["counts"], rec["counts"]
+    assert "ERROR" not in rec["counts"], rec["counts"]
 
 
 # ── wave 10 lane WK4: G-171's keyboard door was a probe race, not the product ──────────────
