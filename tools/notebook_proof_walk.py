@@ -80,6 +80,7 @@ import re
 import secrets
 import shutil
 import sys
+import threading
 import time
 import traceback
 from pathlib import Path
@@ -2149,7 +2150,77 @@ def _restore_prefs(W: World, acct: str, snap: dict) -> list[str]:
 LS_JS = "() => { try { return JSON.stringify(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)])); } catch (e) { return ''; } }"
 
 
-def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False) -> dict:
+# ── wave 10 lane WK4: the dead-click sweep's hang on `nb-bulk` (docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md) ──
+# WK3 measured a ~50-minute, ~0%-CPU stall inside the per-control loop, hard-killed with no
+# shutdown checkpoint. Every explicit Playwright wait in `click_one` already carries its own
+# timeout (hover 2.5s, click 3.5-6s, the settle waits are fixed `wait_for_timeout`s) -- none of
+# those can hang. What CANNOT hang-proof itself is `page.evaluate(...)`: Playwright's Python API
+# takes no `timeout=` for it at all, so a call whose JS never returns control (native browser UI
+# outside the page's own JS thread -- a `<select>`'s OS-native popup is the one this file's own
+# `window.print` stub does NOT cover, since BulkActionBar's folder picker is a real `<select>`)
+# blocks the walk process forever, not the browser: the sandbox's OWN requests kept answering
+# throughout WK3's stall, which is what a page-JS-thread block, not a crashed server, looks like.
+# `_run_with_deadline` is a generic wall-clock watchdog around ANY blocking call (click_one here,
+# a whole surface below) -- past its budget it force-closes the stuck call's browser context
+# (closing a context tears down its renderer at the browser-process level and does not depend on
+# that renderer's JS thread ever running again) and returns TIMEOUT rather than waiting on it.
+
+CLICK_DEADLINE_S = 25.0     # click_one's own waits sum to ~8s worst case; anything past this is
+                            # blocked on something no Playwright timeout can reach
+SURFACE_DEADLINE_S = 360.0  # backstop for a hang the per-click guard itself cannot reach (inside
+                            # `fresh()`'s own `surf.open()`, before any control has been clicked)
+
+
+def _run_with_deadline(fn, seconds: float, kill, grace: float = 5.0):
+    """Run `fn` on a worker thread with a hard wall-clock ceiling. Returns `(timed_out, result)`.
+
+    Past `seconds`, `kill()` is called once (expected to force the stuck call to raise, e.g. by
+    closing its browser context) and `(True, None)` is returned immediately after `grace` more
+    seconds -- the worker thread is never joined further than that: forcing it to actually stop
+    is `kill`'s job, not this function's, and a caller that ignores the first element of the
+    returned tuple has silently accepted a stuck browser as a passing run. A `fn` that raises
+    within its budget re-raises in the caller's own thread, unchanged."""
+    box: dict = {}
+
+    def runner():
+        try:
+            box["result"] = fn()
+        except Exception as e:  # noqa: BLE001 -- carried back to the caller, never swallowed
+            box["error"] = e
+
+    th = threading.Thread(target=runner, daemon=True)
+    th.start()
+    th.join(seconds)
+    if th.is_alive():
+        try:
+            kill()
+        except Exception:  # noqa: BLE001
+            pass
+        th.join(grace)
+        return True, None
+    if "error" in box:
+        raise box["error"]
+    return False, box.get("result")
+
+
+def _click_or_timeout(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str, holder: dict,
+                       deadline: float = CLICK_DEADLINE_S) -> dict:
+    """`click_one`, bounded: a control whose click never returns within `deadline` is recorded as
+    TIMEOUT -- named, never silently dropped -- rather than stalling the whole sweep. See
+    `_run_with_deadline`'s docstring for why a bare Playwright timeout cannot catch this class."""
+    try:
+        timed_out, r = _run_with_deadline(lambda: click_one(W, pg, tap, root, c, surf, mode), deadline,
+                                           lambda: holder.get("ctx") and holder["ctx"].close())
+    except Exception as e:  # noqa: BLE001
+        return {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True}
+    if timed_out:
+        return {"verdict": "TIMEOUT", "reset": True,
+                "reason": f"no response within {deadline:.0f}s -- the control's browser context "
+                          f"was force-closed so the sweep could continue"}
+    return r
+
+
+def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False, handle: dict | None = None) -> dict:
     """Every enabled control of one surface, each clicked from the SAME starting state.
 
     ⛔ State is the trap: a click can collapse the folder panel, switch the view or change a
@@ -2158,10 +2229,17 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     click the surface is reopened from scratch -- a NEW browser context from the member's
     stored state (pristine localStorage) and the member's server preferences put back -- when
     the click wrote anything, navigated, changed the page's control set, or changed local
-    storage. Otherwise the same page is reused (Escape pressed twice)."""
+    storage. Otherwise the same page is reused (Escape pressed twice).
+
+    `handle`, when given, is the SAME dict `deadclick_surface_bounded` holds -- so its outer
+    per-surface watchdog can force-close whatever context this function currently has open, even
+    if the hang is inside `fresh()`/`surf.open()` itself, before any per-click guard applies; and
+    can read `handle['rec']`, the SAME live record this function mutates, to salvage whatever
+    controls were already measured rather than discard them on a timeout."""
     rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": [], "resets": 0,
            "prefs_restored": []}
-    holder = {"ctx": None, "acct": None}
+    holder = handle if handle is not None else {"ctx": None, "acct": None}
+    holder["rec"] = rec
     snap = {}
 
     def fresh():
@@ -2213,10 +2291,7 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
             row.update(verdict="SKIPPED", reason="a skip link: its door is the keyboard (shown on focus)")
             rec["controls"].append(row)
             continue
-        try:
-            r = click_one(W, pg, tap, root, c, surf, mode)
-        except Exception as e:  # noqa: BLE001
-            r = {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True}
+        r = _click_or_timeout(W, pg, tap, root, c, surf, mode, holder)
         if not r.get("reset"):
             try:
                 keys1 = sorted({x["key"] for x in (pg.evaluate(CONTROLS_JS, root) or [])})
@@ -2248,9 +2323,35 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     return rec
 
 
+def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool = False) -> dict:
+    """`deadclick_surface`, with a whole-surface wall-clock ceiling. The per-click guard inside
+    `deadclick_surface` (`_click_or_timeout`) catches a control that hangs; this is the backstop
+    for anything the per-click guard cannot reach -- a hang inside `fresh()`/`surf.open()` itself,
+    before the first control is even enumerated. `handle` is a plain dict shared with the worker
+    thread, so a timeout here can still force-close whatever context that thread currently has
+    open, and whatever partial `rec` it had already built is salvaged rather than thrown away."""
+    handle: dict = {"ctx": None, "acct": None}
+    started = time.monotonic()
+    timed_out, rec = _run_with_deadline(
+        lambda: deadclick_surface(W, surf, mode, plant=plant, handle=handle),
+        SURFACE_DEADLINE_S, lambda: handle.get("ctx") and handle["ctx"].close())
+    if timed_out:
+        partial = dict(handle.get("rec") or {})
+        partial.setdefault("surface", surf.sid)
+        partial.setdefault("mode", mode)
+        partial.setdefault("manifest", list(surf.manifest))
+        partial.setdefault("controls", [])
+        partial["status"] = "TIMEOUT"
+        partial["reason"] = (f"exceeded the {SURFACE_DEADLINE_S:.0f}s per-surface budget "
+                              f"(its browser context was force-closed so the sweep could continue)")
+        partial["elapsed_s"] = round(time.monotonic() - started, 1)
+        return partial
+    return rec
+
+
 def deadclick_sweep(W: World, only: list[str]) -> dict:
     out = {"telemetry_never_evidence": list(TELEMETRY_PATHS), "surfaces": [], "controls": {}}
-    ctl = deadclick_surface(W, surface_by_id("nb-list"), "desk", plant=True)
+    ctl = deadclick_surface_bounded(W, surface_by_id("nb-list"), "desk", plant=True)
     names = {"Planted dead styled control": "plant-dead-styled", "Planted dead control": "plant-dead",
              "Planted live control": "plant-live"}
     got = {}
@@ -2272,7 +2373,7 @@ def deadclick_sweep(W: World, only: list[str]) -> dict:
         if "deadclick" not in surf.sweeps or not wanted(surf, only):
             continue
         for mode in surf.modes:
-            rec = deadclick_surface(W, surf, mode)
+            rec = deadclick_surface_bounded(W, surf, mode)
             out["surfaces"].append(rec)
             say(f"[{rec.get('status')}] deadclick {surf.sid} ({mode}): {rec.get('counts') or rec.get('reason', '')}")
             dump("deadclick", out)
@@ -2335,7 +2436,34 @@ def _act_new_folder(W, pg):
 
 
 def _act_confirm_delete(W, pg):
+    """Wave 10 lane WK4 (5d): the ConfirmModal's own "Delete" is not always the whole door.
+    `onDeleteConfirm` (NoteEditorPage.jsx) asks the local durable store first
+    (`noteHasUnsentWork`) and, when the note reads as still holding words the server does not
+    have, opens a SECOND dialog (UnsentTrashDialog, "Trash anyway") instead of trashing --
+    found live tracing WK3's `trash-note` NO-WRITE: the probe's one click landed on a
+    ConfirmModal that never fires the DELETE request on that branch, so nothing was ever
+    silently missed downstream, the probe itself stopped one dialog short of the real door."""
     press(pg, pg.locator(POPUP).get_by_role("button", name=re.compile(r"^(Delete|Move to Trash)", re.I)).last)
+    again = pg.get_by_role("button", name="Trash anyway", exact=True).filter(visible=True)
+    try:
+        again.first.wait_for(state="visible", timeout=2500)
+    except Exception:  # noqa: BLE001 -- the ordinary path: the first Delete already trashed it
+        return
+    press(pg, again.first)
+
+
+def _act_save_template(W, pg):
+    """Wave 10 lane WK4 (5d/G-155): "Save as template" (NoteMenuActions.jsx) does not itself
+    write -- it only REVEALS an inline name form (`templateDraft`, defaulting to the note's
+    title), and the POST fires on that form's own submit. `_act_more_menu_click` stopped at
+    the reveal, which is exactly WK3's `save-template` NO-WRITE: the button this probe pressed
+    never sends a request on any branch, so there was nothing for the forced-failure sweep to
+    force. Drive the submit too."""
+    open_more_note_actions(pg)
+    press(pg, pg.get_by_role("button", name="Save as template", exact=True).first)
+    inp = pg.get_by_label("Template name")
+    inp.wait_for(state="visible", timeout=6000)
+    press(pg, pg.get_by_role("button", name="Save template", exact=True).first)
 
 
 def _act_create_link(W, pg):
@@ -2348,7 +2476,7 @@ WRITE_ACTIONS = (
     ("favorite", "nb-note", _act_click("Add to Favorites")),
     ("lock", "nb-note", _act_more_menu_click("Lock")),
     ("archive", "nb-note", _act_more_menu_click("Archive")),
-    ("save-template", "nb-note", _act_more_menu_click("Save as template")),
+    ("save-template", "nb-note", _act_save_template),
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),
@@ -3145,12 +3273,27 @@ def f_today(W, door):
 
 
 def f_save_template(W, door):
-    pg, nid = c_note(W, door, title=f"Tmpl {door} {W.run}")
+    """G-155 (wave 10 lane WK4): the prior check -- "template" appears anywhere on the page --
+    was satisfied by the still-OPEN "Save as template" disclosure's own label (NoteMenuActions.jsx
+    reveals an inline `templateDraft` form on that click; nothing is written until the form is
+    submitted), so a menu that opens and a template that saves were indistinguishable to this
+    probe. The independent signal is the member's own template list: GET /api/j2/note-templates
+    carries a row this run made, named for the note it copied."""
+    title = f"Tmpl {door} {W.run} {time.time():.0f}"
+    pg, nid = c_note(W, door, title=title)
     open_more_note_actions(pg)   # "Save as template" (G-155) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, btn(pg, "Save as template"))
-    pg.wait_for_timeout(1500)
-    txt = pg.locator("body").inner_text()
-    must(re.search(r"template", txt, re.I), "no word about the template")
+    inp = pg.get_by_label("Template name")
+    inp.wait_for(state="visible", timeout=6000)
+    if door == "keyboard":
+        pg.keyboard.press("Enter")   # the autofocused draft input submits its own <form>
+        how += "; Enter (submits the template-name field)"
+    else:
+        how += "; " + use(pg, door, pg.get_by_role("button", name="Save template", exact=True).first)
+    ok = wait_true(lambda: any(
+        t.get("title") == title or t.get("name") == title
+        for t in (W.api().get(W.base + "/api/j2/note-templates").json().get("templates") or [])), 8)
+    must(ok, f"GET /api/j2/note-templates lists no template named {title!r} after Save as template")
     return how
 
 
@@ -3333,6 +3476,26 @@ def f_export(W, door):
     return how
 
 
+def _first_run_tour_seen(tour_loc, timeout_ms: float = 1500) -> bool:
+    """Wave 10 lane WK4 (G-171, diagnosed by lane FX2 -- docs/notebook/proof/fx2-788f3a439/
+    item1-g171-keyboard/): whether the first-run tour dialog actually opened THIS run --
+    WAITED for, never sampled once. `f_first_run` used to read `tour.count() > 0`
+    immediately after ResearchHome's own "Welcome to your Notebook" heading became
+    visible; the heading renders at ~386ms live and the tour DIALOG lazy-loads at
+    ~1074ms, so that immediate sample read the dialog as absent on every single run,
+    skipped the Skip-tour dismiss branch, and let the tour open a moment later and
+    correctly trap keyboard focus (Skip<->Next) around "Add a sample notebook" --
+    which a keyboard door can then never Tab to. That is exactly G-171's own reading,
+    every run of this program: "not reached with Tab in 220 presses" -- a PROBE RACE,
+    not a product defect. A timeout here (the dialog genuinely never opens) is the
+    honest negative, not a hang: it is bounded by `timeout_ms`, never indefinite."""
+    try:
+        tour_loc.wait_for(state="visible", timeout=timeout_ms)
+        return True
+    except Exception:  # noqa: BLE001 -- the timeout IS the answer: it did not auto-open
+        return False
+
+
 def f_first_run(W, door):
     acct = W.fresh_account()
     pg, tap = W.page(acct, DOOR_MODE[door])
@@ -3340,9 +3503,14 @@ def f_first_run(W, door):
     mark_root(pg)
     pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
     tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
-    tour_seen = tour.count() > 0
+    tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
-    if skip.count():
+    if tour_seen:
+        try:
+            skip.wait_for(state="visible", timeout=1500)
+        except Exception:  # noqa: BLE001 -- the dialog opened but its own Skip button never did
+            pass
+    if tour_seen and skip.count():
         use(pg, door, skip)
         pg.wait_for_timeout(600)
     how = use(pg, door, btn(pg, "Add a sample notebook"))
