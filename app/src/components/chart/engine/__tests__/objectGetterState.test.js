@@ -289,7 +289,10 @@ if close < open
     expect(opsOf(t).some((o) => o.k === 'create' && o.family === 'label')).toBe(true)
   })
 
-  it('⛔ a handle written off a recurrence (the warm-up curtain may withhold it) is not read either', () => {
+  it('⭐ C17 — a handle written off a recurrence is CONVERTED; the runtime taints it where the curtain withholds it', () => {
+    // ⚰️ This pinned `state:lost` for the whole program: the runtime held no
+    // taint of its own, so the converter ruled the handle out on every bar.
+    // It does now — `objectRegisterTaint.test.js` runs this source end to end.
     const t = tr(`var line l = na
 var float lv = na
 if close > open
@@ -297,7 +300,8 @@ if close > open
 if close > open
     label.new(bar_index, line.get_y1(l))
     l := line.new(bar_index, lv, bar_index + 1, high)`)
-    expect(t.objectDiagnostics.dropReasons['state:lost']).toBe(1)
+    expect(t.objectDiagnostics.dropReasons['state:lost']).toBeUndefined()
+    expect(opsOf(t).some((o) => o.k === 'create' && o.family === 'label')).toBe(true)
   })
 
   it('⛔ the validator: a scalar read outside an op\'s own props/guard, a setnum in a loop', () => {

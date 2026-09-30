@@ -15793,11 +15793,6 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // unknown to the next getter. ⛔ A copy between handles of one family makes a
   // lost setter's reach family-wide — which object a handle holds is not tracked.
   const lostNums = new Set()
-  const readsRecurrence = (node, d = 0) => {
-    if (!node || typeof node !== 'object' || d > 400) return false
-    if (node.type === 'call' && Object.prototype.hasOwnProperty.call(RECURRENCES, node.name)) return true
-    return Array.isArray(node.args) && node.args.some((a) => readsRecurrence(a, d + 1))
-  }
   /** One round; true when it withheld anything (see the loop after the content pass). */
   const statePass = () => {
     let any = false
@@ -15817,22 +15812,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     let reads = false
     every(ops, (o) => { if (stateReadsOfOp(o).length) reads = true })
-    // ⭐ WHAT THE RUNTIME COULD MAKE UNKNOWABLE, ruled out here (the runtime
-    // holds no taint of its own): a handle a step writes off a recurrence,
-    // which the warm-up curtain may withhold on a bar Pine runs it
-    // (`objectColumns.unknownMask`). ⚠️ A handle a DELETE empties is NOT ruled
-    // out: the runtime's `reap` empties the register, so its getter reads `na`
-    // — the reading C16 serves and rails (`objectLatchedGuards.test.js`).
-    if (reads) {
-      const recurs = (o) => [...opRefs(o).trees].some((i) => readsRecurrence(trees[i]))
-      every(ops, (o) => {
-        const t = o.k === 'setreg' ? { r: 'reg', id: o.reg }
-          : o.k === 'create' ? (o.into ? { r: 'reg', id: o.into } : null) : o.target
-        if (!t || o.k === 'delete' || !recurs(o)) return
-        if (t.r === 'reg') stateLostProps.set(t.id, '*')
-        else stateLostFamilies.add(t.r === 'coll' ? (colls.find((c) => c.id === t.id) || {}).family || null : null)
-      })
-    }
+    // ⭐⭐ C17 — WHAT THE WARM-UP CURTAIN COULD MAKE UNKNOWABLE IS THE RUNTIME'S
+    // NOW, NOT THIS PASS'S. A handle a step writes off a recurrence was ruled
+    // out here wholesale (`state:lost`) because the runtime held no taint of its
+    // own. It does now (`objectRuntime.js` `regTaint`): an op the curtain
+    // withholds on a bar marks what it would have written, per property, and
+    // every reader of it is withheld on that bar — while the bars the curtain
+    // does NOT withhold are Pine's own values, served. ⚰️ The blanket rule cost
+    // `rsi-swing-indicator` its whole program (12 ops). What stays here is what
+    // this CONVERSION lost: a setter, create or handle it could not carry.
     const sweep = (list) => {
       const kept = []
       for (const o0 of list) {
