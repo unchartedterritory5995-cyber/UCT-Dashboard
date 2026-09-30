@@ -1,0 +1,60 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 8,
+    "fixed": 2,
+    "unchanged": 152,
+    "missing": 0,
+    "baseline": 154,
+    "current": 161,
+    "current_ran": 35103,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 154 = unchanged 152 + fixed 2 + missing 0  |  current 161 = unchanged 152 + new 8 + new-but-flaky 1",
+  "invalid_because": [
+    "current: shards_success 18 of 19"
+  ],
+  "baseline_run_id": "36623899350",
+  "current_run_id": "36663156945",
+  "baseline_sha": "4e891b22bb6ecbcd60258826e63ec0db1dfc97ba",
+  "current_sha": "1ee69736e4671c9c6fda7250d0ef0d777ed06d01",
+  "commit_range": "4e891b22bb6ecbcd60258826e63ec0db1dfc97ba..1ee69736e4671c9c6fda7250d0ef0d777ed06d01",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_feature_flag_ledger|test_the_ledger_does_not_describe_gates_that_no_longer_exist",
+    "pytest|tests.test_rate_limit_policy|test_vi_a_NEW_undeclared_route_fails_the_census_BY_NAME",
+    "pytest|tests.test_rate_limit_policy|test_vi_a_dist_only_entry_is_NOT_stale_without_a_bundle_and_IS_stale_with_one",
+    "pytest|tests.test_rate_limit_policy|test_vi_every_route_of_the_REAL_app_is_declared_or_exempt",
+    "pytest|tests.test_rate_limit_policy|test_vi_the_census_holds_in_the_PRODUCTION_shape_with_dist_and_the_flow_proxy",
+    "pytest|tests.test_theme_index_watchlist|test_overlay_today_replaces_stale_and_appends_missing",
+    "pytest|tests.test_token_slots|test_no_token_value_is_ever_written",
+    "pytest|tests.test_vendor_callsite_census|test_the_real_tree_matches_the_ratchet_exactly"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_launch_hardening|test_theme_warm_is_throttled_and_capped",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
