@@ -700,7 +700,8 @@ def _daily_key(sym: str) -> str:
     a switch or a rollback can never serve a series built under the other authority."""
     try:
         from api.services import breadth_authority as ba
-        return f"breadthdaily_{sym}" if not ba.in_force() else f"breadthdaily_{sym}_{ba.token()}"
+        t = ba.token()
+        return f"breadthdaily_{sym}" if t == "v1" else f"breadthdaily_{sym}_{t}"
     except Exception:
         return f"breadthdaily_{sym}"
 

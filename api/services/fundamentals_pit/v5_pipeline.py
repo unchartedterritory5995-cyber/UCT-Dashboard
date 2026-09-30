@@ -97,7 +97,10 @@ def changes(conn, before: dict, after: dict) -> dict:
     new_times = [p for a, p in after["filings"].items() if a not in before["filings"]]
     new_times += [fid_pub[f] for f, n in after["facts"].items() if n > before["facts"].get(f, 0) and f in fid_pub]
     new_times += [after["filings"].get(s[0]) for s in after["signals"] - before["signals"] if after["filings"].get(s[0])]
+    gained = [r for r in after["splits"] if r not in before["splits"]]
+    lost = [r for r in before["splits"] if r not in after["splits"]]
     return {"boundary": min(new_times) if new_times else None, "split_changed": before["splits"] != after["splits"],
+            "split_gained": len(gained), "split_lost": len(lost),
             "new_filings": len([a for a in after["filings"] if a not in before["filings"]]),
             "new_fact_rows": sum(max(0, n - before["facts"].get(f, 0)) for f, n in after["facts"].items()),
             "new_signals": len(after["signals"] - before["signals"])}
@@ -148,12 +151,19 @@ def classify(conn, entry: tuple, acq: dict, now: float) -> tuple[str, str | None
 
 # ── splits ────────────────────────────────────────────────────────────────────────────────────────────────────
 def sync_splits(conn, *, days: int = 21, now: float, rows_fn=None) -> dict:
-    """New Massive split rows for the recent window -> the companies whose ledger they touch."""
+    """New Massive split rows for the recent window, NEVER beyond today (ET).
+
+    ⛔ MEASURED 2026-09-30: the first production daily batch fetched 30 days AHEAD and stored 35 announced-but-not-
+    yet-effective splits. The frozen base's ledger runs to its build date only; a split must not re-base per-share
+    history before its ex-date. Future-dated massive rows are purged (they are re-fetched once effective).
+    Which companies need re-derivation is decided by stale_derivations(), not here."""
     if rows_fn is None:
         from .split_ledger import massive_rows_chunked
         rows_fn = massive_rows_chunked
     today = dt.datetime.fromtimestamp(now, ET).date()
-    rows = rows_fn((today - dt.timedelta(days=days)).isoformat(), (today + dt.timedelta(days=30)).isoformat())
+    with conn:
+        purged = conn.execute("DELETE FROM split_event WHERE source='massive' AND ex_date > ?", (today.isoformat(),)).rowcount
+    rows = [r for r in rows_fn((today - dt.timedelta(days=days)).isoformat(), today.isoformat()) if r[1] <= today.isoformat()]
     have = set(conn.execute("SELECT ticker, ex_date, ratio FROM split_event WHERE source='massive'").fetchall())
     new = [r for r in rows if (r[0].upper(), r[1], float(r[2])) not in have]
     n = I.ingest_splits(conn, new, "massive", now=now) if new else 0
@@ -161,7 +171,22 @@ def sync_splits(conn, *, days: int = 21, now: float, rows_fn=None) -> dict:
     ciks: set[int] = set()
     for t in tick:
         ciks |= {c for (c,) in conn.execute("SELECT cik FROM ticker_map WHERE ticker=?", (t,))}
-    return {"fetched": len(rows), "new_rows": n, "tickers": sorted(tick), "ciks": sorted(ciks)}
+    return {"fetched": len(rows), "new_rows": n, "purged_future_rows": purged, "tickers": sorted(tick), "ciks": sorted(ciks)}
+
+
+def stale_derivations(conn) -> dict[int, dict]:
+    """Every company whose CURRENT inputs (facts, evidence, split ledger) differ from its last build's input hash,
+    with the ledger's row-count movement since that build (gained / lost). This is how a new split -- ingested in any
+    batch -- reaches derivation."""
+    out = {}
+    for (cik,) in conn.execute("SELECT cik FROM series_build WHERE derivation_version=5").fetchall():
+        info = S.build_info(conn, cik, VP.V5)
+        _ledger, rows, _conflict = D.company_ledger(conn, cik)
+        if info and D._input_hash(conn, cik, rows, VP.V5) != info["input_hash"]:
+            before = int((info["detail"] or {}).get("split_rows") or 0)
+            out[cik] = {"split_rows_at_build": before, "split_rows_now": len(rows),
+                        "gained": max(0, len(rows) - before), "lost": max(0, before - len(rows)) or (1 if len(rows) == before else 0)}
+    return out
 
 
 # ── discovery by kind ─────────────────────────────────────────────────────────────────────────────────────────
@@ -316,9 +341,28 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 sc = ch["split_changed"] or cik in pend_split
                 with conn:
                     conn.execute("INSERT OR REPLACE INTO v5_pending VALUES (?,?,?,?)", (cik, bnd, int(sc), int(now)))
+                    if ch["split_changed"]:
+                        conn.execute("INSERT INTO v5_ledger_change VALUES (?,?,?) ON CONFLICT(cik) DO UPDATE SET "
+                                     "gained=gained+excluded.gained, lost=lost+excluded.lost",
+                                     (cik, ch["split_gained"], ch["split_lost"]))
                 touched[cik] = ch
         b.rec["acquisition"] = {**acq_rep, "failed": acq_rep["failed"][:30], "failed_n": len(acq_rep["failed"]),
                                 "companies_with_new_inputs": len(touched)}
+        # STALE SCAN (daily / sweep): companies whose inputs moved without a filing (splits, ticker metadata)
+        if kind in ("daily", "sweep"):
+            stale = stale_derivations(conn)
+            added = []
+            pend_now = {c for (c,) in conn.execute("SELECT cik FROM v5_pending")}
+            with conn:
+                for cik, st in stale.items():
+                    if cik in pend_now:
+                        continue
+                    conn.execute("INSERT OR REPLACE INTO v5_pending VALUES (?,?,?,?)", (cik, None, 1, int(now)))
+                    conn.execute("INSERT INTO v5_ledger_change VALUES (?,?,?) ON CONFLICT(cik) DO UPDATE SET "
+                                 "gained=gained+excluded.gained, lost=lost+excluded.lost", (cik, st["gained"], st["lost"]))
+                    added.append(cik)
+            b.rec["stale_scan"] = {"stale": len(stale), "added_to_pending": added[:100], "added_n": len(added),
+                                   "detail": {str(c): stale[c] for c in added[:100]}}
         # DERIVING (every pending company whose evidence is complete)
         b.state("DERIVING")
         todo = [c for (c,) in conn.execute("SELECT cik FROM v5_pending ORDER BY cik")]
@@ -348,9 +392,11 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 continue
             parent_obj = PUB.read_json(target, PUB.obj_key(companies[cik])) if cik in companies else None
             bd, sc = pend.get(cik, (None, False))
+            lg = conn.execute("SELECT gained, lost FROM v5_ledger_change WHERE cik=?", (cik,)).fetchone() or (0, 0)
             new_accns = [a for (a,) in conn.execute("SELECT accn FROM filing WHERE cik=? AND public_at>=? ORDER BY public_at",
                                                     (cik, bd))] if bd is not None else []
-            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc, new_accns=new_accns)
+            r = VAL.validate_company(conn, cik, parent=parent_obj, new=doc, boundary=bd, split_changed=sc, new_accns=new_accns,
+                                     ledger_gained=lg[0], ledger_lost=lg[1])
             results[cik] = r
             if r.get("withholding"):
                 flips.append(r["withholding"])
@@ -417,11 +463,12 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
             b.rec["candidate_manifest"] = {k: v for k, v in manifest.items() if k not in ("companies", "tickers")}
             b.state("READY_TO_PUBLISH", finished_at=int(time.time()))
             return b.rec
-        res = PUB.publish_version(target, manifest, bodies, expect_parent=parent_vid)
+        res = PUB.publish_version(target, manifest, bodies, expect_parent=parent_vid, parent_manifest=parent)
         with conn:
             conn.execute("INSERT INTO v5_version VALUES (?,?,?,?,?,?,?)",
                          (vid, parent_vid, res["manifest_sha256"], res["published_at"], b.id, None, json.dumps(res)))
             conn.execute("DELETE FROM v5_pending WHERE cik IN (%s)" % ",".join(str(c) for c in changed + unchanged))
+            conn.execute("DELETE FROM v5_ledger_change WHERE cik IN (%s)" % ",".join(str(c) for c in changed + unchanged))
             conn.execute("DELETE FROM v5_quarantine WHERE cik IN (%s)" % ",".join(str(c) for c in changed))
         os.makedirs(p["versions"], exist_ok=True)
         open(os.path.join(p["versions"], vid + ".json"), "wb").write(PUB.encode(manifest))
