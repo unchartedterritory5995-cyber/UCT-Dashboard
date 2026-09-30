@@ -97,9 +97,9 @@
   "long_tail__02-relative-volume-candles-narrow-ranges.pine": {
     "outputs": 7,
     "refusals": [
-      "pine:state",
-      "pine:state",
-      "pine:state"
+      "pine:function",
+      "pine:function",
+      "pine:function"
     ],
     "flat": 0,
     "pair": 0,
@@ -285,23 +285,9 @@
       "pine:state",
       "pine:state",
       "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state",
       "pine:state"
     ],
-    "flat": 2,
+    "flat": 12,
     "pair": 0,
     "fillFlat": 0,
     "fillPair": 0
@@ -344,12 +330,10 @@
   "mid_engagement__18-market-profile-tpo.pine": {
     "outputs": 6,
     "refusals": [
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign",
-      "pine:reassign"
+      "pine:tuple",
+      "pine:tuple",
+      "pine:tuple",
+      "pine:tuple"
     ],
     "flat": 0,
     "pair": 0,

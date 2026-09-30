@@ -441,7 +441,13 @@ export function resolvePlacement(instance, def, ctx) {
     // the candles at 1. An overlay that resolved to 0 there would draw on the
     // Nasdaq pane. The layout publishes where Price actually ended up; asking is
     // what makes "draw with the candles" mean the candles.
-    return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: 'exclude' }
+    // ⭐ THE ONE EXCEPTION: an ECONOMIC PRIMARY's own series (`econp:<SYM>`,
+    // `economicPrimary.js`). Its host rows carry no O/H/L/C, so there are no candles
+    // to protect — this series IS what the price scale is for. Excluded, the scale
+    // would fall to the library's empty -0.5..0.5 and the series would draw off-axis
+    // (measured in the browser: a 4.00% fed-funds step on a ±0.5% axis).
+    const _econPrimary = !!(instance && typeof instance.instanceId === 'string' && instance.instanceId.startsWith('econp:'))
+    return { paneIndex: priceIndexOf(c), scaleId: MAIN_PRICE_SCALE_ID, scaleOptions: null, autoscale: _econPrimary ? 'default' : 'exclude' }
   }
 
   // 'volume' is the migrator's record of "this oscillator is in

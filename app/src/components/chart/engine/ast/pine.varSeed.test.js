@@ -178,8 +178,11 @@ describe('⭐⭐ a `var` on bar 0: `x[1]` is `na`, bare `x` is the initializer',
     // `(m + close) / 2` then never leaves `na`, a GAP. PARITY-PROGRAMME.md
     // (2026-09-28) records the choice and why.
     const mixed = 'var m = 0.0\nm := close > open ? (m + close) / 2 : m[1]\nplot(m)\n'
+    // ⭐ C12w: a mixed `var` whose initializer is not `na` seeds the MARKED `na`,
+    // `-(0 / 0)` (`interpret.js::ambiguousVarSeed`) — the same value to the bounded
+    // window, and the one seed the listing pass must not read as its bare-read value.
     for (const strict of [true, false]) {
-      expect(formulaOf(mixed, strict)).toBe('accum(0 / 0, close > open ? (self + close) / 2 : self, 250)')
+      expect(formulaOf(mixed, strict)).toBe('accum(-(0 / 0), close > open ? (self + close) / 2 : self, 250)')
     }
     expect(run(formulaOf(mixed), barsWith([270])).filter(Number.isFinite)).toEqual([])
   })
@@ -212,13 +215,19 @@ describe('⭐⭐ a `var` on bar 0: `x[1]` is `na`, bare `x` is the initializer',
     // (unguarded — `na` on bar 0), then a bare `m`. One unguarded read is enough
     // to seed `na`, so a guard that leaked past `nz(…)`'s argument would miss it.
     const src = 'var m = 0.0\nm := close > open ? nz(m[1]) : close < open ? m[1] : (m + close) / 2\nplot(m)\n'
-    expect(formulaOf(src)).toBe('accum(0 / 0, close > open ? nz(self, 0) : close < open ? self : (self + close) / 2, 250)')
+    // ⭐ C12w: a mixed `var` whose initializer is not `na` seeds the MARKED `na`,
+    // `-(0 / 0)` (`interpret.js::ambiguousVarSeed`) — the same value to the bounded
+    // window, and the one seed the listing pass must not read as its bare-read value.
+    expect(formulaOf(src)).toBe('accum(-(0 / 0), close > open ? nz(self, 0) : close < open ? self : (self + close) / 2, 250)')
   })
 
   it('⭐ an `na(x[1])` test is NOT a guard — it exists to see bar 0, so it needs the `na` seed', () => {
     // `q := na(q[1]) ? close : (q + close) / 2` takes `close` on bar 0 in Pine. A
     // seed of 0 would make `na(q[1])` false there and halve the close instead.
     const src = 'var q = 0.0\nq := na(q[1]) ? close : (q + close) / 2\nplot(q)\n'
-    expect(formulaOf(src)).toBe('accum(0 / 0, na(self) ? close : (self + close) / 2, 250)')
+    // ⭐ C12w: a mixed `var` whose initializer is not `na` seeds the MARKED `na`,
+    // `-(0 / 0)` (`interpret.js::ambiguousVarSeed`) — the same value to the bounded
+    // window, and the one seed the listing pass must not read as its bare-read value.
+    expect(formulaOf(src)).toBe('accum(-(0 / 0), na(self) ? close : (self + close) / 2, 250)')
   })
 })

@@ -47,7 +47,6 @@
     "api/main.py::_massive_rollback_gap_fill",
     "api/main.py::_massive_ws_status",
     "api/main.py::_ticker_types_backfill",
-    "api/main.py::_ticker_types_etf_index_symbols",
     "api/main.py::_ticker_types_generation",
     "api/main.py::_ticker_types_replica_push_status",
     "api/main.py::_ticker_types_sync",

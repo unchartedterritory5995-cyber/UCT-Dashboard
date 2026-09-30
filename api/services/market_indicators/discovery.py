@@ -129,13 +129,17 @@ def product_row(p) -> dict:
     out = p.to_row()
     out["catalogue"] = "market_indicators"
     out["legacy"] = False
-    out["source_type"] = reg.SRC_SURVEY
-    out["frequency"] = reg.FREQ_WEEKLY
     # ⚠️ THE PRODUCT INHERITS ITS COMPONENTS' SEMANTICS RATHER THAN DECLARING ITS OWN,
     # and refuses to exist if they disagree — three outputs sharing one pane and one
     # scale is a claim about the DATA, and it has to be checked somewhere.
     rows = [reg.get(c) for c in p.components]
     rows = [r for r in rows if r is not None]
+    # ⭐ SOURCE TYPE AND FREQUENCY TOO — a COT product is not a survey. Every product
+    # before COT was one, which is why this used to be a constant.
+    srcs = {r.source_type for r in rows}
+    freqs = {r.frequency for r in rows}
+    out["source_type"] = srcs.pop() if len(srcs) == 1 else reg.SRC_SURVEY
+    out["frequency"] = freqs.pop() if len(freqs) == 1 else reg.FREQ_WEEKLY
     units = {r.unit for r in rows}
     doms = {r.domain for r in rows}
     press = {r.presentation for r in rows}
@@ -260,10 +264,18 @@ def search(q: str, limit: int = 40, include_dormant: bool = False,
     want_unis = {label_to_id[t] for t in toks if t in label_to_id}
     rest = [t for t in toks if t not in label_to_id and t not in _NOISE]
 
+    uni_words = [t for t in toks if t in label_to_id]
     for r in rows:
         if r["id"] in exact_ids:
             continue
-        if want_unis and r.get("universe") not in want_unis:
+        rest_r = rest
+        if want_unis and r.get("universe") is None and r.get("family") == reg.FAM_POSITIONING:
+            # ⭐ A UNIVERSE WORD IS ONLY A FILTER FOR A ROW THAT HAS A UNIVERSE. A COT
+            # dataset has none, and for it "Nasdaq" is part of its NAME
+            # ("Nasdaq-100 E-Mini COT") — so it is matched as a word, not used to
+            # exclude the row.
+            rest_r = rest + uni_words
+        elif want_unis and r.get("universe") not in want_unis:
             continue
         own = " ".join(str(v).upper() for v in
                        (r.get("display"), r.get("short"), r.get("symbol")) if v)
@@ -282,13 +294,13 @@ def search(q: str, limit: int = 40, include_dormant: bool = False,
             hay = _breadth_haystack(r)
         code = str(r.get("id", "")).split(":")[-1].upper()
 
-        if not rest:
+        if not rest_r:
             score = 2 if want_unis else None
-        elif all(t == code for t in rest):
+        elif all(t == code for t in rest_r):
             score = 1
-        elif all(_matches(t, own) for t in rest):
+        elif all(_matches(t, own) for t in rest_r):
             score = 3
-        elif all(_matches(t, hay) for t in rest):
+        elif all(_matches(t, hay) for t in rest_r):
             score = 4
         else:
             score = None

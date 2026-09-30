@@ -17,7 +17,9 @@ export function pushRecent(sym) {
   const s = String(sym || '').toUpperCase().trim()
   // Synthetic pseudo-tickers (theme indexes) aren't typeable and read as noise
   // in a recents rail — keep the list to real symbols.
-  if (!s || s.startsWith('$IDX:')) return listRecents()
+  // Economic series (ECON:USCPI) are not tickers either, and a recents row would
+  // fetch a company logo for one — they are re-found through the Economic chip.
+  if (!s || s.startsWith('$IDX:') || s.startsWith('ECON:')) return listRecents()
   const next = [s, ...listRecents().filter((x) => x !== s)].slice(0, CAP)
   try { localStorage.setItem(KEY, JSON.stringify(next)) } catch { /* private mode */ }
   return next

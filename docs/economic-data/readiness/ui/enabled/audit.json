@@ -1,0 +1,2077 @@
+{
+  "_run": {
+    "at": "2026-09-30T16:25:38.192Z",
+    "base": "http://127.0.0.1:5231",
+    "mode": "enabled",
+    "note": "LOCAL server; econ served from local artifacts (ECON_SERVING_SOURCE=local); SPY host bars are a SYNTHETIC seeded random walk (NOT market data)"
+  },
+  "search": {
+    "chips": [
+      "All",
+      "Stocks",
+      "ETFs",
+      "Indices",
+      "Breadth",
+      "Economic"
+    ],
+    "queries": {
+      "CPI": {
+        "rows": [
+          {
+            "text": "CPI-U All Items (SA)USCPIBLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI: All Items Less Food & Energy (SA)USCORECPIBLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "CPI MoM % (headline, SA)USCPIMOMUCT (derived from BLS) · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "CPI-U All Items (NSA)USCPINSABLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "CPI YoY % (headline)USCPIYOYUCT (derived from BLS) · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI (NSA)USCORECPINSABLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          }
+        ],
+        "econRows": 7,
+        "logoOnEconRow": false,
+        "screenshot": "search-all-CPI.png"
+      },
+      "core cpi": {
+        "rows": [
+          {
+            "text": "Core CPI: All Items Less Food & Energy (SA)USCORECPIBLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI (NSA)USCORECPINSABLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI YoY %USCORECPIYOYUCT (derived from BLS) · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to CORE CPI",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 3,
+        "logoOnEconRow": false
+      },
+      "inflation": {
+        "rows": [
+          {
+            "text": "CPI-U All Items (SA)USCPIBLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "CPI YoY % (headline)USCPIYOYUCT (derived from BLS) · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI: All Items Less Food & Energy (SA)USCORECPIBLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI (NSA)USCORECPINSABLS · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core CPI YoY %USCORECPIYOYUCT (derived from BLS) · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Core PCE Price Index (ex food & energy)USCOREPCEBEA · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          }
+        ],
+        "econRows": 11,
+        "logoOnEconRow": false
+      },
+      "unemployment rate": {
+        "rows": [
+          {
+            "text": "Unemployment Rate (U-3)USUNRATEBLS · Monthly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to UNEMPLOYMENT RATE",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "nonfarm payrolls": {
+        "rows": [
+          {
+            "text": "Nonfarm Payrolls (Total, level)USNFPBLS · Monthly · PersonsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Nonfarm Payrolls Monthly ChangeUSNFPCHGUCT (derived from BLS) · Monthly · PersonsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to NONFARM PAYROLLS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 2,
+        "logoOnEconRow": false
+      },
+      "initial claims": {
+        "rows": [
+          {
+            "text": "Initial Jobless Claims (SA)USICSADept. of Labor · Weekly · CountEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to INITIAL CLAIMS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "GDP": {
+        "rows": [
+          {
+            "text": "Nominal GDP (SAAR)USGDPBEA · Quarterly · U.S. dollarsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Real GDP (chained 2017 USD, SAAR)USRGDPBEA · Quarterly · U.S. dollarsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Real GDP % chg q/q SAAR (BEA-published)USRGDPQABEA · Quarterly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Total Public Debt as % of GDP (UCT-computed)USDEBTGDPUCT (derived from Treasury + BEA) · Quarterly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "GGDPGoodrich Petroleum Corporation Common StockDelisted 2021",
+            "econ": false,
+            "img": true
+          }
+        ],
+        "econRows": 4,
+        "logoOnEconRow": false
+      },
+      "real GDP": {
+        "rows": [
+          {
+            "text": "Real GDP (chained 2017 USD, SAAR)USRGDPBEA · Quarterly · U.S. dollarsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Real GDP % chg q/q SAAR (BEA-published)USRGDPQABEA · Quarterly · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to REAL GDP",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 2,
+        "logoOnEconRow": false
+      },
+      "fed funds": {
+        "rows": [
+          {
+            "text": "Effective Federal Funds RateUSEFFRNY Fed · Daily · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Fed Funds Target Range - Lower LimitUSFEDFUNDSLNY Fed · Daily · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Fed Funds Target Range - Upper LimitUSFEDFUNDSUNY Fed · Daily · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to FED FUNDS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 3,
+        "logoOnEconRow": false,
+        "screenshot": "search-all-fed-funds.png"
+      },
+      "10-year treasury": {
+        "rows": [
+          {
+            "text": "10Y Treasury Constant Maturity YieldUST10YFederal Reserve · Daily · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to 10-YEAR TREASURY",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "2-year treasury": {
+        "rows": [
+          {
+            "text": "2Y Treasury Constant Maturity YieldUST2YFederal Reserve · Daily · PercentEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to 2-YEAR TREASURY",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "M2": {
+        "rows": [
+          {
+            "text": "M2 Money Stock (SA)USM2Federal Reserve · Monthly · U.S. dollarsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to M2",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "JOLTS": {
+        "rows": [
+          {
+            "text": "JOLTS Job Openings (level)USJOLTSOBLS · Monthly · PersonsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to JOLTS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "housing starts": {
+        "rows": [
+          {
+            "text": "Housing Starts, Total (SAAR)USHOUSTCensus Bureau · Monthly · UnitsEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to HOUSING STARTS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      },
+      "industrial production": {
+        "rows": [
+          {
+            "text": "Industrial Production Index, TotalUSINDPROFederal Reserve · Monthly · IndexEconomic",
+            "econ": true,
+            "img": false
+          },
+          {
+            "text": "Go to INDUSTRIAL PRODUCTION",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 1,
+        "logoOnEconRow": false
+      }
+    },
+    "economicChipBrowse": {
+      "rows": 42,
+      "screenshot": "search-economic-chip-browse.png"
+    },
+    "economicChipSearch": {
+      "q": "initial claims",
+      "rows": [
+        {
+          "text": "Initial Jobless Claims (SA)USICSADept. of Labor · Weekly · CountEconomic",
+          "econ": true,
+          "img": false
+        }
+      ]
+    },
+    "requests": [
+      "/api/ticker-search?q=JOLTS&limit=40&type=all_economic",
+      "/api/ticker-search?q=HOUSING%20STARTS&limit=40&type=all_economic",
+      "/api/ticker-search?q=INDUSTRIAL%20PRODUCTION&limit=40&type=all_economic",
+      "/api/ticker-search?q=INITIAL%20CLAIMS&limit=40&type=economic"
+    ],
+    "selectEconRow": {
+      "clicked": true,
+      "symAfter": "ECON:USCPI"
+    }
+  },
+  "primary": {
+    "USCPI-D": {
+      "note": "monthly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2016-06-16",
+          "to": "2026-09-11"
+        },
+        "engine": [
+          {
+            "id": "econp:USCPI",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 2,
+            "points": 955,
+            "first": {
+              "value": 21.48,
+              "time": "1947-04-01"
+            },
+            "last": {
+              "value": 334.131,
+              "time": "2026-09-11"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 11334.131Aug 2026+1.318 (+0.40%)released Sep 11",
+        "econ-value": "334.131",
+        "econ-period": "Aug 2026",
+        "econ-change": "+1.318 (+0.40%)",
+        "econ-released": "released Sep 11",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "header": "CPI-U All Items (SA) · USCPI",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "OCT 13273.910Sep 2021+1.234 (+0.45%)released Oct 13, 2021",
+        "econ-value": "273.910",
+        "econ-period": "Sep 2021",
+        "econ-change": "+1.234 (+0.45%)",
+        "econ-released": "released Oct 13, 2021",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USCPI",
+          200
+        ]
+      ],
+      "screenshot": "primary-USCPI-D.png"
+    },
+    "USCPI-W": {
+      "note": "monthly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2025-10-06",
+          "to": "2026-09-28"
+        },
+        "engine": [
+          {
+            "id": "econp:USCPI",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 2,
+            "points": 4148,
+            "first": {
+              "value": 21.48,
+              "time": "1947-03-31"
+            },
+            "last": {
+              "value": 334.131,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 28334.131Aug 2026+1.318 (+0.40%)released Sep 11",
+        "econ-value": "334.131",
+        "econ-period": "Aug 2026",
+        "econ-change": "+1.318 (+0.40%)",
+        "econ-released": "released Sep 11",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "header": "CPI-U All Items (SA) · USCPI",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 6330.293Mar 2026+2.833 (+0.87%)released Apr 10",
+        "econ-value": "330.293",
+        "econ-period": "Mar 2026",
+        "econ-change": "+2.833 (+0.87%)",
+        "econ-released": "released Apr 10",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USCPI",
+          200
+        ]
+      ],
+      "screenshot": "primary-USCPI-W.png"
+    },
+    "USCPI-M": {
+      "note": "monthly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-10-01",
+          "to": "2026-09-01"
+        },
+        "engine": [
+          {
+            "id": "econp:USCPI",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 2,
+            "points": 953,
+            "first": {
+              "value": 21.62,
+              "time": "1947-04-01"
+            },
+            "last": {
+              "value": 334.131,
+              "time": "2026-09-01"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 1334.131Aug 2026+1.318 (+0.40%)released Sep 11",
+        "econ-value": "334.131",
+        "econ-period": "Aug 2026",
+        "econ-change": "+1.318 (+0.40%)",
+        "econ-released": "released Sep 11",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "header": "CPI-U All Items (SA) · USCPI",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 1319.785Mar 2025+0.106 (+0.03%)released Apr 10, 2025",
+        "econ-value": "319.785",
+        "econ-period": "Mar 2025",
+        "econ-change": "+0.106 (+0.03%)",
+        "econ-released": "released Apr 10, 2025",
+        "econ-status": "Up to date · next release Oct 14, 8:30 AM ET (typical)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USCPI",
+          200
+        ]
+      ],
+      "screenshot": "primary-USCPI-M.png"
+    },
+    "USFEDFUNDSU-D": {
+      "note": "step",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2026-04-02",
+          "to": "2026-09-30"
+        },
+        "engine": [
+          {
+            "id": "econp:USFEDFUNDSU",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 4416,
+            "first": {
+              "value": 0.25,
+              "time": "2008-12-17"
+            },
+            "last": {
+              "value": 4,
+              "time": "2026-09-30"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 304.00%Sep 29, 2026+0.00 ppreleased Sep 30",
+        "econ-value": "4.00%",
+        "econ-period": "Sep 29, 2026",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Sep 30",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "header": "Fed Funds Target Range - Upper Limit · USFEDFUNDSU",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "JUL 63.75%Jul 3, 2026+0.00 ppreleased Jul 6",
+        "econ-value": "3.75%",
+        "econ-period": "Jul 3, 2026",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Jul 6",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USFEDFUNDSU",
+          200
+        ]
+      ],
+      "screenshot": "primary-USFEDFUNDSU-D.png"
+    },
+    "USFEDFUNDSU-W": {
+      "note": "step",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2025-10-06",
+          "to": "2026-09-28"
+        },
+        "engine": [
+          {
+            "id": "econp:USFEDFUNDSU",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 929,
+            "first": {
+              "value": 0.25,
+              "time": "2008-12-15"
+            },
+            "last": {
+              "value": 4,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 284.00%Sep 29, 2026+0.00 ppreleased Sep 30",
+        "econ-value": "4.00%",
+        "econ-period": "Sep 29, 2026",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Sep 30",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "header": "Fed Funds Target Range - Upper Limit · USFEDFUNDSU",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 63.75%Apr 9, 2026+0.00 ppreleased Apr 10",
+        "econ-value": "3.75%",
+        "econ-period": "Apr 9, 2026",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Apr 10",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USFEDFUNDSU",
+          200
+        ]
+      ],
+      "screenshot": "primary-USFEDFUNDSU-W.png"
+    },
+    "USFEDFUNDSU-M": {
+      "note": "step",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-10-01",
+          "to": "2026-09-01"
+        },
+        "engine": [
+          {
+            "id": "econp:USFEDFUNDSU",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 214,
+            "first": {
+              "value": 0.25,
+              "time": "2008-12-01"
+            },
+            "last": {
+              "value": 4,
+              "time": "2026-09-01"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 14.00%Sep 29, 2026+0.00 ppreleased Sep 30",
+        "econ-value": "4.00%",
+        "econ-period": "Sep 29, 2026",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Sep 30",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "header": "Fed Funds Target Range - Upper Limit · USFEDFUNDSU",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 14.50%Apr 29, 2025+0.00 ppreleased Apr 30, 2025",
+        "econ-value": "4.50%",
+        "econ-period": "Apr 29, 2025",
+        "econ-change": "+0.00 pp",
+        "econ-released": "released Apr 30, 2025",
+        "econ-status": "Up to date · next release Oct 1, ~9:00 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USFEDFUNDSU",
+          200
+        ]
+      ],
+      "screenshot": "primary-USFEDFUNDSU-M.png"
+    },
+    "UST10Y-D": {
+      "note": "daily line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2026-04-02",
+          "to": "2026-09-29"
+        },
+        "engine": [
+          {
+            "id": "econp:UST10Y",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 8810,
+            "first": {
+              "value": 4.02,
+              "time": "1962-01-08"
+            },
+            "last": {
+              "value": 5.24,
+              "time": "2026-09-29"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 295.24%Sep 28, 2026+0.07 ppreleased Sep 29",
+        "econ-value": "5.24%",
+        "econ-period": "Sep 28, 2026",
+        "econ-change": "+0.07 pp",
+        "econ-released": "released Sep 29",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "header": "10Y Treasury Constant Maturity Yield · UST10Y",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "JUL 64.49%Jul 2, 2026+0.01 ppreleased Jul 6",
+        "econ-value": "4.49%",
+        "econ-period": "Jul 2, 2026",
+        "econ-change": "+0.01 pp",
+        "econ-released": "released Jul 6",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/UST10Y",
+          200
+        ]
+      ],
+      "screenshot": "primary-UST10Y-D.png"
+    },
+    "UST10Y-W": {
+      "note": "daily line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2025-10-06",
+          "to": "2026-09-28"
+        },
+        "engine": [
+          {
+            "id": "econp:UST10Y",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 3378,
+            "first": {
+              "value": 4.02,
+              "time": "1962-01-08"
+            },
+            "last": {
+              "value": 5.24,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 285.24%Sep 28, 2026+0.07 ppreleased Sep 29",
+        "econ-value": "5.24%",
+        "econ-period": "Sep 28, 2026",
+        "econ-change": "+0.07 pp",
+        "econ-released": "released Sep 29",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "header": "10Y Treasury Constant Maturity Yield · UST10Y",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 64.29%Apr 8, 2026−0.04 ppreleased Apr 9",
+        "econ-value": "4.29%",
+        "econ-period": "Apr 8, 2026",
+        "econ-change": "−0.04 pp",
+        "econ-released": "released Apr 9",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/UST10Y",
+          200
+        ]
+      ],
+      "screenshot": "primary-UST10Y-W.png"
+    },
+    "UST10Y-M": {
+      "note": "daily line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-10-01",
+          "to": "2026-09-01"
+        },
+        "engine": [
+          {
+            "id": "econp:UST10Y",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 777,
+            "first": {
+              "value": 4.11,
+              "time": "1962-01-01"
+            },
+            "last": {
+              "value": 5.24,
+              "time": "2026-09-01"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 15.24%Sep 28, 2026+0.07 ppreleased Sep 29",
+        "econ-value": "5.24%",
+        "econ-period": "Sep 28, 2026",
+        "econ-change": "+0.07 pp",
+        "econ-released": "released Sep 29",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "header": "10Y Treasury Constant Maturity Yield · UST10Y",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 14.23%Apr 28, 2025−0.06 ppreleased Apr 29, 2025",
+        "econ-value": "4.23%",
+        "econ-period": "Apr 28, 2025",
+        "econ-change": "−0.06 pp",
+        "econ-released": "released Apr 29, 2025",
+        "econ-status": "Up to date · next release Sep 30, ~4:15 PM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/UST10Y",
+          200
+        ]
+      ],
+      "screenshot": "primary-UST10Y-M.png"
+    },
+    "USICSA-D": {
+      "note": "weekly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-12-15",
+          "to": "2026-09-25"
+        },
+        "engine": [
+          {
+            "id": "econp:USICSA",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 3069,
+            "first": {
+              "value": 208000,
+              "time": "1967-01-20"
+            },
+            "last": {
+              "value": 197000,
+              "time": "2026-09-25"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 25197,000wk 9/19−1,000 (−0.51%)released Sep 25",
+        "econ-value": "197,000",
+        "econ-period": "wk 9/19",
+        "econ-change": "−1,000 (−0.51%)",
+        "econ-released": "released Sep 25",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "header": "Initial Jobless Claims (SA) · USICSA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "MAR 7224,000wk 3/1−17,000 (−7.05%)released Mar 7, 2025",
+        "econ-value": "224,000",
+        "econ-period": "wk 3/1",
+        "econ-change": "−17,000 (−7.05%)",
+        "econ-released": "released Mar 7, 2025",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USICSA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USICSA-D.png"
+    },
+    "USICSA-W": {
+      "note": "weekly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2025-10-06",
+          "to": "2026-09-28"
+        },
+        "engine": [
+          {
+            "id": "econp:USICSA",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 6,
+            "points": 3071,
+            "first": {
+              "value": 208000,
+              "time": "1967-01-16"
+            },
+            "last": {
+              "value": 197000,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 28197,000wk 9/19−1,000 (−0.51%)released Sep 25",
+        "econ-value": "197,000",
+        "econ-period": "wk 9/19",
+        "econ-change": "−1,000 (−0.51%)",
+        "econ-released": "released Sep 25",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "header": "Initial Jobless Claims (SA) · USICSA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 6218,000wk 4/4+15,000 (+7.39%)released Apr 10",
+        "econ-value": "218,000",
+        "econ-period": "wk 4/4",
+        "econ-change": "+15,000 (+7.39%)",
+        "econ-released": "released Apr 10",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USICSA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USICSA-W.png"
+    },
+    "USICSA-M": {
+      "note": "weekly line",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-10-01",
+          "to": "2026-09-01"
+        },
+        "engine": [
+          {
+            "id": "econp:USICSA",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 6,
+            "points": 707,
+            "first": {
+              "value": 207000,
+              "time": "1967-01-01"
+            },
+            "last": {
+              "value": 197000,
+              "time": "2026-09-01"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 1197,000wk 9/19−1,000 (−0.51%)released Sep 25",
+        "econ-value": "197,000",
+        "econ-period": "wk 9/19",
+        "econ-change": "−1,000 (−0.51%)",
+        "econ-released": "released Sep 25",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "header": "Initial Jobless Claims (SA) · USICSA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 1224,000wk 4/19+7,000 (+3.23%)released Apr 25, 2025",
+        "econ-value": "224,000",
+        "econ-period": "wk 4/19",
+        "econ-change": "+7,000 (+3.23%)",
+        "econ-released": "released Apr 25, 2025",
+        "econ-status": "Up to date · next release Oct 1, ~8:30 AM ET (est.)"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USICSA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USICSA-M.png"
+    },
+    "USRGDPQA-D": {
+      "note": "quarterly histogram",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Histogram",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "1995-08-01",
+          "to": "2026-07-30"
+        },
+        "engine": [
+          {
+            "id": "econp:USRGDPQA",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 316,
+            "first": {
+              "value": -1,
+              "time": "1947-08-29"
+            },
+            "last": {
+              "value": 2.2,
+              "time": "2026-07-30"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "JUL 302.2%Q2 2026−0.3 ppreleased Jul 30",
+        "econ-value": "2.2%",
+        "econ-period": "Q2 2026",
+        "econ-change": "−0.3 pp",
+        "econ-released": "released Jul 30",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "header": "Real GDP % chg q/q SAAR (BEA-published) · USRGDPQA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "AUG 12.7%Q2 2011+3.6 ppreleased Aug 1, 2011",
+        "econ-value": "2.7%",
+        "econ-period": "Q2 2011",
+        "econ-change": "+3.6 pp",
+        "econ-released": "released Aug 1, 2011",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USRGDPQA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USRGDPQA-D.png"
+    },
+    "USRGDPQA-W": {
+      "note": "quarterly histogram",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Histogram",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2025-10-06",
+          "to": "2026-09-28"
+        },
+        "engine": [
+          {
+            "id": "econp:USRGDPQA",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 4105,
+            "first": {
+              "value": -1,
+              "time": "1947-08-25"
+            },
+            "last": {
+              "value": 2.2,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 282.2%Q2 2026−0.3 ppreleased Jul 30",
+        "econ-value": "2.2%",
+        "econ-period": "Q2 2026",
+        "econ-change": "−0.3 pp",
+        "econ-released": "released Jul 30",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "header": "Real GDP % chg q/q SAAR (BEA-published) · USRGDPQA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 60.2%Q4 2025−3.7 ppreleased Mar 13",
+        "econ-value": "0.2%",
+        "econ-period": "Q4 2025",
+        "econ-change": "−3.7 pp",
+        "econ-released": "released Mar 13",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USRGDPQA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USRGDPQA-W.png"
+    },
+    "USRGDPQA-M": {
+      "note": "quarterly histogram",
+      "chart": {
+        "primarySeriesType": "Line",
+        "panes": [
+          [
+            "Histogram",
+            "Line"
+          ]
+        ],
+        "visible": {
+          "from": "2023-10-01",
+          "to": "2026-09-01"
+        },
+        "engine": [
+          {
+            "id": "econp:USRGDPQA",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 945,
+            "first": {
+              "value": -1,
+              "time": "1947-08-01"
+            },
+            "last": {
+              "value": 2.2,
+              "time": "2026-09-01"
+            }
+          }
+        ]
+      },
+      "legend": {
+        "econ-bar-info": "SEP 12.2%Q2 2026−0.3 ppreleased Jul 30",
+        "econ-value": "2.2%",
+        "econ-period": "Q2 2026",
+        "econ-change": "−0.3 pp",
+        "econ-released": "released Jul 30",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "header": "Real GDP % chg q/q SAAR (BEA-published) · USRGDPQA",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {
+        "econ-bar-info": "APR 10.1%Q1 2025−2.3 ppreleased Apr 30, 2025",
+        "econ-value": "0.1%",
+        "econ-period": "Q1 2025",
+        "econ-change": "−2.3 pp",
+        "econ-released": "released Apr 30, 2025",
+        "econ-status": "Up to date · next release Oct 29, 8:30 AM ET"
+      },
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          200
+        ],
+        [
+          "/api/econ/series/USRGDPQA",
+          200
+        ]
+      ],
+      "screenshot": "primary-USRGDPQA-M.png"
+    }
+  },
+  "addIndicator": {
+    "tabs": [
+      "technical",
+      "fundamentals",
+      "breadth",
+      "symbols",
+      "indexes",
+      "economic"
+    ],
+    "browseRows": 42,
+    "browseSample": [
+      "Core CPI: All Items Less Food & Energy (SA)USCORECPIBLS · Monthly · Index＋ Add",
+      "Core CPI (NSA)USCORECPINSABLS · Monthly · Index＋ Add",
+      "Core CPI YoY %USCORECPIYOYUCT (derived from BLS) · Monthly · Percent＋ Add",
+      "Core PCE Price Index (ex food & energy)USCOREPCEBEA · Monthly · Index＋ Add",
+      "CPI-U All Items (SA)USCPIBLS · Monthly · Index＋ Add"
+    ],
+    "browseScreenshot": "add-indicator-economic-browse.png",
+    "search:fed funds target": [
+      "economic:USFEDFUNDSL",
+      "economic:USFEDFUNDSU"
+    ],
+    "searchScreenshot": "add-indicator-economic-search.png",
+    "search:nonfarm payrolls monthly change": [
+      "economic:USNFPCHG"
+    ],
+    "storedInstances": [
+      {
+        "id": "inst:dataSeries:1",
+        "defId": "dataSeries",
+        "source": "econ:USCPI",
+        "presentation": {
+          "plotStyle": "line"
+        },
+        "placement": null
+      },
+      {
+        "id": "inst:dataSeries:2",
+        "defId": "dataSeries",
+        "source": "econ:USFEDFUNDSU",
+        "presentation": {
+          "plotStyle": "step"
+        },
+        "placement": null
+      },
+      {
+        "id": "inst:dataSeries:3",
+        "defId": "dataSeries",
+        "source": "econ:USNFPCHG",
+        "presentation": {
+          "plotStyle": "histogram"
+        },
+        "placement": null
+      }
+    ],
+    "preferenceWritesBlocked": []
+  },
+  "overlays": {
+    "5": {
+      "chart": {
+        "primarySeriesType": "Candlestick",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Candlestick"
+          ],
+          [
+            "Histogram"
+          ],
+          [
+            "Line"
+          ],
+          [
+            "Line"
+          ],
+          [
+            "Histogram"
+          ]
+        ],
+        "visible": {
+          "from": 1790760600,
+          "to": 1790800200
+        },
+        "engine": [
+          {
+            "id": "ovl:0",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 1144,
+            "first": {
+              "value": 1206.8477777777778,
+              "time": 1790138400
+            },
+            "last": {
+              "value": 1199.2350838672382,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "ovl:1",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 1133,
+            "first": {
+              "value": 1206.6609999999998,
+              "time": 1790141700
+            },
+            "last": {
+              "value": 1198.9331255213895,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "ovl:2",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 1103,
+            "first": {
+              "value": 1206.71,
+              "time": 1790150700
+            },
+            "last": {
+              "value": 1198.1063999999997,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "ovl:3",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 953,
+            "first": {
+              "value": 1209.3796499999994,
+              "time": 1790224500
+            },
+            "last": {
+              "value": 1195.2885,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "inst:dataSeries:1",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 2,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 1152,
+            "first": {
+              "value": 334.131,
+              "time": 1790136000
+            },
+            "last": {
+              "value": 334.131,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "inst:dataSeries:2",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 3,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 1152,
+            "first": {
+              "value": 4,
+              "time": 1790136000
+            },
+            "last": {
+              "value": 4,
+              "time": 1790798100
+            }
+          },
+          {
+            "id": "inst:dataSeries:3",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 4,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 1152,
+            "first": {
+              "value": 162,
+              "time": 1790136000
+            },
+            "last": {
+              "value": 162,
+              "time": 1790798100
+            }
+          }
+        ]
+      },
+      "check": {
+        "USCPI": {
+          "checked": 1152,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 0,
+          "renderSeries": 1,
+          "pane": 2,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 0
+        },
+        "USFEDFUNDSU": {
+          "checked": 1152,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 0,
+          "renderSeries": 1,
+          "pane": 3,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 1
+        },
+        "USNFPCHG": {
+          "checked": 1152,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 0,
+          "renderSeries": 1,
+          "pane": 4,
+          "scale": "right",
+          "type": "Histogram",
+          "lineType": null
+        }
+      },
+      "legend": {},
+      "screenshot": "overlay-SPY-5.png"
+    },
+    "D": {
+      "chart": {
+        "primarySeriesType": "Candlestick",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Candlestick"
+          ],
+          [
+            "Histogram"
+          ],
+          [
+            "Line",
+            "Line"
+          ],
+          [
+            "Line"
+          ],
+          [
+            "Histogram"
+          ]
+        ],
+        "visible": {
+          "from": "2026-04-08",
+          "to": "2026-10-09"
+        },
+        "engine": [
+          {
+            "id": "ovl:0",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 592,
+            "first": {
+              "value": 939.0533333333335,
+              "time": "2024-06-25"
+            },
+            "last": {
+              "value": 1200.4066112399564,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "ovl:1",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 581,
+            "first": {
+              "value": 939.1224999999998,
+              "time": "2024-07-10"
+            },
+            "last": {
+              "value": 1196.1796433592374,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "ovl:2",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 551,
+            "first": {
+              "value": 941.7791999999997,
+              "time": "2024-08-21"
+            },
+            "last": {
+              "value": 1188.5593999999996,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "ovl:3",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 401,
+            "first": {
+              "value": 987.6797,
+              "time": "2025-03-19"
+            },
+            "last": {
+              "value": 1142.0440999999996,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "inst:dataSeries:1",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 2,
+            "priceFormat": "custom",
+            "renderSeries": 2,
+            "points": 593,
+            "first": {
+              "value": 313.175,
+              "time": "2024-06-13"
+            },
+            "last": {
+              "value": 334.131,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "inst:dataSeries:2",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 3,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 600,
+            "first": {
+              "value": 5.5,
+              "time": "2024-06-13"
+            },
+            "last": {
+              "value": 4,
+              "time": "2026-09-30"
+            }
+          },
+          {
+            "id": "inst:dataSeries:3",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 4,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 578,
+            "first": {
+              "value": 78,
+              "time": "2024-06-13"
+            },
+            "last": {
+              "value": 162,
+              "time": "2026-09-30"
+            }
+          }
+        ]
+      },
+      "check": {
+        "USCPI": {
+          "checked": 593,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 279,
+          "renderSeries": 2,
+          "pane": 2,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 0
+        },
+        "USFEDFUNDSU": {
+          "checked": 600,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 77,
+          "renderSeries": 1,
+          "pane": 3,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 1
+        },
+        "USNFPCHG": {
+          "checked": 578,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 275,
+          "renderSeries": 1,
+          "pane": 4,
+          "scale": "right",
+          "type": "Histogram",
+          "lineType": null
+        }
+      },
+      "legend": {},
+      "screenshot": "overlay-SPY-D.png"
+    },
+    "W": {
+      "chart": {
+        "primarySeriesType": "Candlestick",
+        "panes": [
+          [
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Line",
+            "Candlestick"
+          ],
+          [
+            "Histogram"
+          ],
+          [
+            "Line",
+            "Line"
+          ],
+          [
+            "Line"
+          ],
+          [
+            "Histogram"
+          ]
+        ],
+        "visible": {
+          "from": "2024-05-06",
+          "to": "2026-11-09"
+        },
+        "engine": [
+          {
+            "id": "ovl:0",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 397,
+            "first": {
+              "value": 491.1166666666667,
+              "time": "2019-02-25"
+            },
+            "last": {
+              "value": 1190.4065049392586,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "ovl:1",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 386,
+            "first": {
+              "value": 522.9735000000001,
+              "time": "2019-05-13"
+            },
+            "last": {
+              "value": 1174.8166156411696,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "ovl:2",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 356,
+            "first": {
+              "value": 543.7500000000001,
+              "time": "2019-12-09"
+            },
+            "last": {
+              "value": 1140.1940000000002,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "ovl:3",
+            "seriesType": "Line",
+            "lineType": 2,
+            "priceScaleId": "right",
+            "pane": 0,
+            "priceFormat": "price",
+            "renderSeries": 1,
+            "points": 206,
+            "first": {
+              "value": 722.7255499999999,
+              "time": "2022-10-24"
+            },
+            "last": {
+              "value": 1011.4532500000006,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "inst:dataSeries:1",
+            "seriesType": "Line",
+            "lineType": 0,
+            "priceScaleId": "right",
+            "pane": 2,
+            "priceFormat": "custom",
+            "renderSeries": 2,
+            "points": 404,
+            "first": {
+              "value": 252.594,
+              "time": "2018-12-31"
+            },
+            "last": {
+              "value": 334.131,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "inst:dataSeries:2",
+            "seriesType": "Line",
+            "lineType": 1,
+            "priceScaleId": "right",
+            "pane": 3,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 405,
+            "first": {
+              "value": 2.5,
+              "time": "2018-12-31"
+            },
+            "last": {
+              "value": 4,
+              "time": "2026-09-28"
+            }
+          },
+          {
+            "id": "inst:dataSeries:3",
+            "seriesType": "Histogram",
+            "lineType": null,
+            "priceScaleId": "right",
+            "pane": 4,
+            "priceFormat": "custom",
+            "renderSeries": 1,
+            "points": 401,
+            "first": {
+              "value": 192,
+              "time": "2018-12-31"
+            },
+            "last": {
+              "value": 162,
+              "time": "2026-09-28"
+            }
+          }
+        ]
+      },
+      "check": {
+        "USCPI": {
+          "checked": 404,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 182,
+          "renderSeries": 2,
+          "pane": 2,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 0
+        },
+        "USFEDFUNDSU": {
+          "checked": 405,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 46,
+          "renderSeries": 1,
+          "pane": 3,
+          "scale": "right",
+          "type": "Line",
+          "lineType": 1
+        },
+        "USNFPCHG": {
+          "checked": 401,
+          "barsNotEqualToNewestReleasedValue": 0,
+          "negativeControlShift15dEarlier": 180,
+          "renderSeries": 1,
+          "pane": 4,
+          "scale": "right",
+          "type": "Histogram",
+          "lineType": null
+        }
+      },
+      "legend": {},
+      "screenshot": "overlay-SPY-W.png"
+    }
+  },
+  "consoleErrors": []
+}

@@ -104,6 +104,13 @@ describe('the community corpus, by name', () => {
     // "is listed as unserved but TRANSLATES", both within a minute of the change.
     '23-higher-timeframe-ema.pine',
     '24-multi-timeframe-rsi.pine',
+    // ⭐ C12s (2026-09-30) — its VWAP is `sumSrc := start ? sumSrc : sumSrc + sumSrc[1]`,
+    // a running total that RESETS on every session start: a SWITCHED recurrence
+    // (`interpret.js::switchedVarSeed`), exact from the last `start` inside the
+    // window. The VWAP column translates; its twenty level plots still stop on
+    // `is_near_since_back`'s multi-statement `for` (`pine:block` @56), which is
+    // why `pine.community.guards.test.js` still names that wall for them.
+    '25-spy-expected-move-by-vix.pine',
   ]
 
   // ⚰️⚰️ 27 AND 28 WERE HERE AND NEITHER EVER HAD A COLUMN. Both are RULED now

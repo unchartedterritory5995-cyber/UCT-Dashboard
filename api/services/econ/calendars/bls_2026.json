@@ -7,6 +7,8 @@
     "pfei": "OMB PFEI 2026, https://statspolicy.gov/assets/fcsm/files/docs/OMB_pfei_schedule_release_dates_cy2026.pdf (sha256 5d2c16011a816bc527f628c1e20ff781ed309ed5de55c262ba7ba5bb7718c734, PDF ModDate 2025-09-26, server Last-Modified 2026-09-17), page 4 BUREAU OF LABOR STATISTICS; Jul-Dec 2026 rows cross-checked against secondary calendars (agree)",
     "time_0830": "time: CONFIGURED agency practice 08:30 ET (not stated in the PFEI; the NY Fed national economic calendar lists these releases at 08:30 ET; BLS's own time statement is on bls.gov, unreachable to scripts)",
     "time_1000": "time: CONFIGURED agency practice 10:00 ET (JOLTS; secondary calendars list 10:00 ET)",
+    "sched_prod": "BLS 'Schedule of Releases for Productivity and Costs' https://www.bls.gov/schedule/news_release/prod2.htm (read 2026-09-30): reference quarter (P)reliminary/(R)evised, release date, 'Release Time 08:30 AM' (date AND time stated by BLS -> exact). PFEI 2026 p.4 agrees from May on (it was not revised for the post-shutdown Q4 2025 moves; the BLS page wins)",
+    "sched_mxp": "BLS 'U.S. Import and Export Price Indexes' release schedule https://www.bls.gov/schedule/news_release/ximpim.htm (read 2026-09-30): reference month, release date, 'Release Time 08:30 AM' (exact). PFEI 2026 p.4 agrees Jul-Dec",
     "jolts": "date: JOLTS is NOT in the PFEI. Dates CONFIGURED from a secondary republisher's 2026 JOLTS release-calendar page (fetched 2026-09-28; no October 2026 release is scheduled). LOWER CONFIDENCE: re-verify each date from BLS when reachable"
   },
   "calendars": {
@@ -28,6 +30,19 @@
     "bls:jolts": {"source": "configured", "precision": "time_configured", "time_et": "10:00",
                   "date_cite": "jolts", "time_cite": "time_1000",
                   "events": [["2026-08-04", "2026-06"], ["2026-09-01", "2026-07"], ["2026-09-29", "2026-08"],
-                             ["2026-11-03", "2026-09"], ["2026-12-01", "2026-10"]]}
+                             ["2026-11-03", "2026-09"], ["2026-12-01", "2026-10"]]},
+    "bls:prod": {"source": "configured", "precision": "exact", "time_et": "08:30",
+                 "date_cite": "sched_prod", "time_cite": "sched_prod",
+                 "events": [["2026-01-08", "2025Q3"], ["2026-01-29", "2025Q3/rev1"], ["2026-03-05", "2025Q4"],
+                            ["2026-03-24", "2025Q4/rev1"], ["2026-05-07", "2026Q1"], ["2026-06-04", "2026Q1/rev1"],
+                            ["2026-08-06", "2026Q2"], ["2026-09-03", "2026Q2/rev1"], ["2026-11-05", "2026Q3"],
+                            ["2026-12-08", "2026Q3/rev1"]]},
+    "bls:mxp": {"source": "configured", "precision": "exact", "time_et": "08:30",
+                "date_cite": "sched_mxp", "time_cite": "sched_mxp",
+                "events": [["2026-01-15", "2025-11"], ["2026-02-10", "2025-12"], ["2026-03-05", "2026-01"],
+                           ["2026-03-25", "2026-02"], ["2026-04-15", "2026-03"], ["2026-05-14", "2026-04"],
+                           ["2026-06-16", "2026-05"], ["2026-07-17", "2026-06"], ["2026-08-18", "2026-07"],
+                           ["2026-09-16", "2026-08"], ["2026-10-16", "2026-09"], ["2026-11-17", "2026-10"],
+                           ["2026-12-17", "2026-11"]]}
   }
 }

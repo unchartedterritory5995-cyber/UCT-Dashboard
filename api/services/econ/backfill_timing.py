@@ -101,10 +101,13 @@ class Lapse:
         return None
 
     def window_end(self, key: str) -> date:
-        pat = self.matches(key)
+        """max(lapse end + 60 d, every catch-up end whose pattern matches `key`) -- a
+        key-specific catch-up ('bea:profits') can extend its family's ('bea:*')."""
         end = self.end + timedelta(days=POST_LAPSE_DAYS)
-        cu = self.catch_up.get(pat) if pat else None
-        return max(end, timeutil.as_date(cu)) if cu else end
+        for pat, cu in self.catch_up.items():
+            if pat == key or (pat.endswith(":*") and key.startswith(pat[:-1])):
+                end = max(end, timeutil.as_date(cu))
+        return end
 
 
 @lru_cache(maxsize=1)
@@ -198,6 +201,7 @@ ERA = {
                                               "Feb-2004 data came 46 d after the month")],
     "bea:gdp": [("1985-01-01", 60, "08:30", "pre-1985: first-estimate lag not evidenced")],
     "bea:pio": [("1985-01-01", 60, "08:30", "pre-1985: release lag not evidenced")],
+    "bea:profits": [("1985-01-01", 120, "08:30", "pre-1985: corporate-profits first-release lag not evidenced")],
     "fed:g17": [("1954-01-01", 40, "09:15", "1919-1953: IP released ~26th-31st (ALFRED rid=13)"),
                 ("1997-11-01", 31, "09:15", "pre-Dec-1997: releases up to the 27th-31st seen (ALFRED); "
                                             "Fed archive (the evidence table) starts Dec 1997")],
@@ -211,6 +215,8 @@ ERA = {
     "fhfa:hpi_monthly": [("2012-01-01", 70, "09:00", "pre-2012: monthly HPI introduced 2008, release "
                                                      "day/time (10:00 era) not evidenced")],
     "nyfed:esms": [("2005-01-01", 24, "08:30", "pre-2005: release practice not evidenced (+7 d)")],
+    "fed:h8": [("1996-05-29", 21, END_OF_DAY, "pre-1996-06: the Board's H.8 release-date archive starts 1996-06-14")],
+    "fed:g19": [("1996-04-01", 50, END_OF_DAY, "pre-1996-06: the Board's G.19 release-date archive starts 1996-06-11")],
 }
 
 # U -> L: the stored value was NOT what was published at the time (back-cast, rebased,
@@ -224,6 +230,7 @@ BACKCAST_BEFORE = {
                              "show only 'bonds due or callable in 10 years or more')"),
     "UST2Y": ("1977-06-01", "2-year CMT in the weekly H.15 evidenced from Jun 1977"),
     "USDEBT": ("2005-04-04", "Debt to the Penny: 'daily figures only from April 4, 2005 forward'"),
+    "USDEBTPUB": ("2005-04-04", "Debt to the Penny: 'daily figures only from April 4, 2005 forward'"),
 }
 
 H15_WEEKLY_BEFORE = date(1999, 1, 1)      # daily web update evidenced by 1999-05 (ALFRED: weekly to 1996-12)
@@ -256,6 +263,11 @@ def family_bounds(spec, ps: date, pe: date, periods=()) -> list[tuple[int, str]]
     elif key == "fed:h41":
         out.append((_at(on_or_after_pub_day(pe + timedelta(days=1)), "16:30"),
                     "H.4.1 Thursday 16:30, next publication day after a holiday/closure"))
+    elif key == "fed:h8":
+        fri = pe + timedelta(days=9)
+        if not is_pub_day(fri) and not timeutil.is_federal_holiday(fri):
+            out.append((_eod(next_pub_day(fri)), "H.8 Friday is a closure (not a holiday): end of the next "
+                                                 "publication day (2025-12-26 closure -> Monday 12-29)"))
     elif key == "fed:h6" and pe >= date(2021, 1, 31):
         nm = timeutil.add_months(pe.replace(day=1), 1)
         tue4 = timeutil._nth_weekday(nm.year, nm.month, 1, 4)
@@ -285,7 +297,7 @@ def family_bounds(spec, ps: date, pe: date, periods=()) -> list[tuple[int, str]]
 
 # ─────────────────────────────── 5. snap sources ─────────────────────────────
 
-INFERRED_LABEL_KEYS = {"bea:gdp": 25, "bea:pio": 25, "fiscal:mts": 5}   # key -> min plausible lag (days)
+INFERRED_LABEL_KEYS = {"bea:gdp": 25, "bea:pio": 25, "bea:profits": 45, "fiscal:mts": 5}   # key -> min plausible lag (days)
 SNAP_SOURCES = frozenset({S.AUTHORITATIVE_FEED.value, S.AUTHORITATIVE_PAGE.value, S.CONFIGURED.value})
 SNAP_PRECISION = frozenset({P.EXACT.value, P.TIME_CONFIGURED.value})
 

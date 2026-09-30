@@ -961,6 +961,17 @@
       ],
       "note": ""
     },
+    "GEX_CHAIN_SOURCE": {
+      "status": "pending",
+      "since": "2026-09-30",
+      "where": [],
+      "default": "schwab",
+      "values": [
+        "schwab",
+        "massive"
+      ],
+      "note": "LCQ-02 (licensing register): which option chain the gamma-exposure view is computed from. A MODE (text), read per call in api/gex_service.py::chain_source(); vocabulary GEX_CHAIN_MODE_FLAGS there. SERVICE: web. schwab (default; unset or unknown) = today exactly: Schwab /chains through the personal retail login, which is NOT a licence to redisplay to members. massive = the licensed Massive options snapshot, converted to Schwab's own shape (to_schwab_shape) so every line of the GEX arithmetic is unchanged; strikes within 15% of spot (the wall-search band), paginated under 48 pages / 25 s with truncation reported as chainTruncated. Measured 2026-09-30 against the live API: SPY 180d = 5,646 contracts / 22 expirations / 2.4 s, untruncated. Every GEX result now carries chainSource. Before flipping: read GET /api/gex/source-parity?ticker=SPY&dte=week (admin) during market hours -- totals, walls, zero gamma and per-strike agreement from both sources. Rollback: set schwab. PARITY RUN 2026-09-30 ~10:50 CT (market hours, deploy f86780f8d live): COMPARISON NOT MADE -- Schwab errored 'Schwab not authenticated' on all 6 calls, and the endpoint then returned only the two error fields (fixed the same day: each side's numbers now come back when the other fails). Massive alone, computed locally through the same gex_service.get_gex_data(source='massive'), none truncated: SPY week spot 768.58 totalGex +5.11B zeroGamma 769.26 callWall 770 putWall 765 strikes 211 | QQQ week 744.35 +3.92B 744.89 745 736 210 | NVDA week 230.95 +1.22B 225.78 230 230 26 | TSLA week 349.98 -0.145B 350.09 355 350 42 | IWM week 279.33 -1.28B 280.62 280 280 91 | SPY month 768.40 +1.95B 786.27 770 765 211. No recommendation is possible without the Schwab side: sign agreement, rank correlation and total ratio are all unmeasured. Stays schwab (unset) until a run with Schwab authenticated."
+    },
     "GRADE_TICKER_CONFIRMED_SOURCE_ENABLED": {
       "status": "dark",
       "note": "Seam 28's re-enablement, merged dark 2026-09-10 on owner authorization. OFF: grade_ticker._default_patterns_fn returns [] exactly as it has since 2026-09-06, so Compass keeps routing every call through its honest no-usable-setup SKIP. ON: it sources pattern_vision.store.get_confirmed ONLY -- D1-window-bounded, latest-evidence-bar-per-setup, so a setup confirmed on an older bar and rejected on a newer one is never served -- and the raw rule-engine feed stays unreachable in both states (Seam 23/28). DELIBERATELY OFF because turning it ON changes the SOURCE and not the OUTPUT: pattern_verdicts has key_level but no entry/stop/target column, and grade_ticker's hard gate is entry-or-stop-is-None -> SKIP, so a confirmed verdict alone still cannot produce a tradable verdict. Manufacturing an entry and a stop from one level would be the fabricated-confidence move Seam 23 and Seam 28 each removed. Flipping this on is therefore safe but currently pointless; making it meaningful needs verdicts to carry levels, which is a schema change and separate work. Pinned by tests/test_grade_ticker_confirmed_source.py::test_confirmed_source_on_still_skips_because_verdicts_carry_no_levels, which goes RED the day levels are added.",
@@ -1804,11 +1815,11 @@
       "note": "Options Flow load path: ticker search hits /api/flow/ticker-product instead of scanning the tape. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
     },
     "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": {
-      "status": "dark",
-      "where": [],
+      "status": "armed",
+      "where": ["web"],
       "owner": "pine parity programme",
       "owner_decision": "not yet taken — the ARG was missing, so the flag could not be set at all until 2026-09-23",
-      "railway_value": "UNSET on every service",
+      "railway_value": "1 on web, READ LIVE 2026-09-30 ~02:00Z (`railway variables --service web --kv`). The flip time was never recorded here: this entry said dark and UNSET while the pane was live for members. Corrected by the pine integrator; the flip itself predates this correction.",
       "baked_value": "undefined — and until 2026-09-23 it could not have been anything else: Dockerfile.web declared no ARG for it, and Railway drops an undeclared build arg in silence. Exactly the trap VITE_PINE_MEMBER_PANE_ENABLED's own note records being closed for that flag in e6ca532c6 and not for this one.",
       "baked_measured_on": "2026-09-23, from Dockerfile.web's ARG list (the flag appeared 0 times) and tools/vite_flag_index (which could not see the read at all)",
       "last_changed": "2026-09-23T00:00:00Z",

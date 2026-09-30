@@ -362,7 +362,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -374,7 +374,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SAF1",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SAF1 'Food in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1947 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -538,7 +538,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -550,7 +550,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SA0E",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SA0E 'Energy in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -625,7 +625,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -637,7 +637,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SAH1",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SAH1 'Shelter in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -801,7 +801,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -813,7 +813,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SEHC",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SEHC 'Owners' equivalent rent of residences in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1983 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -889,7 +889,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -901,7 +901,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SASL2RS",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SASL2RS 'Services less rent of shelter in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1985 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -912,7 +912,7 @@
       "scale": 1
     },
     "seasonal_adjustment": "SA",
-    "history_start": "1983-01",
+    "history_start": "1985-01",
     "release": {
       "calendar_key": "bls:cpi",
       "cadence": "Monthly, ~10th-15th (CPI release)",
@@ -978,7 +978,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -990,7 +990,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SASLE",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SASLE 'Services less energy services in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1967 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -1066,7 +1066,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -1078,7 +1078,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SACL1E",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SACL1E 'Commodities less food and energy commodities in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -1154,7 +1154,7 @@
     "subcategory": "CPI components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -1166,7 +1166,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CUSR0000SETA02",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SETA02 'Used cars and trucks in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -1781,7 +1781,7 @@
     "subcategory": "CPI transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -1791,7 +1791,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCORECPI"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USCORECPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -1872,7 +1872,7 @@
     "subcategory": "CPI transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -1882,7 +1882,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCPISHELTER"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCPISHELTER); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -1963,7 +1963,7 @@
     "subcategory": "CPI transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -1973,7 +1973,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCPISVCXSH"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCPISVCXSH); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2415,7 +2415,7 @@
     "subcategory": "PPI",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -2427,7 +2427,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/WPSFD49104",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/WPSFD49104 'PPI Commodity data for Final demand less foods and energy, seasonally adjusted', base 201004; Aug 2026 154.842(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2590,7 +2590,7 @@
     "subcategory": "PPI",
     "country": "US",
     "role": "member",
-    "status": "unverified",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -2601,8 +2601,8 @@
         "series_id": "WPUFD4"
       },
       "official_url": "https://data.bls.gov/timeseries/WPUFD4",
-      "verified": false,
-      "verified_evidence": "catalog_notes.md lists this provider id as unverified"
+      "verified": true,
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/WPUFD4 'PPI Commodity data for Final demand, not seasonally adjusted', base Nov 2009; Aug 2026 157.604(P), Jul 157.155(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2676,7 +2676,7 @@
     "subcategory": "PPI transforms",
     "country": "US",
     "role": "member",
-    "status": "unverified",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -2685,8 +2685,8 @@
       "adapter": "derived",
       "params": {},
       "official_url": "",
-      "verified": false,
-      "verified_evidence": "input(s) unverified: USPPIFDNSA"
+      "verified": true,
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USPPIFDNSA); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2766,7 +2766,7 @@
     "subcategory": "PPI transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -2776,7 +2776,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USPPIFD"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USPPIFD); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2856,7 +2856,7 @@
     "subcategory": "PPI transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -2866,7 +2866,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USPPICORE"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USPPICORE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -2946,7 +2946,7 @@
     "subcategory": "Import/Export prices",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -2958,7 +2958,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/EIUIR",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/EIUIR 'Monthly import price index for BEA End Use, All commodities, not seasonally adjusted', base 2000=100; Aug 2026 150.8, Jul 149.8(R); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -3296,7 +3296,7 @@
     "subcategory": "Productivity",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3308,7 +3308,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/PRS85006092",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog pr.series PRS85006092: sector 8500 (nonfarm business), measure 09 (labor productivity), duration 2 (% change from previous quarter at annual rate), seasonal S, 1947 Q02..2026 Q02; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "Q",
     "week_anchor": "",
@@ -3384,7 +3384,7 @@
     "subcategory": "Productivity",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3396,7 +3396,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/PRS85006112",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog pr.series PRS85006112: sector 8500, measure 11 (unit labor costs), duration 2 (% change q/q at annual rate), seasonal S, 1947 Q02..2026 Q02; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "Q",
     "week_anchor": "",
@@ -3561,7 +3561,7 @@
     "subcategory": "Household survey",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3573,7 +3573,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/LNS13327709",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS13327709 '(Seas) Total unemployed, plus all persons marginally attached ... plus total employed part time for economic reasons ... (U-6)', percent; Aug 2026 7.7; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -3650,7 +3650,7 @@
     "subcategory": "Household survey",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3662,7 +3662,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/LNS11300000",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS11300000 '(Seas) Labor Force Participation Rate', percent; Aug 2026 61.6; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -3738,7 +3738,7 @@
     "subcategory": "Household survey",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3750,7 +3750,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/LNS12300000",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS12300000 '(Seas) Employment-Population Ratio', percent; Aug 2026 59.1; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -3826,7 +3826,7 @@
     "subcategory": "Household survey",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -3838,7 +3838,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/LNS12300060",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS12300060 '(Seas) Employment-Population Ratio - 25-54 yrs.', percent; Aug 2026 80.4; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -4266,7 +4266,7 @@
     "subcategory": "Payrolls",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -4278,7 +4278,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CES0500000001",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000001 'All employees, thousands, total private, seasonally adjusted'; Aug 2026 135,752(P), 1939..2026; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -4353,7 +4353,7 @@
     "subcategory": "Payrolls",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -4365,7 +4365,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CES3000000001",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES3000000001 'All employees, thousands, manufacturing, seasonally adjusted'; Aug 2026 12,638(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -4430,6 +4430,14 @@
       "frequency": "M",
       "seasonal_adjustment": "SA",
       "typical_release_time_et": "08:30"
+    },
+    "validation": {
+      "plausibility_exempt": [
+        {
+          "period": "1945-09-01",
+          "evidence": "BLS CES manufacturing employment (CES3000000001), Sep-1945: end of WWII war production after VJ Day (1945-08-15); authoritative BLS value, reviewed 2026-09-30"
+        }
+      ]
     }
   },
   {
@@ -4441,7 +4449,7 @@
     "subcategory": "Payrolls",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -4453,7 +4461,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CES9000000001",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES9000000001 'All employees, thousands, government, seasonally adjusted'; Aug 2026 preliminary ~23.3M; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -4704,7 +4712,7 @@
     "subcategory": "Wages",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -4716,7 +4724,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CES0500000003",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000003 'Average hourly earnings of all employees, total private, seasonally adjusted'; Aug 2026 $37.75(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -4793,7 +4801,7 @@
     "subcategory": "Hours",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -4805,7 +4813,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/CES0500000002",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000002 'Average weekly hours of all employees, total private, seasonally adjusted'; Aug 2026 34.4(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -5065,7 +5073,7 @@
     "subcategory": "Payroll transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BLS)",
@@ -5075,7 +5083,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USAHE"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USAHE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -5420,7 +5428,7 @@
     "subcategory": "JOLTS",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -5432,7 +5440,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/JTS000000000000000QUL",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000QUL: seasonal S, industry 000000 total nonfarm, dataelement QU (quits), ratelevel L (level, thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -5507,7 +5515,7 @@
     "subcategory": "JOLTS",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -5519,7 +5527,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/JTS000000000000000QUR",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000QUR: seasonal S, total nonfarm, QU quits, R rate (percent), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -5594,7 +5602,7 @@
     "subcategory": "JOLTS",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -5606,7 +5614,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/JTS000000000000000HIL",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000HIL: seasonal S, total nonfarm, HI hires, L level (thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -5768,7 +5776,7 @@
     "subcategory": "JOLTS",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Labor Statistics",
@@ -5780,7 +5788,7 @@
       },
       "official_url": "https://data.bls.gov/timeseries/JTS000000000000000LDL",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000LDL: seasonal S, total nonfarm, LD layoffs and discharges, L level (thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -6126,7 +6134,7 @@
     "subcategory": "Claims",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from DOL)",
@@ -6136,7 +6144,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USICSA"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed sma(USICSA); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "W",
     "week_anchor": "SAT",
@@ -6683,7 +6691,7 @@
     "subcategory": "GDP components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -6700,7 +6708,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister LB000003 'Final sales to private domestic purchasers' Chained Dollars Level scale -6, T10406:8; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "Q",
     "week_anchor": "",
@@ -6867,7 +6875,7 @@
     "subcategory": "GDP components",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -6884,7 +6892,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A008RX 'Nonresidential' Chained Dollars Level scale -6, T10106:9; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "Q",
     "week_anchor": "",
@@ -6895,7 +6903,7 @@
       "scale": 1000000
     },
     "seasonal_adjustment": "SAAR",
-    "history_start": "1947-Q1",
+    "history_start": "2007-Q1",
     "release": {
       "calendar_key": "bea:gdp",
       "cadence": "Quarterly: advance ~30d, second ~60d, third ~90d after qtr",
@@ -7143,7 +7151,7 @@
     "subcategory": "Income",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7160,7 +7168,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A065RC 'Equals: Personal income' Current Dollars scale -6, T20600:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7235,7 +7243,7 @@
     "subcategory": "Income",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7252,7 +7260,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A067RC 'Disposable personal income' Current Dollars scale -6, T20600:27; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7328,7 +7336,7 @@
     "subcategory": "Income",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7345,7 +7353,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A067RX 'Disposable personal income' Chained Dollars scale -6, T20600:37; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7420,7 +7428,7 @@
     "subcategory": "Spending",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7437,7 +7445,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister DPCERC 'Personal consumption expenditures' Current Dollars scale -6, T20600:29|T20805:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7514,7 +7522,7 @@
     "subcategory": "Spending",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7531,7 +7539,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister DPCERX 'Personal consumption expenditures' Chained Dollars scale -6, T20806:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7607,7 +7615,7 @@
     "subcategory": "Income",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7623,7 +7631,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A072RC 'Personal saving as a percentage of disposable personal income' Ratio scale 0, T20600:35; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -7885,7 +7893,7 @@
     "subcategory": "PCE prices",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -7901,7 +7909,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister IA001260 'PCE services excluding energy and housing' Fisher Price Index scale 0, T20804:28; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -8249,7 +8257,7 @@
     "subcategory": "BEA transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BEA)",
@@ -8259,7 +8267,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USPCEPI"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USPCEPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -8339,7 +8347,7 @@
     "subcategory": "BEA transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BEA)",
@@ -8349,7 +8357,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCOREPCE"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCOREPCE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -8431,7 +8439,7 @@
     "subcategory": "BEA transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from BEA)",
@@ -8441,7 +8449,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCOREPCE"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USCOREPCE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -8611,7 +8619,7 @@
     "subcategory": "Profits",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Bureau of Economic Analysis",
@@ -8628,7 +8636,7 @@
       },
       "official_url": "https://apps.bea.gov/iTable/?reqid=19",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A051RC 'Corporate profits with inventory valuation and capital consumption adjustments' Current Dollars scale -6, T61600D:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "Q",
     "week_anchor": "",
@@ -8641,7 +8649,7 @@
     "seasonal_adjustment": "SAAR",
     "history_start": "1947-Q1",
     "release": {
-      "calendar_key": "bea:gdp",
+      "calendar_key": "bea:profits",
       "cadence": "Quarterly, with 2nd GDP (Q4 with 3rd)",
       "typical_time_et": "08:30",
       "typical_time_note": "",
@@ -10060,7 +10068,7 @@
     "subcategory": "Construction",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10075,7 +10083,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export RESCONST APERMITS/TOTAL SA header verified; 800 months 1960-01..2026-08, last 1,403. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10150,7 +10158,7 @@
     "subcategory": "Sales",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10165,7 +10173,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export RESSALES ASOLD/TOTAL SA; 764 months 1963-01..2026-08, last 684. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10240,7 +10248,7 @@
     "subcategory": "Sales",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10255,7 +10263,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export RESSALES FORSALE/MONSUP SA; 764 months 1963-01..2026-08, last 8.5. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10419,7 +10427,7 @@
     "subcategory": "Construction",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10434,7 +10442,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export VIP AXXXX/T SA; 295 months 2002-01..2026-07, last 2,157,581. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10445,7 +10453,7 @@
       "scale": 1000000
     },
     "seasonal_adjustment": "SAAR",
-    "history_start": "1993-01",
+    "history_start": "2002-01",
     "release": {
       "calendar_key": "census:vip",
       "cadence": "Monthly, 1st business day (~2-mo lag)",
@@ -10688,7 +10696,7 @@
     "subcategory": "Orders",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10699,11 +10707,12 @@
         "program": "m3",
         "category": "NXA",
         "data_type": "NO",
-        "seasonal": "SA"
+        "seasonal": "SA",
+        "advance_program": "advm3"
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export M3 NXA/NO SA + M3ADV advance month; 415 months 1992-02..2026-08(a), last 87,629. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10868,7 +10877,7 @@
     "subcategory": "Orders",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10883,7 +10892,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export M3 MTM/NO SA; 414 months 1992-02..2026-07, last 663,616. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -10957,7 +10966,7 @@
     "subcategory": "Inventories",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -10972,7 +10981,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export MTIS TOTBUS/IM SA; 415 months 1992-01..2026-07, last 2,764,708. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -11046,7 +11055,7 @@
     "subcategory": "Inventories",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -11061,7 +11070,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export MTIS TOTBUS/IR SA; 415 months 1992-01..2026-07, last 1.30. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -11314,7 +11323,7 @@
     "subcategory": "Trade",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -11329,7 +11338,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export FTD BOPGS/EXP SA; 415 months 1992-01..2026-07, last 310,723. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -11402,7 +11411,7 @@
     "subcategory": "Trade",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Census Bureau",
@@ -11417,7 +11426,7 @@
       },
       "official_url": "https://www.census.gov/economic-indicators/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'EITS code verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live econ_export FTD BOPGS/IMP SA; 415 months 1992-01..2026-07, last 399,299. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -11579,7 +11588,7 @@
     "subcategory": "Policy rates",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -11593,7 +11602,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFSPBLP_N.B desc 'Prime rate', Percent, 18,135 days 1955-08-04..2026-09-28, last 7.00. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -11669,7 +11678,7 @@
     "subcategory": "Policy rates",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -11683,7 +11692,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFSRP_F02_N.B desc 'Discount rate', Percent, 6,188 days 2003-01-09..2026-09-28, last 4.00. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -11853,7 +11862,7 @@
     "subcategory": "Treasury yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -11871,7 +11880,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCM03_N.B desc '3-month Treasury constant maturity', 11,268 days 1981-09-01..2026-09-28, last 4.28. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -11948,7 +11957,7 @@
     "subcategory": "Treasury yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -11966,7 +11975,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCM06_N.B desc '6-month Treasury constant maturity', 11,268 days 1981-09-01..2026-09-28, last 4.41. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -12041,7 +12050,7 @@
     "subcategory": "Treasury yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -12059,7 +12068,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY01_N.B desc '1-year Treasury constant maturity', 16,170 days 1962-01-02..2026-09-28, last 4.59. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -12323,7 +12332,7 @@
     "subcategory": "Treasury yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -12341,7 +12350,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY05_N.B desc '5-year Treasury constant maturity', 16,170 days 1962-01-02..2026-09-28, last 5.06. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -12701,7 +12710,7 @@
     "subcategory": "Treasury yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -12719,7 +12728,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY30_N.B desc '30-year Treasury constant maturity', 12,400 days 1977-02-15..2026-09-28, last 5.56. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -12796,7 +12805,7 @@
     "subcategory": "Real yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -12810,7 +12819,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY05_XII_N.B desc '5-year inflation indexed Treasury constant maturity', 5,939 days 2003-01-02..2026-09-28, last 2.73. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -12887,7 +12896,7 @@
     "subcategory": "Real yields",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -12901,7 +12910,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h15/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY10_XII_N.B desc '10-year inflation indexed Treasury constant maturity', 5,939 days 2003-01-02..2026-09-28, last 2.90. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -13072,7 +13081,7 @@
     "subcategory": "Spreads & breakevens",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Treasury/H.15)",
@@ -13082,7 +13091,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: UST10Y, UST3M"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST10Y, UST3M); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -13165,7 +13174,7 @@
     "subcategory": "Spreads & breakevens",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Treasury/H.15)",
@@ -13175,7 +13184,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: UST10Y, UST10YTIPS"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST10Y, UST10YTIPS); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -13259,7 +13268,7 @@
     "subcategory": "Spreads & breakevens",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Treasury/H.15)",
@@ -13269,7 +13278,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: UST5Y, UST5YTIPS"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST5Y, UST5YTIPS); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -13443,7 +13452,7 @@
     "subcategory": "Fed balance sheet",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -13457,7 +13466,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h41/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H41/RESPPALGUO_N.WW desc 'Assets: Securities Held Outright: U.S. Treasury securities: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 4,558,332. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "WED",
@@ -13621,7 +13630,7 @@
     "subcategory": "Fed balance sheet",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -13635,7 +13644,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h41/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H41/RESH4R_N.WW desc '... Reserve balances with Federal Reserve Banks: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 2,969,922. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "WED",
@@ -13711,7 +13720,7 @@
     "subcategory": "Fed balance sheet",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -13726,7 +13735,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h41/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H41/RESPPLLDT_N.WW desc '... U.S. Treasury, General Account: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 947,317. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "WED",
@@ -14086,7 +14095,7 @@
     "subcategory": "Money supply",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -14100,7 +14109,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h6/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H6_M1/M1.M desc 'M1; Seasonally adjusted', UNIT_MULT 1e9, 812 months 1959-01..2026-08, last 19,991.1. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -14175,7 +14184,7 @@
     "subcategory": "Money supply",
     "country": "US",
     "role": "member",
-    "status": "unverified",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -14188,16 +14197,16 @@
         "series": "RESMO14A_N.M"
       },
       "official_url": "https://www.federalreserve.gov/releases/h6/",
-      "verified": false,
-      "verified_evidence": "catalog_notes.md lists this provider id as unverified"
+      "verified": true,
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H6_MBASE/RESMO14A_N.M desc 'Monetary base; total; not seasonally adjusted', UNIT_MULT 1e9 (units corrected), 812 months 1959-01..2026-08, last 5,411.6. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
     "units": {
-      "raw": "Millions USD",
+      "raw": "Billions USD",
       "display": "USD",
       "fmt": "usd_compact",
-      "scale": 1000000
+      "scale": 1000000000
     },
     "seasonal_adjustment": "NSA",
     "history_start": "1959-01",
@@ -14265,7 +14274,7 @@
     "subcategory": "Money transforms",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Fed H.6)",
@@ -14275,7 +14284,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USM2"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USM2); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -14357,7 +14366,7 @@
     "subcategory": "Bank balance sheets",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -14371,29 +14380,29 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h8/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H8/B1001NCBA desc 'Bank credit, all commercial banks, seasonally adjusted', UNIT_MULT 1e6 (units corrected), 2,803 weeks to w/e 2026-09-16, last 19,876,325.9 = H.8 release 2026-09-25 $19,876.3 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "WED",
     "units": {
-      "raw": "Billions USD",
+      "raw": "Millions USD",
       "display": "USD",
       "fmt": "usd_compact",
-      "scale": 1000000000
+      "scale": 1000000
     },
     "seasonal_adjustment": "SA",
     "history_start": "1973-01-03",
     "release": {
       "calendar_key": "fed:h8",
-      "cadence": "Weekly, Friday (week ending Wednesday)",
+      "cadence": "Weekly, Friday 16:15 ET (Wednesday level of the previous week)",
       "typical_time_et": "16:15",
       "typical_time_note": "",
       "precision_hint": "exact",
       "lag_rule": {
         "kind": "period_end_plus_days",
-        "days": 5,
+        "days": 9,
         "time_et": "16:15",
-        "basis": "Friday for week ending Wednesday; holiday weeks slip to Monday"
+        "basis": "H.8 Friday 16:15 carries the Wednesday 9 days earlier (Thursday when Friday is a federal holiday)"
       }
     },
     "revision": {
@@ -14446,7 +14455,7 @@
     "subcategory": "Bank balance sheets",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -14460,29 +14469,29 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/h8/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H8/B1023NCBA desc 'Commercial and industrial loans, all commercial banks, seasonally adjusted', UNIT_MULT 1e6 (units corrected), 2,803 weeks, last 2,965,268.9 = H.8 release $2,965.3 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "WED",
     "units": {
-      "raw": "Billions USD",
+      "raw": "Millions USD",
       "display": "USD",
       "fmt": "usd_compact",
-      "scale": 1000000000
+      "scale": 1000000
     },
     "seasonal_adjustment": "SA",
     "history_start": "1973-01-03",
     "release": {
       "calendar_key": "fed:h8",
-      "cadence": "Weekly, Friday (week ending Wednesday)",
+      "cadence": "Weekly, Friday 16:15 ET (Wednesday level of the previous week)",
       "typical_time_et": "16:15",
       "typical_time_note": "",
       "precision_hint": "exact",
       "lag_rule": {
         "kind": "period_end_plus_days",
-        "days": 5,
+        "days": 9,
         "time_et": "16:15",
-        "basis": "Friday for week ending Wednesday; holiday weeks slip to Monday"
+        "basis": "H.8 Friday 16:15 carries the Wednesday 9 days earlier (Thursday when Friday is a federal holiday)"
       }
     },
     "revision": {
@@ -14555,10 +14564,10 @@
     "frequency": "M",
     "week_anchor": "",
     "units": {
-      "raw": "Billions USD",
+      "raw": "Millions USD",
       "display": "USD",
       "fmt": "usd_compact",
-      "scale": 1000000000
+      "scale": 1000000
     },
     "seasonal_adjustment": "SA",
     "history_start": "1973-01",
@@ -14625,7 +14634,7 @@
     "subcategory": "Consumer credit",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -14639,7 +14648,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/g19/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live G19/CCOUT/DTCTL.M desc 'Total consumer credit owned and securitized, seasonally adjusted level', 1,003 months 1943-01..2026-07, last 5,186,204.07 = G.19 2026-09-08 $5,186.2 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -14804,7 +14813,7 @@
     "subcategory": "Consumer credit",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Fed G.19)",
@@ -14814,7 +14823,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCONSCRED"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed diff(USCONSCRED); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -14988,7 +14997,7 @@
     "subcategory": "Industrial production",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -15002,7 +15011,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/g17/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live G17 IP_MAJOR_INDUSTRY_GROUPS/IP.GMF.S desc 'Manufacturing (NAICS); s.a. IP', 656 months 1972-01..2026-08, last 99.0964. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -15077,7 +15086,7 @@
     "subcategory": "Industrial production",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -15091,7 +15100,7 @@
       },
       "official_url": "https://www.federalreserve.gov/releases/g17/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live G17 CAPUTL/CAPUTL.B50001.S desc 'Total index; s.a. CAPUTL', 716 months 1967-01..2026-08, last 76.2717. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -15167,7 +15176,7 @@
     "subcategory": "FX",
     "country": "US",
     "role": "member",
-    "status": "unverified",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "Board of Governors of the Federal Reserve System",
@@ -15180,8 +15189,8 @@
         "series": "JRXWTFB_N.B"
       },
       "official_url": "https://www.federalreserve.gov/releases/h10/",
-      "verified": false,
-      "verified_evidence": "catalog_notes.md lists this provider id as unverified"
+      "verified": true,
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live H10/JRXWTFB_N.B desc 'Nominal Broad Dollar Index', 5,198 days 2006-01-02..2026-09-25, last 120.33. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -17757,7 +17766,7 @@
     "subcategory": "Debt",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Treasury, Bureau of the Fiscal Service",
@@ -17770,7 +17779,7 @@
       },
       "official_url": "https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live debt_to_penny debt_held_public_amt; 8,402 days 1993-04-01..2026-09-28 (2,958 provider-null days before daily figures), last 32,386,263,609,755.87. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "D",
     "week_anchor": "",
@@ -17781,7 +17790,7 @@
       "scale": 1
     },
     "seasonal_adjustment": "NSA",
-    "history_start": "1993-04-01",
+    "history_start": "1997-09-30",
     "release": {
       "calendar_key": "fiscal:dtp",
       "cadence": "Daily, next business day",
@@ -18039,7 +18048,7 @@
     "subcategory": "Budget",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Treasury, Bureau of the Fiscal Service",
@@ -18056,7 +18065,7 @@
       },
       "official_url": "https://fiscaldata.treasury.gov/datasets/monthly-treasury-statement/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live mts_table_1 current_month_gross_rcpt_amt (MTH rows); 155 months 2013-10..2026-08, last 360,032,735,841.42. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -18067,7 +18076,7 @@
       "scale": 1
     },
     "seasonal_adjustment": "NSA",
-    "history_start": "2015-10",
+    "history_start": "2013-10",
     "release": {
       "calendar_key": "fiscal:mts",
       "cadence": "Monthly, 8th business day",
@@ -18131,7 +18140,7 @@
     "subcategory": "Budget",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Treasury, Bureau of the Fiscal Service",
@@ -18148,7 +18157,7 @@
       },
       "official_url": "https://fiscaldata.treasury.gov/datasets/monthly-treasury-statement/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live mts_table_1 current_month_gross_outly_amt (MTH rows); 155 months 2013-10..2026-08, last 526,829,688,118.80. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -18159,7 +18168,7 @@
       "scale": 1
     },
     "seasonal_adjustment": "NSA",
-    "history_start": "2015-10",
+    "history_start": "2013-10",
     "release": {
       "calendar_key": "fiscal:mts",
       "cadence": "Monthly, 8th business day",
@@ -18314,7 +18323,7 @@
     "subcategory": "Budget",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from Treasury MTS)",
@@ -18324,7 +18333,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USMTSDEF"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed sum(USMTSDEF); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",
@@ -18601,7 +18610,7 @@
     "subcategory": "Petroleum stocks",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -18613,7 +18622,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET WCSSTUS1 weekly (identity: page links hist_xls/WCSSTUS1w.xls); 2,295 weeks w/e 1982-08-20..2026-09-18, last 284,552. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -18688,7 +18697,7 @@
     "subcategory": "Production",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -18700,7 +18709,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET WCRFPUS2 weekly; 2,278 weeks w/e 1983-01-07..2026-09-18, last 13,939. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -18776,7 +18785,7 @@
     "subcategory": "Petroleum stocks",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -18788,7 +18797,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET WGTSTUS1 weekly; 1,916 weeks w/e 1990-01-05..2026-09-18, last 206,046. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -18799,7 +18808,7 @@
       "scale": 1000
     },
     "seasonal_adjustment": "NSA",
-    "history_start": "1990-08-03?",
+    "history_start": "1990-01-05",
     "release": {
       "calendar_key": "eia:wpsr",
       "cadence": "Weekly, Wednesday (WPSR; Thu after holidays)",
@@ -18863,7 +18872,7 @@
     "subcategory": "Petroleum stocks",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -18875,7 +18884,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET WDISTUS1 weekly; 2,295 weeks w/e 1982-08-20..2026-09-18, last 107,431. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -18951,7 +18960,7 @@
     "subcategory": "Refining",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -18963,7 +18972,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET WPULEUS3 weekly; 1,873 weeks w/e 1990-11-02..2026-09-18, last 94.0. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -18974,7 +18983,7 @@
       "scale": 1
     },
     "seasonal_adjustment": "NSA",
-    "history_start": "1990-01-05?",
+    "history_start": "1990-11-02",
     "release": {
       "calendar_key": "eia:wpsr",
       "cadence": "Weekly, Wednesday (WPSR; Thu after holidays)",
@@ -19128,7 +19137,7 @@
     "subcategory": "Retail fuel prices",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "U.S. Energy Information Administration",
@@ -19140,7 +19149,7 @@
       },
       "official_url": "https://www.eia.gov/petroleum/supply/weekly/",
       "verified": true,
-      "verified_evidence": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): live dnav PET EMD_EPD2D_PTE_NUS_DPG weekly (Monday survey); 1,698 weeks 1994-03-21..2026-09-28, last 6.382. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv"
     },
     "frequency": "W",
     "week_anchor": "MON",
@@ -19486,7 +19495,7 @@
     "subcategory": "Petroleum stocks",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from EIA)",
@@ -19496,7 +19505,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USCRUDEINV"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed diff(USCRUDEINV); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "W",
     "week_anchor": "FRI",
@@ -19522,10 +19531,10 @@
       }
     },
     "revision": {
-      "type": "none"
+      "type": "minor_routine"
     },
     "pit": {
-      "backfill_class": "U",
+      "backfill_class": "L",
       "catalog_note": "n/a-unrevised"
     },
     "derivation": {
@@ -19677,7 +19686,7 @@
     "subcategory": "Prices",
     "country": "US",
     "role": "member",
-    "status": "disabled",
+    "status": "enabled",
     "cohort": false,
     "source": {
       "agency": "UCT (derived from FHFA)",
@@ -19687,7 +19696,7 @@
       "params": {},
       "official_url": "",
       "verified": true,
-      "verified_evidence": "all inputs verified: USFHFAHPI"
+      "verified_evidence": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USFHFAHPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)"
     },
     "frequency": "M",
     "week_anchor": "",

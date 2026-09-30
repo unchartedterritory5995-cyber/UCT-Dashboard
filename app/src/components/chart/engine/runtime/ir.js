@@ -535,7 +535,19 @@ export function validateIr(p) {
           return
         case STMT.BREAK: case STMT.CONTINUE:
           return
+        // ⭐⭐ C18 — `while cond` (see `whileStmt`). The counter slot is where the
+        // per-entry pass count lives; `line` names the loop in its refusal.
         case STMT.WHILE:
+          if (!Number.isInteger(s.countSlot) || s.countSlot < 0 || s.countSlot >= nSlots) {
+            throw new IrError(`${at}: while.countSlot ${s.countSlot} outside ${nSlots} slots`)
+          }
+          if (!Number.isInteger(s.line) || s.line < 0) {
+            throw new IrError(`${at}: while.line must be a non-negative integer`)
+          }
+          walkExpr(s.test, `${at}.test`)
+          if (!Array.isArray(s.body)) throw new IrError(`${at}: while.body must be an array`)
+          walkStmts(s.body, `${at}.body`)
+          return
         case STMT.FUNC: case STMT.RETURN:
           return
         default:
@@ -807,6 +819,22 @@ export const fieldSet = (of, name, value) => (
  *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
 export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
   { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+/** `while test` — C18.
+ *
+ *  ⭐⭐ THE TEST IS RE-EVALUATED BEFORE EVERY PASS, and that is the whole
+ *  difference from `forStmt`, whose bounds are read once. Pine's `while` has no
+ *  semantics beyond its body: a loop that STOPS computes exactly what Pine
+ *  computes, so it is served.
+ *
+ *  ⛔⛔ A LOOP THAT DOES NOT STOP IS REFUSED BY NAME, NEVER CUT SHORT. `countSlot`
+ *  holds this ENTRY's pass count (reset every time the loop is reached) and each
+ *  pass is checked against `WHILE_ITERATIONS` (`limits.js`) — an ENGINE limit,
+ *  not a Pine claim: TradingView stops a loop on elapsed time, which no capture
+ *  or doc in this repo pins, so no iteration count can be said to be Pine's.
+ *  Stopping at the bound and reading the values would be a guess; the run stops
+ *  with `WHILE_ITERATIONS_EXCEEDED` instead, naming `line`. */
+export const whileStmt = ({ countSlot, test, body, line }) => (
+  { kind: STMT.WHILE, countSlot, test, body, line })
 /** Several values at once. ⛔ ONLY VALID AS A FUNCTION'S RESULT or on the
  *  right of a destructuring — anywhere else it would leave values on the
  *  stack that nothing pops. */

@@ -207,3 +207,27 @@ def test_partial_tolerates_a_dropped_daily_holiday_null_only(s):
     store_obs(s, hist)
     r = va.validate_fetch(spec(), fr([o for i, o in enumerate(hist) if i != 2]), s, now=NOW, mode="history")[1]
     assert r and r[0].startswith("partial:")
+
+
+def test_plausibility_exemption_is_period_exact_and_needs_evidence(s):
+    """A registry-documented extreme (e.g. USMFGNFP 1945-09, end of WWII) is accepted for THAT
+    period only; an entry without evidence exempts nothing; a spike elsewhere still quarantines."""
+    hist = series()
+    store_obs(s, hist)
+    jan = mon(2026, 1)[0]
+    spike = hist + [RawObs("USCPI", *mon(2026, 1), hist[-1].value + 40.0)]
+    ok = spec(validation={"plausibility_exempt": [{"period": jan, "evidence": "documented"}]})
+    acc, reasons = va.validate_fetch(ok, fr(spike), s, now=NOW)
+    assert reasons == [] and len(acc) == len(spike)
+    bare = spec(validation={"plausibility_exempt": [{"period": jan}]})
+    assert va.validate_fetch(bare, fr(spike), s, now=NOW)[1][0].startswith("plausibility:")
+    other = spec(validation={"plausibility_exempt": [{"period": "2025-12-01", "evidence": "x"}]})
+    assert va.validate_fetch(other, fr(spike), s, now=NOW)[1][0].startswith("plausibility:")
+
+
+def test_usmfgnfp_exemption_is_the_only_one_and_is_evidenced():
+    from api.services.econ import registry
+    ex = {e["symbol"]: e["validation"]["plausibility_exempt"] for e in registry.load_registry()
+          if (e.get("validation") or {}).get("plausibility_exempt")}
+    assert list(ex) == ["USMFGNFP"]
+    assert [x["period"] for x in ex["USMFGNFP"]] == ["1945-09-01"] and "BLS" in ex["USMFGNFP"][0]["evidence"]

@@ -105,10 +105,11 @@ const RULED = {
   // to unroll even a constant bound. Unrolling a constant-bound loop is a
   // real, general, separate capability (nothing about `time()` or this
   // script specifically) and not this ruling's to open.
-  '25-spy-expected-move-by-vix.pine':
-    'is_near_since_back loops with `for i = 0 to far by 1`; this engine has no '
-    + 'multi-statement block support at all, so even a compile-time-constant trip '
-    + 'count cannot fold into one expression',
+  // ⚰️ '25-spy-expected-move-by-vix.pine' WAS RULED HERE (its level plots loop with
+  // a multi-statement `for`). C12s (2026-09-30) made its VWAP column translate —
+  // the session-resetting running sums are a SWITCHED recurrence — so the script
+  // is no longer a refusal, and a ruling beside a working column hides the win.
+  // The `for` wall is still real and still named, per output, in its refusals.
 
   // ⭐⭐ FIVE ADDED 2026-08-30, after every OPEN script was adjudicated. ⛔ THE BAR
   // WAS NOT "hard" — it was "refuses on a principle no amount of data or code can

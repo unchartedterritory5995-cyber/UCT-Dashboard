@@ -21,26 +21,47 @@ import { translatePine } from '../engine/ast/pine'
 import { memberInputTranslation } from './builderInputs'
 import { paramLocatorsIn, manifestFromPlacements } from './pineParamManifest'
 import { buildDefinition } from './BuilderSheet.jsx'
-import { evaluateFormula } from './FormulaField.jsx'
+import { evaluateFormula, canSaveFormula } from './FormulaField.jsx'
+import { declaredInputs } from '../engine/ast/lint'
 import { BUILDER_INPUT_SCOPE, BUILDER_INPUTS } from './builderInputs.js'
 import { reduceIfOversized, documentBytes } from '../engine/ast/graphDocument'
 
 const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
 const OUT = path.resolve(process.cwd(), '../tests/fixtures/graph_wire')
 
+/** ⭐⭐ C12r (2026-09-29) — THE ROWS THE PRODUCT CAN SAVE, not every row it shows.
+ *
+ *  `BuilderSheet`'s Save is gated on EVERY row passing `canSaveFormula` (its
+ *  `saveGates.plots`), measured against the row's own declared inputs — the
+ *  scope `PineBox`'s downstream verdict uses. A row that fails keeps Save
+ *  disabled, so the document that is ever SENT is the one without it.
+ *  ⚰️ This emitter carried every row the translator produced, and since
+ *  `ta.valuewhen` joined the grammar (2026-09-20) `rsi-levels-regime-map`'s
+ *  Entry/Stop/Target rows are carried — 190/197/199 distinct nodes against the
+ *  128-node budget, so the builder refuses them BY NAME and Save stays shut.
+ *  The fixture wrote them anyway, and the Python lane was then measuring a
+ *  document no member can send: out10 expands to 13,009 nodes over the 2,048
+ *  per-plot graph ceiling, which the server refuses with a 400. */
+function savableOutputs(t) {
+  return (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden
+    && canSaveFormula(evaluateFormula(o.formula, {
+      ...BUILDER_INPUT_SCOPE, ...declaredInputs({ inputs: o.memberInputs }),
+    })))
+}
+
 /** The carried rows for one script — exposed so the emitter can say WHICH case
  *  stopped producing columns instead of dying on `rows[0].source`. */
 function productRows(name) {
   const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
   const t = memberInputTranslation(translatePine, src, { paramManifest: true })
-  return (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
+  return savableOutputs(t).slice(0, 12)
 }
 
 /** The document the product sends, for one script. */
 function productDocument(name, defId) {
   const src = fs.readFileSync(path.join(OOS, `${name}.pine`), 'utf8')
   const t = memberInputTranslation(translatePine, src, { paramManifest: true })
-  const outs = (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
+  const outs = savableOutputs(t).slice(0, 12)
   const manifest = manifestFromPlacements(t.inputParams || [], outs.map((o, i) => ({
     treeIndex: i === 0 ? 'value' : `out${i + 1}`,
     locators: paramLocatorsIn(t.inputParams || [], o.ast),
@@ -130,5 +151,8 @@ describe('C2D.9 — emit the wire-size fixture', () => {
     expect(index.some((r) => !r.isGraph)).toBe(true)
     expect(Math.max(...index.map((r) => r.v1Bytes)))
       .toBeGreaterThan(20 * Math.min(...index.map((r) => r.v1Bytes)))
-  })
+  // ⚠️ 60 s, NOT THE DEFAULT 15 (C9, 2026-09-29): the rsi-levels case costs ~2x
+  // since its reversal/setup outputs translate in the declare pass — see
+  // `paramSingleTranslation.test.js`'s note and the triage doc's § C9.
+  }, 60000)
 })

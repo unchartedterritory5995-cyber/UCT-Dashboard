@@ -1369,7 +1369,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // `resultsForTab` still answers for both keys — asserted below — so nothing
     // underneath was deleted to shorten a strip.
     expect(tabs().map((t) => t.textContent.trim())).toEqual([
-      'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Indexes',
+      'Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning',
     ])
     expect(tabs().map((t) => t.textContent.trim()),
       'Popular is back on the strip').not.toContain('Popular')
@@ -1473,7 +1473,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
       .not.toMatch(/^\.insAddLede\s*\{/m)
     // …and what it promised is still promised, where it is actually useful.
     expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
-      .toMatch(/indicators, symbols, breadth or formulas/i)
+      .toMatch(/indicators, symbols, positioning or formulas/i)
   })
 
   it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {
@@ -1684,13 +1684,15 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     expect(body).not.toMatch(/Nothing in this category/)
   })
 
-  it('⭐ INDEXES BROWSES THE UNIVERSE THE CHARTS ACTUALLY RENDER', () => {
+  it('⭐ SYMBOLS BROWSES THE INDEX UNIVERSE THE CHARTS ACTUALLY RENDER', () => {
+    // ⭐ 2026-09-30: `Indexes` folded into `Symbols` (owner) to make room for
+    // Positioning — the index universe must still be browsable there, complete.
     // ⛔ NOT A HAND-PICKED SAMPLE. `INDICES_PRESET`'s own comment states it IS the
     // full indices universe (`api/index_bars.py INDEX_MAP`), which is why this tab
     // can be complete rather than indicative.
     show(base()); openTab()
     fireEvent.click(addBtn())
-    fireEvent.click(tabNamed('Indexes'))
+    fireEvent.click(tabNamed('Symbols'))
     const got = resultNames()
     for (const row of INDICES_PRESET) {
       expect(got, `${row.ticker} is in the index universe and not in the tab`)
@@ -1702,8 +1704,10 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
     // `tabOf` reads `kind` and the SERVER's own security type — the same
     // vocabulary `symbolSearchModel.CHIPS` sends as its `type` filter. Nothing
     // here re-derives what an ETF is, and no ticker is hard-coded into a class.
-    expect(tabOf({ kind: 'security', category: 'etf' })).toBe('etfs')
-    expect(tabOf({ kind: 'security', category: 'index' })).toBe('indexes')
+    // ⭐ EVERY SECURITY IS A SYMBOL (2026-09-30) — stocks, ETFs and indexes share one
+    // tab; the server's classification still rides on the row as its category.
+    expect(tabOf({ kind: 'security', category: 'etf' })).toBe('symbols')
+    expect(tabOf({ kind: 'security', category: 'index' })).toBe('symbols')
     expect(tabOf({ kind: 'security', category: 'stock' })).toBe('symbols')
     expect(tabOf({ kind: 'breadth' })).toBe('breadth')
     expect(tabOf({ kind: 'formula' })).toBe('formulas')

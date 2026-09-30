@@ -1,0 +1,20 @@
+<!doctype html>
+<!--
+  ECONOMIC DATA — PHASE 2 UI ACCEPTANCE HARNESS (dev only, LOCAL only).
+  The real ChartPane (search, TF bar, StockChart, Chart Settings → Indicators)
+  mounted as a ChartWidget EXTRA TAB (own settings blob; no global chart_settings).
+  /api → app/src/econHarness/econ_ui_local_server.py via vite.config.econ-ui.mjs.
+  `vite build` takes index.html as its single input, so this entry never ships.
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Economic UI harness</title>
+    <style>html, body { margin: 0; background: #0b0d10; }</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/testing/economic/econUiHarness.jsx"></script>
+  </body>
+</html>

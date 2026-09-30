@@ -136,8 +136,11 @@ describe('⭐⭐ a user function whose body is an `if`', () => {
     // measurement. The binding form refuses it by name today and the function
     // body must refuse it the same way — a silently different answer between
     // the two positions is the drift this extraction exists to prevent.
-    const r = refusalOf(`${head}f(c) =>\n    if c\n        a = 1\n        a + 1\n`
-      + '    else\n        2\nplot(f(close > 0))\n')
+    // ⚰️ C18 — the specimen was `a = 1` then `a + 1`, an ARM-LOCAL declaration,
+    // which is now served (the arm's own scope holds `a`). What the limit is about
+    // is a write to an OUTER name mid-arm, so that is what the control writes.
+    const r = refusalOf(`${head}f(c) =>\n    float y = 0.0\n    v = if c\n        y := 1\n        y + 1\n`
+      + '    else\n        2\n    v\nplot(f(close > 0))\n')
     expect(r.guard).toBe('runtime:block-value')
   })
 

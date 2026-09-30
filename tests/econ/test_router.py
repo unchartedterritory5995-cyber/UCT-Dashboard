@@ -123,7 +123,7 @@ def test_derived_series(client):
     assert [p[1] for p in body["points"]] == [2.9, 3.0]
 
 
-@pytest.mark.parametrize("sym", ["USCPIFOOD", "USPPIFDNSA", "USUMCSENT", "USNOPE", "AAPL", "ECON:AAPL"])
+@pytest.mark.parametrize("sym", ["USRETAILXA", "USGOODSBAL", "USUMCSENT", "USNOPE", "AAPL", "ECON:AAPL"])
 def test_disabled_unverified_red_unknown_404(client, sym):
     r = as_(client, "tok-pro").get(f"/api/econ/series/{sym}")
     assert r.status_code == 404 and "points" not in r.json()
@@ -134,7 +134,7 @@ def test_negative_control_serving_a_disabled_series_fails_the_rail(client, monke
     assertion `test_disabled_unverified_red_unknown_404` makes would FAIL."""
     monkeypatch.setattr(P, "servable", lambda e: (bool(e), "ok"))
     serving.clear_cache()
-    r = as_(client, "tok-pro").get("/api/econ/series/USCPIFOOD")
+    r = as_(client, "tok-pro").get("/api/econ/series/USRETAILXA")
     with pytest.raises(AssertionError):
         assert r.status_code == 404 and "points" not in r.json()
 
@@ -194,7 +194,7 @@ def test_catalog_shape(client):
     assert row["id"] == "ECON:USCPI" and row["source"]["provider_series_id"] == "CUSR0000SA0"
     assert row["source"]["attribution_key"] == "bls" and "bls" in body["attributions"]
     assert_no_internals(body)
-    assert json.dumps(body).count('"symbol"') == 42
+    assert json.dumps(body).count('"symbol"') == 136      # 42 cohort + 94 launch (readiness)
 
 
 def test_asof_payload_carries_no_currentness_claim(client):

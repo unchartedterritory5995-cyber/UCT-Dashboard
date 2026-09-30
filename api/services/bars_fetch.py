@@ -1530,7 +1530,11 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
 def _is_intraday_stale(bars: list[dict], max_age_days: int = 5) -> bool:
     """Check if intraday bars are stale (last bar older than max_age_days).
 
-    Catches cases where Massive returns pre-split data that stops months/years ago.
+    A FRESHNESS FLOOR, not a split detector: it catches a series that STOPPED
+    (e.g. a renamed/relisted symbol whose Massive history ends months ago). A
+    split inside a fresh payload never trips it, adjusted or not -- measured in
+    tests/test_intraday_split_is_not_staleness.py (TERM-055). Split detection is
+    `bars_sanitize.unadjusted_splits`, D/W/M only; intraday has none today.
     5-day window handles 3-day holiday weekends (Thu close → Mon = ~4 days).
     """
     if not bars:

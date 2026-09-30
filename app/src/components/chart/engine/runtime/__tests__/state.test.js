@@ -297,9 +297,12 @@ describe('⛔ the boundaries this runtime states rather than approximates', () =
     const ir = makeIrProgram({
       slots: [],
       outputs: ['x'],
-      statements: [{ kind: 'while' }, emit(0, num(1))],
+      // ⚰️ C18 — this was `{ kind: 'while' }`, which now lowers (`loops.test.js`);
+      // `return` is still declared and not lowerable, so the rail asks the same
+      // question of a kind that still has no lowering.
+      statements: [{ kind: 'return' }, emit(0, num(1))],
     })
-    expect(() => lowerIrProgram(ir)).toThrow(/cannot yet lower while/)
+    expect(() => lowerIrProgram(ir)).toThrow(/cannot yet lower return/)
   })
 
   it('a runaway is stopped BY NAME, not by hanging', () => {

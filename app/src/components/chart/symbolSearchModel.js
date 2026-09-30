@@ -87,7 +87,11 @@ export const matchQ = (r, q) => {
 }
 
 
-export const TYPE_LABEL = { stock: 'stock', etf: 'ETF', index: 'index', breadth: 'breadth', delisted: 'delisted' }
+// ⚠️ NO `economic` CHIP HERE, ON PURPOSE: it is appended by the lazily-loaded
+// `economic/econSearch` module, and only for a member `/api/econ/catalog` answers
+// 200 — so a dark deploy renders exactly these five. `economic` below is only the
+// LABEL for a row the server already decided this member may see.
+export const TYPE_LABEL = { stock: 'stock', etf: 'ETF', index: 'index', breadth: 'breadth', delisted: 'delisted', economic: 'Economic' }
 
 
 /**
@@ -109,6 +113,8 @@ export function rowIdentity(r, { badgeStock = false } = {}) {
     return { exchange: null, badge: { text: `Delisted${yr}`, kind: 'delisted' } }
   }
   if (r.breadth) return { exchange: null, badge: { text: 'BREADTH', kind: 'breadth' } }
+  // An economic series is not an instrument: no exchange, one label.
+  if (r.economic) return { exchange: null, badge: { text: 'Economic', kind: 'economic' } }
   const exchange = r.exchange || null
   if (r.type && r.type !== 'stock') {
     return { exchange, badge: { text: TYPE_LABEL[r.type] || r.type, kind: r.type } }

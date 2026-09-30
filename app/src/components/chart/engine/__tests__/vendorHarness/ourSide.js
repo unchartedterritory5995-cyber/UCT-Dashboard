@@ -143,6 +143,7 @@ function drawnColours(def, bars, ctx) {
     tf: ctx.tf,
     symbol: ctx.symbol,
     newestBarIsForming: ctx.newestBarIsForming,
+    historyFromListing: ctx.historyFromListing === true,
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -197,6 +198,7 @@ function objectsOf(def, bars, ctx) {
   try {
     const reader = objectReaderFor(def, bars, {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
+      historyFromListing: ctx.historyFromListing === true,
     })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
@@ -303,6 +305,11 @@ export function runOurSide(capture) {
       tf,
       symbol: symbolOf(capture),
       newestBarIsForming: capture.newestBarIsForming ?? null,
+      // ⭐ C12w — the product states this from the listing date
+      // (`StockChart`, `listingSeed.historyFromListingOf`); a capture states it as
+      // `history.startsAtBar0`, asserted only when the vendor's loaded history
+      // stopped growing AND began on the listing day. Same fact, same door.
+      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
     }
     const cols = registry.computeFor(def, bars, undefined, ctx)
 

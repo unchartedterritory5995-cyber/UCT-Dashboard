@@ -1,0 +1,238 @@
+{
+  "_run": {
+    "at": "2026-09-30T16:10:49.288Z",
+    "base": "http://127.0.0.1:5231",
+    "mode": "anon",
+    "note": "LOCAL server; econ served from local artifacts (ECON_SERVING_SOURCE=local); SPY host bars are a SYNTHETIC seeded random walk (NOT market data)"
+  },
+  "search": {
+    "chips": [
+      "All",
+      "Stocks",
+      "ETFs",
+      "Indices",
+      "Breadth"
+    ],
+    "queries": {
+      "CPI": {
+        "rows": [
+          {
+            "text": "TTCPITCP International Hldgs Ltd.Delisted 2016",
+            "econ": false,
+            "img": true
+          },
+          {
+            "text": "Go to CPI",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false,
+        "screenshot": "search-all-CPI.png"
+      },
+      "core cpi": {
+        "rows": [
+          {
+            "text": "Go to CORE CPI",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "inflation": {
+        "rows": [
+          {
+            "text": "Go to INFLATION",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "unemployment rate": {
+        "rows": [
+          {
+            "text": "Go to UNEMPLOYMENT RATE",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "nonfarm payrolls": {
+        "rows": [
+          {
+            "text": "Go to NONFARM PAYROLLS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "initial claims": {
+        "rows": [
+          {
+            "text": "Go to INITIAL CLAIMS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "GDP": {
+        "rows": [
+          {
+            "text": "GGDPGoodrich Petroleum Corporation Common StockDelisted 2021",
+            "econ": false,
+            "img": true
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "real GDP": {
+        "rows": [
+          {
+            "text": "Go to REAL GDP",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "fed funds": {
+        "rows": [
+          {
+            "text": "Go to FED FUNDS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false,
+        "screenshot": "search-all-fed-funds.png"
+      },
+      "10-year treasury": {
+        "rows": [
+          {
+            "text": "Go to 10-YEAR TREASURY",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "2-year treasury": {
+        "rows": [
+          {
+            "text": "Go to 2-YEAR TREASURY",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "M2": {
+        "rows": [
+          {
+            "text": "Go to M2",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "JOLTS": {
+        "rows": [
+          {
+            "text": "Go to JOLTS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "housing starts": {
+        "rows": [
+          {
+            "text": "Go to HOUSING STARTS",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      },
+      "industrial production": {
+        "rows": [
+          {
+            "text": "Go to INDUSTRIAL PRODUCTION",
+            "econ": false,
+            "img": false
+          }
+        ],
+        "econRows": 0,
+        "logoOnEconRow": false
+      }
+    },
+    "requests": [
+      "/api/ticker-search?q=M2&limit=40",
+      "/api/ticker-search?q=JOLTS&limit=40",
+      "/api/ticker-search?q=HOUSING%20STARTS&limit=40",
+      "/api/ticker-search?q=INDUSTRIAL%20PRODUCTION&limit=40"
+    ],
+    "selectEconRow": {
+      "clicked": false,
+      "symAfter": "SPY"
+    }
+  },
+  "primary": {
+    "USCPI-D": {
+      "note": "monthly line",
+      "chart": null,
+      "legend": {},
+      "header": "USCPI",
+      "tfButtons": [
+        "1D",
+        "1W",
+        "1M"
+      ],
+      "legendHover": {},
+      "stockOnlyRequests": [],
+      "econResponses": [
+        [
+          "/api/econ/catalog",
+          401
+        ],
+        [
+          "/api/econ/series/USCPI",
+          401
+        ]
+      ],
+      "screenshot": "primary-USCPI-D.png"
+    }
+  },
+  "addIndicator": {
+    "tabs": [
+      "technical",
+      "fundamentals",
+      "breadth",
+      "symbols",
+      "indexes"
+    ]
+  },
+  "overlays": {},
+  "consoleErrors": []
+}

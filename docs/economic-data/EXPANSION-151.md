@@ -2,6 +2,8 @@
 
 Read-only analysis, 2026-09-28. Inputs: `api/services/econ/registry/series.json`, the adapters in `api/services/econ/adapters/`, `derive.py`, `calendar.py` + `calendars/*.json`, `registry.py`/`licensing.py`, the Phase 0 catalog (`econ_catalog.csv`, `catalog_notes.md`), and `docs/economic-data/registry-corrections/` + `verification/`. The machine-readable version is [`expansion_151.csv`](expansion_151.csv). It was generated with the live `cal.KNOWN_CALENDARS` and `derive.DERIVE_OPS`, so calendar and op coverage come from the code, not from the docs.
 
+> **Status 2026-09-30:** this was the pre-readiness analysis. The verified outcome (what was enabled, corrected, or left off, with reasons and a local census) is [`readiness/CATALOG.md`](readiness/CATALOG.md); every registry change is in `registry-corrections/readiness.json`.
+
 **Scope.** The 110 series with catalog `recommended_v1 == LAUNCH` (the 151 cleared launch set minus the 41 catalog COHORT rows).
 
 > **Registry drift:** 2 of the 110 LAUNCH rows are already `status=enabled` with `cohort=true` in the registry: USCORECPINSA, USGDP. The registry's 42 enabled series are 40 catalog-COHORT rows plus these 2, and catalog-COHORT `USRETAIL` is still `unverified`. **108 series actually remain.**

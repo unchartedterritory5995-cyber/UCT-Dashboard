@@ -51,3 +51,32 @@ export function rendererPaneIndexOf(key, bindings, hostOf) {
   }
   return unanswerable ? undefined : null
 }
+
+/**
+ * The instance GROUP every row of one pane readout belongs to, or null.
+ *
+ * ⭐ A PANE THAT IS ONE LOGICAL INDICATOR IS TITLED BY IT. A COT dataset is three
+ * `dataSeries` instances stamped with one `instance.group` (`discoveryCatalog`
+ * `createProductSeries`) and drawn in one pane; its readout prints the group's name
+ * once above the three participant rows. The answer is null — no title — unless
+ * EVERY row is a member of the SAME group, so a member's own study dropped into that
+ * pane, or any ordinary pane, reads exactly as before.
+ *
+ * @param {{instanceId: string}[]} chips  the rows of one pane readout
+ * @param {object} cs                     chart settings (for the instances)
+ * @returns {{id: string, name: string, note?: string}|null}
+ */
+export function paneGroupOf(chips, cs) {
+  const list = Array.isArray(chips) ? chips : []
+  if (!list.length) return null
+  const insts = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  let group = null
+  for (const c of list) {
+    const inst = c && insts.find((i) => i && !i.deleted && i.instanceId === c.instanceId)
+    const g = inst && inst.group
+    if (!g || typeof g.id !== 'string' || typeof g.name !== 'string' || !g.name) return null
+    if (group && group.id !== g.id) return null
+    group = group || g
+  }
+  return group
+}

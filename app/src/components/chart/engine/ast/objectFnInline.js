@@ -390,10 +390,17 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
  *    `kinds` counts reader op kinds (`delete`, `clear`, `coll_<method>`);
  *    `families` has one entry per removal, `null` when no family is named;
  *    `creates` has one entry per drawing constructor the body names. */
+/** ⭐ C16 — the array methods that CHANGE an array (Pine reference). */
+const ARRAY_MUTATORS = new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
+  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat'])
+
 export function bodyEffects(def, defs, objColls) {
   const kinds = {}
   const families = []
   const creates = []
+  // ⭐ C16 — the drawing collections the body CHANGES, by name: a refused call
+  // leaves each one diverged from TradingView's (`divergedColls` in pine.js).
+  const colls = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -420,11 +427,18 @@ export function bodyEffects(def, defs, objColls) {
       }
       if (ns === 'array') {
         const a = toks[i + 2]
-        if (a && a.kind === 'ident' && objColls.has(String(a.value))) add(`coll_${m}`)
+        if (a && a.kind === 'ident' && objColls.has(String(a.value))) {
+          add(`coll_${m}`)
+          if (ARRAY_MUTATORS.has(m)) colls.push(String(a.value))
+        }
         continue
       }
       if (KNOWN_NAMESPACES.has(ns)) continue
-      if (objColls.has(ns)) { add(`coll_${m}`); continue }
+      if (objColls.has(ns)) {
+        add(`coll_${m}`)
+        if (ARRAY_MUTATORS.has(m)) colls.push(ns)
+        continue
+      }
       // the method form on a handle, or a user METHOD whose body is read too
       if (m === 'delete') { add('delete'); families.push(null) } else if (m === 'clear') {
         add('clear'); families.push(null)
@@ -434,7 +448,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families, creates }
+  return { kinds, families, creates, colls }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */
@@ -650,6 +664,122 @@ export function guardIsBarInvariant(toks, names) {
   return allInvariant(toks, 0, toks.length, names)
 }
 
+/** ⭐ C14 — `toks[from..]` is exactly one getter on a NAMED handle:
+ *  `label.get_y(l)` or `l.get_y()`. Which handle and which property are real is
+ *  the converter's question (`getterRef`); this reads only the shape. */
+const GETTER_FN_RE = /^(line|label|box)\.get_[a-z0-9_]+$/
+const GETTER_METHOD_RE = /^[A-Za-z_][A-Za-z0-9_]*\.get_[a-z0-9_]+$/
+export function isBareGetterAt(toks, from, h) {
+  const t = toks || []
+  const n = t.length - from
+  const head = t[from]
+  if (!head || head.kind !== 'ident' || !h.isPunct(t[from + 1], '(')) return false
+  const name = String(head.value)
+  if (n === 4 && GETTER_FN_RE.test(name)) {
+    const a = t[from + 2]
+    return !!a && a.kind === 'ident' && !String(a.value).includes('.') && h.isPunct(t[from + 3], ')')
+  }
+  return n === 3 && GETTER_METHOD_RE.test(name) && !GETTER_FN_RE.test(name) && h.isPunct(t[from + 2], ')')
+}
+
+/** `toks[from..]` is a numeric literal or `na` → `{init}` (null for `na`), else null. */
+function literalInit(t, from, h) {
+  const rest = t.slice(from)
+  if (rest.length === 1 && rest[0].kind === 'ident' && rest[0].value === 'na') return { init: null }
+  if (rest.length === 1 && rest[0].kind === 'number' && Number.isFinite(Number(rest[0].value))) {
+    return { init: Number(rest[0].value) }
+  }
+  if (rest.length === 2 && h.isPunct(rest[0], '-') && rest[1].kind === 'number') {
+    return { init: -Number(rest[1].value) }
+  }
+  return null
+}
+
+/**
+ * ⭐⭐ C14 — NAMES THAT HOLD A NUMBER READ OFF A DRAWING.
+ *
+ * `rsi-swing-indicator` writes `last_actual_label_hh_price := label.get_y(labelhh)`
+ * inside an `if` and reads it in a label's text; `labelll_ts = label.get_x(labelll)`
+ * is a block local its `line.new` reads as `x2`. Both are exact when the object
+ * RUNTIME holds them as a scalar written at the statement's place in the bar —
+ * the getter answers what the program last set on that object.
+ *
+ * ⛔ A NAME QUALIFIES ONLY WHEN EVERY WRITE TO IT IS A BARE GETTER. Its one
+ * declaration is `var x = <number | na>` at the top level, or `x = <getter>`
+ * itself; every `:=` is a bare getter; none sits in a loop or a function body;
+ * it is declared once, and is never a parameter, a loop variable, a
+ * destructured part or a function's name. Anything else — a name the program
+ * ALSO computes some other way — is not a scalar this runtime can hold, and
+ * stays refused wherever it is read.
+ *
+ * @returns {Map<string, {init: number|null, persist: boolean}>}
+ */
+export function getterScalars(stmts, h) {
+  const info = new Map()
+  const at = (nm) => {
+    let d = info.get(nm)
+    if (!d) { d = { decls: [], getterWrites: 0, bad: false }; info.set(nm, d) }
+    return d
+  }
+  const scan = (list, ctx) => {
+    for (const st of splitCommaStatements(list || [], h)) {
+      const t = st.header || []
+      if (!t.length) { scan(st.sub, { ...ctx, top: false }); continue }
+      const def = definitionHeader(t, h)
+      if (def) {
+        at(def.name).bad = true
+        for (const tk of t.slice(def.open + 1, def.arrow)) if (tk.kind === 'ident') at(String(tk.value)).bad = true
+        const body = t.slice(def.arrow + 1)
+        if (body.length) scan([{ header: body, sub: [] }], { top: false, inFn: true, inLoop: ctx.inLoop })
+        scan(st.sub, { top: false, inFn: true, inLoop: ctx.inLoop })
+        continue
+      }
+      const w = t[0].kind === 'ident' ? t[0].value : null
+      if (w === 'for' || w === 'while') {
+        for (const tk of t) if (tk.kind === 'ident') at(String(tk.value)).bad = true
+        scan(st.sub, { top: false, inFn: ctx.inFn, inLoop: true })
+        continue
+      }
+      if (h.isPunct(t[0], '[')) {
+        for (const tk of t) {
+          if (h.isPunct(tk, ']')) break
+          if (tk.kind === 'ident') at(String(tk.value)).bad = true
+        }
+      }
+      for (let i = 1; i < t.length; i += 1) {
+        if (!isMutator(t[i]) || !t[i - 1] || t[i - 1].kind !== 'ident') continue
+        const d = at(String(t[i - 1].value))
+        if (t[i].value === ':=' && i === 1 && !ctx.inFn && !ctx.inLoop && isBareGetterAt(t, 2, h)) d.getterWrites += 1
+        else d.bad = true
+      }
+      const eq = h.findTop(t, (x) => h.isPunct(x, '='))
+      if (eq > 0 && h.findTop(t, (x) => h.isPunct(x, '=>')) < 0) {
+        const nameTok = h.boundName(t, eq)
+        if (nameTok) {
+          const d = at(String(nameTok.value))
+          const lit = w === 'var' ? literalInit(t, eq + 1, h) : null
+          if (ctx.inFn || ctx.inLoop || w === 'varip') d.bad = true
+          else if (w === 'var') {
+            if (ctx.top && lit) d.decls.push({ init: lit.init, persist: true })
+            else d.bad = true
+          } else if (isBareGetterAt(t, eq + 1, h)) {
+            d.decls.push({ init: null, persist: false })
+            d.getterWrites += 1
+          } else d.bad = true
+        }
+      }
+      if (st.sub && st.sub.length) scan(st.sub, { ...ctx, top: false })
+    }
+  }
+  scan(stmts, { top: true, inFn: false, inLoop: false })
+  const out = new Map()
+  for (const [nm, d] of info) {
+    if (d.bad || d.decls.length !== 1 || d.getterWrites < 1) continue
+    out.set(nm, d.decls[0])
+  }
+  return out
+}
+
 /** Why this body cannot be inlined under a CONDITIONAL call, or null.
  *  See the header: a body that reads history measures a different set of bars
  *  when its call is conditional. */
@@ -658,14 +788,19 @@ export function historyReason(def, drawFns, userFns, pureFns = new Set(), method
 }
 
 /** Names a body DECLARES or ASSIGNS (all become per-call-site locals), and the
- *  subset that is MUTABLE — `var`/`varip`, `:=` targets, destructured parts. */
+ *  subset that is MUTABLE — `var`/`varip`, `:=` targets, destructured parts.
+ *  ⭐ C21 — and the subset CARRIED: a `var`/`varip` declared inside a `for` or
+ *  `while` of the body, which is ONE variable across the loop's passes and the
+ *  bars (`dual-view`'s `var float htf_o` in `update_drawings`), named apart from
+ *  a local the function merely reassigns (`objectDiagnostics.guardRefusals`). */
 export function bodyNames(def, h) {
   const locals = new Set()
   const mutable = new Set()
-  const walk = (list) => {
+  const carried = new Set()
+  const walk = (list, inLoop = false) => {
     for (const st of list || []) {
       const t = st.header || []
-      if (!t.length) { walk(st.sub); continue }
+      if (!t.length) { walk(st.sub, inLoop); continue }
       const w = t[0].kind === 'ident' ? t[0].value : null
       if (w === 'for' && t[1]) {
         if (t[1].kind === 'ident') { locals.add(String(t[1].value)); mutable.add(String(t[1].value)) }
@@ -694,14 +829,15 @@ export function bodyNames(def, h) {
           if (nameTok && nameTok.kind === 'ident') {
             locals.add(String(nameTok.value))
             if (w === 'var' || w === 'varip') mutable.add(String(nameTok.value))
+            if ((w === 'var' || w === 'varip') && inLoop) carried.add(String(nameTok.value))
           }
         }
       }
-      if (st.sub && st.sub.length) walk(st.sub)
+      if (st.sub && st.sub.length) walk(st.sub, inLoop || w === 'for' || w === 'while')
     }
   }
   walk(def.body)
-  return { locals, mutable }
+  return { locals, mutable, carried }
 }
 
 /**

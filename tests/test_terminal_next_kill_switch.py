@@ -557,12 +557,29 @@ def _js_split(src: str) -> tuple[str, list[str]]:
 
 
 _FIELD_READ = re.compile(r"\b" + FIELD + r"\b")
+# The WITHDRAWAL field (2026-09-30, the MVP trial + NOW-gate clause 4): cohorts a user IS tagged
+# into whose kill switch is OFF. Opposite polarity to `cohorts` -- the switch thrown FILLS it -- and
+# its one consumer HIDES a surface on it, so the switch still kills: switch off => surface gone.
+# The polarity is proved where it can be, not asserted here: the server half by
+# tests/test_terminal_next_withdrawal.py (filled only when off, admins only), the client half by
+# BreadthDrillModal.withdrawal.test.jsx (listed => no chart). This rail counts it as a switch-driven
+# source, and the gate that reads it is acknowledged BY NAME below.
+WITHDRAWN_FIELD = FIELD + "Withdrawn"
+_WITHDRAWN_READ = re.compile(r"\b" + WITHDRAWN_FIELD + r"\b")
+#: Frontend Terminal-Next gates that exist, each acknowledged with its reason. A new one fails.
+ACKNOWLEDGED_FRONTEND_GATES = {
+    "app/src/pages/breadth/drill/BreadthDrillModal.jsx":
+        "MVP trial withdrawal block: hides the drill chart for a TAGGED user while the switch is off",
+    "app/src/context/AuthContext.jsx":
+        "PLUMBING, not a gate: carries `cohorts_withdrawn` off the auth payload into context",
+}
 
 
 def _js_gate(rel: str, src: str) -> tuple[bool, list[str]]:
     """(is this file a Terminal-Next frontend gate?, its violations)."""
     code, strings = _js_split(src)
-    reads_field = bool(_FIELD_READ.search(code)) or FIELD in strings
+    reads_field = (bool(_FIELD_READ.search(code)) or FIELD in strings
+                   or bool(_WITHDRAWN_READ.search(code)))
     names_cohort = any(s in COHORT_VALUES for s in strings)
     names_flag = FLAG_NEEDLE in code or any(FLAG_NEEDLE in s for s in strings)
     bad = []
@@ -598,9 +615,13 @@ def test_every_frontend_gate_answers_from_the_payload_the_switch_empties():
     # ⚠️ Stated, not hidden: today no frontend file reads the field. When one
     # does, it is inert with the switch thrown because the master rail above
     # proves the field is `[]` for everyone.
-    assert gates == [], (
+    unacknowledged = sorted(set(gates) - set(ACKNOWLEDGED_FRONTEND_GATES))
+    assert unacknowledged == [], (
         "a frontend Terminal-Next gate now exists; it is already held to the rule "
-        "above — acknowledge it here:\n  " + "\n  ".join(gates))
+        "above — acknowledge it in ACKNOWLEDGED_FRONTEND_GATES with its reason:\n  "
+        + "\n  ".join(unacknowledged))
+    stale = sorted(set(ACKNOWLEDGED_FRONTEND_GATES) - set(gates))
+    assert stale == [], f"acknowledged gates that no longer gate anything: {stale}"
 
 
 def test_CONTROL_the_frontend_hunt_separates_code_from_prose():

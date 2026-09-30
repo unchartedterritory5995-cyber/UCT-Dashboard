@@ -35,6 +35,7 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useTickerIpo from '../hooks/useTickerIpo'
+import { historyFromListingOf } from './chart/engine/listingSeed'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
 // ⛔⭐ THIS FILE IMPORTS **ZERO** `compute*` FUNCTIONS — B5 TASK 8, AND THAT IS
@@ -132,7 +133,7 @@ import {
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
-import { rendererPaneIndexOf } from './chart/engine/paneReadoutPlacement'
+import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -820,6 +821,14 @@ import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
 import { primaryChartTypeFor, primaryChartTypesFor } from './chart/engine/sourceCapability'
 import { withPrimaryProduct } from './chart/engine/primaryProduct'
+// ⭐ ECONOMIC PRIMARY CHART (`ECON:<SYMBOL>`) + economic overlays (`econ:`). Every
+// stock-only path below asks `_econId` once; a stock chart never enters an econ branch.
+import { isEconomicId } from './chart/engine/econMark'
+import useEconomicPrimary, { economicPrimaryTf, primaryObservationAt } from './chart/engine/useEconomicPrimary'
+import useEconomicSources from './chart/engine/useEconomicSources'
+import { withPrimaryEconomic, stripPrimaryEconomic, keepOnEconomicPrimary } from './chart/engine/economicPrimary'
+import { sourceCapabilityOf } from './chart/engine/sourceCapability'
+import { observationReadout, economicStatusLine } from './chart/economic/econUi'
 
 const NOOP = () => {}
 
@@ -2368,9 +2377,9 @@ export default function StockChart({
   showSma5 = false,          // workspace: add a faint 5-period SMA overlay (legend included). Very low-opacity so it's barely visible.
   onVolumePaneResize = null,  // (pct) => void — fired when the user drags the price/volume separator, so the caller can persist the new height
   volumeMa = 0,             // N-period SMA line drawn on the volume pane (0 = off). Overridden by cs.volume.maPeriod when set (Indicators tab).
-  liveUpdates = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
-  backgroundWarm = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
-  deepWarm = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
+  liveUpdates: liveUpdatesProp = true,       // false = skip SSE subscription (e.g. closed-trade historical charts)
+  backgroundWarm: backgroundWarmProp = true,    // false = skip the speculative background warms (all-TF warm chain + D/W/M full-depth dwell-warm). Multi-chart grid cells pass false so a cold 16-cell open is 16 shallow fetches, not ~130+ (the 2026-05-24 herd class). On-demand paths (primary fetch, pan backfill, TF switch) unaffected.
+  deepWarm: deepWarmProp = false,         // true = run ONLY the deep-history dwell-warm (not the all-TF chain) even when backgroundWarm=false. Multi-chart grid passes true for the MAXIMIZED cell so its scroll-back is instant; the all-TF chain stays off (herd guard).
   onBarsReady = null,       // optional () => void — fired at most once per mount, when the chart first has renderable bars OR reaches fatal error (first loading=false). The grid mount queue uses it to release a concurrency slot.
   onDrawnBarCount = null,   // optional (n) => void — the number of candles currently handed to the chart, fired whenever it changes. `onBarsReady` says the bars question SETTLED (it fires on a fatal error too, deliberately, so a dead ticker never starves the grid mount queue); this says whether the answer had any DATA in it. The export page publishes it as `window.__chartBarCount` and the Discord renderer probes it, because a screenshot of an empty chart is indistinguishable from a drawn one by pixel variance alone (2026-08-31: three candle-less charts posted publicly).
   onComparisonsReady = null, // optional (syms) => void — fired each time the comparison overlays (cs.comparisonSymbols) are drawn for the current set, once their bars have arrived (an unknown symbol counts as done). The Discord render page gates its readiness on it: measured 2026-08-25, a `?compare=` render captured before the overlay bars landed showed the % scale and no lines.
@@ -2388,7 +2397,7 @@ export default function StockChart({
   externalTimeRange = null, // {from, to} | null — apply external time range from sync context
   hideReplay = false,       // hide the Replay / Time Machine button
   hidePatterns = false,     // hide the pattern-recognition toggle button
-  disablePatterns = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
+  disablePatterns: disablePatternsProp = false,  // fully disable pattern detection on this instance: no /api/patterns fetch or 30s poll, no PatternOverlay mount, toolbar toggle forced hidden. hidePatterns only hides the button; this kills the data path (grid cells — 16 instances × 30s polls otherwise).
   showSavedDrawings = false, // render the user's saved per-symbol drawings as a READ-ONLY layer when the drawing tools are off (multi-chart grid cells: a member's trendlines must not vanish there). Inert when showDrawingTools is on — the editable overlay already renders them.
   settingsOverride = null,  // optional PARTIAL chart_settings blob merged over the user's global settings for THIS instance only (multi-chart grid: per-cell chart type). Precedence defaults < global < override; overridden keys are restored from the un-overridden base before any settings write persists, so an override can never leak into the global blob. MUST be identity-stable (useMemo) — it's a memo dep.
   onSettingsPersist = null,  // optional (nextFullSettings) => void — when provided, ALL in-chart settings writes (gear, indicators, overlays, ext-hours, log/pct scale, right-click toggles) route HERE instead of the global chart_settings pref. Used by a Chart widget's EXTRA tabs so each tab's edits persist to that tab's own blob in isolation, never touching the global settings or another tab. `settingsOverride` should carry this tab's full settings so `cs` reflects it.
@@ -2422,8 +2431,8 @@ export default function StockChart({
   indexPaneColor = '#ffffff',   // line color for the index pane
   indexPaneHeightPct = 18,      // height of the index pane as % of chart
   indexPaneLabel = null,        // top-left label text for the index pane (defaults to the symbol sans caret)
-  barsOverride = null,          // Model Book: explicit bars (uploaded historical data for a delisted stock). When set, skip ALL fetching/IDB/delta and render these directly — for tickers the data providers no longer carry.
-  barsOverridePending = false,  // Model Book: an override is expected but still loading — suppress the provider fetch (don't flash the wrong/penny data) and show the spinner until it arrives.
+  barsOverride: barsOverrideProp = null,          // Model Book: explicit bars (uploaded historical data for a delisted stock). When set, skip ALL fetching/IDB/delta and render these directly — for tickers the data providers no longer carry.
+  barsOverridePending: barsOverridePendingProp = false,  // Model Book: an override is expected but still loading — suppress the provider fetch (don't flash the wrong/penny data) and show the spinner until it arrives.
   indexAnnotations = null,      // Model Book: GLOBAL drawings (measure marks for Nasdaq corrections) on the index pane — read-only for all, editable for admin
   indexAnnotationsEditable = false, // admin authoring: enable the measure toolbar on the index pane
   onIndexAnnotationsChange = null,  // (drawings[]) => void — called when admin adds/edits/removes an index-pane annotation
@@ -2446,7 +2455,7 @@ export default function StockChart({
                                   // extra width doesn't visually dominate.
   // ── Override candle series priceFormat (e.g. integer-only axis labels) ──
   // Pass { type: 'price', precision: 0, minMove: 1 } to show "200" instead of "200.00"
-  priceFormat = null,
+  priceFormat: priceFormatProp = null,
   // Curated book charts (Setup Library / Model Book examples) should show ONLY
   // the admin-authored setup overlays — NOT the viewer's own Journal 2.0 trade
   // markers/price lines, which would "randomly" appear on any ticker the viewer
@@ -2457,7 +2466,7 @@ export default function StockChart({
   // workspace's "Regular Hours / Include pre-market" toggle. Drives the synthetic
   // pre/post-market daily candle + the locked-close / Pre-Post price tags. Only
   // meaningful on D/W/M — inert on intraday.
-  sessionView = null,
+  sessionView: sessionViewProp = null,
   hideExtHoursToolbarToggle = false,  // charts workspace moves the intraday EXT/RTH toggle into the widget header, so hide the toolbar one
   // ⭐ PHASE C TASK 12 — WHICH CHART THIS IS. A stable per-surface id: the
   // `/charts` widget slot (`WidgetHost`'s `groupId`) or a Multi-Chart grid
@@ -2501,7 +2510,50 @@ export default function StockChart({
   onLegendStudyTap = null,
 }) {
   const { prefs, setPref } = usePreferences()
-  const resolvedTf = tf || prefs.default_chart_tf || 'D'
+  // ═══ ECONOMIC PRIMARY CHART ═════════════════════════════════════════════
+  // ⭐ `ECON:<SYMBOL>` is not an instrument: no bars, no OHLC, no quote, no feed.
+  // Its host rows are the series' own timeline (`useEconomicPrimary`, via the
+  // existing `barsOverride` seam) and every stock-only path — the /api/bars SWR,
+  // IndexedDB, the warm chain, realtime/WS, volume, patterns, the session candle,
+  // markers/news/logo — is switched off HERE, once, by the props it already honours.
+  // ⛔ D/W/M only: an economic primary has no intraday view (`economicPrimaryTf`).
+  // Any other symbol: `_econId` is false and every value below is the prop itself.
+  const _econId = isEconomicId(sym)
+  const resolvedTf = _econId ? economicPrimaryTf(tf || prefs.default_chart_tf) : (tf || prefs.default_chart_tf || 'D')
+  const econPrimary = useEconomicPrimary(_econId ? sym : null, resolvedTf)
+  const barsOverride = _econId ? econPrimary.bars : barsOverrideProp
+  const barsOverridePending = _econId ? (!econPrimary.bars && econPrimary.pending) : barsOverridePendingProp
+  const liveUpdates = liveUpdatesProp && !_econId
+  const backgroundWarm = backgroundWarmProp && !_econId
+  const deepWarm = deepWarmProp && !_econId
+  const disablePatterns = disablePatternsProp || _econId
+  const priceFormat = (_econId && econPrimary.priceFormat) ? econPrimary.priceFormat : priceFormatProp
+  const sessionView = _econId ? null : sessionViewProp
+  // The row each host time sits on (D rows are 'YYYY-MM-DD'; W/M bucket keys too).
+  const _econRowIndex = useMemo(() => {
+    const m = new Map()
+    const b = econPrimary.bars
+    if (b) for (let i = 0; i < b.length; i++) m.set(String(b[i].t), i)
+    return m
+  }, [econPrimary.bars])
+  /** The observation under the crosshair, in a member's words (value · period ·
+   *  change · release date) — read from the SAME column the line is drawn from. */
+  const econReadoutAt = useCallback((time) => {
+    if (!econPrimary.column || !econPrimary.bars || !econPrimary.bars.length) return null
+    let key = time
+    if (time && typeof time === 'object' && 'year' in time) {
+      key = `${time.year}-${String(time.month).padStart(2, '0')}-${String(time.day).padStart(2, '0')}`
+    }
+    let i = _econRowIndex.get(String(key))
+    if (i === undefined) i = econPrimary.bars.length - 1
+    const o = primaryObservationAt(econPrimary.column, i)
+    return o ? observationReadout(o.point, o.prev, econPrimary.meta) : null
+  }, [econPrimary.column, econPrimary.bars, econPrimary.meta, _econRowIndex])
+  // Read by the crosshair handler (a ref-reading subscription): on an economic
+  // primary the price series is whitespace, so a hover has no candle point — the
+  // legend must still follow the cursor to the observation under it.
+  const econHoverRef = useRef(false)
+  econHoverRef.current = _econId
 
   // NOTE: the chart canvas deliberately does NOT follow the app theme. The light app
   // theme restyles the page chrome only (nav, page background, toolbars); charts keep
@@ -2555,6 +2607,18 @@ export default function StockChart({
   // at a source, exactly like the plot-style clamp — chart a security again and
   // their Candles come straight back.
   const cs = useMemo(() => {
+    // ⛔⛔ AN ECONOMIC PRIMARY IS A SCALAR, ALWAYS — `canonicalFamily` classifies
+    // `ECON:*` as `economic` (never `security`, never `unknown`), so this branch
+    // cannot fail open to candles. The series draws through its derived
+    // `econ:` instance on the price pane, in its registry style.
+    if (_econId) {
+      const style = econPrimary.meta && econPrimary.meta.presentation
+      const pres = typeof style === 'string' ? style : (style && style.style) || null
+      const cap = sourceCapabilityOf(pres ? { presentation: pres } : null, false)
+      const ct = primaryChartTypeFor(csMerged.chartType, cap)
+      const typed = ct === csMerged.chartType ? csMerged : { ...csMerged, chartType: ct }
+      return econPrimary.symbol ? withPrimaryEconomic(typed, econPrimary.symbol, econPrimary.meta) : typed
+    }
     const fam = canonicalFamily(sym)
     const _primaryProduct = canonicalProduct(sym)
     // ⛔⛔ AN UNCLASSIFIED SYMBOL IS NOT CLAMPED, AND THIS IS THE OPPOSITE DIRECTION
@@ -2593,7 +2657,7 @@ export default function StockChart({
     // charting a product does not write to a member's `chart_settings` and switching
     // away removes them with no cleanup. Same discipline as the clamp above.
     return withPrimaryProduct(typed, _primaryProduct)
-  }, [csMerged, sym, miReady])
+  }, [csMerged, sym, miReady, _econId, econPrimary.symbol, econPrimary.meta])
 
   // ⛔⭐ B5 TASK 12 — `csPanes` STOOD HERE AND IS GONE, WITH ITS SUBJECT.
   //
@@ -2870,7 +2934,7 @@ export default function StockChart({
   // bring the Dark Pool page's bar overlay to ANY interactive chart. Skipped when
   // the page already supplies its own `darkPoolBars`, and on teaching/frozen
   // charts (Model Book, exact-date-range exhibits) where the overlay isn't wanted.
-  const dpSettingEnabled = !!cs.darkPool?.enabled && isPaidUser && !darkPoolBars
+  const dpSettingEnabled = !!cs.darkPool?.enabled && isPaidUser && !darkPoolBars && !_econId
     && !exactDateRange && !frozen && !modelBookLook
   const [dpSettingsBars, setDpSettingsBars] = useState(null)
   useEffect(() => {
@@ -3063,7 +3127,7 @@ export default function StockChart({
   const { data: markersData } = useSWR(
     // Request the full window so earnings markers load back to inception alongside
     // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
+    markersEnabled && sym && !_econId ? `/api/chart/markers/${encodeURIComponent(sym)}?days=36500` : null,
     instFetcher,
     {
       dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
@@ -3074,7 +3138,7 @@ export default function StockChart({
   // ── News markers — /api/chart-news ──
   const showNews = !!cs.markers?.news
   const { data: newsData } = useSWR(
-    showNews && sym ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
+    showNews && sym && !_econId ? `/api/chart-news/${encodeURIComponent(sym)}?days=60` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { news: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes
@@ -3120,7 +3184,7 @@ export default function StockChart({
   // error here must never take the other marker categories down with it.
   const deskEnabled = !!cs.markers?.desk
   const { data: deskData } = useSWR(
-    deskEnabled && sym ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
+    deskEnabled && sym && !_econId ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
     (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
     {
       dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
@@ -3295,7 +3359,7 @@ export default function StockChart({
   // still in the member's list; a REMOVED one has been deleted from it and comes
   // back only from the catalogue. A host `showVolumeProp` still wins over both —
   // that is a surface fixing its own layout, not a member's choice.
-  const showVolume = (hideBase || isVolumeRemoved(cs))
+  const showVolume = (_econId || hideBase || isVolumeRemoved(cs))
     ? false
     : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
   // ⭐⭐ DOES THE VOLUME PANE EXIST? — the PRICE-SCALE question, and it is a
@@ -3447,7 +3511,7 @@ export default function StockChart({
   const divBadgeAttachedRef = useRef(false)
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
-  const tickerMeta = useTickerMeta(sym)
+  const tickerMeta = useTickerMeta(_econId ? null : sym)
   // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
   //
   // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
@@ -3472,7 +3536,7 @@ export default function StockChart({
   const symbolMeta = useMemo(() => (
     sym ? { ticker: sym, exchange: (tickerMeta && tickerMeta.exchange) || null } : null
   ), [sym, tickerMeta])
-  const ipoInfo = useTickerIpo(sym)       // { list_date } — official first-listing day
+  const ipoInfo = useTickerIpo(_econId ? null : sym)       // { list_date } — official first-listing day
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -3694,7 +3758,7 @@ export default function StockChart({
   }, [chartReady, watermarkAdjusting, watermarkX, watermarkAnchor, onWatermarkAnchor])
   // Load the company logo when the watermark's "Logo" field is on (default off).
   // Same-origin PNG proxy (/api/ticker-logo) → drawing it can't taint the canvas.
-  const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true
+  const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true && !_econId
   useEffect(() => {
     const s = watermark ?? sym
     if (!wmLogoEnabled || !s) { setWmLogo(null); return undefined }
@@ -4256,7 +4320,7 @@ export default function StockChart({
   // on a background interval that would be ~16MB/hour for a tab left open).
   // Shared + de-duplicated across every mounted chart; failures degrade to the
   // reserved whitespace slot.
-  useEffect(() => { touchTodayPack() }, [sym])
+  useEffect(() => { if (!_econId) touchTodayPack() }, [sym, _econId])
   const sessionViewRef = useRef(sessionView)  // latest sessionView, read by live-tick writers
 
   // ── Extended hours (single toggle: pre/post shading AND price data) ──
@@ -4919,7 +4983,17 @@ export default function StockChart({
     // >500) BEFORE it can be written by ANY edit path — the crash-safety complement
     // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
     // one (or 20). Same-reference on the common path, so no needless churn.
-    const newSettings = sanitizeOverlayPeriods(incoming, cs)
+    let newSettings = sanitizeOverlayPeriods(incoming, cs)
+    // ⛔⛔ AN ECONOMIC PRIMARY'S DERIVED VIEW NEVER REACHES STORAGE. Its companion
+    // instance (`econp:`) is stripped, and the scalar chart-type clamp is undone
+    // when the write carried it through unchanged — so a member who edits a
+    // setting on USCPI gets their Candles back on the next stock.
+    if (_econId) {
+      newSettings = stripPrimaryEconomic(newSettings)
+      if (newSettings && newSettings.chartType === cs.chartType && cs.chartType !== csMerged.chartType) {
+        newSettings = { ...newSettings, chartType: csMerged.chartType }
+      }
+    }
     // Isolated-persist path (Chart widget extra tabs): route the whole new blob
     // to the owner instead of the global pref, so a tab's edits stay on that tab.
     // `newSettings` is already the fully-merged settings ({...cs, ...change}), so
@@ -4943,7 +5017,7 @@ export default function StockChart({
       }
     }
     setPref('chart_settings', JSON.stringify(persisted))
-  }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
+  }, [setPref, settingsOverride, csBase, cs, onSettingsPersist, _econId, csMerged])
   updateSettingsRef.current = handleUpdateChartSettings
 
   // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
@@ -6452,6 +6526,10 @@ export default function StockChart({
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
   const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, cs)
+  // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
+  // overlay on ANY chart and for the primary economic series alike. Same seam, same
+  // stable-identity discipline; a chart with no `econ:` source makes no request.
+  const economicSources = useEconomicSources(_storedInstances, _defOf, cs)
 
   // ⭐ THE SERVER LANE'S REPAINT SIGNAL (the RS line). `computeFor` reads the
   // column cache synchronously and the fetch lands later; this is what tells
@@ -6533,6 +6611,8 @@ export default function StockChart({
     idbReadyForRef.current = null  // synchronous — invalidates the gate immediately
     axisWidthRatchetRef.current = 0  // new sym/tf → let the axis column re-fit once
     const key = `${sym}_${resolvedTf}`
+    // ⛔ An economic series is never cached in the bars IndexedDB (nor read from it).
+    if (_econId) { idbReadyForRef.current = key; setIdbLoaded(true); return undefined }
     let settled = false
     // 🔴 COLD-START UNBLOCK (new-user first paint). `swrUrl` is gated on idbGet
     // resolving so it can compute the correct `?since=<idb tail>` delta. But on a
@@ -6572,7 +6652,7 @@ export default function StockChart({
       setIdbLoaded(true)
     }).catch(() => { settled = true; clearTimeout(_t); idbReadyForRef.current = key; setIdbLoaded(true) })
     return () => { settled = true; clearTimeout(_t) }
-  }, [sym, resolvedTf])
+  }, [sym, resolvedTf, _econId])
 
   // SWR URL: only set if IDB state is for the CURRENT sym+tf. Stale idbLoaded
   // from a previous ticker (before the IDB effect runs) is rejected by the ref
@@ -6817,7 +6897,9 @@ export default function StockChart({
   const _customSpec = useMemo(() => (_isCustomTf ? resampleSpec(resolvedTf) : null), [_isCustomTf, resolvedTf])
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
-  const _hasOverride = _overrideArr || barsOverridePending
+  // ⛔ AN ECONOMIC PRIMARY NEVER REACHES THE BARS LANE — loaded, loading, denied or
+  // missing alike (`/api/bars/ECON:*` is an explicit 404 server-side anyway).
+  const _hasOverride = _overrideArr || barsOverridePending || _econId
   // Replay mode: fetch the bars ENDING AT the cutoff (server serves this pre-cutoff
   // window fast from SQLite) instead of the full 'ending today' set — which for an old
   // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
@@ -8281,6 +8363,15 @@ export default function StockChart({
     return { date: first.t, low, listDate: String(ld).slice(0, 10) }
   }, [ipoInfo?.list_date, cs.markers?.ipo, resolvedTf, filteredBars, _bucketEventDate])
 
+  // ⭐⭐ C12w — DOES THE SERIES THE ENGINE COMPUTES ON START AT THE LISTING BAR?
+  // Ruling R-W: only then may a translated Pine `var` seed from bar 0 and lift the
+  // warm-up curtain. The rule lives in `listingSeed.historyFromListingOf` — daily,
+  // exact date equality, read off the SAME `filteredBars` the binder receives —
+  // never the IPO badge's five-day tolerance above, which only labels a candle.
+  const historyFromListing = useMemo(() => historyFromListingOf({
+    bars: filteredBars, tf: resolvedTf, listDate: ipoInfo?.list_date,
+  }), [filteredBars, resolvedTf, ipoInfo?.list_date])
+
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
     if (!filteredBars?.length) return null
@@ -8930,7 +9021,7 @@ export default function StockChart({
       // a commit later and LWC's shiftVisibleRangeOnNewBar slides the view. Appending a whitespace
       // at the developing period makes that real bar a REPLACEMENT (same time) → no LWC shift.
       // Self-cancels once the last real bar IS the developing period (then _lastRaw !< _dev).
-      if (_intradayLoadAnchorEnabled() && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
+      if (_intradayLoadAnchorEnabled() && !_econId && !exactDateRange && !entryDate && !replayCutoff && arr.length && displayBars.length) {
         const _dev = _developingBarISO(resolvedTf)
         const _lastRaw = displayBars[displayBars.length - 1]?.t
         // ── DAILY: seed EXACTLY the slots the framing reserve holds ─────────────
@@ -9013,7 +9104,7 @@ export default function StockChart({
     // on this line: it is a per-render closure over exactly those imperative sources, so
     // listing it would bust this memo on every single render — the churn the note above
     // exists to prevent. It is read, never captured.
-    [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff]
+    [displayBars, adjustTime, sym, _inExtWindow, sessionPreviewLastBar, canvasTheme, boldCandles, modelBookLook, mbUp, mbDown, userCandleColors, cs.candles.upColor, cs.candles.downColor, cs.candles.upBorder, cs.candles.downBorder, cs.candles.upWick, cs.candles.downWick, resolvedTf, exactDateRange, entryDate, replayCutoff, _econId]
   )
   // Publish the DRAWN candle count (see the `onDrawnBarCount` prop). Reported on
   // every change rather than latched once, so a chart that recovers on a later
@@ -9385,8 +9476,8 @@ export default function StockChart({
   // volume/watermark/indicator sources can gate on it. Nothing to redeclare here.
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
-    () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
-    [enabledComparisons]
+    () => (_econId ? null : (enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null)),
+    [enabledComparisons, _econId]
   )
   // Comparisons don't need deep inception history — a bounded window is plenty for a
   // relative-performance overlay, and it stops a big GROUP (many members) from firing
@@ -10667,6 +10758,11 @@ export default function StockChart({
               return (engineRef.current?.binder?.bindings() || []).map((b) => ({
                 instanceId: b.instanceId, plotKey: b.plotKey,
                 priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+                // (economic acceptance) what the renderer was actually asked to draw
+                seriesType: b.series?.seriesType?.() || null,
+                lineType: b.series?.options?.()?.lineType ?? null,
+                priceScaleId: b.series?.options?.()?.priceScaleId ?? null,
+                paneIndex: b.series?.getPane?.()?.paneIndex?.() ?? null,
                 data: b.series?.data?.() || [],
                 // ONE logical line may be drawn as several render series (gap runs).
                 runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
@@ -10684,6 +10780,10 @@ export default function StockChart({
           // Read-only, chartId-keyed, resolved at CALL time off the live refs.
           visibleTimeRange: () => {
             try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+          },
+          // (economic acceptance) the PRIMARY series' own type — never candles on ECON:*
+          primarySeriesType: () => {
+            try { return candleSeriesRef.current?.seriesType?.() || null } catch { return null }
           },
           renderedTail: (k = 2) => {
             try {
@@ -11701,7 +11801,7 @@ export default function StockChart({
                 placement: { target: 'price' }, hidden: false,
               }]
             : migrated
-          return eligibleInstances(withForced, engineRegistry, {
+          const kept = eligibleInstances(withForced, engineRegistry, {
             tf: resolvedTf, vwapOverride, boldCandles, modelBookLook,
             // ⭐ 2026-09-28 — THE MOVING AVERAGE'S SURFACE LOOK (`eligibility.averageLook`).
             // These four are exactly what the retired `cs.overlays` renderer read
@@ -11713,6 +11813,13 @@ export default function StockChart({
             ema9Color: ema9MatchCandle ? mbUpOpaque : null,
             targetOf: (inst) => resolveDisplayTarget(inst, cs),
           }).kept
+          // ⭐ ON AN ECONOMIC PRIMARY, AN INSTANCE THAT READS THE CHART'S OWN
+          // O/H/L/C/V (the default EMA 9 / 20 / SMA 50 / 200, an RSI of close) has
+          // nothing to read — the rows carry none — so it is not drawn and not
+          // listed in the legend. Render-time only: nothing is written, and the
+          // member's averages are back on the next stock. An instance over another
+          // SOURCE (the series itself, `sym:`, `econ:`) is kept.
+          return _econId ? kept.filter((i) => keepOnEconomicPrimary(i, engineRegistry)) : kept
         })()
       : EMPTY_INSTANCES
     // Mirrored for the crosshair legend (B3 carry #2). The handler needs each
@@ -12531,6 +12638,9 @@ export default function StockChart({
         onFrameStale: (frame, s) => { try { refreshCalcFrameRef.current(frame, s) } catch { /* */ } },
         // ⭐ Historical fundamentals, already resolved (see `useFundamentalSources`).
         fundamentals: fundamentalSources,
+        // ⭐ Economic series, already resolved (see `useEconomicSources`): release-
+        // date placement, strict intraday, per-frequency max age, period-monotone.
+        economics: economicSources,
         // ⭐⭐ WHICH PROVIDER FAMILY A CANONICAL SYMBOL BELONGS TO — the SEMANTIC
         // half of `ohlcCapability`. The breadth registry is the same authority
         // `api/routers/bars.py` routes on, read synchronously because the binder
@@ -12579,6 +12689,10 @@ export default function StockChart({
         // ⭐ It rides WITH the payload it describes, so a cached or delta response
         // carries the state of ITS OWN newest bar rather than of the wall clock.
         newestBarIsForming: data?.newest_bar_is_forming ?? null,
+        // ⭐ C12w — the listing statement (see `historyFromListing` above). The
+        // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
+        // another translator keeps its bounded window whatever this says.
+        historyFromListing,
         adjustTime,
         applyData: _applyData,
         // ⭐⭐ C3B — THE GRAPHICAL-OBJECT CAPABILITY. Injected exactly like every
@@ -13599,7 +13713,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -14902,9 +15016,12 @@ export default function StockChart({
       const onCrosshairMove = onCrosshairMoveRef.current
 
       const seriesData = param && param.seriesData
-      const priceData = (seriesData && candleSeriesRef.current)
+      let priceData = (seriesData && candleSeriesRef.current)
         ? seriesData.get(candleSeriesRef.current)
         : null
+      // ⭐ ECONOMIC PRIMARY: no candle point exists (the rows carry no OHLC), but a
+      // hovered ROW does — the strip reads the observation for `param.time`.
+      if (!priceData && econHoverRef.current && param && param.time !== undefined) priceData = { value: NaN }
       if (!priceData) {
         legendHoveringRef.current = false
         setCrosshairData(offHoverCrosshair())
@@ -18800,6 +18917,54 @@ export default function StockChart({
                   `.legendV2`), because the measured 2026-08-10 defect was
                   candlesticks running through the numbers, and blur is what made
                   transparency safe the last time that was fixed. */}
+              {_econId ? (() => {
+                /* ⭐ AN ECONOMIC PRIMARY HAS NO CANDLE TO DESCRIBE. The strip reads
+                   the OBSERVATION under the crosshair instead — value · period ·
+                   change · release date — from the same column the line is drawn
+                   from, and a one-line currentness status beneath it. */
+                const _ro = econReadoutAt(crosshairData.time)
+                const _st = economicStatusLine(econPrimary.currentnessView)
+                return (
+                  <>
+                    <div className={styles.barInfo} data-testid="econ-bar-info">
+                      {barShows('date') && (
+                        <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
+                      )}
+                      {_ro ? (
+                        <>
+                          <span className={styles.barField} style={legBase}>
+                            <span className={styles.barVal} data-testid="econ-value">{_ro.value}</span>
+                          </span>
+                          <span className={styles.barField} style={legBase} data-testid="econ-period">
+                            <span className={styles.barKey}>{_ro.period}</span>
+                          </span>
+                          {_ro.change && (
+                            <span className={styles.barChg} style={{ color: _ro.up ? '#26a69a' : '#ef5350' }} data-testid="econ-change">
+                              {_ro.change}{_ro.changePct ? ` (${_ro.changePct})` : ''}
+                            </span>
+                          )}
+                          {_ro.released && (
+                            <span className={styles.barField} style={legBase} data-testid="econ-released">
+                              <span className={styles.barKey}>{_ro.released}</span>
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className={styles.barField} style={legBase}>
+                          <span className={styles.barKey}>{econPrimary.bars ? 'no value' : 'loading…'}</span>
+                        </span>
+                      )}
+                    </div>
+                    {_st.text && (
+                      <div className={styles.barInfo} data-testid="econ-status" data-tone={_st.tone}>
+                        <span className={styles.barField} style={{ ...(legBase || {}), color: _st.tone === 'ok' ? '#7fc3a6' : _st.tone === 'warn' ? '#e0a458' : undefined, opacity: 0.9 }}>
+                          {_st.text}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )
+              })() : (
               <div className={styles.barInfo}>
                 {barShows('date') && (
                   <span className={styles.barDate} style={legBase}>{formatBarInfoDate(crosshairData.time)}</span>
@@ -18847,6 +19012,7 @@ export default function StockChart({
                   </span>
                 )}
               </div>
+              )}
 
               {/* ══ B. THE STUDY STACK ══════════════════════════════════════
                   ⭐ ONE ROW PER PLOT DRAWN IN THIS PANE: `label · value · ›`.
@@ -19418,14 +19584,19 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
+        // ⭐ ONE LOGICAL INDICATOR (a COT dataset) READS ON ONE LINE (owner,
+        // 2026-09-30): title, then each participant's name and value to its right,
+        // so the readout sits above the bars instead of stacking down over them.
+        const group = paneGroupOf(row.chips, cs)
+        return (
         <div
           key={row.key}
           ref={(el) => {
             const m = paneLegendRefs.current
             if (el) { m.set(row.key, el); pinPaneLegend(el, row.key) } else m.delete(row.key)
           }}
-          className={styles.paneLegend}
+          className={group ? `${styles.paneLegend} ${styles.paneLegendGroup}` : styles.paneLegend}
           data-pane-legend={row.key}
         >
           {/* ⭐⭐ LEGEND V2 — A PANE READOUT IS A STUDY STACK. Same component,
@@ -19435,10 +19606,20 @@ export default function StockChart({
               different legends: a vertical stack on Price and a running line on
               every pane below it. One architecture means one answer to "what is
               drawn here, and how do I manage it" wherever the plot lives. */}
+          {/* ⭐ ONE LOGICAL INDICATOR, ONE TITLE (2026-09-30). When every row in
+              this pane belongs to the same instance group (a COT dataset's three
+              participants), the group's name heads the stack once and the rows keep
+              their short participant names. Any other pane is untouched. */}
+          {group ? (
+            <div className={styles.paneLegendTitle} data-pane-group-title={group.id}>
+              {group.name}
+              {group.note ? <span className={styles.paneLegendNote}>{group.note}</span> : null}
+            </div>
+          ) : null}
           {row.chips.map((c, ci) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
-              vertical
+              vertical={!group}
               /* ⭐ SIBLING OUTPUTS OF ONE INSTANCE READ AS A GROUP (§7) — MACD
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the
@@ -19495,7 +19676,8 @@ export default function StockChart({
             />
           ))}
         </div>
-      ))}
+        )
+      })}
       {!disablePatterns && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}

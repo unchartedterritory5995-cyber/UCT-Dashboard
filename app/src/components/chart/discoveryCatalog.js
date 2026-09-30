@@ -40,6 +40,10 @@ import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from '
 import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
 import { fundamentalSource } from './engine/fundamentalGrammar'
+import { economicSource } from './engine/economicGrammar'
+import { econFacts, economicSubtitle } from './economic/econUi'
+import { SERIES_COLORS as COT_SERIES_COLORS } from '../../pages/cot/cotPalette'
+import { GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
 
@@ -56,7 +60,7 @@ import { fundamentalSource } from './engine/fundamentalGrammar'
  * *"creation is kind-blind"*: it builds a breadth result and a security result
  * and asserts the two instances differ ONLY in the source string.
  */
-export const RESULT_KINDS = Object.freeze(['technical', 'formula', 'breadth', 'security'])
+export const RESULT_KINDS = Object.freeze(['technical', 'formula', 'breadth', 'security', 'positioning'])
 
 /**
  * Whether this result can become a chart series AT ALL.
@@ -439,25 +443,43 @@ export function productResult(row, { tf, bars } = {}) {
     : (Array.isArray(row.components) ? row.components.filter(Boolean).map((c) => ({ id: c })) : [])
   if (!id || !components.length) return null
   const name = str(row.name || row.display, id)
+  const kind = productKindOf(row)
   // ⭐ ASK THE BARS CACHE ABOUT THE THINGS THAT ACTUALLY HAVE BARS.
   const caps = components.map((c) => knownCapabilityOf(canonicalSymbol(c.id), tf, bars))
   const best = caps.find((c) => c && c.capability !== CAPABILITY.UNSUPPORTED) || caps[0] || {}
   const pres = presentationFor(row)
+  // ⭐ ONE LOGICAL INDICATOR IS THE ROW'S OWN CLAIM (`registry.Product.grouped`),
+  // never inferred from the family — and so is the title its shared pane wears.
+  const grouped = row.grouped === true
+  const groupNote = str(row.group_note || row.groupNote, '')
   return result({
     id,
-    kind: 'breadth',
+    kind,
     name,
-    shortName: str(row.short_name || row.shortName, name),
+    // ⚠️ `short` IS THE CATALOGUE SPELLING, `short_name` THE SEARCH ONE — without it
+    // the chip repeated the full name ("Nasdaq-100 E-Mini COT  Nasdaq-100 E-Mini COT").
+    shortName: str(row.short_name || row.shortName || row.short, name),
     lead: name,
     sub: str(row.family_label || row.familyLabel, ''),
-    metricShort: str(row.short_name || row.shortName, ''),
+    metricShort: str(row.short_name || row.shortName || row.short, ''),
     universeLabel: '',
     category: str(row.family_label || row.familyLabel, 'Market Indicators'),
     description: str(row.description, name),
-    tags: ['market-indicator', 'product'],
+    // ⭐ THE COMPONENTS' NAMES ARE SEARCH WORDS FOR THE PRODUCT, as they are on the
+    // server (`Product.tokens`): "Commercials" finds the COT dataset that has one,
+    // and the component rows themselves are never listed.
+    tags: ['market-indicator', 'product',
+      ...(Array.isArray(row.tags) ? row.tags.filter((t) => typeof t === 'string') : []),
+      ...components.map((c) => str(c.short, '')).filter(Boolean)],
     ...best,
     create: {
       via: CREATE_VIA.PRODUCT,
+      // ⭐ THE GROUP'S TITLE IS THE PRODUCT'S — `Nasdaq-100 E-Mini · COT` — with its
+      // quiet qualifier (`Net Contracts`); the shared pane's legend prints it once.
+      ...(grouped ? { group: {
+        name: str(row.group_title || row.groupTitle, name),
+        ...(groupNote ? { note: groupNote } : {}),
+      } } : {}),
       components: components.map((c) => ({
         source: symbolSource(canonicalSymbol(c.id), 'close'),
         // ⛔ THE MEMBER-FACING NAME, NOT THE ID. Absent, `createDirectSeries`
@@ -465,10 +487,64 @@ export function productResult(row, { tf, bars } = {}) {
         // canonical address — an internal word in the one place it must never be.
         name: str(c.display, '') || null,
         compact: str(c.short, '') || null,
-        presentation: pres || null,
+        // ⭐ A COMPONENT THAT STATES ITS OWN PRESENTATION IS BELIEVED FIRST; the
+        // product-wide answer covers rows that predate per-component metadata.
+        presentation: componentPresentation(c, pres),
+        ...(paletteColor(c.palette) ? { color: paletteColor(c.palette) } : {}),
       })),
     },
   })
+}
+
+/**
+ * Which discovery KIND a product row is, from the family its catalogue filed it in.
+ *
+ * ⭐ ONE MAPPING, FROM DATA. A market-indicator product is a Breadth-tab thing
+ * (AAII) unless its family has a tab of its own — `positioning` (COT) does.
+ */
+const PRODUCT_KIND_BY_FAMILY = Object.freeze({ positioning: 'positioning' })
+
+function productKindOf(row) {
+  const fam = str(row && row.family, '')
+  return ownKey(PRODUCT_KIND_BY_FAMILY, fam) ? PRODUCT_KIND_BY_FAMILY[fam] : 'breadth'
+}
+
+// Column geometry + default height for a grouped histogram pane — a leaf module so the
+// read-time legacy normaliser (`engine/legacyCotGroups.js`) can share it without an
+// import cycle through this file.
+export { GROUP_BARS_SPAN, GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
+
+/**
+ * Colour TOKENS a catalogue row may name for a component → the hex it resolves to.
+ *
+ * ⛔ THE SERVER NAMES A TOKEN, NEVER A HEX, and the token resolves to the palette
+ * that already owns those colours — `cotPalette.SERIES_COLORS`, the one authority the
+ * COT tab's panes and positioning rail read. No second copy of a COT colour.
+ */
+const PALETTE_TOKENS = Object.freeze({
+  'cot.commercials': COT_SERIES_COLORS.commercials,
+  'cot.largeSpecs': COT_SERIES_COLORS.largeSpecs,
+  'cot.smallSpecs': COT_SERIES_COLORS.smallSpecs,
+})
+
+/**
+ * One component's creation presentation.
+ *
+ * ⭐ A DECLARED PALETTE COLOUR IS AN IDENTITY, AND IT OUTRANKS SIGN COLOURING.
+ * `presentationFor` adds `signColors` to any signed histogram — right for Net New
+ * Highs, where green/red IS the reading. A component that names a palette token
+ * (the COT groups) is saying its colour is WHO it is; painting its negative bars red
+ * would erase that. So the style is kept and the sign colouring is not stamped.
+ */
+function componentPresentation(c, productPres) {
+  const pres = presentationFor(c) || productPres || null
+  if (!pres || !paletteColor(c && c.palette) || !pres.signColors) return pres
+  const { signColors: _sign, ...rest } = pres
+  return Object.keys(rest).length ? rest : null
+}
+
+function paletteColor(token) {
+  return ownKey(PALETTE_TOKENS, token) ? PALETTE_TOKENS[token] : null
 }
 
 /**
@@ -591,6 +667,12 @@ export function semanticNamesFor(res) {
     const n = str(res.name, '') || id
     return { full: n, compact: n }
   }
+  // ⭐ AN ECONOMIC SERIES NAMES ITSELF BY ITS REGISTRY SHORT NAME in a list
+  // ("Core CPI: All Items Less Food & Energy") and by its DISPLAY SYMBOL in a pane
+  // legend (`USCORECPI`) — never by a provider id, never by its chip.
+  if (res.kind === 'economic') {
+    return { full: str(res.metricShort, '') || str(res.name, '') || id, compact: id }
+  }
   if (res.kind !== 'breadth') {
     // A security names itself: `QQQ` is the thing, and `res.name` is the gloss.
     const t = str(res.shortName, '') || id
@@ -655,7 +737,7 @@ export function createFromResult(cs, res, registry) {
       ? res.create.components.map((c) => (c && !c.presentation && familyDefault
         ? { ...c, presentation: familyDefault } : c))
       : res.create.components
-    return createProductSeries(cs, components, registry)
+    return createProductSeries(cs, components, registry, { group: res.create.group })
   }
   if (res.create.via === CREATE_VIA.DATA_SERIES) {
     // ⭐ THE DISPLAY NAME TRAVELS WITH THE ADD (P2.2). See `createDirectSeries`.
@@ -690,6 +772,10 @@ export const FAMILY_DEFAULT_PLOT_STYLE = Object.freeze({
   breadth: 'area',
   security: 'area',      // Symbols, ETFs and Indexes share this kind
   economic: 'area',
+  // ⭐ COT NET POSITIONS ARE HISTOGRAMS — signed bars either side of zero are the
+  // reading. The catalogue says so per component too; this is the family's floor, so
+  // no path can create a COT output as the generic Area.
+  positioning: 'histogram',
 })
 
 function creationPresentationFor(res) {
@@ -896,48 +982,78 @@ export function liveDiscoveryRows(query, queryRows, browsedRows, matchesFn) {
   return [...remote, ...browsed.filter((r) => match(r, query))]
 }
 
-export function createProductSeries(cs, components, registry) {
+export function createProductSeries(cs, components, registry, opts) {
   if (!cs || typeof cs !== 'object') return cs
   if (!Array.isArray(components) || !components.length) return cs
+  const group = opts && opts.group && typeof opts.group === 'object' ? opts.group : null
+  // ⭐ A GROUPED PRODUCT OF HISTOGRAMS SHARES ITS PANE SIDE BY SIDE — see
+  // `sideBySideBars`. Decided once, by position, before anything is created.
+  const allHistograms = components.every((c) => c && c.presentation
+    && c.presentation.plotStyle === 'histogram')
+  const bars = group && allHistograms ? sideBySideBars(components.length) : []
 
   let next = cs
   let hostId = null
-  let placed = 0
+  const placedIds = []
   for (const comp of components) {
     if (!comp || typeof comp.source !== 'string' || !comp.source) continue
     const before = next
+    const bar = bars[components.indexOf(comp)]
+    // ⭐ THE FIRST LANDED PART HOSTS THE PANE, so it alone carries the pane's height.
+    const hostHeight = bar && hostId === null ? { paneHeight: GROUP_PANE_HEIGHT } : null
     next = createDirectSeries(next, comp.source, registry, {
       name: comp.name || null,
       compact: comp.compact || null,
-      presentation: comp.presentation || null,
+      presentation: comp.presentation
+        ? (bar ? { ...comp.presentation, bar, ...hostHeight } : comp.presentation)
+        : null,
     })
     if (next === before) continue                    // refused — skip, do not abort
-    const minted = lastCreatedInstance(before, next)
-    if (!minted || !minted.instanceId) continue
+    const made = lastCreatedInstance(before, next)
+    if (!made || !made.instanceId) continue
     // ⭐ DISTINGUISHABLE BY DEFAULT. Three outputs sharing one pane in one colour is
     // a legend a member has to read to tell the lines apart — measured in a browser
     // before this line existed. Written through `setInstanceInput`, the canonical
     // writer, so it is an ordinary instance colour the member can change.
     // ⚠️ INDEXED BY PLACED POSITION, so a skipped component does not leave a gap.
-    const hex = comp.color || PRODUCT_SERIES_COLORS[placed % PRODUCT_SERIES_COLORS.length]
+    const hex = comp.color || PRODUCT_SERIES_COLORS[placedIds.length % PRODUCT_SERIES_COLORS.length]
     if (hex) {
-      const painted = setInstanceInput(next, minted.instanceId, 'color', hex, registry)
+      const painted = setInstanceInput(next, made.instanceId, 'color', hex, registry)
       if (painted !== next) next = painted
     }
-    placed += 1
+    placedIds.push(made.instanceId)
     if (hostId === null) {
       // ⭐ THE FIRST LANDED COMPONENT OWNS THE PANE and keeps its own default
       // placement. Writing a target for it would be writing `@<self>`, which
       // `setInstanceDisplayTarget` refuses by identity — correctly.
-      hostId = minted.instanceId
+      hostId = made.instanceId
       continue
     }
-    const moved = setInstanceDisplayTarget(next, minted.instanceId,
+    const moved = setInstanceDisplayTarget(next, made.instanceId,
                                            paneOfTarget(hostId), registry)
     // ⚠️ A REFUSED MOVE LEAVES THE SERIES IN ITS OWN PANE rather than dropping it.
     // The member sees the data and can move it; they never silently lose a series
     // because a placement write was rejected.
     if (moved !== next) next = moved
+  }
+  // ⭐⭐ ONE LOGICAL INDICATOR, STAMPED ON EVERY PART. `instance.group` is what the
+  // instance doors (`removeInstance`, `setInstanceHidden`) read to act on the whole
+  // group — so removing or hiding any part from ANY surface acts on all of them, and
+  // no surface needs to know a group exists.
+  // ⚠️ THE ID IS THE FIRST PART'S INSTANCE ID, so it is unique per add (a second add
+  // of the same dataset is a second group) and stable across a reload.
+  if (group && placedIds.length > 1) {
+    const gid = `grp:${placedIds[0]}`
+    const stamp = { id: gid }
+    if (typeof group.name === 'string' && group.name) stamp.name = group.name
+    if (typeof group.note === 'string' && group.note) stamp.note = group.note
+    const ids = new Set(placedIds)
+    next = {
+      ...next,
+      indicatorInstances: next.indicatorInstances.map((i) => (i && ids.has(i.instanceId)
+        ? { ...i, group: { ...stamp } }
+        : i)),
+    }
   }
   return next
 }
@@ -1190,9 +1306,29 @@ export const LIBRARY_TABS = Object.freeze([
   Object.freeze({ key: 'technical', label: 'Technical' }),
   Object.freeze({ key: 'fundamentals', label: 'Fundamentals' }),
   Object.freeze({ key: 'breadth', label: 'Breadth' }),
+  // ⭐ ONE SYMBOLS TAB — stocks, ETFs AND indexes (owner, 2026-09-30). `Indexes`
+  // came off the strip to make room for Positioning; an index is a security and the
+  // row still carries the server's own classification (`INDEX` chip, index heading).
   Object.freeze({ key: 'symbols', label: 'Symbols' }),
-  Object.freeze({ key: 'indexes', label: 'Indexes' }),
+  // ⭐ POSITIONING (owner, 2026-09-30): the CFTC COT datasets — `kind: 'positioning'`,
+  // which only the Market Indicators catalogue's `positioning` family produces.
+  Object.freeze({ key: 'positioning', label: 'Positioning' }),
 ])
+
+/**
+ * ⭐ THE SIXTH TAB, AND IT IS NOT IN `LIBRARY_TABS`.
+ *
+ * ⛔⛔ DARK BY CONSTRUCTION. `Economic` exists only for a member whose
+ * `/api/econ/catalog` answered 200 (the server's `ECON_ENABLED` AND the bars
+ * entitlement) — `libraryTabsFor({economic: true})`. Every other chart (flag
+ * unset, 401, 403, offline) gets `LIBRARY_TABS` BY IDENTITY: the same five tabs,
+ * the same keyboard ring, the same frozen array its tests already pin.
+ */
+export const ECONOMIC_TAB = Object.freeze({ key: 'economic', label: 'Economic' })
+const _LIBRARY_TABS_ECON = Object.freeze([...LIBRARY_TABS, ECONOMIC_TAB])
+export function libraryTabsFor({ economic = false } = {}) {
+  return economic ? _LIBRARY_TABS_ECON : LIBRARY_TABS
+}
 
 /**
  * POPULAR — curated, by DEFINITION ID.
@@ -1278,6 +1414,53 @@ export function fundamentalResults(metrics) {
 }
 
 /**
+ * ⭐ ECONOMIC: THE MEMBER CATALOGUE `/api/econ/catalog` PUBLISHES (the Economic tab).
+ *
+ * `fundamentalResults`' twin. Every row creates an ordinary `dataSeries` whose
+ * source is `econ:<SYMBOL>` (symbol-less — it does NOT follow the charted ticker),
+ * drawn in its OWN pane (`dataSeries` is `autoPane`) with its own scale, projected
+ * onto the host's bars at release time (`economicSource.economicColumn`).
+ *
+ * ⛔ THE REGISTRY STYLE RIDES THE CREATE DESCRIPTOR (`presentation.plotStyle`:
+ * line / step / histogram), so `FAMILY_DEFAULT_PLOT_STYLE.economic` ('area') never
+ * repaints a policy-rate step or a signed payrolls histogram as an area.
+ * ⛔ Candles are impossible here by grammar: `econ:` is never `kind: 'symbol'`.
+ *
+ * Search: the name, the short name, the display symbol, the category, and every
+ * registry alias / synonym ("cpi", "core cpi", "fed funds", "10-year treasury").
+ */
+export function economicResults(list) {
+  const out = []
+  const seen = new Set()
+  for (const row of Array.isArray(list) ? list : []) {
+    const f = econFacts(row)
+    if (!f || seen.has(f.symbol)) continue
+    const source = economicSource(f.symbol)
+    if (!source) continue
+    seen.add(f.symbol)
+    const syn = [...(Array.isArray(row.synonyms) ? row.synonyms : []), ...(Array.isArray(row.aliases) ? row.aliases : [])]
+      .filter((t) => typeof t === 'string' && t)
+    // "10 year treasury" also answers "10-year treasury"
+    const variants = syn.map((t) => t.replace(/(\d) (?=[a-z])/gi, '$1-')).filter((t) => !syn.includes(t))
+    const style = f.style === 'step' || f.style === 'histogram' || f.style === 'line' ? f.style : 'line'
+    out.push(result({
+      id: f.symbol,
+      kind: 'economic',
+      name: f.name,
+      shortName: f.symbol,
+      lead: f.name,
+      sub: economicSubtitle(row),
+      category: f.category || 'Economic',
+      description: [row.description, economicSubtitle(row)].filter(Boolean).join(' — '),
+      tags: ['economic', f.symbol.toLowerCase(), ...syn, ...variants],
+      metricShort: f.shortName,
+      create: { via: CREATE_VIA.DATA_SERIES, source, presentation: { plotStyle: style } },
+    }))
+  }
+  return out
+}
+
+/**
  * Which tab does one result belong to? Canonical fields only.
  *
  * ⚠️ `popular` IS NOT ANSWERED HERE, because it is not exclusive — Moving
@@ -1288,13 +1471,13 @@ export function tabOf(res) {
   if (!res) return null
   if (res.userDefined === true || res.kind === 'formula') return 'formulas'
   if (res.kind === 'breadth') return 'breadth'
+  if (res.kind === 'positioning') return 'positioning'
   if (res.kind === 'fundamental') return 'fundamentals'
-  if (res.kind === 'security') {
-    const t = String(res.category || '').toLowerCase()
-    if (t === 'etf') return 'etfs'
-    if (t === 'index') return 'indexes'
-    return 'symbols'
-  }
+  if (res.kind === 'economic') return 'economic'
+  // ⭐ EVERY SECURITY — stock, ETF or index — IS A SYMBOL (owner, 2026-09-30). The
+  // server's classification still rides on the row as its `category`, which is what
+  // the list's headings and chips print; it no longer picks a tab.
+  if (res.kind === 'security') return 'symbols'
   // ⚰️⚰️ THE LAST BRANCH IS A DEFAULT, NOT `kind === 'technical'`, AND THE
   // DIFFERENCE EMPTIED THE LIBRARY ONCE. `kind` is stamped by `libraryRows`, and
   // the Indicators tab does NOT go through it — it assembles `BUILT_IN_ROWS`,
@@ -1340,6 +1523,8 @@ export const GLYPH_FAMILIES = Object.freeze({
   security: 'ind-security',
   formula: 'ind-formula',
   series: 'ind-series',
+  // ⚠️ REUSES the series mark (no new icon in the entry chunk's UIcon table).
+  economic: 'ind-series',
 })
 
 /**
@@ -1382,7 +1567,11 @@ export function glyphFamilyOf(res) {
   if (ownKey(FAMILY_BY_ID, res.id)) return FAMILY_BY_ID[res.id]
   const tab = tabOf(res)
   if (tab === 'breadth') return 'breadth'
+  // ⭐ THE MARK MACD WEARS — "a histogram about zero" — which is exactly what a COT
+  // net position draws.
+  if (tab === 'positioning') return 'momentum'
   if (tab === 'fundamentals') return 'fundamental'
+  if (tab === 'economic') return 'economic'
   if (tab === 'formulas') return 'formula'
   if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
   const cat = String(res.category || '').toLowerCase()
@@ -1441,7 +1630,9 @@ export const BREADTH_CATEGORY = 'Breadth'
  */
 export function symbolLibraryRow(res) {
   if (!res) return null
-  const isBreadth = res.kind === 'breadth'
+  // ⭐ A POSITIONING DATASET READS LIKE A BREADTH MEASURE: its NAME is the headline
+  // ("Nasdaq-100 E-Mini COT"), never its address (`COT:NQ`).
+  const isBreadth = res.kind === 'breadth' || res.kind === 'positioning'
   const long = (res.name && res.name !== res.id) ? res.name : ''
   return {
     id: res.id,
@@ -1453,8 +1644,10 @@ export function symbolLibraryRow(res) {
     // reading order this phase exists to reverse.
     name: isBreadth ? (res.name || res.id) : res.id,
     // The server's own classification, upper-cased for the chip; breadth says so.
-    shortName: isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
-    category: isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
+    shortName: res.kind === 'positioning' ? (res.shortName || 'COT')
+      : isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
+    category: res.kind === 'positioning' ? (res.category || 'Positioning')
+      : isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
     // The universe qualifies, and the address stays available without dominating.
     description: isBreadth ? [res.shortName, res.id].filter(Boolean)
       .filter((v, i, a) => a.indexOf(v) === i).join(' · ') : long,
@@ -1472,6 +1665,9 @@ export function symbolLibraryRow(res) {
 
 /**
  * MARKET INDICATOR ROWS → discovery results, through the shapers that already exist.
+ *
+ * ⚠️ ONE EXCEPTION SINCE 2026-09-30: a product whose family is `positioning` (the COT
+ * datasets) is `kind: 'positioning'` and has its own tab — see `productKindOf`.
  *
  * ⭐⭐ NO NEW TAB, NO NEW RESULT KIND, NO NEW CREATE DOOR. The Indicators panel's
  * five-tab strip is an accepted model with a fixed shell width — eight tabs needed

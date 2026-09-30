@@ -67,10 +67,11 @@ import {
 import {
   hiddenLibraryIds, libraryRowFor, symbolLibraryRow, createFromResult,
   SYMBOL_CATEGORY, BREADTH_CATEGORY, CAPABILITY,
-  securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, LIBRARY_TABS, FUNDAMENTALS_STATUS,
-  glyphNameOf, glyphFamilyOf, fundamentalResults,
+  securityResults, breadthResults, marketIndicatorResults, resultsForTab, liveDiscoveryRows, FUNDAMENTALS_STATUS,
+  glyphNameOf, glyphFamilyOf, fundamentalResults, economicResults, libraryTabsFor,
 } from './discoveryCatalog'
 import useFundamentalsCatalog from './engine/useFundamentalsCatalog'
+import useEconomicCatalog from './engine/useEconomicCatalog'
 import UIcon from '../ui/UIcon'
 // ⛔ NOT A SECOND SEARCH. `useSymbolDiscovery` is the SAME hook `SourceField`'s
 // picker uses — same two endpoints, same debounce, same abort discipline, same
@@ -460,6 +461,21 @@ export default function ChartSettingsIndicators({
   // moves a scrollTop by the number of pixels the DOM grew above the anchor, and
   // nothing else.
   const addBodyRef = useRef(null)
+  // ⭐ THE CATEGORY STRIP SAYS WHETHER IT OVERFLOWS. The five categories fill the
+  // desktop column almost to its edge, so the right-hand "more this way" fade is
+  // drawn only when a narrower panel really makes the strip scroll. A DOM
+  // attribute, not state: it restyles one element and must not re-render the panel.
+  const tabsObserver = useRef(null)
+  const tabsRef = useCallback((el) => {
+    if (tabsObserver.current) { tabsObserver.current.disconnect(); tabsObserver.current = null }
+    if (!el) return
+    const check = () => { el.dataset.overflowing = el.scrollWidth > el.clientWidth + 1 ? 'true' : 'false' }
+    check()
+    if (typeof ResizeObserver === 'function') {
+      tabsObserver.current = new ResizeObserver(check)
+      tabsObserver.current.observe(el)
+    }
+  }, [])
   /** The row the member is looking at, and where it sat, as of the last paint. */
   const anchorRef = useRef(null)
   /** The query the anchor belongs to — see `sameQuery` in the effect. */
@@ -852,6 +868,12 @@ export default function ChartSettingsIndicators({
   // session and only while discovery is on screen.
   const fundCat = useFundamentalsCatalog(discovering)
   const fundAvailable = fundCat.status === 'available'
+  // ⭐ THE FOURTH CATALOGUE: economic series (`econ:<SYMBOL>`). ⛔ DARK BY
+  // CONSTRUCTION — `available` only when `/api/econ/catalog` answered 200 for this
+  // member; otherwise no tab, no rows, and `libraryTabs` is `LIBRARY_TABS` itself.
+  const econCat = useEconomicCatalog(discovering)
+  const econAvailable = econCat.available
+  const libraryTabs = libraryTabsFor({ economic: econAvailable })
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -897,8 +919,11 @@ export default function ChartSettingsIndicators({
     // ⭐ FUNDAMENTALS BROWSE THROUGH THE SAME DOOR — their rows are results with a
     // `create` descriptor, so click-to-add, search and grouping need nothing new.
     const fnd = fundAvailable ? fundamentalResults(fundCat.list) : []
-    return [...secs, ...idx, ...brd, ...mkt, ...fnd]
-  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list])
+    // ⭐ ECONOMIC SERIES, same door (browse AND search: `liveDiscoveryRows` matches
+    // browsed rows against the query, and `resultByKey` below finds them on click).
+    const eco = econAvailable ? economicResults(econCat.list) : []
+    return [...secs, ...idx, ...brd, ...mkt, ...fnd, ...eco]
+  }, [breadthAll, marketAll.rows, fundAvailable, fundCat.list, econAvailable, econCat.list])
 
   // ⚰️⚰️ THE RESULT BEHIND EVERY DISCOVERY ROW ON SCREEN — AND **BROWSE** USED TO
   // BE MISSING FROM IT, WHICH KILLED THREE OF THE FIVE TABS.
@@ -2894,6 +2919,10 @@ export default function ChartSettingsIndicators({
             && row.description.trim() !== String(row.name || '').trim() && (
             <span className={styles.resSub}>{row.description}</span>
           )}
+          {/* An economic row's second half: `agency · frequency · units`. */}
+          {row.kind === 'economic' && row.sub && (
+            <span className={styles.resSub} data-testid="econ-row-sub">{row.sub}</span>
+          )}
           {/* ⚰️⚰️ THE DESCRIPTION WAS A SECOND LINE HERE AND IS NOW THE ROW'S
               TOOLTIP. It cost 34px of every row — with the padding, a result was
               80px tall and THREE of them fitted the viewport. Owner, 2026-09-17:
@@ -2952,7 +2981,7 @@ export default function ChartSettingsIndicators({
   // types `RSI`, `QQQ` or `% Above 50 EMA` and the difference underneath never
   // surfaces.
   const renderAddSurface = () => {
-    const tabLabel = (LIBRARY_TABS.find((t) => t.key === activeTab) || { label: 'anything' }).label
+    const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
     <div className={styles.insAdd} data-testid="add-surface">
       <div className={styles.insHead}>
@@ -3028,7 +3057,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, breadth or formulas…"
+            placeholder="Search indicators, symbols, positioning or formulas…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -3083,19 +3112,20 @@ export default function ChartSettingsIndicators({
           the search box. */}
       <div className={styles.insTabsWrap}>
         <div
+          ref={tabsRef}
           className={styles.insTabs}
           role="tablist"
           aria-label="Indicator categories"
           onKeyDown={(e) => {
             if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
             e.preventDefault()
-            const at = LIBRARY_TABS.findIndex((t) => t.key === activeTab)
+            const at = libraryTabs.findIndex((t) => t.key === activeTab)
             const step = e.key === 'ArrowRight' ? 1 : -1
-            const next = LIBRARY_TABS[(Math.max(at, 0) + step + LIBRARY_TABS.length) % LIBRARY_TABS.length]
+            const next = libraryTabs[(Math.max(at, 0) + step + libraryTabs.length) % libraryTabs.length]
             if (next) { setTab(next.key); setTabPinned(true) }
           }}
         >
-          {LIBRARY_TABS.map((t) => {
+          {libraryTabs.map((t) => {
             const on = t.key === activeTab
             return (
               <button
@@ -3105,7 +3135,7 @@ export default function ChartSettingsIndicators({
                 aria-selected={on}
                 /* ⚠️ WITH NOTHING SELECTED (a universal search) THE FIRST TAB IS
                    THE STOP, so the strip never drops out of the tab order. */
-                tabIndex={on || (!activeTab && t.key === LIBRARY_TABS[0].key) ? 0 : -1}
+                tabIndex={on || (!activeTab && t.key === libraryTabs[0].key) ? 0 : -1}
                 data-tab={t.key}
                 /* ⚠️ THE CHOSEN TAB SCROLLS ITSELF INTO VIEW. The strip is wider
                    than the column, so an arrow-key walk would otherwise select

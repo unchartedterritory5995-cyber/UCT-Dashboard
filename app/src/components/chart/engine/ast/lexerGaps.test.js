@@ -41,7 +41,9 @@ describe('⭐⭐ a refusal says WHERE, whichever class it came from', () => {
   it('⛔ CONTROL: a RUNTIME refusal still carries its own position', () => {
     // Without this, "read `.at` instead" passes while breaking the class that
     // was already working — the two shapes have to BOTH survive.
-    const r = rt('while close > 0\n    a = 1\nplot(close)')
+    // ⚰️ C18 — this was a `while`, which now lowers; `for … in` still refuses
+    // under the same guard, at the same line and column.
+    const r = rt('for v in a\n    b = 1\nplot(close)')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
     expect(r.refusal.line).toBe(3)
@@ -62,10 +64,10 @@ describe('⭐ a string literal may span lines', () => {
     // refusal after it. That would trade a fix for 3 scripts against wrong
     // locations in all 266, which is far the worse defect — so the rail is on
     // the counter, not on the string.
-    const r = rt('x = "aa\nbb\ncc"\nwhile close > 0\n    a = 1\nplot(close)')
+    const r = rt('x = "aa\nbb\ncc"\nfor v in a\n    b = 1\nplot(close)')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:loop')
-    // header 2 + the 3 lines the string spans = the `while` is line 6
+    // header 2 + the 3 lines the string spans = the loop is line 6
     expect(r.refusal.line).toBe(6)
   })
 
