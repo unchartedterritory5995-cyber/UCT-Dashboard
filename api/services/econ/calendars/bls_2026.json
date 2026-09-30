@@ -1,0 +1,33 @@
+{
+  "_doc": "BLS release calendar, CONFIGURED (bls.gov schedule/ICS/RSS answer Akamai 403 to scripted clients). DATES: OMB 'Schedule of Release Dates for Principal Federal Economic Indicators for 2026' (PFEI), human-transcribed from the rendered PDF page 4 (its text layer is garbled OCR). The PFEI was NOT revised after the late-2025 shutdown and was wrong for Jan-Apr 2026, so only Jul 2026 onward is carried here, where the PFEI and the secondary calendars agree. TIMES: the PFEI states NO time for BLS rows; 08:30 / 10:00 ET are CONFIGURED from agency practice (precision time_configured, never exact). JOLTS is NOT a PFEI indicator: its dates are CONFIGURED from a secondary (republisher) calendar and carry lower confidence. Each row is [release_date_ET, period_label]. Operator procedure: docs/economic-data/RELEASE-SYSTEM.md 'BLS annual import'. After coverage.end every bls:* series reports NO_EXPECTATION until the next year's file is imported.",
+  "id": "bls_2026",
+  "coverage": {"start": "2026-07-01", "end": "2026-12-31"},
+  "imported_at": "2026-09-28",
+  "citations": {
+    "pfei": "OMB PFEI 2026, https://statspolicy.gov/assets/fcsm/files/docs/OMB_pfei_schedule_release_dates_cy2026.pdf (sha256 5d2c16011a816bc527f628c1e20ff781ed309ed5de55c262ba7ba5bb7718c734, PDF ModDate 2025-09-26, server Last-Modified 2026-09-17), page 4 BUREAU OF LABOR STATISTICS; Jul-Dec 2026 rows cross-checked against secondary calendars (agree)",
+    "time_0830": "time: CONFIGURED agency practice 08:30 ET (not stated in the PFEI; the NY Fed national economic calendar lists these releases at 08:30 ET; BLS's own time statement is on bls.gov, unreachable to scripts)",
+    "time_1000": "time: CONFIGURED agency practice 10:00 ET (JOLTS; secondary calendars list 10:00 ET)",
+    "jolts": "date: JOLTS is NOT in the PFEI. Dates CONFIGURED from a secondary republisher's 2026 JOLTS release-calendar page (fetched 2026-09-28; no October 2026 release is scheduled). LOWER CONFIDENCE: re-verify each date from BLS when reachable"
+  },
+  "calendars": {
+    "bls:empsit": {"source": "configured", "precision": "time_configured", "time_et": "08:30",
+                   "date_cite": "pfei", "time_cite": "time_0830",
+                   "events": [["2026-07-02", "2026-06"], ["2026-08-07", "2026-07"], ["2026-09-04", "2026-08"],
+                              ["2026-10-02", "2026-09"], ["2026-11-06", "2026-10"], ["2026-12-04", "2026-11"]]},
+    "bls:cpi": {"source": "configured", "precision": "time_configured", "time_et": "08:30",
+                "date_cite": "pfei", "time_cite": "time_0830",
+                "events": [["2026-07-14", "2026-06"], ["2026-08-12", "2026-07"], ["2026-09-11", "2026-08"],
+                           ["2026-10-14", "2026-09"], ["2026-11-10", "2026-10"], ["2026-12-10", "2026-11"]]},
+    "bls:ppi": {"source": "configured", "precision": "time_configured", "time_et": "08:30",
+                "date_cite": "pfei", "time_cite": "time_0830",
+                "events": [["2026-07-15", "2026-06"], ["2026-08-13", "2026-07"], ["2026-09-10", "2026-08"],
+                           ["2026-10-15", "2026-09"], ["2026-11-13", "2026-10"], ["2026-12-15", "2026-11"]]},
+    "bls:eci": {"source": "configured", "precision": "time_configured", "time_et": "08:30",
+                "date_cite": "pfei", "time_cite": "time_0830",
+                "events": [["2026-07-31", "2026Q2"], ["2026-10-30", "2026Q3"]]},
+    "bls:jolts": {"source": "configured", "precision": "time_configured", "time_et": "10:00",
+                  "date_cite": "jolts", "time_cite": "time_1000",
+                  "events": [["2026-08-04", "2026-06"], ["2026-09-01", "2026-07"], ["2026-09-29", "2026-08"],
+                             ["2026-11-03", "2026-09"], ["2026-12-01", "2026-10"]]}
+  }
+}

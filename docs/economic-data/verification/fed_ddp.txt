@@ -1,0 +1,39 @@
+# Fed Board (fed_ddp) live verification  2026-09-29T02:06Z
+# registry overlay applied: USM2.source.params.dataset, USM2.source.provider_series_id, USINDPRO.source.provider_series_id, UST2Y.source.params.package, UST10Y.source.params.package, USFEDBAL.source.params.package, USM2.source.params.package, USINDPRO.source.params.package, USINDPRO.source.params.layout
+
+## 1. history via transport=release_xml (release-page SDMX zips)
+symbol    provider id                         count   NA oldest     newest       newest value  units(registry) | provider unit/mult/currency
+-- H15: 4,283,355 B  ETag="c3b41417864fdd1:0"  Last-Modified=Mon, 28 Sep 2026 20:15:22 GMT  (file posting time; NOT publication)
+UST2Y     H15/RIFLGFCY02_N.B                  13129  552 1976-06-01 2026-09-25         4.8100  Percent | Percent:_Per_Year/1/NA  (period 2026-09-25..2026-09-25)
+UST10Y    H15/RIFLGFCY10_N.B                  16889  720 1962-01-02 2026-09-25         5.1700  Percent | Percent:_Per_Year/1/NA  (period 2026-09-25..2026-09-25)
+-- H41: 9,061,418 B  ETag="4b79157b634cdd1:0"  Last-Modified=Thu, 24 Sep 2026 20:30:04 GMT  (file posting time; NOT publication)
+USFEDBAL  H41/RESPPMA_N.WW                     1241    0 2002-12-12 2026-09-17 6,747,704.0000  Millions USD | Currency/1000000/USD  (period 2026-09-17..2026-09-23)
+-- H6: 1,419,255 B  ETag="80fde03cef4add1:0"  Last-Modified=Wed, 23 Sep 2026 00:05:27 GMT  (file posting time; NOT publication)
+USM2      H6_M2/M2.M                            812    0 1959-01-01 2026-08-01    23,342.8000  Billions USD | Currency/1e+09/USD  (period 2026-08-01..2026-08-31)
+-- G17: 8,588,946 B  ETag="8027a1eed4add1:0"  Last-Modified=Tue, 22 Sep 2026 23:50:17 GMT  (file posting time; NOT publication)
+USINDPRO  IP_MARKET_GROUPS/IP.B50001.S         1292    0 1919-01-01 2026-08-01       103.0682  Index 2017=100 | Index:_2017_100/1/NA  (period 2026-08-01..2026-08-31)
+
+## 2. cross-check: transport=ddp_package (preformatted DDP CSV, lastobs)
+UST2Y     pkg bf17364827e38702b42a58cf8eaa3f78  newest 2026-09-25 4.8100  vs release_xml -> AGREE
+UST10Y    pkg bf17364827e38702b42a58cf8eaa3f78  newest 2026-09-25 5.1700  vs release_xml -> AGREE
+USFEDBAL  pkg ccfdc0c8cb86be87af324da79a6f8826  newest 2026-09-17 6,747,704.0000  vs release_xml -> AGREE
+USM2      pkg 798e2796917702a5f8423426ba7e6b42  newest 2026-08-01 23,342.8000  vs release_xml -> AGREE
+USINDPRO  pkg 809009461b1cba2fd5b4cf5557d9d663  newest 2026-08-01 103.0682  vs release_xml -> AGREE
+
+## 3. Phase 0 proofs.md comparison
+UST10Y    phase0 2026-09-25 5.1700  live 2026-09-25 5.17  -> MATCH
+USFEDBAL  phase0 2026-09-17 6,747,704.0000  live 2026-09-17 6747704.0  -> MATCH
+USM2      phase0 2026-08-01 23,342.8000  live 2026-08-01 23342.8  -> MATCH
+USINDPRO  phase0 2026-08-01 103.0682  live 2026-08-01 103.0682  -> MATCH
+
+## 4. secondary reference: Treasury daily par yield curve (home.treasury.gov CSV)
+UST2Y     H.15 2026-09-25 4.81  Treasury 2 Yr 4.81  -> MATCH   (Treasury newest row 09/28/2026: 4.92 -- H.15 lags 1 business day)
+UST10Y    H.15 2026-09-25 5.17  Treasury 10 Yr 5.17  -> MATCH   (Treasury newest row 09/28/2026: 5.24 -- H.15 lags 1 business day)
+
+## 5. RSS arrival feeds (arrivals())
+datadownload.xml items=1256 data-items= 186  newest data: 2026-09-18T13:15Z [G17] G17: G.17 Data for August 2026 are now available
+G17              items= 408 data-items= 185  newest data: 2026-09-18T13:15Z [G17] G.17 Data for August 2026 are now available
+H15              items=  79 data-items=   0  newest data: none (notices only)
+H41              items= 120 data-items=   0  newest data: none (notices only)
+
+# http stats: {'by_host': {'www.federalreserve.gov': {'200': 15}, 'home.treasury.gov': {'200': 1}}, 'total': 16}

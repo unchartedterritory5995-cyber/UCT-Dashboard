@@ -181,15 +181,15 @@ describe('⭐⭐ a user function called as a statement, for its effect', () => {
     expect(r.message).toContain('array.reverse')
   })
 
-  it('⛔ a helper that reads a mutable GLOBAL still refuses that, by name', () => {
-    // ⭐ THE SECOND WALL, PINNED. Admitting the statement form did not admit
-    // global access, and the corpus scripts that write `generate_strikes()`
-    // against a global `var strikes` now land HERE. Recording it means the
-    // census row that replaced `expression-statement` is not a surprise.
+  it('⛔ a helper that reads a global\'s HISTORY still refuses that, by name', () => {
+    // ⚰️ THE SECOND WALL MOVED. This pinned `array.push(a, x)` on a global
+    // array refusing; C11 admitted global READS, and max-pain's exact
+    // `generate_strikes()` shape now runs (functionGlobalReads.test.js). A
+    // global's PAST inside a function has not been measured, so it stays here.
     const r = refusalOf(
-      'var a = array.new_float(0)\n'
-      + 'bump(x) =>\n    array.push(a, x)\n    array.size(a)\n'
-      + `bump(${ARG})\nplot(array.size(a))\n`)
+      'var a = 0.0\na := a + 1\n'
+      + 'bump(x) =>\n    y = x + a[1]\n    y\n'
+      + `bump(${ARG})\nplot(a)\n`)
     expect(r.guard).toBe('runtime:function-global-state')
   })
 })

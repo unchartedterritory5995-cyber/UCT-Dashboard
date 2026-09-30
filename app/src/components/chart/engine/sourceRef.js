@@ -2,6 +2,7 @@ import { SOURCE_BAR_FIELDS } from './defSchema'
 import { bindingKey } from './pool'
 import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
+import { ECON_MARK, parseEconomicSource } from './economicGrammar'
 import { catalogMetric } from './fundamentalSeries'
 
 function fundamentalOptionLabel(p) {
@@ -217,6 +218,11 @@ export function parseSource(value) {
     // a fall-through to Close. It resolves AS-OF in the binder; `sym:` keeps its
     // exact-t rule untouched.
     if (value.startsWith(FUND_MARK)) return parseFundamentalSource(value)
+    // ⭐ THE FIFTH FAMILY: an ECONOMIC observation series (`economicGrammar.js`),
+    // symbol-less -- `{kind:'economic', symbol}`, a kind no bars/fundamental/
+    // breadth reader matches, so it can never be fetched as a ticker. Malformed
+    // (`econ:`, `econ:AAPL:close`) is `null`, never Close.
+    if (value.startsWith(ECON_MARK)) return parseEconomicSource(value)
     return SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null
   }
   const body = value.slice(1)
@@ -577,6 +583,9 @@ export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
   }
   // Same rule for a fundamental: the stored value must be representable, or the
   // select would blank it and the next change would overwrite it.
+  if (cur && cur.kind === 'economic') {
+    groups.push({ label: 'Economic', options: [{ value: currentValue, label: cur.symbol }] })
+  }
   if (cur && cur.kind === 'fundamental') {
     groups.push({
       label: 'Fundamental',
@@ -649,6 +658,7 @@ function sourceStem(def, instance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null
   const parsed = parseSource(sources[0][1])
+  if (parsed && parsed.kind === 'economic') return parsed.symbol
   return parsed && parsed.kind === 'symbol' ? parsed.symbol : null
 }
 

@@ -9,6 +9,7 @@ import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import ChartDateNav from './ChartDateNav'
+import AdjustmentLabel from '../../../components/chart/AdjustmentLabel'
 import ChartDetailDock, { ChartEarningsButton, ChartPanelsButton } from './ChartDetailDock'
 import { normalizeDock } from './chartDock'
 import styles from '../ChartsWorkspace.module.css'
@@ -619,6 +620,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           tfBarAfterTf: <ChartDateNav paneRef={paneRef} themeVars={menuVars} />,
           tfBarRight: (
             <>
+              {/* TERM-055: says when prices are split-adjusted (splits only; renders nothing
+                  unless the adjustment-basis endpoint knows a split was applied). */}
+              {!isThemeIndex && <AdjustmentLabel sym={sym} tf={tf} className={styles.adjustmentLabel} />}
               {!isThemeIndex && (
                 <LeverageInverseControl
                   sym={sym}

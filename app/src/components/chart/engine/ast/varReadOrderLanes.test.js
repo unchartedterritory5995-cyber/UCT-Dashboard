@@ -219,18 +219,28 @@ describe('⭐⭐ a `var` read by position — columnar lane vs runtime lane, RDD
     expect(runtime(COUPLED).length).toBe(2)
   })
 
-  it('⛔ a read under a window call inside its own update refuses at TRANSLATION, routed', () => {
-    // ⚰️ It used to translate and then refuse at EVALUATION (`interpret:recurrence`),
+  it('⭐ crossover of a `var` inside its own update (the reset-after-break idiom) agrees with the runtime lane', () => {
+    // ⚰️ It translated and then refused at EVALUATION (`interpret:recurrence`),
     // which silently dropped whatever it gated — 0 structure lines on the
-    // institutional-smc capture where TradingView holds 18, with no disclosure.
-    const { t } = columnar(UNSTEPPABLE)
+    // institutional-smc capture where TradingView holds 18; then it refused at
+    // TRANSLATION, routed. C12 (2026-09-29, `Resolver.crossOfOwnState`) folds it:
+    // `crossover(x, v)`'s `v[1]` is the accumulator's own `self`.
+    const { t, cols } = columnar(UNSTEPPABLE)
+    expect(t.ok, JSON.stringify(t.refusals)).toBe(true)
+    const ref = runtime(UNSTEPPABLE)
+    expect(disagreements(cols[0], ref[0])).toBe(0)
+    // ⛔ NON-VACUITY: agreement on an empty column would prove nothing.
+    expect(marks(cols[0])).toBeGreaterThan(0)
+  })
+
+  it('⛔ a read under a WINDOW call inside its own update still refuses at TRANSLATION, routed', () => {
+    // `ta.sma(lvl, 3)` needs three bars of the accumulator's past; the step loop
+    // carries its value, not a window over it.
+    const { t } = columnar(UNSTEPPABLE.replace('ta.crossover(close, lvl)', 'close > ta.sma(lvl, 3)'))
     const r = t.outputs[0].refusal
     expect(r && r.guard).toBe('pine:state')
     expect(r.route).toBe('runtime')
-    expect(r.message).toMatch(/crossOver/)
-    // …and the lane it names runs it, with marks to draw.
-    const ref = runtime(UNSTEPPABLE)
-    expect(ref[0].filter((v) => mark(v) === 1).length).toBeGreaterThan(0)
+    expect(r.message).toMatch(/sma/)
   })
 
   it('⛔ a latch that fires only while unset refuses — the window would draw bar_index - 249', () => {

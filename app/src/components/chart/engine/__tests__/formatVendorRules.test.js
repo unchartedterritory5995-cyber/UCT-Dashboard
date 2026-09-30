@@ -113,11 +113,14 @@ describe('⭐ what this engine can and cannot express, measured on the product p
     expect(cell('str.tostring(close, "0.00")')).toBe('OK')
   })
 
-  it('⛔ `str.format` IS NOT — and its refusal is pinned by name', () => {
-    // 100 uses in 20 corpus scripts. The vendor's answer for the same call is
-    // already captured (F12), so this becomes an ordinary parity assertion the
-    // day the refusal stops firing.
-    expect(cell('str.format("{0,number,#.##}", close)')).toContain('pine:builtin')
+  it('⭐ `str.format` IS SERVED for the patterns a capture pins — and refused by name for the rest', () => {
+    // 100 uses in 20 corpus scripts. ⚰️ This asserted the `pine:builtin` refusal
+    // until C15 (objects-triage step 13); the parity assertion it promised now
+    // lives in `strFormat.vendor.test.js` — F12's length on all 300 rows, and
+    // liquidation-levels' ten labels character for character.
+    expect(cell('str.format("{0,number,#.##}", close)')).toBe('OK')
     expect(FIX.last_bar.F12_len_str_format).toBe(5)
+    // ⛔ a pattern no capture shows draws nothing rather than a guess
+    expect(cell('str.format("{0,number,percent}", close)')).not.toBe('OK')
   })
 })

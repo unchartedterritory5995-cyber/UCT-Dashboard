@@ -16,16 +16,14 @@
   "version": 5,
   "translates": true,
   "outputs": 10,
-  "usable": 2,
+  "usable": 6,
   "selectedFormula": "accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) != accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250)[1] && accum(0 / 0, open > close && low < lowest(low, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? 1 : open < close && high > highest(high, 30)[1] && abs(close - open) / (high - low) > 0.66 && high - low >= atrPine(high, low, close, 14) ? -1 : self, 250) == 1",
   "downstream": {
    "ok": true,
    "guard": null,
    "repaint": "non-repainting"
   },
-  "perOutputRefusals": {
-   "pine:state": 4
-  },
+  "perOutputRefusals": {},
   "hiddenScaffolding": 4
  },
  "03-rsi-directional-momentum-scanner.pine": {

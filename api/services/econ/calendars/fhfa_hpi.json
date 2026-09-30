@@ -1,0 +1,20 @@
+{
+  "_doc": "FHFA House Price Index release dates, transcribed from https://www.fhfa.gov/data/hpi#ReleaseDates (Date / Release Type / Last Included Data; 2026 and 2027 listed). The page states dates only; the TIME is stated by FHFA in its HPI report PDFs ('Public FHFA HPI releases occur at 9AM ET'), so date and time are both agency-stated (precision exact). Period label = the last included MONTH (quarterly releases also carry the monthly tables).",
+  "id": "fhfa_hpi",
+  "coverage": {"start": "2026-07-01", "end": "2027-12-31"},
+  "imported_at": "2026-09-28",
+  "citations": {
+    "fhfa": "https://www.fhfa.gov/data/hpi (fetched 2026-09-28), 'HPI Release Dates' tables for 2026 and 2027",
+    "fhfa_time": "time: FHFA HPI 2026Q2 report states 'Public FHFA HPI releases occur at 9AM ET'"
+  },
+  "calendars": {
+    "fhfa:hpi_monthly": {"source": "configured", "precision": "exact", "time_et": "09:00",
+                         "date_cite": "fhfa", "time_cite": "fhfa_time",
+                         "events": [["2026-09-29", "2026-07"], ["2026-10-27", "2026-08"],
+                                    ["2026-11-24", "2026-09"], ["2026-12-29", "2026-10"],
+                                    ["2027-01-26", "2026-11"], ["2027-02-23", "2026-12"], ["2027-03-30", "2027-01"],
+                                    ["2027-04-27", "2027-02"], ["2027-05-25", "2027-03"], ["2027-06-29", "2027-04"],
+                                    ["2027-07-27", "2027-05"], ["2027-08-31", "2027-06"], ["2027-09-28", "2027-07"],
+                                    ["2027-10-26", "2027-08"], ["2027-11-30", "2027-09"], ["2027-12-28", "2027-10"]]}
+  }
+}

@@ -58,6 +58,8 @@
 // that must outlive its bar has to be stored in a register, which is exactly
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
+import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
 
@@ -320,6 +322,15 @@ function assertTextNode(v, where, depth = 0) {
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
       }
+      // ⭐ `form: 'message'` — the number as `str.format`'s `{N}` draws it
+      // (`pineTextFormat.js`). ⛔ Its pattern is one of the pinned ones or the
+      // document is refused: the runtime has no rendering for any other.
+      if (v.form !== undefined) {
+        if (v.form !== 'message') throw new Error(`${where}: unknown number form ${JSON.stringify(v.form)}`)
+        if (v.fmt !== undefined && !Object.hasOwn(MESSAGE_NUMBER_PATTERNS, v.fmt)) {
+          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture pins`)
+        }
+      }
       return
     // ⭐⭐ A TREE WHOSE VALUE IS ALREADY TEXT, which `num` cannot express.
     //
@@ -331,6 +342,13 @@ function assertTextNode(v, where, depth = 0) {
     case 'str':
       if (!Number.isInteger(v.tree) && !Number.isInteger(v.node)) {
         throw new Error(`${where}: a text value must reference a tree or a graph node`)
+      }
+      return
+    // ⭐ A SYMBOL'S TEXT (`syminfo.ticker` …), settled per BINDING by
+    // `bindObjectProgram`'s `symbolText` — see there. Unsettled, it is withheld.
+    case 'sym':
+      if (typeof v.name !== 'string' || !/^syminfo\.[a-z]+$/.test(v.name)) {
+        throw new Error(`${where}: a symbol text must name a syminfo field`)
       }
       return
     case 'cat':
@@ -899,9 +917,17 @@ export function paramsReferenced(program) {
  * @param {object} program                the unbound program
  * @param {(treeIndex:number)=>number} nodeOf  tree index → graph node index
  */
-export function bindObjectProgram(program, nodeOf) {
+export function bindObjectProgram(program, nodeOf, symbolText = null) {
   const bindText = (t) => {
     if (!isObj(t)) return t
+    // ⭐⭐ C15 — `{t:'sym'}` SETTLES HERE, per binding, when the caller hands the
+    // binding's text constants (`objectReaderFor`: the same map the bind-time
+    // fold reads). ⛔ A field the map does not hold as TEXT stays a `sym` node,
+    // which the runtime withholds — never a guessed spelling.
+    if (t.t === 'sym') {
+      const s = symbolText && Object.prototype.hasOwnProperty.call(symbolText, t.name) ? symbolText[t.name] : undefined
+      return typeof s === 'string' ? { t: 'lit', s } : t
+    }
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }
