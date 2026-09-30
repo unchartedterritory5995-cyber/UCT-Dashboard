@@ -593,10 +593,22 @@ def judge(reading: dict) -> dict:
                                 "by": r["occ"].get("cls"), "at": [], "verdict": c.get("verdict"),
                                 "reachedBy": c.get("reachedBy"), "clearAt": c.get("clearAt"),
                                 "plant": c.get("plant") or None})["at"].insert(0, {"rest": True, "box": r.get("box")})
+    # D23 evidence (controller, owner-delegated 2026-09-30): whether the occluder recorded for
+    # THIS lead's "by" class is the control's OWN hub instance -- read from the control's own
+    # occ reading, never assumed from the class name alone ("hub" also covers a genuinely
+    # different hub overlapping something that is not its own knob/pad). `best` is favoured
+    # (it is what a CONFIRMED verdict is actually decided from); `rest` is the fallback for a
+    # lead whose class never became `best`. The judge only EXPOSES this fact; summarize() is
+    # where it is turned into a status.
+    ctrl_by_key = {(c.get("key"), c.get("nth")): c for c in ctrls}
     for v in seen.values():
         v["status"] = ("CLEARED" if v["verdict"] in ("reachable", "clear") else
                        "CONFIRMED" if (v["verdict"] or "").startswith("CONFIRMED") else v["verdict"])
         v["at"] = v["at"][:4]
+        c = ctrl_by_key.get((v["key"], v["nth"])) or {}
+        v["sameHub"] = any((c.get(slot) or {}).get("occ", {}).get("cls") == v["by"]
+                            and (c.get(slot) or {}).get("occ", {}).get("sameHub")
+                            for slot in ("best", "rest"))
         leads.append(v)
     return {"findings": findings, "leads": leads, "info": {**info, "under44_nofloor_n": len(info["under44_nofloor"]),
                                                             "under44_nofloor": info["under44_nofloor"][:40]}}
@@ -683,6 +695,20 @@ def self_check() -> int:
     rows.append(("inert floor fires at 390", any(f["kind"] == "floor-inert" for f in judge({**base, "controls": [inert]})["findings"])))
     rows.append(("inert floor NOT judged at 1200", not judge({**base, "vw": 1200, "controls": [inert]})["findings"]))
     rows.append(("under 44 without a floor is info only", not judge({**base, "controls": [{**ok_ctrl, "w": 30, "h": 30}]})["findings"]))
+    # D23 (controller, owner-delegated 2026-09-30): the judge must EXPOSE sameHub on a CONFIRMED
+    # lead -- true for the control's own hub instance, false for a "hub"-classified occlusion by
+    # something else -- so summarize() has real evidence to reclassify on, not a guess from "by".
+    hub_occ = lambda same: {"cls": "hub", "hit": "div._pad_x", "sameHub": same}  # noqa: E731
+    same_ctrl = {**ok_ctrl, "verdict": "CONFIRMED-OCCLUDED", "rest": {"occluded": True, "occ": hub_occ(True)},
+                 "best": {"occ": hub_occ(True), "box": [0, 0, 1, 1]}}
+    diff_ctrl = {**ok_ctrl, "verdict": "CONFIRMED-OCCLUDED", "rest": {"occluded": True, "occ": hub_occ(False)},
+                 "best": {"occ": hub_occ(False), "box": [0, 0, 1, 1]}}
+    j_same = judge({**base, "controls": [same_ctrl]})
+    j_diff = judge({**base, "controls": [diff_ctrl]})
+    rows.append(("D23: a control under its own hub instance reads sameHub True",
+                len(j_same["leads"]) == 1 and j_same["leads"][0]["status"] == "CONFIRMED" and j_same["leads"][0]["sameHub"] is True))
+    rows.append(("D23: the SAME class 'hub', a DIFFERENT element, reads sameHub False (not a blanket exemption)",
+                len(j_diff["leads"]) == 1 and j_diff["leads"][0]["status"] == "CONFIRMED" and j_diff["leads"][0]["sameHub"] is False))
     bad = [n for n, ok in rows if not ok]
     for n, ok in rows:
         print(("PASS " if ok else "FAIL ") + n)
@@ -929,8 +955,21 @@ def summarize(rows: list[dict]) -> dict:
     for r in rows:
         for l in (r.get("judged") or {}).get("leads", []):
             if l["by"] in NAMED:
-                leads.append({"pass": r["pass"], "width": r["width"], "surface": r["surface"], "control": l["control"],
-                              "by": l["by"], "status": l["status"], "reachedBy": l.get("reachedBy")})
+                entry = {"pass": r["pass"], "width": r["width"], "surface": r["surface"], "control": l["control"],
+                        "by": l["by"], "status": l["status"], "reachedBy": l.get("reachedBy")}
+                # D23 (controller, owner-delegated 2026-09-30): an occlusion whose occluder is the
+                # control's OWN component's designed hit surface -- the judge's `sameHub: True`,
+                # e.g. the hub knob under its own pad, which is the knob's documented touch
+                # target -- is not a layout regression for standard 6's "no layout regressions".
+                # It is reported in its own status, SAME-COMPONENT, never dropped and never
+                # counted as CONFIRMED, with the ruling recorded on the row. Scoped to sameHub
+                # ONLY and to an already-CONFIRMED lead: an occlusion by any OTHER element, or a
+                # lead that was never CONFIRMED to begin with, is untouched -- the control below
+                # (`by == "hub"` with `sameHub: False`) proves this is not a blanket "hub" exemption.
+                if entry["status"] == "CONFIRMED" and l.get("sameHub"):
+                    entry["status"] = "SAME-COMPONENT"
+                    entry["ruling"] = "D23"
+                leads.append(entry)
     return {"controls_valid": valid, "control_rows": [{k: r.get(k) for k in ("pass", "width", "surface", "valid", "why", "got")} for r in ctl],
             "errors": [{k: r.get(k) for k in ("pass", "width", "surface", "error")} for r in rows if r.get("error")],
             "findings": table, "named_leads": leads,
