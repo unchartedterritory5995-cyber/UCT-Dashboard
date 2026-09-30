@@ -1,0 +1,124 @@
+{
+  "walk": "notebook-drc",
+  "tip": "473e77955",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\drc-data",
+  "port": 8231,
+  "started_at": "2026-09-29T21:32:08-0500",
+  "setup_error": null,
+  "rows": [
+    {
+      "width": 390,
+      "builtin_card_count": 25,
+      "family_groups": [
+        "Your templates"
+      ],
+      "D1_gallery_opens_and_breadth": true,
+      "D2_search_narrows": true,
+      "search_result_keys": [
+        "mistake-log"
+      ],
+      "D3_category_narrows": true,
+      "category_result_keys": [
+        "mistake-log",
+        "lessons-learned",
+        "goals",
+        "drawdown-recovery-plan",
+        "tilt-log"
+      ],
+      "D4_preview_read_only_render": true,
+      "D5_use_creates_note_with_body": true,
+      "created_note_url": "http://127.0.0.1:8231/journal/notebook?note=0360117fe36e4c9dbec705002e07dd62",
+      "pass": true
+    },
+    {
+      "width": 820,
+      "builtin_card_count": 25,
+      "family_groups": [
+        "Your templates"
+      ],
+      "D1_gallery_opens_and_breadth": true,
+      "D2_search_narrows": true,
+      "search_result_keys": [
+        "mistake-log"
+      ],
+      "D3_category_narrows": true,
+      "category_result_keys": [
+        "mistake-log",
+        "lessons-learned",
+        "goals",
+        "drawdown-recovery-plan",
+        "tilt-log"
+      ],
+      "D4_preview_read_only_render": true,
+      "D5_use_creates_note_with_body": true,
+      "created_note_url": "http://127.0.0.1:8231/journal/notebook?note=6b28839306e34316a850374ed9ce7c05",
+      "pass": true
+    },
+    {
+      "width": 1200,
+      "builtin_card_count": 25,
+      "family_groups": [
+        "Your templates"
+      ],
+      "D1_gallery_opens_and_breadth": true,
+      "D2_search_narrows": true,
+      "search_result_keys": [
+        "mistake-log"
+      ],
+      "D3_category_narrows": true,
+      "category_result_keys": [
+        "mistake-log",
+        "lessons-learned",
+        "goals",
+        "drawdown-recovery-plan",
+        "tilt-log"
+      ],
+      "D4_preview_read_only_render": true,
+      "D5_use_creates_note_with_body": true,
+      "created_note_url": "http://127.0.0.1:8231/journal/notebook?note=7911c4eb6a3f46fc91bc32bf74cffd2b",
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "sandbox_integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drc\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-28-25.md",
+    "required": [
+      "pre-boot (baseline)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-09-29 21:28:37",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-09-29 21:29:35",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-09-29 21:31:28",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-09-29 21:31:38",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "sandbox_log": "docs\\notebook\\proof\\drc-473e77955\\sandbox.log"
+}

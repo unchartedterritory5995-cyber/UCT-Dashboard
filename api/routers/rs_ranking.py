@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services.rs_ranking import compute_rs_scores, get_rs_for_ticker
+from api.services.rs_ranking import cached_rankings, get_rs_for_ticker, kick_background_warm
 
 router = APIRouter()
 
@@ -37,9 +37,18 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 @router.get("/api/rs-rankings")
 def rs_rankings(_user: dict = Depends(require_paid)):
-    """Return full RS-ranked stock list (1-99 percentile, best first)."""
+    """Return full RS-ranked stock list (1-99 percentile, best first).
+
+    ⛔ CACHE ONLY. A cold cache answers 503 + Retry-After and starts ONE
+    background rebuild; the ~17 s universe compute never runs in a request
+    (it did, twice concurrently, on 2026-09-30 -- see `kick_background_warm`)."""
     try:
-        data = compute_rs_scores()
+        data = cached_rankings()
+        if not data:
+            kick_background_warm()
+            return JSONResponse(status_code=503, headers={"Retry-After": "30"},
+                                content={"status": "warming",
+                                         "error": "RS rankings are being computed; retry shortly"})
         return JSONResponse(content=data)
     except Exception as e:
         return JSONResponse(

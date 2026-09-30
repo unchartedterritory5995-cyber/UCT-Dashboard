@@ -1,0 +1,89 @@
+[run] r194213
+[seed] {"sample_status": 404, "folder": "Sample notebook", "rich_note": "58b63ba85c0b473eaba97b6133983345", "share_url": null, "publish_url": null, "share_status": 404, "publish_status": 404, "share_raw_keys": [], "publish_raw_keys": [], "pdf_note": "29fa571d7b5d490cabfac1759b49e5d9", "first_run_account": 
+[seed] 63.3s
+[VALID] census control: every planted defect failed the instrument as it must
+[CENSUS] G-160 OCR/text from images and docx: desktop=BROKEN | touch=BROKEN | keyboard=BROKEN
+
+=== census.json (G-160 only) ===
+{
+  "doors": {
+    "desktop": "desk",
+    "touch": "phone",
+    "keyboard": "desk"
+  },
+  "rows": [
+    {
+      "row": "G-160",
+      "feature": "OCR/text from images and docx",
+      "cells": {
+        "desktop": {
+          "verdict": "BROKEN",
+          "detail": "the .docx never became a document",
+          "seconds": 128.0,
+          "screenshot": "r194213-census-G-160-desktop.png"
+        },
+        "touch": {
+          "verdict": "BROKEN",
+          "detail": "the .docx never became a document",
+          "seconds": 105.9,
+          "screenshot": "r194213-census-G-160-touch.png"
+        },
+        "keyboard": {
+          "verdict": "BROKEN",
+          "detail": "the .docx never became a document",
+          "seconds": 49.7,
+          "screenshot": "r194213-census-G-160-keyboard.png"
+        }
+      }
+    }
+  ],
+  "controls": {
+    "got": {
+      "plant-no-door": "NO-DOOR",
+      "plant-broken-door": "BROKEN"
+    },
+    "ok": true,
+    "why": "every planted defect failed the instrument as it must",
+    "rows": [
+      {
+        "door": "desktop",
+        "no_door": {
+          "verdict": "NO-DOOR",
+          "detail": "no such control on this page (waited 6000 ms)",
+          "seconds": 9.7
+        },
+        "broken": {
+          "verdict": "BROKEN",
+          "detail": "the planted door opened nothing",
+          "seconds": 7.3
+        }
+      },
+      {
+        "door": "touch",
+        "no_door": {
+          "verdict": "NO-DOOR",
+          "detail": "no such control on this page (waited 6000 ms)",
+          "seconds": 10.6
+        },
+        "broken": {
+          "verdict": "BROKEN",
+          "detail": "the planted door opened nothing",
+          "seconds": 7.0
+        }
+      },
+      {
+        "door": "keyboard",
+        "no_door": {
+          "verdict": "NO-DOOR",
+          "detail": "no such control on this page (waited 6000 ms)",
+          "seconds": 11.2
+        },
+        "broken": {
+          "verdict": "BROKEN",
+          "detail": "the planted door opened nothing",
+          "seconds": 28.1
+        }
+      }
+    ]
+  }
+}

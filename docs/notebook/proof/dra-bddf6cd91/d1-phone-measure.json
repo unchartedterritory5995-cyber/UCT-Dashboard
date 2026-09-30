@@ -1,0 +1,972 @@
+{
+ "tip": "bddf6cd91adedfbd283ed0d9093e37a319c00e65",
+ "instrument": "d2_phone_measure.py",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\dra-data\\d1",
+ "port": 8241,
+ "started": "2026-09-29T21:02:51-0500",
+ "rows": [
+  {
+   "viewport": "390x844",
+   "is_mobile": true,
+   "list": {
+    "kind": "list",
+    "path": "/journal/notebook?view=all",
+    "vw": 390,
+    "vh": 844,
+    "main_scrollTop": 0,
+    "topbar": {
+     "top": 0,
+     "bottom": 48,
+     "height": 48,
+     "left": 0,
+     "right": 390
+    },
+    "journal_header": {
+     "top": 48,
+     "bottom": 109,
+     "height": 61,
+     "left": 0,
+     "right": 385
+    },
+    "journal_title": null,
+    "journal_actions": {
+     "top": 56,
+     "bottom": 100,
+     "height": 44,
+     "left": 20,
+     "right": 270
+    },
+    "section_strip": {
+     "top": 125,
+     "bottom": 179,
+     "height": 54,
+     "left": 16,
+     "right": 369
+    },
+    "section_rail": null,
+    "strip_items": [
+     {
+      "label": "Today",
+      "left": 16,
+      "right": 62,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Trades",
+      "left": 62,
+      "right": 113,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Calendar",
+      "left": 113,
+      "right": 177,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Notebook",
+      "left": 177,
+      "right": 246,
+      "top": 125,
+      "on_screen": true,
+      "active": true
+     },
+     {
+      "label": "Insights",
+      "left": 246,
+      "right": 303,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Compass",
+      "left": 303,
+      "right": 369,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     }
+    ],
+    "rail_items": null,
+    "nb_top": 197,
+    "journal_chrome_px": 149,
+    "folder_panel": {
+     "top": 197,
+     "bottom": 584,
+     "height": 387,
+     "left": 24,
+     "right": 361
+    },
+    "folder_panel_displayed": true,
+    "first_note_row": {
+     "top": 876,
+     "bottom": 946,
+     "height": 70,
+     "left": 44,
+     "right": 341
+    },
+    "first_list_row": {
+     "top": 876,
+     "bottom": 946,
+     "height": 70,
+     "left": 44,
+     "right": 341
+    },
+    "tools_toggle": {
+     "top": 56,
+     "bottom": 100,
+     "height": 44,
+     "left": 142,
+     "right": 270
+    },
+    "tools_expanded": "false",
+    "note_title": null,
+    "note_first_body": null,
+    "note_title_on_first_screen": false,
+    "nb_first_thing": "folder panel",
+    "centre_probe": {
+     "x": 195,
+     "y": 446,
+     "region": "folder panel"
+    },
+    "phone_back": null,
+    "home_visible": false
+   },
+   "deep": {
+    "kind": "deep",
+    "path": "/journal/notebook?note=b364375aaa8645ae8e4d021d3ca04f7b",
+    "vw": 390,
+    "vh": 844,
+    "main_scrollTop": 0,
+    "topbar": {
+     "top": 0,
+     "bottom": 48,
+     "height": 48,
+     "left": 0,
+     "right": 390
+    },
+    "journal_header": {
+     "top": 48,
+     "bottom": 109,
+     "height": 61,
+     "left": 0,
+     "right": 385
+    },
+    "journal_title": null,
+    "journal_actions": {
+     "top": 56,
+     "bottom": 100,
+     "height": 44,
+     "left": 20,
+     "right": 270
+    },
+    "section_strip": {
+     "top": 125,
+     "bottom": 179,
+     "height": 54,
+     "left": 16,
+     "right": 369
+    },
+    "section_rail": null,
+    "strip_items": [
+     {
+      "label": "Today",
+      "left": 16,
+      "right": 62,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Trades",
+      "left": 62,
+      "right": 113,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Calendar",
+      "left": 113,
+      "right": 177,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Notebook",
+      "left": 177,
+      "right": 246,
+      "top": 125,
+      "on_screen": true,
+      "active": true
+     },
+     {
+      "label": "Insights",
+      "left": 246,
+      "right": 303,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Compass",
+      "left": 303,
+      "right": 369,
+      "top": 125,
+      "on_screen": true,
+      "active": false
+     }
+    ],
+    "rail_items": null,
+    "nb_top": 197,
+    "journal_chrome_px": 149,
+    "folder_panel": null,
+    "folder_panel_displayed": false,
+    "first_note_row": null,
+    "first_list_row": null,
+    "tools_toggle": {
+     "top": 56,
+     "bottom": 100,
+     "height": 44,
+     "left": 142,
+     "right": 270
+    },
+    "tools_expanded": "false",
+    "note_title": {
+     "top": 533,
+     "bottom": 567,
+     "height": 34,
+     "left": 60,
+     "right": 325
+    },
+    "note_first_body": {
+     "top": 718,
+     "bottom": 834,
+     "height": 116,
+     "left": 60,
+     "right": 325
+    },
+    "note_title_on_first_screen": true,
+    "nb_first_thing": "note title",
+    "centre_probe": {
+     "x": 195,
+     "y": 446,
+     "region": "note"
+    },
+    "phone_back": {
+     "top": 201,
+     "bottom": 245,
+     "height": 44,
+     "left": 44,
+     "right": 177
+    },
+    "home_visible": false
+   },
+   "back_from_deep_link_control": {
+    "control_present": true,
+    "path": "/journal/notebook",
+    "note_param_gone": true,
+    "list_row_visible": false,
+    "sample": {
+     "kind": "after-phone-back",
+     "path": "/journal/notebook",
+     "vw": 390,
+     "vh": 844,
+     "main_scrollTop": 0,
+     "topbar": {
+      "top": 0,
+      "bottom": 48,
+      "height": 48,
+      "left": 0,
+      "right": 390
+     },
+     "journal_header": {
+      "top": 48,
+      "bottom": 109,
+      "height": 61,
+      "left": 0,
+      "right": 385
+     },
+     "journal_title": null,
+     "journal_actions": {
+      "top": 56,
+      "bottom": 100,
+      "height": 44,
+      "left": 20,
+      "right": 270
+     },
+     "section_strip": {
+      "top": 125,
+      "bottom": 179,
+      "height": 54,
+      "left": 16,
+      "right": 369
+     },
+     "section_rail": null,
+     "strip_items": [
+      {
+       "label": "Today",
+       "left": 16,
+       "right": 62,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Trades",
+       "left": 62,
+       "right": 113,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Calendar",
+       "left": 113,
+       "right": 177,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Notebook",
+       "left": 177,
+       "right": 246,
+       "top": 125,
+       "on_screen": true,
+       "active": true
+      },
+      {
+       "label": "Insights",
+       "left": 246,
+       "right": 303,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Compass",
+       "left": 303,
+       "right": 369,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      }
+     ],
+     "rail_items": null,
+     "nb_top": 197,
+     "journal_chrome_px": 149,
+     "folder_panel": {
+      "top": 197,
+      "bottom": 690,
+      "height": 493,
+      "left": 24,
+      "right": 361
+     },
+     "folder_panel_displayed": true,
+     "first_note_row": {
+      "top": 322,
+      "bottom": 366,
+      "height": 44,
+      "left": 82,
+      "right": 349
+     },
+     "first_list_row": null,
+     "tools_toggle": {
+      "top": 56,
+      "bottom": 100,
+      "height": 44,
+      "left": 142,
+      "right": 270
+     },
+     "tools_expanded": "false",
+     "note_title": null,
+     "note_first_body": null,
+     "note_title_on_first_screen": false,
+     "nb_first_thing": "folder panel",
+     "centre_probe": {
+      "x": 195,
+      "y": 446,
+      "region": "folder panel"
+     },
+     "phone_back": null,
+     "home_visible": true
+    }
+   },
+   "back_browser_from_list": {
+    "opened_path": "/journal/notebook?note=b364375aaa8645ae8e4d021d3ca04f7b",
+    "opened_title_on_first_screen": true,
+    "path_after_back": "/journal/notebook?view=all",
+    "note_param_gone": true,
+    "list_row_visible": true,
+    "title_gone": true
+   },
+   "back_control_from_list": {
+    "control_present": true,
+    "path": "/journal/notebook?view=all",
+    "note_param_gone": true,
+    "list_row_visible": true,
+    "sample": {
+     "kind": "after-phone-back-from-list",
+     "path": "/journal/notebook?view=all",
+     "vw": 390,
+     "vh": 844,
+     "main_scrollTop": 0,
+     "topbar": {
+      "top": 0,
+      "bottom": 48,
+      "height": 48,
+      "left": 0,
+      "right": 390
+     },
+     "journal_header": {
+      "top": 48,
+      "bottom": 109,
+      "height": 61,
+      "left": 0,
+      "right": 385
+     },
+     "journal_title": null,
+     "journal_actions": {
+      "top": 56,
+      "bottom": 100,
+      "height": 44,
+      "left": 20,
+      "right": 270
+     },
+     "section_strip": {
+      "top": 125,
+      "bottom": 179,
+      "height": 54,
+      "left": 16,
+      "right": 369
+     },
+     "section_rail": null,
+     "strip_items": [
+      {
+       "label": "Today",
+       "left": 16,
+       "right": 62,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Trades",
+       "left": 62,
+       "right": 113,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Calendar",
+       "left": 113,
+       "right": 177,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Notebook",
+       "left": 177,
+       "right": 246,
+       "top": 125,
+       "on_screen": true,
+       "active": true
+      },
+      {
+       "label": "Insights",
+       "left": 246,
+       "right": 303,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      },
+      {
+       "label": "Compass",
+       "left": 303,
+       "right": 369,
+       "top": 125,
+       "on_screen": true,
+       "active": false
+      }
+     ],
+     "rail_items": null,
+     "nb_top": 197,
+     "journal_chrome_px": 149,
+     "folder_panel": {
+      "top": 197,
+      "bottom": 690,
+      "height": 493,
+      "left": 24,
+      "right": 361
+     },
+     "folder_panel_displayed": true,
+     "first_note_row": {
+      "top": 322,
+      "bottom": 366,
+      "height": 44,
+      "left": 82,
+      "right": 349
+     },
+     "first_list_row": {
+      "top": 982,
+      "bottom": 1052,
+      "height": 70,
+      "left": 44,
+      "right": 341
+     },
+     "tools_toggle": {
+      "top": 56,
+      "bottom": 100,
+      "height": 44,
+      "left": 142,
+      "right": 270
+     },
+     "tools_expanded": "false",
+     "note_title": null,
+     "note_first_body": null,
+     "note_title_on_first_screen": false,
+     "nb_first_thing": "folder panel",
+     "centre_probe": {
+      "x": 195,
+      "y": 446,
+      "region": "folder panel"
+     },
+     "phone_back": null,
+     "home_visible": false
+    }
+   },
+   "menus": {
+    "tools_toggle": {
+     "present": true,
+     "hit": {
+      "present": true,
+      "top": 56,
+      "bottom": 100,
+      "left": 142,
+      "right": 270,
+      "inside": true,
+      "in_viewport": true
+     },
+     "expanded_after_tap": "true"
+    },
+    "more_menu": {
+     "community": {
+      "present": true,
+      "top": 167,
+      "bottom": 211,
+      "left": 172,
+      "right": 358,
+      "inside": true,
+      "in_viewport": true
+     },
+     "accounts": {
+      "present": true,
+      "top": 213,
+      "bottom": 257,
+      "left": 172,
+      "right": 358,
+      "inside": true,
+      "in_viewport": true
+     }
+    },
+    "log_trade_menu": {
+     "items": [
+      {
+       "label": "Log open position",
+       "inside": true,
+       "in_viewport": true
+      },
+      {
+       "label": "Log closed trade",
+       "inside": true,
+       "in_viewport": true
+      }
+     ]
+    }
+   },
+   "page_errors": []
+  },
+  {
+   "viewport": "820x1180",
+   "is_mobile": false,
+   "list": {
+    "kind": "list",
+    "path": "/journal/notebook?view=all",
+    "vw": 820,
+    "vh": 1180,
+    "main_scrollTop": 0,
+    "topbar": {
+     "top": 0,
+     "bottom": 48,
+     "height": 48,
+     "left": 0,
+     "right": 820
+    },
+    "journal_header": {
+     "top": 48,
+     "bottom": 224,
+     "height": 176,
+     "left": 0,
+     "right": 820
+    },
+    "journal_title": {
+     "top": 60,
+     "bottom": 90,
+     "height": 30,
+     "left": 20,
+     "right": 170
+    },
+    "journal_actions": {
+     "top": 167,
+     "bottom": 211,
+     "height": 44,
+     "left": 280,
+     "right": 800
+    },
+    "section_strip": null,
+    "section_rail": {
+     "top": 106,
+     "bottom": 151,
+     "height": 44,
+     "left": 20,
+     "right": 684
+    },
+    "strip_items": null,
+    "rail_items": [
+     {
+      "label": "Today",
+      "left": 20,
+      "right": 115,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Trades",
+      "left": 117,
+      "right": 216,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Calendar",
+      "left": 218,
+      "right": 333,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Notebook",
+      "left": 335,
+      "right": 455,
+      "top": 107,
+      "on_screen": true,
+      "active": true
+     },
+     {
+      "label": "Insights",
+      "left": 457,
+      "right": 565,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Compass",
+      "left": 567,
+      "right": 684,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     }
+    ],
+    "nb_top": 240,
+    "journal_chrome_px": 192,
+    "folder_panel": {
+     "top": 240,
+     "bottom": 1136,
+     "height": 896,
+     "left": 24,
+     "right": 284
+    },
+    "folder_panel_displayed": true,
+    "first_note_row": {
+     "top": 365,
+     "bottom": 409,
+     "height": 44,
+     "left": 82,
+     "right": 272
+    },
+    "first_list_row": {
+     "top": 484,
+     "bottom": 554,
+     "height": 70,
+     "left": 310,
+     "right": 776
+    },
+    "tools_toggle": null,
+    "tools_expanded": "false",
+    "note_title": null,
+    "note_first_body": null,
+    "note_title_on_first_screen": false,
+    "nb_first_thing": "folder panel",
+    "centre_probe": {
+     "x": 410,
+     "y": 614,
+     "region": "notes list pane"
+    },
+    "phone_back": null,
+    "home_visible": false
+   },
+   "deep": {
+    "kind": "deep",
+    "path": "/journal/notebook?note=b364375aaa8645ae8e4d021d3ca04f7b",
+    "vw": 820,
+    "vh": 1180,
+    "main_scrollTop": 0,
+    "topbar": {
+     "top": 0,
+     "bottom": 48,
+     "height": 48,
+     "left": 0,
+     "right": 820
+    },
+    "journal_header": {
+     "top": 48,
+     "bottom": 224,
+     "height": 176,
+     "left": 0,
+     "right": 820
+    },
+    "journal_title": {
+     "top": 60,
+     "bottom": 90,
+     "height": 30,
+     "left": 20,
+     "right": 170
+    },
+    "journal_actions": {
+     "top": 167,
+     "bottom": 211,
+     "height": 44,
+     "left": 280,
+     "right": 800
+    },
+    "section_strip": null,
+    "section_rail": {
+     "top": 106,
+     "bottom": 151,
+     "height": 44,
+     "left": 20,
+     "right": 684
+    },
+    "strip_items": null,
+    "rail_items": [
+     {
+      "label": "Today",
+      "left": 20,
+      "right": 115,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Trades",
+      "left": 117,
+      "right": 216,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Calendar",
+      "left": 218,
+      "right": 333,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Notebook",
+      "left": 335,
+      "right": 455,
+      "top": 107,
+      "on_screen": true,
+      "active": true
+     },
+     {
+      "label": "Insights",
+      "left": 457,
+      "right": 565,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     },
+     {
+      "label": "Compass",
+      "left": 567,
+      "right": 684,
+      "top": 107,
+      "on_screen": true,
+      "active": false
+     }
+    ],
+    "nb_top": 240,
+    "journal_chrome_px": 192,
+    "folder_panel": {
+     "top": 240,
+     "bottom": 1136,
+     "height": 896,
+     "left": 24,
+     "right": 284
+    },
+    "folder_panel_displayed": true,
+    "first_note_row": {
+     "top": 365,
+     "bottom": 409,
+     "height": 44,
+     "left": 82,
+     "right": 272
+    },
+    "first_list_row": null,
+    "tools_toggle": null,
+    "tools_expanded": "false",
+    "note_title": {
+     "top": 580,
+     "bottom": 637,
+     "height": 57,
+     "left": 354,
+     "right": 727
+    },
+    "note_first_body": {
+     "top": 790,
+     "bottom": 877,
+     "height": 87,
+     "left": 354,
+     "right": 727
+    },
+    "note_title_on_first_screen": true,
+    "nb_first_thing": "folder panel",
+    "centre_probe": {
+     "x": 410,
+     "y": 614,
+     "region": "note"
+    },
+    "phone_back": null,
+    "home_visible": false
+   },
+   "back_from_deep_link_control": {
+    "control_present": false
+   },
+   "back_browser_from_list": {
+    "opened_path": "/journal/notebook?note=b364375aaa8645ae8e4d021d3ca04f7b",
+    "opened_title_on_first_screen": true,
+    "path_after_back": "/journal/notebook?view=all",
+    "note_param_gone": true,
+    "list_row_visible": true,
+    "title_gone": true
+   },
+   "back_control_from_list": {
+    "control_present": false
+   },
+   "menus": {
+    "tools_toggle": {
+     "present": false
+    },
+    "more_menu": {
+     "community": {
+      "present": true,
+      "top": 224,
+      "bottom": 268,
+      "left": 607,
+      "right": 793,
+      "inside": true,
+      "in_viewport": true
+     },
+     "accounts": {
+      "present": true,
+      "top": 270,
+      "bottom": 314,
+      "left": 607,
+      "right": 793,
+      "inside": true,
+      "in_viewport": true
+     }
+    },
+    "log_trade_menu": {
+     "items": [
+      {
+       "label": "Log open position",
+       "inside": true,
+       "in_viewport": true
+      },
+      {
+       "label": "Log closed trade",
+       "inside": true,
+       "in_viewport": true
+      }
+     ]
+    }
+   },
+   "page_errors": []
+  }
+ ],
+ "notes": {
+  "D2 alpha thesis": "b364375aaa8645ae8e4d021d3ca04f7b",
+  "D2 beta review": "53defe8f03fb4ec1b929c2fc00f6ed99",
+  "D2 gamma plan": "aa7b725b1a2c4e39a5f451a6d2983e04",
+  "D2 delta notes": "7954f0c5ca474253a19e7064a71219e0"
+ },
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-dra\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-02-54.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-dra\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-02-54.md",
+  "required": [],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 21:03:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 21:06:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 21:08:28",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 21:08:54",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ }
+}

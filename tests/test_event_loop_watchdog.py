@@ -215,3 +215,56 @@ def test_start_never_raises_without_running_loop(monkeypatch):
     # No loop passed and none running in this thread -> returns False, no raise.
     monkeypatch.setenv("WATCHDOG_OBSERVE", "1")
     assert w.start_watchdog(loop=None) is False
+
+
+# ===========================================================================
+# TERM-017 — the lag DISTRIBUTION (per-check histogram)
+# ===========================================================================
+def _serviced(lag_ms: float) -> None:
+    w._probe_ran(time.monotonic() - lag_ms / 1000.0, threading.Event())
+
+
+def test_per_process_state_is_adequate_for_a_DISTRIBUTIONAL_quantity_every_check_is_counted():
+    """Every serviced probe lands in exactly one bucket, so the histogram's total is
+    the check count -- the 69 point samples of the 2026-09-30 window become a
+    distribution over every check the pod made."""
+    for lag in (0.2, 0.2, 3.0, 40.0, 200.0, 5011.8):
+        _serviced(lag)
+    h = w.get_status()["lag_histogram"]
+    assert sum(h["counts"]) == w.get_status()["checks"] == 6
+    assert h["counts"][w._bucket_index(0.2)] == 2
+    assert h["counts"][w._bucket_index(5011.8)] == 1
+    assert len(h["counts"]) == len(h["bounds_ms"]) + 1
+
+
+def test_bucket_edges_are_inclusive_upper_bounds_and_overflow_has_its_own_bucket():
+    assert w._bucket_index(1) == 0 and w._bucket_index(1.01) == 1
+    assert w._bucket_index(30000) == len(w.LAG_BUCKETS_MS) - 1
+    assert w._bucket_index(30001) == len(w.LAG_BUCKETS_MS)
+
+
+def test_percentiles_are_bucket_upper_bounds_and_empty_is_None():
+    assert w.lag_percentiles([0] * (len(w.LAG_BUCKETS_MS) + 1)) == {
+        "p50_le_ms": None, "p90_le_ms": None, "p99_le_ms": None}
+    counts = [0] * (len(w.LAG_BUCKETS_MS) + 1)
+    counts[0] = 98            # <= 1 ms
+    counts[5] = 1             # <= 100 ms
+    counts[-1] = 1            # > 30 s
+    p = w.lag_percentiles(counts)
+    assert p["p50_le_ms"] == 1 and p["p90_le_ms"] == 1 and p["p99_le_ms"] == 100
+
+
+def test_the_histogram_never_reaches_the_kill_decision():
+    import inspect
+    assert "lag_counts" not in inspect.getsource(w.should_kill)
+
+
+def test_a_restart_starts_a_fresh_histogram(running_loop, fast_env, monkeypatch):
+    monkeypatch.setenv("WATCHDOG_OBSERVE", "1")
+    monkeypatch.delenv("WATCHDOG_ENABLED", raising=False)
+    _serviced(9999.0)
+    assert w.start_watchdog(loop=running_loop) is True
+    time.sleep(0.3)
+    h = w.get_status()["lag_histogram"]
+    assert h["counts"][w._bucket_index(9999.0)] == 0     # pre-start sample discarded
+    assert sum(h["counts"]) == w.get_status()["checks"] >= 3

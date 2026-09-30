@@ -555,24 +555,22 @@ def test_the_p95_comes_from_the_instruments_own_percentile_helper(gate):
     """Continuity: a number this runner prints must compare with one already in the
     record, which only holds if the arithmetic is the instrument's."""
     audit = gate.audit_module()
-    samples = [("mem", float(v)) for v in range(10, 110, 10)]   # 10..100
-    r = gate.timeframe_result("D", samples)
-    assert r["p95_ms"] == audit.pct_of(sorted(float(v) for v in range(10, 110, 10)),
-                                       0.95)
-    assert r["p50_ms"] == audit.pct_of(sorted(float(v) for v in range(10, 110, 10)),
-                                       0.50)
+    vals = [float(v) for v in range(10, 210, 10)]                # 10..200, n = 20
+    r = gate.timeframe_result("D", [("mem", v) for v in vals])
+    assert r["p95_ms"] == audit.pct_of(sorted(vals), 0.95)
+    assert r["p50_ms"] == audit.pct_of(sorted(vals), 0.50)
 
 
 def test_the_no_wait_population_is_warm_PLUS_stale_served(gate):
     """The population CARD 16's latency bar is computed over — everyone who did not
     wait. Folding `stale-swr` into COLD is what emptied the daily set and left the
     bar uncomputable while a cold p50/max was recorded as a p95 pass."""
-    mixed = ([("mem", 10.0)] * 5 + [("stale-swr", 20.0)] * 5
+    mixed = ([("mem", 10.0)] * 10 + [("stale-swr", 20.0)] * 10
              + [("fetch", 5000.0)] * 5)
     r = gate.timeframe_result("D", mixed)
-    assert r["nowait_n"] == 10
+    assert r["nowait_n"] == 20
     assert r["waited"] == 5
-    assert r["warm"] == 5 and r["stale_served"] == 5
+    assert r["warm"] == 10 and r["stale_served"] == 10
     assert r["p95_ms"] is not None and r["p95_ms"] < 100.0, (
         "a waited read must not enter the gate's population")
 
@@ -619,3 +617,82 @@ def test_no_network_was_needed_for_any_of_this(gate, monkeypatch):
     # ...and the one function that DOES open the door reports the refusal, not a crash.
     h = gate.read_health("http://nowhere.invalid")
     assert h["status"] is None and h["error"]
+
+
+
+# ── 2026-09-30: a p95 of two samples is their maximum ─────────────────────────
+
+def test_the_minimum_no_wait_n_is_DERIVED_from_the_quantile(gate):
+    """5% of n must be at least one sample, or the p95 is simply the max."""
+    assert gate.MIN_NOWAIT_N == 20
+    assert gate.MIN_NOWAIT_N * (1 - gate.P95_Q) >= 1 - 1e-9
+    assert (gate.MIN_NOWAIT_N - 1) * (1 - gate.P95_Q) < 1
+
+
+def test_the_2026_09_30_shape_is_INCONCLUSIVE_not_WITHIN(gate):
+    """The real reading: 2 of 40 did not wait on D, 1 of 40 on 5 -- it exited 0."""
+    d = gate.timeframe_result("D", [("stale-swr", 96.0)] * 2 + [("fetch", 900.0)] * 38)
+    i = gate.timeframe_result("5", [("sqlite", 79.0)] + [("fetch", 900.0)] * 39)
+    assert d["p95_ms"] is None and "only 2 of 40" in d["not_computable"]
+    assert i["p95_ms"] is None
+    code, _ = gate.verdict([("D", d["p95_ms"]), ("5", i["p95_ms"])])
+    assert code == gate.EXIT_INCONCLUSIVE
+
+
+def test_one_below_the_minimum_refuses_and_the_minimum_computes(gate):
+    below = gate.timeframe_result("D", [("mem", 50.0)] * (gate.MIN_NOWAIT_N - 1))
+    at = gate.timeframe_result("D", [("mem", 50.0)] * gate.MIN_NOWAIT_N)
+    assert below["p95_ms"] is None and at["p95_ms"] == 50.0
+
+
+def test_connection_setup_is_paid_OUTSIDE_the_timed_sample(gate, monkeypatch):
+    """Measured 2026-09-30: an unwarmed first read took 1,120 ms wall for 73.5 ms of
+    server time. The warm-up request must precede every timed read."""
+    calls = []
+
+    class Client:
+        def get(self, url, **k):
+            calls.append(("warm", url))
+
+    audit = gate.audit_module()
+    monkeypatch.setattr(audit, "_universe", lambda: ["AAA", "BBB"])
+    monkeypatch.setattr(audit, "_serve_timing",
+                        lambda base, sym, tf, bars, client: (calls.append(("timed", sym)) or
+                            {"layer": "mem", "wall": 1.0, "code": 200, "nbars": 1, "server_ms": 0.5}))
+    # the gate's own-client path, driven through a stub client factory
+    import httpx
+    monkeypatch.setattr(httpx, "Client", lambda **k: type("C", (), {"get": Client().get, "close": lambda self: None})())
+    gate.sample_timeframe("https://x", "D", 2, 10, audit=audit)
+    assert calls[0] == ("warm", "https://x/api/health")
+    assert [c[0] for c in calls[1:]] == ["timed", "timed"]
+
+
+# ── server time BESIDE the wall clock (2026-09-30: network vs product) ────────
+
+def test_server_dur_is_parsed_from_the_header_the_route_emits(gate):
+    audit = gate.audit_module()
+    assert audit.server_dur_ms('bars;desc="stale-swr";dur=73.5') == 73.5
+    assert audit.server_dur_ms('bars;desc="mem"') is None
+    assert audit.server_dur_ms("") is None
+
+
+def test_server_p95_is_reported_beside_and_never_moves_the_verdict(gate):
+    fast_server = [("stale-swr", 900.0, 5.0)] * 20          # slow wall, fast server
+    r = gate.timeframe_result("D", fast_server)
+    assert r["server_p95_ms"] == 5.0 and r["p95_ms"] == 900.0
+    code, _ = gate.verdict([("D", r["p95_ms"])])
+    assert code == gate.EXIT_OVER                           # verdict is on wall only
+    import inspect
+    assert "server" not in inspect.signature(gate.verdict).parameters
+
+
+def test_two_tuple_samples_still_work_and_report_no_server_time(gate):
+    r = gate.timeframe_result("D", [("mem", 10.0)] * 20)
+    assert r["p95_ms"] == 10.0 and r["server_p95_ms"] is None
+
+
+def test_the_server_line_names_ITS_OWN_quantity_not_the_wall_clock(gate):
+    audit = gate.audit_module()
+    line = audit.pct_line("x", [1.0] * 20, quantity=audit.SERVER_QUANTITY)
+    assert "Server-Timing dur" in line and "client wall-clock" not in line
+    assert "client wall-clock" in audit.pct_line("x", [1.0] * 20)

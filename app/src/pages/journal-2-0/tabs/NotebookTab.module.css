@@ -435,7 +435,21 @@
 @media (max-width: 640px) {
   /* Phones keep normal page scroll — no viewport-locked panels. */
   .wrap { flex-direction: column; height: auto !important; overflow: visible; }
-  .main { overflow: visible; }
+  /* Wave 10 lane FX (proof walk wk-7bd834b9f, clause 6c): at rest, once the
+     page scrolls as far as it goes, `.main`'s own 40px bottom padding left the
+     LAST row of content (the view-switcher's "Week"/"List view" tab, the find
+     bar's "Show replace"/"Find in note") sitting directly under the two fixed
+     bottom overlays every Notebook route shares with the rest of the app: the
+     Log-Trade FAB (`JournalLayout.module.css` `.logFab`, bottom:70px + 44px
+     tall) and the voice orb (`FloatingOrb.module.css` `.orbCluster`,
+     bottom:16px + 64px tall) — confirmed with `document.elementFromPoint` at
+     the reported centres returning the FAB's own button/span or the orb's own
+     glyph, never a Notebook control. `.main` carries every Notebook surface
+     (list views AND the open editor, via `.mainNote`), so reserving room here
+     once covers both classes of finding. 150px clears the taller of the two
+     (114px) with margin; it only pads how far the page CAN scroll, so a short
+     surface is unaffected. */
+  .main { overflow: visible; padding-bottom: 150px; }
   /* Phones stack the panel above the notes and keep it always-open — the
    * slide/resize affordances are desktop-only. */
   .sidebarToggle { display: none; }

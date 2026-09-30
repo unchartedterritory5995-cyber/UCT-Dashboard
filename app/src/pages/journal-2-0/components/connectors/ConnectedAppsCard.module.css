@@ -2,6 +2,18 @@
 
 .section { display: flex; flex-direction: column; gap: 10px; }
 
+/* Wave 10 lane FX (proof walk wk-7bd834b9f, clause 6c): this card is the last
+   one in the Connections section, so once a member scrolls to see it all, its
+   own "Connect" button sat directly under the app-wide voice widget
+   (GlobalVoiceLayer's `.wrap`, fixed bottom-right) — confirmed with
+   `document.elementFromPoint` returning the widget's own svg, never this
+   card's layout. Reserving room below the card (not the widget's job to
+   avoid) gives the page enough scroll room that its last row clears the
+   widget's ~80px-tall zone (bottom:16px + 64px) at rest. */
+@media (max-width: 640px) {
+  .section { padding-bottom: 100px; }
+}
+
 .lead { font-size: 14px; line-height: 1.55; margin: 0; color: var(--color-text, #e8e8ea); }
 .muted { font-size: 13px; opacity: 0.7; margin: 0; }
 .fine { font-size: 11px; opacity: 0.55; margin: 4px 0 0; }

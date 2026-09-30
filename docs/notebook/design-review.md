@@ -1,5 +1,9 @@
 # Notebook design review -- UCT against Notion, Evernote and Obsidian (wave 10, lane 10E-2)
 
+> ⭐ **RE-REVIEWED 2026-09-29 -- see `docs/notebook/design-review-2.md` (lane DR-R) for the
+> current sign-off status.** This file is the first reviewer's record and is left unedited
+> below this line.
+
 Clause 6a of the 10/10 plan (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`:28: "a design review
 against the three competitors signs off each surface"), under ruling R-14 as amended by
 Amendment 1 (2026-09-27). Reviewed 2026-09-27 on master `d9e887ca0` by an agent session that built

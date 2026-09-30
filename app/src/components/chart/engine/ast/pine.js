@@ -1927,7 +1927,13 @@ const clockFieldAt = (field, a) => {
   return null
 }
 
-const BUILTIN_CALL_TREE = Object.freeze({
+/** ⭐ C23 — the fewest arguments an expansion below is defined for, where the
+ *  expansion itself would silently build something for fewer. ONE place: the
+ *  Resolver refuses `math.avg(x)` from it and so does the runtime lane, which
+ *  lowers the same expansion over runtime state. */
+export const BUILTIN_CALL_TREE_MIN_ARGS = Object.freeze({ avg: 2 })
+
+export const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
   // ⛔ GROUPED LEFT, AS THE LINE ABOVE READS: `(100 * (src - src[n])) / src[n]`.
@@ -5649,6 +5655,8 @@ export class Resolver {
     this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
     this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
     this.budgetSteps = 0
+    /** ⭐ C24 — first-time work no `Map`/`Set` size records (see `firstTimeMark`). */
+    this.firstTimeWork = 0
     /** Current and peak resolution nesting. See `PINE_TRANSLATE_MAX_DEPTH`. */
     this.depth = 0
     this.peakDepth = 0
@@ -6565,23 +6573,116 @@ export class Resolver {
    * raise for an operand that simply is not one; the caller then declines the
    * rewrite and the ordinary path produces the real refusal, with the real caret.
    */
-  constIntOf(node) {
+  constIntOf(node, probed = null) {
     if (!node) return null
     const direct = litInt(node)
     if (direct !== null) return direct
     let folded = null
-    try { folded = this.resolve(node) } catch { return null }
+    if (probed) {
+      try { folded = this.resolveProbed(node, probed) } catch { return null }
+    } else {
+      try { folded = this.resolve(node) } catch { return null }
+    }
     if (!folded || folded.type !== 'num') return null
     const v = Number(folded.value)
     return Number.isInteger(v) && v >= 0 ? v : null
   }
 
-  boundedBarssinceThroughBinding(node) {
+  /**
+   * ⭐⭐ C24 — A PROBE'S RESOLUTION IS KEPT FOR THE ORDINARY PATH, NOT REPEATED.
+   *
+   * `boundedBarssinceThroughBinding` asks `constIntOf` of BOTH operands of every
+   * comparison, and `constIntOf` answers by RESOLVING — so the ordinary path
+   * below it resolved the same two operands, in the same scope, a second time.
+   * A comparison inside a binding a comparison reads doubles again at every
+   * level: measured on `mid_engagement__22-rsi-levels-regime-map`, that repeat
+   * was most of its translation.
+   *
+   * ⛔⛔ THE PROBE IS NOT SKIPPED, AND THAT IS THE WHOLE POINT. `resolve` MINTS
+   * Track F parameter ids as a side effect (`paramMint`), and the probe is the
+   * FIRST resolution of these operands, so it is what fixes their mint order —
+   * on a refused output too, since the mint counter is shared across outputs. A
+   * pre-check that skipped the probe moved saved ids on corpus scripts
+   * (`72s-strategy-adaptive-hull-…`, `adaptive-trend-following-suite-…`) and was
+   * reverted (objects triage § C9). Here the probe runs exactly as before; only a
+   * REPEAT of it — the swapped re-probe of the same operand, and the ordinary
+   * path's resolve — is replaced by the tree the first one returned, and only
+   * when that first one did no first-time work (below), so the repeat it stands
+   * in for would have minted nothing and cost exactly the steps it recorded.
+   *
+   * ⛔ REPLAYED ONLY INTO THE STATE IT WAS MADE IN. The entry records the
+   * resolver's scope (`env`, cycle `stack`, argument `frames`, `selfReads`,
+   * `paramMint`, the object pass) and is used only when every one is still the
+   * same object; anything else resolves for real. A refusal is never kept.
+   *
+   * ⛔ THE STEP BUDGET IS CHARGED AS IF IT HAD RUN. The replay adds the probe's
+   * own step count, so `budgetSteps` — and every `pine:timeout` step rail — reads
+   * what it read before. When those steps would pass the cap, it resolves for
+   * real instead, so the refusal fires at the node, with the caret, it always did.
+   */
+  resolveProbed(node, probed) {
+    const hit = probed.get(node)
+    if (hit && hit.env === this.env && hit.stack === this.stack && hit.frames === this.frames
+      && hit.framesLength === this.frames.length && hit.selfReads === this.selfReads
+      && hit.paramMint === this.paramMint && hit.objectPass === this.objectPass
+      && !(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)) {
+      const before = this.budgetSteps
+      this.budgetSteps += hit.steps
+      const period = BUDGET_CHECK_MASK + 1
+      if (Math.floor(before / period) !== Math.floor(this.budgetSteps / period)) {
+        this.checkClock(node && node.tok)
+      }
+      return hit.tree
+    }
+    const env = this.env
+    const stack = this.stack
+    const frames = this.frames
+    const framesLength = this.frames.length
+    const selfReads = this.selfReads
+    const paramMint = this.paramMint
+    const objectPass = this.objectPass
+    const before = this.budgetSteps
+    const mark = this.firstTimeMark()
+    const tree = this.resolve(node)
+    // ⛔ ONLY A RESOLUTION THAT DID NO FIRST-TIME WORK IS KEPT. Minting a new
+    // parameter (its `minval`/`maxval`/`step` resolve once, at creation) or
+    // filling a cache (`partialReadCache`, `recurrenceColumns`, …) makes the
+    // FIRST resolution dearer than a repeat; charging that to the replay would
+    // over-count `budgetSteps`. Such a resolution is not kept, so the ordinary
+    // path resolves for real — exactly as before — and its own probes, now
+    // repeats, are the ones replayed.
+    if (this.firstTimeMark() === mark) {
+      probed.set(node, {
+        tree, steps: this.budgetSteps - before,
+        env, stack, frames, framesLength, selfReads, paramMint, objectPass,
+      })
+    }
+    return tree
+  }
+
+  /** A number that moves whenever a resolution does work a repeat would not:
+   *  a parameter minted, or an entry added to any cache or record the resolver
+   *  holds (every `Map`/`Set` field, read generically so a cache added later is
+   *  covered the day it lands), or a memo filled on an object the resolver does
+   *  not own (`firstTimeWork` — a window's `readMemo`). Balanced add/delete (the
+   *  cycle `stack`) nets 0. Conservative by construction: a record that grows
+   *  without changing a repeat's cost only costs a replay, never a wrong count. */
+  firstTimeMark() {
+    let n = this.firstTimeWork
+    if (this.paramMint) n += this.paramMint.counter + this.paramMint.byNode.size
+    for (const k in this) {
+      const v = this[k]
+      if (v instanceof Map || v instanceof Set) n += v.size
+    }
+    return n
+  }
+
+  boundedBarssinceThroughBinding(node, probed = null) {
     let { op, left, right } = node
     if (!own(FLIP, op)) return null
     // Either order, exactly as the direct shape allows.
-    if (this.constIntOf(left) !== null) { [op, left, right] = [FLIP[op], right, left] }
-    const k = this.constIntOf(right)
+    if (this.constIntOf(left, probed) !== null) { [op, left, right] = [FLIP[op], right, left] }
+    const k = this.constIntOf(right, probed)
     if (k === null || !left) return null
     // ⚰️ A BARE IDENTIFIER IS A `name` HERE, NOT A `bound`. The `bound` shape
     // exists, but binding lookup happens INSIDE `resolve` (`this.env.get(name)`),
@@ -7034,6 +7135,12 @@ export class Resolver {
         tok ? locate(tok) : null)
     }
     if ((this.budgetSteps & BUDGET_CHECK_MASK) !== 0) return
+    this.checkClock(tok)
+  }
+
+  /** The wall-clock half of `checkBudget`, also asked by a replayed probe
+   *  (`resolveProbed`) whose charged steps cross a sampling boundary. */
+  checkClock(tok) {
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
@@ -7344,6 +7451,9 @@ export class Resolver {
         amb = key === null ? null : this.windowAmbiguity.get(key) || null
       }
       w.readMemo.set(memoKey, { tree, key, amb })
+      // ⭐ C24 — a memo on the WINDOW object, not the resolver: first-time work
+      // `firstTimeMark` cannot see by size, so it is counted here.
+      this.firstTimeWork += 1
       return tree
     }
     return this.resolveWindowReadOnce(w, member, args, node)
@@ -7970,7 +8080,15 @@ export class Resolver {
         // — so the shape above, which needs the call and the literal in one
         // expression, saw none of them. The identity is the SAME identity; only
         // the distance between the two halves changed.
-        const viaBinding = this.boundedBarssinceThroughBinding(node)
+        // ⭐ C24 — what the probe resolved is kept for the ordinary path at the
+        // bottom of this case (`resolveProbed`), so neither operand resolves twice.
+        // ⛔ Not when a rewrite BETWEEN the two can do work of its own (a run-length
+        // counter's state binding, a bare `obv`): the ordinary path then resolves
+        // after that work, exactly as it did.
+        const probed = own(FLIP, node.op)
+          && !this.stateBindingOf(node.left) && !this.stateBindingOf(node.right)
+          && !isBareObv(node.left) && !isBareObv(node.right) ? new Map() : null
+        const viaBinding = this.boundedBarssinceThroughBinding(node, probed)
         if (viaBinding) return viaBinding
         // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
         // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
@@ -8136,6 +8254,10 @@ export class Resolver {
             throw err
           }
           return foldLogicalIdentity(mapped, decidedBy, right, this.table)
+        }
+        if (probed) {
+          return foldLogicalIdentity(mapped,
+            this.resolveProbed(node.left, probed), this.resolveProbed(node.right, probed), this.table)
         }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
@@ -10045,6 +10167,45 @@ export class Resolver {
    *  a look-behind one and backtest beautifully.
    */
   securityAsNode(node, resolveInner) {
+    const target = this.requestTargetOf(node)
+    if (!target) return null
+    const { other, code, live } = target
+    const positional = target.positional
+
+    // 4. compose, innermost first.
+    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
+    // inner call instead of the whole expression, and then wants EXACTLY this
+    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
+    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
+    // the tuple form from becoming a second authority on what a request means.
+    // ⭐ C10 — the child is resolved IN the requested timeframe's context; see
+    // `requestPeriod`. The identity (`code` null) leaves the context unchanged.
+    const outerPeriod = this.requestPeriod
+    if (code) this.requestPeriod = code
+    let out
+    try {
+      out = resolveInner ? resolveInner() : this.resolve(positional[2])
+    } finally {
+      this.requestPeriod = outerPeriod
+    }
+    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
+    if (other) out = { type: 'sym', value: other, args: [out] }
+    return out
+  }
+
+  /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
+   *  `{own, other, code, live, positional}`, or null for a shape this door refuses.
+   *  `own !== null && other === null && code === null` is THE IDENTITY — this
+   *  chart's own bars at this chart's own period, whatever `lookahead` says.
+   *
+   *  ⛔ SPLIT OUT OF `securityAsNode`, NEVER COPIED. The runtime lane asks it the
+   *  same question for a request whose value only the run can compute, so the two
+   *  lanes cannot disagree about which requests are the identity — one reader of
+   *  the symbol, the period, the base-period guard and every `lookahead` spelling.
+   *  ⚠️ It reads bindings through `this.env`, so a caller whose names can be
+   *  SHADOWED by something the env does not hold (the runtime lane's mutable
+   *  slots) must rule those out before asking. */
+  requestTargetOf(node) {
     const args = node.args || []
 
     // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
@@ -10204,25 +10365,7 @@ export class Resolver {
     // `timeframe.period` is the identity the same way `lookahead_off` is.
     if (live && !code) live = false
 
-    // 4. compose, innermost first.
-    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
-    // inner call instead of the whole expression, and then wants EXACTLY this
-    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
-    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
-    // the tuple form from becoming a second authority on what a request means.
-    // ⭐ C10 — the child is resolved IN the requested timeframe's context; see
-    // `requestPeriod`. The identity (`code` null) leaves the context unchanged.
-    const outerPeriod = this.requestPeriod
-    if (code) this.requestPeriod = code
-    let out
-    try {
-      out = resolveInner ? resolveInner() : this.resolve(positional[2])
-    } finally {
-      this.requestPeriod = outerPeriod
-    }
-    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (other) out = { type: 'sym', value: other, args: [out] }
-    return out
+    return { own, other, code, live, positional }
   }
 
   /**
@@ -10458,7 +10601,7 @@ export class Resolver {
           + 'depend on the bar — TO UNBLOCK: write the flag as a literal',
           locate(tok))
       }
-      if (bare === 'avg' && built.length < 2) {
+      if (own(BUILTIN_CALL_TREE_MIN_ARGS, bare) && built.length < BUILTIN_CALL_TREE_MIN_ARGS[bare]) {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
       }
@@ -13967,6 +14110,11 @@ function windowReadVerdict(m, stmts, writerStmts) {
   }
 }
 
+/** ⭐ C21 — the opening clause of a refusal of an inlined function's own mutable
+ *  local (`inlinedLocalBinding`); `noteGuardRefusal` names its subject. */
+const HELPER_LOCAL_CLAUSE = 'a function\'s own variable that changes while the function runs cannot be read '
+  + 'as one expression from outside that run'
+
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
   // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
@@ -14402,7 +14550,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (b.k === 'loop') unconverted(b.body, via)
       // ⭐ C16 — a collection change lost with its loop diverges the collection;
       // a handle copied out of one leaves its name unknown.
-      if (b.k.startsWith('coll_')) lostColl(b.coll)
+      if (b.k.startsWith('coll_')) lostColl(b.coll, `${via}@${b.line === undefined ? '?' : b.line}`)
       if (b.k === 'copy' && b.fromColl && regId.has(b.into)) taintedRegs.add(regId.get(b.into))
     }
   }
@@ -15891,15 +16039,28 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // filled from such a read is unknown too (`taintedRegs`).
   const divergedColls = new Set()
   const taintedRegs = new Set()
-  const lostColl = (name) => { if (collId.has(name)) divergedColls.add(collId.get(name)) }
+  /** ⭐ C21 — list name → the FIRST change it lost, `<drop key>@<line>`
+   *  (`objectDiagnostics.collsDivergedWhy`). `dual-view` withholds 39 reads of
+   *  ten lists; the count alone named none of the pushes that made them diverge. */
+  const divergedWhy = new Map()
+  /** …and for a list diverged BY ID after conversion (`state:lost`, a fed change). */
+  const divergedIdWhy = new Map()
+  const divergedById = (id, why) => { divergedColls.add(id); if (!divergedIdWhy.has(id)) divergedIdWhy.set(id, why) }
+  const lostColl = (name, why) => {
+    if (!collId.has(name)) return
+    divergedColls.add(collId.get(name))
+    if (!divergedWhy.has(name)) divergedWhy.set(name, why || 'unknown')
+  }
   /** ⭐ C16 — registers a create that this door lost would have filled. The
    *  register itself keeps today's handling; only a PUSH of it (the object
    *  TradingView holds, never made here) diverges the collection it lands in. */
   const lostCreateRegs = new Set()
   const lostInto = (op) => { if (op && op.into && regId.has(op.into)) lostCreateRegs.add(regId.get(op.into)) }
-  for (const name of (collected.diagnostics && collected.diagnostics.lostColls) || []) lostColl(name)
+  ;((collected.diagnostics && collected.diagnostics.lostColls) || []).forEach((name, i) => {
+    lostColl(name, (collected.diagnostics.lostCollsWhy || [])[i] || 'reader')
+  })
   for (const rc of (collected.diagnostics && collected.diagnostics.refusedCalls) || []) {
-    for (const name of (rc.effects && rc.effects.colls) || []) lostColl(name)
+    for (const name of (rc.effects && rc.effects.colls) || []) lostColl(name, `fn:${rc.why}@${rc.line}`)
   }
 
   /** ⭐⭐ SITES THE CONVERSION ACTUALLY EMITTED — not the ones the reader named.
@@ -16415,17 +16576,29 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /`([^`]+)` is written at line/,
     /— `([^`]+)`$/,
   ]
+  /** ⭐ C21 — an inlined function's own mutable local (`inlinedLocalBinding`): the
+   *  subject AND what it is, so `dual-view`'s 78 read as one construct —
+   *  update@491: pine:state `htf_o` (a `var` carried in a loop of `update_drawings`). */
+  const HELPER_SUBJECT = [
+    [/`([^`]+)` is a `var` declared inside a loop of the function `([^`]+)`/,
+      (m) => `\`${m[1]}\` (a \`var\` carried in a loop of \`${m[2]}\`)`],
+    [/`([^`]+)` changes as the function `([^`]+)`/, (m) => `\`${m[1]}\` (reassigned inside \`${m[2]}\`)`],
+  ]
   const noteGuardRefusal = (op, err) => {
     const guard = (err && err.guard) || null
     if (!guard) return
     const msg = String((err && err.message) || '')
     let subject = null
-    for (const re of REFUSED_SUBJECT) {
+    for (const [re, shown] of HELPER_SUBJECT) {
       const m = re.exec(msg)
-      if (m) { subject = m[1]; break }
+      if (m) { subject = shown(m); break }
+    }
+    for (const re of subject ? [] : REFUSED_SUBJECT) {
+      const m = re.exec(msg)
+      if (m) { subject = `\`${m[1]}\``; break }
     }
     diagnostics.guardRefusals = diagnostics.guardRefusals || []
-    const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` \`${subject}\`` : ''}`
+    const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${guard}${subject ? ` ${subject}` : ''}`
     if (!diagnostics.guardRefusals.includes(e)) diagnostics.guardRefusals.push(e)
   }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
@@ -16698,11 +16871,25 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const meta = b.st.synthetic
     const shown = String(b.name).split(INLINE_SUFFIX)[0]
     if (!b.assign && meta && meta.mutable && meta.mutable.has(b.name)) {
+      // ⭐⭐ C21 — THE SENTENCE NAMES WHAT THE LOCAL IS, not a running total.
+      // ⚰️ It opened with `REFUSALS['pine:state']`, whose clause says the value
+      // "needs a running total with no window" — false of a function's local,
+      // and the true tail could not rescue the false prefix
+      // (`pine.refusalAuthority.test.js`). Measured on `dual-view-htf-candlestick-
+      // patterns`: 78 of its refusals were this one, every one a `var` declared
+      // inside `update_drawings`' `for` (`bodyNames`' `carried`), ONE variable
+      // across the loop's passes and the bars, written under conditions from
+      // arrays — only a run of the function holds it.
+      const carried = !!(meta.carried && meta.carried.has(b.name))
       return {
         kind: 'opaque',
         guard: 'pine:state',
-        message: `${REFUSALS['pine:state']} — \`${shown}\` changes as the function \`${meta.fn}\``
-          + ' runs, and a value read here would be its first value rather than its current one',
+        message: carried
+          ? `${HELPER_LOCAL_CLAUSE} — \`${shown}\` is a \`var\` declared inside a loop of the function `
+            + `\`${meta.fn}\`: one variable, carried from pass to pass and from bar to bar and rewritten `
+            + 'under conditions, so only a run of the function holds its value here'
+          : `${HELPER_LOCAL_CLAUSE} — \`${shown}\` changes as the function \`${meta.fn}\``
+            + ' runs, and a value read here would be its first value rather than its current one',
         at: null,
       }
     }
@@ -16968,7 +17155,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
       if (op.k === 'update') { contentLostBy(op, targetRef(op.target)); stateLostBy(op, targetRef(op.target)) }
       if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
-      if (op.k.startsWith('coll_')) lostColl(op.coll)
+      if (op.k.startsWith('coll_')) lostColl(op.coll, `guard:${op.k}@${op.line === undefined ? '?' : op.line}`)
       if (op.k === 'copy' && op.fromColl && regId.has(op.into)) taintedRegs.add(regId.get(op.into))
       dropped(`guard:${op.k}`)
       // ⭐ C22 — a lost setter that would have MOVED its object marks it, every bar
@@ -17234,21 +17421,21 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // the change are unknown from then on (`lostColl`, pruned below).
       if (method === 'push') {
         const value = targetRef(op.args[0])
-        if (!value) { lostColl(op.coll); dropped('coll:push'); continue }
+        if (!value) { lostColl(op.coll, `coll:push@${op.line}`); dropped('coll:push'); continue }
         ops.push({ k: 'push', coll: id, value, when, ...lastBarOnly })
       } else if (method === 'unshift') {
         // ⭐ C11b — the add at the FRONT; every slot after it moves up one.
         const value = targetRef(op.args[0])
-        if (!value) { lostColl(op.coll); dropped('coll:unshift'); continue }
+        if (!value) { lostColl(op.coll, `coll:unshift@${op.line}`); dropped('coll:unshift'); continue }
         ops.push({ k: 'push', front: true, coll: id, value, when, ...lastBarOnly })
       } else if (method === 'set') {
         const index = op.args[0] ? liveOrValueRef(op.args[0].value) : null
         const value = targetRef(op.args[1])
-        if (!index || !value) { lostColl(op.coll); dropped('coll:set'); continue }
+        if (!index || !value) { lostColl(op.coll, `coll:set@${op.line}`); dropped('coll:set'); continue }
         ops.push({ k: 'collset', coll: id, index, value, when, ...lastBarOnly })
       } else if (method === 'remove') {
         const index = op.args[0] ? liveOrValueRef(op.args[0].value) : null
-        if (!index) { lostColl(op.coll); dropped('coll:remove'); continue }
+        if (!index) { lostColl(op.coll, `coll:remove@${op.line}`); dropped('coll:remove'); continue }
         ops.push({ k: 'collremove', coll: id, index, when, ...lastBarOnly })
       } else if (method === 'shift') {
         ops.push({ k: 'collremove', coll: id, index: { v: 'const', value: 0 }, when, ...lastBarOnly })
@@ -17259,7 +17446,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       } else if (method === 'clear') {
         ops.push({ k: 'collclear', coll: id, when, ...lastBarOnly })
       } else {
-        lostColl(op.coll)
+        lostColl(op.coll, `coll:${method}@${op.line}`)
         diagnostics.unsupported.push(`array.${method}`)
         dropped(`coll:${method}`)
       }
@@ -17334,7 +17521,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (src.k === 'create') { lostCreate(src.family); lostInto(src) }
         if (src.k === 'update') { contentLostBy(src, o.target); stateLostBy(src, o.target) }
         if (src.k === 'delete' || src.k === 'clear') { lostRemoval(`guard:${src.k}`, src); stateLostBy(src, o.target) }
-        if (src.k.startsWith('coll_')) lostColl(src.coll)
+        if (src.k.startsWith('coll_')) lostColl(src.coll, `guard:${src.k}@${src.line === undefined ? '?' : src.line}`)
         dropped(`guard:${src.k}`)
       }
       return out
@@ -17428,7 +17615,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           stateLostBy(asRead, o.target)
         }
         if (o.k === 'loop') unconverted(o.body, 'state:lost')
-        if (o.k === 'push' || o.k === 'collset' || o.k === 'collremove' || o.k === 'collclear') divergedColls.add(o.coll)
+        if (o.k === 'push' || o.k === 'collset' || o.k === 'collremove' || o.k === 'collclear') divergedById(o.coll, 'state:lost')
         dropped('state:lost')
       }
       return kept
@@ -17471,7 +17658,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (o.k === 'create' && o.into && (all || guardUnknown(o))) mark(taintedRegs, o.into)
       if (['push', 'collset', 'collremove', 'collclear'].includes(o.k)
         && (all || guardUnknown(o) || (o.value && refUnknown(o.value))
-          || (o.value && o.value.r === 'reg' && lostCreateRegs.has(o.value.id)))) mark(divergedColls, o.coll)
+          || (o.value && o.value.r === 'reg' && lostCreateRegs.has(o.value.id)))) {
+        if (o.coll != null && !divergedIdWhy.has(o.coll)) divergedIdWhy.set(o.coll, `${o.k} of an unknown handle or under an unknown guard`)
+        mark(divergedColls, o.coll)
+      }
       if (o.k === 'loop') {
         const whole = all || guardUnknown(o)
         for (const b of o.body || []) if (taintWrites(b, whole)) changed = true
@@ -17519,6 +17709,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     ops = pruneDiverged(ops)
     diagnostics.collsDiverged = divergedColls.size
+    diagnostics.collsDivergedWhy = [...collId.entries()].filter(([, id]) => divergedColls.has(id))
+      .map(([name, id]) => `${name}: ${divergedWhy.get(name) || divergedIdWhy.get(id) || 'unknown'}`).sort()
   }
   }
   divergedPass()
@@ -20456,6 +20648,13 @@ function naSelectorTakesElse(ast) {
  *  colour — a named `color.x`, a `#RRGGBB` literal, and `color.new(base, t)` —
  *  factored out rather than re-typed, so the branches of a conditional and a
  *  plain `color=` can never disagree about what counts as a colour. */
+/** ⭐ C23 — THE NODE `input.color(…)` DRAWS WITH until a member moves the picker:
+ *  its first argument (`defval`, named or not). ONE reader, used by every colour
+ *  reader in this file and by the runtime lane, which lowers the same node as the
+ *  colour value at defaults (`input.color` mints no member parameter — the knob
+ *  is not a Track F kind, `skippedInputs` reports it). */
+export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] || {}).value
+
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is its branch.
@@ -20516,7 +20715,7 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   // kind), and that loss is already reported by `skippedInputs` — this carries
   // the value without claiming the control.
   if (node.type === 'call' && node.name === 'input.color') {
-    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+    return staticColourOf(inputColourDefaultNode(node), env, depth + 1, ctx)
   }
   // ⭐⭐ 2026-09-28 — v4's `input(<colour>, type = input.color)` IS THE SAME PICKER.
   // Before `input.color` existed, a colour input was the generic `input()` whose
@@ -20632,7 +20831,7 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   }
   if (node.type !== 'call') return null
   if (node.name === 'input.color') {
-    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+    return colourHelperAlpha(inputColourDefaultNode(node), env, ctx, depth + 1)
   }
   // The v4 generic `input(<colour>)` — the same door `staticColourOf` opens.
   if (node.name === 'input') {
@@ -20697,7 +20896,7 @@ function colourTransparencyOf(node, env, depth = 0) {
     // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
     // moves the colour picker's alpha still gets the default rendering, and for
     // Uncharted Clouds that governs the entire cloud opacity.
-    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, depth + 1)
+    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1)
   }
   if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
     const opacity = colourHelperAlpha(node, env, null)

@@ -128,11 +128,22 @@ const BASELINE_KEYS = {
   j2_calendar_pnl_basis: 'scalar',
   j2_custom_dashboard: 'structured',
   multichart_state: 'structured',
+  // ⭐ S5 CP2 sweep 2026-09-29 (fix/master-reds): notebook_sample/notebook_tour
+  // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
+  // NotebookTour.jsx) made literal at the call site rather than baselined —
+  // neither key is genuinely dynamic. Both store a multi-field object.
+  notebook_sample: 'structured',
+  notebook_tour: 'structured',
   tag_labels: 'structured',
   theme: 'scalar',
   theme_tracker_settings: 'structured',
   volume_scan_lists: 'structured',
   watchlist_digest: 'structured',
+  // ⭐ S5 CP2 sweep 2026-09-29: watchlist_perf_cols (WATCHLIST_PERF_COLS_KEY,
+  // Watchlists.jsx) was an opaque setPref site made literal at the call site
+  // for the same reason — a constant-valued key, not a computed one. Stores a
+  // JSON array of chosen performance columns.
+  watchlist_perf_cols: 'structured',
   watchlist_settings: 'structured',
 }
 
@@ -143,7 +154,10 @@ const BASELINE_OPAQUE = {
   'hooks/useAppFocus.js': 1,
   'pages/BreadthCharts.jsx': 1,
   'pages/ThemeTrackerPage.jsx': 2,
-  'pages/Watchlists.jsx': 2,
+  // ⭐ S5 CP2 sweep 2026-09-29: `pages/Watchlists.jsx` is REMOVED from this map,
+  // not lowered — its 3 opaque sites (WATCHLIST_SETTINGS_KEY x2,
+  // WATCHLIST_PERF_COLS_KEY) were made literal at the call site, so it now
+  // writes 0 opaque setPref calls. See BASELINE_KEYS for the two keys.
   'pages/breadth/drill/BreadthDrillModal.jsx': 2,
   'pages/breadth/useBreadthViews.js': 2,
   // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). Data Charts V2 (7626f6fb7,

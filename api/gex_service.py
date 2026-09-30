@@ -655,13 +655,21 @@ async def get_gex_source_parity(ticker: str, dte_filter: str = "week") -> dict:
     b = await get_gex_data(ticker, dte_filter, source="massive")
     out = {"ticker": ticker.upper(), "dteFilter": dte_filter, "schwab_error": a.get("error"),
            "massive_error": b.get("error")}
-    if a.get("error") or b.get("error"):
-        return out
-
     def head(x):
         return {"spot": x["spot"], "totalGex": x["totalGex"], "zeroGamma": x["zeroGamma"],
                 "callWall": _wall_strike(x["callWall"]), "putWall": _wall_strike(x["putWall"]),
                 "strikes": len(x["strikes"]), "regime": x.get("regime")}
+
+    # ⛔ One side failing must not hide the other. On 2026-09-30 Schwab was not
+    # authenticated and this returned only the two error fields, so Massive's
+    # numbers -- the thing under review -- were unreadable in production.
+    if a.get("error") or b.get("error"):
+        if not a.get("error"):
+            out["schwab"] = head(a)
+        if not b.get("error"):
+            out["massive"] = head(b)
+            out["massive_truncated"] = b.get("chainTruncated")
+        return out
 
     sa, sb = {s["strike"]: s["gex"] for s in a["strikes"]}, {s["strike"]: s["gex"] for s in b["strikes"]}
     common = sorted(set(sa) & set(sb))

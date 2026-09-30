@@ -132,6 +132,9 @@ without it; each row below is a full re-grade of the 47 captures.
 | 29 | C18 `while` loops, and a last-bar drawing's value read from the RUNTIME lane — the runtime front end runs `while` (test re-read before every pass, break/continue, an `na` test is false) under an ENGINE bound `WHILE_ITERATIONS` = 10,000 passes per entry (opcode `WHILE_BOUND`; a loop that does not stop stops the run BY NAME, `runtime:WHILE_ITERATIONS`, and nothing is read from it), plus what k-clustering and max-pain write (`x += 1` as a mutation, `max_bars_back` ceiling, array members on an untyped parameter, if-expression arms with arm-locals, `int()`/`float()`, `array.slice` as a copy whose later write refuses, `median`/`stdev` compile and stop the run if reached, v6 `and`/`or` and `?:` skip the untaken side when provably 0/1). On the HOST object pass, an op under `barstate.islast` (not in a loop, helper or `var` initialiser) whose value the columnar resolver refuses as imperative becomes a placeholder `__uct_runtime_at(k)` read off ONE run of the script at the op's own statement; served only from the listing (R-W), at default inputs, when the run completes and two probe runs agree — otherwise UNKNOWN and C17 withholds. See § C18 | `490b68580`, `3b6d5b2a9` + merge onto wave 5 (`54b795392`) | 28 / 47 → 28 / 47 objects MATCH (overall 24 → 24; against `fb846eaef`) | max-pain 6 → 4 families differing | `options-max-pain-calculator-backquant` cells 12 → **16 / 16** (texts agree), lines 0 → 2 of 10, labels 0 → 3 of 8 — each TradingView's (y, colour, style, size). `k-clustering` unchanged: the run computes all 9 levels and 3 densities to the bit, but its last bar needs 800,613 VM instructions against `INSTRUCTIONS_PER_BAR` 200,000, so it is WITHHELD by name (the budget was not raised). Committed harness dir (82): the same 1 entry changed, overall MATCH 38 unchanged. Member-door census 266 × 2: attach 41 / 64 unchanged; 1 row — k-clustering flag OFF moves from `pine:objects-only` to the clean-objects-only sentence (its program no longer drops ops). Census 53 s base vs 61 s. Notebook first-open 1,868,808 B unchanged; total JS +16,983 B |
 | 30 | C19 the node budget counts what the evaluator COMPUTES (integrator ruling 2026-09-30; the cap stays 128): `interpret.js::evaluationUnits` (`nodeCount`) keys a unit exactly as the evaluator's memos key it — a self-free node or a read (literal, column, `self`, `self[k]`) once per (scope, shape); an operator or call reading a recurrence bind once per (scope, recurrence, shape); a `tf`/`tf_live`/`sym` child a scope of its own — and a column the caller's PASS already holds (the object lane's interned `crossMemo`) is one read, through `passHolds`, the predicate `evalNode` skips on. The step memo keys on the structural id (a JSON read-back pays one unit per shape, as charged); probes read the pass's recurrence-free columns over the same bars and are charged for what they compute; a probe still refused withholds every bar. Python twin (`evaluation_units`, structural step memo; no pass memo there) — see § C19 | `ba3bd7c28`, `c69063c73` | 28 / 47 → 28 / 47 (overall 24 → 24; objects pane on, base `fb846eaef`) | 214 / 266 → **216 / 266** (artemis labels count 16 → 17 of 17, labels text → agree) | `artemis-oscillator-pro` `R▼` (`budget:nodes` 132 > 128) → **served, TradingView's id 16 at its y (within 1e-12 rel), on `D▼` id 15's bar**; from the listing all 17 labels are TradingView's, id for id (`vendorHarness.c12sSwitched`); behind the curtain it is drawn and is one the listing run draws. Its guard: 132 units standalone, 36 against the columns earlier trees of the same pass hold. Objects still DIVERGE on its table cells (18/21, C10/C12). 47 captures (both flag states): exactly that 1 entry changed; committed harness dir (87, both flag states): the same 1 (objects MATCH 49, overall 41 unchanged; families 270 / 322 → 272 / 322); inventory identical. Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 rows changed** (an intermediate draft that counted `self` once per recurrence detached `keltner-center-of-gravity-channel` — out11 at 132 — and was corrected: a bind read computes nothing). Object-lane refusals over the committed corpus on RDDT 1D bars (45 object scripts × listing on/off): only artemis moved; 0 `budget:nodes` refusals remain. Translate time, 12 largest corpus scripts × 4 alternated runs: medians −7 % … +17 % against base (box under load; the unit count itself costs the same as the distinct count over all 948 attached trees, 52–63 ms per pass both). Artemis object pass 228–272 → 250–324 ms (it now evaluates and probes the two guards it refused). Notebook first-open bytes 1,868,808 B at base and after (+0). `paramIds.test.js` green, no re-pin. Step 29 left to the parallel C18 lane. **Merged onto C18** (`0b8dc212b`): a runtime placeholder `__uct_runtime_at(k)` (C18) is a READ — one unit, nothing below it (`RUNTIME_AT_CALL` now declared in `parse.js`, re-exported by `objectProgram.js`); against the C18 tip the 47 and the harness dir change only artemis (families 216 → 218 / 266, 272 → 274 / 322), census 266 × 2 0 rows, max-pain's C18 gains unchanged (cells 16/16, lines 2, labels 3) |
 | 31 | C20 runtime TEXT, runtime COLOURS and drawings made INSIDE a `while`, read off C18's one run under C18's four serving conditions (listing R-W, inputs at defaults, run completes, probe runs agree — else unknown and C17 withholds). **(a)** a string only the run holds is `{t:'str'}` over a text-kind placeholder; a number in a text stays `{t:'num', fmt}` formatted by the object runtime (the run is never asked for a node with a call but `math.*`/`na`/`nz`). **(b)** `color.new(c, t)` is `{c:'new'}` — `c` read here or from the run, `t` set per bar by the object lane's one alpha formula (`withObjectTransparency`, shared with `staticObjectColourOf`); any other run colour is `{c:'rt'}`, served OPAQUE only (the run's packed byte does not round-trip to TradingView's opacity: NET label alpha 77 vs 76); an unserved colour HOLDS the object. **(c)** a last-bar `while` whose body is only statement creates becomes a counted loop `0..N-1` over the run's own pass count; each body op is REACHED and valued per pass, never from the columnar lane. And the C18 census slowdown (real: wave 5 51.2 / 49.7 s vs C18 56.2 / 59.6 s test time, alternated) is removed: the plain object pass runs first, the lane is asked only when it could help, and unbuildability costs one compile, not a second pass. See § C20 | `8aa99927a`, `8e2dcf062`, `3fc74942e` + merge onto wave 6 (`3cbcc5008` over `6415ef77c`) | 28 / 47 → 28 / 47 objects MATCH (overall 24 → 24; base `6415ef77c`, objects pane on) | 218 / 266 → **219 / 266** (max-pain lines agree) | `options-max-pain-calculator-backquant` lines 2 → **10 / 10**, labels 3 → 6 / 8, boxes 0 → 1 / 13 — **every object drawn is TradingView's, value for value** (y1/y2, colour, width, style; text, y, colour, text colour, style, size; the pin box's top, bottom, `color.new(red, <input 80>)` background and border) and **our ids sort as TradingView's** (the strike levels, gamma bars and their `#.##` labels pass by pass, the NET label `NET: SHORT\n98314.6`), x in the capture's rank order (`vendorHarness.c20MaxPain`). The 12 heatmap boxes and 2 legend labels (`color.from_gradient`) are WITHHELD at run time (`withheldUnknown` 14), never painted a guess. Committed harness dir (82): the same 1 entry changed (families 253 → 254 / 301), overall MATCH 38 unchanged, inventory identical. Member-door census 266 × both flags: attach 41 / 64 unchanged; 1 row — max-pain flag OFF moves from `pine:objects-only` to the clean-objects-only sentence (its program no longer drops ops; k-clustering's C18 move). Only max-pain and k-clustering read the runtime lane in the corpus; k-clustering stays withheld by `INSTRUCTIONS_PER_BAR` (not raised). artemis labels 17 / 17 held. Census alternated vs `6415ef77c`: 34.9 / 37.2 s base vs 37.7 / 38.4 s after (box noise ±3 s; per-translation cost of the whole corpus with the check 8.19 / 8.20 s base vs 7.86 / 8.08 s after). Notebook first-open 1,868,808 B unchanged (PASS); total JS +9,015 B. `paramIds.test.js` green, no re-pin |
+| 32 | C21 dual-view: every wall re-measured and named, and a WRONG VALUE in the runtime lane fixed — a plain declaration was lowered as a persistent slot whenever any declaration of the same NAME said `var` (`pineRuntimeFrontend.js::declarationPersists`: a declaration persists exactly when it says `var`); the persistent bound covers every function's frame, called or not (`lowerIr.js::persistTotal`); an inlined function's mutable local is named for what it is (`HELPER_LOCAL_CLAUSE`, `guardRefusals` ``… (a `var` carried in a loop of `f`)``) and `collsDivergedWhy` names the first change each diverged list lost — see § C21 | `pine/c21-dual-view` | 28 / 47 → 28 / 47 (overall 24 → 24; base `c4ddd0418`, objects pane on; runtime pane on 29 → 29) | 219 / 266 → 219 / 266 (runtime pane on 226 / 273 → 226 / 273) | **none moved, measured**: dual-view stays a door refusal of its drawing, every wall named — its last bar needs 281,431 VM instructions (`INSTRUCTIONS_PER_BAR` 200,000, not raised). By substitution of its seven exact compile walls and a test-only ceiling, the runtime run now finds TradingView's 43 patterns in creation order and the floating `Dark Cloud Cover` at candle 3 (was 51, first at candle 6) — `vendorHarness.c21DualView`. The runtime lane defect is not live in production (runtime pane dark; C18/C20 not on `origin/production`). Committed harness dir (82 graded, both runtime flag states): 0 entries changed (objects MATCH 46 / 47, overall 38 / 39). Member-door census 266 × both flags: 0 rows changed (attach 41 / 64). Census build alternated: base 42.6 / 40.6 s, tip 41.3 / 37.2 s. Notebook first-open 1,868,808 B (PASS). `paramIds.test.js` green, no re-pin |
+| 34 | C23 the runtime lane SERVES A PANE with the host lane's own definitions — the seven compile walls C21 measured by substitution and the eager v6 `and`: (1) `buildRuntimeIr({pane: true})` hands the columnar resolver the host's pane contract (`Resolver` `strict`, the chart's period, the forming-bar tri-state), so `barstate.isfirst`, the clock and (2) `timeframe.change` are the plot lane's columns (unset = the screen, refusals kept); (3) which `request.security` is the identity is `pine.js::Resolver.requestTargetOf` — split out of `securityAsNode`, one reader of symbol, period, base-period guard and every `lookahead` spelling — never asked for a symbol/period argument that reaches a runtime slot; (4) `math.avg` over runtime state is `BUILTIN_CALL_TREE.avg` rebuilt over the call's own arguments (arity from `BUILTIN_CALL_TREE_MIN_ARGS`, read by both lanes); (5) `input.color` is its default colour (`inputColourDefaultNode`, the host's every colour reader), minting nothing; (6) `syminfo.mintick` is settled at BIND from the chart's symbol (`symbolScope.json` tick table, refused by name where it has no row) — the two compile-only doors leave it to the binding (`symbolAtBind`); (7) `alert()` is a presentation no-op whose arguments are evaluated only where evaluation can change something; (8) v6 `and`/`or` are lazy for EVERY operand, a NaN operand read as Pine's false (`JUMP_IF_FALSE`'s reading); v4/v5 stay eager — see § C23 | `pine/c23-runtime-pane` | 28 / 47 → 28 / 47 (overall 24 → 24; base `db6190f3f`, objects pane on) | 219 / 266 → 219 / 266 | **none moved, measured.** dual-view now BUILDS in the runtime lane as written and finds TradingView's 43 patterns in order and the floating `Dark Cloud Cover` with NO substitution (`vendorHarness.c21DualView`); its last bar needs **247,425** instructions (with the rail's hooks 256,060; C21's substituted run 290,066 at `db6190f3f` — the lazy `and`s are the difference) against `INSTRUCTIONS_PER_BAR` 200,000, not raised — still withheld, and its drawing still stops on the host walls (`pine:state` ×29, `coll:diverged` ×39). k-clustering (v5: eager, unchanged) 800,777; max-pain served values unchanged (`vendorHarness.c20MaxPain`), last bar 11,710 → 11,742. Runtime compile census (266, both doors): builds 23 → 29 / 22 → 28 — dual-view, deadband-hysteresis-filter (mintick), fibonacci-dolphintradebot and price-action-…-trendline (alert), mcclellan-indicators (`ta.cum` on a pane), visualizing-displacement-tfo (colour input); none of them attaches differently. Committed harness dir (82): 0 entries changed (objects MATCH 46, overall 38). Member-door census 266 × both flags: 0 rows changed (attach 41 / 64); with the dark runtime-pane flag on, 0 rows changed (43 / 66; control: the flag itself moves 6 rows). Census build alternated: base 50.4 / 30.5 s, tip 34.2 / 29.3 s. Notebook first-open 1,868,808 B (+0, PASS); total JS +4,444 B. `paramIds.test.js` green, no re-pin |
+| 36 | C24 translation speed without moving a saved parameter id: the comparison probe (`boundedBarssinceThroughBinding` → `constIntOf`) still resolves both operands FIRST, exactly as before, so every Track F id is minted in the same order; its tree is REPLAYED for the repeat (the swapped re-probe and the ordinary path's resolve) by `Resolver.resolveProbed` — only into the scope it was made in, only when the probe did no first-time work (`firstTimeMark`: a mint, a `Map`/`Set` field growing, a window `readMemo` filled), with the probe's steps charged to `budgetSteps` and a real resolve wherever those steps would pass the cap — see § C24 | `d641a06d4` | unchanged by construction (every `runOurSide` run on the 47 is byte-identical) | unchanged by construction | **none moved, measured byte for byte:** every `translatePine` result and `inputParams` list (manifest + plain) for 320 scripts, every member-door build for the 266 × both objects flags, every `runOurSide` run + door build for the 47 captures, and every Resolver's final `budgetSteps` — identical before/after. `mid_engagement__22-rsi-levels-regime-map` translation 1.56–3.26 s → 0.68–1.22 s (5 alternated rounds, ×1.9–2.8), its member door 3.0–7.0 s → 1.5–2.9 s; corpus translate (320 × 2) 17.8–34.0 s → 13.2–26.7 s; census build (266 × 2) 25.7–42.2 s → 21.7–26.7 s on the quiet rounds. Notebook first-open 1,868,808 B (+0, PASS). `paramIds.test.js` green, `docs/pine/param-ids.json` untouched, `pine.timeout.test.js` unchanged and green |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -769,7 +772,8 @@ Track F parameter ids on corpus scripts (`72s-strategy-adaptive-hull-…`,
 translation stays inside the 10 s `PINE_TRANSLATE_BUDGET_MS` (no `pine:timeout`
 in any measured pass); two builder tests that translate this fixture twice carry
 an explicit 60 s timeout, saying why. The census over the 266 corpus scripts
-took 36 s before and 38 s after.
+took 36 s before and 38 s after. **Retired by step 36 (§ C24)** without moving an
+id: the probe still runs first; only its REPEAT is replayed.
 
 **What each C9 script still stops on.**
 
@@ -1385,6 +1389,151 @@ its runtime check reads the pass memo, which can only admit more.
 **Measured (RDDT 1D, objects pane on, base `6415ef77c` = wave 6).** max-pain: lines 2 → 10 / 10, labels 3 → 6 / 8, boxes 0 → 1 / 13; every drawn object TradingView's value for value, ids in TradingView's order (`vendorHarness.c20MaxPain`). 47 captures and the committed harness dir: only max-pain changed.
 
 **Still refused, and what would settle each.** max-pain's 12 heatmap boxes and 2 legend labels — `color.from_gradient`, whose interpolation curve no capture pins; settled by a gradient probe capture (a value sweep 0 → 1 between two known colours, with and without `color.new` on top), checked against max-pain's own 14 captured gradient colours (both legend labels sit exactly on the endpoints, `#0064C84D` and `#FF32324D`). k-clustering — `INSTRUCTIONS_PER_BAR` (ruled: not raised). A drawing in a NESTED loop, a loop that keeps or edits a handle, a counted `for` whose values only the run computes — not carried (named `loopBlocked` / the reader's refusals); settled by a script in the corpus that needs one. A transparency that is not whole — unmeasured; settled by a capture of `color.new(c, 70.5)`. Text or colour from a script reading `timeframe.period` — the v6 spelling question (C15).
+
+## C21 — dual-view: every wall named, and a wrong value found in the runtime lane (2026-09-30, step 32)
+
+Branch `pine/c21-dual-view`, base `c4ddd0418` (wave 6). `dual-view-htf-candlestick-patterns-theultimator5`
+(capture `…-rddt-1d-2026-09-28`, NYSE:RDDT 1D, 632 bars from the listing): TradingView holds 436
+objects — seven floating HTF candles made on bar 0 and re-set on every bar (7 boxes, 28 lines,
+ids 1–35), and, all made on the last bar, the 43 candle patterns its 200-candle scan finds
+(104 boxes, 208 lines, 86 labels, ids 36–433), one centre label and two floating pattern labels.
+
+**The walls, re-measured on the base** (the member door's own translation — `strict`, the runtime
+check on; a byte-restored instrument on `canonicalOf` for the tree refusals):
+
+| what | where | shape | first wall |
+|---|---|---|---|
+| 78 `pine:state` | 58 on the guard at L479, 14 on L527, 6 value reads (L529–539) | ONE construct: a `var` declared inside `update_drawings`' `for` (`var float htf_o = na` … `htf_o := array.get(htf_open, array_index)`), one variable across passes and bars, fed by 212-slot `var` arrays that a `while` shortens (`inlinedLocalBinding`) | a function's own mutable local; the arrays are windows with an input cap above 64 — C22's boundary |
+| 39 `coll:diverged` | reads of 10 lists | the floating lists' bar-0 pushes (L412–430) read the loop counter; the historical lists' pushes (L771–802) sit in a loop whose bound reads an array; `pattern_labels`' (L906) under `pine:reassign lowest_point` | the lost pushes' own classes |
+| 7 `create:*` / 5 `coll:push` | L412–430, `initialize_drawings` | coordinates that read the loop counter (`loopValuesUnresolved`) | counter-dependent values (iterTrees off in the host lane) |
+| runtime lane | `probeObjectRuntime` | refused in order: `barstate.isfirst` (window-dependent), `timeframe.change` (screen), `request.security … lookahead` (own timeframe), `math.avg` (undeclared), `input.color`, `syminfo.mintick` (unsettled at compile), `alert()` (presentation) | each exact on a from-listing 1D chart at defaults, measured by substitution |
+| runtime lane, behind the seven | the last bar | **281,431 VM instructions** against `INSTRUCTIONS_PER_BAR` 200,000 | not raised (ruling) |
+
+**What C21 changed.**
+
+1. ⛔ **A wrong value in the runtime lane, fixed** (`pineRuntimeFrontend.js::declarationPersists`). A
+   plain declaration was lowered as a PERSISTENT slot whenever ANY declaration of the same NAME
+   anywhere in the script said `var` (`scanMutability(...).persistent`, a whole-script name set).
+   `detect_pattern_at_index`'s `float htf_o = get_htf_open(i)` shares its name with
+   `update_drawings`' `var float htf_o` — so the scan read the first bar's candles, and the run
+   found 51 patterns (the first at candle 6) where TradingView drew 43 (the first at candle 3,
+   hand-checked from the capture's bars). Pine scopes a variable to its function and block; a
+   declaration persists exactly when it says `var`. Minimal: `f() => var float x = na` beside
+   `g() => float x = close` read the first close on every bar; a top-level `var x` did the same
+   to a function's `x`. ⭐ **Not live in production**: the runtime pane is dark (`VITE_PINE_RUNTIME_PANE_ENABLED`
+   unset) and C18/C20's object values are not on `origin/production` (`28c4082f8`); on the wave-6
+   integration branch no served script carries the collision (max-pain's and k-clustering's vendor
+   rails unchanged).
+2. **The persistent bound covers every function's frame** (`lowerIr.js::persistTotal`). A function
+   body is emitted whether or not a call site reaches it; `f() => var float x = na` beside
+   `plot(close)` refused to lower (`JUMP_IF_INIT slot 0 outside 0 persists`) and lowered only by
+   the accident above.
+3. **Sharper names** (diagnostics only; every drop, key and class as before):
+   - an inlined function's mutable local no longer opens with the running-total clause (false of it;
+     `pine.refusalAuthority.test.js`'s rule) — `HELPER_LOCAL_CLAUSE`, and `guardRefusals` names it:
+     ``update@491: pine:state `htf_o` (a `var` carried in a loop of `update_drawings`)`` (a
+     `var` in a loop of the helper, `bodyNames`' `carried`) or ``… (reassigned inside `f`)``;
+   - `objectDiagnostics.collsDivergedWhy` names the first change each diverged list lost
+     (`candle_bodies: coll:push@412`, `historical_candle_boxes: loop:bounds@771`, …; the reader's
+     own losses carry theirs, `lostCollsWhy`).
+
+**Grades** — see the fix-order row. Nothing drawn moved: dual-view stays a door refusal of its
+drawing (the HTF MA plot carries the door), every object withheld and named.
+
+**Vendor-backed, by substitution** (`vendorHarness.c21DualView`): with the seven compile walls
+replaced by their exact equivalents on this capture (`isfirst` → `bar_index == 0` on a from-listing
+series; `timeframe.change("D")` on 1D → `bar_index > 0`, C8; the own-timeframe request → its
+expression, C10; `math.avg(a, b)`; the colour defaults; RDDT's 0.01 tick; `alert` removed) and a
+test-only ceiling, the run's 43 pattern texts equal TradingView's 43 historical pattern labels in
+creation order, and its floating candle 3 is TradingView's `Dark Cloud Cover`. The product path
+refuses the same bar on the ceiling (the k-clustering precedent).
+
+**Refused, and what would settle each:**
+
+| what | would settle it |
+|---|---|
+| the last bar's 200-candle scan (281,431 instructions) | an owner ruling on `INSTRUCTIONS_PER_BAR` — not this lane's (ruled: not raised) |
+| the seven runtime compile walls | each is exact on a from-listing chart at defaults (above); serving them needs the runtime lane told it serves a PANE (`isfirst`, the clock) and the own-timeframe identity at run time — only worth building once the ceiling allows the bar |
+| Pine v6 `and` short-circuit | the lane short-circuits only operands it proves 0/1; `… and array.get(candle_in_pattern, i)` reads index −1 eagerly and stops the run (fails SAFE: withheld). v6 bools are never `na`, so every v6 `and`/`or` may short-circuit — named, not changed |
+| the floating candles | a helper's `var` carried in a loop (the 78), and the 212-slot windows it reads (input cap, `while`-shortened: C22's window work) |
+| drawings made in nested counted loops and pushed into lists | a trace of the run's creates in order (C20 carries only a `while` of statement creates) — and the ceiling first |
+
+## C23 — the runtime lane serves a pane: C21's seven walls and v6 `and`/`or` (2026-09-30, step 34)
+
+Branch `pine/c23-runtime-pane`, base `db6190f3f` (wave 6). Every construct below is the HOST lane's own
+definition reached from the runtime lane — no rule is restated; the runtime lane asks `pine.js`.
+
+| construct | rule (where it lives) | vendor proof | host parity |
+|---|---|---|---|
+| `barstate.isfirst`, the clock | `buildRuntimeIr({pane: true})` → `Resolver` `strict` + `basePeriod` + forming tri-state (`resolverOpts`); every door in `runtimeColumns.js` passes it; unset = screen, `pine:window-dependent` kept | dual-view as written (floating candles made on bar 0) | `isfirst` / `isconfirmed` (forming and closed) bar for bar |
+| `timeframe.change` | the same door (`clockCloseCallOf`: `isfirst ? 0 : first-of-period`) | `vw-clock-close-tfchange-spy-{1d,1w}` K04/K05/K06/K16 on every bar | the same columns |
+| own-timeframe `request.security` | `Resolver.requestTargetOf` (split out of `securityAsNode`); identity only; never for an argument reaching a runtime slot | dual-view's HTF MA feeds its trend filters → the 43 patterns | dual-view's `htf_ma_value` = host `ta.ema(close, 12)` on every bar; `"D"` on a 60m chart refused in both |
+| `math.avg` | `BUILTIN_CALL_TREE.avg` rebuilt over the call's arguments; `BUILTIN_CALL_TREE_MIN_ARGS` for both lanes | donchian's Basis with its arguments carried in `var`s equals TradingView's | IR identical to `(a + b) / 2`; column = host's |
+| `input.color` | `inputColourDefaultNode` (the host's every colour reader); no parameter minted; values served at defaults only | dual-view's nine colour inputs | IR identical to the default written in |
+| `syminfo.mintick` | bound from the chart's `symbol` (`bindConstsFor`, `symbolScope.json` tick table); compile-only doors defer it (`symbolAtBind`, zero bars only); `objectColumns.js` threads `symbol` to the run | `vw-mintick-{aapl,brka,spy}` M01 on every bar | = host column; OTC refused by name; no symbol → withheld |
+| `alert()` | a presentation no-op (host: `CHART_ONLY_CALLS`); an argument whose evaluation can change something (user function with an effect, collection/drawing call) is evaluated in place | — (no capture observes an alert) | — |
+| v6 `and` / `or` | `lowerIr.js`: lazy for every operand, `a ? bool(b) : false` / `a ? true : bool(b)`, NaN read as false; the provable-0/1 form (C18) byte-identical; v4/v5 eager | dual-view's `… and array.get(candle_in_pattern, i)` no longer reads index −1 (43 patterns) | finite operands answer as the eager form |
+
+⛔ **A choice, stated:** where an operand of a v6 `and`/`or` is held as NaN (a column's warm-up, the
+unmeasured probe) the answer is `false`, not the eager `logical`'s NaN — Pine v6 bools are never `na`, and
+the probe runs (NaN / −1e12) still disagree there, so an unmeasured value stays withheld.
+
+**Instructions:** dual-view's last bar 247,425 (hooks 256,060; C21's substituted 290,066 at base) > 200,000 —
+withheld by name, budget not raised. k-clustering (v5) 800,777 unchanged. max-pain 11,710 → 11,742.
+
+**Still refused, and what would settle each.** dual-view — `INSTRUCTIONS_PER_BAR` (owner ruling; not raised)
+and, for its drawing, the host walls C21 names (a helper's `var` carried in a loop, lists diverged).
+k-clustering — the same budget. `request.security` to another period or symbol — unchanged (C10). An alert's
+delivery — the host's path; nothing here fires one.
+
+## C24 — the comparison probe is replayed, not resolved twice (2026-09-30, step 36)
+
+Branch `pine/c24-mintfree-probe`, base `d6bb8b336` (C23). Integrator ruling: no saved parameter id
+may move — no re-pin of `docs/pine/param-ids.json`.
+
+**Why a mint-free probe was not the answer.** The probe IS the first resolution of its operands, and
+the mint counter is shared by every output's Resolver (a refused output mints too), so any probe that
+mints less than today moves the ids of whatever resolves next — which is what C9's reverted pre-check
+did. So the probe is untouched and mints exactly as before; what C24 removes is the REPEAT.
+
+**The mechanism** (`pine.js::Resolver.resolveProbed`, used only for `<`, `>`, `<=`, `>=`):
+
+| rule | why |
+|---|---|
+| the probe's tree is kept in a per-comparison map and handed to the swapped re-probe and the ordinary path's `resolve` | these are the second and third resolutions of the same node in the same scope — the doubling per nesting level |
+| replayed only when `env`, cycle `stack`, argument `frames` (+ length), `selfReads`, `paramMint` and `objectPass` are the SAME objects; a refusal is never kept | a tree is only the repeat's answer in the scope it was made in |
+| kept only when the probe did no first-time work — `firstTimeMark`: the mint counter, every `Map`/`Set` field's size (read generically), and `firstTimeWork` (a window `readMemo` filled) | the first resolution of an input (its `minval`/`maxval`/`step` resolve at mint), a `var` read cache miss or a window memo miss is DEARER than a repeat; charging it to the replay moved `budgetSteps` on 99 of 1,130 script × mode rows in the first cut (artemis +7,661 over its 603 Resolvers) |
+| the replay adds the probe's steps to `budgetSteps` (the clock is asked when that crosses a 4,096 boundary, `checkClock`); when those steps would pass `maxSteps` it resolves for real | the step cap fires at the node, with the caret, it always did |
+| not used when an operand is a `var` state binding or a bare `obv` | `boundedRunLengthThroughBinding` / `boundedObvAgainstOwnAverage` do work between the probe and the ordinary path |
+
+**Proof, before (`d6bb8b336`) vs after, by scratch dumps** (a stable serialisation that also carries the
+non-enumerable `__uctParamId` / `inputName` / `inputDefault`):
+
+| dump | rows | result |
+|---|---|---|
+| `translatePine` manifest + plain, and the `inputParams` list, for `corpus/committed` + `pine_oos` + `member` + `fixtures/pine` (320) | 960 | identical |
+| every Resolver's final `budgetSteps`, both modes (320) + the member door × both objects flags (266) | 1,172 | identical |
+| `enterMemberDoor` build + installed definition, 266 × both objects flags | 532 | identical |
+| `runOurSide` (objects pane on) + door build for the 47 RDDT captures | 94 | identical |
+
+`paramIds.test.js` green without re-pin. `pineProbeReplay.test.js` pins the pre-C24 numbers (step totals
+of a 12-deep comparison chain and five corpus scripts, the refusal location of a `pine:timeout` at every
+cap from 100 to 61,500) and that real resolves grow linearly (61,435 → 574 on the chain); seven
+mutations each red it: no replay, no step charge, purity gate always true, no cap fallback, `readMemo`
+not counted, `Map`/`Set` sizes not counted, the mint counter not counted.
+
+**Timings, alternated (before | after, ms; 3 translations per round; box load fell over the run):**
+
+| round | 22-rsi translate | 22-rsi member door | corpus translate 320 × 2 | census 266 × 2 |
+|---|---|---|---|---|
+| 1 | 3258 3175 3554 \| 1315 1162 1061 | 7180 7045 6984 \| 2787 3170 2867 | 34,047 \| 26,705 | 40,679 \| 47,813 ᵇ |
+| 2 | 2986 3049 2969 \| 1223 1291 1163 | 6659 6859 6896 \| 2670 2720 2530 | 31,875 \| 23,287 | 42,218 \| 25,681 |
+| 3 | 1763 1606 2062 \| 880 893 942 | 4350 4309 4131 \| 2571 2095 1749 | 19,817 \| 18,436 | 29,937 \| 26,728 |
+| 4 | 1576 1551 1932 \| 835 837 762 | 3736 3873 3549 \| 1666 1675 1507 | 21,772 \| 15,786 | 31,445 \| 25,599 |
+| 5 | 1636 1560 1534 \| 697 632 677 | 3207 3023 2811 \| 1495 1494 1307 | 17,795 \| 13,207 | 25,693 \| 21,658 |
+
+ᵇ The one round where after was slower; it was the first run on a loaded box and is not repeated in
+rounds 2–5.
 
 ## What is left, ranked by scripts it would move
 
