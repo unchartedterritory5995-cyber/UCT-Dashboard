@@ -177,3 +177,36 @@ def test_MUTATION_applied_by_switches_on_the_repair_flag_not_a_constant(
     assert enabled_answer == "bars_split_repair"
     assert disabled_answer == "bars_sanitize"
     assert enabled_answer != disabled_answer
+
+
+def test_the_basis_is_served_where_production_can_reach_it(monkeypatch):
+    """TERM-055. On production a Cloudflare Worker sends /api/bars/* to the bars-api tier, which
+    does not serve this route: /api/bars/NVDA/adjustment-basis answered 404 for every ticker
+    (measured 2026-09-29). The label therefore reads /api/adjustment-basis/{ticker}, which the
+    web pod receives. Both spellings must answer the same thing."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import bars as bars_mod
+    from api.services import adjustment_basis as ab
+    monkeypatch.setattr(ab, "compute_adjustment_basis",
+                        lambda t, tf: ab.AdjustmentBasis(splits=True, dividends=None,
+                                                         as_of="2024-06-10", applied_by="vendor"))
+    app = FastAPI()
+    app.include_router(bars_mod.router)
+    app.dependency_overrides[bars_mod.require_bars_access] = lambda: {"id": "u"}
+    c = TestClient(app)
+    a = c.get("/api/adjustment-basis/nvda?tf=D")
+    b = c.get("/api/bars/nvda/adjustment-basis?tf=D")
+    assert a.status_code == b.status_code == 200
+    assert a.json() == b.json()
+    assert a.json()["adjustment_basis"] == {"splits": True, "dividends": None,
+                                            "as_of": "2024-06-10", "applied_by": "vendor"}
+
+
+def test_the_label_reads_the_reachable_path():
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart"
+           / "AdjustmentLabel.jsx").read_text(encoding="utf-8")
+    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("//"))
+    assert "/api/adjustment-basis/" in code
+    assert "/api/bars/" not in code

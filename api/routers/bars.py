@@ -531,6 +531,7 @@ async def get_bars(
     return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
 
 
+@router.get("/api/adjustment-basis/{ticker}")
 @router.get("/api/bars/{ticker}/adjustment-basis")
 def get_adjustment_basis(
     ticker: str,
@@ -539,11 +540,12 @@ def get_adjustment_basis(
 ):
     """D5 CHECKPOINT 7 — the adjustment-basis label for one (ticker, tf) series.
 
-    ⛔ SHIPS DARK. Nothing in the frontend calls this yet — the member-facing
-    sentence ("split-adjusted, 2026-09-02" / "as reported") is an explicit,
-    named deferral to S8/S10 (the D5 gate's own approval-line requirement),
-    not an oversight. This endpoint exists so the label is addressable and
-    testable before any UI reads it.
+    ⭐ READ BY `components/chart/AdjustmentLabel.jsx` (TERM-055, owner ruling 2026-09-29: splits
+    only) at `/api/adjustment-basis/{ticker}`. ⛔ NOT at `/api/bars/{ticker}/adjustment-basis`
+    on production: a Cloudflare Worker (`bars-edge-router`, see `chart_edge_token.py`) sends
+    `/api/bars/*` straight to the bars-api tier, which does not serve this route, so that
+    spelling answered 404 for every ticker (measured 2026-09-29). The second path is the one
+    the web pod actually receives; the first is kept so nothing that already names it breaks.
 
     Additive: a brand-new route, touching no existing `/api/bars/{ticker}`
     response shape or call site. See `api/services/adjustment_basis.py` for
