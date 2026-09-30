@@ -5,11 +5,21 @@ role: >
   Roadmap item RM-N02. One email, four register items, zero engineering, and the only
   thing that can move BRK-01 - the largest coverage gap in the product. Written to be
   sent as-is; the owner supplies the recipient and presses send.
-status: SENT 2026-09-29 ~21:30 ET, awaiting reply
+status: REPLIED 2026-09-30 (~13:04 CT, Christian Contreras, Market Data Specialist)
 date: 2026-09-26
 ---
 
 # The Massive ask
+
+> ✅ **REPLIED 2026-09-30** (~13:04 CT, to goszbless@gmail.com, from Massive's Market Data
+> Specialist). Summary of each answer, and what it moves:
+>
+> | Q | their answer | what it moves |
+> |---|---|---|
+> | **1 historical chains** | **Partially: no.** Historical aggs, trades and quotes only. **No** historical option chains, greeks, IV or open interest. | `BRK-01`'s history half cannot be bought from Massive. It moves from "buy the data" to **"accumulate it ourselves from today forward"** (daily chain snapshot), or partly reconstruct it from historical quotes. OI history cannot be reconstructed from quotes. |
+> | **2 IV history** | **No.** IV and greeks exist in the snapshot endpoints for the **current session only**; no per-contract IV series, surface or ATM term structure. They suggest snapshotting the chain daily, or computing IV from historical quotes plus underlying prices. | IV rank on the Research Options tab stays `null` until we hold our own history (≈ 1 year of daily snapshots for a 52-week rank), or until we compute it from historical quotes. |
+> | **3 second OPRA connection** | **Yes. $75/month** per additional concurrent OPRA WebSocket connection; "let me know if you need it". | `TERM-002`: the cost is known. Owner decision to buy. ⚠️ The licensing/TPA half is not addressed by the reply. |
+> | **4 GEX from our entitlement** | **Yes.** Strikes, expiries, OI, greeks and quotes per contract are all in the snapshot endpoints. | `LCQ-02`: confirms what was measured 2026-09-29/30 (SPY/QQQ/NVDA/TSLA/IWM chains computed from Massive, untruncated). The switch still waits on a Schwab-side parity run. |
 
 > ✅ **SENT 2026-09-29 (evening ET) by the owner**, to **sales@massive.com** (the address
 > Massive's contact page gives for "market data experts"), from goszbless@gmail.com, with the
