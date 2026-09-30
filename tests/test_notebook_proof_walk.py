@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -367,3 +368,100 @@ def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sen
     assert "what: 'your current balances', error: comparisonError" in menu[:menu.index("accounts.map")]
     # CONTROL: the parser finds nothing in a reason that names no rail
     assert re.search(r"Proved by (\S+\.test\.jsx), '([^']+)'", W.SILENT_EXEMPT[("POST", "/api/j2/notes/{id}/opened")]) is None
+
+
+# ── wave 10 lane WK4: the dead-click sweep's hang on `nb-bulk` ─────────────────────────────
+# WK3 measured a ~50-minute, ~0%-CPU stall inside the per-control click loop (
+# docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md), hard-killed with no shutdown
+# checkpoint, 32 of 44 surfaces left unmeasured. `page.evaluate(...)` takes no `timeout=` in
+# Playwright's Python API, so a call whose JS never yields control back cannot be bounded by
+# any explicit timeout inside `click_one` -- these rails exercise the wall-clock WATCHDOG that
+# wraps it instead, with the browser fully faked out (a real hang cannot be a pytest fixture).
+
+class _FakeCtx:
+    def __init__(self):
+        self.closed = False
+
+    def close(self):
+        self.closed = True
+
+
+def test_a_stuck_call_times_out_named_and_the_context_is_force_closed():
+    killed = {"n": 0}
+    ctx = _FakeCtx()
+
+    def hang():
+        time.sleep(0.3)          # stands in for a call with no way back within the budget
+        return "too late"
+
+    started = time.monotonic()
+    timed_out, result = W._run_with_deadline(hang, 0.05, lambda: (killed.__setitem__("n", killed["n"] + 1), ctx.close()))
+    elapsed = time.monotonic() - started
+    assert timed_out is True and result is None
+    assert elapsed < 0.6, f"waited for the hang instead of its own budget ({elapsed}s)"
+    assert killed["n"] == 1, "kill() was not called exactly once on a genuine timeout"
+    assert ctx.closed is True
+
+    # CONTROL: a call that returns within its budget is NOT reported as a timeout, and kill()
+    # is never invoked -- the watchdog only fires on an actual overrun
+    killed["n"] = 0
+    timed_out2, result2 = W._run_with_deadline(lambda: "on time", 5.0, lambda: killed.__setitem__("n", killed["n"] + 1))
+    assert timed_out2 is False and result2 == "on time"
+    assert killed["n"] == 0
+
+
+def test_a_hanging_click_is_named_TIMEOUT_and_the_next_control_still_runs(monkeypatch):
+    seen = []
+
+    def fake_click_one(W_, pg, tap, root, c, surf, mode):
+        seen.append(c["key"])
+        if c["key"] == "hang":
+            time.sleep(0.3)
+            return {"verdict": "LIVE", "reset": False}     # never reached within the budget
+        return {"verdict": "LIVE", "reset": False}
+
+    monkeypatch.setattr(W, "click_one", fake_click_one)
+    holder = {"ctx": _FakeCtx()}
+    started = time.monotonic()
+    r1 = W._click_or_timeout(None, None, None, None, {"key": "hang"}, None, None, holder, deadline=0.05)
+    elapsed = time.monotonic() - started
+    assert r1["verdict"] == "TIMEOUT" and r1["reset"] is True
+    assert elapsed < 0.6, f"the per-click guard waited for the hang instead of its own budget ({elapsed}s)"
+    assert holder["ctx"].closed is True, "the stuck control's context was not force-closed"
+    # the sweep continues: the NEXT control still runs and reads its own real verdict, not the
+    # previous control's timeout leaking forward
+    r2 = W._click_or_timeout(None, None, None, None, {"key": "ok"}, None, None, holder, deadline=5.0)
+    assert r2 == {"verdict": "LIVE", "reset": False}
+    assert seen == ["hang", "ok"], "the loop did not reach the control after the hang"
+
+
+def test_a_hanging_surface_is_named_TIMEOUT_and_salvages_what_it_measured(monkeypatch):
+    monkeypatch.setattr(W, "SURFACE_DEADLINE_S", 0.05)
+
+    def fake_deadclick_surface(W_, surf, mode, *, plant=False, handle=None):
+        # simulates the per-click guard having already recorded one control before something
+        # OUTSIDE its reach hangs (e.g. inside `fresh()`'s own `surf.open()`) -- the scenario
+        # this per-SURFACE guard exists for, distinct from the per-click one above
+        handle["rec"] = {"surface": surf.sid, "mode": mode, "manifest": [],
+                          "controls": [{"key": "c1", "verdict": "LIVE"}], "resets": 0}
+        time.sleep(0.3)
+        return handle["rec"]     # never reached within the budget
+
+    monkeypatch.setattr(W, "deadclick_surface", fake_deadclick_surface)
+    surf = W.surface_by_id("nb-bulk")
+    started = time.monotonic()
+    rec = W.deadclick_surface_bounded(None, surf, "desk")
+    elapsed = time.monotonic() - started
+    assert elapsed < 0.6, f"the per-surface guard waited for the real hang instead of its own budget ({elapsed}s)"
+    assert rec["status"] == "TIMEOUT"
+    assert rec["surface"] == "nb-bulk"
+    assert rec["controls"] == [{"key": "c1", "verdict": "LIVE"}], "the partial record was discarded, not salvaged"
+
+    # CONTROL: a surface that finishes within its budget is reported unchanged, not wrapped in
+    # a TIMEOUT record -- the guard only intervenes on an actual overrun
+    def fake_fast(W_, surf, mode, *, plant=False, handle=None):
+        return {"surface": surf.sid, "mode": mode, "manifest": [], "controls": [], "status": "MEASURED"}
+
+    monkeypatch.setattr(W, "deadclick_surface", fake_fast)
+    rec2 = W.deadclick_surface_bounded(None, surf, "desk")
+    assert rec2["status"] == "MEASURED"
