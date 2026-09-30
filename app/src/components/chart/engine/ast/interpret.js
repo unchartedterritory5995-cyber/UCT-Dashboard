@@ -3506,7 +3506,9 @@ export function structuralMaps(root) {
   return { idOf, freeOf, distinct: byShape.size }
 }
 
-/** How many DISTINCT subtrees the tree has. The number `budget:nodes` thresholds.
+/** How many DISTINCT subtrees the tree has — since C19, how many UNITS the
+ *  evaluator computes (`evaluationUnits`, below): the number `budget:nodes`
+ *  thresholds. `held` is the caller's pass memo, when it has one.
  *
  *  ⭐⭐ DISTINCT, NOT TOTAL — and it is honest ONLY because the interpreter
  *  memoises on the same ids. A translated script inlines rather than names (the
@@ -3517,8 +3519,150 @@ export function structuralMaps(root) {
  *  ⛔ THE TWO MOVE TOGETHER. Counting the DAG WITHOUT the memo is the opposite
  *  error and a far worse one — a budget under-reporting real cost. If the memo is
  *  ever narrowed, narrow this with it. */
-export function nodeCount(ast) {
-  return structuralMaps(ast).distinct
+export function nodeCount(ast, held) {
+  return evaluationUnits(ast, held).count
+}
+
+/** The node types whose child is evaluated by a FRESH `interpret` call on other
+ *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
+ *  own, with its own memo. See `evaluationUnits`. */
+const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym'])
+
+/** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
+ *  units it memoises. The number `budget:nodes` thresholds.
+ *
+ *  Integrator ruling (2026-09-30): a SHARED subtree counts ONCE, but only where
+ *  the evaluator genuinely evaluates it once; a subtree that is textually
+ *  repeated but evaluated separately counts every time. The cap is not raised.
+ *
+ *  So a unit is the key the evaluator's own memo uses, never a guess at it:
+ *    - a self-free node is memoised on its STRUCTURAL id within one `interpret`
+ *      call (`evalNode`'s `memo`), so its unit is (scope, structural id);
+ *    - an operator or call that reads a recurrence bind is evaluated once per
+ *      step within ONE recurrence (`runRecurrence`'s step memo, keyed
+ *      structurally since C19), so its unit is (scope, the recurrence it belongs
+ *      to, structural id) — the same `self + 1` under two recurrences is two
+ *      computations. The bind read itself (`self`, `self[k]`) computes nothing
+ *      — it is a slot of the step's own history — so, like a literal or a
+ *      column, it is one unit per shape per scope;
+ *    - a `tf` / `tf_live` / `sym` child runs in a fresh `interpret` call on other
+ *      bars with a fresh memo, so its nodes are units of a scope of their own —
+ *      `close` on the chart's bars and `close` on the weekly bars are two.
+ *
+ *  ⭐ `held` — the columns a PASS already holds (`objectColumns`' pass memo,
+ *  `crossMemo`, keyed on the interned node object). `evalNode` answers a
+ *  self-free root-scope node the pass holds without walking below it, so here it
+ *  costs one unit — the read of its column — and nothing beneath it. A shape is
+ *  held only when EVERY object of it in this tree is held: the evaluator's memo
+ *  keeps whichever object it reaches first, and an un-held twin reached first
+ *  computes the whole subtree.
+ *
+ *  ⛔ ITERATIVE, like `structuralMaps`, so it survives the 8,001-node tree. The
+ *  walk visits a unit once: a unit's children's units depend only on the unit
+ *  (a self-free node's descendants are self-free except a recurrence's own
+ *  body, which is keyed on that recurrence). */
+export function evaluationUnits(root, held) {
+  const { idOf, freeOf } = structuralMaps(root)
+  const heldShape = new Map()
+  if (held && typeof held.has === 'function') {
+    const seen = new Set()
+    const stack = [root]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || Array.isArray(n) || seen.has(n)) continue
+      seen.add(n)
+      if (freeOf.get(n)) {
+        const sid = idOf.get(n)
+        heldShape.set(sid, (heldShape.get(sid) ?? true) && passHolds(held, n))
+      }
+      // only the chart's own scope: a child under `tf` / `sym` reads another memo
+      if (SCOPE_TYPES.has(n.type)) continue
+      if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    }
+  }
+  const binds = bindNames()
+  const isBind = (x) => !!x && typeof x === 'object' && x.type === 'series' && binds.has(x.name)
+  const units = new Set()
+  const stack = [[root, '', '']]
+  while (stack.length) {
+    const [n, scope, rec] = stack.pop()
+    const sid = idOf.get(n)
+    // ⭐ A READ OF WHAT IS ALREADY HELD IS ONE UNIT PER SHAPE, WHEREVER IT IS READ:
+    // a literal, a memoised column, and the running value itself (`self`,
+    // `self[k]` — a slot of the step's own history, computed by nothing). What a
+    // recurrence COMPUTES per step is its spine's operators and calls, and those
+    // are keyed on the recurrence below: `self + 1` under two recurrences is two.
+    const read = freeOf.get(n) || isBind(n) || (n && n.type === 'offset' && isBind(n.args && n.args[0]))
+    // the chart's own read shapes — nearly every unit — keep the bare id
+    // (a number never equals a string key, and `rec` always holds a `|`)
+    const key = read ? (scope === '' ? sid : `${scope}|${sid}`) : `${scope}|${rec}|${sid}`
+    const free = freeOf.get(n)
+    if (units.has(key)) continue
+    units.add(key)
+    if (!n || typeof n !== 'object' || Array.isArray(n)) continue
+    if (scope === '' && free && heldShape.get(sid) === true) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope
+    const spec = n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name)
+      ? RECURRENCES[n.name] : null
+    const bodyAt = spec && Number.isInteger(spec.body) ? spec.body : -1
+    for (let ai = 0; ai < args.length; ai += 1) {
+      stack.push([args[ai], childScope, ai === bodyAt ? `${scope}|${sid}` : rec])
+    }
+  }
+  return { count: units.size }
+}
+
+/** Does the pass hold this node's column? The ONE predicate `evalNode` skips on
+ *  and `evaluationUnits` counts on — called by both, never restated. */
+export function passHolds(held, n) {
+  return held !== null && held !== undefined && typeof held.has === 'function' && held.has(n)
+}
+
+/** Does this subtree hold no recurrence? Every use of `prefixProbe` sits inside a
+ *  recurrence (its warm-up fill, the switched window, the listing pass) or on an
+ *  offset OF one (`enteringStateUnknown`), so such a subtree's column is the
+ *  same under every probe value. Iterative; `cache` lives for one call. */
+function readsNoRecurrence(root, cache) {
+  if (!root || typeof root !== 'object') return true
+  if (cache.has(root)) return cache.get(root)
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [n, expanded] = stack.pop()
+    if (!n || typeof n !== 'object' || cache.has(n)) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (!expanded) {
+      stack.push([n, true])
+      for (const a of args) stack.push([a, false])
+      continue
+    }
+    let answer = !(n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name))
+    for (const a of args) {
+      if (answer && a && typeof a === 'object' && cache.get(a) === false) answer = false
+    }
+    cache.set(n, answer)
+  }
+  return cache.get(root)
+}
+
+/** ⭐⭐ C19 — WHAT ONE `interpret` CALL CAN READ WITHOUT COMPUTING, as one object
+ *  with `has` / `get`: its own pass memo (`opts.crossMemo`), and — for a PROBE
+ *  run (`opts.prefixProbe`) handed the real pass's memo as `opts.probeBase` over
+ *  the SAME bars — every column of that memo whose subtree holds no recurrence
+ *  (`readsNoRecurrence`: no probe value can move it). `evalNode` answers from
+ *  it and `assertBudget` charges against it: the same object, so what the
+ *  budget counts as free is exactly what the evaluator does not compute. */
+function passView(opts) {
+  const memo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  const base = opts && typeof opts.prefixProbe === 'number' && opts.probeBase instanceof Map
+    ? opts.probeBase : null
+  if (memo === null && base === null) return null
+  const plain = new Map()
+  const fromBase = (n) => base !== null && base.has(n) && readsNoRecurrence(n, plain)
+  return {
+    has: (n) => (memo !== null && memo.has(n)) || fromBase(n),
+    get: (n) => (memo !== null && memo.has(n) ? memo.get(n) : base.get(n)),
+  }
 }
 
 // --------------------------------------------------------------------------- //
@@ -3712,7 +3856,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   // ⛔ NOT WRAPPED IN A `try`. A `RangeError` from a tree this admits must reach
   // the caller AS a `RangeError`; relabelling it as a budget refusal is the same
   // wrong-door defect this whole phase is about, wearing a different coat.
-  assertBudget(ast, budget)
+  // ⭐⭐ C19 — THE MEMO THIS RUN WILL READ IS WHAT IT IS CHARGED AGAINST. A column
+  // the caller's pass already holds (`opts.crossMemo`, as it stands before a node
+  // of this tree is walked) is answered by `evalNode` without walking below it
+  // (`passHolds`), so it costs one read here (`evaluationUnits`). Derived from
+  // the memo itself, never from a second ledger: a probe run with its own memo
+  // is charged for what IT computes.
+  const readable = passView(opts)
+  assertBudget(ast, budget, readable)
   // ⛔ THE TREE-SHAPE RULE FOR `sym`, asked once per tree rather than per bar,
   // and by the same helper `maxLookback` calls.
   assertSymPlacement(ast, refuse)
@@ -3951,7 +4102,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
 
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
-            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`) }),
+            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -4006,7 +4157,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // clock or `tf` reads the right base.
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
-            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`) }),
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -4198,8 +4349,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // kills the mutation, add it and delete this paragraph.
     const id = freeOf.get(n) ? idOf.get(n) : undefined
     if (id !== undefined && memo.has(id)) return memo.get(id)
-    if (crossMemo !== null && id !== undefined && crossMemo.has(n)) {
-      const shared = crossMemo.get(n)
+    if (id !== undefined && passHolds(readable, n)) {
+      const shared = readable.get(n)
       memo.set(id, shared)
       return shared
     }
@@ -4371,11 +4522,20 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // ⭐ C12r — how many parents reach each node, so a step memoises only the
     // spine nodes that are actually shared (`stepMemo` below).
     const refs = new Map()
+    // ⭐⭐ C19 (2026-09-30) — KEYED ON THE STRUCTURAL ID, not the node object.
+    // Every spine operator is pointwise and pure, so two nodes of one shape in
+    // one recurrence are one value per step whether or not they are one object;
+    // keyed on the object, a V1 document (no shared objects after a save) paid
+    // for each copy while `nodeCount` charged for one. The step memo, the plan
+    // and the listing walker now share what the budget counts
+    // (`evaluationUnits`): one unit per shape per recurrence.
+    const sk = (x) => { const id = idOf.get(x); return id === undefined ? x : id }
     const plan = (x) => {
-      refs.set(x, (refs.get(x) || 0) + 1)
-      if (planned.has(x)) return
-      planned.add(x)
-      if (!reads(x)) { columns.set(x, evalNode(x)); return }
+      const k = sk(x)
+      refs.set(k, (refs.get(k) || 0) + 1)
+      if (planned.has(k)) return
+      planned.add(k)
+      if (!reads(x)) { columns.set(k, evalNode(x)); return }
       if (isBind(x)) return
       if (x.type === 'offset') {
         // ⭐⭐ `self[k]` IS THE SECOND-ORDER CASE, AND IT IS THE KEYSTONE. A 2-pole
@@ -4443,10 +4603,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     let stepNo = 0
     const compiled = new Map()
     const compile = (x) => {
-      if (compiled.has(x)) return compiled.get(x)
+      const k = sk(x)
+      if (compiled.has(k)) return compiled.get(k)
       let fn
-      if (columns.has(x)) {
-        const v = columns.get(x)
+      if (columns.has(k)) {
+        const v = columns.get(k)
         fn = isColumn(v) ? (j) => v[j] : () => v
       } else if (isBind(x)) {
         fn = (j, history) => history[0]
@@ -4466,7 +4627,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           for (let a = 0; a < n; a += 1) values[a] = kids[a](j, history)
           return isOp ? applyOpStep(x, values) : pointwise(...values)
         }
-        if (refs.get(x) > 1) {
+        if (refs.get(k) > 1) {
           let at = -1
           let held
           fn = (j, history) => {
@@ -4477,7 +4638,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           fn = raw
         }
       }
-      compiled.set(x, fn)
+      compiled.set(k, fn)
       return fn
     }
 
@@ -4505,13 +4666,20 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
     const stepListing = (x, j, history, read, strict = false) => {
       const memo = new Map()
+      // ⛔ C19 — BY SHAPE only where every read is `history`: then two nodes of
+      // one shape are one value. A bar-0 `read` answers each READ SITE on its
+      // own (the listing enumerates every site's reading — `listingPass`), so
+      // two sites of one shape are two answers there, keyed on the object as
+      // before. That branch runs on one bar, so it costs nothing to keep.
+      const keyOf = read ? (n) => n : sk
       const walk = (n, guarded) => {
         const key = guarded ? 1 : 0
-        let byGuard = memo.get(n)
+        const nk = keyOf(n)
+        let byGuard = memo.get(nk)
         if (byGuard && byGuard[key] !== undefined) return byGuard[key]
         let v
-        if (columns.has(n)) {
-          const c = columns.get(n)
+        if (columns.has(sk(n))) {
+          const c = columns.get(sk(n))
           v = isColumn(c) ? c[j] : c
         } else if (isBind(n)) {
           v = read ? read(0, guarded) : history[0]
@@ -4532,7 +4700,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             v = n.type === 'op' ? applyOpStep(n, values) : POINTWISE[n.name](...values)
           }
         }
-        if (!byGuard) { byGuard = [undefined, undefined]; memo.set(n, byGuard) }
+        if (!byGuard) { byGuard = [undefined, undefined]; memo.set(nk, byGuard) }
         byGuard[key] = v
         return v
       }

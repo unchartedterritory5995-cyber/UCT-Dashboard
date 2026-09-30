@@ -341,11 +341,14 @@ function whyOverBudget(key, ast) {
     + 'wrapped around it (no moving average of it, no bar offset on it)'
 }
 
-export function checkBudget(ast, budget) {
+export function checkBudget(ast, budget, held) {
   const caps = effectiveBudget(budget)
   const measured = {}
   for (const key of CAP_ORDER) {
-    const value = MEASURE[key](ast)
+    // ⭐ C19 — `held` reaches ONLY the node count: the columns a pass already
+    // holds cost this tree the read of each (`interpret.js::evaluationUnits`).
+    // Lookback and series are properties of the formula, not of the work.
+    const value = key === 'maxNodes' ? MEASURE[key](ast, held) : MEASURE[key](ast)
     measured[key] = value
     if (value > caps[key]) {
       const guard = CAP_GUARD[key]
@@ -377,8 +380,8 @@ export function checkBudget(ast, budget) {
  *  recognises a refusal BY TYPE; a look-alike class with `name = 'TableRefusal'`
  *  would be exactly the "right type for the wrong reason" blindness Task 2
  *  declared this instrument to have. */
-export function assertBudget(ast, budget) {
-  const result = checkBudget(ast, budget)
+export function assertBudget(ast, budget, held) {
+  const result = checkBudget(ast, budget, held)
   if (!result.ok) throw new TableRefusal(result.guard, result.error)
   return result
 }
