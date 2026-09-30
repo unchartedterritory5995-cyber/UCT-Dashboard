@@ -92,6 +92,19 @@ export default function NotesTableView({
     <UIcon name={dir === 'asc' ? 'chevronUp' : 'chevronDown'} size={10} style={{ marginLeft: 4, opacity: active ? 1 : 0.3 }} />
   )
 
+  // FX2 (wave 10, proof-walk item 2): which column is the CURRENT sort, and
+  // which direction -- one predicate, read by both the header cell's
+  // `aria-sort` (WAI-ARIA's own semantic for this, on the `<th>`, never the
+  // button inside it) and, unchanged, the chevron. `updated` is this table's
+  // resting default (`sort` starts `'updated'` in NotebookTab.jsx, and the
+  // `!sort` fallback here matches the OTHER caller that renders this view with
+  // no `sort` prop at all -- `sort` is never undefined once NotebookTab has
+  // mounted). Neither column's re-click changes anything today (`title`'s own
+  // onClick is a no-op ternary, `updated` has no reverse direction) -- a
+  // dead-click instrument correctly finding "click the active sort header
+  // again does nothing" is naming exactly what `aria-sort` is for.
+  const titleActive = sort === 'title'
+  const updatedActive = sort === 'updated' || !sort
   const titleHeader = (
     <button
       type="button"
@@ -107,7 +120,7 @@ export default function NotesTableView({
       className={styles.sortBtn}
       onClick={() => onSortChange('updated')}
     >
-      Updated {sortIcon(sort === 'updated' || !sort, 'desc')}
+      Updated {sortIcon(updatedActive, 'desc')}
     </button>
   )
 
@@ -135,6 +148,7 @@ export default function NotesTableView({
     }] : []),
     {
       key: 'title', header: titleHeader, primary: true,
+      ariaSort: titleActive ? 'ascending' : undefined,
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
@@ -156,7 +170,11 @@ export default function NotesTableView({
       key: 'ticker', header: 'Ticker', secondary: true,
       render: (n) => (n.ticker ? <span className={styles.tickerCell}>${n.ticker}</span> : <span className={styles.emptyCell}>—</span>),
     },
-    { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
+    {
+      key: 'updated', header: updatedHeader, secondary: true,
+      ariaSort: updatedActive ? 'descending' : undefined,
+      render: (n) => timeAgo(n.updatedAt),
+    },
     ...usedDefs.map((def) => ({
       key: def.id,
       // Wave 6: a relation has no order a member means (the server refuses to
