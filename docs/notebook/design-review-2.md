@@ -398,3 +398,32 @@ closed. Recorded here rather than left implicit, for whoever tracks it next: it 
 functionality/data-integrity defect (the popup's own search fires correctly; the autosave race
 is what loses it), not a competitor-parity gap, and it belongs to standard #2 (Functionality),
 not this design review.
+
+## `[[` popup race -- closure (wave 10, lane FX5, 2026-09-30)
+
+⚰️ **The paragraph above is stale -- CLOSED, not "unfixed."** Re-investigated from source
+before touching anything, per this lane's brief. The mechanism DR-F's own capture shows is
+`@tiptap/suggestion`'s default `allowSpaces: false`: the capture's search GET landed as
+`q=Beta` -- a single word, although the member typed `Beta thesis AMD` -- which is only
+possible if the match was already lost the instant the space after "Beta" was typed, long
+before either the search GET or the autosave PUT could resolve. That is lane LK's own finding
+(`dcb7bfcb1`, already an ancestor of this tree, comment beside `allowSpaces: true` in
+`app/src/pages/journal-2-0/components/notebook/NoteLinkMenu.jsx`), and it is the WHOLE
+mechanism -- the autosave PUT in DR-F's capture landed after the popup was already gone;
+adjacent in time, never causal.
+
+**Verified, not assumed:** `app/src/pages/journal-2-0/components/notebook/NoteEditorPage.noteLinkRaceRealDoor.test.jsx`
+re-runs the race through the REAL write door (`useJ2Notes.js::useJ2Note`, real `fetch` PUT,
+real `settleNoteWrite`, real SWR `mutate` swapping in a new `note` object) with a single-word
+query so `allowSpaces` is not the variable under test -- closing the one gap lane LK's
+mocked-hook test could not see. It passes: an autosave landing mid-query neither closes the
+menu nor loses the typed query, and the picked result inserts a real `noteLink` node.
+`NoteEditorPage.noteLinkRaceRealDoor.control.test.jsx` proves the same rig can see the popup
+vanish (forces `allowSpaces: false` back on just the `[[` instance via a scoped
+`@tiptap/suggestion` mock, SlashMenu's own `/` instance untouched) -- so the real-door test's
+pass is not vacuous. Manual mutation proof (temporarily flipping `NoteLinkMenu.jsx`'s
+`allowSpaces: true` to `false`, confirming lane LK's `NoteEditorPage.noteLinkSuggest.test.jsx`
+goes red, then restoring the file and verifying its sha256 against the captured original)
+is recorded in this lane's handback, not repeated here.
+
+No product code changed -- there was nothing left to fix.
