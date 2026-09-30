@@ -1,0 +1,23 @@
+[
+ {
+  "symbol": "USFHFAHPI",
+  "field_path": "revision.type",
+  "old": "minor_routine",
+  "new": "comprehensive",
+  "evidence": "The FHFA purchase-only index is repeat-sales and re-estimates back-history every release (catalog note 'Revises back-history each release'); minor_routine (3 periods) would make validate.check_mutation reject routine back-revisions. Depth is not yet measured (one vintage observed), so 'comprehensive' (unlimited window) is the safe setting. docs/economic-data/verification/fhfa.txt"
+ },
+ {
+  "symbol": "USFHFAHPI",
+  "field_path": "source.provider_series_id",
+  "old": "HPI_PO_monthly_hist (USA, SA column)",
+  "new": "hpi_master.csv: traditional / purchase-only / monthly / 'USA or Census Division' / place_id 'USA' (place_name 'United States'), column index_sa",
+  "evidence": "Filter confirmed live 2026-09-28 (426 rows 1991-01..2026-06); docs/economic-data/verification/fhfa.txt"
+ },
+ {
+  "symbol": "USFHFAHPI",
+  "field_path": "source.verified_evidence",
+  "old": "C:\\Users\\blake\\uct-econ-phase0\\proofs\\proof_log.txt FHFA: 'hpi_master.csv ... US purchase-only monthly 1991-01 100.00 ... 2026-06 NSA 452.26 / SA 442.53'; column names index_nsa/index_sa in proofs\\fhfa_hpi_master_sample.csv header.",
+  "new": "Live hpi_master.csv 2026-09-28: 426 months 1991-01..2026-06, 2026-06 index_sa 442.53 == Phase 0 (docs/economic-data/verification/fhfa.txt)",
+  "evidence": "verify_fhfa run"
+ }
+]

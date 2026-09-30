@@ -344,6 +344,8 @@ def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(require_b
     tf = str(payload.get("tf") or "D")
     if not ticker:
         raise HTTPException(status_code=400, detail="ticker required")
+    if is_econ_symbol(ticker):          # never warm an economic series (no bars exist)
+        return {"ok": True, "kicked": False}
     if tf not in _SNAPWARM_TFS:
         raise HTTPException(status_code=400, detail="unsupported tf")
     need_before = None
@@ -400,6 +402,30 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
         if _h in r.headers:
             resp.headers[_h] = r.headers[_h]
     resp.headers["X-Bars-Tier"] = "1"  # canary observability only; the client ignores it
+    return resp
+
+
+def is_econ_symbol(ticker) -> bool:
+    """Is this an ECONOMIC-DATA identity (`ECON:<SYMBOL>`, any case)?
+
+    ⛔⛔ ECONOMIC SERIES ARE NOT BARS AND ARE NEVER SERVED HERE (owner: "do not run
+    stock-bars add-ons against econ sources"). They live in UCT's own observation
+    store and are read through `/api/econ/*` (api/routers/econ.py). Routed through
+    this lane an econ id would reach the provider fetch (a Massive call for a symbol
+    that cannot exist), the delisted lookup, the add-today append, tail status and
+    the warm pools -- and could only ever come back as fabricated or empty candles.
+
+    ⭐ A SHAPE TEST ON PURPOSE, NOT A REGISTRY LOOKUP: the whole `ECON:` namespace
+    belongs to economic data, so an unknown `ECON:NOPE` is refused just the same,
+    and this module imports nothing from the econ package."""
+    return isinstance(ticker, str) and ticker.strip().upper().startswith("ECON:")
+
+
+def _econ_refusal(ticker: str) -> JSONResponse:
+    resp = JSONResponse(status_code=404, content={
+        "ticker": (ticker or "").strip().upper(), "bars": [],
+        "error": "economic series are served by /api/econ"})
+    resp.headers["Cache-Control"] = "no-store"
     return resp
 
 
@@ -518,6 +544,8 @@ async def get_bars(
     pod's threadpool) with fallback-to-local on any error. Otherwise it serves locally
     exactly as before. In-process callers (discord/cot_prewarm) call `serve_bars`
     directly — they must never hit the proxy path."""
+    if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
+        return _econ_refusal(ticker)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
@@ -750,6 +778,8 @@ def serve_bars(
     ask) for the lifetime of the serve so an intraday tail repair may use the reserved
     heal pool (`bars_fetch._interactive_heal_sem`), then always clears the mark — the
     anyio worker thread is reused by the next request."""
+    if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
+        return _econ_refusal(ticker)
     _bars_fetch.set_request_interactive(not warm)
     try:
         return _serve_bars_impl(ticker, tf, bars, since, to, warm)
@@ -1078,6 +1108,8 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     web's shallow tail when called on the web) and stamps the immutable/short cache headers
     so Cloudflare caches the deep response identically wherever the origin sits. READ-ONLY —
     never a provider fetch/write (that write-storm is the 2026-08-31 OOM class)."""
+    if is_econ_symbol(ticker):
+        return _econ_refusal(ticker)
     tfu = (tf or "D").upper()
 
     def _no_store(resp):
@@ -1220,6 +1252,8 @@ async def get_bars_history(
     history worldwide without the web ever holding the 20 GB. Otherwise serve the web's own
     (shallow tail) history via serve_bars_history — the unchanged, backward-compatible path.
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
+    if is_econ_symbol(ticker):
+        return _econ_refusal(ticker)
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
     # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
     # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,

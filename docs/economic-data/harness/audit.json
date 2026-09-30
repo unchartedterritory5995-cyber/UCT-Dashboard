@@ -1,0 +1,941 @@
+{
+  "cpi": {
+    "audit": {
+      "scenario": "cpi",
+      "title": "(a) Primary · monthly line · CPI",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 32,
+        "firstRow": "2024-02-15",
+        "lastRow": "2026-09-15",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 1,
+          "firstAvailable": "2/15/2024, 08:30:00 ET",
+          "lastAvailable": "9/15/2026, 08:30:00 ET",
+          "firstPeriod": "2024-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "num2",
+          "valuedBars": 31,
+          "interiorGaps": 1,
+          "sampleValue": 334.131,
+          "axisText": "334.13",
+          "legendText": "USCPI 334.13 · Aug 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 32,
+      "fit": {
+        "from": 0,
+        "to": 35
+      },
+      "fitTime": {
+        "from": "2024-02-15",
+        "to": "2026-09-15"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 13.13,
+          "to": 21.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 11.13,
+          "to": 19.88
+        },
+        "requested": -2,
+        "shift": -2,
+        "visibleTime": {
+          "from": "2025-01-15",
+          "to": "2025-10-15"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -4.38,
+          "to": 4.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-02-15",
+          "to": "2024-07-15"
+        },
+        "firstBarTime": "2024-02-15"
+      },
+      "ok": true
+    }
+  },
+  "fedfunds": {
+    "audit": {
+      "scenario": "fedfunds",
+      "title": "(b) Primary · step · Fed funds target range (upper + lower) + EFFR",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 1870,
+        "firstRow": "2019-07-31",
+        "lastRow": "2026-09-28",
+        "collapsed": 0,
+        "grid": "B",
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "series": {
+        "USFEDFUNDSU": {
+          "status": "available",
+          "points": 23,
+          "nullPoints": 0,
+          "firstAvailable": "7/31/2019, 14:00:00 ET",
+          "lastAvailable": "9/16/2026, 14:00:00 ET",
+          "firstPeriod": "2019-08-01",
+          "lastPeriod": "2026-09-17",
+          "frequency": "IRREG",
+          "maxAgeDays": null,
+          "formatKey": "pct2",
+          "valuedBars": 1870,
+          "interiorGaps": 0,
+          "sampleValue": 4,
+          "axisText": "4.00%",
+          "legendText": "USFEDFUNDSU 4.00% · Sep 17, 2026",
+          "legendMatchesAxis": true
+        },
+        "USFEDFUNDSL": {
+          "status": "available",
+          "points": 23,
+          "nullPoints": 0,
+          "firstAvailable": "7/31/2019, 14:00:00 ET",
+          "lastAvailable": "9/16/2026, 14:00:00 ET",
+          "firstPeriod": "2019-08-01",
+          "lastPeriod": "2026-09-17",
+          "frequency": "IRREG",
+          "maxAgeDays": null,
+          "formatKey": "pct2",
+          "valuedBars": 1870,
+          "interiorGaps": 0,
+          "sampleValue": 3.75,
+          "axisText": "3.75%",
+          "legendText": "USFEDFUNDSL 3.75% · Sep 17, 2026",
+          "legendMatchesAxis": true
+        },
+        "USEFFR": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 0,
+          "firstAvailable": "8/4/2026, 09:00:00 ET",
+          "lastAvailable": "9/28/2026, 09:00:00 ET",
+          "firstPeriod": "2026-08-03",
+          "lastPeriod": "2026-09-25",
+          "frequency": "D",
+          "maxAgeDays": 7,
+          "formatKey": "pct2",
+          "valuedBars": 36,
+          "interiorGaps": 1,
+          "sampleValue": 3.88,
+          "axisText": "3.88%",
+          "legendText": "USEFFR 3.88% · Sep 25, 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFEDFUNDSU",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 1,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USFEDFUNDSL",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 1,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e2",
+          "symbol": "USEFFR",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 1870,
+      "fit": {
+        "from": 0,
+        "to": 1873
+      },
+      "fitTime": {
+        "from": "2019-07-31",
+        "to": "2026-09-28"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 702.38,
+          "to": 1170.63
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 585.38,
+          "to": 1053.63
+        },
+        "requested": -117,
+        "shift": -117,
+        "visibleTime": {
+          "from": "2021-10-26",
+          "to": "2023-08-14"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -234.12,
+          "to": 234.13
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2019-07-31",
+          "to": "2020-06-23"
+        },
+        "firstBarTime": "2019-07-31"
+      },
+      "ok": true
+    }
+  },
+  "crude": {
+    "audit": {
+      "scenario": "crude",
+      "title": "(c) Primary · weekly · U.S. crude stocks ex SPR (1982-2026)",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 2295,
+        "firstRow": "1982-08-25",
+        "lastRow": "2026-09-23",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "series": {
+        "USCRUDEINV": {
+          "status": "available",
+          "points": 2295,
+          "nullPoints": 0,
+          "firstAvailable": "8/25/1982, 10:30:00 ET",
+          "lastAvailable": "9/23/2026, 10:30:00 ET",
+          "firstPeriod": "1982-08-14",
+          "lastPeriod": "2026-09-18",
+          "frequency": "W",
+          "maxAgeDays": 21,
+          "formatKey": "mbbl@1000",
+          "valuedBars": 2295,
+          "interiorGaps": 0,
+          "sampleValue": 426398,
+          "axisText": "426.4M bbl",
+          "legendText": "USCRUDEINV 426.4M bbl · wk 9/18",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCRUDEINV",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 2295,
+      "fit": {
+        "from": 0,
+        "to": 2298
+      },
+      "fitTime": {
+        "from": "1982-08-25",
+        "to": "2026-09-23"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 861.75,
+          "to": 1436.25
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 717.75,
+          "to": 1292.25
+        },
+        "requested": -144,
+        "shift": -144,
+        "visibleTime": {
+          "from": "1996-07-03",
+          "to": "2007-07-18"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -287.25,
+          "to": 287.25
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1982-08-25",
+          "to": "1988-04-13"
+        },
+        "firstBarTime": "1982-08-25"
+      },
+      "ok": true
+    }
+  },
+  "claims": {
+    "audit": {
+      "scenario": "claims",
+      "title": "(c2) Primary · weekly · Initial claims",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 35,
+        "firstRow": "2026-01-08",
+        "lastRow": "2026-09-03",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "series": {
+        "USICSA": {
+          "status": "available",
+          "points": 35,
+          "nullPoints": 0,
+          "firstAvailable": "1/8/2026, 08:30:00 ET",
+          "lastAvailable": "9/3/2026, 08:30:00 ET",
+          "firstPeriod": "2025-12-28",
+          "lastPeriod": "2026-08-29",
+          "frequency": "W",
+          "maxAgeDays": 21,
+          "formatKey": "k_persons",
+          "valuedBars": 35,
+          "interiorGaps": 0,
+          "sampleValue": 207000,
+          "axisText": "207.0K",
+          "legendText": "USICSA 207.0K · wk 8/29",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USICSA",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 35,
+      "fit": {
+        "from": 0,
+        "to": 38
+      },
+      "fitTime": {
+        "from": "2026-01-08",
+        "to": "2026-09-03"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 14.25,
+          "to": 23.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 12.25,
+          "to": 21.75
+        },
+        "requested": -2,
+        "shift": -2,
+        "visibleTime": {
+          "from": "2026-04-02",
+          "to": "2026-06-11"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -4.75,
+          "to": 4.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2026-01-08",
+          "to": "2026-02-12"
+        },
+        "firstBarTime": "2026-01-08"
+      },
+      "ok": true
+    }
+  },
+  "gdp": {
+    "audit": {
+      "scenario": "gdp",
+      "title": "(d) Primary · quarterly histogram · Real GDP q/q ann.",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 11,
+        "firstRow": "2024-01-30",
+        "lastRow": "2026-07-30",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "series": {
+        "USRGDPQA": {
+          "status": "available",
+          "points": 11,
+          "nullPoints": 0,
+          "firstAvailable": "1/30/2024, 08:30:00 ET",
+          "lastAvailable": "7/30/2026, 08:30:00 ET",
+          "firstPeriod": "2023-10-01",
+          "lastPeriod": "2026-06-30",
+          "frequency": "Q",
+          "maxAgeDays": 200,
+          "formatKey": "pct1",
+          "valuedBars": 11,
+          "interiorGaps": 0,
+          "sampleValue": 1.5,
+          "axisText": "1.5%",
+          "legendText": "USRGDPQA 1.5% · Q2 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USRGDPQA",
+          "poolKey": "histogram",
+          "paneIndex": 0,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 11,
+      "fit": {
+        "from": 0,
+        "to": 14
+      },
+      "fitTime": {
+        "from": "2024-01-30",
+        "to": "2026-07-30"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 5.25,
+          "to": 8.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 4.25,
+          "to": 7.75
+        },
+        "requested": -1,
+        "shift": -1,
+        "visibleTime": {
+          "from": "2025-01-30",
+          "to": "2026-01-30"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -1.75,
+          "to": 1.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-30",
+          "to": "2024-07-30"
+        },
+        "firstBarTime": "2024-01-30"
+      },
+      "ok": true
+    }
+  },
+  "overlay-d": {
+    "audit": {
+      "scenario": "overlay-d",
+      "title": "(e) Overlay · daily host (SYNTHETIC) + CPI pane + NFP change pane",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "D",
+        "bars": 714,
+        "first": "2024-01-02",
+        "last": "2026-09-25"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 1,
+          "firstAvailable": "2/15/2024, 08:30:00 ET",
+          "lastAvailable": "9/15/2026, 08:30:00 ET",
+          "firstPeriod": "2024-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "num2",
+          "valuedBars": 662,
+          "interiorGaps": 1,
+          "sampleValue": 334.131,
+          "axisText": "334.13",
+          "legendText": "USCPI 334.13 · Aug 2026",
+          "legendMatchesAxis": true
+        },
+        "USNFPCHG": {
+          "status": "available",
+          "points": 19,
+          "nullPoints": 0,
+          "firstAvailable": "3/7/2025, 08:30:00 ET",
+          "lastAvailable": "9/4/2026, 08:30:00 ET",
+          "firstPeriod": "2025-02-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 406,
+          "interiorGaps": 0,
+          "sampleValue": 162,
+          "axisText": "162.0K",
+          "legendText": "USNFPCHG 162.0K · Aug 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USNFPCHG",
+          "poolKey": "histogram",
+          "paneIndex": 2,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": {
+        "symbol": "USCPI",
+        "period": "2026-08-01..2026-08-31",
+        "periodEnd": "2026-08-31",
+        "releasedAt": "9/15/2026, 08:30:00 ET",
+        "firstBarIndex": 705,
+        "firstBarTime": "2026-09-15",
+        "firstBarAfterPeriodEnd": true,
+        "observationAtFirstBar": "Aug 2026",
+        "observationAtPreviousBar": "Jul 2026",
+        "legendAtFirstBar": "USCPI 334.13 · Aug 2026",
+        "legendAtPreviousBar": "USCPI 332.81 · Jul 2026",
+        "barsShowingBeforeRelease": 0
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 714,
+      "fit": {
+        "from": 0,
+        "to": 717
+      },
+      "fitTime": {
+        "from": "2024-01-02",
+        "to": "2026-09-25"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 268.88,
+          "to": 448.13
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 223.88,
+          "to": 403.13
+        },
+        "requested": -45,
+        "shift": -45,
+        "visibleTime": {
+          "from": "2024-11-08",
+          "to": "2025-07-21"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -89.63,
+          "to": 89.63
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-02",
+          "to": "2024-05-07"
+        },
+        "firstBarTime": "2024-01-02"
+      },
+      "ok": true
+    }
+  },
+  "overlay-w": {
+    "audit": {
+      "scenario": "overlay-w",
+      "title": "(f) Overlay · weekly host (SYNTHETIC) + CPI + NFP change",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "W",
+        "bars": 143,
+        "first": "2024-01-01",
+        "last": "2026-09-21"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 1,
+          "firstAvailable": "2/15/2024, 08:30:00 ET",
+          "lastAvailable": "9/15/2026, 08:30:00 ET",
+          "firstPeriod": "2024-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "num2",
+          "valuedBars": 133,
+          "interiorGaps": 1,
+          "sampleValue": 334.131,
+          "axisText": "334.13",
+          "legendText": "USCPI 334.13 · Aug 2026",
+          "legendMatchesAxis": true
+        },
+        "USNFPCHG": {
+          "status": "available",
+          "points": 19,
+          "nullPoints": 0,
+          "firstAvailable": "3/7/2025, 08:30:00 ET",
+          "lastAvailable": "9/4/2026, 08:30:00 ET",
+          "firstPeriod": "2025-02-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 82,
+          "interiorGaps": 0,
+          "sampleValue": 162,
+          "axisText": "162.0K",
+          "legendText": "USNFPCHG 162.0K · Aug 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USNFPCHG",
+          "poolKey": "histogram",
+          "paneIndex": 2,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": {
+        "symbol": "USCPI",
+        "period": "2026-08-01..2026-08-31",
+        "periodEnd": "2026-08-31",
+        "releasedAt": "9/15/2026, 08:30:00 ET",
+        "firstBarIndex": 141,
+        "firstBarTime": "2026-09-14",
+        "firstBarAfterPeriodEnd": true,
+        "observationAtFirstBar": "Aug 2026",
+        "observationAtPreviousBar": "Jul 2026",
+        "legendAtFirstBar": "USCPI 334.13 · Aug 2026",
+        "legendAtPreviousBar": "USCPI 332.81 · Jul 2026",
+        "barsShowingBeforeRelease": 0
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 143,
+      "fit": {
+        "from": 0,
+        "to": 146
+      },
+      "fitTime": {
+        "from": "2024-01-01",
+        "to": "2026-09-21"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 54.75,
+          "to": 91.25
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 45.75,
+          "to": 82.25
+        },
+        "requested": -9,
+        "shift": -9,
+        "visibleTime": {
+          "from": "2024-11-11",
+          "to": "2025-08-04"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -18.25,
+          "to": 18.25
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-01",
+          "to": "2024-05-13"
+        },
+        "firstBarTime": "2024-01-01"
+      },
+      "ok": true
+    }
+  },
+  "overlay-5": {
+    "audit": {
+      "scenario": "overlay-5",
+      "title": "(f) Overlay · 5-minute host (SYNTHETIC, 04:00-20:00 ET) + CPI",
+      "src": "fixtures",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "5",
+        "bars": 1152,
+        "first": "9/10/2026, 04:00:00 ET",
+        "last": "9/17/2026, 19:55:00 ET"
+      },
+      "primary": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 1,
+          "firstAvailable": "2/15/2024, 08:30:00 ET",
+          "lastAvailable": "9/15/2026, 08:30:00 ET",
+          "firstPeriod": "2024-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 75,
+          "formatKey": "num2",
+          "valuedBars": 1152,
+          "interiorGaps": 0,
+          "sampleValue": 334.131,
+          "axisText": "334.13",
+          "legendText": "USCPI 334.13 · Aug 2026",
+          "legendMatchesAxis": true
+        },
+        "USEFFR": {
+          "status": "available",
+          "points": 32,
+          "nullPoints": 0,
+          "firstAvailable": "8/4/2026, 09:00:00 ET",
+          "lastAvailable": "9/28/2026, 09:00:00 ET",
+          "firstPeriod": "2026-08-03",
+          "lastPeriod": "2026-09-25",
+          "frequency": "D",
+          "maxAgeDays": 7,
+          "formatKey": "pct2",
+          "valuedBars": 708,
+          "interiorGaps": 0,
+          "sampleValue": 3.63,
+          "axisText": "3.63%",
+          "legendText": "USEFFR 3.63% · Sep 16, 2026",
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USEFFR",
+          "poolKey": "line",
+          "paneIndex": 2,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": {
+        "symbol": "USCPI",
+        "period": "2026-08-01..2026-08-31",
+        "periodEnd": "2026-08-31",
+        "releasedAt": "9/15/2026, 08:30:00 ET",
+        "firstBarIndex": 630,
+        "firstBarTime": "9/15/2026, 08:30:00 ET",
+        "firstBarAfterPeriodEnd": true,
+        "observationAtFirstBar": "Aug 2026",
+        "observationAtPreviousBar": "Jul 2026",
+        "legendAtFirstBar": "USCPI 334.13 · Aug 2026",
+        "legendAtPreviousBar": "USCPI 332.81 · Jul 2026",
+        "barsShowingBeforeRelease": 0
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 1152,
+      "fit": {
+        "from": 0,
+        "to": 1155
+      },
+      "fitTime": {
+        "from": 1789012800,
+        "to": 1789674900
+      },
+      "zoomIn": {
+        "range": {
+          "from": 433.13,
+          "to": 721.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 361.13,
+          "to": 649.88
+        },
+        "requested": -72,
+        "shift": -72,
+        "visibleTime": {
+          "from": 1789149900,
+          "to": 1789467000
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -144.37,
+          "to": 144.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": 1789012800,
+          "to": 1789056300
+        },
+        "firstBarTime": 1789027200
+      },
+      "ok": true
+    }
+  }
+}

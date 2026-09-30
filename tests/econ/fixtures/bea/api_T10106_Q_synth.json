@@ -1,0 +1,102 @@
+{
+ "_comment": "SYNTHESISED in the documented BEA API GetData shape (no BEA key available locally); A191RX values copied from the live NipaDataQ.txt of 2026-08-26; A006RX values are fake distractors.",
+ "BEAAPI": {
+  "Request": {
+   "RequestParam": [
+    {
+     "ParameterName": "USERID",
+     "ParameterValue": "[REDACTED]"
+    },
+    {
+     "ParameterName": "TABLENAME",
+     "ParameterValue": "T10106"
+    }
+   ]
+  },
+  "Results": {
+   "Statistic": "NIPA Table",
+   "UTCProductionTime": "2026-09-28T12:00:00.000",
+   "Dimensions": [],
+   "Data": [
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A191RX",
+     "LineNumber": "1",
+     "LineDescription": "Gross domestic product",
+     "TimePeriod": "2025Q3",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "24,026,834",
+     "NoteRef": "T10106"
+    },
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A191RX",
+     "LineNumber": "1",
+     "LineDescription": "Gross domestic product",
+     "TimePeriod": "2025Q4",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "24,055,749",
+     "NoteRef": "T10106"
+    },
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A191RX",
+     "LineNumber": "1",
+     "LineDescription": "Gross domestic product",
+     "TimePeriod": "2026Q1",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "24,180,419",
+     "NoteRef": "T10106"
+    },
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A191RX",
+     "LineNumber": "1",
+     "LineDescription": "Gross domestic product",
+     "TimePeriod": "2026Q2",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "24,269,613",
+     "NoteRef": "T10106"
+    },
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A006RX",
+     "LineNumber": "7",
+     "LineDescription": "Gross private domestic investment",
+     "TimePeriod": "2026Q1",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "4,210,001",
+     "NoteRef": "T10106"
+    },
+    {
+     "TableName": "T10106",
+     "SeriesCode": "A006RX",
+     "LineNumber": "7",
+     "LineDescription": "Gross private domestic investment",
+     "TimePeriod": "2026Q2",
+     "METRIC_NAME": "Chained Dollars",
+     "CL_UNIT": "Level",
+     "UNIT_MULT": "6",
+     "DataValue": "4,230,002",
+     "NoteRef": "T10106"
+    }
+   ],
+   "Notes": [
+    {
+     "NoteRef": "T10106",
+     "NoteText": "Table 1.1.6. Real Gross Domestic Product, Chained Dollars [Millions of chained (2017) dollars] Seasonally adjusted at annual rates"
+    }
+   ]
+  }
+ }
+}

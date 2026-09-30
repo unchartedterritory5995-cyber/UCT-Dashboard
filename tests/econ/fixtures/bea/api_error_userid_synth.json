@@ -1,0 +1,12 @@
+{
+ "_comment": "SYNTHESISED BEA API error shape",
+ "BEAAPI": {
+  "Request": {},
+  "Results": {
+   "Error": {
+    "APIErrorCode": "3",
+    "APIErrorDescription": "The UserID provided is not registered."
+   }
+  }
+ }
+}

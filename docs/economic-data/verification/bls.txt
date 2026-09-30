@@ -1,0 +1,57 @@
+# BLS live verification  2026-09-29T01:53Z  mode=v1 (keyless)
+# planned queries: 12 history windows + 1 probe = 13  (limit/day 25, task budget 15)
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1913-1916  rows=48  bytes=6324  sha=1409185c12a7
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1917-1926  rows=120  bytes=15176  sha=1e4650d0fc1b
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1927-1936  rows=120  bytes=15176  sha=b6f80c713fd8
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1937-1946  rows=216  bytes=22999  sha=ebaf55ec0bfd
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1947-1956  rows=468  bytes=43357  sha=5216bf40e3b1
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1957-1966  rows=720  bytes=63611  sha=c97161bfcd7b
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1967-1976  rows=720  bytes=63611  sha=0f620b1d3640
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1977-1986  rows=720  bytes=63788  sha=970d24f7c921
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1987-1996  rows=720  bytes=64211  sha=0bdbf77b0514
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:1997-2006  rows=817  bytes=71696  sha=a80813948dfc
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:2007-2016  rows=966  bytes=84611  sha=a4f67f223c60
+#   bls:v1:CUSR0000SA0,CUUR0000SA0,CUSR0000SA0L1E,CUUR0000SA0L1E,WPSFD4,CIS1010000000000Q,LNS14000000,CES0000000001,JTS000000000000000JOL:2017-2026  rows=965  bytes=85733  sha=11bf19a348c1
+
+symbol        bls id                 count  NA oldest     newest     newest value flag  units / publication
+USCPI         CUSR0000SA0              956   1 1947-01-01 2026-08-01      334.131 -     Index 1982-84=100 / source_published_at=None (BLS states none)
+USCPINSA      CUUR0000SA0             1364   1 1913-01-01 2026-08-01       334.98 -     Index 1982-84=100 / source_published_at=None (BLS states none)
+USCORECPI     CUSR0000SA0L1E           836   1 1957-01-01 2026-08-01      337.765 -     Index 1982-84=100 / source_published_at=None (BLS states none)
+USCORECPINSA  CUUR0000SA0L1E           836   1 1957-01-01 2026-08-01      338.041 -     Index 1982-84=100 / source_published_at=None (BLS states none)
+USPPIFD       WPSFD4                   202   0 2009-11-01 2026-08-01      157.411 p     Index Nov 2009=100 / source_published_at=None (BLS states none)
+USECI         CIS1010000000000Q        102   0 2001-01-01 2026-04-01          0.9 -     Percent change, 3-month / source_published_at=None (BLS states none)
+USUNRATE      LNS14000000              944   1 1948-01-01 2026-08-01          4.1 -     Percent / source_published_at=None (BLS states none)
+USNFP         CES0000000001           1052   0 1939-01-01 2026-08-01     159075.0 p     Thousands of jobs / source_published_at=None (BLS states none)
+USJOLTSO      JTS000000000000000JOL    308   0 2000-12-01 2026-07-01       7271.0 p     Thousands / source_published_at=None (BLS states none)
+
+# NA rows (value None): {'USCPI': ['2025-10-01'], 'USCPINSA': ['2025-10-01'], 'USCORECPI': ['2025-10-01'], 'USCORECPINSA': ['2025-10-01'], 'USUNRATE': ['2025-10-01']}
+# preliminary-flagged rows: {'USPPIFD': ['2026-05-01', '2026-06-01', '2026-07-01', '2026-08-01'], 'USNFP': ['2026-07-01', '2026-08-01'], 'USJOLTSO': ['2026-07-01']}
+# registry history_start vs observed oldest:
+#   USCPI         registry=1947-01  observed=1947-01
+#   USCPINSA      registry=1913-01  observed=1913-01
+#   USCORECPI     registry=1957-01  observed=1957-01
+#   USCORECPINSA  registry=1957-01  observed=1957-01
+#   USPPIFD       registry=2009-11  observed=2009-11
+#   USECI         registry=2001-03  observed=2001-01
+#   USUNRATE      registry=1948-01  observed=1948-01
+#   USNFP         registry=1939-01  observed=1939-01
+#   USJOLTSO      registry=2000-12  observed=2000-12
+
+# Phase 0 cross-check (proofs.md, Aug 2026):
+#   USCPI         2026-08-01 phase0=334.131 live=334.131 flag=- MATCH
+#   USCPINSA      2026-08-01 phase0=334.98 live=334.98 flag=- MATCH
+#   USCORECPI     2026-08-01 phase0=337.765 live=337.765 flag=- MATCH
+#   USUNRATE      2026-08-01 phase0=4.1 live=4.1 flag=- MATCH
+#   USNFP         2026-08-01 phase0=159075.0 live=159075.0 flag=p MATCH
+# latest_period_probe: {'USCPI': '2026-08-01', 'USCPINSA': '2026-08-01', 'USCORECPI': '2026-08-01', 'USCORECPINSA': '2026-08-01', 'USPPIFD': '2026-08-01', 'USECI': '2026-04-01', 'USUNRATE': '2026-08-01', 'USNFP': '2026-08-01', 'USJOLTSO': '2026-07-01'}
+# queries sent: 13  (completed 13)  http stats: {'api.bls.gov': {'200': 13}}
+
+# ---- analysis (appended by hand, 2026-09-28) ----
+# Budget: 13 of 25 keyless v1 queries used (12 history windows 1913..2026 x 9 series batched + 1 probe); all HTTP 200, 0 retries.
+# Phase 0 cross-check: USCPI 334.131, USCPINSA 334.980, USCORECPI 337.765, USUNRATE 4.1, USNFP 159,075 (P) -> all MATCH.
+# Secondary reference (FRED page, read manually, NOT stored): PPIFIS Aug 2026 157.411 = USPPIFD 157.411 MATCH;
+#   JTSJOL Jul 2026 7,271 = USJOLTSO 7271 MATCH. USCORECPINSA 338.041 and USECI Q2 2026 0.9 have no Phase 0 / secondary value (not checked).
+# NA: Oct 2025 rows are '-' with footnote X "Data unavailable due to the 2025 lapse in appropriations" -> None (5 CPS/CPI series).
+# Oldest periods equal registry history_start for 8/9; USECI observed 2001-Q1 (period_start 2001-01-01), registry says "2001-03"
+#   (the Q1 reference month) -> correction to "2001-Q1" filed.
+# No truncation notices in any window (adapter-planned 10y windows). BLS returns no publication timestamp and no ETag/Last-Modified.
