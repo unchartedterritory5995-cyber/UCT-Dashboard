@@ -214,45 +214,71 @@ describe('⛔ what it still refuses, and each for its own reason', () => {
     expect(r.guard).toBe('pine:state')
   })
 
-  it('⛔ an increment that is not ONE is not a run length', () => {
-    expect(refusalOf(SRC(0, 'downRun >= 3').replace('downRun + 1', 'downRun + 2')).guard)
-      .toBe('pine:state')
+  // ⭐⭐ C12s (2026-09-30) — THE SHAPES BELOW USED TO REFUSE `pine:state`, AND NOW
+  // TRANSLATE AS A SWITCHED RECURRENCE (`interpret.js::switchedVarSeed`). Each is
+  // a counter with a RESET arm, so from the last reset on its value is Pine's own
+  // whatever the seed — the run-length identity above still declines them (it
+  // is exact only for `+1 / :0 / >= K`), and the switched window serves them bar
+  // by bar where the data shows the reset, withholding the rest. So the rail is
+  // no longer "it refuses": it is "every bar it publishes is Pine's, measured
+  // against the recurrence run by hand from the declared seed".
+  const switchedServes = (src, counterOf, cmp) => {
+    const out = translatePine(src)
+    expect(out.ok, out.ok ? '' : out.refusal.message).toBe(true)
+    const tree = out.outputs.find((o) => o && o.ast).ast
+    expect(JSON.stringify(tree)).toContain('"name":"accum"')
+    const got = Array.from(interpret(tree, BARS, {}))
+    const counter = counterOf()
+    let published = 0
+    got.forEach((v, i) => {
+      if (Number.isNaN(v)) return
+      published += 1
+      expect(v, `bar ${i}`).toBe(cmp(counter[i], i) ? 1 : 0)
+    })
+    expect(published).toBeGreaterThan(200) // non-vacuity: it serves, not withholds
+  }
+  const down = (i) => i > 0 && BARS[i].c < BARS[i - 1].c
+  const run = (seed, inc = 1, resetTo = 0) => () => {
+    let n = seed
+    return BARS.map((_, i) => { n = down(i) ? n + inc : resetTo; return n })
+  }
+
+  it('⭐ C12s — an increment that is not ONE is not a run length, and is served as switched', () => {
+    switchedServes(SRC(0, 'downRun >= 3').replace('downRun + 1', 'downRun + 2'), run(0, 2), (n) => n >= 3)
   })
 
-  it('⛔ a reset to something other than ZERO is a different recurrence', () => {
-    expect(refusalOf(SRC(0, 'downRun >= 3').replace(': 0', ': 1')).guard).toBe('pine:state')
+  it('⭐ C12s — a reset to something other than ZERO is served as switched', () => {
+    switchedServes(SRC(0, 'downRun >= 3').replace(': 0', ': 1'), run(0, 1, 1), (n) => n >= 3)
   })
 
-  it('⛔ a NEGATIVE seed could disagree on the first bar this tree can answer', () => {
-    // Where the run reaches back past bar zero the counter reads `seed + t + 1`,
-    // which a negative seed can hold UNDER K while K bars of `cond` are all true.
-    // Declining is the honest answer; clamping would invent one.
-    expect(refusalOf(SRC(-5, 'downRun >= 3')).guard).toBe('pine:state')
+  it('⭐ C12s — a NEGATIVE seed: the run-length rewrite still declines, the switched window serves', () => {
+    // Where the run reaches back past bar zero the counter reads `seed + t + 1`;
+    // the switched window never reads the seed, so the seed cannot matter.
+    switchedServes(SRC(-5, 'downRun >= 3'), run(-5), (n) => n >= 3)
   })
 
-  it('⛔ the counter bare, and against a SERIES, still refuse', () => {
-    expect(refusalOf(SRC(0, 'close > downRun')).guard).toBe('pine:state')
-    expect(refusalOf([
+  it('⭐ C12s — the counter bare, and against a SERIES, are served as switched', () => {
+    switchedServes(SRC(0, 'close > downRun'), run(0), (n, i) => BARS[i].c > n)
+    const sma5 = (i) => (i < 4 ? NaN : [0, 1, 2, 3, 4].reduce((a, k) => a + BARS[i - k].c, 0) / 5)
+    switchedServes([
       '//@version=6',
       'indicator("s")',
       'var int downRun = 0',
       'downRun := close < close[1] ? downRun + 1 : 0',
       'plot(downRun > ta.sma(close, 5) ? 1 : 0)',
       '',
-    ].join('\n')).guard).toBe('pine:state')
+    ].join('\n'), run(0), (n, i) => !Number.isNaN(sma5(i)) && n > sma5(i))
   })
 
-  it('⛔ past the expansion ceiling it declines rather than emitting thousands of nodes', () => {
-    expect(refusalOf(SRC(0, 'downRun >= ' + (PINE_RUN_LENGTH_MAX + 1))).guard).toBe('pine:state')
-    // …and one INSIDE the ceiling still translates, so the ceiling is a boundary
-    // rather than an off switch.
+  it('⛔ past the expansion ceiling the run-length rewrite still declines — and the switched window serves', () => {
+    switchedServes(SRC(0, 'downRun >= ' + (PINE_RUN_LENGTH_MAX + 1)), run(0), (n) => n >= PINE_RUN_LENGTH_MAX + 1)
+    // …and one INSIDE the ceiling still translates by the rewrite, so the ceiling
+    // is a boundary rather than an off switch.
     const ok = translatePine(SRC(0, 'downRun >= ' + PINE_RUN_LENGTH_MAX))
     expect(ok.ok, ok.ok ? '' : ok.refusal.message).toBe(true)
   })
 
-  it('⛔ `>= 0` is not a screen and is not pretended to be one', () => {
-    // A run of zero bars is vacuously true; there is no conjunction to build and
-    // nothing honest to answer, so it falls through to the ordinary refusal.
-    expect(refusalOf(SRC(0, 'downRun >= 0')).guard).toBe('pine:state')
+  it('⭐ C12s — `>= 0` is no screen, and the switched window answers it truthfully (always 1)', () => {
+    switchedServes(SRC(0, 'downRun >= 0'), run(0), (n) => n >= 0)
   })
 })

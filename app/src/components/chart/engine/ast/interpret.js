@@ -652,6 +652,114 @@ const isZeroOverZero = (n) => !!n && n.type === 'op' && n.name === '/'
 export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u-'
   && Array.isArray(n.args) && n.args.length === 1 && isZeroOverZero(n.args[0])
 
+// --------------------------------------------------------------------------- //
+// C12s — a SWITCHED recurrence: published only where the window forgot its seed
+// --------------------------------------------------------------------------- //
+//
+// `var int n = 0` + `n := c ? n + 1 : 0` is a run-length counter. Its `self + 1`
+// arm never forgets the seed, so the bounded window (`accum(seed, body, W)`
+// seeded `W` bars back) would count over the last `W` bars instead of since the
+// reset — which is why `pine.js::forgetsItsSeed` refuses it. But the OTHER arm
+// does forget: on a bar where `c` is false the value is `0` whatever came
+// before. So from the last reset on, the value no longer depends on the seed at
+// all — it is Pine's own number, exactly.
+//
+// ⭐ THE RULE, PER BAR AND NEVER BY BAR NUMBER: the window for bar `t` starts
+// from an UNKNOWN state (`LISTING_UNKNOWN`, "any number or `na`") instead of a
+// guessed seed, and runs the body with `stepListing`'s arithmetic, where every
+// operator answers unknown for an unknown input EXCEPT a ternary whose condition
+// is known. A bar whose value comes out known did not read the state it started
+// from, so it is exact under every seed Pine could have held; a bar that stays
+// unknown is withheld exactly as the curtain withholds (`NaN`, or `prefixProbe`
+// so `objectColumns.unknownMask` and `interpret`'s root agreement see it).
+//
+// ⚠️ THE WINDOW STAYS `W` BARS, SO `maxLookback` STAYS TRUE. A bar is published
+// only when the forgetting step lies inside `(t - W, t]` — so a published value
+// is a function of the last `W + 1` bars, as `_functions_recurrence` promises.
+// A streak longer than `W` is withheld even though its value is computable from
+// the fetched bars: it would then depend on how many bars the caller fetched.
+// Bars below `W` are published when the forgetting step lies at or after bar 0
+// — the value is exact, and whether it is shown depends only on the data.
+//
+// ⛔ THE MARK. The translator writes the seed as `(0 / 0) * <seed>` —
+// `switchedVarSeed` — which is `NaN` to any reader that does not know it (both
+// lanes evaluate it to `NaN`), carries the REAL seed for the listing pass
+// (C12w: from the listing the counter is exact everywhere, seed and all), and
+// is the one shape no Pine translation writes as a seed (railed in
+// `switchedCounter.test.js` over the corpus).
+export const switchedVarSeed = (seed) => ({
+  type: 'op',
+  name: '*',
+  args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }, seed],
+})
+/** The real seed a switched mark carries, or null when `n` is not one. */
+export const switchedSeedOf = (n) => (!!n && n.type === 'op' && n.name === '*'
+  && Array.isArray(n.args) && n.args.length === 2 && isZeroOverZero(n.args[0]) && n.args[1]
+  ? n.args[1] : null)
+
+/** Does this tree hold a switched recurrence anywhere (nested `tf`/`sym`
+ *  children included)? Iterative, so the 8,001-node escape tree cannot overflow
+ *  it. ⛔ No module-level memo: this file holds no state between calls
+ *  (`interpret.test.js`'s purity rail), and one walk per call is cheap beside
+ *  the evaluation it gates. */
+export function readsSwitchedState(tree) {
+  if (!tree || typeof tree !== 'object') return false
+  let found = false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length && !found) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'call' && own(RECURRENCES, n.name) && Array.isArray(n.args)) {
+      const rec = RECURRENCES[n.name]
+      if (rec && switchedSeedOf(n.args[rec.seed])) { found = true; break }
+    }
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return found
+}
+
+/** ⭐⭐ C12 / C17 — THE PROBE VALUES A TREE NEEDS, NOT ONLY ±PREFIX_PROBE.
+ *
+ *  Moved here from `objectColumns.js` (C12s), which re-exports both names: the
+ *  plot lane's root agreement below asks the same question with the same set,
+ *  and two copies of one probe set is how two lanes come to disagree about
+ *  which bars are known.
+ *
+ *  An EQUALITY cannot see a prefix filled with ±1e12: `laststate == 1` answers
+ *  false for `NaN`, for `+1e12` and for `-1e12` alike, so every bar before the
+ *  curtain read as KNOWN-false — while Pine's `laststate` there is a real 0, 1
+ *  or 2. ⚰️ MEASURED on `rsi-swing-indicator` (NYSE:RDDT 1D, 2026-09-28): the
+ *  guards `laststate == 2 and isOverbought` / `laststate == 1 and isOversold`
+ *  were never withheld before bar 250, so the run believed no swing label had
+ *  been made there; its first label then read `last_actual_label_hh_price` at
+ *  its declared 0 and said "HH" where TradingView's says "LH".
+ *
+ *  So a tree is probed once more at every finite literal an `==` / `!=`
+ *  compares against: a prefix equal to it is exactly the value that flips the
+ *  comparison. ⚠️ An equality between the state and another SERIES is still
+ *  blind (no literal to probe at) — named, not solved. */
+export const PREFIX_PROBE = 1e12
+export function probeValuesOf(tree) {
+  const out = new Set([PREFIX_PROBE, -PREFIX_PROBE])
+  const stack = [tree]
+  let seen = 0
+  while (stack.length && seen < 100000) {
+    const n = stack.pop()
+    seen += 1
+    if (!n || typeof n !== 'object') continue
+    const args = Array.isArray(n.args) ? n.args : null
+    if (n.type === 'op' && (n.name === '==' || n.name === '!=') && args) {
+      for (const a of args) {
+        if (a && a.type === 'num' && typeof a.value === 'number' && Number.isFinite(a.value)) out.add(a.value)
+      }
+    }
+    if (args) for (const a of args) stack.push(a)
+  }
+  return [...out]
+}
+
 const listingSame = (a, b) => a === b || (a !== a && b !== b)
 const listingKey = (v) => {
   if (v === LISTING_UNKNOWN) return 'U'
@@ -662,7 +770,7 @@ const listingKey = (v) => {
 
 /** The listing pass. Returns the column, or `null` when it is not taken (over
  *  the step ceiling), in which case the caller runs the bounded window. */
-function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT }) {
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup }) {
   const s0 = seed[0]
   // A guarded read has two candidates only when the seed is a number; with an
   // `na` seed both readings are `na`.
@@ -728,7 +836,9 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
   const place = (i, value) => {
     if (value !== LISTING_UNKNOWN) { out[i] = value; return }
     unknownBars += 1
-    if (i >= warmup) { out[i] = windowAt(i); steps += warmup; return }
+    // C12s: a switched window answers from bar 0 (`windowFrom`), so the listing
+    // pass is never less known than the curtain on any bar.
+    if (i >= windowFrom) { out[i] = windowAt(i); steps += warmup; return }
     out[i] = prefixProbe === null ? NaN : prefixProbe
   }
   place(0, agreed(trajectories.map((h) => h[0])))
@@ -3466,7 +3576,58 @@ function readsClock(ast, table) {
   return false
 }
 
+/** ⭐⭐ C12s — THE ROOT AGREEMENT: a tree that reads a switched recurrence is
+ *  published only on the bars where its answer does not depend on the state
+ *  that recurrence could not compute.
+ *
+ *  A switched recurrence's own column is exact where it is known (see
+ *  `switchedVarSeed`) and `NaN` where it is not — but a `NaN` downstream is
+ *  Pine's `na`, and `meObCount == 4` answers a confident FALSE for it, `na(x)`
+ *  a confident TRUE. Unlike the warm-up prefix, those bars can sit anywhere in
+ *  the series, so no prefix blanking reaches them. So the tree is evaluated
+ *  again with every not-computable bar filled by each probe value
+ *  (`probeValuesOf`: ±1e12 and every literal an equality compares against) and
+ *  a bar whose answer moves is withheld (`NaN`). The object lane asks the same
+ *  question bar by bar through `objectColumns.unknownMask` and passes
+ *  `switchedAgreement: false` so it is not paid twice.
+ *
+ *  ⚠️ A PROBE, NOT A PROOF, downstream of the recurrence — the same limit C17
+ *  names for `unknownMask` (an equality against another SERIES has no literal
+ *  to probe at). The recurrence's own value is proved; what a tree does with an
+ *  unknown one is probed.
+ *
+ *  ⛔ A tree with no switched recurrence takes the single pass unchanged, so no
+ *  existing column moves. The returned column is a COPY: the real run's column
+ *  may be the memoised one another plot shares. */
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
+  const probing = !!opts && typeof opts.prefixProbe === 'number'
+  if (probing || (opts && opts.switchedAgreement === false) || !readsSwitchedState(ast)) {
+    return interpretOnce(ast, bars, inputs, budget, scalars, opts)
+  }
+  const real = interpretOnce(ast, bars, inputs, budget, scalars, opts)
+  if (!isColumn(real)) return real
+  const out = Float64Array.from(real)
+  const shared = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  for (const p of probeValuesOf(ast)) {
+    let memo
+    if (shared) {
+      // one memo per probe value, beside (never inside) the real run's entries
+      const key = `c12s-probe\u0001${p}`
+      memo = shared.get(key)
+      if (!(memo instanceof Map)) { memo = new Map(); shared.set(key, memo) }
+    }
+    const probed = toColumn(interpretOnce(ast, bars, inputs, budget, scalars,
+      { ...(opts || {}), prefixProbe: p, crossMemo: memo }), out.length)
+    for (let i = 0; i < out.length; i++) {
+      const a = out[i]
+      const b = probed[i]
+      if (!(a === b || (a !== a && b !== b))) out[i] = NaN
+    }
+  }
+  return out
+}
+
+function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
@@ -3945,7 +4106,9 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   const enteringStateUnknown = (child) => {
     if (!child || child.type !== 'call' || !own(RECURRENCES, child.name)) return false
     const rec = fnSpec(child.name).recurrence
-    const seedNode = child.args[rec.seed]
+    // C12s: a switched mark reads its REAL seed here — the mark itself is `NaN`,
+    // which would read as "both readings are `na`" and call the bar exact.
+    const seedNode = switchedSeedOf(child.args[rec.seed]) || child.args[rec.seed]
     if (isAmbiguousVarSeed(seedNode)) return true
     return !Number.isNaN(toColumn(evalNode(seedNode), length)[0])
   }
@@ -4272,7 +4435,7 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
      *  memo is keyed by node AND guard context, and lives for one call — a shared
      *  node is one Pine value at one point in the bar, so answering it once is
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
-    const stepListing = (x, j, history, read) => {
+    const stepListing = (x, j, history, read, strict = false) => {
       const memo = new Map()
       const walk = (n, guarded) => {
         const key = guarded ? 1 : 0
@@ -4290,7 +4453,11 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
           const nzCall = n.type === 'call' && n.name === 'nz'
           const values = n.args.map((child, k) => walk(child, guarded || (nzCall && k === 0)))
           if (n.type === 'op' && n.name === '?:' && values.length === 3) {
-            v = values[0] === LISTING_UNKNOWN ? LISTING_UNKNOWN : TERNARY(values[0], values[1], values[2])
+            // `strict` (C12s): a condition that is not computable (`NaN`) picks no
+            // arm the member can rely on, so the switched window reads it as
+            // unknown rather than as the `NaN` the column would carry.
+            v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
+              ? LISTING_UNKNOWN : TERNARY(values[0], values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {
@@ -4303,7 +4470,11 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
       }
       return walk(x, false)
     }
-    const seed = toColumn(evalNode(node.args[rec.seed]), length)
+    // ⭐ C12s — a switched mark carries the REAL seed for the listing pass; the
+    // bounded window never reads it (its window starts from an unknown state).
+    const switchedReal = switchedSeedOf(node.args[rec.seed])
+    const seedNode = switchedReal || node.args[rec.seed]
+    const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
     // not-computable prefix with that value instead of `NaN`, so a caller can
@@ -4311,8 +4482,49 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // (`objectColumns.js::unknownMask`). No member-facing lane passes it: the
     // prefix is still `NaN` everywhere a value is shown.
     if (opts && typeof opts.prefixProbe === 'number') out.fill(opts.prefixProbe, 0, Math.min(warmup, length))
-    /** The bounded window's value at bar `i >= warmup` — the definition above. */
-    const windowAt = (i) => {
+    /** ⭐ C12s — the SWITCHED window, all bars in one pass. See
+     *  `switchedVarSeed` for the rule. One forward pass is enough, and it is
+     *  exact rather than an approximation of the per-bar window: with one lag,
+     *  a step that answers known from an UNKNOWN state (`forgets`) makes every
+     *  later step known, and the window for bar `t` (which starts unknown at
+     *  `t - W`) is known exactly when such a step lies in `(t - W, t]`. Where
+     *  it is known it equals the forward value, because the unknown value is
+     *  sound: a result that came out known from an unknown input is the same
+     *  result for every concrete input. */
+    const switchedColumn = () => {
+      if (maxSelfLag > 0) {
+        refuse('interpret:recurrence',
+          `— a switched ${node.name}(…) reads \`${bind}[${maxSelfLag}]\`; the reset rule `
+          + 'is proved for a body that reads only its previous value')
+      }
+      const fill = opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : NaN
+      const col = nan(length)
+      const unknownState = [LISTING_UNKNOWN]
+      let state = LISTING_UNKNOWN
+      let lastForget = -Infinity
+      let withheld = 0
+      for (let j = 0; j < length; j++) {
+        const forgot = stepListing(body, j, unknownState, null, true)
+        let v
+        if (forgot !== LISTING_UNKNOWN) {
+          lastForget = j
+          v = forgot
+        } else if (state === LISTING_UNKNOWN) {
+          v = LISTING_UNKNOWN
+        } else {
+          v = stepListing(body, j, [state], null, true)
+        }
+        state = v
+        if (v !== LISTING_UNKNOWN && lastForget > j - warmup) col[j] = v
+        else { col[j] = fill; withheld += 1 }
+      }
+      if (stepRecord) stepRecord.switched = { withheld }
+      return col
+    }
+    const switched = switchedReal ? switchedColumn() : null
+    /** The bounded window's value at bar `i >= warmup` — the definition above.
+     *  A switched recurrence answers from its own column (C12s). */
+    const windowAt = switched ? (i) => switched[i] : (i) => {
       // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
       // bars ago" to read, and the seed is the only defined value in scope — the
       // same initial condition Pine states by hand as `nz(x[1], x)`. ⛔ NOT zero: a
@@ -4332,13 +4544,17 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // (`opts.historyFromListing === true`, never inferred here). See `listingPass`.
     if (opts && opts.historyFromListing === true && length > 0) {
       const listed = listingPass({
-        seed, ambiguousSeed: isAmbiguousVarSeed(node.args[rec.seed]),
+        seed, ambiguousSeed: isAmbiguousVarSeed(seedNode),
         warmup, length, maxSelfLag, out, windowAt, sink: stepRecord,
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
+        ...(switched ? { windowFrom: 0 } : {}),
       })
       if (listed) return listed
     }
+    // ⭐ C12s — a switched column is its own answer on every bar, the prefix
+    // included: a bar below `warmup` whose reset lies inside the data is exact.
+    if (switched) return switched
     for (let i = warmup; i < length; i++) out[i] = windowAt(i)
     return out
   }

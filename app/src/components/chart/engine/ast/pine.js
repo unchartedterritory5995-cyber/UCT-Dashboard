@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, switchedSeedOf } from './interpret.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -3846,6 +3846,62 @@ export function forgetsItsSeed(node, table, warmup) {
   return ok(node, false) && reseedsOnceSet(node)
 }
 
+/** ⭐⭐ C12s — DOES THIS UPDATE FORGET ITS SEED ON A RESET? The question
+ *  `forgetsItsSeed` answers NO to for a switched counter, asked the other way.
+ *
+ *      var int meObCount = 0
+ *      meObCount := meObWeak ? meObCount + 1 : 0
+ *
+ *  `self + 1` never forgets, so the bounded window would count over the last
+ *  `W` bars instead of since the reset — `forgetsItsSeed` is right to refuse the
+ *  window. But the `: 0` arm DOES forget: on every bar `meObWeak` is false the
+ *  value is `0` whatever came before, and from there on it is Pine's own count.
+ *  So the recurrence is admitted as SWITCHED (`interpret.js::switchedVarSeed`):
+ *  its window starts from an unknown state and a bar is published only where
+ *  the value came out known — a per-bar exactness decision made on the data,
+ *  never a guess.
+ *
+ *  Admitted when BOTH hold:
+ *   - the body reads its running value only bare (`self`, never `self[k]`) —
+ *     the forgetting proof is for a one-lag state;
+ *   - some RESET PATH exists: from the root, through ternaries whose CONDITION
+ *     does not read the state, to an arm that does not read it either. A
+ *     condition that reads the state (the latch-once `na(self) ? v : self`)
+ *     cannot be decided from an unknown state, so it is no reset.
+ *
+ *  ⛔ Only a body `forgetsItsSeed` already refused is asked this: an admitted
+ *  body keeps its bounded window exactly as before. ⛔ The shape is a gate on
+ *  ADMISSION only; exactness is decided per bar by `interpret`, which is sound
+ *  for any pointwise body (the unknown value is discarded only by a ternary
+ *  whose condition is known). A body whose reset never fires in the data is
+ *  withheld on every bar — a refusal a member can read, never a number. */
+export function forgetsOnReset(node, table) {
+  const spec = table.functions.accum
+  if (!spec) return false
+  const bind = spec.recurrence.binds
+  const carries = (n) => containsSelfSeries(n, table)
+  if (!carries(node)) return false
+  // a lagged read of the state anywhere — `self[k]` — is outside the proof
+  const stack = [node]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object') continue
+    if (n.type === 'offset' && Array.isArray(n.args) && n.args[0]
+        && n.args[0].type === 'series' && n.args[0].name === bind) return false
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  const resets = (n) => {
+    if (!n || typeof n !== 'object') return true
+    if (!carries(n)) return true
+    const args = n.args || []
+    if (n.type === 'op' && n.name === '?:' && args.length === 3 && !carries(args[0])) {
+      return resets(args[1]) || resets(args[2])
+    }
+    return false
+  }
+  return resets(node)
+}
+
 export function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
@@ -4257,10 +4313,13 @@ function contextBoundedPlan(node) {
  *      downRun := close < close[1] ? downRun + 1 : 0
  *      ... downRun >= 3
  *
- *  `downRun` reads as a running total and refuses at `pine:state` — the update
- *  arm `self + 1` never forgets its seed, so `forgetsItsSeed` answers NO and it
- *  is RIGHT to: folding it into `accum` would draw a rolling window over the
- *  warm-up rather than a counter. But the counter is never OBSERVED unbounded.
+ *  `downRun` reads as a running total — the update arm `self + 1` never forgets
+ *  its seed, so `forgetsItsSeed` answers NO and it is RIGHT to: folding it into
+ *  the bounded window would draw a rolling count over the warm-up rather than a
+ *  counter. (⭐ C12s: bare, it is now served as a SWITCHED recurrence —
+ *  `forgetsOnReset` — exact per bar wherever the data shows the reset, withheld
+ *  elsewhere. This identity still answers first where it applies, because it is
+ *  exact on EVERY bar its lookback covers.) But the counter is never OBSERVED unbounded.
  *  Compared against a whole number K, only the last K bars can decide it.
  *
  *  ⭐ THE IDENTITY, and it is exact rather than close. `x[t] = c[t] ? x[t-1]+1 : 0`
@@ -6123,8 +6182,12 @@ export class Resolver {
         // pointed at the sibling path four hundred lines away.
         // ⛔ `var k = 5` and any other un-reassigned `var` are unaffected — their
         // update IS bare `self`, which forgets by definition.
+        // ⭐ C12s — a body the window refuses may still forget on a RESET; it is
+        // then admitted as a SWITCHED recurrence (`forgetsOnReset`).
+        let switchedState = false
         if (containsSelfSeries(update, this.table)
-            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)) {
+            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
+            && !(switchedState = forgetsOnReset(update, this.table))) {
           throw new PineRefusal('pine:state',
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
@@ -6143,7 +6206,9 @@ export class Resolver {
             bound.at || locate(tok))
         }
         const args = []
-        args[spec.recurrence.seed] = varSeedOf(seed, reads)
+        args[spec.recurrence.seed] = switchedState
+          ? switchedVarSeed(varSeedOf(seed, reads))
+          : varSeedOf(seed, reads)
         args[spec.recurrence.body] = update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         return cCall('accum', args)
@@ -6329,8 +6394,10 @@ export class Resolver {
       const body = this.resolve(bound.node)
       if (isFinalOfMutable && this.recurrenceSeeds.has(name)
           && containsSelfSeries(body, this.table)) {
-        // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`.
-        if (!forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)) {
+        // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`; a switched body is
+        // admitted by `forgetsOnReset` (C12s).
+        const switchedState = !forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)
+        if (switchedState && !forgetsOnReset(body, this.table)) {
           // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
           // this — the refusal corpus and "refuses for a DECLARED reason" — and
           // both exist because a hand-written message drifts from the guard it
@@ -6357,7 +6424,7 @@ export class Resolver {
         this.resolveBinding(seedBinding, tok, name)
         const seed = historySeed()
         const args = []
-        args[spec.recurrence.seed] = seed
+        args[spec.recurrence.seed] = switchedState ? switchedVarSeed(seed) : seed
         args[spec.recurrence.body] = body
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -6385,7 +6452,8 @@ export class Resolver {
         // the gate is the one thing this change must not do: `accum` re-seeds a
         // fixed number of bars back, so an update that does not forget where it
         // started becomes a ROLLING WINDOW rather than a running total.
-        if (!forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)) {
+        const switchedState = !forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)
+        if (switchedState && !forgetsOnReset(parts.update, this.table)) {
           throw new PineRefusal('pine:state',
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
@@ -6395,7 +6463,7 @@ export class Resolver {
         }
         const spec = this.table.functions.accum
         const args = []
-        args[spec.recurrence.seed] = parts.seed
+        args[spec.recurrence.seed] = switchedState ? switchedVarSeed(parts.seed) : parts.seed
         args[spec.recurrence.body] = parts.update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -15109,7 +15177,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  count whose `self + 1` arm never forgets its seed (`forgetsItsSeed`), so the
    *  bounded accumulator would count over the last 250 bars, not since the reset
    *  (`pine:state`). Diagnostics only: the drop, its key and its class are as
-   *  they were. */
+   *  they were. ⭐ C12s (2026-09-30): those four now CONVERT — a counter with a
+   *  reset arm is a SWITCHED recurrence (`forgetsOnReset`), exact per bar where
+   *  the data shows the reset; this names what is still refused (a count with no
+   *  reset, `c := c + 1`, keeps `pine:state`). */
   const REFUSED_SUBJECT = [
     /`([^`]+)` builds on its own previous bar/,
     /`([^`]+)` reads its own running value/,
@@ -20177,7 +20248,8 @@ export function conditionKindOf(node, table = TABLE) {
         const args = Array.isArray(n.args) ? n.args : []
         if (n.name === 'accum' && table && table.functions && table.functions.accum) {
           const rec = table.functions.accum.recurrence
-          return join([kindOf(args[rec.seed], depth + 1), kindOf(args[rec.body], depth + 1)])
+          const seedArg = switchedSeedOf(args[rec.seed]) || args[rec.seed]
+          return join([kindOf(seedArg, depth + 1), kindOf(args[rec.body], depth + 1)])
         }
         // ⭐ The calls that hand back one of their own arguments.
         if (n.name === 'nz') return join(args.map((a) => kindOf(a, depth + 1)))

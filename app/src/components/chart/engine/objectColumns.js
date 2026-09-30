@@ -24,7 +24,7 @@
 // is a fact.
 import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
-import { interpret, maxLookback } from './ast/interpret'
+import { interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
@@ -96,7 +96,10 @@ import { barOpenInstant } from '../indicators.js'
  *  drop objects TradingView draws. A probe that refuses answers `null` too: the
  *  real run succeeded, and a probe is not allowed to take a drawing away on a
  *  refusal of its own. */
-export const PREFIX_PROBE = 1e12
+// ⭐ C12s — `PREFIX_PROBE` and `probeValuesOf` live in `interpret.js` now (the
+// plot lane's root agreement asks the same question with the same set); both
+// names stay exported from here for every existing importer.
+export { PREFIX_PROBE, probeValuesOf }
 
 /** ⭐⭐ C12r (2026-09-29) — ONE OBJECT PER DISTINCT SUBTREE, ACROSS THE PASS.
  *
@@ -163,39 +166,7 @@ export function readsBoundedState(tree) {
 
 const sameValue = (a, b) => a === b || (a !== a && b !== b)
 
-/** ⭐⭐ C17 — THE PROBE VALUES A TREE NEEDS, NOT ONLY ±PREFIX_PROBE.
- *
- *  An EQUALITY cannot see a prefix filled with ±1e12: `laststate == 1` answers
- *  false for `NaN`, for `+1e12` and for `-1e12` alike, so every bar before the
- *  curtain read as KNOWN-false — while Pine's `laststate` there is a real 0, 1
- *  or 2. ⚰️ MEASURED on `rsi-swing-indicator` (NYSE:RDDT 1D, 2026-09-28): the
- *  guards `laststate == 2 and isOverbought` / `laststate == 1 and isOversold`
- *  were never withheld before bar 250, so the run believed no swing label had
- *  been made there; its first label then read `last_actual_label_hh_price` at
- *  its declared 0 and said "HH" where TradingView's says "LH".
- *
- *  So a tree is probed once more at every finite literal an `==` / `!=`
- *  compares against: a prefix equal to it is exactly the value that flips the
- *  comparison. ⚠️ An equality between the state and another SERIES is still
- *  blind (no literal to probe at) — named, not solved. */
-export function probeValuesOf(tree) {
-  const out = new Set([PREFIX_PROBE, -PREFIX_PROBE])
-  const stack = [tree]
-  let seen = 0
-  while (stack.length && seen < 100000) {
-    const n = stack.pop()
-    seen += 1
-    if (!n || typeof n !== 'object') continue
-    const args = Array.isArray(n.args) ? n.args : null
-    if (n.type === 'op' && (n.name === '==' || n.name === '!=') && args) {
-      for (const a of args) {
-        if (a && a.type === 'num' && typeof a.value === 'number' && Number.isFinite(a.value)) out.add(a.value)
-      }
-    }
-    if (args) for (const a of args) stack.push(a)
-  }
-  return [...out]
-}
+/** `probeValuesOf` — see `interpret.js` (C17, moved there by C12s). */
 
 /** The bars on which `col` (the tree's real column) depends on a recurrence
  *  prefix, as a `Uint8Array`, or `null` when there are none.
@@ -218,7 +189,12 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   if (!col || !readsBoundedState(tree)) return null
   let reach
   try { reach = maxLookback(tree) } catch { reach = col.length }
-  const n = Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
+  // ⭐ C12s — a SWITCHED recurrence is unknown wherever its reset lies outside
+  // the window, which can be any bar, so its tree is probed over the whole
+  // series (the prefix bound above holds only for the warm-up curtain).
+  const n = readsSwitchedState(tree)
+    ? col.length
+    : Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
   if (n <= 0) return null
   const probeBars = n < bars.length ? bars.slice(0, n + 1) : bars
   if (!memos.has(probeBars.length)) memos.set(probeBars.length, new Map())
@@ -283,7 +259,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       const tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
-      const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
+      const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
       const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
       if (mask) unknown.set(node, mask)
@@ -443,7 +419,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       const tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
-      const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
+      const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
       const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)
       if (mask) unknown.set(i, mask)
