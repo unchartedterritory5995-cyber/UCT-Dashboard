@@ -5,8 +5,8 @@ The seeded store (`seed`) is shared by test_serving / test_router:
             series_state + a bls:cpi calendar event
   USCPIYOY  derived rows (release kind derived)
   USNFP     a provider-stated NA period (value None) -- kept, never dropped
-  USCPIFOOD DISABLED member with stored rows (must never be served)
-  USPPIFDNSA UNVERIFIED, USUMCSENT EXCLUDED/RED -- stored rows, never served
+  USRETAILXA DISABLED member with stored rows (must never be served)
+  USGOODSBAL UNVERIFIED, USUMCSENT EXCLUDED/RED -- stored rows, never served
 """
 from __future__ import annotations
 
@@ -45,12 +45,12 @@ def seed_store(path: str) -> str:
         rn = s.upsert_release("bls:empsit:2025-10", "bls:empsit", "live", T1)
         s.write_observations("USNFP", rn, [_row("2025-09-01", "2025-09-30", 159000.0, T1 - 40 * DAY),
                                            _row("2025-10-01", "2025-10-31", None, T1)])
-        for sym in ("USCPIFOOD", "USPPIFDNSA", "USUMCSENT"):
+        for sym in ("USRETAILXA", "USGOODSBAL", "USUMCSENT"):
             rx = s.upsert_release(f"x:{sym}", "x", "live", T1)
             s.write_observations(sym, rx, [_row("2026-07-01", "2026-07-31", 123.0, T1)])
         s.put_state("USCPI", state="CURRENT", latest_period="2026-08-01", expected_period="2026-08-01",
                     last_success_at=T2 + 60, latest_available_at=T2)
-        s.put_state("USCPIFOOD", state="CURRENT", latest_period="2026-07-01", last_success_at=T2)
+        s.put_state("USRETAILXA", state="CURRENT", latest_period="2026-07-01", last_success_at=T2)
         s.put_event("bls:cpi", "2026-09", "2026-10-15", sched_time="08:30", precision="exact",
                     source="authoritative_page", provenance="https://www.bls.gov/schedule/", fetched_at=T1)
     finally:
@@ -134,7 +134,7 @@ def test_currentness_from_state_and_next_calendar_event(store):
     assert cur["state"] == "UNINITIALIZED"
 
 
-@pytest.mark.parametrize("sym", ["USCPIFOOD", "USPPIFDNSA", "USUMCSENT", "USNOPE", "AAPL", "", "ECON:"])
+@pytest.mark.parametrize("sym", ["USRETAILXA", "USGOODSBAL", "USUMCSENT", "USNOPE", "AAPL", "", "ECON:"])
 def test_non_servable_symbols_build_nothing(store, sym):
     with pytest.raises(P.NotServable):
         P.build_series_payload(store, sym, now=NOW)
@@ -185,8 +185,8 @@ def test_catalog_lists_only_servable_members_with_notices():
     cat = P.catalog_payload()
     syms = {r["symbol"] for r in cat["series"]}
     assert syms == {e["symbol"] for e in R.load_registry() if P.servable(e)[0]}
-    assert "USCPI" in syms and "USCPIFOOD" not in syms and "USUMCSENT" not in syms
-    assert len(syms) == 42
+    assert "USCPI" in syms and "USRETAILXA" not in syms and "USUMCSENT" not in syms
+    assert len(syms) == 136          # 42 cohort + 94 launch series (readiness 2026-09-30)
     assert "bls" in cat["attributions"] and "cannot vouch" in cat["attributions"]["bls"]["text"]
     for r in cat["series"]:
         assert set(r) <= META_KEYS | {"max_age_days"}
@@ -212,7 +212,7 @@ def test_status_has_no_values(store):
         assert v not in text
     row = next(r for r in st["series"] if r["symbol"] == "USCPI")
     assert set(row) == {"symbol", "state", "latest_period", "expected_period", "next_release", "last_success_at"}
-    assert "USCPIFOOD" not in {r["symbol"] for r in st["series"]}
+    assert "USRETAILXA" not in {r["symbol"] for r in st["series"]}
     assert st["service"]["last_success_at"] == T2 + 60
 
 
@@ -241,7 +241,7 @@ def test_publish_writes_artifacts_and_is_idempotent(store, tmp_path):
 
 def test_publish_refuses_non_servable_and_empty(store, tmp_path):
     root = str(tmp_path / "art")
-    assert not P.publish_series(store, "USCPIFOOD", local_root=root, r2=False)["published"]
+    assert not P.publish_series(store, "USRETAILXA", local_root=root, r2=False)["published"]
     assert not P.publish_series(store, "USUNRATE", local_root=root, r2=False)["published"]   # no data
     assert not (tmp_path / "art").exists()
 
@@ -255,7 +255,7 @@ def test_publish_all_and_r2_target(store, tmp_path, monkeypatch):
     res = P.publish_all(store, local_root=str(tmp_path / "art"), r2=True, now=NOW)
     assert set(puts) >= {"econ/v1/series/USCPI.json.gz", "econ/v1/vintages/USCPI.json.gz",
                          "econ/v1/catalog.json", "econ/v1/status.json"}
-    assert "econ/v1/series/USCPIFOOD.json.gz" not in puts
+    assert "econ/v1/series/USRETAILXA.json.gz" not in puts
     assert puts["econ/v1/series/USCPI.json.gz"][1] == "application/gzip"
     assert res["series"]["USUNRATE"]["published"] is False
     n = len(puts)

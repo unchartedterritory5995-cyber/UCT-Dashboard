@@ -4,8 +4,10 @@ THREE KINDS OF TABLE, THREE RULES
 
   RAW TRUTH -- append-only, enforced BY THE DATABASE:
     observation   one row per (series, period, release) VINTAGE. Triggers RAISE
-                  on UPDATE and on DELETE (and `recursive_triggers` is on, so an
-                  INSERT OR REPLACE -- which deletes -- is refused too). A row is
+                  on UPDATE and on DELETE, and (migration 3) on any INSERT over
+                  an existing (series, period, release) row -- so INSERT OR
+                  REPLACE is refused even on a raw connection without
+                  `recursive_triggers` (connect() also sets it). A row is
                   written only when (value, flag) differs from the period's
                   current latest vintage, so a re-sighting is a no-op and a
                   revision is a NEW row; the original is never lost.
@@ -198,8 +200,28 @@ MIGRATIONS: tuple[str, ...] = (
         detail         TEXT
     );
     """,
+    # 3 -- append-only hardening (2026-09-30). `INSERT OR REPLACE` resolves a PK
+    # conflict by DELETING the old row; that delete fires observation_no_delete
+    # ONLY when the connection has PRAGMA recursive_triggers=ON (connect() sets it,
+    # a raw sqlite3/CLI connection does not). A BEFORE INSERT trigger runs before
+    # conflict resolution on EVERY connection, so an insert over an existing
+    # (series_id, period_start, release_id) is refused whatever the pragma or the
+    # ON CONFLICT clause (REPLACE / IGNORE / plain). write_observations and
+    # append_vintages already look for an existing PK row first and use a plain
+    # INSERT, so normal writes are unchanged. Schema-only: no row is touched, and
+    # IF NOT EXISTS keeps it safe to apply in place on any v2 DB.
+    """
+    CREATE TRIGGER IF NOT EXISTS observation_no_replace BEFORE INSERT ON observation
+    WHEN EXISTS (SELECT 1 FROM observation WHERE series_id = NEW.series_id
+                 AND period_start = NEW.period_start AND release_id = NEW.release_id)
+    BEGIN SELECT RAISE(ABORT, 'observation is append-only: insert over an existing vintage refused'); END;
+    """,
 )
 SCHEMA_VERSION = len(MIGRATIONS)
+# A READ-ONLY reader (the web serving path) never migrates. Migration 3 only adds a
+# write-side trigger, so a v2 database reads identically: accept it, so the web and
+# the econ service (which migrates) can deploy in either order.
+READ_COMPATIBLE_FROM = 2
 RELEASE_KINDS = ("live", "backfill", "derived")
 
 
@@ -709,9 +731,9 @@ def connect(path: Optional[str] = None, *, readonly: bool = False) -> Store:
     if readonly:
         conn = sqlite3.connect(f"file:{p}?mode=ro", uri=True, timeout=30, isolation_level=None)
         have = conn.execute("PRAGMA user_version").fetchone()[0]
-        if have != SCHEMA_VERSION:
+        if not READ_COMPATIBLE_FROM <= have <= SCHEMA_VERSION:
             conn.close()
-            raise SchemaTooNew(f"econ.db schema v{have}, build expects v{SCHEMA_VERSION}")
+            raise SchemaTooNew(f"econ.db schema v{have}, build reads v{READ_COMPATIBLE_FROM}..v{SCHEMA_VERSION}")
         return Store(conn, p)
     d = os.path.dirname(os.path.abspath(p))
     os.makedirs(d, exist_ok=True)

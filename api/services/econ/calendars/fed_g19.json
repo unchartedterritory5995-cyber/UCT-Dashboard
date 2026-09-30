@@ -1,0 +1,21 @@
+{
+  "_doc": "FRB G.19 Consumer Credit release calendar, CONFIGURED. DATES AND TIME from the Board's own statistical release calendar feed https://www.federalreserve.gov/data/statcalendar.json (the data behind https://www.federalreserve.gov/data/releaseschedule.htm; every G.19 row reads '3:00 p.m.'), cross-checked against the OMB PFEI 2026 page 4 'Consumer Credit' row (Jan 8 ... Dec 7, identical) and, for past rows, against the G.19 release archive https://www.federalreserve.gov/releases/g19/releaseDates.json (identical 2025-01..2026-09). A release carries the SECOND month before its release month ('Data are issued about the fifth working day of the month for second month previous' -- PFEI; release 2026-09-08 = July 2026, G.19 current page). Rows: [date_ET, period_label]. Re-import each year from statcalendar.json (coverage ends 2026-12-31 -> NO_EXPECTATION after, by design).",
+  "id": "fed_g19",
+  "coverage": {"start": "2025-01-01", "end": "2026-12-31"},
+  "imported_at": "2026-09-30",
+  "citations": {
+    "g19": "https://www.federalreserve.gov/data/statcalendar.json (fetched 2026-09-30, sha256 13dcc4ad09e72c24484690d754dd28969890f577c11ad14ecdf058505d969dcb): 'G.19 - Consumer Credit' rows, time '3:00 p.m.'; PFEI 2026 p.4 agrees on every 2026 date; G.19 releaseDates.json archive agrees on every past date"
+  },
+  "calendars": {
+    "fed:g19": {"source": "configured", "precision": "exact", "time_et": "15:00",
+                "date_cite": "g19", "time_cite": "g19",
+                "events": [["2025-01-08", "2024-11"], ["2025-02-07", "2024-12"], ["2025-03-07", "2025-01"],
+                           ["2025-04-07", "2025-02"], ["2025-05-07", "2025-03"], ["2025-06-06", "2025-04"],
+                           ["2025-07-08", "2025-05"], ["2025-08-07", "2025-06"], ["2025-09-08", "2025-07"],
+                           ["2025-10-07", "2025-08"], ["2025-11-07", "2025-09"], ["2025-12-05", "2025-10"],
+                           ["2026-01-08", "2025-11"], ["2026-02-06", "2025-12"], ["2026-03-06", "2026-01"],
+                           ["2026-04-07", "2026-02"], ["2026-05-07", "2026-03"], ["2026-06-05", "2026-04"],
+                           ["2026-07-08", "2026-05"], ["2026-08-07", "2026-06"], ["2026-09-08", "2026-07"],
+                           ["2026-10-07", "2026-08"], ["2026-11-06", "2026-09"], ["2026-12-07", "2026-10"]]}
+  }
+}

@@ -1,0 +1,82 @@
+# launch-catalog readiness verification  2026-09-30T15:30Z  (keyless; history mode; validate_fetch against an empty store)
+# registry-corrections overlay: USGDP.units.raw, USGDP.units.scale, USGDP.source.params.unit_mult, USFSPDP.units.raw, USFSPDP.units.scale, USFSPDP.source.params.unit_mult, USRNRFI.units.raw, USRNRFI.units.scale, USRNRFI.source.params.unit_mult, USPERSINC.units.raw, USPERSINC.units.scale, USPERSINC.source.params.unit_mult, USDPI.units.raw, USDPI.units.scale, USDPI.source.params.unit_mult, USRDPI.units.raw, USRDPI.units.scale, USRDPI.source.params.unit_mult, USPCE.units.raw, USPCE.units.scale, USPCE.source.params.unit_mult, USRPCE.units.raw, USRPCE.units.scale, USRPCE.source.params.unit_mult, USCORPPROF.units.raw, USCORPPROF.units.scale, USCORPPROF.source.params.unit_mult, USM1.source.params.dataset, USM1.source.provider_series_id, USMONBASE.source.params.dataset, USMONBASE.source.provider_series_id, USMFGPROD.source.params.dataset, USMFGPROD.source.provider_series_id, USTGAFED.source.params.alt
+
+## fed_ddp  (21 series)
+USPRIME       H15/H15/RIFSPBLP_N.B                         n= 18135 NA=   0 1955-08-04..2026-09-28  newest 2026-09-28..2026-09-28 = 7.0000  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1955-08-04
+              provider desc='Prime rate'
+              request fed_ddp:release_xml:H15:-:RIFSPBLP_N.B:..  pub_at=None
+USDISCRATE    H15/H15/RIFSRP_F02_N.B                       n=  6188 NA=   0 2003-01-09..2026-09-28  newest 2026-09-28..2026-09-28 = 4.0000  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=2003-01-09
+              provider desc='Discount rate'
+              request fed_ddp:release_xml:H15:-:RIFSRP_F02_N.B:..  pub_at=None
+UST3M         H15/H15/RIFLGFCM03_N.B                       n= 11268 NA=   0 1981-09-01..2026-09-28  newest 2026-09-28..2026-09-28 = 4.2800  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1981-09-01
+              provider desc='3-month Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCM03_N.B:..  pub_at=None
+UST6M         H15/H15/RIFLGFCM06_N.B                       n= 11268 NA=   0 1981-09-01..2026-09-28  newest 2026-09-28..2026-09-28 = 4.4100  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1981-09-01
+              provider desc='6-month Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCM06_N.B:..  pub_at=None
+UST1Y         H15/H15/RIFLGFCY01_N.B                       n= 16170 NA=   0 1962-01-02..2026-09-28  newest 2026-09-28..2026-09-28 = 4.5900  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1962-01-02
+              provider desc='1-year Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCY01_N.B:..  pub_at=None
+UST5Y         H15/H15/RIFLGFCY05_N.B                       n= 16170 NA=   0 1962-01-02..2026-09-28  newest 2026-09-28..2026-09-28 = 5.0600  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1962-01-02
+              provider desc='5-year Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCY05_N.B:..  pub_at=None
+UST30Y        H15/H15/RIFLGFCY30_N.B                       n= 12400 NA=   0 1977-02-15..2026-09-28  newest 2026-09-28..2026-09-28 = 5.5600  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=1977-02-15
+              provider desc='30-year Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCY30_N.B:..  pub_at=None
+UST5YTIPS     H15/H15/RIFLGFCY05_XII_N.B                   n=  5939 NA=   0 2003-01-02..2026-09-28  newest 2026-09-28..2026-09-28 = 2.7300  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=2003-01-02
+              provider desc='5-year inflation indexed Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCY05_XII_N.B:..  pub_at=None
+UST10YTIPS    H15/H15/RIFLGFCY10_XII_N.B                   n=  5939 NA=   0 2003-01-02..2026-09-28  newest 2026-09-28..2026-09-28 = 2.9000  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=D history_start=2003-01-02
+              provider desc='10-year inflation indexed Treasury constant maturity'
+              request fed_ddp:release_xml:H15:-:RIFLGFCY10_XII_N.B:..  pub_at=None
+USFEDUST      H41/H41/RESPPALGUO_N.WW                      n=  1241 NA=   0 2002-12-12..2026-09-17  newest 2026-09-17..2026-09-23 = 4,558,332.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=NSA freq=W/WED history_start=2002-12-18
+              provider desc='Assets: Securities Held Outright: U.S. Treasury securities: Wednesday level'
+              request fed_ddp:release_xml:H41:-:RESPPALGUO_N.WW:..  pub_at=None
+USRESBAL      H41/H41/RESH4R_N.WW                          n=  1241 NA=   0 2002-12-12..2026-09-17  newest 2026-09-17..2026-09-23 = 2,969,922.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=NSA freq=W/WED history_start=2002-12-18
+              provider desc='Liabilities and Capital: Other Factors Draining Reserve Balances: Reserve balances with Federal Reserve Banks: Wednesday level'
+              request fed_ddp:release_xml:H41:-:RESH4R_N.WW:..  pub_at=None
+USTGAFED      H41/H41/RESPPLLDT_N.WW                       n=  1241 NA=   0 2002-12-12..2026-09-17  newest 2026-09-17..2026-09-23 = 947,317.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=NSA freq=W/WED history_start=2002-12-18
+              provider desc='Liabilities and Capital: Liabilities: Deposits with F.R. Banks, other than reserve balances: U.S. Treasury, General Account: Wednesday level'
+              request fed_ddp:release_xml:H41:-:RESPPLLDT_N.WW:..  pub_at=None
+USM1          H6/H6_M1/M1.M                                n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 19,991.1000  -> VALID
+              registry units='Billions USD' scale=1000000000 SA=SA freq=M history_start=1959-01
+              provider desc='M1; Seasonally adjusted'
+              request fed_ddp:release_xml:H6:-:M1.M:..  pub_at=None
+USMONBASE     FETCH FAILED MalformedPayload: USMONBASE: identity: multiplier '1e+09' != 1e+06
+              registry units='Millions USD' scale=1000000 SA=NSA freq=M history_start=1959-01
+USBANKCRED    FETCH FAILED MalformedPayload: USBANKCRED: identity: multiplier '1000000' != 1e+09
+              registry units='Billions USD' scale=1000000000 SA=SA freq=W/WED history_start=1973-01-03
+USCILOANS     FETCH FAILED MalformedPayload: USCILOANS: identity: multiplier '1000000' != 1e+09
+              registry units='Billions USD' scale=1000000000 SA=SA freq=W/WED history_start=1973-01-03
+USDEPOSITS    FETCH FAILED MalformedPayload: USDEPOSITS: identity: multiplier '1000000' != 1e+09
+              registry units='Billions USD' scale=1000000000 SA=SA freq=M history_start=1973-01
+USCONSCRED    G19/CCOUT/DTCTL.M                            n=  1003 NA=   0 1943-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 5,186,204.0700  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1943-01
+              provider desc='Total consumer credit owned and securitized, seasonally adjusted level'
+              request fed_ddp:release_xml:G19:-:DTCTL.M:..  pub_at=None
+USMFGPROD     G17/IP_MAJOR_INDUSTRY_GROUPS/IP.GMF.S        n=   656 NA=   0 1972-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 99.0964  -> VALID
+              registry units='Index 2017=100' scale=1 SA=SA freq=M history_start=1972-01
+              provider desc='Manufacturing (NAICS); s.a. IP'
+              request fed_ddp:release_xml:G17:-:IP.GMF.S:..  pub_at=None
+USCAPUTIL     G17/CAPUTL/CAPUTL.B50001.S                   n=   716 NA=   0 1967-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 76.2717  -> VALID
+              registry units='Percent of capacity' scale=1 SA=SA freq=M history_start=1967-01
+              provider desc='Total index; s.a. CAPUTL'
+              request fed_ddp:release_xml:G17:-:CAPUTL.B50001.S:..  pub_at=None
+USDOLLARIDX   H10/H10/JRXWTFB_N.B                          n=  5198 NA=   0 2006-01-02..2026-09-25  newest 2026-09-25..2026-09-25 = 120.3300  -> VALID
+              registry units='Index Jan 2006=100' scale=1 SA=NSA freq=D history_start=2006-01-02
+              provider desc='Nominal Broad Dollar Index'
+              request fed_ddp:release_xml:H10:-:JRXWTFB_N.B:..  pub_at=None
+
+# http stats: {"www.federalreserve.gov": {"200": 28}}
