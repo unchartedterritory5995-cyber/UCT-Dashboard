@@ -67,7 +67,7 @@ Rows = provider. Columns = the seventeen asset classes named in GOVERNING_PRINCI
 | 5 | Finviz Elite | N (static export) | N | N | **P** shares/float | N | N | **P** date column only | N | N | **Y** export | N | N | **Y** insider+inst. | N | **P** earnings col | **Y** short interest (F-03b §2) | **Y** screener universe |
 | 6 | Finnhub | **Y** WS+REST | N | **Y** ticks | **P** `/metric` | N | **P** recommendation/PT (403) | **Y** calendar+EPS hist | **P** (403) | N | N | N | N | **Y** insider txns | N | **Y** earnings+IPO | N | **Y** profile/logo |
 | 7 | AlphaVantage | N | N | N | N | N | N | N | **Y** verbatim | N | **Y** primary sentiment | **P** econ/commod (imports FRED terms) | N | N | N | N | N | N |
-| 8 | FRED (dormant) | N | N | N | N | N | N | N | N | N | N | **Y** (dormant — 0 keys) | N | N | N | N | N | N |
+| 8 | FRED (**RETIRED 2026-09-28 — RED**: storing/caching prohibited, https://fred.stlouisfed.org/legal/) | N | N | N | N | N | N | N | N | N | N | N (retired stub; was dormant) | N | N | N | N | N | N |
 | 9 | TheFly (dormant direct; indirect via FMP) | N | N | N | N | N | **P** indirect via FMP `grades-latest-news` | N | N | N | **Y** direct (dormant) | N | N | N | N | N | **P** M&A flashes (dormant) | N |
 | 10 | twitterapi.io / X | N | N | N | N | N | N | N | N | N | **P** breaking/cashtag | N | N | N | N | N | **Y** curated + advanced_search | N |
 | 11 | Reddit (dormant) | N | N | N | N | N | N | N | N | N | N | N | N | N | N | N | **Y** (dormant — voice only) | N |

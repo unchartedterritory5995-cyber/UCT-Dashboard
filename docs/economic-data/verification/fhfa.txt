@@ -1,0 +1,41 @@
+FHFA adapter -- live verification (keyless), run 2026-09-29T02:1xZ
+Command: python -m tools.econ.verify_fhfa   (1 GET, 17.15 MB)
+
+SUMMARY
+symbol     provider id (confirmed)                                           count  oldest   newest   newest value  Phase 0             result
+USFHFAHPI  hpi_master.csv  hpi_type=traditional, hpi_flavor=purchase-only,    426   1991-01  2026-06  442.53 (SA)   Jun 2026 442.53 SA  MATCH
+           frequency=monthly, level='USA or Census Division',
+           place_name='United States', place_id='USA'; column index_sa
+Secondary: the same row's index_nsa 452.26 == Phase 0 proof_log NSA 452.26.
+
+FINDINGS
+1. The registry filter is correct: place_id = 'USA' exists (identities listed below). There are 426 contiguous
+   months and no NA.
+2. The file has no validators (Drupal; Cache-Control must-revalidate, no-cache, private; no ETag; no Last-Modified),
+   so source_published_at is None.
+3. The only keyless path is the whole 17 MB file, fetched on every poll (latest mode too). The scheduler should poll
+   only around FHFA's calendar dates (next: Tue 2026-09-29 09:00 ET, July data).
+4. Revision: every release re-estimates back-history (repeat-sales). Registry 'minor_routine' (3 periods) will make
+   validate.check_mutation reject those back-revisions, so a correction is proposed ('comprehensive'). Only one
+   snapshot was observed; the revision depth needs a second vintage to measure.
+
+RAW RUN OUTPUT
+# FHFA live verification  2026-09-29T02:13Z  (keyless)
+
+USFHFAHPI  request_key=fhfa:hpi_master.csv:frequency=monthly|hpi_flavor=purchase-only|hpi_type=traditional|level=USA or Census Division|place_id=USA:index_sa:history:..
+  count=426  NA=0  oldest=1991-01-01  newest=2026-06-01..2026-06-30  newest_value=442.53  units='Index Jan 1991=100'  bytes=17154972
+  source_published_at=None  validators: etag=None last-modified=None cache-control='must-revalidate, no-cache, private'
+    2026-04-01  440.97
+    2026-05-01  442.42
+    2026-06-01  442.53
+  Phase0 2026-06-01 = 442.53  adapter = 442.53  -> MATCH
+
+  identities with place_id='USA' (rows):
+     106  ('manufactured', 'all-transactions', 'quarterly', 'USA or Census Division', 'United States', 'USA')
+     106  ('manufactured', 'purchase-only', 'quarterly', 'USA or Census Division', 'United States', 'USA')
+     206  ('traditional', 'all-transactions', 'quarterly', 'USA or Census Division', 'United States', 'USA')
+     142  ('traditional', 'expanded-data', 'quarterly', 'USA or Census Division', 'United States', 'USA')
+     426  ('traditional', 'purchase-only', 'monthly', 'USA or Census Division', 'United States', 'USA')
+     142  ('traditional', 'purchase-only', 'quarterly', 'USA or Census Division', 'United States', 'USA')
+
+http stats: {'by_host': {'www.fhfa.gov': {'200': 1}}, 'total': 1}

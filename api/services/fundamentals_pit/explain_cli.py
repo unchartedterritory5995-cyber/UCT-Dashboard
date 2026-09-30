@@ -32,6 +32,15 @@ def _point_in_force(conn, cik: int, metric: str, version: int, at: int | None):
     return row[0] if row else None
 
 
+
+def _explain(conn, cik, metric, t_eff, version, sources):
+    """V5: the series-walk explainer (provenance.py), which reproduces the stored value and expands FCF into its
+    inputs. derive.explain's state_at() order can resolve an equal-rank tie differently (6 known points)."""
+    if version >= 5:
+        from . import provenance as PV
+        return PV.explain(conn, cik, metric, t_eff, version)
+    return D.explain(conn, cik, metric, t_eff, version, sources)
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", required=True)
@@ -80,7 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         random.Random(a.seed).shuffle(rows)
         ok, bad = 0, []
         for cik, metric, t_eff in rows[:a.sample]:
-            r = D.explain(conn, cik, metric, t_eff, a.version, sources)
+            r = _explain(conn, cik, metric, t_eff, a.version, sources)
             if r["matches_served"]:
                 ok += 1
             else:
@@ -103,7 +112,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"ticker": a.ticker, "metric": a.metric, "point": None,
                           "note": "no point in force at that instant"}))
         return 0
-    print(json.dumps(D.explain(conn, cik, a.metric, t_eff, a.version, sources), indent=1, default=str))
+    print(json.dumps(_explain(conn, cik, a.metric, t_eff, a.version, sources), indent=1, default=str))
     return 0
 
 

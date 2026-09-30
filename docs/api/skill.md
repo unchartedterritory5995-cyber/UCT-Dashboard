@@ -11,7 +11,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (518)
+## Endpoints (523)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
@@ -99,6 +99,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/community/floor/threads/{thread_id}` | member | community-content |
 | GET | `/api/community/images/{owner_id}/{name}` | member | community-content |
 | GET | `/api/community/members/{member_id}` | member | community-content |
+| GET | `/api/community/members/{member_id}/calls` | member | community-content |
 | GET | `/api/community/spaces` | member | community-content |
 | GET | `/api/community/status` | member | community-content |
 | GET | `/api/community/threads` | member | community-content |
@@ -150,6 +151,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/earnings/transcript-search` | paid | research |
 | GET | `/api/earnings/transcript-trend` | paid | research |
 | GET | `/api/earnings/transcript/{ticker}` | paid | research |
+| GET | `/api/econ/catalog` | member | market-analytics |
+| GET | `/api/econ/series/{symbol}` | member | market-analytics |
 | GET | `/api/education/by-youtube/{youtube_id}` | paid | community-content |
 | GET | `/api/education/categories` | paid | community-content |
 | GET | `/api/education/lessons` | paid | community-content |
@@ -391,6 +394,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/financials/{sym}` | paid | research |
 | GET | `/api/research/history/{sym}` | paid | research |
 | GET | `/api/research/news/{sym}` | paid | research |
+| GET | `/api/research/options/{sym}/chain` | paid | research |
+| GET | `/api/research/options/{sym}/expirations` | paid | research |
 | GET | `/api/research/ownership/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |

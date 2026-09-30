@@ -1,0 +1,9 @@
+{"check": "current", "from": "8d08da86fbbda3a7145e664c4ea0380d9ac77c96", "measured_at": "8d08da86f"}
+
+# `python tools/notebook_rollback_chain.py --check --from 8d08da86f` (this lane's new MEASURED_AT
+# and the origin/master this lane's brief was written against): current, exit 0.
+#
+# origin/master has since moved past 8d08da86f (another, unrelated commit landed while this lane
+# worked -- cd9ecc833 "feat(fundamentals): V5 cutover foundation", selected by path only via
+# api/main.py). That is outside this lane's brief (the fixed list of 6 commits given at dispatch)
+# and is the next re-measure's job, not this one's -- recorded here, not silently left out.

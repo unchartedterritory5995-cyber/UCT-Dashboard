@@ -214,13 +214,34 @@ against a copy still held; (d) **one known exception to "snapshots expire": `aut
 `tools/archive_authdb_backup.py` is a one-shot, owner-run tool (2026-07-17, `05b890ee3`, no
 programmatic caller) that keeps the newest pre-pattern-purge backup as
 `authdb/archive/pre_pattern_purge_<ts>.db.gz`. `authdb_backup._prune` lists only
-`authdb/backup/`, so an archive is **never pruned**, and there is no archive restore path: the
-drill refuses to `--write-restored` a snapshot older than `MAX_AGE_HOURS`, so an archive
-restore would be done by hand, and it MUST then run `account_tombstones.replay_on_db` on the
-restored file before it serves anyone. Whether such an object exists was not listed (it needs
-one bucket listing), and the owner decided on 2026-09-27 to KEEP it (recorded "DECIDED 2026-09-27 KEEP" in the Notebook program's OPEN-ITEMS.md; written here by wave 10 follow-up F3, fix round 1), so an archive restore stays by hand and MUST replay the tombstones as above.
-Wave 10 lane 10C report, item 7. Rails: `tests/test_account_tombstones.py` (the resurrected-user rail
-drills a snapshot taken BEFORE a deletion and asserts the member is gone from the restored copy).
+`authdb/backup/`, so an archive is **never pruned** — and the owner decided on 2026-09-27 to
+KEEP it (recorded "DECIDED 2026-09-27 KEEP" in the Notebook program's OPEN-ITEMS.md; corrected
+here by wave 10 follow-up F3, fix round 1). ⛔ **CLOSED, wave 10 lane AD:** the lever was never
+the KEEP decision, it was the missing restore path — `authdb_restore_drill.py --archive` now
+drills the archive lineage exactly like a regular restore, with ONE difference: it lifts the
+`MAX_AGE_HOURS` freshness rule (an archive object is old by design — that is the entire point
+of keeping it past `authdb_backup._prune`'s window). Every other check, above all R-9's
+tombstone replay, is the **same code** a regular restore uses — `tombstone_check()` →
+`account_tombstones.replay_on_db()` / `.replay_on_attachment_tree()` — never a second copy of
+the replay logic, so an archive restore fails closed on the identical rule: no off-site
+tombstones read, no PASS, `--write-restored` writes nothing.
+
+```sh
+python tools/authdb_restore_drill.py --archive --list             # what is under authdb/archive/
+python tools/authdb_restore_drill.py --archive --report out.md    # read-only, a temp dir, never C:\data
+python tools/authdb_restore_drill.py --archive --write-restored PATH   # the real restore
+```
+
+Wave 10 lane 10C report, item 7 (found the gap); lane AD (built the path). Rails:
+`tests/test_account_tombstones.py` (the resurrected-user rail drills a **regular** snapshot
+taken BEFORE a deletion and asserts the member is gone from the restored copy) and
+`tests/test_authdb_archive_restore.py` (the same rail for the **archive** lineage: seed a
+member, take an archive snapshot, delete the account, `--archive --write-restored`, assert the
+member's rows are gone; a control that replays an empty id set proves the member would
+otherwise come back; the freshness exemption is proved scoped to `--archive` only — the
+identical file drilled as a regular backup still fails on age; mutation-proved fail-closed two
+ways — the replay call skipped, and the tombstone read erroring — each still refuses rather
+than a silent PASS).
 
 ## Verification method
 

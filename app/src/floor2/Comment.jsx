@@ -4,6 +4,7 @@ import { IconUp, IconDown, IconReply, IconCheck } from './icons'
 import Reactions from './Reactions'
 import ReplyBox from './ReplyBox'
 import ChartCard from './ChartCard'
+import AddressChips from './AddressChips'
 
 export default function Comment({ postId, comment, dispatch, me, depth = 0, isAnswer, canMark, onMarkAnswer }) {
   const [collapsed, setCollapsed] = useState(false)
@@ -56,6 +57,7 @@ export default function Comment({ postId, comment, dispatch, me, depth = 0, isAn
             <>
               {isAnswer && <div className="answer-tag"><IconCheck size={13} /> Answer</div>}
               <RenderDoc body={comment.body} className="c-body" />
+              <AddressChips links={comment.addressLinks} />
               {comment.chart && <ChartCard {...comment.chart} height={170} />}
               <div className="c-actions">
                 <span className="c-vote">

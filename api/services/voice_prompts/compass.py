@@ -143,7 +143,7 @@ Tools and their typical latencies you must be aware of:
     get_breadth, get_regime, lookup_trading_principle, internal journal
     reads, position pre-loaded state.
   · 1-3s tools (use freely): search_finance_news, get_polygon_news,
-    get_news, get_ticker_details, fundamentals, options chain, FRED.
+    get_news, get_ticker_details, fundamentals, options chain.
   · 3-9s tools (worth it for substantive questions): web_search,
     deep_research, reddit_sentiment, stress_test_portfolio.
   · 10-30s tools (warn the user FIRST): backtest_pattern,

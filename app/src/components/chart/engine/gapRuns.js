@@ -25,6 +25,7 @@
  * settings, legend rows, the inspector -- ever sees more than one plot.
  */
 import { parseFundamentalSource } from './fundamentalGrammar'
+import { parseEconomicSource } from './econMark'
 
 /** Pool keys that draw a CONNECTED line, and so can bridge a gap. A histogram
  *  bar is per-point and draws nothing on whitespace, so it is never split. */
@@ -56,6 +57,10 @@ export function hasFundamentalLineage(inst, instances, depth = 0) {
   if (!src) return false
   const f = parseFundamentalSource(src)
   if (f && f.kind === 'fundamental') return true
+  // ⭐ AN ECONOMIC SERIES IS PIT LINEAGE TOO (`econ:`): a missing observation, a
+  // stale one past its frequency's max age, and the stretch before its first
+  // release are all UNKNOWN, and a line may not be drawn through any of them.
+  if (parseEconomicSource(src)) return true
   if (src[0] !== '@') return false
   const cut = src.lastIndexOf('::')
   const id = cut > 1 ? src.slice(1, cut) : null
@@ -84,6 +89,10 @@ export function hasFundamentalLineage(inst, instances, depth = 0) {
  *   `runs` -- the EARLIER runs, oldest first, valued rows only;
  *   `count` -- total runs including the last.
  */
+/** The family-neutral name: `fund:` OR `econ:` lineage (point-in-time data whose
+ *  NaNs are canonical gaps). Same function. */
+export const hasPitLineage = (inst, instances) => hasFundamentalLineage(inst, instances)
+
 export function splitGapRuns(points) {
   const pts = Array.isArray(points) ? points : []
   const bounds = []                         // [start, end] inclusive, valued

@@ -1,0 +1,153 @@
+{
+  "label": "s-L5",
+  "mode": "check",
+  "identity": "http://127.0.0.1:8238 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1c\\t\\s-L5\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T14-36-48.md (identity 07c7cc559195..., data dir C:\\data-w10r1c)",
+  "proven": true,
+  "fixtures": {
+    "n0": "41bddbdc89ac4519a58584dd4ed50f0a",
+    "n1": "823b905a7e854722a3bde82411373df1",
+    "n2": "023ed65893de4f5e8d7f091847f84feb",
+    "nb": "1a99f3f34de443fbb7382929227f0d15"
+  },
+  "landings": {
+    "L1c_switcher_body_recall": {
+      "status": 200,
+      "text_matches": 1,
+      "rows": 1
+    },
+    "L1b_admin_notebook_slo": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "L1a_unbuildable_body_at_create": {
+      "status": 400
+    },
+    "h203_depth_cap_at_create": {
+      "status": 400
+    },
+    "w9_batch_export_bogus_format": {
+      "status": 422
+    },
+    "w8_share_links": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w8_publish": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "9C_admin_notebook_soak": {
+      "status": 422,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w7_personal_tokens": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w6_note_templates": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w5_switcher_door": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json",
+      "has_notes_key": true
+    }
+  },
+  "L4_format_toggle": {
+    "editor_mounted": true,
+    "format_toggle_buttons": 1,
+    "page_errors": []
+  },
+  "L5_symbol_backlinks": {
+    "status": 200,
+    "keys": [
+      "count",
+      "notes",
+      "symbol"
+    ],
+    "count": 0,
+    "notes_len": 0,
+    "note_keys": null
+  },
+  "dom": {
+    "skip_link": {
+      "present": true,
+      "pointerEvents": "none",
+      "opacity": "0"
+    },
+    "pane_heading": {
+      "present": true,
+      "focused": true,
+      "position": "absolute",
+      "pointerEvents": "none"
+    },
+    "page_errors": []
+  },
+  "editor": {
+    "n2": {
+      "note_id": "023ed65893de4f5e8d7f091847f84feb",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n1": {
+      "note_id": "823b905a7e854722a3bde82411373df1",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n0": {
+      "note_id": "41bddbdc89ac4519a58584dd4ed50f0a",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    }
+  }
+}

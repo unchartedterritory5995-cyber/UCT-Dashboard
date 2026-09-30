@@ -177,3 +177,9 @@ app/src/components/chart/chartDataMap.test.js -text
 app/src/hub/sections/homeSection.js -text
 docs/plans/joystick/deferred.md -text
 scripts/rth-close.ps1 -text
+
+# Economic data: agency payload fixtures are BYTE-FIDELITY artifacts (raw archive
+# hashes, byte-level XML edits in tests/econ/test_adapter_dol.py). With
+# `core.autocrlf=true` the DOL XML checked out CRLF and two tests failed on a
+# line-ending reason only. Stored blobs are LF; keep the working copy LF too.
+tests/econ/fixtures/** text=auto eol=lf

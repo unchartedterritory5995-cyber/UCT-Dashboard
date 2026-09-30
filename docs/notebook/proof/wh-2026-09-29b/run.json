@@ -1,0 +1,97 @@
+{
+  "tool": "notebook_wh_writing_help_prod_check",
+  "clause": "12a — writing help with provenance",
+  "base": "https://uctintelligence.com",
+  "started_utc": "2026-09-29T22:24:14.879323+00:00",
+  "steps": [
+    {
+      "at": "2026-09-29T22:24:16.040158+00:00",
+      "name": "login",
+      "ok": true,
+      "http_status": 200
+    },
+    {
+      "at": "2026-09-29T22:24:16.170229+00:00",
+      "name": "account_check",
+      "ok": true,
+      "http_status": 200,
+      "email": "bench@uctintelligence.internal",
+      "domain": "uctintelligence.internal",
+      "role": "member",
+      "paid_equiv": true
+    },
+    {
+      "at": "2026-09-29T22:24:16.470064+00:00",
+      "name": "create_note",
+      "ok": true,
+      "note_id": "754bd5324974410da7e3cd0065737f5b",
+      "title": "WH provenance check 20260929T222416Z"
+    },
+    {
+      "at": "2026-09-29T22:24:21.278803+00:00",
+      "name": "note_open",
+      "ok": true,
+      "screenshot": "01-note-open.png"
+    },
+    {
+      "at": "2026-09-29T22:24:27.028605+00:00",
+      "name": "panel_open",
+      "ok": true,
+      "screenshot": "02-panel-open.png"
+    },
+    {
+      "at": "2026-09-29T22:24:27.291524+00:00",
+      "name": "action_requested",
+      "ok": true,
+      "choice": "Rewrite shorter"
+    },
+    {
+      "at": "2026-09-29T22:24:29.565413+00:00",
+      "name": "output_observed",
+      "ok": true,
+      "output_chars": 148,
+      "output_excerpt": "Sat on my hands the first thirty minutes despite the clean setup — choppy open, waited to see if price held the premarket range before risking size.",
+      "provenance_fine_print": "Nothing is added to your note until you choose Accept. Written by claude-sonnet-5.",
+      "screenshot": "03-draft-result.png"
+    },
+    {
+      "at": "2026-09-29T22:24:30.446328+00:00",
+      "name": "accept_clicked",
+      "ok": true,
+      "document_changed_by_accept": true,
+      "ask_inserts_before": 0
+    },
+    {
+      "at": "2026-09-29T22:24:30.574803+00:00",
+      "name": "insert_confirmed",
+      "ok": true,
+      "block_aria_label": "Written with Compass writing help: Rewrite — shorter",
+      "block_text_excerpt": "Compass · Rewrite · claude-sonnet-5 · 17:24\n\nSat on my hands the first thirty minutes despite the clean setup — choppy open, waited to see if price held the premarket range before risking size.",
+      "screenshot": "04-accepted.png"
+    },
+    {
+      "at": "2026-09-29T22:24:32.513672+00:00",
+      "name": "delete_clicked",
+      "ok": true,
+      "screenshot": "05-after-delete.png"
+    },
+    {
+      "at": "2026-09-29T22:24:32.811748+00:00",
+      "name": "cleanup_confirmed",
+      "ok": false,
+      "gone_from_live_list": false,
+      "in_trash": false,
+      "live_http_status": 200,
+      "trash_http_status": 200
+    },
+    {
+      "at": "2026-09-29T22:24:32.938812+00:00",
+      "name": "best_effort_cleanup",
+      "ok": true,
+      "note_id": "754bd5324974410da7e3cd0065737f5b"
+    }
+  ],
+  "verdict": "FAILED",
+  "reason": "cleanup could not be confirmed by API read-back",
+  "finished_utc": "2026-09-29T22:24:32.812840+00:00"
+}
