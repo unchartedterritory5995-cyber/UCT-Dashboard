@@ -759,7 +759,9 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # layout proofs (L3/D3P/D5). 26 (F3's count) + 16 = 42.
     # Lane RS2 (2026-09-29) added 3 more the 7b/12a cells now cite: L6's own landing record (PR #253)
     # and the corrected production writing-help run. 42 + 3 = 45.
-    assert len(paths) == 45, (len(paths), paths)
+    # Lane SC (2026-09-30) added 6 more the 9a/2b/5d/6c cells now cite: the L11 proof walk's README,
+    # run.json, census.json, silent.json, deadclick.json and axe.json. 45 + 6 = 51.
+    assert len(paths) == 51, (len(paths), paths)
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',
