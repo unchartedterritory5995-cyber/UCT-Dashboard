@@ -157,6 +157,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'step',                                      // …and its `by` step
   'cond',                                      // C16: a `latch`'s condition
   'withhold',                                  // C11c: unmeasured on this bar
+  'propWithhold',                              // C22: a PROPERTY unmeasured on this bar
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -825,6 +826,20 @@ export function assertObjectProgram(program) {
     // ⭐ C11c — a step's WITHHOLD is a plain graph value: true on a bar a window
     // reduction it reads is unmeasured (`pine.js` `Resolver.windowAmbiguity`).
     if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
+    // ⭐⭐ C22 — a PROPERTY's value that reads an unmeasured reduction, with the
+    // property names it covers: the op RUNS (Pine ran it — ids stay Pine's) and
+    // only those properties are marked unknown on that bar (C17's value rule).
+    if (op.propWithhold !== undefined || op.propWithholdKeys !== undefined) {
+      if (!['create', 'update', 'cell', 'cellpatch'].includes(op.k)) {
+        throw new Error(`${where}: propWithhold is for an op that writes properties, not \`${op.k}\``)
+      }
+      assertValueRef(op.propWithhold, `${where}.propWithhold`)
+      const keys = op.propWithholdKeys
+      if (!Array.isArray(keys) || !keys.length
+          || keys.some((k) => typeof k !== 'string' || !isObj(op.props) || !(k in op.props))) {
+        throw new Error(`${where}: propWithholdKeys must name properties this op writes`)
+      }
+    }
     /** ⭐ C14 — a create/update's own coordinates and text may read object
      *  state only OUTSIDE a loop body (a scalar is written once per bar). */
     const opLive = live.inLoop ? null : live

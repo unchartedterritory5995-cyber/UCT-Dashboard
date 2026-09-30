@@ -113,7 +113,7 @@ import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
-import { INLINE_SUFFIX } from './objectFnInline.js'
+import { INLINE_SUFFIX, definitionHeader } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -741,7 +741,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // ⛔ It imports nothing from here, so there is no cycle: it returns refusal
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
-import { seriesWindowOf, WINDOW_READ_MEMBERS } from './arrayWindows.js'
+import { seriesWindowOf, WINDOW_READ_MEMBERS, spanOf } from './arrayWindows.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -5752,6 +5752,9 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⭐ C22 — the op the object pass is converting (`{topTok, siteIndex}`),
+     *  so a window read inside a helper is placed at its call (`windowReadPos`). */
+    this.windowReadSite = null
     /** ⭐ C11c — the script's own one-expression READ methods (`translatePine`'s
      *  `readMethodDefs`), name → `{ name, params, body }`; the object pass
      *  only. */
@@ -7184,6 +7187,20 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ C22 — the source position a window read is evaluated at: its own
+   *  token, unless that token sits in a function DEFINITION (a helper or a read
+   *  method runs where it is called) — then the call site the object pass is
+   *  converting (`windowReadSite`: the op's inlined call, else its statement).
+   *  Null when neither is known, which `readVerdict` refuses. */
+  windowReadPos(w, node) {
+    const p = node && node.tok && Number.isFinite(node.tok.index) ? node.tok.index : null
+    if (p !== null && !(w.inDefinition && w.inDefinition(p))) return p
+    const s = this.windowReadSite
+    if (!s) return null
+    if (Number.isFinite(s.siteIndex)) return s.siteIndex
+    return Number.isFinite(s.topTok) ? s.topTok : null
+  }
+
   /** ⭐ C11c — `recv.m(args)` for the script's own one-expression read method
    *  `m` on a window: the body resolved in a frame whose first parameter is the
    *  receiver and the rest the call's arguments. The body sees ONLY its
@@ -7223,6 +7240,17 @@ export class Resolver {
    *  resolved by THIS resolver in the scope the add stood in, so the value and
    *  the conditions mean exactly what they meant at the write. */
   resolveWindowRead(w, member, args, node) {
+    // ⭐⭐ C22 — FIRST, WHERE THE READ STANDS (`withWindow`'s `readVerdict`): the
+    // model is the window as the BAR leaves it, served only where a read sees
+    // exactly that; anywhere else this read — never the window — refuses.
+    if (w.readVerdict) {
+      const why = w.readVerdict(this.windowReadPos(w, node))
+      if (why) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`,
+          locate(node.tok))
+      }
+    }
     // ⭐ C11c — a read that depends only on the window (its size, a fixed slot,
     // a reduction) resolves in the window's own scope, so it is the same tree
     // wherever it is read: built once per translation. A read with an operand
@@ -13673,8 +13701,17 @@ function splitLastBarNode(node) {
   return { rest: node, isLast: false }
 }
 
-function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement,
+function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
+  // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
+  // converting (`windowReadSite`, read by `Resolver.windowReadPos`); outside a
+  // conversion it is null, and a window read that needs a call site refuses.
+  let windowReadSite = null
+  const makeResolver = (scope) => {
+    const r = makeResolverRaw(scope)
+    r.windowReadSite = windowReadSite
+    return r
+  }
   // ⭐⭐ RAW-TREE MODE — the trees are for the RUNTIME LANE, not the V2 graph.
   //
   // ⛔ WHY A MODE AND NOT A FALLBACK. `canonicalOf` resolves a value through the
@@ -15410,6 +15447,40 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  text IS the cell. An ABSENT caption is fine: `label.new(x, y)` is a legal
    *  Pine marker and stays one. */
   const CONTENT = { label: new Set(['text']), box: new Set(['text']) }
+  /** ⭐⭐ C22 — A LOST SETTER THAT MOVES AN OBJECT IS MARKED, PER BAR, NEVER
+   *  LEFT STALE. A `set_x2` / `set_y1` / `set_x` this chart cannot carry used to
+   *  vanish, and the object stayed at the coordinate it was CREATED with — a
+   *  line TradingView extends, drawn one bar long. ⚰️ MEASURED on
+   *  trend-duration-forecast-chartprime (live on the member door, objects pane
+   *  armed): `LengthLine.set_x2(LengthLine.get_x1() + bullishCount.avg() + 1)`
+   *  (a getter in arithmetic) dropped, the line drawn at x2 = its creation bar
+   *  where TradingView's runs ~24 bars on; and ultimate-pivot-points' current
+   *  nine levels, extended each bar by `set_x2` under a guard this lane cannot
+   *  read, drawn at their creation x2. Both families agreed by COUNT.
+   *
+   *  ⭐ The lost step becomes an op that WRITES NOTHING KNOWN and marks the
+   *  coordinates it would have written (C17's per-property taint): where its
+   *  guard reads, it marks on the bars the guard holds (`propWithhold`); where
+   *  its guard is itself lost, on every bar (`withhold`). A clean write of the
+   *  same coordinate later (the next period's `set_x2` on an old level) clears
+   *  it; an object still marked at the end is held, not drawn. Precise where a
+   *  handle-wide withhold is not: ultimate-pivot-points keeps its finished
+   *  levels, TradingView's, and holds only the nine the lost step moves.
+   *  Styling stays out, as at create (`REQUIRED`): a style Pine defaults is
+   *  still Pine's. The counts (`update:props`, `guard:update`) are unchanged. */
+  const LOST_GEOMETRY_MARK = { v: 'const', value: 1 }
+  /** A marking op is not a drawing step: pruning one is not a drop to count. */
+  const isGeometryMark = (o) => !!o && (o.withhold === LOST_GEOMETRY_MARK || o.propWithhold === LOST_GEOMETRY_MARK)
+  const lostGeometryOp = (op, target, when, extra) => {
+    const req = REQUIRED[op.family]
+    if (!req || !target || op.family === 'linefill') return null
+    const keys = (op.props || []).filter((k) => req.has(k))
+    if (!keys.length) return null
+    const props = Object.fromEntries(keys.map((k) => [k, { v: 'const', value: 0 }]))
+    return when === undefined
+      ? { k: 'update', target, when: null, props, withhold: LOST_GEOMETRY_MARK }
+      : { k: 'update', target, when, ...(extra || {}), props, propWithhold: LOST_GEOMETRY_MARK, propWithholdKeys: keys }
+  }
 
   // ── registers and collections, with GENERATED ids ─────────────────────────
   // ⛔ A PINE NAME IS NOT AN ID. `assertObjectProgram` requires `^[a-z][a-z0-9_]*$`
@@ -16073,6 +16144,24 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // Lifted out of the expression into flags for the same reason
       // `barstate.islast` is: so no tree, hash or screener column can ever
       // contain them.
+      // ⭐⭐ C22 — `not na(l) and <rest>` (and `na(l) and <rest>`): the liveness
+      // test is the op's flag, `<rest>` its condition. Exact: where the flag
+      // fails the whole `and` is false in Pine whatever `<rest>` reads (a getter
+      // on an empty handle is `na`), and the op does not run here either. Only
+      // an un-negated guard (`not (A and B)` is not a conjunction), and only
+      // one liveness flag per op. ⚰️ ultimate-pivot-points' `if not na(pLine)
+      // and line.get_x2(pLine) != bar_index` — the idiom that extends each level
+      // to the current bar — refused whole, so nine `set_x2` were lost.
+      if (!g.negate && node && node.type === 'binary' && (node.op === 'and' || node.op === '&&')
+          && !requiresLive && !requiresEmpty) {
+        const sides = [node.left, node.right]
+        const k = sides.findIndex((s) => { const r = readNaGuard(s); return !!(r && regId.has(r.name)) })
+        if (k >= 0) {
+          const r = readNaGuard(sides[k])
+          if (r.negated) requiresLive = regId.get(r.name); else requiresEmpty = regId.get(r.name)
+          node = sides[1 - k]
+        }
+      }
       const naRef = readNaGuard(node)
       if (naRef && regId.has(naRef.name)) {
         if (g.negate ? naRef.negated : !naRef.negated) requiresEmpty = regId.get(naRef.name)
@@ -16443,6 +16532,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   for (const op of list) {
     const mark = ops.length
     const into = ops
+    // ⭐ C22 — the op every Resolver built from here on is converting
+    const prevReadSite = windowReadSite
+    windowReadSite = { topTok: op.topTok, siteIndex: op.siteIndex }
     try {
     // ⭐ C14 — a number read off a drawing: not a drawing step, never counted as
     // one. Its readability was settled before conversion (`getnumPlan`).
@@ -16502,6 +16594,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (op.k.startsWith('coll_')) lostColl(op.coll)
       if (op.k === 'copy' && op.fromColl && regId.has(op.into)) taintedRegs.add(regId.get(op.into))
       dropped(`guard:${op.k}`)
+      // ⭐ C22 — a lost setter that would have MOVED its object marks it, every bar
+      if (op.k === 'update') { const m = lostGeometryOp(op, targetRef(op.target), undefined); if (m) ops.push(m) }
       continue
     }
     const when = g.when
@@ -16625,6 +16719,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         contentLostBy(op, target)
         stateLostBy(op, target)
         dropped('update:props')
+        // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
+        // bars its guard holds (`lostGeometryOp`)
+        const m = lostGeometryOp(op, target, when, lastBarOnly)
+        if (m) ops.push(m)
         continue
       }
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
@@ -16793,6 +16891,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       for (let i = mark; i < into.length; i += 1) if (!srcOf.has(into[i])) srcOf.set(into[i], op)
       rtOp = null
       rtArgNodes = null
+      windowReadSite = prevReadSite
     }
   }
   }
@@ -17018,7 +17117,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (o.k === 'clearcells' || o.k === 'clear') lostRemoval('coll:diverged', { k: 'clear' })
       if (o.k === 'update' && CONTENT[famOf(o.target)]
         && Object.keys(o.props || {}).some((k) => CONTENT[famOf(o.target)].has(k))) contentLost.push(o.target)
-      dropped('coll:diverged')
+      if (!isGeometryMark(o)) dropped('coll:diverged')
     }
     const loseAll = (list) => { for (const o of list) { if (o.k === 'loop') loseAll(o.body); if (o.k !== 'latch') lose(o) } }
     const opUnknown = (o) => guardUnknown(o) || (o.target && refUnknown(o.target))
@@ -17105,7 +17204,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           continue
         }
         if (withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('content:lost'); continue }
-        if (withheld(o)) { dropped('content:withheld'); continue }
+        if (withheld(o)) { if (!isGeometryMark(o)) dropped('content:withheld'); continue }
         // A copy of a withheld handle is `na` — the object it names is not drawn.
         if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
         out.push(o)
@@ -17232,9 +17331,33 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const amb = opAmbiguity({ ...o, body: [] })
       if (!amb.length) return out
+      const orOf = (list) => list.reduce((acc, a) => (acc ? cOp('||', [acc, a]) : a), null)
+      // ⭐⭐ C22 — WHERE the unmeasured reduction is read decides what is withheld
+      // (C17's rule): in a guard, a handle, an address or a loop bound the op
+      // itself is unmeasured and is withheld whole; in a property's VALUE only,
+      // the op runs and that property is marked (`propWithhold`), so a clean
+      // write of it later in the bar clears it. ⚰️ trend-duration's every
+      // `label.new(…, "Probable Length: " + str.tostring(bullishCount.avg()))`
+      // on an empty window was withheld whole — the label never made, its
+      // register marked, and the `set_text` Pine runs on it the same bar
+      // withheld too — though that text is overwritten before any bar closes.
+      if (['create', 'update', 'cell', 'cellpatch'].includes(o.k) && o.props) {
+        const rest = opAmbiguity({ ...o, props: {}, body: [] })
+        const keys = []
+        const propAmb = []
+        for (const [k, v] of Object.entries(o.props)) {
+          const a = opAmbiguity({ k: o.k, props: { [k]: v } })
+          if (!a.length) continue
+          keys.push(k)
+          for (const x of a) if (!propAmb.includes(x)) propAmb.push(x)
+        }
+        if (!rest.length && keys.length) {
+          withheldSteps += 1
+          return { ...out, propWithhold: internTree(orOf(propAmb)), propWithholdKeys: keys }
+        }
+      }
       withheldSteps += 1
-      const any = amb.reduce((acc, a) => (acc ? cOp('||', [acc, a]) : a), null)
-      return { ...out, withhold: internTree(any) }
+      return { ...out, withhold: internTree(orOf(amb)) }
     })
     const attached = attach(keptOps)
     keptOps.splice(0, keptOps.length, ...attached)
@@ -17576,6 +17699,64 @@ function translatePineResult(source, opts = {}) {
   /** ⭐ C11b — statement → the series windows whose add it holds (see
    *  `arrayWindows.js`); the walk snapshots `env` there for their reads. */
   const windowEnvAt = new Map()
+  /** ⭐ C22 — the token spans of every function DEFINITION (a read inside one
+   *  runs at its call, `windowReadPos`). */
+  const definitionSpans = stmts.filter((s) => definitionHeader(s.header || [], { isPunct, findTop })).map(spanOf)
+  /** ⭐⭐ C22 — A WINDOW'S CAP WRITTEN AS A NAME (`if bullishCount.size() >
+   *  samples`), settled BEFORE THE CHART RUNS or refused by name.
+   *
+   *  The name must be an `input.int`/`input.float`/`input` whose default is a
+   *  whole number written into the script, and it must be one the member's
+   *  chart cannot move while the window is laid out: not DECLARED as a knob
+   *  (`opts.declareInputs` — its value arrives at bind time, after this
+   *  unrolling), and read NOWHERE but a window's own length check (a plot that
+   *  read it would mint it a member parameter whose edit this cap could not
+   *  follow). Then the value is the member's actual one — `opts.inputValues`
+   *  when the caller carries it, else the default, which is what an input with
+   *  no knob always holds — so the window's size is decided before bar 0.
+   *  ⛔ It RESOLVES; it never MINTS (R36): the default is read off the call
+   *  node, not through the Resolver, so no `__uct_param_N` is created or moved. */
+  const windowCapOf = (tok) => {
+    const nm = String(tok.value)
+    const b = env.get(nm)
+    const node = b && b.kind === 'expr' ? b.node : null
+    if (!node || node.type !== 'call' || !['input', 'input.int', 'input.float'].includes(node.name)) {
+      return { refused: `its cap \`${nm}\` is neither a number written into the script nor an input` }
+    }
+    const declared = opts.declareInputs
+      && (opts.declareInputs === 'all' || (Array.isArray(opts.declareInputs) && opts.declareInputs.includes(nm)))
+    if (declared) return { refused: `its cap is the member input \`${nm}\`, which is set after this window is laid out` }
+    // every mention of the name outside its own declaration must be a window's
+    // length check: `….size() > nm` / `array.size(x) > nm`
+    const declStmt = stmts.find((s) => s.header && s.header[0] && String(s.header[0].value) === nm
+      && isPunct(s.header[1], '='))
+    let stray = null
+    const scan = (list) => {
+      for (const s of list || []) {
+        if (stray) return
+        if (s !== declStmt) {
+          const t = [...(s.header || []), ...(s.body || [])]
+          for (let i = 0; i < t.length; i += 1) {
+            if (t[i].kind !== 'ident' || String(t[i].value) !== nm) continue
+            const lenCheck = isPunct(t[i - 1], '>') && isPunct(t[i - 2], ')')
+              && (isPunct(t[i - 3], '(') || (t[i - 3] && t[i - 3].kind === 'ident'))
+            if (!lenCheck) { stray = t[i]; return }
+          }
+        }
+        scan(s.sub)
+      }
+    }
+    scan(stmts)
+    if (stray) return { refused: `its cap \`${nm}\` is also read at line ${stray.line}, where a member could be given it as a knob` }
+    const arg = (node.args || []).find((a) => a && a.name === 'defval') || (node.args || []).find((a) => a && !a.name)
+    const lit = arg && arg.value
+    let v = lit && lit.type === 'number' ? lit.value : null
+    if (opts.inputValues && typeof opts.inputValues === 'object' && Number.isFinite(opts.inputValues[nm])) {
+      v = opts.inputValues[nm]
+    }
+    if (!Number.isInteger(v)) return { refused: `its cap \`${nm}\` has no whole-number default written into the script` }
+    return { k: v, name: nm }
+  }
   /** A `var` vector whose every write is a bounded window → its model, attached
    *  as `vec.window` (read by the OBJECT pass only — `resolveVectorRead`). The
    *  refusal reason is kept on the binding (`vec.windowRefused`) for diagnosis
@@ -17598,7 +17779,7 @@ function translatePineResult(source, opts = {}) {
       got = seriesWindowOf({
         stmts, name, n0,
         writerStmts: new Set(vec.writers.map((w) => w.stmt)),
-        h: { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression },
+        h: { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression, capOf: windowCapOf },
         creationSizeOf: (other) => {
           const b = env.get(other)
           if (!b || b.kind !== 'vector' || !b.persists) return null
@@ -17609,20 +17790,34 @@ function translatePineResult(source, opts = {}) {
       got = { refused: String((err && err.message) || err) }
     }
     if (got.refused) { vec.windowRefused = got.refused; return vec }
-    // ⛔ EVERY READ AFTER THE LAST WRITE: a top-level statement that mentions the
-    // array and is not one of its writers must come after all of them.
-    const writers = new Set(vec.writers.map((w) => w.stmt))
-    const mentionsName = (st) => [...(st.header || []), ...(st.body || [])].some((t) => t.kind === 'ident'
-      && (String(t.value) === name || String(t.value).split('.')[0] === name))
-      || (st.sub || []).some(mentionsName)
-    for (let k = stmtIndex + 1; k < stmts.length; k += 1) {
-      if (writers.has(stmts[k]) || !mentionsName(stmts[k])) continue
-      if (k < got.model.lastWriter) {
-        vec.windowRefused = `\`${name}\` is read at line ${stmts[k].header[0].line}, before its last write`
-        return vec
+    // ⭐⭐ C22 — EVERY READ IS PLACED WHERE IT STANDS, AND JUDGED THERE
+    // (`windowReadVerdict`, asked by `Resolver.resolveWindowRead`). ⚰️ This
+    // refused the WHOLE window when any top-level statement read it before its
+    // last write: trend-duration's `if not trend` block (between its adds and its
+    // `if … size() > samples` removals) took the table's cells and every trend
+    // label's text down with it, though those read the window where it is exact.
+    const m = got.model
+    const writerSpans = stmts.filter((s) => vec.writers.some((w) => w.stmt === s)).map(spanOf)
+    const addSpan = m.addSpan
+    const firstFrom = spanOf(stmts[m.firstWriter]).from
+    const lastTo = spanOf(stmts[m.lastWriter]).to
+    const lineOf = (s) => (s.header && s.header[0] ? s.header[0].line : '?')
+    const addLine = lineOf(m.addStmt)
+    m.readVerdict = (p) => {
+      if (!Number.isFinite(p)) return 'the read cannot be placed in the bar'
+      if (p > lastTo) return null
+      if (p >= addSpan.from && p <= addSpan.to) {
+        const r = m.readsInWriters.find((x) => p >= x.from && p <= x.to)
+        if (r && r.exclusive) return null
+        return `it is read inside the statement that adds to it (line ${addLine}), where this bar's add may already have happened`
       }
+      if (writerSpans.some((s) => p >= s.from && p <= s.to)) return 'it is read inside a statement that changes it'
+      if (p < firstFrom) return `it is read above line ${addLine}, where it still holds last bar's elements`
+      return `it is read between its add (line ${addLine}) and its removal, where it may hold one element more than its ${m.cap} slots`
     }
-    vec.window = got.model
+    // a token inside a function DEFINITION is read at the call (`windowReadPos`)
+    m.inDefinition = (p) => definitionSpans.some((s) => p >= s.from && p <= s.to)
+    vec.window = m
     if (!windowEnvAt.has(got.model.addStmt)) windowEnvAt.set(got.model.addStmt, [])
     windowEnvAt.get(got.model.addStmt).push(got.model)
     return vec

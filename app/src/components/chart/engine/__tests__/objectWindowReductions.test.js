@@ -16,10 +16,13 @@
 //
 // ⛔ What Pine answers for a reduction over an `na` element or an empty array has
 // not been measured on a chart (the runtime lane stops by name there). This lane
-// WITHHOLDS, per bar: every step whose value reaches such a reduction is skipped
-// and counted on a bar the reduction is unmeasured (`op.withhold`), never drawn
-// off a guess. The replays below skip those bars and assert nothing is drawn
-// there.
+// WITHHOLDS, per bar, never drawing off a guess: a step whose GUARD, handle or
+// address reaches such a reduction is skipped and counted on a bar the reduction
+// is unmeasured (`op.withhold`); ⭐ C22 — a step that reaches one only in a
+// property's VALUE runs (Pine ran it, so ids stay Pine's) and that property is
+// marked unknown (`op.propWithhold`, C17's value rule), so the object is held,
+// not drawn, unless a clean write of the property follows. The replays below
+// skip those bars and assert nothing is drawn there.
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../ast/pine'
 import { evaluateObjects } from '../objectRuntime'
@@ -120,7 +123,7 @@ describe('⭐⭐ C11c — a fixed window (push + shift, na pre-filled)', () => {
     }
   })
 
-  it('⛔ a step reading a reduction is WITHHELD on a bar an element is na, and counted', () => {
+  it('⛔ a step reading a reduction in a VALUE runs; the object is held on a bar an element is na, and counted', () => {
     const { amb } = replayFixed()
     const ambiguousUpBars = amb.map((a, i) => a && up(i)).filter(Boolean).length
     expect(ambiguousUpBars).toBeGreaterThan(1)
@@ -128,11 +131,17 @@ describe('⭐⭐ C11c — a fixed window (push + shift, na pre-filled)', () => {
     const r = run(t)
     const drawn = r.live.filter((o) => o.family === 'label')
     expect(drawn.filter((o) => amb[o.createdBar])).toEqual([])
-    // every bar is counted: the step is withheld before its guard is asked
-    expect(r.stats.withheldUnknown).toBe(amb.filter(Boolean).length)
-    // exactly the steps that read a reduction carry the withhold
+    // ⭐ C22 — the reduction is only the label's `y`: the step RUNS where its
+    // guard holds (so ids stay Pine's), and its `y` is marked on each ambiguous
+    // up bar — asked after the guard, so only those bars are counted
+    expect(r.stats.withheldUnknown || 0).toBe(0)
+    expect(r.stats.propsUnmeasured).toBe(ambiguousUpBars)
+    expect(r.stats.created).toBe(BARS.filter((b, i) => up(i)).length)
+    // exactly the steps that read a reduction carry a withhold: in a GUARD
+    // (MAX, MIN) the whole step, in a value only (SUM, AVG, IDX, PICK) the property
     const whole = tr(FIXED)
-    expect(whole.objects.ops.filter((o) => o.withhold).length).toBe(6)
+    expect(whole.objects.ops.filter((o) => o.withhold).length).toBe(2)
+    expect(whole.objects.ops.filter((o) => o.propWithhold).map((o) => o.propWithholdKeys)).toEqual([['y'], ['y'], ['y'], ['y']])
     expect(whole.objectDiagnostics.windowAmbiguousSteps).toBe(6)
   })
 })
@@ -159,7 +168,8 @@ if not na(l)
       const newest = s.filter(([sb]) => sb <= b).pop()
       expect(y).toBe(newest[1])
     }
-    expect(r.stats.withheldUnknown).toBeGreaterThan(0)
+    // ⭐ C22 — the create RAN with its `y` marked (the getter reads the mark)
+    expect(r.stats.propsUnmeasured).toBeGreaterThan(0)
   })
 
   it('⛔ a known handle re-set on an ambiguous bar is unknown there: the getter is withheld, not read stale', () => {

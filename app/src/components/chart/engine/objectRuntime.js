@@ -182,6 +182,8 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
+  let propsUnmeasured = 0
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -922,6 +924,18 @@ export function beginObjects(program, ctx) {
      *  window reduction over an `na` element or an empty window, whose answer
      *  no capture pins.) Withheld and counted, never run off a guess. */
     const withheldAt = (op) => op.withhold != null && truthy(value(op.withhold))
+    /** ⭐⭐ C22 — the PROPERTIES whose value reads an unmeasured reduction on this
+     *  bar (`op.propWithhold`, naming `op.propWithholdKeys`). The op runs — Pine
+     *  ran it, so ids stay in Pine's order — and only these are marked (C17's
+     *  value rule), so a later clean write of the same property clears them:
+     *  trend-duration's `label.new(…, "…" + str.tostring(bullishCount.avg()))`
+     *  over an empty window, re-texted by `set_text` in the same bar. */
+    const unmeasuredProps = (op) => {
+      if (op.propWithhold == null || !truthy(value(op.propWithhold))) return NO_PROPS
+      taintSeen = true
+      propsUnmeasured += op.propWithholdKeys.length
+      return op.propWithholdKeys
+    }
 
     /** Does this guard read a latch whose condition was unknowable? */
     const readsUnknownLatch = (v, depth = 0) => {
@@ -1312,8 +1326,9 @@ export function beginObjects(program, ctx) {
           }
           live.set(id, inst)
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
-          // something tainted is what stays unknown on it.
-          taintInst(id, taintedProps(op.props))
+          // something tainted is what stays unknown on it (C22: or read an
+          // unmeasured reduction on this bar).
+          { const um = unmeasuredProps(op); taintInst(id, um.length ? [...taintedProps(op.props), ...um] : taintedProps(op.props)) }
           // ⭐ C20 — a colour asked of the runtime that it could not serve exactly
           // (transparent, or a transparency this engine has not measured) holds
           // the object: drawn in a default colour it would be a colour Pine did
@@ -1341,8 +1356,9 @@ export function beginObjects(program, ctx) {
           if (!inst) { writesToDeleted += 1; break }
           resolveProps(op.props, inst.props)
           // ⭐ C17 — a clean write clears its property; a tainted value marks it.
+          const um = unmeasuredProps(op)
           if (taintSeen) {
-            const bad = new Set(taintedProps(op.props))
+            const bad = new Set([...taintedProps(op.props), ...um])
             for (const k of Object.keys(op.props || {})) {
               if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
             }
@@ -1394,7 +1410,8 @@ export function beginObjects(program, ctx) {
           map.set(key, resolveProps(op.props, cur))
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
-          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (taintedProps(op.props).length) taintCell(inst.id, key)
+          const um = unmeasuredProps(op)
+          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (um.length || taintedProps(op.props).length) taintCell(inst.id, key)
           else if (op.k === 'cell') {
             const ct = cellTaint.get(inst.id)
             if (ct && ct !== '*') { ct.delete(key); if (!ct.size) cellTaint.delete(inst.id) }
@@ -1726,6 +1743,7 @@ export function beginObjects(program, ctx) {
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(propsUnmeasured ? { propsUnmeasured } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),
