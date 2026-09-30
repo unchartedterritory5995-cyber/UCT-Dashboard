@@ -2107,6 +2107,62 @@ def safe_evaluate(pg, script: str, arg=None, timeout_ms: int = EVAL_TIMEOUT_MS):
 HOVER_TIMEOUT_MS = 2500
 ACTION_TIMEOUT_MS = 3500   # click/tap -- Playwright's own native, already-bounded wait
 
+# ── wave 10 lane WK6: settle waits that WAIT, capped at the same ceiling they replace ──────
+# The hover-settle (450ms) and click-settle (1200ms) waits inside `click_one` used to be flat
+# `pg.wait_for_timeout(...)` calls -- spent in FULL on every control, whether or not anything
+# was actually still happening. Measured on the nine deadclick surfaces that hit
+# `SURFACE_DEADLINE_S`: 56-90 controls in 360s is 4-6s/control, and the two fixed waits alone
+# are 1.65s of that per non-reset click (`docs/notebook/proof/l11-52deeb767/README.md`, 2c).
+#
+# `quiesce()` polls the SAME MutationObserver feed `EFFECT_JS` already reads (`window.__proof
+# .muts`) and returns as soon as the page has been quiet for `QUIET_MS` -- capped at
+# `ceiling_ms`, which is passed the OLD constant (450 / 1200) so a control that genuinely keeps
+# mutating for the whole window waits EXACTLY as long as the flat sleep it replaces, never
+# longer. A control with nothing left to settle (the common case: a plain click, no debounce, no
+# fetch) returns after one `QUIET_MS` window instead of paying the whole ceiling.
+#
+# ⛔ IT MUST NOT SEED FROM MUTATION HISTORY FROM *BEFORE* THIS CALL. A first draft returned near
+# -instantly whenever `P.muts`' last entry was already older than `quiet_ms` -- which reads
+# right for "the page has been idle a while" and reads WRONG for "the click's own effect has
+# not started rendering yet": on a real page whose last unrelated mutation was, say, 300ms in
+# the past, that draft would declare quiescence on the very FIRST poll, before the click's own
+# React re-render had a chance to produce even one mutation -- misjudging a LIVE control as DEAD.
+# Caught by this lane's own "never settles" rail going GREEN when it should have gone RED (0.002s
+# instead of the ceiling). `_QUIESCE_RESET_JS` marks the length+time this SPECIFIC `quiesce()`
+# call started from, so `QUIESCE_JS` always requires at least one full `quiet_ms` window of
+# OBSERVED stability after the call begins -- never a backdated one.
+QUIET_MS = 120   # the minimum a settled control now waits (was the flat 450 / 1200 unconditionally)
+                 # -- comfortably above a requestAnimationFrame tick, comfortably below the
+                 # shortest debounce this file's own surfaces use (300ms) so a debounced write is
+                 # never cut off mid-fire
+
+_QUIESCE_RESET_JS = r"""() => { const P = window.__proof;
+  if (P) { P.__wk6QLen = P.muts.length; P.__wk6QAt = performance.now(); } }"""
+
+QUIESCE_JS = r"""(quietMs) => {
+  const P = window.__proof;
+  if (!P) return true;
+  const now = performance.now();
+  const len = P.muts.length;
+  if (len !== P.__wk6QLen) { P.__wk6QLen = len; P.__wk6QAt = now; return false; }
+  return (now - P.__wk6QAt) >= quietMs;
+}"""
+
+
+def quiesce(pg, ceiling_ms: int, quiet_ms: int = QUIET_MS) -> None:
+    """Wait until the page's own mutation feed has been silent for `quiet_ms`, MEASURED FROM
+    THIS CALL (never backdated to an earlier mutation -- see the comment above `QUIET_MS`),
+    capped at `ceiling_ms` total -- the adaptive replacement for a flat
+    `pg.wait_for_timeout(ceiling_ms)`. A control that never quiesces (a live-updating poll, an
+    unresolved fetch) waits the FULL ceiling, exactly as the flat sleep it replaces did; a
+    `TimeoutError` from that case (or a closed page) is the expected outcome, not a failure, so
+    it is swallowed the same way the surrounding code already swallows a best-effort `hover()`."""
+    try:
+        pg.evaluate(_QUIESCE_RESET_JS)
+        pg.wait_for_function(QUIESCE_JS, arg=quiet_ms, timeout=ceiling_ms)
+    except Exception:  # noqa: BLE001
+        pass
+
 
 def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str) -> dict:
     if surf.before_click:
@@ -2129,7 +2185,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
             loc.hover(timeout=HOVER_TIMEOUT_MS)
         except Exception:  # noqa: BLE001
             pass
-    pg.wait_for_timeout(450)
+    quiesce(pg, 450)
     m = safe_evaluate(pg, MARK_JS)
     fs0 = safe_evaluate(pg, FORMSTATE_JS, root)
     n0, ev0 = len(tap.reqs), dict(tap.events)
@@ -2143,7 +2199,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
         inter = next((ln.strip() for ln in msg.splitlines() if "intercepts pointer events" in ln), "")
         return {"verdict": "OCCLUDED" if inter else "NOT-ACTIONABLE",
                 "reason": (inter or msg.splitlines()[0])[:240], "reset": True}
-    pg.wait_for_timeout(1200)
+    quiesce(pg, 1200)
     reloaded = False
     try:
         reloaded = safe_evaluate(pg, "() => performance.timeOrigin") != origin0
@@ -2302,12 +2358,18 @@ def _click_or_timeout(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface,
     try:
         r = click_one(W, pg, tap, root, c, surf, mode)
     except EvalTimeout as e:
-        return {"verdict": "TIMEOUT", "reset": True, "reason": f"evaluate: {e}"[:240]}
+        return {"verdict": "TIMEOUT", "reset": True, "reason": f"evaluate: {e}"[:240],
+                "elapsed_ms": round((time.monotonic() - started) * 1000, 1)}
     except Exception as e:  # noqa: BLE001
-        return {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True}
+        return {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True,
+                "elapsed_ms": round((time.monotonic() - started) * 1000, 1)}
     elapsed = time.monotonic() - started
+    r = dict(r)
+    # ⭐ wave 10 lane WK6: where the per-click time actually goes (l11-52deeb767/README.md, 2c)
+    # -- recorded on EVERY control, not just the slow ones, so the distribution is read from the
+    # evidence rather than guessed at.
+    r["elapsed_ms"] = round(elapsed * 1000, 1)
     if elapsed > deadline:
-        r = dict(r)
         r["verdict"] = "TIMEOUT"
         r["reset"] = True
         r["reason"] = f"completed in {elapsed:.1f}s, past the {deadline:.0f}s per-click budget"
@@ -2320,9 +2382,39 @@ DEADCLICK_CONTEXT_TIMEOUT_MS = 20000  # a per-context default for anything below
                                        # native 30s default, comfortably above every explicit
                                        # timeout this file's own surfaces already use
 
+# ── wave 10 lane WK6: dedupe a repeated control, never drop it silently ────────────────────
+# `CONTROLS_JS` already computes a `key` that survives a re-render (tag|role|name, digits
+# folded) -- it is how a card for note "r025839" and a card for note "r019284" collide to the
+# SAME key ("BUTTON||Proof rich r# #") and are told apart only by `nth`. The nine deadclick
+# surfaces that hit `SURFACE_DEADLINE_S` are exactly the ones built on `s_list`'s seeded
+# account: 34 near-identical note cards contribute 2 controls each (open, select) -- 68 of the
+# ~88 controls a 360s budget reached on `nb-list` alone (l11-52deeb767/README.md, 2c). Clicking
+# the 4th through 34th occurrence of the SAME pattern proves nothing the 1st-3rd did not already
+# prove: if note #1's open button is LIVE, note #34's is not an independent fact.
+#
+# So only the first `SAMPLE_PER_KEY` occurrences of a `key` are actually judged; every later one
+# is recorded with verdict `REPEATED` -- named, counted, in `rec["controls"]` like any other row
+# -- never just left out of the list. `rec["measured"]` / `rec["skipped_repeated"]` (updated
+# after every control, so a hard-killed TIMEOUT surface still reports an honest partial split)
+# are the coverage accounting the controller reads: found (`enumerated`) = capped (never even
+# listed) + measured + skipped_repeated, always, whether the surface finishes or is killed.
+SAMPLE_PER_KEY = 3
+
+
+def _sample_gate(key_seen: dict[str, int], key: str, sample_per_key: int = SAMPLE_PER_KEY) -> bool:
+    """True once `key`'s `sample_per_key`-th occurrence has already been spent -- this and every
+    later occurrence of the SAME key is `REPEATED`, never clicked. Pure and stateless beyond the
+    caller-owned `key_seen` counter (mutated in place, one entry per distinct key) so the
+    dedupe/sampling rule is provable without a browser: `tests/test_notebook_proof_walk.py`."""
+    key_seen[key] = key_seen.get(key, 0) + 1
+    return key_seen[key] > sample_per_key
+
 
 def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False, on_progress=None) -> dict:
-    """Every enabled control of one surface, each clicked from the SAME starting state.
+    """Every enabled control of one surface, each clicked from the SAME starting state -- except
+    a control whose `key` (tag|role|name, digits folded) has already been sampled
+    `SAMPLE_PER_KEY` times, which is recorded `REPEATED` rather than clicked again (see the
+    comment above `SAMPLE_PER_KEY`).
 
     ⛔ State is the trap: a click can collapse the folder panel, switch the view or change a
     preference, and every later control would then be measured on a different page (the
@@ -2339,7 +2431,7 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     `handle['rec']` used to provide, now surviving a process kill rather than depending on a
     thread that shares memory with the one being killed."""
     rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": [], "resets": 0,
-           "prefs_restored": []}
+           "prefs_restored": [], "measured": 0, "skipped_repeated": 0}
     holder = {"ctx": None, "acct": None}
     snap = {}
 
@@ -2385,21 +2477,34 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     rec["enumerated"] = len(listing)
     rec["capped"] = max(0, len(listing) - MAX_CONTROLS)
     progress()
+    key_seen: dict[str, int] = {}
     for c in listing[:MAX_CONTROLS]:
         row = {k: c[k] for k in ("key", "nth", "tag", "role", "name", "field", "box")}
+        if _sample_gate(key_seen, c["key"]):
+            row.update(verdict="REPEATED",
+                       reason=(f"the same control (tag|role|name, digits folded) repeated; only "
+                               f"the first {SAMPLE_PER_KEY} of this key are sampled, this is "
+                               f"#{key_seen[c['key']]}"))
+            rec["controls"].append(row)
+            rec["skipped_repeated"] += 1
+            progress()
+            continue
         if c["disabled"]:
             row["verdict"] = "DISABLED"
             rec["controls"].append(row)
+            rec["measured"] += 1
             progress()
             continue
         if SESSION_ENDING.search(c["name"]):
             row.update(verdict="SKIPPED", reason="ends the session")
             rec["controls"].append(row)
+            rec["measured"] += 1
             progress()
             continue
         if c["tag"] == "A" and c["href"].startswith("#") and re.match(r"(?i)skip\b", c["name"]):
             row.update(verdict="SKIPPED", reason="a skip link: its door is the keyboard (shown on focus)")
             rec["controls"].append(row)
+            rec["measured"] += 1
             progress()
             continue
         r = _click_or_timeout(W, pg, tap, root, c, surf, mode)
@@ -2413,6 +2518,7 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
                 r["reset"] = True
         row.update({k: v for k, v in r.items() if k != "reset"})
         rec["controls"].append(row)
+        rec["measured"] += 1
         progress()
         if r.get("reset"):
             rec["resets"] += 1

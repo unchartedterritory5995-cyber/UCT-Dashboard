@@ -492,6 +492,129 @@ def test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED(real_browser):
     assert rec["counts"], "no control was measured at all"
     assert "TIMEOUT" not in rec["counts"], rec["counts"]
     assert "ERROR" not in rec["counts"], rec["counts"]
+    # wave 10 lane WK6: every control gets a recorded elapsed_ms, non-negative
+    assert rec["controls"][0]["elapsed_ms"] >= 0
+
+
+# ── wave 10 lane WK6: nine deadclick surfaces (nb-list desk/phone, nb-board, nb-calendar,
+# nb-timeline, nb-tasks, nb-search, nb-bulk, nb-templates) hit `SURFACE_DEADLINE_S` measuring
+# 56-90 controls in 360s, ~4-6s/control (l11-52deeb767/README.md, 2c). None of them were hung --
+# each was re-measuring the SAME repeated note-row pattern (a `key` collision: tag|role|name
+# with digits folded) 30+ times, and paying two flat settle sleeps (450ms + 1200ms) on every one
+# regardless of whether anything was still happening. Two fixes, both provable without a server:
+#   (a) `click_one`'s two fixed `wait_for_timeout`s became `quiesce()` -- same CEILING, but
+#       returns as soon as the page's own mutation feed has been quiet, instead of always paying
+#       the whole window.
+#   (b) `deadclick_surface` samples at most `SAMPLE_PER_KEY` occurrences of one repeated `key`;
+#       the rest are recorded `REPEATED` (named, counted, never silently dropped), and
+#       `rec["measured"]` / `rec["skipped_repeated"]` make found-vs-measured-vs-skipped an
+#       honest, always-present accounting -- including on a surface a genuine hang still kills
+#       partway through (`SURFACE_DEADLINE_S` is untouched: a TIMEOUT stays possible).
+
+def test_the_sample_gate_allows_exactly_SAMPLE_PER_KEY_then_repeats_forever():
+    seen: dict[str, int] = {}
+    gate = [W._sample_gate(seen, "k") for _ in range(W.SAMPLE_PER_KEY + 4)]
+    assert gate == [False] * W.SAMPLE_PER_KEY + [True] * 4
+    assert seen["k"] == W.SAMPLE_PER_KEY + 4
+    # CONTROL: a different key gets its OWN budget, unaffected by the first key's count
+    assert W._sample_gate(seen, "other") is False
+
+
+def test_the_sample_gate_never_double_counts_a_single_occurrence():
+    seen: dict[str, int] = {}
+    for i in range(1, W.SAMPLE_PER_KEY + 1):
+        assert W._sample_gate(seen, "k") is False, i
+    assert seen["k"] == W.SAMPLE_PER_KEY
+
+
+def test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles(real_browser):
+    """Goal (a): `quiesce()` must not spend its whole ceiling on a page that is already quiet
+    (the waste this lane measured), and must still bound a page that NEVER settles at exactly
+    the ceiling the flat sleep it replaces used to spend unconditionally -- a genuinely slow
+    effect is never cut short, and a genuinely stuck one is never waited on forever."""
+    pg = real_browser.new_page()
+    try:
+        pg.set_content('<div id="x">still</div>')
+        pg.evaluate(W.INSTRUMENT_JS)
+        started = time.monotonic()
+        W.quiesce(pg, 900)
+        elapsed = time.monotonic() - started
+        assert elapsed < 0.5, f"quiesce spent the whole ceiling on an already-quiet page ({elapsed}s)"
+
+        # CONTROL: a page that never stops mutating waits the FULL ceiling -- same as the flat
+        # sleep it replaces, never longer and never cut short
+        pg.evaluate("() => { setInterval(() => {"
+                    "  document.getElementById('x').textContent = String(Math.random()); }, 20); }")
+        started = time.monotonic()
+        W.quiesce(pg, 400)
+        elapsed = time.monotonic() - started
+        assert elapsed >= 0.35, f"quiesce returned early on a page that never quiesced ({elapsed}s)"
+        assert elapsed < 2.0, f"quiesce waited past its own ceiling ({elapsed}s)"
+    finally:
+        pg.close()
+
+
+def test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped(real_browser):
+    """Goal (b), end to end: five controls that collide to ONE `key` (digits folded) are
+    sampled `SAMPLE_PER_KEY` times and clicked for real; the remaining occurrences are recorded
+    `REPEATED` rather than left out of `rec['controls']` -- and the coverage accounting
+    (`enumerated` = `measured` + `skipped_repeated` + `capped`) is honest and non-negative."""
+    def open_fixture(W_, pg):
+        rows = "".join(
+            f'<button aria-label="Item {i}" '
+            f'onclick="this.setAttribute(\'aria-expanded\', \'true\')">Item {i}</button>'
+            for i in range(1, 6))
+        pg.set_content(f'<div data-proof-root="notebook">{rows}</div>')
+        return '[data-proof-root="notebook"]'
+
+    surf = W.Surface("t-repeat", open_fixture, sweeps=("deadclick",))
+    world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+    rec = W.deadclick_surface(world, surf, "desk")
+    assert rec["status"] == "MEASURED", rec
+    assert rec["enumerated"] == 5
+    assert rec["capped"] == 0
+    assert rec["measured"] == W.SAMPLE_PER_KEY
+    assert rec["skipped_repeated"] == 5 - W.SAMPLE_PER_KEY
+    # honesty: found == measured + skipped + capped, and neither half is ever negative
+    assert rec["measured"] + rec["skipped_repeated"] + rec["capped"] == rec["enumerated"]
+    assert rec["measured"] >= 0 and rec["skipped_repeated"] >= 0
+
+    repeated_rows = [c for c in rec["controls"] if c["verdict"] == "REPEATED"]
+    assert len(repeated_rows) == 5 - W.SAMPLE_PER_KEY
+    assert all(c["nth"] > W.SAMPLE_PER_KEY for c in repeated_rows), repeated_rows
+    assert all("elapsed_ms" not in c for c in repeated_rows), "a skipped control was never clicked"
+    key = repeated_rows[0]["key"]
+
+    # CONTROL: the first SAMPLE_PER_KEY occurrences of that SAME key were genuinely clicked,
+    # never skipped -- proving the gate samples rather than blanket-suppressing the key
+    sampled = [c for c in rec["controls"] if c["key"] == key and c["verdict"] != "REPEATED"]
+    assert len(sampled) == W.SAMPLE_PER_KEY
+    assert all(c["nth"] <= W.SAMPLE_PER_KEY for c in sampled), sampled
+    assert all(c.get("elapsed_ms", -1) >= 0 for c in sampled), sampled
+
+
+def test_CONTROL_distinct_keys_are_never_deduped(real_browser):
+    """CONTROL for the rail above, on the identical fixture shape: four controls with genuinely
+    DIFFERENT (non-digit) names must never collide to one key -- the gate is a per-key sample,
+    not a blanket cap on how many controls a surface may click."""
+    def open_fixture(W_, pg):
+        pg.set_content(
+            '<div data-proof-root="notebook">'
+            '<button aria-label="Alpha" onclick="this.setAttribute(\'aria-expanded\', \'true\')">Alpha</button>'
+            '<button aria-label="Beta" onclick="this.setAttribute(\'aria-expanded\', \'true\')">Beta</button>'
+            '<button aria-label="Gamma" onclick="this.setAttribute(\'aria-expanded\', \'true\')">Gamma</button>'
+            '<button aria-label="Delta" onclick="this.setAttribute(\'aria-expanded\', \'true\')">Delta</button>'
+            '</div>')
+        return '[data-proof-root="notebook"]'
+
+    surf = W.Surface("t-distinct", open_fixture, sweeps=("deadclick",))
+    world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+    rec = W.deadclick_surface(world, surf, "desk")
+    assert rec["status"] == "MEASURED", rec
+    assert rec["enumerated"] == 4
+    assert rec["measured"] == 4
+    assert rec["skipped_repeated"] == 0
+    assert not any(c["verdict"] == "REPEATED" for c in rec["controls"])
 
 
 # ── wave 10 lane WK4: G-171's keyboard door was a probe race, not the product ──────────────
