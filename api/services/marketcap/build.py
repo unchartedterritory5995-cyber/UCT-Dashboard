@@ -39,8 +39,8 @@ FPI_FORMS = ("20-F", "40-F", "20-F/A", "40-F/A", "6-K")
 
 SCHEMA = """
 CREATE TABLE manifest(key TEXT PRIMARY KEY, value TEXT);
-CREATE TABLE security(security_id TEXT PRIMARY KEY, issuer_id TEXT, cik INTEGER, class_key TEXT, economic_type TEXT,
-  price_ticker TEXT, multiplier REAL, regime_start TEXT, regime_end TEXT, evidence TEXT);
+CREATE TABLE security(security_id TEXT, issuer_id TEXT, cik INTEGER, class_key TEXT, economic_type TEXT,
+  price_ticker TEXT, multiplier REAL, regime_start TEXT, regime_end TEXT, evidence TEXT, PRIMARY KEY(security_id, regime_start));
 CREATE TABLE ticker_map(ticker TEXT, cik INTEGER, security_id TEXT, start TEXT, end TEXT, basis TEXT, pre_reason TEXT,
   pre_bars INTEGER, notes TEXT);
 CREATE TABLE observation(obs_id INTEGER PRIMARY KEY, issuer_id TEXT, security_id TEXT, class_key TEXT, as_of TEXT,
@@ -159,7 +159,8 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict]:
     # 2. companyfacts non-dimensional facts
     for tag, as_of, val, accn, form, filed in D.inp.execute(
             "SELECT tag, as_of, value, accn, form, filed FROM fact WHERE cik=? AND tag IN "
-            "('dei:EntityCommonStockSharesOutstanding','us-gaap:CommonStockSharesOutstanding')", (cik,)):
+            "('dei:EntityCommonStockSharesOutstanding','us-gaap:CommonStockSharesOutstanding','ifrs-full:NumberOfSharesOutstanding')",
+            (cik,)):
         src = R.COVER_XBRL if tag.startswith("dei:") else R.BALANCE_SHEET_XBRL
         if src == R.COVER_XBRL and (accn, "COMMON", round(val)) in seen:
             continue
@@ -510,14 +511,23 @@ def main(argv=None) -> int:
         w = {t: [] for t in tables}
         try:
             r = build_issuer(D, cik, build_id, w)
+            db.execute("SAVEPOINT issuer")
+            for t in tables:
+                if w[t]:
+                    db.executemany(f"INSERT INTO {t} VALUES({','.join('?' * len(w[t][0]))})", w[t])
+            db.execute("RELEASE issuer")
             stat[r["status"]] += 1
         except Exception as e:                         # an issuer that fails is a BUG, recorded -- never silent
+            try:
+                db.execute("ROLLBACK TO issuer")
+                db.execute("RELEASE issuer")
+            except sqlite3.Error:
+                pass
             stat["BUG"] += 1
-            db.execute("INSERT OR REPLACE INTO manifest VALUES(?,?)", (f"bug:{cik}", f"{type(e).__name__}: {str(e)[:300]}"))
+            import traceback
+            tb = traceback.format_exc(limit=3).replace(chr(10), " | ")[-400:]
+            db.execute("INSERT OR REPLACE INTO manifest VALUES(?,?)", (f"bug:{cik}", f"{type(e).__name__}: {str(e)[:200]} :: {tb}"))
             continue
-        for t in tables:
-            if w[t]:
-                db.executemany(f"INSERT INTO {t} VALUES({','.join('?' * len(w[t][0]))})", w[t])
         if i % 250 == 0:
             db.commit()
             print(f"{i}/{len(ciks)} {dict(stat)}", flush=True)
