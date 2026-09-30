@@ -515,11 +515,63 @@ def test_us_market_indicators_recompute_from_v2_and_are_window_independent(us_st
     assert mp._authority_suffix().endswith(":us-v2")
 
 
-def test_breadth_deep_history_is_never_served_immutable(monkeypatch):
+def _hist(monkeypatch, value):
     from api.routers import bars as br
     from api.services import breadth_symbols as bs
-    bars = [{"t": "2026-09-%02d" % i, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0} for i in (21, 22, 23, 24, 25)]
-    monkeypatch.setattr(bs, "is_breadth_symbol", lambda t: t == "USA50")
+    bars = [{"t": "2026-09-%02d" % i, "o": 1, "h": 1, "l": 1, "c": value, "v": 0} for i in (21, 22, 23, 24, 25)]
+    monkeypatch.setattr(bs, "is_breadth_symbol", lambda t: t in ("US:A50", "UCTA50"))
     monkeypatch.setattr(bs, "build_breadth_bars", lambda *a, **k: {"bars": bars})
-    r = br.serve_bars_history("USA50", "D", 400, "", "2026-09-24")
-    assert "immutable" not in r.headers["Cache-Control"]
+    return br
+
+
+def test_breadth_deep_history_is_no_cache_with_a_validator(monkeypatch):
+    br = _hist(monkeypatch, 28.6)
+    for sym in ("US:A50", "UCTA50"):                                  # US and UCT share the policy
+        r = br.serve_bars_history(sym, "D", 400, "", "2026-09-24")
+        assert r.headers["Cache-Control"] == "no-cache" and r.headers["ETag"].startswith('"b-')
+
+
+def test_revalidation_is_304_only_for_the_identical_representation(monkeypatch):
+    br = _hist(monkeypatch, 28.6)                                     # "V1" payload
+    v1 = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24")
+    same = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24", if_none_match=v1.headers["ETag"])
+    assert same.status_code == 304
+    br = _hist(monkeypatch, 29.5)                                     # authority switched → "V2" payload
+    after = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24", if_none_match=v1.headers["ETag"])
+    assert after.status_code == 200 and after.headers["ETag"] != v1.headers["ETag"]
+    import json as _j
+    assert _j.loads(after.body)["bars"][-1]["c"] == 29.5
+    br = _hist(monkeypatch, 28.6)                                     # rollback V2 → V1: symmetric
+    back = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24", if_none_match=after.headers["ETag"])
+    assert back.status_code == 200 and back.headers["ETag"] == v1.headers["ETag"]
+
+
+def test_the_validator_carries_the_authority_even_for_identical_bytes(monkeypatch):
+    br = _hist(monkeypatch, 28.6)
+    monkeypatch.delenv("BREADTH_AUTHORITY_US", raising=False)
+    a = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24").headers["ETag"]
+    monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")
+    b = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24").headers["ETag"]
+    assert a != b
+
+
+def test_a_new_sealed_day_changes_the_validator(monkeypatch):
+    from api.routers import bars as br
+    from api.services import breadth_symbols as bs
+    monkeypatch.setattr(bs, "is_breadth_symbol", lambda t: t == "US:A50")
+    rows = [{"t": "2026-09-%02d" % i, "o": 1, "h": 1, "l": 1, "c": 1, "v": 0} for i in (21, 22, 23, 24, 25)]
+    monkeypatch.setattr(bs, "build_breadth_bars", lambda *a, **k: {"bars": rows[:-1]})
+    e1 = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-23").headers["ETag"]
+    monkeypatch.setattr(bs, "build_breadth_bars", lambda *a, **k: {"bars": rows})
+    e2 = br.serve_bars_history("US:A50", "D", 400, "", "2026-09-24").headers["ETag"]
+    assert e1 != e2
+
+
+def test_ordinary_stock_history_caching_is_unchanged(monkeypatch):
+    from api.routers import bars as br
+    from api.services import breadth_symbols as bs
+    monkeypatch.setattr(bs, "is_breadth_symbol", lambda t: False)
+    monkeypatch.setattr(br, "_is_market_indicator", lambda t: False)
+    import inspect
+    src = inspect.getsource(br.serve_bars_history)
+    assert '"public, max-age=31536000, immutable"' in src and '"public, max-age=3600, stale-while-revalidate=86400"' in src
