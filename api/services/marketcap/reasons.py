@@ -1,0 +1,46 @@
+"""The closed vocabularies of the dataset: reason codes, source types, validation outcomes."""
+from __future__ import annotations
+
+# Every trading day WITHOUT a market cap carries exactly one of these.
+PRE_EDGAR = "PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"
+PRE_FIRST = "PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE"
+TICKER_REUSE = "TICKER_REUSE_DIFFERENT_ISSUER"
+IPO_UNRESOLVED = "IPO_CAPITALIZATION_UNRESOLVED"
+MULTI_CLASS = "MULTI_CLASS_UNRESOLVED"
+COMPLEX = "COMPLEX_CAPITAL_STRUCTURE_UNRESOLVED"
+ADR_RATIO = "ADR_RATIO_UNRESOLVED"
+STALE = "SHARE_STATE_STALE"
+CORP_ACTION_HOLD = "CORPORATE_ACTION_HOLD"
+SOURCE_CONFLICT = "SOURCE_CONFLICT"
+QUARANTINED = "QUARANTINED"
+WITHHELD = "WITHHELD"
+NO_VALID_PRICE = "NO_VALID_PRICE"
+NOT_YET_LISTED = "NOT_YET_LISTED"
+DELISTED = "DELISTED"
+BUG = "BUG"
+OTHER_EXPLAINED = "OTHER_EXPLAINED"
+
+REASON_CODES = (PRE_EDGAR, PRE_FIRST, TICKER_REUSE, IPO_UNRESOLVED, MULTI_CLASS, COMPLEX, ADR_RATIO, STALE,
+                CORP_ACTION_HOLD, SOURCE_CONFLICT, QUARANTINED, WITHHELD, NO_VALID_PRICE, NOT_YET_LISTED,
+                DELISTED, BUG, OTHER_EXPLAINED)
+
+# Evidence source types, in selection precedence (lower rank wins a same-as-of tie).
+COVER_XBRL = "COVER_XBRL"            # dei:EntityCommonStockSharesOutstanding (class-dimensional or not)
+COVER_TEXT = "COVER_TEXT"            # cover-page statement parsed from filing text (pre-XBRL)
+BALANCE_SHEET_XBRL = "BALANCE_SHEET_XBRL"  # us-gaap:CommonStockSharesOutstanding, non-dimensional
+IPO_PROSPECTUS = "IPO_PROSPECTUS"    # "shares outstanding after this offering"
+RANK = {COVER_XBRL: 1, COVER_TEXT: 2, BALANCE_SHEET_XBRL: 3, IPO_PROSPECTUS: 4}
+
+# Observation validation outcomes.
+ACCEPTED = "ACCEPTED"
+ACCEPTED_RESTATED_BASIS = "ACCEPTED_RESTATED_BASIS"   # value was already on a post-split basis
+REJ_NONPOSITIVE = "REJECTED_NONPOSITIVE"
+REJ_BAD_SCALE = "REJECTED_BAD_SCALE"
+REJ_BASIS_AMBIGUOUS = "REJECTED_SPLIT_BASIS_AMBIGUOUS"
+REJ_CONFLICT = "REJECTED_SOURCE_CONFLICT"
+REJ_SUPERSEDED_AMENDMENT = "SUPERSEDED_BY_AMENDMENT"
+REJ_OUTLIER = "REJECTED_ISOLATED_OUTLIER"
+FLAG_LARGE_CHANGE = "LARGE_CHANGE"
+
+EDGAR_COMPLETE = "1996-05-06"   # EDGAR phase-in complete: all domestic registrants file electronically
+SAFETY_BOUND_DAYS = 456          # 15 months from as-of; a ceiling, never a validity period
