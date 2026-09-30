@@ -466,7 +466,14 @@
   .divider { display: none; }
   .sidebarSlot { width: 100% !important; overflow: visible; }
   .sidebarInner { width: 100% !important; transform: none !important; }
-  .wrap.collapsed .sidebarSlot { width: 0 !important; overflow: hidden; }
+  /* Measured live (drf-d7-board-390.png, before this line): `width: 0` alone left a
+     ~450px gap above the toolbar. `.wrap` is `flex-direction: column` here, so HEIGHT
+     is the main axis this item sizes on -- a 0-WIDTH box still wraps its child's text
+     one character per line and reports whatever height THAT comes to, and
+     `overflow: hidden` only clips paint, not the box's own contribution to layout.
+     `height: 0` (plus `min-height`, `.sidebarSlot`'s own base rule sets none, but
+     `.sidebarInner`'s content could still force it without this) closes that gap. */
+  .wrap.collapsed .sidebarSlot { width: 0 !important; height: 0 !important; min-height: 0 !important; overflow: hidden; }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
   .search, .sortSelect { font-size: 16px; }
   .newWrap { margin-left: 0; }

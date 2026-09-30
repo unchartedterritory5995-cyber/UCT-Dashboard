@@ -384,6 +384,10 @@ describe('D-7 -- the phone rule (structural)', () => {
     expect(declaresProp(phone, '.wrap.collapsed .sidebarSlot', 'width', /^100%/)).toBe(false)
   })
 
+  it('at 390px, collapsed ALSO zeroes height -- measured live (drf-d7-board-390.png): width:0 alone left a ~450px gap, because `.wrap` is a COLUMN here and a 0-width box still reports the height its now one-character-per-line content wraps to', () => {
+    expect(declaresProp(phone, '.wrap.collapsed .sidebarSlot', 'height', /^0/)).toBe(true)
+  })
+
   it('the floating toggle is no longer forced off at phone width -- it is the D-7 reveal control', () => {
     expect(declaresProp(phone, '.sidebarToggle', 'display', /^none$/)).toBe(false)
   })

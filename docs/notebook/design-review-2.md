@@ -306,3 +306,72 @@ limited to non-default view modes, D-8 is the same fixable class the product has
 closed once elsewhere, D-9 is a one-line default-position fix -- but "fixable and minor" is a
 description for the owner to confirm, not a verdict this reviewer is positioned to assign
 itself.
+
+## D-7 / D-8 / D-9 follow-up (wave 10, lane DR-F, 2026-09-29)
+
+Fixed on `feat/notebook-w10-drf` at `d165ab9f1` (a merge/PR from this branch would carry a new
+tip -- read the tip this document sits at, not this literal sha, if it has moved). Evidence:
+`docs/notebook/proof/drf-d165ab9f1/` (`record.json`, one PNG per surface/width in `shots/`,
+the sandbox integrity log); reproduces read-only against a fresh sandbox via
+`docs/notebook/proof/drf-instrument/drf_walk.py`.
+
+**D-7** (`app/src/pages/journal-2-0/tabs/NotebookTab.jsx` -- the `CONTENT_FIRST_PHONE_MODES`
+effect, ~line 452; `NotebookTab.module.css` phone block; `FolderSidebar.module.css` phone
+block): every `VIEW_MODES` entry except `list` now collapses the folder/tag tree at phone
+width, the same `sidebarOpen` the desktop toggle already owns -- List's own landing is
+untouched. Extended to `tasks` too (not just the four D-7 named): it is reached through the
+SAME icon row, and reproduced identically once tested via the button rather than only via its
+`?view=tasks` URL. A second, live-measured defect surfaced fixing this: `width: 0` alone left
+a ~450px empty gap above the toolbar (a 0-width flex item, in a COLUMN container, still
+reports the height its content wraps to at one character per line) -- closed with an explicit
+`height: 0`. Rails: `NotebookTab.phoneNote.test.jsx` (13 new tests, rendered + structural,
+mutation-proved). Before/after: `drr-board-390.png` (original review) vs.
+`drf-d7-board-390.png` (fixed) -- the WATCHING column and its card are now on the first
+screen with the toggle reachable, not a folder tree with a sliver of content at the bottom.
+
+**D-8** (`NoteCard.module.css`, `NotesTableView.module.css`, `NoteBoardView.module.css`,
+`TemplatePicker.module.css`, `NoteTimelineView.module.css`): a 24px WCAG 2.5.8 floor added to
+the base rule of each of the six named targets -- none qualified for the spacing/equivalent
+exception (checked one by one: the checkbox's wrapper is a bigger POINTER hit area but is not
+an independently reachable equivalent control for a keyboard/AT user; the board title and the
+Preview button are each the ONLY way to reach their function). Existing 44px touch-tier floors
+are unchanged. Rails: 5 new describe blocks in `a11y/targetFloors.test.js` (14 new tests, each
+with its own control), mutation-proved together. Before/after `targets_lt_24` at 1200:
+list 6->0, table 7->0, board 3->0, templates (12 pre-existing, unmeasured as its own D-8 row
+before this pass)->0, search-sidebar 6->0, timeline 8->0 (`record.json` rows `d8-*`).
+
+**D-9** (`app/src/pages/journal-2-0/lib/timeline.js::timelineFocusBucketKey`;
+`NoteTimelineView.jsx`): on initial render and on a real range change (zoom, Previous/Next,
+Today -- keyed on the window's own bounds, never on `notes` alone), the axis now scrolls
+today's own bucket into view, or -- when the member has paged away and today is outside the
+window -- the bucket holding the most recent placed activity; an empty window scrolls nowhere.
+Rails: `lib/timeline.test.js` (5 new tests on the pure function) +
+`NoteTimelineView.test.jsx` (5 new tests asserting `scrollIntoView` is called on the DOM node
+carrying today's own `data-bucket-key`), mutation-proved. Live confirmation:
+`drf-d9-timeline-month-1200.png` -- Sep 2026 scrolled to days 24-30, today's (Sep 30 ET)
+column showing all six seeded notes, `today_in_view.inView: true` in `record.json`.
+
+**Graph edge / Tasks list, independently confirmed.** Seeded through the app's own API doors
+(a `PUT .../notes/{id}` carrying a `noteLink` node and a `taskList`/`taskItem` node in
+`bodyJson` -- the exact shapes `notes.py`'s link/embed sync and `note_tasks.extract_tasks`
+already parse, not a new door), then polled `GET /api/j2/notes/graph` and
+`GET /api/j2/notes/tasks` until each reflected the seed (both landed near-instantly: 0.0s to
+first poll, both endpoints read live off `bodyJson`/`j2_note_links`, no cache to wait out).
+Both then confirmed rendering in the browser: `drf-confirm-graph-1200.png` (legend "6 notes 1
+link 4 unlinked", a visible edge line between the Beta-thesis-AMD and Alpha-thesis-NVDA
+nodes) and `drf-confirm-tasks-1200.png` ("NO DATE (2)", both seeded checklist items listed
+under "Trade checklist -- AMD add"). **Neither surface has a rendering defect** -- DR-R's own
+"not independently confirmed" was correctly hedged, not a symptom of a broken product; its own
+seeding attempt (typing `[[query` into the editor) is what could not complete in time.
+
+⚠️ **A separate, real, NOT-fixed finding surfaced investigating that:** typing `[[Beta thesis
+AMD` into the editor reaches the link-suggestion popup and does fire a search
+(`GET /notes?q=Beta` -- confirmed via `docs/notebook/proof/drf-instrument/drf_debug_link.py`,
+raw console/network capture in `docs/notebook/proof/drf-d165ab9f1/link-menu-debug/`), but the
+editor's own autosave `PUT` fires concurrently and the popup is gone
+(`popupPresent: false`) by the time a result would have rendered -- DR-R's own two timeouts
+against this same menu were the first evidence of it, misread there as an instrument
+limitation. It reproduces on demand, is scoped to the `[[` suggestion menu specifically (this
+lane's own task-checklist typing, with no popup in the way, persisted correctly), and is
+**out of this lane's brief** (D-7/D-8/D-9 plus the two confirmations) -- named here rather than
+silently worked around, for whoever picks up the `[[` menu next.
