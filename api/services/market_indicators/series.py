@@ -23,6 +23,7 @@ from __future__ import annotations
 import datetime as _dt
 import logging
 import math
+import os
 import threading
 import time
 from typing import Optional
@@ -230,6 +231,72 @@ def survey_observations(row) -> list[dict]:
     return []
 
 
+# ── COT (CFTC Commitments of Traders) ────────────────────────────────────────
+#
+# ⭐⭐ READ FROM THE ONE COT STORE, AS STORED. `cot_service.get_cot_data` is the reader
+# `/api/cot/{symbol}` (and so the Breadth page's COT tab) already uses; the column the
+# row names is served untouched — no recomputation, no second source.
+#
+# ⭐ AND CARRIED ACROSS DAYS, LIKE EVERY WEEKLY SERIES HERE (owner, 2026-09-30). A daily
+# chart shows a bar on EVERY day holding the most recent report until the next one —
+# the standing position, exactly as `step_to_daily` serves NAAIM and AAII. That is
+# hold-last-value, never interpolation: a carried bar repeats the reported number and
+# nothing between two reports is invented. Each report starts on its own AS-OF date and
+# never earlier; the carry is capped (`MAX_CARRY_DAYS`), so a gap in CFTC publication
+# (a funding lapse) is a hole, not a flat line pretending to be data.
+
+
+def weekday_calendar(start: str, end: Optional[str] = None) -> list[str]:
+    """Every Monday–Friday from `start` to `end` (default: today), ISO.
+
+    ⚠️ WEEKDAYS, NOT SESSIONS, AND THAT IS SAFE. The chart joins a secondary series to
+    its own bars by EXACT date, so a carried value on a market holiday matches no bar
+    and draws nothing. Using weekdays keeps a COT read independent of the shared
+    breadth store (large, under concurrent write) — every one of ~200 COT series would
+    otherwise read it to answer a date question arithmetic already answers.
+    """
+    try:
+        d = _dt.date.fromisoformat(start)
+        stop = _dt.date.fromisoformat(end) if end else _dt.date.today()
+    except (TypeError, ValueError):
+        return []
+    out = []
+    while d <= stop:
+        if d.weekday() < 5:
+            out.append(d.isoformat())
+        d += _dt.timedelta(days=1)
+    return out
+
+
+def cot_observations(row) -> list[dict]:
+    """`[{t, v}]` ascending for one COT row's declared stream, or `[]`."""
+    stream = getattr(row, "cot_stream", None) or ""
+    sym, _, column = stream.partition(":")
+    from api.services import cot_service
+    if not sym or column not in ("commercial_net", "large_spec_net", "small_spec_net"):
+        _log.warning("market indicators: %s declares unknown COT stream %r — serving "
+                     "nothing", getattr(row, "id", "?"), stream)
+        return []
+    # ⚠️ A MISSING STORE IS "NOTHING TO SERVE", never a new empty database created as
+    # a side effect of a chart request. `init_db()` at startup owns creating it.
+    if not os.path.exists(cot_service.DB_PATH):
+        return []
+    try:
+        recs = cot_service.get_cot_data(sym, weeks=1_000_000)
+    except Exception:
+        _log.exception("market indicators: COT read failed for %s", sym)
+        return []
+    return [{"t": r["date"], "v": r[column]} for r in recs
+            if r.get("date") and r.get(column) is not None]
+
+
+def cot_daily_bars(row) -> list[dict]:
+    pts = cot_observations(row)
+    if not pts:
+        return []
+    return step_to_daily(pts, weekday_calendar(pts[0]["t"]))
+
+
 # ── The one builder ──────────────────────────────────────────────────────────
 
 def daily_bars(series_id: str) -> list[dict]:
@@ -252,6 +319,9 @@ def daily_bars(series_id: str) -> list[dict]:
             return []
         cal = session_calendar("us", since=pts[0]["t"])
         return step_to_daily(pts, cal)
+
+    if row.source_type == reg.SRC_COT:
+        return cot_daily_bars(row)
 
     if row.source_type == reg.SRC_BREADTH_DERIVED:
         from api.services.market_indicators import producers

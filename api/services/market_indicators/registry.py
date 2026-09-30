@@ -43,6 +43,7 @@ SRC_BREADTH_DERIVED = "breadth_derived"   # computed from UCT's own canonical br
 SRC_EXTERNAL = "external_indicator"       # an outside publisher's computed series
 SRC_SURVEY = "survey"                     # a periodic poll: one scalar per period
 SRC_VOLATILITY = "volatility"             # a Cboe volatility index, real daily OHLC
+SRC_COT = "cot"                           # a CFTC Commitments of Traders net position
 
 #: ⭐ THE ONLY SOURCE TYPES WHOSE BARS MEAN AN AUCTION PERIOD. An allow-list, so a
 #: source type added next quarter is refused candles until somebody decides what its
@@ -59,14 +60,16 @@ FAM_BREADTH = "breadth"
 FAM_MCCLELLAN = "mcclellan"
 FAM_SENTIMENT = "sentiment"
 FAM_VOLATILITY = "volatility"
+FAM_POSITIONING = "positioning"
 
 FAMILY_LABEL = {
     FAM_BREADTH: "Breadth",
     FAM_MCCLELLAN: "McClellan",
     FAM_SENTIMENT: "Sentiment & Positioning",
     FAM_VOLATILITY: "Volatility",
+    FAM_POSITIONING: "Positioning",
 }
-FAMILY_ORDER = [FAM_MCCLELLAN, FAM_BREADTH, FAM_SENTIMENT, FAM_VOLATILITY]
+FAMILY_ORDER = [FAM_MCCLELLAN, FAM_BREADTH, FAM_SENTIMENT, FAM_VOLATILITY, FAM_POSITIONING]
 
 #: ⛔⛔ LIFECYCLE, AND `dormant` IS THE LOAD-BEARING ONE. A dormant row is fully
 #: described — name, methodology, dependency — and is NOT servable and NOT discoverable.
@@ -151,6 +154,12 @@ class Series:
     #: both, because a survey with no stream serves silence and a non-survey with one
     #: is a claim nothing reads.
     survey_key: Optional[str] = None
+    #: ⛔⛔ WHICH COT MARKET AND WHICH NET-POSITION COLUMN THIS ROW READS —
+    #: `"<cot symbol>:<cot_records column>"`, e.g. `"NQ:commercial_net"`. The same
+    #: discipline as `survey_key`: the row names its stream, `series.py` reads exactly
+    #: that from `cot_service` (the ONE COT store), and a row that names nothing serves
+    #: nothing. REQUIRED for `SRC_COT`, FORBIDDEN otherwise.
+    cot_stream: Optional[str] = None
 
     def __post_init__(self):
         object.__setattr__(self, "symbol", (self.symbol or self.id).upper())
@@ -171,7 +180,7 @@ class Series:
         if self.family not in FAMILY_LABEL:
             raise ValueError(f"unknown family {self.family!r} for {self.id}")
         if self.source_type not in (SRC_SECURITY, SRC_BREADTH_DERIVED, SRC_EXTERNAL,
-                                    SRC_SURVEY, SRC_VOLATILITY):
+                                    SRC_SURVEY, SRC_VOLATILITY, SRC_COT):
             raise ValueError(f"unknown source_type {self.source_type!r} for {self.id}")
         if self.status not in (ST_PUBLISHED, ST_DORMANT, ST_QUARANTINED):
             raise ValueError(f"unknown status {self.status!r} for {self.id}")
@@ -184,6 +193,10 @@ class Series:
             raise ValueError(f"{self.id} is a survey and declares no survey_key")
         if self.source_type != SRC_SURVEY and self.survey_key:
             raise ValueError(f"{self.id} declares survey_key but is not a survey")
+        if self.source_type == SRC_COT and not self.cot_stream:
+            raise ValueError(f"{self.id} is a COT series and declares no cot_stream")
+        if self.source_type != SRC_COT and self.cot_stream:
+            raise ValueError(f"{self.id} declares cot_stream but is not a COT series")
 
     @property
     def family_label(self) -> str:
@@ -641,6 +654,102 @@ _ROWS += [
 ]
 
 
+# ── Positioning — CFTC Commitments of Traders ───────────────────────────────
+#
+# ⭐⭐ THE COT STORE ALREADY EXISTS AND THIS ADDS NOTHING TO IT. `cot_service` owns the
+# CFTC ingestion, the contract-rename aliases and `cot.db`; the Breadth page's COT tab
+# (`CotData.jsx`) reads it through `/api/cot/{symbol}`. These rows are the SAME
+# numbers — `cot_records.commercial_net / large_spec_net / small_spec_net` — made
+# chartable through the one bars door every other market indicator uses. No second
+# provider, no second store, no recomputation: `series.py` reads the columns as stored.
+#
+# ⛔ THE MARKET LIST IS `cot_service`'s, NEVER RE-TYPED. The markets, their order and
+# their member-facing names come from `SYMBOL_GROUPS` / `SYMBOL_NAMES`, so a market the
+# COT tab gains (or loses) appears (or disappears) here without an edit.
+#
+# ⚠️ THREE COMPONENTS PER MARKET, ONE PRODUCT (see `PRODUCTS`). The order is the COT
+# tab's own pane order — Commercials, Large Speculators, Small Speculators.
+
+from api.services import cot_service as _cot   # noqa: E402 — module constants only
+
+UNIT_CONTRACTS = "contracts"
+
+#: `(component code, cot_records column, member-facing name)`, in pane order.
+COT_COMPONENTS = (
+    ("COMM", "commercial_net", "Commercials"),
+    ("LARGE", "large_spec_net", "Large Speculators"),
+    ("SMALL", "small_spec_net", "Small Speculators"),
+)
+
+
+def _cot_markets() -> list[str]:
+    """Every COT market `cot_service` serves, in the COT tab's group order, once each.
+
+    ⚠️ "MOST WATCHED" IS A PICKER SHORTCUT OVER THE SAME MARKETS, so it is skipped
+    rather than letting it decide the order; the asset-class groups are the catalogue.
+    """
+    out: list[str] = []
+    for group, syms in _cot.SYMBOL_GROUPS.items():
+        if group == "MOST WATCHED":
+            continue
+        for s in syms:
+            if s in _cot.SYMBOL_MAP and s not in out:
+                out.append(s)
+    # ⛔ A MAPPED MARKET NO GROUP LISTS (ET, NM, DL today) IS NOT OFFERED. The COT
+    # tab does not offer it either, and "what UCT supports" is what a member can pick.
+    return out
+
+
+def _cot_market_name(sym: str) -> str:
+    return f"{_cot.SYMBOL_NAMES.get(sym, sym)} COT"
+
+
+def _cot_series(sym: str, code: str, column: str, name: str) -> Series:
+    market = _cot_market_name(sym)
+    return Series(
+        id=f"COT:{sym}:{code}", symbol=f"COT:{sym}:{code}",
+        family=FAM_POSITIONING, source_type=SRC_COT,
+        frequency=FREQ_WEEKLY, unit=UNIT_CONTRACTS, domain=DOMAIN_SIGNED,
+        # ⭐ THE FULL NAME CARRIES THE MARKET; THE SHORT ONE IS THE PANE LABEL. A pane
+        # legend reads `Commercials`, not "Nasdaq-100 E-Mini COT Commercials" three
+        # times — the market is the product's name, stated once.
+        display=f"{market} · {name}", short=name,
+        metric_name=name, metric_short=name,
+        synonyms=naming.search_tokens("COT", "COMMITMENTS OF TRADERS", "CFTC",
+                                      "POSITIONING", name.upper()),
+        # ⭐ HISTOGRAM, AND FOR A DATA REASON: a net position is signed, and the thing
+        # a member reads is which side of ZERO each group is on and how far.
+        presentation=PRES_HISTOGRAM, centerline=0.0,
+        cot_stream=f"{sym}:{column}",
+        methodology=f"{name} net position (long minus short contracts) in the CFTC "
+                    "Commitments of Traders legacy futures-only report, exactly as "
+                    "stored by UCT's COT tab. One observation per weekly report, held "
+                    "on each day until the next report (a standing position, never "
+                    "interpolated).",
+        methodology_version="cot-legacy-v1",
+        history_start=None,                    # answered at runtime by the store
+        observation_semantics="The date is the report's AS-OF TUESDAY — the positions "
+                              "held at that day's close, as the COT tab dates them.",
+        knowledge_semantics="CFTC publish the report the following Friday (3:30pm ET), "
+                            "so a Tuesday value became public three days after its date.",
+        provenance="`cot_service` → `cot.db` `cot_records`, the store behind "
+                   "`/api/cot/{symbol}` and the Breadth page's COT tab. This project "
+                   "added NO ingestion.",
+        source_owner="CFTC (U.S. Commodity Futures Trading Commission)",
+        licensing="Public record (CFTC).",
+        has_ohlc=False,
+    )
+
+
+COT_MARKETS = _cot_markets()
+
+_ROWS += [
+    _cot_series(sym, code, column, name)
+    for sym in COT_MARKETS
+    for code, column, name in COT_COMPONENTS
+]
+
+
 # ── DELIBERATELY ABSENT, AND WHY ─────────────────────────────────────────────
 #
 # ⛔⛔ TRIN / ARMS INDEX IS NOT REGISTERED — not even dormant. A dormant row is a
@@ -791,6 +900,18 @@ class Product:
     #: ⛔ A product resolves so it can be a PRIMARY CHART identity; it still serves
     #: no bars of its own (`primary_component` below names the series that does).
     aliases: tuple = ()
+    #: ⭐ WHERE THE COMPONENTS DRAW. `shared` (the default, and AAII's) puts every
+    #: component in ONE pane on one scale; `separate` gives each its own pane, in
+    #: component order — the COT layout, where three groups' net positions differ by
+    #: an order of magnitude and one scale would flatten the smallest to a line.
+    pane_layout: str = "shared"
+    #: ⭐ WHETHER THE COMPONENTS STAY ONE LOGICAL INDICATOR ON THE CHART — removed and
+    #: hidden together. Stamped by the client at creation; AAII predates it and keeps
+    #: its independent components.
+    grouped: bool = False
+    #: Colour TOKENS, one per component, resolved by the client's palette — never a raw
+    #: hex here. Empty means "the client's default product palette".
+    palette: tuple = ()
 
     @property
     def family_label(self) -> str:
@@ -846,10 +967,18 @@ class Product:
             # `Bullish`, not `AAII Bullish`. The pane already says which survey
             # these are; repeating "AAII" three times inside it is furniture.
             "component_rows": [
-                {"id": c.id, "display": c.display, "short": c.short}
-                for c in (SERIES.get(cid) for cid in self.components)
+                {"id": c.id, "display": c.display, "short": c.short,
+                 # ⭐ PER COMPONENT, so a product whose outputs draw in different
+                 # panes can say how each one draws.
+                 "presentation": c.presentation, "domain": c.domain,
+                 **({"palette": self.palette[i]} if i < len(self.palette) else {})}
+                for i, c in enumerate(SERIES.get(cid) for cid in self.components)
                 if c is not None
             ],
+            "pane_layout": self.pane_layout,
+            "grouped": self.grouped,
+            # The client's matcher has no server tokens; these are the words it may use.
+            "tags": list(self.synonyms),
             "aliases": list(self.aliases), "status": ST_PUBLISHED,
             # ⛔ A PRODUCT IS NEVER CANDLE-CAPABLE, and not because of its own
             # nature: it has no bars of its own at all. Saying so explicitly keeps
@@ -881,6 +1010,42 @@ PRODUCTS: list[Product] = [
                   "BULLS BEARS NEUTRAL", "AAII SURVEY"),
     ),
 ]
+
+
+def _cot_asset_class(sym: str) -> str:
+    for group, syms in _cot.SYMBOL_GROUPS.items():
+        if group != "MOST WATCHED" and sym in syms:
+            return group.title()
+    return ""
+
+
+def _cot_product(sym: str) -> Product:
+    """ONE COT dataset as a member adds it: three net-position panes, one indicator."""
+    market = _cot.SYMBOL_NAMES.get(sym, sym)
+    asset = _cot_asset_class(sym)
+    return Product(
+        id=f"COT:{sym}",
+        display=_cot_market_name(sym),
+        short=f"{sym} COT",
+        family=FAM_POSITIONING,
+        components=tuple(f"COT:{sym}:{code}" for code, _col, _n in COT_COMPONENTS),
+        description=f"CFTC Commitments of Traders for {market} futures — the weekly net "
+                    "position (long minus short contracts) of Commercials, Large "
+                    "Speculators and Small Speculators, each in its own pane.",
+        # ⚠️ NO BARE CONTRACT CODE AS AN ALIAS. `NQ`, `ES` and `GC` are things a
+        # member types into the symbol box meaning the FUTURE; resolving them to a
+        # positioning report would hijack that. Only COT-qualified spellings resolve.
+        aliases=(f"COT:{sym}", f"COT {sym}", f"{sym} COT", f"COT{sym}"),
+        synonyms=tuple(t for t in ("COT", "COMMITMENTS OF TRADERS", "CFTC",
+                                   "POSITIONING", "FUTURES POSITIONING", market.upper(),
+                                   asset.upper()) if t),
+        pane_layout="separate",
+        grouped=True,
+        palette=("cot.commercials", "cot.largeSpecs", "cot.smallSpecs"),
+    )
+
+
+PRODUCTS += [_cot_product(sym) for sym in COT_MARKETS]
 
 _PRODUCT_BY_ID = {p.id: p for p in PRODUCTS}
 

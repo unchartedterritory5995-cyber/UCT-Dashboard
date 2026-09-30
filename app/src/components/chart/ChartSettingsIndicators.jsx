@@ -460,6 +460,21 @@ export default function ChartSettingsIndicators({
   // moves a scrollTop by the number of pixels the DOM grew above the anchor, and
   // nothing else.
   const addBodyRef = useRef(null)
+  // ⭐ THE CATEGORY STRIP SAYS WHETHER IT OVERFLOWS. The five categories fill the
+  // desktop column almost to its edge, so the right-hand "more this way" fade is
+  // drawn only when a narrower panel really makes the strip scroll. A DOM
+  // attribute, not state: it restyles one element and must not re-render the panel.
+  const tabsObserver = useRef(null)
+  const tabsRef = useCallback((el) => {
+    if (tabsObserver.current) { tabsObserver.current.disconnect(); tabsObserver.current = null }
+    if (!el) return
+    const check = () => { el.dataset.overflowing = el.scrollWidth > el.clientWidth + 1 ? 'true' : 'false' }
+    check()
+    if (typeof ResizeObserver === 'function') {
+      tabsObserver.current = new ResizeObserver(check)
+      tabsObserver.current.observe(el)
+    }
+  }, [])
   /** The row the member is looking at, and where it sat, as of the last paint. */
   const anchorRef = useRef(null)
   /** The query the anchor belongs to — see `sameQuery` in the effect. */
@@ -3028,7 +3043,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, breadth or formulas…"
+            placeholder="Search indicators, symbols, positioning or formulas…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -3083,6 +3098,7 @@ export default function ChartSettingsIndicators({
           the search box. */}
       <div className={styles.insTabsWrap}>
         <div
+          ref={tabsRef}
           className={styles.insTabs}
           role="tablist"
           aria-label="Indicator categories"

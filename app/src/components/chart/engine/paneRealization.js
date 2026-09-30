@@ -161,10 +161,31 @@ export function settleArrangement(chart, opts) {
     // for a breadth symbol, but it still adds a real `HistogramSeries` fed with
     // whitespace (`StockChart`'s volume block) — so the pane has a resident and
     // this sweep never sees it.
+    //
+    // ⚰️⚰️ BUT A PLACEHOLDER WHOSE OWNER IS STILL ARRIVING IS NOT A GHOST
+    // (2026-09-30). A symbol-backed series is only created once its secondary bars
+    // land, and they land in NETWORK order, not pane order. Restoring a layout with
+    // three own-pane series (QQQ/SPY/NVDA, or a COT dataset's three outputs) whose
+    // THIRD answered first swept the second's still-empty slot; every later pane
+    // shifted up one index, and the second then bound INTO the third's pane —
+    // three semantic panes rendered as two. Measured on master in the live
+    // harness with an instrumented `removePane`. So a slot is spared while its key
+    // is in the arrangement and has not been realised yet (`paneOf` → null); a
+    // DELETED series' key has left `order`, so its pane is still reclaimed.
     const pinned = pinnedCount(opts)
+    const pending = new Set()
+    for (const key of order) {
+      let realised = null
+      try { realised = opts?.paneOf ? opts.paneOf(key) : null } catch { realised = null }
+      if (!realised) {
+        const slot = slotOfKey(order, key, opts)
+        if (slot >= 0) pending.add(slot)
+      }
+    }
     const panes = paneList(chart)
     for (let i = panes.length - 1; i >= pinned; i--) {
       try {
+        if (pending.has(i)) continue
         if ((panes[i].getSeries?.() || []).length === 0) chart.removePane(i)
       } catch { /* leave it rather than risk removing a live pane */ }
     }
