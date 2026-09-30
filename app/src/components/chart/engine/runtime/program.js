@@ -245,6 +245,11 @@ export const OP = Object.freeze({
   // global. Appended past the reserved block (91/92 are OBJ_*), never inserted.
   LOAD_GLOBAL_LOCAL: 93,
   LOAD_GLOBAL_PERSIST: 94,
+  // ⭐⭐ C18 — ONE PASS OF A `while` HAS BEEN TAKEN. Pops this entry's pass
+  // count; `a` is the loop's source line, carried so the refusal can name it.
+  // Checked against `WHILE_ITERATIONS` (`limits.js`) — see `ir.js::whileStmt`.
+  // Appended, never inserted: these numbers are a wire format.
+  WHILE_BOUND: 95,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -273,6 +278,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
   OP.CARRIED2,
   OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST,
+  OP.WHILE_BOUND,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 

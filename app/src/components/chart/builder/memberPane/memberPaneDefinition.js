@@ -27,7 +27,7 @@ import { DEFAULT_SERIES_COLOUR, V3_DEFAULT_SERIES_OPACITY } from '../../engine/p
 import { paneGate, paneObjectsGate, runtimeRouteOf } from '../../engine/ast/paneGate'
 import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import { registerRuntimeLane, PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
-import { runtimeColumnsFor, probeRuntimeProgram } from '../../engine/runtime/runtimeColumns'
+import { runtimeColumnsFor, probeRuntimeProgram, probeObjectRuntime } from '../../engine/runtime/runtimeColumns'
 import { objectLossNote } from '../../engine/ast/objectLoss'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation } from '../builderInputs'
@@ -130,7 +130,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // ONE translation result, or the parameter ids address a tree nobody built.
       // ⭐ `colourInputs: true` (2026-09-28): an input only a COLOUR reads is
       // declared too, as TradingView lists it — `builderInputs.withColourInputs`.
-      t = memberInputTranslation(translatePine, source, { paramManifest: true, strict: true, colourInputs: true })
+      // ⭐ C18 — `objectRuntimeCheck`: a drawing value only an imperative run can
+      // compute is read from the runtime lane when that lane builds the script
+      // (`pine.js::buildObjectProgram`, `rtCheck`).
+      t = memberInputTranslation(translatePine, source, {
+        paramManifest: true, strict: true, colourInputs: true, objectRuntimeCheck: probeObjectRuntime,
+      })
     } catch (err) {
       // ⛔ A THROW IS A REASON, NOT A CRASH ON THE PAINT PATH. `PreviewPane`'s
       // header is explicit that a pane which dies reads as "correctly inert"

@@ -42,7 +42,7 @@ import {
   makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
-  forStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
+  forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
   clock, session, drawing, readGlobal,
   // ⭐ ALIASED. `field` and `record` are ordinary English and this file already
   // uses both words as local variables; an IR constructor shadowed by one would
@@ -154,6 +154,9 @@ export const RUNTIME_REFUSALS = Object.freeze({
   'runtime:tuple': 'a tuple — the runtime has no multiple-value form yet',
   'runtime:array': 'an array or collection operation — the runtime has no collections yet',
   'runtime:object-op': 'a graphical-object operation — these belong to the object program, not the value runtime',
+  // ⭐ C18 — a drawing value asked for AT a statement (`objectTreesAt`) that has
+  // no single value a bar there, or that the walk never reaches.
+  'runtime:object-position': 'a drawing value read where the drawing stands, at a place that has no single value on a bar',
   // ⭐ `x = if …` / `x = switch …` LOWER; this names the parts of them that do
   // not. It is deliberately NOT `pine:block` — that sentence says "this engine
   // stores a single expression", which is true of the COLUMNAR value model and
@@ -619,6 +622,17 @@ export function scanMutability(stmts, out) {
     const walrus = findTop(toks, (t) => isPunct(t, ':='))
     if (walrus > 0 && toks[walrus - 1] && toks[walrus - 1].kind === 'ident') {
       acc.mutated.add(toks[walrus - 1].value)
+    }
+    // ⭐⭐ C18 — `x += e` MUTATES `x` EXACTLY AS `x := x + e` DOES. The walk
+    // desugars the compound form into `:=` (see the compound-assignment arm), but
+    // this scan runs BEFORE the walk and read only the `:=` spelling — so a plain
+    // `count = 0 … count += 1` declared `count` as a pure binding and the rewritten
+    // `:=` then refused as a reassignment of a name never declared. Every `while`
+    // in the corpus advances its counter this way (`i += 1`).
+    const compound = findTop(toks, (t) => t.kind === 'punct'
+      && t.value.length === 2 && t.value.endsWith('=') && MUTATOR_OPS.has(t.value[0]))
+    if (compound === 1 && toks[0] && toks[0].kind === 'ident') {
+      acc.mutated.add(toks[0].value)
     }
     if (st.sub && st.sub.length) scanMutability(st.sub, acc)
   }
@@ -1171,6 +1185,38 @@ export function buildRuntimeIr(source, opts = {}) {
     return s !== null ? s : outerSlot(name)
   }
 
+  /** ⭐⭐ C18 — THE PARAMETERS A FUNCTION DECLARED WITHOUT A TYPE.
+   *
+   *  `sd_method(arry, mu, ddof) => … arry.size() …` (k-clustering) is Pine's
+   *  method form on a parameter whose type the call site decides. Only a
+   *  DECLARED `array<T>` parameter was marked a collection, so the method refused
+   *  as an undeclared builtin. An untyped one is now read as an array for an
+   *  ARRAY member only (`untypedParamArrayCall`): the rewrite yields to a script's
+   *  own method of that name, and a non-array argument reaching it is refused BY
+   *  THE VM's operand-kind check at the call (`array.size` takes an array) — a
+   *  named stop, never a guessed value. Every other member keeps its refusal. */
+  /** ⭐ C18 — may this node be evaluated twice with no difference? Only names,
+   *  literals, operators, offsets and `math.*` calls (pure by definition); any
+   *  other call — a user function, an array member, a request — may change
+   *  something and is not read twice. Used by the `int(x)` rewrite alone. */
+  const castArgIsPure = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return !n
+    if (n.type === 'call') {
+      if (!/^math\.[a-z_]+$/.test(String(n.name || '')) || definedNames.has(n.name)) return false
+      return (n.args || []).every((a) => castArgIsPure(a && a.value !== undefined ? a.value : a, depth + 1))
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'n', 'of']) {
+      if (n[k] && typeof n[k] === 'object' && !castArgIsPure(n[k], depth + 1)) return false
+    }
+    if (Array.isArray(n.elements) && !n.elements.every((e) => castArgIsPure(e, depth + 1))) return false
+    return true
+  }
+  const untypedParams = new Set()
+  const untypedParamArrayCall = (rslot, node) => {
+    if (!untypedParams.has(rslot) || !node || node.type !== 'call') return false
+    const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
+    return !!(rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name))
+  }
   const newSlot = (name, persistent, index) => {
     slots.push({
       name,
@@ -3586,6 +3632,30 @@ export function buildRuntimeIr(source, opts = {}) {
           const mc = methodCallOf(node)
           if (mc) return lowerExpr(mc, scope, opts)
         }
+        // ⭐⭐ C18 — `int(x)` / `float(x)` OVER A VALUE THE RUN COMPUTES.
+        // Pine documents `int` as "casts na or truncates float value to int" and
+        // `float` as the identity on a number, so both are read exactly as
+        // written: `float(x)` is `x`; `int(x)` is `x >= 0 ? math.floor(x) :
+        // math.ceil(x)` — truncation toward zero, `na` in and `na` out (the test
+        // is false for `na` and `math.ceil(na)` is `na`). ⛔ Only for an argument
+        // with no call in it but a `math.*` one: the rewrite reads `x` twice, and
+        // a call that changes something would run twice.
+        if ((node.name === 'int' || node.name === 'float') && !definedNames.has(node.name)
+            && (node.args || []).length === 1 && !node.args[0].name
+            && castArgIsPure(node.args[0].value)) {
+          const x = node.args[0].value
+          if (node.name === 'float') return lowerExpr(x, scope, opts)
+          const tok = node.tok
+          const call = (name) => ({ type: 'call', name, args: [{ name: null, value: x, tok }], tok })
+          return lowerExpr({
+            type: 'ternary', tok,
+            test: { type: 'binary', op: '>=', left: x, right: { type: 'number', value: 0, tok }, tok },
+            yes: call('math.floor'),
+            // `+ 0` so a negative fraction truncates to 0, never to IEEE's -0:
+            // Pine's int has no sign on zero, and -0 would print and divide apart.
+            no: { type: 'binary', op: '+', left: call('math.ceil'), right: { type: 'number', value: 0, tok }, tok },
+          }, scope, opts)
+        }
         // ⭐⭐ A USER FUNCTION CALL — the 2E path. Each call gets its OWN call
         // site, and the site is what will own the invocation's persistent
         // locals: `f(1)` and `f(10)` on two lines are two sites, so a `var`
@@ -3659,6 +3729,12 @@ export function buildRuntimeIr(source, opts = {}) {
           // Anywhere else it pushes values nothing pops: `plot(f())` would
           // draw whichever one happened to be on top and quietly grow the
           // stack every bar until the run died far from this line.
+          if (fn.valueless && !(opts && opts.effect)) {
+            throw new RuntimeRefusal('runtime:function',
+              `\`${node.name}\` ends in a loop, and the value Pine returns for one is the loop's `
+              + 'last expression, which this lane does not carry — call it on a line of its own',
+              locate(node.tok))
+          }
           if (fn.returns > 1 && !(opts && opts.multi)) {
             throw new RuntimeRefusal('runtime:statement',
               `\`${node.name}\` returns ${fn.returns} values, so it can only be `
@@ -3782,6 +3858,11 @@ export function buildRuntimeIr(source, opts = {}) {
         {
           const uf = splitMethodName(String(node.name || ''))
           const rslot = uf && !definedNames.has(uf.method) ? lookupReadable(uf.recv, scope) : null
+          // ⭐ C18 — an UNTYPED parameter reached by an ARRAY member only.
+          if (rslot !== null && rslot !== undefined && untypedParamArrayCall(rslot, node)) {
+            return admitArrayCall(methodFormCall(node, () => 'array', (m) => definedNames.has(m)).node,
+              scope, false)
+          }
           if (rslot !== null && rslot !== undefined && slots[rslot] && slots[rslot].collection) {
             const rew = methodFormCall(node, () => 'array', (m) => definedNames.has(m))
             if (rew && Object.prototype.hasOwnProperty.call(ARRAY_FNS, rew.node.name)) {
@@ -4432,6 +4513,20 @@ export function buildRuntimeIr(source, opts = {}) {
     'plotcandle', 'plotbar', 'alert',
   ])
   const DIRECTIVE_CALLS = new Set(['max_bars_back'])
+  /** ⭐ C18 — `max_bars_back(<name>, 5000)`: two positional arguments, a bare
+   *  name and the literal 5000 (Pine's history ceiling). Anything else — a
+   *  smaller bound, a computed one, a named argument — is not this shape. */
+  const MAX_BARS_BACK_CEILING = 5000
+  const maxBarsBackIsCeiling = (toks) => {
+    let node
+    try { node = parseWholeExpression(toks) } catch { return false }
+    if (!node || node.type !== 'call' || node.name !== 'max_bars_back') return false
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return false
+    const [target, bound] = args.map((a) => a.value)
+    return !!target && target.type === 'name'
+      && !!bound && bound.type === 'number' && Number(bound.value) === MAX_BARS_BACK_CEILING
+  }
 
   /** Emit ONE output for an output call, and answer its index.
    *
@@ -4590,23 +4685,75 @@ export function buildRuntimeIr(source, opts = {}) {
    *  second-authority defect this engine has paid for repeatedly — RC-F is the
    *  standing example, where a mutation SURVIVED because one rule had been
    *  written twice (`lesson_a_guard_repeated_is_a_guard_unproved`). */
+  /** ⭐ C18 — `var`/`varip` open state, never an arm-local binding. */
+  const STATE_WORDS_ARM = new Set(['var', 'varip'])
   const armAssignerFor = (slot, label, parentScope) => (sub, atTok) => {
     const lines = sub || []
     if (!lines.length) {
       throw new RuntimeRefusal('runtime:block-value',
         `\`${label}\` has a branch with no value`, locate(atTok))
     }
-    // ⚠️ ONE EXPRESSION PER BRANCH, AND THE LIMIT IS NAMED RATHER THAN GUESSED
-    // AT. Serving a multi-statement arm means deciding what a mid-arm assignment
-    // does to an OUTER name, which wants its own measurement — so it refuses by
-    // name instead of lowering something plausible.
-    if (lines.length > 1 || (lines[0].sub && lines[0].sub.length)) {
-      throw new RuntimeRefusal('runtime:block-value',
-        `a branch of \`${label}\` must be one expression; `
-        + `this one spans ${lines.length} statements`, locate(atTok))
-    }
     const armScope = new Scope(parentScope)
-    const body = [assign(slot, lowerExpr(parseWholeExpression(lines[0].header), armScope))]
+    // ⭐⭐ C18 — AN ARM IS A BLOCK, AND ITS VALUE IS ITS LAST STATEMENT'S (Pine
+    // §16): the statements before it run in order in the ARM's own scope (a
+    // `d1 = …` there is local to the arm, as Pine scopes it), and the last is
+    // either a bare expression or a NESTED `if` chain, whose value — through this
+    // same assigner — is the arm's. A nested chain with no `else` that matches
+    // nothing is `na` (it is seeded so, explicitly, rather than inheriting
+    // whatever the slot held). max-pain's `round_strike` and `bs_gamma_simple`
+    // are both written this way.
+    // ⛔ A LAST STATEMENT THAT IS A BINDING, OR ANY OTHER BLOCK, still refuses by
+    // name: what Pine answers as the value of a declaration line is not a shape
+    // any script here needs, and it is not guessed.
+    // ⛔ AND THE STATEMENTS BEFORE IT MAY ONLY DECLARE ARM-LOCAL NAMES (`d1 = …`).
+    // A write to an OUTER name mid-arm (`y := 1`), a call made for its effect or a
+    // block keeps the stated limit — what the value walk's `foldIfChain` does
+    // with such a write is its own measurement, and this lane does not answer it
+    // differently from that one.
+    const armLocalDecl = (ln) => {
+      const t = (ln && ln.header) || []
+      if (!t.length || (ln.sub && ln.sub.length)) return false
+      if (findTop(t, (x) => isPunct(x, ':=')) >= 0) return false
+      if (findTop(t, (x) => x.kind === 'punct' && x.value.length === 2 && x.value.endsWith('=')
+        && MUTATOR_OPS.has(x.value[0])) >= 0) return false
+      const eq = findTop(t, (x) => isPunct(x, '='))
+      return eq > 0 && !!boundName(t, eq) && !(t[0].kind === 'ident' && STATE_WORDS_ARM.has(t[0].value))
+    }
+    let chainAt = -1
+    {
+      let k = lines.length - 1
+      if (blockKeywordOf(lines[k]) === 'if') chainAt = k
+      else if (blockKeywordOf(lines[k]) === 'else') {
+        while (k >= 0 && blockKeywordOf(lines[k]) === 'else') k -= 1
+        if (k >= 0 && blockKeywordOf(lines[k]) === 'if') chainAt = k
+      }
+    }
+    const prefixOk = (upTo) => lines.slice(0, upTo).every(armLocalDecl)
+    if (chainAt >= 0 && !prefixOk(chainAt)) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` must be one expression, or arm-local declarations followed by `
+        + `one; this one spans ${lines.length} statements`, locate(atTok))
+    }
+    if (chainAt >= 0) {
+      const body = lowerStmts(lines.slice(0, chainAt), armScope)
+      body.push(assign(slot, naValue()))
+      body.push(lowerIfChainInto(lines, chainAt, lines[chainAt].header.slice(1), armScope,
+        armAssignerFor(slot, label, armScope)).stmt)
+      objectBlocks.push({ scope: armScope, body })
+      return body
+    }
+    const last = lines[lines.length - 1]
+    const lt = last.header || []
+    const binds = findTop(lt, (t) => isPunct(t, '=') || isPunct(t, ':=')) >= 0
+      || findTop(lt, (t) => t.kind === 'punct' && t.value.length === 2 && t.value.endsWith('=')
+        && MUTATOR_OPS.has(t.value[0])) >= 0
+    if ((last.sub && last.sub.length) || binds || !lt.length || !prefixOk(lines.length - 1)) {
+      throw new RuntimeRefusal('runtime:block-value',
+        `a branch of \`${label}\` must be one expression, or arm-local declarations followed by `
+        + `one; this one spans ${lines.length} statements`, locate(atTok))
+    }
+    const body = lowerStmts(lines.slice(0, -1), armScope)
+    body.push(assign(slot, lowerExpr(parseWholeExpression(lt), armScope)))
     // ⭐ REGISTERED so the object pass sees a value-position block exactly as it
     // sees a statement one.
     objectBlocks.push({ scope: armScope, body })
@@ -4762,6 +4909,70 @@ export function buildRuntimeIr(source, opts = {}) {
     return chain
   }
 
+  /** ⭐⭐ C18 — A VALUE READ WHERE A DRAWING STANDS (`opts.objectTreesAt`).
+   *
+   *  The host object pass hands over, for a drawing step whose value only an
+   *  imperative run can compute, the step's SOURCE POSITION (its statement's
+   *  first token) and the raw parse node of each value it needs; `node: null`
+   *  asks for the step's REACHED signal — `1` on a bar where the run arrives at
+   *  that statement, `na` where it does not, which is exactly Pine's answer to
+   *  "did this drawing statement run" and carries every enclosing `if`.
+   *
+   *  ⭐ EMITTED AT THE STATEMENT, BEFORE IT — where Pine evaluates a call's
+   *  arguments — in the statement's own scope, so a block local two lines up
+   *  resolves and a write later in the block is not seen. That is the whole
+   *  difference from `objectTrees`, which are read at the END of the bar or block
+   *  (§ C11b measured that answering at the wrong position there).
+   *
+   *  ⛔ A POSITION INSIDE A LOOP OR A FUNCTION BODY REFUSES: an output holds one
+   *  value per bar, and a statement run several times a bar has several. ⛔ A
+   *  position the walk never reaches refuses too — a value that is never emitted
+   *  would read `na` on every bar and look like a statement that never ran. */
+  const objectAt = new Map()
+  const objectAtOutputs = []
+  const objectAtEmitted = new Set()
+  /** ⭐ per value: `num`, or the non-numeric kind that kept it out. */
+  const objectAtKinds = []
+  let loopDepth = 0
+  const posKey = (line, column) => `${line}:${column}`
+  // ⭐ A position names ANY token of the statement's header — the object pass
+  // records the drawing CALL's token (`line.new` in `l := line.new(…)`), which is
+  // not the statement's first — so the whole header is asked, and every spec any
+  // of its tokens names is emitted before the statement.
+  const emitObjectValuesAt = (header, scope, out) => {
+    const first = header[0]
+    let specs = null
+    for (const tk of header) {
+      if (!tk || !Number.isInteger(tk.line)) continue
+      const hit = objectAt.get(posKey(tk.line, tk.column))
+      if (hit) specs = specs ? specs.concat(hit) : hit
+    }
+    if (!specs) return
+    if (loopDepth > 0 || owner !== null) {
+      throw new RuntimeRefusal('runtime:object-position',
+        'a drawing value this lane was asked to read stands inside a loop or a function body, '
+        + 'where it has more than one value a bar', locate(first))
+    }
+    for (const { k, node } of specs) {
+      if (objectAtEmitted.has(k)) {
+        throw new RuntimeRefusal('runtime:object-position',
+          'a drawing statement this lane reads a value at was reached twice in one walk', locate(first))
+      }
+      objectAtEmitted.add(k)
+      // ⛔ THE OBJECT PASS ASKS FOR A NUMBER — it wrote the placeholder where a
+      // numeric tree would have stood. A value that is TEXT, a colour or an array
+      // here is NOT emitted (a `na` stands in, and the kind is reported), so the
+      // caller can leave that one value out rather than format a string as a
+      // number (`objectAtKinds`).
+      const kind = !node ? 'num'
+        : holdsText(node, scope) ? 'text'
+          : holdsColour(node, scope) ? 'colour'
+            : holdsArray(node, scope) ? 'array' : 'num'
+      objectAtKinds[k] = kind
+      out.push(emit(objectAtOutputs[k], node && kind === 'num' ? lowerExpr(node, scope) : (node ? naValue() : num(1))))
+    }
+  }
+
   const lowerStmts = (list, scope, rootHoist = false) => {
     const out = []
     const outerStmtSink = stmtHoistSink
@@ -4780,6 +4991,7 @@ export function buildRuntimeIr(source, opts = {}) {
       const first = toks[0]
       lastStmtTok = first
       const word = first.kind === 'ident' ? first.value : null
+      if (objectAt.size) emitObjectValuesAt(toks, scope, out)
 
       // ── `x += e` IS `x := x + e` — a compound assignment ──
       //
@@ -4894,6 +5106,14 @@ export function buildRuntimeIr(source, opts = {}) {
       // ⭐⭐ `for name = from to to [by step]`. `while` keeps the old refusal —
       // neither acceptance script uses one, and a loop whose bound is re-read
       // every pass is a different termination argument from this one's.
+      // ⚰️ C18 — `while` lowers now (below). The loop this lane still has no
+      // iteration for is `for … in`, and it keeps the `runtime:loop` sentence
+      // rather than falling to "a `for` needs `name = from to to`", which reads as
+      // a typo in a script that is perfectly good Pine.
+      if (word === 'for' && findTop(toks, (x) => x.kind === 'ident' && x.value === 'in') > 0) {
+        note('runtime:loop')
+        throw new RuntimeRefusal('runtime:loop', '`for … in`', locate(first))
+      }
       if (word === 'for') {
         const nameTok = toks[1]
         if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[2], '=')) {
@@ -4928,7 +5148,9 @@ export function buildRuntimeIr(source, opts = {}) {
         // can collide with.
         const toSlot = newSlot(`${nameTok.value} to`, false)
         const stepSlot = newSlot(`${nameTok.value} by`, false)
-        const body = lowerStmts(st.sub || [], inner)
+        loopDepth += 1
+        let body
+        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
         // ⭐⭐ THE PER-ITERATION VALUES RIDE THE MEMBER'S OWN LOOP.
         //
         // They used to be emitted as a PARALLEL loop at the end of the program,
@@ -4963,6 +5185,25 @@ export function buildRuntimeIr(source, opts = {}) {
           }
         }
         out.push(forStmt({ slot, toSlot, stepSlot, from: fromIr, to: toIr, step: stepIr, body }))
+        continue
+      }
+      // ⭐⭐ C18 — `while cond`. The test is lowered in the body's ENCLOSING
+      // scope (it cannot see a name the body declares) and re-evaluated before
+      // every pass; the body gets its own scope, as a `for` body does. The
+      // per-entry pass count lives in a slot no Pine name can reach, and the
+      // bound is the engine's `WHILE_ITERATIONS` (`ir.js::whileStmt`).
+      if (word === 'while') {
+        const testToks = toks.slice(1)
+        if (!testToks.length) {
+          throw new RuntimeRefusal('runtime:statement', 'a `while` needs a condition', locate(first))
+        }
+        const testIr = lowerExpr(parseWholeExpression(testToks), scope)
+        const inner = new Scope(scope)
+        const countSlot = newSlot(`while@${first.line} passes`, false)
+        loopDepth += 1
+        let body
+        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
+        out.push(whileStmt({ countSlot, test: testIr, body, line: Number(first.line) || 0 }))
         continue
       }
       if (word === 'break') { out.push(breakStmt()); continue }
@@ -5560,6 +5801,14 @@ export function buildRuntimeIr(source, opts = {}) {
           throw new RuntimeRefusal('runtime:presentation', `\`${word}()\``, locate(first))
         }
         if (DIRECTIVE_CALLS.has(word)) {
+          // ⭐⭐ C18 — `max_bars_back(x, 5000)` IS A NO-OP HERE, EXACTLY. The
+          // directive sizes Pine's history buffer for `x`; it changes no VALUE,
+          // only whether a read past the buffer stops the script. 5,000 is
+          // Pine's own ceiling, so with it no legal read is ever refused, and a
+          // chart here holds at most 5,000 bars — the two agree on every read.
+          // ⛔ Any SMALLER bound keeps the refusal: Pine would stop the script on
+          // a read past it, and this lane would answer the read.
+          if (word === 'max_bars_back' && maxBarsBackIsCeiling(toks)) continue
           note('runtime:directive')
           throw new RuntimeRefusal('runtime:directive', `\`${word}()\``, locate(first))
         }
@@ -5616,6 +5865,12 @@ export function buildRuntimeIr(source, opts = {}) {
           // hand-written `array.push(a, x)`. The rewrite happens first and
           // nothing below this line knows the spelling it came from.
           const rslot = lookupReadable(uf.recv, scope)
+          if (rslot !== null && rslot !== undefined
+              && untypedParamArrayCall(rslot, parseWholeExpression(toks))) {
+            out.push(arrayStmt(methodFormCall(parseWholeExpression(toks),
+              () => 'array', (m) => definedNames.has(m)).node, scope))
+            continue
+          }
           if (rslot !== null && slots[rslot] && slots[rslot].collection) {
             const rew = methodFormCall(parseWholeExpression(toks),
               () => 'array', (m) => definedNames.has(m))
@@ -5669,7 +5924,7 @@ export function buildRuntimeIr(source, opts = {}) {
           // call leaves is accounted for. The expression position refuses a
           // multi-value call because ONE of its values would be read and the
           // rest abandoned; a statement reads none and discards all.
-          const lowered = lowerExpr(callNode, scope, { multi: true })
+          const lowered = lowerExpr(callNode, scope, { multi: true, effect: true })
           // ⛔ THE COUNT COMES FROM THE COMPILED DEFINITION, NOT FROM THE CALL.
           // `lowerExpr` has just compiled the body if it was not already, so
           // `returns` is settled by now; deriving it from the call site would be
@@ -5780,6 +6035,7 @@ export function buildRuntimeIr(source, opts = {}) {
       // array passed to one is refused at its first member call rather than
       // guessed at.
       const ty = declaredTypes.get(p)
+      if (!ty) untypedParams.add(ps)
       if (ty && ty.word === 'array') {
         slots[ps].collection = true
         slots[ps].elemText = ty.typeArg === 'string'
@@ -5884,7 +6140,19 @@ export function buildRuntimeIr(source, opts = {}) {
             if (k >= 0 && blockKeywordOf(lines[k]) === 'if') chainAt = k
           }
         }
-        if (chainAt >= 0) {
+        const lastWord = blockKeywordOf(lines[lines.length - 1])
+        if (lastWord === 'while' || lastWord === 'for') {
+          // ⭐⭐ C18 — A BODY THAT ENDS IN A LOOP IS A HELPER CALLED FOR ITS
+          // EFFECT (max-pain's `generate_strikes`: clear a global array, refill
+          // it in a `while`). Pine's value for it is the loop's last evaluated
+          // expression, which this lane does not carry — so the function is
+          // compiled VALUELESS: every statement lowered, its result `na`, and a
+          // call that READS the result refused by name at the call site. Called
+          // on a line of its own, the result is discarded and nothing is lost.
+          body = lowerStmts(lines, fnScope)
+          record.valueless = true
+          result = naValue()
+        } else if (chainAt >= 0) {
           body = lowerStmts(lines.slice(0, chainAt), fnScope)
           // ⛔ `na` IS THE SEED AND IT IS LOAD-BEARING. An `if` with no `else`
           // that does not match has NO value; seeding with 0, or with the
@@ -5989,11 +6257,27 @@ export function buildRuntimeIr(source, opts = {}) {
     list.push({ i, spec })
     iterPending.set(spec.counter, list)
   })
+  ;(opts.objectTreesAt || []).forEach((spec, k) => {
+    outputs.push({ call: 'objtree', role: `at ${spec.line}:${spec.column} #${k}` })
+    objectAtOutputs.push(outputs.length - 1)
+    const key = posKey(spec.line, spec.column)
+    const list = objectAt.get(key) || []
+    list.push({ k, node: spec.node || null })
+    objectAt.set(key, list)
+  })
   try {
     // ⭐⭐ THE ONE `rootHoist` CALL SITE. Every other `lowerStmts` is a nested
     // list — a branch body, a loop body, a function body — and lowers with no
     // sink on purpose (see `stmtHoistSink`).
     statements = lowerStmts(stmts, root, true)
+    // ⛔ C18 — every positional value must have been emitted (see `objectAt`).
+    const missed = (opts.objectTreesAt || []).map((_, k) => k).filter((k) => !objectAtEmitted.has(k))
+    if (missed.length) {
+      const sp = opts.objectTreesAt[missed[0]]
+      throw new RuntimeRefusal('runtime:object-position',
+        `${missed.length} drawing value(s) name a statement this walk never reached (first at `
+        + `line ${sp.line})`, null)
+    }
     // ⛔ AFTER THE WALK, ON THE FINISHED SCOPE. An object coordinate is an
     // ordinary expression over the script's own bindings, so it must resolve
     // through exactly the bindings a plot would see — the same rule the object
@@ -6300,7 +6584,7 @@ export function buildRuntimeIr(source, opts = {}) {
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds }
+  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.

@@ -32,9 +32,10 @@ describe('⭐⭐ a definition this lane cannot compile defers to its call site',
     // SECOND time this case's example became supported — a `for` loop was the
     // first. The mechanism it tests (deferral: an uncompilable definition is
     // skipped, NAMED, and re-raised at its first call site) has never changed;
-    // only the construct standing in for "uncompilable" has. `while` is the
-    // stable one: its bound is re-read every pass, a different termination
-    // argument from the counted loop's, and nothing in this wave touches it.
+    // only the construct standing in for "uncompilable" has. ⚰️ `while` was
+    // named here as "the stable one" and C18 lowered it too — the THIRD time this
+    // case's construct became supported. `for … in` is the loop this lane still
+    // has no iteration for, and it refuses under the same `runtime:loop` guard.
     // ⚰️ THIS CASE USED TO USE A TEXT HELPER — `f_pos(_p) => _p == 'Top Left' ?
     // 1 : 2` — and the text value model (2026-09-19) made that helper COMPILE,
     // so it stopped being an example of "a definition this lane cannot
@@ -44,8 +45,8 @@ describe('⭐⭐ a definition this lane cannot compile defers to its call site',
     // still cannot compile, so it carries the case now.
     const src = `${HEAD}f_spin(_x) =>
     float s = 0.0
-    while s < _x
-        s := s + 1.0
+    for v in _x
+        s := s + v
     s
 plot(ta.sma(close, 14))
 `
@@ -59,8 +60,8 @@ plot(ta.sma(close, 14))
   it('⛔ …and CALLING it still refuses — at the CALL, not the definition', () => {
     const src = `${HEAD}f_spin(_x) =>
     float s = 0.0
-    while s < _x
-        s := s + 1.0
+    for v in _x
+        s := s + v
     s
 plot(f_spin(close))
 `

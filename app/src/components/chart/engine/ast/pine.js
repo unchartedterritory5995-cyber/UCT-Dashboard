@@ -124,6 +124,7 @@ import {
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP,
+  RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -13605,6 +13606,149 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // silently wrong number is the one outcome this seam must not produce.
   const rawTrees = objectOpts.rawTrees === true
   const approxRecords = objectOpts.approxRecords || new Set()
+  // ⭐⭐ C18 — VALUES ONLY AN IMPERATIVE RUN CAN COMPUTE, READ FROM THE RUNTIME LANE.
+  //
+  // A drawing whose value the columnar resolver refuses because it is computed
+  // IMPERATIVELY (`pine:block` — a `while`, a helper's statement body — or
+  // `pine:collection` — an array filled and scanned) no longer drops: the value
+  // becomes a placeholder tree (`objectProgram.js::RUNTIME_AT_CALL`) that the
+  // per-bar runtime lane answers AT THE DRAWING'S OWN STATEMENT, and a guard it
+  // could not read becomes that statement's REACHED signal (every enclosing `if`,
+  // exactly as Pine ran it). `objectOpts.runtimeCheck` is the caller's compile
+  // check — the member door passes one (`runtimeColumns.js::probeObjectRuntime`);
+  // without it this pass is byte-identical to before.
+  //
+  // ⛔ ONLY A VALUE WRITTEN IN THE DRAWING'S OWN ARGUMENTS. A node reached by
+  // opening a name into its binding elsewhere would be read at the drawing, where
+  // the name's inputs may have moved since — so it keeps its refusal.
+  // ⛔ ONLY A DRAWING OUTSIDE ANY LOOP AND ANY INLINED HELPER, never a `var`
+  // initialiser: each of those runs the statement other than once where it stands.
+  // ⛔ AND ONLY THE TWO REFUSALS THAT MEAN "IMPERATIVE". A value the columnar lane
+  // withholds for a reason of its own (the warm-up curtain, another timeframe, an
+  // unmeasured spelling) keeps that reason: the runtime lane does not know it.
+  const rtCheck = !rawTrees && typeof objectOpts.runtimeCheck === 'function'
+    ? objectOpts.runtimeCheck : null
+  // `pine:reassign` — a name a loop or block reassigns, which the fold cannot
+  // settle; `pine:undefined` — a block local the value walk never bound because
+  // the block holds a statement it does not fold (max-pain's heatmap locals sit
+  // below two `while` loops). Both are the imperative run's to answer, where the
+  // drawing stands; a name that is truly undefined refuses there too, and then
+  // nothing is read from the runtime lane at all.
+  const RT_ADMITS = new Set(['pine:block', 'pine:collection', 'pine:reassign', 'pine:undefined'])
+  const rtAdmits = (err) => !!(err && RT_ADMITS.has(err.guard))
+  /** `{line, column, node}` per placeholder — the program's `runtime.at`. */
+  const rtSpecs = []
+  /** The op being converted, when it may be read from the runtime lane. */
+  let rtOp = null
+  /** Every node inside that op's own argument trees (identity). */
+  let rtArgNodes = null
+  /** ⛔ A DRAWING THE RUNTIME LANE FEEDS IS DRAWN WHOLE OR NOT AT ALL. The
+   *  columnar door lets an unreadable STYLE fall to the renderer's default (a
+   *  counted `dropProp`); a drawing that only exists because the runtime lane
+   *  answered its values is not drawn in a colour the script did not ask for —
+   *  measured: max-pain's pin zone box, whose `bgcolor` is `color.new(red, input)`,
+   *  would have been painted the default blue. `runtime:prop`, counted. */
+  let rtMarkSpecs = 0
+  let rtMarkDropped = 0
+  const rtHeldProp = () => !!rtOp && rtSpecs.length > rtMarkSpecs
+    && (diagnostics.droppedProps || 0) > rtMarkDropped
+  /** A parse node, copied without anything a document need not carry. */
+  const rtSanitize = (n, depth = 0) => {
+    if (n === null || typeof n !== 'object') return n
+    if (depth > 200) throw new Error('a runtime value nests deeper than a document carries')
+    if (Array.isArray(n)) return n.map((x) => rtSanitize(x, depth + 1))
+    const out = {}
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok') {
+        if (v && typeof v === 'object') out.tok = { kind: v.kind, value: v.value, line: v.line, column: v.column }
+        continue
+      }
+      if (typeof v === 'function' || v === undefined) continue
+      out[k] = rtSanitize(v, depth + 1)
+    }
+    return out
+  }
+  /** ⭐ A placeholder's identity ACROSS passes (a pass re-reads the statements, so
+   *  node objects differ): the op's position and the value's own head token. */
+  const rtKeys = []
+  const rtExclude = objectOpts.runtimeExclude instanceof Set ? objectOpts.runtimeExclude : null
+  const rtKeyOf = (node) => {
+    const at = `${rtOp.at.line}:${rtOp.at.column}`
+    if (!node) return `${at}|reached`
+    const t = node.tok || {}
+    return `${at}|${node.type}:${node.name || node.op || ''}:${t.line}:${t.column}`
+  }
+  const rtPlaceholder = (node) => {
+    if (rtSpecs.length >= MAX_RUNTIME_VALUES) return null
+    const key = rtKeyOf(node)
+    // ⛔ A value the runtime lane named as not a number stays refused (see
+    // `translatePine`'s runtime rounds).
+    if (rtExclude && rtExclude.has(key)) return null
+    const k = rtSpecs.length
+    rtKeys.push(key)
+    rtSpecs.push({ line: rtOp.at.line, column: rtOp.at.column, node: node ? rtSanitize(node) : null })
+    diagnostics.runtimeValues = (diagnostics.runtimeValues || 0) + 1
+    return { type: 'call', name: RUNTIME_AT_CALL, args: [{ type: 'num', value: k }] }
+  }
+  /** ⭐⭐ C18 — may a node that is NOT in the drawing's own arguments be read at
+   *  the drawing? It was reached by opening a name into its binding (`pin_prob =
+   *  … ? "HIGH" : …`), so Pine evaluated it where that binding stands. Reading it
+   *  at the drawing gives the same value exactly when nothing it reads can change
+   *  in between:
+   *    · every name it reads is NEVER reassigned in the script (`mutableNames`) —
+   *      a name bound once holds one value from its binding on;
+   *    · it calls nothing that keeps state or reads a collection: only `math.*`,
+   *      `str.*`, `color.*`, `na`, `nz` (a `ta.*` call has a call site, and moving
+   *      it would give it another's history; an array's contents move under a name
+   *      that never does).
+   *  ⛔ Anything else keeps its refusal. */
+  // `reassignedNames` over the RAW TOKENS (a Map: name → its `:=`/`+=` tokens),
+  // so a write in a construct the parser never read still counts.
+  const rtMutable = objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+    ? objectOpts.mutableNames : null
+  const RT_PURE_CALL = /^(math|str|color)\.[A-Za-z_]+$|^(na|nz)$/
+  const rtStableNode = (node, depth = 0) => {
+    if (!rtMutable || !node || typeof node !== 'object' || depth > 64) return !node
+    if (Array.isArray(node)) return node.every((x) => rtStableNode(x, depth + 1))
+    if (node.type === 'name') return typeof node.name === 'string' && !rtMutable.has(node.name)
+    if (node.type === 'call') {
+      if (!RT_PURE_CALL.test(String(node.name || ''))) return false
+      return (node.args || []).every((a) => rtStableNode(a && a.value !== undefined ? a.value : a, depth + 1))
+    }
+    if (node.type === 'method' || node.type === 'member') return false
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'tok' || !v || typeof v !== 'object') continue
+      if (!rtStableNode(v, depth + 1)) return false
+    }
+    return true
+  }
+  /** ⛔ ONLY A DRAWING THAT RUNS ON THE LAST BAR — one of its enclosing `if`s is
+   *  `barstate.islast` (the corpus idiom for "compute once, draw the result").
+   *  That is the program this lane is for, and it bounds what the runtime run
+   *  costs a chart: a drawing that runs on every bar keeps the columnar lane's
+   *  answer, refusals included. */
+  const rtLastBarOnly = (op) => (op.guards || []).some((g) => {
+    if (g.negate) return false
+    try { return splitLastBar(parseWholeExpression(g.toks)).isLast } catch { return false }
+  })
+  const rtEligibleOp = (op) => !!rtCheck
+    && (op.k === 'create' || op.k === 'cell' || op.k === 'update' || op.k === 'delete')
+    && !op.inlined && !(op.loopIds && op.loopIds.length) && !op.once
+    && op.at && Number.isInteger(op.at.line) && Number.isInteger(op.at.column)
+    && rtLastBarOnly(op)
+  const rtCollectArgNodes = (op) => {
+    const set = new WeakSet()
+    const walk = (n, depth) => {
+      if (!n || typeof n !== 'object' || depth > 400) return
+      if (Array.isArray(n)) { n.forEach((x) => walk(x, depth + 1)); return }
+      set.add(n)
+      for (const [k, v] of Object.entries(n)) if (k !== 'tok') walk(v, depth + 1)
+    }
+    for (const a of op.args || []) walk(a && a.value, 0)
+    if (op.col) walk(op.col.value, 0)
+    if (op.row) walk(op.row.value, 0)
+    return set
+  }
   // ⭐⭐ PER-ITERATION TREES. Off, a counter-dependent value is REFUSED (the
   // safe answer, and what every caller without a runtime lane must get). On,
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
@@ -13855,8 +13999,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // shut (`objectParams.test.js`), and the re-parse was why.
       return makeResolver(envOverride || scopeEnv).resolve(node)
     } catch (err) {
-      diagnostics.unresolvedValues += 1
       lastCanonRefusal = err
+      // ⭐ C18 — see `rtCheck`. A value in the drawing's own arguments, refused as
+      // imperative, is read from the runtime lane where the drawing stands — and so
+      // is one reached by opening a name into its binding, when reading it at the
+      // drawing cannot differ from reading it where it was bound (`rtStableNode`).
+      if (rtOp && !inline && rtAdmits(err)
+          && ((rtArgNodes && rtArgNodes.has(node) && !envOverride) || rtStableNode(node))) {
+        const ph = rtPlaceholder(node)
+        if (ph) return ph
+      }
+      diagnostics.unresolvedValues += 1
       return null
     }
   }
@@ -15627,6 +15780,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     let requiresEmpty = null
     /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
     const liveParts = []
+    /** ⭐ C18 — a condition only the runtime lane can read: the op then runs where
+     *  the runtime ARRIVES at its statement, which carries every `if` around it. */
+    let needReached = false
     for (const g of guards) {
       scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
@@ -15695,7 +15851,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         continue
       }
       let ast = canonicalOf(node)
-      if (!ast) return undefined
+      if (!ast) {
+        if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
+        return undefined
+      }
       // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
       //
       // ⚰️ These were `{type:'op', name:'!'}` and `{type:'op', name:'&&'}` —
@@ -15765,6 +15924,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ...(lastBarOnly ? { lastBarOnly: true } : {}),
       ...(requiresLive ? { requiresLive } : {}),
       ...(requiresEmpty ? { requiresEmpty } : {}),
+    }
+    if (needReached) {
+      // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
+      // a latch) is the object runtime's, and the runtime lane holds none.
+      if (liveParts.length || requiresLive || requiresEmpty) return undefined
+      const reached = rtPlaceholder(null)
+      if (!reached) return undefined
+      return { when: internTree(reached), extra }
     }
     const ref = acc === null ? null : internTree(acc)
     if (acc !== null && ref === null) return undefined
@@ -16047,6 +16214,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
     lastCanonRefusal = null
+    // ⭐ C18 — cleared by the `finally` of this op's `try`, below.
+    rtOp = rtEligibleOp(op) ? op : null
+    rtArgNodes = rtOp ? rtCollectArgNodes(op) : null
+    rtMarkSpecs = rtSpecs.length
+    rtMarkDropped = diagnostics.droppedProps || 0
     const g = guardOf(op.guards, op)
     if (g === undefined) {
       noteGuardRefusal(op, lastCanonRefusal)
@@ -16148,6 +16320,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
       if (bad) { lostCreate(op.family); lostInto(op); dropped(`create:${op.family}`); continue }
+      if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
@@ -16253,6 +16426,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         props[k] = v
       }
       if (badCell) { dropped('cell:text'); continue }
+      if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
     } else if (op.k === 'cellpatch') {
       const target = targetRef(op.target)
@@ -16345,6 +16519,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     }
     } finally {
       for (let i = mark; i < into.length; i += 1) if (!srcOf.has(into[i])) srcOf.set(into[i], op)
+      rtOp = null
+      rtArgNodes = null
     }
   }
   }
@@ -16810,8 +16986,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
       ...(Object.keys(limits).length ? { limits } : {}),
       ...(lostCreates.length ? { lostCreates } : {}),
+      ...(rtSpecs.length ? { runtime: { v: RUNTIME_PROGRAM_VERSION, source: String(source), at: rtSpecs } } : {}),
     },
     diagnostics,
+    ...(rtSpecs.length ? { runtimeSpecs: rtSpecs, runtimeKeys: rtKeys } : {}),
   }
 }
 
@@ -18647,7 +18825,9 @@ function translatePineResult(source, opts = {}) {
     }
     // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
     // and by nothing else. Unset, this pass behaves byte-identically to before.
-    objectPass = buildObjectProgram(stmts, source, env, (scope) => {
+    // ⭐ C18 — `runtimeCheck` is the member door's compile check for values read
+    // from the runtime lane (`buildObjectProgram`, `rtCheck`); see below.
+    const runPass = (runtimeCheck, runtimeExclude) => buildObjectProgram(stmts, source, env, (scope) => {
       // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
       //
       // ⚰️ MEASURED 2026-09-13. The signature was `() => …`: every caller has
@@ -18712,7 +18892,36 @@ function translatePineResult(source, opts = {}) {
       topStatements: new Set(stmts),
       mutableNames: reassigned,
       windowAmbiguity: objectWindowAmbiguity,
+      runtimeCheck,
+      runtimeExclude,
     })
+    const check = typeof opts.objectRuntimeCheck === 'function' ? opts.objectRuntimeCheck : null
+    objectPass = runPass(check || undefined)
+    // ⭐⭐ C18 — THE RUNTIME LANE MUST BUILD THE WHOLE SCRIPT, OR NOTHING IS READ
+    // FROM IT. The pass wrote placeholders for the values only an imperative run can
+    // compute; if the runtime lane cannot compile the script with them at their
+    // statements, the pass runs again WITHOUT them, so every op it rescued is
+    // dropped exactly as before and the member door sees the refusal it always saw.
+    // ⭐ A value the lane names as NOT A NUMBER (a text, a colour — the pass asked
+    // for a number) is left out by itself and the pass asked again, at most twice.
+    if (check && objectPass && objectPass.runtimeSpecs) {
+      const exclude = new Set()
+      for (let round = 0; ; round += 1) {
+        const verdict = check(source, objectPass.runtimeSpecs)
+        if (verdict && verdict.ok) break
+        const named = verdict && Array.isArray(verdict.exclude) ? verdict.exclude : []
+        if (round < 2 && named.length) {
+          for (const k of named) exclude.add(objectPass.runtimeKeys[k])
+          objectPass = runPass(check, exclude)
+          if (!objectPass.runtimeSpecs) break
+          continue
+        }
+        objectPass = runPass(undefined)
+        objectPass.diagnostics.runtimeRefused = (verdict && verdict.refusal && verdict.refusal.guard) || 'runtime'
+        break
+      }
+    }
+    if (objectPass) { delete objectPass.runtimeSpecs; delete objectPass.runtimeKeys }
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
     // object reader and nothing about how, which is a diagnostic that cannot be
