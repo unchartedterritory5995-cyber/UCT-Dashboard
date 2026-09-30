@@ -7,14 +7,19 @@
   overflow: hidden;
 }
 
-/* Always-visible panel toggle, pinned top-left just to the left of "FOLDERS". */
+/* Always-visible panel toggle, pinned top-left just to the left of "FOLDERS".
+   D-7 fix: this is now also the phone reveal control for a content-first view
+   mode (NotebookTab.jsx), so its box is a real 44px finger target at every
+   width, not just 28px — a size bump here, never a phone-only copy of the
+   floor (tapFloor.test.js: a `--tap-min` declared at <=640px only, and not
+   also at <=1024px or the base rule, fails). */
 .sidebarToggle {
   position: absolute;
   top: 12px;
   left: 10px;
   z-index: 6;
-  width: 28px;
-  height: 28px;
+  width: var(--tap-min, 44px);
+  height: var(--tap-min, 44px);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -147,8 +152,9 @@
   border: 1px solid var(--ut-gold);
   border-radius: var(--radius-md);
 }
-/* With the panel hidden, keep clear of the always-on toggle at top-left. */
-.wrap.collapsed .main { padding-left: 48px; }
+/* With the panel hidden, keep clear of the always-on toggle at top-left.
+   10px offset + 44px button + a clearance gap. */
+.wrap.collapsed .main { padding-left: 62px; }
 .toolbar {
   display: flex;
   gap: 10px;
@@ -450,15 +456,24 @@
      (114px) with margin; it only pads how far the page CAN scroll, so a short
      surface is unaffected. */
   .main { overflow: visible; padding-bottom: 150px; }
-  /* Phones stack the panel above the notes and keep it always-open — the
-   * slide/resize affordances are desktop-only. */
-  .sidebarToggle { display: none; }
+  /* Phones stack the panel above the notes when it IS shown — the slide/resize
+   * affordances stay desktop-only either way. D-7 fix: it is no longer forced
+   * open regardless of `collapsed` — List's own landing still shows it (its
+   * default `sidebarOpen` is untouched), but a content-first view mode
+   * collapses it (NotebookTab.jsx), and this is the panel's true hide/show
+   * state at every width now, phone included. The floating toggle un-hides so
+   * there is still a way back in. */
   .divider { display: none; }
   .sidebarSlot { width: 100% !important; overflow: visible; }
   .sidebarInner { width: 100% !important; transform: none !important; }
-  .wrap.collapsed .sidebarSlot { width: 100% !important; }
-  .wrap.collapsed .sidebarInner { transform: none !important; }
-  .wrap.collapsed .main { padding-left: 20px; }
+  /* Measured live (drf-d7-board-390.png, before this line): `width: 0` alone left a
+     ~450px gap above the toolbar. `.wrap` is `flex-direction: column` here, so HEIGHT
+     is the main axis this item sizes on -- a 0-WIDTH box still wraps its child's text
+     one character per line and reports whatever height THAT comes to, and
+     `overflow: hidden` only clips paint, not the box's own contribution to layout.
+     `height: 0` (plus `min-height`, `.sidebarSlot`'s own base rule sets none, but
+     `.sidebarInner`'s content could still force it without this) closes that gap. */
+  .wrap.collapsed .sidebarSlot { width: 0 !important; height: 0 !important; min-height: 0 !important; overflow: hidden; }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
   .search, .sortSelect { font-size: 16px; }
   .newWrap { margin-left: 0; }

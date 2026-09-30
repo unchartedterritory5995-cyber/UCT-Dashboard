@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  addDays, etDateKey, layoutTimeline, mondayOf, shiftAnchor, timelineWindow,
+  addDays, etDateKey, layoutTimeline, mondayOf, shiftAnchor, timelineFocusBucketKey, timelineWindow,
 } from './timeline'
 
 /** Wave 6 (lane E, item 6) — the timeline's days, windows and layout. */
@@ -87,5 +87,49 @@ describe('layout', () => {
     const n = note('a', { folderId: null, updatedAt: '2026-09-25T01:30:00+00:00', createdAt: '2026-09-01T12:00:00+00:00' })
     expect(Object.keys(layoutTimeline([n], opts({ timeBy: 'updated' })).lanes[0].cells)).toEqual(['2026-09-24'])
     expect(layoutTimeline([n], opts({ timeBy: 'created' })).outside).toBe(1)
+  })
+})
+
+// Wave 10 lane DR-F (D-9): the axis always drew day 1 at the left edge with no
+// auto-scroll -- a month whose activity sits near its end read as empty until
+// the member scrolled the whole width by hand. `timelineFocusBucketKey` is the
+// pure decision NoteTimelineView.jsx scrolls to; the rendered half (it is
+// actually asked for) is NoteTimelineView.test.jsx.
+describe('timelineFocusBucketKey (D-9)', () => {
+  const defsById = new Map()
+  const opts = (over) => ({ timeBy: 'updated', zoom: 'month', groupBy: 'folder', anchor: '2026-09-29', defsById, folderName: () => 'Folder', ...over })
+  const note = (id, updatedAt) => ({ id, title: id, tags: [], folderId: 'f1', updatedAt })
+
+  it('today\'s own bucket, when today falls inside the window (the fresh-open case)', () => {
+    const notes = [note('a', '2026-09-29T15:00:00+00:00')]
+    const layout = layoutTimeline(notes, opts())
+    expect(timelineFocusBucketKey(layout, '2026-09-29')).toBe('2026-09-29')
+  })
+
+  it('today\'s bucket even when nothing is placed there -- an empty "today" column is still the target', () => {
+    const notes = [note('a', '2026-09-05T15:00:00+00:00')]
+    const layout = layoutTimeline(notes, opts())
+    expect(timelineFocusBucketKey(layout, '2026-09-29')).toBe('2026-09-29')
+  })
+
+  it('the most recent placed activity, when the member paged away and today is not in this window', () => {
+    const notes = [
+      note('a', '2026-08-05T15:00:00+00:00'),
+      note('b', '2026-08-19T15:00:00+00:00'),
+    ]
+    const layout = layoutTimeline(notes, opts({ anchor: '2026-08-01' }))
+    // today (Sep 29) is outside Aug's window -- the later of the two placed days wins.
+    expect(timelineFocusBucketKey(layout, '2026-09-29')).toBe('2026-08-19')
+  })
+
+  it('null when the window holds nothing to point at -- no guess, no scroll', () => {
+    const layout = layoutTimeline([], opts({ anchor: '2026-08-01' }))
+    expect(timelineFocusBucketKey(layout, '2026-09-29')).toBeNull()
+  })
+
+  it('CONTROL: a window that does not contain today and has no fallback data returns null, not today\'s (absent) key', () => {
+    const layout = layoutTimeline([], opts({ anchor: '2020-01-01' }))
+    expect(layout.lanes).toEqual([])
+    expect(timelineFocusBucketKey(layout, '2026-09-29')).toBeNull()
   })
 })

@@ -19,8 +19,13 @@
   align-items: center;
   gap: 6px;
 }
+/* Wave 10 lane DR-F (design finding D-8): the Place-by/Group-by selects measured
+   22px tall at 1200 -- under WCAG 2.5.8's 24px floor, no exception (each is the
+   only control of its kind on the row). 24px at every width; the touch tier
+   below still floors it further, to the 44px finger target. */
 .control select {
   padding: 2px 6px;
+  min-height: 24px;
   font-size: 12px;
   color: var(--text);
   background: transparent;
@@ -33,10 +38,14 @@
   align-items: center;
   gap: 4px;
 }
+/* Wave 10 lane DR-F (design finding D-8): Week/Month/Quarter and Previous/Next/
+   Today measured 20-21px tall at 1200 -- same floor, same reasoning as .chip
+   just below (which already carries this exact pattern: 24px base, 44px touch). */
 .zoomBtn,
 .navBtn,
 .chip {
   padding: 2px 8px;
+  min-height: 24px;
   font-size: 12px;
   color: var(--text);
   background: transparent;
