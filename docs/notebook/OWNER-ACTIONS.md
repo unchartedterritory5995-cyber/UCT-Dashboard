@@ -15,7 +15,7 @@ that could not be quoted from the file as it stands today was not written into t
 
 ---
 
-## 0. The four owner-only clause groups, in one table
+## 0. The ten owner-only clause groups, in one table
 
 | # | What | Standard(s) / clause(s) it closes | Owner time | Why here |
 |---|---|---|---|---|
@@ -26,11 +26,16 @@ that could not be quoted from the file as it stands today was not written into t
 | 5 | §3.2 — the screen-reader pass (NVDA first, VoiceOver if a Mac is at hand) | #9 "a full screen-reader pass" | ~60–70 min NVDA alone; +30–45 min with a Mac | The other three accessibility clauses are already MET; this is the last one |
 | 6 | §3.3 — one real-device matrix pass | #10 "real-device matrix … green every release" (G-164) | ~45–60 min for one dated pass | Recurring by its own wording ("every release") — this is the first dated row, not a final close |
 | 7 | §3.1 — the 5–8 trader study (SUS, first-useful-note timing) | #5 (3 clauses), #16 "first useful note < 2 min" | ~6–8 hrs of session time across 5–8 people, spread over however many days scheduling takes | Biggest single time cost; the kit is fully built, so the cost is calendar and people, not preparation |
+| 8 | §3.6 — the head-to-head speed benchmark sitting | Phase 7 item 1 "head-to-head speed benchmark"; the parity scorecard's "No competitor's speed is stated here" caveat | ~1 full working day (estimate — the protocol states no duration) | Needs one sitting, one machine, a quiet box, and the owner's own Notion/Evernote/Obsidian sign-ins; nothing in the hand-timed cells can be delegated |
+| 9 | §3.7 — the accessibility audit by a second reviewer | Phase 7 item 5 "accessibility audit by a second reviewer" | The NVDA/VoiceOver half is the same sitting as row 5 (run together); the keyboard-walk/WCAG-map half is a separate reviewer's ~2–3 hrs (estimate) | The brief exists specifically so the judge is not one of wave 8's builders — row 5 alone does not close this |
+| 10 | §3.8 — legal sign-off: G-062 (G-080 is already done) | Plan §5 item 3 "Legal sign-off (G-062, G-080)" | An external legal review's turnaround, not owner-hours | The one remaining rights-gated capability (analyst estimates) is blocked on outside counsel, the same shape as row 1 |
 
 Do 1 and 2 **today**, regardless of order between them — both have lead times outside your
 control. Then 3 and 4 (short, complete, no dependency on anything else). Then 5 and 6. Save 7
 for when you have real calendar space; nothing else here blocks on it, and nothing it produces
-blocks anything else in this list.
+blocks anything else in this list. **10** has the same "start the clock" shape as 1 and can start
+today alongside it. **8** and **9** each need their own dedicated sitting — see §4 below for where
+they fit.
 
 ---
 
@@ -517,12 +522,291 @@ then ~30 minutes to close — roughly 2.5–3 hours of owner attention spread ac
 month. **Start this first**, regardless of anything else on this page — every day it is not
 started is a day added to when standard #3 can close.
 
+### 3.6 — The head-to-head speed benchmark sitting (Phase 7.1)
+
+**Exact bar** (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`:124-125):
+
+> "1. **Head-to-head speed benchmark** on one machine with one corpus: open, search, type, paste,
+> large note — UCT vs Notion vs Evernote vs Obsidian."
+
+**The instrument already exists (wave 9, lane 9A) — nothing has been run yet.** The method is
+`docs/notebook/benchmark/protocol.md`; the report tool is `tools/notebook_bench_report.py`; the
+probe is `tools/bench_probes/bench_probe.js`; the corpus generator is
+`tools/notebook_bench_corpus.py`. The committed `docs/notebook/benchmark/results.md` reads
+`NOT MEASURED` in every cell, and `docs/notebook/benchmark/machine.json` is still the tool's own
+unfilled template — verified today:
+
+> "How a cell reads: no accepted dump ⇒ ``NOT MEASURED`` (never 0)" (`tools/notebook_bench_report.py`:21)
+
+**Which parts need the owner, and why.** Every hand-timed cell — Notion, Evernote, Obsidian, and
+the UCT production row — is the owner's own sign-in, in one sitting, on one machine:
+
+> "⛔ **No agent holds an account for Notion, Evernote or Obsidian.** The owner times them. The
+> UCT column is also timed BY HAND, on the production bench account, with the same steps (ruling
+> D-9A3)." (`docs/notebook/benchmark/protocol.md`:14-16)
+
+This is a deliberate design choice, not an omission — the sitting measures human-perceived speed
+with real mouse clicks and real typing cadence, and the protocol's own validity section says why a
+script cannot stand in for it:
+
+> "**One person, one sitting, one machine**: human timing varies, so reps and the rotation spread
+> it" (`docs/notebook/benchmark/protocol.md`:247-248)
+
+So the owner runs `protocol.md` §§2–6 in full: machine prep (a clean Chrome profile,
+`python tools/gate_box_lock.py status` reading `lock: FREE` / `load: QUIET`, the trading platform
+and Zoom closed), the account/import step per app (including buying and same-day cancelling an
+Evernote Starter plan, ruling D-9A5), the DevTools probe sequence for every op (H1–H9) across all
+four hand-timed apps, filling `runs/<run-id>/datasheet.md` and a real copy of `machine.json` as
+they go, then regenerating `results.md`.
+
+**Owner time (estimate — the protocol states no duration):** machine prep and per-app
+import/indexing, ~1–2 hours; the H1–H9 op list (11 op/mode combinations, 2–5 rounds each, across 4
+hand-timed apps) is the bulk of the sitting — likely 6–8 hours of focused DevTools-and-stopwatch
+work; close-out (Evernote cancellation, corpus removal from the bench account, the data sheet,
+regenerating `results.md`) another 30–60 minutes. Call it a full working day.
+
+**What an agent can prepare in advance, so the sitting itself is pure execution:**
+
+- The corpus, outside the repo: `python tools/notebook_bench_corpus.py --out
+  C:\Users\Patrick\bench-corpus-<run-id>`, verified with `--verify`.
+- The exact DevTools console lines for every op, read from the same plan the automated tool
+  drives: `python tools/notebook_bench_uct.py --dry-run --corpus
+  C:\Users\Patrick\bench-corpus-<run-id>` prints them (protocol.md §1's "your console lines" row).
+  Run without `--corpus` it validates against the **committed** manifest and needs no real corpus
+  at all — run today, it finds all **11 ops planned from the committed manifest** with the plan
+  schema validating clean: the instrument has not drifted from the protocol.
+- A blank copy of `machine.json` at `runs/<run-id>/machine.json`, ready for the owner to fill
+  during the sitting — never filled by an agent (see §3.6a).
+
+**What closes:** Phase 7 item 1 of the plan, and the one line in `parity-scorecard.md` that
+currently records the sitting as not done:
+
+> "No competitor's speed is stated here (lane 9A's protocol, `docs/notebook/benchmark/protocol.md`,
+> and the owner's run)" (`docs/notebook/parity-scorecard.md`:12)
+
+It does **not** move standard #4 (Speed)'s own clause verdicts — those are scored on UCT's own
+internal performance budgets (`docs/notebook/perf-budgets.md`), already measured, independently of
+any competitor.
+
+**Where the results land:** `docs/notebook/benchmark/runs/<run-id>/` (every dump, the filled
+`machine.json`, `datasheet.md`), then `docs/notebook/benchmark/results.md`, regenerated — **never
+hand-typed** — with:
+
+```
+python tools/notebook_bench_report.py --run docs/notebook/benchmark/runs/<run-id> \
+    --machine docs/notebook/benchmark/runs/<run-id>/machine.json \
+    --out docs/notebook/benchmark/results.md
+```
+
+**Before any number is quoted out loud:** ruling D-9A6 — "**Internal only** until the owner has
+checked each vendor's terms on publishing benchmarks" (`docs/notebook/benchmark/protocol.md`:21).
+That check is separate from, and in addition to, running the sitting.
+
+#### 3.6a — The automated UCT sandbox row: agent-runnable, and never a substitute
+
+One row of the results table, "UCT sandbox (automated)", is **not** the owner's hand sitting — the
+protocol keeps it explicitly apart from the head-to-head:
+
+> "The automated sandbox row (`tools/notebook_bench_uct.py`) is a per-release cross-check on
+> a loopback sandbox, never the UCT column and never ratioed against a hand cell."
+> (`docs/notebook/benchmark/protocol.md`:16-17)
+
+It drives the real Notebook product with Playwright — a real click on the note card, real
+keystrokes, a real Ctrl+V — through the SAME probe file the owner pastes by hand, on a local
+loopback sandbox with no network, no vendor accounts and no owner credentials. **Exactly one tool
+produces this row's summary**, no other: `tools/notebook_bench_uct.py`.
+
+```
+python tools/notebook_bench_uct.py --boot --data-dir 'C:\data-<run-id>' --port 8096 \
+    --corpus <a corpus dir from tools/notebook_bench_corpus.py> --json <out>/uct-auto.json
+```
+
+It refuses to run (exit 3) on a shared-root data dir, a busy port, a held `gate_box_lock`, or
+available memory below the 4.5 GB floor (`gate_box_sampler.FREE_MEMORY_FLOOR_GB`) — so it is safe
+to schedule without colliding with anything else on the box; it needs the same "quiet box" the
+hand sitting does, which is why this pass did not run it.
+
+**What the machine record must hold for this row to be ACCEPTED — read from the report tool, not
+assumed.** `notebook_bench_report.collect_auto()` never calls `machine_conflict()` and never reads
+`docs/notebook/benchmark/machine.json` at all — that file's `FILL` state is irrelevant to this row.
+Acceptance is decided entirely by the summary JSON `--uct-auto` points at:
+
+1. the six keys `tool`, `git_head`, `integrity`, `self_test`, `per_op`, `machine` are present, and
+   every `per_op` record carries `op`/`kind`/`n`/`p50_ms`/`p95_ms`/`status`/`reason`/`dumps`
+   (`tools/notebook_bench_report.py`:265-288, `validate_summary`);
+2. `integrity.status == "CLEAN"` (the sandbox's own boot/shutdown integrity log), or every timing
+   is withheld (`tools/notebook_bench_report.py`:303-305);
+3. `self_test.ok == True`, or every timing is withheld — the refusal a missing `selfTest` earns
+   is "a dump with no PASSING ``selfTest`` reading (R-HON: an unverified probe times nothing)"
+   (`tools/notebook_bench_report.py`:15), enforced at `:306-307`;
+4. every individual dump the summary names passes `check_dump`: its `probeVersion` matches
+   `bench_probe.js`'s current `PROBE_VERSION`, it carries its own passing `selfTest` reading, no
+   `hooks` field (a test dump), and `app == "uct-sandbox-auto"` (`tools/notebook_bench_report.py`:188-219).
+
+That `"machine"` object IS this box's real specs, built by the tool itself at run time
+(`tools/notebook_bench_uct.py`'s `main()`, :618-622): hostname (`socket.gethostname()`), Python
+version, the `gate_box_lock` state, and `Memory\Available MBytes` before and after via `typeperf`
+— never typed, never fabricated. **No separate machine-record template is needed or should be
+written for this row** — inventing one would either duplicate what the tool already produces
+honestly, or invite the fabrication this brief warns against. The one thing an agent must never do
+is write anything into the owner's `docs/notebook/benchmark/machine.json` (the
+`operator`/`sitting_date`/`chrome_profile`/etc. template) on the strength of an automated run —
+that file describes the hand sitting, and the automated row's acceptance does not use it.
+
+**Adding this row to `results.md`:** re-run the report with `--uct-auto` pointed at the summary:
+
+```
+python tools/notebook_bench_report.py --run docs/notebook/benchmark/runs \
+    --machine docs/notebook/benchmark/machine.json \
+    --uct-auto <out>/uct-auto.json \
+    --out docs/notebook/benchmark/results.md
+```
+
+Because `collect_auto()` is independent of the hand machine record, this can be committed *before*
+the owner's sitting — the four hand-timed apps would still read `NOT MEASURED` while the
+automated row carries real numbers, labelled `headless Chromium (Playwright), loopback` and never
+compared against a hand cell (`notebook_bench_report.py`'s `_ratios()` excludes the automated app
+by name at `:457`).
+
+### 3.7 — Accessibility audit by a second reviewer (Phase 7.5)
+
+**Exact bar** (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`:130): "5. **Accessibility audit** by a
+second reviewer." This is Phase 7 item 5, distinct from the Phase 6 build-time accessibility work
+and from §3.2 above.
+
+**How this relates to §3.2 — they are not the same clause, and §3.2 alone does not close this
+one.** §3.2 above is standard #9's last clause, "a full screen-reader pass (VoiceOver + NVDA)" —
+one of a four-clause accessibility bar Phase 6 built toward. Phase 7 item 5 is the capstone
+review, and its own brief states why it is a separate obligation:
+
+> "It is written for a reviewer who did **not** build wave 8 (lanes 8A–8D), so that the Notebook's
+> accessibility is judged by someone other than the people who made it." (`docs/notebook/a11y-second-review-brief.md`:4-5)
+
+The brief (`docs/notebook/a11y-second-review-brief.md`) splits into five sections, and only two
+are the owner's:
+
+| part | who (`docs/notebook/a11y-second-review-brief.md`:12-16) |
+|---|---|
+| §2 WCAG map, §3 keyboard-only walk, §5 recording | **the second reviewer** — "any machine, a sandbox; no production" |
+| §4a NVDA pass (Windows) | **OWNER** |
+| §4b VoiceOver pass (macOS Safari, iOS Safari) | **OWNER** |
+
+§4a/§4b are the SAME NVDA/VoiceOver pass §3.2 already has the owner running
+(`docs/notebook/screen-reader-pass.md`) — the brief's §4 says to run that identical 27-step script
+and then add five second-review-specific checks (the public share/publish pages signed out while
+logged out, the Ask answer announced while typing continues, the offline banner appearing without
+a reload, the version-history list and its restore confirmation, and Trash's restore button and
+announcement). **One sitting can do both** — running §3.2's pass under this brief, with its five
+additions, satisfies §4a/§4b of Phase 7.5 at the same time it satisfies standard #9's own clause.
+Do not run the screen-reader pass twice.
+
+§2, §3 and §5 are a keyboard-only walk and a WCAG 2.2 AA surface map that need no owner
+credentials and no production access ("any machine, a sandbox; no production",
+`docs/notebook/a11y-second-review-brief.md`:14) — but they need a reviewer who was **not** one of
+wave 8's builders, which is the whole reason this brief exists. Whoever the owner designates —
+another person, or a fresh agent session that built no part of wave 8 — runs §2/§3/§5; this
+worktree's lane, or any lane that shipped Notebook product code, cannot certify its own work under
+this brief's own stated reason for existing.
+
+**Owner time:** the NVDA/VoiceOver portion (§4a + §4b) is the same ~60–70 minutes as §3.2 above,
+plus ~30–45 minutes if a Mac is available, plus the five additions (~15–20 minutes). The
+keyboard-walk/WCAG-map portion (§2/§3/§5) is a separate reviewer's time, not the owner's — the
+brief does not state a duration; by its own step count (six numbered walk sections across
+list/editor/graph/sheets/public pages/touch tier, mapped against ~30 WCAG 2.2 AA success criteria
+in §2's table) budget a comparable order of magnitude to the NVDA pass, roughly 2–3 hours
+(estimate, not stated in the brief).
+
+**Where to record:** `docs/notebook/evidence/a11y-second-review-<YYYY-MM-DD>/`, raw findings
+committed **before** any summary is written (the R-RAW rule), using the brief's own findings table
+(id, WCAG SC, surface, steps, expected, heard/seen, severity, known-gap-or-new). Findings are then
+filed by the controller against gap-ledger row G-168 (accessibility) or a new row —
+
+> "**Nothing is fixed during the review.** Findings go to the controller, who files each one
+> against a ledger row (G-168 for accessibility) or opens a new row; the reviewer does not edit
+> product code, the gap ledger or this brief's §1 facts." (`docs/notebook/a11y-second-review-brief.md`:186-188)
+
+**What closes:** Phase 7 item 5 of the plan. By itself it does not move standard #9's "a full
+screen-reader pass" clause past `NOT MEASURED — OWNER` in `parity-scorecard.md`:509 — that still
+needs the §4a/§4b reading recorded exactly as §3.2 above describes — but one combined sitting
+closes both at once.
+
+### 3.8 — Legal sign-off: G-062 (analyst estimates) — G-080 is already done
+
+**Exact bar** (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`:192, §5 "What stays with the owner"): "3.
+Legal sign-off (G-062, G-080) and written vendor data terms (Anthropic, OpenAI)." The vendor-terms
+half is §2 above; this section is the legal-sign-off half, read from the gap ledger
+(`docs/notebook/competitive-gap-ledger.md`) for what each row actually asks.
+
+**G-080 is already done — there is nothing left to send for it.** The owner's legal sign-off for
+public share links and publish-to-web was recorded 2026-09-25 and the flags were armed the next
+day:
+
+> "Wave 8 (2026-09-26): authorization proven by lane 8B's rails … owner legal sign-off recorded
+> 2026-09-25 (P-7). Activation awaits the owner's confirmation of the public-page wording (final
+> review I-4), then is one variable." … "ARMED 2026-09-26 18:53Z — `J2_SHARE_LINKS_ENABLED=1` on
+> web after wave 8 went live … Owner legal sign-off 2026-09-25 (P-7, L1-L10) and the public-page
+> wording settled 2026-09-26 (option a): `docs/notebook/share-publish-flip-packet.md` §1.3-§1.4"
+> (`docs/notebook/competitive-gap-ledger.md`:138)
+
+The recorded answers are in `docs/notebook/share-publish-flip-packet.md`:35, "The owner's answers,
+recorded 2026-09-25 (lane 8B brief, both BINDING)." The parity scorecard already reads this row as
+closed — `G-080 Public share link (read-only) — PARITY / NOT-VERIFIED / PARITY`
+(`docs/notebook/parity-scorecard.md`:677), no longer `BLOCKED`. The plan's §5 line grouping G-062
+and G-080 together pre-dates this closure.
+
+**G-062 is the one still open, and it needs the owner (or the owner's outside counsel), not an
+agent.** Watchlist/scanner capture and price/user-note capture are done and needed no sign-off;
+the remaining piece is analyst estimates/ratings/price-target consensus, and the ledger is
+explicit that it is gated on an external legal review, not an engineering task:
+
+> "**Analyst estimates/ratings/price-target CONSENSUS specifically: architected but deliberately
+> INACTIVE** — `analyst_price_target_consensus` exists fully in the fact-type registry and
+> resolver (proving the architecture generalizes) but `rights_class: conditional` blocks any write
+> path until Patrick's external legal review approves persistent FMP-derived value storage (never
+> reopened by this program)." (`docs/notebook/competitive-gap-ledger.md`:118)
+
+The parity scorecard still reads this row `BLOCKED (owner) / BLOCKED (owner) / BLOCKED (owner) —
+owner: legal sign-off` (`docs/notebook/parity-scorecard.md`:676).
+
+**What the review needs to answer:** whether UCT may persistently store (frozen-at-insert, inside
+a member's own note) an analyst price-target consensus figure sourced from FMP — unlike the
+price/user-note capture already shipped, which needed no such review. Nothing here is waiting on
+more building: `analyst_price_target_consensus` is already declared in the fact-type registry,
+inactive —
+
+```
+"analyst_price_target_consensus": FactTypeDef(
+    key="analyst_price_target_consensus", label="Analyst Price Target (Consensus)",
+    value_column="value_number", unit="usd_per_share",
+    temporal_mode="snapshot", source="fmp", rights_class="conditional",
+    active=False,
+),
+```
+(`api/services/journal_two/fact_registry.py`:52-57) — with a resolver already proving the pattern
+generalizes; activating it once approved is, per the ledger, "a frontend-only change"
+(`docs/notebook/competitive-gap-ledger.md`:118).
+
+**Owner time:** this is an external legal review, not owner-hours in the usual sense — the
+owner's part is commissioning the review (or making the call personally) and, if approved,
+authorizing the flip. No duration is estimated because, like the vendor ZDR requests in §2, the
+cost is calendar time waiting on an outside answer, not a task's length.
+
+**Where to record:** once a ruling exists, update G-062's row in
+`docs/notebook/competitive-gap-ledger.md` with the decision and its date — the same pattern
+G-080's P-7 sign-off used — and set `analyst_price_target_consensus`'s `rights_class` /
+`active` accordingly.
+
+**What closes:** the estimates/ratings slice of G-062 stays `PARTIAL` — "P2 (rights-blocked, not
+effort-blocked)" (`docs/notebook/competitive-gap-ledger.md`:118) — until this lands. Nothing else
+in the 10/10 plan is blocked on it.
+
 ---
 
 ## 4. Ordering — what to do first for the biggest clause gain per owner-minute
 
-Two items have lead times the owner does not control, and both should start **today**, before
-anything else, because delaying them costs calendar time nothing else on this page can get back:
+Three items have lead times the owner does not control, and all three should start **today**,
+before anything else, because delaying any of them costs calendar time nothing else on this page
+can get back:
 
 1. **Send both vendor drafts (§2).** ~15–20 minutes to review and send. Nothing else here
    affects four clauses across two standards (#8, #12 ×2, #13) plus two gap-ledger rows for so
@@ -532,25 +816,41 @@ anything else, because delaying them costs calendar time nothing else on this pa
    This has the single longest fuse on this page — 30 **calendar** days, not owner-hours — so
    starting it a week late costs the whole product a week, no matter how fast everything else
    here goes.
+3. **Kick off G-062's external legal review (§3.8).** No fixed minutes — the owner's part is
+   commissioning the review or making the call personally — but like 1 and 2, the cost is
+   entirely in waiting for an outside answer, so it should start the same day. (G-080, the other
+   half of this plan item, is already closed — recorded 2026-09-25, nothing further to send.)
 
 Then, in order of clause-gain per owner-minute, cheapest and most complete first:
 
-3. **Submit the Chrome Web Store listing (§1).** ~15–20 minutes, fully built, zero blockers
+4. **Submit the Chrome Web Store listing (§1).** ~15–20 minutes, fully built, zero blockers
    found, closes the G-043 half of standard #1 outright.
-4. **Walk the two iOS Shortcuts on a real iPhone (§3.4).** ~20–30 minutes, fully built, closes
+5. **Walk the two iOS Shortcuts on a real iPhone (§3.4).** ~20–30 minutes, fully built, closes
    the one remaining half of standard #10's capture-parity clause outright.
-5. **Run the screen-reader pass, NVDA first (§3.2).** ~60–70 minutes for NVDA alone (this
-   machine, no new hardware needed); add a Mac pass later if VoiceOver access opens up. Closes
-   the last remaining clause of standard #9.
-6. **Run one real-device matrix pass (§3.3).** ~45–60 minutes for one dated row across four
+6. **Run the screen-reader pass, NVDA first (§3.2), under the §3.7 second-review brief's five
+   additions.** ~60–70 minutes for NVDA alone (this machine, no new hardware needed), plus
+   ~15–20 minutes for the five additions §3.7 asks for; add a Mac pass later if VoiceOver access
+   opens up. One sitting closes the last remaining clause of standard #9 **and** the §4a/§4b half
+   of Phase 7 item 5 at once — do not run this pass twice.
+7. **Run one real-device matrix pass (§3.3).** ~45–60 minutes for one dated row across four
    devices. Does not fully close its clause (the plan asks for "every release"), but is the
    cheapest way to turn a process obligation into something that has actually started.
-7. **Schedule the 5–8 trader study (§3.1).** The biggest single time cost (~6–8 hours of session
-   time, plus whatever calendar time it takes to find 5–8 traders), so it goes last among the
-   short items — but it is not gated on anything else here, so it can run in parallel with the
-   soak once scheduling allows. It closes four clauses on its own (three in standard #5, one in
-   standard #16) when it lands.
+8. **Arrange the second reviewer's keyboard-walk / WCAG-map pass (§3.7, §2/§3/§5 of its brief).**
+   ~2–3 hours (estimate) of a reviewer's time — someone who did not build wave 8 — but the
+   owner's own part is only choosing that person and handing them the brief; it can run any time
+   after item 6 and blocks nothing else on this page.
+9. **Schedule the 5–8 trader study (§3.1).** The biggest single time cost among the short items
+   (~6–8 hours of session time, plus whatever calendar time it takes to find 5–8 traders), so it
+   goes near the end — but it is not gated on anything else here, so it can run in parallel with
+   the soak once scheduling allows. It closes four clauses on its own (three in standard #5, one
+   in standard #16) when it lands.
+10. **Run the head-to-head speed benchmark sitting (§3.6).** The other biggest single time cost
+    on this page (~1 full working day, estimate) — like the trader study, it is not gated on
+    anything else here, but it does need a quiet box (one sitting, one machine), so schedule it
+    for whenever one is available. The automated UCT sandbox cross-check (§3.6a) is a separate,
+    agent-runnable artifact and needs no owner time at all — it can be produced any time, before
+    or after the sitting, without touching this item's estimate.
 
 Nothing in this document blocks on anything else in it except where stated above (semantic
-search's flags wait on §2's vendor confirmations). Items 3–7 can run in any order relative to
-each other without conflict.
+search's flags wait on §2's vendor confirmations; G-062's estimates capability waits on item 3's
+outside answer). Items 4–10 can run in any order relative to each other without conflict.
