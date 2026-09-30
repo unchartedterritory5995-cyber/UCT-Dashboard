@@ -612,3 +612,37 @@ def test_backfill_takes_the_ingest_lease_and_respects_provider_backoff(tmp_path,
                            clock=clock)
     assert outs[0].ok and n_rows(s) == len(HIST)
     assert s.lease_holder("ingest:bls", now=int(clock())) is None              # released
+
+
+def _windows(*parts):
+    """One fetch() returning SEVERAL payloads (like BLS windows): a list of real FetchResults."""
+    from api.services.econ.model import FetchResult, RawObs
+    return [FetchResult(adapter="bls", request_key=f"fake:win{i}", http_status=200,
+                        observations=[RawObs(*o) for o in part]) for i, part in enumerate(parts)]
+
+
+# ─── production finding 2026-09-30: a WINDOWED history backfill onto a NON-EMPTY store ───
+def test_windowed_history_backfill_onto_populated_store_is_not_partial(tmp_path):
+    """BLS returns one payload per 10/20-year window (DOL: XML history + press PDF). With rows already
+    stored, each window alone "omits" the periods the other windows carry; coverage must be judged over
+    the UNION of the call's payloads. Found on the first production boot: the scheduler's first pass
+    stored a recent window, then the full backfill was refused as partial for every BLS series."""
+    E = ents("USCPI")
+    s = seeded(tmp_path, E, hist=HIST)                          # populated store (all HIST periods)
+    half = len(HIST) // 2
+    fa = FakeAdapter([_windows(HIST[:half], HIST[half:])], name="bls")
+    out = ingest.backfill(s, E, http=None, now=NOW0 + 60, adapter_for=lambda n: fa, entries=E, publish=False,
+                          run_id="win")
+    assert out[0].ok and out[0].series["USCPI"].status != "rejected", out[0].series["USCPI"]
+
+
+def test_windowed_history_still_refuses_a_real_gap_across_the_union(tmp_path):
+    """NEGATIVE CONTROL: if the union of the windows still omits stored periods, it IS partial."""
+    E = ents("USCPI")
+    s = seeded(tmp_path, E, hist=HIST)
+    half = len(HIST) // 2
+    fa = FakeAdapter([_windows(HIST[:half - 3], HIST[half:])], name="bls")
+    out = ingest.backfill(s, E, http=None, now=NOW0 + 60, adapter_for=lambda n: fa, entries=E, publish=False,
+                          run_id="gap")
+    r = out[0].series["USCPI"]
+    assert r.status == "rejected" and any("partial" in x for x in r.reasons), r

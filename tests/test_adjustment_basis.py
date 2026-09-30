@@ -143,14 +143,33 @@ def test_an_unadjusted_boundary_names_bars_split_repair_when_enabled(fresh_db, m
     assert basis.as_of == declared
 
 
-def test_an_unadjusted_boundary_names_bars_sanitize_when_repair_is_disabled(
+def test_an_unadjusted_boundary_reads_NOT_adjusted_when_repair_is_disabled(
         fresh_db, monkeypatch):
+    """With the switch off nothing heals the series, so the member sees the
+    cliff. The basis must say so, never name a heal that is not running."""
     monkeypatch.setattr(rep, "enabled", lambda: False)
     declared = _write_unadjusted_split("SERVEHEALED", "D")
     _seed_meta("SERVEHEALED", splits=[(declared, 1.0 / 3.0)])
     basis = ab.compute_adjustment_basis("SERVEHEALED", "D")
-    assert basis.splits is True
-    assert basis.applied_by == "bars_sanitize"
+    assert basis.splits is False
+    assert basis.applied_by is None
+    assert basis.as_of == declared
+
+
+def test_the_label_agrees_with_what_the_serve_path_actually_did(fresh_db, monkeypatch):
+    """The label and the served bars must answer from ONE predicate. For each
+    switch position: splits=True exactly when the served copy has no cliff."""
+    declared = _write_unadjusted_split("AGREE", "D")
+    _seed_meta("AGREE", splits=[(declared, 1.0 / 3.0)])
+    from api.services import bars_sqlite
+    rows = bars_sqlite.get_bars("AGREE", "D", 400)
+    for on in (True, False):
+        monkeypatch.setattr(rep, "enabled", lambda on=on: on)
+        served = bs.sanitize_daily_bars(
+            "AGREE", [{"t": ab._ymd_to_iso(r[0]), "o": r[1], "h": r[2], "l": r[3],
+                       "c": r[4], "v": r[5]} for r in rows], "D")
+        cliff = bool(bs.unadjusted_splits(served, [(declared, 1.0 / 3.0)]))
+        assert ab.compute_adjustment_basis("AGREE", "D").splits is (not cliff), on
 
 
 def test_never_raises_on_a_broken_meta_shape(fresh_db):
@@ -175,7 +194,7 @@ def test_MUTATION_applied_by_switches_on_the_repair_flag_not_a_constant(
     disabled_answer = ab.compute_adjustment_basis("FLIPTEST", "D").applied_by
 
     assert enabled_answer == "bars_split_repair"
-    assert disabled_answer == "bars_sanitize"
+    assert disabled_answer is None
     assert enabled_answer != disabled_answer
 
 

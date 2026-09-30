@@ -1262,7 +1262,14 @@
     "__uct_param_3": "Show London Range",
     "__uct_param_4": "Show New York Range",
     "__uct_param_5": "Show Liquidity Sweeps",
-    "__uct_param_6": "Show Entry / SL / TP"
+    "__uct_param_6": "Show Entry / SL / TP",
+    "__uct_param_7": "Structure Swing Length",
+    "__uct_param_8": "Require Displacement",
+    "__uct_param_9": "ATR Length",
+    "__uct_param_10": "Displacement Factor",
+    "__uct_param_11": "Require Liquidity Sweep",
+    "__uct_param_12": "Minimum FVG Size / ATR",
+    "__uct_param_13": "SL Buffer"
   },
   "tests/fixtures/pine_oos/mid_engagement__17-volume-surge-radar.pine": {
     "__uct_param_1": "Exclude current bar from average",

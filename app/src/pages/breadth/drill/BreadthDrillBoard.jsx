@@ -95,9 +95,12 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
   // copies of its state and both would answer the keyboard.
   const listPopped = poppedIds.includes(LIST_WIDGET_ID)
   const chartPopped = chartWidget ? poppedIds.includes(chartWidget.id) : false
+  // No chart widget at all (the MVP trial's withdrawal block hands the board over without
+  // one) is laid out like a popped chart: the list takes the whole board, no divider.
+  const chartGone = chartPopped || !chartWidget
   // With one pane ejected the other takes the whole board: a frozen split would
   // leave a dead gap where the popped widget used to be.
-  const soloed = listPopped !== chartPopped
+  const soloed = listPopped !== chartGone
 
   const host = (w) => (
     <WidgetHost
@@ -152,7 +155,7 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
           title="Drag to resize, or focus and use the arrow keys"
         />
       )}
-      {!chartPopped && (
+      {!chartGone && (
         <div className={`${styles.pane} ${styles.paneGrow} ${styles.paneChart}`}>
           {chartWidget && host(chartWidget)}
         </div>
