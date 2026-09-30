@@ -2908,11 +2908,14 @@ def build(pages_dir=None):
     R('G-060', 'NA', [code(f'{JT}/db.py', 954, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 336, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: frozen as of insertion).')
-    R('G-062', 'BO', [code(f'{JT}/fact_registry.py', 52, '"analyst_price_target_consensus": FactTypeDef('),
-                      code(f'{JT}/fact_registry.py', 32, 'rights_class: RightsClass'),
-                      record('docs/notebook/share-publish-flip-packet.md', 35, "1.3 The owner's answers")],
-      {'N': NA, 'E': NA, 'O': NA}, 'Legal sign-off on estimates rights stays with the owner (plan §5 item 3).',
-      'owner: legal sign-off')
+    R('G-062', 'NV', [code(f'{JT}/fact_registry.py', 69, '"analyst_price_target_consensus": FactTypeDef('),
+                      code(f'{JT}/fact_registry.py', 41, 'rights_class: RightsClass'),
+                      record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 91, 'Analyst-consensus storage (G-062): UNBLOCKED')],
+      {'N': NA, 'E': NA, 'O': NA},
+      'Legal sign-off landed (owner, 2026-09-25): FMP licensing approved directly, so the conditional '
+      'fact type is no longer owner-blocked -- capture is ACTIVE and unit-verified (was BLOCKED/owner). '
+      + UI_NOT,
+      'a real-browser walk (controller lane G62) confirming the SlashMenu + TickerPopup doors')
     R('G-063', 'NA', [code(f'{LB}/widgetEmbedCore.js', 7, 'asOfDayOf')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
     R('G-064', 'NA', [code(f'{LB}/askInsert.js', 13, "export const ASK_INSERT_TYPE = 'askInsert'"),
                       flag('NOTEBOOK_ASK_INSERT_ON', 'armed')], {'N': NA, 'E': NA, 'O': NA},

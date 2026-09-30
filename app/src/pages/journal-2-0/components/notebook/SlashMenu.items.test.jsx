@@ -4,7 +4,7 @@
 // prefix match (completion, nothing to eat); with args/prose = exact name.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
-import { widgetItems, factItems, ITEMS } from './SlashMenu'
+import { widgetItems, factItems, consensusFactItems, ITEMS } from './SlashMenu'
 import { buildExtensions } from '../../lib/tiptap'
 
 const titles = (q) => widgetItems(q).map((i) => i.title)
@@ -196,6 +196,94 @@ describe('/price (Wave F financial fact capture)', () => {
     const chain = makeChain({ inserted: null })
     const editor = { chain: () => chain, storage: {} }
     await factItems('price NVDA')[0].command({ editor, range: {} })
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+})
+
+// ── /consensus (G-062, wave 10 lane G62: analyst price-target consensus) ───
+// Mirrors the /price suite above exactly -- same regimes, same fetch shape,
+// same failure behaviour -- because consensusFactItems is a deliberate
+// near-copy of factItems, not a unification of the two.
+describe('/consensus (G-062 financial fact capture)', () => {
+  const consensusTitles = (q) => consensusFactItems(q).map((i) => i.title)
+
+  it('single-token discovery + bare-name hint', () => {
+    expect(consensusTitles('c')).toEqual(['Analyst Consensus'])
+    expect(consensusTitles('consensus')).toEqual(['Analyst Consensus'])
+    expect(consensusTitles('')).toEqual(['Analyst Consensus'])
+  })
+
+  it('a valid symbol produces the capture item', () => {
+    expect(consensusTitles('consensus NVDA')).toEqual(['Analyst Consensus — NVDA'])
+    expect(consensusTitles('consensus amd')).toEqual(['Analyst Consensus — AMD'])
+  })
+
+  it('prose or multiple tokens after the name match nothing', () => {
+    expect(consensusTitles('consensus looks great here')).toEqual([])
+    expect(consensusTitles('consensus NVDA AMD')).toEqual([])
+    expect(consensusTitles('con NVDA')).toEqual([])  // prefix + args never matches
+  })
+
+  it('unrelated tokens match nothing', () => {
+    expect(consensusTitles('chart')).toEqual([])
+    expect(consensusTitles('xyz')).toEqual([])
+  })
+
+  it('does not collide with /price — each command matches only its own word', () => {
+    expect(factItems('consensus NVDA')).toEqual([])
+    expect(consensusFactItems('price NVDA')).toEqual([])
+  })
+
+  const realFetch = global.fetch
+  beforeEach(() => { global.fetch = vi.fn() })
+  afterEach(() => { global.fetch = realFetch })
+
+  function makeConsensusChain(box) {
+    const chain = {
+      focus: () => chain, deleteRange: () => chain,
+      insertContent: (c) => { box.inserted = c; return chain },
+      run: () => {},
+    }
+    return chain
+  }
+
+  it('on success, POSTs the consensus capture and inserts a financialFact node', async () => {
+    global.fetch.mockResolvedValue({
+      ok: true, json: async () => ({ fact: { id: 'fact-456' } }),
+    })
+    const box = { inserted: null }
+    const chain = makeConsensusChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await consensusFactItems('consensus NVDA')[0].command({ editor, range: {} })
+    expect(global.fetch).toHaveBeenCalledWith('/api/j2/notes/note-1/facts', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ ticker: 'NVDA', factType: 'analyst_price_target_consensus' }),
+    }))
+    expect(box.inserted).toEqual({ type: 'financialFact', attrs: { factId: 'fact-456' } })
+  })
+
+  it('on a failed capture (e.g. FMP has no consensus for this ticker), inserts nothing — an honest failure, never a fabricated number', async () => {
+    global.fetch.mockResolvedValue({ ok: false })
+    const box = { inserted: null }
+    const chain = makeConsensusChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await consensusFactItems('consensus NVDA')[0].command({ editor, range: {} })
+    expect(box.inserted).toBeNull()
+  })
+
+  it('a network error never throws onto the caller and inserts nothing', async () => {
+    global.fetch.mockRejectedValue(new Error('network down'))
+    const box = { inserted: null }
+    const chain = makeConsensusChain(box)
+    const editor = { chain: () => chain, storage: { uctJournalWidgets: { noteId: 'note-1' } } }
+    await expect(consensusFactItems('consensus NVDA')[0].command({ editor, range: {} })).resolves.toBeUndefined()
+    expect(box.inserted).toBeNull()
+  })
+
+  it('with no noteId on editor storage, never calls fetch at all', async () => {
+    const chain = makeConsensusChain({ inserted: null })
+    const editor = { chain: () => chain, storage: {} }
+    await consensusFactItems('consensus NVDA')[0].command({ editor, range: {} })
     expect(global.fetch).not.toHaveBeenCalled()
   })
 })

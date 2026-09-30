@@ -56,3 +56,34 @@ export async function capturePriceToNotebook(ticker) {
     return 'Capture failed — try again'
   }
 }
+
+/** G-062 (wave 10, lane G62) — the analyst-consensus twin of
+ * capturePriceToNotebook, mirrored exactly (same capture call shape, same
+ * frozen-at-insert settle, same honest failure text): TickerPopup's second
+ * "Save … to Notebook" door, beside the price one. The only differences are
+ * `factType` and the success line. Never throws. */
+export async function captureConsensusToNotebook(ticker) {
+  try {
+    const noteId = await resolveDestinationNoteId(ticker)
+    if (!noteId) return 'Capture failed — try again'
+    const factRes = await fetch(`/api/j2/notes/${noteId}/facts`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, factType: 'analyst_price_target_consensus' }),
+    })
+    // A refusal here is most likely the honest "no consensus available"
+    // path (note_facts.create_fact_observation) — FMP unconfigured, or no
+    // consensus for this ticker. Never fabricate a number; the generic
+    // failure line is the same one every other capture failure uses.
+    if (!factRes.ok) return 'Capture failed — try again'
+    const { fact } = await factRes.json()
+    const insertRes = await fetch(`/api/j2/notes/${noteId}/facts/${fact.id}/insert`, {
+      method: 'POST', credentials: 'include',
+    })
+    if (!insertRes.ok) return 'Capture failed — try again'
+    await settleNoteWrite(noteId, insertRes)
+    return `${ticker} analyst consensus captured to Notebook`
+  } catch {
+    return 'Capture failed — try again'
+  }
+}
