@@ -649,8 +649,10 @@ function sourceStem(def, instance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null
   const parsed = parseSource(sources[0][1])
-  // Only symbol / fundamental / economic results carry `symbol`; a fundamental is not named by its ticker.
-  return parsed && parsed.kind !== 'fundamental' ? parsed.symbol || null : null
+  // Only symbol / fundamental / economic results carry `symbol`; a fundamental is not named by its
+  // ticker. A bar/instance source yields undefined -- both callers only test truthiness / compare
+  // against a non-empty name, so undefined and null are the same answer (kept lean: entry chunk).
+  return parsed && parsed.kind !== 'fundamental' ? parsed.symbol : null
 }
 
 /**
