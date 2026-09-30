@@ -1,0 +1,29 @@
+Captured live, before any edit to tools/notebook_rollback_chain.py (worktree notebook-w10-r1d,
+lane R1d, 2026-09-29), by running (with origin/master AT 8d08da86f, the state this lane's brief
+was written against):
+
+    python tools/notebook_rollback_chain.py --check
+
+Output (verbatim, reformatted from the single JSON line for readability; the actual run printed
+one line):
+
+{"check": "stale", "from": "8d08da86fbbda3a7145e664c4ea0380d9ac77c96", "measured_at": "0812b5ec3",
+ "stopped": "6 commit(s) after MEASURED_AT 0812b5ec3 look like Notebook landings the chain does
+ not name: 8d08da86f 'Notebook 10/10 — wave 10 L7: three tap floors (6c) + walk instrument f'
+ (selected by subject and path: app/src/pages/journal-2-0/a11y/targetFloors.test.js,
+ app/src/pages/journal-2-0/components/notebook/NoteFindBar.module.css,
+ app/src/pages/journal-2-0/components/notebook/WidgetPalette.module.css,
+ app/src/pages/journal-2-0/components/notebook/import/ImportWizard.module.css); 3fb184cdf
+ 'Notebook 10/10 — wave 10 L6: archive restores replay deletions (7b), r' (selected by path:
+ tests/test_notebook_rollback_chain.py); 839300271 'feat(palette): TERM-038 first slice - saved
+ things become names, dark' (selected by path: api/main.py, api/routers/auth.py,
+ app/src/components/CommandPalette.jsx); 197e52417 'breadth: a member request never writes
+ Breadth state' (selected by path: api/main.py); 0c74088f0 'feat(research): TERM-049 first slice -
+ per-ticker History tab, dark' (selected by path: api/main.py, api/routers/auth.py); 9633d68e8
+ 'Re-land wave 2 (revert the H15 rollback 1be4b9a2b)' (selected by path:
+ app/src/components/screener/reachable.test.js, app/vite.config.js). Add each landing to CHAIN
+ newest first (or, if a person rules it is NOT one, to REVIEWED_NOT_LANDINGS with the reason),
+ re-run from the new tip, record a rule and a pin for each conflict, rehearse the new step on a
+ sandbox, and move MEASURED_AT."}
+
+exit code: 2

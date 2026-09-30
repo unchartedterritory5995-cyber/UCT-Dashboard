@@ -26,10 +26,10 @@ written for different lines.
 
 What "rolling back wave N" means at the measured tip (docs/notebook/wave5-rollback.md, the
 procedure; rehearsed on a sandbox for every step, 2026-09-28, re-measured with L2 on top at
-f4cec49be 2026-09-29 (lane R1b), and re-measured with L4 and L5 on top at 0812b5ec3 2026-09-29
-(lane R1c)): revert EVERY Notebook landing
-newer than or equal to N, newest first, one squash at a time, because every later wave is built
-on the earlier ones. At every step:
+f4cec49be 2026-09-29 (lane R1b), re-measured with L4 and L5 on top at 0812b5ec3 2026-09-29
+(lane R1c), and re-measured with L6 and L7 on top at 8d08da86f 2026-09-29 (lane R1d)): revert
+EVERY Notebook landing newer than or equal to N, newest first, one squash at a time, because every
+later wave is built on the earlier ones. At every step:
 
   * `docs/`, `tools/`, `scripts/` and `CLAUDE.md` stay exactly as the previous step has them
     (so as the tip has them): a rollback reverts what ships to members, never the records,
@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "0812b5ec3"          # moved from f4cec49be by lane R1c, 2026-09-29 (L4 #251, L5 #252 live)
+MEASURED_AT = "6f563c158"          # moved from 0812b5ec3 by lane R1d, 2026-09-29 (L6 #253, L7 #254, L8 #255 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,9 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L8", "6f563c158", "wave 10 L8 #255"),
+    ("L7", "8d08da86f", "wave 10 L7 #254"),
+    ("L6", "3fb184cdf", "wave 10 L6 #253"),
     ("L5", "0812b5ec3", "wave 10 L5 #252"),
     ("L4", "7bd834b9f", "wave 10 L4 #251"),
     ("L2", "f4cec49be", "wave 10 L2 #242"),
@@ -104,7 +107,18 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 # one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
 #   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject takes one of the forms a
 #     Notebook LANDING's squash subject takes (`NOTEBOOK_SUBJECT`). Over wave5^..MEASURED_AT this
-#     selects exactly CHAIN.
+#     selects every CHAIN entry except two: L6 (`3fb184cdf`) and L8 (`6f563c158`, both lane R1d,
+#     2026-09-29) are real wave 10 landings -- rollback-chain tooling + rehearsal evidence, a
+#     restore-drill fix, proof-walk evidence and the parity-scorecard re-score -- that ship NO
+#     `app/` or `api/` file at all, so `ships` is false and SUBJECT never selects either however
+#     its subject reads. Both are in CHAIN anyway (the wave's own numbering names them, and the
+#     operator needs `--through L6`/`--through L8` to mean what they say), selected by PATH ONLY
+#     (L6's one Notebook-owned file is `tests/test_notebook_rollback_chain.py`, the rollback
+#     tool's own test suite; L8's is `tests/test_parity_scorecard.py` -- neither is shipped code,
+#     but neither is a KEEP_PATH either). Reverting either is a no-op for members and, measured,
+#     conflict-free (nothing else in this window touches either file).
+#     `test_the_subject_criterion_selects_every_chain_landing` states this exception rather
+#     than silently tolerating it.
 #   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
 #     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
 #     later change there cannot make a revert wrong). Review round 2 (2026-09-28): a hand-typed
@@ -139,6 +153,27 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # app/vite.config.js (the build-time manifest-stripping plugin every page's bundle goes through),
 # or app/src/components/screener/reachable.test.js (the AWAITING_A_DECISION ledger, Pine/breadth
 # entries). Nothing here is RAISED.
+# Lane R1d, 2026-09-29: the four path-only commits in 0812b5ec3..8d08da86f (L5..L7), read one by
+# one via their own diffs and messages. NONE edits Notebook-owned code: 8393002716 (TERM-038, the
+# command palette's address space) and 0c74088f0 (TERM-049, Research History tab) each add a
+# router mount to api/main.py and a flag-reader + payload key to api/routers/auth.py, the same
+# shape as the existing TERM-039/TERM-049(054)-room entries above; 8393002716 also edits
+# app/src/components/CommandPalette.jsx (adds a `saved` row kind below tickers/notes -- the L1b
+# `notebookTelemetry` import and the L1b `note`-row telemetry hunk are both untouched regions of
+# that file, confirmed by re-recording L1b's pin, which came back unchanged). 197e524176 (breadth,
+# a read/write-safety fix + the dark V2 authority replica) touches only api/main.py (a lifespan
+# startup block). 9633d68e8 is the RE-LAND of the *same* H15 rollback `1be4b9a2b` already reviewed
+# above (a different "wave 2" -- the Pine/deploy-integration branch, not a Notebook wave): its
+# reachable.test.js hunk re-adds the identical Pine-runtime AWAITING_A_DECISION entries
+# `1be4b9a2b`'s revert removed, and its vite.config.js hunk re-adds the market_calendar.json
+# stripping block that revert took out -- confirmed by reading both diffs side by side. Nothing
+# here is RAISED.
+# Lane R1d, continued: a fifth path-only commit landed while this lane worked, in
+# 8d08da86f..6f563c158 (on top of L8 #255, itself in CHAIN by path -- see the SUBJECT-criterion
+# comment above): cd9ecc833 (Fundamentals V5 cutover foundation, dark -- no flag set, no V5 object
+# published) touches only api/main.py, removing the web-pod's own lifespan registration of the
+# fundamentals_pit scheduler (moved to the worker pod, a comment left in its place); no Notebook
+# route touched.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
@@ -223,6 +258,31 @@ REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "3998b7c7053ebddbc17d315ed9acee08c3359ae7":
         "Terminal TERM-035: NYSE calendar derivation; edits "
         "app/src/components/screener/reachable.test.js (shared rail)",
+    "8393002716ba1aecbf044c895f40ed473bdf9deb":
+        "Terminal TERM-038: command palette address space (Ctrl/Cmd+K types a saved layout/"
+        "watchlist/note by name); mounts a router in api/main.py, adds a flag reader + payload "
+        "key in api/routers/auth.py, and adds a 'saved' row kind to "
+        "app/src/components/CommandPalette.jsx below tickers/notes (shared files); no Notebook "
+        "route or file touched",
+    "197e524176569a4aeb1bbd647041aa58280bcfd0":
+        "Breadth: a member request never writes Breadth state (read/write-safety fix) + the dark "
+        "BREADTH_V2_SYNC_ENABLED authority replica; touches only api/main.py (a lifespan startup "
+        "block), no Notebook route touched",
+    "0c74088f0ff41c7c3103d3b882f1050d91f815f8":
+        "Terminal TERM-049: Research > History tab (per-ticker citable-lane join), dark behind "
+        "TICKER_HISTORY_ENABLED; mounts a router in api/main.py and adds a flag reader + payload "
+        "key in api/routers/auth.py (shared files), no Notebook route touched",
+    "9633d68e8cfd3e2ca5cdc2b39d579f2b65800300":
+        "Re-lands 7ffd8e655 (the H15 rollback 1be4b9a2b, already reviewed above, reverted): a "
+        "different 'wave 2' -- the Pine vendor-harness / deploy-integration branch merge, not a "
+        "Notebook wave. Its reachable.test.js hunk re-adds the identical Pine-runtime "
+        "AWAITING_A_DECISION entries 1be4b9a2b's revert removed, and its vite.config.js hunk "
+        "re-adds the market_calendar.json stripping block that revert took out; no Notebook file "
+        "touched",
+    "cd9ecc83333ab0ffaf64b2185aab0d6d1b6c6fd3":
+        "Fundamentals V5 cutover foundation, dark (no flag set, no V5 object published); touches "
+        "only api/main.py, removing the web pod's own lifespan registration of the "
+        "fundamentals_pit scheduler (moved to the worker pod), no Notebook route touched",
 }
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
@@ -308,7 +368,17 @@ RULES: dict[str, dict] = {
         "        \"WireArchive on /morning-wire, rendered and fetched only for a paid \"\n"
         "        \"member; a free member sees today's wire exactly as before.\",\n"
         "    \"/api/wire/archive/\":\n"
-        "        \"Same component, the by-date read behind its date picker; same gate.\",\n"])},
+        "        \"Same component, the by-date read behind its date picker; same gate.\",\n"]),
+        # Lane R1d, measured at 8d08da86f: TERM-038 (8393002716, REVIEWED_NOT_LANDINGS) built its
+        # dark "saved things" palette rows INSIDE the same functions wave 5's own quick-switcher
+        # added (rowAriaLabel, the debounced run() closure, orderPaletteRows's displayRows) --
+        # seven hunks, none separable: TERM-038's added lines are single statements inside
+        # wave-5-authored function bodies (a branch inside rowAriaLabel, a fetch block inside
+        # run(), a spread onto orderedRows), not lines beside them. Dropping wave 5's own lines
+        # here means deleting the functions TERM-038's lines live inside -- the same shape as wave
+        # 7's api/services/daily_counters.py ("ours" below): a later, still-pending feature became
+        # structurally dependent on this wave's scaffolding. Keep the newer work.
+        "app/src/components/CommandPalette.jsx": "ours"},
     "8167f7aa0": {
         "app/src/pages/journal-2-0/lib/tiptap.js": ("hunks", "all-ours", {
             "import_after": ("import StarterKit from '@tiptap/starter-kit'",
@@ -336,12 +406,16 @@ RULES: dict[str, dict] = {
 # Re-recorded at 0812b5ec3 (lane R1c, 2026-09-29, L4 #251 + L5 #252 live): all eleven pins
 # above came back byte-identical from the new tip. The one new pin is caf6d1b9e's
 # app/src/pages/Support.jsx, the conflict TERM-039 (e90fddc34) introduced.
+# Re-recorded at 8d08da86f (lane R1d, 2026-09-29, L6 #253 + L7 #254 live): all fifteen pins
+# above came back byte-identical from the new tip. The one new pin is 2c3ed3093's (wave 5)
+# app/src/components/CommandPalette.jsx, the conflict TERM-038 (8393002716) introduced.
 PINS: dict[str, dict[str, str]] = {
     "271a078b6": {
         "api/main.py": "64a4d181d834d6cc",
         "api/services/client_errors.py": "660c00227b8c0bc3",
     },
     "2c3ed3093": {
+        "app/src/components/CommandPalette.jsx": "c81d1bda54eb3ff2",
         "tests/test_paywall_gate_free_tier.py": "3033a4865ff1c3ba",
     },
     "4f708a0d2": {
