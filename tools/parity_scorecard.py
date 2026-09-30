@@ -1757,8 +1757,12 @@ B0_WAVES = (
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
     ('wave 10 L1c', L1C_TAG, None, None),
-    ('wave 10 RS', RS2_TIP2_TAG, None, None),
-    ('wave 10 RS2', RS2_TAG, None, None),
+    # Integrator, 2026-09-29: both RS waves tied to their REAL squashes. RS's evidence reached master
+    # inside L5 (#252, head a01573e66 -> squash 0812b5ec3) and RS2's inside L8 (#255, head 0bb2f1c33 ->
+    # squash 6f563c158). The self-referential stopgap tags above could never be proven once the
+    # branches were squashed (the RS2 lane's own note asked for exactly this replacement).
+    ('wave 10 RS', 'notebook-wave10-L5-tip-2026-09-29', 'a01573e66', '0812b5ec3'),
+    ('wave 10 RS2', 'notebook-wave10-L8-tip-2026-09-29', '0bb2f1c33', '6f563c158'),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -2780,7 +2784,7 @@ def build(pages_dir=None):
       'An internal architecture row (Compass reads notes through the Ask retrieval).')
     # Temporal correctness / provenance
     R('G-060', 'NA', [code(f'{JT}/db.py', 954, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
-    R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 309, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 336, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: frozen as of insertion).')
     R('G-062', 'BO', [code(f'{JT}/fact_registry.py', 52, '"analyst_price_target_consensus": FactTypeDef('),
                       code(f'{JT}/fact_registry.py', 32, 'rights_class: RightsClass'),
@@ -3014,7 +3018,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1122, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1137, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
