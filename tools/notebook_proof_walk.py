@@ -79,8 +79,10 @@ import os
 import re
 import secrets
 import shutil
+import signal
+import subprocess
 import sys
-import threading
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -1573,7 +1575,9 @@ class Surface:
 
 
 def _select_first_word(pg) -> None:
-    pg.evaluate(r"""() => { const pm = document.querySelector('[data-proof-root] .ProseMirror'); if (!pm) return;
+    # deadclick's own `before_click` (click_one's only caller of this file's before_click
+    # surfaces) -- safe_evaluate bounds it the same as every other deadclick evaluate call.
+    safe_evaluate(pg, r"""() => { const pm = document.querySelector('[data-proof-root] .ProseMirror'); if (!pm) return;
       const w = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if ((n.nodeValue || '').trim().length >= 4) break; }
       if (!n) return; const r = document.createRange(); r.setStart(n, 0); r.setEnd(n, Math.min(4, n.nodeValue.length));
       const s = getSelection(); s.removeAllRanges(); s.addRange(r); }""")
@@ -1768,11 +1772,13 @@ def open_surface(W: World, surf: Surface, mode: str):
 
 def idle_noise(W: World, pg, tap: Tap, ms: int = 1500) -> dict:
     """The page's own motion with nobody touching it: every element that changed and every
-    endpoint requested in `ms` becomes NOISE, never counted as a click's effect."""
-    m = pg.evaluate(MARK_JS)["mark"]
+    endpoint requested in `ms` becomes NOISE, never counted as a click's effect. Used only from
+    `deadclick_surface`'s own `fresh()` -- its two evaluate calls go through `safe_evaluate` for
+    the same reason every other deadclick evaluate call does (see the comment above `click_one`)."""
+    m = safe_evaluate(pg, MARK_JS)["mark"]
     n0 = len(tap.reqs)
     pg.wait_for_timeout(ms)
-    added = pg.evaluate(NOISE_JS, m)
+    added = safe_evaluate(pg, NOISE_JS, m)
     for r in tap.reqs[n0:]:
         W.noise_endpoints.add(normalize_endpoint(r["url"]))
     return added
@@ -2041,36 +2047,97 @@ def axe_sweep(W: World, only: list[str], axe_src: str) -> dict:
 
 # ── dead clicks ──────────────────────────────────────────────────────────────
 
+class EvalTimeout(Exception):
+    """A `page.evaluate` call whose JS-side race (see `safe_evaluate`) timed out. Raised in
+    Python, from a NORMAL `evaluate()` return -- never from an abandoned call -- so it is a
+    plain, catchable exception on the calling thread, not a sign that anything is still
+    blocked."""
+
+
+EVAL_TIMEOUT_MS = 8000   # generous for a DOM read; several fit inside one control's
+                         # CLICK_DEADLINE_S budget without a single one eating all of it
+
+
+def safe_evaluate(pg, script: str, arg=None, timeout_ms: int = EVAL_TIMEOUT_MS):
+    """`page.evaluate(script, arg)`, bounded by a JS-side `Promise.race` against a JS
+    `setTimeout` -- Playwright's Python sync API takes no `timeout=` for `evaluate()` at all
+    (docs/notebook/proof/wk4-e1ef47435/README.md, "THE THREADING DEFECT"), so a script whose
+    async work never resolves would otherwise block this call, and the whole OS thread with
+    it, forever. `script` is any of this file's existing `(...) => {...}` constants,
+    unmodified -- the wrapper calls it and awaits its result, so a plain synchronous function
+    (everything this file defines) returns exactly as before, just with a ceiling.
+
+    Raises `EvalTimeout` when the JS-side timer wins the race, and re-raises the script's own
+    thrown error (as a plain `RuntimeError`) when it wins by throwing -- both ordinary Python
+    exceptions on the calling thread, never a hang.
+
+    ⛔ THIS DOES NOT COVER A RENDERER WEDGED AT THE NATIVE LEVEL. If nothing in the page can
+    run ANY JavaScript at all -- a native OS-level modal is the WK4 README's own hypothesis for
+    what blocked WK3's stall -- the `setTimeout` this wrapper depends on never fires either,
+    because firing it needs the SAME JS engine the frozen renderer cannot run. That class is
+    bounded by the per-surface PROCESS deadline in `deadclick_surface_bounded`, never by this
+    function: a process boundary can be killed from the outside regardless of what the inside
+    is doing; a JS timer inside a wedged renderer cannot."""
+    wrapped = (
+        "(__uctArg) => new Promise((__uctResolve) => {"
+        f"  const __uctTimer = setTimeout(() => __uctResolve({{__uctTimedOut: true}}), {int(timeout_ms)});"
+        "  (async () => {"
+        "    try {"
+        f"      const __uctFn = ({script});"
+        "      const __uctValue = await __uctFn(__uctArg);"
+        "      clearTimeout(__uctTimer);"
+        "      __uctResolve({__uctOk: true, __uctValue});"
+        "    } catch (__uctErr) {"
+        "      clearTimeout(__uctTimer);"
+        "      __uctResolve({__uctErr: true, __uctMessage: String((__uctErr && __uctErr.message) || __uctErr)});"
+        "    }"
+        "  })();"
+        "})"
+    )
+    out = pg.evaluate(wrapped, arg)
+    if isinstance(out, dict) and out.get("__uctTimedOut"):
+        raise EvalTimeout(f"evaluate exceeded {timeout_ms}ms: {script[:80]!r}")
+    if isinstance(out, dict) and out.get("__uctErr"):
+        raise RuntimeError(out.get("__uctMessage") or "evaluate failed")
+    if isinstance(out, dict) and "__uctValue" in out:
+        return out["__uctValue"]
+    return out
+
+
+HOVER_TIMEOUT_MS = 2500
+ACTION_TIMEOUT_MS = 3500   # click/tap -- Playwright's own native, already-bounded wait
+
+
 def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str) -> dict:
     if surf.before_click:
         try:
             surf.before_click(pg)
         except Exception:  # noqa: BLE001
             pass
-    if not pg.evaluate(TARGET_JS, [root, c["key"], c["nth"]]):
+    if not safe_evaluate(pg, TARGET_JS, [root, c["key"], c["nth"]]):
         return {"verdict": "NOT-FOUND", "reset": False}
     loc = pg.locator("[data-proof-target]").first
     touch = VIEWPORTS.get(mode, {}).get("touch", False)
     if c.get("field"):
         # a field is judged by focus arriving IN it: start from nothing focused
-        pg.evaluate("() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); }")
+        safe_evaluate(pg, "() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); }")
     url0 = pg.url
-    origin0 = pg.evaluate("() => performance.timeOrigin")
-    hover_from = pg.evaluate(MARK_JS)["mark"]
+    origin0 = safe_evaluate(pg, "() => performance.timeOrigin")
+    hover_from = safe_evaluate(pg, MARK_JS)["mark"]
     if not touch:
         try:
-            loc.hover(timeout=2500)
+            loc.hover(timeout=HOVER_TIMEOUT_MS)
         except Exception:  # noqa: BLE001
             pass
     pg.wait_for_timeout(450)
-    m = pg.evaluate(MARK_JS)
-    fs0 = pg.evaluate(FORMSTATE_JS, root)
+    m = safe_evaluate(pg, MARK_JS)
+    fs0 = safe_evaluate(pg, FORMSTATE_JS, root)
     n0, ev0 = len(tap.reqs), dict(tap.events)
     try:
         if touch:
-            loc.tap(timeout=3500)
+            loc.tap(timeout=ACTION_TIMEOUT_MS)
         else:
-            loc.click(timeout=3500)
+            loc.click(timeout=ACTION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         msg = str(e)
         inter = next((ln.strip() for ln in msg.splitlines() if "intercepts pointer events" in ln), "")
@@ -2079,11 +2146,13 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
     pg.wait_for_timeout(1200)
     reloaded = False
     try:
-        reloaded = pg.evaluate("() => performance.timeOrigin") != origin0
+        reloaded = safe_evaluate(pg, "() => performance.timeOrigin") != origin0
         if reloaded:
             raise RuntimeError("document reloaded")
-        eff = pg.evaluate(EFFECT_JS, [hover_from, m["mark"], m.get("bgMark", 0)])
-        fs1 = pg.evaluate(FORMSTATE_JS, root)
+        eff = safe_evaluate(pg, EFFECT_JS, [hover_from, m["mark"], m.get("bgMark", 0)])
+        fs1 = safe_evaluate(pg, FORMSTATE_JS, root)
+    except EvalTimeout:
+        raise   # a stuck read is TIMEOUT, never mistaken for the page having navigated
     except Exception as e:  # noqa: BLE001 -- a full navigation replaced the document
         eff = {"dom": 0, "expanded": 0, "focus_moved": False, "printed": m["printed"], "clip": m["clip"],
                "samples": [f"no in-page reading: {type(e).__name__}"]}
@@ -2150,77 +2219,109 @@ def _restore_prefs(W: World, acct: str, snap: dict) -> list[str]:
 LS_JS = "() => { try { return JSON.stringify(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)])); } catch (e) { return ''; } }"
 
 
-# ── wave 10 lane WK4: the dead-click sweep's hang on `nb-bulk` (docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md) ──
+# ── wave 10 lane WK4/WK5: the dead-click sweep's hang on `nb-bulk` (docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md) ──
 # WK3 measured a ~50-minute, ~0%-CPU stall inside the per-control loop, hard-killed with no
 # shutdown checkpoint. Every explicit Playwright wait in `click_one` already carries its own
-# timeout (hover 2.5s, click 3.5-6s, the settle waits are fixed `wait_for_timeout`s) -- none of
+# timeout (hover 2.5s, click 3.5s, the settle waits are fixed `wait_for_timeout`s) -- none of
 # those can hang. What CANNOT hang-proof itself is `page.evaluate(...)`: Playwright's Python API
 # takes no `timeout=` for it at all, so a call whose JS never returns control (native browser UI
 # outside the page's own JS thread -- a `<select>`'s OS-native popup is the one this file's own
 # `window.print` stub does NOT cover, since BulkActionBar's folder picker is a real `<select>`)
 # blocks the walk process forever, not the browser: the sandbox's OWN requests kept answering
 # throughout WK3's stall, which is what a page-JS-thread block, not a crashed server, looks like.
-# `_run_with_deadline` is a generic wall-clock watchdog around ANY blocking call (click_one here,
-# a whole surface below) -- past its budget it force-closes the stuck call's browser context
-# (closing a context tears down its renderer at the browser-process level and does not depend on
-# that renderer's JS thread ever running again) and returns TIMEOUT rather than waiting on it.
+#
+# ⛔⛔ WK4 (`e1ef47435`) wrapped that risk in `_run_with_deadline`, a wall-clock watchdog that ran
+# the wrapped call on a `threading.Thread` and, on overrun, called into that thread's Playwright
+# objects (closing a browser context) FROM THE OUTER THREAD. Playwright's sync API dispatches
+# every one of its objects (`Page`, `BrowserContext`, `Locator`, ...) through a greenlet bound to
+# the ONE OS thread that created `sync_playwright()`; a second thread touching ANY of them raises
+# immediately ("Cannot switch to a different thread"), which is what happened to every one of the
+# 39 deadclick surface x mode cells the very first time `deadclick_surface`'s own `fresh()` tried
+# to open a page from inside the watchdog's worker thread (docs/notebook/proof/wk4-e1ef47435/
+# deadclick.json, `controls.raw.reason` and every per-surface `reason`, verbatim). The mechanism
+# built to catch a hang never got the chance to: the wrapped call failed on its own, instantly,
+# for an unrelated reason, and the watchdog's own timeout path never fired.
+#
+# ⭐ WK5's redesign (this lane): NO Playwright object is ever touched from a second OS THREAD --
+# because none is ever touched by a second thread at all. The per-CLICK bound (`_click_or_timeout`
+# below) stays on the ONE thread that owns the page: every `page.evaluate` call `click_one` makes
+# now goes through `safe_evaluate` (above `click_one`), whose JS-SIDE `Promise.race` against a JS
+# `setTimeout` makes a stuck async handler return a bounded sentinel instead of blocking Python's
+# read of the CDP response forever -- an ordinary Python exception (`EvalTimeout`) on the SAME
+# thread, not a preemption from another one. click/tap/hover already carry Playwright-native
+# `timeout=`. The per-SURFACE bound (`deadclick_surface_bounded`) is a PROCESS boundary instead of
+# a thread one: the parent spawns `--deadclick-worker` as a CHILD PYTHON PROCESS (its own
+# `sync_playwright()`, its own greenlet, its own browser), waits on it, and kills the OS process
+# tree at the deadline -- the parent NEVER calls a method on a Playwright object the child
+# created; it only starts the child, waits, and reads the JSON file the child wrote. A process
+# boundary has no greenlet to violate, so a kill here is safe regardless of what the child's
+# single thread is doing when it happens, including a genuine native-renderer freeze that even
+# `safe_evaluate`'s JS-side timer cannot catch (see its own docstring).
 
-CLICK_DEADLINE_S = 25.0     # click_one's own waits sum to ~8s worst case; anything past this is
-                            # blocked on something no Playwright timeout can reach
-SURFACE_DEADLINE_S = 360.0  # backstop for a hang the per-click guard itself cannot reach (inside
-                            # `fresh()`'s own `surf.open()`, before any control has been clicked)
-
-
-def _run_with_deadline(fn, seconds: float, kill, grace: float = 5.0):
-    """Run `fn` on a worker thread with a hard wall-clock ceiling. Returns `(timed_out, result)`.
-
-    Past `seconds`, `kill()` is called once (expected to force the stuck call to raise, e.g. by
-    closing its browser context) and `(True, None)` is returned immediately after `grace` more
-    seconds -- the worker thread is never joined further than that: forcing it to actually stop
-    is `kill`'s job, not this function's, and a caller that ignores the first element of the
-    returned tuple has silently accepted a stuck browser as a passing run. A `fn` that raises
-    within its budget re-raises in the caller's own thread, unchanged."""
-    box: dict = {}
-
-    def runner():
-        try:
-            box["result"] = fn()
-        except Exception as e:  # noqa: BLE001 -- carried back to the caller, never swallowed
-            box["error"] = e
-
-    th = threading.Thread(target=runner, daemon=True)
-    th.start()
-    th.join(seconds)
-    if th.is_alive():
-        try:
-            kill()
-        except Exception:  # noqa: BLE001
-            pass
-        th.join(grace)
-        return True, None
-    if "error" in box:
-        raise box["error"]
-    return False, box.get("result")
+CLICK_DEADLINE_S = 25.0     # per control: several safe_evaluate calls, each well under this, plus
+                            # click_one's own bounded waits; a control that still runs long is
+                            # relabeled TIMEOUT rather than read as an ordinary slow verdict
+SURFACE_DEADLINE_S = 360.0  # per surface x mode: the child process's hard ceiling, enforced by
+                            # the parent killing the OS process tree -- the backstop for anything
+                            # the per-click guard cannot reach (inside `fresh()`'s own
+                            # `surf.open()`, before any control has been clicked, OR a renderer
+                            # wedged at the native level, which no in-process guard can catch)
 
 
-def _click_or_timeout(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str, holder: dict,
-                       deadline: float = CLICK_DEADLINE_S) -> dict:
-    """`click_one`, bounded: a control whose click never returns within `deadline` is recorded as
-    TIMEOUT -- named, never silently dropped -- rather than stalling the whole sweep. See
-    `_run_with_deadline`'s docstring for why a bare Playwright timeout cannot catch this class."""
+def _kill_process_tree(pid: int) -> None:
+    """Hard-kill `pid` and everything it spawned -- the browser Playwright launched underneath
+    it, not just the Python interpreter. `Popen.kill()` alone only signals the direct child; on
+    Windows that can orphan a chromium.exe the child never got the chance to close. Best-effort,
+    the same way `notebook_perf_harness.Sandbox.stop`'s own last-resort kill is: the parent is
+    force-closing an OS process it does not own the internals of, so a failure here is swallowed,
+    not raised -- the caller's own timeout handling is what matters, not this cleanup succeeding."""
     try:
-        timed_out, r = _run_with_deadline(lambda: click_one(W, pg, tap, root, c, surf, mode), deadline,
-                                           lambda: holder.get("ctx") and holder["ctx"].close())
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=15)
+        else:
+            os.killpg(pid, signal.SIGKILL)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _click_or_timeout(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str,
+                       deadline: float = CLICK_DEADLINE_S) -> dict:
+    """`click_one`, bounded WITHOUT a second thread. `click_one`'s own Playwright waits that
+    accept a `timeout=` (click/tap/hover) already carry one; every `page.evaluate` it makes goes
+    through `safe_evaluate`, whose JS-side race turns a stuck async handler into a bounded
+    `EvalTimeout` on THIS thread rather than an indefinite block. A control that nonetheless runs
+    past `deadline` (several evaluate calls each near their own ceiling, say) is relabeled TIMEOUT
+    after the fact instead of reading as an ordinary slow verdict.
+
+    What this cannot catch is a renderer wedged at the native/OS level -- nothing can run ANY JS,
+    so `safe_evaluate`'s own JS-side timer never fires either. That class is bounded by the
+    per-surface PROCESS deadline in `deadclick_surface_bounded`, never here: a control caught only
+    by that outer bound still ends its whole SURFACE in a named TIMEOUT, and the sweep continues
+    to the next surface -- it does not hang the walk, it just costs a coarser-grained verdict."""
+    started = time.monotonic()
+    try:
+        r = click_one(W, pg, tap, root, c, surf, mode)
+    except EvalTimeout as e:
+        return {"verdict": "TIMEOUT", "reset": True, "reason": f"evaluate: {e}"[:240]}
     except Exception as e:  # noqa: BLE001
         return {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True}
-    if timed_out:
-        return {"verdict": "TIMEOUT", "reset": True,
-                "reason": f"no response within {deadline:.0f}s -- the control's browser context "
-                          f"was force-closed so the sweep could continue"}
+    elapsed = time.monotonic() - started
+    if elapsed > deadline:
+        r = dict(r)
+        r["verdict"] = "TIMEOUT"
+        r["reset"] = True
+        r["reason"] = f"completed in {elapsed:.1f}s, past the {deadline:.0f}s per-click budget"
     return r
 
 
-def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False, handle: dict | None = None) -> dict:
+DEADCLICK_CONTEXT_TIMEOUT_MS = 20000  # a per-context default for anything below with no
+                                       # explicit timeout= of its own (a bare .fill()/.click()
+                                       # inside a surf.open() function) -- well below Playwright's
+                                       # native 30s default, comfortably above every explicit
+                                       # timeout this file's own surfaces already use
+
+
+def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False, on_progress=None) -> dict:
     """Every enabled control of one surface, each clicked from the SAME starting state.
 
     ⛔ State is the trap: a click can collapse the folder panel, switch the view or change a
@@ -2231,16 +2332,20 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     the click wrote anything, navigated, changed the page's control set, or changed local
     storage. Otherwise the same page is reused (Escape pressed twice).
 
-    `handle`, when given, is the SAME dict `deadclick_surface_bounded` holds -- so its outer
-    per-surface watchdog can force-close whatever context this function currently has open, even
-    if the hang is inside `fresh()`/`surf.open()` itself, before any per-click guard applies; and
-    can read `handle['rec']`, the SAME live record this function mutates, to salvage whatever
-    controls were already measured rather than discard them on a timeout."""
+    `on_progress`, when given, is called with a COPY of `rec` after every control (and on the
+    early UNREACHED return) -- see `_deadclick_worker_main`, which uses it to flush this
+    surface's progress to disk so a parent that has to hard-kill this function's OS process at
+    the deadline still salvages whatever had already run, the same contract the old thread-based
+    `handle['rec']` used to provide, now surviving a process kill rather than depending on a
+    thread that shares memory with the one being killed."""
     rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": [], "resets": 0,
            "prefs_restored": []}
-    holder = handle if handle is not None else {"ctx": None, "acct": None}
-    holder["rec"] = rec
+    holder = {"ctx": None, "acct": None}
     snap = {}
+
+    def progress():
+        if on_progress is not None:
+            on_progress(dict(rec))
 
     def fresh():
         if holder["ctx"] is not None:
@@ -2255,15 +2360,16 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
         if "prefs" not in snap:
             snap["prefs"] = _prefs(W, acct) if acct != "anon" else {}
         ctx = W.new_context(acct, mode)
+        ctx.set_default_timeout(DEADCLICK_CONTEXT_TIMEOUT_MS)
         holder["ctx"] = ctx
         pg = ctx.new_page()
         tap = Tap(pg)
         root = surf.open(W, pg)
         if plant:
-            pg.evaluate(PLANT_DEADCLICK_JS, root)
+            safe_evaluate(pg, PLANT_DEADCLICK_JS, root)
         rec.setdefault("noise", []).append(idle_noise(W, pg, tap))
-        keys = sorted({c["key"] for c in (pg.evaluate(CONTROLS_JS, root) or [])})
-        return pg, tap, root, keys, pg.evaluate(LS_JS)
+        keys = sorted({c["key"] for c in (safe_evaluate(pg, CONTROLS_JS, root) or [])})
+        return pg, tap, root, keys, safe_evaluate(pg, LS_JS)
 
     try:
         pg, tap, root, keys0, ls0 = fresh()
@@ -2271,43 +2377,50 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
         rec.update(status="UNREACHED", reason=f"{type(e).__name__}: {e}"[:300])
         if holder["ctx"] is not None:
             holder["ctx"].close()
+        progress()
         return rec
-    listing = pg.evaluate(CONTROLS_JS, root) or []
+    listing = safe_evaluate(pg, CONTROLS_JS, root) or []
     if plant:
         listing = [c for c in listing if c["name"].startswith("Planted")]
     rec["enumerated"] = len(listing)
     rec["capped"] = max(0, len(listing) - MAX_CONTROLS)
+    progress()
     for c in listing[:MAX_CONTROLS]:
         row = {k: c[k] for k in ("key", "nth", "tag", "role", "name", "field", "box")}
         if c["disabled"]:
             row["verdict"] = "DISABLED"
             rec["controls"].append(row)
+            progress()
             continue
         if SESSION_ENDING.search(c["name"]):
             row.update(verdict="SKIPPED", reason="ends the session")
             rec["controls"].append(row)
+            progress()
             continue
         if c["tag"] == "A" and c["href"].startswith("#") and re.match(r"(?i)skip\b", c["name"]):
             row.update(verdict="SKIPPED", reason="a skip link: its door is the keyboard (shown on focus)")
             rec["controls"].append(row)
+            progress()
             continue
-        r = _click_or_timeout(W, pg, tap, root, c, surf, mode, holder)
+        r = _click_or_timeout(W, pg, tap, root, c, surf, mode)
         if not r.get("reset"):
             try:
-                keys1 = sorted({x["key"] for x in (pg.evaluate(CONTROLS_JS, root) or [])})
-                if keys1 != keys0 or pg.evaluate(LS_JS) != ls0:
+                keys1 = sorted({x["key"] for x in (safe_evaluate(pg, CONTROLS_JS, root) or [])})
+                if keys1 != keys0 or safe_evaluate(pg, LS_JS) != ls0:
                     r["reset"] = True
                     r["state_left_changed"] = True
             except Exception:  # noqa: BLE001
                 r["reset"] = True
         row.update({k: v for k, v in r.items() if k != "reset"})
         rec["controls"].append(row)
+        progress()
         if r.get("reset"):
             rec["resets"] += 1
             try:
                 pg, tap, root, keys0, ls0 = fresh()
             except Exception as e:  # noqa: BLE001
                 rec["aborted"] = f"could not reopen the surface: {type(e).__name__}: {e}"[:300]
+                progress()
                 break
     if holder["acct"] and holder["acct"] != "anon" and not holder["acct"].startswith("fresh"):
         rec["prefs_restored"] += _restore_prefs(W, holder["acct"], snap.get("prefs", {}))
@@ -2320,33 +2433,90 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     for r in rec["controls"]:
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
     rec["counts"] = counts
+    progress()
     return rec
 
 
-def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool = False) -> dict:
-    """`deadclick_surface`, with a whole-surface wall-clock ceiling. The per-click guard inside
-    `deadclick_surface` (`_click_or_timeout`) catches a control that hangs; this is the backstop
-    for anything the per-click guard cannot reach -- a hang inside `fresh()`/`surf.open()` itself,
-    before the first control is even enumerated. `handle` is a plain dict shared with the worker
-    thread, so a timeout here can still force-close whatever context that thread currently has
-    open, and whatever partial `rec` it had already built is salvaged rather than thrown away."""
-    handle: dict = {"ctx": None, "acct": None}
+def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool = False,
+                               deadline: float = SURFACE_DEADLINE_S) -> dict:
+    """`deadclick_surface`, run in a CHILD OS PROCESS with a wall-clock ceiling the PARENT
+    enforces by killing that process -- never by touching its Playwright objects from a second
+    THREAD, the exact defect the comment above this section documents ("Cannot switch to a
+    different thread"). A process boundary carries no such rule: this function starts the child
+    (`--deadclick-worker`, see `_deadclick_worker_main`), waits on it, and reads the JSON file it
+    wrote -- nothing here ever calls a method on a Playwright object the child created, so a hard
+    kill at the deadline is safe regardless of what the child's one thread is doing, including a
+    renderer wedged at the native level that even `safe_evaluate`'s JS-side timer cannot catch.
+
+    The child reuses the PARENT's already-seeded accounts and fixtures (`W.fx`/`W.states`,
+    written to `--worker-in`) rather than re-running `seed()` -- signups are rate-limited 21s
+    apart, so re-seeding per surface would multiply the whole walk's wall time by the surface
+    count for no benefit. The child flushes its record to `--worker-out` after every control, so
+    a hard kill still salvages whatever it had already measured -- the same contract the old
+    thread-based `handle['rec']` used to provide, now surviving an OS-level kill rather than
+    depending on a thread that shares memory with the one being killed."""
+    seed_path = out_path = None
     started = time.monotonic()
-    timed_out, rec = _run_with_deadline(
-        lambda: deadclick_surface(W, surf, mode, plant=plant, handle=handle),
-        SURFACE_DEADLINE_S, lambda: handle.get("ctx") and handle["ctx"].close())
-    if timed_out:
-        partial = dict(handle.get("rec") or {})
-        partial.setdefault("surface", surf.sid)
-        partial.setdefault("mode", mode)
-        partial.setdefault("manifest", list(surf.manifest))
-        partial.setdefault("controls", [])
-        partial["status"] = "TIMEOUT"
-        partial["reason"] = (f"exceeded the {SURFACE_DEADLINE_S:.0f}s per-surface budget "
-                              f"(its browser context was force-closed so the sweep could continue)")
-        partial["elapsed_s"] = round(time.monotonic() - started, 1)
-        return partial
-    return rec
+    try:
+        fd, name = tempfile.mkstemp(prefix="nbwalk-seed-", suffix=".json")
+        os.close(fd)
+        seed_path = Path(name)
+        seed_path.write_text(json.dumps({"base": W.base, "fx": W.fx, "states": W.states},
+                                         ensure_ascii=False, default=str), encoding="utf-8")
+        fd, name = tempfile.mkstemp(prefix="nbwalk-out-", suffix=".json")
+        os.close(fd)
+        out_path = Path(name)
+        out_path.unlink(missing_ok=True)   # the child writes this; its absence at the end is real
+        cmd = [sys.executable, str(Path(__file__).resolve()), "--deadclick-worker",
+               "--worker-surface", surf.sid, "--worker-mode", mode,
+               "--worker-in", str(seed_path), "--worker-out", str(out_path),
+               "--worker-art", str(W.art)]
+        if plant:
+            cmd.append("--worker-plant")
+        kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+              else {"start_new_session": True})
+        proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.PIPE, text=True, **kw)
+        timed_out, stderr_tail = False, ""
+        try:
+            _, stderr_out = proc.communicate(timeout=deadline)
+            stderr_tail = (stderr_out or "")[-800:]
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _kill_process_tree(proc.pid)
+            try:
+                proc.communicate(timeout=15)
+            except Exception:  # noqa: BLE001
+                pass
+        elapsed = round(time.monotonic() - started, 1)
+        rec = None
+        if out_path.exists():
+            try:
+                rec = json.loads(out_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                rec = None
+        if rec is None:
+            rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": []}
+        if timed_out:
+            rec["status"] = "TIMEOUT"
+            rec["reason"] = (f"exceeded the {deadline:.0f}s per-surface budget "
+                              f"(its process was force-closed so the sweep could continue)")
+            rec["elapsed_s"] = elapsed
+        elif rec.get("status") not in ("MEASURED", "UNREACHED"):
+            # the worker exited (whatever its returncode) without ever reaching a terminal status
+            # of its own -- a crash, never silently promoted to a MEASURED that never happened
+            rec["status"] = "ERROR"
+            rec.setdefault("reason", f"the worker process ended (rc {proc.returncode}) without a "
+                                      f"terminal status" + (f"; stderr: {stderr_tail}" if stderr_tail else ""))
+            rec["elapsed_s"] = elapsed
+        return rec
+    finally:
+        for p in (seed_path, out_path):
+            try:
+                if p is not None:
+                    p.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def deadclick_sweep(W: World, only: list[str]) -> dict:
@@ -2380,6 +2550,52 @@ def deadclick_sweep(W: World, only: list[str]) -> dict:
     out["noise_endpoints"] = sorted(W.noise_endpoints)
     dump("deadclick", out)
     return out
+
+
+def _deadclick_worker_main(args) -> int:
+    """The per-surface deadclick CHILD `deadclick_surface_bounded` spawns (`--deadclick-worker`):
+    its own `sync_playwright()`, its own browser, its own OS process -- so the parent can hard-
+    kill it at the deadline without ever touching a Playwright object from a second thread. Reads
+    the parent's already-seeded fixtures and account storage_state (`--worker-in`, JSON; never
+    re-runs `seed()` -- see `deadclick_surface_bounded`'s docstring for why), measures exactly one
+    surface x mode, and writes its record to `--worker-out` after EVERY control so a hard kill
+    still salvages whatever ran before the deadline."""
+    from playwright.sync_api import sync_playwright
+    surf = surface_by_id(args.worker_surface)
+    out_path = Path(args.worker_out)
+    seeded = json.loads(Path(args.worker_in).read_text(encoding="utf-8"))
+
+    def flush(rec: dict) -> None:
+        tmp = out_path.with_name(out_path.name + ".tmp")
+        tmp.write_text(json.dumps(rec, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
+        os.replace(tmp, out_path)
+
+    flush({"surface": surf.sid, "mode": args.worker_mode, "manifest": list(surf.manifest),
+           "controls": [], "resets": 0, "prefs_restored": [], "status": "IN-PROGRESS"})
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            try:
+                Wc = World(browser, seeded["base"], Path(args.worker_art))
+                Wc.fx = seeded.get("fx") or {}
+                Wc.states = seeded.get("states") or {}
+                Wc.admin_login()
+                rec = deadclick_surface(Wc, surf, args.worker_mode, plant=bool(args.worker_plant),
+                                         on_progress=flush)
+            finally:
+                browser.close()
+    except Exception as e:  # noqa: BLE001 -- the parent still reads whatever this flushed first
+        try:
+            existing = json.loads(out_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            existing = {"surface": surf.sid, "mode": args.worker_mode, "manifest": list(surf.manifest),
+                        "controls": []}
+        existing["status"] = "ERROR"
+        existing["reason"] = f"{type(e).__name__}: {e}"[:300]
+        flush(existing)
+        return 1
+    flush(rec)
+    return 0
 
 
 # ── silent failures ──────────────────────────────────────────────────────────
@@ -3874,7 +4090,18 @@ def main(argv=None) -> int:
     ap.add_argument("--sweeps", default=",".join(SWEEPS))
     ap.add_argument("--only", default="", help="surface-id prefixes (a shake-out; the evidence run runs all)")
     ap.add_argument("--no-hold", action="store_true", help="do not hold the sandbox past +120 s (shake-out only)")
+    # internal: the per-surface deadclick child `deadclick_surface_bounded` spawns -- never a
+    # human-facing flag, see `_deadclick_worker_main`
+    ap.add_argument("--deadclick-worker", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-surface", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-mode", default="desk", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-plant", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-in", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-out", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-art", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
+    if args.deadclick_worker:
+        return _deadclick_worker_main(args)
     if args.self_check:
         return self_check()
     if not args.out_dir or not args.artifacts:
