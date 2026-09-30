@@ -123,6 +123,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 20 | C10 `request.security` feeding object text / coordinates / cells — **no new seam: the object pass already resolves through the plot lane's `Resolver`, so `securityAsNode` reaches it.** What stopped the C10 scripts was requests that Resolver could not read: a timeframe toggle whose test is a constant EXPRESSION (`TF_Choise == false ? …`, both lanes, `constantBranchOf`); in the OBJECT pass only (`Resolver.objectPass`), a dead ternary / `and`/`or` side that refuses is skipped when the test folds on every bar (text and colour readers too), and timeframe readers follow 16 hops, not 4; and, both lanes, a `timeframe.*` read inside a request at ANOTHER timeframe refuses by name instead of folding to the chart's own — see § C10 | `cefe12633`, `469177d5b`, `2b73a9ebf` | 21 → 22 / 47 (harness `summ` over `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1`, base `105ea5f3d`) | 183 → 184 / 252 | `linear-regression-channel-…-existing-trend-lines` lines 5/0 → **5/5, MATCH id for id** (ids 4418–4422, both y's within 1e-9 rel, styles, `time[100]`/`time` bar times; its two linefills 0 → 2 = vendor 2); `artemis-oscillator-pro` cells 13 → 18 of 21, the five new ones the vendor's (`◮ MIXED`, `— n/a` ×3, `▼ BEAR`), none drawn the vendor lacks. Committed harness dir (87 graded, 0 inventory): objects MATCH 42 → 43, overall MATCH 34 → 35, exactly those 2 entries changed. Member-door census 266 × 2: attach 39/60 unchanged; 1 row changed — linear-regression with the flag OFF moves from `pine:objects-only` to the clean-objects-only sentence its siblings already carry. `tools/corpus_metric.json` host_ok 51 → 52 (the same script) |
 | 21 | C14 drawing getters answered by the object runtime where Pine reads them — a name every write of which is a bare getter (`x := label.get_y(l)`, block local `x = l.get_x()`) becomes a scalar written by a `setnum` op AT ITS STATEMENT'S PLACE in the bar and read as `{v:'num'}` (a whole coordinate, a guard operand, a text `if` operand); a bare getter as a whole coordinate is `{v:'get'}` read at the op (in an inlined body only on the body's own handle). Refused by name: a getter inside arithmetic, a getter's history, a scalar also written another way, a getter on state this program lost or the runtime could make unknowable (`state:lost` — a lost setter, create or handle; a handle written off a recurrence the warm-up curtain may withhold). A handle a delete empties reads `na` (the runtime empties the register) — the reading C16 serves (step 19). Two walls found on the way and closed: the handle an `if … else` helper returns is copied per arm; a name read ABOVE its own later write in the bar is refused by name (`readBeforeWrite`) — the object pass read it at its END-OF-BAR binding. See § C14 | `59311bb64` + merge onto wave 4 (`e32ad85fd`) | 22 / 47 → 22 / 47 (against the wave-4 tip) | 185 / 252 → 181 / 245 | **none moved to MATCH, measured** — see § C14. `pro-trading-art-double-top-bottom-with-alert` DIVERGE (lines 7/0, labels 14/0) → door refusal: its only surviving steps were `topLine.get_y2()` crossings on a line family with lost creates (the tuple helper, C11) — a getter on a handle this program never fills; it attached an empty pane whose four agreeing families were 0/0 coincidences. Committed harness dir: 1 changed (the same; 40/82 MATCH unchanged). Member-door census 266 × 2: 2 rows (the same script, both flags); attach on 61 → 60. Measured against the wave-4 tip after the merge |
 | 22 | C9 a history offset that is an expression — an input-derived offset folds like a window (and a pivot's bar counts), an object op reads a `var` at its own statement, and a per-bar offset `x[e]` is read by the object runtime (`{v:'at'}`, bounded by the declared `max_bars_back`) — see § C9 | `d1926c463`, `405dcd309` + merge onto C14 (`aa1d1dd62`) | 22 / 47 → **23 / 47** (overall 18 → 19; against the C14 tip) | 181 / 245 → 188 / 252 (extrapolated gains its seven) | `extrapolated-pivot-connector` no program → **7/7 MATCH** (2 lines, 4 labels, every y and bar TradingView's); `artemis-oscillator-pro` lines 0 → 8 of 13, labels 0 → 8 of 17 — the vendor's last 8 of each, value for value; `smt-divergence-ict-01` unchanged (stops on C10). Committed harness dir (120 captures): the same two, objects MATCH 44 → 45, overall 43 → 44. Census 266 × 2: attach 39 / 60 unchanged, `drawsObjects` false → true for extrapolated; `order-block-finder` and `pivot-high-low-points` refuse at their next wall. The merge unified C9's per-statement env with C14's `topPos` stamp (one stamp); C14's `readBeforeWrite` now refuses only a write later in the op's OWN top-level statement. `rsi-swing-indicator` unchanged by the merge |
+| 23 | C12w the listing seed (ruling R-W): a series the caller proves starts at the symbol's first-ever bar (`historyFromListing` — the chart from the listing date, the harness from `history.startsAtBar0`) runs a translated `var` from bar 0 over the whole series and lifts the curtain wherever EVERY bar-0 reading the tree admits agrees; a mixed `var` with a real initializer is marked (`-(0 / 0)`) so its bar 0 is never guessed — see § C12w | (this branch, `pine/c12w-listing-seed`) | 23 / 47 → **25 / 47** (overall 19 → 21; harness `summ` over `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1`, base `f04ccffa7`) | 188 / 252 → **195 / 252** | `market-structure-by-leviathan` 5/6 lines, 18/22 labels → **MATCH, id for id** (what the curtain withheld were TradingView's first creates); `institutional-smc-order-flow-matrix-pro` 13/18 lines, 29/34 labels → **MATCH, id for id** (the five early BOS/CHoCH pairs C16's rail recorded as withheld are drawn, and its id offset of 10 is gone); `artemis-oscillator-pro` lines 8 → **13 of 13** at TradingView's levels, labels 8 → 13 of 17 (the four left are `guard:create` door drops, not the curtain); `trend-duration-forecast-chartprime` HMA plot DIVERGE (138 colour bars — `var trend` read off the prefix) → **MATCH** on all 632 bars. Nothing drawn the vendor lacks. Committed harness dir (82 entries): exactly those 4 changed, inventory identical. Member-door census 266 × 2: **0 rows changed** (attach 39 / 60). Corpus trees: 0 of 299 moved by the seed mark |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -771,12 +772,78 @@ took 36 s before and 38 s after.
 | artemis — 8 cells | C10 `request.security` (24 trees) | the MTF data seam |
 | smt-divergence | C10 `request.security` of another symbol (`input.symbol`, default XAUUSD) | the MTF data seam and a symbol the product holds |
 
+## C12w — the listing seed (2026-09-29, step 23)
+
+Ruling R-W, built. The bounded 250-bar window and its withholding stay the default;
+the exception runs only when TWO facts hold, and neither is inferred:
+
+| fact | who states it | where |
+|---|---|---|
+| the series starts at the symbol's first-ever bar | the CALLER: `StockChart`, when bar 0 of the bars it hands the binder is dated ON the official listing day (`list_date`, `/api/ticker-ipo`; daily only; exact — never the IPO badge's five-day tolerance); the harness, from the capture's `history.startsAtBar0` | `engine/listingSeed.js::historyFromListingOf`, `__tests__/vendorHarness/ourSide.js` |
+| the document's `accum` recurrences are Pine translations | the Pine member door stamps `meta.recurrenceOrigin: 'pine'` (outside the trees: no tree hash moves) | `memberPaneDefinition.js`; the gate is `nativeRegistry.historyFromListingFor` |
+
+⛔ **Why not "the fetch returned fewer bars than it asked".** Read against the serving
+path (`bars_fetch._history_complete`, `_get_bars_inner`): a short answer is also a
+store never deep-filled, a delta, a replay window, an intraday lookback ceiling and a
+backfill still running — each would seed a `var` mid-life and call it exact. A daily
+bar dated on the listing day has no earlier session, however it was fetched, and the
+check reads the array the engine actually computes on, so panning, cache splicing and
+deltas cannot desynchronise it. **No `api/` change was needed**: the listing date was
+already served and cached for the chart's IPO badge.
+
+⛔ **Why the document must declare it.** `accum` is shared by three translators and
+only Pine's means "carried since the first bar": TC2000's `CountTrue(b, x)` (`pcf.js`)
+IS a window of `x` bars, and run from bar 0 it would be a different indicator.
+
+**What the pass computes (`interpret.js::listingPass`).** The tree does not record
+whether a `self` read was Pine's bare `x` (the initializer on bar 0) or its history
+`x[1]` (`na` on bar 0), nor whether the recurrence is a `var` or the self-reference
+spelling `x = na(x[1]) ? S : U` (whose bar 0 is `S`, no update run). So bar 0 is
+evaluated under EVERY reading the tree admits — the seed for an unguarded read; the
+seed or `na` inside `nz(…)`; unknown for a lag that reaches before bar 0; unknown for
+the marked seed — each carried forward as its own trajectory, with one abstract
+"unknown" value that only a ternary with a known condition can discard. A bar is
+published only where all trajectories agree; elsewhere it is exactly as not computable
+as the curtain (`NaN`, or `prefixProbe` so `unknownMask` sees it) and, from the warm-up
+on, the bounded window's own value — no bar is ever less computed than before.
+
+**The marked seed.** A `var` read bare AND through an unguarded history read seeds
+`na`, but its bare read on bar 0 is the initializer. When that initializer is `na`
+(`var float x = na` — smc's and market-structure's spelling) the two agree; otherwise
+`varSeedOf` now writes `-(0 / 0)`, the same `NaN` everywhere the bounded window reads
+it, so the listing pass knows not to trust it. Measured: 0 of the 299 corpus and
+fixture scripts' trees move.
+
+**Cost.** `trajectories × bars`, plus `warmup` steps for a bar the trajectories never
+agree on past the warm-up. The pass runs only when `(trajectories + warmup) × bars`
+fits `MAX_RECURRENCE_STEPS`; otherwise the bounded window answers alone. At most
+`1 + 2^7 = 129` bar-0 readings (below Pine's 250), so for a Pine `var` the pass never
+costs more than the window it replaces. No ceiling raised, no new refusal.
+
+**What stays refused, and what would settle it.**
+- **Bar counters.** `var n = 0; n := n + 1` and `n = na(n[1]) ? 0 : n[1] + 1` are both
+  refused at the door (`pine:state`, the convergence gate) before any bars exist — the
+  exception cannot reach them. And as trees both are `accum(0, self + 1)`, which read
+  `bar_index + 1` and `bar_index` respectively; the pass withholds rather than choose
+  (railed in `listingSeed.test.js`). Settling it needs (a) a translator form for a
+  recurrence computable ONLY from the listing bar, (b) a mark separating the two
+  spellings, and (c) a capture: a probe plotting both counters beside `bar_index` on
+  NYSE:RDDT 1D from the listing day (`vw-var-seed`'s `V00` is the plain `bar_index`
+  control, and that probe is door-refused as a whole on its `V04` row).
+- **The first bar of a guarded `var`** whose update differs from its seed on bar 0
+  (`g := c ? close : nz(g[1], 3.0)`): the self-reference reading keeps bar 0 withheld;
+  bar 1 on is exact.
+- **Object creates the translator never built**: artemis' `✦ OB` ×3 and `R▼`
+  (`guard:create` at the door) — not the curtain.
+- **Weekly, monthly, intraday**: no listing statement is produced (a weekly key and an
+  intraday start are not the listing day), and no capture has measured them.
+
 ## What is left, ranked by scripts it would move
 
 | rank | class | scripts (primary) | what it needs |
 |---|---|---|---|
 | 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11. **Step 19 (C16)** served the host-lane wall two of the nine hit FIRST on their drawing LISTS (length reads, eviction, list edits in loops — institutional-smc, dual-view): smc's zones now AGREE; dual-view and the other seven stop on UDTs, numeric arrays or `var` state — see § C16 |
-| ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12 |
+| ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17**; the curtain on a from-listing series: **step 23 (C12w)** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12 |
 | 3 | C10 `request.security` in object text/coordinates — **step 20: every form the seam computes is served** (linear-regression MATCH; artemis' MTF panel) | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the seam was already there (§ C10). What is left is refused BY NAME and each needs something the bar series does not hold: an intraday timeframe below the chart's own (artemis 15m/1h/4h values never shown; ema-ribbon 15/60/240 rows; liquidity-heatmap's pivots), another symbol (vold `USI:*`, htf-liquidity, position-size-calc), a multi-period code (`3M`, `3D`, `2M`), and a `timeframe.*` read inside a request at another timeframe (liquidity-heatmap's `resolutionInMinutes`) — the capture that settles each is in § C10 |
 | 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
 | ~~5~~ | ~~C9 a history offset that is an expression~~ — **done, step 22** | extrapolated **MATCH**; artemis 8/13 lines, 8/17 labels, no wrong object; smt → C10 | what remains is named in § C9: no `max_bars_back` declared, a `max_bars_back(x, n)` call, a reassigned source — each refused by name |
@@ -800,6 +867,10 @@ took 36 s before and 38 s after.
   bar 0 and lift the curtain. Queued as lane **C12w** after C9 / C11b / C14; it needs the "history
   exhausted" fact threaded from the bars fetch to the engine, and a vendor capture on a recent-IPO
   symbol (whole history under 5,000 daily bars) as its witness. Until C12w lands, nothing changes.
+- **Landed as step 23 (§ C12w).** The "history exhausted" fact is established from the listing
+  date, not from a short fetch (why: § C12w); witnesses: market-structure and smc MATCH id for id,
+  trend-duration's HMA MATCH. Bar counters stay refused at the door — § C12w names what would
+  settle them.
 
 **R-R: `syminfo.root` is served as `syminfo.ticker` for the equities this engine screens, ONCE MEASURED.**
 - Pine's documented behaviour is that `root` equals `ticker` for any symbol that is not a derivative.

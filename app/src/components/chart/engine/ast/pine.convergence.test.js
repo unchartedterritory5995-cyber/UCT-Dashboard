@@ -340,8 +340,11 @@ plot(x)
     // `x` carries it to every later bar. A member who wants numbers writes
     // `nz(x[2], x)`; this script as written draws nothing on TradingView.
     const ast = built.outputs[0].ast
-    expect(ast.args[spec.recurrence.seed]).toEqual({ type: 'op', name: '/', args: [
-      { type: 'num', value: 0 }, { type: 'num', value: 0 }] })
+    // ⭐ C12w: a mixed `var` whose initializer is not `na` seeds the MARKED `na`,
+    // `-(0 / 0)` (`interpret.js::ambiguousVarSeed`) — the same value to the bounded
+    // window, and the one seed the listing pass must not read as its bare-read value.
+    expect(ast.args[spec.recurrence.seed]).toEqual({ type: 'op', name: 'u-', args: [{ type: 'op', name: '/', args: [
+      { type: 'num', value: 0 }, { type: 'num', value: 0 }] }] })
     const col = interpret(ast, bars(ast.args[spec.recurrence.warmup].value + 40))
     expect(Array.from(col).filter(Number.isFinite)).toEqual([])
   })

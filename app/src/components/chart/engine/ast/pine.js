@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed } from './interpret.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -11250,7 +11250,16 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
  *
  *  ⚠️ IT IS ALSO WHY A LONG SCRIPT CAN STILL MEET `budget:lookback`: 250 plus
  *  whatever the update itself reaches. That refusal is accurate — the script
- *  wants more history than this engine will hold — and it names itself. */
+ *  wants more history than this engine will hold — and it names itself.
+ *
+ *  ⭐⭐ C12w — THE ONE EXCEPTION (ruling R-W, 2026-09-29). When the CALLER proves
+ *  the series starts at the symbol's first-ever bar, our bar 0 is the vendor's,
+ *  and `interpret.js::listingPass` carries the state from bar 0 instead — publishing
+ *  a bar only where every bar-0 reading this tree admits agrees (a tree does not
+ *  record which `self` reads were bare and which were `x[1]`; `varSeedOf` marks the
+ *  one seed that cannot stand for both). The window stays the default everywhere
+ *  else, and nothing here changes: the fact reaches `interpret` as
+ *  `historyFromListing`, never through this translation. */
 const PINE_STATE_WARMUP = 250
 
 /** ⭐⭐ WHAT A `var`'S ACCUMULATOR IS SEEDED WITH — its initializer, or `na`.
@@ -11322,11 +11331,20 @@ const PINE_STATE_WARMUP = 250
  *  (`PINE_STATE_WARMUP`). What neither can reproduce is a value set more than `W`
  *  bars ago and still carried: there the history spelling shows a GAP and the bare
  *  spelling shows its initializer, where Pine shows the old value. How often a real
- *  chart meets that is UNMEASURED — no vendor capture holds such a bar. */
+ *  chart meets that is UNMEASURED — no vendor capture holds such a bar.
+ *
+ *  ⭐⭐ C12w — THE MIXED CASE WITH A REAL INITIALIZER IS WRITTEN `-(0 / 0)`
+ *  (`interpret.js::ambiguousVarSeed`). Same `na`, same bounded window, byte for
+ *  byte; the difference is for the listing pass (ruling R-W), which reads a
+ *  seed as "what every unguarded bar-0 read of this `var` returns". That is true
+ *  of every seed this function writes EXCEPT this one: its bare read is the
+ *  initializer, which the `na` seed does not carry. When the initializer is
+ *  itself `na` (`var float x = na`, the usual spelling) the two agree and plain
+ *  `0 / 0` stays — so only scripts with such a `var` see their tree move. */
 const historySeed = () => cOp('/', [cNum(0), cNum(0)])
 const varSeedOf = (seed, reads) => {
   if (!reads) return seed
-  if (reads.history > 0) return historySeed()
+  if (reads.history > 0) return reads.bare > 0 && !isStaticNa(seed) ? ambiguousVarSeed() : historySeed()
   if (reads.guarded > 0 && reads.bare === 0) return historySeed()
   return seed
 }

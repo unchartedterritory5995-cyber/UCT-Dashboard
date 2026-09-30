@@ -560,6 +560,193 @@ export const MAX_RECURRENCE_STEPS = 12000000
  *  deep lag is paid on every bar of every symbol in a universe sweep. */
 export const MAX_SELF_LAG = 4
 
+// --------------------------------------------------------------------------- //
+// ⭐⭐ C12w — the listing seed: the ONE exception to the bounded window
+// --------------------------------------------------------------------------- //
+//
+// RULING R-W (`docs/pine/vendor-harness/objects-triage-2026-09-28.md`, "Rulings,
+// 2026-09-29"): the bounded window above STAYS the default. The only exception
+// is a series the CALLER proves starts at the symbol's first-ever bar — there
+// our bar 0 IS the vendor's bar 0, so a state seeded there and carried over the
+// whole series is Pine's own value, bar counters included, and the curtain may
+// lift. The fact arrives as `opts.historyFromListing === true` and is NEVER
+// inferred here from a bar count: a fetch that happened to be short is not a
+// listing.
+//
+// ⛔⛔ WHAT THE TREE CANNOT TELL US, AND WHY THIS IS NOT JUST "RUN FROM BAR 0".
+// `pine.js` emits the SAME `self` for a bare read of a `var` and for its
+// history read `x[1]` (`varSeedOf`), and on bar 0 — and only there — Pine
+// answers them differently: the bare read is the initializer, the history read
+// is `na`. The seed slot holds ONE of those (`varSeedOf` chooses), and the tree
+// does not record which reads are which. So on bar 0 each `self` read is only
+// known up to a SET of candidates, and the pass keeps every candidate the tree
+// is consistent with:
+//
+//   an unguarded read      the seed's own bar-0 value, `na` included: a bare-only
+//                          `var` seeds its initializer, a history-only one `na`
+//                          (Pine's `x[1]` on bar 0), a mixed one `na` only when
+//                          its initializer IS `na`, and `nz(x[1], s)` folded to
+//                          `accum(s, …)` reads `s` there
+//   the MARKED seed        unknown — a mixed `var` whose initializer is not `na`
+//   (`ambiguousVarSeed`)   reads that initializer bare and `na` through history,
+//                          and one seed slot cannot hold both
+//   a read inside `nz(…)`  the seed OR `na`: it may be a bare read (the seed) or
+//   (first argument)       a guarded history read (`na`, which `nz` replaces)
+//   any lag `self[k]`      unknown on the bars where it reaches before bar 0 —
+//                          `na` for a `var`, the seed for `nz(x[k], s)`
+//
+// plus the SELF-REFERENCE form (`x = na(x[1]) ? S : U`), whose bar-0 value is the
+// seed itself with no update run. Every candidate trajectory is carried forward;
+// a bar's value is published only where they ALL agree on a concrete number or
+// `na`. Where they do not, the bar is exactly as not-computable as the bounded
+// window's prefix: `NaN` (or `prefixProbe`, so `objectColumns.unknownMask` sees
+// it) before `warmup`, and the bounded window's own value from `warmup` on —
+// so no bar is ever LESS computed than without the exception.
+//
+// ⛔ A CANDIDATE SET, NOT A GUESS: the candidates are chosen so that Pine's own
+// bar-0 reading is always among them, which is what makes an agreeing bar exact.
+// Where the forms differ past bar 0 (a self-reference re-seeding after an `na`)
+// the pass inherits the bounded window's own modelling, unchanged.
+//
+// ⚠️ THE COST STAYS INSIDE THE SAME CEILING. The pass is `trajectories × bars`
+// steps plus, for a bar the trajectories never agree on past `warmup`, the
+// bounded window's `warmup` steps. It runs only when
+// `(trajectories + warmup) × bars <= MAX_RECURRENCE_STEPS`; otherwise it is not
+// taken and the bounded window answers exactly as it always has. No ceiling is
+// raised, and nothing new refuses.
+
+/** "Any number, or `na`" — see `stepListing`. A unique object, so it can never be
+ *  confused with a number and can never be written into a column. */
+export const LISTING_UNKNOWN = Object.freeze({ listingUnknown: true })
+
+/** How many bar-0 reads inside `nz(…)` are enumerated two ways before they are
+ *  all treated as unknown instead: `1 + 2^7 = 129` trajectories at most, below
+ *  the 250-bar warm-up every Pine `var` carries, so the listing pass never costs
+ *  more steps than the window it replaces. Past it the reads are unknown —
+ *  still sound, only less often known. */
+export const LISTING_MAX_GUARDED_READS = 7
+
+/** ⭐⭐ THE ONE `var` SEED WHOSE BARE READ THE TREE CANNOT SETTLE — marked.
+ *
+ *  A `var` read both bare and through an UNGUARDED history read seeds `na`
+ *  (`pine.js::varSeedOf` — the history read is `na` on bar 0 and poisons the
+ *  step), while its bare read on bar 0 is the initializer. When the initializer
+ *  is itself `na` the two agree and `0 / 0` says everything. When it is not, the
+ *  seed is written `-(0 / 0)` instead: the SAME value everywhere the bounded
+ *  window reads it (`-NaN` is `NaN`, in both lanes), and the one shape the
+ *  listing pass must not read as "every bar-0 read is this seed".
+ *
+ *  ⛔ WHY THE TREE AND NOT THE DOCUMENT. The seed is what `accum` is handed; a
+ *  side record of "which recurrences are ambiguous" would have to survive the
+ *  bind-time fold, the graph and the store, and a fold that dropped it would
+ *  make an ambiguous seed read as a settled one. The shape travels with the node.
+ *  It moves the tree hash of exactly the scripts that have such a `var`. */
+export const ambiguousVarSeed = () => ({
+  type: 'op',
+  name: 'u-',
+  args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }],
+})
+const isZeroOverZero = (n) => !!n && n.type === 'op' && n.name === '/'
+  && Array.isArray(n.args) && n.args.length === 2
+  && n.args.every((a) => a && a.type === 'num' && a.value === 0)
+export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u-'
+  && Array.isArray(n.args) && n.args.length === 1 && isZeroOverZero(n.args[0])
+
+const listingSame = (a, b) => a === b || (a !== a && b !== b)
+const listingKey = (v) => {
+  if (v === LISTING_UNKNOWN) return 'U'
+  if (v !== v) return 'N'
+  if (v === 0 && 1 / v < 0) return '-0'
+  return String(v)
+}
+
+/** The listing pass. Returns the column, or `null` when it is not taken (over
+ *  the step ceiling), in which case the caller runs the bounded window. */
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT }) {
+  const s0 = seed[0]
+  // A guarded read has two candidates only when the seed is a number; with an
+  // `na` seed both readings are `na`.
+  const twoWay = !ambiguousSeed && !Number.isNaN(s0)
+  const beforeBar0 = () => new Array(maxSelfLag + 1).fill(LISTING_UNKNOWN)
+
+  // Bar 0, first reading: every read is the seed (or unknown, for the marked
+  // seed and for a lag that reaches before bar 0); a guarded one is counted so
+  // it can be enumerated below.
+  let guardedReads = 0
+  const firstRead = (lag, guarded) => {
+    if (lag > 0 || ambiguousSeed) return LISTING_UNKNOWN
+    if (guarded && twoWay) guardedReads += 1
+    return s0
+  }
+  const starts = [s0, stepT(0, beforeBar0(), firstRead)]
+  if (twoWay && guardedReads > 0) {
+    if (guardedReads > LISTING_MAX_GUARDED_READS) {
+      starts.push(stepT(0, beforeBar0(), (lag, guarded) => (lag > 0 || guarded ? LISTING_UNKNOWN : s0)))
+    } else {
+      // mask 0 is the all-seed reading already taken above
+      for (let mask = 1; mask < (1 << guardedReads); mask++) {
+        let at = 0
+        starts.push(stepT(0, beforeBar0(), (lag, guarded) => {
+          if (lag > 0) return LISTING_UNKNOWN
+          if (!guarded) return s0
+          const asNa = (mask >> at) & 1
+          at += 1
+          return asNa ? NaN : s0
+        }))
+      }
+    }
+  }
+  if ((starts.length + warmup) * length > MAX_RECURRENCE_STEPS) {
+    if (sink) sink.listing = { taken: false, trajectories: starts.length }
+    return null
+  }
+
+  const agreed = (values) => {
+    const first = values[0]
+    if (first === LISTING_UNKNOWN) return LISTING_UNKNOWN
+    for (let k = 1; k < values.length; k++) if (!listingSame(values[k], first)) return LISTING_UNKNOWN
+    return first
+  }
+  const dedupe = (trajectories) => {
+    if (trajectories.length < 2) return trajectories
+    const seen = new Map()
+    for (const h of trajectories) {
+      const key = h.map(listingKey).join('|')
+      if (!seen.has(key)) seen.set(key, h)
+    }
+    return [...seen.values()]
+  }
+
+  let steps = starts.length
+  let unknownBars = 0
+  let trajectories = dedupe(starts.map((v) => {
+    const h = beforeBar0()
+    h[0] = v
+    return h
+  }))
+  let peak = trajectories.length
+  const place = (i, value) => {
+    if (value !== LISTING_UNKNOWN) { out[i] = value; return }
+    unknownBars += 1
+    if (i >= warmup) { out[i] = windowAt(i); steps += warmup; return }
+    out[i] = prefixProbe === null ? NaN : prefixProbe
+  }
+  place(0, agreed(trajectories.map((h) => h[0])))
+  for (let j = 1; j < length; j++) {
+    for (const h of trajectories) {
+      const next = stepT(j, h, null)
+      for (let k = maxSelfLag; k > 0; k--) h[k] = h[k - 1]
+      h[0] = next
+    }
+    steps += trajectories.length
+    trajectories = dedupe(trajectories)
+    if (trajectories.length > peak) peak = trajectories.length
+    place(j, agreed(trajectories.map((h) => h[0])))
+  }
+  if (sink) sink.listing = { taken: true, trajectories: peak, steps, unknownBars }
+  return out
+}
+
 /** ⛔ THE ONLY WAY THIS MODULE ASKS WHETHER A NAME EXISTS. `name in obj` walks
  *  the prototype chain and `obj[name]` returns whatever it finds there. */
 const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
@@ -3834,14 +4021,16 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // was measured (`recurrenceSteps.measure.test.js`) and how a caller can
     // report a refusal BY NODE instead of letting a NaN reach a cell — the same
     // arrangement `textTooDeep` has one lane over, for the same reason.
+    let stepRecord = null
     if (opts && Array.isArray(opts.stepSink)) {
-      opts.stepSink.push({
+      stepRecord = {
         name: node.name,
         warmup,
         bars: length,
         steps: length * warmup,
         exceeded: length * warmup > MAX_RECURRENCE_STEPS,
-      })
+      }
+      opts.stepSink.push(stepRecord)
     }
     if (length * warmup > MAX_RECURRENCE_STEPS) {
       refuse('interpret:steps',
@@ -3958,6 +4147,37 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
       return POINTWISE[x.name](...values)
     }
 
+    /** `step`, for the listing pass (C12w): the same arithmetic, plus one
+     *  abstract value.
+     *
+     *  `LISTING_UNKNOWN` stands for "any number, or `na`" — a read whose Pine value
+     *  this tree cannot tell us. Every operator and pointwise call that sees it
+     *  answers it, EXCEPT a ternary whose condition is known, which picks its arm
+     *  exactly as `TERNARY` does. Sound by construction: nothing concrete comes
+     *  out of an unknown input unless the unknown was never consulted.
+     *
+     *  `read(lag, guarded)`, when given, answers the running value's reads instead
+     *  of `history` (bar 0 only); `guarded` is true inside the FIRST argument of
+     *  an `nz`, which is where `pine.js` counts a `var`'s history read as guarded
+     *  (`varSeedOf`). */
+    const stepListing = (x, j, history, read, guarded) => {
+      if (columns.has(x)) {
+        const v = columns.get(x)
+        return isColumn(v) ? v[j] : v
+      }
+      if (isBind(x)) return read ? read(0, guarded) : history[0]
+      if (x.type === 'offset' && isBind(x.args[0])) return read ? read(x.value, guarded) : history[x.value]
+      const nzCall = x.type === 'call' && x.name === 'nz'
+      const values = x.args.map((child, k) => stepListing(child, j, history, read, guarded || (nzCall && k === 0)))
+      if (x.type === 'op' && x.name === '?:' && values.length === 3) {
+        if (values[0] === LISTING_UNKNOWN) return LISTING_UNKNOWN
+        return TERNARY(values[0], values[1], values[2])
+      }
+      for (const v of values) if (v === LISTING_UNKNOWN) return LISTING_UNKNOWN
+      if (x.type === 'op') return applyOpStep(x, values)
+      return POINTWISE[x.name](...values)
+    }
+
     const seed = toColumn(evalNode(node.args[rec.seed]), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
@@ -3966,7 +4186,8 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // (`objectColumns.js::unknownMask`). No member-facing lane passes it: the
     // prefix is still `NaN` everywhere a value is shown.
     if (opts && typeof opts.prefixProbe === 'number') out.fill(opts.prefixProbe, 0, Math.min(warmup, length))
-    for (let i = warmup; i < length; i++) {
+    /** The bounded window's value at bar `i >= warmup` — the definition above. */
+    const windowAt = (i) => {
       // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
       // bars ago" to read, and the seed is the only defined value in scope — the
       // same initial condition Pine states by hand as `nz(x[1], x)`. ⛔ NOT zero: a
@@ -3978,8 +4199,21 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         for (let k = maxSelfLag; k > 0; k--) history[k] = history[k - 1]
         history[0] = next
       }
-      out[i] = history[0]
+      return history[0]
     }
+    // ⭐⭐ C12w — THE ONE RULED EXCEPTION (R-W, 2026-09-29). Only when the CALLER
+    // states that bar 0 of these bars is the symbol's first-ever bar
+    // (`opts.historyFromListing === true`, never inferred here). See `listingPass`.
+    if (opts && opts.historyFromListing === true && length > 0) {
+      const listed = listingPass({
+        seed, ambiguousSeed: isAmbiguousVarSeed(node.args[rec.seed]),
+        warmup, length, maxSelfLag, out, windowAt, sink: stepRecord,
+        prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
+        stepT: (j, history, read) => stepListing(body, j, history, read, false),
+      })
+      if (listed) return listed
+    }
+    for (let i = warmup; i < length; i++) out[i] = windowAt(i)
     return out
   }
 
