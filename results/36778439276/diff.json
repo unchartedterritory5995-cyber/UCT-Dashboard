@@ -1,0 +1,167 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 15,
+    "fixed": 1,
+    "unchanged": 157,
+    "missing": 16,
+    "baseline": 174,
+    "current": 175,
+    "current_ran": 35376,
+    "new_flaky": 3,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 16
+  },
+  "arithmetic": "baseline 174 = unchanged 157 + fixed 1 + missing 16  |  current 175 = unchanged 157 + new 15 + new-but-flaky 3",
+  "invalid_because": [
+    "current: shards_success 18 of 19"
+  ],
+  "baseline_run_id": "36768063524",
+  "current_run_id": "36778439276",
+  "baseline_sha": "20c58838c26a77fdd2a5cc43cc0502770c9f03a6",
+  "current_sha": "a7ef61788baff88f0d49cdc9c01dbf959fce228b",
+  "commit_range": "20c58838c26a77fdd2a5cc43cc0502770c9f03a6..a7ef61788baff88f0d49cdc9c01dbf959fce228b",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_a_normal_click_on_a_real_page_reads_MEASURED",
+    "pytest|tests.test_notebook_proof_walk|test_CONTROL_distinct_keys_are_never_deduped",
+    "pytest|tests.test_notebook_proof_walk|test_a_click_that_never_becomes_actionable_is_bounded_and_named_TIMEOUT",
+    "pytest|tests.test_notebook_proof_walk|test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE",
+    "pytest|tests.test_notebook_proof_walk|test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does",
+    "pytest|tests.test_notebook_proof_walk|test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click",
+    "pytest|tests.test_notebook_proof_walk|test_a_never_resolving_evaluate_is_bounded_by_a_js_side_race_not_a_hang",
+    "pytest|tests.test_notebook_proof_walk|test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction",
+    "pytest|tests.test_notebook_proof_walk|test_mutation_removing_the_origin_check_reds_the_cross_origin_rail",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet",
+    "pytest|tests.test_notebook_proof_walk|test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles",
+    "pytest|tests.test_notebook_proof_walk|test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "missing": [
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the Notebook and Journal routes do not statically reach the chart engine > pages/journal-2-0/surfaces/NotebookSurface.jsx: no components/chart/engine/ module on its static closure",
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the entry chunk does not statically reach the chart engine > \u26d4 no module under components/chart/engine/ is on the entry's static closure",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor",
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js",
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "vitest|src/lib/context/symbolLinkChannels.test.js|S4 CP2 \u2014 the deep-link ruling has a derived rail behind it > \u26d4 no NEW surface reads a symbol/timeframe param by hand",
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format",
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format",
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > a deliberate member action still writes: New Layout replaces the unreadable value",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > corrupt stored layout: the default board shows, the debounce and the unmount flush both refuse, the member is told",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > the held notice can be dismissed, and dismissing it does not lift the guard",
+    "vitest|src/pages/charts/widgets/ScanObjectCard.test.jsx|\ud83d\udd34 the object OPENS in the shipped builder and SAVES through its own door > lands in the Formula field on the Conditions tab, and Save writes that exact tree",
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear"
+  ],
+  "fixed": [
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[earnings_table._next_report_date-nonjson]"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the Notebook and Journal routes do not statically reach the chart engine > pages/journal-2-0/surfaces/NotebookSurface.jsx: no components/chart/engine/ module on its static closure",
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the entry chunk does not statically reach the chart engine > \u26d4 no module under components/chart/engine/ is on the entry's static closure",
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor",
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js",
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js",
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan",
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved",
+    "vitest|src/lib/context/symbolLinkChannels.test.js|S4 CP2 \u2014 the deep-link ruling has a derived rail behind it > \u26d4 no NEW surface reads a symbol/timeframe param by hand",
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format",
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format",
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > a deliberate member action still writes: New Layout replaces the unreadable value",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > corrupt stored layout: the default board shows, the debounce and the unmount flush both refuse, the member is told",
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > the held notice can be dismissed, and dismissing it does not lift the guard",
+    "vitest|src/pages/charts/widgets/ScanObjectCard.test.jsx|\ud83d\udd34 the object OPENS in the shipped builder and SAVES through its own door > lands in the Formula field on the Conditions tab, and Save writes that exact tree",
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear"
+  ],
+  "missing_buckets": {
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the Notebook and Journal routes do not statically reach the chart engine > pages/journal-2-0/surfaces/NotebookSurface.jsx: no components/chart/engine/ module on its static closure": [
+      "UNATTRIBUTED",
+      "src/__tests__/entryExcludesChartEngine.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/__tests__/entryExcludesChartEngine.test.js|\u26d4 the entry chunk does not statically reach the chart engine > \u26d4 no module under components/chart/engine/ is on the entry's static closure": [
+      "UNATTRIBUTED",
+      "src/__tests__/entryExcludesChartEngine.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js|3 \u00b7 the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/pine.depth.test.js|src/components/chart/engine/ast/pine.depth.test.js": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/pine.depth.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/pine.timeout.test.js|src/components/chart/engine/ast/pine.timeout.test.js": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/pine.timeout.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/components/chart/engine/ast/targetScriptReport.measure.test.js|\u2b50\u2b50 the target list \u2014 what each script actually needs > \u2b50\u2b50 reports every target: both lanes, plus the look-ahead scan": [
+      "UNATTRIBUTED",
+      "src/components/chart/engine/ast/targetScriptReport.measure.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/hooks/pollingSites.rail.test.js|polling sites \u2014 the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved": [
+      "UNATTRIBUTED",
+      "src/hooks/pollingSites.rail.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/lib/context/symbolLinkChannels.test.js|S4 CP2 \u2014 the deep-link ruling has a derived rail behind it > \u26d4 no NEW surface reads a symbol/timeframe param by hand": [
+      "UNATTRIBUTED",
+      "src/lib/context/symbolLinkChannels.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/lib/journal-2-0/format.test.js|dateLong (MM/DD/YYYY) > Date object \u2192 long format": [
+      "UNATTRIBUTED",
+      "src/lib/journal-2-0/format.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/lib/journal-2-0/format.test.js|dateShort (MM/DD/YY) > ISO date \u2192 short format": [
+      "UNATTRIBUTED",
+      "src/lib/journal-2-0/format.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/breadth/heatmapRegistry.golden.test.js|the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move": [
+      "UNATTRIBUTED",
+      "src/pages/breadth/heatmapRegistry.golden.test.js is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > a deliberate member action still writes: New Layout replaces the unreadable value": [
+      "UNATTRIBUTED",
+      "src/pages/charts/VersionHistory.workspace.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > corrupt stored layout: the default board shows, the debounce and the unmount flush both refuse, the member is told": [
+      "UNATTRIBUTED",
+      "src/pages/charts/VersionHistory.workspace.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/charts/VersionHistory.workspace.test.jsx|STATE-2: a stored board that cannot be read is never autosaved over > the held notice can be dismissed, and dismissing it does not lift the guard": [
+      "UNATTRIBUTED",
+      "src/pages/charts/VersionHistory.workspace.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/charts/widgets/ScanObjectCard.test.jsx|\ud83d\udd34 the object OPENS in the shipped builder and SAVES through its own door > lands in the Formula field on the Conditions tab, and Save writes that exact tree": [
+      "UNATTRIBUTED",
+      "src/pages/charts/widgets/ScanObjectCard.test.jsx is absent and no deletion is attributable in the diff"
+    ],
+    "vitest|src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js|no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear": [
+      "UNATTRIBUTED",
+      "src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js is absent and no deletion is attributable in the diff"
+    ]
+  },
+  "attribution": {}
+}
