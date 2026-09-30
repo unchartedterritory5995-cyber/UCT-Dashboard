@@ -2156,6 +2156,22 @@ def _act_click(name, exact=True):
     return act
 
 
+def _act_more_menu_click(name, exact=True):
+    """Like `_act_click`, but for a WRITE_ACTIONS entry whose button lives in the editor's
+    "More note actions" overflow (NoteMoreMenu.jsx) rather than on the bare note page --
+    Lock/Archive/Save as template, same as `f_note_btn`/`f_save_template` in the census sweep
+    (clause 5d, wave 10 lane WK3). `surface_by_id("nb-note").open()` is `s_note`, which never
+    opens that menu, so a bare `_act_click` timed out waiting for a button that was never
+    shown -- the 5d README's "lock"/"archive"/"save-template" UNREACHED writes. Not a feature's
+    own door (mirrors `open_more_note_actions`' own contract): opening the menu is not the write
+    itself, so a write that genuinely disappeared from the menu still reads UNREACHED here, not
+    silently NO-WRITE."""
+    def act(W, pg):
+        open_more_note_actions(pg)
+        press(pg, pg.get_by_role("button", name=name, exact=exact).first)
+    return act
+
+
 def _act_type(W, pg):
     _editor_end(pg)
     pg.keyboard.type(" proof words typed", delay=20)
@@ -2187,9 +2203,9 @@ WRITE_ACTIONS = (
     ("save-body", "nb-note", _act_type),
     ("add-tag", "nb-note", _act_tag),
     ("favorite", "nb-note", _act_click("Add to Favorites")),
-    ("lock", "nb-note", _act_click("Lock")),
-    ("archive", "nb-note", _act_click("Archive")),
-    ("save-template", "nb-note", _act_click("Save as template")),
+    ("lock", "nb-note", _act_more_menu_click("Lock")),
+    ("archive", "nb-note", _act_more_menu_click("Archive")),
+    ("save-template", "nb-note", _act_more_menu_click("Save as template")),
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),

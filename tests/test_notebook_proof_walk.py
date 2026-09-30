@@ -297,6 +297,25 @@ def test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site():
     assert src.index("judge_failure(") < src.index("exempt_verdict(") < src.index('row["verdict"] = "NOT-TRIGGERED"')
 
 
+# ── wave 10 lane WK3: 5d's "lock"/"archive"/"save-template" writes were UNREACHED ──────────
+# `surface_by_id("nb-note").open()` is `s_note`, which opens a bare note and never opens the
+# editor's "More note actions" overflow (NoteMoreMenu.jsx) -- but Lock/Archive/Save as
+# template all live inside it (the same menu `f_note_btn`/`f_save_template`/`f_export` already
+# open in the census sweep). A bare `_act_click(name)` therefore timed out waiting for a button
+# that was never shown, and WK's README recorded exactly that as UNREACHED, not BROKEN.
+
+def test_lock_archive_and_save_template_writes_open_the_more_menu_first():
+    import inspect
+    acts = {name: act for name, sid, act in W.WRITE_ACTIONS}
+    for name in ("lock", "archive", "save-template"):
+        src = inspect.getsource(acts[name])
+        assert "open_more_note_actions(pg)" in src, f"{name} write action never opens the More note actions menu"
+    # CONTROL: an action whose button already lives on the bare note page must not be routed
+    # through the menu too -- the fix targets the three menu-only writes, not every write
+    for name in ("save-body", "add-tag", "favorite", "new-folder", "new-note", "daily-note"):
+        assert "open_more_note_actions" not in inspect.getsource(acts[name]), name
+
+
 def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sentence():
     # F7 fix round 1 (review I1). The reason is a claim ("the menu says it; this rail proves it"),
     # so both halves are checked against the files it names: the rail file exists and carries the
