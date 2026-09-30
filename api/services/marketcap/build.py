@@ -86,6 +86,9 @@ class Data:
     txt: sqlite3.Connection | None
     px: sqlite3.Connection
     ref: dict = field(default_factory=dict)     # ticker -> (Ref, splits)
+    ipo: sqlite3.Connection | None = None       # each text harvest mode writes its own file (no writer contention)
+    econ: sqlite3.Connection | None = None
+    adr: sqlite3.Connection | None = None
 
 
 def load_ref(path: str) -> dict:
@@ -192,9 +195,10 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict]:
 
 def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> tuple[list[tuple], str]:
     """IPO capitalization valid from the listing date, known from each prospectus's public time."""
-    if D.txt is None:
+    src = D.ipo or D.txt
+    if src is None:
         return [], "NO_IPO_DATA"
-    rows = D.txt.execute("SELECT accn, form, filing_date, status, class, count, snippet FROM ipo_obs WHERE cik=? AND listing_start=?",
+    rows = src.execute("SELECT accn, form, filing_date, status, class, count, snippet FROM ipo_obs WHERE cik=? AND listing_start=?",
                          (cik, listing_start.isoformat())).fetchall()
     good = [r for r in rows if r[3] in ("OK", "MULTI_CLASS") and r[5]]
     if not good:
@@ -287,8 +291,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
 
     # class economics: every parsed annual report, chosen PER REGIME (time-aware)
     econs = []
-    if D.txt is not None:
-        for accn, fd, res in D.txt.execute("SELECT accn, filing_date, result FROM econ WHERE cik=? ORDER BY filing_date", (cik,)):
+    if (D.econ or D.txt) is not None:
+        for accn, fd, res in (D.econ or D.txt).execute("SELECT accn, filing_date, result FROM econ WHERE cik=? ORDER BY filing_date", (cik,)):
             j = json.loads(res)
             if j.get("status") == "NO_FILE":
                 continue
@@ -311,8 +315,8 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
     ptype = D.ref.get(primary, (None, []))[0]
     is_adr = bool(ptype and ptype.type in ("ADRC", "ADRS"))
     ratio_stmts = []
-    if D.txt is not None:
-        for accn, fd, st, ratio, snip in D.txt.execute("SELECT accn, filing_date, status, ratio, snippet FROM adr_ratio WHERE cik=?", (cik,)):
+    if (D.adr or D.txt) is not None:
+        for accn, fd, st, ratio, snip in (D.adr or D.txt).execute("SELECT accn, filing_date, status, ratio, snippet FROM adr_ratio WHERE cik=?", (cik,)):
             if st == "OK" and ratio:
                 ratio_stmts.append(RatioStatement(date.fromisoformat(fd), ratio, accn, snip or ""))
     if D.cov is not None:
@@ -498,7 +502,8 @@ def main(argv=None) -> int:
     P = lambda n: os.path.join(a.data, n)
     D = Data(sqlite3.connect(P("inputs.db")), sqlite3.connect(P("covers.db")) if os.path.exists(P("covers.db")) else None,
              sqlite3.connect(P("text.db")) if os.path.exists(P("text.db")) else None, sqlite3.connect(P("prices.db")),
-             load_ref(P("ref.jsonl")))
+             load_ref(P("ref.jsonl")),
+             *(sqlite3.connect(P(n)) if os.path.exists(P(n)) else None for n in ("ipo.db", "econ.db", "adr.db")))
     build_id = f"{DATASET}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     os.makedirs(a.out, exist_ok=True)
     out_path = os.path.join(a.out, build_id + ".db")
@@ -534,7 +539,7 @@ def main(argv=None) -> int:
     man = {"dataset": DATASET, "build_id": build_id, "code_commit": git_head(), "issuers": len(ciks), "status": dict(stat),
            "safety_bound_days": R.SAFETY_BOUND_DAYS, "built_at": datetime.now(timezone.utc).isoformat()}
     if not a.no_hash:
-        for n in ("inputs.db", "covers.db", "text.db", "prices.db", "ref.jsonl"):
+        for n in ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl"):
             if os.path.exists(P(n)):
                 man[f"input_sha256:{n}"] = sha256(P(n))
     for k, v in man.items():
