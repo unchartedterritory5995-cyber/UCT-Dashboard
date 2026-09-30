@@ -159,6 +159,17 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'withhold',                                  // C11c: unmeasured on this bar
 ])
 
+/** ⭐ C25 — every VALUE reference one op carries: its `OP_VALUE_FIELDS`, and a
+ *  `setnum`'s `value` (a loop scalar is written from a tree, the counter's
+ *  arithmetic or a constant — `value` elsewhere is a HANDLE and is not listed).
+ *  The walkers and the binder ask this, so the field cannot be bound in one and
+ *  forgotten in another. */
+export const opValueRefs = (op) => {
+  const out = OP_VALUE_FIELDS.map((f) => op[f])
+  if (op && op.k === 'setnum' && op.value && !op.value.r) out.push(op.value)
+  return out
+}
+
 export const OBJECT_OP_KINDS = Object.freeze([
   'create', 'update', 'delete', 'cell', 'clear', 'setreg', 'push', 'collset', 'collclear', 'collremove',
   // ⭐ MASTER'S TWO, KEPT BY THE MERGE. `cellpatch` is `table.cell_set_*` — the
@@ -292,7 +303,12 @@ export const MAX_HANDLE_BACK = 50
 /** The operators a value reference may carry. ⛔ DELIBERATELY TINY — see the
  *  `case 'op'` note in `assertValueRef`. These exist to offset a table address
  *  from a loop counter (`r + 1`), not to compute anything. */
-export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
+export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*', '/'])
+/** ⭐ C25 — the one-argument address forms: a counter's MIDPOINT
+ *  (`math.round((left + right) / 2)`, the bar a drawn candle's wick stands on)
+ *  is `/` then `round`. Both are the tree lane's own arithmetic
+ *  (`interpret.js::BINARY` / `POINTWISE`), read by the runtime, never restated. */
+export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round'])
 
 /**
  * ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())`.
@@ -529,12 +545,17 @@ function assertColorNode(v, where, depth = 0) {
 /** Does this value reference read object state anywhere beneath it? */
 function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
-  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch') return true
+  // ⭐ C25 — and the LOOP COUNTER: a condition on the pass (`i == 0`) is not a
+  // tree either — a tree is one value per bar — so it lives here too.
+  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch' || v.v === 'loop') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
 /** The live kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs, colls, inLoop}`. */
 function assertLiveRef(v, where, live) {
+  // ⭐ C25 — a loop-body create/update/`setnum` reads object state ONLY as a
+  // loop scalar (`program.nums[].loop`), whole or under the value operators.
+  if (live.loopNumsOnly && v.v !== 'num') throw new Error(`${where}: a \`${v.v}\` read in a loop body's values`)
   // ⭐ C16 — a length reads a DECLARED collection; a latch is read only AFTER
   // the op that sets it (the validator walks ops in the runtime's order).
   if (v.v === 'size' || v.v === 'latch') {
@@ -558,7 +579,10 @@ function assertLiveRef(v, where, live) {
     return
   }
   if (v.v === 'num') {
-    if (live.inLoop || !live.nums || !live.nums.has(v.id)) throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
+    // ⭐ C25 — a loop scalar is read in a loop body, a C14 scalar outside one.
+    if (!live.nums || !live.nums.has(v.id) || (live.inLoop !== !!(live.loopNums && live.loopNums.has(v.id)))) {
+      throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
+    }
     return
   }
   const arity = v.v === 'bool' ? (v.op === 'not' ? [1, 1] : [2, 64]) : [2, 2]
@@ -633,7 +657,8 @@ function assertValueRef(v, where, live = null) {
     // ADDRESS can be offset from a counter. Anything richer than the operators
     // below belongs in a tree, evaluated by whichever lane owns the values.
     case 'op': {
-      if (!OBJECT_VALUE_OPS.includes(v.op)) {
+      const unary = Array.isArray(v.args) && v.args.length === 1
+      if (!(unary ? OBJECT_VALUE_UNARY.includes(v.op) || OBJECT_VALUE_OPS.includes(v.op) : OBJECT_VALUE_OPS.includes(v.op))) {
         throw new Error(`${where}: unknown value operator ${JSON.stringify(v.op)} `
           + `— this grammar offsets an address, it is not an expression language`)
       }
@@ -804,6 +829,8 @@ export function assertObjectProgram(program) {
     colls.set(c.id, c)
   }
   const nums = new Set((program.nums || []).map((n) => n.id))
+  /** ⭐ C25 — scalars carried in a loop (`{id, init, loop: true}`). */
+  const loopNums = new Set((program.nums || []).filter((n) => n && n.loop === true).map((n) => n.id))
   if (program.runtime !== undefined) assertRuntimeProgram(program.runtime)
 
   const ops = program.ops
@@ -818,7 +845,7 @@ export function assertObjectProgram(program) {
     // ⭐ A GUARD, A LOOP BOUND AND A COLLECTION INDEX may read object state
     // (`LIVE_GUARD_KINDS`). ⛔ Inside a loop body a `cross` is still refused —
     // it is observed once per bar, and a body runs several times a bar.
-    const live = { regs, colls, latches, nums, inLoop: where.includes('.body[') }
+    const live = { regs, colls, latches, nums, loopNums, inLoop: where.includes('.body[') }
     if (op.when !== null && op.when !== undefined) {
       assertValueRef(op.when, `${where}.when`, live)
     }
@@ -827,7 +854,7 @@ export function assertObjectProgram(program) {
     if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
     /** ⭐ C14 — a create/update's own coordinates and text may read object
      *  state only OUTSIDE a loop body (a scalar is written once per bar). */
-    const opLive = live.inLoop ? null : live
+    const opLive = live.inLoop ? (loopNums.size ? { ...live, loopNumsOnly: true } : null) : live
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
       throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
@@ -919,8 +946,15 @@ export function assertObjectProgram(program) {
       }
       if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily, opLive)
     } else if (op.k === 'setnum') {
-      if (!opLive || !nums.has(op.num) || op.value?.v !== 'get') throw new Error(`${where}: bad setnum`)
-      assertLiveRef(op.value, where, opLive)
+      // ⭐ C25 — a loop scalar is written in its loop, from any value this
+      // grammar carries (loop scalars the only state it reads).
+      if (loopNums.has(op.num)) {
+        if (!live.inLoop) throw new Error(`${where}: a loop scalar written outside a loop body`)
+        assertValueRef(op.value, `${where}.value`, { ...live, loopNumsOnly: true })
+      } else {
+        if (!opLive || !nums.has(op.num) || op.value?.v !== 'get') throw new Error(`${where}: bad setnum`)
+        assertLiveRef(op.value, where, opLive)
+      }
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)
       if (!reg) throw new Error(`${where}: setreg names undeclared register ${JSON.stringify(op.reg)}`)
@@ -1035,7 +1069,7 @@ export function graphNodesReferenced(program) {
   for (const [, op] of walkOps(program.ops || [])) {
     walkValue(op.when); walkValue(op.from); walkValue(op.to)
     walkRef(op.target); walkRef(op.value)
-    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
+    for (const v of opValueRefs(op)) walkValue(v)
     for (const v of Object.values(op.props || {})) {
       if (isObj(v) && v.r) walkRef(v)
       else walkValue(v)
@@ -1084,7 +1118,7 @@ export function treeRefsOfOp(op) {
   const walkRef = (r) => { if (isObj(r) && r.r === 'coll') walkValue(r.index) }
   if (!isObj(op)) return seen
   walkRef(op.target); walkRef(op.value)
-  for (const f of OP_VALUE_FIELDS) walkValue(op[f])
+  for (const v of opValueRefs(op)) walkValue(v)
   for (const v of Object.values(op.props || {})) {
     if (isObj(v) && v.r) walkRef(v)
     else walkValue(v)
@@ -1115,7 +1149,7 @@ export function paramsReferenced(program) {
     if (NESTED_KINDS.has(v.v)) (v.args || []).forEach(walkValue)
   }
   for (const [, op] of walkOps(program.ops || [])) {
-    for (const f of OP_VALUE_FIELDS) walkValue(op[f])
+    for (const v of opValueRefs(op)) walkValue(v)
     if (isObj(op.target) && op.target.r === 'coll') walkValue(op.target.index)
     for (const v of Object.values(op.props || {})) if (isObj(v) && v.v) walkValue(v)
   }
@@ -1201,6 +1235,8 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     // ⭐ ONE LIST HERE TOO — a field bound in three walkers and forgotten in the
     // fourth is the exact defect `OP_VALUE_FIELDS` was extracted to stop.
     for (const f of OP_VALUE_FIELDS) if (op[f] != null) out[f] = bindValue(op[f])
+    // ⭐ C25 — a `setnum`'s value (see `opValueRefs`).
+    if (op.k === 'setnum' && isObj(op.value) && !op.value.r) out.value = bindValue(op.value)
     // ⛔ THE CLEAR RECTANGLE BINDS TOO, for the reason the loop comment above
     // gives: an unbound `{v:'tree'}` reaching the runtime reads as an unknown
     // kind and answers `undefined`, and a bound that is not a number clears
