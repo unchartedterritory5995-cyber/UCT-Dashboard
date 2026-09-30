@@ -1763,6 +1763,12 @@ SC_TAG = 'notebook-wave10-SC-2026-09-30'
 # so none of it can be tied to 'wave 10 SC'. The SC2 tag is created at THIS lane's own final
 # commit, after every evidence file below is committed -- never before, or the tie is vacuous.
 SC2_TAG = 'notebook-wave10-SC2-2026-09-30'
+# Integrator L13 (2026-09-30): a third wave entry, same shape. L12's closing commits rewrote
+# docs/notebook/proof/l12-READINGS.md AFTER SC2_TAG was cut (the 2c / 6c MET readings under D23
+# and the final walk's reading), so its blob at SC2_TAG is no longer its blob at HEAD and the file
+# cannot stay tied to 'wave 10 SC2'. A pushed tag is never moved, so the file moves to SC3, whose
+# tag is created at L13's own final commit, after the file is final -- never before.
+SC3_TAG = 'notebook-wave10-SC3-2026-09-30'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1780,6 +1786,7 @@ B0_WAVES = (
     ('wave 10 RS2', 'notebook-wave10-L8-tip-2026-09-29', '0bb2f1c33', '6f563c158'),
     ('wave 10 SC', SC_TAG, None, None),
     ('wave 10 SC2', SC2_TAG, None, None),
+    ('wave 10 SC3', SC3_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1869,7 +1876,7 @@ B0_EVIDENCE = (
     # artifacts, the un-scoped L3 layout re-confirm's run-meta.json, and the reading of all three.
     # None of these existed at any earlier registered wave's landing (SC_TAG predates them), so all
     # tie to 'wave 10 SC2'.
-    (f'{PROOF}/l12-READINGS.md', 'wave 10 SC2'),
+    (f'{PROOF}/l12-READINGS.md', 'wave 10 SC3'),  # re-tied by L13: see SC3_TAG
     (f'{PROOF}/l12dc-0100a3032/run.json', 'wave 10 SC2'),
     (f'{PROOF}/l12dc2-6cbf0618e/run.json', 'wave 10 SC2'),
     (f'{PROOF}/l12dc2-6cbf0618e/deadclick.json', 'wave 10 SC2'),
@@ -2977,7 +2984,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3350, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3441, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -3058,7 +3065,7 @@ def build(pages_dir=None):
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
     R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 77, "'addRowBefore', 'Row above'"),
                                  code(f'{LB}/tiptap.js', 120, 'resizable: true'),
-                                 code(f'{NB}/TableToolbar.jsx', 236, 'Sort A→Z'), walk9('B03_table_toolbar'),
+                                 code(f'{NB}/TableToolbar.jsx', 256, 'Sort A→Z'), walk9('B03_table_toolbar'),
                                  walk10('B2_table_sort_resize_reload')],
       {'N': ['N_tables'], 'E': ['E_editmode'], 'O': ['O_tables']},
       'B03 (wave 9): add/delete rows and columns and a header row. Wave 10 (10B) added resize and sort; L1a\'s B2 '
@@ -3127,7 +3134,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3914, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4007, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3143,7 +3150,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1137, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1148, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -3190,7 +3197,7 @@ def build(pages_dir=None):
     R('G-170', 'NA', [code('app/src/lib/errorBeacon.js', 856, 'export function installErrorBeacon()'),
                       code('app/src/main.jsx', 10, 'installErrorBeacon()'),
                       code(f'{LB}/notebookTelemetry.js', 59, 'export const CORE_ACTION_EVENTS = Object.freeze({'),
-                      code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'),
+                      code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'),
                       test_vt('app/src/lib/errorBeacon.test.js')], {'N': NA, 'E': NA, 'O': NA},
       'An operability row; standard #15 scores it (wave 10, 10D: the core-action events and the SLOs).')
     R('G-171', ('P', 'NV', 'NV'), [code('app/src/pages/journal-2-0/components/notebook/onboarding/sampleNotebook.js', 1, 'The sample notebook'),
@@ -3371,7 +3378,7 @@ def build(pages_dir=None):
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
          [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
           record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
-          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 269,
+          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 350,
                'export function toolbarStateReducer(prev, editor)'),
           code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
                'export function stepsIntroduceNodeType(tr, name)')],
@@ -3720,7 +3727,7 @@ def build(pages_dir=None):
          '(CR-stripped content); F3 ran it on this tree and it passed -- wave 9\'s "the running copy differs" no '
          'longer holds', None),
         ('SLOs with alerts', 'MET',
-         [code(f'{JT}/notebook_slo.py', 99, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8258, 'id="notebook_slo_check"'),
+         [code(f'{JT}/notebook_slo.py', 128, 'SAVE_SUCCESS_OBJECTIVE = 0.995'), code('api/main.py', 8258, 'id="notebook_slo_check"'),
           test_f3('tests/test_notebook_slo.py')],
          'save success >= 99.5 % pages (Discord); Ask and search p95 go to a daily digest, never paged (ruling R-15); '
          'registered on the scheduler every 15 minutes', None),
