@@ -23,6 +23,7 @@
 // accident, and a `const` added to either side at the wrong moment is a TDZ
 // crash in the merge every chart is on.
 import { adoptOverlayAverages } from './maAdoption'
+import { migrateLegacyCotGroups } from './engine/legacyCotGroups'
 
 // ─── Removing an indicator instance: the tombstone ───────────────────────────
 //
@@ -132,5 +133,7 @@ export function mergeSettingsOverride(base, partialIn) {
       out[k] = v
     }
   }
-  return out
+  // ⭐ A chart tab's OWN settings never pass `mergeChartSettings`, so the one-time
+  // COT normalisation runs here too (a no-op, by identity, on anything else).
+  return migrateLegacyCotGroups(out)
 }

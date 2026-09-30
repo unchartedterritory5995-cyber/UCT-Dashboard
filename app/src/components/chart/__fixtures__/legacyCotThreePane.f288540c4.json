@@ -1,0 +1,714 @@
+{
+ "generatedFrom": "f288540c4 (deployed three-pane COT)",
+ "one": {
+  "indicatorInstances": [
+   {
+    "instanceId": "ovl:0",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 9,
+     "maType": "ema",
+     "color": "#4ade80"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:1",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 20,
+     "maType": "ema",
+     "color": "#f472b6"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:2",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 50,
+     "maType": "sma",
+     "color": "#60a5fa"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:3",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 200,
+     "maType": "sma",
+     "color": "#fb923c"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "inst:dataSeries:1",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:2",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:3",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   }
+  ],
+  "paneOrder": [],
+  "paneSizes": {}
+ },
+ "two": {
+  "indicatorInstances": [
+   {
+    "instanceId": "ovl:0",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 9,
+     "maType": "ema",
+     "color": "#4ade80"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:1",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 20,
+     "maType": "ema",
+     "color": "#f472b6"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:2",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 50,
+     "maType": "sma",
+     "color": "#60a5fa"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:3",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 200,
+     "maType": "sma",
+     "color": "#fb923c"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "inst:dataSeries:1",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:2",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:3",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:4",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:5",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:6",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   }
+  ],
+  "paneOrder": [],
+  "paneSizes": {}
+ },
+ "mixed": {
+  "indicatorInstances": [
+   {
+    "instanceId": "inst:rsi:1",
+    "defId": "rsi",
+    "defVersion": 1,
+    "inputs": {
+     "period": 14,
+     "color": "#7b68ee"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:0",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 9,
+     "maType": "ema",
+     "color": "#4ade80"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:1",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 20,
+     "maType": "ema",
+     "color": "#f472b6"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:2",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 50,
+     "maType": "sma",
+     "color": "#60a5fa"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:3",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 200,
+     "maType": "sma",
+     "color": "#fb923c"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "inst:dataSeries:1",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:2",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:3",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:4",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:ES:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "S&P 500 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "S&P 500 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:5",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:ES:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": false,
+    "display": {
+     "name": "S&P 500 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "S&P 500 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:6",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:ES:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "S&P 500 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:4",
+     "name": "S&P 500 E-Mini COT"
+    }
+   }
+  ],
+  "paneOrder": [],
+  "paneSizes": {}
+ },
+ "arranged": {
+  "indicatorInstances": [
+   {
+    "instanceId": "ovl:0",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 9,
+     "maType": "ema",
+     "color": "#4ade80"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:1",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 20,
+     "maType": "ema",
+     "color": "#f472b6"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:2",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 50,
+     "maType": "sma",
+     "color": "#60a5fa"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:3",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 200,
+     "maType": "sma",
+     "color": "#fb923c"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "inst:dataSeries:1",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:2",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#ff00aa"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:3",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": false,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   }
+  ],
+  "paneOrder": [
+   "price",
+   "inst:dataSeries:2",
+   "volume",
+   "inst:dataSeries:1",
+   "inst:dataSeries:3"
+  ],
+  "paneSizes": {
+   "inst:dataSeries:1": 0.12,
+   "inst:dataSeries:2": 0.18,
+   "inst:dataSeries:3": 0.1
+  }
+ },
+ "hidden": {
+  "indicatorInstances": [
+   {
+    "instanceId": "ovl:0",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 9,
+     "maType": "ema",
+     "color": "#4ade80"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:1",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 20,
+     "maType": "ema",
+     "color": "#f472b6"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:2",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 50,
+     "maType": "sma",
+     "color": "#60a5fa"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "ovl:3",
+    "defId": "movingAverage",
+    "inputs": {
+     "source": "close",
+     "period": 200,
+     "maType": "sma",
+     "color": "#fb923c"
+    },
+    "hidden": false
+   },
+   {
+    "instanceId": "inst:dataSeries:1",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:COMM:close",
+     "color": "#2d8c4e"
+    },
+    "hidden": true,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Commercials",
+     "compact": "Commercials"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:2",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:LARGE:close",
+     "color": "#b18c33"
+    },
+    "hidden": true,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Large Speculators",
+     "compact": "Large Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   },
+   {
+    "instanceId": "inst:dataSeries:3",
+    "defId": "dataSeries",
+    "defVersion": 1,
+    "inputs": {
+     "source": "sym:COT:NQ:SMALL:close",
+     "color": "#4a90c2"
+    },
+    "hidden": true,
+    "display": {
+     "name": "Nasdaq-100 E-Mini COT · Small Speculators",
+     "compact": "Small Speculators"
+    },
+    "presentation": {
+     "plotStyle": "histogram"
+    },
+    "group": {
+     "id": "grp:inst:dataSeries:1",
+     "name": "Nasdaq-100 E-Mini COT"
+    }
+   }
+  ],
+  "paneOrder": [],
+  "paneSizes": {}
+ }
+}

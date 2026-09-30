@@ -1,0 +1,70 @@
+[run] r200155
+[seed] 42.6s
+
+=== skip links found on the note editor page, 390px, UNFOCUSED ===
+[
+  {
+    "text": "Skip to main content",
+    "href": "#main-content",
+    "rect": [
+      8,
+      -80,
+      154,
+      44
+    ],
+    "transform": "matrix(1, 0, 0, 1, 0, -88)",
+    "position": "absolute",
+    "pointerEvents": "auto",
+    "hitAtOwnCenter": "null (off-viewport)",
+    "isSelf": false
+  },
+  {
+    "text": "Skip to note",
+    "href": "#notebook-pane",
+    "rect": [
+      8,
+      -149,
+      56,
+      78
+    ],
+    "transform": "matrix(1, 0, 0, 1, 0, -156.781)",
+    "position": "absolute",
+    "pointerEvents": "none",
+    "hitAtOwnCenter": "null (off-viewport)",
+    "isSelf": false
+  }
+]
+
+=== skip links found on the notebook list page, 390px, UNFOCUSED ===
+[
+  {
+    "text": "Skip to main content",
+    "href": "#main-content",
+    "rect": [
+      8,
+      -80,
+      154,
+      44
+    ],
+    "transform": "matrix(1, 0, 0, 1, 0, -88)",
+    "position": "absolute",
+    "pointerEvents": "auto",
+    "hitAtOwnCenter": "null (off-viewport)",
+    "isSelf": false
+  },
+  {
+    "text": "Skip to notes list",
+    "href": "#notebook-pane",
+    "rect": [
+      8,
+      -190,
+      63,
+      99
+    ],
+    "transform": "matrix(1, 0, 0, 1, 0, -198.375)",
+    "position": "absolute",
+    "pointerEvents": "none",
+    "hitAtOwnCenter": "null (off-viewport)",
+    "isSelf": false
+  }
+]

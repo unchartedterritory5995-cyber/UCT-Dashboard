@@ -72,7 +72,7 @@ import { presentedPlot } from './presentation'
  * candlestick. Listing it here is what makes the pool REFUSE that swap instead
  * of feeding four fields to a series that draws one.
  */
-export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick'])
+export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline', 'candlestick', 'columns'])
 
 /**
  * `plots[].style` → the LWC constructor that draws it.
@@ -107,7 +107,7 @@ export const POOL_KEYS = Object.freeze(['line', 'histogram', 'area', 'baseline',
  * registration, so this is the second lock, not the first.)
  *
  * @param {object} plot a definition's plot
- * @returns {'line'|'histogram'|'area'|'baseline'|null}
+ * @returns {'line'|'histogram'|'columns'|'area'|'baseline'|'candlestick'|null}
  */
 export function poolKey(plot) {
   switch (plot && plot.style) {
@@ -116,8 +116,13 @@ export function poolKey(plot) {
     case 'band':
     case 'markers':
       return 'line'
+    // ⭐ A HISTOGRAM WITH BAR GEOMETRY IS `columns` — the same zero-based bars drawn
+    // by the custom column series (`thinVolumeSeries.js`), which can narrow and
+    // offset them. Several histograms sharing one pane (a COT dataset's three
+    // participants) need that to stand side by side; every other histogram carries
+    // no `bar` and stays the library's own HistogramSeries, byte-identical.
     case 'histogram':
-      return 'histogram'
+      return plot.bar ? 'columns' : 'histogram'
     case 'area':
       return 'area'
     case 'baseline':
@@ -602,6 +607,14 @@ export function seriesOptionsForPlot(plot, ctx) {
       wickUpColor: cc.upColor,
       wickDownColor: cc.downColor,
     })
+  }
+
+  if (pk === 'columns') {
+    // The histogram's options plus the column geometry the custom series reads.
+    base.color = effectiveColor(plot, LWC_DEFAULTS.histogram.color)
+    base.widthRatio = plot.bar.width
+    base.offsetRatio = plot.bar.offset
+    return base
   }
 
   if (pk === 'histogram') {

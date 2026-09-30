@@ -204,6 +204,36 @@ describe('⛔ no placeholder is left behind', () => {
     expect(h.chart.panes().length, 'an empty placeholder survived settle').toBe(3)
     expect(membership(h).map((r) => r.keys[0])).toEqual(order)
   })
+
+  it('⚰️⚰️ …but a slot whose owner is STILL ARRIVING is kept, so late data lands in its own pane', () => {
+    // A restored layout with three own-pane symbol series (a COT dataset's three
+    // outputs). Their bars arrive in NETWORK order: here the THIRD lands first, then
+    // the first, and the second last — each arrival is one binder pass + settle.
+    const h = coldChart()
+    const order = [PRICE_PANE, 'comm', 'large', 'small']
+    const opts = { order, paneCountRequired: order.length, pinned: 0, priceKey: PRICE_PANE, paneOf: paneOfFor(h) }
+    for (const arriving of ['small', 'comm', 'large']) {
+      prepareArrangement(h.chart, opts)
+      placeAtSlot(h, arriving, order, opts)
+      settleArrangement(h.chart, opts)
+    }
+    // Swept, `large`'s empty slot let `small`'s pane shift up into it, and `large`
+    // then bound INTO `small`'s pane: four semantic panes rendered as three.
+    expect(membership(h).map((r) => r.keys)).toEqual([[PRICE_PANE], ['comm'], ['large'], ['small']])
+    expect(h.chart.panes().length).toBe(4)
+  })
+
+  it('⛔ a DELETED key has left the order, so its emptied pane is still reclaimed', () => {
+    const h = coldChart()
+    const order = [PRICE_PANE, 'qqq', 'spy']
+    const opts = build(h, order)
+    h.chart.removeSeries(h.series.get('qqq'))
+    h.series.delete('qqq')
+    const after = [PRICE_PANE, 'spy']
+    settleArrangement(h.chart, { ...opts, order: after, paneCountRequired: after.length })
+    expect(h.chart.panes().length).toBe(2)
+    expect(membership(h).map((r) => r.keys)).toEqual([[PRICE_PANE], ['spy']])
+  })
 })
 
 describe('idempotence', () => {

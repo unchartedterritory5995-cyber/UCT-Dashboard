@@ -375,13 +375,19 @@ export function presentedPlot(plot, instance, ctx) {
     ? resolveSignColors(instance, plot, ctx && ctx.candles) : null
   const styleChanged = !!defStyle && defStyle !== plot.style
   const look = lineLookPatch(instance, effective)
+  const bar = effective === 'histogram' ? histogramBarOf(instance) : null
   // ⚠️ BOTH QUESTIONS BEFORE THE EARLY RETURN. This read `if (defStyle === plot.style)
   // return plot`, which is correct for style alone and wrong the moment a SECOND
   // property is resolved here: a member turning sign colours on for an output that
   // was ALREADY a histogram would have been handed back the untouched plot and seen
   // nothing happen.
-  if (!styleChanged && !sign && !look) return plot
+  if (!styleChanged && !sign && !look && !bar) return plot
   const next = { ...plot }
+  // ⭐ A SIDE-BY-SIDE PARTICIPANT TAGS ITS OWN LATEST VALUE ON THE AXIS (owner,
+  // 2026-09-30). In a COT pane the guests would otherwise defer to the host and the
+  // scale would show Commercials alone; each of the three reads its own net
+  // contracts there. A plot-level answer outranks placement's (`pool.seriesOptionsForPlot`).
+  if (bar) { next.bar = bar; next.lastValueVisible = true }
   if (styleChanged) next.style = defStyle
   if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
@@ -393,6 +399,38 @@ export function presentedPlot(plot, instance, ctx) {
     next.colorDown = sign.down
   }
   return next
+}
+
+/**
+ * An instance's column geometry for a histogram — `{width, offset}` as fractions of
+ * the bar slot — or null.
+ *
+ * ⭐ HOW SEVERAL HISTOGRAMS SHARE ONE PANE READABLY. A COT dataset draws its three
+ * participants in one pane; three full-width histograms there would paint over one
+ * another. Each participant instead carries `presentation.bar`, and the pool draws it
+ * with the column series (`pool.poolKey` → `columns`), narrowed and offset so the
+ * three stand side by side from the same zero line. Absent — every other histogram —
+ * nothing changes.
+ *
+ * ⛔ VALIDATED HERE, not trusted: a width outside (0, 1] or an offset that would push
+ * a column out of its own slot is no geometry at all.
+ */
+// ⚠️ ONE FROZEN ANSWER PER STORED `bar`, so a re-sync hands the plan the same object
+// rather than a fresh copy that reads as a change (the same reason `presentedPlot`
+// returns the plot unchanged when nothing overrode it).
+const _barOf = new WeakMap()
+
+export function histogramBarOf(instance) {
+  const b = instance && instance.presentation && instance.presentation.bar
+  if (!b || typeof b !== 'object') return null
+  if (_barOf.has(b)) return _barOf.get(b)
+  const width = Number(b.width)
+  const offset = Number(b.offset || 0)
+  const ok = width > 0 && width <= 1 && Number.isFinite(offset)
+    && Math.abs(offset) + width / 2 <= 0.5 + 1e-9
+  const out = ok ? Object.freeze({ width, offset }) : null
+  _barOf.set(b, out)
+  return out
 }
 
 /** The line widths and line styles a member may choose (Line width / Line style).
