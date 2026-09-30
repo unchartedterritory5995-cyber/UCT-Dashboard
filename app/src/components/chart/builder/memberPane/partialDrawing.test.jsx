@@ -207,12 +207,36 @@ const CASES = [
     objectsOnly: false, kind: 'partial',
     text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ── plots + a removal lost: plots drawn, drawings withheld, said so ───────
-  // ⚠️ Since the call-site inliner this corpus row's program is EMPTY (all 7 of
-  // its drawing steps are refused calls to its own helpers), so it proves the
-  // SENTENCE and not the withholding; `plots + removal lost, with a real program`
-  // below is the case that can tell withheld from drawn.
-  { cls: 'plots + removal lost in a refused helper', script: 'trend-lines-supports-and-resistances__413ee2ee3b',
+  // ⚰️ 2026-09-30 (C34) — this row was trend-lines-supports-and-resistances, and
+  // its "removal lost in a refused helper" was two readings the helper refusal
+  // got wrong: `f_clearAll`'s `for [i, v] in line.all` was read as a history
+  // offset (`for[…]`), and the six calls inside its `for … in` / `while` loops
+  // were refused as calls rather than read as statements of loops this chart
+  // does not run. Both are inlined now, so no helper of that script is refused
+  // and it is the partial row below. A fixture keeps this class: a helper whose
+  // body reads `ta.sma` (a per-call-site history — still refused under a guard
+  // that varies) and deletes a handle the tokens cannot name.
+  { cls: 'plots + removal lost in a refused helper', script: '(fixture: `ta.sma` in a conditional helper that deletes)',
+    source: [
+      '//@version=5',
+      'indicator("refused helper", overlay = true)',
+      'plot(close)',
+      'f(l) =>',
+      '    m = ta.sma(close, 3)',
+      '    l.delete()',
+      'var line ln = line.new(bar_index, close, bar_index + 1, close)',
+      'if close > open',
+      '    f(ln)',
+    ].join(String.fromCharCode(10)),
     objectsOnly: false, kind: 'withheld', what: 'a function of its own that deletes' },
+  // ⭐ 2026-09-30 (C34): every drawing step of this script sits in a `for … in`
+  // over a list of user-type points or in a `while`, loops the host reader does
+  // not run. Its helpers are inlined into them now (C34), so the loss is named
+  // by what the loops hold rather than by the helpers' names. Its program is
+  // empty: nothing is drawn, and nothing that is drawn is removed.
+  { cls: 'plots + partial the loops never ran', script: 'trend-lines-supports-and-resistances__413ee2ee3b',
+    objectsOnly: false, kind: 'partial',
+    text: /^This script uses `box\.delete`, `box\.new`, `label\.delete`, `label\.new`, `line\.delete`, `line\.new`, `line\.set_color`, `line\.set_extend`, `line\.set_style`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ⭐ 2026-09-27 — was the `withheld` row (its `line.delete(sup[1])`s were
   // dropped). A drawing variable's history (`{r:'reg', back:1}`) completes it.
   { cls: 'clean plots + objects, completed by `line.delete(sup[1])`', script: 'fibonacci-pivot-points-cc__p8DQ3RIR97',
