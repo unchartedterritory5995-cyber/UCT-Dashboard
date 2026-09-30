@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { interpret, nodeCount, structuralMaps, TableRefusal } from './interpret'
 import { checkBudget, DEFAULT_BUDGET } from './budget'
+import { RUNTIME_AT_CALL, runtimeAtIndex } from './objectProgram'
 
 const bars = Array.from({ length: 60 }, (_, i) => {
   const d = new Date(Date.UTC(2024, 0, 1) + i * 86400000).toISOString().slice(0, 10)
@@ -180,4 +181,20 @@ describe('C19 — ONE fixture, both lanes: the same trees, the same units', () =
       expect(distinct(c.tree)).toBe(c.distinct)
     })
   }
+})
+
+describe('C19 × C18 — a runtime placeholder is a READ: one unit, nothing below it', () => {
+  // `__uct_runtime_at(k)` is a value the per-bar runtime lane computed; the object
+  // pass reads its column (`objectColumns.js`, `runtimeAtIndex`) and never
+  // interprets it — so the budget charges it one read, like a held column.
+  const ph = (k) => ({ type: 'call', name: RUNTIME_AT_CALL, args: [num(k)] })
+  it('⭐ the placeholder the object pass reads is one unit (its `k` literal is not a computation)', () => {
+    expect(runtimeAtIndex(ph(3))).toBe(3) // non-vacuity: the pass reads exactly this shape
+    expect(distinct(ph(3))).toBe(2)
+    expect(nodeCount(ph(3))).toBe(1)
+  })
+  it('⭐ two placeholders are two reads (two runtime values), and a tree over one counts only itself above it', () => {
+    expect(nodeCount(op('+', ph(0), ph(1)))).toBe(3)
+    expect(nodeCount(op('>', ph(0), series('close')))).toBe(3)
+  })
 })

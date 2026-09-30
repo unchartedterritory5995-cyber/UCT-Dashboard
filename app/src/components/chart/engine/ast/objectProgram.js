@@ -59,6 +59,7 @@
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+import { RUNTIME_AT_CALL } from './parse.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -216,6 +217,35 @@ export const DEFAULT_OBJECT_LIMITS = Object.freeze({
 /** A collection's own ceiling. Bounded BY CONSTRUCTION — the wave forbids "a
  *  general arbitrary Pine heap", and an unbounded object array is one. */
 export const MAX_COLLECTION_CAP = 500
+
+/** ⭐⭐ C18 — A TREE THE PER-BAR RUNTIME LANE ANSWERS, READ WHERE ITS DRAWING STANDS.
+ *
+ *  Some values a drawing needs are computed IMPERATIVELY — a `while` that converges,
+ *  arrays filled and scanned by helpers — and the columnar model has no node for
+ *  "what the loop left behind". `pine.js` then writes, in place of the tree it could
+ *  not build, a placeholder `__uct_runtime_at(k)`, and the program carries
+ *  `runtime: { v, source, at }`: the script itself and, per `k`, the statement the
+ *  drawing stands at (`line`, `column` of its first token) and the raw parse node
+ *  of the value (`null` = the statement's REACHED signal, which carries every `if`
+ *  around it). `objectColumns.js` runs the script once on the chart's bars through
+ *  the runtime lane (`runtimeColumns.js::runtimeObjectValues`) and reads each
+ *  placeholder's column from it — the ONE evaluator, not a second.
+ *
+ *  ⛔ SERVED ONLY WHERE EXACT, and otherwise the placeholder reads UNKNOWN, so C17
+ *  withholds what reads it: see `runtimeObjectValues` for the rules. */
+// ⭐ C19 — declared in `parse.js` (the budget's unit count reads it too), re-exported
+// here for every existing importer. One authority, never restated.
+export { RUNTIME_AT_CALL }
+export const RUNTIME_PROGRAM_VERSION = 1
+/** The `k` of a runtime placeholder tree, or -1. */
+export const runtimeAtIndex = (tree) => {
+  if (!tree || typeof tree !== 'object' || tree.type !== 'call' || tree.name !== RUNTIME_AT_CALL) return -1
+  const a = Array.isArray(tree.args) ? tree.args[0] : null
+  return a && a.type === 'num' && Number.isInteger(a.value) && a.value >= 0 ? a.value : -1
+}
+/** ⛔ A stored runtime program is bounded like everything else in a document. */
+export const MAX_RUNTIME_SOURCE = 200000
+export const MAX_RUNTIME_VALUES = 512
 
 /** ⭐⭐ HOW FAR BACK A HANDLE'S HISTORY MAY BE READ — `line.delete(l[1])`.
  *
@@ -677,6 +707,26 @@ function* walkOps(ops, prefix = 'objects.ops') {
   }
 }
 
+/** ⭐ C18 — the shape of `program.runtime` (see `RUNTIME_AT_CALL`). */
+function assertRuntimeProgram(rt) {
+  if (!isObj(rt)) throw new Error('objects.runtime: expected an object')
+  if (rt.v !== RUNTIME_PROGRAM_VERSION) {
+    throw new Error(`objects.runtime: v must be ${RUNTIME_PROGRAM_VERSION}, got ${JSON.stringify(rt.v)}`)
+  }
+  if (typeof rt.source !== 'string' || !rt.source || rt.source.length > MAX_RUNTIME_SOURCE) {
+    throw new Error(`objects.runtime: source must be the script, 1..${MAX_RUNTIME_SOURCE} characters`)
+  }
+  if (!Array.isArray(rt.at) || !rt.at.length || rt.at.length > MAX_RUNTIME_VALUES) {
+    throw new Error(`objects.runtime: at must list 1..${MAX_RUNTIME_VALUES} values`)
+  }
+  rt.at.forEach((a, k) => {
+    if (!isObj(a) || !Number.isInteger(a.line) || a.line < 1 || !Number.isInteger(a.column) || a.column < 0) {
+      throw new Error(`objects.runtime.at[${k}]: needs a whole line and column`)
+    }
+    if (a.node !== null && !isObj(a.node)) throw new Error(`objects.runtime.at[${k}]: node is a parse node or null`)
+  })
+}
+
 export function assertObjectProgram(program) {
   if (!isObj(program)) {
     throw new Error(`objects: expected an object program, got ${program === null ? 'null' : typeof program}`)
@@ -706,6 +756,7 @@ export function assertObjectProgram(program) {
     colls.set(c.id, c)
   }
   const nums = new Set((program.nums || []).map((n) => n.id))
+  if (program.runtime !== undefined) assertRuntimeProgram(program.runtime)
 
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')

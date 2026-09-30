@@ -50,7 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
-  SERIES_LOOKBACK, usableWindowBound,
+  SERIES_LOOKBACK, usableWindowBound, RUNTIME_AT_CALL,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -3592,6 +3592,11 @@ export function evaluationUnits(root, held) {
     // `self[k]` — a slot of the step's own history, computed by nothing). What a
     // recurrence COMPUTES per step is its spine's operators and calls, and those
     // are keyed on the recurrence below: `self + 1` under two recurrences is two.
+    // ⭐ C18/C19 — a RUNTIME PLACEHOLDER (`__uct_runtime_at(k)`) is a value the
+    // per-bar runtime lane computed; the object pass reads its column and never
+    // interprets it, so it is one read and nothing below it is counted (it is
+    // self-free, so `read` already holds; the `continue` below is the rule).
+    const runtimeRead = !!n && n.type === 'call' && n.name === RUNTIME_AT_CALL
     const read = freeOf.get(n) || isBind(n) || (n && n.type === 'offset' && isBind(n.args && n.args[0]))
     // the chart's own read shapes — nearly every unit — keep the bare id
     // (a number never equals a string key, and `rec` always holds a `|`)
@@ -3600,6 +3605,7 @@ export function evaluationUnits(root, held) {
     if (units.has(key)) continue
     units.add(key)
     if (!n || typeof n !== 'object' || Array.isArray(n)) continue
+    if (runtimeRead) continue
     if (scope === '' && free && heldShape.get(sid) === true) continue
     const args = Array.isArray(n.args) ? n.args : []
     const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope

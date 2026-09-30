@@ -32,6 +32,10 @@ export const LIMIT_NAMES = Object.freeze([
   'INSTRUCTIONS_PER_BAR',
   'TOTAL_INSTRUCTIONS',
   'LOOP_ITERATIONS',
+  // ⭐⭐ C18 — the passes ONE ENTRY of one `while` may take. A PEAK, reset each
+  // time the loop is reached, so a loop that finishes costs nothing here and
+  // one that does not is stopped by name at its own line (`ir.js::whileStmt`).
+  'WHILE_ITERATIONS',
   'LOOP_NESTING',
   'CALL_DEPTH',
   'CALL_COUNT',
@@ -82,6 +86,16 @@ export const DEFAULT_LIMITS = Object.freeze({
   INSTRUCTIONS_PER_BAR: 200000,
   TOTAL_INSTRUCTIONS: 200000000,
   LOOP_ITERATIONS: 100000,
+  // ⛔⛔ AN ENGINE LIMIT, NOT A PINE CLAIM. TradingView stops a runaway loop on
+  // ELAPSED TIME, and no capture or document in this repo pins that limit, so no
+  // pass count can be said to be Pine's. A `while` that finishes within this many
+  // passes computes exactly what Pine computes (the loop has no semantics but its
+  // body); one that does not is REFUSED for that evaluation — never cut short and
+  // read. 10,000 is three orders above every `while` measured in the corpus
+  // (k-clustering converges in 15 passes on its RDDT capture; max-pain's loops are
+  // bounded by its strike count, 20) and far below what `LOOP_ITERATIONS` already
+  // allows a whole run.
+  WHILE_ITERATIONS: 10000,
   LOOP_NESTING: 8,
   CALL_DEPTH: 64,
   CALL_COUNT: 5000000,

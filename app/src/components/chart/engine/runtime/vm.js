@@ -646,7 +646,7 @@ export function execute(program, ctx, limits, opts) {
                 `pc ${pc - 1}: \`${cname}\` argument ${i + 1} takes a ${want}, got ${kindOf(v)}`)
             }
           }
-          stack[sp] = cspec.fn(Array.prototype.slice.call(stack, sp, sp + b))
+          stack[sp] = cspec.fn(Array.prototype.slice.call(stack, sp, sp + b), budget)
           sp += 1
           break
         }
@@ -934,6 +934,22 @@ export function execute(program, ctx, limits, opts) {
           budget.charge('LOOP_ITERATIONS', 1)
           budget.peak('LOOP_NESTING', a)
           break
+        case OP.WHILE_BOUND: {
+          // ⭐⭐ C18 — this entry's pass count, checked as a PEAK so a finished
+          // loop leaves nothing behind. ⛔ Past the bound the run STOPS by name,
+          // carrying the loop's line and the bar: the values the loop would
+          // have produced are unknown, and reading them at the cut would be a
+          // guess (`ir.js::whileStmt`).
+          const passes = stack[--sp]
+          try {
+            budget.peak('WHILE_ITERATIONS', passes)
+          } catch (err) {
+            err.line = a
+            err.bar = bar
+            throw err
+          }
+          break
+        }
         case OP.REQUEST: {
           const site = program.requests[a]
           const symbol = stack[--sp]

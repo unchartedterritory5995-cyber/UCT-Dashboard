@@ -161,11 +161,16 @@ describe('⛔ the unserved colour calls keep their refusal', () => {
     // ⛔ AND IT IS NAMED, because "not a colour" would be FALSE about it — it IS
     // a colour, this engine just does not compute it. Telling a member the wrong
     // one sends them to rewrite a line that is already correct.
-    const r = refusalOf('bgcolor(color.from_gradient(close, 0, 1, color.red, color.green))\nplot(close)')
-    expect(r.guard).toBe('runtime:colour')
-    expect(r.message).toContain('color.from_gradient')
-    expect(r.message).toMatch(/does not compute/)
-    expect(r.message).not.toMatch(/is not one/)
+    // ⚰️ C18 — it COMPILES now and stops the RUN by name unless the caller holds a
+    // probe (`colours.js`; the probe half is `c18UnmeasuredProbe.test.js`). So the
+    // refusal is asked of the run, with the same three sentences.
+    let err = null
+    try { run('bgcolor(color.from_gradient(close, 0, 1, color.red, color.green))\nplot(close)') } catch (e) { err = e }
+    expect(err, 'the run must stop, not draw a guessed colour').not.toBe(null)
+    expect(err.name).toBe('ColourError')
+    expect(err.message).toContain('color.from_gradient')
+    expect(err.message).toMatch(/does not compute/)
+    expect(err.message).not.toMatch(/is not one/)
   })
 })
 

@@ -23,7 +23,7 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
-import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
+import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
 } from './ast/interpret'
@@ -31,6 +31,39 @@ import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
+
+// ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
+//
+// A program carrying `runtime` (see `objectProgram.js::RUNTIME_AT_CALL`) has
+// placeholder trees whose columns come from ONE run of the script through the
+// per-bar runtime lane (`runtime/runtimeColumns.js::runtimeObjectValues`).
+//
+// ⭐ REGISTERED, NEVER IMPORTED — the same rule the runtime pane follows
+// (`nativeRegistry.registerRuntimeLane`): the runtime lane is member-door
+// machinery behind the member-pane gate, and no path from the app entry may reach
+// it without that gate (`memberPaneGate.test.js`). The member door imports it —
+// and so registers it — whenever it translates a script.
+// ⛔ UNTIL IT IS REGISTERED, every placeholder reads UNKNOWN (`runtime:not-loaded`)
+// — withheld, never guessed. A chart that opens a SAVED document before the member
+// door has loaded in that session draws those objects only once it has.
+let runtimeObjectValuesFn = null
+export function registerObjectRuntimeValues(fn) {
+  runtimeObjectValuesFn = typeof fn === 'function' ? fn : null
+}
+
+/** ⭐ C18 — did the member leave every input at the author's default, and edit no
+ *  folded parameter? The runtime lane runs the script AS WRITTEN; a knob the
+ *  member moved is in the drawing's trees and not in that run. */
+function inputsAtDefaults(definition, inputs) {
+  const manifest = definition && definition.compute && definition.compute.paramManifest
+  if (manifest && Object.keys(manifest).length) return false
+  for (const input of (definition && definition.inputs) || []) {
+    if (!input || typeof input.key !== 'string') continue
+    const v = inputs ? inputs[input.key] : undefined
+    if (v !== undefined && !Object.is(v, input.default)) return false
+  }
+  return true
+}
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -431,6 +464,19 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
+  // ⭐⭐ C18 — the placeholders' columns, from ONE runtime run (or withheld).
+  let runtime = null
+  if (program.runtime) {
+    runtime = runtimeObjectValuesFn
+      ? runtimeObjectValuesFn(program.runtime, bars, {
+        tf: evalOpts.tf,
+        newestBarIsForming: evalOpts.newestBarIsForming,
+        fromListing: evalOpts.historyFromListing === true,
+        atDefaults: inputsAtDefaults(definition, opts.inputs),
+      })
+      : { cols: [], unknown: [], served: false, reason: 'runtime:not-loaded' }
+  }
+  const barCount = Array.isArray(bars) ? bars.length : 0
   // ⭐ IDENTITY BINDING. The program's own `trees` array IS the node table, so
   // tree index i becomes node index i and the runtime's single `{v:'graph'}`
   // vocabulary serves both forms without a second evaluator.
@@ -444,6 +490,19 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const probeMemos = new Map()
   const intern = makeInterner()
   for (const i of graphNodesReferenced(bound)) {
+    // ⭐ C18 — a runtime placeholder is read off the run, never interpreted.
+    const rk = runtimeAtIndex(trees[i])
+    if (rk >= 0) {
+      const col = runtime && runtime.cols[rk]
+      if (col) {
+        columns.set(i, col)
+        if (runtime.unknown[rk]) unknown.set(i, runtime.unknown[rk])
+      } else {
+        columns.set(i, new Float64Array(barCount).fill(NaN))
+        unknown.set(i, new Uint8Array(barCount).fill(1))
+      }
+      continue
+    }
     try {
       const tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
@@ -470,5 +529,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
-  return { program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees' }
+  return {
+    program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees',
+    // ⭐ C18 — whether the runtime values were served, and if not, why (named).
+    ...(runtime ? { runtime: { served: runtime.served, reason: runtime.reason } } : {}),
+  }
 }

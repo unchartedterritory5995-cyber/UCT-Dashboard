@@ -452,6 +452,13 @@ export const BAR_READERS = Object.freeze(barReadersOf(TABLE))
  *  argues it. */
 export const VENDOR_NOTE = 'vendorNote'
 
+/** ⭐ C18/C19 — the call name of a RUNTIME PLACEHOLDER, `__uct_runtime_at(k)`: a
+ *  drawing value the per-bar runtime lane computes and the object pass READS
+ *  (`objectProgram.js`, `objectColumns.js`). Declared here, beside the grammar,
+ *  because two readers need it and one of them — `interpret.js::evaluationUnits`,
+ *  which counts it as one read — may import only this module and the budget. */
+export const RUNTIME_AT_CALL = '__uct_runtime_at'
+
 /** name → the member-readable sentence, for every entry that carries one.
  *
  *  ⛔ DERIVED, NEVER LISTED, for the same reason `barReadersOf` is: today exactly
