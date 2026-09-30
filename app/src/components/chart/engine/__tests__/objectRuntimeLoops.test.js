@@ -137,6 +137,38 @@ describe('⭐⭐ (c) drawings made inside a `while`, pass by pass', () => {
   })
 })
 
+describe('⭐ the runtime lane is asked only when it could help, and a script it cannot build costs ONE pass', () => {
+  const spy = () => {
+    const calls = []
+    const check = (s, specs) => { calls.push(specs.length); return probeObjectRuntime(s, specs) }
+    return { calls, check }
+  }
+  it('a script the lane cannot build: one compile check with no values, and the plain pass stands', () => {
+    // `request.security` is refused by the check (the object reader has no other bars)
+    const src = 'o = request.security(syminfo.tickerid, "W", close)\nplot(o)\n' + LOOP
+    const { calls, check } = spy()
+    const t = translatePine(HEAD + src, { strict: true, objects: true, objectRuntimeCheck: check })
+    expect(calls).toEqual([0])
+    expect(t.objectDiagnostics.runtimeRefused).toBeTruthy()
+    expect(t.objects).toEqual(plain(src).objects)
+  })
+  it('a script with nothing the lane could supply is never checked', () => {
+    const { calls, check } = spy()
+    translatePine(HEAD + 'if barstate.islast\n    label.new(bar_index, close, "x")\nplot(close)\n',
+      { strict: true, objects: true, objectRuntimeCheck: check })
+    translatePine(HEAD + 'label.new(bar_index, close, str.tostring(close))\nplot(close)\n',
+      { strict: true, objects: true, objectRuntimeCheck: check })
+    expect(calls).toEqual([])
+  })
+  it('⛔ CONTROL — a script it can build: checked with no values, then with its values', () => {
+    const { calls, check } = spy()
+    translatePine(HEAD + LOOP, { strict: true, objects: true, objectRuntimeCheck: check })
+    expect(calls[0]).toBe(0)
+    expect(calls.length).toBeGreaterThan(1)
+    expect(calls[calls.length - 1]).toBeGreaterThan(0)
+  })
+})
+
 describe('⭐⭐ (a) text only the run holds', () => {
   const NET = 'if barstate.islast\n    int i = 0\n    float net = 0.0\n    while i < 3\n        net -= close[i]\n        i += 1\n'
     + '    bias = net > 0 ? "LONG" : "SHORT"\n'

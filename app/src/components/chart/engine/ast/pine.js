@@ -19158,39 +19158,73 @@ function translatePineResult(source, opts = {}) {
       runtimeKinds,
     })
     const check = typeof opts.objectRuntimeCheck === 'function' ? opts.objectRuntimeCheck : null
-    objectPass = runPass(check || undefined)
-    // ⭐⭐ C18 — THE RUNTIME LANE MUST BUILD THE WHOLE SCRIPT, OR NOTHING IS READ
-    // FROM IT. The pass wrote placeholders for the values only an imperative run can
-    // compute; if the runtime lane cannot compile the script with them at their
-    // statements, the pass runs again WITHOUT them, so every op it rescued is
-    // dropped exactly as before and the member door sees the refusal it always saw.
-    // ⭐ A value the lane names as NOT A NUMBER (a text, a colour — the pass asked
-    // for a number) is left out by itself and the pass asked again, at most twice.
-    if (check && objectPass && objectPass.runtimeSpecs) {
-      const exclude = new Set()
-      // ⭐ C20 — what the runtime lane said a value IS, when asked for another
-      // kind: the next pass asks for that kind wherever a text or colour slot can
-      // take it (`rtPlaceholder`), and leaves it out everywhere else.
-      const kinds = new Map()
-      const ASKABLE = new Set(['num', 'text', 'colour'])
-      for (let round = 0; ; round += 1) {
-        const verdict = check(source, objectPass.runtimeSpecs)
-        if (verdict && verdict.ok) break
-        const named = verdict && Array.isArray(verdict.exclude) ? verdict.exclude : []
-        if (round < 3 && named.length) {
-          named.forEach((k, i) => {
-            const key = objectPass.runtimeKeys[k]
-            const is = verdict && Array.isArray(verdict.kinds) ? verdict.kinds[i] : undefined
-            if (ASKABLE.has(is) && !kinds.has(key)) kinds.set(key, is)
-            else exclude.add(key)
-          })
-          objectPass = runPass(check, exclude, kinds)
-          if (!objectPass.runtimeSpecs) break
-          continue
-        }
-        objectPass = runPass(undefined)
+    // ⭐⭐ C20 — THE PASS WITHOUT THE RUNTIME LANE COMES FIRST, because it is the
+    // answer whenever the runtime lane cannot help — and the runtime lane is only
+    // asked when it could.
+    //
+    // ⚰️ MEASURED 2026-09-30 (C18's census 53 → 61 s, settled alternated: wave 5
+    // 51.2 / 49.7 s of test time against C18's 56.2 / 59.6 s). The pass used to run
+    // WITH the check first; for a script the runtime lane cannot build (a library
+    // import, a dynamic offset — most of the corpus) the check failed and the whole
+    // object pass ran AGAIN without it: artemis-oscillator-pro paid 597 ms for a
+    // second pass to arrive back where it started, the corpus 1.7 s a translation.
+    // Now the plain pass runs once; the lane is asked only for a script that draws
+    // on its last bar AND lost something the lane could supply (a value refused, a
+    // drop, a loop the reader could not carry), and a script the lane cannot build
+    // at all is found by one compile (`check(source, [])`), never by a second pass.
+    // The plain pass is byte-for-byte the fallback the old order ran.
+    objectPass = runPass(undefined)
+    const rescuable = (pass) => {
+      const d = (pass && pass.diagnostics) || {}
+      return (d.unresolvedValues || 0) > 0 || (d.loopBlocked || 0) > 0 || (d.droppedProps || 0) > 0
+        || (d.droppedOps || 0) > 0
+    }
+    if (check && objectPass && rescuable(objectPass)
+        && /\bbarstate\.islast\b/.test(strippedForScan(String(source || '')))) {
+      const plain = objectPass
+      const refused = (verdict) => {
+        objectPass = plain
         objectPass.diagnostics.runtimeRefused = (verdict && verdict.refusal && verdict.refusal.guard) || 'runtime'
-        break
+      }
+      // ⭐ An objects-only script has no output until the values it is asked for
+      // become outputs, so "nothing to plot" — refused only after the whole walk —
+      // is a script the lane CAN build. The check with the values is the authority.
+      const buildable = check(source, [])
+      const built = !!buildable && (buildable.ok
+        || (buildable.refusal && buildable.refusal.guard === 'runtime:no-output'))
+      if (!built) refused(buildable)
+      else {
+        // ⭐ A pass that minted no runtime value holds nothing to check (and one
+        // that minted values but kept no op carries the reasons it dropped them).
+        objectPass = runPass(check)
+      }
+      // ⭐⭐ C18 — THE RUNTIME LANE MUST BUILD THE WHOLE SCRIPT WITH ITS VALUES AT
+      // THEIR STATEMENTS, OR NOTHING IS READ FROM IT: the plain pass stands, and
+      // the member door sees the refusal it always saw.
+      // ⭐ A value the lane names as NOT of the kind asked for is asked again as
+      // the kind it is where a slot can take it (C20), else left out by itself.
+      if (objectPass !== plain && objectPass.runtimeSpecs) {
+        const exclude = new Set()
+        const kinds = new Map()
+        const ASKABLE = new Set(['num', 'text', 'colour'])
+        for (let round = 0; ; round += 1) {
+          const verdict = check(source, objectPass.runtimeSpecs)
+          if (verdict && verdict.ok) break
+          const named = verdict && Array.isArray(verdict.exclude) ? verdict.exclude : []
+          if (round < 3 && named.length) {
+            named.forEach((k, i) => {
+              const key = objectPass.runtimeKeys[k]
+              const is = verdict && Array.isArray(verdict.kinds) ? verdict.kinds[i] : undefined
+              if (ASKABLE.has(is) && !kinds.has(key)) kinds.set(key, is)
+              else exclude.add(key)
+            })
+            objectPass = runPass(check, exclude, kinds)
+            if (!objectPass.runtimeSpecs) break
+            continue
+          }
+          refused(verdict)
+          break
+        }
       }
     }
     if (objectPass) { delete objectPass.runtimeSpecs; delete objectPass.runtimeKeys }
