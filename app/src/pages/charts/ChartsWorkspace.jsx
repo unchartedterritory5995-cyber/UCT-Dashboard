@@ -2124,7 +2124,10 @@ export default function ChartsWorkspace() {
   // back, so this is the immutable restore point — any edits the user made are
   // wiped by re-opening it. Color-group tickers are left as-is (Option A: content
   // loads live/personal, only the shell + settings are frozen).
-  const applyUctDefault = useCallback(() => {
+  // `quiet` (TERM-010 first run): the same apply, without closing a menu nobody opened or
+  // flashing "Saved" at a member who has not done anything yet. A click passes the
+  // event, whose `quiet` is undefined, so the menu path is unchanged.
+  const applyUctDefault = useCallback(({ quiet = false } = {}) => {
     flushNamedSaveRef.current?.()
     userRemovedRef.current = false
     suppressAutoSave()
@@ -2136,7 +2139,7 @@ export default function ChartsWorkspace() {
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
       applyLocal: () => setLayout(normalized),
-      onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
+      onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(normalized))
         setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
@@ -2169,9 +2172,9 @@ export default function ChartsWorkspace() {
     const byName = (arr) => arr.find(t => (t.name || '').trim().toLowerCase() === 'chart')
     const tpl = byName(globalLayouts) || byName(myLayouts)
     if (tpl?.layout?.widgets?.length) {
-      return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null }
+      return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null, fromTemplate: true }
     }
-    return { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT, groups: null }
+    return { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT, groups: null, fromTemplate: false }
   }, [globalLayouts, myLayouts])
 
   // New users (no saved layout) open on the default; returning users keep their
@@ -2183,9 +2186,17 @@ export default function ChartsWorkspace() {
     if (parseLayout(prefs?.charts_workspace_layout)) { appliedDefaultRef.current = true; return }
     appliedDefaultRef.current = true
     const d = resolveDefaultLayout()
+    // TERM-010 (owner ruling 2026-09-29: "UCT Default layout"): a member with NO board and NO
+    // chart settings is new, and starts on the WHOLE UCT Default -- the frozen look as well as
+    // the arrangement -- through the same apply the Open Layout menu runs, so the two cannot
+    // drift. A member who already has chart settings keeps them; a DB "chart" template wins.
+    if (!d.fromTemplate && !prefs?.chart_settings) {
+      applyUctDefault({ quiet: true })
+      return
+    }
     setLayout(d.layout)
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, resolveDefaultLayout])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, resolveDefaultLayout, applyUctDefault])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,

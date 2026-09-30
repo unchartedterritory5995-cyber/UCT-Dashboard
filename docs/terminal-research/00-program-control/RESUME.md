@@ -31,6 +31,23 @@ there is no history shortcut. How many is enough is the owner's call.
 Next: read `rss_breakdown_mb` once `fb2ef0188` is live — RssFile ⇒ page cache through per-thread 256 MB bars.db mmaps
 (evictable); RssAnon ⇒ a real hold in the news path.
 
+**Owner rulings 2026-09-29 evening:** TERM-042 — keep shadow grading nightly in the background, bring it back at 3
+clean sessions (a history backtest already exists: the August parity fixture). TERM-007 — **quiet window 2026-09-30
+09:30–10:30 ET, no master pushes**; sample memory (`/api/health/memory` incl. `rss_breakdown_mb`) and loop lag
+(`/api/watchdog/status`) across the open. TERM-010 — UCT Default (built).
+
+**Late evening (after 20:00 ET):** TERM-018 now GATES promotion (SEEN RED run 36641866414 via an owner-run probe
+branch, deleted). TERM-009 (opt-in call record), TERM-010 (whole UCT Default on first run) LIVE. TERM-056 Floor half
+built (`dd9cf0508`: addresses link only what the author shared). ⭐ EVENT-LOOP STALL NAMED: `/api/watchdog/stacks`
+(admin) held a 5,019 ms capture 58 s after boot inside `desk_zoom_webhook.insights_status` → `list_videos()` →
+`fetchall()` — an `async def` that awaits nothing, so blocking SQLite ran ON the loop (pod max lag 13.6 s). Fixed
+(`1e2f5eece`, both desk diagnostics → `def`) + shrink-only rail `tests/test_async_routes_do_not_block.py` (65 more
+handlers of that shape, worked down BY STALL EVIDENCE, never mass-converted). **Quiet window is AUTOMATED:** Windows
+task `UCT-QuietWindow-2026-09-30` runs `tools/quiet_window_sampler.py` 13:25–14:35 UTC into
+`10-roadmap/evidence/2026-09-30-quiet-window/raw.jsonl`; afterwards read it AND `/api/watchdog/stacks`.
+⚠️ Pushes to master are owner-run tonight (the permission check refuses the agent's pushes); the owner line is
+`git pull --no-rebase --no-edit origin master && UCT_BURST_ATTESTED_BY=Patrick UCT_BURST_ATTESTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ) git push origin HEAD:master`.
+
 **Backlog status column is STALE:** most "BUILDABLE" rows (027 029 030 031 036 063 065 066 067 069 073 …) were built
 and merged by other sessions — check `git log --grep term-0NN` before building. Rows with NO commits: 001 002 003 005
 007 008 009 010 017 043 056 (014/017 held on 007, a person's act; 056 needs an owner ruling on Floor addresses).

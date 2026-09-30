@@ -1182,7 +1182,13 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     #  • no d / stale d (the boundary moved since the client's tail)  → short public cache,
     #    so current data is never frozen for a year under a mismatched date. Backward-compat:
     #    older clients that don't send d keep the original 1h self-healing behavior.
-    if d and last_sealed and d == last_sealed:
+    # ⛔ NOT FOR BREADTH. A breadth series' CONTENT can change under the same URL when its
+    # authority switches (breadth_authority: V1 → V2 keeps `d`), so a year-long immutable copy
+    # would splice pre-switch history under the fresh tail. Breadth series are cached server-side
+    # anyway; a short public cache costs one cheap origin read.
+    if _is_breadth_symbol(ticker):
+        out.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
+    elif d and last_sealed and d == last_sealed:
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"

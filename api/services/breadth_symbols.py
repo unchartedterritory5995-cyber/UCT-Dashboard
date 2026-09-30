@@ -700,7 +700,8 @@ def _daily_key(sym: str) -> str:
     a switch or a rollback can never serve a series built under the other authority."""
     try:
         from api.services import breadth_authority as ba
-        return f"breadthdaily_{sym}" if not ba.in_force() else f"breadthdaily_{sym}_{ba.token()}"
+        t = ba.token()
+        return f"breadthdaily_{sym}" if t == "v1" else f"breadthdaily_{sym}_{t}"
     except Exception:
         return f"breadthdaily_{sym}"
 
@@ -756,8 +757,10 @@ def _build_breadth_series(sym: str, metric: str,
     if universe == DEFAULT_UNIVERSE:
         try:
             from api.services import breadth_authority as ba
-            auth = ba.chart_bars(metric, {r.get("date"): _finite(r.get(metric)) for r in history
-                                          if r.get("date") and r.get("date") > ba.FROZEN_END})
+            tail_rows = [r for r in history if r.get("date") and r.get("date") > ba.FROZEN_END]
+            auth = ba.chart_bars(metric, {r["date"]: _finite(r.get(metric)) for r in tail_rows},
+                                 {r["date"]: _finite(r.get("adv_decline")) for r in tail_rows
+                                  if r.get("_authority") == ba.PROVISIONAL})
         except Exception:
             auth = None
         if auth is not None:
@@ -769,6 +772,8 @@ def _build_breadth_series(sym: str, metric: str,
                 closes_by_date[d] = ac
                 if ao is not None:
                     ohlc_map[d] = {"o": ao, "h": ah, "l": al, "c": ac}
+                else:
+                    ohlc_map.pop(d, None)     # an authority body: no stale V1 wick survives
 
     seq: list[tuple[str, float]] = sorted(closes_by_date.items())  # oldest-first
 

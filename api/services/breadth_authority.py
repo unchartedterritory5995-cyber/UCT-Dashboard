@@ -66,10 +66,9 @@ V2_METRICS = (
 #: Fields the Monitor DERIVES from the 35 that V2 already stores — for a V2 row the stored
 #: value is canonical and the V1 row-window recomputation must not replace it.
 V2_DIRECT_DERIVED = ("ratio_5day", "ratio_10day", "hi_ratio", "lo_ratio", "net_new_high_low")
-#: Derived fields that cannot be recomputed from V2 without an owner methodology decision
-#: (seed/warm-up across the 2026-03-23 boundary and treatment of the PIT gaps). Under V2 they
-#: are withheld (None) with `_decision_pending`; the member switch is blocked while non-empty.
-PENDING_DECISION_FIELDS = ("mcclellan_osc", "adv_decline_cum")
+#: Derived fields still awaiting an owner methodology decision (withheld under V2). Empty since
+#: the 2026-09-29 rulings: both bridges below are locked.
+PENDING_DECISION_FIELDS = ()
 
 #: First-class V2 provenance. Within one (universe, date, metric) exactly one row exists, so the
 #: rank only matters if a future writer ever offered both: the observed path beats the body.
@@ -88,17 +87,67 @@ CANONICAL = (V2_FROZEN, V2_LIVE)
 #: for ~30 min each evening both are awaiting the producer.
 PROVISIONAL_MAX = 2
 
+#: ⭐ The two derived-field BRIDGES across the 2026-03-23 boundary (owner rulings 2026-09-29).
+#: Seeds are PINNED (computed once by `breadth_monitor.v1_merged_adv_decline` +
+#: `rebuild_mcclellan_state` on the production V1 stores, 2026-09-29) so a later V1-store change
+#: can never move the V2 continuation; `seed_check()` re-derives them and reports drift.
+SEED_SESSION = "2026-03-20"          # the last trading session before V2_START (03-22 was a Sunday)
+V1_LINEAGE = {"input": "V1 daily adv_decline, deep-reader merge rule (collector breadth_snapshots wins; "
+                       "trusted-source breadth_daily_ohlc uct close fills), 2008-01-02..2026-03-20",
+              "sessions": 4583, "sha256": "90f41088f39b23dc49f33de24cd8a1a9f25c8d201d2faeb273e6038ccf1393b4"}
+MCCLELLAN_BRIDGE = {
+    "methodology": "mcclellan-rebuilt-v1-state-v2-input-v1",
+    "description": "RECONSTRUCTED-V1-STATE / V2-INPUT CONTINUATION: through 2026-03-20 the legacy V1 "
+                   "published oscillator; seed = EMA19/EMA39 deterministically rebuilt from the stored V1 "
+                   "daily net-advance history (NOT the original V1 state, which V1 never persisted); from "
+                   "2026-03-23 canonical V2 net advances only. PIT gaps emit no value and hold the state.",
+    "rule": "EMA alpha 2/20 and 2/40, seeded at the first observation, missing sessions skipped, one pass "
+            "2008-01-02..2026-03-20", "seed_session": SEED_SESSION,
+    "ema19_seed": -447.32198711685294, "ema39_seed": -243.95100545909787,
+    "reconstructed_osc_at_seed": -203.37098165775507, "stored_v1_osc_at_seed": -201.4,
+    "accepted_discontinuity": -2.0, "v2_input_start": V2_START, "lineage": V1_LINEAGE}
+AD_BRIDGE = {
+    "methodology": "ad-legacy-full-history-seeded-v2-continuation-v1",
+    "description": "LEGACY-FULL-HISTORY-SEEDED / V2-CONTINUATION: AD(D) = full-history V1 cumulative A/D at "
+                   "2026-03-20 + sum of canonical V2 net advances 2026-03-23..D. PIT gaps emit no value and "
+                   "hold the state. Window-independent (the V1 collector-window-relative -995 is NOT used).",
+    "seed_session": SEED_SESSION, "seed_value": 806344.0, "v2_input_start": V2_START, "lineage": V1_LINEAGE}
+DERIVED_FIELDS = ("mcclellan_osc", "adv_decline_cum")
+_MCC_A19, _MCC_A39 = 2.0 / 20, 2.0 / 40
+
 _R2_LIVE_PREFIX = "breadth_v2/live/"
 _R2_MANIFEST = _R2_LIVE_PREFIX + "manifest.json"
 
 
 def mode() -> str:
+    """UCT authority (`BREADTH_AUTHORITY`)."""
     v = (os.environ.get("BREADTH_AUTHORITY") or "v1").strip().lower()
     return "v2" if v == "v2" else "v1"
 
 
 def in_force() -> bool:
     return mode() == "v2"
+
+
+# ── US: an INDEPENDENT authority over the whole V2 history (owner ruling 2026-09-29) ──────
+#: `BREADTH_AUTHORITY_US` governs `us` alone; `BREADTH_AUTHORITY` governs `uct` alone. V2 owns
+#: every `us` session it has — frozen 2008-01-02..2026-09-24 plus validated live publications —
+#: with NO 2026-03-23 boundary (that is UCT's), NO provisional tail (V1 `us` is the defective
+#: population, so it can never stand in for a V2 session) and NO PIT gaps (PIT is UCT's).
+US_UNIVERSE = "us"
+#: V1-only `us` metrics V2 does not produce — WITHHELD under V2 (never copied from V1).
+US_WITHHELD = ("up_on_volume", "down_on_volume", "hvc_52w", "up_vol_ratio")
+
+
+def us_mode() -> str:
+    v = (os.environ.get("BREADTH_AUTHORITY_US") or "v1").strip().lower()
+    return "v2" if v == "v2" else "v1"
+
+
+def serves(universe: Optional[str]) -> bool:
+    """Does V2 own `universe`'s OHLC history right now? (`uct` is composed by the Monitor/chart
+    overlay instead, so this answers only for `us`.) False = the V1 store answers, unchanged."""
+    return (universe or "").strip().lower() == US_UNIVERSE and us_mode() == "v2" and available()[0]
 
 
 def _root() -> str:
@@ -317,13 +366,16 @@ def available() -> tuple[bool, Optional[str]]:
 
 
 def token() -> str:
-    """Cache-key component: changes when the mode or any authoritative input changes."""
-    if not in_force():
+    """Cache-key component: changes when either authority or any authoritative input changes.
+    Byte-identical to its pre-US form while `BREADTH_AUTHORITY_US` is unset/v1."""
+    uct_v2, us_v2 = in_force(), us_mode() == "v2"
+    if not uct_v2 and not us_v2:
         return "v1"
     f = _FROZEN.get("stat")
     live = _load_live()
-    return "v2:%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
-                            max(live["sessions"]) if live["sessions"] else "-")
+    base = "%s:%s:%s" % (FROZEN_SHA256[:12] if f else "nofrozen", len(live["sessions"]),
+                         max(live["sessions"]) if live["sessions"] else "-")
+    return ("v2:" if uct_v2 else "v1:") + base + (":us-v2" if us_v2 else "")
 
 
 def session_authority(date: str, collector_tail: tuple = ()) -> str:
@@ -379,6 +431,81 @@ def provenance(date: str, collector_tail: tuple = ()) -> dict:
     return p
 
 
+_DERIVED_MEMO: dict = {}
+_LEGACY_MEMO: dict = {"at": 0.0, "data": None}
+_LEGACY_TTL = 300.0
+
+
+def derived_uct(provisional_adv: Optional[dict] = None, collector_tail: tuple = ()) -> dict:
+    """Memoised on (authority token, provisional inputs, collector tail) — see _derived_uct."""
+    key = (token(), tuple(sorted((provisional_adv or {}).items())), tuple(sorted(collector_tail)))
+    hit = _DERIVED_MEMO.get(key)
+    if hit is None:
+        if len(_DERIVED_MEMO) > 32:
+            _DERIVED_MEMO.clear()
+        hit = _DERIVED_MEMO[key] = _derived_uct(provisional_adv, collector_tail)
+    return hit
+
+
+def _derived_uct(provisional_adv: Optional[dict] = None, collector_tail: tuple = ()) -> dict:
+    """{date: {"mcclellan_osc", "adv_decline_cum", "authority"}} for every V2-period `uct`
+    session, computed ONCE over the full V2 calendar from the pinned seeds — never from a reader's
+    window. Canonical sessions feed their V2 `adv_decline`; a gap (or pending) session emits None
+    and HOLDS both states (a missing observation is not a zero observation); a provisional
+    session (after the last canonical one) is continued from the collector's value, flagged,
+    never persisted."""
+    e19, e39 = MCCLELLAN_BRIDGE["ema19_seed"], MCCLELLAN_BRIDGE["ema39_seed"]
+    ad = AD_BRIDGE["seed_value"]
+    prov = provisional_adv or {}
+    out = {}
+    for d in sorted(set(v2_dates()) | {x for x in prov if x > FROZEN_END}):
+        if d < V2_START:
+            continue
+        cls = session_authority(d, collector_tail)
+        v = None
+        if cls in CANONICAL:
+            r = v2_rows(d).get("adv_decline")
+            v = r[3] if r is not None else None
+        elif cls == PROVISIONAL:
+            v = prov.get(d)
+        if v is None:
+            out[d] = {"mcclellan_osc": None, "adv_decline_cum": None, "authority": cls}
+            continue
+        e19 = _MCC_A19 * v + (1 - _MCC_A19) * e19
+        e39 = _MCC_A39 * v + (1 - _MCC_A39) * e39
+        ad = ad + v
+        out[d] = {"mcclellan_osc": round(e19 - e39, 1), "adv_decline_cum": ad, "authority": cls,
+                  "_state": (e19, e39)}
+    return out
+
+
+def legacy_ad_cum(frm: str = "0000") -> dict:
+    """{date: full-history cumulative A/D} for legacy sessions (<= SEED_SESSION) from `frm` —
+    one running sum over the whole V1 lineage, independent of any reader window."""
+    now = time.time()
+    if _LEGACY_MEMO["data"] is None or now - _LEGACY_MEMO["at"] > _LEGACY_TTL:
+        from api.services import breadth_monitor as bm
+        full, run = {}, 0.0
+        for d, v in bm.v1_merged_adv_decline(SEED_SESSION):
+            run += v
+            full[d] = run
+        _LEGACY_MEMO.update(at=now, data=full)
+    return {d: v for d, v in _LEGACY_MEMO["data"].items() if d >= frm}
+
+
+def seed_check() -> dict:
+    """Re-derive both bridge seeds from the CURRENT V1 stores and compare to the pinned values."""
+    from api.services import breadth_monitor as bm
+    series = bm.v1_merged_adv_decline(SEED_SESSION)
+    e19, e39 = bm.rebuild_mcclellan_state(series)
+    ad = sum(v for _d, v in series)
+    dig = bm.v1_lineage_digest(series)
+    return {"lineage_sha256": dig, "lineage_matches": dig == V1_LINEAGE["sha256"], "sessions": len(series),
+            "ema19": e19, "ema39": e39, "ad": ad,
+            "mcclellan_seed_matches": (e19, e39) == (MCCLELLAN_BRIDGE["ema19_seed"], MCCLELLAN_BRIDGE["ema39_seed"]),
+            "ad_seed_matches": ad == AD_BRIDGE["seed_value"]}
+
+
 def overlay_monitor_rows(rows_asc: list, collector_tail: tuple = ()) -> list:
     """Apply V2 authority to Monitor rows (oldest-first dicts with 'date'), IN PLACE and returned.
 
@@ -400,6 +527,10 @@ def overlay_monitor_rows(rows_asc: list, collector_tail: tuple = ()) -> list:
     for d in v2_dates():
         if lo <= d <= hi and d >= V2_START and d not in by_date:
             by_date[d] = {"date": d}
+    prov_adv = {d: r.get("adv_decline") for d, r in by_date.items()
+                if d > FROZEN_END and isinstance(r.get("adv_decline"), (int, float))}
+    derived = derived_uct(prov_adv, collector_tail)
+    legacy_ad = legacy_ad_cum(lo) if lo <= LEGACY_END else None
     out = []
     for d in sorted(by_date):
         row = by_date[d]
@@ -414,17 +545,25 @@ def overlay_monitor_rows(rows_asc: list, collector_tail: tuple = ()) -> list:
                 for m in V2_METRICS:
                     row[m] = None
                 row["_v2_direct"] = True
-            for f in PENDING_DECISION_FIELDS:
-                row[f] = None
-            row["_decision_pending"] = list(PENDING_DECISION_FIELDS)
+            dv = derived.get(d) or {}
+            for f in DERIVED_FIELDS:
+                row[f] = dv.get(f)
+            row["_v2_derived"] = True
             row["_authority"] = cls
-            row["_provenance"] = provenance(d, collector_tail)
+            row["_provenance"] = dict(provenance(d, collector_tail),
+                                      derived={"mcclellan_osc": MCCLELLAN_BRIDGE["methodology"],
+                                               "adv_decline_cum": AD_BRIDGE["methodology"]})
+        elif legacy_ad is not None:
+            # ⭐ ONE canonical A/D under V2: legacy rows carry the FULL-HISTORY V1 lineage (the deep
+            # reader's), never the collector-window-relative value the plain V1 reader derives.
+            row["adv_decline_cum"] = legacy_ad.get(d)
+            row["_v2_derived"] = True
         out.append(row)
     rows_asc[:] = out
     return rows_asc
 
 
-def chart_bars(metric: str, collector_closes: dict) -> Optional[dict]:
+def chart_bars(metric: str, collector_closes: dict, provisional_adv: Optional[dict] = None) -> Optional[dict]:
     """{date: (o, h, l, c, authority)} for `uct` sessions >= V2_START under V2, or None (V1).
 
     None also for a metric V2 does not own (collector-owned fields keep their V1 path).
@@ -435,11 +574,17 @@ def chart_bars(metric: str, collector_closes: dict) -> Optional[dict]:
     """
     if not in_force() or not available()[0]:
         return None
-    if metric in PENDING_DECISION_FIELDS:
-        return {}
+    tail = tuple(sorted(d for d in collector_closes if d > FROZEN_END))
+    if metric in DERIVED_FIELDS:
+        dv = derived_uct(provisional_adv or {}, tail)
+        out = {d: (None, None, None, x[metric], x["authority"]) for d, x in dv.items() if x[metric] is not None}
+        if metric == "adv_decline_cum":
+            # the legacy part of the ONE canonical A/D line (full-history lineage) — replaces the V1
+            # chart's collector-window-relative values for every legacy date
+            out.update({d: (None, None, None, v, V1_LEGACY) for d, v in legacy_ad_cum().items()})
+        return out
     if metric not in V2_METRICS:
         return None
-    tail = tuple(sorted(d for d in collector_closes if d > FROZEN_END))
     out: dict = {}
     for d in sorted(set(v2_dates()) | set(tail)):
         if d < V2_START:
@@ -454,6 +599,76 @@ def chart_bars(metric: str, collector_closes: dict) -> Optional[dict]:
     return out
 
 
+_US_MEMO: dict = {}
+
+
+def _frozen_metric(universe: str, metric: str) -> dict:
+    """{date: (o, h, l, c, source)} for one frozen universe/metric (verified replica, memoised)."""
+    f = _load_frozen()
+    if f is None:
+        return {}
+    key = (_FROZEN.get("stat"), universe, metric)
+    hit = _US_MEMO.get(key)
+    if hit is None:
+        c = sqlite3.connect("file:%s?mode=ro&immutable=1" % frozen_path(), uri=True)
+        try:
+            hit = {d: (o, h, l, cl, s) for d, o, h, l, cl, s in c.execute(
+                "SELECT date, o, h, l, c, source FROM breadth_daily_ohlc WHERE universe=? AND metric=?",
+                (universe, metric))}
+        finally:
+            c.close()
+        if len(_US_MEMO) > 80:
+            _US_MEMO.clear()
+        _US_MEMO[key] = hit
+    return hit
+
+
+def _live_universe(universe: str) -> dict:
+    """{date: {metric: (o, h, l, c, source)}} of VALIDATED live publications for `universe`."""
+    p = live_replica_path()
+    if not os.path.exists(p):
+        return {}
+    out: dict = {}
+    c = sqlite3.connect("file:%s?mode=ro" % p, uri=True)
+    try:
+        for d, m, o, h, l, cl, s in c.execute(
+                "SELECT r.date, r.metric, r.o, r.h, r.l, r.c, r.source FROM v2_live_row r "
+                "JOIN v2_live_session x ON x.date = r.date AND x.pub_id = r.pub_id "
+                "WHERE r.universe=? AND x.state='VALIDATED'", (universe,)):
+            out.setdefault(d, {})[m] = (o, h, l, cl, s)
+    finally:
+        c.close()
+    return out
+
+
+def universe_history(metric: str, universe: Optional[str], limit: int = 6000) -> Optional[dict]:
+    """The `breadth_daily_ohlc.history` answer under V2 for a universe V2 owns, else None.
+
+    {date: {o, h, l, c}} newest `limit` sessions: frozen V2 rows + validated live rows. A metric V2
+    does not produce (the four V1-only volume metrics, or anything outside the 35) is {} —
+    unavailable, never a V1 value and never a zero."""
+    if not serves(universe):
+        return None
+    u = US_UNIVERSE
+    if metric in US_WITHHELD or metric not in V2_METRICS:
+        return {}
+    rows = {d: r for d, r in _frozen_metric(u, metric).items()}
+    for d, byd in _live_universe(u).items():
+        if metric in byd and d > FROZEN_END:
+            rows[d] = byd[metric]
+    keep = sorted(rows)[-int(limit):] if limit else sorted(rows)
+    return {d: {"o": rows[d][0], "h": rows[d][1], "l": rows[d][2], "c": rows[d][3]} for d in keep}
+
+
+def universe_dates(universe: Optional[str], since: str = "") -> Optional[list]:
+    """The `breadth_daily_ohlc.dates_since` answer under V2 for a universe V2 owns, else None."""
+    if not serves(universe):
+        return None
+    f = _load_frozen() or {}
+    ds = set(f.get("sessions") or ()) | {d for d in _live_universe(US_UNIVERSE) if d > FROZEN_END}
+    return sorted(d for d in ds if d >= (since or ""))
+
+
 def status() -> dict:
     ok, why = available()
     f = _FROZEN.get("data") or {}
@@ -464,7 +679,8 @@ def status() -> dict:
                                   "FROM v2_live_conflict").fetchall()
     except Exception:
         conflicts = []
-    return {"mode": mode(), "v2_available": ok, "v2_unavailable_reason": why,
+    return {"mode": mode(), "us_mode": us_mode(), "us_withheld_metrics": list(US_WITHHELD),
+            "v2_available": ok, "v2_unavailable_reason": why,
             "boundaries": {"legacy_end": LEGACY_END, "v2_start": V2_START, "frozen_end": FROZEN_END,
                            "live_start": LIVE_START},
             "frozen": {"name": FROZEN_NAME, "sha256_expected": FROZEN_SHA256, "verified": bool(f),
@@ -474,6 +690,7 @@ def status() -> dict:
                      "latest": max(live["sessions"]) if live["sessions"] else None,
                      "conflicts": conflicts},
             "pending_decision_fields": list(PENDING_DECISION_FIELDS),
+            "derived_bridges": {"mcclellan_osc": MCCLELLAN_BRIDGE, "adv_decline_cum": AD_BRIDGE},
             "token": token()}
 
 

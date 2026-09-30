@@ -1,0 +1,2 @@
+{"op": "revert", "squash": "8d08da86f", "conflicts": [], "product_conflicts": [], "schema_change_undone": [], "tree": "c8a0240fd258ffc8c34ab3164ce9a410a56a23f0", "schema_identical_to_tip": true, "key": "L7", "what": "wave 10 L7 #254", "commit": "e8f7fd8c66b07cb303d3ffe9f7b40aad0e429a56"}
+{"result": "e8f7fd8c66b07cb303d3ffe9f7b40aad0e429a56", "tree": "c8a0240fd258ffc8c34ab3164ce9a410a56a23f0", "through": "L7", "from": "8d08da86fbbda3a7145e664c4ea0380d9ac77c96", "next": "git switch -c rollback/notebook-through-L7 e8f7fd8c66b07cb303d3ffe9f7b40aad0e429a56"}

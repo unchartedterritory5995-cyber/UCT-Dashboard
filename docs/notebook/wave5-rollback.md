@@ -26,6 +26,39 @@
 > returned on its own before the re-run that produced the results below. Evidence:
 > `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1c/` (`sandbox-results.md` is the table).
 >
+> ⭐ **RE-MEASURED AGAIN AT `8d08da86f` (L6 #253 + L7 #254, production's tip, 2026-09-29; lane
+> R1d).** L7 and L6 are the new top two rows; both revert with 0 conflicts. L6 ships zero `app/`
+> or `api/` files (rollback-chain tooling + rehearsal evidence for L4/L5, a restore-drill fix,
+> proof-walk evidence) -- a real wave-10 landing anyway, selected by PATH only (its one
+> Notebook-owned file is `tests/test_notebook_rollback_chain.py`), declared in
+> `CHAIN_BY_PATH_ONLY`. The whole chain was rebuilt from the new tip: all fifteen pins recorded at
+> `0812b5ec3` came back byte-identical, and one new conflict was found four steps further down, at
+> wave 5's own revert (`2c3ed3093`, `app/src/components/CommandPalette.jsx` -- TERM-038 built its
+> dark "saved" rows inside the same functions wave 5's own quick-switcher introduced, seven hunks
+> deep with no separable lines), ruled "ours" (keep the newer work), now a rule and a pin
+> (*Measured, 2026-09-29, lane R1d*). `MEASURED_AT` is `8d08da86f`. Rehearsed on a sandbox: the
+> tip, `L7` and `L6`, all three boots CLEAN; L7's Find-in-note touch-tier floor measured 44px at
+> the tip, 18px through `L7` and through `L6`. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1d/` (`sandbox-results.md` is the table).
+>
+> ⭐ **RE-MEASURED A THIRD TIME AT `6f563c158` (L8 #255, production's tip, 2026-09-29; lane R1d,
+> continued).** L8 landed while this lane was working (controller note). L8 is the new top row;
+> like L6, it ships zero `app/` or `api/` files (a parity-scorecard re-score + writing-help
+> production evidence) -- a real wave-10 landing anyway, selected by PATH only (its one
+> Notebook-owned file is `tests/test_parity_scorecard.py`), declared in `CHAIN_BY_PATH_ONLY`
+> alongside L6. A fifth path-only commit landed alongside it, `cd9ecc833` (Fundamentals V5
+> cutover, dark), touching only `api/main.py` (a lifespan scheduler-registration block moved to
+> the worker pod) -- reviewed, not a landing. The whole chain was rebuilt from `origin/master`
+> (`5b4da7874` at measurement time, one unrelated breadth commit past `MEASURED_AT` itself): all
+> sixteen pins recorded at `8d08da86f` came back byte-identical, no new conflict anywhere in the
+> chain. `MEASURED_AT` is `6f563c158`. Rehearsed on a sandbox (its own data dir/port,
+> `rehearse_round2.py`): the new tip and `L8`, both boots CLEAN, `L7`'s door still 44px at the new
+> tip (unaffected) and every probe identical between the tip and `L8` reverted (L8 has no door of
+> its own, same shape as L6). `--check --from origin/master` reports `current`. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1d/` (round 2 files:
+> `chain/chain-through-L8.jsonl`, `check-origin-master-round2-*.log`,
+> `rehearse_round2.py`, `sandbox/s01-tip2/`, `sandbox/s-L8/`).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -76,6 +109,9 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L8` | `6f563c158` | wave 10 L8 #255 | |
+| `L7` | `8d08da86f` | wave 10 L7 #254 | |
+| `L6` | `3fb184cdf` | wave 10 L6 #253 | |
 | `L5` | `0812b5ec3` | wave 10 L5 #252 | |
 | `L4` | `7bd834b9f` | wave 10 L4 #251 | |
 | `L2` | `f4cec49be` | wave 10 L2 #242 | |
@@ -583,6 +619,86 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-09-29: L6 #253 + L7 #254 on top, from `8d08da86f` (lane R1d)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | conflicts (all) / in shipped code | new since 2026-09-29 (R1c) |
+|---|---|---|
+| `L7` | 0 / 0 | the new top step. Its tree equals L7's parent outside `docs/`, `tools/`, `scripts/`, and differs from the tip in exactly L7's own shipped files (three touch-tier CSS floors + the proof-walk instrument) |
+| `L6` | 0 / 0 | the second new step. Ships no `app/` or `api/` file at all (rollback-chain tooling + rehearsal evidence for L4/L5, a restore-drill fix, proof-walk evidence); its revert is a no-op for members and, measured, conflict-free |
+| `L5`, `L2`, `225` | 0 / 0 each | -- (same rules, same pins) |
+| `L4` | 2 / 0 | both conflicts are `KEEP_PATHS` (`docs/notebook/wave5-rollback.md`, `tools/notebook_rollback_chain.py`, this lane's own edits) restored to the tip's copy -- no product conflict, no new rule |
+| `L1c` | 8 / 0 | -- (same rules, same pins) |
+| `L1b` | 4 / 2 | -- (same rules, same pins) |
+| `L1a` | 6 / 1 | -- (same rule, same pin) |
+| `wave9`, `201` | 5 / 0, 0 / 0 | -- |
+| `wave8` | 8 / 5 | -- (same rules, same pins) |
+| `9C` | 7 / 0 | -- |
+| `wave7` | 13 / 3 | -- (same rules, same pins) |
+| `wave6` | 9 / 2 | -- (same rules, same pins) |
+| `wave5` | **15 / 2** | **new rule**: TERM-038 (8393002716, REVIEWED_NOT_LANDINGS) built its dark "saved things" palette rows INSIDE the same functions wave 5's own quick-switcher introduced in `app/src/components/CommandPalette.jsx` -- seven conflict hunks, none separable (TERM-038's added lines are single statements inside wave-5-authored function bodies, not lines beside them). Ruled "ours" (keep the whole file as the accumulated tree has it), the same shape as wave 7's `api/services/daily_counters.py` rule below |
+| guards | 5 / 1; 1 / 0 | -- (same rule, same pin) |
+
+- **All fifteen pins recorded at `0812b5ec3` came back byte-identical** from the new tip
+  (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-09-29-r1d/chain/record-pins-output.json`). Nothing that
+  landed between `0812b5ec3` and `8d08da86f` changed the lines of a conflict the chain already
+  resolves, except the one new CommandPalette.jsx conflict above.
+- **The census of the new window, commit by commit**
+  (`evidence/rollback-rehearsal-2026-09-29-r1d/check-origin-master-before.log`, the raw `--check`
+  refusal before this lane's edit). It selected 6: `L7` by subject and path, `L6` by path only (a
+  real landing, declared in `CHAIN_BY_PATH_ONLY` -- see the tool's own comment), and 4 more by path
+  only. The 4 are in `REVIEWED_NOT_LANDINGS`, each with its reason. A rail derives the window from
+  the tool's own census and fails on any selected commit that is neither in `CHAIN` nor reviewed.
+- **None of the 4 reviewed commits edits Notebook-owned code** (no `app/src/pages/journal-2-0/**`,
+  no `api/services/journal_two/**`, no `notebook_*.py` router). One, TERM-038 (`8393002716`),
+  edits a file the chain's own reverts also touch (`app/src/components/CommandPalette.jsx`, the
+  new wave-5 conflict above); one, `9633d68e8`, is the RE-LAND of the H15 rollback `1be4b9a2b`
+  already reviewed above -- a different "wave 2" (the Pine vendor-harness / deploy-integration
+  branch, not a Notebook wave), confirmed by reading `1be4b9a2b`'s own commit message and diffing
+  both commits' hunks on `reachable.test.js` and `vite.config.js` side by side (exact mirror
+  images).
+
+**The sandbox rehearsal, 2026-09-29 (lane R1d).** `evidence/rollback-rehearsal-2026-09-29-r1d/rehearse.py`
+(same method as R1's, R1b's and R1c's) and `probe.py` (imports R1c's probe for the never-revert
+set, the per-landing doors, L4's door and L5's behaviour-preservation check; adds L6's own check --
+a pure BEHAVIOUR-preservation check like L5's, since L6 ships no door to remove: the `--check`
+CLI's own verdict, run inside each tree, must read `"current"` at that tree's own `MEASURED_AT` --
+and L7's door, the touch-tier CSS floor on NoteFindBar's Find input (`min-height` at the
+touch tier), present (44px) at the tip and absent (18px) through both `L7` and `L6`, gone exactly
+at L7's own step). Full table: `evidence/rollback-rehearsal-2026-09-29-r1d/sandbox-results.md`.
+
+## Measured, 2026-09-29 (round 2): L8 #255 on top, from `6f563c158` (lane R1d, continued)
+
+L8 landed on master while this lane was mid-rehearsal (controller note); this round covers just
+that one new step. Same shape as L6: zero `app/` or `api/` files shipped (the diff is entirely
+`docs/notebook/**`, `tests/test_parity_scorecard.py`, `tools/parity_scorecard.py` and
+`tools/notebook_wh_writing_help_prod_check.py`), selected by PATH only, no door of its own.
+
+- **The chain from `origin/master`** (`5b4da7874` at measurement time -- one unrelated breadth
+  commit past `MEASURED_AT` itself, selected by neither census criterion): `--through wave5`
+  builds end to end, exit 0
+  (`evidence/rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl`, regenerated).
+  `--record-pins --through wave5` returns all **sixteen** pins recorded at `8d08da86f`
+  byte-identical -- L8 and the one reviewed commit alongside it (`cd9ecc833`, Fundamentals V5,
+  touching only a lifespan scheduler-registration block in `api/main.py`) introduce **zero** new
+  conflicts anywhere in the chain.
+- **The census of the new window** (`8d08da86f..6f563c158`) selected exactly two: `L8` by path
+  (added to `CHAIN`, `CHAIN_BY_PATH_ONLY`) and `cd9ecc833` by path (added to
+  `REVIEWED_NOT_LANDINGS`).
+- **The sandbox rehearsal** (`evidence/rollback-rehearsal-2026-09-29-r1d/rehearse_round2.py`, its
+  own data dir `C:\data-w10r1d-2` : 8240 so it never collides with round 1's boots): the new tip
+  `s01-tip2` (`6f563c158`, includes L8 + the dark Fundamentals V5 work) and `s-L8`
+  (`--through L8`), both extracted trees IDENTICAL to their git trees, both boots CLEAN. `s01-tip2`
+  reproduces round 1's tip exactly (L7's door 44px, every earlier landing's probe byte-identical).
+  `s-L8` is byte-identical to `s01-tip2` on every shared probe (landings, the never-revert set,
+  L7's door still 44px, unaffected) -- L8 has no door of its own to lose, so "identical" IS the
+  expected result, the same shape as L6's own rehearsal in round 1.
+- **`--check --from origin/master` reports `current`** at `MEASURED_AT` `6f563c158`
+  (`evidence/rollback-rehearsal-2026-09-29-r1d/check-origin-master-round2-after.log`).
 
 ## Measured, 2026-09-29: L4 #251 + L5 #252 on top, from `0812b5ec3` (lane R1c)
 
