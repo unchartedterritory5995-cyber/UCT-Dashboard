@@ -3531,8 +3531,60 @@ def node_count(ast: Any) -> int:
     ⚠️ STILL ITERATIVE, so it survives the 8,001-node tree that makes ``interpret``
     itself raise ``RecursionError``. That asymmetry is the point: a budget guard
     runs BEFORE the walker and must not need the walker to be safe first.
+
+    ⭐⭐ C19 (2026-09-30) — UNITS OF WHAT IS COMPUTED, the port of
+    ``interpret.js::evaluationUnits``. Integrator ruling: a shared subtree counts
+    once where the evaluator genuinely evaluates it once, and a subtree repeated
+    but evaluated separately counts every time. So a self-free node is one unit
+    per (scope, shape) — the ``_memo`` keys on the shape within one ``interpret``
+    call — a node reading a recurrence bind is one unit per (scope, recurrence,
+    shape) — the step memo keys on the shape within one recurrence; the bind
+    read itself (``self``) computes nothing and is one unit per shape — and a
+    ``tf`` / ``tf_live`` / ``sym`` child is a scope of its own (a fresh
+    ``interpret`` on other bars). This lane has no cross-column pass memo, so
+    nothing here is held: the JS lane's ``held`` argument has no counterpart.
     """
-    return structural_maps(ast)[2]
+    return evaluation_units(ast)
+
+
+#: Node types whose child a FRESH ``interpret`` evaluates on other bars.
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym"))
+
+
+def evaluation_units(root: Any) -> int:
+    """How many units the evaluator computes — see ``node_count``. Iterative;
+    a unit is visited once (its children's units depend only on it)."""
+    id_of, free_of, _ = structural_maps(root)
+    binds = _bind_names()
+
+    def is_bind(x: Any) -> bool:
+        return isinstance(x, dict) and x.get("type") == "series" and x.get("name") in binds
+
+    units: set = set()
+    stack = [(root, "", "")]
+    while stack:
+        node, scope, rec = stack.pop()
+        sid = id_of[id(node)]
+        # A READ of what is already held -- a literal, a memoised column, the
+        # running value itself (``self``, ``self[k]``) -- is one unit per shape per
+        # scope; what a recurrence COMPUTES per step (its spine's operators and
+        # calls) is keyed on the recurrence. The port of ``evaluationUnits``.
+        read = (free_of[id(node)] or is_bind(node)
+                or (isinstance(node, dict) and node.get("type") == "offset"
+                    and is_bind((node.get("args") or [None])[0])))
+        key = (scope, sid) if read else (scope, rec, sid)
+        if key in units:
+            continue
+        units.add(key)
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child_scope = "%s>%s" % (scope, sid) if node.get("type") in _SCOPE_TYPES else scope
+        spec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
+        body_at = spec.get("body") if isinstance(spec, Mapping) and isinstance(spec.get("body"), int) else -1
+        for ai, a in enumerate(args):
+            stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai == body_at else rec))
+    return len(units)
 
 
 # --------------------------------------------------------------------------- #
@@ -4387,15 +4439,25 @@ def _interpret_column(ast: Any, bars: List[dict],
         # is evaluated ONCE, by the ordinary walker. Only the spine that actually
         # depends on the previous bar is re-evaluated per step — so ``sma`` inside
         # a body costs one pass, not ``bars x warmup`` of them.
-        columns: Dict[int, Any] = {}
+        # ⭐⭐ C19 (2026-09-30) — KEYED ON THE STRUCTURAL ID, the port of the same
+        # change in ``interpret.js``: every spine operator is pointwise and pure,
+        # so two nodes of one shape in one recurrence are one value per step,
+        # whether or not they are one object — and a document loaded from JSON
+        # shares no objects at all. ``node_count`` charges one unit per shape per
+        # recurrence; this is what makes that the work actually done.
+        def sk(x: Any) -> Any:
+            got = _id_of.get(id(x))
+            return ("obj", id(x)) if got is None else got
+
+        columns: Dict[Any, Any] = {}
         planned = set()
 
         def plan(x: Any) -> None:
-            if id(x) in planned:
+            if sk(x) in planned:
                 return
-            planned.add(id(x))
+            planned.add(sk(x))
             if not reads(x):
-                columns[id(x)] = eval_node(x)
+                columns[sk(x)] = eval_node(x)
                 return
             if is_bind(x):
                 return
@@ -4450,7 +4512,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         step_memo: dict = {}
 
         def step(x: Any, j: int, history: list) -> float:
-            got = columns.get(id(x), _MISSING)
+            got = columns.get(sk(x), _MISSING)
             if got is not _MISSING:
                 return got[j] if _is_column(got) else got
             if is_bind(x):
@@ -4459,7 +4521,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             # walks whole columns and cannot see a value that lives in this loop.
             if x.get("type") == "offset" and is_bind((x.get("args") or [None])[0]):
                 return history[int(x.get("value", 0))]
-            held = step_memo.get(id(x), _MISSING)
+            held = step_memo.get(sk(x), _MISSING)
             if held is not _MISSING:
                 return held
             values = [step(child, j, history) for child in x["args"]]
@@ -4467,7 +4529,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                 out_v = apply_op_step(x, values)
             else:
                 out_v = _POINTWISE[x["name"]](*values)
-            step_memo[id(x)] = out_v
+            step_memo[sk(x)] = out_v
             return out_v
 
         # ⭐ C12s -- a switched mark carries the real seed; the switched window
@@ -4492,7 +4554,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                 memo: dict = {}
 
                 def walk(n: Any) -> Any:
-                    key = id(n)
+                    key = sk(n)
                     if key in memo:
                         return memo[key]
                     got = columns.get(key, _MISSING)

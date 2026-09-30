@@ -24,8 +24,9 @@
 //   - behind the curtain (a chart that does not start at the listing) every
 //     `✦ OB` it draws is one of those three, and every label it draws is one the
 //     listing run draws too — the switched window is never MORE known than Pine;
-//   - `R▼` stays unmade and NAMED: its guard tree measures 132 nodes against the
-//     128-node budget (`budget:nodes`), a refusal, not a guess;
+//   - `R▼` (C19): its guard tree measured 132 nodes against the 128-node budget
+//     until the budget counted what the pass computes; now TradingView's id 16,
+//     and every label from the listing id for id;
 //   - ema-ribbon's (3, 1) cell is TradingView's text, colour and background.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
@@ -97,11 +98,27 @@ describe('C12s — artemis-oscillator-pro: the exhaustion counter is TradingView
     for (const o of curtain) expect(listedKeys.has(key(o)), key(o)).toBe(true)
   })
 
-  it('⛔ `R▼` stays unmade, and its reason is NAMED: the guard is over the node budget', () => {
-    const { reader } = memberRun(capture(ARTEMIS), { listing: true })
-    const guards = (reader.refusals || []).map((r) => `${r.guard}: ${r.message}`)
-    expect(guards.length).toBeGreaterThan(0)
-    for (const g of guards) expect(g).toMatch(/^budget:nodes: .*measures 132 and the cap is 128/)
+  // ⭐ C19 (2026-09-30) — THIS WAS `⛔ R▼ stays unmade … the guard is over the node
+  // budget` (132 > 128). The integrator's ruling counts what the evaluator
+  // computes (`interpret.js::evaluationUnits`): standalone the `R▼` guard is
+  // still 132 units, and 36 against the columns earlier trees of the SAME pass
+  // already hold — read
+  // through the interner and `crossMemo` without walking below them. So it costs
+  // what it computes itself, and the cap stays 128.
+  it('⭐ from the listing: `R▼` is TradingView\'s — id 16, at its y — and every label is, id for id', () => {
+    const cap = capture(ARTEMIS)
+    const { reader, run } = memberRun(cap, { listing: true })
+    expect(reader.refusals || []).toEqual([])
+    const vendor = cap.objects.records.labels.slice().sort((a, b) => a.id - b.id)
+    const ours = run.live.filter((o) => o.family === 'label').sort((a, b) => a.id - b.id)
+    expect(ours.map((o) => [o.id, o.props.text])).toEqual(vendor.map((l) => [l.id, l.t]))
+    const rv = ours.find((o) => o.props.text === 'R▼')
+    const rvVendor = vendor.find((l) => l.t === 'R▼')
+    expect(rv.id).toBe(16)
+    expect(Math.abs(rv.props.y - rvVendor.y) / rvVendor.y).toBeLessThan(1e-12)
+    // it sits on the divergence it confirms: the same bar and y as `D▼` id 15
+    const d15 = ours.find((o) => o.id === 15)
+    expect([rv.props.x, rv.props.y]).toEqual([d15.props.x, d15.props.y])
   })
 })
 

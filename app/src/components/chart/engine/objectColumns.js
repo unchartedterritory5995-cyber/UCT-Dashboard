@@ -232,6 +232,9 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
     : Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
   if (n <= 0) return null
   const probeBars = n < bars.length ? bars.slice(0, n + 1) : bars
+  // ⭐ C19 — the real pass's columns serve a probe only over the SAME bars: a
+  // truncated probe series ends earlier, and `barstate.*` answers at its end.
+  const probeOpts = probeBars === bars ? iopts : { ...iopts, probeBase: undefined }
   if (!memos.has(probeBars.length)) memos.set(probeBars.length, new Map())
   const bySign = memos.get(probeBars.length)
   // ⭐ C17 — one probe per value `probeValuesOf` names, each with its own memo
@@ -255,9 +258,15 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   try {
     for (const p of probeValuesOf(tree)) {
       if (!bySign.has(p)) bySign.set(p, new Map())
-      probed.push(interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: bySign.get(p), prefixProbe: p }))
+      probed.push(interpret(tree, probeBars, inputs, budget, undefined, { ...probeOpts, crossMemo: bySign.get(p), prefixProbe: p }))
     }
-  } catch {
+  } catch (err) {
+    // ⛔ C19 — A PROBE THE NODE BUDGET REFUSES PROVES NOTHING, so nothing is
+    // published on its word. The real run was charged against the pass's memo
+    // (`interpret.js::evaluationUnits`) and a probe against its own, so a tree
+    // the pass admitted can be refused here; the safe direction is every bar
+    // withheld, never the `null` below (which publishes every bar).
+    if (err && err.guard === 'budget:nodes') return new Uint8Array(col.length).fill(1)
     if (!dep) return null
     probed.length = 0
   }
@@ -312,7 +321,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
-      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
+      // ⭐ C19 — a probe reads the columns no probe value can move from THIS
+      // pass's memo (`interpret.js::passView`) instead of recomputing them.
+      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -498,7 +509,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)
+      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)

@@ -59,6 +59,7 @@
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+import { RUNTIME_AT_CALL } from './parse.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -232,7 +233,9 @@ export const MAX_COLLECTION_CAP = 500
  *
  *  ⛔ SERVED ONLY WHERE EXACT, and otherwise the placeholder reads UNKNOWN, so C17
  *  withholds what reads it: see `runtimeObjectValues` for the rules. */
-export const RUNTIME_AT_CALL = '__uct_runtime_at'
+// ⭐ C19 — declared in `parse.js` (the budget's unit count reads it too), re-exported
+// here for every existing importer. One authority, never restated.
+export { RUNTIME_AT_CALL }
 export const RUNTIME_PROGRAM_VERSION = 1
 /** The `k` of a runtime placeholder tree, or -1. */
 export const runtimeAtIndex = (tree) => {

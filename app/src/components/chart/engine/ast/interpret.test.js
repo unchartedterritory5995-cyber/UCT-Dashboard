@@ -1506,8 +1506,13 @@ describe('the node budget may only discount what the interpreter actually shares
   // ⛔ `SELF`, not a second path literal — this suite already owns that value.
   const SRC = fs.readFileSync(SELF, 'utf8')
 
-  it('🔴 `nodeCount` counts DISTINCT subtrees via the shared walk', () => {
-    expect(SRC).toMatch(/export function nodeCount[\s\S]{0,200}?structuralMaps\(ast\)\.distinct/)
+  it('🔴 `nodeCount` counts the evaluator UNITS via the shared walk', () => {
+    // ⭐ C19 (2026-09-30): `distinct` became `evaluationUnits` — the same ids,
+    // keyed the way the evaluator's memos are keyed (scope, and for a node that
+    // reads a recurrence bind, the recurrence). Still ONE walk: the units are
+    // built from `structuralMaps`, never from a key of their own.
+    expect(SRC).toMatch(/export function nodeCount[\s\S]{0,120}?evaluationUnits\(ast, held\)\.count/)
+    expect(SRC).toMatch(/export function evaluationUnits[\s\S]{0,120}?const \{ idOf, freeOf \} = structuralMaps\(root\)/)
   })
 
   it('🔴 …and `interpret` memoises on the ids from that SAME walk', () => {
@@ -1531,8 +1536,12 @@ describe('the node budget may only discount what the interpreter actually shares
     // recurrence at step one: a silent wrong number on a chart that still
     // draws, in a place no behavioural test looks, because the memo is
     // otherwise a pure speed-up.
-    expect(SRC).toMatch(/if \(crossMemo !== null && id !== undefined && crossMemo\.has\(n\)\)/)
+    // ⭐ C19: the gate reads the pass through ONE predicate, `passHolds`, which
+    // `evaluationUnits` also counts on — so the budget's "held" and the memo's
+    // skip cannot be two different questions.
+    expect(SRC).toMatch(/if \(id !== undefined && passHolds\(readable, n\)\)/)
     expect(SRC).toMatch(/if \(crossMemo !== null\) crossMemo\.set\(n, value\)/)
+    expect(SRC).toMatch(/const readable = passView\(opts\)\s+assertBudget\(ast, budget, readable\)/)
   })
 
   it('⛔ …and the walk refuses to invent an id for a child it has not keyed', () => {
