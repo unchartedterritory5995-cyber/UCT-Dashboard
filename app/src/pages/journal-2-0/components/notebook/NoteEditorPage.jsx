@@ -8,6 +8,7 @@ import {
   buildExtensions, uploadInlineImage, uploadNoteAttachment,
   ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
 } from '../../lib/tiptap'
+import { createMemoDocJSON } from '../../lib/memoDocJSON'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -1165,11 +1166,34 @@ export default function NoteEditorPage({
     return () => { cancelled = true }
   }, [note?.id])
 
+  // Wave 10 (lane TY2, standard 4 -- typing budget): the memoized serializer
+  // behind `bodyJson` below. ONE instance for the component's whole
+  // lifetime, never reset on note switch -- a WeakMap keyed on node OBJECTS
+  // needs no reset: a previous note's nodes simply stop being referenced and
+  // become ordinary garbage the moment the editor holding them is rebuilt.
+  // See `lib/memoDocJSON.js`'s header for why this is safe to cache and
+  // `memoDocJSON.test.js` for the byte-identical-output proof.
+  const draftJSONRef = useRef(null)
+  if (!draftJSONRef.current) draftJSONRef.current = createMemoDocJSON()
+
   // Wave Q1: ONE snapshot per keystroke, shared by both local layers.
   // ⛔ Taken once on purpose: `getJSON()` walks the whole document, and the
   // draft and the durable copy must describe the SAME instant — two reads
   // could differ by a keystroke, which is exactly the disagreement the reopen
   // comparison would then have to resolve without being able to.
+  //
+  // ⭐ Wave 10 (lane TY2): `bodyJson` is built through `draftJSONRef`, a
+  // memoized drop-in for `editor.getJSON()` (same output, byte for byte —
+  // `memoDocJSON.test.js`), rather than `editorRef.current.getJSON()`
+  // directly. ProseMirror nodes are immutable and structurally shared, so a
+  // keystroke that changes one paragraph of a 2,000-paragraph note leaves
+  // every OTHER paragraph's node object exactly as it was; the memoized
+  // serializer reuses each unchanged paragraph's already-computed JSON
+  // instead of re-walking it, which is where this path's cost scaled with
+  // document size (perf-budgets.md, "Typing (clause 4d)"). This changes ONLY
+  // how fast the snapshot is produced, never what it contains or how often
+  // it is taken -- every keystroke still gets a complete, correct,
+  // synchronous snapshot, exactly as the Wave Q1 durability design requires.
   const captureLocalState = () => {
     // ⛔ S1/H14: a locked (unreadable) note has no local state worth keeping —
     // the editor holds an EMPTY stand-in, and every layer this feeds (the draft,
@@ -1178,7 +1202,7 @@ export default function NoteEditorPage({
     return {
       title: titleRef.current,
       subtitle: subtitleRef.current,
-      bodyJson: editorRef.current.getJSON(),
+      bodyJson: draftJSONRef.current(editorRef.current.state.doc),
       baseUpdatedAt: lastSavedRef.current.updatedAt || null,
       // ⛔⛔ WHAT THE SERVER LAST HELD, travelling WITH the member's words.
       // The drain cannot classify a conflict without it — diffing the server's
