@@ -136,10 +136,17 @@ describe('NotebookTab — Stage A member-validation instrumentation', () => {
 describe('NotebookTab — template picker', () => {
   it('empty notebook renders the picker inline with all families', () => {
     renderTab()
-    expect(screen.getByText('Daily & weekly rituals')).toBeInTheDocument()
-    expect(screen.getByText('Around a trade')).toBeInTheDocument()
-    expect(screen.getByText('Mindset')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Daily Game Plan/ })).toBeInTheDocument()
+    // Wave 10 lane DR-C (D-4): each family label is ALSO a category-filter chip
+    // with the identical text (both real, both correct -- the gallery's own
+    // rail covers it, TemplatePicker.gallerySearch.test.jsx "every family from
+    // the catalog has a chip"), so `getByText` is now ambiguous. `role=group`
+    // names only the family's card container (the chip is a `button`).
+    expect(screen.getByRole('group', { name: 'Daily & weekly rituals' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Around a trade' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Mindset' })).toBeInTheDocument()
+    // Exact match: a card's own name is "Daily Game Plan"; its sibling
+    // "Preview" action is named "Preview Daily Game Plan" and must not match.
+    expect(screen.getByRole('button', { name: 'Daily Game Plan' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Blank note/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /My Playbook/ })).toBeInTheDocument()
   })
@@ -152,7 +159,9 @@ describe('NotebookTab — template picker', () => {
 
   it('picking Daily Game Plan POSTs seeded body + template title + preset tags', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Daily Game Plan/ }))
+    // Exact, not /Daily Game Plan/: that regex now also matches the card's
+    // OWN sibling "Preview Daily Game Plan" button (D-4's Preview action).
+    fireEvent.click(screen.getByRole('button', { name: 'Daily Game Plan' }))
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPost().url).toBe('/api/j2/notes')
     expect(lastPostBody.title).toMatch(/^Game Plan — /)
@@ -180,7 +189,9 @@ describe('NotebookTab — template picker', () => {
 
   it('opens the editor for the created note after a template pick', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /Weekly Review/ }))
+    // Exact, not /Weekly Review/: that regex now also matches the card's OWN
+    // sibling "Preview Weekly Review" button (D-4's Preview action).
+    fireEvent.click(screen.getByRole('button', { name: 'Weekly Review' }))
     const editor = await screen.findByTestId('note-editor')
     expect(editor).toHaveAttribute('data-note-id', 'new1')
   })
@@ -225,7 +236,10 @@ describe('NotebookTab — Wave H Research Home vs. All Notes grid', () => {
   it('?view=all renders the All Notes grid/picker, not Research Home', () => {
     renderTab('/journal/notebook?view=all')
     expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
-    expect(screen.getByText('Daily & weekly rituals')).toBeInTheDocument()
+    // getByRole('group', ...), not getByText: the family label is ALSO a
+    // category-filter chip with the identical text (D-4), so the bare text is
+    // ambiguous -- the chip is a `button`, only the card container is a `group`.
+    expect(screen.getByRole('group', { name: 'Daily & weekly rituals' })).toBeInTheDocument()
   })
 
   it('opening a note leaves Research Home for the editor, even from bare-root', () => {

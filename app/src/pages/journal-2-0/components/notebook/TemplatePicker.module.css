@@ -214,7 +214,12 @@
   font-size: 13px;
   color: var(--text);
   background: var(--bg-surface);
-  border: 1px solid var(--border);
+  /* D-A4/notebookContrast: --border reads ~1.1-1.2:1 against --bg-elevated /
+     --bg-surface in all three themes -- far under the 3:1 non-text UI floor.
+     --field-edge is the token every other Notebook input border already uses
+     (FolderSidebar's own .searchInput, NoteEditorPage's .titleInput) and it
+     passes. */
+  border: 1px solid var(--field-edge);
   border-radius: 8px;
 }
 .searchInput:focus-visible {
@@ -259,7 +264,13 @@
   border-color: var(--ut-gold);
 }
 .chipActive {
-  color: var(--bg-page, #0b0c0f);
+  /* D-A4/notebookContrast: --bg-page is not a real token (the #0b0c0f fallback
+     always resolves), and it reads 3.14:1 on --ut-gold in light -- under the
+     4.5:1 text floor. --bg is the theme's own extreme (white in light, black
+     in dark/oled -- notebookContrast.test.js's own control), the same token
+     WidgetEmbedView.module.css already uses for text on a gold background,
+     and it passes in all three. */
+  color: var(--bg);
   background: var(--ut-gold);
   border-color: var(--ut-gold);
   font-weight: 700;
