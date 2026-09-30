@@ -136,7 +136,9 @@ const CASES = [
   // records on the RDDT 1D capture ("15m","1h","4h","1D"; tableCells 9 → 13,
   // nothing drawn the vendor lacks). Fewer unsupported, none drawn wrong.
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(22, 38) },
+    // ⭐ 22 -> 12 on 2026-09-29 (C9): `high[pivSpan]` folds like a window, so
+    // ten divergence lines/labels convert — each TradingView's (vendor harness).
+    objectsOnly: false, kind: 'partial', text: partial(12, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the
