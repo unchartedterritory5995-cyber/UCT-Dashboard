@@ -494,6 +494,11 @@ pass requires a lie."*
 
 ### 6.1 The registration
 
+> ⚰️ **SUPERSEDED 2026-09-30 by `2026-09-30-mvp-preregistration-ravi.md`** (subject: Ravi; adjudicator:
+> Patrick; workflow confirmed). The table below is the 2026-09-26 draft, kept as history and VOID as a
+> pre-registration.
+
+
 | field | value | status |
 |---|---|---|
 | **Workflow** | `JTBD-M02` — from a breadth cell or heatmap tile that contradicts the tape, drill to the constituent names, then inspect one name's daily/weekly chart | ⚠️ **CANDIDATE.** Derived from the estate's own embed points, not from testimony: CP-06 records the owner *"declined that level of detail as unnecessary"*, so *which* task he opens Finviz for by hand is not in the record. **One sentence from the owner confirms or replaces it** |
