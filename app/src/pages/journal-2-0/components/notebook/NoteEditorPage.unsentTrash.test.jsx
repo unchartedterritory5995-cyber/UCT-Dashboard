@@ -184,27 +184,45 @@ describe('Delete with unsent words (the 404 path)', () => {
   })
 
   // ⛔ M15: a Trash the server refused says so; it never just closes and does nothing.
-  it('a Delete the server refuses says it could not trash the note, and leaves the member where they were', async () => {
+  // ⛔⛔ Wave 10 F7 (Part A, 5d): the old sentence lived in `chromeMsg`, which
+  // auto-dismisses 2.4s after it is set -- gone long before a member who glanced
+  // away looked back, and read SILENT by the proof walk's own 6s wait. It is now a
+  // SaveFailed alert (the same "stays until dismissed" slot favorite/tag use), so
+  // this asserts the sentence OUTLIVES that old 2.4s window, not just that it once
+  // appeared. Removing the SaveFailed slot (reverting to chromeMsg) reds this.
+  it('a Delete the server refuses says it could not trash the note, stays said past the old 2.4s fade, and leaves the note where it was', async () => {
     verdicts.mockResolvedValue(CLEAN)
     global.fetch = vi.fn(async (url, opts = {}) => (String(url) === '/api/j2/notes/n1' && opts.method === 'DELETE'
       ? { ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) }
       : { ok: true, json: async () => ({}) }))
     await renderEditor()
     await confirmDelete()
-    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Couldn’t move this note to the Trash. Nothing changed.')
     expect(document.body.textContent).not.toContain('database is locked')
     expect(onBack).not.toHaveBeenCalled()
+    // the note is still ON SCREEN -- never navigated away from, nothing to roll back
+    expect(screen.getByPlaceholderText('Title')).toBeInTheDocument()
+    // outlives the OLD 2.4s chrome-message fade -- the proof walk read the page at 6s
+    await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t move this note to the Trash.')
+    // and it can be dismissed, the same as every other SaveFailed slot
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
-  it('…and so does a Trash anyway that the network drops', async () => {
+  it('…and so does a Trash anyway that the network drops, and it too stays said past 2.4s', async () => {
     verdicts.mockResolvedValue(QUEUED)
     const editor = await renderEditor()
     typeUnsentWords(editor)
     await confirmDelete()
     global.fetch = vi.fn(async () => { throw new TypeError('Failed to fetch') })
     fireEvent.click(await screen.findByRole('button', { name: 'Trash anyway' }))
-    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Couldn’t move this note to the Trash. Nothing changed.')
     expect(onBack).not.toHaveBeenCalled()
+    await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t move this note to the Trash.')
   })
 
   it('CONTROL: a note with nothing unsent trashes at once, no second question', async () => {

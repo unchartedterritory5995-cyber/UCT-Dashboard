@@ -3006,6 +3006,14 @@ export default function NoteEditorPage({
   // for 30 days, so the copy stays proportional rather than "permanently".
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const onDeleteRequest = () => setConfirmingDelete(true)
+  // ⛔ Wave 10 F7 (Part A, 5d): a failed trash said so via `chromeMsg`, which auto-dismisses
+  // 2.4s after it is set (see the effect above) -- gone long before the proof walk's own
+  // 6s wait looked, and gone well before a member who glanced away would look back. Read
+  // SILENT under BOTH a forced 500 and a forced-offline DELETE. `trashFailure` is the same
+  // "stays until dismissed" SaveFailed slot favorite/tag already use -- one write, one slot.
+  // Rail: a11y/silentFailures.test.jsx / NoteEditorPage.unsentTrash.test.jsx.
+  const [trashFailure, setTrashFailure] = useState(null)
+  useEffect(() => { setTrashFailure(null) }, [noteId])
   const trashNow = async () => {
     let res = null
     try {
@@ -3018,6 +3026,7 @@ export default function NoteEditorPage({
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
+      setTrashFailure(null)
       // Wave 8 (8A): say WHICH note went, so the list can put focus on the
       // row after it (NotebookTab.closeNote).
       onBack({ trashed: noteId })
@@ -3026,7 +3035,11 @@ export default function NoteEditorPage({
     // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
     // sentence, never the server's words. It used to do nothing at all, so
     // "Trash anyway" closed its dialog and the note simply stayed.
-    setChromeMsg('Couldn’t move this note to the Trash — try again.')
+    // ⛔ NEVER TRASHED. `res?.ok` was never true, so the note this editor is
+    // showing was never removed from the server or navigated away from --
+    // there is no optimistic removal on this path to roll back, only the
+    // member's belief that Delete worked, which this sentence corrects.
+    setTrashFailure('Couldn’t move this note to the Trash. Nothing changed.')
   }
 
   // ⛔ Wave 6 item 11 — A NOTE STILL HOLDING UNSENT WORDS IS NOT TRASHED UNASKED.
@@ -3415,10 +3428,21 @@ export default function NoteEditorPage({
             {OFFLINE_VIEWING_BANNER}
           </div>
         )}
+        {/* ⛔ Wave 10 F7 (Part A, 5d): the retrying state used to put its whole sentence
+            (`friendlySaveError(..., {retrying:true})`, e.g. "Couldn't reach the server —
+            your note is unchanged, retrying automatically.") ONLY in the `title` tooltip
+            attribute, and rendered nothing but the single word "Reconnecting…" as VISIBLE
+            text. A member reading the screen -- never hovering a status line -- saw one word
+            with no explanation of what failed or whether their words were safe: the proof
+            walk's silent-failure sweep read this as SILENT under a forced-offline autosave
+            PUT (`is_sentence` requires 3+ words; "Reconnecting…" is one). The sentence is
+            now the VISIBLE text, same as the 'error' branch already did. */}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
-          <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
-            {saveStatus === 'reconnecting' && 'Reconnecting…'}
-            {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {saveStatus === 'reconnecting'
+              ? (saveErrorMsg || 'Reconnecting…')
+              : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
@@ -3487,6 +3511,7 @@ export default function NoteEditorPage({
           />
           <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
           <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
           {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
