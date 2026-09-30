@@ -493,7 +493,7 @@ export function collectUdtTypes(stmts, out) {
 }
 
 /** ⭐ WHICH ARGUMENT OF A COLLECTION CALL CARRIES A VALUE, counting the
- *  collection itself. `push(coll, v)` → 1; `set(coll, i, v)` → 2.
+ *  collection itself. `push(coll, v)` → 1; `unshift(coll, v)` → 1; `set(coll, i, v)` → 2.
  *
  *  ⛔⛔ THIS IS `pineObjects.js`'s `VALUE_ARG` WITH THE COLLECTION COUNTED IN.
  *  That table is written over the arguments AFTER the collection (`push` → 0)
@@ -506,8 +506,12 @@ export function collectUdtTypes(stmts, out) {
  *  ⛔ Every other collection call takes an index or nothing, so it has NO value
  *  position — and a shape absent from this table can never admit a drawing.
  *
+ *  ⭐ `unshift` joined in C11b (2026-09-29), when the object pass began carrying
+ *  `list.unshift(line.new(…))` as a front-insert — the same value position as
+ *  `push`, at the other end of the list.
+ *
  *  ⭐ EXPORTED FOR THAT RAIL. Nothing else reads it. */
-export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.set': 2 })
+export const COLLECTION_VALUE_ARG = Object.freeze({ 'array.push': 1, 'array.unshift': 1, 'array.set': 2 })
 /** The input kinds whose VALUE IS TEXT.
  *
  *  ⛔⛔ `pine.js` REFUSES THESE AND IS RIGHT TO. That lane's value model is

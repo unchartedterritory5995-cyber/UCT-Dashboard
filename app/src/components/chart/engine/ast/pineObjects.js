@@ -148,7 +148,9 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 /** Named but NOT built — reported with its count rather than half-implemented. */
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
-const COLLECTION_CALLS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift']))
+const COLLECTION_CALLS = Object.freeze(new Set(['push', 'unshift', 'set', 'remove', 'clear', 'pop', 'shift']))
+/** ⭐ C11b — every operator that REASSIGNS an existing name (Pine reference). */
+const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=', '%=']))
 /** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
  *  pass does not carry leaves a drawing collection diverged. */
 const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
@@ -297,7 +299,9 @@ export function collectObjectOps(stmts, h) {
       for (const s2 of items || []) {
         const ts = s2.header || []
         for (let k = 1; k < ts.length; k += 1) {
-          if (h.isPunct(ts[k], ':=') && ts[k - 1] && ts[k - 1].kind === 'ident') {
+          // ⭐ C11b — `+=` and its siblings reassign too (`x += 1` is `x := x + 1`).
+          if (ts[k] && ts[k].kind === 'punct' && REASSIGN_OPS.has(ts[k].value)
+              && ts[k - 1] && ts[k - 1].kind === 'ident') {
             out.add(ts[k - 1].value)
           }
         }
@@ -345,6 +349,8 @@ export function collectObjectOps(stmts, h) {
   }
   const walk = (list, guards, inLoop, scope) => {
     let prevIfCond = null
+    // ⭐ C11b — the scope the chain's FIRST `if` stood in (see `guardAt`).
+    let prevIfLocals = null
     let localScope = scope
     const isRoot = list === stmts
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
@@ -424,11 +430,11 @@ export function collectObjectOps(stmts, h) {
         for (const arm of st.sub || []) {
           const ah = arm.header || []
           const at = h.findTop(ah, (x) => h.isPunct(x, '=>'))
-          const armGuards = [...guards, ...prior.map((toks) => ({ toks, negate: true }))]
+          const armGuards = [...guards, ...prior.map((toks) => ({ toks, negate: true, locals: localScope }))]
           if (at < 0) {
             // Not an arm shape this reader knows: an empty guard is unreadable, so
             // whatever it draws is refused rather than run without its condition.
-            walk([arm], [...armGuards, { toks: [], negate: false }], inLoop, localScope)
+            walk([arm], [...armGuards, { toks: [], negate: false, locals: localScope }], inLoop, localScope)
             continue
           }
           const match = ah.slice(0, at)
@@ -438,11 +444,16 @@ export function collectObjectOps(stmts, h) {
               ? [P('('), ...subject, P(')'), P('=='), P('('), ...match, P(')')]
               : match
             prior.push(cond)
-            g = [...armGuards, { toks: cond, negate: false }]
+            g = [...armGuards, { toks: cond, negate: false, locals: localScope }]
           }
           const rhs = ah.slice(at + 1)
           if (rhs.length) walk([{ ...arm, header: rhs }], g, inLoop, localScope)
           else walk(arm.sub || [], g, inLoop, localScope)
+        }
+        // ⭐ C11b — what an arm reassigns is a new binding after the `switch`
+        // (the value walk records it against this statement when it folds it).
+        for (const name of reassignedIn(st.sub || [])) {
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
         continue
       }
@@ -451,7 +462,12 @@ export function collectObjectOps(stmts, h) {
         const condEnd = t.length
         const cond = t.slice(1, condEnd)
         prevIfCond = cond
-        walk(st.sub || [], [...guards, { toks: cond, negate: false }], inLoop, localScope)
+        prevIfLocals = localScope
+        // ⭐⭐ C11b — A CONDITION IS READ WHERE ITS `if` STANDS (`locals`), not where
+        // the op under it stands: the block may reassign a name the condition
+        // read (`if high >= hh` → `hh := high`), and the op below must not see
+        // its own `if` re-evaluated with the new value (`camarilla`, measured).
+        walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
         // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
         // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
         // inside an `if` leaves TWO bindings for one name, and the cell below the
@@ -463,7 +479,7 @@ export function collectObjectOps(stmts, h) {
         // v2 is the empty string: a blank cell where the author wrote a number,
         // reading as "the value is empty" — a claim they never made.
         for (const name of reassignedIn(st.sub || [])) {
-          localScope = [...localScope, { name, toks: t, st }]
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
         continue
       }
@@ -471,18 +487,20 @@ export function collectObjectOps(stmts, h) {
         // `else if cond` → not(prev) and cond ; bare `else` → not(prev)
         const isElseIf = t[1] && t[1].kind === 'ident' && t[1].value === 'if'
         const next = [...guards]
-        if (prevIfCond) next.push({ toks: prevIfCond, negate: true })
+        if (prevIfCond) next.push({ toks: prevIfCond, negate: true, locals: prevIfLocals })
         if (isElseIf) {
           const cond = t.slice(2)
           prevIfCond = cond
-          next.push({ toks: cond, negate: false })
+          next.push({ toks: cond, negate: false, locals: prevIfLocals })
         }
-        walk(st.sub || [], next, inLoop, localScope)
+        // ⭐ C11b — an `else` arm starts from the scope BEFORE the chain: the arm
+        // above it did not run, so nothing it reassigned has happened here.
+        walk(st.sub || [], next, inLoop, prevIfLocals || localScope)
         // ⭐ R2 STEP 3 — same as the `if` arm: an `else` body may reassign too,
         // and `foldIfChain` keys its record on the chain's FIRST statement, so
         // this points at `st` for the join the same way.
         for (const name of reassignedIn(st.sub || [])) {
-          localScope = [...localScope, { name, toks: t, st }]
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
         continue
       }
@@ -503,17 +521,24 @@ export function collectObjectOps(stmts, h) {
         // Same for `for … by <step>`: the op has no step, so pretending 1 would
         // draw every row of a loop the author wrote to skip.
         const head = word === 'for' ? parseForHead(t) : null
+        // ⭐⭐ C11b — A NAME THE LOOP REASSIGNS HAS NO SINGLE VALUE inside it (the
+        // previous iteration's) nor, to this reader, after it: it is entered as
+        // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
+        const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
+        const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
         if (!head) {
-          walk(st.sub || [], guards, true, localScope)
+          walk(st.sub || [], guards, true, bodyScope)
+          if (loopRe.length) localScope = [...localScope, ...loopRe]
           continue
         }
         const outer = ops
         const body = []
         ops = body
         loopIds.push(head.id)
-        walk(st.sub || [], guards, inLoop, localScope)
+        walk(st.sub || [], guards, inLoop, bodyScope)
         loopIds.pop()
         ops = outer
+        if (loopRe.length) localScope = [...localScope, ...loopRe]
         // ⛔ A LOOP THAT COLLECTED NOTHING IS NOT EMITTED. `assertObjectProgram`
         // refuses an empty body ("a loop with an empty body draws nothing"), and
         // it is right to — but the honest answer here is that this loop drew
@@ -872,6 +897,29 @@ export function collectObjectOps(stmts, h) {
       // not carry, and it refuses rather than reading the initialiser.
       if (st.synthetic && t.length > 2 && t[0].kind === 'ident' && h.isPunct(t[1], ':=')) {
         localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st, assign: true }]
+      } else if (!st.synthetic && t.length > 2 && t[0].kind === 'ident' && t[1].kind === 'punct'
+          && REASSIGN_OPS.has(t[1].value)) {
+        // ⭐⭐ C11b — AND OUTSIDE ONE, A REASSIGNMENT IS THE NEW BINDING TOO.
+        //
+        // ⚰️⚰️ MEASURED 2026-09-29 (live on the member door, objects pane armed):
+        // a name's DECLARATION joined this scope and nothing after it did, so
+        //     x = 1.0
+        //     x := 2.0
+        //     label.new(bar_index, high, str.tostring(x))
+        // drew "1" where Pine draws "2", and
+        //     flag = true
+        //     if close > open
+        //         flag := high > high[1]
+        //         if flag
+        //             label.new(…)
+        // drew on EVERY up bar — a confident wrong picture, with a clean drop
+        // ledger. The declaration's per-statement record pinned the name for
+        // every op after it. Entering the reassignment makes `scopeFor` read the
+        // walk's OWN record for THIS statement (a block's `foldStatements`
+        // record) — the binding the value walk made right there. At the TOP level
+        // the entry is skipped: there `scopeFor`'s base reads the name at the
+        // op's own position (`bindingAt`, the walk's per-statement log).
+        localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st, reassign: true }]
       }
       const declEq = h.findTop(t, (x) => h.isPunct(x, '='))
       const isArrow = h.findTop(t, (x) => h.isPunct(x, '=>')) >= 0
@@ -882,7 +930,12 @@ export function collectObjectOps(stmts, h) {
         }
       }
       // any other statement may still hide a nested block
-      if (st.sub && st.sub.length) walk(st.sub, guards, inLoop, localScope)
+      if (st.sub && st.sub.length) {
+        walk(st.sub, guards, inLoop, localScope)
+        for (const name of reassignedIn(st.sub)) {
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
+        }
+      }
     }
   }
 
@@ -1355,7 +1408,7 @@ export function collectObjectOps(stmts, h) {
   /** The argument of `array.<method>` that carries an OBJECT, after the
    *  collection itself. `push(coll, v)` → 0; `set(coll, i, v)` → 1. Every other
    *  collection call takes an index or nothing, so it has no create position. */
-  const VALUE_ARG = Object.freeze({ push: 0, set: 1 })
+  const VALUE_ARG = Object.freeze({ push: 0, unshift: 0, set: 1 })
 
   /** `<array.get(coll, i)>.<method>(args)` as a STATEMENT → the same op the
    *  name form emits, or false if this reader does not read this shape.
