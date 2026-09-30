@@ -10,8 +10,9 @@
 //   gridSort.js     the pure pieces (nextSort, ariaSortFor, sortCaretFor,
 //                   sortRows, compareCells, isBlankCell)
 //
-// Consumers today: `journal-2-0/components/TradesTable.jsx` and
-// `PositionsTable.jsx`. `dataGridSeed.rail.test.js` keeps the list of grids
+// Consumers today: `journal-2-0/components/TradesTable.jsx`,
+// `PositionsTable.jsx`, and the screener's `shell/VirtualResults.jsx` (header
+// decisions) + `shell/liveSort.js` (the live re-sort comparator). `dataGridSeed.rail.test.js` keeps the list of grids
 // that still hand-roll a sort, and it may only shrink.
 
 export { default as useGridSort } from './useGridSort'
