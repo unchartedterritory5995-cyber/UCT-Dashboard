@@ -51,3 +51,24 @@ never edit a past row.
 | date (ET) | declared eligible? (before looking) | occasion time | the breadth cell / tile | name inspected | chart used: UCT drill / Finviz / TradingView / other | note |
 |---|---|---|---|---|---|---|
 | | | | | | | |
+
+## The withdrawal switch — built 2026-09-30, how to run it
+
+Built so it can **never touch a member**: the drill chart is hidden only for a user **tagged into
+the `terminal-next` cohort** while `TERMINAL_NEXT_ENABLED` is off, and the check runs for admins
+only (`rollout_gate.withdrawn_cohorts`, `cohorts_withdrawn` on the auth payload; the drill shows the
+list full width; the member's saved board is never changed). Rails:
+`tests/test_terminal_next_withdrawal.py`, `BreadthDrillModal.withdrawal.test.jsx`, and the
+kill-switch rail, which now acknowledges this as Terminal-Next's first frontend gate by name.
+
+**Before Phase B's first morning** (no visible change for anyone):
+1. Owner, in the web pod: `python tools/rollout_cohort.py add --cohort terminal-next --user <Ravi's user id>`
+   — read the printed diff (one id), then re-run with `--apply`.
+2. `railway variables --service web --set "TERMINAL_NEXT_ENABLED=1"` — Ravi is now in the ON state,
+   and the drill looks exactly as it always has.
+
+**The withdrawal block, one full session, unannounced:**
+3. `railway variables --service web --set "TERMINAL_NEXT_ENABLED=0"` before the open → Ravi's drill
+   shows the names without the chart (NOW-gate clause 4: the OFF state observed killing a surface —
+   confirm on his payload: `cohorts_withdrawn` = `["terminal-next"]`).
+4. Record whether he asks for it back before the close. Then set it back to `1`.
