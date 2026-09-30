@@ -325,7 +325,6 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
             if (!a || !b || a.length !== b.length || a.some((x, q) => !same(x, b[q]))) mark(i)
           }
         }
-        if (s.loop) for (let i = 0; i < n; i += 1) if (first.overflow[i]) mark(i)
         cols.push({ byBar, text: s.kind === 'text', loop: s.loop ? rtLoopId(s.loop) : null })
       } else {
         const o = built.objectAtOutputs[j]
@@ -337,23 +336,14 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
           // `0 to N-1`: no pass (or a loop never reached) is `na`, so the loop runs
           // zero times — never `0 to -1`, which Pine's `for` would count DOWN.
           col = Float64Array.from(a, (v) => (v >= 1 ? v - 1 : NaN))
+          // ⛔ More passes than a per-pass buffer holds (`ITER_SLOTS`): the loop's
+          // bound is unknown on that bar, so the whole loop is withheld — the ONE
+          // place this is decided (its per-pass values are never read short).
           for (let i = 0; i < n; i += 1) if (first.overflow[i]) mark(i)
         }
         for (let i = 0; b && i < n; i += 1) if (!same(a[i], b[i])) mark(i)
-        if (s.kind === 'colour') {
-          // ⛔⛔ A RUNTIME COLOUR IS SERVED OPAQUE ONLY. The run packs a
-          // transparency into one byte (`colours.js::transparencyToByte`,
-          // `round(t × 2.55)`), and TradingView's opacity is `round((100 − t) ×
-          // 2.55)` — measured on max-pain's NET label, `color.new(red, 70)`: alpha
-          // 77 where the run's byte gives 76. The two disagree at every half step,
-          // so a packed alpha is never turned back into an opacity: a colour the
-          // run made transparent is UNKNOWN. `color.new(c, t)` is served by the
-          // object runtime instead, from `c` and `t` (`{c:'new'}`).
-          for (let i = 0; i < n; i += 1) {
-            const v = col[i]
-            if (Number.isFinite(v) && ((v >>> 24) & 0xff) !== 0) mark(i)
-          }
-        }
+        // ⛔ A runtime colour is served OPAQUE only — decided in ONE place, the
+        // object runtime's `colorOf` (`{c:'rt'}`), never repeated here.
         cols.push(col)
       }
       unknown.push(mask)

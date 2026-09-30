@@ -770,11 +770,16 @@ export function beginObjects(program, ctx) {
       if (!isObj(c)) return null
       if (c.c === 'lit') return c.hex
       if (c.c === 'if') return truthy(value(c.cond)) ? colorOf(c.then) : colorOf(c.else)
-      // ⭐⭐ C20 — A COLOUR THE RUNTIME LANE COMPUTED, served OPAQUE only (its
-      // packed alpha is never turned back into an opacity — `runtimeColumns.js`
-      // marks a transparent one unknown, so the op never gets here with one).
-      // ⛔ Anything else answers `null`, and a create/update that asked for this
-      // colour and got `null` is HELD (`unservedColour`), never drawn in a default.
+      // ⭐⭐ C20 — A COLOUR THE RUNTIME LANE COMPUTED, served OPAQUE only.
+      // ⛔⛔ The run packs a transparency into one byte (`colours.js::
+      // transparencyToByte`, `round(t × 2.55)`) and TradingView's opacity is
+      // `round((100 − t) × 2.55)` — measured on max-pain's NET label,
+      // `color.new(red, 70)`: alpha 77 where the run's byte gives 76. The two
+      // disagree at every half step, so a packed alpha is NEVER turned back into
+      // an opacity: `color.new(c, t)` is `{c:'new'}` (from `c` and `t`), and any
+      // other colour the run made transparent answers `null`.
+      // ⛔ A create/update that asked for this colour and got `null` is HELD
+      // (`unservedColour`), never drawn in a default.
       if (c.c === 'rt') {
         const v = value(c.v)
         if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null

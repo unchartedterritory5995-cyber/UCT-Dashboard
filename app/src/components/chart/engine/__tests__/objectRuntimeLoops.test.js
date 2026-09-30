@@ -108,9 +108,14 @@ describe('⭐⭐ (c) drawings made inside a `while`, pass by pass', () => {
   it('⛔ a drawing in a NESTED loop keeps the reader\'s refusal', () => {
     const src = 'if barstate.islast\n    int i = 0\n    while i < 2\n        int j = 0\n        while j < 2\n'
       + '            label.new(bar_index, j, "x")\n            j += 1\n        i += 1\nplot(close)\n'
-    const t = checked(src)
+    const asked = []
+    const t = translatePine(HEAD + src, {
+      strict: true, objects: true, objectRuntimeCheck: (s, specs) => { asked.push(specs.length); return probeObjectRuntime(s, specs) },
+    })
     expect(t.objectDiagnostics.loopBlockedCalls).toEqual(['label.new'])
     expect(t.objects).toBe(null)
+    // the READER keeps it: the runtime lane is never asked for a per-pass value
+    expect(asked).toEqual([0])
   })
 
   it('⛔ a loop that KEEPS a handle (or edits one) keeps the reader\'s refusal — only statement creates are carried', () => {
