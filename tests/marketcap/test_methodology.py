@@ -107,3 +107,15 @@ def test_ads_equivalent_units_consistent_across_ratio_change():
     cap = lambda d, R, p: N * led.factor_after(date(2019, 12, 31)) / R * adj(d, p)
     assert abs(cap(date(2020, 5, 29), R1, px_before_actual) - N / R1 * px_before_actual) < 1e-9
     assert abs(cap(date(2020, 6, 1), R1, px_after_actual) - N / R2 * px_after_actual) < 1e-9
+
+
+def test_text_parser_refuses_issued_only_and_authorized_counts():
+    t1 = "As of October 15, 2012, 11,860,040 shares of $0.01 par value common stock were issued and 11,154,890 were outstanding."
+    t2 = ("150,000,000 shares of common stock, par value of $0.01, authorized of which 89,311,920 shares were issued "
+          "and outstanding as of November 1, 2010.")
+    assert T.parse(T.normalize(t1), date(2012, 11, 10), "10-Q").status != "OK" or \
+        T.parse(T.normalize(t1), date(2012, 11, 10), "10-Q").hits[0].count == 11154890
+    r2 = T.parse(T.normalize(t2), date(2010, 11, 5), "10-Q")
+    assert r2.status != "OK" or r2.hits[0].count == 89311920
+    t3 = "As of November 5, 2012, there were 347,380,000 shares of the registrant's $0.001 par value common stock issued and outstanding."
+    assert T.parse(T.normalize(t3), date(2012, 11, 10), "10-Q").hits[0].count == 347380000

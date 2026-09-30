@@ -48,6 +48,9 @@ def run(inputs_path: str, n: int, lo: str, hi: str) -> dict:
     with ThreadPoolExecutor(16) as ex:           # prefetch into the cache (rate-limited by the SEC client)
         heads = list(ex.map(lambda r: get_head(f"{SEC.WWW}/Archives/edgar/data/{r[0]}/{r[1]}.txt"), rows))
     for (cik, accn, form, fd, rd, as_of, val), b in zip(rows, heads):
+        if not val or val <= 0:
+            out["TRUTH_INVALID"] += 1                # an XBRL zero is not a usable truth value
+            continue
         if b is None:
             out["NO_FILE"] += 1
             continue
@@ -60,15 +63,25 @@ def run(inputs_path: str, n: int, lo: str, hi: str) -> dict:
         h = r.hits[0]
         cnt_ok = abs(h.count / val - 1) <= 0.005
         date_ok = abs((h.as_of - date.fromisoformat(as_of)).days) <= 3
+        scale = next((k for k in (1e3, 1e6, 1e-3) if abs(h.count * k / val - 1) <= 0.005), None)
         if cnt_ok and date_ok:
             out["correct"] += 1
+        elif cnt_ok:
+            out["count_ok_xbrl_date_differs"] += 1        # XBRL cover fact tagged with another context date
+            wrong.append(["DATE", cik, accn, form, h.count, str(h.as_of), val, as_of, h.rule, h.snippet[:200]])
+        elif scale:
+            out["xbrl_scale_error"] += 1                  # the XBRL value is off by 10^3 / 10^6: the text is right
+            wrong.append(["XBRL_SCALE", cik, accn, form, h.count, str(h.as_of), val, as_of, h.rule, h.snippet[:200]])
         else:
-            out["wrong_count" if not cnt_ok else "wrong_date"] += 1
-            wrong.append([cik, accn, form, h.count, str(h.as_of), val, as_of, h.rule, h.snippet[:220]])
+            out["count_mismatch"] += 1
+            wrong.append(["COUNT", cik, accn, form, h.count, str(h.as_of), val, as_of, h.rule, h.snippet[:200]])
     ok = out["status:OK"]
     tot = sum(v for k, v in out.items() if k.startswith("status:"))
-    return {"sample": tot, "counts": dict(out), "precision": out["correct"] / ok if ok else None,
-            "recall": out["correct"] / tot if tot else None, "wrong": wrong, "missing_examples": missing}
+    agree = out["correct"] + out["count_ok_xbrl_date_differs"] + out["xbrl_scale_error"]
+    return {"sample": tot, "counts": dict(out),
+            "precision_strict": out["correct"] / ok if ok else None,
+            "precision_count": agree / ok if ok else None,
+            "recall_count": agree / tot if tot else None, "wrong": wrong, "missing_examples": missing}
 
 
 def main(argv=None) -> int:
@@ -81,7 +94,7 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     res = run(a.inputs, a.n, a.lo, a.hi)
     json.dump(res, open(a.out, "w"), indent=1, default=str)
-    print(json.dumps({k: res[k] for k in ("sample", "counts", "precision", "recall")}))
+    print(json.dumps({k: res[k] for k in ("sample", "counts", "precision_strict", "precision_count", "recall_count")}))
     return 0
 
 

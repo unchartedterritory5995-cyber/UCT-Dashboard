@@ -98,7 +98,15 @@ class Result:
 
 
 RULES = [
-    ("NUMBER_AS_OF_WAS", re.compile(rf"(?:number of|there were)[^.;]{{0,180}}?outstanding[^.;]{{0,120}}?(?:as of|at|on)\s+({DATE})[^.;\d]{{0,60}}?(?:was|were|is|:|-)\s*(?:approximately\s+)?{NUM}", re.I)),
+    ("NUMBER_AS_OF_WAS", re.compile(rf"(?:number of|there were)[^.;]{{0,180}}?outstanding[^.;]{{0,120}}?(?:as of|at|on)\s+({DATE})[^.;]{{0,90}}?(?:was|were|is|:|-)\s*(?:approximately\s+)?{NUM}", re.I)),
+    # "The number of shares outstanding of the Registrant's Common Stock, par value $.01, was 21,984,597 as of November 2, 2011"
+    ("NUMBER_WAS_N_AS_OF", re.compile(rf"number of[^.;]{{0,120}}?outstanding[^.;]{{0,120}}?(?:was|were|is)\s+(?:approximately\s+)?{NUM}\s+(?:shares\s+)?(?:as of|at|on)\s+({DATE})", re.I)),
+    # "As of August 8, 2011, the Registrant had 47,439,040 outstanding shares of common stock"
+    ("AS_OF_HAD_N_OUTSTANDING", re.compile(rf"(?:as of|at|on)\s+({DATE}),?\s*(?:there were|the registrant had|the company had|[a-z ,']{{0,60}}had)\s+(?:approximately\s+)?{NUM}\s+outstanding\s+(?:shares|ordinary shares|common shares)", re.I)),
+    # "As of April 12, 2012, there were outstanding 3,286,294 shares of the registrant's common stock"
+    ("AS_OF_THERE_WERE_OUTSTANDING", re.compile(rf"(?:as of|at|on)\s+({DATE}),?\s*there\s+were\s+outstanding\s+(?:approximately\s+)?{NUM}\s+(?:shares|ordinary shares|common shares)", re.I)),
+    # "As of February 15, 2011, there were approximately 160.1 million shares of common stock issued and outstanding"
+    ("APPROX_MILLIONS", re.compile(r"(?:as of|at|on)\s+(" + DATE + r"),?\s*there\s+were\s+(?:approximately\s+)?(\d{1,4}(?:_\d{1,3})?)\s+(million|billion)\s+shares[^.;]{0,120}?outstanding", re.I)),
     ("AS_OF_N_SHARES", re.compile(rf"(?:as of|at|on)\s+({DATE}),?\s*(?:there were|the registrant had|the company had|[a-z ,']{{0,60}}had)?\s*(?:approximately\s+)?{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,160}}?outstanding", re.I)),
     ("N_SHARES_OUTSTANDING_AS_OF", re.compile(rf"{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,160}}?outstanding[^.;\d]{{0,60}}?(?:as of|at|on)\s+({DATE})", re.I)),
     ("LPD_N_SHARES_AS_OF", re.compile(rf"latest practicable date[^\d]{{0,60}}?{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,120}}?(?:as of|at|on)\s+({DATE})", re.I)),
@@ -108,12 +116,22 @@ RULES = [
     # 20-F table: "Outstanding as of March 31, 2004 ... Title of Class ... Common Stock 926,418,280 ... American Depositary Shares ..."
     ("TABLE_20F_COMMON", re.compile(rf"outstanding\s+as\s+of\s+({DATE})[^;]{{0,260}}?(?:common stock|ordinary shares|common shares|shares of common stock)\s*\**\s*{NUM}", re.I)),
 ]
+# shapes trusted ONLY inside the cover statement window (they carry no "outstanding" word of their own)
+WINDOW_RULES = [
+    # "Common Stock, $0.18 par value, 85,681,911 shares as of July 31, 2010"
+    ("WIN_N_SHARES_AS_OF", re.compile(rf"{NUM}\s+(?:shares|common shares|ordinary shares)(?:\s+of\s+[^.;]{{0,60}}?)?\s+(?:as of|at|on)\s+({DATE})", re.I)),
+    # "October 31, 2012 - 36,166,218 Common Shares ($5 par value)"
+    ("WIN_DATE_DASH_N", re.compile(rf"({DATE})\s*[-:]\s*{NUM}\s+(?:common\s+|ordinary\s+)?shares", re.I)),
+    # "Class Shares Outstanding at July 23, 2010 Common Stock, $0.06 Par Value 139,959,016"
+    ("WIN_TABLE_BARE", re.compile(rf"outstanding\s+(?:shares\s+)?(?:at|as of)\s+({DATE})[^.;]{{0,160}}?{NUM}", re.I)),
+]
 # per-class shapes inside the statement window
 CLASS_RULES = [
     ("PC_N_SHARES_OF_CLASS", re.compile(rf"{NUM}\s+shares(?:\s+outstanding)?\s+of\s+(?:the\s+registrant's\s+|its\s+|our\s+|the\s+company's\s+)?class\s+([a-z])\b", re.I)),
     ("PC_CLASS_THEN_N", re.compile(rf"\bclass\s+([a-z])\s+(?:common|capital|ordinary)\s+(?:stock|shares)\b[^;]{{0,90}}?{NUM}\s*shares", re.I)),
     ("PC_CLASS_COLON_N", re.compile(rf"\bclass\s+([a-z])\s+(?:common\s+stock|common\s+shares|capital\s+stock)?[^;\d]{{0,60}}?(?:outstanding)?[:\-]\s*{NUM}", re.I)),
 ]
+CLASS_RX_ANY = re.compile(r"\bclass\s+([a-z])\b", re.I)
 CLASS_NAMED = re.compile(r"\bclass\s+([a-z])\b(?=[^.;]{0,40}(?:common|ordinary|capital|stock|shares))", re.I)
 
 
@@ -140,11 +158,20 @@ def _statement_window(region: str) -> tuple[int, str]:
     return start, region[start:end]
 
 
-def _rule_hits(text: str, base: int, report_date: date | None) -> list[Hit]:
+def _rule_hits(text: str, base: int, report_date: date | None, rules=None) -> list[Hit]:
     hits, seen = [], set()
-    for name, rx in RULES:
+    for name, rx in (rules or RULES):
         for m in rx.finditer(text):
             g = [x for x in m.groups() if x]
+            if name == "APPROX_MILLIONS":
+                ds, mant, unit = m.group(1), m.group(2), m.group(3).lower()
+                n = float(mant.replace("_", ".")) * (1e6 if unit == "million" else 1e9)
+                d = parse_date(ds)
+                key = (n, d)
+                if d and key not in seen:
+                    seen.add(key)
+                    hits.append(Hit(n, d, name, base + m.start(), text[m.start():m.end()][:400]))
+                continue
             ns = next((x for x in g if NUM_RX.fullmatch(x)), None)
             ds = next((x for x in g if not NUM_RX.fullmatch(x) and parse_date(x)), None)
             if name == "CLOSE_OF_PERIOD" and ns and report_date:
@@ -160,11 +187,26 @@ def _rule_hits(text: str, base: int, report_date: date | None) -> list[Hit]:
             npos = text.find(ns, m.start())
             if npos > 0 and "$" in text[max(0, npos - 3):npos]:
                 continue
+            if _qualified_not_outstanding(text, npos, len(ns)):
+                continue
             if (n, d) in seen:
                 continue
             seen.add((n, d))
             hits.append(Hit(n, d, name, base + m.start(), snippet[:400]))
     return hits
+
+
+QUAL_AFTER = re.compile(r"^\s*(?:shares\s+)?(?:of\s+[a-z0-9$_,.' ]{0,70}?)?(?:were|are|is|was)?\s*"
+                        r"(?:authorized|issued(?!\s+and\s+outstanding))", re.I)
+QUAL_BEFORE = re.compile(r"(?:authorized|issued)\s*(?:shares)?\s*[:\-]?\s*$", re.I)
+
+
+def _qualified_not_outstanding(text: str, npos: int, nlen: int) -> bool:
+    """The number itself is qualified as AUTHORIZED or ISSUED-only ("11,860,040 shares ... were issued and
+    11,154,890 were outstanding"; "150,000,000 shares ... authorized of which ..."): never an outstanding count."""
+    after = text[npos + nlen: npos + nlen + 110]
+    before = text[max(0, npos - 30): npos]
+    return bool(QUAL_AFTER.search(after) or QUAL_BEFORE.search(before))
 
 
 def _class_hits(window: str, base: int, stmt_date: date | None) -> list[Hit]:
@@ -199,10 +241,18 @@ def parse(text: str, filing_date: date, form: str, max_chars: int = 30000, repor
     region = head[:stop] if stop else head
     w0, window = _statement_window(region)
     hits = _rule_hits(window, w0, report_date) if window else []
+    if not hits and window:
+        hits = _rule_hits(window, w0, report_date, WINDOW_RULES)      # window-only shapes
     if not hits:
         hits = _rule_hits(region, 0, report_date)
     scope = window or region
     classes = sorted({c.upper() for c in CLASS_NAMED.findall(scope)})
+    # a hit whose own statement names a share class ("Common Stock Class A, $.25 Par 9,609,809") is a CLASS count
+    for h in hits:
+        near = CLASS_RX_ANY.findall(h.snippet)
+        if near:
+            h.class_label = ",".join(sorted({x.upper() for x in near}))
+            classes = sorted(set(classes) | {x.upper() for x in near} | ({"?"} if len(set(near)) == 1 else set()))
     cw = tuple(sorted({m.group(0).lower() for m in COMPLEX_WORDS.finditer(scope)}))
     lo = filing_date - timedelta(days=400 if form.startswith(("20-F", "40-F")) else 200)
     hi = filing_date + timedelta(days=3)
