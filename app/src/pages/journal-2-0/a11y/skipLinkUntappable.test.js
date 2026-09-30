@@ -14,6 +14,7 @@ import { dirname, resolve } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const CSS_PATH = resolve(here, '../tabs/NotebookTab.module.css')
+const SHELL_CSS_PATH = resolve(here, '../../../components/Layout.module.css')
 
 function rules(css) {
   const out = []
@@ -57,6 +58,64 @@ describe("the Notebook's skip link never takes a tap meant for something else", 
     for (const r of focused) {
       expect(decl(r.body, 'opacity'), `${r.selector}: opacity`).toBe('1')
       expect(decl(r.body, 'pointer-events'), `${r.selector}: pointer-events`).toBe('auto')
+    }
+  })
+})
+
+// ── The app shell's OWN "Skip to main content" (Layout.module.css) ──────────
+//
+// ⛔ Wave 10 lane FX, proof walk wk-7bd834b9f clause 2b: the geometry sweep named "Skip to main
+// content" as covering header/title controls on nb-table/nb-board/nb-calendar/nb-timeline/
+// nb-graph/nb-trash/nb-search/nb-note/ed-find/ed-property at 390px. Measured directly in a
+// sandbox (Playwright, `document.elementFromPoint` at the reported centres, both the Notebook
+// list page and the note editor, 390px, unfocused): it never returns the skip link or its
+// wrapper -- it returns the app's own fixed MobileNav top bar for the near-top findings, and
+// (a SEPARATE, already-fixed occluder) the Log-Trade FAB / voice orb for the near-bottom ones.
+// getBoundingClientRect() on both the shell's own link and the Notebook's own portaled one
+// (rendered through SkipLinkPortal into the shell's slot) put their ENTIRE box above y=0 --
+// [8,-80,154,44] and [8,-149..-190,...] -- so elementFromPoint cannot return either for any
+// point a real tap could reach. The geometry instrument's own occluder-naming walks from the
+// REAL hit element up to the nearest div/section ancestor and describes THAT ancestor by its
+// first line of innerText, which happens to start with the skip link's text (the first DOM
+// node under `.shell`) even though the link itself has no on-screen presence -- a labelling
+// artifact, not a hit-testability defect (flagged for the walk-instrument lane, not fixed here).
+//
+// This is WHY it is safe: `.skipLinks` (the wrapper `Layout.jsx` renders both its own link and
+// every page's portaled one into) is `position: fixed`, so unlike the Notebook's OWN skip link
+// above (which is `position: absolute` and, pre-H14, scrolled WITH the page at <=640px where
+// `.wrap` drops scroll containment, landing on top of whatever had scrolled into that spot),
+// the shell's version can never move relative to the viewport -- it stays translated off the
+// TOP of the screen no matter how far the page scrolls. This rail pins that structural
+// guarantee, and the transform that puts it there, so neither can regress unnoticed.
+describe("the app shell's own skip link never takes a tap meant for something else", () => {
+  const shellCss = readFileSync(SHELL_CSS_PATH, 'utf8')
+  const shellRules = rules(shellCss)
+  const wrap = shellRules.find((r) => r.selector === '.skipLinks')
+  const base = shellRules.find((r) => r.selector === '.skipLink')
+  const focusedShell = shellRules.filter((r) => /\.skipLink:focus\b/.test(r.selector))
+
+  it('non-vacuity: the wrapper, the base rule and a focused rule are all present', () => {
+    expect(wrap, 'the .skipLinks wrapper rule').toBeTruthy()
+    expect(base, 'the positioned .skipLink rule').toBeTruthy()
+    expect(focusedShell.length).toBeGreaterThan(0)
+  })
+
+  it('the wrapper is position:fixed -- viewport-anchored, so no ancestor scroll can move it', () => {
+    expect(decl(wrap.body, 'position')).toBe('fixed')
+  })
+
+  it('unfocused, the link is translated off the top of the viewport by more than its own height', () => {
+    const t = decl(base.body, 'transform')
+    const m = t && t.match(/translateY\((-\d+(?:\.\d+)?)%\)/)
+    expect(m, `.skipLink transform: ${t}`).toBeTruthy()
+    // top:8px plus a translate of at least -100% of its own (small, single-line) height
+    // guarantees its whole box sits above y=0 -- measured live at -200%, landing at y=-80.
+    expect(Number(m[1])).toBeLessThanOrEqual(-100)
+  })
+
+  it('focused, the transform is removed so a keyboard member sees where focus went', () => {
+    for (const r of focusedShell) {
+      expect(decl(r.body, 'transform'), `${r.selector}: transform`).toBe('none')
     }
   })
 })

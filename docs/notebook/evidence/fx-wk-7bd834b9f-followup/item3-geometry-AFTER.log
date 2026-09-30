@@ -1,0 +1,47 @@
+[run] r202337
+[seed] 62.9s
+[VALID] geometry control: every planted defect failed the instrument as it must
+[FINDINGS] geometry nb-timeline @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; occluded:Week; tap:?; occluded:Folder
+[FINDINGS] geometry nb-timeline @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?
+[FINDINGS] geometry nb-timeline @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-search @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Clear search; tap:Search filters; occluded:List view; tap:?; occluded:Sort notes
+[FINDINGS] geometry nb-search @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Clear search; tap:Search filters; tap:Select Proof PDF r202337; tap:Select Proof public r202337; tap:Select Proof ledger 2 r202337
+[FINDINGS] geometry nb-search @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry ed-find @390: tap:Folder; tap:Ticker; tap:Note title; tap:Subtitle; occluded:Show replace; occluded:Find in note
+[FINDINGS] geometry ed-find @820: tap:Folder; tap:Ticker; tap:?
+[CLEAN] geometry ed-find @1200: 
+[FINDINGS] geometry settings-cards @390: occluded:Connect; tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry settings-cards @820: tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry settings-cards @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+
+[written] C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\fx-artifacts\fx-geometry-AFTER.json
+
+=== nb-timeline @ 390 : 5 finding(s) total, 1 FAB/orb/widget-real ===
+{"kind": "occluded", "control": "Week", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "span \"Log\"", "by_modal": false, "box": [44, 727, 48, 44]}
+
+=== nb-timeline @ 820 : 2 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== nb-timeline @ 1200 : 1 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== nb-search @ 390 : 14 finding(s) total, 2 FAB/orb/widget-real ===
+{"kind": "occluded", "control": "List view", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [47, 715, 44, 44]}
+{"kind": "occluded", "control": "Select Proof rich base r202337", "tag": "INPUT", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [54, 722, 24, 24]}
+
+=== nb-search @ 820 : 12 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== nb-search @ 1200 : 1 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== ed-find @ 390 : 9 finding(s) total, 2 FAB/orb/widget-real ===
+{"kind": "occluded", "control": "Show replace", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [71, 719, 44, 44]}
+{"kind": "occluded", "control": "Find in note", "tag": "INPUT", "area": "notebook", "by": "div._orbCluster_15gv2_303 \"\u25c9\"", "hit": "text", "by_modal": false, "box": [71, 771, 248, 44]}
+
+=== ed-find @ 820 : 3 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== ed-find @ 1200 : 0 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== settings-cards @ 390 : 3 finding(s) total, 1 FAB/orb/widget-real ===
+{"kind": "occluded", "control": "Connect", "tag": "BUTTON", "area": "journal-shell", "by": "div._wrap_s9jcl_1", "hit": "svg", "by_modal": false, "box": [255, 765, 93, 44]}
+
+=== settings-cards @ 820 : 2 finding(s) total, 0 FAB/orb/widget-real ===
+
+=== settings-cards @ 1200 : 1 finding(s) total, 0 FAB/orb/widget-real ===
