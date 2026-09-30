@@ -1755,6 +1755,57 @@ def test_the_injectable_seams_are_LATE_bound_so_a_module_patch_reaches_them():
     assert "dirty" in str(e.value).lower(), f"expected the dirty-tree refusal, got {e.value}"
 
 
+def test_tree_state_KEEPS_the_leading_space_of_the_first_porcelain_line(monkeypatch):
+    """⛔⛔ VOIDED A REAL SIX-SHARD GATE ON ITS OWN OUTPUT (L10 run 2, 2026-09-30).
+
+    `tree_state` read `git status --porcelain=v1` through `_git`, which `.strip()`s the WHOLE
+    output. The first line's status column is " M" for a file modified in the worktree only, so
+    the strip ate its leading space: " M docs/x/shard-1.log" became "M docs/x/shard-1.log", and
+    `_real_dirt`'s fixed `e[3:]` slice then read "ocs/x/shard-1.log". The out-dir exemption
+    missed it, and the gate declared TREE_DRIFT over a shard log it had just written itself.
+
+    ⭐ Only the FIRST line is exposed — the strip is on the whole string — which is why every
+    earlier run whose out-dir files were untracked ("??", no leading space) never saw it.
+
+    The fake `_git` models the stripping helper faithfully, so reverting `tree_state` to call
+    `_git` makes this red (the mutation this rail exists for)."""
+    import gate_shards as gs
+
+    raw = " M docs/x/shard-1.log\n M app/src/a.js\n?? docs/x/new.md\n"
+    monkeypatch.setattr(gs, "_git_raw", lambda args: raw if args[0] == "status" else "")
+    monkeypatch.setattr(gs, "_git", lambda args: "f" * 40 if args[0] == "rev-parse" else raw.strip())
+
+    head, dirty = gs.tree_state()
+    assert head == "f" * 40
+    assert dirty[0] == " M docs/x/shard-1.log", f"first porcelain line lost its status column: {dirty[0]!r}"
+    assert dirty == [" M docs/x/shard-1.log", " M app/src/a.js", "?? docs/x/new.md"]
+
+
+def test_a_gates_OWN_tracked_shard_log_modified_at_the_end_is_not_TREE_DRIFT(tmp_path):
+    """The end-to-end half: with porcelain lines intact, a tracked log inside the out-dir that the
+    run itself rewrote (" M", listed FIRST) is exempted, while real dirt beside it still voids.
+    ⭐ CONTROL: the second call proves the check can still fire, so the first cannot be passing by
+    exempting everything."""
+    import gate_shards as gs
+
+    out = gs.REPO / "docs" / "notebook" / "gate-runs" / "__rail_tree_state__"
+    rel = out.relative_to(gs.REPO).as_posix()
+    try:
+        states = iter([("a" * 40, []), ("a" * 40, [f" M {rel}/shard-1.log"])])
+        result = gs.run_gate(1, out, tree_state_fn=lambda: next(states),
+                             run_shard_fn=lambda i: REAL_ANSI_PASS, file_count_fn=lambda: 196)
+        assert isinstance(result, dict), "own shard log read as TREE_DRIFT"
+
+        states = iter([("a" * 40, []), ("a" * 40, [f" M {rel}/shard-1.log", " M app/src/a.js"])])
+        with pytest.raises(GateError) as e:
+            gs.run_gate(1, out, tree_state_fn=lambda: next(states),
+                        run_shard_fn=lambda i: REAL_ANSI_PASS, file_count_fn=lambda: 196)
+        assert "TREE DRIFT" in str(e.value).upper() and "app/src/a.js" in str(e.value)
+    finally:
+        import shutil
+        shutil.rmtree(out, ignore_errors=True)
+
+
 def test_the_cli_maxWorkers_bound_is_HONOURED_over_the_config(tmp_path):
     """⭐⭐ THE MEASUREMENT THAT OVERTURNED A CLAIM I HAD ALREADY PUBLISHED TWICE.
 

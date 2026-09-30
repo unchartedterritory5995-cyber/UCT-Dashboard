@@ -76,6 +76,24 @@ export function formatNumber(value, { decimals = null, absent = ABSENT } = {}) {
   })
 }
 
+/**
+ * A grouped decimal number capped at a MAXIMUM number of fraction digits, with
+ * NO minimum — trailing zeros are never padded ("12.5", not "12.50"; "100",
+ * not "100.00"). `formatNumber`'s `decimals` option sets both bounds equal,
+ * which is the wrong shape for a value that may or may not carry a fraction.
+ *
+ * Byte-identical to `provenance/AbsenceReceipt.jsx`'s retired `fmtSignal`
+ * number branch (S5/S8 rail `presentationSingleFormatter.test.js`, "no file in
+ * it calls a locale formatter in CODE").
+ *
+ * @param {*} value
+ * @param {{maxDecimals?: number, absent?: *}} [options]
+ */
+export function formatNumberMax(value, { maxDecimals = 2, absent = ABSENT } = {}) {
+  if (!Number.isFinite(value)) return absent
+  return Number(value).toLocaleString(LOCALE, { maximumFractionDigits: maxDecimals })
+}
+
 // --------------------------------------------------------------------------
 // 2. PERCENT
 // --------------------------------------------------------------------------

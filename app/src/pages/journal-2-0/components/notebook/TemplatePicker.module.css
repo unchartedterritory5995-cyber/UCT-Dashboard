@@ -160,7 +160,7 @@
    lines of the note it makes (templatePreview, from the template's own build()),
    drawn as a small page: a left rule, headings a shade brighter than body lines.
    The card stretches so a row of previews lines up. */
-.grid > .card {
+.grid > .cardWrap > .card {
   height: 100%;
 }
 .cardPreview {
@@ -185,4 +185,122 @@
 .preview_heading {
   color: var(--text);
   font-weight: 600;
+}
+
+/* Wave 10 lane DR-C (design finding D-4): the search box + category chips at
+   the top of the gallery, and the per-card "Preview" action row. Touch tier
+   uses the canonical <=1024px query (breakpoints.css), never a phone-only
+   640px one, so a tablet keeps the same 44px floor as a phone
+   (styles/tapFloor.test.js walks every stylesheet for exactly this). */
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.searchField {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+.searchInput {
+  width: 100%;
+  padding: 8px 34px 8px 32px;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-surface);
+  /* D-A4/notebookContrast: --border reads ~1.1-1.2:1 against --bg-elevated /
+     --bg-surface in all three themes -- far under the 3:1 non-text UI floor.
+     --field-edge is the token every other Notebook input border already uses
+     (FolderSidebar's own .searchInput, NoteEditorPage's .titleInput) and it
+     passes. */
+  border: 1px solid var(--field-edge);
+  border-radius: 8px;
+}
+.searchInput:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: 1px;
+}
+.searchClear {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.searchClear:hover {
+  color: var(--text);
+}
+.chipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover {
+  color: var(--text);
+  border-color: var(--ut-gold);
+}
+.chipActive {
+  /* D-A4/notebookContrast: --bg-page is not a real token (the #0b0c0f fallback
+     always resolves), and it reads 3.14:1 on --ut-gold in light -- under the
+     4.5:1 text floor. --bg is the theme's own extreme (white in light, black
+     in dark/oled -- notebookContrast.test.js's own control), the same token
+     WidgetEmbedView.module.css already uses for text on a gold background,
+     and it passes in all three. */
+  color: var(--bg);
+  background: var(--ut-gold);
+  border-color: var(--ut-gold);
+  font-weight: 700;
+}
+.emptyFilter {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+.cardWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.cardWrap > .card {
+  flex: 1;
+}
+.cardActions {
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 1024px) {
+  .searchInput,
+  .searchClear,
+  .chip {
+    min-height: var(--tap-min);
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+  }
 }

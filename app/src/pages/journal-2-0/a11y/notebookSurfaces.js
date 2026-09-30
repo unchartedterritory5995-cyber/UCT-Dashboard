@@ -41,6 +41,10 @@ export const SURFACES = Object.freeze({
   'components/notebook/SavedViewEditor.jsx': { recipe: 'saved-view-editor' },
   'components/notebook/TemplatePicker.jsx': { recipe: 'template-picker' },
   'components/notebook/MemberTemplates.jsx': { recipe: 'member-templates' },
+  // Wave 10 lane DR-C (D-4): the gallery's read-only "preview before you use
+  // it" sheet, opened from either template-picker's own cards or from the
+  // "Your templates" section it renders inside.
+  'components/notebook/TemplatePreview.jsx': { coveredBy: 'template-picker' },
 
   // ── the editor's popups, each opened through its own door ──────────────────
   'components/notebook/SlashMenu.jsx': { coveredBy: 'editor-slash' },
