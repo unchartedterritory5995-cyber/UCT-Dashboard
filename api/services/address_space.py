@@ -80,6 +80,12 @@ def _screens(user_id: str) -> list[dict]:
     return [{"id": str(r["id"]), "name": r["name"]} for r in svc.list_for(user_id)]
 
 
+def _ai_threads(user_id: str) -> list[dict]:
+    from api.services import ai_search_member as svc
+    return [{"id": str(r["thread_id"]), "name": (r.get("title") or "").strip() or "Untitled conversation"}
+            for r in svc.list_threads(user_id, limit=100)]
+
+
 KINDS: dict[str, Kind] = {
     "layout": Kind("L", "Chart layout", "charts_layouts", _layouts,
                    lambda i: f"/charts?openLayout={quote(i)}"),
@@ -91,6 +97,10 @@ KINDS: dict[str, Kind] = {
     # arrival: it loads the member's OWN saved screen by id and applies its spec.
     "screen": Kind("S", "Saved screen", "screener_saved_screens", _screens,
                    lambda i: f"/screener?savedScreen={quote(i)}"),
+    # 2026-09-30 (build D). The door is AiSearchPage's `thread=` arrival, which calls
+    # the page's own `openThread` -- the same reopen a click on a past conversation does.
+    "ai_thread": Kind("A", "AI conversation", "ais_threads", _ai_threads,
+                      lambda i: f"/ai-search?thread={quote(i)}"),
 }
 _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 
@@ -103,7 +113,6 @@ EXEMPT: dict[str, str] = {
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
     "upb_entries": "no-door: user playbook entries have no URL instruction yet",
     "upb_sections": "not-a-saved-object: a section groups playbook entries; the entry is the object",
-    "ais_threads": "no-door: an AI Search thread has no URL instruction that reopens it yet",
     "j2_note_saved_views": "no-door: a saved notebook view has no URL instruction yet",
     "j2_note_templates": "no-door: a note template is applied from the editor, never opened by URL",
     "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet",
@@ -202,7 +211,7 @@ def resolve(user_id: str, address: str) -> Optional[dict]:
 #   private -> {address, kind, kind_label, shared: False}            (NO name: a private title is
 #                                                                      not the Floor's to publish)
 #   not the author's / unknown -> omitted, so ordinary text ("W:3 in a row") never gets a chip.
-_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNS]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
+_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSA]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
 MAX_TEXT_ADDRESSES = 8
 
 
@@ -271,8 +280,15 @@ def _shared_screen(author_id: str, obj_id: str) -> Optional[dict]:
     return {"shared": False}
 
 
+def _shared_ai_thread(author_id: str, obj_id: str) -> Optional[dict]:
+    # An AI conversation is member-scoped with no share: the author's own is "private".
+    from api.services import ai_search_member as svc
+    return {"shared": False} if svc.get_thread(author_id, obj_id) else None
+
+
 _SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist,
-                     "note": _shared_note, "screen": _shared_screen}
+                     "note": _shared_note, "screen": _shared_screen,
+                     "ai_thread": _shared_ai_thread}
 
 
 def shared_links(author_id: Optional[str], text: str) -> list[dict]:

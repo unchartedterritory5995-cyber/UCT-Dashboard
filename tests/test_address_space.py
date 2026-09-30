@@ -21,6 +21,7 @@ def stores(monkeypatch):
         "watchlist": {MEMBER: [{"id": "w-abc", "name": "Semis Watch"}]},
         "note": {MEMBER: [{"id": "n1", "name": "Swing trading plan"}, {"id": "n2", "name": "Untitled"}]},
         "screen": {MEMBER: [{"id": "7", "name": "Swing leaders scan"}]},
+        "ai_thread": {MEMBER: [{"id": "t-9", "name": "Is swing trading NVDA sensible here"}]},
     }
     for kind, k in list(a.KINDS.items()):
         monkeypatch.setitem(a.KINDS, kind, a.Kind(k.prefix, k.label, k.table,
@@ -85,6 +86,7 @@ def test_a_name_finds_the_object_and_its_door(stores):
     assert ("layout", "Swing Board", "L:12", "/charts?openLayout=12") in names
     assert ("note", "Swing trading plan", "N:n1", "/journal/notebook?note=n1") in names
     assert ("screen", "Swing leaders scan", "S:7", "/screener?savedScreen=7") in names
+    assert ("ai_thread", "Is swing trading NVDA sensible here", "A:t-9", "/ai-search?thread=t-9") in names
     assert out["unavailable"] == []
 
 
@@ -118,7 +120,7 @@ def test_an_unreadable_store_is_named_not_empty(stores, monkeypatch):
     monkeypatch.setitem(a.KINDS, "note", a.Kind(k.prefix, k.label, k.table, boom, k.door))
     out = a.search(MEMBER, "swing")
     assert out["unavailable"] == ["note"]
-    assert sorted(r["kind"] for r in out["results"]) == ["layout", "screen"]
+    assert sorted(r["kind"] for r in out["results"]) == ["ai_thread", "layout", "screen"]
 
 
 # ── The routes: dark, then signed-in only ──────────────────────────────────────────
@@ -170,8 +172,11 @@ def test_the_real_listers_run_against_real_stores():
     from api.services.screener import saved_screens
     saved_screens.init()
     scr = saved_screens.create(uid, "Probe Scan", {"filters": []})
+    from api.services import ai_search_member
+    ai_search_member.save_thread(uid, f"t-{uid[:8]}", [{"q": "Probe question", "a": "Probe answer"}])
     want = {"layout": (str(lay["id"]), "Probe Board"), "watchlist": (str(wl["id"]), "Probe Watch"),
-            "note": (str(note["id"]), "Probe note"), "screen": (str(scr["id"]), "Probe Scan")}
+            "note": (str(note["id"]), "Probe note"), "screen": (str(scr["id"]), "Probe Scan"),
+            "ai_thread": (f"t-{uid[:8]}", "Probe question")}
     for kind, k in a.KINDS.items():
         rows = k.lister(uid)
         assert isinstance(rows, list), kind
@@ -257,3 +262,18 @@ def test_floor_text_links_a_saved_screen_only_when_the_author_made_it_public():
                                         "kind_label": "Saved screen", "shared": False}
     assert "My Secret Scan" not in str(links)
     assert f"S:{theirs['id']}" not in links
+
+
+def test_an_ai_conversation_is_only_ever_private_on_the_floor():
+    """Build D: conversations have no share, so the author's own reads private, unnamed."""
+    import uuid
+    from api.services import auth_db, auth_service, ai_search_member
+    auth_db.init_db()
+    author = auth_service.create_user(f"fa-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    tid = f"t-{uuid.uuid4().hex[:8]}"
+    ai_search_member.save_thread(author, tid, [{"q": "My private question", "a": "x"}])
+    links = {l["address"]: l for l in a.shared_links(author, f"see A:{tid} and A:nope")}
+    assert links[f"A:{tid}"] == {"address": f"A:{tid}", "kind": "ai_thread",
+                                 "kind_label": "AI conversation", "shared": False}
+    assert "My private question" not in str(links)
+    assert "A:nope" not in links
