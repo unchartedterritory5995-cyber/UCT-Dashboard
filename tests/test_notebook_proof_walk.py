@@ -465,3 +465,52 @@ def test_a_hanging_surface_is_named_TIMEOUT_and_salvages_what_it_measured(monkey
     monkeypatch.setattr(W, "deadclick_surface", fake_fast)
     rec2 = W.deadclick_surface_bounded(None, surf, "desk")
     assert rec2["status"] == "MEASURED"
+
+
+# ── wave 10 lane WK4: G-171's keyboard door was a probe race, not the product ──────────────
+# Diagnosed by lane FX2 (docs/notebook/proof/fx2-788f3a439/item1-g171-keyboard/): the tour
+# DIALOG lazy-loads well after the page's own "Welcome to your Notebook" heading, so reading
+# `tour.count() > 0` the instant the heading appears always samples the dialog as absent --
+# skipping the Skip-tour dismiss branch every run -- and the tour opens a moment later and
+# correctly traps keyboard focus around "Add a sample notebook", which a keyboard door can
+# then never Tab to. That is G-171's own "not reached with Tab in 220 presses" reading,
+# unchanged across every run of this program: a probe race, not a product defect.
+
+class _FakeLateLocator:
+    """Stands in for a Playwright Locator whose element attaches after a delay -- the tour
+    dialog's own shape: absent at t=0, present well before a realistic wait budget.
+    `wait_for` blocks until it would appear or the caller's OWN timeout elapses (mirroring
+    Playwright's real contract); `count()` is the OLD sampling read this rail proves wrong
+    on its own, on the identical fixture."""
+    def __init__(self, appears_after_ms: float):
+        self.appears_after_ms = appears_after_ms
+        self._start = time.monotonic()
+
+    def _elapsed_ms(self):
+        return (time.monotonic() - self._start) * 1000
+
+    def count(self):
+        return 1 if self._elapsed_ms() >= self.appears_after_ms else 0
+
+    def wait_for(self, state="visible", timeout=1500):
+        deadline = time.monotonic() + timeout / 1000
+        while time.monotonic() < deadline:
+            if self._elapsed_ms() >= self.appears_after_ms:
+                return
+            time.sleep(0.01)
+        raise TimeoutError(f"locator did not become {state!r} within {timeout}ms")
+
+
+def test_the_first_run_tour_is_WAITED_for_not_sampled_once():
+    late = _FakeLateLocator(appears_after_ms=700)
+    # CONTROL: the OLD probe (a single .count() read at t=0, on the identical fixture)
+    # gets this wrong -- proving the fix is a real behaviour change, not a renamed no-op
+    assert late.count() == 0, "the control fixture must start absent for the contrast to mean anything"
+    assert W._first_run_tour_seen(late, timeout_ms=1500) is True
+
+    # CONTROL: a dialog that genuinely never opens reads seen=False, bounded by its own
+    # timeout -- never an indefinite hang
+    never = _FakeLateLocator(appears_after_ms=10_000)
+    started = time.monotonic()
+    assert W._first_run_tour_seen(never, timeout_ms=100) is False
+    assert time.monotonic() - started < 1.0, "a dialog that never opens must not block past its own budget"

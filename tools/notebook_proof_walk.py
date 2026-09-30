@@ -3476,6 +3476,26 @@ def f_export(W, door):
     return how
 
 
+def _first_run_tour_seen(tour_loc, timeout_ms: float = 1500) -> bool:
+    """Wave 10 lane WK4 (G-171, diagnosed by lane FX2 -- docs/notebook/proof/fx2-788f3a439/
+    item1-g171-keyboard/): whether the first-run tour dialog actually opened THIS run --
+    WAITED for, never sampled once. `f_first_run` used to read `tour.count() > 0`
+    immediately after ResearchHome's own "Welcome to your Notebook" heading became
+    visible; the heading renders at ~386ms live and the tour DIALOG lazy-loads at
+    ~1074ms, so that immediate sample read the dialog as absent on every single run,
+    skipped the Skip-tour dismiss branch, and let the tour open a moment later and
+    correctly trap keyboard focus (Skip<->Next) around "Add a sample notebook" --
+    which a keyboard door can then never Tab to. That is exactly G-171's own reading,
+    every run of this program: "not reached with Tab in 220 presses" -- a PROBE RACE,
+    not a product defect. A timeout here (the dialog genuinely never opens) is the
+    honest negative, not a hang: it is bounded by `timeout_ms`, never indefinite."""
+    try:
+        tour_loc.wait_for(state="visible", timeout=timeout_ms)
+        return True
+    except Exception:  # noqa: BLE001 -- the timeout IS the answer: it did not auto-open
+        return False
+
+
 def f_first_run(W, door):
     acct = W.fresh_account()
     pg, tap = W.page(acct, DOOR_MODE[door])
@@ -3483,9 +3503,14 @@ def f_first_run(W, door):
     mark_root(pg)
     pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
     tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
-    tour_seen = tour.count() > 0
+    tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
-    if skip.count():
+    if tour_seen:
+        try:
+            skip.wait_for(state="visible", timeout=1500)
+        except Exception:  # noqa: BLE001 -- the dialog opened but its own Skip button never did
+            pass
+    if tour_seen and skip.count():
         use(pg, door, skip)
         pg.wait_for_timeout(600)
     how = use(pg, door, btn(pg, "Add a sample notebook"))
