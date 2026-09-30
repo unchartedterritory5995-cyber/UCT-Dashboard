@@ -2276,6 +2276,18 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/chain",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/options/{sym}/expirations",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/ownership/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

@@ -1259,6 +1259,14 @@
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     },
+    "OPTIONS_CHAIN_ENABLED": {
+      "status": "armed",
+      "since": "2026-09-29",
+      "where": [
+        "web"
+      ],
+      "note": "ARMED on web 2026-09-30 03:25:09Z at the owner's instruction (\"arm it\"). Verified on production as smoke@: auth payload options_chain_enabled=true; SPY chain 200 (spot 764.20, ATM 764 call bid 2.54/ask 2.59, IV 16.6%, delta 0.52, OI 1,865; complete greeks calls 20/20, puts 15/20) and NVDA 200 (ATM 230 call IV 28.5%, OI 4,786); anonymous 401; iv_rank null with its reason. The same read found the picker listing only 3 SPY expirations -- fixed in 349bcff27 (forward walk: 32 SPY, 24 NVDA, 25 AAPL). BRK-01 increment 1 (roadmap §3.3): the Research > Options tab, a member-facing option chain (calls | strike | puts, bid/ask/last, IV, delta/gamma/theta/vega, OI, volume) off the licensed Massive chain (api/services/polygon_options.py, the one implementation since TERM-069). ENABLEMENT GATE, default OFF, read per request by GET /api/research/options/{sym}/chain + /expirations (404 while off, paid-gated when on) and the auth payload's options_chain_enabled. Live half measured CLEARED 2026-09-29 against our key: 88/88 near-the-money SPY contracts returned greeks, IV and OI with REAL-TIME quotes. IV RANK is NOT served (needs IV history -- the open Massive vendor question). Read-only by charter: no run/execute/send affordance. Rollback: set 0 (a DELETE does not restart web)."
+    },
     "PANEL_PREWARM_ENABLED": {
       "status": "armed",
       "where": [

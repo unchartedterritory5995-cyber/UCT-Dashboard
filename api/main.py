@@ -9011,6 +9011,8 @@ from api.routers import ticker_history as ticker_history_router  # noqa: E402
 app.include_router(ticker_history_router.router)
 from api.routers import address_space as address_space_router  # noqa: E402  (TERM-038, dark)
 app.include_router(address_space_router.router)
+from api.routers import options_chain as options_chain_router  # noqa: E402  (BRK-01 inc 1, dark)
+app.include_router(options_chain_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
