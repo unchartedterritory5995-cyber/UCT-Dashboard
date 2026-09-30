@@ -403,18 +403,51 @@ describe('⭐⭐ C22 — text picked per bar between literals, compared with a l
       `        label.new(bar_index, v, ${Q}B${Q})`,
       `    if r != ${Q}none${Q}`,
       `        label.new(bar_index, v, ${Q}N${Q})`,
+      `    if r == ${Q}small${Q}`,
+      `        label.new(bar_index, v, ${Q}S${Q})`,
       'h(close - open)',
     ])
     const wantB = []
     const wantN = []
+    const wantS = []
     for (let i = 0; i < N; i += 1) {
       const x = BARS[i].c - BARS[i].o
       if (x > 1) wantB.push([i, x])
       if (x > 0) wantN.push([i, x])
+      if (x > 0 && !(x > 1)) wantS.push([i, x])
     }
     const r = run(t)
     expect(wantB.length).toBeGreaterThan(3)
     near(labels(r, 'B'), wantB)
     near(labels(r, 'N'), wantN)
+    expect(wantS.length).toBeGreaterThan(3)
+    near(labels(r, 'S'), wantS)
+  })
+
+  it('a `switch` over that text asks ONE operand against each label — every arm answers for itself', () => {
+    const t = tr([
+      ...NM,
+      'd = close - open',
+      'r = nm(d)',
+      'txt = switch r',
+      `    ${Q}big${Q} => ${Q}B${Q}`,
+      `    ${Q}small${Q} => ${Q}S${Q}`,
+      `    => ${Q}X${Q}`,
+      `if r != ${Q}none${Q}`,
+      '    label.new(bar_index, d, txt)',
+    ])
+    const wantB = []
+    const wantS = []
+    for (let i = 0; i < N; i += 1) {
+      const x = BARS[i].c - BARS[i].o
+      if (x > 1) wantB.push([i, x])
+      else if (x > 0) wantS.push([i, x])
+    }
+    const r = run(t)
+    expect(wantB.length).toBeGreaterThan(3)
+    expect(wantS.length).toBeGreaterThan(3)
+    near(labels(r, 'B'), wantB)
+    near(labels(r, 'S'), wantS)
+    expect(labels(r, 'X')).toEqual([])
   })
 })

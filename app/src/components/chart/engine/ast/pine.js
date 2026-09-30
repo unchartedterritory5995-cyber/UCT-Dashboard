@@ -8029,11 +8029,28 @@ export class Resolver {
         // condition the budget refuses would draw at the renderer's default —
         // uncharted-volume-v2's volume table, measured.
         if (this.objectPass && !this.textEqOff && (node.op === '==' || node.op === '!=')) {
-          const ls = this.stringValueOf(node.left)
-          const rs = ls === null ? this.stringValueOf(node.right) : null
+          // ⭐ a string WRITTEN at the comparison, never one found by following
+          // names: asking `stringValueOf` of both sides of every comparison was
+          // most of renderingnature's object pass.
+          const ls = node.left && node.left.type === 'string' ? node.left.value : null
+          const rs = ls === null && node.right && node.right.type === 'string' ? node.right.value : null
           if (ls !== null || rs !== null) {
-            const eq = this.textEqTree(ls !== null ? node.right : node.left, ls !== null ? ls : rs, node.op === '==')
-            if (eq) return eq
+            const other = ls !== null ? node.right : node.left
+            const lit = ls !== null ? ls : rs
+            // ⭐ memoised per scope: an op's guard is re-read for every op of its
+            // block, and each read resolves every test of the choice again
+            // (vdubus: 1,152 reads, half its door time). Only outside a call
+            // frame, where the scope alone decides what every name reads.
+            const memo = this.frames.length === 0 && this.env ? textEqMemoOf(this.env, other) : null
+            const mkey = memo ? `${node.op === '=='}|${lit}` : null
+            if (memo && memo.has(mkey)) {
+              const hit = memo.get(mkey)
+              if (hit) return hit
+            } else {
+              const eq = this.textEqTree(other, lit, node.op === '==')
+              if (memo) memo.set(mkey, eq)
+              if (eq) return eq
+            }
           }
         }
         // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
@@ -12027,6 +12044,20 @@ const varSeedOf = (seed, reads) => {
 }
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
+
+/** ⭐ C22 — `Resolver.textEqTree`'s memo: per scope, per operand NODE (by
+ *  identity — a guard re-read is the same parse node), per operator + literal.
+ *  ⚰️ Keying by the operand's printed shape instead cost more than it saved:
+ *  serialising the operand of every text comparison was a quarter of
+ *  renderingnature's object pass. */
+const TEXT_EQ_MEMO = new WeakMap()
+function textEqMemoOf(env, node) {
+  let byNode = TEXT_EQ_MEMO.get(env)
+  if (!byNode) { byNode = new WeakMap(); TEXT_EQ_MEMO.set(env, byNode) }
+  let m = byNode.get(node)
+  if (!m) { m = new Map(); byNode.set(node, m) }
+  return m
+}
 
 /** Stamp the identifier an `input.*(…)` call was bound to onto its own node.
  *
