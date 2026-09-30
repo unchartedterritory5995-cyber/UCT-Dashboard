@@ -124,7 +124,9 @@ export default function NotebookTour({ hasAnyNotes = false, notesKnown = false }
   const bodyId = useId()
 
   const record = useCallback((state, stepId) => {
-    setPref(TOUR_PREF, { v: 1, state, step: stepId ?? null })
+    // S5 CP2: literal key (== TOUR_PREF) so this call site is a literal, not
+    // opaque, setPref site; stored key unchanged.
+    setPref('notebook_tour', { v: 1, state, step: stepId ?? null })
   }, [setPref])
 
   const open = useCallback((startId) => {

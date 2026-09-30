@@ -182,7 +182,9 @@ export default function ResearchHome({
   }, [offer, armed])
 
   const dismissStrip = () => {
-    if (sample) setPref(SAMPLE_PREF, { ...sample, dismissedAt: new Date().toISOString() })
+    // S5 CP2: literal key (== SAMPLE_PREF) so this call site is a literal, not
+    // opaque, setPref site; stored key unchanged.
+    if (sample) setPref('notebook_sample', { ...sample, dismissedAt: new Date().toISOString() })
   }
 
   const sampleNotice = (
