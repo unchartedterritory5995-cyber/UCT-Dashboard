@@ -30,7 +30,7 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, OP_VALUE_FIELDS,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
   withObjectTransparency,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
@@ -43,7 +43,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
-import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
+import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
 import { formatMessageNumber } from './pineTextFormat'
@@ -384,7 +384,7 @@ export function beginObjects(program, ctx) {
       if (v.v === 'at') found.push(v)
       if (Array.isArray(v.args)) v.args.forEach(walk)
     }
-    for (const f of OP_VALUE_FIELDS) walk(op[f])
+    for (const v of opValueRefs(op)) walk(v)
     for (const v of Object.values(op.props || {})) if (isObj(v) && !v.r) walk(v)
     atAtoms.set(op, found)
     return found
@@ -837,12 +837,17 @@ export function beginObjects(program, ctx) {
         case 'op': {
           const a = value(ref.args[0])
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
-          if (ref.args.length === 1) return ref.op === '-' ? -a : a
+          // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
+          // from zero), never `Math.round`, which sends -2.5 to -2.
+          if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
           if (ref.op === '+') return a + b
           if (ref.op === '-') return a - b
           if (ref.op === '*') return a * b
+          // ⭐ C25 — Pine's `/` is fractional for ints too (`5 / 2` is 2.5);
+          // a zero divisor answers `undefined`, the address this grammar declines.
+          if (ref.op === '/') { const q = BINARY['/'](a, b); return Number.isFinite(q) ? q : undefined }
           return undefined
         }
         case 'time': return readTime(bar)

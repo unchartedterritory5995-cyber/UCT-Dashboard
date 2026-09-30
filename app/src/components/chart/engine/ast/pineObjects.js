@@ -39,7 +39,7 @@ import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt,
+  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt, literalInit, isMutator,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -256,6 +256,10 @@ export function collectObjectOps(stmts, h) {
   const invariantNames = barInvariantNames(stmts, h)
   /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
   const scalars = getterScalars(stmts, h)
+  /** ⭐ C25 — a `var` declared inside a counted loop of an inlined helper
+   *  (`bodyNames`' `carried`): renamed name → `{init, fn, line}` or
+   *  `{refused, fn, line}`. See the walk's declaration and `:=` arms. */
+  const loopScalars = new Map()
   let inlineSeq = 0
   let inlineDepth = 0
   /** How many loops (of any kind) the walk is inside right now. */
@@ -565,6 +569,21 @@ export function collectObjectOps(stmts, h) {
       if (!t || !t.length) continue
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
+      // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
+      // whole statement where the reader counts the loop; any other write of it
+      // (`+=`, one inside a `while`, one nested in an expression) is a write this
+      // program would not make, so the scalar is refused, whole.
+      if (st.synthetic && st.synthetic.carried && loopScalars.size) {
+        for (let i = 1; i < t.length; i += 1) {
+          if (!isMutator(t[i]) || !t[i - 1] || t[i - 1].kind !== 'ident') continue
+          const nm = String(t[i - 1].value)
+          const rec = loopScalars.get(nm)
+          if (!rec || rec.refused) continue
+          if (i !== 1 || t[i].value !== ':=' || inLoop) {
+            loopScalars.set(nm, { refused: `written at line ${t[0].line} as \`${t[i].value}\` where only a whole \`:=\` in a counted loop is carried`, fn: rec.fn, line: rec.line })
+          }
+        }
+      }
 
       // ⭐⭐ A DEFINITION IS NOT CODE THAT RUNS HERE. Its body runs at each call
       // site (see `inlineCall`), so it is skipped at the definition — the
@@ -882,6 +901,36 @@ export function collectObjectOps(stmts, h) {
             k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
             at: t[0], line: st.header[0].line,
           })
+        }
+        // ⭐⭐ C25 — A HELPER'S `var` CARRIED IN A LOOP. Pine initialises it ONCE
+        // (per call site — the rename already made it this site's) and keeps it
+        // across the loop's passes and the bars; its declaration runs nothing
+        // after the first time. So it is ONE runtime scalar: the declaration
+        // gives its initial value, each `:=` writes it here — in op order, under
+        // this block's guards, inside this loop (`getnum`, `loop: true`) — and
+        // the converter reads it whole where the reader reads a scalar.
+        // ⛔ Only a counted loop the reader keeps (`loopIds`, never a `while`
+        // it walks as opaque — `inLoop`), a numeric declaration (`float`/`int`
+        // or untyped) and a literal initialiser; anything else is recorded
+        // refused, and every read keeps `pine:state`, named.
+        const sname = String(name)
+        if (st.synthetic && st.synthetic.carried && st.synthetic.carried.has(sname)) {
+          if (word === 'var' || word === 'varip') {
+            const typed = assign === 3 ? String(t[1].value) : null
+            const lit = literalInit(t, assign + 1, h)
+            const why = word === 'varip' ? 'a `varip`'
+              : inLoop || !loopIds.length ? 'declared in a loop this reader does not count'
+                : typed !== null && typed !== 'float' && typed !== 'int' ? `a \`${typed}\``
+                  : !lit ? 'an initialiser that is not a literal number or `na`' : null
+            loopScalars.set(sname, why
+              ? { refused: why, fn: st.synthetic.fn, line: st.header[0].line }
+              : { init: lit.init, fn: st.synthetic.fn, line: st.header[0].line })
+          } else if (h.isPunct(t[assign], ':=') && loopScalars.has(sname) && !loopScalars.get(sname).refused) {
+            ops.push({
+              k: 'getnum', name: sname, rhs, guards, locals: localScope, loopIds: [...loopIds],
+              at: t[0], line: st.header[0].line, loopScalar: true,
+            })
+          }
         }
         // ⭐⭐ `b := box(na)` / `b := na` — THE HANDLE IS EMPTIED, the object is
         // not. Pine keeps the box on the chart; only the variable forgets it, so
@@ -2081,5 +2130,5 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined, inlineBodies }
+  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies }
 }
