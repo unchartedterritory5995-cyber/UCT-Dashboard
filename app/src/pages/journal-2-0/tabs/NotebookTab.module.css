@@ -296,6 +296,12 @@
   border-radius: var(--radius-md);
   padding: 2px;
 }
+/* FX2 (wave 10, proof-walk item 2): the ARIA group wrapper around the seven
+   view-mode toggle buttons. `display: contents` so it adds no box of its own —
+   the buttons stay direct flex items of `.viewModeWrap` (the flex-wrap fit
+   guard above, tabs/NotebookTab.viewSwitcherFits.test.js, still sees the same
+   flat list). A group role exists for assistive tech, not for layout. */
+.viewModeGroup { display: contents; }
 .viewModeBtn {
   display: inline-flex;
   align-items: center;

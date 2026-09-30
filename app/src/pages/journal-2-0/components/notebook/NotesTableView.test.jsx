@@ -224,6 +224,41 @@ describe('NotesTableView — select/multi_select option color', () => {
   })
 })
 
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 2): the "UPDATED" header's re-click is a
+ * genuine no-op today (no reverse direction is implemented, `sortIcon`'s own
+ * `dir` argument is the hardcoded literal `'desc'`) -- the proof walk found
+ * it as one of 12 DEAD clicks because nothing on the header cell told
+ * assistive tech it was already the active sort. `aria-sort` is the
+ * WAI-ARIA host-language semantic for exactly this, and it goes on the
+ * `<th>` (the header CELL), never on the button inside it -- a different
+ * ancestor than the view-mode buttons' `aria-pressed` fix, and deliberately
+ * so (a sort button isn't a toggle in the `aria-pressed` sense).
+ */
+describe('⛔⛔ FX2 — sortable header cells carry aria-sort (proof-walk item 2)', () => {
+  it('the default sort (updated, descending) is announced on the Updated header cell', () => {
+    setup({ sort: 'updated' })
+    expect(screen.getByRole('columnheader', { name: /Updated/ })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: 'Title' })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('sort=title flips aria-sort to the Title header cell (ascending) and clears it off Updated', () => {
+    setup({ sort: 'title' })
+    expect(screen.getByRole('columnheader', { name: 'Title' })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: /Updated/ })).not.toHaveAttribute('aria-sort')
+  })
+
+  it('a `sort` prop of undefined still reads as the Updated default (matches the chevron\'s own `!sort` fallback)', () => {
+    setup({ sort: undefined })
+    expect(screen.getByRole('columnheader', { name: /Updated/ })).toHaveAttribute('aria-sort', 'descending')
+  })
+
+  it('⛔ CONTROL — a non-sortable header cell (Ticker) never carries aria-sort', () => {
+    setup({ sort: 'updated' })
+    expect(screen.getByRole('columnheader', { name: 'Ticker' })).not.toHaveAttribute('aria-sort')
+  })
+})
+
 describe('NotesTableView — wave 5 selection', () => {
   const selectionWith = (over = {}) => ({
     isSelected: vi.fn((id) => (over.selected || []).includes(id)),

@@ -1,0 +1,329 @@
+{
+  "started": "2026-09-30T00:09:18-0500",
+  "scenarios": {
+    "g171_keyboard_tour": {
+      "timeline_before_any_tab": [
+        {
+          "research_heading_present": false,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 4
+        },
+        {
+          "research_heading_present": false,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 151
+        },
+        {
+          "research_heading_present": false,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 271
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 386
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 532
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 678
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 828
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": false,
+          "active_tag": "BODY",
+          "active_text": "Skip to main contentSkip to notes listUC",
+          "active_is_body": true,
+          "skip_present": false,
+          "t_ms": 954
+        },
+        {
+          "research_heading_present": true,
+          "dialog_present": true,
+          "active_tag": "H2",
+          "active_text": "Welcome to your Notebook",
+          "active_is_body": false,
+          "skip_present": true,
+          "t_ms": 1074
+        }
+      ],
+      "race": {
+        "tour_count_at_heading": 0,
+        "skip_count_at_heading": 0
+      },
+      "tab_walk_without_dismiss": [
+        {
+          "n": 1,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Skip to main content"
+        },
+        {
+          "n": 2,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Skip to notes list"
+        },
+        {
+          "n": 3,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "UCTINTELLIGENCE"
+        },
+        {
+          "n": 4,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Search\u2318K"
+        },
+        {
+          "n": 5,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "UCT Terminal"
+        },
+        {
+          "n": 6,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Charts"
+        },
+        {
+          "n": 7,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Morning Wire"
+        },
+        {
+          "n": 8,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Dashboard"
+        },
+        {
+          "n": 9,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "AI Search"
+        },
+        {
+          "n": 10,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "UCT 20"
+        },
+        {
+          "n": 11,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Breadth"
+        },
+        {
+          "n": 12,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Screener"
+        },
+        {
+          "n": 13,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Options Flow"
+        },
+        {
+          "n": 14,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Flow Record"
+        },
+        {
+          "n": 15,
+          "reached_add_sample": false,
+          "dialog_open": false,
+          "active_text": "Welcome to your Notebook"
+        },
+        {
+          "n": 16,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 17,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 18,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 19,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 20,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 21,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 22,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 23,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 24,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 25,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 26,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 27,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 28,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        },
+        {
+          "n": 29,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Next"
+        },
+        {
+          "n": 30,
+          "reached_add_sample": false,
+          "dialog_open": true,
+          "active_text": "Skip tour"
+        }
+      ],
+      "dialog_correct_path": {
+        "active_on_open": "H2:Welcome to your Notebook",
+        "active_after_1_tab": "BUTTON:Skip tour",
+        "dialog_closed_after_enter_on_skip": true,
+        "tabs_to_add_sample_after_dismiss": 19
+      }
+    },
+    "save_template_write": {
+      "after_first_click_only": {
+        "writes_seen": [],
+        "template_name_input_visible": true,
+        "submit_button_visible": true
+      },
+      "after_second_click_submit": {
+        "writes_seen": [
+          {
+            "t": 1790745111.5868912,
+            "method": "POST",
+            "url": "http://127.0.0.1:8341/api/j2/note-templates"
+          }
+        ]
+      }
+    },
+    "trash_note_write": {
+      "after_confirm_click": {
+        "writes_seen": [
+          {
+            "t": 1790745118.4311576,
+            "method": "DELETE",
+            "url": "http://127.0.0.1:8341/api/j2/notes/15f99739dcf64c3a818d39f7465e8787"
+          }
+        ],
+        "dialog_count_now": 0,
+        "body_excerpt": "Skip to main content\nSkip to notes list\nUCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nSeasoned\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach \u2014 markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n\u25be\nRECENTS\nfx2 save-template probe\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n1\n+ New folder\nResearch home\nAsk\nCONTINUE WORKING\nView all\nfx2 save-template probe\ntoday\n?\n\u25c9\n\u22ee"
+      }
+    }
+  },
+  "log": [
+    "[00:10:37] SANDBOX IDENTITY: ok=True http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-09-21.md (identity 68502b755dfb..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)",
+    "[00:10:42] === scenario 1: G-171 keyboard focus timeline ===",
+    "[00:10:45] timeline (last 3): [{\"research_heading_present\": true, \"dialog_present\": false, \"active_tag\": \"BODY\", \"active_text\": \"Skip to main contentSkip to notes listUC\", \"active_is_body\": true, \"skip_present\": false, \"t_ms\": 828}, {\"research_heading_present\": true, \"dialog_present\": false, \"active_tag\": \"BODY\", \"active_text\": \"Skip to main contentSkip to notes listUC\", \"active_is_body\": true, \"skip_present\": false, \"t_ms\": 954}, {\"research_heading_present\": true, \"dialog_present\": true, \"active_tag\": \"H2\", \"active_text\": \"Welcome to your Notebook\", \"active_is_body\": false, \"skip_present\": true, \"t_ms\": 1074}]",
+    "[00:11:06] race check: tour_count=0 skip_count=0",
+    "[00:11:07] tab walk (first 6): [{\"n\": 1, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"Skip to main content\"}, {\"n\": 2, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"Skip to notes list\"}, {\"n\": 3, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"UCTINTELLIGENCE\"}, {\"n\": 4, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"Search\\u2318K\"}, {\"n\": 5, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"UCT Terminal\"}, {\"n\": 6, \"reached_add_sample\": false, \"dialog_open\": false, \"active_text\": \"Charts\"}]",
+    "[00:11:07] tab walk (last 3): [{\"n\": 28, \"reached_add_sample\": false, \"dialog_open\": true, \"active_text\": \"Skip tour\"}, {\"n\": 29, \"reached_add_sample\": false, \"dialog_open\": true, \"active_text\": \"Next\"}, {\"n\": 30, \"reached_add_sample\": false, \"dialog_open\": true, \"active_text\": \"Skip tour\"}]",
+    "[00:11:27] correct path: focus on tour open = H2:Welcome to your Notebook",
+    "[00:11:27] correct path: focus after 1 tab = BUTTON:Skip tour",
+    "[00:11:28] correct path: dismissed tour -> Add a sample notebook reached in 19 tabs",
+    "[00:11:29] === scenario 2: save-template write capture ===",
+    "[00:11:51] after ONE click on 'Save as template': writes=0 input_visible=True",
+    "[00:11:54] after SECOND click ('Save template' submit): writes=[{'t': 1790745111.5868912, 'method': 'POST', 'url': 'http://127.0.0.1:8341/api/j2/note-templates'}]",
+    "[00:11:54] === scenario 3: trash-note write capture, freshly-loaded note ===",
+    "[00:12:00] after Delete-confirm click: writes=[{'t': 1790745118.4311576, 'method': 'DELETE', 'url': 'http://127.0.0.1:8341/api/j2/notes/15f99739dcf64c3a818d39f7465e8787'}] dialogs_now=0",
+    "[00:12:44] sandbox stop: graceful to the shutdown checkpoint, then forced exit"
+  ],
+  "finished": "2026-09-30T00:12:44-0500"
+}

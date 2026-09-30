@@ -1928,21 +1928,38 @@ export default function NotebookTab() {
                 lived only in a CSS class, which is invisible to it by
                 definition. Written once, the attribute cannot be on four of
                 them and off the fifth.
+
+                ⛔⛔ FX2 (wave 10, proof-walk item 2): `aria-pressed` alone was not
+                enough — it was on buttons sitting in a bare `<div>`, and a
+                labelled `[role=group]`/`[role=radiogroup]`/`[role=tablist]`/
+                `[role=toolbar]` ancestor is what actually turns "pressed" into
+                "the currently active one of a related set" for assistive tech
+                (and is what this program's own dead-click instrument's
+                `current`-state check requires, `CONTROLS_JS` in
+                `tools/notebook_proof_walk.py`). A screen-reader user heard
+                seven identical "pressed"/"not pressed" buttons with no signal
+                they were one control. Each button already behaves like an
+                independent toggle (Tab visits each one, Enter/Space fires it) —
+                the WAI-ARIA "group of toggle buttons" pattern, which needs no
+                roving-tabindex change — so the fix is the missing group role
+                and its label, not new keyboard behaviour.
               */}
-              {VIEW_MODES.map(({ id, icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
-                  onClick={() => setViewMode(id)}
-                  disabled={Boolean(activeView)}
-                  aria-pressed={viewMode === id}
-                  aria-label={label}
-                  title={label}
-                >
-                  <UIcon name={icon} size={14} gold={false} />
-                </button>
-              ))}
+              <div className={styles.viewModeGroup} role="group" aria-label="View">
+                {VIEW_MODES.map(({ id, icon, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
+                    onClick={() => setViewMode(id)}
+                    disabled={Boolean(activeView)}
+                    aria-pressed={viewMode === id}
+                    aria-label={label}
+                    title={label}
+                  >
+                    <UIcon name={icon} size={14} gold={false} />
+                  </button>
+                ))}
+              </div>
               {/*
                 ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
                 DIFFERENT reason than this comment used to give. The server's

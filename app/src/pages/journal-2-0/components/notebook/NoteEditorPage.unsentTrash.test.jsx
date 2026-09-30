@@ -216,3 +216,42 @@ describe('Delete with unsent words (the 404 path)', () => {
     expect(verdicts.mock.calls[0][0]).toBe('n1')
   })
 })
+
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 3): a note holding a table, code block,
+ * block-math node, callout or task list -- never edited, just opened -- used
+ * to fail `unsentInEditor()`'s comparison and show the SAME "words the server
+ * doesn't have yet" dialog as the real cases above, purely because
+ * `editorRef.current.getJSON()` fills in each node's declared attribute
+ * defaults (a table cell's `colspan`/`rowspan`/`colwidth`) that the RAW,
+ * minimally-specified server JSON never carried. Reproduced live in a
+ * sandbox for all five node types (`docs/notebook/proof/fx2-<sha>/`);
+ * `canonicalBodyJson` round-trips the SERVER side through the same schema
+ * before comparing, so a note that was genuinely never touched reads clean
+ * regardless of which node types it contains.
+ */
+describe('⛔⛔ FX2 — a rich, UN-edited body never reads as unsent text (proof-walk item 3)', () => {
+  const ORIGINAL_BODY = NOTE.bodyJson
+  afterEach(() => { NOTE.bodyJson = ORIGINAL_BODY })
+  const richBodies = {
+    table: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'intro' }] }, {
+      type: 'table', content: [{ type: 'tableRow', content: [
+        { type: 'tableHeader', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ticker' }] }] },
+      ] }] },
+    ] },
+    codeBlock: { type: 'doc', content: [{ type: 'codeBlock', attrs: { language: 'python' }, content: [{ type: 'text', text: 'x = 1' }] }] },
+    callout: { type: 'doc', content: [{ type: 'callout', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'note' }] }] }] },
+    taskList: { type: 'doc', content: [{ type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'do it' }] }] }] }] },
+  }
+
+  for (const [name, bodyJson] of Object.entries(richBodies)) {
+    it(`a never-edited note containing a ${name} trashes at once (CLEAN verdict, no typing)`, async () => {
+      NOTE.bodyJson = bodyJson
+      verdicts.mockResolvedValue(CLEAN)
+      await renderEditor()
+      await confirmDelete()
+      await waitFor(() => expect(server.log).toEqual(['DELETE']))
+      expect(screen.queryByRole('dialog', { name: /words the server doesn.t have yet/ })).toBeNull()
+    })
+  }
+})

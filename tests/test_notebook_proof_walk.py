@@ -114,6 +114,20 @@ def test_axe_is_the_repo_s_exact_pin():
     assert "wcag2aa" in W.AXE_TAGS and "wcag22aa" in W.AXE_TAGS
 
 
+# ── wave 10 lane WK3: a shared, junctioned app/node_modules can predate axe-core ────────────
+# Measured live: this lane's `app/node_modules` is a junction into another lane's install
+# (notebook-k) that has no `axe-core` directory at all (its package.json never declared the
+# dependency), so `run_sweeps` -- which reads axe.min.js unconditionally before seeding, for
+# EVERY sweep, not only axe -- raised FileNotFoundError before a single control ran. The fix
+# is a read-only override, defaulting to the exact same path every other worktree resolves.
+
+def test_axe_core_path_defaults_to_the_pinned_junction_path_and_can_be_overridden(monkeypatch):
+    monkeypatch.delenv("NOTEBOOK_PROOF_WALK_AXE_CORE", raising=False)
+    assert W._axe_core_path() == W.REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    monkeypatch.setenv("NOTEBOOK_PROOF_WALK_AXE_CORE", "C:/elsewhere/axe.min.js")
+    assert W._axe_core_path() == W.Path("C:/elsewhere/axe.min.js")
+
+
 def test_the_census_probes_every_shipped_inventory_row():
     # every §B1 row the ledger calls shipped (DONE / PARTIAL) must have a census probe; a row the
     # census forgot would read as "every path works" by omission
@@ -221,6 +235,27 @@ def test_the_deadclick_control_fails_when_the_planted_poller_was_never_seen():
     assert W.control_ok("deadclick", {**good, "plant-dead-styled": "LIVE"})[0] is False
 
 
+# ── wave 10 lane WK3: geometry fixes 1+2 (occluder mislabel; "at rest" semantics) ───────────
+# Found live by lane FX: GEOM_JS's occluder description could climb past a non-div hit (e.g.
+# MobileNav's <header>) all the way to a full-viewport wrapper div, whose `.innerText` reads a
+# portaled skip link's own (off-screen) text first -- blaming the skip link for occlusions it
+# never causes. And a control that happens to sit under FIXED/STICKY chrome mid-scroll was
+# always reported occluded even when scrolling it clear would resolve it. The browser-side fix
+# lives entirely inside GEOM_JS (tightOccluderAncestor / canEscapeByScroll); this rail is the
+# pure-Python half -- the CONTROL that a live sandbox run exercises (plant-mislabel,
+# plant-scroll-clear, plant-scroll-pinned) must actually be REQUIRED, not silently optional.
+
+def test_the_geometry_control_requires_the_mislabel_and_restscroll_plants():
+    base = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found",
+            "plant-mislabel": "named-the-real-occluder", "plant-scroll-clear": "CLEAR",
+            "plant-scroll-pinned": "OCCLUDED"}
+    assert W.control_ok("geometry", base)[0] is True
+    # non-vacuity: each new plant can fail the control on its own
+    assert W.control_ok("geometry", {**base, "plant-mislabel": "named the decoy: 'DIV \"Off-screen decoy text\"'"})[0] is False
+    assert W.control_ok("geometry", {**base, "plant-scroll-clear": "OCCLUDED"})[0] is False
+    assert W.control_ok("geometry", {**base, "plant-scroll-pinned": "CLEAR"})[0] is False
+
+
 _NODE_HARNESS = r"""
 globalThis.window = globalThis;
 globalThis.location = {href: 'http://sandbox.test/journal/notebook'};
@@ -295,6 +330,25 @@ def test_the_silent_sweep_applies_the_exemption_at_its_one_verdict_site():
     src = inspect.getsource(W._forced)
     assert "exempt_verdict(row, methods[0], ep)" in src
     assert src.index("judge_failure(") < src.index("exempt_verdict(") < src.index('row["verdict"] = "NOT-TRIGGERED"')
+
+
+# ── wave 10 lane WK3: 5d's "lock"/"archive"/"save-template" writes were UNREACHED ──────────
+# `surface_by_id("nb-note").open()` is `s_note`, which opens a bare note and never opens the
+# editor's "More note actions" overflow (NoteMoreMenu.jsx) -- but Lock/Archive/Save as
+# template all live inside it (the same menu `f_note_btn`/`f_save_template`/`f_export` already
+# open in the census sweep). A bare `_act_click(name)` therefore timed out waiting for a button
+# that was never shown, and WK's README recorded exactly that as UNREACHED, not BROKEN.
+
+def test_lock_archive_and_save_template_writes_open_the_more_menu_first():
+    import inspect
+    acts = {name: act for name, sid, act in W.WRITE_ACTIONS}
+    for name in ("lock", "archive", "save-template"):
+        src = inspect.getsource(acts[name])
+        assert "open_more_note_actions(pg)" in src, f"{name} write action never opens the More note actions menu"
+    # CONTROL: an action whose button already lives on the bare note page must not be routed
+    # through the menu too -- the fix targets the three menu-only writes, not every write
+    for name in ("save-body", "add-tag", "favorite", "new-folder", "new-note", "daily-note"):
+        assert "open_more_note_actions" not in inspect.getsource(acts[name]), name
 
 
 def test_the_comparison_exemption_names_a_rail_that_exists_and_says_the_menu_sentence():

@@ -1,0 +1,126 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "silent": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 38.6
+  }
+ },
+ "tip": "788f3a439",
+ "sweeps": [
+  "silent"
+ ],
+ "only": [
+  "save-template",
+  "trash-note"
+ ],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-30T00:14:29-0500",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data",
+ "base": "http://127.0.0.1:8341",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-14-32.md (identity 9a9d2fba25ae..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)"
+ },
+ "axe_core": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r001619",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "4d245e394733482ab7ee8b894754892b",
+  "share_url": "/share/n/XZTQlNmOy5NVyczA3PJ3yKuAqrJbSQvk",
+  "publish_url": "/p/2JfNv6qctnYTyzjnk7O1HQ",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "a9adddddf0b44d8e8d90998be32f8b9c",
+  "first_run_account": "fresh1",
+  "first_run_note": "128bdbceab83426fa1e7ed9bfc1dd563",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 42.6,
+ "findings_total": 0,
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-walk-silent-only\\integrity.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-walk-silent-only\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-30 00:14:40",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-30 00:16:16",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-30 00:18:01",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-30 00:18:13",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "finished": "2026-09-30T00:18:32-0500"
+}

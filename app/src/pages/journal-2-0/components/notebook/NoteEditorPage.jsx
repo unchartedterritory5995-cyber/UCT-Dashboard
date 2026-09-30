@@ -495,6 +495,33 @@ function ToolButton({ active, onClick, label, title }) {
   )
 }
 
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 3), `unsentInEditor`'s companion to
+ * `canonicalBodyJson`: StarterKit's TrailingNode extension appends an empty
+ * paragraph via `appendTransaction` whenever a doc's last node is not
+ * already one -- a PLUGIN hook that fires on the editor's own initial
+ * content-load transaction, never on a bare schema parse. So
+ * `editorRef.current.getJSON()` carries that trailing paragraph the moment
+ * the editor mounts a note whose last node is a table, code block,
+ * block-math node, callout or task list, and a schema-only parse of the
+ * server's raw JSON never will. Strips exactly ONE trailing paragraph with
+ * NO content (never one holding a member's real, if empty-looking, mark or
+ * text node -- `content` absent or `[]` only) from a doc's top-level
+ * `content` array, symmetrically on whichever side has it, so the
+ * comparison this feeds cannot be fooled into calling a genuine last-line
+ * edit "nothing changed" (a paragraph the member actually typed into is
+ * never "empty" by this test) or into calling TrailingNode's own housekeeping
+ * an edit.
+ */
+function stripTrailingEmptyParagraph(doc) {
+  if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content) || !doc.content.length) return doc
+  const last = doc.content[doc.content.length - 1]
+  const isEmptyParagraph = last?.type === 'paragraph' && (!last.content || last.content.length === 0)
+    && !last.attrs && !last.marks
+  if (!isEmptyParagraph) return doc
+  return { ...doc, content: doc.content.slice(0, -1) }
+}
+
 export default function NoteEditorPage({
   noteId, onBack, showBack = true, onTitleChange = null, noteMenu = null,
   // Wave 8 (8A, A4; final-review fix I-1): where an explicit open from the
@@ -3020,6 +3047,55 @@ export default function NoteEditorPage({
     }
   }
   /**
+   * ⛔⛔ FX2 (wave 10, proof-walk item 3): `cur.bodyJson` is
+   * `editorRef.current.getJSON()` -- ProseMirror's OWN serialization, which
+   * fills in every node/mark's declared attribute defaults (a table cell's
+   * `colspan`/`rowspan`/`colwidth`, and the same shape for callouts, task
+   * items and block-math). `last.bodyJson` was never round-tripped through
+   * that schema -- it is the RAW JSON the server returned on load, which for
+   * a note authored with minimal attrs (most imports, and every fixture in
+   * this program's own seed data) never carried those defaults at all. Two
+   * documents describing the SAME content then serialize to two DIFFERENT
+   * JSON strings, and a note that was never edited reads as "the note's
+   * text" is unsent -- reached live, on a note with a table, a code block, a
+   * block-math node, a callout or a task list, immediately after opening it
+   * and choosing Delete: the FIRST confirm produced "This note has words the
+   * server doesn't have yet" instead of trashing it. Reproduced for every one
+   * of those five node types (`docs/notebook/proof/fx2-<sha>/repro4-*.json`);
+   * a bare paragraph or heading was never affected, because neither node
+   * declares an attribute with a default.
+   *
+   * The fix compares like with like: `last.bodyJson` is parsed through the
+   * SAME schema and re-serialized ONCE before the comparison, so both sides
+   * carry the same filled-in defaults. Never throws -- a body the schema
+   * cannot parse (a truly stale/incompatible shape) falls back to the RAW
+   * value, which is exactly today's comparison and therefore never a new
+   * failure mode, only a narrower one.
+   *
+   * ⛔⛔ ATTRIBUTE DEFAULTS ARE NOT THE ONLY GAP `nodeFromJSON` LEAVES.
+   * StarterKit's TrailingNode extension appends an empty paragraph via
+   * `appendTransaction` -- a PLUGIN hook, which only runs on a dispatched
+   * transaction, never on a bare `Schema.nodeFromJSON` parse -- whenever the
+   * doc's last node is not already a paragraph (a table, a code block, a
+   * block-math node, a callout, a task list: measured live, every one of
+   * them). So `editorRef.current.getJSON()` (`cur.bodyJson`) carries that
+   * trailing paragraph the moment the editor mounts, and a schema-only parse
+   * of the server's raw JSON never will. `stripTrailingEmptyParagraph`
+   * normalizes it away on BOTH sides (symmetric, so it costs nothing when
+   * neither side has one) rather than re-deriving TrailingNode's own rule
+   * (which node types need one) -- a second copy of that rule would drift
+   * the moment the editor's own trailing-node config changes.
+   */
+  const canonicalBodyJson = (json) => {
+    try {
+      const schema = editorRef.current?.schema
+      if (!schema || json == null) return json
+      return schema.nodeFromJSON(json).toJSON()
+    } catch {
+      return json
+    }
+  }
+  /**
    * What the EDITOR holds that the server's last copy does not -- the one
    * answer both the Delete gate and its dialog ask.
    *
@@ -3036,7 +3112,9 @@ export default function NoteEditorPage({
     if (cur && !baseHasNoBody(last)) {
       if ((cur.title || '') !== (last.title || '')) parts.push('the title')
       if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
-      if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
+      const curBody = stripTrailingEmptyParagraph(cur.bodyJson)
+      const lastBody = stripTrailingEmptyParagraph(canonicalBodyJson(last.bodyJson))
+      if (JSON.stringify(curBody) !== JSON.stringify(lastBody)) parts.push('the note’s text')
     }
     return parts
   }

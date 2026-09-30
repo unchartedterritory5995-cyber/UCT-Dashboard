@@ -1,0 +1,15 @@
+{
+  "started": "2026-09-30T00:25:57-0500",
+  "writes": [],
+  "dialogs_now": 1,
+  "body_after": "Skip to main content\nSkip to note\nUCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nProof Seasoned\nPRO\nSettings\nSupport\nWebsite\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n\u25be\nRECENTS\nProof rich r002710 1790746092\nProof PDF r002710\nProof rich base r002710\nAdd thesis starter views\nAll notes\n12\nUnfiled\n7\nArchived\n0\nTrash\n0\nSample notebook\n+\n+ New folder\nTAGS\n#proof\n3\n#review\n3\nProof rich r002710 1790746092\nAsk\nFind\nShare\nUnfiled\nSample notebook\nWriting help\nOutline\nHistory\nDuplicate\nLock\nArchive\nSave as template\nOpen a note beside\u2026\nPNG\nPrint\nExport\n43 words \u00b7 1 min read\nDelete\nThis note has words the server doesn\u2019t have yet\n\u00d7\n\nNot on the server yet: the note\u2019s text.\n\nA note in the Trash cannot receive them, so trashing it now loses them.\n\nCancel\nTrash anyway\nSend first\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n\u2022 List\n1. List\n\u275d\n</>\n\u2015\n\u229e Insert\nAdd property\nSuggest values\nProof heading one\n\nBase forming under the prior high with volume drying up.\n\nSetup table\n\nTicker\n\n\t\n\nEntry\n\n\n\n\nNVDA\n\n\t\n\n121\n\nPlain text\nPython\nSQL\nJavaScript\nTypeScript\nR\nExcel formula\nJSON\nShell\nYAML\nMarkdown\nHTML / XML\nCSS\nJava\nC#\nC++\nC\nGo\nRu",
+  "log": [
+    "[00:27:08] SANDBOX IDENTITY: ok=True http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-25-59.md (identity 870b9f300891..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)",
+    "[00:27:25] === seeding (the walk's OWN seed(), sets W.fx['rich_body']) ===",
+    "[00:28:09] seeded. rich_body top-level keys: ['type', 'content']",
+    "[00:28:09] === trash-note via the walk's REAL s_ed_delete + _act_confirm_delete, FRESH context, RICH body ===",
+    "[00:28:20] writes: []  dialogs_now=1",
+    "[00:29:45] sandbox stop: graceful to the shutdown checkpoint, then forced exit"
+  ],
+  "finished": "2026-09-30T00:29:45-0500"
+}
