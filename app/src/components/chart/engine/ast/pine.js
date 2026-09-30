@@ -135,6 +135,10 @@ import SYMBOL_SCOPE from './symbolScope.json'
 // held in ONE place. Every colour name this file resolves goes through it, with
 // the script's version; see `PALETTE_VERSION` below for how the version travels.
 import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pinePalette.js'
+// ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
+// runtime, both from ONE module so what this door admits and what the runtime
+// draws cannot drift (C15, objects-triage step 13).
+import { compileMessagePattern } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -5630,6 +5634,76 @@ export class Resolver {
    *
    *  ⛔ NULL WHEN NO LAST WORD IS A `state` BINDING OF THIS CHAIN — a name the
    *  closing pass forced opaque, for one. Those keep the behaviour they had. */
+  /** ⭐⭐ C12 (2026-09-29) — `ta.crossover` / `ta.crossunder` OF A `var` INSIDE
+   *  THAT `var`'S OWN UPDATE, or null when the call is not that shape.
+   *
+   *  The reset-after-break idiom every structure script writes:
+   *
+   *      if not na(last_ph_s) and ta.crossover(close, last_ph_s)
+   *          line.new(…)
+   *          last_ph_s := na
+   *
+   *  The read of `last_ph_s` sits inside its own update, so `crossOver` would need
+   *  a window over the accumulator's past and `selfOutsideTheStepLoop` refuses it.
+   *  But the one past value `crossover` reads IS in the loop: Pine's
+   *  `crossover(x, y)` is `x > y and x[1] <= y[1]`, and for `y` a VARIABLE, `y[1]`
+   *  is its value at the END of the previous bar — the accumulator's `self`. The
+   *  current `y` is the partial read at this line (`partialStateRead`, which
+   *  inlines the update so far). So the call is exact as
+   *
+   *      x > <partial y>  &&  x[1] <= self            (crossunder: <, >=)
+   *
+   *  with `cmp`'s NaN rule — a comparison with `na` is false, which is Pine's
+   *  answer and what keeps a false guard from poisoning the state (the table's
+   *  `crossOver` is NaN there, and a NaN test would blank the accumulator).
+   *
+   *  ⚰️ MEASURED on the vendor harness, `institutional-smc-order-flow-matrix-pro`
+   *  (NYSE:RDDT 1D, 2026-09-28): TradingView holds 18 BOS/CHoCH lines; replaying
+   *  the script from bar 0 with this reading gives the same 18 levels, and the 13
+   *  of them past the accumulator's warm-up are drawn here
+   *  (`c12BlockState.vendor.test.js`). The inequalities are `CROSS_OVER_FIRED` /
+   *  `CROSS_UNDER_FIRED` (interpret.js) and a rail holds this form equal to the
+   *  table's on every bar both answer.
+   *
+   *  ⛔ ONLY WHEN THE OTHER ARGUMENT DOES NOT READ THE STATE, and only for a BARE
+   *  name: `y[1]` of an EXPRESSION is its value at the previous call, which the
+   *  loop never held. ⚠️ Pine v6's lazy `and` can skip the call on some bars, and
+   *  a built-in's history then comes from its last call. On the smc capture the
+   *  two readings give the same 18 events, so the capture does not separate them;
+   *  this is the variable-history reading, the one the rest of this engine's
+   *  `crossOver` already makes (it evaluates on every bar). */
+  crossOfOwnState(base, args, tok) {
+    const shape = PINE_CALL_SHAPES[normaliseName(base)]
+    const which = shape && shape.table
+    if (which !== 'crossOver' && which !== 'crossUnder') return null
+    if (!this.stateBuilds.length || !Array.isArray(args) || args.length !== 2) return null
+    if (args.some((a) => !a || a.name)) return null
+    const top = this.stateBuilds[this.stateBuilds.length - 1]
+    const ownAt = args.findIndex((a) => {
+      const n = a.value
+      if (!n || n.type !== 'name') return false
+      const b = this.env.get(n.name)
+      return !!b && b.kind === 'state' && b.seed === top
+    })
+    if (ownAt < 0) return null
+    const spec = this.table.functions.accum
+    if (!spec) return null
+    const ownNow = this.resolve(args[ownAt].value)
+    const other = this.resolve(args[1 - ownAt].value)
+    if (containsFreeSelfSeries(other, this.table)) return null
+    // `y[1]` of the variable: a HISTORY read of it, which is `na` on bar 0 —
+    // counted as one, so `varSeedOf` seeds exactly as for a written `y[1]`.
+    if (this.selfReads) this.selfReads.history += 1
+    const prevOwn = cSeries(spec.recurrence.binds)
+    const prevOther = { type: 'offset', value: 1, args: [other] }
+    const [xNow, yNow, xPrev, yPrev] = ownAt === 1
+      ? [other, ownNow, prevOther, prevOwn]
+      : [ownNow, other, prevOwn, prevOther]
+    return which === 'crossOver'
+      ? cOp('&&', [cOp('>', [xNow, yNow]), cOp('<=', [xPrev, yPrev])])
+      : cOp('&&', [cOp('<', [xNow, yNow]), cOp('>=', [xPrev, yPrev])])
+  }
+
   finalStateOf(bound, name) {
     if (!bound || bound.kind !== 'state') return null
     if (this.finalLocals.has(bound)) return null
@@ -7308,6 +7382,33 @@ export class Resolver {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
         // one cast covers `c ? a : b`, `if c`, and `else if c`.
         const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
+        // ⭐⭐ C12 — THE FALLTHROUGH OF AN `if` WITH NO `else` (`foldIfChain` marks
+        // it `noElse`). Its `na` is Pine's answer only for a NUMBER: v6 returns
+        // `false` for a bool, v5 `na`, and no capture separates them. So the branch
+        // it falls back from must resolve to a proven number — resolved even when a
+        // constant test would skip it, because its KIND is what decides what the
+        // skipped side means — and anything else keeps the `pine:block` refusal,
+        // naming why.
+        if (node.noElse) {
+          let yes
+          try {
+            yes = this.resolve(node.yes)
+          } catch (err) {
+            if (test.type === 'num' && test.value !== 0) throw err
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and its branch here could not be read to '
+              + 'say which', locate(node.tok))
+          }
+          if (conditionKindOf(yes, this.table) !== 'num') {
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — an \`if\` with no \`else\` returns \`na\` for a number `
+              + 'and, in Pine v6, `false` for a bool, and this branch is not a proven number',
+              locate(node.tok))
+          }
+          if (test.type === 'num') return test.value !== 0 ? yes : this.resolve(node.no)
+          return cOp('?:', [test, yes, this.resolve(node.no)])
+        }
         // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
         // the same rule as "a statement no output reaches is a note": refusing a
         // script over an arm its own folded input makes unreachable would be
@@ -7432,6 +7533,16 @@ export class Resolver {
     // removing it changed no behaviour, because a `state`/`fn`/`opaque` binding
     // carries no `.node` to be a selfref in the first place. Said here so nobody
     // later mistakes it for the thing keeping this correct.
+    // ⭐⭐ C12 (2026-09-29) — `v[k]` OF A `var` INSIDE ITS OWN UPDATE, READ AFTER
+    // AN EARLIER REASSIGNMENT OF IT IN THE SAME BAR. The binding in scope is then
+    // the chain's partial `state` (same seed object as the accumulator being
+    // built — `partialStateRead`), not the `selfref` a first read sees, and this
+    // answered null: the read fell through to "the whole accumulator, offset",
+    // which re-entered the very build it sat in until `pine:timeout`. History is
+    // committed at the END of a bar, so `v[k]` is the value k bars back whatever
+    // this bar has done to `v` so far — `self[k - 1]`, exactly as for a first read.
+    if (bound && bound.kind === 'state' && this.stateBuilds.length
+        && bound.seed === this.stateBuilds[this.stateBuilds.length - 1]) return node.n - 1
     if (!bound || bound.kind !== 'expr') return null
     return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
   }
@@ -9365,6 +9476,8 @@ export class Resolver {
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
     const bare = normaliseName(base)
+    const ownCross = this.crossOfOwnState(base, args, tok)
+    if (ownCross) return ownCross
     // ⛔⛔ `ta.valuewhen`'S NAMESPACED SPELLING MEANS A DIFFERENT FUNCTION THAN
     // THIS TABLE'S OWN BARE `valuewhen`, AND THE REDIRECT BELOW MUST FIRE ONLY
     // WHEN A NAMESPACE WAS ACTUALLY WRITTEN (2026-09-20). Pine's
@@ -10862,6 +10975,19 @@ export function boundName(toks, eqIndex) {
  *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
 const TEXT_MAX_DEPTH = 64
 
+/** ⭐⭐ HOW MANY STEPS ONE TEXT READ MAY TAKE — a WORK bound beside the depth one.
+ *
+ *  ⚰️ C15, MEASURED 2026-09-29: letting `openName` open a name at any depth
+ *  (it used to refuse past 8 — a hop guard read as a nesting guard) turned
+ *  `screener-mean-reversion-channel`'s forty-step accumulation
+ *  (`s := c ? s + x : s`, both arms naming `s`) into a 2^40 walk and hung the
+ *  member door. The old cap was bounding that by accident. This bounds it on
+ *  purpose: a text whose reading takes more steps than this is refused and
+ *  named (`objectDiagnostics.textTooLarge`) — a text that big would be a tree
+ *  of that size in the saved document anyway. The deepest SERVED text in the
+ *  corpus (rsmi's info box) takes a few hundred. */
+const TEXT_WORK_BUDGET = 4096
+
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
 /** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
@@ -11223,6 +11349,38 @@ function foldIfChain(stmts, i, ctx, env) {
 
   if (hasElse ? arms.every((a) => a.value) : false) {
     value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
+    for (let k = arms.length - 2; k >= 0; k -= 1) {
+      value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
+    }
+    value = exprBinding(value, before, locate(arm0.tok))
+  } else if (!hasElse && arms.every((a) => a.value && a.value.kind !== 'tuple')) {
+    // ⭐⭐ C12 (2026-09-29) — AN `if` WITH NO `else` IS A VALUE, AND ITS MISSING
+    // BRANCH IS `na`. Pine's manual: when an `if` used as an expression runs no
+    // branch, it returns `na`. This refused the whole chain as "a branch with no
+    // value", which is true of the TEXT and false of the language.
+    //
+    // ⚰️ MEASURED on the vendor harness, `atr-support-and-resistance` (v6, NYSE:RDDT
+    // 1D, 2026-09-28): `impUpWick = if impUp` / `open - low` feeds the only guard in
+    // front of every box and mid line the script draws, so the refusal cost all 20
+    // lines and 20 boxes TradingView holds. The capture also DECIDES the fallthrough:
+    // with `na` the wick test `impUpWick / ta.tr <= 0.25` is false on a non-impulse
+    // bar and the count is the vendor's; with `0` it would be true there and push a
+    // box on nearly every bar (`c12BlockState.vendor.test.js` runs both).
+    //
+    // ⛔ ONLY A PROVEN NUMBER. Pine v6 made `bool` non-`na`, so an `if` with no
+    // `else` over a bool returns `false` there and `na` in v5 — two answers no
+    // capture on disk separates. The innermost ternary carries `noElse`, and the
+    // Resolver refuses by name unless the branch it would fall back from resolves
+    // to a proven number (`conditionKindOf`), which is exactly where the two
+    // versions agree.
+    value = {
+      type: 'ternary',
+      test: arms[arms.length - 1].cond,
+      yes: boundNode(arms[arms.length - 1].value, null, arms[arms.length - 1].tok),
+      no: { type: 'name', name: 'na', tok: arms[arms.length - 1].tok },
+      noElse: true,
+      tok: arms[arms.length - 1].tok,
+    }
     for (let k = arms.length - 2; k >= 0; k -= 1) {
       value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
     }
@@ -12451,6 +12609,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (prior.kind === 'state') {
         env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
         ctx.consumed.add(toks[mut].index)
+        // ⭐ C11b — the state path records too; the expression path below always did.
+        record(st, nameTok.value)
         i += 1
         continue
       }
@@ -12760,10 +12920,20 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
     lostRemovalFamilies.push({ via, family })
   }
+  // ⭐⭐ EVERY FAMILY THAT LOST A CREATE (C13, 2026-09-29) — `null` when the
+  // family cannot be named. Carried on the PROGRAM as `lostCreates` for the
+  // runtime: Pine's collector cuts a family by COUNT (`objectRuntime.js`,
+  // `collect`), so once it runs, a create this program never makes changes
+  // WHICH objects TradingView still holds — the picture gains objects Pine
+  // removed, not merely loses the missing one. See `lostCreates` in
+  // `objectRuntime.js` for what the runtime does with it.
+  const lostCreateFamilies = new Set()
+  const lostCreate = (family) => { lostCreateFamilies.add(family || null) }
   const unconverted = (body, via) => {
     for (const b of body || []) {
       if (!b || !b.k) continue
       diagnostics.unconvertedLoopOps[b.k] = (diagnostics.unconvertedLoopOps[b.k] || 0) + 1
+      if (b.k === 'create') lostCreate(b.family)
       if (b.k === 'delete' || b.k === 'clear') lostRemoval(via, b)
       if (b.k === 'loop') unconverted(b.body, via)
     }
@@ -12793,8 +12963,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   for (const rc of refusedCalls) {
     const via = `fn:${rc.why}`
     diagnostics.attemptedOps += 1
-    const fx = rc.effects || { kinds: { delete: 1 }, families: [null] }
+    const fx = rc.effects || { kinds: { delete: 1 }, families: [null], creates: [null] }
     for (const family of fx.families || []) lostRemovalFamilies.push({ via, family })
+    for (const family of fx.creates || []) lostCreate(family)
     for (const [k, n] of Object.entries(fx.kinds || {})) {
       if (!diagnostics.unconvertedFnOps) diagnostics.unconvertedFnOps = {}
       diagnostics.unconvertedFnOps[k] = (diagnostics.unconvertedFnOps[k] || 0) + n
@@ -12825,6 +12996,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // reported zero drops and was therefore indistinguishable from `plot(close)`
   // alone — so a consumer classifying the two rows had to guess, and guessed
   // that a script naming `line` draws with plots.
+  // ⭐ A CONSTRUCTOR THE READER NEVER TURNED INTO AN OP (a `line.new` in a loop
+  // it could not parse, one it could not read at all) is a lost create too.
+  for (const name of [...(collected.diagnostics.loopBlocked || []), ...(collected.diagnostics.unsupported || [])]) {
+    const m = /^([a-z]+)\.new$/.exec(String(name))
+    if (m) lostCreate(m[1])
+  }
   diagnostics.collectedOps = collected.ops.length
   if (!collected.ops.length) {
     // ⭐ A PROGRAM WITH NO OPS DRAWS NOTHING, so a lost removal of a NAMED family
@@ -13000,6 +13177,32 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return walk(node, 0)
   }
 
+  /** ⭐ A call made INSIDE an inlined body, with its arguments rewritten through
+   *  that body's frame — or null when a rewritten argument still names the
+   *  frame's own parameters or locals (they mean nothing at the frame's caller).
+   *  See the nested-helper branch in `textNodeOf`. */
+  const flattenThroughFrame = (call, inline) => {
+    const args = call.args || []
+    if (!inline || !inline.bound || args.some((a) => a && a.name)) return null
+    const params = new Set(inline.bound.params || [])
+    const bodyEnv = inline.bodyEnv
+      || (inline.bound.value && inline.bound.value.env) || null
+    const callerEnv = inline.callerEnv || scopeEnv
+    const out = args.map((a) => ({ value: substituteFrame(a && a.value !== undefined ? a.value : a, inline) }))
+    const leaks = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 32) return false
+      if (Array.isArray(n)) return n.some((x) => leaks(x, d + 1))
+      if (n.type === 'name') {
+        if (params.has(n.name)) return true
+        const local = bodyEnv && typeof bodyEnv.get === 'function' ? bodyEnv.get(n.name) : null
+        const outer = callerEnv && typeof callerEnv.get === 'function' ? callerEnv.get(n.name) : null
+        if (local && local !== outer) return true
+      }
+      return Object.entries(n).some(([k, v]) => k !== 'tok' && k !== 'endTok' && leaks(v, d + 1))
+    }
+    return out.some((a) => !a.value || leaks(a.value, 0)) ? null : out
+  }
+
   const resolveTree = (node, inline, envOverride) => internTree(canonicalOf(node, inline, envOverride))
 
   /** A bound name → the expression it holds, so `stateText` can be opened the
@@ -13057,14 +13260,213 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  ⭐ ONE GUARD, NOT THREE. All three numeric mint sites route through here,
    *  so the rule is stated once and a fourth mint site cannot quietly skip it
    *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
-  const numNode = (ast, fmt) => {
+  const numNode = (ast, fmt, implicit = false) => {
     if (enumLeaves) return null
     const ref = internTree(ast)
-    return ref ? { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) } : null
+    if (!ref) return null
+    // ⭐⭐ A NUMBER NOBODY STRINGIFIED, INSIDE A `str.format` ARGUMENT, is
+    // formatted the way `{N}` formats it — not the way `str.tostring` would.
+    // ⛔ ONLY an implicit number: `str.format("{0}", str.tostring(x))` hands the
+    // pattern TEXT, and that text keeps `str.tostring`'s own rules.
+    if (implicit && messageNumber) return { t: 'num', tree: ref.tree, ...messageNumber }
+    return { t: 'num', tree: ref.tree, ...(fmt ? { fmt } : {}) }
+  }
+
+  /** ⭐ Set only while one `str.format` ARGUMENT is read (`strFormatNodeOf`),
+   *  cleared in a `finally` — the same discipline as `enumLeaves`. It is the
+   *  `{form:'message', fmt?}` an implicit number in that argument takes. */
+  let messageNumber = null
+  /** The current top-level text read's step count — see `TEXT_WORK_BUDGET`. */
+  let textWork = { steps: 0, over: false }
+
+  /**
+   * ⭐⭐ `str.format(pattern, arg0, …)` → literal parts and argument slots.
+   *
+   * The pattern must be a string this door can read at translate time; the
+   * grammar it may use is `compileMessagePattern`'s, which admits only what a
+   * vendor capture pins and refuses the rest BY NAME (`textFormatRefusals`).
+   *
+   * ⛔ AN ARGUMENT IS READ AS TEXT FIRST. A text argument (`"x"`, a name bound to
+   * text, `str.tostring(v)`) is inserted as-is, exactly as MessageFormat inserts
+   * a string; only an implicit NUMBER takes the `{N}` number form. A numeric
+   * element (`{0,number,#.##}`) over a text argument is refused — MessageFormat
+   * throws there, and a cell must not show what a throw would have shown.
+   */
+  const strFormatNodeOf = (node, scope, depth, inline, envAt) => {
+    const refuseFmt = (why) => {
+      diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+      diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+      return null
+    }
+    const args = node.args || []
+    if (!args.length || args.some((a) => a && a.name)) return refuseFmt('format:arguments')
+    let patNode = args[0].value
+    // ⭐ A pattern held in a name is still a literal the script fixed.
+    for (let hop = 0; patNode && patNode.type === 'name' && hop < 8; hop += 1) {
+      const opened = openName(patNode, scope, 0)
+      if (!opened) break
+      patNode = opened.node
+    }
+    if (!patNode || patNode.type !== 'string') return refuseFmt('format:pattern-not-literal')
+    const compiled = compileMessagePattern(String(patNode.value), args.length - 1)
+    if (!compiled.ok) return refuseFmt(compiled.why)
+    const parts = []
+    for (const p of compiled.parts) {
+      if (p.lit !== undefined) { parts.push({ t: 'lit', s: p.lit }); continue }
+      const prev = messageNumber
+      messageNumber = { form: 'message', ...(p.fmt ? { fmt: p.fmt } : {}) }
+      let t = null
+      try {
+        t = textNodeOf(args[p.arg + 1].value, scope, depth + 1, inline, envAt)
+      } finally { messageNumber = prev }
+      if (!t) return null
+      if (p.fmt && !(t.t === 'num' && t.form === 'message')) return refuseFmt('format:number-over-text')
+      parts.push(t)
+    }
+    if (!parts.length) return { t: 'lit', s: '' }
+    return parts.length === 1 ? parts[0] : { t: 'cat', args: parts }
+  }
+
+  /**
+   * ⛔⛔ C15 — A TEXT WHOSE BRANCH HANGS ON HOW `timeframe.period` IS SPELLED, in a
+   * `//@version=6` script, is WITHHELD rather than drawn.
+   *
+   * MEASURED on `ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28` (v6, 1D):
+   * `f_mtfMark("D")` is `timeframe.period == "D" ? "► " : "   "` and TradingView
+   * drew `"   1D"` — so on a v6 daily chart the period is NOT `"D"` — and
+   * `f_tfLabel()`'s default arm (`=> timeframe.period`) drew `"1D"`. This engine
+   * answers `"D"` for every version (`basePeriodOf`), so it drew `"► 1D"`: a
+   * text the vendor does not show. The spelling is one value read by the columnar
+   * resolver, the runtime lane and the request router alike, so changing it is not
+   * an object-text change and is not made here (objects-triage step 13 names it).
+   * What IS made here: a text whose choice FLIPS between the two spellings
+   * (`== "D"`, `!= "1W"`, …) is refused, so the wrong branch is never drawn. A
+   * comparison both spellings answer alike (`== "15"`) is untouched.
+   */
+  const V6_PERIOD_SPELLINGS = new Set(['D', '1D', 'W', '1W', 'M', '1M'])
+  const periodSpellingDecides = (test, inline, env) => {
+    if (!test) return false
+    let version = null
+    try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+    if (!(version >= 6)) return false
+    const framed = inline ? substituteFrame(test, inline) : test
+    const textOf = (n) => {
+      for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+        const opened = openName(n, env || scopeEnv, 0)
+        if (!opened) return null
+        n = opened.node
+      }
+      return n && n.type === 'string' ? String(n.value) : null
+    }
+    const isPeriod = (n) => n && n.type === 'name' && OWN_TF_NAMES.has(n.name)
+      && !(env && typeof env.get === 'function' && env.get(n.name))
+    const walk = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 24) return false
+      if (n.type === 'binary' && (n.op === '==' || n.op === '!=')) {
+        if (isPeriod(n.left) && V6_PERIOD_SPELLINGS.has(textOf(n.right))) return true
+        if (isPeriod(n.right) && V6_PERIOD_SPELLINGS.has(textOf(n.left))) return true
+      }
+      for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
+        if (walk(n[k], d + 1)) return true
+      }
+      if (Array.isArray(n.args)) {
+        for (const a of n.args) if (walk(a && a.value !== undefined ? a.value : a, d + 1)) return true
+      }
+      return false
+    }
+    if (!walk(framed, 0)) return false
+    diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+    diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] =
+      (diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] || 0) + 1
+    return true
+  }
+
+  /** The string options an `input.string(…, options = [...])` offers, when the
+   *  subject opens to one — else null. */
+  const inputOptionsOf = (subject, env) => {
+    let n = subject
+    for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      if (!b || b.kind !== 'expr') return null
+      env = b.env || env
+      n = b.node
+    }
+    if (!n || n.type !== 'call' || !(n.name === 'input' || n.name === 'input.string')) return null
+    const opt = (n.args || []).find((a) => a && a.name === 'options')
+    const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
+    if (!Array.isArray(els) || !els.length || !els.every((e) => e && e.type === 'string')) return null
+    return els.map((e) => String(e.value))
+  }
+
+  /**
+   * ⭐⭐ C15 — A `switch` IN A TEXT OR ENUM POSITION, as the `if` chain it is.
+   *
+   * `string tblSize = switch tblSizeIn "Small" => size.small …` (ema-ribbon)
+   * and `posOf(string p) => switch p "Top Right" => position.top_right …`
+   * (artemis) are how the corpus computes an enum VALUE from a member's menu.
+   * Each arm becomes `{t:'if', cond: subject == label, then: arm, else: rest}`
+   * — the SAME shape a ternary chain over the same input already produces
+   * (artemis' `scSz`), so the condition stays a tree that follows the member's
+   * input rather than a default frozen at translate time.
+   *
+   * ⛔ WITHOUT A DEFAULT ARM A `switch` IS `na` WHEN NOTHING MATCHES, and no
+   * capture shows what a `na` size or position draws. So a default-less switch
+   * is read only when its subject is an `input.string` whose `options` every arm
+   * covers — then "nothing matches" cannot happen and the last arm is the else.
+   * Anything else is refused (null), which drops the prop by name upstream.
+   */
+  const switchTextOf = (sw, depth, inline) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms)) return null
+    const env = sw.env || scopeEnv
+    const armText = (b) => {
+      if (!b || b.kind !== 'expr' || !b.node) return null
+      return inline
+        ? textNodeOf(b.node, inline.callerEnv || env, depth + 1, inline)
+        : textNodeOf(b.node, b.env || env, depth + 1, null, b.env || env)
+    }
+    const labels = []
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      if (!m || m.type !== 'string') return null
+      labels.push(m)
+    }
+    let arms = sw.arms.map((a, k) => ({ label: labels[k], binding: a.binding }))
+    let tail = null
+    if (sw.fallback) {
+      tail = armText(sw.fallback)
+    } else {
+      const opts = inline ? null : inputOptionsOf(sw.subject, env)
+      const covered = opts && opts.every((o) => arms.some((a) => String(a.label.value) === o))
+      if (!covered || !arms.length) return null
+      tail = armText(arms[arms.length - 1].binding)
+      arms = arms.slice(0, -1)
+    }
+    for (let k = arms.length - 1; k >= 0 && tail; k -= 1) {
+      const test = { type: 'binary', op: '==', left: sw.subject, right: arms[k].label, tok: sw.subject.tok }
+      if (periodSpellingDecides(test, inline, env)) return null
+      const cond = inline ? resolveTree(test, inline) : resolveTree(test, null, env)
+      const then = armText(arms[k].binding)
+      if (!cond || !then) return null
+      tail = { t: 'if', cond, then, else: tail }
+    }
+    return tail
   }
 
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
+    // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
+    if (depth === 0 && !inline) textWork = { steps: 0, over: false }
+    if (textWork.over) return null
+    textWork.steps += 1
+    if (textWork.steps > TEXT_WORK_BUDGET) {
+      textWork.over = true
+      diagnostics.textTooLarge = diagnostics.textTooLarge || []
+      const at = node.tok ? locate(node.tok) : null
+      const entry = `steps>${TEXT_WORK_BUDGET}@${at ? at.line : '?'}`
+      if (!diagnostics.textTooLarge.includes(entry)) diagnostics.textTooLarge.push(entry)
+      return null
+    }
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
     //
     // ⚰️ MEASURED 2026-09-13. The cap was 12, chosen when this reader walked
@@ -13093,13 +13495,21 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
-    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) })
+    if (node.type === 'number') return numNode({ type: 'num', value: Number(node.value) }, undefined, true)
     if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')) {
+      // ⭐ `str.tostring` of a string is that string — so of `syminfo.ticker`, the
+      // symbol's text (see the `{t:'sym'}` note in the name branch below).
+      const arg0 = node.args && node.args[0] && node.args[0].value
+      if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
+        && !(node.args[1])) return { t: 'sym', name: arg0.name }
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
       const fmt = fmtNode && fmtNode.type === 'string' ? String(fmtNode.value) : undefined
       return numNode(ast, fmt)
+    }
+    if (node.type === 'call' && node.name === 'str.format') {
+      return strFormatNodeOf(node, scope, depth, inline, envAt)
     }
     // ⭐⭐ R2 STEP 2 — A `bound` NODE IS A NAME THE FOLD HAS ALREADY RESOLVED.
     // `foldIfChain` builds its arms out of `boundNode(...)`, so the ternary that
@@ -13121,6 +13531,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
+      if (periodSpellingDecides(node.test, inline, scope)) return null
       const cond = resolveTree(node.test, inline, envAt)
       const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
       const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
@@ -13136,6 +13547,13 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const enumLit = objectEnumValue(node.name)
         if (enumLit !== undefined) return { t: 'lit', s: String(enumLit) }
       }
+      // ⭐⭐ C15 — `syminfo.ticker` IN A TEXT SLOT IS THE SYMBOL'S TEXT. It used to
+      // fall to the numeric last resort below, mint a `symtext` tree nothing can
+      // evaluate, and print "NaN" — measured on ema-ribbon's footer cell, where
+      // TradingView prints "RDDT". It is a `{t:'sym'}` node now, settled by the
+      // binding (`objectReaderFor`) from the SAME constants the bind-time fold
+      // uses; a field the binding cannot settle is withheld, never printed.
+      if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
       // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
       // The Resolver reads one out of `this.frames`; this reader has the same
@@ -13167,6 +13585,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           })
           if (asText) return asText
         }
+      }
+      // ⭐⭐ C15 — A NAME BOUND TO A `switch` (`string tblSize = switch tblSizeIn
+      // "Small" => size.small …`). See `switchTextOf`.
+      if (bound && bound.kind === 'switch' && !inline) {
+        const sw = switchTextOf(bound, depth, null)
+        if (sw) return sw
       }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
@@ -13204,6 +13628,25 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // MEASUREMENT — a script that hits this is named, so the item's priority
       // is a count rather than a guess.
       if (inline && bound && bound.kind === 'fn') {
+        // ⭐⭐ C15 — ONE LEVEL DEEPER, BY SUBSTITUTION RATHER THAN BY A FRAME CHAIN.
+        // The inner call's arguments are rewritten through the OUTER frame
+        // (`substituteFrame`), which leaves expressions in the outer CALLER's own
+        // names — so the inner helper is inlined with a single frame whose caller
+        // is that caller, exactly the one-level case the branch below already
+        // serves. MEASURED on reverse-stochastic-momentum-index-on-chart:
+        // `f_crossText(P, X, T, D)` reads `f_negVal(X, D)`, and its one info-box
+        // label was dropped for this alone.
+        // ⛔ Only when nothing in the rewritten arguments still names the outer
+        // function's parameters or locals — those mean nothing at the caller —
+        // and the arity is exact; otherwise the refusal below stands, by name.
+        const flat = flattenThroughFrame(node, inline)
+        if (flat && Array.isArray(bound.params) && bound.params.length === flat.length) {
+          const inner = { bound, args: flat, callerEnv: inline.callerEnv || scope }
+          const body = bound.value && bound.value.node
+            ? textNodeOf(bound.value.node, inline.callerEnv || scope, depth + 1, inner)
+            : (bound.value && bound.value.kind === 'switch' ? switchTextOf(bound.value, depth, inner) : null)
+          if (body) return body
+        }
         diagnostics.nestedTextHelpers = diagnostics.nestedTextHelpers || []
         const at = node.tok ? locate(node.tok) : null
         const entry = `${node.name}@${at ? at.line : '?'}`
@@ -13221,8 +13664,26 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         })
         if (inlined) return inlined
       }
+      // ⭐⭐ C15 — A USER FUNCTION WHOSE BODY IS A `switch` (`posOf(string p) =>
+      // switch p …`), inlined through the same frame as the branch above.
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.kind === 'switch'
+        && Array.isArray(bound.params)
+        && bound.params.length === (node.args || []).length
+        && !(node.args || []).some((a) => a && a.name)) {
+        const sw = switchTextOf(bound.value, depth, { bound, args: node.args, callerEnv: scope })
+        if (sw) return sw
+      }
     }
-    const opened = openName(node, scope, depth)
+    // ⛔⛔ C15 — `openName` IS ASKED FOR ONE HOP, NOT HANDED THIS WALK'S DEPTH.
+    // Its `depth > 8` guard is a hop count; passing the TEXT depth made every
+    // name more than eight `+` deep in a concatenation unopenable, so it fell to
+    // the numeric last resort, failed there, and the whole text was dropped as an
+    // unresolved value with no name on it. MEASURED on
+    // reverse-stochastic-momentum-index-on-chart: its info box is one ternary
+    // whose longer arm is nine concatenations, and adding the ninth `+` was
+    // exactly what lost the label. This walk is already bounded by
+    // `TEXT_MAX_DEPTH` (each open costs one level below).
+    const opened = openName(node, scope, 0)
     if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here
@@ -13253,7 +13714,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
     if (!ast) return null
-    return numNode(ast)
+    // ⭐ INSIDE A `str.format` ARGUMENT THIS IS NOT A GUESS: a number is exactly
+    // what `{N}` is handed, and `messageNumber` says how it is drawn.
+    return numNode(ast, undefined, true)
   }
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
@@ -13882,7 +14345,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
+  // ⭐⭐ C11b — EACH CONDITION IS READ IN THE SCOPE ITS `if` STOOD IN (`g.locals`,
+  // stamped by `collectObjectOps`), never the op's: a block may reassign a name
+  // its own condition read, and Pine evaluated that condition once, before the
+  // block ran. The op's scope (`scopeEnv`) is restored whatever happens.
   const guardOf = (guards) => {
+    const opScope = scopeEnv
+    try {
+      return guardOfIn(guards, opScope)
+    } finally {
+      scopeEnv = opScope
+    }
+  }
+  const guardOfIn = (guards, opScope) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
@@ -13890,6 +14365,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
     const liveParts = []
     for (const g of guards) {
+      scopeEnv = g.locals ? scopeFor(g.locals) : opScope
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
@@ -14192,6 +14668,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
+      if (op.k === 'create') lostCreate(op.family)
       if (op.k === 'update') contentLostBy(op, targetRef(op.target))
       dropped(`guard:${op.k}`)
       continue
@@ -14267,7 +14744,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); dropped(`create:${op.family}`); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
@@ -14493,7 +14970,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           out.push({ ...o, body })
           continue
         }
-        if (withheld(o) && o.k === 'create') { dropped('content:lost'); continue }
+        if (withheld(o) && o.k === 'create') { lostCreate(o.family); dropped('content:lost'); continue }
         if (withheld(o)) { dropped('content:withheld'); continue }
         // A copy of a withheld handle is `na` — the object it names is not drawn.
         if (o.k === 'setreg' && o.value && hit(o.value)) { out.push({ ...o, value: null }); continue }
@@ -14576,6 +15053,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     o.k === 'create' || (o.k === 'loop' && createsSomewhere(o.body))))
   if (!createsSomewhere(keptOps)) return { program: null, diagnostics }
 
+  // ⭐ `'*'` stands for a family this pass could not name — the runtime reads it
+  // as "every family", the loud way. Absent when nothing was lost, so a clean
+  // program is byte-identical to before.
+  const lostCreates = [...lostCreateFamilies].map((f) => (f === null ? '*' : f)).sort()
+  if (lostCreates.length) diagnostics.lostCreates = lostCreates
+
   return {
     program: {
       programVersion: OBJECT_PROGRAM_VERSION,
@@ -14585,6 +15068,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       trees,
       ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
       ...(Object.keys(limits).length ? { limits } : {}),
+      ...(lostCreates.length ? { lostCreates } : {}),
     },
     diagnostics,
   }
@@ -15258,6 +15742,8 @@ function translatePineResult(source, opts = {}) {
         if (prior && prior.kind === 'state') {
           env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok))
           ctx.consumed.add(toks[mutAt].index)
+          // ⭐ C11b — recorded, so a drawing after this line reads it (`scopeFor`).
+          recordTop(stmt, nameTok.value)
           continue
         }
         if (!prior || prior.kind !== 'expr') {
@@ -15272,6 +15758,11 @@ function translatePineResult(source, opts = {}) {
           type: 'binary', op: op[0], left: boundNode(prior, nameTok.value, nameTok), right: rhs, tok: toks[mutAt],
         }, new Map(env), locate(nameTok)))
         ctx.consumed.add(toks[mutAt].index)
+        // ⭐⭐ C11b — THE REASSIGNMENT IS RECORDED LIKE THE DECLARATION WAS. Only the
+        // declaration used to be, so the object pass read `x = 1.0` for every
+        // drawing after `x := 2.0` (measured: a label captioned "1" where Pine
+        // writes "2"). `scopeFor` now reads THIS statement's binding after it.
+        recordTop(stmt, nameTok.value)
       } catch (err) {
         const r = fromError(err)
         // ⛔ CONSUMED ON PURPOSE. The refusal is recorded against the name with

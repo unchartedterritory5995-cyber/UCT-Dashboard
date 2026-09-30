@@ -14,12 +14,66 @@ import uctLogo from '../components/intro/assets/compass-mark.png'
 
 
 import { renderTokenOk } from '../lib/renderToken'
+
+// "15:00" -> "3:00 PM", "08:30" -> "8:30 AM" (owner ruling 2026-09-29: the letter
+// reads 12-hour ET). Anything that is not HH:MM (e.g. "All Day", "Tentative")
+// passes through untouched rather than being guessed at.
+export function to12h(t) {
+  const s = String(t ?? '').trim()
+  const m = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(s)
+  if (!m) return s
+  const h = Number(m[1])
+  if (h > 23) return s
+  const ap = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${m[2]} ${ap}`
+}
+
+// A Fed row whose event is the bare generic "Fed Speaker" names nobody. The
+// ruling is "name it or drop it": if the payload carries a name anywhere
+// (speaker / title / note, or an "X speaks" phrasing), print
+// "Fed Speaker: <Name>"; otherwise the row is not shown at all.
+const GENERIC_FED = /^fed(eral reserve)?\s+speakers?$/i
+// A person, optionally with a Fed title: "Waller", "Governor Waller",
+// "Chair Powell", "Mary Daly". Lower-case words ("voting member") are not names.
+const NAME_RE = /^(?:(?:Fed\s+)?(?:Chair(?:man)?|Vice\s+Chair(?:man)?|Governor|Gov\.|President|Pres\.)\s+)?[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,3}$/
+function extractName(v) {
+  let s = String(v ?? '').trim()
+  if (!s) return ''
+  s = s.replace(/^fed(eral reserve)?\s+speakers?\s*[:\-·]\s*/i, '')   // "Fed Speaker: Waller"
+  s = s.replace(/\s+(speaks|speech|remarks|testifies|testimony)\b.*$/i, '') // "Waller speaks …"
+  s = s.replace(/[.,;:]+$/, '').trim()
+  if (!s || GENERIC_FED.test(s)) return ''
+  return NAME_RE.test(s) ? s : ''
+}
+export function isGenericFed(r) {
+  return r?.kind === 'fed' && GENERIC_FED.test(String(r.event ?? '').trim())
+}
+export function fedSpeakerName(r) {
+  for (const k of ['speaker', 'title', 'note']) {
+    const n = extractName(r?.[k])
+    if (n) return { name: n, from: k }
+  }
+  return null
+}
+// Rows as the panel shows them: bare generic Fed rows are named or dropped.
+export function presentRows(rows) {
+  const out = []
+  for (const r of rows || []) {
+    if (!isGenericFed(r)) { out.push(r); continue }
+    const found = fedSpeakerName(r)
+    if (!found) continue
+    out.push({ ...r, event: `Fed Speaker: ${found.name}`, note: found.from === 'note' ? '' : r.note })
+  }
+  return out
+}
+
 function Row({ r }) {
   const fed = r.kind === 'fed'
   return (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, padding: '11px 4px', borderBottom: '1px solid #1b1b1b' }}>
-      <span style={{ width: 64, flex: '0 0 auto', color: '#c9a84c', fontWeight: 800, fontSize: 16, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.4px' }}>
-        {r.time || '—'}
+      <span data-testid="econ-time" style={{ width: 82, flex: '0 0 auto', color: '#c9a84c', fontWeight: 800, fontSize: 16, fontVariantNumeric: 'tabular-nums', letterSpacing: '0.2px', whiteSpace: 'nowrap' }}>
+        {to12h(r.time) || '—'}
       </span>
       {r.is_key && !fed && <span style={{ color: '#c9a84c', fontSize: 13, flex: '0 0 auto' }}>★</span>}
       {fed && (
@@ -27,7 +81,7 @@ function Row({ r }) {
       )}
       <span style={{ color: '#e4e4e4', fontSize: 14.5, fontWeight: fed || r.is_key ? 700 : 500 }}>
         {r.event}
-        {r.note ? <span style={{ color: '#8b8f84', fontWeight: 500 }}> — {r.note}</span> : null}
+        {r.note ? <span style={{ color: '#8b8f84', fontWeight: 500 }}> · {r.note}</span> : null}
       </span>
       {r.estimate && (
         <span style={{ marginLeft: 'auto', flex: '0 0 auto', fontSize: 12, color: '#9aa08f', border: '1px solid #2a2a26', borderRadius: 999, padding: '3px 10px', fontVariantNumeric: 'tabular-nums' }}>
@@ -63,7 +117,7 @@ export default function EconRender() {
   if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
   if (data == null) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>
 
-  const rows = data.rows || []
+  const rows = presentRows(data.rows)
   const amc = data.amc || []
   const more = Math.max(0, (data.amc_count || amc.length) - amc.length)
   return (

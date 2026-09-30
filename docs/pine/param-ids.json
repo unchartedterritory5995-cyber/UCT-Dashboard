@@ -229,15 +229,18 @@
     "__uct_param_5": "Show CPR",
     "__uct_param_6": "Moving Average 1 Offset",
     "__uct_param_7": "Enable 1st Moving Average",
-    "__uct_param_8": "Moving Average 2 Offset",
-    "__uct_param_9": "Enable 2nd Moving Average",
-    "__uct_param_10": "Moving Average 3 Offset",
-    "__uct_param_11": "Enable 3rd Moving Average",
-    "__uct_param_12": "BB Offset",
-    "__uct_param_13": "Enable Bollinger Band",
-    "__uct_param_14": "Show Bollinger Basis",
-    "__uct_param_15": "BB Length",
-    "__uct_param_16": "BB StdDev"
+    "__uct_param_8": "Moving Average 1 Length",
+    "__uct_param_9": "Moving Average 2 Offset",
+    "__uct_param_10": "Enable 2nd Moving Average",
+    "__uct_param_11": "Moving Average 2 Length",
+    "__uct_param_12": "Moving Average 3 Offset",
+    "__uct_param_13": "Enable 3rd Moving Average",
+    "__uct_param_14": "Moving Average 3 Length",
+    "__uct_param_15": "BB Offset",
+    "__uct_param_16": "Enable Bollinger Band",
+    "__uct_param_17": "Show Bollinger Basis",
+    "__uct_param_18": "BB Length",
+    "__uct_param_19": "BB StdDev"
   },
   "corpus/committed/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine": {
     "__uct_param_1": "Plot CPR?",
@@ -406,7 +409,10 @@
     "__uct_param_1": "Day of Week Labels"
   },
   "corpus/committed/ict-turtle-soup-flux-charts__053c3e6056.pine": {},
-  "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine": {},
+  "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine": {
+    "__uct_param_1": "Minutes until expiry",
+    "__uct_param_2": "Model IV Rank/Percentile Length"
+  },
   "corpus/committed/initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine": {
     "__uct_param_1": "Turn on H,L,C and IBs for daily?",
     "__uct_param_2": "Plot previous days High, Low and Close?",

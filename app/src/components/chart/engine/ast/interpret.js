@@ -3505,7 +3505,8 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         if (!Array.isArray(series) || series.length === 0) return nan(length)
 
         const child = toColumn(
-          interpret(n.args[0], series, inputs, budget, scalars, { ...(opts || {}) }),
+          interpret(n.args[0], series, inputs, budget, scalars,
+            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`) }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -3559,7 +3560,8 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // 20-day average sampled weekly. `opts.tf` becomes the HTF code so a nested
         // clock or `tf` reads the right base.
         const child = toColumn(
-          interpret(n.args[0], htf, inputs, budget, scalars, { ...(opts || {}), tf: code }),
+          interpret(n.args[0], htf, inputs, budget, scalars,
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`) }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -3704,6 +3706,20 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
   // so a subtree that reads a recurrence bind is never cached here either.
   const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  // ⛔⛔ A NESTED `tf` / `sym` READ RUNS ON OTHER BARS, SO IT GETS ITS OWN MEMO
+  // (H14 hotfix 2026-09-29, from lane C12r). `crossMemo` is keyed on the node
+  // OBJECT and was handed to the nested `interpret` unchanged, so a node object
+  // shared between the chart's own bars and a `tf('W', …)` child answered the
+  // child with the CHART's column (`close` shared by `close` and `tf('W', close)`
+  // read 106 where the weekly close is 148 — the shape `graph.js::expandGraph`
+  // produces for every V2 document). A child scope per code / ticker keeps
+  // sharing WITHIN one bar set and nothing across two. Nested scopes compose.
+  const scopedCrossMemo = (key) => {
+    if (crossMemo === null) return undefined
+    let scoped = crossMemo.get(key)
+    if (!(scoped instanceof Map)) { scoped = new Map(); crossMemo.set(key, scoped) }
+    return scoped
+  }
 
   const evalNode = (n) => {
     // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
@@ -3960,6 +3976,12 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
 
     const seed = toColumn(evalNode(node.args[rec.seed]), length)
     const out = nan(length)
+    // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
+    // not-computable prefix with that value instead of `NaN`, so a caller can
+    // evaluate a tree twice more and see which bars' results DEPEND on the prefix
+    // (`objectColumns.js::unknownMask`). No member-facing lane passes it: the
+    // prefix is still `NaN` everywhere a value is shown.
+    if (opts && typeof opts.prefixProbe === 'number') out.fill(opts.prefixProbe, 0, Math.min(warmup, length))
     for (let i = warmup; i < length; i++) {
       // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
       // bars ago" to read, and the seed is the only defined value in scope — the

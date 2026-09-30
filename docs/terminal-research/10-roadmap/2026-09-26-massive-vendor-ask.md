@@ -5,11 +5,17 @@ role: >
   Roadmap item RM-N02. One email, four register items, zero engineering, and the only
   thing that can move BRK-01 - the largest coverage gap in the product. Written to be
   sent as-is; the owner supplies the recipient and presses send.
-status: ready to send
+status: SENT 2026-09-29 ~21:30 ET, awaiting reply
 date: 2026-09-26
 ---
 
 # The Massive ask
+
+> ✅ **SENT 2026-09-29 (evening ET) by the owner**, to **sales@massive.com** (the address
+> Massive's contact page gives for "market data experts"), from goszbless@gmail.com, with the
+> body naming the account as **unchartedterritory5995@gmail.com**. Greeting changed to "Hey Massive
+> team,"; the four questions went verbatim. ⏳ **Next: the reply.** Paste it into the session and map
+> each answer through the table below. ⛔ A silence on 1 or 2 is not a no (see below).
 
 **Why one email and not four.** These are four register items (LCQ-01, LCQ-02, TERM-002
 and BRK-01's data precondition) and they are all questions for the same account manager.

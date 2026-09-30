@@ -560,6 +560,9 @@ export function execute(program, ctx, limits, opts) {
         case OP.LOAD_LOCAL: stack[sp++] = locals[localsBase + a]; break
         case OP.STORE_LOCAL: locals[localsBase + a] = stack[--sp]; break
         case OP.LOAD_PERSIST: stack[sp++] = persist[persistBase + a]; break
+        // ⭐ C11 — the MAIN frame's slot, whatever frame is running (base 0).
+        case OP.LOAD_GLOBAL_LOCAL: stack[sp++] = locals[a]; break
+        case OP.LOAD_GLOBAL_PERSIST: stack[sp++] = persist[a]; break
         case OP.STORE_PERSIST:
           persist[persistBase + a] = stack[--sp]
           initialised[persistBase + a] = 1

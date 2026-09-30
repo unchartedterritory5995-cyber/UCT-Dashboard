@@ -674,6 +674,9 @@ export function createBinder({ chart, LWC }) {
           barCount: bars.length,
           readNode: reader.readNode,
           readTime: reader.readTime,
+          // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
+          // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
+          readUnknown: reader.readUnknown,
         })
         return {
           run,
