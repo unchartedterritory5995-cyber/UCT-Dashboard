@@ -788,14 +788,19 @@ export function historyReason(def, drawFns, userFns, pureFns = new Set(), method
 }
 
 /** Names a body DECLARES or ASSIGNS (all become per-call-site locals), and the
- *  subset that is MUTABLE — `var`/`varip`, `:=` targets, destructured parts. */
+ *  subset that is MUTABLE — `var`/`varip`, `:=` targets, destructured parts.
+ *  ⭐ C21 — and the subset CARRIED: a `var`/`varip` declared inside a `for` or
+ *  `while` of the body, which is ONE variable across the loop's passes and the
+ *  bars (`dual-view`'s `var float htf_o` in `update_drawings`), named apart from
+ *  a local the function merely reassigns (`objectDiagnostics.guardRefusals`). */
 export function bodyNames(def, h) {
   const locals = new Set()
   const mutable = new Set()
-  const walk = (list) => {
+  const carried = new Set()
+  const walk = (list, inLoop = false) => {
     for (const st of list || []) {
       const t = st.header || []
-      if (!t.length) { walk(st.sub); continue }
+      if (!t.length) { walk(st.sub, inLoop); continue }
       const w = t[0].kind === 'ident' ? t[0].value : null
       if (w === 'for' && t[1]) {
         if (t[1].kind === 'ident') { locals.add(String(t[1].value)); mutable.add(String(t[1].value)) }
@@ -824,14 +829,15 @@ export function bodyNames(def, h) {
           if (nameTok && nameTok.kind === 'ident') {
             locals.add(String(nameTok.value))
             if (w === 'var' || w === 'varip') mutable.add(String(nameTok.value))
+            if ((w === 'var' || w === 'varip') && inLoop) carried.add(String(nameTok.value))
           }
         }
       }
-      if (st.sub && st.sub.length) walk(st.sub)
+      if (st.sub && st.sub.length) walk(st.sub, inLoop || w === 'for' || w === 'while')
     }
   }
   walk(def.body)
-  return { locals, mutable }
+  return { locals, mutable, carried }
 }
 
 /**

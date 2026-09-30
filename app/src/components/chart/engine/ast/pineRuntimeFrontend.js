@@ -602,6 +602,26 @@ const MAX_HISTORY_SLOTS = 512
 
 // ── mutability pre-scan ─────────────────────────────────────────────────────
 
+/** ⭐⭐ C21 — DOES THIS DECLARATION KEEP ITS VALUE FROM BAR TO BAR? Exactly when
+ *  the declaration ITSELF says `var` (or `varip`, refused elsewhere) — never
+ *  because some OTHER declaration of the same NAME does.
+ *
+ *  ⚰️ MEASURED 2026-09-30, a wrong value, not a refusal. The two plain-binding
+ *  sites asked `scanMutability(...).persistent.has(name)`: a whole-script set of
+ *  NAMES declared `var` anywhere. Pine scopes a variable to its function (and a
+ *  function local may shadow a global), so `f() => var float x = na` beside
+ *  `g() => float x = close` holds two variables — and the lane made `g`'s `x` a
+ *  persistent slot, evaluated ONCE: `g()` read the FIRST bar's close on every bar.
+ *  `dual-view-htf-candlestick-patterns` writes exactly that — `var float htf_o`
+ *  in `update_drawings`, `float htf_o = get_htf_open(i)` in
+ *  `detect_pattern_at_index` — and the run found 51 patterns where TradingView
+ *  drew 43 (capture `dual-view-…-rddt-1d-2026-09-28`, hand-checked at candle 3).
+ *  ONE predicate for the three declaration sites, so the rule cannot drift. */
+export function declarationPersists(headerToks) {
+  const first = headerToks && headerToks[0]
+  return !!first && first.kind === 'ident' && (first.value === 'var' || first.value === 'varip')
+}
+
 /** Every name this script ever MUTATES, and whether it was declared `var`.
  *
  *  ⛔ SCANNED OVER THE WHOLE TREE INCLUDING NESTED BODIES, before any lowering.
@@ -5643,7 +5663,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // a drawing call reads it, instead of quietly yielding `na`.
         noteHandle(nameTok.value, value)
         if (objectPassOwnsDrawing && holdsObjectCall(value)) continue
-        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, true))
+        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         // ⭐ MARKED BEFORE THE INITIALISER IS LOWERED, so a later read of this
         // name answers `holdsText` correctly — and before the ASSIGNMENTS are,
         // which is what makes `s := "cd"` route out of the columnar lane too.
@@ -5752,7 +5772,7 @@ export function buildRuntimeIr(source, opts = {}) {
             `\`${first.value} ${nameTok.value} = ${rhsHead.value} …\` initialises ONCE, `
             + 'and this lane has no once-only guard around a block yet', locate(first))
         }
-        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
+        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         // ⛔ `na` IS THE INITIAL VALUE AND IT IS LOAD-BEARING. It is what an
         // unmatched `if` with no else, and a `switch` with no default, must
         // yield. Seeding with anything else — 0, the first arm — would hand a
@@ -5837,7 +5857,7 @@ export function buildRuntimeIr(source, opts = {}) {
           env.set(nameTok.value, { kind: 'expr', node: value, env: new Map(env), at: locate(nameTok) })
           continue
         }
-        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, mut.persistent.has(nameTok.value)))
+        const slot = scope.declare(nameTok.value, newSlot(nameTok.value, declarationPersists(toks)))
         if (holdsText(value, scope)) slots[slot].text = true
         // ⭐ MARKED AT THE BINDING, like text. Without it a MUTABLE colour
         // slot answers `holdsColour` false one statement later, and

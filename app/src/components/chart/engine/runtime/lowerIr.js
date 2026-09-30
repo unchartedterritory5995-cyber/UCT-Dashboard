@@ -740,5 +740,13 @@ function persistTotal(ir) {
     const fn = ir.functions[cs.fn]
     top = Math.max(top, cs.persistBase + (fn ? fn.persistCount : 0))
   }
+  // ⭐⭐ C21 — AND AT LEAST EVERY FUNCTION'S OWN FRAME, CALLED OR NOT. A function
+  // body is emitted and validated whether or not a call site reaches it, and its
+  // `var` guard (`JUMP_IF_INIT`) names a FRAME-RELATIVE slot that the program's
+  // bound must hold. ⚰️ Measured: `f() => var float x = na` beside `plot(close)`
+  // refused to lower (`JUMP_IF_INIT slot 0 outside 0 persists`) — and it lowered
+  // only by accident when another function's same-named plain local was wrongly
+  // made persistent (`pineRuntimeFrontend.js::declarationPersists`).
+  for (const fn of ir.functions || []) top = Math.max(top, fn ? fn.persistCount : 0)
   return top
 }

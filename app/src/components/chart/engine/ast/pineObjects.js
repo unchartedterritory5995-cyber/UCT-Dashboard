@@ -183,6 +183,12 @@ export function collectObjectOps(stmts, h) {
     // carry (inside a loop it cannot run, or a method it does not read). The
     // converter treats each as diverged from TradingView's (`divergedColls`).
     lostColls: [],
+    // ⭐ C21 — beside each lost collection, WHY (`<what>@<line>`), same index.
+    lostCollsWhy: [],
+  }
+  const loseColl = (name, why, tok) => {
+    diagnostics.lostColls.push(name)
+    diagnostics.lostCollsWhy.push(`${why}@${tok && tok.line !== undefined ? tok.line : '?'}`)
   }
   let siteSeq = 0
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
@@ -885,7 +891,7 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_MUTATORS.has(method)) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
-            if (c && decls.get(c) && decls.get(c).kind === 'coll') diagnostics.lostColls.push(c)
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -1352,7 +1358,7 @@ export function collectObjectOps(stmts, h) {
       if (method === 'delete') {
         const a = argsOf(toks)
         const p = a && a[0] ? poppedFrom(a[0].value) : null
-        if (p) diagnostics.lostColls.push(p.coll)
+        if (p) loseColl(p.coll, `loop:${ns}.${method}`, toks[0])
       }
       return
     }
@@ -1539,7 +1545,7 @@ export function collectObjectOps(stmts, h) {
       if (popped) {
         if (inLoop) {
           diagnostics.loopBlocked.push(`${popped.family}.delete`)
-          diagnostics.lostColls.push(popped.coll)
+          loseColl(popped.coll, `loop:${popped.family}.delete`, toks[0])
           return true
         }
         emitMethodOn(popped.family, 'delete', { name: null, value: recv, tok: toks[0] },
@@ -1608,10 +1614,10 @@ export function collectObjectOps(stmts, h) {
     if (d.kind === 'coll') {
       if (!COLLECTION_CALLS.has(method)) {
         diagnostics.unsupported.push(`array.${method}`)
-        if (COLLECTION_MUTATORS.has(method)) diagnostics.lostColls.push(recv)
+        if (COLLECTION_MUTATORS.has(method)) loseColl(recv, `coll:${method}`, toks[0])
         return true
       }
-      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(recv); return true }
+      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(recv, `loop:array.${method}`, toks[0]); return true }
       emitCollectionOn(method, recv, args, toks, guards, st, scope)
       return true
     }
@@ -1638,7 +1644,7 @@ export function collectObjectOps(stmts, h) {
     // ⭐ RISK-043 STILL STANDS FOR WHAT IT PROTECTS — an object-family collection
     // op inside a loop this reader cannot execute is still refused and still
     // counted. This is WHEN irrelevance is noticed, not what happens after.
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(collName); return }
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(collName, `loop:array.${method}`, toks[0]); return }
     emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
   }
 
@@ -1771,7 +1777,7 @@ export function collectObjectOps(stmts, h) {
       const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }
-    const { locals, mutable } = bodyNames(def, h)
+    const { locals, mutable, carried } = bodyNames(def, h)
     inlineSeq += 1
     const suffix = `${INLINE_SUFFIX}${inlineSeq}`
     const meta = {
@@ -1779,6 +1785,7 @@ export function collectObjectOps(stmts, h) {
       suffix,
       callLine: st.header[0].line,
       mutable: new Set([...mutable].map((n) => n + suffix)),
+      carried: new Set([...carried].map((n) => n + suffix)),
     }
     const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
