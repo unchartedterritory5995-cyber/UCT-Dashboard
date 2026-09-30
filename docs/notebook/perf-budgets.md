@@ -896,6 +896,8 @@ itself, pointed at the tier's database. The shared model stays the default and s
 every budget line, and the promotion-gating latency and bytes checks, read exactly what they did.
 The curve's bounds are not changed.
 
+**Update, 2026-09-30 (ruling D22, controller, owner-delegated 2026-09-30):** the sentence above, "the shared model stays the default", is superseded. A bare `--curve` now measures the per-call model, and only that reading gates the verdict; the shared model runs automatically beside it as a reported diagnostic (`curve_diagnostic` in the JSON), its breach recorded and never hidden. An explicit `--connection` is honoured as asked. The bounds are still unchanged. See D22 in `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+
 ⚠️ A per-call reading includes the connection open, a roughly constant cost that flattens a
 log-log slope. Production pays the same cost, which is why it is the right model; it is also why
 a per-call PASS says the product does not grow super-linearly as a member experiences it, and does

@@ -1,0 +1,176 @@
+{
+ "modes": {
+  "phone": {
+   "width": 390,
+   "height": 844,
+   "touch": true
+  },
+  "tablet": {
+   "width": 820,
+   "height": 1180,
+   "touch": true
+  },
+  "desktop": {
+   "width": 1200,
+   "height": 800,
+   "touch": false
+  }
+ },
+ "controls": {
+  "got": {
+   "plant-wide": "found",
+   "plant-small": "found",
+   "plant-covered": "found",
+   "plant-mislabel": "named-the-real-occluder",
+   "plant-scroll-clear": "CLEAR",
+   "plant-scroll-pinned": "OCCLUDED"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "mode": "phone",
+    "width": 390,
+    "wide_found": true,
+    "page_grew_px": 1054,
+    "wide_reachable_in_scroller": true,
+    "small_found": true,
+    "small_expected": true,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "overflow",
+      "what": "main",
+      "scrollWidth": 1444,
+      "clientWidth": 390,
+      "widened_by": [
+       {
+        "desc": "div{plant-wide}",
+        "right": 1444,
+        "width": 1400,
+        "area": "notebook"
+       }
+      ]
+     },
+     {
+      "kind": "tap",
+      "control": "Planted small control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "w": 20,
+      "h": 20
+     },
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       48,
+       649,
+       120,
+       44
+      ]
+     },
+     {
+      "kind": "tap",
+      "control": "Select Investment Thesis",
+      "tag": "INPUT",
+      "area": "notebook",
+      "w": 24,
+      "h": 24
+     },
+     {
+      "kind": "tap",
+      "control": "Select Census keyboard 1790746914",
+      "tag": "INPUT",
+      "area": "notebook",
+      "w": 24,
+      "h": 24
+     },
+     {
+      "kind": "tap",
+      "control": "Select Census touch 1790746902",
+      "tag": "INPUT",
+      "area": "notebook",
+      "w": 24,
+      "h": 24
+     },
+     {
+      "kind": "tap",
+      "control": "Select Census desktop 1790746889",
+      "tag": "INPUT",
+      "area": "notebook",
+      "w": 24,
+      "h": 24
+     }
+    ]
+   },
+   {
+    "mode": "tablet",
+    "width": 820,
+    "wide_found": true,
+    "page_grew_px": 0,
+    "wide_reachable_in_scroller": true,
+    "small_found": true,
+    "small_expected": true,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "tap",
+      "control": "Planted small control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "w": 20,
+      "h": 20
+     },
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       314,
+       284,
+       120,
+       44
+      ]
+     }
+    ]
+   },
+   {
+    "mode": "desktop",
+    "width": 1200,
+    "wide_found": true,
+    "page_grew_px": 0,
+    "wide_reachable_in_scroller": true,
+    "small_found": false,
+    "small_expected": false,
+    "covered_found": true,
+    "new_findings": [
+     {
+      "kind": "occluded",
+      "control": "Planted covered control",
+      "tag": "BUTTON",
+      "area": "notebook",
+      "by": "div[Planted cover]",
+      "hit": "div[Planted cover]",
+      "by_modal": false,
+      "box": [
+       374,
+       179,
+       120,
+       44
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

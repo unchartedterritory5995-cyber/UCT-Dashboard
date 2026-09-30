@@ -1,0 +1,2730 @@
+{
+ "telemetry_never_evidence": [
+  "/api/j2/telemetry",
+  "/api/client-errors"
+ ],
+ "surfaces": [
+  {
+   "surface": "nb-first-run-clicks",
+   "mode": "desk",
+   "manifest": [],
+   "controls": [
+    {
+     "key": "BUTTON||Start a note",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Start a note",
+     "field": false,
+     "box": [
+      586,
+      290,
+      129,
+      34
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <div class=\"_layer_y3wad_7\">…</div> intercepts pointer events",
+     "elapsed_ms": 6360.4
+    },
+    {
+     "key": "BUTTON||Create a thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Create a thesis",
+     "field": false,
+     "box": [
+      725,
+      290,
+      149,
+      34
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <div class=\"_layer_y3wad_7\">…</div> intercepts pointer events",
+     "elapsed_ms": 6375.7
+    },
+    {
+     "key": "BUTTON||Import notes",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Import notes",
+     "field": false,
+     "box": [
+      884,
+      290,
+      136,
+      34
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <div class=\"_layer_y3wad_7\">…</div> intercepts pointer events",
+     "elapsed_ms": 6379.0
+    },
+    {
+     "key": "BUTTON||Add a sample notebook",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Add a sample notebook",
+     "field": false,
+     "box": [
+      628,
+      334,
+      203,
+      34
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <div class=\"_layer_y3wad_7\">…</div> intercepts pointer events",
+     "elapsed_ms": 6382.1
+    },
+    {
+     "key": "BUTTON||Take the tour",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Take the tour",
+     "field": false,
+     "box": [
+      841,
+      334,
+      138,
+      34
+     ],
+     "verdict": "OCCLUDED",
+     "reason": "- <div class=\"_layer_y3wad_7\">…</div> intercepts pointer events",
+     "elapsed_ms": 6374.7
+    }
+   ],
+   "resets": 5,
+   "prefs_restored": [],
+   "measured": 5,
+   "skipped_repeated": 0,
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 5,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "OCCLUDED": 5
+   }
+  },
+  {
+   "surface": "nb-templates",
+   "mode": "desk",
+   "manifest": [
+    "template-picker",
+    "member-templates"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Close",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Close",
+     "field": false,
+     "box": [
+      947,
+      61,
+      44,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Select Proof PDF r091513]",
+      "attributes:type:INPUT[Select Proof public r091513]",
+      "attributes:type:INPUT[Select Proof ledger 2 r091513]",
+      "attributes:type:INPUT[Select Proof ledger 1 r091513]"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._templatesBtn_5mjvk_475",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1332.1
+    },
+    {
+     "key": "INPUT||Search templates",
+     "nth": 1,
+     "tag": "INPUT",
+     "role": "",
+     "name": "Search templates",
+     "field": true,
+     "box": [
+      297,
+      126,
+      686,
+      33
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "focus"
+     ],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Search templates]._searchInput_112iu_433",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1413.0
+    },
+    {
+     "key": "BUTTON||All",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "All",
+     "field": false,
+     "box": [
+      297,
+      167,
+      37,
+      24
+     ],
+     "verdict": "CURRENT-NO-OP",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1330.3
+    },
+    {
+     "key": "BUTTON||Daily & weekly rituals",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Daily & weekly rituals",
+     "field": false,
+     "box": [
+      340,
+      167,
+      140,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._wrap_112iu_1",
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433",
+      "attributes:class:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1257.0
+    },
+    {
+     "key": "BUTTON||Thesis & research",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Thesis & research",
+     "field": false,
+     "box": [
+      485,
+      167,
+      121,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._wrap_112iu_1",
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433",
+      "attributes:class:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1255.3
+    },
+    {
+     "key": "BUTTON||Around a trade",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Around a trade",
+     "field": false,
+     "box": [
+      612,
+      167,
+      104,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._wrap_112iu_1",
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433",
+      "attributes:class:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1244.1
+    },
+    {
+     "key": "BUTTON||Mindset",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Mindset",
+     "field": false,
+     "box": [
+      722,
+      167,
+      65,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::DIV._wrap_112iu_1",
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433",
+      "attributes:class:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1249.6
+    },
+    {
+     "key": "BUTTON||Your templates",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Your templates",
+     "field": false,
+     "box": [
+      794,
+      167,
+      104,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433",
+      "attributes:class:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503",
+      "attributes:aria-pressed:BUTTON._chip_112iu_503"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 1,
+     "background_ignored": [],
+     "focus_after": "BUTTON._chip_112iu_503",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1231.8
+    },
+    {
+     "key": "BUTTON||Blank note",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Blank note",
+     "field": false,
+     "box": [
+      297,
+      205,
+      686,
+      61
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Proof PDF r091513]",
+      "attributes:type:INPUT[Select Proof public r091513]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts",
+      "GET /api/j2/notes/{id}/facts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=be1e0cdb11964532929738e4b869f976",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 974.7
+    },
+    {
+     "key": "BUTTON||Daily Game Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Daily Game Plan",
+     "field": false,
+     "box": [
+      297,
+      365,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Untitled]",
+      "attributes:type:INPUT[Select Proof PDF r091513]"
+     ],
+     "requests": [
+      "GET /api/breadth",
+      "GET /api/j2/positions",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=7772c55b3ebc458ba8eba376a65364d3",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 989.7
+    },
+    {
+     "key": "BUTTON||Preview Daily Game Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Daily Game Plan",
+     "field": false,
+     "box": [
+      445,
+      533,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1289.7
+    },
+    {
+     "key": "BUTTON||Post-Market Debrief",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Post-Market Debrief",
+     "field": false,
+     "box": [
+      528,
+      365,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Game Plan — Sep 30]",
+      "attributes:type:INPUT[Select Untitled]"
+     ],
+     "requests": [
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/{id}",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=bf25a2c13ea24b7fb088ab6780e3a8e8",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1000.1
+    },
+    {
+     "key": "BUTTON||Preview Post-Market Debrief",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Post-Market Debrief",
+     "field": false,
+     "box": [
+      676,
+      533,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1272.7
+    },
+    {
+     "key": "BUTTON||Weekly Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Weekly Plan",
+     "field": false,
+     "box": [
+      760,
+      365,
+      223,
+      164
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Debrief — Sep 30]",
+      "attributes:type:INPUT[Select Game Plan — Sep 30]"
+     ],
+     "requests": [
+      "GET /api/breadth",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=ea58d6f838fe4faba913bcf32d47cca3",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1009.0
+    },
+    {
+     "key": "BUTTON||Preview Weekly Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Weekly Plan",
+     "field": false,
+     "box": [
+      907,
+      533,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1266.3
+    },
+    {
+     "key": "BUTTON||Weekly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Weekly Review",
+     "field": false,
+     "box": [
+      297,
+      565,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Weekly Plan — wk of Sep 28]",
+      "attributes:type:INPUT[Select Debrief — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=1a60680baede4a4d9a09d078e76b321e",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 957.2
+    },
+    {
+     "key": "BUTTON||Preview Weekly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Weekly Review",
+     "field": false,
+     "box": [
+      445,
+      761,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1259.3
+    },
+    {
+     "key": "BUTTON||Monthly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Monthly Review",
+     "field": false,
+     "box": [
+      528,
+      565,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Weekly Review — wk of Sep 28]",
+      "attributes:type:INPUT[Select Weekly Plan — wk of Sep 28]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=5a574a4edd6440bb973303030eb63c14",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1022.6
+    },
+    {
+     "key": "BUTTON||Preview Monthly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Monthly Review",
+     "field": false,
+     "box": [
+      676,
+      761,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1284.1
+    },
+    {
+     "key": "BUTTON||Quarterly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Quarterly Review",
+     "field": false,
+     "box": [
+      760,
+      565,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Monthly Review — Sep 30]",
+      "attributes:type:INPUT[Select Weekly Review — wk of Sep 28]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=4322451def7e4f38a6c8add8ca9e7267",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1269.3
+    },
+    {
+     "key": "BUTTON||Preview Quarterly Review",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Quarterly Review",
+     "field": false,
+     "box": [
+      907,
+      761,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1283.1
+    },
+    {
+     "key": "BUTTON||Long/Short Thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Long/Short Thesis",
+     "field": false,
+     "box": [
+      297,
+      824,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Quarterly Review — Sep 30]",
+      "attributes:type:INPUT[Select Monthly Review — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=d4e8b0d27e39413ca66f541508df8435",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 976.0
+    },
+    {
+     "key": "BUTTON||Preview Long/Short Thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Long/Short Thesis",
+     "field": false,
+     "box": [
+      445,
+      1021,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1291.1
+    },
+    {
+     "key": "BUTTON||Sector / Theme Research",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Sector / Theme Research",
+     "field": false,
+     "box": [
+      528,
+      824,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Investment Thesis]",
+      "attributes:type:INPUT[Select Quarterly Review — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=138c426599d943a0a265f67b07841baa",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1091.5
+    },
+    {
+     "key": "BUTTON||Preview Sector / Theme Research",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Sector / Theme Research",
+     "field": false,
+     "box": [
+      676,
+      1021,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1326.9
+    },
+    {
+     "key": "BUTTON||Watchlist Thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Watchlist Thesis",
+     "field": false,
+     "box": [
+      760,
+      824,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Sector / Theme Research]",
+      "attributes:type:INPUT[Select Investment Thesis]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=631cc4cc94004492a663b759af6a2c82",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 968.4
+    },
+    {
+     "key": "BUTTON||Preview Watchlist Thesis",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Watchlist Thesis",
+     "field": false,
+     "box": [
+      907,
+      1021,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1275.5
+    },
+    {
+     "key": "BUTTON||Catalyst Tracker",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Catalyst Tracker",
+     "field": false,
+     "box": [
+      297,
+      1053,
+      223,
+      203
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Watchlist Thesis]",
+      "attributes:type:INPUT[Select Sector / Theme Research]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=1932f2c8fa4b4b74a658d3e8185f67df",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1011.0
+    },
+    {
+     "key": "BUTTON||Preview Catalyst Tracker",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Catalyst Tracker",
+     "field": false,
+     "box": [
+      445,
+      1260,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1308.9
+    },
+    {
+     "key": "BUTTON||IPO / New Issue Notes",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "IPO / New Issue Notes",
+     "field": false,
+     "box": [
+      528,
+      1053,
+      223,
+      203
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Catalyst Tracker]",
+      "attributes:type:INPUT[Select Watchlist Thesis]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=9146055aeee14e2abbf37780bb03c70c",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 923.0
+    },
+    {
+     "key": "BUTTON||Preview IPO / New Issue Notes",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview IPO / New Issue Notes",
+     "field": false,
+     "box": [
+      676,
+      1260,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1293.2
+    },
+    {
+     "key": "BUTTON||Meeting / Webinar Notes",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Meeting / Webinar Notes",
+     "field": false,
+     "box": [
+      760,
+      1053,
+      223,
+      203
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select IPO / New Issue Notes]",
+      "attributes:type:INPUT[Select Catalyst Tracker]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=47c7276860084a7ea1ebb933cdd45dc2",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1169.5
+    },
+    {
+     "key": "BUTTON||Preview Meeting / Webinar Notes",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Meeting / Webinar Notes",
+     "field": false,
+     "box": [
+      907,
+      1260,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1294.6
+    },
+    {
+     "key": "BUTTON||Trade Post-Mortem",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Trade Post-Mortem",
+     "field": false,
+     "box": [
+      297,
+      1323,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Meeting Notes — Sep 30]",
+      "attributes:type:INPUT[Select IPO / New Issue Notes]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=9194e087777b484b96fbed61a0ac0257",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 971.6
+    },
+    {
+     "key": "BUTTON||Preview Trade Post-Mortem",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Trade Post-Mortem",
+     "field": false,
+     "box": [
+      445,
+      1502,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1246.3
+    },
+    {
+     "key": "BUTTON||Swing Position Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Swing Position Log",
+     "field": false,
+     "box": [
+      528,
+      1323,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Trade Post-Mortem]",
+      "attributes:type:INPUT[Select Meeting Notes — Sep 30]"
+     ],
+     "requests": [
+      "GET /api/j2/positions",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=070e2f5bb74a406480655d53845759cf",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 977.9
+    },
+    {
+     "key": "BUTTON||Preview Swing Position Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Swing Position Log",
+     "field": false,
+     "box": [
+      676,
+      1502,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1266.0
+    },
+    {
+     "key": "BUTTON||Earnings Play Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Earnings Play Plan",
+     "field": false,
+     "box": [
+      760,
+      1323,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Swing Position Log]",
+      "attributes:type:INPUT[Select Trade Post-Mortem]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=9213078b5593427197988a806d39a329",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 968.4
+    },
+    {
+     "key": "BUTTON||Preview Earnings Play Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Earnings Play Plan",
+     "field": false,
+     "box": [
+      907,
+      1502,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1271.3
+    },
+    {
+     "key": "BUTTON||Trade Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Trade Plan",
+     "field": false,
+     "box": [
+      297,
+      1534,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Earnings Play Plan]",
+      "attributes:type:INPUT[Select Swing Position Log]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=4c5ac59d47cf42b2b9a4a5203e8e6e03",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 946.8
+    },
+    {
+     "key": "BUTTON||Preview Trade Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Trade Plan",
+     "field": false,
+     "box": [
+      445,
+      1730,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1267.3
+    },
+    {
+     "key": "BUTTON||Position Sizing Worksheet",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Position Sizing Worksheet",
+     "field": false,
+     "box": [
+      528,
+      1534,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Trade Plan]",
+      "attributes:type:INPUT[Select Earnings Play Plan]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=b2eb3d4379534203b8f8a1289b194357",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 967.8
+    },
+    {
+     "key": "BUTTON||Preview Position Sizing Worksheet",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Position Sizing Worksheet",
+     "field": false,
+     "box": [
+      676,
+      1730,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1250.9
+    },
+    {
+     "key": "BUTTON||Setup Playbook Entry",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Setup Playbook Entry",
+     "field": false,
+     "box": [
+      760,
+      1534,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Position Sizing Worksheet]",
+      "attributes:type:INPUT[Select Trade Plan]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=49769883a864487b859be6049816c4d2",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 962.7
+    },
+    {
+     "key": "BUTTON||Preview Setup Playbook Entry",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Setup Playbook Entry",
+     "field": false,
+     "box": [
+      907,
+      1730,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1277.1
+    },
+    {
+     "key": "BUTTON||Options Trade Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Options Trade Plan",
+     "field": false,
+     "box": [
+      297,
+      1762,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Setup Playbook Entry]",
+      "attributes:type:INPUT[Select Position Sizing Worksheet]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=441cd548265b4d668473571843bd42b1",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 982.6
+    },
+    {
+     "key": "BUTTON||Preview Options Trade Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Options Trade Plan",
+     "field": false,
+     "box": [
+      445,
+      1958,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1277.3
+    },
+    {
+     "key": "BUTTON||Risk Checklist",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Risk Checklist",
+     "field": false,
+     "box": [
+      528,
+      1762,
+      223,
+      192
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Options Trade Plan]",
+      "attributes:type:INPUT[Select Setup Playbook Entry]"
+     ],
+     "requests": [
+      "GET /api/j2/positions",
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=07cce83faf074cecb9cedf0d1bbde0d2",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 976.8
+    },
+    {
+     "key": "BUTTON||Preview Risk Checklist",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Risk Checklist",
+     "field": false,
+     "box": [
+      676,
+      1958,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1324.4
+    },
+    {
+     "key": "BUTTON||Mistake Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Mistake Log",
+     "field": false,
+     "box": [
+      297,
+      2022,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Risk Checklist — Sep 30]",
+      "attributes:type:INPUT[Select Options Trade Plan]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=a202a4c0cdb446fabbfc5687733eb3ad",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1017.9
+    },
+    {
+     "key": "BUTTON||Preview Mistake Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Mistake Log",
+     "field": false,
+     "box": [
+      445,
+      2201,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1322.4
+    },
+    {
+     "key": "BUTTON||Lessons Learned",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Lessons Learned",
+     "field": false,
+     "box": [
+      528,
+      2022,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Mistake Log — Sep 30]",
+      "attributes:type:INPUT[Select Risk Checklist — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=9790cc29ee4f439faaaccdbb52709152",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1096.5
+    },
+    {
+     "key": "BUTTON||Preview Lessons Learned",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Lessons Learned",
+     "field": false,
+     "box": [
+      676,
+      2201,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1276.7
+    },
+    {
+     "key": "BUTTON||Trading Goals",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Trading Goals",
+     "field": false,
+     "box": [
+      760,
+      2022,
+      223,
+      175
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Lessons Learned]",
+      "attributes:type:INPUT[Select Mistake Log — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=a57c0e2664484bcda245b3d68eae8004",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 974.4
+    },
+    {
+     "key": "BUTTON||Preview Trading Goals",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Trading Goals",
+     "field": false,
+     "box": [
+      907,
+      2201,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1289.8
+    },
+    {
+     "key": "BUTTON||Drawdown Recovery Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Drawdown Recovery Plan",
+     "field": false,
+     "box": [
+      297,
+      2233,
+      223,
+      181
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Trading Goals — Sep 30]",
+      "attributes:type:INPUT[Select Lessons Learned]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=93664e1f48ba4d3895b7671c4daa6b45",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 984.0
+    },
+    {
+     "key": "BUTTON||Preview Drawdown Recovery Plan",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Drawdown Recovery Plan",
+     "field": false,
+     "box": [
+      445,
+      2418,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1288.7
+    },
+    {
+     "key": "BUTTON||Tilt Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Tilt Log",
+     "field": false,
+     "box": [
+      528,
+      2233,
+      223,
+      181
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "attributes:disabled:BUTTON._templatesBtn_5mjvk_475",
+      "attributes:disabled:BUTTON.btn",
+      "attributes:type:INPUT[Select Drawdown Recovery Plan — Sep 30]",
+      "attributes:type:INPUT[Select Trading Goals — Sep 30]"
+     ],
+     "requests": [
+      "POST /api/j2/notes",
+      "GET /api/j2/notes",
+      "GET /api/j2/notes/tags",
+      "GET /api/j2/notes/{id}",
+      "GET /api/j2/notes/{id}/documents",
+      "GET /api/j2/notes/{id}/excerpts"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "INPUT[Note title]._titleInput_txeqr_349",
+     "url_after": "http://127.0.0.1:8356/journal/notebook?note=0a906560b30a45b39ca07792c9cc5f80",
+     "mutating": [
+      "POST /api/j2/notes",
+      "POST /api/j2/notes/{id}/opened"
+     ],
+     "elapsed_ms": 1063.8
+    },
+    {
+     "key": "BUTTON||Preview Tilt Log",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Preview Tilt Log",
+     "field": false,
+     "box": [
+      676,
+      2418,
+      76,
+      24
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "focus"
+     ],
+     "dom_samples": [
+      "attributes:type:INPUT[Search templates]._searchInput_112iu_433"
+     ],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "DIV._panel_futca_33",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1265.7
+    },
+    {
+     "key": "BUTTON||Documenting a setup?",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Documenting a setup?",
+     "field": false,
+     "box": [
+      297,
+      2456,
+      686,
+      61
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom",
+      "request",
+      "navigation"
+     ],
+     "dom_samples": [
+      "childList::SPAN",
+      "attributes:src:IMG._mark_1i1wo_23",
+      "childList::MAIN._main_6uhgd_19",
+      "childList::MAIN._main_6uhgd_19"
+     ],
+     "requests": [
+      "GET /api/maintenance",
+      "GET /assets/ModelBook-Dv9kEg37.js",
+      "GET /assets/StockChart-Di9nvkL5.js",
+      "GET /assets/vendor-charts-DHOb9Clg.js",
+      "GET /assets/darkPoolCluster-atDS86Ke.js",
+      "GET /assets/ColorPanel-DaBO83iJ.js"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BODY",
+     "url_after": "http://127.0.0.1:8356/model-book?view=builder",
+     "mutating": [
+      "POST /api/auth/track"
+     ],
+     "elapsed_ms": 1614.2
+    }
+   ],
+   "resets": 60,
+   "prefs_restored": [],
+   "measured": 60,
+   "skipped_repeated": 0,
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    },
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 60,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "LIVE": 59,
+    "CURRENT-NO-OP": 1
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-dead": "DEAD",
+   "plant-dead-styled": "DEAD",
+   "plant-live": "LIVE",
+   "plant-poller": "IN-WINDOW"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "raw": {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Planted dead control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead control",
+     "field": false,
+     "box": [
+      374,
+      155,
+      126,
+      44
+     ],
+     "verdict": "DEAD",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Planted dead control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 1380.2
+    },
+    {
+     "key": "BUTTON||Planted dead styled control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead styled control",
+     "field": false,
+     "box": [
+      508,
+      155,
+      165,
+      44
+     ],
+     "verdict": "DEAD",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 4,
+     "background_ignored": [
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted dead styled control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 2435.1
+    },
+    {
+     "key": "BUTTON||Planted live control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted live control",
+     "field": false,
+     "box": [
+      681,
+      155,
+      120,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::BUTTON[Planted live control]"
+     ],
+     "requests": [
+      "GET /api/proof-plant/poll",
+      "GET /api/voice/insights/unspoken",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [
+      "GET /api/proof-plant/poll",
+      "GET /api/voice/insights/unspoken",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll",
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted live control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 2351.5
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "measured": 3,
+   "skipped_repeated": 0,
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 3,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "DEAD": 2,
+    "LIVE": 1
+   }
+  }
+ },
+ "noise_endpoints": []
+}

@@ -5,6 +5,7 @@
 // outside the mock). ⛔ Every step's words are a copy contract.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import NotebookTour, { TOUR_PREF, AUTO_START_DELAY_MS } from './NotebookTour'
@@ -277,6 +278,35 @@ describe('how it walks', () => {
     document.querySelector('[data-tour="sidebar"]').remove()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(title()).toHaveTextContent('Search')
+  })
+
+  /**
+   * ⛔⛔ FX2 (wave 10, proof-walk item 1): the census's own `f_first_run`
+   * reads NO-DOOR ("not reached with Tab in 220 presses") for the keyboard
+   * door on G-171. Reproduced live in a sandbox (docs/notebook/proof/
+   * fx2-<sha>/): the WALK checks `skip.count() > 0` the instant the page's
+   * OWN "Welcome to your Notebook" heading (ResearchHome's h2, NOT the tour)
+   * becomes visible -- which happens ~400ms before the lazy-loaded tour's
+   * async open, so the check reads 0 and the walk skips dismissing it, then
+   * tries to reach "Add a sample notebook" while the tour (correctly, by
+   * design) traps Tab inside itself for the rest of the 220-press budget.
+   * PROBE bug, not a product one: this rail is the missing regression guard
+   * for the product behaviour the walk's race obscured -- focus moves INTO
+   * the dialog the moment it opens (WAI-ARIA dialog pattern), and the VERY
+   * FIRST Tab reaches Skip tour, exactly as the sandbox measured live.
+   */
+  it('FX2: opening the tour moves focus into itself, and ONE Tab reaches Skip tour', async () => {
+    const user = userEvent.setup()
+    render(<Page />)
+    const d = await dialog()
+    expect(document.activeElement).toBe(title())
+    expect(d.contains(document.activeElement)).toBe(true)
+    // A real Tab press (userEvent, which actually moves focus -- a bare
+    // `fireEvent.keyDown` does not simulate the browser's own traversal, and
+    // the component's own trap only intervenes at the FIRST/LAST boundary;
+    // for a normal forward press it correctly leaves that to the browser).
+    await user.tab()
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Skip tour' }))
   })
 
   it('Tab stays inside the card', async () => {

@@ -1,0 +1,128 @@
+{
+ "telemetry_never_evidence": [
+  "/api/j2/telemetry",
+  "/api/client-errors"
+ ],
+ "surfaces": [],
+ "controls": {
+  "got": {
+   "plant-dead": "DEAD",
+   "plant-dead-styled": "DEAD",
+   "plant-live": "LIVE",
+   "plant-poller": "NOT-SEEN"
+  },
+  "ok": false,
+  "why": "plant-poller: got 'NOT-SEEN', must be 'IN-WINDOW'",
+  "raw": {
+   "surface": "nb-list",
+   "mode": "desk",
+   "manifest": [
+    "tab-list",
+    "note-card-states",
+    "folder-sidebar-edit"
+   ],
+   "controls": [
+    {
+     "key": "BUTTON||Planted dead control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead control",
+     "field": false,
+     "box": [
+      374,
+      155,
+      126,
+      44
+     ],
+     "verdict": "DEAD",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Planted dead control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 894.3
+    },
+    {
+     "key": "BUTTON||Planted dead styled control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted dead styled control",
+     "field": false,
+     "box": [
+      508,
+      155,
+      165,
+      44
+     ],
+     "verdict": "DEAD",
+     "effects": [],
+     "dom_samples": [],
+     "requests": [],
+     "noise_ignored": 0,
+     "self_ignored": 4,
+     "background_ignored": [],
+     "focus_after": "BUTTON[Planted dead styled control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 874.9
+    },
+    {
+     "key": "BUTTON||Planted live control",
+     "nth": 1,
+     "tag": "BUTTON",
+     "role": "",
+     "name": "Planted live control",
+     "field": false,
+     "box": [
+      681,
+      155,
+      120,
+      44
+     ],
+     "verdict": "LIVE",
+     "effects": [
+      "dom"
+     ],
+     "dom_samples": [
+      "childList::BUTTON[Planted live control]"
+     ],
+     "requests": [
+      "GET /api/proof-plant/poll"
+     ],
+     "noise_ignored": 0,
+     "self_ignored": 0,
+     "background_ignored": [
+      "GET /api/proof-plant/poll"
+     ],
+     "focus_after": "BUTTON[Planted live control]",
+     "url_after": null,
+     "mutating": [],
+     "elapsed_ms": 893.7
+    }
+   ],
+   "resets": 0,
+   "prefs_restored": [],
+   "measured": 3,
+   "skipped_repeated": 0,
+   "noise": [
+    {
+     "added": 0,
+     "size": 0
+    }
+   ],
+   "enumerated": 3,
+   "capped": 0,
+   "status": "MEASURED",
+   "counts": {
+    "DEAD": 2,
+    "LIVE": 1
+   }
+  }
+ }
+}

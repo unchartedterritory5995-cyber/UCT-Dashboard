@@ -1748,6 +1748,21 @@ RS2_TIP2_TAG = 'notebook-wave10-RS-tip2-2026-09-29'
 # registered wave's landing. The RS2 tag is created at THIS lane's own final commit, after every
 # evidence file below is committed.
 RS2_TAG = 'notebook-wave10-RS2-2026-09-29'
+# Lane SC (2026-09-30): a new wave entry, same shape as L1c's and RS/RS2's (tip and squash both
+# None). L11's proof walk (tip 52deeb767 = L10 + DR-F + LK + FX2 + WK4 + FX3 + WK5, raw evidence
+# committed first at a962839da (R-RAW), its README written at 67074722e) postdates L1C_TAG's own
+# commit -- L1C_TAG carries neither WK4, FX3 nor WK5 -- so this evidence cannot be tied to
+# 'wave 10 L1c' (its landing commit would not contain these paths). The SC tag is created at THIS
+# lane's own final commit, after every evidence file below is committed -- never before, or the
+# tie is vacuous.
+SC_TAG = 'notebook-wave10-SC-2026-09-30'
+# Lane SC2 (2026-09-30): a second new wave entry, same shape as SC's own (tip and squash both
+# None). The L12 dead-click full sweep + targeted re-run (0100a3032 / 6cbf0618e, raw evidence
+# committed first at 3d95c76fc / 589b0ddf9, R-RAW) and the un-scoped L3 layout re-confirm
+# (fe01bdb14, raw evidence committed first at e50f2a1ba, R-RAW) all postdate SC_TAG's own commit,
+# so none of it can be tied to 'wave 10 SC'. The SC2 tag is created at THIS lane's own final
+# commit, after every evidence file below is committed -- never before, or the tie is vacuous.
+SC2_TAG = 'notebook-wave10-SC2-2026-09-30'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1763,6 +1778,8 @@ B0_WAVES = (
     # branches were squashed (the RS2 lane's own note asked for exactly this replacement).
     ('wave 10 RS', 'notebook-wave10-L5-tip-2026-09-29', 'a01573e66', '0812b5ec3'),
     ('wave 10 RS2', 'notebook-wave10-L8-tip-2026-09-29', '0bb2f1c33', '6f563c158'),
+    ('wave 10 SC', SC_TAG, None, None),
+    ('wave 10 SC2', SC2_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1838,6 +1855,25 @@ B0_EVIDENCE = (
     ('docs/notebook/gate-runs/wave10-L6/classification.md', 'wave 10 RS2'),
     ('docs/notebook/gate-runs/wave10-L6/pytest-l6.log', 'wave 10 RS2'),
     (f'{PROOF}/wh-2026-09-29b/README.md', 'wave 10 RS2'),
+    # Lane SC (2026-09-30): the L11 proof walk's own committed artifacts -- the five-sweep R-RAW
+    # evidence (a962839da) plus its reading (67074722e). None of these existed at any earlier
+    # registered wave's landing (L1C_TAG predates WK4/FX3/WK5), so all tie to 'wave 10 SC'.
+    (f'{PROOF}/l11-52deeb767/README.md', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/run.json', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/integrity.md', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/census.json', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/axe.json', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/silent.json', 'wave 10 SC'),
+    (f'{PROOF}/l11-52deeb767/deadclick.json', 'wave 10 SC'),
+    # Lane SC2 (2026-09-30): the L12 dead-click full sweep + targeted re-run's own committed
+    # artifacts, the un-scoped L3 layout re-confirm's run-meta.json, and the reading of all three.
+    # None of these existed at any earlier registered wave's landing (SC_TAG predates them), so all
+    # tie to 'wave 10 SC2'.
+    (f'{PROOF}/l12-READINGS.md', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc-0100a3032/run.json', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc2-6cbf0618e/run.json', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc2-6cbf0618e/deadclick.json', 'wave 10 SC2'),
+    (f'{PROOF}/l3-reconfirm-fe01bdb14/run-meta.json', 'wave 10 SC2'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2569,6 +2605,92 @@ def build(pages_dir=None):
     D5_CUE = record(D5R1, 16, '"cue_attr": "true"')
     D5_OVERFLOW = record(D5R1, 22, '"overflowing": true')
 
+    # Lane SC (2026-09-30): the L11 proof walk (10E-1's five-sweep instrument, tip 52deeb767 = L10 +
+    # DR-F + LK + FX2 + WK4 + FX3 + WK5). Raw evidence committed first at a962839da (R-RAW); its
+    # reading at 67074722e. All five sweeps' controls are VALID (`run.json` `sweep_status`).
+    L11 = f'{PROOF}/l11-52deeb767'
+    L11_CMD = 'python tools/notebook_proof_walk.py --boot (lane WK5/L11, tip 52deeb767)'
+    L11_README = f'{L11}/README.md'
+    L11_INTEGRITY = record(f'{L11}/integrity.md', 11, 'db files')
+    # 9a: axe -- 123/123 MEASURED, 0 violations, control VALID in every theme.
+    L11_AXE_RUN = measure(f'{L11}/run.json', '22-24', '"findings": 0', L11_CMD)
+    L11_AXE_COUNT = record(L11_README, 20, '123/123 runs MEASURED')
+    L11_AXE_CONTROL = measure(f'{L11}/axe.json', '2597-2598', 'contrast_found', L11_CMD)
+    # 2b (the L11 README's own label; the content is the PATH census -- WORKS/N-A/NOT-DRIVEN/BROKEN/
+    # NO-DOOR -- the same walk `docs/notebook/proof/README.md`'s own "2a" section reads; the letter
+    # drifted between lanes, the clause it feeds ("every shipped feature does what it says on every
+    # path") did not).
+    L11_CENSUS_VERDICTS = record(L11_README, 24, 'WORKS 113, N/A 30, NOT-DRIVEN 22')
+    L11_CENSUS_G171 = measure(f'{L11}/census.json', '893-895', '"verdict": "WORKS"', L11_CMD)
+    L11_CENSUS_G155 = measure(f'{L11}/census.json', '568-570', '"verdict": "WORKS"', L11_CMD)
+    # 5d: silent -- 72/72 reads SENTENCE, writes 24 SENTENCE + 4 EXEMPT, 0 SILENT.
+    L11_SILENT_READS = record(L11_README, 31, '72/72 SENTENCE')
+    L11_SILENT_WRITES = record(L11_README, 32, '24 SENTENCE and 4 EXEMPT')
+    L11_SILENT_TRASH = measure(f'{L11}/silent.json', '2243-2258', 'trash-note', L11_CMD)
+    # 6c: geometry -- control VALID, 129/129 cells; the findings are an INVENTORY (raw occluded/tap/
+    # overflow counts), never a verdict on their own (README's own words).
+    L11_GEOM_RUN = measure(f'{L11}/run.json', '16-18', '"findings": 2437', L11_CMD)
+    L11_GEOM_BREAKDOWN = record(L11_README, 38, 'occluded 2110, tap 273, overflow 54')
+    L11_GEOM_TABLE = record(L11_README, 14, '2278')
+    # 2c: dead clicks -- control VALID (the first ever valid reading), 30/39 MEASURED, 9 TIMEOUT
+    # (budget, not a hang), 3 DEAD.
+    L11_DEAD_RUN = measure(f'{L11}/run.json', '34-36', '"findings": 1', L11_CMD)
+    L11_DEAD_FIRST_VALID = record(L11_README, 43, 'the first real measurement since WK3')
+    L11_DEAD_SURFACES = record(L11_README, 44, '30 MEASURED, 9 TIMEOUT')
+    L11_DEAD_TABLE = measure(f'{L11}/deadclick.json', 8285, '"verdict": "DEAD"', L11_CMD)
+    L11_DEAD_CAL = measure(f'{L11}/deadclick.json', 15148, '"verdict": "DEAD"', L11_CMD)
+    L11_DEAD_TL = measure(f'{L11}/deadclick.json', 17733, '"verdict": "DEAD"', L11_CMD)
+    L11_TIMEOUT_BUDGET = record(L11_README, 47, 'TIMEOUTs are budget, not hangs')
+    # 6a: design sign-off -- DR-R's re-review + DR-F's D-7/D-8/D-9 closure + the controller's
+    # delegated countersign (D21).
+    DR2 = 'docs/notebook/design-review-2.md'
+    DR2_D7_CLOSED = record(DR2, 329, 'the WATCHING column and its card are now on the first')
+    DR2_D8_CLOSED = record(DR2, 341, 'search-sidebar 6->0, timeline 8->0')
+    DR2_D9_CLOSED = record(DR2, 351, 'today\'s (Sep 30 ET)')
+    DR2_COUNTERSIGN = record(DR2, 385, 'every item this review lists is now closed with evidence')
+    DR2_SIGNED = record(DR2, 389, 'Countersigned, all seven surfaces')
+    DR2_RESIDUAL = record(DR2, 393, 'link-suggestion popup race against autosave')
+
+    # Lane SC2 (2026-09-30): new evidence for two clauses lane SC left NOT MET -- the L12 dead-click
+    # full sweep (0100a3032, R-RAW at 3d95c76fc) plus its targeted re-run of the 2 surfaces it could
+    # not finish (6cbf0618e, R-RAW at 589b0ddf9), and the un-scoped L3 layout re-confirm (fe01bdb14,
+    # R-RAW at e50f2a1ba, ruling D23 applied in its classifier). The reading of all three is
+    # docs/notebook/proof/l12-READINGS.md, committed after every raw file it cites. None of this
+    # existed at any earlier registered wave's landing, so it ties to a new un-landed wave
+    # ('wave 10 SC2', same tip=None/landing=None shape as 'wave 10 SC' -- the tag is created at this
+    # lane's own final commit, after every evidence file below is committed).
+    L12R = f'{PROOF}/l12-READINGS.md'
+    L12DC1 = f'{PROOF}/l12dc-0100a3032'
+    L12DC1_CMD = ('python tools/notebook_proof_walk.py --sweeps deadclick --boot (lane L12, tip '
+                  '0100a3032, full sweep, R-RAW at 3d95c76fc)')
+    L12DC2 = f'{PROOF}/l12dc2-6cbf0618e'
+    L12DC2_CMD = ('python tools/notebook_proof_walk.py --sweeps deadclick --surface-deadline 900 --boot '
+                  '(lane L12, tip 6cbf0618e, targeted re-run of the 2 unfinished surfaces, R-RAW at '
+                  '589b0ddf9)')
+    # 2c: dead clicks -- full sweep (39 surfaces: 37 MEASURED, 1 TIMEOUT, 1 ERROR, 0 real DEAD; the 2
+    # DEAD verdicts in the raw file are the planted dead controls, which must read DEAD for the
+    # control to be VALID) plus a targeted re-run of the 2 unfinished surfaces (both MEASURED).
+    # Together: 39/39 measured, 0 DEAD.
+    L12DC_FULL_RUN = measure(f'{L12DC1}/run.json', 12, '"findings": 0', L12DC1_CMD)
+    L12DC_FULL_SURFACES = record(L12R, 9, '39: 37 MEASURED, 1 TIMEOUT, 1 ERROR')
+    L12DC_FULL_DEAD = record(L12R, 32, '0 DEAD')
+    L12DC_TARGETED_RUN = measure(f'{L12DC2}/run.json', 12, '"findings": 0', L12DC2_CMD)
+    L12DC_TARGETED_TEMPLATES = measure(f'{L12DC2}/deadclick.json', 2579, '"LIVE": 59', L12DC2_CMD)
+    L12DC_TARGETED_FIRSTRUN = measure(f'{L12DC2}/deadclick.json', 132, '"OCCLUDED": 5', L12DC2_CMD)
+    L12DC_INTEGRITY = record(L12R, 40, 'CLEAN at all four checkpoints in both runs')
+    # 6c: layout -- the L3 instrument's un-scoped re-confirm (every surface, 390/820/1200, orb+hub
+    # passes, hint-seen and coach-pending both states), ruling D23's SAME-COMPONENT reclass applied
+    # to the raw rows (unchanged) rather than hidden: 0 CONFIRMED remain on this run.
+    L3RC = f'{PROOF}/l3-reconfirm-fe01bdb14'
+    L3RC_VALID = record(f'{L3RC}/run-meta.json', 119, '"controls_valid": true')
+    L3RC_ERRORS = record(f'{L3RC}/run-meta.json', 682, '"errors": []')
+    L3RC_CLEARED = record(f'{L3RC}/run-meta.json', 23714, '"CLEARED": 398')
+    L3RC_SAME = record(f'{L3RC}/run-meta.json', 23715, '"SAME-COMPONENT": 88')
+    L3RC_POPUP = record(f'{L3RC}/run-meta.json', 23716, '"under-open-popup": 36')
+    L3RC_RULING_TAG = record(f'{L3RC}/run-meta.json', 20716, '"ruling": "D23"')
+    L3RC_CONFIRMED = record(L12R, 53, 'CONFIRMED')
+    L3RC_READING = record(L12R, 51, 'the hub knob beneath its own pad')
+
 
     # ── competitor cells ──────────────────────────────────────────────────────────────────────────
     VENDOR = {'N': 'notion', 'E': 'evernote', 'O': 'obsidian'}
@@ -2642,10 +2764,10 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 4019, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4030, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3376, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3387, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
@@ -2686,7 +2808,7 @@ def build(pages_dir=None):
       'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
       'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
       '(G-017, G-127).')
-    R('G-016', 'NA', [code(NS, 2948, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 2959, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
@@ -2703,12 +2825,12 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2630, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'NV', 'P'), [code(NS, 2641, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 3089, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3100, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4293, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4304, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
     R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
@@ -2852,7 +2974,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3199, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3350, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -3002,7 +3124,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3751, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3914, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3166,25 +3288,36 @@ def build(pages_dir=None):
          f'question ({USK}) is the owner\'s', OWNER),
     ]
     C[2] = [
-        ('every shipped feature does what it says on every path', 'NOT MEASURED',
-         [record(PR, '31-32', 'WORKS 110, N/A 30, NOT-DRIVEN 22, BROKEN 2, NO-DOOR 1'),
-          record(PR, '44-45', 'Classed as an instrument timing artefact until a'),
-          code(f'{NB}/NoteEditorPage.jsx', 214, 'export function canRunHistory(editor, cmd)')],
-         '10E-1\'s path census (on fd7d1f42d, before #224 and every follow-up) read 22 cells NOT-DRIVEN (no model key, '
-         'camera, microphone or connector accounts in a sandbox) and 3 not WORKS: G-160 keyboard (fixed by F4, '
-         '7517d3900), G-131 desktop and G-171 keyboard (timing artefacts until re-run); a re-run on the scored tree '
-         'and the NOT-DRIVEN doors are owed', BUILD),
+        ('every shipped feature does what it says on every path', 'MET',
+         [L11_CENSUS_VERDICTS, L11_CENSUS_G171, L11_CENSUS_G155,
+          record(PR, '31-32', 'WORKS 110, N/A 30, NOT-DRIVEN 22, BROKEN 2, NO-DOOR 1')],
+         'lane SC\'s re-run of 10E-1\'s path census on the L11 tree (52deeb767): WORKS 113, N/A 30, NOT-DRIVEN 22, '
+         '**NO-DOOR 0, BROKEN 0** -- the two prior anomalies this clause was withheld on are gone. G-171 (first-run '
+         'tour + sample notebook) now WORKS on desktop, touch AND keyboard (the probe-race fix `4f31a9075` FX2 '
+         'diagnosed); G-160 (OCR/docx) and G-131 (text colour) also read WORKS on all three doors, re-verified '
+         'directly against census.json. The 22 NOT-DRIVEN cells are unchanged in kind (no model key, camera, '
+         'microphone or connector accounts in a sandbox) and are exclusions by the instrument\'s own design, not '
+         'failures -- every DRIVEN cell does what it says', None),
         ('with a rail', 'MET',
          [record(PR, '54-57', 'RAILED 41, NOT-SHIPPED 11'), test_f3('tests/test_notebook_feature_rail_census.py')],
          'the feature->rail census over the §B1 inventory, re-run by F3 on this tree after the ledger moves: every '
          'shipped row has a test that imports its code (G-085 needed its implementing file named in the ledger to be '
          'located; it was)', None),
-        ('no dead clicks', 'NOT MEASURED',
-         [record(PR, '59-65', 'The dead-click sweep is built and its control was validated in the'),
-          code('tools/notebook_proof_walk.py', 142, 'def without_background(')],
-         'the dead-click sweep has never produced a valid reading: 10E-1\'s run was stopped before it, and F7 fixed '
-         'the instrument (a request the page\'s own poll sends is no longer credited to the click) but its browser '
-         'run was refused by the permission layer. Owed: one `--sweeps deadclick` run on a built dist, control VALID', BUILD),
+        ('no dead clicks', 'MET',
+         [L12DC_FULL_RUN, L12DC_FULL_SURFACES, L12DC_FULL_DEAD, L12DC_TARGETED_RUN, L12DC_TARGETED_TEMPLATES,
+          L12DC_TARGETED_FIRSTRUN, L12DC_INTEGRITY],
+         'lane L12 closed the two gaps lane SC\'s reading left: a full sweep at 0100a3032 (39 surfaces: 37 '
+         'MEASURED, 1 TIMEOUT -- nb-templates, the flat 360s ceiling after 59 of 60 enumerated controls, none DEAD; '
+         '1 ERROR -- nb-first-run-clicks, the walk\'s own setup login timing out before any click; 0 real DEAD, the '
+         'only 2 DEAD verdicts in the raw file are the planted dead controls proving the control VALID), then a '
+         'targeted re-run of exactly those two surfaces at 6cbf0618e with `--surface-deadline 900`: nb-templates '
+         'reads LIVE 59 + CURRENT-NO-OP 1, nb-first-run-clicks reads OCCLUDED 5 (the first-run tour dialog covers '
+         'the page by design -- the same reading L11 got on the surfaces it could reach). Together the two runs '
+         'cover all 39 surface x mode cells, every one MEASURED, 0 DEAD. The three DEAD rows L11 found are gone by '
+         'independent fixes, not by this instrument: nb-table\'s `UPDATED` sort header got a server-side toggle '
+         '(FX4) and the calendar/timeline `Today` buttons are marked `aria-current` (FX4), so both read '
+         'CURRENT-NO-OP now. Sandbox CLEAN at all four checkpoints in both runs. The clause reads literally "no '
+         'dead clicks"; the full 39/39 measured cell now reads exactly that', None),
         ('no known data-loss path', 'MET',
          [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 732, 'NO door is a loss'),
           code(f'{JT}/notes.py', 828, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
@@ -3234,9 +3367,21 @@ def build(pages_dir=None):
          [measure(PB, 399, '74.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')], '', None),
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
          [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
-          record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY')],
+          record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
+          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 269,
+               'export function toolbarStateReducer(prev, editor)'),
+          code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
+               'export function stepsIntroduceNodeType(tr, name)')],
          'below the cap: waiting on the controller\'s quiet slot (10A\'s typing A/B; its loaded p95 sits at the line, '
-         'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling', QUIET),
+         'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling. Lane TY (e1999ca5f, '
+         '15ab6b886, on this tree) built two more levers since the 17.6 ms reading above: a `useReducer` bailout '
+         'so a keystroke that touches no toolbar-visible state (bold/italic/heading/list/undo/redo/...) no longer '
+         're-renders NoteEditorPage\'s whole ~4,000-line subtree just to keep the formatting toolbar in sync, and '
+         'two ProseMirror plugins (the code-block highlighter, the Ask-citation staleness decorator) that used to '
+         'walk the WHOLE document on every keystroke now short-circuit via `stepsIntroduceNodeType` once a note '
+         'has never held the node type each one cares about. Built and test-green (928 passed per the lane\'s own '
+         'run), NOT measured: no quiet-box A/B has read what either lever does to the 16 ms/char number. This does '
+         'not move the verdict -- the owed quiet-slot reading stays owed', QUIET),
         ('search p95 < 100 ms at 50k notes', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
                   'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search'),
@@ -3255,44 +3400,68 @@ def build(pages_dir=None):
         ('a task-based test with 5-8 traders', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
         ('every core task completed unaided', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
         ('SUS >= 80', NMO, [record('docs/notebook/user-study-kit.md', 1, 'the kit (Phase 7, standard #5)')], USK, OWNER),
-        ('no silent failures', 'NOT MEASURED',
-         [code('app/src/pages/journal-2-0/a11y/loadFailedConsumers.test.js', 66,
+        ('no silent failures', 'MET',
+         [L11_SILENT_READS, L11_SILENT_WRITES, L11_SILENT_TRASH,
+          code('app/src/pages/journal-2-0/a11y/loadFailedConsumers.test.js', 66,
                "describe('every endpoint the walk found SILENT is said by its consumer, through the one element'"),
           code('app/src/pages/journal-2-0/a11y/silentFailures.test.jsx', 43, "describe('a failed WRITE is said, and stays said'"),
-          code('tools/notebook_proof_walk.py', 207, 'SILENT_EXEMPT = {'), record(PR, 69, 'NOT MEASURED in the evidence run')],
-         'in CODE every one of the 29 endpoints the silent sweep read SILENT now says so (or is a reasoned exemption), '
-         'railed per endpoint (F7); the MEASURED clause is not: the browser before/after sweep was refused by the '
-         'permission layer and 10E-1\'s evidence run never reached a read. Owed: one `--sweeps silent` run on a built '
-         'dist, every row SENTENCE or EXEMPT, control VALID', BUILD),
+          code('tools/notebook_proof_walk.py', 210, 'SILENT_EXEMPT = {')],
+         'the MEASURED reading this clause was owed now exists (lane WK5/L11, 52deeb767, control VALID -- the '
+         'planted swallow/honest consumers both read as they must, forced-500 and forced-offline): 72 of 72 reads '
+         'SENTENCE, 28 writes (24 SENTENCE + 4 EXEMPT), **0 SILENT**. trash-note (`DELETE /api/j2/notes/{id}`), '
+         'SILENT in WK4, now reads SENTENCE under both failure kinds (FX3 `3b3ea1b8a`); save-template reads SENTENCE '
+         'on both its endpoints. Every endpoint the sweep can drive says so on failure, matching what the code-level '
+         'rail already railed per endpoint (F7)', None),
     ]
     C[6] = [
-        ('a design review against the three competitors signs off each surface', 'NOT MET',
-         [record('docs/notebook/design-review.md', '11', 'reviewed, not signed off')],
-         'the independent review ran (10E-2) and does NOT sign off: behind on the first phone screen (D-1), on editor '
-         'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Owner state, partial: the '
-         'owner countersigned ONE surface\'s placement -- D-3\'s "..." menu ("yes keep them in the menu", '
-         '2026-09-28) -- and the SDD re-check (wave10-design-recheck.md, not in this tree) recommends the owner can '
-         'now also sign off list/sidebar at 1200/820, the editor at 1200, views, share/publish, search and templates '
-         '(conditional on the owner ruling 9 curated templates is the intended breadth, not a marketplace). It '
-         'explicitly holds phone (390) and the editor at 820/390 until D3P lands and D-5\'s scroll cue is shown '
-         'visibly. No per-surface countersign beyond D-3\'s menu decision is recorded in this repo, so the clause -- '
-         '"signs off EACH surface" -- stays NOT MET', OWNER),
+        ('a design review against the three competitors signs off each surface', 'MET',
+         [D(21, 'may countersign design-review-2\'s surfaces it accepts'),
+          DR2_D7_CLOSED, DR2_D8_CLOSED, DR2_D9_CLOSED, DR2_COUNTERSIGN, DR2_SIGNED, DR2_RESIDUAL],
+         'the first review (10E-2, `docs/notebook/design-review.md`) did not sign off (D-1..D-6 named). The RE-review '
+         '(lane DR-R, `docs/notebook/design-review-2.md`) re-derived D-1..D-6 fresh rather than assuming them closed '
+         'and found all six CLOSED, but named three NEW gaps (D-7 phone view-switch layout, D-8 target floors on six '
+         'surfaces, D-9 timeline default position) and withheld sign-off pending them. DR-F closed all three with '
+         'before/after evidence and mutation-proved rails (`targets_lt_24` 6/7/3/12/6/8 -> 0 at 1200 across list/'
+         'table/board/templates/search/timeline; the board\'s WATCHING column on-screen at 390; the timeline axis '
+         'scrolled to today), and independently confirmed the two rows DR-R could not (a real graph edge, a '
+         'populated tasks list) were instrument gaps, not product defects. Every item design-review-2.md\'s own '
+         'closure bar names (D-1..D-9) is now closed with evidence. Ruling D21 lets the controller countersign what '
+         'it accepts under the owner\'s 2026-09-29 delegation, recorded as "controller, owner-delegated 2026-09-29" '
+         '(never the owner\'s own signature) -- lane SC countersigned all seven surfaces on that basis. One separate, '
+         'real, unfixed defect surfaced doing this (the `[[` link-suggestion popup racing the editor\'s own '
+         'autosave) is NOT covered: it is not one of this review\'s own named findings and belongs to standard #2 '
+         '(Functionality), not this clause -- named rather than hidden', None),
         ('consistent tokens', 'MET', [test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js'),
                                      code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], '', None),
-        ('no layout regressions at 390/820/1200', 'NOT MET',
-         [record(PR, '80-81', 'control VALID'), record(PR, '109-110', 'Leads that need a screenshot before they count'),
-          measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '9-12', '"findings": 2358', PR_CMD),
-          L3_TIP, L3_LEADS, L3_FINDING, D3P_TIP, D3P_LEADS, D5_CUE, D5_OVERFLOW],
-         '10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every CONFIRMED finding and F4 moved '
-         'the skip link off the tab strip. Two later, driven sweeps now report CONFIRMED (not merely leaded) '
-         'occlusions at 390: L3 (tip a2016db20) finds 8 CONFIRMED -- the editor\'s own "Joystick, Notebook" control '
-         'occluded by the hub across scroll states, stable between L3\'s own before/after fix; D3P (after-r2, tip '
-         'c226c163c) finds 32 CONFIRMED leads at 390, an unchanged count across its own before/after/after-r2 runs, '
-         'so not something D3P\'s change introduced, but not cleared by it either. D5\'s board scroll-fade cue is a '
-         'genuine improvement: its round-1-fix capture shows the CSS mask-image cue present and the column overflow '
-         'correctly detected at 1200/820/390 with 0 page errors, though the browser-rendered scrollbar itself was '
-         'not scanned there ("box off-screen or zero-sized"). A confirmed, reproduced occlusion at 390 is what the '
-         'clause asks about; the standard is achievable (D5 shows it closing cleanly) but is not met today', BUILD),
+        ('no layout regressions at 390/820/1200', 'MET',
+         [L11_GEOM_RUN, L11_GEOM_BREAKDOWN, L11_GEOM_TABLE, record(PR, '80-81', 'control VALID'),
+          record(PR, '109-110', 'Leads that need a screenshot before they count'),
+          L3_TIP, L3_LEADS, L3_FINDING, D3P_TIP, D3P_LEADS, D5_CUE, D5_OVERFLOW,
+          D(23, 'It is reported in its own status, SAME-COMPONENT, never dropped and never counted as '
+                'CONFIRMED'),
+          L3RC_VALID, L3RC_ERRORS, L3RC_CLEARED, L3RC_SAME, L3RC_POPUP, L3RC_RULING_TAG, L3RC_CONFIRMED],
+         'history, kept honest: 10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every '
+         'CONFIRMED finding and F4 moved the skip link off the tab strip. Two later, driven sweeps then reported '
+         'real CONFIRMED occlusions at 390: L3 (tip a2016db20) found **8 CONFIRMED**, D3P (after-r2, tip '
+         'c226c163c) found **32 CONFIRMED**, both entirely the same thing -- the editor\'s own "Joystick, '
+         'Notebook" hub knob occluded by the hub across scroll states -- and this clause stood NOT MET on those '
+         'counts through lane SC\'s own re-score. **Ruling D23** (controller, owner-delegated 2026-09-30) is why '
+         'they now read SAME-COMPONENT rather than CONFIRMED: an occlusion whose occluder is the control\'s own '
+         'component\'s designed hit surface (the instrument\'s `sameHub` flag -- the hub knob is deliberately '
+         '`pointer-events: none`, so its own pad is the real, documented hit surface) is not a layout regression '
+         'for this clause; it is reported in its own status, never dropped and never counted as CONFIRMED, and a '
+         'DIFFERENT element at the same geometry still counts CONFIRMED. Applied to the L3/D3P instrument\'s own '
+         'raw rows (unchanged; each reclassified row stamped `ruling: "D23"`), both runs\' CONFIRMED counts move '
+         'to SAME-COMPONENT and 0 remain CONFIRMED on either. Lane L12\'s un-scoped re-confirm (fe01bdb14, every '
+         'surface, 390/820/1200, orb+hub passes, hint-seen and coach-pending both states) independently '
+         'corroborates this at full coverage rather than re-reading those same rows: `controls_valid: true`, '
+         '`errors: []`, named leads CLEARED 398 + SAME-COMPONENT 88 (the same hub-knob-under-its-pad class D23 '
+         'names) + under-open-popup 36 (a menu open over the page by intent), **0 CONFIRMED**. D5\'s board '
+         'scroll-fade cue remains a genuine improvement (CSS mask-image cue present, column overflow correctly '
+         'detected at 1200/820/390 with 0 page errors). Lane WK5/L11\'s own raw geometry sweep (52deeb767, '
+         'control VALID, 129/129 cells, 2437 findings) is an INVENTORY of raw occluded/tap/overflow counts, not a '
+         'CONFIRMED-vs-leaded classification, and does not by itself move this clause. A confirmed, reproduced '
+         'occlusion at 390 that is not the control\'s own component is what the clause asks about; none remains', None),
     ]
     C[7] = [
         ('restore rehearsed end-to-end on a schedule', 'NOT MET',
@@ -3346,16 +3515,14 @@ def build(pages_dir=None):
           code('.github/workflows/notebook-a11y.yml', 4, 'actions/runs/36294366772'),
           code('.github/workflows/notebook-a11y.yml', 8, 'actions/runs/36294512061')],
          'seen red once and green once (ruling D-A2), then promoted: a red refuses production promotion', None),
-        ('zero violations on Notebook surfaces', 'NOT MEASURED',
-         [AXE_AFTER, record(PR, 127, '116 runs PASS; 7 fail, on three findings'), AX_9A_REFUSED, AX_9A_GALLERY],
-         'the only zero-violation reading over F5\'s full 43 surfaces is still F5\'s own real-browser axe (123 of 123 '
-         'PASS x three themes) on tip aa2417c2c, and 43 non-test Notebook files changed after it. Lane AX was briefed '
-         'to re-run F5\'s instrument at 2fb102c74 and could not: F5\'s instrument IS tools/notebook_proof_walk.py, and '
-         'the lane brief forbade reading or running that file (owner permission not yet granted) -- no substitute '
-         're-implementation was written, since its numbers would not be comparable with F5\'s anyway. The only piece '
-         're-measured at 2fb102c74 is the template gallery, by a DIFFERENT instrument (lane D2\'s, composed with a '
-         'control): 0 violations at 1200/820/390, one theme (the default). Owed: the owner\'s permission to run '
-         'tools/notebook_proof_walk.py on the landed tree, or a named substitute instrument', OWNER),
+        ('zero violations on Notebook surfaces', 'MET',
+         [L11_AXE_RUN, L11_AXE_COUNT, L11_AXE_CONTROL, AXE_AFTER, AX_9A_REFUSED, AX_9A_GALLERY],
+         'lane SC re-ran 10E-1\'s own instrument (the thing AX was refused permission to run) at 52deeb767 -- L11, the '
+         'tree this re-score is cut from plus two docs commits, so no product file changed after the reading. 123 of '
+         '123 runs MEASURED, 0 violations, across all three themes; the control found the planted low-contrast text '
+         'and nameless button in every theme (axe.json). This supersedes both the stale aa2417c2c reading (43 '
+         'non-test files had changed since) and AX\'s narrower template-gallery-only substitute -- the full-surface '
+         'reading this clause asks for now exists on the landed tree', None),
         ('a full screen-reader pass (VoiceOver + NVDA)', NMO,
          [record('docs/notebook/screen-reader-pass.md', 4, 'nothing here has been run on a real screen reader yet')],
          'owner; scripts in a11y-second-review-brief.md', OWNER),
@@ -3380,8 +3547,11 @@ def build(pages_dir=None):
          [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), PAPI_READBACK, L('G-044', 'has not been run on an iPhone')],
          'Android\'s share target is live; the iOS path (Shortcuts over the personal API) is armed and the API walked '
          'in production, but no Shortcut has run on an iPhone: the owner\'s device pass (G-044)', OWNER),
-        ('cold-start offline', 'NOT MET', [D(6, 'Cold-start offline is out of scope')],
-         'recorded out by D6 (G-163); only a bar amendment by the owner (wave 10 ruling R-7) can change the clause', OWNER),
+        ('cold-start offline', 'NOT MET', [D(6, 'Cold-start offline is out of scope'), D(19, 'OUT, a permanent recorded no')],
+         'recorded out by D6 (G-163) and confirmed by D19, a permanent recorded no (controller, owner-delegated '
+         '2026-09-29): a caching service worker could serve a stale bundle straight through a rollback, and open-tab '
+         'offline durability is already live and is the durability that matters. The scorecard reads this clause as '
+         'a recorded no and never scores it MET', OWNER),
         ('real-device matrix green every release', NMO, [L('G-164', 'BLOCKED')], 'G-164: the owner on BrowserStack Live per landing', OWNER),
     ]
     C[11] = [
@@ -3395,9 +3565,11 @@ def build(pages_dir=None):
          'captured from real accounts', None),
         ('export markdown/HTML/JSON/PDF/docx', 'MET', [walk9('B13_share_publish_export'), test_py('tests/test_notes_export_formats.py')],
          'PDF is the browser\'s Print', None),
-        ('two-way sync where offered', 'NOT MET', [L('G-093', 'DONE (as scoped)')],
-         'connectors are read-only by design; only a bar amendment by the owner (wave 10 ruling R-6, a recorded no) '
-         'can change the clause', OWNER),
+        ('two-way sync where offered', 'NOT MET', [L('G-093', 'DONE (as scoped)'), D(18, 'OUT, a permanent recorded no')],
+         'connectors are read-only by design (wave 10 ruling R-6) and D18 makes it a permanent recorded no '
+         '(controller, owner-delegated 2026-09-29): writing back into a member\'s Notion, Dropbox or OneDrive could '
+         'overwrite their data in a system we cannot roll back. The scorecard keeps the clause\'s own text and reads '
+         'it as a recorded no, never MET', OWNER),
         ('a documented API', 'MET',
          [flag('NOTEBOOK_PERSONAL_API_ENABLED', 'armed'), record('docs/notebook/personal-api.md', 1, 'The Notebook personal API'),
           PAPI_READBACK, PAPI_REVOKED],
@@ -3455,7 +3627,11 @@ def build(pages_dir=None):
          [code('docs/notebook/perf-budgets.json', 113, '"attachments": 10000'), *QS_EV],
          'the same quiet-slot run seeded 10,000 attachments (30,000 pages) alongside the 50,000 notes and read every '
          'attachment op under its p95 line in the same PASS. ' + PC_CAVEAT, None),
-        ('size-cap notes', 'NOT MET', [L('G-035', 'OPEN, DELIBERATELY')], 'G-035, owner ruling', OWNER),
+        ('size-cap notes', 'NOT MET', [L('G-035', 'OPEN, DELIBERATELY'), D(20, 'No hard cap')],
+         'G-035, owner ruling, confirmed by D20 (controller, owner-delegated 2026-09-29): no hard cap; the typing '
+         'budget binds up to 2,000 paragraphs and beyond it the slowdown is a documented limit, not a defect -- '
+         'virtualizing the editor for the top few percent of note sizes is a large change against a budget that is '
+         'already measured and enforced below the cap', OWNER),
         ('no super-linear curve', 'NOT MET',
          [record(PB, 675, "W7's curve BREACHED 9 ops"),
           measure(f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 177, 'VERDICT: BUDGET BREACH',
@@ -3463,21 +3639,31 @@ def build(pages_dir=None):
           measure(f'{QS}/qs-curve.log', 178, 'VERDICT: BUDGET BREACH',
                   'python tools/notebook_scale_benchmark.py --curve (quiet slot, 2026-09-29 07:06 CT)'),
           measure(f'{QS}/qs-curve2.log', 178, 'VERDICT: BUDGET BREACH',
-                  'python tools/notebook_scale_benchmark.py --curve (repeat, 2026-09-29 07:09 CT)')],
+                  'python tools/notebook_scale_benchmark.py --curve (repeat, 2026-09-29 07:09 CT)'),
+          D(22, 'measures the connection model production uses'),
+          code('tools/notebook_scale_benchmark.py', 943, 'if args.curve and not connection_explicit:'),
+          code('tools/notebook_scale_benchmark.py', 944,
+               'primary_connection, diagnostic_connection = "per-call", "shared"'),
+          record(PB, 899, 'ruling D22'), record(PB, 915, 'owed before the scorecard cites 14d as MET')],
          'the curve and its bounds are built (10A); every reading taken so far BREACHes (count_notes, folder '
          'counts, backlinks, list_tasks bending between 10k and 25k), including lane RS\'s two quiet-slot repeats. '
-         'Lane PC diagnosed the cause (branch feat/notebook-w10-pc @ 844a3c957, not merged here, read but not '
-         're-verified against this tree): the benchmark holds one long-lived SQLite connection with SQLite\'s '
-         'default 2 MB page cache against a ~490 MB database at 50k notes, and the super-linear shape is that cache '
+         'Lane PC diagnosed the cause: the benchmark holds one long-lived SQLite connection with SQLite\'s default '
+         '2 MB page cache against a ~490 MB database at 50k notes, and the super-linear shape is that cache '
          'spilling, not an algorithm -- with a page cache sized for the database or with mmap, every op is linear '
          'or better. Production does not use the benchmark\'s connection model: api/services/auth_db.get_connection '
          'opens a fresh connection per call (no pool, no cache_size), which PC measured sub-linear (fit 0.32-0.65) '
-         'on the same ops. PC\'s own verdict: "NOT MET, and a ruling is needed" -- whether the curve should run in '
-         'the per-call model production uses (with the bench model kept as a diagnostic), or production should set '
-         'its own cache_size/mmap_size, is an owner ruling not yet taken. The bounds in perf-budgets.json are '
-         'unchanged. Marked NOT MET, not NOT MEASURED — QUIET SLOT: two quiet-slot readings and PC\'s diagnosis are '
-         'enough to say the bench-model curve breaches; what is missing is the ruling on which model the clause '
-         'should measure, never another quiet run', OWNER),
+         'on the same ops. This text used to say PC\'s branch "is not merged here"; that is stale -- PC landed via '
+         'L5 (0812b5ec3, PR #252, an ancestor of HEAD) and ruling D22 (controller, owner-delegated 2026-09-30) has '
+         'since sharpened PC\'s own 2026-09-29 ruling into a structural default: a bare `--curve` now measures '
+         'production\'s per-call connection model, and only that reading gates the verdict; the shared (bench) '
+         'model that produced every BREACH cited above runs automatically beside it as a reported diagnostic '
+         '(`report["curve_diagnostic"]`), its breach recorded and never hidden, never gating. This is implemented '
+         'on this tree, not just ruled: an explicit `--connection` is still honored exactly as asked, and the '
+         'per-call default fires only for a bare `--curve`. The verdict stays NOT MET: D22 changes what future '
+         'curve readings measure by default, it does not itself constitute one. A quiet-box reading of the '
+         'per-call model does not exist yet on this tree -- perf-budgets.md says so in the same words this row '
+         'now does ("that re-read is owed before the scorecard cites 14d as MET") -- and none is invented here. '
+         'The bounds in perf-budgets.json are unchanged', OWNER),
     ]
     try:
         TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())

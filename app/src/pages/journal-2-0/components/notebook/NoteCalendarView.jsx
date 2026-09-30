@@ -137,6 +137,18 @@ export default function NoteCalendarView({
   const go = (delta) => setCursor((c) => monthOffset(c.year, c.month, delta))
   const blocked = blockedNoteIds || new Set()
 
+  // FX4 (wave 10, proof-walk item 2): the exact no-op condition -- clicking
+  // Today sets `cursor` to today's year/month, and when it is ALREADY there
+  // that `setCursor` call is a same-value bail-out (no re-render, nothing on
+  // screen tells a member -- or the deadclick judge -- there was nowhere to
+  // go). `aria-current="date"` is the attribute `tools/notebook_proof_walk.py`
+  // reads during target census (`el.getAttribute('aria-current') &&
+  // value !== 'false'`) to mark a control CURRENT rather than DEAD on a
+  // no-op click -- present only while true, never `"false"`, so its absence
+  // elsewhere is a real absence. The button stays live either way: clicking
+  // it while `cursor` is on another month still navigates back.
+  const isCurrentMonth = cursor.year === Number(today.slice(0, 4)) && cursor.month === Number(today.slice(5, 7))
+
   const drop = (ev, dateOrNull) => {
     ev.preventDefault()
     setDragOver(null)
@@ -188,6 +200,7 @@ export default function NoteCalendarView({
           <button
             type="button"
             className={styles.todayBtn}
+            aria-current={isCurrentMonth ? 'date' : undefined}
             onClick={() => setCursor({ year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)) })}
           >
             Today

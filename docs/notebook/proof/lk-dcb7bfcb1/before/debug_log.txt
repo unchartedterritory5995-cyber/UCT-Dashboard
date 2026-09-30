@@ -1,0 +1,61 @@
+[seed] target note id=185f6e828b484f1ab0291fb9e4c16e59 title='Beta thesis AMD'
+[seed] source note id=15cc3718f6d04a859c2a23cba3df9141
+[console:error] Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+[net] GET http://127.0.0.1:8462/api/j2/notes/folder-counts -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes?sort=updated&limit=1&deleted=true -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/favorites -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes?folder_id=__archived__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141 -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/recents -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/tags -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/facts -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/evidence-candidates -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/documents -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/excerpts -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/thesis-summary -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes?sort=updated -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes?sort=title -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/properties -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/trade-ref/resolve -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/backlinks -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/unlinked-mentions -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/related-from -> 200
+[net] GET http://127.0.0.1:8462/api/j2/notes/recents -> 200
+[net] POST http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141/opened -> 200
+[step] ProseMirror ready
+[net] GET http://127.0.0.1:8462/api/j2/notes?q=Beta&limit=8 -> 200
+[dump right after typing the full title] {'popupPresent': False, 'listboxPresent': False, 'listboxText': None, 'noteLinkCount': 0}
+[dump after search debounce] {'popupPresent': False, 'listboxPresent': False, 'listboxText': None, 'noteLinkCount': 0}
+[net] PUT http://127.0.0.1:8462/api/j2/notes/15cc3718f6d04a859c2a23cba3df9141 -> 200
+[dump after autosave debounce] {'popupPresent': False, 'listboxPresent': False, 'listboxText': None, 'noteLinkCount': 0}
+[check] popup survived search+autosave: False
+Traceback (most recent call last):
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10-lk\docs\notebook\proof\lk-instrument\lk_verify_notelink.py", line 198, in <module>
+    raise SystemExit(main())
+  File "C:\Users\Patrick\uct-worktrees\notebook-w10-lk\docs\notebook\proof\lk-instrument\lk_verify_notelink.py", line 150, in main
+    option.click(timeout=5000)
+playwright._impl._errors.TimeoutError: Locator.click: Timeout 5000ms exceeded.
+Call log:
+  - waiting for locator("[role=\"option\"]").first
+(no option existed to click -- the popup was already gone; this is the expected
+failure shape run against the PRE-FIX NoteLinkMenu.jsx, captured verbatim from
+this run's stdout since the script's own exception path exits before writing
+debug_log.txt/result.json)
+
+--- how this run was produced ---
+Same instrument (docs/notebook/proof/lk-instrument/lk_verify_notelink.py), same
+steps, against app/dist BUILT FROM THE PRE-FIX BLOB
+(`git cat-file blob HEAD~1:app/src/pages/journal-2-0/components/notebook/NoteLinkMenu.jsx`
+temporarily copied over the working file, sha256 637faaa2c2...4ccb, matching the
+blob one commit before dcb7bfcb1), on a fresh sandbox (port 8462, its own data
+dir), then the fixed file was restored from a captured sha256-verified copy
+(31c251bd05...906e18, matching dcb7bfcb1's committed blob) and app/dist rebuilt
+from it before the AFTER run (../after/) and before anything was committed.
+
+The note IS the popup dying on the first space, independent of either the
+search GET or the autosave PUT: `popupPresent: False` is already true in the
+FIRST dump, taken immediately after typing finished -- before either the
+150ms search debounce or the ~800ms autosave debounce had even had time to
+fire once. Both requests still land moments later (GET then PUT, same order
+DR-F's own capture showed) into a page with no popup left to update.

@@ -51,6 +51,23 @@ Wave 10 (lane 10A) additions:
     FIRST member's reads. The full-text index is one table for every member, so a read that
     is not scoped to its member pays for everyone's notes -- invisible with one member.
 
+D22 (controller, owner-delegated 2026-09-30) -- the curve's DEFAULT connection model:
+  * A bare `--curve` (no explicit `--connection`) now measures the PER-CALL model by default --
+    the model production actually reads the notes store under (`auth_db.get_connection`, a fresh
+    connection every call). That is what standard 14's "no super-linear curve" clause is read
+    against, and only its breach gates the verdict.
+  * The bench model (one long-lived connection, SQLite's default page cache -- what every prior
+    curve reading up to and including PR #252 ran under) is kept as a DIAGNOSTIC: with no explicit
+    `--connection`, it also runs automatically, its curve is printed and recorded beside the
+    primary one (`report["curve_diagnostic"]`), and its breach is recorded, never hidden -- but it
+    does not gate this run's VERDICT. Production does not change its cache_size/mmap_size on the
+    strength of this ruling.
+  * `--connection shared` or `--connection per-call`, given explicitly, is honored exactly as
+    asked and runs ONLY that one model (no automatic diagnostic pass) -- the bench model stays
+    selectable on its own, same as before D22.
+  * Every OTHER mode (no `--curve`) is unaffected: a plain run's default connection is still
+    `shared`, because the search/reads/tasks p95 budgets were calibrated against it.
+
 A `q=` search also writes one `activity_log` row (`notes._log_notebook_event`), a real
 commit production pays on every search. The conftest sandbox's auth.db gets its schema
 (`auth_db.init_db()`) at start-up, so that write lands and is timed. It must not fail fast,
@@ -905,13 +922,28 @@ def main(argv: list[str] | None = None) -> int:
                          "time the first one's reads (review M-4: an unscoped read pays for "
                          "every member's notes)")
     ap.add_argument("--connection", choices=CONNECTION_MODELS, default="shared",
-                    help="access model for the timed reads: one shared connection (default; what "
-                         "the budget lines were calibrated on) or a fresh production-opened "
-                         "connection per call (per-call; the model clause 14d's curve is read "
-                         "under, ruling 2026-09-29)")
+                    help="access model for the timed reads: one shared connection ('shared', the "
+                         "bench model every non-curve budget line was calibrated on) or a fresh "
+                         "production-opened connection per call ('per-call', what "
+                         "auth_db.get_connection does on every request). Given explicitly, this "
+                         "always wins and only that one model runs. Left unset: a plain run still "
+                         "defaults to shared; a --curve run instead defaults to per-call (clause "
+                         "14d, D22, controller owner-delegated 2026-09-30) -- production's own "
+                         "model is what standard 14's curve gates on -- and the shared/bench model "
+                         "also runs automatically as a diagnostic, reported beside the primary "
+                         "curve, its breach recorded and never gating")
     ap.add_argument("--slow-op", action="append", default=None, metavar="LABEL=MS",
                     help="add MS of sleep to one timed op: feeds a check a slowed op on purpose")
     args = ap.parse_args(argv)
+    raw_argv = argv if argv is not None else sys.argv[1:]
+    # D22: an EXPLICIT --connection always wins and disables the automatic diagnostic pass below --
+    # detected from the raw argv, the same way an explicit --tiers is (a few lines down), because
+    # argparse's own `default=` cannot tell "the user typed the default" from "nothing was typed".
+    connection_explicit = any(a == "--connection" or str(a).startswith("--connection=") for a in raw_argv)
+    if args.curve and not connection_explicit:
+        primary_connection, diagnostic_connection = "per-call", "shared"
+    else:
+        primary_connection, diagnostic_connection = args.connection, None
 
     tiers_arg = args.tiers
     if args.curve and not any(a == "--tiers" or str(a).startswith("--tiers=") for a in (argv or sys.argv[1:])):
@@ -1004,12 +1036,20 @@ def main(argv: list[str] | None = None) -> int:
             "remeasure_budgets": remeasure_keys,
             "timed_ops": TIMED_OPS + (ATTACHMENT_OPS if args.attachments else []),
             "attachments": args.attachments, "curve": bool(args.curve), "ratio_budget": args.ratio,
-            "connection": args.connection,
+            "connection": primary_connection,
+            "connection_explicit": connection_explicit,
+            "connection_diagnostic": diagnostic_connection,
             "members": args.members,
             "slow_ops": slow_ops,
         },
         "tiers": [],
     }
+    print(f"\nconnection model: {primary_connection}"
+          + (" (explicit)" if connection_explicit else
+             " (default" + (", D22 clause 14d -- controller, owner-delegated 2026-09-30" if args.curve else "")
+             + ")")
+          + (f"; diagnostic {diagnostic_connection} also runs automatically, reported not gating"
+             if diagnostic_connection else ""))
     for n in tiers:
         print(f"\n=== Seeding + measuring {n:,} notes"
               + (f" x {args.members} members" if args.members > 1 else "")
@@ -1019,7 +1059,7 @@ def main(argv: list[str] | None = None) -> int:
         r = run_tier(n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
                      keep_db=args.keep_db, work_dir=args.work_dir, remeasure_lines=lines,
                      attachments=args.attachments, ratio_spec=ratio_spec, slow_ops=slow_ops,
-                     members=args.members, connection=args.connection)
+                     members=args.members, connection=primary_connection)
         report["tiers"].append(r)
         print(f"  seed {r['seed_ms'] / 1000:.1f}s  db {r['db_bytes'] / 1e6:.1f} MB  "
               f"active {r['active']:,} trashed {r['trashed']:,} archived {r['archived']:,}"
@@ -1059,6 +1099,38 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"  {label:52s} slope {row['slope']:6.3f}  last segment {row['last_segment']:6.3f}")
 
+    # D22 (controller, owner-delegated 2026-09-30): the bench/shared model, kept as a diagnostic,
+    # runs automatically beside the per-call primary and is reported -- never hidden -- but never
+    # gates this run's VERDICT. Only when the caller did NOT name --connection explicitly: an
+    # explicit choice is respected as exactly that one model, same as before D22.
+    diag_curve_breaches: list[str] = []
+    if curve_spec is not None and diagnostic_connection is not None:
+        diag_tiers: list[dict] = []
+        for n in tiers:
+            diag_tiers.append(run_tier(
+                n, reps=args.reps, warmup=args.warmup, paragraphs=args.paragraphs,
+                keep_db=args.keep_db, work_dir=args.work_dir, attachments=args.attachments,
+                members=args.members, connection=diagnostic_connection))
+        diag_report = {"tiers": diag_tiers}
+        diag_curve_breaches, diag_table = pb.check_curve(diag_report, curve_spec, report["meta"]["timed_ops"])
+        report["curve_diagnostic"] = {
+            "connection": diagnostic_connection, "spec": curve_spec,
+            "ops": diag_table, "breaches": diag_curve_breaches,
+        }
+        print(f"\n=== Curve DIAGNOSTIC (connection={diagnostic_connection}; recorded, does NOT gate "
+              f"this run's VERDICT -- D22, controller owner-delegated 2026-09-30) ===")
+        for label, row in diag_table.items():
+            if row.get("slope") is None:
+                print(f"  {label:52s} NOT MEASURED at {row.get('missing')}")
+            else:
+                print(f"  {label:52s} slope {row['slope']:6.3f}  last segment {row['last_segment']:6.3f}")
+        if diag_curve_breaches:
+            print(f"  DIAGNOSTIC BREACH ({diagnostic_connection}, recorded, not gating):")
+            for b in diag_curve_breaches:
+                print(f"    {b}")
+        else:
+            print(f"  diagnostic ({diagnostic_connection}): no breach")
+
     stray = conftest.SHARED_ROOT_VIOLATIONS[violations_before:]
     report["meta"]["shared_root_writes"] = [{"op": v["op"], "path": v["path"]} for v in stray]
     if args.json_path:
@@ -1090,7 +1162,12 @@ def main(argv: list[str] | None = None) -> int:
         passed.append(f"{args.ratio}: every op's median ratio under {pb.ratio_line(ratio_spec):.3f}")
     if curve_spec is not None:
         breaches += [f"[curve] {b}" for b in curve_breaches]
-        passed.append(f"curve: every op's slope <= {float(curve_spec['max_slope']):g}")
+        curve_note = (f"curve: every op's slope <= {float(curve_spec['max_slope']):g} "
+                      f"(connection={primary_connection})")
+        if diagnostic_connection is not None:
+            curve_note += (f"; diagnostic {diagnostic_connection}: {len(diag_curve_breaches)} "
+                           f"breach(es) recorded, not gating")
+        passed.append(curve_note)
     if breaches:
         print("VERDICT: BUDGET BREACH")
         for b in breaches:

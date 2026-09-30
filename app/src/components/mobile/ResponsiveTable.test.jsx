@@ -57,6 +57,39 @@ test('phone scroll mode keeps a real table', () => {
   expect(screen.getByText('AAPL')).toBeInTheDocument()
 })
 
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 2): `aria-sort` is a generic, OPTIONAL
+ * per-column field -- same "undefined for every pre-existing caller" shape
+ * as `rowDataAttrs` -- so every column above (none of which sets it) must
+ * stay byte-identical (no `aria-sort` attribute at all, not even `"none"`).
+ * It belongs on the `<th>` itself, WAI-ARIA's own host-language semantic for
+ * a sortable header cell, never on a control inside it.
+ */
+describe('ariaSort — an optional per-column field on the header <th> (FX2)', () => {
+  const sortCols = [
+    { key: 'sym', header: 'Symbol', primary: true, ariaSort: 'ascending' },
+    { key: 'price', header: 'Price', render: (r) => `$${r.price}` },
+  ]
+
+  test('a column with ariaSort sets aria-sort on its <th>', () => {
+    setViewport(false)
+    render(<ResponsiveTable columns={sortCols} rows={rows} />)
+    expect(screen.getByRole('columnheader', { name: 'Symbol' })).toHaveAttribute('aria-sort', 'ascending')
+  })
+
+  test('a column with no ariaSort carries no aria-sort attribute at all', () => {
+    setViewport(false)
+    render(<ResponsiveTable columns={sortCols} rows={rows} />)
+    expect(screen.getByRole('columnheader', { name: 'Price' })).not.toHaveAttribute('aria-sort')
+  })
+
+  test('⛔ CONTROL — every pre-existing caller (no column here sets ariaSort) gets no aria-sort anywhere', () => {
+    setViewport(false)
+    const { container } = render(<ResponsiveTable columns={columns} rows={rows} />)
+    expect(container.querySelectorAll('[aria-sort]')).toHaveLength(0)
+  })
+})
+
 test('onRowClick fires with the row', () => {
   setViewport(false)
   const onRowClick = vi.fn()

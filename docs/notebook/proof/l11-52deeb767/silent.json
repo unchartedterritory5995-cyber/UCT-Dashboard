@@ -1,0 +1,2666 @@
+{
+ "forced": {
+  "500": "HTTP 500 with a JSON detail carrying the marker zqproofraw",
+  "offline": "route.abort('internetdisconnected') for that endpoint only"
+ },
+ "reads": [
+  {
+   "endpoint": "/api/j2/accounts",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Accounts didn't load"
+   ],
+   "new_text": [
+    "Accounts didn't load"
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_accounts.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/accounts",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Accounts didn't load"
+   ],
+   "new_text": [
+    "Accounts didn't load"
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_accounts.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/accounts/{id}/settings",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Failed to load Journal 2.0 settings: 500",
+    "Failed to load Journal 2.0 settings: 500"
+   ],
+   "new_text": [
+    "Failed to load Journal 2.0 settings: 500"
+   ],
+   "new_alerts": [
+    "Failed to load Journal 2.0 settings: 500"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_accounts_id_settings.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/accounts/{id}/settings",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Failed to load Journal 2.0 settings: Failed to fetch",
+    "Failed to load Journal 2.0 settings: Failed to fetch"
+   ],
+   "new_text": [
+    "Failed to load Journal 2.0 settings: Failed to fetch"
+   ],
+   "new_alerts": [
+    "Failed to load Journal 2.0 settings: Failed to fetch"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_accounts_id_settings.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/accounts/comparison",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "balance didn't load"
+   ],
+   "new_text": [
+    "balance didn't load"
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_accounts_comparison.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/accounts/comparison",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "balance didn't load"
+   ],
+   "new_text": [
+    "balance didn't load"
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_accounts_comparison.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/note-folders",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your folders. Try again",
+    "Couldn't load your folders."
+   ],
+   "new_text": [
+    "Couldn't load your folders.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your folders. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_note-folders.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/note-folders",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your folders. Try again",
+    "Couldn't reach the server to load your folders."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your folders.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your folders. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_note-folders.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/folder-counts",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your folder counts. Try again",
+    "Couldn't load your folder counts."
+   ],
+   "new_text": [
+    "Couldn't load your folder counts.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your folder counts. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_folder-counts.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/folder-counts",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your folder counts. Try again",
+    "Couldn't reach the server to load your folder counts."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your folder counts.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your folder counts. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_folder-counts.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 5,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Your notebook is empty.",
+    "Start from a template — or a blank page.",
+    "Bring your notes from Notion, Obsidian, Evernote, or anywhere else.",
+    "Daily & weekly rituals",
+    "Around a trade",
+    "An empty page — structure it your way."
+   ],
+   "new_text": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Try again",
+    "Your notebook is empty.",
+    "Start from a template — or a blank page.",
+    "Bring your notes from Notion, Obsidian, Evernote, or anywhere else.",
+    "Import notes",
+    "All",
+    "Daily & weekly rituals",
+    "Thesis & research",
+    "Around a trade",
+    "Mindset",
+    "Your templates"
+   ],
+   "new_alerts": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 5,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Your notebook is empty.",
+    "Start from a template — or a blank page.",
+    "Bring your notes from Notion, Obsidian, Evernote, or anywhere else.",
+    "Daily & weekly rituals",
+    "Around a trade",
+    "An empty page — structure it your way."
+   ],
+   "new_text": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again",
+    "Try again",
+    "Your notebook is empty.",
+    "Start from a template — or a blank page.",
+    "Bring your notes from Notion, Obsidian, Evernote, or anywhere else.",
+    "Import notes",
+    "All",
+    "Daily & weekly rituals",
+    "Thesis & research",
+    "Around a trade",
+    "Mindset",
+    "Your templates"
+   ],
+   "new_alerts": [
+    "Couldn't load your notes — this looks like a connection problem, not lost work. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/favorites",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your favorites. Try again",
+    "Couldn't load your favorites."
+   ],
+   "new_text": [
+    "Couldn't load your favorites.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your favorites. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_favorites.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/favorites",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your favorites. Try again",
+    "Couldn't reach the server to load your favorites."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your favorites.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your favorites. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_favorites.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/recents",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your recent notes. Try again",
+    "Couldn't load your recent notes."
+   ],
+   "new_text": [
+    "Couldn't load your recent notes.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your recent notes. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_recents.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/recents",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your recent notes. Try again",
+    "Couldn't reach the server to load your recent notes."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your recent notes.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your recent notes. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_recents.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/tags",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your tags. Try again",
+    "Couldn't load your tags."
+   ],
+   "new_text": [
+    "Couldn't load your tags.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your tags. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_tags.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/tags",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your tags. Try again",
+    "Couldn't reach the server to load your tags."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your tags.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your tags. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_tags.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/connectors/status",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load the sync status of your connected apps. Try again",
+    "Couldn't load the sync status of your connected apps."
+   ],
+   "new_text": [
+    "Couldn't load the sync status of your connected apps.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load the sync status of your connected apps. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_connectors_status.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/connectors/status",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load the sync status of your connected apps. Try again",
+    "Couldn't reach the server to load the sync status of your connected apps."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load the sync status of your connected apps.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load the sync status of your connected apps. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_connectors_status.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/saved-views",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your saved views. Try again",
+    "Couldn't load your saved views."
+   ],
+   "new_text": [
+    "Couldn't load your saved views.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your saved views. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_saved-views.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/saved-views",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your saved views. Try again",
+    "Couldn't reach the server to load your saved views."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your saved views.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your saved views. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_saved-views.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/property-defs",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your note properties. Try again",
+    "Couldn't load your note properties."
+   ],
+   "new_text": [
+    "Couldn't load your note properties.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your note properties. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_property-defs.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/property-defs",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your note properties. Try again",
+    "Couldn't reach the server to load your note properties."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your note properties.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your note properties. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_property-defs.png",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notebook/home",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your research home. Try again",
+    "Couldn't load your research home."
+   ],
+   "new_text": [
+    "Couldn't load your research home.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your research home. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-home-500-_api_j2_notebook_home.png",
+   "surface": "nb-home"
+  },
+  {
+   "endpoint": "/api/j2/notebook/home",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your research home. Try again",
+    "Couldn't reach the server to load your research home."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your research home.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your research home. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-home-offline-_api_j2_notebook_home.png",
+   "surface": "nb-home"
+  },
+  {
+   "endpoint": "/api/j2/onboarding/sample-notebook",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your sample notebook's status. Try again",
+    "Couldn't load your sample notebook's status."
+   ],
+   "new_text": [
+    "Couldn't load your sample notebook's status.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your sample notebook's status. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-home-500-_api_j2_onboarding_sample-notebook.png",
+   "surface": "nb-home"
+  },
+  {
+   "endpoint": "/api/j2/onboarding/sample-notebook",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your sample notebook's status. Try again",
+    "Couldn't reach the server to load your sample notebook's status."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your sample notebook's status.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your sample notebook's status. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-home-offline-_api_j2_onboarding_sample-notebook.png",
+   "surface": "nb-home"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "open_error": "TimeoutError: Locator.wait_for: Timeout 10500ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first to be visible\n",
+   "hits": 1,
+   "url": "/journal/notebook?note=f651fdfe8c8e49bb97a586b0edd32001",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note. Nothing here has been changed or lost — this looks like a connection problem, not a save problem. Try again",
+    "Couldn't load this note.",
+    "Nothing here has been changed or lost — this looks like a connection problem, not a save problem."
+   ],
+   "new_text": [
+    "Couldn't load this note.",
+    "Nothing here has been changed or lost — this looks like a connection problem, not a save problem.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note. Nothing here has been changed or lost — this looks like a connection problem, not a save problem. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "open_error": "TimeoutError: Locator.wait_for: Timeout 10500ms exceeded.\nCall log:\n  - waiting for locator(\".ProseMirror\").first to be visible\n",
+   "hits": 1,
+   "url": "/journal/notebook?note=9113da7fa0b74a09a8d1ac179547b0b7",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note. Nothing here has been changed or lost — this looks like a connection problem, not a save problem. Try again",
+    "Couldn't load this note.",
+    "Nothing here has been changed or lost — this looks like a connection problem, not a save problem."
+   ],
+   "new_text": [
+    "Couldn't load this note.",
+    "Nothing here has been changed or lost — this looks like a connection problem, not a save problem.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note. Nothing here has been changed or lost — this looks like a connection problem, not a save problem. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/documents",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=7764be926c4545368401e4d2a15dfa87",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's attachments. Try again",
+    "Couldn't load this note's attachments."
+   ],
+   "new_text": [
+    "Couldn't load this note's attachments.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's attachments. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_documents.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/documents",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=674e069aa20247768b16cafdaef6409f",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's attachments. Try again",
+    "Couldn't reach the server to load this note's attachments."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's attachments.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's attachments. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_documents.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/excerpts",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=c1f92d5b804a40a897473ec8e1036fef",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's saved passages. Try again",
+    "Couldn't load this note's saved passages."
+   ],
+   "new_text": [
+    "Couldn't load this note's saved passages.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's saved passages. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_excerpts.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/excerpts",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=9660dd7a8ed14708b2254c01a6d43d4a",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's saved passages. Try again",
+    "Couldn't reach the server to load this note's saved passages."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's saved passages.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's saved passages. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_excerpts.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/facts",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=dd375f81401944a194c47d34389680e7",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's captured facts. Try again",
+    "Couldn't load this note's captured facts."
+   ],
+   "new_text": [
+    "Couldn't load this note's captured facts.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's captured facts. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_facts.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/facts",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=c89e6d3435c2478e98153003d9e2c9dd",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's captured facts. Try again",
+    "Couldn't reach the server to load this note's captured facts."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's captured facts.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's captured facts. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_facts.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/evidence-candidates",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=0b7fe8c4b1924de3828e87537395e6b8",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's evidence sources. Try again",
+    "Couldn't load this note's evidence sources."
+   ],
+   "new_text": [
+    "Couldn't load this note's evidence sources.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's evidence sources. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_evidence-candidates.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/evidence-candidates",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=a5a1bcc3cd3047c08b44561fef174a46",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's evidence sources. Try again",
+    "Couldn't reach the server to load this note's evidence sources."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's evidence sources.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's evidence sources. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_evidence-candidates.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/thesis-summary",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=6638e6acaf484c21bf2251fea4e77a3f",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's thesis evidence. Try again",
+    "Couldn't load this note's thesis evidence."
+   ],
+   "new_text": [
+    "Couldn't load this note's thesis evidence.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's thesis evidence. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_thesis-summary.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/thesis-summary",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=be1970adb5c7493cbed67675d143da60",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's thesis evidence. Try again",
+    "Couldn't reach the server to load this note's thesis evidence."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's thesis evidence.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's thesis evidence. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_thesis-summary.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/trade-ref/resolve",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=542e5c495c56483699fdfb62753a888e",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's linked trades. Try again",
+    "Couldn't load this note's linked trades."
+   ],
+   "new_text": [
+    "Couldn't load this note's linked trades.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's linked trades. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_trade-ref_resolve.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/trade-ref/resolve",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=59638fd6303640eaa5612375d090958d",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's linked trades. Try again",
+    "Couldn't reach the server to load this note's linked trades."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's linked trades.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's linked trades. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_trade-ref_resolve.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/properties",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=32f6ff12747840c5a36fc7c29c1cb714",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's properties. Try again",
+    "Couldn't load this note's properties."
+   ],
+   "new_text": [
+    "Couldn't load this note's properties.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's properties. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_properties.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/properties",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=f06ad11a9ef848c58b3c3c0f048b024f",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's properties. Try again",
+    "Couldn't reach the server to load this note's properties."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's properties.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's properties. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_properties.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/backlinks",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=90bbfa9493a144d2afac6e5b11da81a5",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load the notes that link here. Try again",
+    "Couldn't load the notes that link here."
+   ],
+   "new_text": [
+    "Couldn't load the notes that link here.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load the notes that link here. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_backlinks.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/backlinks",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=14f59efcff2f4134b30c6eaff39c301e",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load the notes that link here. Try again",
+    "Couldn't reach the server to load the notes that link here."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load the notes that link here.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load the notes that link here. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_backlinks.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/related-from",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=271f47554f0242369e350bd0aed81fdf",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load the notes related to this one. Try again",
+    "Couldn't load the notes related to this one."
+   ],
+   "new_text": [
+    "Couldn't load the notes related to this one.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load the notes related to this one. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_related-from.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/related-from",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=0330bdde3aed48c5b5f2371e25fe523b",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load the notes related to this one. Try again",
+    "Couldn't reach the server to load the notes related to this one."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load the notes related to this one.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load the notes related to this one. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_related-from.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/unlinked-mentions",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=0a214ae54c224a90a8e01c479d5dd532",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load the notes that mention this one. Try again",
+    "Couldn't load the notes that mention this one."
+   ],
+   "new_text": [
+    "Couldn't load the notes that mention this one.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load the notes that mention this one. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_unlinked-mentions.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/unlinked-mentions",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=e5e837ce3b66473092eed7e697c6020d",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load the notes that mention this one. Try again",
+    "Couldn't reach the server to load the notes that mention this one."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load the notes that mention this one.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load the notes that mention this one. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_unlinked-mentions.png",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/tasks",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 2,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn’t load your tasks. Try again",
+    "Couldn’t load your tasks."
+   ],
+   "new_text": [
+    "Couldn’t load your tasks.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn’t load your tasks. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-tasks-500-_api_j2_notes_tasks.png",
+   "surface": "nb-tasks"
+  },
+  {
+   "endpoint": "/api/j2/notes/tasks",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn’t load your tasks. Try again",
+    "Couldn’t load your tasks."
+   ],
+   "new_text": [
+    "Couldn’t load your tasks.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn’t load your tasks. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-tasks-offline-_api_j2_notes_tasks.png",
+   "surface": "nb-tasks"
+  },
+  {
+   "endpoint": "/api/j2/notes/graph",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your note graph. Try again",
+    "Couldn't load your note graph."
+   ],
+   "new_text": [
+    "Couldn't load your note graph.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your note graph. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-graph-500-_api_j2_notes_graph.png",
+   "surface": "nb-graph"
+  },
+  {
+   "endpoint": "/api/j2/notes/graph",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your note graph. Try again",
+    "Couldn't reach the server to load your note graph."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your note graph.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your note graph. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-graph-offline-_api_j2_notes_graph.png",
+   "surface": "nb-graph"
+  },
+  {
+   "endpoint": "/api/j2/notes/research/NVDA/summary",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook/research/NVDA",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your research on NVDA. Try again",
+    "Couldn't load your research on NVDA."
+   ],
+   "new_text": [
+    "Couldn't load your research on NVDA.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your research on NVDA. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-research-500-_api_j2_notes_research_NVDA_summary.png",
+   "surface": "nb-research"
+  },
+  {
+   "endpoint": "/api/j2/notes/research/NVDA/summary",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook/research/NVDA",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your research on NVDA. Try again",
+    "Couldn't reach the server to load your research on NVDA."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your research on NVDA.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your research on NVDA. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-research-offline-_api_j2_notes_research_NVDA_summary.png",
+   "surface": "nb-research"
+  },
+  {
+   "endpoint": "/api/j2/note-templates",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your templates.",
+    "Couldn't load your templates."
+   ],
+   "new_text": [
+    "Couldn't load your templates."
+   ],
+   "new_alerts": [
+    "Couldn't load your templates."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-templates-500-_api_j2_note-templates.png",
+   "surface": "nb-templates"
+  },
+  {
+   "endpoint": "/api/j2/note-templates",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your templates.",
+    "Couldn't load your templates."
+   ],
+   "new_text": [
+    "Couldn't load your templates."
+   ],
+   "new_alerts": [
+    "Couldn't load your templates."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-templates-offline-_api_j2_note-templates.png",
+   "surface": "nb-templates"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/versions",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=b5e0ce03cffe4fa6a2a3ff99df8a5a49",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load history for this note. Close",
+    "Couldn't load history for this note. Close"
+   ],
+   "new_text": [
+    "Couldn't load history for this note. Close",
+    "Close"
+   ],
+   "new_alerts": [
+    "Couldn't load history for this note. Close"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-history-500-_api_j2_notes_id_versions.png",
+   "surface": "ed-history"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/versions",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=d6ef4e117ba64e1a89e1ba2ca0a4803e",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load history for this note. Close",
+    "Couldn't load history for this note. Close"
+   ],
+   "new_text": [
+    "Couldn't load history for this note. Close",
+    "Close"
+   ],
+   "new_alerts": [
+    "Couldn't load history for this note. Close"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-history-offline-_api_j2_notes_id_versions.png",
+   "surface": "ed-history"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/share",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=b35cb66d836c41369c494f82a0a7ad05",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's share link. Try again",
+    "Couldn't load this note's share link."
+   ],
+   "new_text": [
+    "Couldn't load this note's share link.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's share link. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-500-_api_j2_notes_id_share.png",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/share",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=874b83e8391c4a57860bd9303e6f7f85",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's share link. Try again",
+    "Couldn't reach the server to load this note's share link."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's share link.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's share link. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-offline-_api_j2_notes_id_share.png",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/publish",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=5614652fcf0540ecb985e28cf57604d5",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load this note's published pages. Try again",
+    "Couldn't load this note's published pages."
+   ],
+   "new_text": [
+    "Couldn't load this note's published pages.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load this note's published pages. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-500-_api_j2_publish.png",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/publish",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=dd32a794576e4191818e63e833ebc2c6",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load this note's published pages. Try again",
+    "Couldn't reach the server to load this note's published pages."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load this note's published pages.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load this note's published pages. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-offline-_api_j2_publish.png",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/capture/connections",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Could not load your connections."
+   ],
+   "new_text": [
+    "Could not load your connections."
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-500-_api_j2_capture_connections.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/capture/connections",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 2,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Could not load your connections."
+   ],
+   "new_text": [
+    "Could not load your connections."
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-offline-_api_j2_capture_connections.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/personal/tokens",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 2,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your tokens. Try again",
+    "Couldn't load your tokens."
+   ],
+   "new_text": [
+    "Couldn't load your tokens.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your tokens. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-500-_api_j2_personal_tokens.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/personal/tokens",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your tokens. Try again",
+    "Couldn't reach the server to load your tokens."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your tokens.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your tokens. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-offline-_api_j2_personal_tokens.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/inbound-email/address",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't load your Notebook email address. Try again",
+    "Couldn't load your Notebook email address."
+   ],
+   "new_text": [
+    "Couldn't load your Notebook email address.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't load your Notebook email address. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-500-_api_j2_inbound-email_address.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/inbound-email/address",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 2,
+   "url": "/settings?section=connections",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server to load your Notebook email address. Try again",
+    "Couldn't reach the server to load your Notebook email address."
+   ],
+   "new_text": [
+    "Couldn't reach the server to load your Notebook email address.",
+    "Try again"
+   ],
+   "new_alerts": [
+    "Couldn't reach the server to load your Notebook email address. Try again"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-settings-cards-offline-_api_j2_inbound-email_address.png",
+   "surface": "settings-cards"
+  },
+  {
+   "endpoint": "/api/j2/shared/{id}",
+   "kind": "500",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/share/n/ycUyNs4Xfx5hz-IQdYyNdSW-z6j6e7kM",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "This link is no longer available.",
+    "It may have expired, or the note may have been unshared or removed."
+   ],
+   "new_text": [
+    "This link is no longer available.",
+    "It may have expired, or the note may have been unshared or removed."
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-shared-page-500-_api_j2_shared_id_.png",
+   "surface": "shared-page"
+  },
+  {
+   "endpoint": "/api/j2/shared/{id}",
+   "kind": "offline",
+   "methods": [
+    "GET"
+   ],
+   "hits": 1,
+   "url": "/share/n/ycUyNs4Xfx5hz-IQdYyNdSW-z6j6e7kM",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "This link is no longer available.",
+    "It may have expired, or the note may have been unshared or removed."
+   ],
+   "new_text": [
+    "This link is no longer available.",
+    "It may have expired, or the note may have been unshared or removed."
+   ],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-shared-page-offline-_api_j2_shared_id_.png",
+   "surface": "shared-page"
+  }
+ ],
+ "writes": [
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "500",
+   "methods": [
+    "PUT"
+   ],
+   "hits": 3,
+   "url": "/journal/notebook?note=f94a6b05cdc84206be8e60c1a365479e",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Saved in this browser · waiting to sync",
+    "zqproofraw forced failure",
+    "Saved in this browser · waiting to sync",
+    "zqproofraw forced failure"
+   ],
+   "new_text": [
+    "Saved in this browser · waiting to sync",
+    "zqproofraw forced failure"
+   ],
+   "new_alerts": [
+    "Saved in this browser · waiting to sync",
+    "zqproofraw forced failure"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": true,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_.png",
+   "action": "save-body",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "offline",
+   "methods": [
+    "PUT"
+   ],
+   "hits": 4,
+   "url": "/journal/notebook?note=eb6bbb97d85e4f23a84eb46fddb7d747",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Saved in this browser · waiting to sync",
+    "Couldn't reach the server — your note is unchanged, retrying automatically.",
+    "Saved in this browser · waiting to sync",
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "new_text": [
+    "Saved in this browser · waiting to sync",
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "new_alerts": [
+    "Saved in this browser · waiting to sync",
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_.png",
+   "action": "save-body",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/tags",
+   "kind": "500",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=f56ef69774414643bb5c0cdfe2528892",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't add that tag. Nothing changed. Dismiss",
+    "Couldn't add that tag. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn't add that tag. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn't add that tag. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_tags.png",
+   "action": "add-tag",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/tags",
+   "kind": "offline",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=da96ac67d165435aa52b96ab0e16495a",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't add that tag. Nothing changed. Dismiss",
+    "Couldn't add that tag. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn't add that tag. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn't add that tag. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_tags.png",
+   "action": "add-tag",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/favorite",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=519a58edfd674ea4b3eebe103bcb1fd5",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't add this note to Favorites. Nothing changed. Dismiss",
+    "Couldn't add this note to Favorites. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn't add this note to Favorites. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn't add this note to Favorites. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_favorite.png",
+   "action": "favorite",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/favorite",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=45c2e430a50d42f3854d45013de5c033",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't add this note to Favorites. Nothing changed. Dismiss",
+    "Couldn't add this note to Favorites. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn't add this note to Favorites. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn't add this note to Favorites. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_favorite.png",
+   "action": "favorite",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/lock",
+   "kind": "500",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=a807821d5a4740dd8ff7941eaa3973cd",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't lock this note. Nothing changed.",
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "new_text": [
+    "Lock",
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "new_alerts": [
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_lock.png",
+   "action": "lock",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/lock",
+   "kind": "offline",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=87e242f2836f453985c58eff8629a19a",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't lock this note. Nothing changed.",
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "new_text": [
+    "Lock",
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "new_alerts": [
+    "Couldn't lock this note. Nothing changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_lock.png",
+   "action": "lock",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/archive",
+   "kind": "500",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=913edd2d75ce42a6b3969ed6c394b1b3",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't archive this note. Nothing changed.",
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "new_text": [
+    "Archive",
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "new_alerts": [
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_archive.png",
+   "action": "archive",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/archive",
+   "kind": "offline",
+   "methods": [
+    "PATCH"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=51d60d8bed18499e8ba942db5140b7f3",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't archive this note. Nothing changed.",
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "new_text": [
+    "Archive",
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "new_alerts": [
+    "Couldn't archive this note. Nothing changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_archive.png",
+   "action": "archive",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "500",
+   "methods": [
+    "PUT"
+   ],
+   "hits": 3,
+   "url": "/journal/notebook?note=424c88d9c28147968761fa036c3c5460",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "zqproofraw forced failure",
+    "zqproofraw forced failure"
+   ],
+   "new_text": [
+    "zqproofraw forced failure"
+   ],
+   "new_alerts": [
+    "zqproofraw forced failure"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": true,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_notes_id_.png",
+   "action": "save-template",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "offline",
+   "methods": [
+    "PUT"
+   ],
+   "hits": 3,
+   "url": "/journal/notebook?note=381aab58a40d45108e3f3fc6509acfc9",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't reach the server — your note is unchanged, retrying automatically.",
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "new_text": [
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "new_alerts": [
+    "Couldn't reach the server — your note is unchanged, retrying automatically."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_notes_id_.png",
+   "action": "save-template",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/note-templates",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=2126007dadb9495d8ae22dc5d2826b01",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't save this note as a template. Nothing was saved.",
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "new_text": [
+    "Save template",
+    "Cancel",
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "new_alerts": [
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-500-_api_j2_note-templates.png",
+   "action": "save-template",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/note-templates",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=e4e518b7c9c84adeb1363daa55d564a8",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't save this note as a template. Nothing was saved.",
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "new_text": [
+    "Save template",
+    "Cancel",
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "new_alerts": [
+    "Couldn't save this note as a template. Nothing was saved."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-note-offline-_api_j2_note-templates.png",
+   "action": "save-template",
+   "surface": "nb-note"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/share",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=46843c2dd581462fa28329fdd22feeed",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Could not create the link. Try again.",
+    "Could not create the link. Try again."
+   ],
+   "new_text": [
+    "Could not create the link. Try again."
+   ],
+   "new_alerts": [
+    "Could not create the link. Try again."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-500-_api_j2_notes_id_share.png",
+   "action": "share-link",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/share",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=cba5dc70275d4067b4bdec6b6e0bf7f3",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Could not create the link. Try again.",
+    "Could not create the link. Try again."
+   ],
+   "new_text": [
+    "Could not create the link. Try again."
+   ],
+   "new_alerts": [
+    "Could not create the link. Try again."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-share-offline-_api_j2_notes_id_share.png",
+   "action": "share-link",
+   "surface": "ed-share"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "500",
+   "methods": [
+    "DELETE"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=e04713507e0d4a5599ed321ce0acee61",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn’t move this note to the Trash. Nothing changed. Dismiss",
+    "Couldn’t move this note to the Trash. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn’t move this note to the Trash. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn’t move this note to the Trash. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-delete-500-_api_j2_notes_id_.png",
+   "action": "trash-note",
+   "surface": "ed-delete"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}",
+   "kind": "offline",
+   "methods": [
+    "DELETE"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=c1cf12bfc0564beea4c0930b1bf429a4",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn’t move this note to the Trash. Nothing changed. Dismiss",
+    "Couldn’t move this note to the Trash. Nothing changed."
+   ],
+   "new_text": [
+    "Couldn’t move this note to the Trash. Nothing changed.",
+    "Dismiss"
+   ],
+   "new_alerts": [
+    "Couldn’t move this note to the Trash. Nothing changed. Dismiss"
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-ed-delete-offline-_api_j2_notes_id_.png",
+   "action": "trash-note",
+   "surface": "ed-delete"
+  },
+  {
+   "endpoint": "/api/j2/note-folders",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't create that folder. Nothing was changed.",
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "new_text": [
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "new_alerts": [
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_note-folders.png",
+   "action": "new-folder",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/note-folders",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't create that folder. Nothing was changed.",
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "new_text": [
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "new_alerts": [
+    "Couldn't create that folder. Nothing was changed."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_note-folders.png",
+   "action": "new-folder",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't create that note. Nothing was saved.",
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "new_text": [
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "new_alerts": [
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes.png",
+   "action": "new-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't create that note. Nothing was saved.",
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "new_text": [
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "new_alerts": [
+    "Couldn't create that note. Nothing was saved."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes.png",
+   "action": "new-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/opened",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=ea7812f01e994375ae6b22e86aff0a40",
+   "verdict": "EXEMPT",
+   "sentences": [],
+   "new_text": [],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_id_opened.png",
+   "exempt_reason": "the recents touch: useJ2Notes.recordNoteOpened is fire-and-forget by contract (never awaited, never throws into the caller -- the server route's own 'must never break note viewing' rule). When it fails the note has already opened and nothing on screen changes; the only effect is that the Recents list does not move this note up until a later open lands. Telling the member would report a failure of something they did not ask for.",
+   "action": "new-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/opened",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=07c6da98ab5b44cc94876d5d8c987c6d",
+   "verdict": "EXEMPT",
+   "sentences": [],
+   "new_text": [],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_id_opened.png",
+   "exempt_reason": "the recents touch: useJ2Notes.recordNoteOpened is fire-and-forget by contract (never awaited, never throws into the caller -- the server route's own 'must never break note viewing' rule). When it fails the note has already opened and nothing on screen changes; the only effect is that the Recents list does not move this note up until a later open lands. Telling the member would report a failure of something they did not ask for.",
+   "action": "new-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/daily",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't open today's note. Nothing was created.",
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "new_text": [
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "new_alerts": [
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_daily.png",
+   "action": "daily-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/daily",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?view=all",
+   "verdict": "SENTENCE",
+   "sentences": [
+    "Couldn't open today's note. Nothing was created.",
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "new_text": [
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "new_alerts": [
+    "Couldn't open today's note. Nothing was created."
+   ],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_daily.png",
+   "action": "daily-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/opened",
+   "kind": "500",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=80669c9eaf2c4ea180a3ec4b9c4e9e22",
+   "verdict": "EXEMPT",
+   "sentences": [],
+   "new_text": [],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-500-_api_j2_notes_id_opened.png",
+   "exempt_reason": "the recents touch: useJ2Notes.recordNoteOpened is fire-and-forget by contract (never awaited, never throws into the caller -- the server route's own 'must never break note viewing' rule). When it fails the note has already opened and nothing on screen changes; the only effect is that the Recents list does not move this note up until a later open lands. Telling the member would report a failure of something they did not ask for.",
+   "action": "daily-note",
+   "surface": "nb-list"
+  },
+  {
+   "endpoint": "/api/j2/notes/{id}/opened",
+   "kind": "offline",
+   "methods": [
+    "POST"
+   ],
+   "hits": 1,
+   "url": "/journal/notebook?note=80669c9eaf2c4ea180a3ec4b9c4e9e22",
+   "verdict": "EXEMPT",
+   "sentences": [],
+   "new_text": [],
+   "new_alerts": [],
+   "empty_state_suspect": false,
+   "raw_detail_shown": false,
+   "screenshot": "r025839-silent-nb-list-offline-_api_j2_notes_id_opened.png",
+   "exempt_reason": "the recents touch: useJ2Notes.recordNoteOpened is fire-and-forget by contract (never awaited, never throws into the caller -- the server route's own 'must never break note viewing' rule). When it fails the note has already opened and nothing on screen changes; the only effect is that the Recents list does not move this note up until a later open lands. Telling the member would report a failure of something they did not ask for.",
+   "action": "daily-note",
+   "surface": "nb-list"
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-swallow:500": "SILENT",
+   "plant-honest:500": "SENTENCE",
+   "plant-swallow:offline": "SILENT",
+   "plant-honest:offline": "SENTENCE"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "plant": "swallow",
+    "kind": "500",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "500",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "swallow",
+    "kind": "offline",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "offline",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   }
+  ]
+ },
+ "app_wide_not_forced": [
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/watchlists"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/auth/preferences"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/maintenance"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/auth/me"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/voice/insights/pending"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/community/status"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/alerts"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/indicator-alerts/delivery-health"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/watchlists/flagged"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/barspack/manifest"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/auth/avatar/{id}"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/intradaypack/manifest"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/watchlist-alerts"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/ticker-tags"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/ticker-tags/shared"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/ticker-tags/public"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/j2/positions"
+  },
+  {
+   "surface": "nb-list",
+   "endpoint": "/api/voice/settings"
+  },
+  {
+   "surface": "nb-note",
+   "endpoint": "/api/j2/inbox"
+  },
+  {
+   "surface": "nb-research",
+   "endpoint": "/api/voice/insights/unspoken"
+  },
+  {
+   "surface": "settings-cards",
+   "endpoint": "/api/j2/broker/status"
+  },
+  {
+   "surface": "shared-page",
+   "endpoint": "/api/j2/settings"
+  }
+ ]
+}

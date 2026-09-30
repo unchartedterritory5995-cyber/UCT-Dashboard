@@ -92,22 +92,48 @@ export default function NotesTableView({
     <UIcon name={dir === 'asc' ? 'chevronUp' : 'chevronDown'} size={10} style={{ marginLeft: 4, opacity: active ? 1 : 0.3 }} />
   )
 
+  // FX2 (wave 10, proof-walk item 2): which column is the CURRENT sort, and
+  // which direction -- one predicate, read by both the header cell's
+  // `aria-sort` (WAI-ARIA's own semantic for this, on the `<th>`, never the
+  // button inside it) and the chevron. `updated` is this table's resting
+  // default (`sort` starts `'updated'` in NotebookTab.jsx, and the `!sort`
+  // fallback here matches the OTHER caller that renders this view with no
+  // `sort` prop at all -- `sort` is never undefined once NotebookTab has
+  // mounted).
+  //
+  // FX4 (wave 10, proof-walk item 1 -- coordinator round 2, server-driven):
+  // Title/Updated are a real two-state toggle, same shape as a `propertySort`
+  // column, and the direction is carried IN `sort` itself
+  // (`updated`/`updated_asc`, `title`/`title_desc`) -- never local component
+  // state. A client-side reverse of whatever page happened to be loaded was
+  // rejected: `list_notes` pages 100 at a time, so reversing page 1 of
+  // `updated` would show the 100 NEWEST notes, backwards, labelled
+  // oldest-first, for any member with more than 100 notes. The real reverse
+  // keys are server-side ORDER BY entries (`notes.py::list_notes`:
+  // `updated_asc` = `updated_at ASC, id ASC`, `title_desc` = `title COLLATE
+  // NOCASE DESC, id ASC`), so caret/aria-sort and the actual row order can
+  // never disagree.
+  const titleActive = sort === 'title' || sort === 'title_desc'
+  const updatedActive = sort === 'updated' || sort === 'updated_asc' || !sort
+  const titleDir = sort === 'title_desc' ? 'desc' : titleActive ? 'asc' : null
+  const updatedDir = sort === 'updated_asc' ? 'asc' : updatedActive ? 'desc' : null
+
   const titleHeader = (
     <button
       type="button"
       className={styles.sortBtn}
-      onClick={() => onSortChange(sort === 'title' ? 'title' : 'title')}
+      onClick={() => onSortChange(sort === 'title' ? 'title_desc' : 'title')}
     >
-      Title
+      Title{sortIcon(titleActive, titleDir || 'asc')}
     </button>
   )
   const updatedHeader = (
     <button
       type="button"
       className={styles.sortBtn}
-      onClick={() => onSortChange('updated')}
+      onClick={() => onSortChange(sort === 'updated' || !sort ? 'updated_asc' : 'updated')}
     >
-      Updated {sortIcon(sort === 'updated' || !sort, 'desc')}
+      Updated {sortIcon(updatedActive, updatedDir || 'desc')}
     </button>
   )
 
@@ -135,6 +161,7 @@ export default function NotesTableView({
     }] : []),
     {
       key: 'title', header: titleHeader, primary: true,
+      ariaSort: titleDir === 'asc' ? 'ascending' : titleDir === 'desc' ? 'descending' : undefined,
       render: (n) => (
         <span className={styles.titleCell}>
           {n.title || 'Untitled'}
@@ -156,7 +183,11 @@ export default function NotesTableView({
       key: 'ticker', header: 'Ticker', secondary: true,
       render: (n) => (n.ticker ? <span className={styles.tickerCell}>${n.ticker}</span> : <span className={styles.emptyCell}>—</span>),
     },
-    { key: 'updated', header: updatedHeader, secondary: true, render: (n) => timeAgo(n.updatedAt) },
+    {
+      key: 'updated', header: updatedHeader, secondary: true,
+      ariaSort: updatedDir === 'asc' ? 'ascending' : updatedDir === 'desc' ? 'descending' : undefined,
+      render: (n) => timeAgo(n.updatedAt),
+    },
     ...usedDefs.map((def) => ({
       key: def.id,
       // Wave 6: a relation has no order a member means (the server refuses to

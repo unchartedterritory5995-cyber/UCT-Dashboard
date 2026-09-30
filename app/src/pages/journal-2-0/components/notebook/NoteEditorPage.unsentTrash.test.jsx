@@ -184,27 +184,45 @@ describe('Delete with unsent words (the 404 path)', () => {
   })
 
   // ⛔ M15: a Trash the server refused says so; it never just closes and does nothing.
-  it('a Delete the server refuses says it could not trash the note, and leaves the member where they were', async () => {
+  // ⛔⛔ Wave 10 F7 (Part A, 5d): the old sentence lived in `chromeMsg`, which
+  // auto-dismisses 2.4s after it is set -- gone long before a member who glanced
+  // away looked back, and read SILENT by the proof walk's own 6s wait. It is now a
+  // SaveFailed alert (the same "stays until dismissed" slot favorite/tag use), so
+  // this asserts the sentence OUTLIVES that old 2.4s window, not just that it once
+  // appeared. Removing the SaveFailed slot (reverting to chromeMsg) reds this.
+  it('a Delete the server refuses says it could not trash the note, stays said past the old 2.4s fade, and leaves the note where it was', async () => {
     verdicts.mockResolvedValue(CLEAN)
     global.fetch = vi.fn(async (url, opts = {}) => (String(url) === '/api/j2/notes/n1' && opts.method === 'DELETE'
       ? { ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) }
       : { ok: true, json: async () => ({}) }))
     await renderEditor()
     await confirmDelete()
-    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Couldn’t move this note to the Trash. Nothing changed.')
     expect(document.body.textContent).not.toContain('database is locked')
     expect(onBack).not.toHaveBeenCalled()
+    // the note is still ON SCREEN -- never navigated away from, nothing to roll back
+    expect(screen.getByPlaceholderText('Title')).toBeInTheDocument()
+    // outlives the OLD 2.4s chrome-message fade -- the proof walk read the page at 6s
+    await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t move this note to the Trash.')
+    // and it can be dismissed, the same as every other SaveFailed slot
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Dismiss' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull())
   })
 
-  it('…and so does a Trash anyway that the network drops', async () => {
+  it('…and so does a Trash anyway that the network drops, and it too stays said past 2.4s', async () => {
     verdicts.mockResolvedValue(QUEUED)
     const editor = await renderEditor()
     typeUnsentWords(editor)
     await confirmDelete()
     global.fetch = vi.fn(async () => { throw new TypeError('Failed to fetch') })
     fireEvent.click(await screen.findByRole('button', { name: 'Trash anyway' }))
-    expect(await screen.findByText('Couldn’t move this note to the Trash — try again.')).toBeTruthy()
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Couldn’t move this note to the Trash. Nothing changed.')
     expect(onBack).not.toHaveBeenCalled()
+    await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
+    expect(screen.getByRole('alert')).toHaveTextContent('Couldn’t move this note to the Trash.')
   })
 
   it('CONTROL: a note with nothing unsent trashes at once, no second question', async () => {
@@ -215,4 +233,43 @@ describe('Delete with unsent words (the 404 path)', () => {
     expect(screen.queryByRole('dialog', { name: /words the server doesn.t have yet/ })).toBeNull()
     expect(verdicts.mock.calls[0][0]).toBe('n1')
   })
+})
+
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 3): a note holding a table, code block,
+ * block-math node, callout or task list -- never edited, just opened -- used
+ * to fail `unsentInEditor()`'s comparison and show the SAME "words the server
+ * doesn't have yet" dialog as the real cases above, purely because
+ * `editorRef.current.getJSON()` fills in each node's declared attribute
+ * defaults (a table cell's `colspan`/`rowspan`/`colwidth`) that the RAW,
+ * minimally-specified server JSON never carried. Reproduced live in a
+ * sandbox for all five node types (`docs/notebook/proof/fx2-<sha>/`);
+ * `canonicalBodyJson` round-trips the SERVER side through the same schema
+ * before comparing, so a note that was genuinely never touched reads clean
+ * regardless of which node types it contains.
+ */
+describe('⛔⛔ FX2 — a rich, UN-edited body never reads as unsent text (proof-walk item 3)', () => {
+  const ORIGINAL_BODY = NOTE.bodyJson
+  afterEach(() => { NOTE.bodyJson = ORIGINAL_BODY })
+  const richBodies = {
+    table: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'intro' }] }, {
+      type: 'table', content: [{ type: 'tableRow', content: [
+        { type: 'tableHeader', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Ticker' }] }] },
+      ] }] },
+    ] },
+    codeBlock: { type: 'doc', content: [{ type: 'codeBlock', attrs: { language: 'python' }, content: [{ type: 'text', text: 'x = 1' }] }] },
+    callout: { type: 'doc', content: [{ type: 'callout', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'note' }] }] }] },
+    taskList: { type: 'doc', content: [{ type: 'taskList', content: [{ type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'do it' }] }] }] }] },
+  }
+
+  for (const [name, bodyJson] of Object.entries(richBodies)) {
+    it(`a never-edited note containing a ${name} trashes at once (CLEAN verdict, no typing)`, async () => {
+      NOTE.bodyJson = bodyJson
+      verdicts.mockResolvedValue(CLEAN)
+      await renderEditor()
+      await confirmDelete()
+      await waitFor(() => expect(server.log).toEqual(['DELETE']))
+      expect(screen.queryByRole('dialog', { name: /words the server doesn.t have yet/ })).toBeNull()
+    })
+  }
 })
