@@ -21,7 +21,7 @@
 // ⛔ EACH `it` HAS A CONTROL: the same capture with the listing statement taken
 // away must still show the curtain. A rail that passed both ways would prove the
 // captures, not the exception.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import path from 'node:path'
 
 import { loadCapture, gradeCapture } from './harness'
@@ -29,6 +29,12 @@ import { runOurSide, toProductBars } from './ourSide'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+
+// ⛔ market-structure draws objects only: its door needs the objects-only pane, which
+// production arms (`docs/feature_flags.json`) and vitest's env leaves unset. Stubbed
+// here, read off the gate's own flag name, so the rail does not depend on the shell.
+beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
+afterAll(() => { vi.unstubAllEnvs() })
 
 const capture = (name) => {
   const loaded = loadCapture(path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness', name))

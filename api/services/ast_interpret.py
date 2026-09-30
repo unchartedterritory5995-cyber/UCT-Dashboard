@@ -3373,7 +3373,16 @@ def structural_maps(root: Any) -> tuple:
             continue
         free = not (node.get("type") == "series" and node.get("name") in binds)
         child_ids = []
-        for a in args:
+        # ⭐⭐ C12r (2026-09-29) — A RECURRENCE BINDS THE ``self`` IN ITS OWN BODY,
+        # the port of the same rule in ``interpret.js::structuralMaps``. ``self``
+        # names the NEAREST enclosing recurrence (the rule the step loop's
+        # ``reads`` walk and its nested-recurrence refusal already apply), so an
+        # ``accum`` whose seed and warm-up read no outer ``self`` is a plain
+        # column of these bars. Counting its body's own ``self`` as free left
+        # every accumulator, and every ancestor of one, out of the memo.
+        rec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
+        body_at = rec.get("body") if isinstance(rec, Mapping) and isinstance(rec.get("body"), int) else -1
+        for ai, a in enumerate(args):
             # ⛔⛔ RAISE, NEVER INVENT A KEY. The JS side's first draft pushed a
             # placeholder for a missing child, and a 128-deep chain collapsed to
             # TWO shapes — `node_count` answered 2. A silent fallback UNDER-counts,
@@ -3384,7 +3393,7 @@ def structural_maps(root: Any) -> tuple:
                     "structural_maps: a child was keyed after its parent — "
                     "the post-order is broken")
             child_ids.append(id_of[id(a)])
-            if not free_of[id(a)]:
+            if ai != body_at and not free_of[id(a)]:
                 free = False
         # ⚠️ DELIMITED. Without separators `op`+`u-`+`` and `op`+`u`+`-` produce
         # one shape, and a collision under-counts exactly like the fallback did.
@@ -4254,6 +4263,15 @@ def interpret(ast: Any, bars: List[dict],
 
         plan(body)
 
+        # ⭐⭐ C12r (2026-09-29) — ONE STEP EVALUATES EACH SPINE NODE ONCE, the port
+        # of ``interpret.js``'s one-step memo. The spine is a DAG (a ``var`` written
+        # in several blocks folds each block over the previous binding, and every
+        # branch that reads it holds the SAME node), and walked as a tree a step paid
+        # for each path to a node: exponential in the number of ``:=`` blocks. Every
+        # operator is pointwise and eager, so the value is the same by construction.
+        # Keyed by ``id``; cleared every step, because the running value moves.
+        step_memo: dict = {}
+
         def step(x: Any, j: int, history: list) -> float:
             got = columns.get(id(x), _MISSING)
             if got is not _MISSING:
@@ -4264,10 +4282,16 @@ def interpret(ast: Any, bars: List[dict],
             # walks whole columns and cannot see a value that lives in this loop.
             if x.get("type") == "offset" and is_bind((x.get("args") or [None])[0]):
                 return history[int(x.get("value", 0))]
+            held = step_memo.get(id(x), _MISSING)
+            if held is not _MISSING:
+                return held
             values = [step(child, j, history) for child in x["args"]]
             if x["type"] == "op":
-                return apply_op_step(x, values)
-            return _POINTWISE[x["name"]](*values)
+                out_v = apply_op_step(x, values)
+            else:
+                out_v = _POINTWISE[x["name"]](*values)
+            step_memo[id(x)] = out_v
+            return out_v
 
         seed = _to_column(eval_node(node["args"][rec["seed"]]), length)
         out = _nan_col(length)
@@ -4279,6 +4303,7 @@ def interpret(ast: Any, bars: List[dict],
             # reports that climb as signal.
             history = [seed[i - warmup]] * (lag["max"] + 1)
             for j in range(i - warmup + 1, i + 1):
+                step_memo.clear()
                 nxt = step(body, j, history)
                 for k in range(lag["max"], 0, -1):
                     history[k] = history[k - 1]

@@ -1781,11 +1781,11 @@
       "note": "Options Flow load path: ticker search hits /api/flow/ticker-product instead of scanning the tape. EFFECTIVE since 2026-09-12 (705ee710d); undefined in the bundle from af80e0b91 (2026-09-08 21:53 ET) until then. Consuming file app/src/pages/OptionsFlow.jsx is partner-co-edited - ack before touching it, though flipping this flag needs no code change."
     },
     "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED": {
-      "status": "dark",
-      "where": [],
+      "status": "armed",
+      "where": ["web"],
       "owner": "pine parity programme",
       "owner_decision": "not yet taken — the ARG was missing, so the flag could not be set at all until 2026-09-23",
-      "railway_value": "UNSET on every service",
+      "railway_value": "1 on web, READ LIVE 2026-09-30 ~02:00Z (`railway variables --service web --kv`). The flip time was never recorded here: this entry said dark and UNSET while the pane was live for members. Corrected by the pine integrator; the flip itself predates this correction.",
       "baked_value": "undefined — and until 2026-09-23 it could not have been anything else: Dockerfile.web declared no ARG for it, and Railway drops an undeclared build arg in silence. Exactly the trap VITE_PINE_MEMBER_PANE_ENABLED's own note records being closed for that flag in e6ca532c6 and not for this one.",
       "baked_measured_on": "2026-09-23, from Dockerfile.web's ARG list (the flag appeared 0 times) and tools/vite_flag_index (which could not see the read at all)",
       "last_changed": "2026-09-23T00:00:00Z",

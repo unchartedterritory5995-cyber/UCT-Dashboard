@@ -255,6 +255,55 @@ describe('C12w — where the tree cannot settle bar 0, nothing is drawn that Pin
   })
 })
 
+describe('C12w × C12r — a read ABOVE the write (`accum(…)[1]`) under the listing exception', () => {
+  // Pine: `y = b` above `b := …` reads the value `b` ENTERS the bar with — on bar 0
+  // the initializer (a bare read), afterwards last bar's final value.
+  const above = (init) => pine([
+    `var float b = ${init}`,
+    'y = b',
+    'b := close > 109 ? close : b',
+    'plot(y)',
+  ])
+  const pineAbove = (init) => {
+    let b = init
+    return CLOSE.map((c) => { const y = b; if (c > 109) b = c; return y })
+  }
+
+  it('the translated read is the START binding, one bar back over the accumulator', () => {
+    const ast = treeOf(above('7.0'))
+    expect(ast.type).toBe('offset')
+    expect(ast.args[0].type === 'call' && ast.args[0].name === 'accum').toBe(true)
+  })
+
+  it('⭐ from bar 1 on it is Pine exactly; bar 0 (the state ENTERING bar 0) is withheld, never guessed', () => {
+    // The tree cannot tell whether the read one bar before bar 0 was bare (7) or a
+    // history read (na): it is UNKNOWN — the probe, so the object lane withholds
+    // what reads it — and blank on a plot.
+    const ast = treeOf(above('7.0'))
+    const ref = pineAbove(7)
+    const got = run(ast, { historyFromListing: true })
+    expect(Number.isNaN(got[0])).toBe(true)
+    expect(firstDiff(got.slice(1), ref.slice(1))).toBe(-1)
+    const probed = run(ast, { historyFromListing: true, prefixProbe: 1e12 })
+    expect(probed[0]).toBe(1e12)
+    expect(firstDiff(probed.slice(1), ref.slice(1))).toBe(-1)
+  })
+
+  it('⭐ with an `na` initializer both readings are `na`: bar 0 is KNOWN and every bar is Pine', () => {
+    const ast = treeOf(above('na'))
+    const ref = pineAbove(NaN)
+    const probed = run(ast, { historyFromListing: true, prefixProbe: 1e12 })
+    expect(firstDiff(probed, ref)).toBe(-1)
+  })
+
+  it('⛔ without the listing statement nothing here changes — the probe fills only the curtain', () => {
+    const ast = treeOf(above('7.0'))
+    const a = run(ast, { prefixProbe: 1e12 })
+    expect(a[0]).not.toBe(1e12)          // the offset's own left edge stays NaN
+    expect(Number.isNaN(a[0])).toBe(true)
+  })
+})
+
 describe('C12w — the step ceiling is never raised', () => {
   // accum(1, (nz(self,0) + … n reads) × 0, warm): up to 1 + 2^n bar-0 readings.
   const nzReads = (n, warm) => {

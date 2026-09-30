@@ -11,8 +11,9 @@
 //
 // Each half has the control that fails without it. What stays refused, by name:
 // a getter inside arithmetic, a scalar anything else also writes, a read of a
-// name before its own later write in the bar (`readBeforeWrite`), and a getter
-// on state this program lost (`state:lost`).
+// name one op makes both before and after a write of it in ONE statement
+// (`readBeforeWrite`, narrowed by C12r — a read before a LATER statement's
+// write is now served), and a getter on state this program lost (`state:lost`).
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../ast/pine'
 import { assertObjectProgram } from '../ast/objectProgram'
@@ -179,7 +180,11 @@ if close < open
     expect(tail(got).length).toBeGreaterThan(5)
   })
 
-  it('⛔ a write later in the op\'s OWN statement is still refused by name', () => {
+  // ⭐ C12r (merged over C9): a write later in the op's OWN statement, with
+  // every read of the name ABOVE it, reads the statement's START binding — the
+  // plot lane's `partialStateRead`, `accum(…)[1]`. The refusal survives only
+  // for a name one op reads on BOTH sides of a write (`objectReadOrder.test.js`).
+  it('⭐ a write later in the op\'s OWN statement, below every read, is read at the statement\'s start', () => {
     const t = tr(`var int st = 0
 if close > open
     if st == 2
@@ -187,8 +192,23 @@ if close > open
     st := 1
 if close < open
     st := 2`)
-    expect(t.objectDiagnostics.readBeforeWrite).toEqual(['st@6'])
-    expect(t.objectDiagnostics.dropReasons['guard:create']).toBe(1)
+    expect(t.objectDiagnostics.readBeforeWrite).toBeUndefined()
+    const N = 320
+    const up = (i) => (i * 7) % 5 < 3
+    const bars = Array.from({ length: N }, (_, i) => {
+      const d = new Date(Date.UTC(2020, 0, 1) + i * 86400000).toISOString().slice(0, 10)
+      return up(i) ? { t: d, o: 10, h: 12, l: 9, c: 11, v: 1 } : { t: d, o: 11, h: 12, l: 9, c: 10, v: 1 }
+    })
+    const r = run(t, bars)
+    let st = 0
+    const want = []
+    for (let i = 0; i < N; i += 1) {
+      if (up(i)) { if (st === 2) want.push(i); st = 1 } else st = 2
+    }
+    const got = r.live.filter((o) => o.family === 'label').map((o) => o.createdBar)
+    const tail = (xs) => xs.filter((b) => b >= 260)
+    expect(tail(got)).toEqual(tail(want))
+    expect(tail(got).length).toBeGreaterThan(5)
   })
   it('✓ CONTROL — read AFTER the bar\'s writes, it is kept', () => {
     const t = tr(`var int st = 0
