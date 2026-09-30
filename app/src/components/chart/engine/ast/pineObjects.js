@@ -39,7 +39,7 @@ import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant,
+  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -149,6 +149,10 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
 const COLLECTION_CALLS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift']))
+/** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
+ *  pass does not carry leaves a drawing collection diverged. */
+const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
+  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
 
 /**
  * Walk the statement tree and pull out every object operation, with the guard
@@ -173,6 +177,10 @@ export function collectObjectOps(stmts, h) {
   const diagnostics = {
     loopBlocked: [], getters: [], unsupported: [], outOfScope: [],
     refusedCalls: [], inlinedCalls: 0,
+    // ⭐ C16 — every DRAWING collection a change to which this pass could not
+    // carry (inside a loop it cannot run, or a method it does not read). The
+    // converter treats each as diverged from TradingView's (`divergedColls`).
+    lostColls: [],
   }
   let siteSeq = 0
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
@@ -234,6 +242,8 @@ export function collectObjectOps(stmts, h) {
   const pureFns = pureFunctions(fnDefs, drawFns)
   /** Top-level names fixed for the whole run — see `barInvariantNames`. */
   const invariantNames = barInvariantNames(stmts, h)
+  /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
+  const scalars = getterScalars(stmts, h)
   let inlineSeq = 0
   let inlineDepth = 0
   /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
@@ -315,45 +325,37 @@ export function collectObjectOps(stmts, h) {
    * Carrying the block's own bindings with each op is the difference between a
    * dashboard with content and an empty frame.
    */
-  // ⭐⭐ C9 (2026-09-29) — WHICH TOP-LEVEL STATEMENT EACH OP BELONGS TO.
-  // Pine runs the script top to bottom once per bar, so a `var` read by an op
-  // holds the value it has at THAT statement — the reassignments written below
-  // it have not run yet on this bar. The output loop already resolves each plot
-  // against the env as it stands at the plot's line (`positionEnv`); the object
-  // pass resolved every op against the END of the program, so a line drawn from
-  // the previous pivot (`line.new(pHH_bx, pHH_ox, …)` above `pHH_ox := cHH_o`)
-  // was drawn from the CURRENT one. `top` is the first line of the top-level
-  // statement an op was collected under — for a helper's inlined body, the
-  // CALL's statement, where its body runs — and `buildObjectProgram` resolves
-  // the op against the env at the end of that statement. Non-enumerable, so a
-  // reader op compared structurally is unchanged.
-  let walkDepth = 0
-  let topMark = null
-  const stampTop = (op, line) => {
-    if (!op || typeof op !== 'object' || Object.prototype.hasOwnProperty.call(op, 'top')) return
-    Object.defineProperty(op, 'top', { value: line, enumerable: false, configurable: true })
-    for (const b of op.body || []) stampTop(b, line)
+  // ⭐ C14 — WHERE IN THE BAR EACH OP RUNS: the ordinal of the top-level
+  // statement it came from (`topPos`), stamped on every op (loop bodies too).
+  // See `varWrites` below for what it is compared with.
+  // ⭐ C9 — the first line of each top-level statement, by the same ordinal, so
+  // `pine.js` can resolve an op against the env as it stands once ITS statement
+  // has run (`baseFor`). One stamp (`topPos`) serves both lanes.
+  const rootLines = []
+  let rootPos = -1
+  let rootMark = 0
+  const stampTop = (list, pos) => {
+    for (const o of list) {
+      if (o.topPos === undefined) o.topPos = pos
+      if (o.k === 'loop' && Array.isArray(o.body)) stampTop(o.body, pos)
+    }
   }
-  const flushTop = () => {
-    if (!topMark) return
-    for (let i = topMark.from; i < topMark.sink.length; i += 1) stampTop(topMark.sink[i], topMark.line)
-    topMark = null
+  const stampRootSince = () => {
+    if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos)
+    rootMark = ops.length
   }
   const walk = (list, guards, inLoop, scope) => {
-    walkDepth += 1
-    try { walkList(list, guards, inLoop, scope) } finally { walkDepth -= 1 }
-  }
-  const walkList = (list, guards, inLoop, scope) => {
     let prevIfCond = null
     let localScope = scope
+    const isRoot = list === stmts
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     for (const st of splitCommaStatements(list, h)) {
+      if (isRoot) {
+        stampRootSince(); rootPos += 1
+        rootLines[rootPos] = st.header && st.header[0] ? st.header[0].line : null
+      }
       const t = st.header
       if (!t || !t.length) continue
-      if (walkDepth === 1) {
-        flushTop()
-        topMark = { line: t[0].line, sink: ops, from: ops.length }
-      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
 
@@ -618,6 +620,15 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
+        // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
+        // else about the statement changes (it still joins the block scope).
+        if (scalars.has(String(name)) && !inLoop && isBareGetterAt(rhs, 0, h)) {
+          ops.push({
+            k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
+        }
         // ⭐⭐ `b := box(na)` / `b := na` — THE HANDLE IS EMPTIED, the object is
         // not. Pine keeps the box on the chart; only the variable forgets it, so
         // a later `b.set_right(…)` or `b.delete()` touches nothing. ⚰️ Unread,
@@ -632,6 +643,30 @@ export function collectObjectOps(stmts, h) {
           ops.push({
             k: 'reset', into: name, guards, locals: localScope, loopIds: [...loopIds],
             at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
+        // ⭐⭐ C16 — `box b = array.get(bs, i)` / `b = bs.get(i)`: A HANDLE READ
+        // OUT OF A DRAWING COLLECTION, into a name the lines below act through.
+        //
+        //     for i = array.size(bull_boxes) - 1 to 0
+        //         box b = array.get(bull_boxes, i)          ← institutional-smc
+        //         if low < box.get_bottom(b)
+        //             box.delete(b)
+        //             array.remove(bull_boxes, i)
+        //
+        // It is a COPY taken NOW, which is Pine's rule: `b` keeps naming the box
+        // it read even after `array.remove` shifts the slots under it, so the op
+        // is an eager register write (`copy` → `setreg`), never a lazy alias of
+        // the slot. ⛔ Not for a `var` (initialised once) and not over a name
+        // already declared as another family or as a collection.
+        const fromColl = word !== 'var' && word !== 'varip' ? collGetOf(rhs) : null
+        if (fromColl && (!held || (held.kind !== 'coll' && held.family === fromColl.family))) {
+          if (inLoop) { diagnostics.loopBlocked.push('array.get'); continue }
+          if (!held) decls.set(name, { family: fromColl.family, kind: 'local' })
+          ops.push({
+            k: 'copy', into: name, fromColl: fromColl.coll, index: fromColl.index,
+            guards, locals: localScope, loopIds: [...loopIds], at: t[0], line: st.header[0].line,
           })
           continue
         }
@@ -716,6 +751,14 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_CALLS.has(method)) {
             emitCollection(method, t, guards, inLoop, st, localScope)
             continue
+          }
+          // ⭐ C16 — `array.unshift(bs, b)`, `array.insert`, … on a DRAWING
+          // collection: a change this pass does not carry, so the collection is
+          // named as diverged rather than left to disagree silently.
+          if (COLLECTION_MUTATORS.has(method)) {
+            const a = argsOf(t)
+            const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') diagnostics.lostColls.push(c)
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -932,6 +975,78 @@ export function collectObjectOps(stmts, h) {
     } catch { return null }
   }
 
+  /** ⭐ C16 — a right-hand side that is EXACTLY `array.get(bs, i)` or
+   *  `bs.get(i)` on a declared DRAWING collection → `{coll, family, index}`,
+   *  else null. ⛔ `bs.get` yields to a script's own `get` method. */
+  const collGetOf = (toks) => {
+    if (!toks || toks.length < 3 || toks[0].kind !== 'ident' || !h.isPunct(toks[1], '(')) return null
+    const head = String(toks[0].value)
+    const args = argsOf(toks)
+    if (!args || args.some((a) => a && a.name)) return null
+    let coll = null
+    let index = null
+    if (head === 'array.get') {
+      const c = args.length === 2 && args[0].value
+      if (c && c.type === 'name') { coll = c.name; index = args[1].value }
+    } else {
+      const split = splitMethodName(head)
+      if (split && split.method === 'get' && args.length === 1 && !isDefined('get')) {
+        coll = split.recv
+        index = args[0].value
+      }
+    }
+    const d = coll ? decls.get(coll) : null
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family) || !index) return null
+    return { coll, family: d.family, index }
+  }
+
+  /** ⭐ C16 — a VALUE that takes an element OUT of a declared drawing
+   *  collection: `array.shift(bs)` / `bs.shift()`, `array.pop(bs)` / `bs.pop()`,
+   *  `array.remove(bs, i)` / `bs.remove(i)` → `{coll, family, method, index}`
+   *  (`index` is the removed slot, as a parse node), else null. */
+  const poppedFrom = (v) => {
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const args = v.args || []
+    if (args.some((a) => a && a.name)) return null
+    let coll = null
+    let method = null
+    let index = null
+    const m = /^array\.(shift|pop|remove)$/.exec(name)
+    if (m) {
+      const c = args[0] && args[0].value
+      if (!c || c.type !== 'name') return null
+      coll = c.name
+      method = m[1]
+      if (method === 'remove') {
+        if (args.length !== 2) return null
+        index = args[1].value
+      } else if (args.length !== 1) return null
+    } else {
+      const split = splitMethodName(name)
+      if (!split || !['shift', 'pop', 'remove'].includes(split.method) || isDefined(split.method)) return null
+      coll = split.recv
+      method = split.method
+      if (method === 'remove') {
+        if (args.length !== 1) return null
+        index = args[0].value
+      } else if (args.length !== 0) return null
+    }
+    const d = decls.get(coll)
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return null
+    const tok = v.tok
+    const name0 = { type: 'name', name: coll, tok }
+    if (method === 'shift') index = { type: 'number', value: 0, tok }
+    if (method === 'pop') {
+      index = {
+        type: 'binary', op: '-', tok,
+        left: { type: 'call', name: 'array.size', args: [{ value: name0 }], tok },
+        right: { type: 'number', value: 1, tok },
+      }
+    }
+    return { coll, family: d.family, method, index }
+  }
+
   /** The `<family>.new` this token span NAMES anywhere, or null.
    *
    *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
@@ -1072,7 +1187,16 @@ export function collectObjectOps(stmts, h) {
   }
 
   function emitMethod(ns, method, toks, guards, inLoop, st, scope) {
-    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.${method}`); return }
+    if (inLoop) {
+      diagnostics.loopBlocked.push(`${ns}.${method}`)
+      // ⭐ C16 — a blocked `box.delete(array.shift(bs))` loses the SHIFT too.
+      if (method === 'delete') {
+        const a = argsOf(toks)
+        const p = a && a[0] ? poppedFrom(a[0].value) : null
+        if (p) diagnostics.lostColls.push(p.coll)
+      }
+      return
+    }
     const args = argsOf(toks)
     if (!args || !args.length) { diagnostics.unsupported.push(`${ns}.${method}`); return }
     emitMethodOn(ns, method, args[0], args.slice(1), toks[0], guards, st, scope)
@@ -1090,6 +1214,28 @@ export function collectObjectOps(stmts, h) {
    *  postfix caller supplies differently is WHERE the target came from. */
   function emitMethodOn(ns, method, target, rest, at, guards, st, scope) {
     if (method === 'delete') {
+      // ⭐⭐ C16 — `box.delete(array.shift(bs))`: TWO Pine operations in one
+      // statement — the slot leaves the array and the box it held is deleted.
+      // Carried as exactly those two, in an order with the same end state (a
+      // delete no longer touches the array — `reap`): delete what the slot
+      // holds, then remove the slot. Without this the target was unreadable
+      // and the delete was lost, leaving every evicted zone on the chart.
+      const popped = target && target.value ? poppedFrom(target.value) : null
+      if (popped && popped.family === ns) {
+        const tok = target.value.tok
+        const slot = {
+          type: 'call', name: 'array.get', tok,
+          args: [{ value: { type: 'name', name: popped.coll, tok } }, { value: popped.index }],
+        }
+        const line = st.header[0].line
+        ops.push({ k: 'delete', family: ns, target: { name: null, value: slot, tok }, guards, locals: scope, loopIds: [...loopIds], at, line })
+        ops.push({
+          k: `coll_${popped.method}`, coll: popped.coll,
+          args: popped.method === 'remove' ? [{ value: popped.index }] : [],
+          guards, locals: scope, loopIds: [...loopIds], at, line,
+        })
+        return
+      }
       ops.push({ k: 'delete', family: ns, target, guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line })
       return
     }
@@ -1227,6 +1373,21 @@ export function collectObjectOps(stmts, h) {
     // `b.delete`, which is the bare-call branch's business — so this is the
     // whole of what the object program can resolve today.
     if (!recv || recv.type !== 'call') return false
+    // ⭐ C16 — `bs.shift().delete()` is `box.delete(array.shift(bs))`, read by
+    // the same two-op rule (`emitMethodOn`'s delete).
+    if (node.name === 'delete') {
+      const popped = poppedFrom(recv)
+      if (popped) {
+        if (inLoop) {
+          diagnostics.loopBlocked.push(`${popped.family}.delete`)
+          diagnostics.lostColls.push(popped.coll)
+          return true
+        }
+        emitMethodOn(popped.family, 'delete', { name: null, value: recv, tok: toks[0] },
+          node.args || [], toks[0], guards, st, scope)
+        return true
+      }
+    }
     // ⭐⭐ `ls.get(i).set_x2(n)` IS `array.get(ls, i).set_x2(n)`, AND IT BECOMES
     // THE SAME NODE BEFORE ANYTHING ELSE LOOKS AT IT. Rewriting the receiver
     // here rather than teaching `targetRef` a second shape is what keeps ONE
@@ -1286,8 +1447,12 @@ export function collectObjectOps(stmts, h) {
     // chart forever the last time this pass met it.
     if (!args) { diagnostics.unsupported.push(`${ns}.${method}`); return true }
     if (d.kind === 'coll') {
-      if (!COLLECTION_CALLS.has(method)) { diagnostics.unsupported.push(`array.${method}`); return true }
-      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return true }
+      if (!COLLECTION_CALLS.has(method)) {
+        diagnostics.unsupported.push(`array.${method}`)
+        if (COLLECTION_MUTATORS.has(method)) diagnostics.lostColls.push(recv)
+        return true
+      }
+      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(recv); return true }
       emitCollectionOn(method, recv, args, toks, guards, st, scope)
       return true
     }
@@ -1314,7 +1479,7 @@ export function collectObjectOps(stmts, h) {
     // ⭐ RISK-043 STILL STANDS FOR WHAT IT PROTECTS — an object-family collection
     // op inside a loop this reader cannot execute is still refused and still
     // counted. This is WHEN irrelevance is noticed, not what happens after.
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); return }
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(collName); return }
     emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
   }
 
@@ -1371,6 +1536,38 @@ export function collectObjectOps(stmts, h) {
    * might be meaning its own. (An OVERLOADED method is refused in `inlineCall`,
    * which both spellings reach.)
    */
+  /** ⭐ C14 — `if c … else …` as a body's LAST statements, each arm ending in a
+   *  bare `ns.new(…)` of one family → `{family, creates}` (the two create ops,
+   *  found by their arm's line), else null. */
+  function ifElseReturn(stmts, sink, before) {
+    const n = stmts.length
+    if (n < 2) return null
+    const e = stmts[n - 1]
+    const i = stmts[n - 2]
+    const et = (e && e.header) || []
+    const it = (i && i.header) || []
+    if (et.length !== 1 || et[0].kind !== 'ident' || et[0].value !== 'else') return null
+    if (!it.length || it[0].kind !== 'ident' || it[0].value !== 'if') return null
+    const armCreate = (arm) => {
+      const sub = (arm && arm.sub) || []
+      const last = sub[sub.length - 1]
+      const lt = (last && last.header) || []
+      if (!lt.length || lt[0].kind !== 'ident') return null
+      const ns = nsOf(String(lt[0].value))
+      if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(String(lt[0].value)) !== 'new') return null
+      if (!h.isPunct(lt[1], '(') || closeOf(lt, 1) !== lt.length - 1) return null
+      for (let k = sink.length - 1; k >= before; k -= 1) {
+        const o = sink[k]
+        if (o.k === 'create' && !o.into && o.family === ns && o.line === lt[0].line) return o
+      }
+      return null
+    }
+    const a = armCreate(i)
+    const b = armCreate(e)
+    if (!a || !b || a === b || a.family !== b.family) return null
+    return { family: a.family, creates: [a, b] }
+  }
+
   function inlineAt(head, callToks, open, into, guards, inLoop, st, scope) {
     if (!head.recv) return inlineCall(head.fn, callToks, open, into, guards, inLoop, st, scope)
     const root = head.recv.split('.')[0]
@@ -1435,6 +1632,10 @@ export function collectObjectOps(stmts, h) {
     } finally {
       inlineDepth -= 1
     }
+    // ⭐ C14 — an op the body produced. A getter in it was written where it
+    // stands only when it reads the BODY's own handle; one pasted in from an
+    // argument was evaluated at the call, before the body's earlier statements.
+    for (let i = before; i < sink.length; i += 1) sink[i].inlined = true
     if (!into) return true
     // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
     // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,
@@ -1461,6 +1662,27 @@ export function collectObjectOps(stmts, h) {
         if (sink[i].k === 'create' && !sink[i].into) { fromSite = sink[i].site; family = sink[i].family; break }
       }
     }
+    // ⭐⭐ C14 — THE HANDLE AN `if`/`else` RETURNS. `createOverBoughtLabel(isIt)
+    // => if (isIt) label.new(…) else label.new(…)` (rsi-swing-indicator) returns
+    // whichever create its arm ran: one `copy` per arm, under that create's own
+    // guards, so the caller's variable holds exactly the object Pine returned.
+    // ⛔ Only a plain `if … else` pair whose two arms each END in a bare create
+    // of ONE family; any other shape reads as before.
+    const arms = !family ? ifElseReturn(rw.stmts, sink, before) : null
+    if (arms) {
+      const existingArm = decls.get(into)
+      if (existingArm && (existingArm.kind === 'coll' || existingArm.family !== arms.family)) {
+        return refuseCall('return-type', fnName, st)
+      }
+      if (!existingArm) decls.set(into, { family: arms.family, kind: 'local' })
+      for (const c of arms.creates) {
+        ops.push({
+          k: 'copy', into, from: null, fromSite: c.site, guards: c.guards, locals: scope, loopIds: [...loopIds],
+          at: st.header[0], line: st.header[0].line, inlined: !!c.inlined,
+        })
+      }
+      return true
+    }
     if (!family) return true
     const existing = decls.get(into)
     if (existing && (existing.kind === 'coll' || existing.family !== family)) {
@@ -1475,6 +1697,31 @@ export function collectObjectOps(stmts, h) {
   }
 
   walk(stmts, [], false, [])
-  flushTop()
-  return { decls, ops, diagnostics }
+  stampRootSince()
+  // ⭐⭐ C14 — EVERY `:=` (and `+=`…) OUTSIDE A FUNCTION BODY, AS (top-level
+  // statement ordinal, token index). An object op's value is read against the
+  // env as its OWN top-level statement leaves it (`pine.js` `baseFor`, over
+  // `rootLines[topPos]`), so only a write later in that same statement can
+  // still be read too late; `pine.js` refuses those by name.
+  const varWrites = new Map()
+  const noteWrites = (list, pos) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      if (definitionHeader(ts, h)) continue
+      for (let k = 1; k < ts.length; k += 1) {
+        const p = ts[k]
+        if (p && p.kind === 'punct' && typeof p.value === 'string' && p.value.length >= 2 && p.value.endsWith('=')
+          && !['==', '!=', '<=', '>=', '=>'].includes(p.value) && ts[k - 1] && ts[k - 1].kind === 'ident') {
+          const nm = String(ts[k - 1].value)
+          if (!varWrites.has(nm)) varWrites.set(nm, [])
+          varWrites.get(nm).push({ top: pos, index: Number.isFinite(p.index) ? p.index : null })
+        }
+      }
+      noteWrites(s2.sub, pos)
+    }
+  }
+  splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
+  // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
+  // own `size` method, the rule `isDefined` applies to every method form here.
+  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined, rootLines }
 }

@@ -217,14 +217,24 @@ describe('⛔⛔ C — an unreadable method form is counted by name', () => {
     expect(kinds(t)).not.toContain('delete')
   })
 
-  it('⛔ `ls.pop().delete()` is counted, never resolved to an element read', () => {
-    // `{r:'coll', index}` ADDRESSES an element; `pop` REMOVES one. Resolving
-    // `k._box.pop().delete()` (ict-killzones-pivots-tfo L250) to a read would
-    // delete the right object and leave the collection holding a handle the
-    // script believes it took out.
+  // ⚰️ C16 (2026-09-29) — this was "`ls.pop().delete()` is counted, never
+  // resolved to an element read", and its reason was right: resolving it to a
+  // READ alone would delete the right object and leave the collection holding a
+  // handle the script believes it took out. C16 carries it as BOTH Pine
+  // operations — delete what the last slot holds, then remove that slot — so the
+  // collection and the chart both end as Pine leaves them.
+  it('⭐ C16 — `ls.pop().delete()` is the delete AND the pop, never the delete alone', () => {
     const t = pass(`${MK}    array.push(ls, l)\n    ls.pop().delete()\nplot(close)`)
-    expect(diag(t).unsupported).toContain('array.pop')
-    expect(kinds(t)).not.toContain('delete')
+    expect(diag(t).unsupported || []).not.toContain('array.pop')
+    const ops = t.objects.ops
+    const del = ops.findIndex((o) => o.k === 'delete')
+    const rm = ops.findIndex((o) => o.k === 'collremove')
+    expect(del).toBeGreaterThanOrEqual(0)
+    expect(rm, 'the slot leaves the collection').toBeGreaterThan(del)
+    // both address the LAST slot: `array.size(ls) - 1`, read live
+    const last = (ref) => ref && ref.v === 'op' && ref.op === '-' && ref.args[0].v === 'size'
+    expect(last(ops[del].target.index)).toBe(true)
+    expect(last(ops[rm].index)).toBe(true)
   })
 
   it('a GETTER is recorded as a getter, never lowered', () => {
