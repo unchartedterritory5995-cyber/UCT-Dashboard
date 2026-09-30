@@ -561,9 +561,9 @@ export function wouldCycle(instances, defOf, instanceId, value) {
  * @returns {{label: string, options: {value: string, label: string}[]}[]}
  */
 const CURRENT_VALUE_GROUP = {
-  symbol: ['Symbol', (p) => symbolSourceLabel(p)],
+  symbol: ['Symbol', symbolSourceLabel],
   economic: ['Economic', (p) => p.symbol],
-  fundamental: ['Fundamental', (p) => fundamentalOptionLabel(p)],
+  fundamental: ['Fundamental', fundamentalOptionLabel],
 }
 
 export function sourceOptions(cs, defOf, selfInstanceId, currentValue = null) {
