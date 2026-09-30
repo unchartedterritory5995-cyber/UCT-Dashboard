@@ -365,6 +365,11 @@ permanently."* Under an attention thesis, **saying what we do not have is covera
    `origin/production`, 52 passed, with the AST rail and the control this clause also demands.
    What is owed is one sentence saying which population counts — and if it is the 22, they are
    a NUMBER in the file rather than a judgement, so the remaining distance is readable.
+   ✅ **RULED 2026-09-30 (owner): the population is the guards `TERM-018`'s own derivation defines,
+   and clause 1 is MET by "observed or counted debt"** — every guard is either observed red-before-green
+   or declared debt under the shrink-only ceiling, and since 2026-09-29 the check GATES promotion (SEEN RED
+   run 36641866414). The debt (22 of 25 at the ruling) stays a NUMBER in `term-018-guard-observations.json`
+   to be worked down; it is not a blocker for NEXT.
 2. **A p95 prints for both timeframes** on a pod ≥ 300 s old — CARD 16's replacement gate
    (p95 ≤ 250 ms per timeframe), with the tier mix reported **beside** it and never as pass/fail,
    and the one tier alarm kept: any `fetch`/`miss` share above ~10 % on intraday during **RTH**.
