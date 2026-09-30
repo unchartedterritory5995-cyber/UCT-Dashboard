@@ -228,6 +228,60 @@ describe('3 · composes — listing, the probe, and the root agreement', () => {
     for (let i = 0; i < N; i++) if (Number.isNaN(n[i])) expect(Number.isNaN(c[i]), `bar ${i}`).toBe(true)
   })
 
+  it('⭐⭐ a RANGE test over TWO unknown counters is withheld — every probe answers 0 where Pine answers 1', () => {
+    // ⚰️ The shape `btc-charlie-trader-xo-macro-trend-scanner` writes:
+    // `countSell > 0 and countSell < 2 and countBuy < 1`. One probe value stands
+    // for both counters at once and misses (0, 2), so the probe alone read a
+    // confident 0 on the first falling bar, where Pine's Bear signal is 1.
+    const DOWN = Array.from({ length: 60 }, (_, i) => 100 - 10 * Math.sin(i / 7))
+    const bars = DOWN.map((c, i) => ({ t: 1700000000 + i * 86400, o: c, h: c + 1, l: c - 1, c, v: 1 }))
+    const close = { type: 'series', name: 'close' }
+    const self = { type: 'series', name: 'self' }
+    const num = (value) => ({ type: 'num', value })
+    const op = (name, ...args) => ({ type: 'op', name, args })
+    const up = op('>', close, { type: 'offset', value: 1, args: [close] })
+    const down = op('<', close, { type: 'offset', value: 1, args: [close] })
+    const buy = { type: 'call', name: 'accum', args: [switchedVarSeed(num(0)), op('?:', up, op('+', self, num(1)), op('?:', down, num(0), self)), num(W)] }
+    const sell = { type: 'call', name: 'accum', args: [switchedVarSeed(num(0)), op('?:', down, op('+', self, num(1)), op('?:', up, num(0), self)), num(W)] }
+    const signal = op('&&', op('&&', op('>', sell, num(0)), op('<', sell, num(2))), op('<', buy, num(1)))
+    const go = (t, o) => Array.from(interpret(t, bars, {}, undefined, undefined, o))
+    // Pine from bar 0, seeds 0: bar 1 falls, so sell = 1, buy = 0 → the signal is 1
+    expect(DOWN[1] < DOWN[0]).toBe(true)
+    const got = go(signal)
+    expect(Number.isNaN(got[1])).toBe(true) // withheld: `sell` has seen no reset yet
+    // ⛔ CONTROL: the real run and EVERY probe answer a confident 0 there, so no
+    // probe could have withheld it — the dependency mask is what does
+    for (const o of [{ switchedAgreement: false }, { prefixProbe: PREFIX_PROBE }, { prefixProbe: -PREFIX_PROBE }]) {
+      expect(go(signal, o)[1]).toBe(0)
+    }
+    // …and where both counters are known the signal is Pine's, bar by bar
+    let b = 0
+    let s = 0
+    let published = 0
+    for (let i = 0; i < bars.length; i++) {
+      const u = i > 0 && DOWN[i] > DOWN[i - 1]
+      const d = i > 0 && DOWN[i] < DOWN[i - 1]
+      b = u ? b + 1 : d ? 0 : b
+      s = d ? s + 1 : u ? 0 : s
+      if (!Number.isNaN(got[i])) { expect(got[i], `bar ${i}`).toBe(s > 0 && s < 2 && b < 1 ? 1 : 0); published += 1 }
+    }
+    expect(published).toBeGreaterThan(40)
+  })
+
+  it('⭐ C12w × C12s: a read ABOVE the write reaches the state entering bar 0 — its REAL seed decides, not the mark', () => {
+    // `accum(…)[1]` on bar 0 is the state the `var` enters bar 0 with: the seed
+    // for a bare read, `na` for a history read — unknown unless the seed is `na`.
+    // The mark itself is `NaN`, so reading IT would call the bar exact.
+    const body = findAccum(tree).args[1]
+    const acc = { type: 'call', name: 'accum', args: [switchedVarSeed({ type: 'num', value: 5 }), body, { type: 'num', value: 250 }] }
+    const above = { type: 'offset', value: 1, args: [acc] }
+    const probed = run(above, { historyFromListing: true, prefixProbe: 7 })
+    expect(probed[0]).toBe(7)
+    // ⛔ CONTROL: a seed that IS `na` makes both readings `na` — exact, no probe
+    const naAcc = { ...acc, args: [switchedVarSeed({ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }), body, acc.args[2]] }
+    expect(Number.isNaN(run({ type: 'offset', value: 1, args: [naAcc] }, { historyFromListing: true, prefixProbe: 7 })[0])).toBe(true)
+  })
+
   it('⛔ a tree with no switched recurrence takes ONE pass, byte for byte as before', () => {
     const plain = { type: 'op', name: '+', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 1 }] }
     expect(readsSwitchedState(plain)).toBe(false)
@@ -247,6 +301,11 @@ describe('4 · a condition that is not computable picks no arm', () => {
     const acc = { type: 'call', name: 'accum', args: [switchedVarSeed({ type: 'num', value: 0 }), body, { type: 'num', value: 250 }] }
     const c = run(acc)
     for (let i = 0; i < 9; i++) expect(Number.isNaN(c[i]), `bar ${i}`).toBe(true)
+    // …and it is UNKNOWN there, not a known `na`: Pine's own count on those bars is
+    // 0 (its condition is false), so `n == 0` must be withheld — read as a known
+    // `na` it would answer a confident 0 where Pine answers 1
+    const isZero = run({ type: 'op', name: '==', args: [acc, { type: 'num', value: 0 }] })
+    for (let i = 0; i < 9; i++) expect(Number.isNaN(isZero[i]), `n == 0 on bar ${i}`).toBe(true)
     // after bar 9 the first falling bar resets it, and from there it is Pine's
     const firstReset = CLOSE.findIndex((x, i) => i >= 9 && !(x > CLOSE[i - 1]))
     let n = 0

@@ -3607,17 +3607,13 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   const real = interpretOnce(ast, bars, inputs, budget, scalars, opts)
   if (!isColumn(real)) return real
   const out = Float64Array.from(real)
-  const shared = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  // ⭐ THE PROOF: every bar within reach of an unknown switched bar is withheld.
+  const dep = switchedDependencyMask(ast, bars, inputs, budget, scalars, opts)
+  for (let i = 0; i < out.length; i++) if (dep[i]) out[i] = NaN
+  // ⭐ …AND THE PROBE, for a dependence the tree's lookback under-claims.
   for (const p of probeValuesOf(ast)) {
-    let memo
-    if (shared) {
-      // one memo per probe value, beside (never inside) the real run's entries
-      const key = `c12s-probe\u0001${p}`
-      memo = shared.get(key)
-      if (!(memo instanceof Map)) { memo = new Map(); shared.set(key, memo) }
-    }
     const probed = toColumn(interpretOnce(ast, bars, inputs, budget, scalars,
-      { ...(opts || {}), prefixProbe: p, crossMemo: memo }), out.length)
+      { ...(opts || {}), prefixProbe: p, crossMemo: probeMemo(opts, p) }), out.length)
     for (let i = 0; i < out.length; i++) {
       const a = out[i]
       const b = probed[i]
@@ -3625,6 +3621,78 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     }
   }
   return out
+}
+
+/** One memo per probe value, beside (never inside) the real run's entries. */
+function probeMemo(opts, p) {
+  const shared = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  if (!shared) return undefined
+  const key = `c12s-probe\u0001${p}`
+  let memo = shared.get(key)
+  if (!(memo instanceof Map)) { memo = new Map(); shared.set(key, memo) }
+  return memo
+}
+
+/** ⭐⭐ C12s — THE BARS OF A TREE THAT CAN READ AN UNKNOWN SWITCHED BAR, as a
+ *  0/1 column (1 = withheld), or null when the tree holds no switched
+ *  recurrence.
+ *
+ *  ⛔ WHY NOT THE PROBE ALONE. A probe fills every unknown bar with ONE value,
+ *  and a range test answers the same for all of them: `n > 0 and n < 2` is
+ *  false at `NaN`, `+1e12` and `-1e12` alike while Pine's `n` there is 1. And
+ *  two unknown recurrences are probed at the SAME value, so a condition that
+ *  needs them DIFFERENT (`countSell == 1 and countBuy == 0`) is never true
+ *  under any probe. ⚰️ MEASURED on `btc-charlie-trader-xo-macro-trend-scanner`
+ *  (AGEN 1D): its Bear shape read a confident 0 on bar 24, where the same
+ *  script run from the listing reads 1.
+ *
+ *  ⭐ SO THE DEPENDENCE IS READ OFF THE TREE, NOT GUESSED. `maxLookback` is a
+ *  tree sum: a path from the root down to a switched node `a` adds at most
+ *  `maxLookback(root) - maxLookback(a)` bars of reach above `a`. The root's bar
+ *  `i` can therefore read `a` only on bars `[i - reach, i]`, and it is withheld
+ *  when any of those is one of `a`'s unknown bars (where `a` answers two
+ *  different probes differently). A switched node under `tf` / `sym` reads other
+ *  bars, so its tree is withheld whole — sound, and named. */
+export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const nodes = []
+  let crossesBars = false
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && own(RECURRENCES, node.name) && Array.isArray(node.args)
+        && switchedSeedOf(node.args[RECURRENCES[node.name].seed])) {
+      if (under) crossesBars = true
+      nodes.push(node)
+    }
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym'
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1 — the only typed array this pure module uses
+  const mask = new Float64Array(n)
+  if (crossesBars) { mask.fill(1); return mask }
+  // ⛔ NO `try` (`budget.test.js`): a tree `interpret` evaluated measures, and a
+  // refusal here must reach the caller as the refusal it is
+  const rootReach = maxLookback(tree)
+  for (const a of nodes) {
+    const reach = Math.max(0, rootReach - maxLookback(a))
+    const probe = (p) => toColumn(interpretOnce(a, bars, inputs, budget, scalars,
+      { ...(opts || {}), prefixProbe: p, crossMemo: probeMemo(opts, p) }), n)
+    const hi = probe(PREFIX_PROBE)
+    const lo = probe(-PREFIX_PROBE)
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const x = hi[i]
+      const y = lo[i]
+      if (!(x === y || (x !== x && y !== y))) last = i
+      if (i - last <= reach) mask[i] = 1
+    }
+  }
+  return mask
 }
 
 function interpretOnce(ast, bars, inputs, budget, scalars, opts) {

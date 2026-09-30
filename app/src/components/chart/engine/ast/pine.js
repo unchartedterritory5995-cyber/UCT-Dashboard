@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, switchedSeedOf } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed } from './interpret.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -20769,8 +20769,7 @@ export function conditionKindOf(node, table = TABLE) {
         const args = Array.isArray(n.args) ? n.args : []
         if (n.name === 'accum' && table && table.functions && table.functions.accum) {
           const rec = table.functions.accum.recurrence
-          const seedArg = switchedSeedOf(args[rec.seed]) || args[rec.seed]
-          return join([kindOf(seedArg, depth + 1), kindOf(args[rec.body], depth + 1)])
+          return join([kindOf(args[rec.seed], depth + 1), kindOf(args[rec.body], depth + 1)])
         }
         // ⭐ The calls that hand back one of their own arguments.
         if (n.name === 'nz') return join(args.map((a) => kindOf(a, depth + 1)))

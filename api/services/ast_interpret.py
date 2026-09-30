@@ -3668,6 +3668,12 @@ def interpret(ast: Any, bars: List[dict],
     if (not probing and (opts or {}).get("switchedAgreement") is not False
             and reads_switched_state(ast)):
         real = list(column)
+        # the proof: every bar within reach of an unknown switched bar is withheld
+        dep = switched_dependency_mask(ast, bars, inputs, budget, scalars, opts)
+        for i, d in enumerate(dep or []):
+            if d:
+                real[i] = math.nan
+        # ...and the probe, for a dependence the tree's lookback under-claims
         for p in probe_values_of(ast):
             probed = _interpret_column(ast, bars, inputs, budget, scalars,
                                        dict(opts or {}, prefixProbe=p))
@@ -3679,6 +3685,64 @@ def interpret(ast: Any, bars: List[dict],
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+def switched_dependency_mask(tree: Any, bars: List[dict],
+                             inputs: Optional[Mapping[str, Any]] = None,
+                             budget: Optional[Mapping[str, Any]] = None,
+                             scalars: Optional[Mapping[str, Any]] = None,
+                             opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::switchedDependencyMask`` -- the bars of a tree that can read
+    an unknown switched bar (1 = withheld), or ``None`` when it holds none.
+
+    ``max_lookback`` is a tree sum, so a path from the root down to a switched
+    node ``a`` adds at most ``max_lookback(root) - max_lookback(a)`` bars of reach;
+    the root's bar ``i`` is withheld when any bar of ``[i - reach, i]`` is one of
+    ``a``'s unknown bars (where ``a`` answers ``+PREFIX_PROBE`` and
+    ``-PREFIX_PROBE`` differently). A switched node under ``tf`` / ``sym`` reads
+    other bars, so its tree is withheld whole."""
+    n = len(bars)
+    nodes: List[dict] = []
+    crosses = False
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        args = node.get("args")
+        if (node.get("type") == "call" and node.get("name") in RECURRENCES
+                and isinstance(args, list)):
+            seed_at = RECURRENCES[node["name"]].get("seed")
+            if isinstance(seed_at, int) and seed_at < len(args) and switched_seed_of(args[seed_at]):
+                if under:
+                    crosses = True
+                nodes.append(node)
+        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not nodes:
+        return None
+    if crosses:
+        return [1] * n
+    # no ``try`` (``test_ast_budget.py``): a tree ``interpret`` evaluated
+    # measures, and a refusal here reaches the caller as the refusal it is
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    for a in nodes:
+        reach = max(0, root_reach - max_lookback(a))
+        hi = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=PREFIX_PROBE))
+        lo = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=-PREFIX_PROBE))
+        last = -math.inf
+        for i in range(n):
+            x, y = hi[i], lo[i]
+            if not (x == y or (math.isnan(x) and math.isnan(y))):
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+    return mask
 
 
 def _interpret_column(ast: Any, bars: List[dict],

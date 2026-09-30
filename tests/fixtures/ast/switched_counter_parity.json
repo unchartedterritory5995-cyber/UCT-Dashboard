@@ -4,6 +4,677 @@
   "bars": 300,
   "cases": [
     {
+      "name": "two-counters-range",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "accum",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "num",
+                                "value": 0
+                              },
+                              {
+                                "type": "num",
+                                "value": 0
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "<",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 1,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "self"
+                              },
+                              {
+                                "type": "num",
+                                "value": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "?:",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": ">",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 0
+                              },
+                              {
+                                "type": "series",
+                                "name": "self"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "<",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "accum",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "*",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "/",
+                            "args": [
+                              {
+                                "type": "num",
+                                "value": 0
+                              },
+                              {
+                                "type": "num",
+                                "value": 0
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "<",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 1,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "+",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "self"
+                              },
+                              {
+                                "type": "num",
+                                "value": 1
+                              }
+                            ]
+                          },
+                          {
+                            "type": "op",
+                            "name": "?:",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": ">",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 0
+                              },
+                              {
+                                "type": "series",
+                                "name": "self"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<",
+            "args": [
+              {
+                "type": "call",
+                "name": "accum",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "*",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "/",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 0
+                          },
+                          {
+                            "type": "num",
+                            "value": 0
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "?:",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 1,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "+",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "self"
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "<",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "offset",
+                                "value": 1,
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 0
+                          },
+                          {
+                            "type": "series",
+                            "name": "self"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        0
+      ]
+    },
+    {
       "name": "counter-w20",
       "ast": {
         "type": "call",
@@ -1982,6 +2653,449 @@
         null,
         0,
         0
+      ]
+    },
+    {
+      "name": "nan-condition-eq-0",
+      "ast": {
+        "type": "op",
+        "name": "==",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "op",
+                "name": "*",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "/",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      },
+                      {
+                        "type": "num",
+                        "value": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "&&",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "+",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": "-",
+                            "args": [
+                              {
+                                "type": "call",
+                                "name": "sma",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": 10
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "call",
+                                "name": "sma",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": 10
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          }
+                        ]
+                      },
+                      {
+                        "type": "op",
+                        "name": ">",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "offset",
+                            "value": 1,
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      },
+                      {
+                        "type": "num",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        1,
+        1
       ]
     },
     {

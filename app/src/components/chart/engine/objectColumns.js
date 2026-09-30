@@ -24,7 +24,9 @@
 // is a fact.
 import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
-import { interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE } from './ast/interpret'
+import {
+  interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
+} from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
@@ -201,6 +203,21 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
   const bySign = memos.get(probeBars.length)
   // ⭐ C17 — one probe per value `probeValuesOf` names, each with its own memo
   // (a column computed at one probe value must never answer for another).
+  const switched = readsSwitchedState(tree)
+  // ⭐⭐ C12s — a switched tree's unknown bars are READ OFF THE TREE, not only
+  // probed: one probe value cannot stand for two unknown recurrences that Pine
+  // holds at different values, nor for a value inside a range test
+  // (`interpret.js::switchedDependencyMask`). A mask that cannot be computed
+  // withholds the whole series — the safe direction.
+  let dep = null
+  if (switched) {
+    if (!memos.has('c12s-dep')) memos.set('c12s-dep', new Map())
+    try {
+      dep = switchedDependencyMask(tree, bars, inputs, budget, undefined, { ...iopts, crossMemo: memos.get('c12s-dep') })
+    } catch {
+      dep = new Uint8Array(col.length).fill(1)
+    }
+  }
   const probed = []
   try {
     for (const p of probeValuesOf(tree)) {
@@ -208,11 +225,12 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
       probed.push(interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: bySign.get(p), prefixProbe: p }))
     }
   } catch {
-    return null
+    if (!dep) return null
+    probed.length = 0
   }
   let mask = null
-  for (let i = 0; i < n; i++) {
-    if (probed.some((pc) => !sameValue(col[i], pc[i]))) {
+  for (let i = 0; i < col.length; i++) {
+    if ((dep && dep[i]) || (i < n && probed.some((pc) => !sameValue(col[i], pc[i])))) {
       if (!mask) mask = new Uint8Array(col.length)
       mask[i] = 1
     }
