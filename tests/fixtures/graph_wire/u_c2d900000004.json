@@ -6,18 +6,14 @@
     "kind": "ast",
     "fn": "sha256:dce8efd7442ab9927a35f53092ce5a2ce5862fcbe24e09bc6185cf6781a68f05",
     "rev": 1,
-    "treesHash": "sha256:cdd052458bdeffdf99f6da79d1b3a1a6a797a5f3e4a21e747ca082b44253344f",
+    "treesHash": "sha256:fabbe435928f6d51049edb4e4e55f537c586c538f8b276805c78479415074a81",
     "scanPlot": "value",
     "graph": {
       "graphVersion": 2,
       "nodes": [
         {
           "type": "num",
-          "value": 1000
-        },
-        {
-          "type": "num",
-          "value": 250
+          "value": 5
         },
         {
           "type": "series",
@@ -38,10 +34,6 @@
         {
           "type": "num",
           "value": 14
-        },
-        {
-          "type": "num",
-          "value": 5
         },
         {
           "type": "series",
@@ -68,10 +60,6 @@
           "name": "regTol"
         },
         {
-          "type": "num",
-          "value": 14
-        },
-        {
           "type": "series",
           "name": "lv1"
         },
@@ -88,20 +76,8 @@
           "value": 99
         },
         {
-          "type": "series",
-          "name": "self"
-        },
-        {
           "type": "num",
           "value": 1
-        },
-        {
-          "type": "num",
-          "value": 1
-        },
-        {
-          "type": "num",
-          "value": 60
         },
         {
           "type": "series",
@@ -112,8 +88,12 @@
           "name": "close"
         },
         {
-          "type": "num",
-          "value": 2
+          "type": "series",
+          "name": "useRev"
+        },
+        {
+          "type": "series",
+          "name": "revLook"
         },
         {
           "type": "series",
@@ -123,62 +103,22 @@
           "type": "call",
           "name": "min",
           "args": [
-            18,
-            16
+            15,
+            13
           ]
         },
         {
           "type": "offset",
           "value": 5,
           "args": [
-            11
+            9
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            8,
-            13
-          ]
-        },
-        {
-          "type": "call",
-          "name": "atrPine",
-          "args": [
-            23,
-            11,
-            24,
-            14
-          ]
-        },
-        {
-          "type": "offset",
-          "value": 1,
-          "args": [
-            24
-          ]
-        },
-        {
-          "type": "call",
-          "name": "min",
-          "args": [
-            18,
-            9
-          ]
-        },
-        {
-          "type": "call",
-          "name": "min",
-          "args": [
-            18,
-            2
-          ]
-        },
-        {
-          "type": "op",
-          "name": "u-",
-          "args": [
+            21,
             0
           ]
         },
@@ -186,132 +126,123 @@
           "type": "op",
           "name": "-",
           "args": [
-            26,
+            6,
+            11
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            18
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            15,
             7
+          ]
+        },
+        {
+          "type": "call",
+          "name": "min",
+          "args": [
+            15,
+            1
           ]
         },
         {
           "type": "offset",
           "value": 5,
           "args": [
-            23
+            17
           ]
         },
         {
           "type": "call",
           "name": "change",
           "args": [
-            24
+            18
           ]
         },
         {
           "type": "op",
           "name": "u-",
           "args": [
-            21
+            16
           ]
         },
         {
           "type": "op",
           "name": "+",
           "args": [
-            10,
-            13
+            8,
+            11
           ]
         },
         {
           "type": "call",
           "name": "min",
           "args": [
-            18,
-            12
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            3,
-            3
+            15,
+            10
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            6,
-            21
+            5,
+            16
           ]
         },
         {
           "type": "call",
           "name": "min",
           "args": [
-            18,
-            15
+            15,
+            12
           ]
         },
         {
           "type": "call",
           "name": "max",
-          "args": [
-            37,
-            3
-          ]
-        },
-        {
-          "type": "call",
-          "name": "max",
-          "args": [
-            21,
-            43
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
           "args": [
             30,
-            3
+            2
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            16,
+            35
           ]
         },
         {
           "type": "call",
           "name": "min",
           "args": [
-            37,
-            3
+            30,
+            2
           ]
         },
         {
           "type": "call",
           "name": "max",
           "args": [
-            21,
-            27
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            20,
-            30
+            16,
+            22
           ]
         },
         {
           "type": "call",
           "name": "max",
           "args": [
-            21,
-            40
-          ]
-        },
-        {
-          "type": "call",
-          "name": "max",
-          "args": [
-            21,
+            16,
             33
           ]
         },
@@ -319,86 +250,78 @@
           "type": "call",
           "name": "max",
           "args": [
-            21,
-            32
+            16,
+            28
+          ]
+        },
+        {
+          "type": "call",
+          "name": "max",
+          "args": [
+            16,
+            27
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            4,
-            50
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            25,
-            49
+            3,
+            40
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            4,
-            48
+            3,
+            39
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            4,
-            45
+            3,
+            37
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            4,
-            52
+            3,
+            42
           ]
         },
         {
           "type": "op",
           "name": "u-",
           "args": [
-            47
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            49
+            38
           ]
         },
         {
           "type": "call",
           "name": "rma",
           "args": [
-            44,
-            6
+            36,
+            5
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            4,
-            51
+            3,
+            41
           ]
         },
         {
           "type": "op",
-          "name": "-",
+          "name": "/",
           "args": [
-            24,
+            41,
             49
           ]
         },
@@ -406,48 +329,112 @@
           "type": "op",
           "name": "/",
           "args": [
-            51,
-            61
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            24,
-            54
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            54
+            42,
+            46
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            52,
-            57
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            45,
-            56
+            37,
+            45
           ]
         },
         {
           "type": "op",
           "name": "==",
           "args": [
-            60,
-            3
+            48,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            39,
+            44
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            40,
+            43
+          ]
+        },
+        {
+          "type": "call",
+          "name": "rma",
+          "args": [
+            47,
+            5
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            50,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            52,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            48,
+            52
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            55,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            54,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            56,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            54,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            51,
+            2
           ]
         },
         {
@@ -462,421 +449,266 @@
           "type": "op",
           "name": "/",
           "args": [
+            48,
+            51
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            48,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            52,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
             50,
-            53
-          ]
-        },
-        {
-          "type": "call",
-          "name": "rma",
-          "args": [
-            58,
-            6
+            2
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            63,
-            71
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            67,
-            71
+            51,
+            56
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            60,
-            67
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            70,
-            71
+            48,
+            54
           ]
         },
         {
           "type": "op",
           "name": ">",
           "args": [
-            69,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "==",
-          "args": [
-            71,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            69,
-            71
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            66,
-            3
+            55,
+            2
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            60,
-            70
+            48,
+            50
           ]
         },
         {
           "type": "op",
-          "name": "/",
+          "name": "-",
           "args": [
             60,
+            48
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
+            73
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
+            59
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
             66
           ]
         },
         {
           "type": "op",
-          "name": "/",
+          "name": "-",
           "args": [
-            60,
-            71
+            57,
+            48
           ]
         },
         {
           "type": "op",
-          "name": ">",
-          "args": [
-            67,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            63,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            66,
-            71
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            60,
-            69
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
+          "name": "-",
           "args": [
             70,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            60,
-            63
+            48
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            75,
-            60
+            63,
+            48
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            71,
-            88
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            71,
-            74
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            71,
-            81
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            72,
-            60
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            85,
-            60
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            78,
-            60
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            71,
-            86
+            56,
+            71
           ]
         },
         {
           "type": "op",
           "name": "+",
           "args": [
-            21,
-            82
+            16,
+            67
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            73,
-            60
+            58,
+            48
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            71,
+            56,
+            65
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            78
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            79
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            76
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            75
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            77
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            84
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
             80
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            93
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            94
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            91
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            90
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            92
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            99
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            42,
-            95
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            4,
-            97
+            3,
+            82
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            42,
-            96
+            34,
+            81
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            42,
-            89
+            34,
+            74
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            42,
-            98
+            34,
+            83
           ]
         },
         {
           "type": "op",
           "name": ">=",
           "args": [
-            106,
-            3
+            91,
+            2
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            84,
-            103,
-            3
+            69,
+            88,
+            2
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            87,
-            105,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            83,
-            102,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            101,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            4,
-            107
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            100,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            76,
-            108,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            79,
-            104,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            109,
-            3
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            110,
-            3
+            72,
+            90,
+            2
           ]
         },
         {
@@ -884,410 +716,501 @@
           "name": "?:",
           "args": [
             68,
-            3,
-            116
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            117,
-            100,
-            112
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            115,
-            101,
-            119
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            111,
-            106,
-            118
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            121,
-            110,
-            114
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            120,
-            109,
-            113
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            125
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            123
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            127
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            126
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            77,
-            4,
-            122
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            24,
-            124
-          ]
-        },
-        {
-          "type": "call",
-          "name": "lowest",
-          "args": [
-            132,
-            5
-          ]
-        },
-        {
-          "type": "call",
-          "name": "highest",
-          "args": [
-            132,
-            5
-          ]
-        },
-        {
-          "type": "offset",
-          "value": 5,
-          "args": [
-            132
-          ]
-        },
-        {
-          "type": "call",
-          "name": "pivotlow",
-          "args": [
-            132,
-            7,
-            7
-          ]
-        },
-        {
-          "type": "call",
-          "name": "pivothigh",
-          "args": [
-            132,
-            7,
-            7
-          ]
-        },
-        {
-          "type": "offset",
-          "value": 5,
-          "args": [
-            138
-          ]
-        },
-        {
-          "type": "offset",
-          "value": 5,
-          "args": [
-            137
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<=",
-          "args": [
-            135,
-            39
+            87,
+            2
           ]
         },
         {
           "type": "op",
           "name": ">=",
           "args": [
-            134,
-            29
+            86,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            3,
+            92
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            85,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            61,
+            93,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            64,
+            89,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            94,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            95,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            53,
+            2,
+            101
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            102,
+            85,
+            97
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            100,
+            86,
+            104
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            96,
+            91,
+            103
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            106,
+            95,
+            99
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            105,
+            94,
+            98
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            110
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            108
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            112
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            111
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            62,
+            3,
+            107
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            109
+          ]
+        },
+        {
+          "type": "call",
+          "name": "pivothigh",
+          "args": [
+            117,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "call",
+          "name": "lowest",
+          "args": [
+            117,
+            4
+          ]
+        },
+        {
+          "type": "call",
+          "name": "highest",
+          "args": [
+            117,
+            4
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 5,
+          "args": [
+            117
+          ]
+        },
+        {
+          "type": "call",
+          "name": "pivotlow",
+          "args": [
+            117,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 5,
+          "args": [
+            123
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<=",
+          "args": [
+            121,
+            32
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 5,
+          "args": [
+            119
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            120,
+            25
           ]
         },
         {
           "type": "call",
           "name": "na",
           "args": [
+            124
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            126
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            127
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            125
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            129
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            127,
+            131
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            128
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            125,
+            130
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            19,
+            132
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            19,
+            134
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            132,
+            24,
+            16
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            132,
+            29,
+            16
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            135,
+            31,
+            2
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            134,
+            122,
+            16
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            134,
+            24,
+            16
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            132,
+            122,
+            16
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            134,
+            23,
+            16
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            29,
             139
           ]
         },
         {
-          "type": "call",
-          "name": "na",
+          "type": "op",
+          "name": ">",
           "args": [
-            140
+            23,
+            144
           ]
         },
         {
           "type": "op",
-          "name": "!",
+          "name": "-",
           "args": [
+            24,
             142
           ]
         },
         {
-          "type": "op",
-          "name": "!",
+          "type": "call",
+          "name": "na",
+          "args": [
+            143
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
           "args": [
             141
           ]
         },
         {
           "type": "op",
-          "name": "!",
+          "name": ">",
           "args": [
-            144
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
+            122,
             143
           ]
         },
         {
           "type": "op",
-          "name": "&&",
-          "args": [
-            142,
-            146
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            141,
-            145
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            147,
-            136,
-            21
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            147,
-            35,
-            21
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            148,
-            136,
-            21
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            148,
-            36,
-            21
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            147,
-            28,
-            21
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            150,
-            38,
-            3
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            148,
-            35,
-            21
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            153
-          ]
-        },
-        {
-          "type": "op",
           "name": "-",
           "args": [
-            35,
-            157
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            151
+            24,
+            138
           ]
         },
         {
           "type": "op",
           "name": "<",
           "args": [
-            36,
-            154
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            28,
-            155
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<",
-          "args": [
-            136,
-            151
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            35,
-            152
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            136,
-            153
+            122,
+            141
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            149,
-            21,
-            156
-          ]
-        },
-        {
-          "type": "op",
-          "name": "==",
-          "args": [
-            166,
-            21
+            133,
+            16,
+            140
           ]
         },
         {
           "type": "op",
           "name": "<=",
           "args": [
-            164,
-            22
+            147,
+            20
           ]
         },
         {
           "type": "op",
           "name": "==",
           "args": [
-            166,
-            38
+            153,
+            16
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            149
+          ]
+        },
+        {
+          "type": "op",
+          "name": "==",
+          "args": [
+            153,
+            31
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            148
           ]
         },
         {
           "type": "op",
           "name": "<=",
           "args": [
-            159,
-            22
+            151,
+            20
           ]
         },
         {
           "type": "op",
-          "name": "!",
+          "name": "&&",
           "args": [
-            160
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
+            136,
             158
           ]
         },
@@ -1295,64 +1218,164 @@
           "type": "op",
           "name": "&&",
           "args": [
-            147,
-            171
+            137,
+            156
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            157,
+            118,
+            113
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            155,
+            115,
+            116
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            148,
-            172
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            169,
-            133,
-            128
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            167,
-            130,
-            131
+            160,
+            150
           ]
         },
         {
           "type": "offset",
           "value": 1,
           "args": [
-            175
+            162
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            174,
+            161,
+            152
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 1,
+          "args": [
+            163
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
             165
           ]
         },
         {
-          "type": "offset",
-          "value": 1,
+          "type": "op",
+          "name": "&&",
           "args": [
-            176
+            166,
+            146
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            173,
-            163
+            164,
+            145
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            18,
+            167
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<=",
+          "args": [
+            9,
+            167
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            26,
+            165
+          ]
+        },
+        {
+          "type": "call",
+          "name": "na",
+          "args": [
+            167
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            18,
+            165
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            26,
+            167
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            17,
+            165
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            174
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            168
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            169,
+            154
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            170,
+            159
           ]
         },
         {
@@ -1360,92 +1383,31 @@
           "name": "&&",
           "args": [
             178,
-            161
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            177
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            24,
-            179
+            172
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            180,
-            162
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<=",
-          "args": [
-            11,
-            179
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<",
-          "args": [
-            31,
+            179,
             177
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            179
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<",
-          "args": [
-            24,
-            177
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            31,
-            179
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            23,
-            177
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            187
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            181,
-            170
+            182,
+            171
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            183,
+            175
           ]
         },
         {
@@ -1453,319 +1415,47 @@
           "name": "&&",
           "args": [
             184,
-            168
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            182
+            176
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            191,
-            185
+            185,
+            173
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            194,
-            190
+            14,
+            187
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            195,
-            183
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            196,
-            188
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            197,
-            189
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            198,
+            14,
             186
-          ]
-        },
-        {
-          "type": "op",
-          "name": "||",
-          "args": [
-            200,
-            192
-          ]
-        },
-        {
-          "type": "op",
-          "name": "||",
-          "args": [
-            199,
-            193
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            17,
-            200
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            17,
-            199
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            202,
-            62,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            202,
-            26,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            202,
-            65,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            202,
-            24,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            201,
-            59,
-            205
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            201,
-            64,
-            207
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            201,
-            26,
-            206
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            201,
-            24,
-            208
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            46,
-            210,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            46,
-            211,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            46,
-            209,
-            19
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            46,
-            212,
-            19
-          ]
-        },
-        {
-          "type": "call",
-          "name": "accum",
-          "args": [
-            41,
-            216,
-            1
-          ]
-        },
-        {
-          "type": "call",
-          "name": "accum",
-          "args": [
-            34,
-            214,
-            1
-          ]
-        },
-        {
-          "type": "call",
-          "name": "accum",
-          "args": [
-            41,
-            213,
-            1
-          ]
-        },
-        {
-          "type": "call",
-          "name": "accum",
-          "args": [
-            41,
-            215,
-            1
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            217
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            26,
-            218
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            221
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<",
-          "args": [
-            222,
-            4
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            223,
-            224
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            225,
-            217,
-            41
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            225,
-            219,
-            41
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            225,
-            220,
-            41
           ]
         }
       ],
       "outputRoots": {
-        "out10": 226,
-        "out11": 228,
-        "out12": 227,
-        "out2": 130,
-        "out3": 129,
-        "out4": 133,
-        "out5": 128,
-        "out6": 204,
-        "out7": 203,
-        "out8": 193,
-        "out9": 192,
-        "value": 131
+        "out10": 117,
+        "out11": 153,
+        "out12": 116,
+        "out2": 115,
+        "out3": 114,
+        "out4": 118,
+        "out5": 113,
+        "out6": 189,
+        "out7": 188,
+        "out8": 180,
+        "out9": 181,
+        "value": 116
       },
       "parameters": {
         "__uct_param_1": {
@@ -1779,7 +1469,7 @@
           "options": null,
           "locators": [
             {
-              "node": 6,
+              "node": 5,
               "path": [
                 "value"
               ]
@@ -1797,14 +1487,14 @@
           "options": null,
           "locators": [
             {
-              "node": 5,
+              "node": 4,
               "path": [
                 "value"
               ]
             }
           ]
         },
-        "__uct_param_4": {
+        "__uct_param_3": {
           "sourceName": "revPiv",
           "title": "Reversal pivot length",
           "type": "int",
@@ -1815,73 +1505,19 @@
           "options": null,
           "locators": [
             {
-              "node": 7,
+              "node": 0,
               "path": [
                 "value"
               ]
             },
             {
-              "node": 139,
+              "node": 124,
               "path": [
                 "value"
               ]
             },
             {
-              "node": 140,
-              "path": [
-                "value"
-              ]
-            }
-          ]
-        },
-        "__uct_param_5": {
-          "sourceName": "revLook",
-          "title": "Max bars between pivots",
-          "type": "int",
-          "default": 60,
-          "min": 5,
-          "max": 300,
-          "step": null,
-          "options": null,
-          "locators": [
-            {
-              "node": 22,
-              "path": [
-                "value"
-              ]
-            }
-          ]
-        },
-        "__uct_param_7": {
-          "sourceName": "stopA",
-          "title": "Stop (×ATR)",
-          "type": "float",
-          "default": 1,
-          "min": 0.2,
-          "max": 5,
-          "step": 0.1,
-          "options": null,
-          "locators": [
-            {
-              "node": 20,
-              "path": [
-                "value"
-              ]
-            }
-          ]
-        },
-        "__uct_param_8": {
-          "sourceName": "tgtR",
-          "title": "Target (R multiple)",
-          "type": "float",
-          "default": 2,
-          "min": 0.5,
-          "max": 10,
-          "step": 0.5,
-          "options": null,
-          "locators": [
-            {
-              "node": 25,
+              "node": 126,
               "path": [
                 "value"
               ]
@@ -2045,13 +1681,13 @@
     {
       "key": "out10Color",
       "type": "color",
-      "label": "Entry colour",
+      "label": "EXP_RSI colour",
       "default": "#c9a84c"
     },
     {
       "key": "out10Width",
       "type": "int",
-      "label": "Entry width",
+      "label": "EXP_RSI width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -2060,13 +1696,13 @@
     {
       "key": "out11Color",
       "type": "color",
-      "label": "Stop colour",
+      "label": "EXP_Regime colour",
       "default": "#c9a84c"
     },
     {
       "key": "out11Width",
       "type": "int",
-      "label": "Stop width",
+      "label": "EXP_Regime width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -2075,13 +1711,13 @@
     {
       "key": "out12Color",
       "type": "color",
-      "label": "Target colour",
+      "label": "EXP_L30 colour",
       "default": "#c9a84c"
     },
     {
       "key": "out12Width",
       "type": "int",
-      "label": "Target width",
+      "label": "EXP_L30 width",
       "default": 1,
       "min": 1,
       "max": 4,
@@ -2190,7 +1826,7 @@
     },
     {
       "key": "out10",
-      "label": "Entry",
+      "label": "EXP_RSI",
       "style": "line",
       "color": "$out10Color",
       "width": "$out10Width",
@@ -2201,7 +1837,7 @@
     },
     {
       "key": "out11",
-      "label": "Stop",
+      "label": "EXP_Regime",
       "style": "line",
       "color": "$out11Color",
       "width": "$out11Width",
@@ -2212,7 +1848,7 @@
     },
     {
       "key": "out12",
-      "label": "Target",
+      "label": "EXP_L30",
       "style": "line",
       "color": "$out12Color",
       "width": "$out12Width",

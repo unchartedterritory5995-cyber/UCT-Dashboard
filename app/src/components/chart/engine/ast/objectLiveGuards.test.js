@@ -50,8 +50,11 @@ describe('⭐ a guard may read object state', () => {
 })
 
 describe('⛔ …and nowhere else', () => {
-  it('a getter in a PROPERTY is refused', () => {
-    const op = { ...label(null), props: { x: { v: 'bar' }, y: GET } }
+  // ⭐ C14 (2026-09-29): a getter is legal as a WHOLE coordinate now — the
+  // runtime answers it at the op, where Pine evaluates the argument
+  // (`objectGetterState.test.js`). Inside arithmetic it is still refused.
+  it("a getter inside a PROPERTY's arithmetic is refused", () => {
+    const op = { ...label(null), props: { x: { v: 'bar' }, y: { v: 'op', op: '+', args: [GET, { v: 'const', value: 1 }] } } }
     expect(() => assertObjectProgram(prog(op))).toThrow(/legal only in a guard/)
   })
 

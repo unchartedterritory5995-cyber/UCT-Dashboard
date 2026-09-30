@@ -176,7 +176,10 @@ const CASES = [
   // chart's own through a six-hop preset chain. All five cells equal the
   // vendor's records ("◮ MIXED", "— n/a" ×3, "▼ BEAR"; tableCells 13 → 18).
   { cls: 'plots + partial', script: 'artemis-oscillator-pro__ea1097ca9e',
-    objectsOnly: false, kind: 'partial', text: partial(17, 38) },
+    // ⭐ 17 -> 7 on 2026-09-29 (C9, merged onto C14): `high[pivSpan]` folds like
+    // a window, so ten divergence lines/labels convert — each TradingView's
+    // (vendor harness). Measured on the merged tree.
+    objectsOnly: false, kind: 'partial', text: partial(7, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the

@@ -136,9 +136,16 @@ describe('⛔ a getter this lane cannot lift keeps the guard unreadable — drop
     expect(dg.dropReasons['guard:create']).toBe(1)
   })
 
-  it('a getter in a COORDINATE is still refused (only a guard may read object state)', () => {
-    const dg = diag(`var b = box(na)\n${MAKE}label.new(bar_index, b.get_top(), ${Q}x${Q})\n`)
+  // ⭐ C14 (2026-09-29): a WHOLE-coordinate getter is read at its op by the
+  // runtime now (`objectGetterState.test.js`); inside arithmetic it is refused.
+  it('a getter INSIDE a coordinate’s arithmetic is still refused', () => {
+    const dg = diag(`var b = box(na)\n${MAKE}label.new(bar_index, b.get_top() + 1, ${Q}x${Q})\n`)
     expect(dg.dropReasons['create:label']).toBe(1)
+  })
+
+  it('a WHOLE-coordinate getter is served (C14)', () => {
+    const dg = diag(`var b = box(na)\n${MAKE}label.new(bar_index, b.get_top(), ${Q}x${Q})\n`)
+    expect(dg.dropReasons['create:label']).toBeUndefined()
   })
 
   // ⚰️ C16 (2026-09-29) — this was "a getter guard inside a counted loop body is

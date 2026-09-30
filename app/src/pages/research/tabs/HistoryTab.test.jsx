@@ -52,6 +52,19 @@ describe('HistoryTab', () => {
     expect(screen.getByTestId('history-lane-unavailable').textContent).toMatch(/Catalysts/)
   })
 
+  it('names a lane whose store began inside the window, with its start date', async () => {
+    const lanes = { ...BODY.lanes, wire: { status: 'ok', count: 0, covers_from: '2026-09-28', partial: true } }
+    await renderWith({ ok: true, body: { ...BODY, lanes } })
+    const note = screen.getByTestId('history-lane-partial').textContent
+    expect(note).toMatch(/Morning Wire since 2026-09-28/)
+    expect(note).toMatch(/not recorded/)
+  })
+
+  it('says nothing about coverage when every lane covers the window', async () => {
+    await renderWith({ ok: true, body: BODY })
+    expect(screen.queryByTestId('history-lane-partial')).toBeNull()
+  })
+
   it('an empty history says so in words', async () => {
     await renderWith({ ok: true, body: { ...BODY, timeline: [] } })
     expect(screen.getByTestId('history-empty').textContent).toMatch(/No recorded mentions of NVDA/)

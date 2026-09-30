@@ -166,6 +166,8 @@ export const OBJECT_OP_KINDS = Object.freeze([
   'cellpatch', 'clearcells',
   // ⭐ `table.merge_cells` — a rectangle drawn as one cell (2026-09-28).
   'mergecells',
+  // ⭐ C14 — `x := label.get_y(l)`: a number read off a drawing, in op order.
+  'setnum',
   // ⭐⭐ C16 — `latch`: an `if`'s object-state condition, evaluated ONCE where
   // the `if` stands and read by every op of its block (and of its `else`) as
   // `{v:'latch', id}`. Pine evaluates the condition once; re-evaluating it per
@@ -287,8 +289,44 @@ export const GETTER_PROPS = Object.freeze({
   line: Object.freeze({ get_x1: 'x1', get_y1: 'y1', get_x2: 'x2', get_y2: 'y2' }),
   label: Object.freeze({ get_x: 'x', get_y: 'y' }),
 })
+/**
+ * ⭐⭐ C9 (2026-09-29) — A HISTORY READ WHOSE OFFSET IS A SERIES.
+ *
+ *   { v:'at', args:[src, back], limit }
+ *
+ * Pine's `x[e]` with `e` computed per bar — `up[n - a1]`, `low[bar_index - k]` —
+ * reads `x` on bar `bar - e`. The V2 graph cannot say it (an offset node's bar
+ * count is a literal, so `maxLookback` stays a tree sum); the runtime holds every
+ * column for the whole loaded window, so it reads `src` at that bar here.
+ *
+ * `src` is a column (`tree`/`graph`) or `bar` (`bar_index` read back is the bar
+ * it was read on); `back` is any numeric value reference. `limit` is the
+ * script's DECLARED `max_bars_back` — the buffer TradingView sizes the series to
+ * — so how far back a read may reach is decidable before bar 0. The runtime:
+ *   · `bar - back < 0`  → `na` (a bar before the first one; Pine's `close[1]` on bar 0)
+ *   · `back` is `na`    → the op is WITHHELD on that bar (TradingView does not
+ *                         error there — `extrapolated-pivot-connector` draws — but
+ *                         what it reads is not measured)
+ *   · `back` negative, fractional, or ≥ `limit` → a Pine RUNTIME ERROR: the run
+ *                         stops and nothing is drawn, as TradingView draws nothing
+ */
+export const MAX_BARS_BACK_CAP = 5000
+
+/**
+ * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
+ * holds what the program last set on an object, so it answers:
+ *
+ *   program.nums = [{ id, init }]            a scalar only getters write
+ *   { k:'setnum', num, value:{v:'get'…} }    written at its statement's place
+ *   { v:'num', id }                          read — like `get`: a guard operand,
+ *                                            a WHOLE coordinate, a text `if` operand
+ *
+ * ⛔ A bare `get`/`num` is legal as a whole create/update coordinate and in a
+ * text `if` condition too — never inside arithmetic, a colour, a cell or a loop.
+ * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
+ */
 /** The value-reference kinds whose `args` are value references too. */
-const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross'])
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -335,7 +373,7 @@ export function isNaRef(v) {
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
  */
-function assertTextNode(v, where, depth = 0) {
+function assertTextNode(v, where, depth = 0, live = null) {
   if (depth > 16) throw new Error(`${where}: text expression nested deeper than 16`)
   if (!isObj(v)) throw new Error(`${where}: expected a text node`)
   switch (v.t) {
@@ -380,12 +418,15 @@ function assertTextNode(v, where, depth = 0) {
       return
     case 'cat':
       if (!Array.isArray(v.args) || !v.args.length) throw new Error(`${where}: a concatenation needs parts`)
-      v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1))
+      v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1, live))
       return
     case 'if':
-      assertValueRef(v.cond, `${where}.cond`)
-      assertTextNode(v.then, `${where}.then`, depth + 1)
-      assertTextNode(v.else, `${where}.else`, depth + 1)
+      // ⭐ C14 — object state in a text condition; ⛔ never a crossing (it is
+      // stepped once per bar at a GUARD, and a text has no such position).
+      if (live && JSON.stringify(v.cond).includes('"cross"')) throw new Error(`${where}: a crossing in a text`)
+      assertValueRef(v.cond, `${where}.cond`, live)
+      assertTextNode(v.then, `${where}.then`, depth + 1, live)
+      assertTextNode(v.else, `${where}.else`, depth + 1, live)
       return
     default:
       throw new Error(`${where}: unknown text node ${JSON.stringify(v.t)}`)
@@ -420,7 +461,7 @@ function assertColorNode(v, where, depth = 0) {
 /** Does this value reference read object state anywhere beneath it? */
 function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
-  if (v.v === 'get' || v.v === 'size' || v.v === 'latch') return true
+  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
@@ -448,6 +489,10 @@ function assertLiveRef(v, where, live) {
     }
     return
   }
+  if (v.v === 'num') {
+    if (live.inLoop || !live.nums || !live.nums.has(v.id)) throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
+    return
+  }
   const arity = v.v === 'bool' ? (v.op === 'not' ? [1, 1] : [2, 64]) : [2, 2]
   if (v.v === 'bool' && !LIVE_BOOL_OPS.includes(v.op)) throw new Error(`${where}: unknown boolean ${JSON.stringify(v.op)}`)
   if (v.v === 'cmp' && !LIVE_CMP_OPS.includes(v.op)) throw new Error(`${where}: unknown comparison ${JSON.stringify(v.op)}`)
@@ -465,7 +510,7 @@ function assertLiveRef(v, where, live) {
 
 function assertValueRef(v, where, live = null) {
   if (!isObj(v)) throw new Error(`${where}: expected a value reference object, got ${typeof v}`)
-  if (LIVE_GUARD_KINDS.includes(v.v)) {
+  if (LIVE_GUARD_KINDS.includes(v.v) || v.v === 'num') {
     if (!live) {
       throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in a guard, `
         + 'a loop bound or an index')
@@ -533,6 +578,21 @@ function assertValueRef(v, where, live = null) {
     case 'param':
       if (typeof v.id !== 'string' || !v.id) throw new Error(`${where}: a param reference needs an id`)
       return
+    // ⭐⭐ C9 — see `MAX_BARS_BACK_CAP`.
+    case 'at': {
+      if (!Array.isArray(v.args) || v.args.length !== 2) {
+        throw new Error(`${where}: a history read takes a source and a bar count`)
+      }
+      const src = v.args[0]
+      if (!isObj(src) || !['tree', 'graph', 'bar'].includes(src.v)) {
+        throw new Error(`${where}: a history read's source must be a column or bar_index, got ${JSON.stringify(src && src.v)}`)
+      }
+      if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
+        throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+      return
+    }
     case 'bar':
     case 'time':
       return
@@ -644,6 +704,7 @@ export function assertObjectProgram(program) {
     if (colls.has(c.id)) throw new Error(`objects: collection ${c.id} is declared twice`)
     colls.set(c.id, c)
   }
+  const nums = new Set((program.nums || []).map((n) => n.id))
 
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
@@ -657,10 +718,13 @@ export function assertObjectProgram(program) {
     // ⭐ A GUARD, A LOOP BOUND AND A COLLECTION INDEX may read object state
     // (`LIVE_GUARD_KINDS`). ⛔ Inside a loop body a `cross` is still refused —
     // it is observed once per bar, and a body runs several times a bar.
-    const live = { regs, colls, latches, inLoop: where.includes('.body[') }
+    const live = { regs, colls, latches, nums, inLoop: where.includes('.body[') }
     if (op.when !== null && op.when !== undefined) {
       assertValueRef(op.when, `${where}.when`, live)
     }
+    /** ⭐ C14 — a create/update's own coordinates and text may read object
+     *  state only OUTSIDE a loop body (a scalar is written once per bar). */
+    const opLive = live.inLoop ? null : live
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
       throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
@@ -706,7 +770,7 @@ export function assertObjectProgram(program) {
       if (!ID_RE.test(String(op.site))) throw new Error(`${where}: create needs a site id matching ${ID_RE}`)
       if (siteFamily.has(op.site)) throw new Error(`${where}: site ${op.site} is created twice`)
       siteFamily.set(op.site, op.family)
-      assertProps(op, where, op.family, regs, colls, siteFamily)
+      assertProps(op, where, op.family, regs, colls, siteFamily, opLive)
       if (op.into !== null && op.into !== undefined) {
         const reg = regs.get(op.into)
         if (!reg) throw new Error(`${where}: create stores into undeclared register ${JSON.stringify(op.into)}`)
@@ -750,7 +814,10 @@ export function assertObjectProgram(program) {
         assertValueRef(op.endCol, `${where}.endCol`)
         assertValueRef(op.endRow, `${where}.endRow`)
       }
-      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily)
+      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily, opLive)
+    } else if (op.k === 'setnum') {
+      if (!opLive || !nums.has(op.num) || op.value?.v !== 'get') throw new Error(`${where}: bad setnum`)
+      assertLiveRef(op.value, where, opLive)
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)
       if (!reg) throw new Error(`${where}: setreg names undeclared register ${JSON.stringify(op.reg)}`)
@@ -802,7 +869,7 @@ function resolveTargetFamily(op, where, regs, colls, siteFamily, live) {
   return f
 }
 
-function assertProps(op, where, family, regs, colls, siteFamily) {
+function assertProps(op, where, family, regs, colls, siteFamily, live = null) {
   const allowed = FAMILY_PROPS[family]
   if (!allowed) throw new Error(`${where}: no property vocabulary for family ${JSON.stringify(family)}`)
   const props = op.props
@@ -820,7 +887,9 @@ function assertProps(op, where, family, regs, colls, siteFamily) {
       }
       continue
     }
-    assertValueRef(v, `${where}.props.${k}`)
+    // ⭐ C14 — a WHOLE coordinate may read object state; a text `if` may test it.
+    if (live && v.v === 'text') assertTextNode(v.node, where, 0, live)
+    else assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num') ? live : null)
   }
 }
 

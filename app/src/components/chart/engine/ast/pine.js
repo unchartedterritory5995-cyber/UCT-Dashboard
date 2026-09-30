@@ -123,7 +123,7 @@ import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
-  GETTER_PROPS as OBJECT_GETTER_PROPS,
+  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -3168,7 +3168,21 @@ function builtinTupleParts(toks, close, names, env, first) {
  *  ⛔ An offset node is identified STRUCTURALLY (it owns an `n` and an `arg`)
  *  rather than by a type string, so a unary `-name` — which also carries `arg` —
  *  cannot be mistaken for a bar read. */
+// ⭐ C12r — memoised per (parsed node, name): the same binding is asked this on
+// every read of it, and the walk visits every key of a parse tree. ⚰️ MEASURED
+// on `mid_engagement__22-rsi-levels-regime-map`: ~0.5 s of one translation.
+// Keyed on the node OBJECT, which the walk only reads.
+const readsOwnPreviousMemo = new WeakMap()
 function readsOwnPrevious(node, name) {
+  if (!node || typeof node !== 'object') return false
+  let byName = readsOwnPreviousMemo.get(node)
+  if (!byName) { byName = new Map(); readsOwnPreviousMemo.set(node, byName) }
+  if (byName.has(name)) return byName.get(name)
+  const answer = readsOwnPreviousWalk(node, name)
+  byName.set(name, answer)
+  return answer
+}
+function readsOwnPreviousWalk(node, name) {
   let found = false
   const walk = (n) => {
     if (found || !n || typeof n !== 'object') return
@@ -7608,7 +7622,25 @@ export class Resolver {
         // guard below — and the canonical node at the end — sees the same plain
         // integer a written literal would have given them.
         if (node.n && typeof node.n === 'object' && node.n.expr) {
-          const folded = this.resolve(node.n.expr)
+          let folded = this.resolve(node.n.expr)
+          // ⭐⭐ C9 (2026-09-29) — AN OFFSET IS A WINDOW, SO IT FOLDS LIKE ONE.
+          // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)` reaches here
+          // as an `op` tree, and at the member door (which hands a declared input
+          // back as an IDENTIFIER) even a bare `high[len]` did — so the same
+          // `drmLen` that `sma(close, drmLen)` folds to 14 in this pass refused as
+          // an offset. Pine computes both before bar 0 (`simple int`).
+          // `foldWindow` is the window arm's own fold: it hands back only an exact
+          // whole number ≥ 0, so `15 / 2`, a negative and a bar read still refuse
+          // below, and the input is recorded window-bound BEFORE the fold erases
+          // it — the caller refuses that knob by name rather than hand back one
+          // that moves a window and leaves this offset at the default.
+          // ⛔ A series offset (`x[bar_index - k]`) still refuses here: that is a
+          // per-bar read, not a window, and it is served (if at all) by the
+          // object lane's own absolute-bar read, never by this node.
+          if (folded.type !== 'num') {
+            for (const n of declaredInputNames(folded)) this.windowBoundInputs.add(n)
+            folded = foldWindow(folded)
+          }
           if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
             throw new PineRefusal('pine:offset-literal',
               `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
@@ -10425,15 +10457,24 @@ export class Resolver {
    *  sentence (true: a pivot's bar counts are its window), exactly as it does for
    *  `sma(close, len)`. Anything else passes through unchanged, so the default
    *  (non-declare) path is byte-identical and `pivotAtConfirmation`'s own refusal
-   *  still answers a count that is genuinely not a whole number. */
+   *  still answers a count that is genuinely not a whole number.
+   *
+   *  ⭐⭐ C9 (2026-09-29) — CONSTANT ARITHMETIC FOLDS HERE TOO, declared input or
+   *  not. `pivSpan = math.max(drmLen / 2, 2)` reaches this slot as an `op` tree
+   *  in the pass that holds `drmLen` as a literal (the object lane, the second
+   *  member-door pass), and a pivot refused `pine:arity` over a count Pine itself
+   *  computes before bar 0 — the same `7` the window arm already folds
+   *  `sma(close, pivSpan)` to in the same pass. `foldWindow` hands back only an
+   *  exact whole number ≥ 0 or the node untouched, so a fraction (`15 / 2`) or a
+   *  bar read still meets `pivotAtConfirmation`'s own refusal. A bare `num` is
+   *  returned as-is, so a literal count stays byte-identical. */
   foldPivotBars(resolvedArgs) {
     if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
     const from = resolvedArgs.length - 2
     return resolvedArgs.map((node, i) => {
       if (i < from) return node
-      const declared = declaredInputNames(node)
-      if (!declared.size) return node
-      for (const n of declared) this.windowBoundInputs.add(n)
+      if (!node || typeof node !== 'object' || node.type === 'num') return node
+      for (const n of declaredInputNames(node)) this.windowBoundInputs.add(n)
       return foldWindow(node)
     })
   }
@@ -13101,6 +13142,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
   // promise only a lane with loops can keep, which is why it is opt-in.
   const iterTrees = objectOpts.iterTrees === true
+  /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
+   *  stripped scan as the `max_*_count` ceilings), and whether the script calls
+   *  the per-series `max_bars_back(x, n)` form. See `historyReadRef`. */
+  const declaredMaxBarsBack = (() => {
+    const code = strippedForScan(String(source || ''))
+    const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
+    const n = m ? Number(m[1]) : NaN
+    return {
+      limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
+      call: /\bmax_bars_back\s*\(/.test(code),
+    }
+  })()
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts,
@@ -13242,7 +13295,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const m = /^([a-z]+)\.new$/.exec(String(name))
     if (m) lostCreate(m[1])
   }
-  diagnostics.collectedOps = collected.ops.length
+  // ⭐ C14 — a `getnum` is a number read off a drawing, not a drawing step.
+  diagnostics.collectedOps = collected.ops.filter((o) => o.k !== 'getnum').length
   if (!collected.ops.length) {
     // ⭐ A PROGRAM WITH NO OPS DRAWS NOTHING, so a lost removal of a NAMED family
     // reaches nothing — and one whose family is unknown still reaches, the loud
@@ -13806,12 +13860,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // 15-minute `request.security` this chart cannot serve. A rescue only: the
       // test and both arms are read in their old order, so a text that read keeps
       // its exact node and its trees their exact indices.
-      const condTree = canonicalOf(node.test, inline, envAt)
-      const cond = internTree(condTree)
+      // ⭐ C14 — a condition reading a getter-fed scalar is answered by the runtime.
+      const liveCond = stateOk && readsState(node.test)
+      const condTree = liveCond ? null : canonicalOf(node.test, inline, envAt)
+      const cond = liveCond ? liftTextCond(node.test, inline, envAt) : internTree(condTree)
       const then = textNodeOf(node.yes, scope, depth + 1, inline, envAt)
       const other = textNodeOf(node.no, scope, depth + 1, inline, envAt)
       if (!then || !other) {
-        const decided = decidedTest(condTree)
+        const decided = condTree ? decidedTest(condTree) : null
         if (decided !== null) return decided !== 0 ? then : other
       }
       if (!cond || !then || !other) return null
@@ -14342,6 +14398,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
       return null
     }
+    // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
+    if (stateOk) {
+      const s = stateOperand(node)
+      if (s) return s
+    }
     if (node.type === 'string') return { v: 'const', value: node.value }
     if (node.type === 'colour') return { v: 'const', value: node.value }
     if (node.type === 'name') {
@@ -14358,7 +14419,55 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const hex = staticColourOf(node, scopeEnv)
     if (hex) return { v: 'const', value: hex }
     if (node.type === 'number') return { v: 'const', value: Number(node.value) }
+    if (node.type === 'offset' && !rawTrees && node.n && typeof node.n === 'object' && node.n.expr) {
+      const at = historyReadRef(node)
+      if (at !== undefined) return at
+    }
     return resolveTree(node)
+  }
+
+  /** ⭐⭐ C9 (2026-09-29) — `x[e]` WITH A PER-BAR `e`, AS A COORDINATE.
+   *
+   *  `extrapolated-pivot-connector` writes `up[n - a1]` and `n[n - a1 + length]`
+   *  (the pivot value, and the bar, at an earlier bar a `valuewhen` found);
+   *  `smt-divergence-ict-01` writes `low[bar_index - Low_Last_Bar]`. The V2 graph
+   *  refuses these by design — an offset node's bar count is a literal, which is
+   *  what keeps `maxLookback` a tree sum — so this builds the object runtime's
+   *  own read instead (`{v:'at'}`, `MAX_BARS_BACK_CAP` in objectProgram.js):
+   *  both halves ordinary columns, the read done where every column is held.
+   *
+   *  Answers `undefined` when the offset is a CONSTANT (the ordinary offset node
+   *  serves it), a reference when it is served, and `null` — counted by name in
+   *  `historyReadRefusals` — when it is not:
+   *    · `no-max-bars-back`: how far back TradingView lets the read reach is the
+   *      buffer it sizes the series to, and without a declared `max_bars_back`
+   *      that size is TradingView's own detection, which no capture measures;
+   *    · `max-bars-back-call`: `max_bars_back(x, n)` sizes one series, a rule
+   *      this read does not model;
+   *    · `source`: the value read back is not a plain name (`(a + b)[e]`), or is a
+   *      name the script reassigns (its history is the end-of-bar value, which a
+   *      column read at this op's position would not be);
+   *    · `unreadable`: either half has no column. */
+  const historyReadRef = (node) => {
+    const idx = canonicalOf(node.n.expr)
+    if (!idx) return historyRefused('unreadable')
+    if (constantValueOf(idx) !== null) return undefined
+    const arg = node.arg
+    if (!arg || arg.type !== 'name') return historyRefused('source')
+    if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
+    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
+    if (!declaredMaxBarsBack.limit) return historyRefused('no-max-bars-back')
+    const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
+    if (!src) return historyRefused('unreadable')
+    const back = internTree(idx)
+    if (!back) return historyRefused('unreadable')
+    diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
+    return { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+  }
+  const historyRefused = (why) => {
+    if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}
+    diagnostics.historyReadRefusals[why] = (diagnostics.historyReadRefusals[why] || 0) + 1
+    return null
   }
 
   /** ⛔⛔ A COUNT IS NOT A DIAGNOSTIC, AND A DROPPED PROP IS NOT ALL THE SAME
@@ -14654,6 +14763,67 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const prop = fam && regId.has(regName) ? (OBJECT_GETTER_PROPS[fam] || {})[method] : null
     return prop ? { v: 'get', target: { r: 'reg', id: regId.get(regName) }, prop } : null
   }
+  // ─── ⭐⭐ C14 — A GETTER'S NUMBER WHERE PINE READS IT ───────────────────────
+  //
+  // ⚰️ MEASURED 2026-09-29 (NYSE:RDDT 1D): `rsi-swing-indicator` drew nothing
+  // of TradingView's 11 lines and 11 labels. Each label's text is `obLabelText()`
+  // — `last_actual_label_hh_price < high ? "HH" : "LH"` — and that name is only
+  // ever written `:= label.get_y(labelhh)`; each line's `x2`/`y2` is a block
+  // local `labelll_ts = label.get_x(labelll)`. A getter answers what the program
+  // last set on that object, which the RUNTIME holds, so it answers them:
+  //
+  //   * a SCALAR (`getterScalars`, pineObjects.js): every write a bare getter,
+  //     written by a `setnum` op AT ITS STATEMENT'S PLACE in the bar, read as
+  //     `{v:'num'}` — a whole coordinate, a guard operand, a text `if` operand;
+  //   * a bare getter as a WHOLE coordinate — evaluated at the op, which is
+  //     where Pine evaluates an argument. ⛔ In an inlined body only on the
+  //     body's own handle: one pasted from the call's arguments was evaluated
+  //     at the call, before the body's earlier statements ran.
+  //
+  // ⛔ Everything else — a getter inside arithmetic, a colour, a cell, a loop,
+  // a getter's history (`line.get_y1(l)[1]`) — stays refused, by name.
+  const scalarDecls = collected.scalars || new Map()
+  const hasGetnum = new Set(collected.ops.filter((o) => o.k === 'getnum').map((o) => o.name))
+  const numId = new Map()
+  const nums = []
+  for (const [name, d] of scalarDecls) {
+    if (!hasGetnum.has(name)) continue
+    const id = `n${nums.length}`
+    numId.set(name, id)
+    nums.push({ id, init: d.init })
+  }
+  /** Scalars one of whose writes this program cannot carry — never read. */
+  const lostScalars = new Set()
+  /** ⭐ Set only while a create/update's own props convert, outside loops. */
+  let stateOk = false
+  let stateOp = null
+  const regNameOf = new Map([...regId].map(([n, id]) => [id, n]))
+  const scalarRef = (node, inline) => {
+    if (!node || node.type !== 'name' || !numId.has(node.name)) return null
+    if (inline && inline.bound && Array.isArray(inline.bound.params)
+      && inline.bound.params.includes(node.name)) return null
+    if (lostScalars.has(node.name)) return null
+    return { v: 'num', id: numId.get(node.name) }
+  }
+  const mentionsScalar = (node, depth = 0) => {
+    if (!numId.size || !node || typeof node !== 'object' || depth > 32) return false
+    if (node.type === 'name' && numId.has(node.name)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) {
+      if (mentionsScalar(node[k], depth + 1)) return true
+    }
+    return Array.isArray(node.args)
+      && node.args.some((a) => mentionsScalar(a && a.value !== undefined ? a.value : a, depth + 1))
+  }
+  const readsState = (node) => hasObjectGetter(node) || mentionsScalar(node)
+  /** A WHOLE value that reads object state → its `get`/`num` ref, else null. */
+  const stateOperand = (node, inline = null) => {
+    const g = getterRef(node)
+    if (g) {
+      if (stateOp && stateOp.inlined && !String(regNameOf.get(g.target.id) || '').includes(INLINE_SUFFIX)) return null
+      return g
+    }
+    return scalarRef(node, inline)
+  }
   /** A getter-free node → its interned tree; a bare getter → its `get` ref.
    *  ⭐ C16: a bare `array.size(bs)` → its `size` ref, and `+ - *` over live
    *  operands (`array.size(bs) - 1`, a loop's first index) → a `{v:'op'}` — the
@@ -14661,11 +14831,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const liveOperand = (node) => {
     const g = getterRef(node) || sizeRef(node)
     if (g) return g
-    if (hasObjectGetter(node)) {
-      // ⛔ ARITHMETIC OVER A LENGTH ONLY — an address. A getter inside
-      // arithmetic stays unreadable, as it always was (`getterGuards.test.js`).
+    // ⭐ C14 — a scalar read off a drawing, whole.
+    const s = scalarRef(node)
+    if (s) return s
+    if (readsState(node)) {
+      // ⛔ ARITHMETIC OVER A LENGTH ONLY — an address. A getter (or a C14
+      // scalar) inside arithmetic stays unreadable (`getterGuards.test.js`).
       if (node && node.type === 'binary' && ['+', '-', '*'].includes(node.op)
-          && !hasObjectGetter(node, 0, false)) {
+          && !hasObjectGetter(node, 0, false) && !mentionsScalar(node)) {
         const a = liveOperand(node.left)
         const b = liveOperand(node.right)
         return a && b ? { v: 'op', op: node.op, args: [a, b] } : null
@@ -14679,12 +14852,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *  sink where the first op that needs it is being converted — just before it,
    *  so the condition is evaluated where the `if` stands, in source order. */
   const latchIds = new Map()
+  /** ⭐ C14 — latch id → its condition, so a reader of the latch is seen to read
+   *  what the condition reads (`opRefs`). */
+  const latchCond = new Map()
   const latchOf = (toks, live) => {
     let id = latchIds.get(toks)
     if (!id) {
       id = `l${latchIds.size}`
       latchIds.set(toks, id)
       ops.push({ k: 'latch', id, cond: live })
+      latchCond.set(id, live)
     }
     return { v: 'latch', id }
   }
@@ -14714,11 +14891,200 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const bodyChangesLength = (body, id) => (body || []).some((b) => !!b
     && ((LENGTH_CHANGING.has(b.k) && collId.get(b.coll) === id)
       || (b.k === 'loop' && bodyChangesLength(b.body, id))))
+  /** ⭐ C14 — a text `if` condition that reads object state (`last < high`), in
+   *  the text reader's own frame. No crossing: it is observed once per bar at
+   *  a guard, and a text has no such position. */
+  const liftTextCond = (node, inline, envAt) => {
+    if (!node) return null
+    if (!readsState(node)) return resolveTree(node, inline, envAt)
+    if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
+      const a = liftTextCond(node.arg, inline, envAt)
+      return a ? { v: 'bool', op: 'not', args: [a] } : null
+    }
+    if (node.type === 'binary' && ['and', '&&', 'or', '||'].includes(node.op)) {
+      const a = liftTextCond(node.left, inline, envAt)
+      const b = liftTextCond(node.right, inline, envAt)
+      return a && b ? { v: 'bool', op: node.op === 'and' || node.op === '&&' ? 'and' : 'or', args: [a, b] } : null
+    }
+    if (node.type === 'binary' && ['<', '<=', '>', '>='].includes(node.op)) {
+      const side = (n) => stateOperand(n, inline) || (readsState(n) ? null : resolveTree(n, inline, envAt))
+      const a = side(node.left)
+      const b = side(node.right)
+      return a && b ? { v: 'cmp', op: node.op, args: [a, b] } : null
+    }
+    return null
+  }
+  // ⭐⭐ C14 — A NAME READ BEFORE ITS OWN WRITE LATER IN THE BAR IS NOT ITS
+  // END-OF-BAR VALUE. ⚰️ MEASURED 2026-09-29 on `rsi-swing-indicator`:
+  // `if (laststate == 2 and isOverbought)` (line 85) read `laststate`'s
+  // end-of-bar fold, and `laststate := 1` (line 108, same bar, when overbought)
+  // made that guard false on every one of 632 bars — TradingView draws 11
+  // swings there.
+  const varWrites = collected.varWrites || new Map()
+  // ⭐⭐ C12r — …SO EACH READ IS BOUND WHERE IT STANDS (2026-09-29; merged over
+  // C9's `baseFor`/`envAfterTop`, which read every name at its statement's END
+  // and refused any same-statement later write — this is that mechanism plus
+  // START binding, per name, and inlined reads placed at their call). Pine runs
+  // the script top to bottom once per bar: a top-level name read in statement
+  // S holds last bar's end value carried through only the writes ABOVE the
+  // read. The walk records what every name was bound to where each statement
+  // began (`envLog`, `walkStarts`); an op reads a name at its own statement's
+  // START when every write of the name inside that statement comes after
+  // every read of it there, and at the statement's END when every such write
+  // comes before. A START binding of a `var` is not its accumulator: the
+  // Resolver reads it as `partialStateRead` does in the plot lane — the
+  // writes above the read folded over the accumulator's previous bar
+  // (`accum(…)[1]`), one rule for both lanes. ⚰️ MEASURED on
+  // `rsi-swing-indicator`: `if (laststate == 2 and isOverbought)` (line 85)
+  // read the END-OF-BAR fold, false on 632 of 632 bars; bound here it reads
+  // `accum(…)[1]`. What stays refused by name (`readBeforeWrite`): a name one
+  // op reads both before and after a write of it in the same statement, and a
+  // read whose position this pass cannot place.
+  const envLog = objectOpts.envLog || null
+  const walkStarts = objectOpts.walkStarts || []
+  /** ⭐ C11b — the walk's own top-level statements. A name bound or rebound AT
+   *  the top level is answered by position (`bindingAt`); only what happens
+   *  INSIDE an op's own statement comes from the op's block scope. */
+  const topStatements = objectOpts.topStatements || null
+  /** The walk statement a token sits in → `{k, next}` (its start, the next
+   *  statement's start), or null. */
+  const stmtKeyOf = (tok) => {
+    if (!Number.isFinite(tok) || !walkStarts.length) return null
+    let lo = 0
+    let hi = walkStarts.length - 1
+    let at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (walkStarts[mid] <= tok) { at = mid; lo = mid + 1 } else hi = mid - 1
+    }
+    if (at < 0) return null
+    return { k: walkStarts[at], next: at + 1 < walkStarts.length ? walkStarts[at + 1] : Infinity }
+  }
+  /** `name`'s binding where the statement starting at `pos` began. ⛔ A name
+   *  the closing pass condemned (`opaque` on the final `env`) stays condemned. */
+  const bindingAt = (name, pos) => {
+    const fin = env.get(name)
+    const log = envLog && envLog.get(name)
+    if (!log || (fin && fin.kind === 'opaque')) return fin
+    for (const e of log) if (e.pos >= pos) return e.prev === undefined ? fin : e.prev
+    return fin
+  }
+  /** name → the token positions one reader op reads it at. A token that is not
+   *  in the op's own statement came from an inlined body, which Pine runs at
+   *  the call (`siteIndex`); a position this cannot place is `null`. */
+  const readSitesOf = (op, k) => {
+    const sites = new Map()
+    const posOf = (idx) => {
+      if (!Number.isFinite(idx)) return null
+      if (idx >= k) return idx
+      return Number.isFinite(op.siteIndex) && op.siteIndex >= k ? op.siteIndex : null
+    }
+    const add = (name, idx) => {
+      const nm = String(name)
+      if (!sites.has(nm)) sites.set(nm, [])
+      sites.get(nm).push(posOf(idx))
+    }
+    const walkNames = (node, index, depth = 0) => {
+      if (!node || typeof node !== 'object' || depth > 48) return
+      if (node.type === 'name') add(node.name, index)
+      for (const key of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) walkNames(node[key], index, depth + 1)
+      if (Array.isArray(node.args)) node.args.forEach((a) => walkNames(a && a.value !== undefined ? a.value : a, index, depth + 1))
+    }
+    for (const g of op.guards || []) {
+      for (const tk of g.toks || []) if (tk && tk.kind === 'ident') add(tk.value, tk.index)
+    }
+    const at = op.at && Number.isFinite(op.at.index) ? op.at.index : null
+    for (const a of op.args || []) walkNames(a && a.value !== undefined ? a.value : a, at)
+    for (const key of ['from', 'to', 'step']) if (op[key]) walkNames(op[key].value !== undefined ? op[key].value : op[key], at)
+    // an inlined body's own locals read top-level names at the call too
+    for (const b of op.locals || []) {
+      if (!b || !b.st || !b.st.synthetic) continue
+      for (const tk of b.toks || []) if (tk && tk.kind === 'ident') add(tk.value, tk.index)
+    }
+    return sites
+  }
+  const NO_PLAN = { overrides: null, stale: [] }
+  const planMemo = new WeakMap()
+  /** One reader op's positional bindings: `overrides` (name → the binding it
+   *  reads, only for names the walk rebinds at or after its statement) and
+   *  `stale` (the names it cannot be given one binding for). */
+  const positionalPlan = (op) => {
+    if (rawTrees || !envLog || !op || !Number.isFinite(op.topTok)) return NO_PLAN
+    if (planMemo.has(op)) return planMemo.get(op)
+    let plan = NO_PLAN
+    const key = stmtKeyOf(op.topTok)
+    if (key) {
+      const overrides = new Map()
+      const stale = []
+      for (const [nm, rs] of readSitesOf(op, key.k)) {
+        if (regId.has(nm) || collId.has(nm) || numId.has(nm)) continue
+        const log = envLog.get(nm)
+        if (!log || !log.some((e) => e.pos >= key.k)) continue
+        const ws = (varWrites.get(nm) || [])
+          .filter((w) => w.index === null || (w.index >= key.k && w.index < key.next))
+        let at = null
+        if (!ws.length) at = key.next
+        else if (rs.some((r) => r === null) || ws.some((w) => w.index === null)) at = null
+        // ⭐⭐ C11b — A WRITE INSIDE THE OP'S OWN STATEMENT IS READ WHERE IT
+        // STANDS, not by the statement's two ends. The op starts from the name as
+        // the statement BEGAN (`bindingAt(nm, key.k)`), and every write the op's
+        // own block path has already run is an entry in its block scope, applied
+        // over this in program order (`scopeFor`): a read above the write sees the
+        // start, a read below it sees the write, a guard sees the scope its `if`
+        // stood in, and an `else` arm never sees the `if` arm's writes. A write
+        // this pass cannot record is an entry refused by name there.
+        else at = key.k
+        if (at === null) { stale.push(nm); continue }
+        const b = bindingAt(nm, at)
+        if (b !== env.get(nm)) overrides.set(nm, b)
+      }
+      if (overrides.size || stale.length) plan = { overrides: overrides.size ? overrides : null, stale }
+    }
+    planMemo.set(op, plan)
+    return plan
+  }
+  const readBeforeWrite = (op) => positionalPlan(op).stale
+  /** The names `readBeforeWrite` flags whose END-OF-BAR tree is actually IN
+   *  what the converted op reads — a name that folded away (`x == -1 and
+   *  choch` with `choch` an input that is false) cannot make it wrong. */
+  const staleReads = (src, converted) => {
+    const names = readBeforeWrite(src)
+    if (!names.length) return []
+    const refs = opRefs(converted).trees
+    if (!refs.size) return []
+    let printed = null
+    try { printed = [...refs].map((i) => printFormula(trees[i])) } catch { return names }
+    const hits = []
+    for (const n of names) {
+      const formulaIn = (scope) => {
+        try {
+          const ast = makeResolver(scope).resolve({ type: 'name', name: n })
+          return ast ? printFormula(ast) : null
+        } catch { return null }
+      }
+      const f = formulaIn(scopeFor(src.locals, src))
+      // ⭐ A BLOCK SCOPE THAT BINDS THE NAME DIFFERENTLY from the walk's final
+      // binding is the value AT this statement (`reassignedIn`: the bar's
+      // earlier writes folded over last bar's value) — right whatever is
+      // written later. Only the final binding itself is end-of-bar.
+      if (f !== null && f !== formulaIn(baseFor(src))) continue
+      // ⛔ a name this pass cannot print is not proved harmless — refused
+      if (f === null || printed.some((p) => p.includes(f))) hits.push(n)
+    }
+    return hits
+  }
+  const noteReadBeforeWrite = (op, names) => {
+    diagnostics.readBeforeWrite = diagnostics.readBeforeWrite || []
+    for (const n of names) {
+      const e = `${n}@${op.line === undefined ? '?' : op.line}`
+      if (!diagnostics.readBeforeWrite.includes(e)) diagnostics.readBeforeWrite.push(e)
+    }
+  }
   const CROSS_DIR = { 'ta.crossover': 'over', 'ta.crossunder': 'under' }
   /** A guard expression that reads a getter → its live reference, or null. */
   const liftLive = (node) => {
     if (!node) return null
-    if (!hasObjectGetter(node)) return liveOperand(node)
+    if (!readsState(node)) return liveOperand(node)
     if (node.type === 'unary' && (node.op === 'not' || node.op === '!')) {
       const a = liftLive(node.arg)
       return a ? { v: 'bool', op: 'not', args: [a] } : null
@@ -14746,15 +15112,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // stamped by `collectObjectOps`), never the op's: a block may reassign a name
   // its own condition read, and Pine evaluated that condition once, before the
   // block ran. The op's scope (`scopeEnv`) is restored whatever happens.
-  const guardOf = (guards) => {
+  const guardOf = (guards, op) => {
     const opScope = scopeEnv
     try {
-      return guardOfIn(guards, opScope)
+      return guardOfIn(guards, opScope, op)
     } finally {
       scopeEnv = opScope
     }
   }
-  const guardOfIn = (guards, opScope) => {
+  const guardOfIn = (guards, opScope, op) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
@@ -14762,7 +15128,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
     const liveParts = []
     for (const g of guards) {
-      scopeEnv = g.locals ? scopeFor(g.locals) : opScope
+      scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
@@ -14808,7 +15174,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // ⭐⭐ A CONDITION THAT READS A GETTER — lifted, never folded into a tree.
       // ⛔ Not inside a counted loop: a body op runs several times a bar, and a
       // crossing observed "once per bar" has no single answer there.
-      if (hasObjectGetter(node)) {
+      if (readsState(node)) {
+        // ⛔ C14 — a scalar is written once per bar; a loop body reads it per iteration.
+        if (loopIds.length && mentionsScalar(node)) return undefined
         const live = liftLive(node)
         if (!live) return undefined
         // ⭐⭐ C16 — INSIDE A COUNTED LOOP a `get`/`size` comparison has one
@@ -15001,10 +15369,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
-  const scopeFor = (locals) => {
-    if (!locals || !locals.length) return env
-    if (scopeCache.has(locals)) return scopeCache.get(locals)
-    const scoped = new Map(env)
+  // ⭐ C12r — the base an op's scope layers over: `env`, or `env` with the
+  // names the walk rebinds at or after the op's statement bound where the op
+  // reads them (`positionalPlan`). Shared by every op with the same bindings.
+  const bindingIds = new WeakMap()
+  let bindingSeq = 0
+  const bindingIdOf = (b) => {
+    if (!b || typeof b !== 'object') return String(b)
+    if (!bindingIds.has(b)) { bindingSeq += 1; bindingIds.set(b, bindingSeq) }
+    return bindingIds.get(b)
+  }
+  const baseCache = new Map()
+  const baseFor = (op) => {
+    const plan = op ? positionalPlan(op) : NO_PLAN
+    if (!plan.overrides) return env
+    const key = [...plan.overrides].map(([n, b]) => `${n}=${bindingIdOf(b)}`).sort().join('|')
+    if (baseCache.has(key)) return baseCache.get(key)
+    const base = new Map(env)
+    for (const [n, b] of plan.overrides) base.set(n, b)
+    baseCache.set(key, base)
+    return base
+  }
+  const scopeFor = (locals, op) => {
+    const base = baseFor(op)
+    if (!locals || !locals.length) return base
+    let byLocals = scopeCache.get(base)
+    if (!byLocals) { byLocals = new Map(); scopeCache.set(base, byLocals) }
+    if (byLocals.has(locals)) return byLocals.get(locals)
+    const scoped = new Map(base)
     for (const b of locals) {
       // ⭐⭐ A LOCAL OF AN INLINED FUNCTION BODY — the walk never saw these
       // statements (they are a per-call-site rewrite; see `objectFnInline.js`),
@@ -15013,6 +15405,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         scoped.set(b.name, inlinedLocalBinding(b, scoped))
         continue
       }
+      // ⭐⭐ C11b — A TOP-LEVEL STATEMENT'S BINDING IS THE BASE'S TO GIVE. The
+      // base reads every top-level name at the op's own position (`bindingAt`);
+      // an entry keyed on a top-level statement would pin the name to that
+      // statement's record instead — a declaration read after its own `:=` was
+      // exactly that (`x = 1.0` / `x := 2.0` drew "1").
+      if (topStatements && envLog && topStatements.has(b.st)) continue
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
       // ⚰️ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED USED TO STAY CONDEMNED HERE.
@@ -15023,18 +15421,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `poor-man039s-volume-profile`, `row0_text = ""` then
       // `for … row0_text := row0_text + "#"` drew its label with the text "" —
       // TradingView draws `####…`. The overrule's verdict wins.
-      // ⭐⭐ C11b — …AND WHAT IT COULD NOT SEE IS NOW IN THE SCOPE ITSELF. Every
-      // statement that reassigns a name is an entry here, in program order: a
-      // `:=`/`+=` line, an `if`/`else` chain, a `switch`, and a loop (whose
-      // names are refused inside it and after it). So a RECORDED binding is
-      // exact at its own position even when the walk condemned the name for a
-      // reassignment it could not fold ELSEWHERE — and an entry for a
-      // reassignment nobody recorded (the loop's, one the fold refused) is
-      // refused below by name. `poor-man`'s `row0_text` is refused after its
-      // loop by that entry, not by the overrule; `ict-killzones`' `int c = 1` is
-      // read as 1 before its first `c += 1`, where the overrule refused every
-      // cell of a table whose only other writes sit in a dead `for … in`.
-      const top = env.get(b.name)
+      // ⭐⭐ C11b — …UNLESS THE RECORD IS EXACT AT ITS OWN POSITION. Every
+      // statement that reassigns a name is an entry in this scope, in program
+      // order (a loop's or a fold-refused write as a refused entry, below), so a
+      // record the walk made for THIS statement is what the name holds here even
+      // when the name is condemned for a write elsewhere. Only an APPROXIMATE
+      // record (`approxRecords`, a nested block re-folded from its parent's end
+      // state) keeps the condemnation.
+      const top = base.get(b.name)
       if (bound && approxRecords.has(bound) && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
         scoped.set(b.name, top)
         continue
@@ -15064,7 +15458,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
       if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)
     }
-    scopeCache.set(locals, scoped)
+    byLocals.set(locals, scoped)
     return scoped
   }
 
@@ -15087,19 +15481,78 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // Clearing them first, every bar, is exactly what Pine does.
   for (const id of locals) ops.push({ k: 'setreg', reg: id, value: null, when: null })
 
+  // ⭐⭐ C14 — WHAT A GETTER COULD READ THAT THIS PROGRAM CANNOT CARRY. A setter
+  // lost on a handle leaves the properties it writes different from Pine's; a
+  // setter or delete whose handle cannot be named, or a lost create, leaves a
+  // whole family unknown. A getter reading any of it is withheld after
+  // conversion (`state:lost`), never answered from the value this run holds.
+  const stateLostProps = new Map()
+  const stateLostFamilies = new Set()
+  const stateLostBy = (op, target) => {
+    if (!target || target.r !== 'reg') { stateLostFamilies.add((op && op.family) || null); return }
+    const cur = stateLostProps.get(target.id)
+    if (cur === '*') return
+    if (!op || op.k !== 'update') { stateLostProps.set(target.id, '*'); return }
+    const s = cur || new Set()
+    for (const p of op.props || []) s.add(p)
+    stateLostProps.set(target.id, s)
+  }
+  /** Every `get`/`num` one converted op reads — its guard, props, text
+   *  conditions and a scalar's source. The object runtime's `stateReadsOf` is
+   *  the same walk over the same shapes. */
+  // ⛔ Walks written HERE, in the lazily loaded translator, not imported from
+  // `objectProgram.js`: that module rides the Notebook's first-open bundle,
+  // whose byte budget cannot carry them.
+  const opRefs = (o) => {
+    const reads = []
+    const trees = new Set()
+    const walkV = (v, d) => {
+      if (!v || typeof v !== 'object' || d > 48) return
+      if (v.v === 'get' || v.v === 'num') { reads.push(v); return }
+      if (v.v === 'latch' && latchCond.has(v.id)) walkV(latchCond.get(v.id), d + 1)
+      if (v.v === 'tree' && Number.isInteger(v.tree)) trees.add(v.tree)
+      if (v.v === 'text' || v.v === 'color') walkN(v.node, d + 1)
+      if (Array.isArray(v.args)) v.args.forEach((a) => walkV(a, d + 1))
+    }
+    const walkN = (t, d) => {
+      if (!t || typeof t !== 'object' || d > 48) return
+      if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) trees.add(t.tree)
+      if (t.t === 'cat') (t.args || []).forEach((a) => walkN(a, d + 1))
+      if (t.t === 'if' || t.c === 'if') { walkV(t.cond, d + 1); walkN(t.then, d + 1); walkN(t.else, d + 1) }
+    }
+    walkV(o.when, 0)
+    if (o.k === 'setnum') walkV(o.value, 0)
+    for (const f of ['col', 'row', 'index', 'col2', 'row2', 'from', 'to', 'step']) walkV(o[f], 0)
+    for (const v of Object.values(o.props || {})) walkV(v, 0)
+    return { reads, trees }
+  }
+  const stateReadsOfOp = (o) => opRefs(o).reads
+
   /** ⭐ A FUNCTION so a LOOP BODY converts into its own sink and nests,
    *  rather than being flattened into the program beside its parent. */
   const convertList = (list) => {
   for (const op of list) {
+    const mark = ops.length
+    const into = ops
+    try {
+    // ⭐ C14 — a number read off a drawing: not a drawing step, never counted as
+    // one. Its readability was settled before conversion (`getnumPlan`).
+    if (op.k === 'getnum') {
+      const plan = getnumPlan.get(op)
+      if (!plan || lostScalars.has(op.name)) continue
+      ops.push({ k: 'setnum', num: numId.get(op.name), value: plan.value, when: plan.g.when, ...plan.g.extra })
+      continue
+    }
     diagnostics.attemptedOps += 1
-    scopeEnv = scopeFor(op.locals)
+    scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
-    const g = guardOf(op.guards)
+    const g = guardOf(op.guards, op)
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
-      if (op.k === 'update') contentLostBy(op, targetRef(op.target))
+      if (op.k === 'update') { contentLostBy(op, targetRef(op.target)); stateLostBy(op, targetRef(op.target)) }
+      if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
       if (op.k.startsWith('coll_')) lostColl(op.coll)
       if (op.k === 'copy' && op.fromColl && regId.has(op.into)) taintedRegs.add(regId.get(op.into))
       dropped(`guard:${op.k}`)
@@ -15143,7 +15596,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops = body
       convertList(op.body || [])
       ops = outer
-      scopeEnv = scopeFor(op.locals)
+      scopeEnv = scopeFor(op.locals, op)
       loopIds = op.loopIds || []
       // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
       // empty body draws nothing"), so a loop whose every op was dropped is
@@ -15165,6 +15618,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       const props = {}
       let bad = false
       const required = REQUIRED[op.family] || new Set()
+      stateOk = !loopIds.length
+      stateOp = op
+      try {
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_FAMILY_PROPS[op.family] || !OBJECT_FAMILY_PROPS[op.family].includes(k)) {
           unsupportedProp(op.family, k, node)
@@ -15184,6 +15640,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         }
         props[k] = v
       }
+      } finally { stateOk = false; stateOp = null }
       // ⛔ AND A REQUIRED PROPERTY THAT WAS NEVER WRITTEN IS ALSO FATAL.
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
@@ -15204,24 +15661,29 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       })
     } else if (op.k === 'update') {
       const target = targetRef(op.target)
-      if (!target) { dropped('update:target'); continue }
+      if (!target) { stateLostFamilies.add(op.family || null); dropped('update:target'); continue }
       const props = {}
       let bad = false
-      op.props.forEach((name, i) => {
-        const node = op.args[i] && op.args[i].value
-        const v = node ? valueRef(node, name) : null
-        if (!v) bad = true
-        else props[name] = v
-      })
+      stateOk = !loopIds.length
+      stateOp = op
+      try {
+        op.props.forEach((name, i) => {
+          const node = op.args[i] && op.args[i].value
+          const v = node ? valueRef(node, name) : null
+          if (!v) bad = true
+          else props[name] = v
+        })
+      } finally { stateOk = false; stateOp = null }
       if (bad || !Object.keys(props).length) {
         contentLostBy(op, target)
+        stateLostBy(op, target)
         dropped('update:props')
         continue
       }
       ops.push({ k: 'update', target, when, ...lastBarOnly, props })
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
-      if (!target) { lostRemoval('delete:target', op); dropped('delete:target'); continue }
+      if (!target) { stateLostFamilies.add(op.family || null); lostRemoval('delete:target', op); dropped('delete:target'); continue }
       ops.push({ k: 'delete', target, when, ...lastBarOnly })
     } else if (op.k === 'copy') {
       // ⭐ AN INLINED FUNCTION'S RETURNED HANDLE, into the caller's name —
@@ -15379,9 +15841,168 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         dropped(`coll:${method}`)
       }
     }
+    } finally {
+      for (let i = mark; i < into.length; i += 1) if (!srcOf.has(into[i])) srcOf.set(into[i], op)
+    }
   }
   }
+  /** ⭐ C14 — converted op → the reader op it came from (`staleReads`). */
+  const srcOf = new Map()
+  // ⭐ C14 — each scalar write is settled BEFORE any op converts, because an op
+  // that reads the scalar may convert first. A write whose getter or guard this
+  // program cannot carry makes the scalar unreadable everywhere.
+  const getnumPlan = new Map()
+  for (const op of collected.ops) {
+    if (op.k !== 'getnum' || !numId.has(op.name)) continue
+    scopeEnv = scopeFor(op.locals, op)
+    loopIds = op.loopIds || []
+    let node = null
+    try { node = parseWholeExpression(op.rhs) } catch { node = null }
+    const value = node && !op.inlined ? getterRef(node) : null
+    // ⛔ A scalar written under a condition that itself reads object state would
+    // need that condition latched where the `if` stands; not carried — refused.
+    const stateGuard = (op.guards || []).some((gd) => {
+      try { return readsState(parseWholeExpression(gd.toks)) } catch { return true }
+    })
+    const g = value && !stateGuard ? guardOf(op.guards, op) : undefined
+    if (!value || g === undefined) { lostScalars.add(op.name); continue }
+    const stale = staleReads(op, { k: 'setnum', when: g.when })
+    if (stale.length) { noteReadBeforeWrite(op, stale); lostScalars.add(op.name); continue }
+    getnumPlan.set(op, { value, g })
+  }
+  scopeEnv = env
+  loopIds = []
   convertList(collected.ops)
+  // ⭐⭐ C14 — WITHHOLD WHAT READS A NAME BEFORE ITS OWN LATER WRITE (see
+  // `readBeforeWrite`/`staleReads`). Dropped exactly as an unreadable guard is
+  // (`guard:<kind>`), with the name and line in `readBeforeWrite`.
+  if (!rawTrees && varWrites.size) {
+    const prune = (list) => {
+      const out = []
+      for (const o of list) {
+        const src = srcOf.get(o)
+        if (o.k === 'loop' && Array.isArray(o.body)) {
+          if (src) {
+            scopeEnv = scopeFor(src.locals, src)
+            loopIds = src.loopIds || []
+            const staleBounds = staleReads(src, { when: o.when, from: o.from, to: o.to, step: o.step })
+            if (staleBounds.length) {
+              noteReadBeforeWrite(src, staleBounds)
+              unconverted(src.body, 'guard:loop')
+              dropped(`guard:${src.k}`)
+              continue
+            }
+          }
+          const body = prune(o.body)
+          if (!body.length) { dropped('loop:empty'); continue }
+          out.push(body.length === o.body.length ? o : { ...o, body })
+          continue
+        }
+        // ⭐ a latch stays: its readers are judged through it (`opRefs`).
+        if (!src || o.k === 'latch') { out.push(o); continue }
+        scopeEnv = scopeFor(src.locals, src)
+        loopIds = src.loopIds || []
+        const stale = staleReads(src, o)
+        if (!stale.length) { out.push(o); continue }
+        noteReadBeforeWrite(src, stale)
+        if (src.k === 'create') { lostCreate(src.family); lostInto(src) }
+        if (src.k === 'update') { contentLostBy(src, o.target); stateLostBy(src, o.target) }
+        if (src.k === 'delete' || src.k === 'clear') { lostRemoval(`guard:${src.k}`, src); stateLostBy(src, o.target) }
+        if (src.k.startsWith('coll_')) lostColl(src.coll)
+        dropped(`guard:${src.k}`)
+      }
+      return out
+    }
+    ops = prune(ops)
+    scopeEnv = env
+    loopIds = []
+  }
+
+  // ⭐⭐ C14 — WITHHOLD WHAT READS STATE THIS PROGRAM LOST (see `stateLostBy`),
+  // to a fixed point: a withheld create is a lost create, which makes its family
+  // unknown to the next getter. ⛔ A copy between handles of one family makes a
+  // lost setter's reach family-wide — which object a handle holds is not tracked.
+  const lostNums = new Set()
+  const readsRecurrence = (node, d = 0) => {
+    if (!node || typeof node !== 'object' || d > 400) return false
+    if (node.type === 'call' && Object.prototype.hasOwnProperty.call(RECURRENCES, node.name)) return true
+    return Array.isArray(node.args) && node.args.some((a) => readsRecurrence(a, d + 1))
+  }
+  /** One round; true when it withheld anything (see the loop after the content pass). */
+  const statePass = () => {
+    let any = false
+    const famOf = new Map(regs.map((r) => [r.id, r.family]))
+    const copied = new Set()
+    const every = (list, fn) => { for (const o of list) { fn(o); if (o.k === 'loop') every(o.body || [], fn) } }
+    every(ops, (o) => { if (o.k === 'setreg' && o.value && o.value.r === 'reg') copied.add(famOf.get(o.reg)) })
+    const propLost = (p, prop) => !!p && (p === '*' || p.has(prop))
+    const regLost = (rid, prop) => {
+      const fam = famOf.get(rid)
+      if (lostCreateFamilies.has(fam) || lostCreateFamilies.has(null)) return true
+      if (stateLostFamilies.has(fam) || stateLostFamilies.has(null)) return true
+      if (propLost(stateLostProps.get(rid), prop)) return true
+      if (!copied.has(fam)) return false
+      for (const [r2, p2] of stateLostProps) if (famOf.get(r2) === fam && propLost(p2, prop)) return true
+      return false
+    }
+    let reads = false
+    every(ops, (o) => { if (stateReadsOfOp(o).length) reads = true })
+    // ⭐ WHAT THE RUNTIME COULD MAKE UNKNOWABLE, ruled out here (the runtime
+    // holds no taint of its own): a handle a step writes off a recurrence,
+    // which the warm-up curtain may withhold on a bar Pine runs it
+    // (`objectColumns.unknownMask`). ⚠️ A handle a DELETE empties is NOT ruled
+    // out: the runtime's `reap` empties the register, so its getter reads `na`
+    // — the reading C16 serves and rails (`objectLatchedGuards.test.js`).
+    if (reads) {
+      const recurs = (o) => [...opRefs(o).trees].some((i) => readsRecurrence(trees[i]))
+      every(ops, (o) => {
+        const t = o.k === 'setreg' ? { r: 'reg', id: o.reg }
+          : o.k === 'create' ? (o.into ? { r: 'reg', id: o.into } : null) : o.target
+        if (!t || o.k === 'delete' || !recurs(o)) return
+        if (t.r === 'reg') stateLostProps.set(t.id, '*')
+        else stateLostFamilies.add(t.r === 'coll' ? (colls.find((c) => c.id === t.id) || {}).family || null : null)
+      })
+    }
+    const sweep = (list) => {
+      const kept = []
+      for (const o0 of list) {
+        let o = o0
+        if (o.k === 'loop' && Array.isArray(o.body)) {
+          const body = sweep(o.body)
+          if (!body.length) { dropped('loop:empty'); continue }
+          if (body.length !== o.body.length) o = { ...o, body }
+        }
+        const bad = stateReadsOfOp(o).some((r) => (r.v === 'num' ? lostNums.has(r.id) : regLost(r.target.id, r.prop)))
+        // ⭐ a latch stays: its readers are judged through it (`opRefs`).
+        if (!bad || o.k === 'latch') { kept.push(o); continue }
+        reads = true
+        any = true
+        if (o.k === 'setnum') { lostNums.add(o.num); continue }
+        if (o.k === 'create') { lostCreate(o.family); dropped('state:lost'); continue }
+        if (o.k === 'delete') {
+          lostRemoval('state:removal', { family: o.target && o.target.r === 'reg' ? famOf.get(o.target.id) : null })
+          stateLostBy(o, o.target)
+          dropped('state:removal')
+          continue
+        }
+        if (o.k === 'update') {
+          const family = o.target && o.target.r === 'reg' ? famOf.get(o.target.id) : null
+          const asRead = { k: 'update', family, props: Object.keys(o.props || {}) }
+          contentLostBy(asRead, o.target)
+          stateLostBy(asRead, o.target)
+        }
+        if (o.k === 'loop') unconverted(o.body, 'state:lost')
+        if (o.k === 'push' || o.k === 'collset' || o.k === 'collremove' || o.k === 'collclear') divergedColls.add(o.coll)
+        dropped('state:lost')
+      }
+      return kept
+    }
+    while (reads) {
+      reads = false
+      ops = sweep(ops)
+    }
+    return any
+  }
 
   // ⭐⭐ C16 — WITHHOLD EVERY READ OF A DIVERGED COLLECTION (see `divergedColls`).
   // Propagated to a fixed point first: a handle copied out of a diverged
@@ -15392,6 +16013,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // counted (`coll:diverged`), with what it would have drawn or removed carried
   // into the same ledgers a dropped op feeds (`lostCreate`, `lostRemovals`,
   // `contentLost`), so the member door's partial-drawing rule sees it.
+  const divergedPass = () => {
   if (divergedColls.size || taintedRegs.size || lostCreateRegs.size) {
     const unknownLatches = new Set()
     const readsUnknown = (v, depth = 0) => {
@@ -15462,6 +16084,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     ops = pruneDiverged(ops)
     diagnostics.collsDiverged = divergedColls.size
   }
+  }
+  divergedPass()
+  let divergedSeen = divergedColls.size
 
   // ⭐⭐ WITHHOLD EVERY OBJECT WHOSE CONTENT A LOST STEP WROTE — see `contentLost`.
   // The lost step names a handle (a register, a create site, a collection slot);
@@ -15474,6 +16099,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // ⚠️ Deliberately handle-wide: `l.set_text` lost on a register withholds every
   // object that register can hold, because nothing here can say which of them
   // the lost step would have reached.
+  statePass()
+  const withholdContent = () => {
   if (contentLost.length) {
     const regs = new Set()
     const sites = new Set()
@@ -15528,6 +16155,30 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     ops = prune(ops)
     diagnostics.contentWithheld = { regs: regs.size, sites: sites.size, colls: colls.size }
   }
+  }
+  // ⭐ C14 — a withheld create makes its family unknown to a getter, and a
+  // withheld setter can lose a text: the two passes run to a fixed point. A
+  // program that reads no object state takes exactly one content pass.
+  withholdContent()
+  while (statePass()) withholdContent()
+  // ⭐⭐ C12r (2026-09-29) — A LIST `statePass` DIVERGED IS DIVERGED FOR ITS READERS
+  // TOO. `statePass` withholds a push/set/remove it cannot carry and records the
+  // collection in `divergedColls`, but it runs AFTER `divergedPass`, so the
+  // reads of that list — `array.size(ls) > 3` guarding `line.delete(array.shift(
+  // ls))` — survived and ran over a list missing its pushes (C14's open item).
+  // Each pass can feed the others, so all three run to a fixed point.
+  while (divergedColls.size > divergedSeen) {
+    divergedSeen = divergedColls.size
+    divergedPass()
+    withholdContent()
+    while (statePass()) withholdContent()
+  }
+  if (nums.length) {
+    diagnostics.getterScalars = {
+      served: [...numId.keys()].filter((n) => !lostScalars.has(n) && !lostNums.has(numId.get(n))).sort(),
+      refused: [...numId.keys()].filter((n) => lostScalars.has(n) || lostNums.has(numId.get(n))).sort(),
+    }
+  }
 
   // ⭐ WHICH LOST REMOVALS COULD HAVE REMOVED SOMETHING DRAWN — read off the
   // families the conversion actually CARRIED a create for, loop bodies included.
@@ -15581,6 +16232,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if (o.into) usedRegs.add(o.into)
       if (o.reg) usedRegs.add(o.reg)
       if (o.coll) usedColls.add(o.coll)
+      // ⭐ C14 — a handle a getter reads is used, whatever else writes it.
+      for (const s of stateReadsOfOp(o)) if (s.v === 'get') usedRegs.add(s.target.id)
       for (const r of [o.target, o.value, ...Object.values(o.props || {})]) {
         if (r && r.r === 'reg') usedRegs.add(r.id)
         if (r && r.r === 'coll') usedColls.add(r.id)
@@ -15590,6 +16243,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   scanUse(ops)
   const keptOps = ops.filter((o) => o.k !== 'setreg' || usedRegs.has(o.reg))
+  const usedNums = new Set()
+  for (const o of keptOps) {
+    if (o.k === 'setnum') usedNums.add(o.num)
+    for (const s of stateReadsOfOp(o)) if (s.v === 'num') usedNums.add(s.id)
+  }
   // ⛔⛔ THE SEARCH DESCENDS INTO LOOP BODIES. `some()` over the top level was
   // right while every op was top-level, and became wrong the day a `create`
   // could sit inside a `loop` — a script whose ONLY constructor is in a loop
@@ -15611,6 +16269,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       programVersion: OBJECT_PROGRAM_VERSION,
       regs: regs.filter((r) => usedRegs.has(r.id)),
       colls: colls.filter((c) => usedColls.has(c.id)),
+      ...(usedNums.size ? { nums: nums.filter((n) => usedNums.has(n.id)) } : {}),
       ops: keptOps,
       trees,
       ...(Object.keys(iteratedTrees).length ? { iteratedTrees } : {}),
@@ -15971,6 +16630,27 @@ function translatePineResult(source, opts = {}) {
     windowEnvAt.get(got.model.addStmt).push(got.model)
     return vec
   }
+  // ⭐⭐ C12r — WHAT EVERY TOP-LEVEL NAME WAS BOUND TO WHERE EACH STATEMENT
+  // STARTS. The walk rebinds `env` statement by statement, and the plot lane
+  // reads it AS IT STANDS at each `plot` — that is how a plot above
+  // `x := …` reads last bar's `x`. The object pass runs after the walk, over
+  // the FINAL `env`, so it needs the same answer by position: `envLog` records,
+  // per name, the binding it held when a statement that changed it began
+  // (`prev`, keyed by that statement's first token index), and `walkStarts`
+  // every statement start the walk took (an `if … else` chain it folds is ONE
+  // start). `buildObjectProgram` reads both (`bindingAt`). Nothing else does.
+  const envLog = new Map()
+  const walkStarts = []
+  let logPos = null
+  const envSetRaw = env.set
+  env.set = function setLogged(k, v) {
+    if (logPos !== null) {
+      let log = envLog.get(k)
+      if (!log) { log = []; envLog.set(k, log) }
+      if (!log.length || log[log.length - 1].pos !== logPos) log.push({ pos: logPos, prev: this.get(k) })
+    }
+    return envSetRaw.call(this, k, v)
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
@@ -15979,6 +16659,8 @@ function translatePineResult(source, opts = {}) {
     if (windowEnvAt.has(stmt)) for (const m of windowEnvAt.get(stmt)) m.env = new Map(env)
     const toks = stmt.header
     const first = toks[0]
+    logPos = first && Number.isFinite(first.index) ? first.index : null
+    if (logPos !== null) walkStarts.push(logPos)
 
     // `[a, b] = f()` — a tuple destructure, read by the SHARED reader so this
     // walk and `foldStatements` can never disagree about one construct.
@@ -16060,13 +16742,6 @@ function translatePineResult(source, opts = {}) {
           env.set(nameTok.value, stateBinding(
             parseWholeExpression(toks.slice(eq + 1)),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
-          // ⭐⭐ C11b — THE DECLARATION IS RECORDED, so a drawing that reads the
-          // `var` BEFORE this bar reassigns it reads the value it carried in —
-          // not the bar's FINAL value, which is what `env` holds once the walk
-          // ends. Measured before this: `var float prev = 0.0` / `if c` /
-          // `label.new(bar_index, prev, …)` / `prev := close` drew each label at
-          // THIS bar's close, where Pine draws the previous one.
-          recordTop(stmt, nameTok.value)
           continue
         } catch (err) {
           const r = fromError(err)
@@ -16379,8 +17054,6 @@ function translatePineResult(source, opts = {}) {
         if (prior && prior.kind === 'state') {
           env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok))
           ctx.consumed.add(toks[mutAt].index)
-          // ⭐ C11b — recorded, so a drawing after this line reads it (`scopeFor`).
-          recordTop(stmt, nameTok.value)
           continue
         }
         if (!prior || prior.kind !== 'expr') {
@@ -16395,11 +17068,6 @@ function translatePineResult(source, opts = {}) {
           type: 'binary', op: op[0], left: boundNode(prior, nameTok.value, nameTok), right: rhs, tok: toks[mutAt],
         }, new Map(env), locate(nameTok)))
         ctx.consumed.add(toks[mutAt].index)
-        // ⭐⭐ C11b — THE REASSIGNMENT IS RECORDED LIKE THE DECLARATION WAS. Only the
-        // declaration used to be, so the object pass read `x = 1.0` for every
-        // drawing after `x := 2.0` (measured: a label captioned "1" where Pine
-        // writes "2"). `scopeFor` now reads THIS statement's binding after it.
-        recordTop(stmt, nameTok.value)
       } catch (err) {
         const r = fromError(err)
         // ⛔ CONSUMED ON PURPOSE. The refusal is recorded against the name with
@@ -16647,6 +17315,8 @@ function translatePineResult(source, opts = {}) {
 
     notes.push(noteOf('pine:statement', REFUSALS['pine:statement'], first))
   }
+  logPos = null
+  delete env.set
 
   // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
   //
@@ -17477,6 +18147,10 @@ function translatePineResult(source, opts = {}) {
       rawTrees: opts.objectRawTrees === true,
       approxRecords,
       iterTrees: opts.objectIterTrees === true,
+      envLog,
+      walkStarts,
+      topStatements: new Set(stmts),
+      mutableNames: reassigned,
     })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the

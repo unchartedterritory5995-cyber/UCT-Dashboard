@@ -39,7 +39,7 @@ import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant,
+  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -244,6 +244,8 @@ export function collectObjectOps(stmts, h) {
   const pureFns = pureFunctions(fnDefs, drawFns)
   /** Top-level names fixed for the whole run — see `barInvariantNames`. */
   const invariantNames = barInvariantNames(stmts, h)
+  /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
+  const scalars = getterScalars(stmts, h)
   let inlineSeq = 0
   let inlineDepth = 0
   /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
@@ -327,13 +329,37 @@ export function collectObjectOps(stmts, h) {
    * Carrying the block's own bindings with each op is the difference between a
    * dashboard with content and an empty frame.
    */
+  // ⭐ C14 — WHERE IN THE BAR EACH OP RUNS: the ordinal of the top-level
+  // statement it came from (`topPos`), stamped on every op (loop bodies too).
+  // See `varWrites` below for what it is compared with.
+  // ⭐ C12r — and the TOKEN INDEX that statement starts at (`topTok`), which is
+  // what `pine.js` keys the walk's per-statement bindings by (`envLog`).
+  let rootPos = -1
+  let rootTok = null
+  let rootMark = 0
+  const stampTop = (list, pos, tok) => {
+    for (const o of list) {
+      if (o.topPos === undefined) { o.topPos = pos; o.topTok = tok }
+      if (o.k === 'loop' && Array.isArray(o.body)) stampTop(o.body, pos, tok)
+    }
+  }
+  const stampRootSince = () => {
+    if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos, rootTok)
+    rootMark = ops.length
+  }
   const walk = (list, guards, inLoop, scope) => {
     let prevIfCond = null
     // ⭐ C11b — the scope the chain's FIRST `if` stood in (see `guardAt`).
     let prevIfLocals = null
     let localScope = scope
+    const isRoot = list === stmts
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     for (const st of splitCommaStatements(list, h)) {
+      if (isRoot) {
+        stampRootSince()
+        rootPos += 1
+        rootTok = st.header && st.header[0] && Number.isFinite(st.header[0].index) ? st.header[0].index : null
+      }
       const t = st.header
       if (!t || !t.length) continue
       const first = t[0]
@@ -619,6 +645,15 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
+        // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
+        // else about the statement changes (it still joins the block scope).
+        if (scalars.has(String(name)) && !inLoop && isBareGetterAt(rhs, 0, h)) {
+          ops.push({
+            k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
+        }
         // ⭐⭐ `b := box(na)` / `b := na` — THE HANDLE IS EMPTIED, the object is
         // not. Pine keeps the box on the chart; only the variable forgets it, so
         // a later `b.set_right(…)` or `b.delete()` touches nothing. ⚰️ Unread,
@@ -880,8 +915,10 @@ export function collectObjectOps(stmts, h) {
         // drew on EVERY up bar — a confident wrong picture, with a clean drop
         // ledger. The declaration's per-statement record pinned the name for
         // every op after it. Entering the reassignment makes `scopeFor` read the
-        // walk's OWN record for THIS statement (top-level `recordTop`, a block's
-        // `foldStatements` record) — the binding the value walk made right there.
+        // walk's OWN record for THIS statement (a block's `foldStatements`
+        // record) — the binding the value walk made right there. At the TOP level
+        // the entry is skipped: there `scopeFor`'s base reads the name at the
+        // op's own position (`bindingAt`, the walk's per-statement log).
         localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st, reassign: true }]
       }
       const declEq = h.findTop(t, (x) => h.isPunct(x, '='))
@@ -1552,6 +1589,38 @@ export function collectObjectOps(stmts, h) {
    * might be meaning its own. (An OVERLOADED method is refused in `inlineCall`,
    * which both spellings reach.)
    */
+  /** ⭐ C14 — `if c … else …` as a body's LAST statements, each arm ending in a
+   *  bare `ns.new(…)` of one family → `{family, creates}` (the two create ops,
+   *  found by their arm's line), else null. */
+  function ifElseReturn(stmts, sink, before) {
+    const n = stmts.length
+    if (n < 2) return null
+    const e = stmts[n - 1]
+    const i = stmts[n - 2]
+    const et = (e && e.header) || []
+    const it = (i && i.header) || []
+    if (et.length !== 1 || et[0].kind !== 'ident' || et[0].value !== 'else') return null
+    if (!it.length || it[0].kind !== 'ident' || it[0].value !== 'if') return null
+    const armCreate = (arm) => {
+      const sub = (arm && arm.sub) || []
+      const last = sub[sub.length - 1]
+      const lt = (last && last.header) || []
+      if (!lt.length || lt[0].kind !== 'ident') return null
+      const ns = nsOf(String(lt[0].value))
+      if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(String(lt[0].value)) !== 'new') return null
+      if (!h.isPunct(lt[1], '(') || closeOf(lt, 1) !== lt.length - 1) return null
+      for (let k = sink.length - 1; k >= before; k -= 1) {
+        const o = sink[k]
+        if (o.k === 'create' && !o.into && o.family === ns && o.line === lt[0].line) return o
+      }
+      return null
+    }
+    const a = armCreate(i)
+    const b = armCreate(e)
+    if (!a || !b || a === b || a.family !== b.family) return null
+    return { family: a.family, creates: [a, b] }
+  }
+
   function inlineAt(head, callToks, open, into, guards, inLoop, st, scope) {
     if (!head.recv) return inlineCall(head.fn, callToks, open, into, guards, inLoop, st, scope)
     const root = head.recv.split('.')[0]
@@ -1616,6 +1685,15 @@ export function collectObjectOps(stmts, h) {
     } finally {
       inlineDepth -= 1
     }
+    // ⭐ C14 — an op the body produced. A getter in it was written where it
+    // stands only when it reads the BODY's own handle; one pasted in from an
+    // argument was evaluated at the call, before the body's earlier statements.
+    // ⭐ C12r — and WHERE the call stands: the body's reads of top-level names
+    // happen at the call (Pine runs the body there), so a read-order question
+    // about them is asked at this token, not at the definition's. The outermost
+    // call writes last, so a nested call's ops carry the real call site.
+    const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
+    for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
     // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
     // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,
@@ -1642,6 +1720,27 @@ export function collectObjectOps(stmts, h) {
         if (sink[i].k === 'create' && !sink[i].into) { fromSite = sink[i].site; family = sink[i].family; break }
       }
     }
+    // ⭐⭐ C14 — THE HANDLE AN `if`/`else` RETURNS. `createOverBoughtLabel(isIt)
+    // => if (isIt) label.new(…) else label.new(…)` (rsi-swing-indicator) returns
+    // whichever create its arm ran: one `copy` per arm, under that create's own
+    // guards, so the caller's variable holds exactly the object Pine returned.
+    // ⛔ Only a plain `if … else` pair whose two arms each END in a bare create
+    // of ONE family; any other shape reads as before.
+    const arms = !family ? ifElseReturn(rw.stmts, sink, before) : null
+    if (arms) {
+      const existingArm = decls.get(into)
+      if (existingArm && (existingArm.kind === 'coll' || existingArm.family !== arms.family)) {
+        return refuseCall('return-type', fnName, st)
+      }
+      if (!existingArm) decls.set(into, { family: arms.family, kind: 'local' })
+      for (const c of arms.creates) {
+        ops.push({
+          k: 'copy', into, from: null, fromSite: c.site, guards: c.guards, locals: scope, loopIds: [...loopIds],
+          at: st.header[0], line: st.header[0].line, inlined: !!c.inlined,
+        })
+      }
+      return true
+    }
     if (!family) return true
     const existing = decls.get(into)
     if (existing && (existing.kind === 'coll' || existing.family !== family)) {
@@ -1656,7 +1755,31 @@ export function collectObjectOps(stmts, h) {
   }
 
   walk(stmts, [], false, [])
+  stampRootSince()
+  // ⭐⭐ C14 — EVERY `:=` (and `+=`…) OUTSIDE A FUNCTION BODY, AS (top-level
+  // statement ordinal, token index). `pine.js`'s `positionalPlan` compares
+  // them with an op's read positions: a read binds at its statement's START or
+  // END, and only a name read on BOTH sides of a write in one statement is
+  // refused by name.
+  const varWrites = new Map()
+  const noteWrites = (list, pos) => {
+    for (const s2 of list || []) {
+      const ts = s2.header || []
+      if (definitionHeader(ts, h)) continue
+      for (let k = 1; k < ts.length; k += 1) {
+        const p = ts[k]
+        if (p && p.kind === 'punct' && typeof p.value === 'string' && p.value.length >= 2 && p.value.endsWith('=')
+          && !['==', '!=', '<=', '>=', '=>'].includes(p.value) && ts[k - 1] && ts[k - 1].kind === 'ident') {
+          const nm = String(ts[k - 1].value)
+          if (!varWrites.has(nm)) varWrites.set(nm, [])
+          varWrites.get(nm).push({ top: pos, index: Number.isFinite(p.index) ? p.index : null })
+        }
+      }
+      noteWrites(s2.sub, pos)
+    }
+  }
+  splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, definedNames: defined }
+  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined }
 }
