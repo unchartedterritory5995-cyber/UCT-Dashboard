@@ -235,6 +235,27 @@ def test_the_deadclick_control_fails_when_the_planted_poller_was_never_seen():
     assert W.control_ok("deadclick", {**good, "plant-dead-styled": "LIVE"})[0] is False
 
 
+# ── wave 10 lane WK3: geometry fixes 1+2 (occluder mislabel; "at rest" semantics) ───────────
+# Found live by lane FX: GEOM_JS's occluder description could climb past a non-div hit (e.g.
+# MobileNav's <header>) all the way to a full-viewport wrapper div, whose `.innerText` reads a
+# portaled skip link's own (off-screen) text first -- blaming the skip link for occlusions it
+# never causes. And a control that happens to sit under FIXED/STICKY chrome mid-scroll was
+# always reported occluded even when scrolling it clear would resolve it. The browser-side fix
+# lives entirely inside GEOM_JS (tightOccluderAncestor / canEscapeByScroll); this rail is the
+# pure-Python half -- the CONTROL that a live sandbox run exercises (plant-mislabel,
+# plant-scroll-clear, plant-scroll-pinned) must actually be REQUIRED, not silently optional.
+
+def test_the_geometry_control_requires_the_mislabel_and_restscroll_plants():
+    base = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found",
+            "plant-mislabel": "named-the-real-occluder", "plant-scroll-clear": "CLEAR",
+            "plant-scroll-pinned": "OCCLUDED"}
+    assert W.control_ok("geometry", base)[0] is True
+    # non-vacuity: each new plant can fail the control on its own
+    assert W.control_ok("geometry", {**base, "plant-mislabel": "named the decoy: 'DIV \"Off-screen decoy text\"'"})[0] is False
+    assert W.control_ok("geometry", {**base, "plant-scroll-clear": "OCCLUDED"})[0] is False
+    assert W.control_ok("geometry", {**base, "plant-scroll-pinned": "CLEAR"})[0] is False
+
+
 _NODE_HARNESS = r"""
 globalThis.window = globalThis;
 globalThis.location = {href: 'http://sandbox.test/journal/notebook'};
