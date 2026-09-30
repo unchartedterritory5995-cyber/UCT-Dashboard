@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 3407,
+  "passed": 3402,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 618.93,
+  "failed_files": [
+    "tests/test_account_tombstones.py",
+    "tests/test_alert_taxonomy_indicator_condition_schema.py",
+    "tests/test_alert_taxonomy_position_risk_schema.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3402 passed, 2 skipped, 30 warnings in 618.93s (0:10:18)",
+  "ok": true
+}
