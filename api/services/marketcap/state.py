@@ -211,13 +211,16 @@ class DayState:
     age_days: int | None = None
 
 
-def timeline(checked: list[Checked], days: list[date], first_listed: date | None = None,
+def timeline(checked: list[Checked], days: list[date], edgar_complete: date | None = None,
              bound_days: int = R.SAFETY_BOUND_DAYS) -> list[DayState]:
     """Authoritative state per trading day (days ascending).
 
     Selection at day D among usable observations known by D's close: the LATEST as-of; ties by source rank,
     then the latest public (an amendment supersedes its original from its own publication onward).
+    Days before any evidence are PRE_EDGAR while EDGAR did not yet cover the issuer (1996-05-06 domestic,
+    2002-05-06 foreign private issuers), PRE_FIRST_AUTHORITATIVE_SHARE_EVIDENCE after that.
     """
+    edgar = edgar_complete or date.fromisoformat(R.EDGAR_COMPLETE)
     usable = sorted((c for c in checked if c.usable and "REDUNDANT" not in c.flags),
                     key=lambda c: c.obs.known_from)
     best: Checked | None = None
@@ -237,7 +240,7 @@ def timeline(checked: list[Checked], days: list[date], first_listed: date | None
                 best = usable[p]
             p += 1
         if best is None:
-            pre = d < date.fromisoformat(R.EDGAR_COMPLETE)
+            pre = d < edgar
             out.append(DayState(None, R.PRE_EDGAR if pre else R.PRE_FIRST))
             continue
         age = (d - best.obs.as_of).days

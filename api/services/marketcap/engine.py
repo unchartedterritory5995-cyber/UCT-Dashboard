@@ -74,10 +74,17 @@ def listing_reason(lst: Listing, d: date) -> str | None:
 
 
 def company_cap(days: list[date], structure: Structure, states: dict[str, dict[date, DayState]],
-                closes: dict[str, dict[date, float]], listings: dict[str, Listing]) -> list[CapDay]:
-    """One CapDay per requested day. `states[class_key][d]`, `closes[ticker][d]`, `listings[ticker]`."""
+                closes: dict[str, dict[date, float]], listings: dict[str, Listing], primary: str | None = None) -> list[CapDay]:
+    """One CapDay per requested day. `states[class_key][d]`, `closes[ticker][d]`, `listings[ticker]`.
+    The primary ticker's listing interval is checked FIRST: a day that is not this issuer's trading day (ticker
+    reuse, not yet listed, delisted) carries that reason whatever the structure."""
     out = []
     for d in days:
+        if primary is not None and primary in listings:
+            lr = listing_reason(listings[primary], d)
+            if lr:
+                out.append(CapDay(d, None, lr))
+                continue
         if structure.kind == "UNRESOLVED":
             out.append(CapDay(d, None, structure.reason or R.MULTI_CLASS))
             continue

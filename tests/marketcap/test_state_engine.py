@@ -123,3 +123,9 @@ def test_adr_uses_ads_ratio_never_ads_price_times_ordinary():
 def test_unresolved_structure_reason():
     cap = company_cap([date(2020, 1, 2)], Structure("UNRESOLVED", reason=R.COMPLEX), {}, {}, {})
     assert cap[0].reason == R.COMPLEX
+
+
+def test_primary_listing_reason_precedes_unresolved_structure():
+    lst = {"ARM": Listing("ARM", date(2023, 9, 14), prior_other_issuer=True)}
+    out = company_cap([date(2010, 1, 4), date(2024, 1, 2)], Structure("UNRESOLVED", reason=R.ADR_RATIO), {}, {}, lst, "ARM")
+    assert [c.reason for c in out] == [R.TICKER_REUSE, R.ADR_RATIO]
