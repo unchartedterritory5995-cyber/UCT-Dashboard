@@ -118,8 +118,8 @@ describe('⛔⛔ THE REGRESSION — browse, click, nothing happened', () => {
     return seen
   }
 
-  it('INDEX — browsing Indexes and clicking SPX creates a symbol-backed series', async () => {
-    const seen = await browseAdds('indexes', 'security:SPX', 'SPX')
+  it('INDEX — browsing Symbols (indexes live there since 2026-09-30) and clicking SPX creates a symbol-backed series', async () => {
+    const seen = await browseAdds('symbols', 'security:SPX', 'SPX')
     const syms = symbolSourcesOf(seen.cs)
     expect(syms.length, 'no symbol-backed instance was created').toBe(1)
     expect(syms[0].symbol).toBe('SPX')
@@ -151,7 +151,7 @@ describe('⛔⛔ THE REGRESSION — browse, click, nothing happened', () => {
 describe('⛔ ONE CLICK, ONE INSTANCE — both doors, no bubbling double-add', () => {
   it('clicking the ROW adds exactly once', async () => {
     const seen = {}
-    show(seen); openIndicators(); openAdd(); pickTab('indexes')
+    show(seen); openIndicators(); openAdd(); pickTab('symbols')
     await waitFor(() => expect(rows().length).toBeGreaterThan(0))
     fireEvent.click(rowByKey('security:SPX'))
     await waitFor(() => expect(seen.cs).toBeTruthy())
@@ -165,7 +165,7 @@ describe('⛔ ONE CLICK, ONE INSTANCE — both doors, no bubbling double-add', (
     // This case holds that: if anyone ever gives it its own handler, the count
     // goes to two and this reds.
     const seen = {}
-    show(seen); openIndicators(); openAdd(); pickTab('indexes')
+    show(seen); openIndicators(); openAdd(); pickTab('symbols')
     await waitFor(() => expect(rows().length).toBeGreaterThan(0))
     const row = rowByKey('security:SPX')
     const plus = row.querySelector('[class*="resAdd"]')
@@ -183,7 +183,7 @@ describe('⭐ THEY COEXIST, AND THEY SURVIVE A RELOAD', () => {
     const seen = {}
     show(seen); openIndicators(); openAdd()
 
-    pickTab('indexes')
+    pickTab('symbols')
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     fireEvent.click(rowByKey('security:SPX'))
     await waitFor(() => expect(symbolSourcesOf(seen.cs).length).toBe(1))
@@ -214,7 +214,7 @@ describe('⭐ THEY COEXIST, AND THEY SURVIVE A RELOAD', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => {
   const addSpx = async (seen) => {
-    show(seen); openIndicators(); openAdd(); pickTab('indexes')
+    show(seen); openIndicators(); openAdd(); pickTab('symbols')
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     fireEvent.click(rowByKey('security:SPX'))
     await waitFor(() => expect(seen.cs).toBeTruthy())
@@ -298,7 +298,7 @@ describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => 
     expect(tomb?.deleted, 'the instance was spliced out instead of tombstoned').toBe(true)
 
     // ⭐ AND ADDING IT AGAIN MINTS A **NEW** INSTANCE, not a resurrected corpse.
-    openAdd(); pickTab('indexes')
+    openAdd(); pickTab('symbols')
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     fireEvent.click(rowByKey('security:SPX'))
     await waitFor(() => expect(symbolSourcesOf(seen.cs).length).toBe(1))
@@ -309,7 +309,7 @@ describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => 
   it('⛔ a symbol row never reads "Active" — it keeps offering (§32)', async () => {
     const seen = {}
     await addSpx(seen)
-    openAdd(); pickTab('indexes')
+    openAdd(); pickTab('symbols')
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     const row = rowByKey('security:SPX')
     expect(row.getAttribute('aria-selected')).toBe('false')

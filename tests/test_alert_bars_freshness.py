@@ -227,7 +227,7 @@ def _always_stale(monkeypatch):
     tests about staleness itself call the real `_needs_fresh`.
     """
     from api.services import bars_fetch as bf
-    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf: True)
+    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf, ticker=None: True)
 
 
 # ═══ 1. THE DEFECT, MEASURED ═════════════════════════════════════════════════
@@ -551,7 +551,7 @@ def test_an_already_fresh_group_costs_no_network_call(store, monkeypatch):
     rec = _patch_delta(monkeypatch, _Recorder(produce=[{"t": 1, "o": 1, "h": 1,
                                                         "l": 1, "c": 1, "v": 1}]))
     from api.services import bars_fetch as bf
-    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf: False)
+    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf, ticker=None: False)
 
     out = abf.refresh_armed_groups(min_gap=0.0)
     assert out["already_fresh"] == 1
@@ -848,7 +848,7 @@ def test_daily_alerts_write_through_the_date_keyed_path(store, monkeypatch):
     store.put_bars("SPY", "D", [{"t": "2026-08-05", "o": 1, "h": 2, "l": 1,
                                  "c": 2, "v": 10}], date_tf=True)
     _fake_active(monkeypatch, [("SPY", "D")])
-    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf: True)
+    monkeypatch.setattr(bf, "_needs_fresh", lambda last_ts, tf, ticker=None: True)
 
     calls = []
 

@@ -277,9 +277,37 @@ export function findInstance(cs, instanceId) {
 export function setInstanceHidden(cs, instanceId, hidden, registry) {
   if (!cs || typeof cs !== 'object' || typeof hidden !== 'boolean') return cs
   if (!findInstance(cs, instanceId)) return cs
+  // ⭐ A GROUPED PART HIDES AND SHOWS WITH ITS GROUP — see `groupMemberIds`.
+  const ids = groupMemberIds(cs, instanceId)
   const next = cs.indicatorInstances.map(i =>
-    (i && i.instanceId === instanceId) ? { ...i, hidden } : i)
+    (i && isLiveInstance(i) && ids.has(i.instanceId)) ? { ...i, hidden } : i)
   return withInstances(cs, next, registry)
+}
+
+/**
+ * The instance ids that act together with `instanceId` — itself, plus every live
+ * instance sharing its `group.id`.
+ *
+ * ⭐⭐ ONE LOGICAL INDICATOR, SEVERAL INSTANCES. A COT dataset is added as three
+ * ordinary `dataSeries` instances (Commercials, Large Speculators, Small
+ * Speculators), each in its own pane, stamped with one `group` by
+ * `discoveryCatalog.createProductSeries`. Removing or hiding ANY of them — from the
+ * Inspector, the legend popover or the settings dialog — acts on all of them,
+ * because those surfaces all end at these two doors and none of them needs to know
+ * a group exists.
+ *
+ * ⚠️ AN UNGROUPED INSTANCE IS ITS OWN GROUP OF ONE, so every instance that predates
+ * this (and every one that is not a product part) behaves exactly as before.
+ */
+export function groupMemberIds(cs, instanceId) {
+  const inst = findInstance(cs, instanceId)
+  const gid = inst && inst.group && typeof inst.group === 'object' ? inst.group.id : null
+  const ids = new Set([instanceId])
+  if (typeof gid !== 'string' || !gid) return ids
+  for (const i of (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])) {
+    if (isLiveInstance(i) && i.group && i.group.id === gid) ids.add(i.instanceId)
+  }
+  return ids
 }
 
 /**
@@ -296,8 +324,11 @@ export function removeInstance(cs, instanceId, registry) {
   const inst = findInstance(cs, instanceId)
   if (!inst) return cs
   const defId = inst.defId
+  // ⭐ A GROUPED PART LEAVES WITH ITS GROUP — removing the COT dataset is ONE act,
+  // never three, and never an orphaned pane. See `groupMemberIds`.
+  const ids = groupMemberIds(cs, instanceId)
   const next = cs.indicatorInstances.map(i =>
-    (i && i.instanceId === instanceId) ? instanceTombstone(instanceId) : i)
+    (i && isLiveInstance(i) && ids.has(i.instanceId)) ? instanceTombstone(i.instanceId) : i)
   const indicators = { ...(cs.indicators || {}) }
   if (!next.some(i => isLiveInstance(i) && i.defId === defId)) {
     indicators[defId] = { ...(indicators[defId] || {}), enabled: false }
@@ -971,7 +1002,9 @@ export function duplicateInstance(cs, instanceId, registry) {
   const def = resolveRegistry(registry)(inst.defId)
   if (!def) return cs
   const list = cs.indicatorInstances
-  const { instanceId: _id, display, hidden: _hidden, ...rest } = inst
+  // ⚠️ `group` IS NOT COPIED: a duplicate of one COT output is a standalone series,
+  // not a fourth member of the dataset it was copied from.
+  const { instanceId: _id, display, hidden: _hidden, group: _group, ...rest } = inst
   const copy = JSON.parse(JSON.stringify(rest))
   const keptDisplay = display && typeof display === 'object'
     ? Object.fromEntries(Object.entries(display).filter(([k]) => k !== 'name')) : null

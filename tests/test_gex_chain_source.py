@@ -84,6 +84,23 @@ def test_parity_reports_agreement_between_sources(monkeypatch):
     assert p["same_call_wall"] and p["same_put_wall"] and p["strikes_common"] == 3
 
 
+
+def test_parity_still_reports_massive_when_schwab_is_down(monkeypatch):
+    """2026-09-30: Schwab unauthenticated in production and the endpoint returned only the
+    error fields, so Massive's numbers -- the source under review -- were unreadable."""
+    async def down(t, f, to):
+        return None, "Schwab not authenticated"
+
+    async def fake_massive(t, f, to):
+        return g.to_schwab_shape(_massive_rows(), 101.0, TODAY), None
+
+    monkeypatch.setattr(g, "_fetch_chain_schwab", down)
+    monkeypatch.setattr(g, "_fetch_chain_massive", fake_massive)
+    p = asyncio.run(g.get_gex_source_parity("TEST", "week"))
+    assert p["schwab_error"] == "Schwab not authenticated" and "schwab" not in p
+    assert p["massive"]["spot"] == 101.0 and p["massive"]["strikes"] == 3
+    assert "sign_agreement" not in p          # no comparison is claimed from one side
+
 def test_the_massive_walk_follows_the_cursor_url_unchanged(monkeypatch):
     """Measured 2026-09-29: passing `params=` with a next_url REPLACED the cursor's own query in
     httpx (15 rows/page, filters gone, truncated after 48 pages on one expiration). A cursor page

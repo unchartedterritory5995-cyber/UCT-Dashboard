@@ -14,17 +14,25 @@ Cached for 1 hour (3600s). Universe: cap_universe from wire_data ($300M+).
 """
 
 import logging
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from api.services import rs_weighted_return
-from api.services.cache import cache
+from api.services.cache import TTLCache, cache
 from api.services.massive import get_agg_bars
 
 logger = logging.getLogger(__name__)
 
 _CACHE_KEY = "rs_rankings"
 _CACHE_TTL = 3600  # 1 hour
+
+# ⛔ ITS OWN INSTANCE, NOT THE SHARED LRU. The shared `cache` ran at 999/1000
+# entries on 2026-09-30 (memory probe), churned by small `bars_*` keys, so an
+# hourly-read ~3,685-row list is the first thing it evicts -- and a cold RS list
+# is what put two full rebuilds on request threads at 08:08 ET that morning.
+# Two slots: the list is ONE key; nothing else lives here.
+_rs_cache = TTLCache(max_size=2)
 
 
 def _disk_universe() -> list[str]:
@@ -163,7 +171,7 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     Results cached for 1 hour. `force=True` recomputes even if cached — used by
     the background re-warmer so the cache never lapses cold onto a real request.
     """
-    cached = cache.get(_CACHE_KEY)
+    cached = _rs_cache.get(_CACHE_KEY)
     if cached is not None and not force:
         return cached
 
@@ -210,9 +218,45 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     # Sort descending by rank (best RS first)
     ranked.sort(key=lambda x: x["rs_rank"], reverse=True)
 
-    cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
+    _rs_cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
+
+
+_warm_lock = threading.Lock()
+_warm_inflight = False
+
+
+def cached_rankings() -> list[dict] | None:
+    """The ranked list from the CACHE only; ``None`` when cold. Never computes."""
+    return _rs_cache.get(_CACHE_KEY)
+
+
+def kick_background_warm() -> bool:
+    """Start ONE background rebuild if none is running; True if this call started it.
+
+    ⛔ Single-flight. Measured 2026-09-30 08:08 ET (`/api/watchdog/stacks`): two
+    `/api/rs-rankings` requests were EACH running the full ~3,685-ticker rebuild
+    in their own request thread, 12 fetch workers apiece, during a 5 s
+    event-loop stall. A cold cache must cost one rebuild, off every request."""
+    global _warm_inflight
+    with _warm_lock:
+        if _warm_inflight:
+            return False
+        _warm_inflight = True
+
+    def _run():
+        global _warm_inflight
+        try:
+            compute_rs_scores(force=True)
+        except Exception:
+            logger.exception("[rs_ranking] background warm failed")
+        finally:
+            with _warm_lock:
+                _warm_inflight = False
+
+    threading.Thread(target=_run, name="rs-rankings-kick", daemon=True).start()
+    return True
 
 
 def cached_rank_map() -> dict:
@@ -229,7 +273,7 @@ def cached_rank_map() -> dict:
     reverted in `68392f4`. Cold cache returns ``{}``, and the caller's job is to
     COUNT that, not to hide it.
     """
-    rankings = cache.get(_CACHE_KEY)
+    rankings = _rs_cache.get(_CACHE_KEY)
     if not rankings:
         return {}
     out = {}
