@@ -397,7 +397,9 @@ def main():
             bool(SYM_OPT_WRITE.search('interpret(t, bars, i, b, s, { tf, symbols: map })')))
     control('opts.symbols SUPPLIERS in a file that calls interpret', 0, len(writers))
     # the served roster must be exactly the three the fold can emit
-    control('BUILTIN_SYMBOL_SCOPED members', 3, len(served))
+    # (C29, 2026-09-30: ticker/tickerid/prefix + root/basecurrency/currency/
+    # timezone/session, served per witnessed exchange)
+    control('BUILTIN_SYMBOL_SCOPED members', 8, len(served))
     w(b'\n')
 
     w(b'--- THE FIELDS THE CORPUS READS (NEW BASELINE - not a reproduction) ---\n')

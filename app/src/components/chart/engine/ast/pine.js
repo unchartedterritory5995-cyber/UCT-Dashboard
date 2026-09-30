@@ -1549,6 +1549,14 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.ticker': 'ticker',
   'syminfo.tickerid': 'tickerid',
   'syminfo.prefix': 'prefix',
+  // ⭐ C29 (2026-09-30) — the listing fields TradingView answered on every US
+  // witness (`symbolScope.json::listing_fields`). Same gate as `prefix`: they
+  // settle per BINDING, only for a witnessed exchange, and refuse by name else.
+  'syminfo.root': 'root',
+  'syminfo.basecurrency': 'basecurrency',
+  'syminfo.currency': 'currency',
+  'syminfo.timezone': 'timezone',
+  'syminfo.session': 'session',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -1578,6 +1586,8 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
  *  symbols whose rows carry no exchange, so nothing there could settle it. */
 export const BUILTIN_SYMBOL_NUMERIC = Object.freeze({
   'syminfo.mintick': 'mintick',
+  // ⭐ C29 — 1 on every US listing captured 2026-09-30, per witnessed exchange.
+  'syminfo.pointvalue': 'pointvalue',
 })
 
 /** Why a numeric symbol field refuses on a SCREEN — read off the manifest. */
@@ -7113,7 +7123,7 @@ export class Resolver {
     // not compile in Pine either; name the FIELD, not the `str.*` call around it.
     if (node.type === 'name' && own(BUILTIN_SYMBOL_NUMERIC, node.name)) {
       throw new PineRefusal('pine:text-value',
-        `\`${node.name}\` is a NUMBER (the symbol's tick size), not text — a text `
+        `\`${node.name}\` is a NUMBER (a per-symbol quantity), not text — a text `
         + 'question cannot be asked of it',
         locate(node.tok))
     }

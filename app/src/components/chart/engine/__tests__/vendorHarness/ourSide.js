@@ -193,7 +193,13 @@ function symbolOf(capture) {
   const s = capture.symbol || {}
   const pro = String(s.pro_name || s.full_name || s.name || '')
   const ticker = pro.includes(':') ? pro.split(':').pop() : (s.name || pro)
-  const exchange = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  const tv = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  // ⭐ C29 — the product hands the fold OUR STORE's exchange spelling (`NYSE
+  // Arca` for SPY), never TradingView's (`AMEX`). A capture carries the vendor's,
+  // so it is linked to the store's by the same witness rule the other-symbol
+  // supply uses; where no witness links it, the vendor's spelling is kept (what
+  // the harness did before, so nothing unlinked changes).
+  const exchange = storeExchangeOfCapture(capture, tv) || tv
   return { ticker, exchange }
 }
 

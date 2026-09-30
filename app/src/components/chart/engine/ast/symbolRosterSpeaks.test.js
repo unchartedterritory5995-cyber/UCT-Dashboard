@@ -34,7 +34,13 @@ const RETIRED = [
 // ⚰️ `mintick` WAS HERE until 2026-09-28: it is now SERVED per witnessed exchange
 // (symbolScope.json::tick_size) and refuses, when it refuses, from the FOLD with
 // `pending_measurement.mintick` — not from this roster. Rails: syminfoMintick.test.js.
-const ALREADY = ['type', 'currency', 'session', 'pointvalue', 'description']
+// ⚰️ C29 (2026-09-30): `currency`, `session`, `pointvalue` — and the three (h)
+// retires in RETIRED — left the roster: the syminfo-roster captures witnessed
+// them, and they are SERVED per exchange (`symbolScope.json::listing_fields`),
+// refusing from the FOLD with `pending_measurement` where no row backs the
+// exchange. RETIRED keeps its corpus numbers as the record of why they were
+// rostered; the tests below now pin that they are served, not rostered.
+const ALREADY = ['type', 'description']
 
 const useOf = (field) => `indicator("x")\nplot(close)\nplot(str.length(syminfo.${field}))\n`
 const refusalsOf = (src) => (translatePine(src, { strict: true }).refusals || [])
@@ -44,7 +50,7 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // Without this, "the sentence names the field" passes over a script that
     // refused at line 1 and never reached `syminfo.*` — and an empty refusal list
     // satisfies every `.some()` in this file.
-    for (const [field] of [...RETIRED.map((r) => r), ...ALREADY.map((f) => [f])]) {
+    for (const [field] of ALREADY.map((f) => [f])) {
       const refs = refusalsOf(useOf(field))
       expect(refs.length, `${field}: nothing refused, so nothing is under test`)
         .toBeGreaterThan(0)
@@ -54,17 +60,15 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     expect(translatePine(`indicator("x")\nplot(close)\n`, { strict: true }).ok).toBe(true)
   })
 
-  it('⭐⭐ each retired field is REFUSED BY NAME, carrying a reason a member can act on', () => {
+  it('⭐⭐ C29 — each (h) field is now SERVED at the door, with a measurement reason for an unwitnessed binding', () => {
     for (const [field] of RETIRED) {
       const key = `syminfo.${field}`
-      expect(Object.keys(BUILTIN_SYMBOL_UNSERVED), `${key} is not on the roster`)
-        .toContain(key)
-      const why = BUILTIN_SYMBOL_UNSERVED[key]
-      expect(String(why).length, `${key}'s reason is too short to act on`)
+      expect(Object.keys(BUILTIN_SYMBOL_UNSERVED), `${key} is still on the roster`)
+        .not.toContain(key)
+      expect(refusalsOf(useOf(field)).length, `${key} refused at the door`).toBe(0)
+      const why = SYMBOL_SCOPE.pending_measurement[field]
+      expect(String(why || '').length, `${key}'s fold reason is too short to act on`)
         .toBeGreaterThan(40)
-      const refs = refusalsOf(useOf(field))
-      expect(refs.some((r) => String(r.message).includes(field)),
-        `${key} refuses without naming itself`).toBe(true)
     }
   })
 
@@ -99,7 +103,8 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // ⭐ `mintick` joined `pending_measurement` on 2026-09-28: served where a
     // capture backs the exchange, refused with THIS roster's sentence where not.
     expect(Object.keys(SYMBOL_SCOPE.pending_measurement).filter((k) => !k.startsWith('_')).sort())
-      .toEqual(['mintick', 'prefix', 'tickerid'])
+      .toEqual(['basecurrency', 'currency', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
+        'tickerid', 'timezone'])
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.mintick')
   })
 
