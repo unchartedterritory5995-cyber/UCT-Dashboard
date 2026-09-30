@@ -8761,6 +8761,16 @@ export class Resolver {
           })
         }
       }
+      // ⭐ C11c — `a.avg()` on an ARRAY this reader could not model as a window
+      // is not "a user-defined type" (the sentence the type guard below gives
+      // any dotted receiver): it names the array and why it is not a window.
+      const raw = mf ? this.env.get(mf.recv) : null
+      if (mf && raw && raw.kind === 'vector' && !raw.window && !this.shadowedByDefinition(mf.method)) {
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — \`${mf.recv}\` is an array this engine reads only as a `
+          + `bounded window, and ${raw.windowRefused || 'it is not one'} (\`${mf.recv}.${mf.method}\`)`,
+          locate(node.tok))
+      }
     }
     const asType = this.typeRefusalFor(name, node.tok)
     if (asType) throw asType
@@ -13824,8 +13834,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // no longer re-parses — an earlier attempt at this welded a member's input
       // shut (`objectParams.test.js`), and the re-parse was why.
       return makeResolver(envOverride || scopeEnv).resolve(node)
-    } catch {
+    } catch (err) {
       diagnostics.unresolvedValues += 1
+      // ⭐ C11c — WHICH refusal, by its guard: a count per guard, so a sharper
+      // name (an array read as a window, not "a user-defined type") is visible
+      // in the diagnostics. The sentence itself stays internal, as before.
+      const g = err && err.guard
+      if (g) {
+        diagnostics.unresolvedGuards = diagnostics.unresolvedGuards || {}
+        diagnostics.unresolvedGuards[g] = (diagnostics.unresolvedGuards[g] || 0) + 1
+      }
       return null
     }
   }
@@ -17085,7 +17103,13 @@ function translatePineResult(source, opts = {}) {
    *  only: no member-facing surface reads it yet (object diagnostics carry
    *  counts, not sentences), so it must not be cited as one. */
   const withWindow = (vec, name, stmtIndex) => {
-    if (!vec || !vec.persists || !vec.writers || !vec.writers.length) return vec
+    // ⭐ C11c — each way out names itself (read by a method-form refusal).
+    if (!vec) return vec
+    if (!vec.persists) { vec.windowRefused = `\`${name}\` is not a \`var\` — it is made again on every bar`; return vec }
+    if (!vec.writers || !vec.writers.length) {
+      vec.windowRefused = `nothing fills \`${name}\` with \`push\`/\`unshift\` (it is reassigned whole, or never written)`
+      return vec
+    }
     const n0 = !vec.sizeNode ? 0
       : (vec.sizeNode.type === 'number' && Number.isInteger(vec.sizeNode.value) ? vec.sizeNode.value : null)
     if (n0 === null) { vec.windowRefused = `\`${name}\`'s length is not a number written into the script`; return vec }

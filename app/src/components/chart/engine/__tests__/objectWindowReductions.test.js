@@ -242,6 +242,16 @@ plot(top.max())
     expect(t.outputs[0].refusal).toBeTruthy()
   })
 
+  it('an array that is not a window is refused as an ARRAY, not as "a user-defined type"', () => {
+    // k-clustering's `n_clust` is only ever reassigned whole (`:= array.copy(n)`
+    // in a loop), never pushed — as here, where nothing fills it at all
+    const t = tr(`var n = array.new<float>(3, 0)
+if close > n.get(0)
+    label.new(bar_index, high, "X")`)
+    expect(t.objectDiagnostics.droppedOps).toBeGreaterThan(0)
+    expect(t.objectDiagnostics.unresolvedGuards).toEqual({ 'pine:collection': 1 })
+  })
+
   it('a read method that WRITES is not inlined as a read', () => {
     const t = tr(`var top = array.new_float(3)
 if close > open
