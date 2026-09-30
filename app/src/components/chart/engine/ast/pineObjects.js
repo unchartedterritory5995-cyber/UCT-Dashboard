@@ -1704,9 +1704,10 @@ export function collectObjectOps(stmts, h) {
   walk(stmts, [], false, [])
   stampRootSince()
   // ⭐⭐ C14 — EVERY `:=` (and `+=`…) OUTSIDE A FUNCTION BODY, AS (top-level
-  // statement ordinal, token index). An object op's value is read against the
-  // name's END-OF-BAR binding, which is Pine's value only where no write to the
-  // name comes after the read in the bar; `pine.js` refuses the rest by name.
+  // statement ordinal, token index). `pine.js`'s `positionalPlan` compares
+  // them with an op's read positions: a read binds at its statement's START or
+  // END, and only a name read on BOTH sides of a write in one statement is
+  // refused by name.
   const varWrites = new Map()
   const noteWrites = (list, pos) => {
     for (const s2 of list || []) {

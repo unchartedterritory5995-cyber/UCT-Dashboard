@@ -149,15 +149,66 @@ if close > open
     st := 1
 if close < open
     st := 2`
-  // ⭐ C12r (2026-09-29): served since the object pass binds a read where it
-  // stands — last bar's END value, `accum(…)[1]` (`objectReadOrder.test.js`
-  // holds the semantics against a Pine replay). The refusal that stood here is
-  // now the narrower same-statement case, railed there too.
-  it('⭐ is SERVED — the guard reads last bar\'s end value, never this bar\'s', () => {
+  // ⭐⭐ C9 × C14 (2026-09-29, one mechanism): a write in a LATER top-level
+  // statement is no longer refused — the object pass resolves an op against the
+  // env as its OWN statement leaves it (`baseFor`, C9), which is Pine's value at
+  // the read: last bar's final `st`. This case was `⛔ is refused by name`; it is
+  // now read exactly, and the same-statement case below keeps the refusal.
+  it('⭐ a write in a LATER statement is read as Pine reads it — last bar\'s final value', () => {
     const t = tr(late)
     expect(t.objectDiagnostics.readBeforeWrite).toBeUndefined()
-    expect(t.objectDiagnostics.droppedOps).toBe(0)
     expect(opsOf(t).some((o) => o.k === 'create')).toBe(true)
+    // up/down pattern, past the 250-bar warm-up
+    const N = 320
+    const up = (i) => (i * 7) % 5 < 3
+    const bars = Array.from({ length: N }, (_, i) => {
+      const d = new Date(Date.UTC(2020, 0, 1) + i * 86400000).toISOString().slice(0, 10)
+      return up(i) ? { t: d, o: 10, h: 12, l: 9, c: 11, v: 1 } : { t: d, o: 11, h: 12, l: 9, c: 10, v: 1 }
+    })
+    const r = run(t, bars)
+    // Pine, by hand: the guard reads `st` as it ENDED the previous bar
+    let st = 0
+    const want = []
+    for (let i = 0; i < N; i += 1) {
+      if (st === 2 && up(i)) want.push(i)
+      if (up(i)) st = 1
+      else st = 2
+    }
+    const got = r.live.filter((o) => o.family === 'label').map((o) => o.createdBar)
+    const tail = (xs) => xs.filter((b) => b >= 260)
+    expect(tail(got)).toEqual(tail(want))
+    expect(tail(got).length).toBeGreaterThan(5)
+  })
+
+  // ⭐ C12r (merged over C9): a write later in the op's OWN statement, with
+  // every read of the name ABOVE it, reads the statement's START binding — the
+  // plot lane's `partialStateRead`, `accum(…)[1]`. The refusal survives only
+  // for a name one op reads on BOTH sides of a write (`objectReadOrder.test.js`).
+  it('⭐ a write later in the op\'s OWN statement, below every read, is read at the statement\'s start', () => {
+    const t = tr(`var int st = 0
+if close > open
+    if st == 2
+        label.new(bar_index, high, "X")
+    st := 1
+if close < open
+    st := 2`)
+    expect(t.objectDiagnostics.readBeforeWrite).toBeUndefined()
+    const N = 320
+    const up = (i) => (i * 7) % 5 < 3
+    const bars = Array.from({ length: N }, (_, i) => {
+      const d = new Date(Date.UTC(2020, 0, 1) + i * 86400000).toISOString().slice(0, 10)
+      return up(i) ? { t: d, o: 10, h: 12, l: 9, c: 11, v: 1 } : { t: d, o: 11, h: 12, l: 9, c: 10, v: 1 }
+    })
+    const r = run(t, bars)
+    let st = 0
+    const want = []
+    for (let i = 0; i < N; i += 1) {
+      if (up(i)) { if (st === 2) want.push(i); st = 1 } else st = 2
+    }
+    const got = r.live.filter((o) => o.family === 'label').map((o) => o.createdBar)
+    const tail = (xs) => xs.filter((b) => b >= 260)
+    expect(tail(got)).toEqual(tail(want))
+    expect(tail(got).length).toBeGreaterThan(5)
   })
   it('✓ CONTROL — read AFTER the bar\'s writes, it is kept', () => {
     const t = tr(`var int st = 0

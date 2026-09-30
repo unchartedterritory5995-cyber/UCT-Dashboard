@@ -6,11 +6,15 @@
     "kind": "ast",
     "fn": "sha256:dce8efd7442ab9927a35f53092ce5a2ce5862fcbe24e09bc6185cf6781a68f05",
     "rev": 1,
-    "treesHash": "sha256:22091a0782809e1dd0e1f2876da990e69d49a207b08e27d956fb849a79ade204",
+    "treesHash": "sha256:fabbe435928f6d51049edb4e4e55f537c586c538f8b276805c78479415074a81",
     "scanPlot": "value",
     "graph": {
       "graphVersion": 2,
       "nodes": [
+        {
+          "type": "num",
+          "value": 5
+        },
         {
           "type": "series",
           "name": "lv3"
@@ -30,10 +34,6 @@
         {
           "type": "num",
           "value": 14
-        },
-        {
-          "type": "num",
-          "value": 5
         },
         {
           "type": "series",
@@ -80,16 +80,20 @@
           "value": 1
         },
         {
-          "type": "num",
-          "value": 60
-        },
-        {
           "type": "series",
           "name": "high"
         },
         {
           "type": "series",
           "name": "close"
+        },
+        {
+          "type": "series",
+          "name": "useRev"
+        },
+        {
+          "type": "series",
+          "name": "revLook"
         },
         {
           "type": "series",
@@ -114,6 +118,14 @@
           "type": "op",
           "name": "-",
           "args": [
+            21,
+            0
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
             6,
             11
           ]
@@ -122,7 +134,7 @@
           "type": "offset",
           "value": 1,
           "args": [
-            19
+            18
           ]
         },
         {
@@ -138,29 +150,21 @@
           "name": "min",
           "args": [
             15,
-            0
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            20,
-            5
+            1
           ]
         },
         {
           "type": "offset",
           "value": 5,
           "args": [
-            18
+            17
           ]
         },
         {
           "type": "call",
           "name": "change",
           "args": [
-            19
+            18
           ]
         },
         {
@@ -190,7 +194,7 @@
           "type": "op",
           "name": "-",
           "args": [
-            4,
+            5,
             16
           ]
         },
@@ -206,8 +210,8 @@
           "type": "call",
           "name": "max",
           "args": [
-            29,
-            1
+            30,
+            2
           ]
         },
         {
@@ -215,15 +219,15 @@
           "name": "max",
           "args": [
             16,
-            34
+            35
           ]
         },
         {
           "type": "call",
           "name": "min",
           "args": [
-            29,
-            1
+            30,
+            2
           ]
         },
         {
@@ -231,7 +235,7 @@
           "name": "max",
           "args": [
             16,
-            21
+            22
           ]
         },
         {
@@ -239,7 +243,7 @@
           "name": "max",
           "args": [
             16,
-            32
+            33
           ]
         },
         {
@@ -247,7 +251,7 @@
           "name": "max",
           "args": [
             16,
-            26
+            28
           ]
         },
         {
@@ -255,14 +259,22 @@
           "name": "max",
           "args": [
             16,
-            25
+            27
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            2,
+            3,
+            40
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            3,
             39
           ]
         },
@@ -270,55 +282,39 @@
           "type": "op",
           "name": "-",
           "args": [
-            2,
-            38
+            3,
+            37
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            2,
-            36
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            2,
-            41
+            3,
+            42
           ]
         },
         {
           "type": "op",
           "name": "u-",
           "args": [
-            37
+            38
           ]
         },
         {
           "type": "call",
           "name": "rma",
           "args": [
-            35,
-            4
+            36,
+            5
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            2,
-            40
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            40,
-            48
+            3,
+            41
           ]
         },
         {
@@ -326,31 +322,31 @@
           "name": "/",
           "args": [
             41,
-            45
+            49
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            36,
-            44
+            42,
+            46
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            37,
+            45
           ]
         },
         {
           "type": "op",
           "name": "==",
           "args": [
-            47,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            38,
-            43
+            48,
+            2
           ]
         },
         {
@@ -358,103 +354,79 @@
           "name": "/",
           "args": [
             39,
-            42
+            44
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            40,
+            43
           ]
         },
         {
           "type": "call",
           "name": "rma",
           "args": [
-            46,
-            4
+            47,
+            5
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            49,
-            55
+            50,
+            56
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            51,
-            55
+            52,
+            56
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            47,
-            51
+            48,
+            52
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            54,
-            55
+            55,
+            56
           ]
         },
         {
           "type": "op",
           "name": ">",
           "args": [
-            53,
-            1
+            54,
+            2
           ]
         },
         {
           "type": "op",
           "name": "==",
           "args": [
-            55,
-            1
+            56,
+            2
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            53,
-            55
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            50,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            47,
-            54
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            47,
-            50
-          ]
-        },
-        {
-          "type": "op",
-          "name": "/",
-          "args": [
-            47,
-            55
+            54,
+            56
           ]
         },
         {
@@ -462,22 +434,14 @@
           "name": ">",
           "args": [
             51,
-            1
+            2
           ]
         },
         {
           "type": "op",
-          "name": ">",
+          "name": "/",
           "args": [
-            49,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            50,
+            48,
             55
           ]
         },
@@ -485,56 +449,72 @@
           "type": "op",
           "name": "/",
           "args": [
-            47,
-            53
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">",
-          "args": [
-            54,
-            1
+            48,
+            51
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            47,
-            49
+            48,
+            56
           ]
         },
         {
           "type": "op",
-          "name": "-",
+          "name": ">",
           "args": [
-            59,
-            47
+            52,
+            2
           ]
         },
         {
           "type": "op",
-          "name": "-",
+          "name": ">",
+          "args": [
+            50,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            51,
+            56
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            48,
+            54
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
           "args": [
             55,
-            72
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "/",
+          "args": [
+            48,
+            50
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            55,
-            58
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            55,
-            65
+            60,
+            48
           ]
         },
         {
@@ -542,38 +522,22 @@
           "name": "-",
           "args": [
             56,
-            47
+            73
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            69,
-            47
+            56,
+            59
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            62,
-            47
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            55,
-            70
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            16,
+            56,
             66
           ]
         },
@@ -582,30 +546,62 @@
           "name": "-",
           "args": [
             57,
-            47
+            48
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            55,
-            64
+            70,
+            48
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            63,
+            48
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
+            71
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            16,
+            67
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            58,
+            48
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            56,
+            65
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            77
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            33,
+            34,
             78
           ]
         },
@@ -613,23 +609,15 @@
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            75
+            34,
+            79
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            74
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            33,
+            34,
             76
           ]
         },
@@ -637,23 +625,47 @@
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            83
+            34,
+            75
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            79
+            34,
+            77
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            84
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
+            80
           ]
         },
         {
           "type": "op",
           "name": "/",
           "args": [
-            2,
+            3,
+            82
+          ]
+        },
+        {
+          "type": "op",
+          "name": "*",
+          "args": [
+            34,
             81
           ]
         },
@@ -661,32 +673,42 @@
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            80
+            34,
+            74
           ]
         },
         {
           "type": "op",
           "name": "*",
           "args": [
-            33,
-            73
-          ]
-        },
-        {
-          "type": "op",
-          "name": "*",
-          "args": [
-            33,
-            82
+            34,
+            83
           ]
         },
         {
           "type": "op",
           "name": ">=",
           "args": [
+            91,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            69,
+            88,
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            72,
             90,
-            1
+            2
           ]
         },
         {
@@ -695,25 +717,23 @@
           "args": [
             68,
             87,
-            1
+            2
           ]
         },
         {
           "type": "op",
-          "name": "?:",
+          "name": ">=",
           "args": [
-            71,
-            89,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            67,
             86,
-            1
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "-",
+          "args": [
+            3,
+            92
           ]
         },
         {
@@ -721,49 +741,25 @@
           "name": ">=",
           "args": [
             85,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "-",
-          "args": [
-            2,
-            91
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
-            84,
-            1
+            2
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            60,
-            92,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            63,
-            88,
-            1
-          ]
-        },
-        {
-          "type": "op",
-          "name": ">=",
-          "args": [
+            61,
             93,
-            1
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            64,
+            89,
+            2
           ]
         },
         {
@@ -771,33 +767,50 @@
           "name": ">=",
           "args": [
             94,
-            1
+            2
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">=",
+          "args": [
+            95,
+            2
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            52,
-            1,
-            100
+            53,
+            2,
+            101
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            101,
-            84,
-            96
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            99,
+            102,
             85,
+            97
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            100,
+            86,
+            104
+          ]
+        },
+        {
+          "type": "op",
+          "name": "?:",
+          "args": [
+            96,
+            91,
             103
           ]
         },
@@ -805,9 +818,9 @@
           "type": "op",
           "name": "?:",
           "args": [
+            106,
             95,
-            90,
-            102
+            99
           ]
         },
         {
@@ -821,26 +834,42 @@
         },
         {
           "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            110
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            108
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            112
+          ]
+        },
+        {
+          "type": "op",
+          "name": "+",
+          "args": [
+            18,
+            111
+          ]
+        },
+        {
+          "type": "op",
           "name": "?:",
           "args": [
-            104,
-            93,
-            97
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            19,
-            109
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            19,
+            62,
+            3,
             107
           ]
         },
@@ -848,111 +877,79 @@
           "type": "op",
           "name": "+",
           "args": [
-            19,
-            111
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            19,
-            110
-          ]
-        },
-        {
-          "type": "op",
-          "name": "?:",
-          "args": [
-            61,
-            2,
-            106
-          ]
-        },
-        {
-          "type": "op",
-          "name": "+",
-          "args": [
-            19,
-            108
-          ]
-        },
-        {
-          "type": "call",
-          "name": "lowest",
-          "args": [
-            116,
-            3
-          ]
-        },
-        {
-          "type": "call",
-          "name": "highest",
-          "args": [
-            116,
-            3
-          ]
-        },
-        {
-          "type": "offset",
-          "value": 5,
-          "args": [
-            116
-          ]
-        },
-        {
-          "type": "call",
-          "name": "pivotlow",
-          "args": [
-            116,
-            5,
-            5
+            18,
+            109
           ]
         },
         {
           "type": "call",
           "name": "pivothigh",
           "args": [
-            116,
-            5,
-            5
+            117,
+            0,
+            0
+          ]
+        },
+        {
+          "type": "call",
+          "name": "lowest",
+          "args": [
+            117,
+            4
+          ]
+        },
+        {
+          "type": "call",
+          "name": "highest",
+          "args": [
+            117,
+            4
           ]
         },
         {
           "type": "offset",
           "value": 5,
           "args": [
-            122
+            117
+          ]
+        },
+        {
+          "type": "call",
+          "name": "pivotlow",
+          "args": [
+            117,
+            0,
+            0
           ]
         },
         {
           "type": "offset",
           "value": 5,
           "args": [
-            121
+            123
           ]
         },
         {
           "type": "op",
           "name": "<=",
           "args": [
-            119,
-            31
+            121,
+            32
+          ]
+        },
+        {
+          "type": "offset",
+          "value": 5,
+          "args": [
+            119
           ]
         },
         {
           "type": "op",
           "name": ">=",
           "args": [
-            118,
-            23
-          ]
-        },
-        {
-          "type": "call",
-          "name": "na",
-          "args": [
-            123
+            120,
+            25
           ]
         },
         {
@@ -963,10 +960,17 @@
           ]
         },
         {
+          "type": "call",
+          "name": "na",
+          "args": [
+            126
+          ]
+        },
+        {
           "type": "op",
           "name": "!",
           "args": [
-            126
+            127
           ]
         },
         {
@@ -980,22 +984,22 @@
           "type": "op",
           "name": "!",
           "args": [
-            128
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            127
+            129
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            126,
-            130
+            127,
+            131
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            128
           ]
         },
         {
@@ -1003,24 +1007,31 @@
           "name": "&&",
           "args": [
             125,
-            129
+            130
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            19,
+            132
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            19,
+            134
           ]
         },
         {
           "type": "call",
           "name": "valuewhenOccurrence",
           "args": [
-            131,
-            120,
-            16
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            131,
-            27,
+            132,
+            24,
             16
           ]
         },
@@ -1029,25 +1040,7 @@
           "name": "valuewhenOccurrence",
           "args": [
             132,
-            120,
-            16
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            132,
-            28,
-            16
-          ]
-        },
-        {
-          "type": "call",
-          "name": "valuewhenOccurrence",
-          "args": [
-            131,
-            22,
+            29,
             16
           ]
         },
@@ -1055,9 +1048,27 @@
           "type": "op",
           "name": "?:",
           "args": [
+            135,
+            31,
+            2
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
             134,
-            30,
-            1
+            122,
+            16
+          ]
+        },
+        {
+          "type": "call",
+          "name": "valuewhenOccurrence",
+          "args": [
+            134,
+            24,
+            16
           ]
         },
         {
@@ -1065,70 +1076,79 @@
           "name": "valuewhenOccurrence",
           "args": [
             132,
-            27,
+            122,
             16
           ]
         },
         {
           "type": "call",
-          "name": "na",
+          "name": "valuewhenOccurrence",
           "args": [
-            137
+            134,
+            23,
+            16
+          ]
+        },
+        {
+          "type": "op",
+          "name": "<",
+          "args": [
+            29,
+            139
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            23,
+            144
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            27,
-            141
+            24,
+            142
           ]
         },
         {
           "type": "call",
           "name": "na",
           "args": [
-            135
+            143
           ]
         },
         {
-          "type": "op",
-          "name": "<",
+          "type": "call",
+          "name": "na",
           "args": [
-            28,
-            138
+            141
           ]
         },
         {
           "type": "op",
           "name": ">",
           "args": [
-            22,
-            139
-          ]
-        },
-        {
-          "type": "op",
-          "name": "<",
-          "args": [
-            120,
-            135
+            122,
+            143
           ]
         },
         {
           "type": "op",
           "name": "-",
           "args": [
-            27,
-            136
+            24,
+            138
           ]
         },
         {
           "type": "op",
-          "name": ">",
+          "name": "<",
           "args": [
-            120,
-            137
+            122,
+            141
           ]
         },
         {
@@ -1142,63 +1162,63 @@
         },
         {
           "type": "op",
+          "name": "<=",
+          "args": [
+            147,
+            20
+          ]
+        },
+        {
+          "type": "op",
           "name": "==",
           "args": [
-            150,
+            153,
             16
           ]
         },
         {
           "type": "op",
-          "name": "<=",
+          "name": "!",
           "args": [
-            148,
-            17
+            149
           ]
         },
         {
           "type": "op",
           "name": "==",
           "args": [
-            150,
-            30
+            153,
+            31
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            148
           ]
         },
         {
           "type": "op",
           "name": "<=",
           "args": [
-            143,
-            17
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            144
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            142
+            151,
+            20
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            131,
-            155
+            136,
+            158
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            132,
+            137,
             156
           ]
         },
@@ -1206,71 +1226,63 @@
           "type": "op",
           "name": "?:",
           "args": [
-            153,
-            117,
-            112
+            157,
+            118,
+            113
           ]
         },
         {
           "type": "op",
           "name": "?:",
           "args": [
-            151,
-            114,
-            115
+            155,
+            115,
+            116
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            160,
+            150
           ]
         },
         {
           "type": "offset",
           "value": 1,
           "args": [
-            159
+            162
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            158,
-            149
+            161,
+            152
           ]
         },
         {
           "type": "offset",
           "value": 1,
           "args": [
-            160
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            157,
-            147
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            162,
-            145
+            163
           ]
         },
         {
           "type": "call",
           "name": "na",
           "args": [
-            161
+            165
           ]
         },
         {
           "type": "op",
-          "name": ">",
+          "name": "&&",
           "args": [
-            19,
-            163
+            166,
+            146
           ]
         },
         {
@@ -1278,7 +1290,15 @@
           "name": "&&",
           "args": [
             164,
-            146
+            145
+          ]
+        },
+        {
+          "type": "op",
+          "name": ">",
+          "args": [
+            18,
+            167
           ]
         },
         {
@@ -1286,60 +1306,67 @@
           "name": "<=",
           "args": [
             9,
-            163
+            167
           ]
         },
         {
           "type": "op",
           "name": "<",
           "args": [
-            24,
-            161
+            26,
+            165
           ]
         },
         {
           "type": "call",
           "name": "na",
           "args": [
-            163
+            167
           ]
         },
         {
           "type": "op",
           "name": "<",
           "args": [
-            19,
-            161
+            18,
+            165
           ]
         },
         {
           "type": "op",
           "name": ">",
           "args": [
-            24,
-            163
+            26,
+            167
           ]
         },
         {
           "type": "op",
           "name": ">=",
           "args": [
-            18,
-            161
+            17,
+            165
           ]
         },
         {
           "type": "op",
           "name": "!",
           "args": [
-            171
+            174
+          ]
+        },
+        {
+          "type": "op",
+          "name": "!",
+          "args": [
+            168
           ]
         },
         {
           "type": "op",
           "name": "&&",
           "args": [
-            165,
+            169,
             154
           ]
         },
@@ -1347,23 +1374,8 @@
           "type": "op",
           "name": "&&",
           "args": [
-            168,
-            152
-          ]
-        },
-        {
-          "type": "op",
-          "name": "!",
-          "args": [
-            166
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            175,
-            169
+            170,
+            159
           ]
         },
         {
@@ -1371,22 +1383,6 @@
           "name": "&&",
           "args": [
             178,
-            174
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            179,
-            167
-          ]
-        },
-        {
-          "type": "op",
-          "name": "&&",
-          "args": [
-            180,
             172
           ]
         },
@@ -1394,8 +1390,8 @@
           "type": "op",
           "name": "&&",
           "args": [
-            181,
-            173
+            179,
+            177
           ]
         },
         {
@@ -1403,7 +1399,31 @@
           "name": "&&",
           "args": [
             182,
-            170
+            171
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            183,
+            175
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            184,
+            176
+          ]
+        },
+        {
+          "type": "op",
+          "name": "&&",
+          "args": [
+            185,
+            173
           ]
         },
         {
@@ -1411,7 +1431,7 @@
           "name": "&&",
           "args": [
             14,
-            184
+            187
           ]
         },
         {
@@ -1419,23 +1439,23 @@
           "name": "&&",
           "args": [
             14,
-            183
+            186
           ]
         }
       ],
       "outputRoots": {
-        "out10": 116,
-        "out11": 150,
-        "out12": 115,
-        "out2": 114,
-        "out3": 113,
-        "out4": 117,
-        "out5": 112,
-        "out6": 186,
-        "out7": 185,
-        "out8": 177,
-        "out9": 176,
-        "value": 115
+        "out10": 117,
+        "out11": 153,
+        "out12": 116,
+        "out2": 115,
+        "out3": 114,
+        "out4": 118,
+        "out5": 113,
+        "out6": 189,
+        "out7": 188,
+        "out8": 180,
+        "out9": 181,
+        "value": 116
       },
       "parameters": {
         "__uct_param_1": {
@@ -1449,7 +1469,7 @@
           "options": null,
           "locators": [
             {
-              "node": 4,
+              "node": 5,
               "path": [
                 "value"
               ]
@@ -1467,14 +1487,14 @@
           "options": null,
           "locators": [
             {
-              "node": 3,
+              "node": 4,
               "path": [
                 "value"
               ]
             }
           ]
         },
-        "__uct_param_4": {
+        "__uct_param_3": {
           "sourceName": "revPiv",
           "title": "Reversal pivot length",
           "type": "int",
@@ -1485,13 +1505,7 @@
           "options": null,
           "locators": [
             {
-              "node": 5,
-              "path": [
-                "value"
-              ]
-            },
-            {
-              "node": 123,
+              "node": 0,
               "path": [
                 "value"
               ]
@@ -1501,21 +1515,9 @@
               "path": [
                 "value"
               ]
-            }
-          ]
-        },
-        "__uct_param_5": {
-          "sourceName": "revLook",
-          "title": "Max bars between pivots",
-          "type": "int",
-          "default": 60,
-          "min": 5,
-          "max": 300,
-          "step": null,
-          "options": null,
-          "locators": [
+            },
             {
-              "node": 17,
+              "node": 126,
               "path": [
                 "value"
               ]

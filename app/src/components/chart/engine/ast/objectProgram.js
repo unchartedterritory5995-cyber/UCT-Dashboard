@@ -290,6 +290,29 @@ export const GETTER_PROPS = Object.freeze({
   label: Object.freeze({ get_x: 'x', get_y: 'y' }),
 })
 /**
+ * ⭐⭐ C9 (2026-09-29) — A HISTORY READ WHOSE OFFSET IS A SERIES.
+ *
+ *   { v:'at', args:[src, back], limit }
+ *
+ * Pine's `x[e]` with `e` computed per bar — `up[n - a1]`, `low[bar_index - k]` —
+ * reads `x` on bar `bar - e`. The V2 graph cannot say it (an offset node's bar
+ * count is a literal, so `maxLookback` stays a tree sum); the runtime holds every
+ * column for the whole loaded window, so it reads `src` at that bar here.
+ *
+ * `src` is a column (`tree`/`graph`) or `bar` (`bar_index` read back is the bar
+ * it was read on); `back` is any numeric value reference. `limit` is the
+ * script's DECLARED `max_bars_back` — the buffer TradingView sizes the series to
+ * — so how far back a read may reach is decidable before bar 0. The runtime:
+ *   · `bar - back < 0`  → `na` (a bar before the first one; Pine's `close[1]` on bar 0)
+ *   · `back` is `na`    → the op is WITHHELD on that bar (TradingView does not
+ *                         error there — `extrapolated-pivot-connector` draws — but
+ *                         what it reads is not measured)
+ *   · `back` negative, fractional, or ≥ `limit` → a Pine RUNTIME ERROR: the run
+ *                         stops and nothing is drawn, as TradingView draws nothing
+ */
+export const MAX_BARS_BACK_CAP = 5000
+
+/**
  * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
  * holds what the program last set on an object, so it answers:
  *
@@ -303,7 +326,7 @@ export const GETTER_PROPS = Object.freeze({
  * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
  */
 /** The value-reference kinds whose `args` are value references too. */
-const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross'])
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -555,6 +578,21 @@ function assertValueRef(v, where, live = null) {
     case 'param':
       if (typeof v.id !== 'string' || !v.id) throw new Error(`${where}: a param reference needs an id`)
       return
+    // ⭐⭐ C9 — see `MAX_BARS_BACK_CAP`.
+    case 'at': {
+      if (!Array.isArray(v.args) || v.args.length !== 2) {
+        throw new Error(`${where}: a history read takes a source and a bar count`)
+      }
+      const src = v.args[0]
+      if (!isObj(src) || !['tree', 'graph', 'bar'].includes(src.v)) {
+        throw new Error(`${where}: a history read's source must be a column or bar_index, got ${JSON.stringify(src && src.v)}`)
+      }
+      if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
+        throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+      return
+    }
     case 'bar':
     case 'time':
       return

@@ -151,5 +151,8 @@ describe('C2D.9 — emit the wire-size fixture', () => {
     expect(index.some((r) => !r.isGraph)).toBe(true)
     expect(Math.max(...index.map((r) => r.v1Bytes)))
       .toBeGreaterThan(20 * Math.min(...index.map((r) => r.v1Bytes)))
-  })
+  // ⚠️ 60 s, NOT THE DEFAULT 15 (C9, 2026-09-29): the rsi-levels case costs ~2x
+  // since its reversal/setup outputs translate in the declare pass — see
+  // `paramSingleTranslation.test.js`'s note and the triage doc's § C9.
+  }, 60000)
 })

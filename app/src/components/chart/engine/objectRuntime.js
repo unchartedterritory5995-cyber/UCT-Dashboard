@@ -30,7 +30,7 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, OP_VALUE_FIELDS,
 } from './ast/objectProgram'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
@@ -52,6 +52,10 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 export const OBJECT_STATUS = Object.freeze({
   OK: 'ok',
   LIMIT_EXCEEDED: 'OBJECT_LIMIT_EXCEEDED',
+  // ⭐ C9 — a Pine RUNTIME error (a history read past the buffer, or at a
+  // negative / fractional offset). TradingView stops the script and draws
+  // nothing, so `finish` holds nothing — never the objects made before it.
+  RUNTIME_ERROR: 'OBJECT_RUNTIME_ERROR',
 })
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -258,6 +262,26 @@ export function beginObjects(program, ctx) {
 
   const fail = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.LIMIT_EXCEEDED; reason = why }
+  }
+  const runtimeError = (why) => {
+    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
+  }
+  /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
+   *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
+  const atAtoms = new Map()
+  const atNodesOf = (op) => {
+    let found = atAtoms.get(op)
+    if (found) return found
+    found = []
+    const walk = (v) => {
+      if (!isObj(v)) return
+      if (v.v === 'at') found.push(v)
+      if (Array.isArray(v.args)) v.args.forEach(walk)
+    }
+    for (const f of OP_VALUE_FIELDS) walk(op[f])
+    for (const v of Object.values(op.props || {})) if (isObj(v) && !v.r) walk(v)
+    atAtoms.set(op, found)
+    return found
   }
 
   /**
@@ -676,6 +700,18 @@ export function beginObjects(program, ctx) {
           return undefined
         }
         case 'time': return readTime(bar)
+        // ⭐⭐ C9 — `x[e]` with a per-bar `e`: `x` on bar `bar - e`. The op was
+        // checked before its values were read (`atCheck`), so here `e` is a
+        // whole number in [0, limit); a bar before the first is `na`.
+        case 'at': {
+          const back = numOf(value(ref.args[1]))
+          const k = bar - back
+          if (!Number.isInteger(k) || k < 0) return NaN
+          const src = ref.args[0]
+          if (src.v === 'bar') return k
+          if (src.v === 'graph') return readNode(src.node, k, loopVars)
+          return undefined
+        }
         // ⛔⛔ TEXT AND COLOUR ARE EVALUATED PER BAR LIKE EVERYTHING ELSE. A
         // dashboard whose cells were computed once and reused would show the
         // first bar's numbers forever, which is the exact failure mode a
@@ -715,6 +751,27 @@ export function beginObjects(program, ctx) {
         case 'num': return nums.get(ref.id) ?? NaN
         default: return undefined
       }
+    }
+
+    /** ⭐⭐ C9 — may this op's history reads run on this bar? Asked AFTER its
+     *  guard: Pine evaluates `x[e]` only where the statement runs, so an `na` or
+     *  out-of-range `e` on a bar the guard skips is nothing at all.
+     *  'ok' · 'unknown' (withhold the op on this bar) · 'error' (Pine stops). */
+    const atCheck = (op) => {
+      for (const at of atNodesOf(op)) {
+        const back = numOf(value(at.args[1]))
+        if (Number.isNaN(back)) return 'unknown'
+        if (!Number.isInteger(back) || back < 0 || back >= at.limit) {
+          runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
+            : !Number.isInteger(back) ? 'not a whole number of bars'
+              : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
+          return 'error'
+        }
+        const k = bar - back
+        const src = at.args[0]
+        if (k >= 0 && src.v === 'graph' && readUnknown && readUnknown(src.node, k)) return 'unknown'
+      }
+      return 'ok'
     }
 
     /** Does this guard read a latch whose condition was unknowable? */
@@ -810,6 +867,11 @@ export function beginObjects(program, ctx) {
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
       if (unknownAt(op, bar) || readsUnknownLatch(op.when)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
+      if (op.k !== 'loop') {
+        const at = atCheck(op)
+        if (at === 'error') return false
+        if (at === 'unknown') { withheldUnknown += 1; continue }
+      }
       opsThisBar += 1
       opsExecuted += 1
       if (opsThisBar > limits.opsPerBar) {
@@ -1236,10 +1298,15 @@ export function beginObjects(program, ctx) {
   }
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
+  // ⭐ C9 — a Pine runtime error draws NOTHING on TradingView, so nothing is
+  // held here: the objects made before the error are not a smaller picture of
+  // the script, they are a picture TradingView never shows.
+  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR
+  if (stopped) for (const fam of Object.keys(heldCounts)) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
-  const ordered = [...live.values()].filter((o) => !withheldFams.has(o.family))
+  const ordered = stopped ? [] : [...live.values()].filter((o) => !withheldFams.has(o.family))
     .sort((a, b) => a.id - b.id)
 
   return {

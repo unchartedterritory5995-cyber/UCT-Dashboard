@@ -123,7 +123,7 @@ import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
-  GETTER_PROPS as OBJECT_GETTER_PROPS,
+  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -7561,7 +7561,25 @@ export class Resolver {
         // guard below — and the canonical node at the end — sees the same plain
         // integer a written literal would have given them.
         if (node.n && typeof node.n === 'object' && node.n.expr) {
-          const folded = this.resolve(node.n.expr)
+          let folded = this.resolve(node.n.expr)
+          // ⭐⭐ C9 (2026-09-29) — AN OFFSET IS A WINDOW, SO IT FOLDS LIKE ONE.
+          // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)` reaches here
+          // as an `op` tree, and at the member door (which hands a declared input
+          // back as an IDENTIFIER) even a bare `high[len]` did — so the same
+          // `drmLen` that `sma(close, drmLen)` folds to 14 in this pass refused as
+          // an offset. Pine computes both before bar 0 (`simple int`).
+          // `foldWindow` is the window arm's own fold: it hands back only an exact
+          // whole number ≥ 0, so `15 / 2`, a negative and a bar read still refuse
+          // below, and the input is recorded window-bound BEFORE the fold erases
+          // it — the caller refuses that knob by name rather than hand back one
+          // that moves a window and leaves this offset at the default.
+          // ⛔ A series offset (`x[bar_index - k]`) still refuses here: that is a
+          // per-bar read, not a window, and it is served (if at all) by the
+          // object lane's own absolute-bar read, never by this node.
+          if (folded.type !== 'num') {
+            for (const n of declaredInputNames(folded)) this.windowBoundInputs.add(n)
+            folded = foldWindow(folded)
+          }
           if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
             throw new PineRefusal('pine:offset-literal',
               `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
@@ -10365,15 +10383,24 @@ export class Resolver {
    *  sentence (true: a pivot's bar counts are its window), exactly as it does for
    *  `sma(close, len)`. Anything else passes through unchanged, so the default
    *  (non-declare) path is byte-identical and `pivotAtConfirmation`'s own refusal
-   *  still answers a count that is genuinely not a whole number. */
+   *  still answers a count that is genuinely not a whole number.
+   *
+   *  ⭐⭐ C9 (2026-09-29) — CONSTANT ARITHMETIC FOLDS HERE TOO, declared input or
+   *  not. `pivSpan = math.max(drmLen / 2, 2)` reaches this slot as an `op` tree
+   *  in the pass that holds `drmLen` as a literal (the object lane, the second
+   *  member-door pass), and a pivot refused `pine:arity` over a count Pine itself
+   *  computes before bar 0 — the same `7` the window arm already folds
+   *  `sma(close, pivSpan)` to in the same pass. `foldWindow` hands back only an
+   *  exact whole number ≥ 0 or the node untouched, so a fraction (`15 / 2`) or a
+   *  bar read still meets `pivotAtConfirmation`'s own refusal. A bare `num` is
+   *  returned as-is, so a literal count stays byte-identical. */
   foldPivotBars(resolvedArgs) {
     if (!Array.isArray(resolvedArgs) || resolvedArgs.length < 2) return resolvedArgs
     const from = resolvedArgs.length - 2
     return resolvedArgs.map((node, i) => {
       if (i < from) return node
-      const declared = declaredInputNames(node)
-      if (!declared.size) return node
-      for (const n of declared) this.windowBoundInputs.add(n)
+      if (!node || typeof node !== 'object' || node.type === 'num') return node
+      for (const n of declaredInputNames(node)) this.windowBoundInputs.add(n)
       return foldWindow(node)
     })
   }
@@ -13038,6 +13065,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
   // promise only a lane with loops can keep, which is why it is opt-in.
   const iterTrees = objectOpts.iterTrees === true
+  /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
+   *  stripped scan as the `max_*_count` ceilings), and whether the script calls
+   *  the per-series `max_bars_back(x, n)` form. See `historyReadRef`. */
+  const declaredMaxBarsBack = (() => {
+    const code = strippedForScan(String(source || ''))
+    const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
+    const n = m ? Number(m[1]) : NaN
+    return {
+      limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
+      call: /\bmax_bars_back\s*\(/.test(code),
+    }
+  })()
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts,
@@ -14303,7 +14342,55 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const hex = staticColourOf(node, scopeEnv)
     if (hex) return { v: 'const', value: hex }
     if (node.type === 'number') return { v: 'const', value: Number(node.value) }
+    if (node.type === 'offset' && !rawTrees && node.n && typeof node.n === 'object' && node.n.expr) {
+      const at = historyReadRef(node)
+      if (at !== undefined) return at
+    }
     return resolveTree(node)
+  }
+
+  /** ⭐⭐ C9 (2026-09-29) — `x[e]` WITH A PER-BAR `e`, AS A COORDINATE.
+   *
+   *  `extrapolated-pivot-connector` writes `up[n - a1]` and `n[n - a1 + length]`
+   *  (the pivot value, and the bar, at an earlier bar a `valuewhen` found);
+   *  `smt-divergence-ict-01` writes `low[bar_index - Low_Last_Bar]`. The V2 graph
+   *  refuses these by design — an offset node's bar count is a literal, which is
+   *  what keeps `maxLookback` a tree sum — so this builds the object runtime's
+   *  own read instead (`{v:'at'}`, `MAX_BARS_BACK_CAP` in objectProgram.js):
+   *  both halves ordinary columns, the read done where every column is held.
+   *
+   *  Answers `undefined` when the offset is a CONSTANT (the ordinary offset node
+   *  serves it), a reference when it is served, and `null` — counted by name in
+   *  `historyReadRefusals` — when it is not:
+   *    · `no-max-bars-back`: how far back TradingView lets the read reach is the
+   *      buffer it sizes the series to, and without a declared `max_bars_back`
+   *      that size is TradingView's own detection, which no capture measures;
+   *    · `max-bars-back-call`: `max_bars_back(x, n)` sizes one series, a rule
+   *      this read does not model;
+   *    · `source`: the value read back is not a plain name (`(a + b)[e]`), or is a
+   *      name the script reassigns (its history is the end-of-bar value, which a
+   *      column read at this op's position would not be);
+   *    · `unreadable`: either half has no column. */
+  const historyReadRef = (node) => {
+    const idx = canonicalOf(node.n.expr)
+    if (!idx) return historyRefused('unreadable')
+    if (constantValueOf(idx) !== null) return undefined
+    const arg = node.arg
+    if (!arg || arg.type !== 'name') return historyRefused('source')
+    if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
+    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
+    if (!declaredMaxBarsBack.limit) return historyRefused('no-max-bars-back')
+    const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
+    if (!src) return historyRefused('unreadable')
+    const back = internTree(idx)
+    if (!back) return historyRefused('unreadable')
+    diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
+    return { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+  }
+  const historyRefused = (why) => {
+    if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}
+    diagnostics.historyReadRefusals[why] = (diagnostics.historyReadRefusals[why] || 0) + 1
+    return null
   }
 
   /** ⛔⛔ A COUNT IS NOT A DIAGNOSTIC, AND A DROPPED PROP IS NOT ALL THE SAME
@@ -14751,17 +14838,16 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
   // ⭐⭐ C14 — A NAME READ BEFORE ITS OWN WRITE LATER IN THE BAR IS NOT ITS
-  // END-OF-BAR VALUE. The object pass resolves a top-level name against the
-  // walk's FINAL binding, which is Pine's value only where nothing writes the
-  // name after the read. ⚰️ MEASURED 2026-09-29 on `rsi-swing-indicator`:
+  // END-OF-BAR VALUE. ⚰️ MEASURED 2026-09-29 on `rsi-swing-indicator`:
   // `if (laststate == 2 and isOverbought)` (line 85) read `laststate`'s
   // end-of-bar fold, and `laststate := 1` (line 108, same bar, when overbought)
-  // makes that guard false on every one of 632 bars — TradingView draws 11
-  // swings there. Refused by name (`readBeforeWrite`), never drawn off the
-  // wrong bar-position value. ⚠️ Reads reached only through a user function's
-  // body are not seen by this check.
+  // made that guard false on every one of 632 bars — TradingView draws 11
+  // swings there.
   const varWrites = collected.varWrites || new Map()
-  // ⭐⭐ C12r — …SO EACH READ IS BOUND WHERE IT STANDS (2026-09-29). Pine runs
+  // ⭐⭐ C12r — …SO EACH READ IS BOUND WHERE IT STANDS (2026-09-29; merged over
+  // C9's `baseFor`/`envAfterTop`, which read every name at its statement's END
+  // and refused any same-statement later write — this is that mechanism plus
+  // START binding, per name, and inlined reads placed at their call). Pine runs
   // the script top to bottom once per bar: a top-level name read in statement
   // S holds last bar's end value carried through only the writes ABOVE the
   // read. The walk records what every name was bound to where each statement
@@ -14893,7 +14979,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // binding is the value AT this statement (`reassignedIn`: the bar's
       // earlier writes folded over last bar's value) — right whatever is
       // written later. Only the final binding itself is end-of-bar.
-      if (f !== null && f !== formulaIn(env)) continue
+      if (f !== null && f !== formulaIn(baseFor(src))) continue
       // ⛔ a name this pass cannot print is not proved harmless — refused
       if (f === null || printed.some((p) => p.includes(f))) hits.push(n)
     }
@@ -15228,7 +15314,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `poor-man039s-volume-profile`, `row0_text = ""` then
       // `for … row0_text := row0_text + "#"` drew its label with the text "" —
       // TradingView draws `####…`. The overrule's verdict wins.
-      const top = env.get(b.name)
+      const top = base.get(b.name)
       if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
         scoped.set(b.name, top)
         continue
@@ -17849,6 +17935,7 @@ function translatePineResult(source, opts = {}) {
       iterTrees: opts.objectIterTrees === true,
       envLog,
       walkStarts,
+      mutableNames: reassigned,
     })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the

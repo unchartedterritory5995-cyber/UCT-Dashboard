@@ -70,7 +70,7 @@ function doorFacts() {
 }
 
 describe('R13 — the closing pass resolves without minting', () => {
-  it('⭐⭐ THE SPECIMEN MINTS 8 TRACK F PARAMETERS, NOT 24', () => {
+  it('⭐⭐ THE SPECIMEN MINTS 3 TRACK F PARAMETERS, NOT 24', () => {
     // ⛔ THE ANSWER, NOT THE ABSENCE. The number is pinned, and it is pinned to
     // the measured value rather than to "fewer than 24" — a bound would stay
     // green at 23, which is the same defect one input smaller.
@@ -88,12 +88,22 @@ describe('R13 — the closing pass resolves without minting', () => {
     // three are real member-facing inputs this script already declared; they
     // were simply behind a wall this fix removed. See
     // `pineValuewhenOccurrenceAccept.test.js` for the dedicated coverage.
+    //
+    // ⭐⭐ 8 -> 3 ON 2026-09-29 (C9): the bar-offset door now folds an input the
+    // way the window door does. At the member door's DECLARE pass `rsi[revPiv]`
+    // used to refuse `pine:offset-literal` (a declared input arrives as an
+    // identifier), so the five reversal / setup outputs translated only in the
+    // literal fallback, where `useRev`, `showSetup`, `revLook`, `stopA` and
+    // `tgtR` were minted as Track F literals. They now translate in the declare
+    // pass, and those five are DECLARED member inputs (`useRev && …`,
+    // `showSetup && …` in the formulas) — one authority each, which the overlap
+    // rail below still asserts. `revPiv` itself is window-bound, as it was.
     const { params } = doorFacts()
     expect(params.length,
       `the closing pass is minting for unread bindings: ${JSON.stringify(params)}`)
-      .toBe(8)
+      .toBe(3)
     expect([...params].sort())
-      .toEqual(['regLook', 'revLook', 'revPiv', 'rsiLen', 'showSetup', 'stopA', 'tgtR', 'useRev'])
+      .toEqual(['regLook', 'revPiv', 'rsiLen'])
   })
 
   it('⭐⭐ AND NO DECLARED MEMBER INPUT IS ALSO A TRACK F PARAMETER', () => {
@@ -123,9 +133,12 @@ describe('R13 — the closing pass resolves without minting', () => {
     // answer; asserting it is what stops a silent instrument passing as a green
     // product.
     const { params, declared } = doorFacts()
+    // ⭐ 10 -> 15 on 2026-09-29 (C9): the five reversal / setup inputs the test
+    // above names moved from Track F literals to declared member inputs.
     expect(declared.size, 'the door declared nothing — the instrument is blind')
-      .toBe(10)
+      .toBe(15)
     expect([...declared]).toContain('bullFloor')
+    for (const n of ['useRev', 'showSetup', 'revLook', 'stopA', 'tgtR']) expect([...declared]).toContain(n)
     expect(params.length, 'the door minted nothing — the instrument is blind')
       .toBeGreaterThan(0)
   })
