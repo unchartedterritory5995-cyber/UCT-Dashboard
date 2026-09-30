@@ -165,12 +165,6 @@ FAMILIES: dict[str, Family] = {
          "/api/provenance", "/api/etf", "/api/single-stock-etfs", "/api/delisted",
          "/api/maintenance", "/api/adjustment-basis"),
     ),
-    "render": Family(
-        TIER_BULK,
-        "Headless render-page reads (CHART_RENDER_TOKEN, not a session), so every "
-        "Discord render from the chart-renderer shares ONE IP key: bulk ceiling.",
-        ("/api/r",),
-    ),
     "options-flow": Family(
         TIER_BULK,
         "The Options Flow / Live Flow / dark-pool family (partner routers "
@@ -304,6 +298,15 @@ EXEMPT: dict[str, str] = {
                      "retry schedule; a 429 costs a payment event.",
     "/api/desk/zoom-webhook": "Zoom's recording.completed sender; a 429 loses a "
                               "session publish.",
+    # Owner ruling 2026-09-30 ("enforce, exempt the renderer"): every Discord render
+    # comes from ONE chart-renderer IP. Its /api/bars/* reads never reach web (the
+    # bars-edge-router Worker sends them to bars-api); what does reach web is these
+    # CHART_RENDER_TOKEN routes, exempt here, plus a few light lookups (ticker-meta,
+    # preferences) that stay in market-data -- at most ~360/min at the renderer's
+    # 4-slot ceiling, under TIER_BULK's 1200/min.
+    "/api/r": "The headless render pages' own reads (CHART_RENDER_TOKEN-gated), "
+              "all from the chart-renderer's single IP; a 429 is a failed "
+              "Discord /chart or /flow render.",
     "/api/discord/interactions": "Discord posts every member's slash command from "
                                  "its own IPs; a 429 is a failed command. The "
                                  "per-member /chart budget lives in the handler.",
