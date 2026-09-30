@@ -238,6 +238,13 @@ export const OP = Object.freeze({
    *  on one day already collided at 86 — so a new opcode takes the next free
    *  number and nothing renumbers. */
   CARRIED2: 90,
+  // ⭐⭐ C11 — A FUNCTION BODY READING A MAIN-PROGRAM VARIABLE. `a` is the
+  // main frame's own index: base 0, whatever frame is running, because Pine's
+  // function reads the global's value at the moment of the call. ⛔ READ ONLY —
+  // there is no STORE twin, because Pine does not let a function assign a
+  // global. Appended past the reserved block (91/92 are OBJ_*), never inserted.
+  LOAD_GLOBAL_LOCAL: 93,
+  LOAD_GLOBAL_PERSIST: 94,
   // ── RESERVED, not yet emitted or executed. Declared so the shape is settled. ──
   ARR_NEW: 80, ARR_PUSH: 81, ARR_GET: 82, ARR_SET: 83, ARR_SIZE: 84,
   OBJ_CREATE: 90, OBJ_UPDATE: 91, OBJ_DELETE: 92,
@@ -265,6 +272,7 @@ export const IMPLEMENTED = Object.freeze(new Set([
   OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP,
   OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
   OP.CARRIED2,
+  OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST,
   OP.EMIT, OP.EMIT_ITER, OP.HALT,
 ]))
 
@@ -503,6 +511,14 @@ export function validateProgram(p) {
     }
     if ((op === OP.LOAD_PERSIST || op === OP.STORE_PERSIST) && (a < 0 || a >= maxPersist)) {
       throw new ProgramError(`pc ${pc}: ${OP_NAME[op]} ${a} outside ${maxPersist} persist slots`)
+    }
+    // ⭐ C11 — a GLOBAL read is main-frame, so it is bounded by the main
+    // program's own count, exactly: nothing past it has a main-frame address.
+    if (op === OP.LOAD_GLOBAL_LOCAL && (a < 0 || a >= p.locals)) {
+      throw new ProgramError(`pc ${pc}: LOAD_GLOBAL_LOCAL ${a} outside ${p.locals} main local slots`)
+    }
+    if (op === OP.LOAD_GLOBAL_PERSIST && (a < 0 || a >= maxPersist)) {
+      throw new ProgramError(`pc ${pc}: LOAD_GLOBAL_PERSIST ${a} outside ${maxPersist} persist slots`)
     }
     if (op === OP.CARRIED) {
       if (a < 0 || a >= p.carried.length) {

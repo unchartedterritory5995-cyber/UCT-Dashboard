@@ -9,8 +9,8 @@
 // line by 8.5 kB. The budget is not raised to fit a reading; the repetition goes.
 //
 // ⛔ LOSSLESS, AND PROVED SO. `compactCalendar` groups the rows by name (and
-// close time) and shortens each date to `YYMMDD`; `expandCalendar` rebuilds the
-// exact objects the file holds, in its date order. `calendarCompact.test.js` requires
+// close time) and writes each group's dates as base-36 day gaps; `expandCalendar`
+// rebuilds the exact objects the file holds, in its date order. `calendarCompact.test.js` requires
 // `expandCalendar(compactCalendar(doc))` to deep-equal the real file, so every
 // field the runtime reads (`date`, `name`, `close`) survives by construction.
 //
@@ -21,29 +21,54 @@
 
 const COMPACT = '_compact'
 
-// A date travels as `YYMMDD` in the 2000s. Anything outside that century is
-// REFUSED at build time rather than silently re-dated a hundred years off.
-function shortDate(iso) {
-  const m = /^20(\d\d)-(\d\d)-(\d\d)$/.exec(iso)
-  if (!m) throw new Error(`calendarCompact: ${iso} is outside 2000-2099; widen the encoding before adding it`)
-  return m[1] + m[2] + m[3]
+// A date travels as a DAY NUMBER counted from 2000-01-01, and within one group
+// every date after the first is the GAP in days from the one before it, in base
+// 36 (a yearly holiday is `a5`, not `010115`). Anything outside 2000-2099 is
+// REFUSED at build time rather than silently re-dated, and a group must arrive in
+// date order (the file is sorted; a negative gap would mean it no longer is).
+const EPOCH = Date.UTC(2000, 0, 1)
+const DAY = 86400000
+function dayNumber(iso) {
+  if (!/^20\d\d-\d\d-\d\d$/.test(iso)) {
+    throw new Error(`calendarCompact: ${iso} is outside 2000-2099; widen the encoding before adding it`)
+  }
+  const [y, m, d] = iso.split('-').map(Number)
+  return Math.round((Date.UTC(y, m - 1, d) - EPOCH) / DAY)
 }
-const longDate = (s) => `20${s.slice(0, 2)}-${s.slice(2, 4)}-${s.slice(4, 6)}`
+function isoOf(day) {
+  const t = new Date(EPOCH + day * DAY)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${t.getUTCFullYear()}-${pad(t.getUTCMonth() + 1)}-${pad(t.getUTCDate())}`
+}
 
 function group(rows, keyOf) {
-  const out = {}
+  const days = new Map()
   for (const r of rows || []) {
     const k = keyOf(r)
-    out[k] = out[k] ? `${out[k]} ${shortDate(r.date)}` : shortDate(r.date)
+    if (!days.has(k)) days.set(k, [])
+    days.get(k).push(dayNumber(r.date))
+  }
+  const out = {}
+  for (const [k, list] of days) {
+    out[k] = list.map((n, i) => {
+      const gap = i === 0 ? n : n - list[i - 1]
+      if (gap < 0) throw new Error(`calendarCompact: ${k} is not in date order`)
+      return gap.toString(36)
+    }).join(' ')
   }
   return out
+}
+
+const expandDays = (packed) => {
+  let day = 0
+  return packed.split(' ').map((g) => (day += Number.parseInt(g, 36)))
 }
 
 const byDate = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
 
 /**
  * The calendar with its rows grouped by name (and close time) and its dates
- * shortened. Not what the runtime reads; see `expandCalendar`.
+ * written as day gaps. Not what the runtime reads; see `expandCalendar`.
  * @param {object} doc the parsed `market_calendar.json`
  * @returns {{doc: object, savedBytes: number}}
  */
@@ -71,7 +96,7 @@ export function expandCalendar(data) {
   if (!packed) return data
   const { [COMPACT]: _drop, ...rest } = data
   const rows = (groups, build) => Object.entries(groups)
-    .flatMap(([key, dates]) => dates.split(' ').map((d) => build(key, longDate(d))))
+    .flatMap(([key, packed]) => expandDays(packed).map((d) => build(key, isoOf(d))))
     .sort(byDate)
   return {
     ...rest,

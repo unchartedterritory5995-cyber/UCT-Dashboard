@@ -1,8 +1,8 @@
 {
   "measured_at": "2026-09-29",
   "scripts": 266,
-  "host_ok": 50,
-  "screener_ok": 55,
+  "host_ok": 51,
+  "screener_ok": 56,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
   ],
@@ -559,11 +559,9 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:block",
         "pine:request"
       ],
       "screenerGuards": [
-        "pine:block",
         "pine:request"
       ]
     },
@@ -1057,14 +1055,10 @@
     },
     {
       "file": "implied-volatility-suite__CdN3hioOVl.pine",
-      "host": false,
-      "screener": false,
-      "hostGuards": [
-        "pine:block"
-      ],
-      "screenerGuards": [
-        "pine:block"
-      ]
+      "host": true,
+      "screener": true,
+      "hostGuards": [],
+      "screenerGuards": []
     },
     {
       "file": "initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q.pine",
