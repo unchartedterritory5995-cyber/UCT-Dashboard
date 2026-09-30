@@ -41,6 +41,7 @@ import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget }
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
 import { fundamentalSource } from './engine/fundamentalGrammar'
 import { SERIES_COLORS as COT_SERIES_COLORS } from '../../pages/cot/cotPalette'
+import { GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
 
 // ─── the vocabulary ─────────────────────────────────────────────────────────
 
@@ -506,31 +507,10 @@ function productKindOf(row) {
   return ownKey(PRODUCT_KIND_BY_FAMILY, fam) ? PRODUCT_KIND_BY_FAMILY[fam] : 'breadth'
 }
 
-/**
- * Column geometry for N histograms sharing one pane — `{width, offset}` per series,
- * as fractions of the bar slot.
- *
- * ⭐ SIDE BY SIDE, NEVER STACKED. N full-width histograms in one pane paint over one
- * another, and a stack would draw their SUM, which is a number nobody reported. Each
- * series instead takes an equal share of the slot, centred on its own offset, and
- * every column grows from the SAME zero line on the SAME scale — so all N values
- * stay independently readable at every bar.
- */
-export const GROUP_BARS_SPAN = 0.84
-
-/** The starting height of a grouped histogram product's ONE pane (a share of the
- *  stack; `paneLayout` honours it as the host's default, a member's drag outranks it).
- *  Above a lone data series' 0.15 because it holds three series under a four-line
- *  legend. */
-export const GROUP_PANE_HEIGHT = 0.22
-
-const r4 = (x) => Math.round(x * 1e4) / 1e4
-
-export function sideBySideBars(n) {
-  if (!Number.isInteger(n) || n < 2) return []
-  const width = GROUP_BARS_SPAN / n
-  return Array.from({ length: n }, (_, i) => ({ width: r4(width), offset: r4((i - (n - 1) / 2) * width) }))
-}
+// Column geometry + default height for a grouped histogram pane — a leaf module so the
+// read-time legacy normaliser (`engine/legacyCotGroups.js`) can share it without an
+// import cycle through this file.
+export { GROUP_BARS_SPAN, GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
 
 /**
  * Colour TOKENS a catalogue row may name for a component → the hex it resolves to.
