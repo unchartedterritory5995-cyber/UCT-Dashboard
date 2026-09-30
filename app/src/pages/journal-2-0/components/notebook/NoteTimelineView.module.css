@@ -57,6 +57,14 @@
   color: var(--ut-gold);
   border-color: var(--ut-gold);
 }
+/* FX4 (proof-walk item 2): the visible half of the `aria-current="date"` fix
+   on the Today button -- same gold accent .zoomOn already uses for "this is
+   the active one" on the Week/Month/Quarter group right beside it. Previous/
+   Next never carry the attribute, so this only ever matches Today. */
+.navBtn[aria-current] {
+  color: var(--ut-gold);
+  border-color: var(--ut-gold);
+}
 .windowLabel {
   min-width: 110px;
   text-align: center;

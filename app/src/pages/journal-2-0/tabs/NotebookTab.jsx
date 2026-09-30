@@ -1891,7 +1891,15 @@ export default function NotebookTab() {
           ) : (
             <select
               className={styles.sortSelect}
-              value={sort}
+              // FX4 (wave 10, coordinator round 2): the Table view's header
+              // buttons can now set `sort` to a DIRECTIONAL value
+              // (`updated_asc`/`title_desc`) this dropdown has no option
+              // for -- an unmapped `value` renders as an unselected control,
+              // which would read as "nothing chosen" while the table is very
+              // much sorted. Show the FIELD regardless of direction; picking
+              // an option here still resets to that field's natural
+              // direction, which is the expected behavior either way.
+              value={sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort}
               onChange={(e) => setSort(e.target.value)}
               // Wave 8 (8A, axe select-name): a select with no name is read as
               // "combo box, Recently updated" with nothing saying what it orders.

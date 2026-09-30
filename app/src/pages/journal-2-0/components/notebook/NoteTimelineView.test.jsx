@@ -60,6 +60,25 @@ describe('the timeline', () => {
     expect(screen.getByText('Week of Sep 21')).toBeInTheDocument()
   })
 
+  /**
+   * ⛔⛔ FX4 (wave 10, proof-walk item 2): clicking Today while `anchor`
+   * already equals today() was a dead click -- `setAnchor` bailed out on the
+   * same value, so nothing in the DOM said so. `aria-current="date"` is the
+   * attribute `tools/notebook_proof_walk.py`'s target census reads to mark a
+   * no-op click CURRENT rather than DEAD -- present exactly while the click
+   * really would be a no-op, gone the moment it would not be (right after
+   * paging away), and the button stays live either way.
+   */
+  it('Today carries aria-current="date" only while the anchor is already today, matching the exact no-op condition', () => {
+    renderIt()
+    const todayBtn = screen.getByRole('button', { name: 'Today' })
+    expect(todayBtn).toHaveAttribute('aria-current', 'date')
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(todayBtn).not.toHaveAttribute('aria-current')
+    fireEvent.click(todayBtn)
+    expect(todayBtn).toHaveAttribute('aria-current', 'date')
+  })
+
   it('groups by tag', () => {
     renderIt()
     fireEvent.change(screen.getByRole('combobox', { name: 'Group by' }), { target: { value: 'tag' } })

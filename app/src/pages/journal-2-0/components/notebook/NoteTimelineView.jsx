@@ -61,6 +61,15 @@ export default function NoteTimelineView({
   const set = (patch) => setSettings((prev) => ({ ...prev, ...patch }))
   const unit = { week: 'week', month: 'month', quarter: 'quarter' }[settings.zoom]
 
+  // FX4 (wave 10, proof-walk item 2): the exact no-op condition -- clicking
+  // Today calls `setAnchor(today())`, and when `anchor` already equals
+  // `today()` that is a same-value bail-out (no re-render). `aria-current`
+  // is what `tools/notebook_proof_walk.py`'s target census reads to mark a
+  // control CURRENT rather than DEAD on a no-op click; the button stays a
+  // live control either way -- it still jumps back to today from any other
+  // window.
+  const isToday = anchor === today()
+
   // Wave 10 lane DR-F (D-9): the axis opened at its first bucket (day 1 of the
   // month) with no auto-scroll, so a month whose activity sits near its end
   // read as empty until the member scrolled the whole width by hand. Keyed on
@@ -122,7 +131,14 @@ export default function NoteTimelineView({
             aria-label={`Next ${unit}`}>
             <UIcon name="chevronRight" size={12} gold={false} />
           </button>
-          <button type="button" className={styles.navBtn} onClick={() => setAnchor(today())}>Today</button>
+          <button
+            type="button"
+            className={styles.navBtn}
+            aria-current={isToday ? 'date' : undefined}
+            onClick={() => setAnchor(today())}
+          >
+            Today
+          </button>
         </div>
       </div>
 
