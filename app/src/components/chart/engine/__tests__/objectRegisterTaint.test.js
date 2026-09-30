@@ -152,6 +152,60 @@ describe('C17 — a value-level read marks only that property, and a clean write
   })
 })
 
+describe('C17 — what a mark does NOT form on, and where else it rides', () => {
+  it('⭐ a guard that is itself KNOWN and false is a certain skip: nothing is marked', () => {
+    // node 5 is 1 on bar 0 and 0 after it. Bar 1: B's coordinate is behind the
+    // curtain, but its guard (node 9) is a known 0 — Pine did not run B, so
+    // `r0` still holds bar 0's label, exactly.
+    const prog = P({
+      ops: [
+        { k: 'create', family: 'label', site: 'a', into: 'r0', when: G(5), props: { x: { v: 'bar' }, y: { v: 'bar' } } },
+        { k: 'create', family: 'label', site: 'b', into: 'r0', when: G(9), props: { x: { v: 'bar' }, y: G(1) } },
+        { k: 'create', family: 'label', site: 'c', into: null, when: null, props: { x: { v: 'bar' }, y: GET('y') } },
+      ],
+    })
+    const run = evaluateObjects(prog, {
+      barCount: 2, readNode: (n, b) => (n === 5 ? (b === 0 ? 1 : 0) : n === 9 ? 0 : 1), readTime: (b) => b,
+      readUnknown: (node, bar) => node === 1 && bar === 1,
+    })
+    expect(run.live.filter((o) => o.site === 'c').map((o) => o.props.y)).toEqual([0, 0])
+    expect(run.stats.objectsTainted).toBeUndefined()
+  })
+
+  it('⭐ a crossing stepped with an unknown operand is unknown on the NEXT bar too (its carried pair)', () => {
+    // A makes a label at node 1's value each bar: 4, 6 (behind the curtain), 7.
+    // B fires on `ta.crossover(label.get_y(r0), 5)`. Pine's pair on bar 2 is
+    // (6, 7) — no cross. This run never made bar 1's label, so the pair it
+    // carries is (4, 7), which WOULD cross: bar 2 must be withheld, not drawn.
+    const cols = { 1: [4, 6, 7] }
+    const prog = P({
+      ops: [
+        { k: 'create', family: 'label', site: 'a', into: 'r0', when: null, props: { x: { v: 'bar' }, y: G(1) } },
+        { k: 'create', family: 'label', site: 's', into: null, when: { v: 'cross', dir: 'over', args: [GET('y'), { v: 'const', value: 5 }] }, props: { x: { v: 'bar' }, y: { v: 'bar' } } },
+      ],
+    })
+    const run = evaluateObjects(prog, {
+      barCount: 3, readNode: (n, b) => (cols[n] ? cols[n][b] : 1), readTime: (b) => b,
+      readUnknown: (node, bar) => node === 1 && bar === 1,
+    })
+    expect(run.live.filter((o) => o.site === 's')).toEqual([])
+    expect(run.stats.withheldTainted).toBe(2) // bar 1 (a tainted handle), bar 2 (the carried pair)
+  })
+
+  it('⭐ a list a withheld push may have grown: its `array.size` is unknown to the next guard', () => {
+    const prog = P({
+      colls: [{ id: 'c0', family: 'label', cap: 10 }],
+      ops: [
+        { k: 'push', coll: 'c0', value: { r: 'reg', id: 'r0' }, when: G(0) },
+        { k: 'create', family: 'label', site: 's', into: null, when: { v: 'cmp', op: '>', args: [{ v: 'size', coll: 'c0' }, { v: 'const', value: 0 }] }, props: { x: { v: 'bar' }, y: { v: 'bar' } } },
+      ],
+    })
+    const run = evaluateObjects(prog, ctx(1, { readUnknown: (node, bar) => node === 0 && bar === 0 }))
+    expect(run.stats.withheldTainted).toBe(1)
+    expect(run.live).toEqual([])
+  })
+})
+
 describe('C17 — the curtain can see an EQUALITY against the state', () => {
   // up bars on 1, 4, 7, 9 — `state` is 1 after an up bar and 2 after a down bar
   const closes = [10, 12, 11, 10, 14, 13, 12, 16, 15, 17, 16, 15]
