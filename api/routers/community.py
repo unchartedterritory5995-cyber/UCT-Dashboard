@@ -995,6 +995,30 @@ def member_profile(member_id: str, user: dict = Depends(require_community)):
             "badges": badges, "joined_at": joined, **store.member_activity(member_id)}
 
 
+class CallRecordIn(BaseModel):
+    enabled: bool
+
+
+@router.get("/members/{member_id}/calls")
+def member_calls(member_id: str, user: dict = Depends(require_community)):
+    """TERM-009: a member's call record -- every $TICKER they mentioned and how it has moved
+    since, losses included. OPT-IN (owner ruling 2026-09-29): another member sees it only
+    while its owner has published it; the owner always sees their own, marked private."""
+    from api.services import community_call_record
+    mine = str(member_id) == str(user.get("id"))
+    public = store.call_record_enabled(member_id)
+    if not public and not mine:
+        raise HTTPException(status_code=404, detail="This member does not share a call record")
+    return {**community_call_record.build(member_id), "public": public, "mine": mine}
+
+
+@router.put("/me/call-record")
+def set_my_call_record(body: CallRecordIn, user: dict = Depends(require_community)):
+    """Publish or hide YOUR call record. Hiding never deletes a message or a mark."""
+    store.set_call_record(user["id"], body.enabled)
+    return {"public": store.call_record_enabled(user["id"])}
+
+
 @router.get("/chat/search")
 def chat_search(q: str = Query("", max_length=80), user: dict = Depends(require_chat)):
     """Search live-chat messages + forum threads (v1 LIKE search)."""

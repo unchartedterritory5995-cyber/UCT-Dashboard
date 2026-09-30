@@ -506,6 +506,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/community/members/{member_id}/calls",
+      "rate_limit_family": "community-content",
+      "tier": "member"
+    },
+    {
+      "method": "GET",
       "path": "/api/community/spaces",
       "rate_limit_family": "community-content",
       "tier": "member"

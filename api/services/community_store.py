@@ -202,6 +202,15 @@ CREATE TABLE IF NOT EXISTS ticker_marks (
     PRIMARY KEY (message_id, ticker)
 );
 
+-- TERM-009 (owner ruling 2026-09-29: OPT-IN PER MEMBER). A member's call record is
+-- public ONLY while this row says enabled. Turning it off HIDES the record; it never
+-- deletes a message or a mark (feedback_kill_switch_never_a_delete).
+CREATE TABLE IF NOT EXISTS call_record_optin (
+    user_id     TEXT PRIMARY KEY,
+    enabled     INTEGER NOT NULL,
+    updated_at  INTEGER NOT NULL
+);
+
 -- ── The Floor redesign (forum v2) ───────────────────────────────────────────
 -- Additive overlay on threads/posts. A redesign POST = a threads row; a
 -- redesign COMMENT = a posts row. These tables add votes, free-form emoji
@@ -1447,6 +1456,32 @@ def poll_results(message_id, viewer_id=None):
                 (message_id, viewer_id)).fetchone()
             my = r["option_key"] if r else None
     return {"counts": counts, "total": sum(counts.values()), "my_vote": my}
+
+
+def set_call_record(user_id, enabled: bool):
+    """TERM-009: a member opts their call record in or out. Off hides, never deletes."""
+    with _WRITE_LOCK, closing(get_connection()) as c:
+        c.execute("INSERT INTO call_record_optin (user_id, enabled, updated_at) VALUES (?,?,?) "
+                  "ON CONFLICT(user_id) DO UPDATE SET enabled=excluded.enabled, updated_at=excluded.updated_at",
+                  (str(user_id), 1 if enabled else 0, _now()))
+        c.commit()
+
+
+def call_record_enabled(user_id) -> bool:
+    with closing(get_connection()) as c:
+        r = c.execute("SELECT enabled FROM call_record_optin WHERE user_id=?", (str(user_id),)).fetchone()
+    return bool(r and r[0])
+
+
+def calls_for_member(user_id, limit: int = 300) -> list:
+    """Every price-at-mention mark on this member's live (not deleted) messages, newest first."""
+    with closing(get_connection()) as c:
+        rows = c.execute(
+            "SELECT m.id AS message_id, m.channel_slug, m.created_at, t.ticker, t.price "
+            "FROM messages m JOIN ticker_marks t ON t.message_id = m.id "
+            "WHERE m.author_id = ? AND m.deleted = 0 ORDER BY m.created_at DESC, t.ticker LIMIT ?",
+            (str(user_id), int(limit))).fetchall()
+    return [dict(r) for r in rows]
 
 
 def record_ticker_marks(message_id, prices):

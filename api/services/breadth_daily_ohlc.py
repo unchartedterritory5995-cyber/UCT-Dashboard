@@ -986,6 +986,15 @@ def history(metric: str, limit: int = 6000,
     any error (callers fall back to close-to-close bodies)."""
     if not metric:
         return {}
+    # ⭐ BREADTH AUTHORITY: a universe V2 owns is answered by the seam (breadth_authority),
+    # never by this store. None = not owned → the V1 store below, unchanged.
+    try:
+        from api.services import breadth_authority as _ba
+        _v2 = _ba.universe_history(metric, universe, limit)
+    except Exception:
+        _v2 = None
+    if _v2 is not None:
+        return _v2
     _ensure_init()
     out: dict = {}
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
@@ -1015,6 +1024,13 @@ def dates_since(universe: str = DEFAULT_UNIVERSE, since: str = "") -> list:
     leading columns of `idx_bdo_source_date (universe, source, date, metric, c)`, so
     this is an index range scan rather than a table walk.
     """
+    try:
+        from api.services import breadth_authority as _ba
+        _v2 = _ba.universe_dates(universe, since)
+    except Exception:
+        _v2 = None
+    if _v2 is not None:
+        return _v2
     _ensure_init()
     qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:

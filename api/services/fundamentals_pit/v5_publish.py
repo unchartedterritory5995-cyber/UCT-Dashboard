@@ -148,14 +148,18 @@ def build_manifest(*, version_id: str, parent: str | None, companies: dict[int, 
             "census": {"companies": len(companies), "tickers": len(tickers)}, **fields}
 
 
-def publish_version(target, manifest: dict, bodies: dict[str, bytes], *, expect_parent: str | None) -> dict:
+def publish_version(target, manifest: dict, bodies: dict[str, bytes], *, expect_parent: str | None,
+                    parent_manifest: dict | None = None) -> dict:
     """objects -> manifest (write-once) -> verify -> pointer compare-and-set. Returns the new pointer.
 
     Refuses if any company references an object that does not exist, if the manifest key already holds different
     bytes, or if CURRENT no longer points at `expect_parent` (someone else published)."""
     t0 = time.time()
     res = put_objects(target, bodies)
-    missing = [c for c, s in manifest["companies"].items() if s not in bodies and not target.exists(obj_key(s))]
+    # an object the verified parent version already references was verified when THAT version published
+    inherited = set((parent_manifest or {}).get("companies", {}).values())
+    missing = [c for c, s in manifest["companies"].items() if s not in bodies and s not in inherited
+               and not target.exists(obj_key(s))]
     if missing:
         raise PublishError(f"{len(missing)} companies reference objects that do not exist (e.g. cik {missing[0]})")
     mb = encode(manifest)
