@@ -179,7 +179,12 @@ const CASES = [
     // ⭐ 17 -> 7 on 2026-09-29 (C9, merged onto C14): `high[pivSpan]` folds like
     // a window, so ten divergence lines/labels convert — each TradingView's
     // (vendor harness). Measured on the merged tree.
-    objectsOnly: false, kind: 'partial', text: partial(7, 38) },
+    // ⭐ 7 -> 3 on 2026-09-30 (C12s): the four `guard:create` on the exhaustion
+    // counters (`✦ OB`, `✦ OS`, `R▲`, `R▼`) convert — the counters are SWITCHED
+    // recurrences now. The three `✦ OB` TradingView draws are drawn, id for id
+    // (`vendorHarness.c12sSwitched`); `R▲`/`R▼` convert but their guard is over the
+    // node budget at run time, which the layer names (`unreadableGuards`).
+    objectsOnly: false, kind: 'partial', text: partial(3, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the

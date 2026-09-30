@@ -128,6 +128,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 25 | C12w the listing seed (ruling R-W): a series the caller proves starts at the symbol's first-ever bar (`historyFromListing` — the chart from the listing date, the harness from `history.startsAtBar0`) runs a translated `var` from bar 0 over the whole series and lifts the curtain wherever EVERY bar-0 reading the tree admits agrees; a mixed `var` with a real initializer is marked (`-(0 / 0)`) so its bar 0 is never guessed — see § C12w | `40409a06c`, `262744ef0`, `17e030314` + merges onto C12r (`98d3f6a47`) and C11b | 24 / 47 → **26 / 47** (overall 20 → 22; harness `summ` over `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1`, base `6d6b95d74`; the same four entries moved against `f04ccffa7` and `37fa2c49d`) | 193 / 252 → **200 / 252** | `market-structure-by-leviathan` 5/6 lines, 18/22 labels → **MATCH, id for id** (what the curtain withheld were TradingView's first creates); `institutional-smc-order-flow-matrix-pro` 13/18 lines, 29/34 labels → **MATCH, id for id** (the five early BOS/CHoCH pairs C16's rail recorded as withheld are drawn, and its id offset of 10 is gone); `artemis-oscillator-pro` lines 8 → **13 of 13** at TradingView's levels, labels 8 → 13 of 17 (the four left are `guard:create` door drops, not the curtain); `trend-duration-forecast-chartprime` HMA plot DIVERGE (138 colour bars — `var trend` read off the prefix) → **MATCH** on all 632 bars. Nothing drawn the vendor lacks. Committed harness dir (82 entries): exactly those 4 changed, inventory identical. Member-door census 266 × 2: **0 rows changed** (attach 39 / 60). Corpus trees: 0 of 299 moved by the seed mark |
 | 26 | C17 a per-bar, per-property REGISTER TAINT in the object runtime (`objectRuntime.js` `regTaint`): an op withheld on a bar (the curtain, an unknown `x[e]`, or a tainted read) marks what it would have written — a register, a scalar, an object's properties, a list, a cell, a latch, a `var` initialiser, a crossing's carried pair; an op whose guard / handle / address / loop bound reads a mark is withheld and marks its own outputs; a property whose VALUE reads a mark lets the op run and marks that property; a clean write clears it; an object still marked at the end is held, counted and not drawn. Keyed on "unknown at this bar", never a bar number. The converter's blanket recurrence rule (`state:lost` on any handle written off a recurrence) is removed. And `unknownMask` could not see an EQUALITY against the state (`laststate == 1` is false for `NaN` and ±1e12 alike): a tree is now also probed at every finite literal an `==`/`!=` compares. Artemis' four `guard:create` are traced and NAMED (`objectDiagnostics.guardRefusals`), not served — see § C17 | `140a09b34`, `c3799d00e`, `67290fdd1` + merges onto wave 4 (`1352761f1` over `6d6b95d74`; the C12w merge over `5f3e9eb28`) | 26 → **27 / 47** (overall 22 → 23; base `5f3e9eb28` = C12w, objects pane on) | 200 / 252 → 207 / 259 (rsi-swing gains its seven) | `rsi-swing-indicator` door refusal (`pine:no-output`, its program refused `state:lost` ×12) → **7/7 MATCH, id for id** — composed with step 25: the capture starts at the listing, so the curtain lifts, no mark forms, and all 11 labels / 11 lines are TradingView's (ids 1–22, y, word, placement; the first line's `na` y2 included). **Behind the curtain** (any chart that does not start at the listing; measured with the listing fact withheld) it draws **6 labels / 7 lines and every one is TradingView's** — its last 6 and last 7, value for value, creation order, x mapped one-to-one onto the capture's dense ranks — and the 2 labels and 1 line made off pre-curtain labels are made (ids stay TradingView's order) and held undrawn (`vendorHarness.c17RsiSwing`, both cases). `artemis-oscillator-pro` unchanged, still no wrong object. Committed harness dir (115 graded, 82 inventory): objects MATCH 45 → 46, overall 44 → 45, families 235 / 287 → 242 / 294, only rsi-swing changed. Member-door census 266 × both flags: attach 39 / 60 → 39 / **61** (rsi-swing, flag on); its flag-off refusal becomes the objects-only sentence its 11 siblings carry; 0 other rows. `tools/corpus_metric.json` host_ok 54 → 55 (the same script). Census build 42.5 / 42.1 s base vs 42.2 / 46.8 s (alternated); the object-lane corpus censuses ~8% slower (11.6 → 12.5 s alone — the extra equality probes). Re-measured against `756990d76` (master into wave 4): the same single entry on the 47 and the harness dir, the same two census rows. Notebook first-open bytes 1,868,658 B at base and after (+0; budget 2,260,793, PASS). `paramIds.test.js` green, no re-pin |
 | 27 | C11c — the object-lane residuals C11b left refused, on the same host reader: window **reductions** (`max`/`min`/`sum`/`avg` in Pine index order, `indexof`) and a **pick** for a slot whose place depends on a value (a series index; `first`/`get` of a growing push window); a window handed to a user function (the call frame is followed); the script's own one-expression **read methods**; a block `var` with a literal seed is one program variable (siblings renamed); a destructure the block folder cannot bind condemns its own names, not the block; `x := y` between handles and a tuple of returned handles are **register copies**; a START read of a `var` whose later reassignment did not fold **refuses** instead of reading its seed. ⛔ A reduction over an `na` element / an empty window, or `indexof` of `na`, is unmeasured: every step reaching it is **withheld on that bar** (`op.withhold`), counted — see § C11c | `33453ebf9`, `1d94948c8` + the merge onto C17 (`b2a86824e`) | 27 → **28 / 47** (overall 23 → 24; base `b2a86824e` = C17, objects pane on; first landed 24 → 24 against `6d6b95d74`) | 207 / 259 → **214 / 266** | `pro-trading-art-double-top-bottom-with-alert` door refusal → **MATCH, id for id** — composed with step 25: the capture starts at the listing (`startsAtBar0`), the curtain lifts, and all **7 lines / 14 labels** are TradingView's (ids from 1, order, price, caption, x ranks). **Behind the curtain** (listing fact withheld) it draws 6 of 7 lines and 12 of 14 labels, every one TradingView's, at an id offset of 3 — the first double top (bar 208) reads `lastStart` inside the curtain and is withheld (`vendorHarness.c11cPta`, both cases). Composed with step 26: a step withheld on an unmeasured reduction now marks everything it would have written through C17's `taintOutputs` (one mechanism, not a parallel one), and C11c's `unresolvedGuards` diagnostic is folded into C17's `guardRefusals`. One C17 over-taint found and fixed in the merge: an `and` with a KNOWN false operand is not unknown (PTA's `ta.crossunder(close, topLine.get_y2()) and extendSignal` marked the latch and blanked 3 of 7 lines). Committed harness dir (82 graded): exactly 1 entry changed (the same), objects MATCH 45 → 46, overall 37 → 38, families 242 / 294 → 249 / 301, inventory identical. Member-door census 266 × both flags: attach 39 / 61 → 39 / **62**, **2 rows changed, both pro-trading-art** (on: attaches; off: the objects-only sentence). OOS measured baseline: one re-pin, `mid_engagement__18-market-profile-tpo` still 6 outputs and 6 refusals, now NAMED for what stops it (`pine:state` ×2, `pine:tuple` ×4 — the `[poc, vah, val] = render_profile(…)` destructure condemns its own names) instead of `pine:reassign` ×6 on the names the fold stopped before. Notebook first-open bytes 1,868,658 B (+0 against the C17 base; budget 2,260,793, PASS). `paramIds.test.js` green, no re-pin. Step 28 is reserved for the parallel C12s lane (switched counters) |
+| 28 | C12s a SWITCHED recurrence (`pine.js::forgetsOnReset`, `interpret.js::switchedVarSeed`): a body the window refuses because one arm never forgets (`c ? self + 1 : 0`) is admitted when a RESET path exists (ternaries whose conditions do not read the state, to an arm that does not read it; lag 0). Its window starts from an UNKNOWN state; bar `t` is published only where the value came out known AND the forgetting step lies in `(t − W, t]` — per bar, keyed on the data, never a bar number. What reads an unknown switched bar is withheld by a DEPENDENCY MASK read off the tree (`maxLookback` reach above the switched node) plus the probe (for readers that under-claim their reach, `ema`), in both lanes and in the object lane's `unknownMask`. Python twin in `ast_interpret.py` — see § C12s | `4c0926563`, `3c6b79b82` + the merge onto C11c (`067283083` over `0fd35f415`) | 28 / 47 → 28 / 47 (overall 24 → 24; base `0fd35f415`, objects pane on) | 214 / 266 → 214 / 266 | `artemis-oscillator-pro` labels 13 → **16 of 17**: the three `✦ OB` TradingView draws, **id for id** (5, 12, 13) at its y — from the listing (the capture) and, behind the curtain, every `✦ OB` drawn is one of them; `R▼` converts but its guard measures 132 nodes against the 128-node budget, NAMED (`budget:nodes`). `ema-ribbon-trend-filter-strixedge` cells 33 → **34 of 48**: cell (3, 1) `8`, TradingView's text, colour and background. Nothing drawn the vendor lacks; no family flips (each script is short elsewhere). Committed harness dir (87 graded): exactly those 2 entries changed, objects MATCH 44 / 75 and overall 41 unchanged. Member-door census 266 × both flags: attach 39 / 62 → **41 / 64** — `btc-charlie-trader-xo-macro-trend-scanner` and `keltner-center-of-gravity-channel` attach (no capture: held to the same tree run from the listing over AGEN 1D 2,000 bars and RDDT 1D 632 bars, 0 disagreements, 0 bars published the listing withholds); `cc-yata`'s refusal moves `pine:state` → `pine:timeout`. `tools/corpus_metric.json` host_ok 56 → 57, screener_ok 57 → 58. Community: `25-spy-expected-move-by-vix` translates (its VWAP column; the door still refuses on its `for`). OOS baseline: ict-smc-guide 18 → 4 `pine:state` (flat 2 → 12), relative-volume-candles → `pine:function`, market-profile-tpo loses its two `pine:state` (all still door-refused); `param-ids.json`: ict-smc-guide +7 ids appended (door-refused). `ast_conformance --check`: identical to base (the same 2,338 pre-existing findings). Census build 49.4 / 38.4 s base vs 43.0 / 38.9 / 42.9 s (alternated). Notebook first-open bytes 1,868,658 B (+0; budget 2,260,793, PASS) |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -959,12 +960,14 @@ costs more than the window it replaces. No ceiling raised, no new refusal.
   recurrence computable ONLY from the listing bar, (b) a mark separating the two
   spellings, and (c) a capture: a probe plotting both counters beside `bar_index` on
   NYSE:RDDT 1D from the listing day (`vw-var-seed`'s `V00` is the plain `bar_index`
-  control, and that probe is door-refused as a whole on its `V04` row).
+  control, and that probe is door-refused as a whole on its `V04` row). (Step 28, C12s,
+  serves a counter WITH a reset arm; a counter with none keeps this refusal.)
 - **The first bar of a guarded `var`** whose update differs from its seed on bar 0
   (`g := c ? close : nz(g[1], 3.0)`): the self-reference reading keeps bar 0 withheld;
   bar 1 on is exact.
 - **Object creates the translator never built**: artemis' `✦ OB` ×3 and `R▼`
-  (`guard:create` at the door) — not the curtain.
+  (`guard:create` at the door) — not the curtain. (Step 28, C12s, builds them: the
+  counters are switched recurrences; `✦ OB` ×3 TradingView's, `R▼` over the node budget.)
 - **A read ABOVE the write on bar 0** (C12r's START binding, `accum(…)[k + 1]`): the bar where it
   reaches index −1 is the state the `var` ENTERS bar 0 with — its initializer for a bare read, `na`
   for a history read — and the tree does not say which. Under the listing exception that bar is
@@ -1048,6 +1051,9 @@ the window — the curtain's probe moved from the prefix to the window's seed (r
 the window twice at two seeds; a bar whose value does not move forgot it). That
 is a change to `forgetsItsSeed`'s contract shared with the plot lane; the
 vendor's three `✦ OB` and one `R▼` are the capture that would grade it.
+**Served by step 28 (§ C12s)**: the counters are SWITCHED recurrences; the three
+`✦ OB` are TradingView's, id for id; `R▼` converts and is refused at run time by
+the node budget (132 > 128), named.
 
 **What stays open, named.** (a) An equality against a series in a curtain
 guard (above). (b) A create withheld behind the curtain still leaves this run's
@@ -1167,12 +1173,135 @@ methods off, M19 `and` known-false off, M20 withhold without taint.
 | dual-view | `var` state across blocks, lists that lost a push | C12 |
 | ict-killzones (secondary) | `mg_lbls.size` on a list changed by `clear` | a window `clear` — does not block its MATCH |
 
+## C12s — switched counters: a reset recurrence, served where the data shows the reset (2026-09-30, step 28)
+
+Branch `pine/c12s-switched-counters`. C17 traced `artemis-oscillator-pro`'s four
+`guard:create` to one construct and named it:
+
+    var int meObCount = 0
+    meObCount := meObWeak ? meObCount + 1 : 0
+
+a running count whose `self + 1` arm never forgets its seed, so the bounded
+window would count over the last 250 bars instead of since the reset
+(`forgetsItsSeed` → `pine:state`). What C17 wrote would settle it: *a SWITCHED
+counter whose non-forgetting arm is admitted where the DATA shows a reset inside
+the window*. Built.
+
+**The admission (`pine.js::forgetsOnReset`).** Asked only of a body the window
+refuses. Admitted when the body reads its running value only bare (`self`, never
+`self[k]` — the proof is for a one-lag state) and a RESET PATH exists: from the
+root, through ternaries whose condition does not read the state, to an arm that
+does not read it either (`: 0`, `: high`, `: na`). A condition that reads the state
+— the latch-once `na(self) ? v : self`, `self > 3 ? 0 : self + 1` — cannot be
+decided from an unknown state and is no reset; a count with no reset arm at all
+(`n := n + 1`, OBV by hand) keeps `pine:state`. The accumulator's seed is written
+`(0 / 0) * <seed>` (`interpret.js::switchedVarSeed`): `NaN` to any reader that does
+not know the mark, in both lanes, and the REAL seed for the listing pass.
+
+**The rule, per bar and never by bar number (`interpret.js::runRecurrence`).** The
+window for bar `t` starts from an UNKNOWN state (`LISTING_UNKNOWN`, "any number or
+`na`") instead of a seed, and runs `stepListing`'s arithmetic: every operator
+answers unknown for an unknown input except a ternary whose condition is known; a
+condition that is not computable (`NaN`) is unknown too. A bar is published only
+where the value came out known AND the forgetting step lies inside `(t − W, t]` —
+so a published value is still a function of the last `W + 1` bars and
+`maxLookback` stays true. It is one forward pass and exact, not an approximation:
+with one lag, a step that answers known from an unknown state makes every later
+step known, and a result that came out known from an unknown input is the same
+result for every concrete one. ⛔ Not "run the window at two seeds" (C17's sketch):
+two concrete seeds that agree prove nothing about a third — `max(self, x)` answers
+alike for seeds 0 and 1 while `1e6` stays — so the window starts from the abstract
+unknown value instead, which stands for every seed at once. Everywhere else the bar is not computable exactly as
+the curtain is (`NaN`, or `prefixProbe`). A bar below the warm-up whose reset lies
+inside the data IS published. From the listing (C12w) the real seed is used, and a
+bar the listing trajectories disagree on falls back to the switched column from bar
+0, so the listing run is never less known than the curtain.
+
+**What reads an unknown switched bar is withheld — read off the tree, then
+probed.** A switched column's own value is proved; what a tree DOES with an unknown
+one needed its own rule, and the first draft (probe agreement alone, C17's
+`unknownMask` idea applied at the plot root) was measured wrong: on
+`btc-charlie-trader-xo-macro-trend-scanner` over AGEN 1D its Bear shape read a
+confident 0 on bar 24 where the same script run from the listing reads 1 —
+`countSell > 0 and countSell < 2 and countBuy < 1` over TWO unknown counters is
+false under every single probe value (one value stands for both, and ±1e12 misses
+the range). So:
+
+| mechanism | where | what it catches |
+|---|---|---|
+| the **dependency mask** (`switchedDependencyMask`) | both lanes, plot root and object `unknownMask` | `maxLookback` is a tree sum: a path from the root down to a switched node adds at most `maxLookback(root) − maxLookback(node)` bars of reach, so a root bar is withheld when any bar inside that reach is one of the node's unknown bars (where it answers `+1e12` and `−1e12` differently). A proof, given the lookback contract. A switched node under `tf` / `sym` reads other bars: that tree is withheld whole |
+| the **probe** (`probeValuesOf`, moved into `interpret.js`) | both lanes; the object lane probes a switched tree over the WHOLE series | a dependence the declared reach under-claims: `ema` carries its state forever and declares only its period, so `ema(counter, 3)` still depends on an unknown bar far past 3 |
+
+Every rail below was proved by its own mutation; neither mechanism alone passes
+them. The plot lane evaluates a switched tree once plus two probes per switched node
+plus one per probe value; a tree with no switched recurrence takes the single pass,
+byte for byte as before.
+
+**Grades.** Base `0fd35f415` (C11c on C17; objects MATCH 28 / 47, overall 24).
+
+| script | before | after | TradingView's? |
+|---|---|---|---|
+| `artemis-oscillator-pro` (from the listing — the capture) | labels 13 / 17 (the four creates dropped at the door) | labels **16 / 17** | **yes, id for id**: the three `✦ OB` are ids 5, 12, 13 at TradingView's y (within 1e-12 relative — `oscVal + 7`); every id after them now in TradingView's order up to the missing `R▼` |
+| `artemis-oscillator-pro` (behind the curtain) | — | the three `✦ OB` drawn | yes: each at a TradingView `✦ OB` y, and every label drawn is one the listing run draws |
+| `artemis` `R▼` | `guard:create` (pine:state) | still unmade, **named**: its guard tree measures 132 nodes against the 128-node budget (`budget:nodes`, the layer's `unreadableGuards`) | — |
+| `ema-ribbon-trend-filter-strixedge` | cells 33 / 48 | cells **34 / 48** | **yes**: cell (3, 1) `8` — TradingView's text, text colour `#d1d4dc` and background `#131722`, at its address, both with and without the listing fact |
+
+Both captures are on the 47 and in the committed harness dir; neither flips a family
+(a label and a cell short elsewhere), and nothing is drawn the vendor lacks.
+
+**Scripts the change newly serves, and how each is held exact.**
+
+| script | where | switched construct | check |
+|---|---|---|---|
+| `btc-charlie-trader-xo-macro-trend-scanner` | member door **attaches** (both flags), 6 plots | `countBuy` / `countSell`, each reset by the other side's bar | no capture: AST lane behind the curtain vs the SAME tree from the listing, AGEN 1D 2,000 bars and RDDT 1D 632 bars — **0 disagreements, 0 bars published the listing withholds** (`switchedServedScripts.test.js`) |
+| `keltner-center-of-gravity-channel` | member door **attaches** (both flags), 19 plots + 2 tables | `up` / `dn` (`naz ? … : na`) | same, 0 / 0; and with its supertrend mode forced on (at the door `jz` folds to its default, so `up` / `dn` are `na`): the reset arm `na` is never taken, so the curtain withholds `up` / `dn` on every bar — exact from the listing |
+| `25-spy-expected-move-by-vix` (community) | `translatePine` ok (was `pine:block`); the door still refuses on the `for` @56 | session VWAP sums, `start ? x : x + x[1]` | exact per bar from the last session start in the window |
+| `mid_engagement__16-ict-smc-guide` (OOS) | 18 → 4 `pine:state`, flat outputs 2 → 12; the door still refuses | session highs / lows, `newS ? high : inS ? max(nz(h, high), high) : h` | the rule |
+
+`cc-yata` moves from `pine:state` to `pine:timeout` (the translator's expansion
+depth on `buyCounCC8Close`); `relative-volume-candles` (OOS) to `pine:function`;
+`market-profile-tpo` (OOS, after the C11c merge) loses its two `pine:state` and
+keeps its four `pine:tuple`. All three still refused.
+
+**What stays refused, named, and what would settle it.**
+- `R▼` / `R▲`: `budget:nodes` (132 > 128). The guard carries `meRevExhObBar`'s
+  accumulator twice; a node count that measures a shared subtree once is a
+  budget-semantics ruling (never a raised cap), and the vendor capture already
+  holds the `R▼` that would grade it.
+- A reset that never fires in the data (keltner's supertrend `up`/`dn` with the
+  mode on; any streak longer than the window): withheld on those bars — correct,
+  the state is genuinely not in the window.
+- A reset through a condition that reads the state, and a lagged read `self[k]`
+  in a switched body: `pine:state` at translation (and `interpret:recurrence` by
+  name should a hand-built tree carry one). A multi-lag proof (every lag known after
+  `L + 1` consecutive forgetting steps) and a corpus case would settle the second.
+- A switched node under `tf` / `sym`: its whole tree is withheld. Mapping the
+  child's unknown bars through the resample would settle it.
+- The residual C17 names stays: the probe is a probe. The dependency mask is a
+  proof under `maxLookback`'s tree-sum contract; a reader that under-claims its
+  reach AND answers every probe value alike would slip through.
+- No vendor capture yet for btc-charlie or keltner-cog: a capture of each on RDDT
+  1D (and one intraday for spy-expected-move's VWAP) would grade them against
+  TradingView rather than against our own listing run.
+
+Rails: `switchedCounter.test.js` (gate, exact against a hand Pine reference under
+four seeds, withheld exactly where no reset lies in the window, the listing pass,
+the probe fill, the root agreement, a range over two unknown counters, a `NaN`
+condition, the entering state, parity), `switchedWithholding.test.js` (both
+mechanisms, both lanes), `switchedServedScripts.test.js`,
+`vendorHarness.c12sSwitched.test.js`, `test_ast_switched_counter_parity.py`
+(one fixture, both lanes). Moved rails updated with the reason: `pine.runLength`
+(six counter shapes that refused are now served, each checked bar by bar against
+the recurrence run by hand), `objectGuardRefusals`, the community roster, guards,
+door scorecard and timeframe rails, the OOS measured baseline, `param-ids.json`
+(ict-smc-guide gains ids 7–13 appended; refused at the member door).
+
 ## What is left, ranked by scripts it would move
 
 | rank | class | scripts (primary) | what it needs |
 |---|---|---|---|
 | 1 | C11 arrays / UDTs / methods holding drawings or values | dual-view, htf-liquidity, KZP, smc, k-clustering, max-pain, PTA, trend-duration, vdubus (9) | the collection/UDT grammar in the object lane — the largest single gap, and a design wave rather than a fix. **Step 14** closed runtime-front-end gaps (methods, array members, global reads) with no grade moved; the runtime object lane still builds none of the nine and is unrouted — see § C11. **Step 19 (C16)** served the host-lane wall two of the nine hit FIRST on their drawing LISTS (length reads, eviction, list edits in loops — institutional-smc, dual-view): smc's zones now AGREE; dual-view and the other seven stop on UDTs, numeric arrays or `var` state — see § C16. **Step 24 (C11b)** served it on the HOST lane rather than routing (the runtime object lane builds one of the nine and answers at the wrong position): ict-killzones MATCH, htf-liquidity's lines and labels id for id; the other seven stop on `var` state, UDT fields, `while`, per-call arrays, user read-methods or reductions — see § C11b. **Step 27 (C11c)** served pro-trading-art (**MATCH, id for id** on its from-listing capture; behind the curtain 6 / 7 lines, 12 / 14 labels, every one TradingView's) and named the rest: k-clustering and max-pain need an imperative last-bar evaluator, vdubus per-call windows with two add sites, trend-duration positional window reads and the C12 counter — see § C11c |
-| ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17**; the curtain on a from-listing series: **step 25 (C12w)** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12. **Step 26 (C17):** behind the curtain, what a withheld op would have written is now MARKED per bar and per property, and its readers withheld — rsi-swing draws TradingView's last 6 labels / 7 lines and nothing else; and the curtain now sees an equality against the state (`laststate == 1`), which it read as known-false — see § C17 |
+| ~~2~~ | ~~C12 values or `var` state computed across a multi-statement block~~ — **steps 15–17**; the curtain on a from-listing series: **step 25 (C12w)** | atr-sr **MATCH**; smc 13/18 lines, market-structure 5/6 lines and 18/22 labels with **no wrong object left** | what remains of C12 is the WARM-UP CURTAIN: `accum` is not computable before `PINE_STATE_WARMUP` (250) and an object that reads it there is now withheld (step 17) rather than drawn off a guess. Settling it needs the owner-gated question in `pine.js::PINE_STATE_WARMUP` (a `var` seeded from where a fetch starts), not a fix. `position-size-calc` re-traced to `syminfo.root` (rostered unserved) + C10; `rsi-swing` to C14 (a getter written into `var` state, and getters as coordinates) — neither is C12. **Step 26 (C17):** behind the curtain, what a withheld op would have written is now MARKED per bar and per property, and its readers withheld — rsi-swing draws TradingView's last 6 labels / 7 lines and nothing else; and the curtain now sees an equality against the state (`laststate == 1`), which it read as known-false — see § C17. **Step 28 (C12s):** a counter with a RESET arm is served as a switched recurrence, exact per bar where the data shows the reset (artemis' `✦ OB` ×3 id for id, ema-ribbon's bars-in-trend cell, two scripts attach) — see § C12s |
 | 3 | C10 `request.security` in object text/coordinates — **step 20: every form the seam computes is served** (linear-regression MATCH; artemis' MTF panel) | artemis, ema-ribbon, linear-regression, vold, liquidity-heatmap (5) | the seam was already there (§ C10). What is left is refused BY NAME and each needs something the bar series does not hold: an intraday timeframe below the chart's own (artemis 15m/1h/4h values never shown; ema-ribbon 15/60/240 rows; liquidity-heatmap's pivots), another symbol (vold `USI:*`, htf-liquidity, position-size-calc), a multi-period code (`3M`, `3D`, `2M`), and a `timeframe.*` read inside a request at another timeframe (liquidity-heatmap's `resolutionInMinutes`) — the capture that settles each is in § C10 |
 | 4 | ~~C8 clock builtins: `time_close`, `timeframe.change`~~ — **done, step 9** | liquidation-levels, poor-man, rsmi, adr, htf-footprint (5) | measured and built; none of the five is blocked by it any longer (each now stops on C15, C12, C11/C13) |
 | ~~5~~ | ~~C9 a history offset that is an expression~~ — **done, step 22** | extrapolated **MATCH**; artemis 8/13 lines, 8/17 labels, no wrong object; smt → C10 | what remains is named in § C9: no `max_bars_back` declared, a `max_bars_back(x, n)` call, a reassigned source — each refused by name |
