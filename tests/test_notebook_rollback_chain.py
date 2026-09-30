@@ -40,6 +40,15 @@ hunks deep with no separable lines; ruled "ours" (keep the newer work), the same
 `api/services/daily_counters.py` rule. The fifteen pins recorded at 0812b5ec3 came back
 byte-identical; the one new pin is wave 5's CommandPalette.jsx conflict. New mutation record:
 docs/notebook/evidence/rollback-rehearsal-2026-09-29-r1d/mutations-r1d.log.
+
+Lane R1d, continued (2026-09-29): L8 #255 landed on master mid-lane (controller note). MEASURED_AT
+moved a third time, from 8d08da86f to 6f563c158. Same shape as L6: ships no app/ or api/ file (a
+parity-scorecard re-score + writing-help production evidence), in CHAIN by path only
+(CHAIN_BY_PATH_ONLY). One more path-only commit alongside it, cd9ecc833 (Fundamentals V5 cutover,
+dark), touches only api/main.py (a lifespan scheduler-registration block moved to the worker pod)
+-- added to REVIEWED_NOT_LANDINGS. All sixteen pins recorded at 8d08da86f came back
+byte-identical; zero new conflicts anywhere in the chain. `--check --from origin/master` reports
+current.
 """
 from __future__ import annotations
 
@@ -235,14 +244,15 @@ def test_check_says_stale_and_why_on_an_uncharted_landing(chain, capsys):
     assert (rc, out["check"]) == (2, "stale") and "does not contain MEASURED_AT" in out["stopped"]
 
 
-# L6 (wave 10, PR #253) ships no `app/` or `api/` file at all -- rollback-chain tooling +
-# rehearsal evidence for L4/L5, a restore-drill fix, proof-walk evidence -- so `ships` is false and
-# SUBJECT can never select it, however its subject reads. It is a real wave-10 landing (the
-# tool's own SUBJECT-criterion comment states the exception) and belongs in CHAIN anyway, selected
-# by PATH only: its one Notebook-owned file is tests/test_notebook_rollback_chain.py, the rollback
-# tool's own test suite. Declared here, not inferred, so a FUTURE by-path-only CHAIN entry still
-# has to earn its way in by name.
-CHAIN_BY_PATH_ONLY = {"3fb184cdf"}
+# L6 (wave 10, PR #253) and L8 (wave 10, PR #255) each ship no `app/` or `api/` file at all --
+# rollback-chain tooling + rehearsal evidence, a restore-drill fix, proof-walk evidence and the
+# parity-scorecard re-score -- so `ships` is false and SUBJECT can never select either, however
+# its subject reads. Both are real wave-10 landings (the tool's own SUBJECT-criterion comment
+# states the exception) and belong in CHAIN anyway, selected by PATH only: L6's one Notebook-owned
+# file is tests/test_notebook_rollback_chain.py, the rollback tool's own test suite; L8's is
+# tests/test_parity_scorecard.py. Declared here, not inferred, so a FUTURE by-path-only CHAIN
+# entry still has to earn its way in by name.
+CHAIN_BY_PATH_ONLY = {"3fb184cdf", "6f563c158"}
 
 
 def test_the_subject_criterion_selects_every_chain_landing(chain):

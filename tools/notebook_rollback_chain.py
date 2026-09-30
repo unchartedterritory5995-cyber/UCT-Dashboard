@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "8d08da86f"          # moved from 0812b5ec3 by lane R1d, 2026-09-29 (L6 #253, L7 #254 live)
+MEASURED_AT = "6f563c158"          # moved from 0812b5ec3 by lane R1d, 2026-09-29 (L6 #253, L7 #254, L8 #255 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,7 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L8", "6f563c158", "wave 10 L8 #255"),
     ("L7", "8d08da86f", "wave 10 L7 #254"),
     ("L6", "3fb184cdf", "wave 10 L6 #253"),
     ("L5", "0812b5ec3", "wave 10 L5 #252"),
@@ -106,15 +107,17 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 # one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
 #   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject takes one of the forms a
 #     Notebook LANDING's squash subject takes (`NOTEBOOK_SUBJECT`). Over wave5^..MEASURED_AT this
-#     selects every CHAIN entry except one: L6 (`3fb184cdf`, lane R1d, 2026-09-29) is a real wave
-#     10 landing -- rollback-chain tooling + rehearsal evidence for L4/L5, a restore-drill fix, and
-#     proof-walk evidence -- that ships NO `app/` or `api/` file at all, so `ships` is false and
-#     SUBJECT never selects it however its subject reads. It is in CHAIN anyway (the wave's own
-#     numbering names it, and the operator needs `--through L6` to mean what it says), selected by
-#     PATH ONLY (its one Notebook-owned file is `tests/test_notebook_rollback_chain.py`, the
-#     rollback tool's own test suite -- not shipped code, but not a KEEP_PATH either). Reverting it
-#     is a no-op for members and, measured, conflict-free (nothing else in this window touches that
-#     file). `test_the_subject_criterion_selects_every_chain_landing` states this exception rather
+#     selects every CHAIN entry except two: L6 (`3fb184cdf`) and L8 (`6f563c158`, both lane R1d,
+#     2026-09-29) are real wave 10 landings -- rollback-chain tooling + rehearsal evidence, a
+#     restore-drill fix, proof-walk evidence and the parity-scorecard re-score -- that ship NO
+#     `app/` or `api/` file at all, so `ships` is false and SUBJECT never selects either however
+#     its subject reads. Both are in CHAIN anyway (the wave's own numbering names them, and the
+#     operator needs `--through L6`/`--through L8` to mean what they say), selected by PATH ONLY
+#     (L6's one Notebook-owned file is `tests/test_notebook_rollback_chain.py`, the rollback
+#     tool's own test suite; L8's is `tests/test_parity_scorecard.py` -- neither is shipped code,
+#     but neither is a KEEP_PATH either). Reverting either is a no-op for members and, measured,
+#     conflict-free (nothing else in this window touches either file).
+#     `test_the_subject_criterion_selects_every_chain_landing` states this exception rather
 #     than silently tolerating it.
 #   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
 #     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
@@ -165,6 +168,12 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # `1be4b9a2b`'s revert removed, and its vite.config.js hunk re-adds the market_calendar.json
 # stripping block that revert took out -- confirmed by reading both diffs side by side. Nothing
 # here is RAISED.
+# Lane R1d, continued: a fifth path-only commit landed while this lane worked, in
+# 8d08da86f..6f563c158 (on top of L8 #255, itself in CHAIN by path -- see the SUBJECT-criterion
+# comment above): cd9ecc833 (Fundamentals V5 cutover foundation, dark -- no flag set, no V5 object
+# published) touches only api/main.py, removing the web-pod's own lifespan registration of the
+# fundamentals_pit scheduler (moved to the worker pod, a comment left in its place); no Notebook
+# route touched.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
@@ -270,6 +279,10 @@ REVIEWED_NOT_LANDINGS: dict[str, str] = {
         "AWAITING_A_DECISION entries 1be4b9a2b's revert removed, and its vite.config.js hunk "
         "re-adds the market_calendar.json stripping block that revert took out; no Notebook file "
         "touched",
+    "cd9ecc83333ab0ffaf64b2185aab0d6d1b6c6fd3":
+        "Fundamentals V5 cutover foundation, dark (no flag set, no V5 object published); touches "
+        "only api/main.py, removing the web pod's own lifespan registration of the "
+        "fundamentals_pit scheduler (moved to the worker pod), no Notebook route touched",
 }
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in

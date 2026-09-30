@@ -97,3 +97,46 @@ before the next mutation ran.
 - In every boot, including the tip, the sandbox attempted real Anthropic calls, which were
   refused for credit balance (the launcher's warm pass, not the chain). Recorded, not
   investigated -- same as every prior lane's rehearsal.
+
+# Round 2, 2026-09-29: L8 #255 (landed mid-lane)
+
+**Method:** `rehearse_round2.py` in this directory. Its own data dir/port
+(`C:\data-w10r1d-2` : 8240), so it never collides with round 1's boots. Two targets: the new tip
+`s01-tip2` (`6f563c158`, includes L8 + the dark Fundamentals V5 work `cd9ecc833`; control, seeds
+its own fixtures) and `s-L8` (`--through L8`).
+
+## Extraction
+
+- `s01-tip2`: tree `0ed7636cc4`, 17,292 files
+- `s-L8`: tree `54d8421f3b`, 17,292 files
+
+Both re-hashed IDENTICAL to their git trees (`sandbox/extract-verify-round2.log`).
+
+## Boots -- both CLEAN
+
+| step | pre-boot | +15s | +120s | shutdown | db files hashed |
+|---|---|---|---|---|---|
+| `s01-tip2` | CLEAN | CLEAN | CLEAN | CLEAN | 62 |
+| `s-L8` | CLEAN | CLEAN | CLEAN | CLEAN | 62 |
+
+## L8: no door -- ships zero `app/` or `api/` files, verified as a non-regression
+
+Same treatment as L6 in round 1. `s01-tip2` reproduces round 1's tip exactly:
+
+- L7's door (`input[aria-label="Find in note"]`): **44px** at `s01-tip2`, matching round 1's
+  `s00-tip` reading exactly.
+- Every earlier landing's probe (`landings` in `probe.json`) byte-identical to round 1's `s00-tip`.
+
+`s-L8` (L8 reverted) is byte-identical to `s01-tip2` on every shared probe: `landings` dict equal
+key-for-key, L7's door still 44px (unaffected -- L8 does not touch that file), and the never-revert
+set's `stored_keeps_marker`/`stored_has_typed` both `true` for all three fixture notes. L8 has no
+door of its own to lose, so identical output IS the expected, correct result.
+
+## Object-level verification (not re-booted below L8)
+
+`python tools/notebook_rollback_chain.py --through wave5 --from origin/master` builds end to end,
+exit 0, tree-for-tree consistent with round 1's chain below L6 (`chain/chain-through-wave5.jsonl`,
+regenerated from the new tip). `--record-pins --through wave5` returns all sixteen pins recorded
+at `8d08da86f` byte-identical (`chain/record-pins-output-round2.json`) -- L8 and `cd9ecc833`
+introduce zero new conflicts anywhere in the chain, so nothing below `L8` needed re-rehearsing on
+a sandbox.
