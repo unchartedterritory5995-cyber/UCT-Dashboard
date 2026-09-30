@@ -122,4 +122,18 @@ describe('⛔ C22 — a marking op is not a step: pruning one is not counted as 
     expect(d.dropReasons['content:withheld'] || 0).toBe(0)
     expect(total).toBeLessThanOrEqual(d.collectedOps)
   })
+
+  it('nor where the mark acts through a list that lost a change (`coll:diverged`)', () => {
+    const t = tr([
+      'var lines = array.new_line()',
+      'if close > open',
+      '    array.insert(lines, 0, line.new(bar_index, high, bar_index + 1, high))',
+      'if array.size(lines) > 0',
+      '    line.set_x2(array.get(lines, 0), line.get_x1(array.get(lines, 0)) + 5)',
+    ])
+    const d = t.objectDiagnostics
+    expect(d.collsDivergedWhy).toEqual(['lines: coll:insert@5'])
+    expect(d.dropReasons).toEqual({ 'update:props': 1 })
+    expect(d.droppedOps).toBeLessThanOrEqual(d.attemptedOps)
+  })
 })
