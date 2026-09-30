@@ -2714,7 +2714,7 @@ def build(pages_dir=None):
                                  walk9('B25_saved_view')],
       {'N': ['N_savedview'], 'E': ['E_savedsearch'], 'O': ['O_views']},
       'B25: a table view saved by name; on a fresh page the saved view reopened as a table.')
-    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 174, "key: 'thesis',")] + TPL_EV,
+    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 231, "key: 'thesis',")] + TPL_EV,
       {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, TPL_NOTE, TPL_LEVER)
     # Editor
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
@@ -2867,11 +2867,11 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 322, 'Continue working'), walk9('B17_older_rows')],
+    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 324, 'Continue working'), walk9('B17_older_rows')],
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 25, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 26, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -3267,7 +3267,7 @@ def build(pages_dir=None):
     ]
     C[6] = [
         ('a design review against the three competitors signs off each surface', 'NOT MET',
-         [record('docs/notebook/design-review.md', '6-7', 'reviewed, not signed off')],
+         [record('docs/notebook/design-review.md', '11', 'reviewed, not signed off')],
          'the independent review ran (10E-2) and does NOT sign off: behind on the first phone screen (D-1), on editor '
          'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Owner state, partial: the '
          'owner countersigned ONE surface\'s placement -- D-3\'s "..." menu ("yes keep them in the menu", '
