@@ -70,6 +70,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import math
 import datetime as _dt
 import importlib.util
 import json
@@ -100,6 +101,13 @@ ALARM_LAYERS = frozenset({"fetch", "miss"})
 
 #: ⛔ THREE NAMED CODES, so collapsing two of them is a VISIBLE EDIT to this block
 #: rather than a `return 1` somewhere in a branch.
+#: The fewest no-wait samples over which a p95 is not simply the maximum:
+#: 5% of n must be at least one sample. DERIVED from the quantile, never typed.
+#: ⚰️ 2026-09-30 RTH: the gate exited 0 WITHIN on no-wait n = 2 (D) and n = 1 (5)
+#: -- a "p95" of two samples is their larger one. It refused an EMPTY set only.
+P95_Q = 0.95
+MIN_NOWAIT_N = math.ceil(1.0 / (1.0 - P95_Q) - 1e-9)
+
 EXIT_WITHIN = 0
 EXIT_OVER = 1
 EXIT_INCONCLUSIVE = 2
@@ -315,6 +323,14 @@ def sample_timeframe(base: str, tf: str, n: int, bars: int, audit=None, client=N
     if own:
         client = httpx.Client(headers={"User-Agent": _UA}, follow_redirects=True)
     try:
+        # ⛔ Pay connection setup (DNS/TLS/CDN) OUTSIDE the timed sample. Measured
+        # 2026-09-30: an unwarmed first read took 1,120 ms wall for 73.5 ms of
+        # server time, and one such sample moves a 40-sample p95. Best effort --
+        # a failed warm-up leaves the sample to say what it measured.
+        try:
+            client.get(f"{base}/api/health", timeout=20)
+        except Exception:
+            pass
         out = []
         for sym in sample:
             layer, wall, _code, _nbars = audit._serve_layer(base, sym, tf, bars, client)
@@ -392,6 +408,12 @@ def timeframe_result(tf: str, samples, in_rth: bool = True, audit=None) -> dict:
               "⛔ This is neither a PASS nor a FAIL. Do NOT read the waited-read "
               "latency below as a p95: that substitution is the recorded defect "
               "this runner exists to make impossible.")
+        return res
+    if len(nowait) < MIN_NOWAIT_N:
+        res["not_computable"] = (
+            f"NOT COMPUTABLE on tf={tf} — only {len(nowait)} of {total} reads did "
+            f"not wait; a p95 needs at least {MIN_NOWAIT_N} or it is just the "
+            f"slowest of a handful. ⛔ Neither a PASS nor a FAIL.")
         return res
     ordered = sorted(nowait)
     res["p50_ms"] = float(audit.pct_of(ordered, 0.50))
@@ -712,7 +734,8 @@ def main(argv=None, health_fn=None, clock_fn=None, session_fn=None,
         r = timeframe_result(tf, samples, in_rth=True)
         results.append(r)
         if r["p95_ms"] is None:
-            say(f"  tf={tf:<3} NOT COMPUTABLE (n={r['n']}, all waited)")
+            say(f"  tf={tf:<3} NOT COMPUTABLE (no-wait n={r['nowait_n']} of {r['n']}, "
+                f"minimum {MIN_NOWAIT_N})")
         else:
             say(f"  tf={tf:<3} p95={r['p95_ms']:.0f}ms p50={r['p50_ms']:.0f}ms "
                 f"(no-wait n={r['nowait_n']} of {r['n']}) "
