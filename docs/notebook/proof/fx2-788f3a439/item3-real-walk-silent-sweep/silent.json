@@ -1,0 +1,81 @@
+{
+ "forced": {
+  "500": "HTTP 500 with a JSON detail carrying the marker zqproofraw",
+  "offline": "route.abort('internetdisconnected') for that endpoint only"
+ },
+ "reads": [],
+ "writes": [
+  {
+   "action": "save-template",
+   "status": "NO-WRITE",
+   "note": "the action sent no write request"
+  },
+  {
+   "action": "trash-note",
+   "status": "NO-WRITE",
+   "note": "the action sent no write request"
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-swallow:500": "SILENT",
+   "plant-honest:500": "SENTENCE",
+   "plant-swallow:offline": "SILENT",
+   "plant-honest:offline": "SENTENCE"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "plant": "swallow",
+    "kind": "500",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "500",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "swallow",
+    "kind": "offline",
+    "verdict": "SILENT",
+    "sentences": [],
+    "new_text": [],
+    "new_alerts": [],
+    "empty_state_suspect": false
+   },
+   {
+    "plant": "honest",
+    "kind": "offline",
+    "verdict": "SENTENCE",
+    "sentences": [
+     "We could not save that change. Try again in a moment.",
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_text": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "new_alerts": [
+     "We could not save that change. Try again in a moment."
+    ],
+    "empty_state_suspect": false
+   }
+  ]
+ }
+}

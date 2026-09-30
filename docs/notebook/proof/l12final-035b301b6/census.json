@@ -1,0 +1,1223 @@
+{
+ "doors": {
+  "desktop": "desk",
+  "touch": "phone",
+  "keyboard": "desk"
+ },
+ "rows": [
+  {
+   "row": "G-129",
+   "feature": "Syntax highlighting (code block)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/Code b' + desktop on the option",
+     "seconds": 8.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/Code b' + touch on the option",
+     "seconds": 4.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x95; '/Code b' + Enter",
+     "seconds": 6.4
+    }
+   }
+  },
+  {
+   "row": "G-130",
+   "feature": "Math, inline + block",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/Math b' + desktop on the option",
+     "seconds": 5.2
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/Math b' + touch on the option",
+     "seconds": 4.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; '/Math b' + Enter",
+     "seconds": 5.9
+    }
+   }
+  },
+  {
+   "row": "G-131",
+   "feature": "Text colour + highlight",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; click; swatch",
+     "seconds": 4.5
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; tap; swatch",
+     "seconds": 6.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; Tab x86 + Enter; swatch Tab x1 + Enter",
+     "seconds": 9.6
+    }
+   }
+  },
+  {
+   "row": "G-132",
+   "feature": "Callout icon and colour picker",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/Callou' + desktop on the option; click; click",
+     "seconds": 4.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/Callou' + touch on the option; tap; tap",
+     "seconds": 5.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; '/Callou' + Enter; Tab x1 + Enter; ArrowDown + Enter in the picker",
+     "seconds": 6.9
+    }
+   }
+  },
+  {
+   "row": "G-133",
+   "feature": "Image captions + alignment",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN here: needs an image upload per door; its caption/align controls were walked by 9B B26 (desktop)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-134",
+   "feature": "Table UI (rows/columns/header)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/Table' + desktop on the option; click; rows 3 -> 4",
+     "seconds": 4.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/Table' + touch on the option; tap; rows 3 -> 4",
+     "seconds": 4.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; '/Table' + Enter; Tab past the last cell; rows 3 -> 5",
+     "seconds": 6.6
+    }
+   }
+  },
+  {
+   "row": "G-135",
+   "feature": "Drag handles and block reordering",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.9
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; caret in the second block; Alt+Shift+ArrowUp",
+     "seconds": 6.2
+    }
+   }
+  },
+  {
+   "row": "G-136",
+   "feature": "Table of contents / outline",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.9
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 2.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x74 + Enter",
+     "seconds": 5.2
+    }
+   }
+  },
+  {
+   "row": "G-137",
+   "feature": "Word count + reading time",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; shown in the More note actions menu",
+     "seconds": 2.9
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; shown in the More note actions menu",
+     "seconds": 3.1
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x75 + Enter; shown in the More note actions menu",
+     "seconds": 5.2
+    }
+   }
+  },
+  {
+   "row": "G-138",
+   "feature": "Find and replace",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click; click",
+     "seconds": 4.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; tap",
+     "seconds": 4.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Ctrl+H; Replace all Tab x2 + Enter",
+     "seconds": 6.0
+    }
+   }
+  },
+  {
+   "row": "G-139",
+   "feature": "Emoji picker",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; typed ':rock'",
+     "seconds": 4.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; typed ':rock'",
+     "seconds": 4.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; typed ':rock'",
+     "seconds": 6.7
+    }
+   }
+  },
+  {
+   "row": "G-140",
+   "feature": "@date mentions",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; typed '@tomorrow'",
+     "seconds": 4.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; typed '@tomorrow'",
+     "seconds": 4.3
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; typed '@tomorrow'",
+     "seconds": 6.5
+    }
+   }
+  },
+  {
+   "row": "G-141",
+   "feature": "Web embeds + link bookmarks",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; paste (a dispatched ClipboardEvent: an ENGINE test of the paste path); click",
+     "seconds": 4.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; paste (a dispatched ClipboardEvent: an ENGINE test of the paste path); tap",
+     "seconds": 7.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; paste (a dispatched ClipboardEvent: an ENGINE test of the paste path); Tab x106 + Enter",
+     "seconds": 8.6
+    }
+   }
+  },
+  {
+   "row": "G-142",
+   "feature": "Multi-column layout",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/2 colu' + desktop on the option",
+     "seconds": 3.8
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/2 colu' + touch on the option",
+     "seconds": 3.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; '/2 colu' + Enter",
+     "seconds": 5.7
+    }
+   }
+  },
+  {
+   "row": "G-143",
+   "feature": "Heading levels H4-H6",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; '/Headin' + desktop on the option",
+     "seconds": 4.3
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; '/Headin' + touch on the option",
+     "seconds": 3.8
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; '/Headin' + Enter",
+     "seconds": 5.7
+    }
+   }
+  },
+  {
+   "row": "G-144",
+   "feature": "Undo/redo control on touch",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Undo/Redo control is the touch tier's (hidden at >= 1025 px, where Ctrl+Z is the door)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; tap",
+     "seconds": 4.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "editor reached with Tab x98; Ctrl+Z",
+     "seconds": 7.1
+    }
+   }
+  },
+  {
+   "row": "G-145",
+   "feature": "Quick switcher over all notes",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; typed the title; option chosen",
+     "seconds": 2.5
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; typed the title; option chosen",
+     "seconds": 2.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Ctrl+K; typed the title; option chosen",
+     "seconds": 2.3
+    }
+   }
+  },
+  {
+   "row": "G-146",
+   "feature": "Bulk operations",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click; two selected, the bulk bar shows",
+     "seconds": 3.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; two selected, the bulk bar shows",
+     "seconds": 3.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x81 + Space; Tab x2 + Space; two selected, the bulk bar shows",
+     "seconds": 5.7
+    }
+   }
+  },
+  {
+   "row": "G-147",
+   "feature": "Nested tags",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 3.1
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.1
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x62 + Enter",
+     "seconds": 5.2
+    }
+   }
+  },
+  {
+   "row": "G-148",
+   "feature": "Unlinked mentions",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 2.2
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 1.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x99 + Enter",
+     "seconds": 5.1
+    }
+   }
+  },
+  {
+   "row": "G-149",
+   "feature": "Timeline view",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 3.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.1
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x73 + Enter",
+     "seconds": 5.9
+    }
+   }
+  },
+  {
+   "row": "G-150",
+   "feature": "Archive state",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.5
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.6
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x3 + Enter",
+     "seconds": 4.5
+    }
+   }
+  },
+  {
+   "row": "G-151",
+   "feature": "Note lock (read-only)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x2 + Enter",
+     "seconds": 4.5
+    }
+   }
+  },
+  {
+   "row": "G-152",
+   "feature": "Split view",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.1
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by design: split view is desktop only (two panes need >= 1025 px)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x5 + Enter; result Tab x1 + Enter",
+     "seconds": 4.1
+    }
+   }
+  },
+  {
+   "row": "G-153",
+   "feature": "Reminders with notifications",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: a 07:00 ET server pass rings the bell; no member door to drive (G-153 is recorded unobserved in the ledger)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-154",
+   "feature": "Tasks view across notes",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.1
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x74 + Enter",
+     "seconds": 6.4
+    }
+   }
+  },
+  {
+   "row": "G-155",
+   "feature": "Member-made templates",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.7
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.7
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x4 + Enter; Enter (submits the template-name field)",
+     "seconds": 3.5
+    }
+   }
+  },
+  {
+   "row": "G-156",
+   "feature": "A real daily note",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 3.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x84 + Enter",
+     "seconds": 6.3
+    }
+   }
+  },
+  {
+   "row": "G-158",
+   "feature": "Lightweight relations",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click; click; click",
+     "seconds": 4.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; tap; tap",
+     "seconds": 3.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x102 + Enter; Tab x8 + Enter; Tab x2 + Enter; Tab x111 + Enter",
+     "seconds": 9.9
+    }
+   }
+  },
+  {
+   "row": "G-159",
+   "feature": "Camera scan with OCR",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Scan button is the touch tier's (a camera door)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "tap; the camera/file chooser opened (no camera in the sandbox: the scan itself is not driven)",
+     "seconds": 4.8,
+     "screenshot": "r125925-census-G-159-touch.png"
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the Scan button is the touch tier's (a camera door)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-160",
+   "feature": "OCR/text from images and docx",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "editor clicked; click; document status ready",
+     "seconds": 4.1
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "editor tapped; tap; document status ready",
+     "seconds": 4.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "; Tab x95 + Enter; document status ready",
+     "seconds": 6.7
+    }
+   }
+  },
+  {
+   "row": "G-161",
+   "feature": "Email-to-notebook",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; the address shows",
+     "seconds": 1.9
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap; a new address replaced the old one",
+     "seconds": 2.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x44 + Enter; Tab x1 + Enter; a new address replaced the old one",
+     "seconds": 3.6
+    }
+   }
+  },
+  {
+   "row": "G-162",
+   "feature": "Dictation in the editor",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic control is present; dictation needs a microphone the sandbox browser has not got",
+     "seconds": 2.8,
+     "screenshot": "r125925-census-G-162-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic control is present; dictation needs a microphone the sandbox browser has not got",
+     "seconds": 2.7,
+     "screenshot": "r125925-census-G-162-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "the mic is reachable (Tab x96); dictation needs a microphone the sandbox browser has not got",
+     "seconds": 5.7,
+     "screenshot": "r125925-census-G-162-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-165",
+   "feature": "Writing help",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "click; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 3.3,
+     "screenshot": "r125925-census-G-165-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "tap; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 3.1,
+     "screenshot": "r125925-census-G-165-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "Tab x79 + Enter; the panel and its actions render -- no model key, so no output is observed",
+     "seconds": 5.3,
+     "screenshot": "r125925-census-G-165-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-064",
+   "feature": "Ask insert",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "click; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 3.0,
+     "screenshot": "r125925-census-G-064-desktop.png"
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "tap; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 2.8,
+     "screenshot": "r125925-census-G-064-touch.png"
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "Tab x74 + Enter; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed",
+     "seconds": 4.8,
+     "screenshot": "r125925-census-G-064-keyboard.png"
+    }
+   }
+  },
+  {
+   "row": "G-080",
+   "feature": "Share links",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x76 + Enter; Tab x3 + Enter",
+     "seconds": 5.4
+    }
+   }
+  },
+  {
+   "row": "G-167",
+   "feature": "Publish to web (note)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.6
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x76 + Enter; Tab x4 + Enter",
+     "seconds": 5.6
+    }
+   }
+  },
+  {
+   "row": "G-167f",
+   "feature": "Publish to web (folder)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 3.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.4
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x66 + Enter",
+     "seconds": 6.5
+    }
+   }
+  },
+  {
+   "row": "G-085",
+   "feature": "Personal API (token)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 3.3
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 3.2
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x39 + Enter",
+     "seconds": 4.1
+    }
+   }
+  },
+  {
+   "row": "G-044",
+   "feature": "Mobile capture (share target)",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the share target is the phone's share sheet (Android PWA); iOS rides Shortcuts over the personal API (a device run, S-2)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "destination chosen; tap; the source is a document of the chosen note; the sheet said 'Saved link to Census keyboard 1790791729\\nOpen'",
+     "seconds": 3.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by design: the share target is the phone's share sheet (Android PWA); iOS rides Shortcuts over the personal API (a device run, S-2)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-169",
+   "feature": "Export formats",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 4.0
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x8 + Enter; menu item Enter",
+     "seconds": 3.7
+    }
+   }
+  },
+  {
+   "row": "G-171",
+   "feature": "First-run tour + sample notebook",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "tour shown: True; Skip tour; click",
+     "seconds": 4.0
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tour shown: True; Skip tour; tap",
+     "seconds": 21.1
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "tour shown: True; Skip tour; Tab x51 + Enter",
+     "seconds": 22.5
+    }
+   }
+  },
+  {
+   "row": "G-172",
+   "feature": "Help-centre articles",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click",
+     "seconds": 4.5
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap",
+     "seconds": 4.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x38 + Enter",
+     "seconds": 5.7
+    }
+   }
+  },
+  {
+   "row": "G-026",
+   "feature": "Template picker (built-in)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; click",
+     "seconds": 3.6
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; tap",
+     "seconds": 3.9
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x87 + Enter; Tab x35 + Enter",
+     "seconds": 9.4
+    }
+   }
+  },
+  {
+   "row": "G-021",
+   "feature": "Graph view (+ its list mode)",
+   "cells": {
+    "desktop": {
+     "verdict": "WORKS",
+     "detail": "click; list mode control present: True",
+     "seconds": 3.4
+    },
+    "touch": {
+     "verdict": "WORKS",
+     "detail": "tap; list mode control present: True",
+     "seconds": 3.5
+    },
+    "keyboard": {
+     "verdict": "WORKS",
+     "detail": "Tab x80 + Enter; list mode control present: True",
+     "seconds": 7.4
+    }
+   }
+  },
+  {
+   "row": "G-043",
+   "feature": "Browser extension",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: the extension awaits the Chrome Web Store (S-1); nothing a member can open in this sandbox",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-127",
+   "feature": "Semantic retrieval",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: dark until OpenAI's written zero retention (R-20)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-157",
+   "feature": "Pages inside pages",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D10 (folders + links + backlinks)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-163",
+   "feature": "Cold-start offline",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D6 (no caching service worker)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-081",
+   "feature": "Comments / co-editing",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A by ruling D4 (G-081 out of scope)",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-164",
+   "feature": "Real-device matrix",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: a process run per landing on BrowserStack Live (S-2), not a product door",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-166",
+   "feature": "AI over attachments",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: needs a model key the sandbox has not got",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-093",
+   "feature": "Sync connectors (read-only)",
+   "cells": {
+    "desktop": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "NOT-DRIVEN",
+     "detail": "NOT DRIVEN: every connector needs a third-party account (Notion, Dropbox, OneNote...) the sandbox has not got",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-168",
+   "feature": "Accessibility (property)",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: a property, not a door -- measured by this walk's axe sweep and E2's keyboard walk",
+     "seconds": 0.0
+    }
+   }
+  },
+  {
+   "row": "G-170",
+   "feature": "Error reporting and telemetry",
+   "cells": {
+    "desktop": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    },
+    "touch": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    },
+    "keyboard": {
+     "verdict": "N/A",
+     "detail": "N/A: operability, not a member door (10D's rails and browser check)",
+     "seconds": 0.0
+    }
+   }
+  }
+ ],
+ "controls": {
+  "got": {
+   "plant-no-door": "NO-DOOR",
+   "plant-broken-door": "BROKEN"
+  },
+  "ok": true,
+  "why": "every planted defect failed the instrument as it must",
+  "rows": [
+   {
+    "door": "desktop",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.9
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 5.0
+    }
+   },
+   {
+    "door": "touch",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.9
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 5.2
+    }
+   },
+   {
+    "door": "keyboard",
+    "no_door": {
+     "verdict": "NO-DOOR",
+     "detail": "no such control on this page (waited 6000 ms)",
+     "seconds": 8.6
+    },
+    "broken": {
+     "verdict": "BROKEN",
+     "detail": "the planted door opened nothing",
+     "seconds": 6.7
+    }
+   }
+  ]
+ }
+}

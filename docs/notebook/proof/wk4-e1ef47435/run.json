@@ -1,0 +1,153 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "census": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 1,
+   "seconds": 1763.8
+  },
+  "geometry": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 2278,
+   "seconds": 641.9
+  },
+  "axe": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 536.5
+  },
+  "silent": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 3,
+   "seconds": 1040.4
+  },
+  "deadclick": {
+   "control_ok": false,
+   "control_why": "plant-dead: got None, must be 'DEAD'; plant-dead-styled: got None, must be 'DEAD'; plant-live: got None, must be 'LIVE'; plant-poller: got 'NOT-SEEN', must be 'IN-WINDOW'",
+   "findings": 0,
+   "seconds": 0.4
+  }
+ },
+ "tip": "e1ef474354e86a7f0c7905a8b10a1d7602e756f8",
+ "sweeps": [
+  "deadclick",
+  "silent",
+  "geometry",
+  "axe",
+  "census"
+ ],
+ "only": [],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-30T00:12:44-0500",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\wk4-data",
+ "base": "http://127.0.0.1:8347",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8347 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-wk4\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-12-47.md (identity 3fd236497464..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\wk4-data)"
+ },
+ "axe_core": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-wk4\\app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r001429",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "abf43417455d4217b80e5f8d3159bc08",
+  "share_url": "/share/n/YRwqCHOxXYt_1QDjh_HFmIXLdegX_YqK",
+  "publish_url": "/p/a4ajFEEUHixoUPSTgC5guw",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "fa863ded63b84f758ebb5079adf2c0fc",
+  "first_run_account": "fresh1",
+  "first_run_note": "fe99ba3258d248888a3d81be6c4a46c6",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 63.2,
+ "findings_total": 2282,
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful (rc 0)",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\proof\\wk4-e1ef47435\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\proof\\wk4-e1ef47435\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown",
+   "post-prewarm (+120s)"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-30 00:12:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-30 00:14:27",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-30 00:16:25",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-30 01:22:05",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "finished": "2026-09-30T01:22:06-0500"
+}

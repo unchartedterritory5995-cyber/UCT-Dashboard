@@ -93,6 +93,14 @@ export default function ResponsiveTable({
                 key={col.key}
                 className={col.className}
                 style={{ textAlign: col.align || 'left' }}
+                // D-40's sibling, FX2 (wave 10, proof-walk item 2): an optional
+                // `aria-sort` on the HEADER CELL — the host-language semantic
+                // WAI-ARIA defines for a sortable `<th>`, distinct from any
+                // `aria-pressed`/`aria-selected` a control inside it might carry.
+                // Generic on purpose (same "an optional field, undefined by every
+                // pre-existing caller" shape as `rowDataAttrs`): only a column
+                // whose `header` is itself sort-driven passes it.
+                {...(col.ariaSort ? { 'aria-sort': col.ariaSort } : {})}
               >
                 {col.header}
               </th>

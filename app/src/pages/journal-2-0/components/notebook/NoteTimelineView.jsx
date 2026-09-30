@@ -15,14 +15,14 @@
  * stores them — `timeBy` as a property ID when it is a property, so a rename
  * cannot break the view — and restores from `initialSettings`.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import { todayET } from '../../lib/calendar'
 import { datedDefs } from './NoteCalendarView'
 import LockedGlyph from './LockedGlyph'
 import {
-  DEFAULT_TIMELINE, TIMELINE_GROUPS, TIMELINE_ZOOMS, layoutTimeline, shiftAnchor,
+  DEFAULT_TIMELINE, TIMELINE_GROUPS, TIMELINE_ZOOMS, layoutTimeline, shiftAnchor, timelineFocusBucketKey,
 } from '../../lib/timeline'
 import styles from './NoteTimelineView.module.css'
 
@@ -60,6 +60,36 @@ export default function NoteTimelineView({
   )
   const set = (patch) => setSettings((prev) => ({ ...prev, ...patch }))
   const unit = { week: 'week', month: 'month', quarter: 'quarter' }[settings.zoom]
+
+  // FX4 (wave 10, proof-walk item 2): the exact no-op condition -- clicking
+  // Today calls `setAnchor(today())`, and when `anchor` already equals
+  // `today()` that is a same-value bail-out (no re-render). `aria-current`
+  // is what `tools/notebook_proof_walk.py`'s target census reads to mark a
+  // control CURRENT rather than DEAD on a no-op click; the button stays a
+  // live control either way -- it still jumps back to today from any other
+  // window.
+  const isToday = anchor === today()
+
+  // Wave 10 lane DR-F (D-9): the axis opened at its first bucket (day 1 of the
+  // month) with no auto-scroll, so a month whose activity sits near its end
+  // read as empty until the member scrolled the whole width by hand. Keyed on
+  // the WINDOW's own bounds, not `notes` or `layout` as a whole, so this fires
+  // on the initial mount and on a real range change (zoom, Previous/Next,
+  // Today) and nowhere else -- a data refresh inside the same window, or the
+  // member's own manual scroll, is never fought. `timelineFocusBucketKey`
+  // (lib/timeline.js) is the pure decision: today's own bucket, or -- when the
+  // member has paged away and today is not in this window -- the bucket
+  // holding the most recent activity actually placed in it.
+  const scrollerRef = useRef(null)
+  useEffect(() => {
+    const key = timelineFocusBucketKey(layout, today())
+    if (!key) return
+    const root = scrollerRef.current
+    if (!root) return
+    const target = root.querySelector(`[data-bucket-key="${key}"]`)
+    target?.scrollIntoView?.({ inline: 'center', block: 'nearest' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout.window.start, layout.window.end, layout.window.zoom])
 
   return (
     <div className={styles.wrap}>
@@ -101,11 +131,18 @@ export default function NoteTimelineView({
             aria-label={`Next ${unit}`}>
             <UIcon name="chevronRight" size={12} gold={false} />
           </button>
-          <button type="button" className={styles.navBtn} onClick={() => setAnchor(today())}>Today</button>
+          <button
+            type="button"
+            className={styles.navBtn}
+            aria-current={isToday ? 'date' : undefined}
+            onClick={() => setAnchor(today())}
+          >
+            Today
+          </button>
         </div>
       </div>
 
-      <div className={styles.scroller}>
+      <div className={styles.scroller} ref={scrollerRef}>
         {layout.lanes.length === 0 ? (
           <p className={styles.empty}>Nothing placed in this {unit}.</p>
         ) : (
@@ -114,7 +151,9 @@ export default function NoteTimelineView({
             <thead>
               <tr>
                 <th scope="col" className={styles.laneHead}>{GROUP_LABEL[settings.groupBy]}</th>
-                {layout.window.buckets.map((b) => <th key={b.key} scope="col" className={styles.colHead}>{b.label}</th>)}
+                {layout.window.buckets.map((b) => (
+                  <th key={b.key} scope="col" className={styles.colHead} data-bucket-key={b.key}>{b.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>

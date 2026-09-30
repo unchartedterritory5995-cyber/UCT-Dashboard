@@ -27,7 +27,7 @@
  *
  * Touch tier (≤1024px): every control meets `var(--tap-min)`.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef } from 'react'
 import { selectedRect } from '@tiptap/pm/tables'
 import UIcon from '../../../../components/ui/UIcon'
 import {
@@ -84,6 +84,26 @@ const CONTROLS = [
 
 export default function TableToolbar({ editor }) {
   const barRef = useRef(null)
+
+  // Wave 10 (TY, standard 4): this component's OWN subscription, mirroring
+  // LinkPasteMenu -- not a field on NoteEditorPage's toolbar-sync reducer. This
+  // bar reads a LOT at render time (`table`/`tableAtSelection`, and per-command
+  // `editor.can()` results for six row/column buttons below, `sortable`, `ctx`,
+  // `width`, `header`), all selection- or doc-dependent, and every one of them
+  // would need its own signature field to stay fresh behind that reducer's
+  // bailout -- table edits (Add a row, Delete column, …) are themselves
+  // transactions that don't touch a mark/block/font field, so a table-only
+  // session would otherwise never re-render this bar's DISABLED states after
+  // the first edit. Re-rendering ONE small floating bar on every keystroke
+  // costs nothing the typing budget measures; NoteEditorPage.jsx's own
+  // audit table (readToolbarFormatState) names this file precisely so nobody
+  // re-adds `inTable` there believing it is still needed.
+  const [, bump] = useReducer((x) => x + 1, 0)
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return undefined
+    editor.on('transaction', bump)
+    return () => { editor.off('transaction', bump) }
+  }, [editor])
 
   const table = editor && !editor.isDestroyed && editor.isEditable ? tableAtSelection(editor.state) : null
 

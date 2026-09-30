@@ -164,6 +164,28 @@ export const NoteLinkMenuExtension = Extension.create({
         pluginKey: new PluginKey('noteLinkMenu'),
         char: '[[',
         startOfLine: false,
+        // ⛔⛔ THE MECHANISM (lane LK): without this, `@tiptap/suggestion`'s
+        // default `allowSpaces: false` uses a match regex that stops at the
+        // first whitespace (`findSuggestionMatch.ts`: `[^\s\[]*` when spaces
+        // are disallowed). A note TITLE is almost always more than one word
+        // ("Beta thesis AMD"), so the moment a member typed the space after
+        // the first word, the match was LOST -- the plugin's own
+        // `view.update()` sees `stopped = true` and calls `onExit`
+        // SYNCHRONOUSLY, in the very same transaction that inserted the
+        // space, tearing the popup down (`NoteLinkMenu`'s `onExit` removes it
+        // from the DOM) long before the note search's 150ms-debounced GET or
+        // the editor's ~800ms-debounced autosave PUT could ever resolve. Both
+        // of those requests still fire (their timers were already queued) and
+        // land into a dead renderer, which is what made the autosave PUT look
+        // causally related when it was only adjacent in time -- see
+        // `NoteEditorPage.noteLinkSuggest.test.jsx` for the captured
+        // sequence and the two-request (search + autosave) control that
+        // proves neither one is the actual cause once this is set.
+        // SlashMenu's own `/`-triggered Suggestion sets this for the exact
+        // same reason (its own comment, a few lines up in that file); this
+        // menu's whole purpose is searching human-authored, usually
+        // multi-word titles, so it needs it even more.
+        allowSpaces: true,
         command: ({ editor, range, props }) => {
           editor.chain().focus().deleteRange(range).insertNoteLink(props.id).run()
         },

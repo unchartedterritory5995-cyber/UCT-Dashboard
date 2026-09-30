@@ -611,6 +611,58 @@ describe('⛔ Graph mode never offers a "Save this view" trap', () => {
 })
 
 /**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 2): the seven view-mode buttons already
+ * carried `aria-pressed`, but sat in a bare `<div>` -- so an assistive-tech
+ * user heard seven identical "pressed"/"not pressed" toggle buttons with no
+ * signal they were one related set, and the proof walk's own dead-click
+ * instrument (`CONTROLS_JS` in `tools/notebook_proof_walk.py`) credits a
+ * re-click as a deliberate no-op only when `aria-pressed="true"` sits inside
+ * a `[role=group]`/`[role=radiogroup]`/`[role=tablist]`/`[role=toolbar]`
+ * ancestor -- without one, 12 re-clicks (the seven view tabs among them) read
+ * as unexplained DEAD clicks instead of "already the active view".
+ */
+describe('⛔⛔ FX2 — the view-mode buttons expose a labelled group (proof-walk item 2)', () => {
+  it('the seven view buttons sit inside one labelled role=group', () => {
+    renderTab()
+    const group = screen.getByRole('group', { name: 'View' })
+    for (const label of ['List view', 'Table view', 'Board view', 'Calendar view', 'Timeline view', 'Graph view', 'Tasks view']) {
+      expect(within(group).getByRole('button', { name: label })).toBeInTheDocument()
+    }
+  })
+
+  it('the active view keeps aria-pressed="true", now INSIDE the group CONTROLS_JS looks for', () => {
+    renderTab()
+    const group = screen.getByRole('group', { name: 'View' })
+    expect(within(group).getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(within(group).getByRole('button', { name: 'Table view' }))
+    expect(within(group).getByRole('button', { name: 'Table view' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(group).getByRole('button', { name: 'List view' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('⛔ CONTROL — the same predicate CONTROLS_JS applies: aria-pressed alone, with no group ancestor, is not enough', () => {
+    // Mirrors CONTROLS_JS's own `current` clause without importing the walk
+    // (a Python file): `aria-pressed==="true"` AND `el.closest('[role=group],
+    // [role=radiogroup],[role=tablist],[role=toolbar]')`.
+    renderTab()
+    const btn = screen.getByRole('button', { name: 'List view' })
+    expect(btn.getAttribute('aria-pressed')).toBe('true')
+    expect(btn.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]')).not.toBeNull()
+    const orphan = document.createElement('button')
+    orphan.setAttribute('aria-pressed', 'true')
+    document.body.appendChild(orphan)
+    expect(orphan.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]')).toBeNull()
+    orphan.remove()
+  })
+
+  it('Save view stays a SIBLING of the group, not swallowed into it (Save view is an action, not a view toggle)', () => {
+    renderTab()
+    const group = screen.getByRole('group', { name: 'View' })
+    expect(within(group).queryByRole('button', { name: 'Save view' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Save view' })).toBeInTheDocument()
+  })
+})
+
+/**
  * ⛔⛔ UX #1, 2026-09-22: `useJ2SavedViews.js` has always fully implemented
  * rename/remove -- NotebookTab never imported them. These pin the ONE piece
  * of logic that has to live here rather than in FolderSidebar: deleting the

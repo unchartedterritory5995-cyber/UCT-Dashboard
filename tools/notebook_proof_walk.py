@@ -79,7 +79,10 @@ import os
 import re
 import secrets
 import shutil
+import signal
+import subprocess
 import sys
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -313,7 +316,9 @@ def control_ok(sweep: str, got: dict) -> tuple[bool, str]:
         want = {"plant-swallow:500": "SILENT", "plant-swallow:offline": "SILENT",
                 "plant-honest:500": "SENTENCE", "plant-honest:offline": "SENTENCE"}
     elif sweep == "geometry":
-        want = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found"}
+        want = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found",
+                "plant-mislabel": "named-the-real-occluder", "plant-scroll-clear": "CLEAR",
+                "plant-scroll-pinned": "OCCLUDED"}
     elif sweep == "axe":
         want = {"color-contrast": "found", "button-name": "found"}
     elif sweep == "census":
@@ -364,11 +369,21 @@ INSTRUMENT_JS = r"""
   // 1.5 s idle window that learns noise endpoints, so no idle window could ever have seen it.
   // Timer callbacks carry a flag: a callback scheduled BEFORE the current click was armed
   // (`P.armedAt`, set by MARK_JS), or scheduled by a callback that was itself background, runs
-  // as background, and every fetch / XHR it sends is recorded in `P.bgReqs`. A timer the CLICK
-  // scheduled (a debounce, a setTimeout(0)) is born after the arm and stays the click's.
+  // as background. A timer the CLICK scheduled (a debounce, a setTimeout(0)) is born after the
+  // arm and stays the click's.
   // Residual, stated: a background callback's work after an `await` (a promise continuation)
   // is not followed -- only the synchronous send inside the timer callback is attributed.
-  P.armedAt = Infinity; P.bgDepth = 0; P.bgReqs = [];
+  //
+  // ⭐ wave 10 lane WK7: EVERY outgoing fetch/XHR (background or not) is now stamped, on the
+  // wire, with `P.reqSeq` -- ONE monotonically increasing counter -- plus a `bg` flag read off
+  // `P.bgDepth` AT SEND TIME. This is what `click_one` and `Tap._on_request` (Python) read back
+  // off the SAME captured request via its headers: `bg`-ness is an intrinsic, per-request fact
+  // now, never a second, separately-paced list (`P.bgReqs`, sliced by an index snapshot taken
+  // via its OWN `evaluate()` round trip) that a Python-side snapshot (`n0 = len(tap.reqs)`,
+  // populated as Playwright's CDP messages happen to arrive) then had to be compared against.
+  // See the long comment above `click_one`'s window-membership block for the race this closes
+  // and why "two independently-paced snapshots" was the defect, not "not waiting long enough".
+  P.armedAt = Infinity; P.bgDepth = 0; P.reqSeq = 0;
   const wrapTimer = (name) => {
     const orig = window[name];
     if (typeof orig !== 'function') return;
@@ -383,34 +398,65 @@ INSTRUMENT_JS = r"""
     };
   };
   wrapTimer('setTimeout'); wrapTimer('setInterval'); wrapTimer('requestAnimationFrame');
-  const noteBg = (method, url) => {
-    if (P.bgDepth <= 0) return;
-    try { const u = new URL(String(url), location.href); u.hash = '';
-          P.bgReqs.push({method: String(method || 'GET').toUpperCase(), url: u.href}); } catch (e) {}
+  // `stamp` assigns THIS request the next value of the one counter every request (and every
+  // window mark, via MARK_JS's `reqMark`) is drawn from, and tags it `bg` when it was sent from
+  // inside a pre-armed timer callback. `setHeader` is the caller's own way to attach a header
+  // (fetch's `Headers`, XHR's `setRequestHeader`) -- `stamp` itself never touches the network.
+  //
+  // ⛔⛔ wave 10 lane WK7, round 2 (controller ruling): SAME-ORIGIN ONLY. A non-safelisted
+  // custom header on a CROSS-origin request forces a CORS preflight; a third-party server that
+  // does not explicitly allow `x-uct-proof-seq`/`x-uct-proof-bg` REJECTS the real request, so
+  // stamping unconditionally would make the instrument break a genuine product request during
+  // the walk -- exactly the thing it must never do. `sameOrigin` resolves the request's URL
+  // against `location.href` (fetch: the string/URL/Request's own `.url`; XHR: captured in a
+  // wrapped `open`, since `send` alone never sees it) and `stamp` is skipped entirely -- no
+  // header, no `Headers` object built, no touched `init` -- for anything that resolves
+  // elsewhere. A cross-origin request is therefore NEVER perturbed by this instrument, full
+  // stop; see the comment above `click_one`'s window-membership block for what an unstamped
+  // request means for a verdict.
+  const resolveURL = (u) => { try { return new URL(String(u), location.href); } catch (e) { return null; } };
+  const sameOrigin = (u) => { const r = resolveURL(u); return !!r && r.origin === location.origin; };
+  const stamp = (setHeader) => {
+    const seq = ++P.reqSeq;
+    try { setHeader('x-uct-proof-seq', String(seq)); if (P.bgDepth > 0) setHeader('x-uct-proof-bg', '1'); } catch (e) {}
+    return seq;
   };
   const f0 = window.fetch;
   if (typeof f0 === 'function') window.fetch = function (input, init) {
     try {
       const isReq = input && typeof input === 'object' && 'url' in input;
-      noteBg((init && init.method) || (isReq ? input.method : 'GET'), isReq ? input.url : input);
+      const url = isReq ? input.url : input;
+      if (sameOrigin(url)) {
+        const h = new Headers((input && typeof input === 'object' && input.headers) || undefined);
+        if (init && init.headers) { const extra = new Headers(init.headers); extra.forEach((v, k) => h.set(k, v)); }
+        stamp((k, v) => h.set(k, v));
+        init = Object.assign({}, init, {headers: h});
+      }
     } catch (e) {}
-    return f0.apply(this, arguments);
+    return f0.call(this, input, init);
   };
   const XO = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
   if (XO) {
     const o0 = XO.open, s0 = XO.send;
-    XO.open = function (m, u) { this.__proofReq = [m, u]; return o0.apply(this, arguments); };
-    XO.send = function () { if (this.__proofReq) noteBg(this.__proofReq[0], this.__proofReq[1]); return s0.apply(this, arguments); };
+    XO.open = function (method, url) { this.__proofUrl = url; return o0.apply(this, arguments); };
+    XO.send = function () {
+      if (this.__proofUrl !== undefined && sameOrigin(this.__proofUrl)) {
+        stamp((k, v) => this.setRequestHeader(k, v));
+      }
+      return s0.apply(this, arguments);
+    };
   }
 })();
 """
 
 # Arms the click as well as marking it: every timer callback scheduled before this moment is
 # background from now on (see INSTRUMENT_JS), so a poll that fires inside the click's window is
-# never credited to the click. `bgMark` is where this click's background requests start.
+# never credited to the click. `reqMark` is `P.reqSeq`'s value at this instant -- the SAME
+# counter every request is stamped with (INSTRUMENT_JS's `stamp`), so window membership is a
+# plain `seq >= reqMark` comparison in Python, never a second snapshot of a second list.
 MARK_JS = r"""() => { const P = window.__proof; P.focusMark = document.activeElement;
   P.armedAt = performance.now();
-  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip, bgMark: P.bgReqs.length}; }"""
+  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip, reqMark: P.reqSeq}; }"""
 
 # Add every element that mutated in [from, now) to the page's noise set (the idle window).
 NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
@@ -425,7 +471,7 @@ NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
 # Attribute changes ON the control itself count only when they are aria-* (a toggle); a class
 # or style change there is pointer styling (":active", "pressed" classes) and never evidence.
 EFFECT_JS = r"""(args) => {
-  const [hoverFrom, clickFrom, bgFrom] = args; const P = window.__proof;
+  const [hoverFrom, clickFrom] = args; const P = window.__proof;
   const ctl = document.querySelector('[data-proof-target]');
   const local = new Set();
   for (let i = Math.max(0, hoverFrom - P.base); i < clickFrom - P.base && i < P.muts.length; i++) {
@@ -473,7 +519,6 @@ EFFECT_JS = r"""(args) => {
   out.already_focused = !!(ctl && P.focusMark && (P.focusMark === ctl || ctl.contains(P.focusMark)));
   out.focus_after = f ? desc(f) : null;
   out.printed = P.printed; out.clip = P.clip;
-  out.bg_requests = (P.bgReqs || []).slice(bgFrom || 0).slice(0, 40);
   return out;
 }"""
 
@@ -613,6 +658,44 @@ GEOM_JS = r"""() => {
     return 'app-chrome';
   };
   const clipsX = (cs) => ['hidden', 'auto', 'scroll', 'clip'].includes(cs.overflowX);
+  // ⛔ wave 10 lane WK3, fix 1 (found by lane FX): `hit.closest('...,section,aside,div')`
+  // climbed from a non-matching hit (e.g. MobileNav's <header>, not itself a div) up through
+  // EVERY intervening div, including a full-viewport app-shell wrapper -- and `desc()` reads
+  // an ancestor's `.innerText`, the FIRST rendered line of its WHOLE subtree, which for that
+  // wrapper is a portaled skip link's own text (off-screen via `top:-9999px`, but `innerText`
+  // does not consider off-screen positioning, only display/visibility). The skip link was
+  // blamed for occlusions it never causes. Fix: only accept a candidate ancestor whose OWN
+  // bounding box is not (near-)viewport-spanning -- a genuine popup/card is far smaller than
+  // the page; the app shell is not. A rejected candidate falls back to naming HIT itself.
+  const viewportArea = vw * vh;
+  const tightOccluderAncestor = (hit) => {
+    for (let a = hit; a && a !== document.body; a = a.parentElement) {
+      if (!(a.matches && a.matches('[role=dialog],[role=tooltip],[role=status],[role=menu],[role=listbox],[data-proof-popup],section,aside,div'))) continue;
+      const r = a.getBoundingClientRect();
+      if (r.width * r.height > 0 && r.width * r.height <= viewportArea * 0.85) return a;
+    }
+    return hit;
+  };
+  // ⛔ wave 10 lane WK3, fix 2 (controller ruling, "at rest" semantics): a control that sits
+  // under FIXED/STICKY chrome (the voice orb, the Log-Trade FAB, a sticky header) mid-scroll
+  // is not a layout regression BY ITSELF -- a floating element always covers something while
+  // the page is mid-scroll. `canEscapeByScroll(el)` answers whether EL has anywhere to go: a
+  // control that is itself fixed/sticky, or trapped inside fixed/sticky chrome with no
+  // scrollable ancestor before it, cannot move -- an overlap there IS a real finding. A
+  // control with a genuine scrollable ancestor (even one nested inside fixed-positioned
+  // chrome, like a panel with its own scrollbar) CAN be brought clear.
+  const isFixedOrSticky = (el) => { const p = getComputedStyle(el).position; return p === 'fixed' || p === 'sticky'; };
+  const canEscapeByScroll = (el) => {
+    if (isFixedOrSticky(el)) return false;
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && a.scrollHeight > a.clientHeight + 1) return true;
+      if (cs.position === 'fixed' || cs.position === 'sticky') return false;
+    }
+    const m = document.querySelector('main');
+    if (m && m.contains(el) && m.scrollHeight > m.clientHeight + 10) return true;
+    return document.scrollingElement.scrollHeight > innerHeight + 10;
+  };
   const res = {vw, vh, docScrollW: de.scrollWidth, docClientW: de.clientWidth, pageScrollers: [], offenders: [], controls: []};
   const main = document.querySelector('main');
   if (main) {
@@ -702,19 +785,37 @@ GEOM_JS = r"""() => {
     if (inViewport) {
       const pts = [[cx, cy], [b.x + b.width * 0.2, b.y + b.height * 0.25], [b.x + b.width * 0.8, b.y + b.height * 0.25],
                    [b.x + b.width * 0.2, b.y + b.height * 0.75], [b.x + b.width * 0.8, b.y + b.height * 0.75]];
-      let covered = 0, centerCovered = false, occ = null;
+      let covered = 0, centerCovered = false, occ = null, occHitEl = null;
       pts.forEach(([x, y], i) => {
         if (x < 0 || y < 0 || x > vw || y > vh) return;
         const hit = document.elementFromPoint(x, y);
         if (!hit || hit === el || el.contains(hit) || hit.contains(el)) return;
         if (hit.closest('[data-proof-ignore]')) return;
         covered++; if (i === 0) centerCovered = true;
-        if (!occ) { occ = desc(hit.closest('[role=dialog],[role=tooltip],[role=status],section,aside,div') || hit);
+        if (!occ) { occ = desc(tightOccluderAncestor(hit));
+                    occHitEl = hit;
                     c.occluderHit = desc(hit);
                     c.occluderPopup = !!(hit.closest('[data-proof-popup]') && !el.closest('[data-proof-popup]'));
                     c.occluderModal = !!(hit.closest('[aria-modal="true"]') || (hit.querySelector && hit.querySelector('[aria-modal="true"]'))); }
       });
       c.coveredPoints = covered; c.centerCovered = centerCovered; c.occluder = occ;
+      // fix 2: an occluder that is fixed/sticky chrome gets one more chance -- scroll EL to the
+      // centre of its own scroller (if it has one to escape into) and look again. Restore the
+      // scroll position immediately after so later controls in this same pass are unaffected.
+      if (occ && (centerCovered || covered >= 3) && occHitEl && isFixedOrSticky(occHitEl) && canEscapeByScroll(el)) {
+        const savedX = window.scrollX, savedY = window.scrollY;
+        const savedTops = [];
+        for (let a = el.parentElement; a; a = a.parentElement) savedTops.push([a, a.scrollTop]);
+        el.scrollIntoView({block: 'center', inline: 'nearest'});
+        const b2 = el.getBoundingClientRect();
+        const cx2 = b2.x + b2.width / 2, cy2 = b2.y + b2.height / 2;
+        const hit2 = (cx2 >= 0 && cy2 >= 0 && cx2 <= vw && cy2 <= vh) ? document.elementFromPoint(cx2, cy2) : null;
+        const stillCovered = !!(hit2 && hit2 !== el && !el.contains(hit2) && !hit2.contains(el) && !hit2.closest('[data-proof-ignore]'));
+        c.restScrollClear = !stillCovered;
+        if (!stillCovered) { c.centerCovered = false; c.coveredPoints = 0; c.occluder = null; }
+        for (const [a, top] of savedTops) a.scrollTop = top;
+        window.scrollTo(savedX, savedY);
+      }
     }
     res.controls.push(c);
   }
@@ -738,6 +839,14 @@ GEOM_JS = r"""() => {
 # `#notebook-pane`, is inside `<main>`), and F7's existing region check recovers on its own --
 # verified live (wk2 diagnostic run): plant-dead/plant-dead-styled/plant-live/plant-poller all
 # read DEAD/DEAD/LIVE/IN-WINDOW with ONLY clause a's fix applied, no change below this line.
+#
+# ⭐ wave 10 lane WK6 round 2: the poller's own tick period is the ONE place this number is
+# spelled out. `__PLANT_POLL_MS__` below is a plain string token, replaced with it right after
+# this literal -- an f-string would need every one of this template's own `{`/`}` escaped, which
+# is more fragile than a token substitution. `quiesce()`'s `QUIESCE_FLOOR_MS` is derived from the
+# SAME constant, never a second literal (l11dc-4dfc5e447/INVALID.md: a window shorter than one
+# full poller period can land entirely between two ticks and see neither).
+PLANT_POLL_INTERVAL_MS = 200
 PLANT_DEADCLICK_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
   const box = document.createElement('div'); box.setAttribute('data-proof-plant', 'deadclick');
@@ -761,9 +870,9 @@ PLANT_DEADCLICK_JS = r"""(root) => {
     if (!box.isConnected) { clearInterval(id); return; }
     if (performance.now() - t0 < 2500) return;
     fetch('/api/proof-plant/poll?t=' + Math.round(performance.now()), {credentials: 'include'}).catch(() => {});
-  }, 200);
+  }, __PLANT_POLL_MS__);
   R.insertBefore(box, R.firstChild);
-  return true; }"""
+  return true; }""".replace("__PLANT_POLL_MS__", str(PLANT_POLL_INTERVAL_MS))
 
 PLANT_SILENT_JS = r"""() => {
   const box = document.createElement('div'); box.setAttribute('data-proof-plant', 'silent');
@@ -812,6 +921,57 @@ WIDE_REACHABLE_JS = r"""() => {
     if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && a.scrollWidth > a.clientWidth + 1) return true;
   }
   return false; }"""
+
+# CONTROL for fix 1 (occluder mislabel): a wrapper whose FIRST child is off-screen text,
+# containing a full-viewport HEADER (never matched by 'div', so the OLD code climbed past it)
+# that covers a planted target. The correct occluder description must name the header (or at
+# least never quote the decoy text) -- reproduces the exact shape lane FX measured live.
+PLANT_MISLABEL_JS = r"""() => {
+  const wrap = document.createElement('div'); wrap.setAttribute('data-proof-plant', 'mislabel');
+  wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+  const target = document.createElement('button'); target.type = 'button';
+  target.setAttribute('aria-label', 'Planted mislabel target'); target.setAttribute('data-proof-control', 'plant-mislabel-target');
+  target.style.cssText = 'position:fixed;left:50%;top:50%;width:120px;height:44px;pointer-events:auto;z-index:1;';
+  const decoy = document.createElement('span'); decoy.textContent = 'Off-screen decoy text';
+  decoy.style.cssText = 'position:absolute;top:-9999px;left:-9999px;';
+  const occ = document.createElement('header'); occ.setAttribute('data-proof-control', 'plant-mislabel-occluder');
+  occ.style.cssText = 'position:fixed;inset:0;pointer-events:auto;z-index:2;';
+  wrap.appendChild(target); wrap.appendChild(decoy); wrap.appendChild(occ);
+  document.body.appendChild(wrap); return true; }"""
+
+# CONTROL for fix 2 (at-rest semantics): `plant-fixed-bar` is a FIXED band pinned over a small
+# scrollable panel's own top edge. `plant-scroll-clear` starts under that band but lives in the
+# panel's OWN internal scroller, so centring it moves it clear -- must read CLEAR (the same
+# shape as the voice orb passing over content mid-scroll). `plant-scroll-pinned` starts under
+# the identical band but is ITSELF position:fixed with nothing to scroll it into -- must stay
+# OCCLUDED, proving the fix does not turn every fixed-chrome overlap into a false negative.
+PLANT_RESTSCROLL_JS = r"""() => {
+  const wrap = document.createElement('div'); wrap.setAttribute('data-proof-plant', 'restscroll');
+  wrap.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:180px;overflow-y:auto;background:#fff;z-index:2;';
+  // clearTarget sits mid-content (280px of spacer on BOTH sides) -- close to the top of the
+  // content, `block:'center'` cannot scroll PAST 0, so it can never move at all (the bug this
+  // fixture exists to catch: it read INVALID, `plant-scroll-clear` stuck OCCLUDED, measured
+  // live 2026-09-29). With room on both sides, centring genuinely relocates it.
+  const spacerTop = document.createElement('div'); spacerTop.style.cssText = 'height:280px;';
+  const clearTarget = document.createElement('button'); clearTarget.type = 'button';
+  clearTarget.setAttribute('aria-label', 'Planted scroll-clear target'); clearTarget.setAttribute('data-proof-control', 'plant-scroll-clear');
+  clearTarget.style.cssText = 'width:120px;height:44px;display:block;margin:0;';
+  const spacerBottom = document.createElement('div'); spacerBottom.style.cssText = 'height:280px;';
+  wrap.appendChild(spacerTop); wrap.appendChild(clearTarget); wrap.appendChild(spacerBottom);
+  document.body.appendChild(wrap);
+  // start scrolled so clearTarget's CURRENT screen position sits under the fixed band below,
+  // with slack in both scroll directions -- `scrollIntoView({block:'center'})` then has
+  // somewhere real to move it to.
+  wrap.scrollTop = 270;
+  const pinnedTarget = document.createElement('button'); pinnedTarget.type = 'button';
+  pinnedTarget.setAttribute('aria-label', 'Planted pinned target'); pinnedTarget.setAttribute('data-proof-control', 'plant-scroll-pinned');
+  pinnedTarget.style.cssText = 'position:fixed;left:8px;top:110px;width:120px;height:44px;z-index:1;';
+  pinnedTarget.setAttribute('data-proof-plant', 'restscroll');
+  const bar = document.createElement('div'); bar.setAttribute('data-proof-control', 'plant-fixed-bar');
+  bar.setAttribute('data-proof-plant', 'restscroll');
+  bar.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:50px;background:rgba(0,0,0,.01);z-index:3;';
+  document.body.appendChild(pinnedTarget); document.body.appendChild(bar);
+  return true; }"""
 
 PLANT_AXE_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
@@ -884,19 +1044,72 @@ def dump(name: str, obj) -> None:
                                           encoding="utf-8", newline="\n")
 
 
+def _proof_headers(r) -> tuple[int | None, bool]:
+    """The ONE fact `click_one` needs about a request, read off the request ITSELF: the JS-side
+    monotonic `seq` INSTRUMENT_JS's `stamp` assigned it (see the comment above `MARK_JS`), and
+    whether it was sent from inside a pre-armed timer (`bg`). Both travel on the wire as headers
+    -- never a second, separately-paced list -- so they are available whenever Playwright's CDP
+    delivery happens to catch up, regardless of HOW LATE that is. `seq` is `None` for a request
+    the instrumentation never saw fit to stamp:
+      - not fetch/XHR at all (unchanged from before this lane: those were never classified
+        either way), or
+      - ⛔⛔ round 2: CROSS-ORIGIN. `INSTRUMENT_JS`'s `stamp` is same-origin-only BY DESIGN (a
+        non-safelisted header on a cross-origin request forces a CORS preflight, and a
+        third-party server that does not allow ours would reject the real request -- this
+        instrument must never perturb what the product does). A cross-origin request is
+        therefore honestly reported as `seq=None, bg=False` -- NEVER guessed at either
+        direction: not silently folded into `bg` (we do not know it came from a pre-armed
+        timer), and not given a manufactured `seq` that would claim precision this request
+        was never given the chance to prove. See the comment above `click_one`'s
+        window-membership block for what an unstamped request means for a verdict: it falls
+        back to the coarse, pre-WK7 `n0`-only boundary -- the ONLY thing this lane could not
+        make precise without breaking the product it is supposed to be observing."""
+    try:
+        h = r.headers or {}
+    except Exception:  # noqa: BLE001
+        h = {}
+    raw = h.get("x-uct-proof-seq")
+    seq = int(raw) if raw is not None and str(raw).isdigit() else None
+    return seq, h.get("x-uct-proof-bg") == "1"
+
+
 class Tap:
-    """What one page did that the DOM cannot say: its requests and its browser doors."""
+    """What one page did that the DOM cannot say: its requests and its browser doors.
+
+    ⭐ wave 10 lane WK6 round 2: `inflight` + `last_activity` are what makes this the "request
+    tracking the instrument already has" (`quiesce()`'s docstring) rather than a second one --
+    `reqs` already recorded every request's START; this adds FINISH/FAIL so a caller can ask
+    "is anything outstanding right now", the question `quiesce()` needs answered to avoid
+    declaring quiet while a control's own fetch is still in flight
+    (l11dc-4dfc5e447/INVALID.md).
+
+    ⭐ wave 10 lane WK7: every recorded request also carries `seq`/`bg` (`_proof_headers`) --
+    see the comment above `click_one`'s window-membership block for what this closes."""
 
     def __init__(self, pg):
         self.reqs: list[dict] = []
+        self.inflight: set[int] = set()
+        self.last_activity: float = time.time()
         self.events = {"download": 0, "filechooser": 0, "popup": 0, "dialog": 0}
         self.popups = []
-        pg.on("request", lambda r: self.reqs.append({"t": time.time(), "method": r.method, "url": r.url}))
+        pg.on("request", self._on_request)
+        pg.on("requestfinished", self._on_request_done)
+        pg.on("requestfailed", self._on_request_done)
         pg.on("download", lambda d: self._ev("download"))
         pg.on("filechooser", lambda fc: self._ev("filechooser"))
         pg.on("popup", self._popup)
         pg.on("dialog", self._dialog)
         pg.on("pageerror", lambda e: res["pageerrors"].append(str(e)[:300]))
+
+    def _on_request(self, r):
+        seq, bg = _proof_headers(r)
+        self.reqs.append({"t": time.time(), "method": r.method, "url": r.url, "seq": seq, "bg": bg})
+        self.inflight.add(id(r))
+        self.last_activity = time.time()
+
+    def _on_request_done(self, r):
+        self.inflight.discard(id(r))
+        self.last_activity = time.time()
 
     def _ev(self, k):
         self.events[k] += 1
@@ -1463,7 +1676,9 @@ class Surface:
 
 
 def _select_first_word(pg) -> None:
-    pg.evaluate(r"""() => { const pm = document.querySelector('[data-proof-root] .ProseMirror'); if (!pm) return;
+    # deadclick's own `before_click` (click_one's only caller of this file's before_click
+    # surfaces) -- safe_evaluate bounds it the same as every other deadclick evaluate call.
+    safe_evaluate(pg, r"""() => { const pm = document.querySelector('[data-proof-root] .ProseMirror'); if (!pm) return;
       const w = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { if ((n.nodeValue || '').trim().length >= 4) break; }
       if (!n) return; const r = document.createRange(); r.setStart(n, 0); r.setEnd(n, Math.min(4, n.nodeValue.length));
       const s = getSelection(); s.removeAllRanges(); s.addRange(r); }""")
@@ -1658,11 +1873,13 @@ def open_surface(W: World, surf: Surface, mode: str):
 
 def idle_noise(W: World, pg, tap: Tap, ms: int = 1500) -> dict:
     """The page's own motion with nobody touching it: every element that changed and every
-    endpoint requested in `ms` becomes NOISE, never counted as a click's effect."""
-    m = pg.evaluate(MARK_JS)["mark"]
+    endpoint requested in `ms` becomes NOISE, never counted as a click's effect. Used only from
+    `deadclick_surface`'s own `fresh()` -- its two evaluate calls go through `safe_evaluate` for
+    the same reason every other deadclick evaluate call does (see the comment above `click_one`)."""
+    m = safe_evaluate(pg, MARK_JS)["mark"]
     n0 = len(tap.reqs)
     pg.wait_for_timeout(ms)
-    added = pg.evaluate(NOISE_JS, m)
+    added = safe_evaluate(pg, NOISE_JS, m)
     for r in tap.reqs[n0:]:
         W.noise_endpoints.add(normalize_endpoint(r["url"]))
     return added
@@ -1768,6 +1985,40 @@ def geometry_sweep(W: World, only: list[str]) -> dict:
             got["plant-small"] = f"{'missed' if want_small else 'wrongly flagged'} at {w}"
         if not covered:
             got["plant-covered"] = f"missed at {w}"
+
+    # CONTROL for fix 1 (occluder mislabel) and fix 2 (at-rest semantics), each plant read in
+    # ISOLATION (sequentially unplanted before the next) so neither's full-viewport fixed
+    # element can shadow the other's occluder.
+    pg, tap, root, acct = open_surface(W, surface_by_id("nb-list"), "desktop")
+    try:
+        pg.evaluate(PLANT_MISLABEL_JS)
+        pg.wait_for_timeout(200)
+        g1 = pg.evaluate(GEOM_JS)
+        pg.evaluate(UNPLANT_JS, "mislabel")
+        pg.wait_for_timeout(200)
+        pg.evaluate(PLANT_RESTSCROLL_JS)
+        pg.wait_for_timeout(200)
+        g2 = pg.evaluate(GEOM_JS)
+        pg.evaluate(UNPLANT_JS, "restscroll")
+    finally:
+        pg.close()
+    by_name1 = {c.get("name"): c for c in g1.get("controls", [])}
+    mislabel = by_name1.get("Planted mislabel target")
+    occ_desc = (mislabel or {}).get("occluder") or ""
+    if mislabel is None:
+        got["plant-mislabel"] = "control not found"
+    elif "decoy" in occ_desc.lower():
+        got["plant-mislabel"] = f"named the decoy: {occ_desc!r}"
+    elif "plant-mislabel-occluder" not in occ_desc:
+        got["plant-mislabel"] = f"named neither the decoy nor the real occluder: {occ_desc!r}"
+    else:
+        got["plant-mislabel"] = "named-the-real-occluder"
+
+    def _geo_verdict(c):
+        return "OCCLUDED" if (c and c.get("occluder") and (c.get("centerCovered") or c.get("coveredPoints", 0) >= 3)) else "CLEAR"
+    by_name2 = {c.get("name"): c for c in g2.get("controls", [])}
+    got["plant-scroll-clear"] = _geo_verdict(by_name2.get("Planted scroll-clear target"))
+    got["plant-scroll-pinned"] = _geo_verdict(by_name2.get("Planted pinned target"))
     ok, why = control_ok("geometry", got)
     out["controls"] = {"got": got, "ok": ok, "why": why, "rows": ctl_rows}
     say(f"[{'VALID' if ok else 'INVALID'}] geometry control: {why}")
@@ -1897,56 +2148,299 @@ def axe_sweep(W: World, only: list[str], axe_src: str) -> dict:
 
 # ── dead clicks ──────────────────────────────────────────────────────────────
 
+class EvalTimeout(Exception):
+    """A `page.evaluate` call whose JS-side race (see `safe_evaluate`) timed out. Raised in
+    Python, from a NORMAL `evaluate()` return -- never from an abandoned call -- so it is a
+    plain, catchable exception on the calling thread, not a sign that anything is still
+    blocked."""
+
+
+EVAL_TIMEOUT_MS = 8000   # generous for a DOM read; several fit inside one control's
+                         # CLICK_DEADLINE_S budget without a single one eating all of it
+
+
+def safe_evaluate(pg, script: str, arg=None, timeout_ms: int = EVAL_TIMEOUT_MS):
+    """`page.evaluate(script, arg)`, bounded by a JS-side `Promise.race` against a JS
+    `setTimeout` -- Playwright's Python sync API takes no `timeout=` for `evaluate()` at all
+    (docs/notebook/proof/wk4-e1ef47435/README.md, "THE THREADING DEFECT"), so a script whose
+    async work never resolves would otherwise block this call, and the whole OS thread with
+    it, forever. `script` is any of this file's existing `(...) => {...}` constants,
+    unmodified -- the wrapper calls it and awaits its result, so a plain synchronous function
+    (everything this file defines) returns exactly as before, just with a ceiling.
+
+    Raises `EvalTimeout` when the JS-side timer wins the race, and re-raises the script's own
+    thrown error (as a plain `RuntimeError`) when it wins by throwing -- both ordinary Python
+    exceptions on the calling thread, never a hang.
+
+    ⛔ THIS DOES NOT COVER A RENDERER WEDGED AT THE NATIVE LEVEL. If nothing in the page can
+    run ANY JavaScript at all -- a native OS-level modal is the WK4 README's own hypothesis for
+    what blocked WK3's stall -- the `setTimeout` this wrapper depends on never fires either,
+    because firing it needs the SAME JS engine the frozen renderer cannot run. That class is
+    bounded by the per-surface PROCESS deadline in `deadclick_surface_bounded`, never by this
+    function: a process boundary can be killed from the outside regardless of what the inside
+    is doing; a JS timer inside a wedged renderer cannot."""
+    wrapped = (
+        "(__uctArg) => new Promise((__uctResolve) => {"
+        f"  const __uctTimer = setTimeout(() => __uctResolve({{__uctTimedOut: true}}), {int(timeout_ms)});"
+        "  (async () => {"
+        "    try {"
+        f"      const __uctFn = ({script});"
+        "      const __uctValue = await __uctFn(__uctArg);"
+        "      clearTimeout(__uctTimer);"
+        "      __uctResolve({__uctOk: true, __uctValue});"
+        "    } catch (__uctErr) {"
+        "      clearTimeout(__uctTimer);"
+        "      __uctResolve({__uctErr: true, __uctMessage: String((__uctErr && __uctErr.message) || __uctErr)});"
+        "    }"
+        "  })();"
+        "})"
+    )
+    out = pg.evaluate(wrapped, arg)
+    if isinstance(out, dict) and out.get("__uctTimedOut"):
+        raise EvalTimeout(f"evaluate exceeded {timeout_ms}ms: {script[:80]!r}")
+    if isinstance(out, dict) and out.get("__uctErr"):
+        raise RuntimeError(out.get("__uctMessage") or "evaluate failed")
+    if isinstance(out, dict) and "__uctValue" in out:
+        return out["__uctValue"]
+    return out
+
+
+HOVER_TIMEOUT_MS = 2500
+ACTION_TIMEOUT_MS = 3500   # click/tap -- Playwright's own native, already-bounded wait
+
+# ── wave 10 lane WK6: settle waits that WAIT, capped at the same ceiling they replace ──────
+# The hover-settle (450ms) and click-settle (1200ms) waits inside `click_one` used to be flat
+# `pg.wait_for_timeout(...)` calls -- spent in FULL on every control, whether or not anything
+# was actually still happening. Measured on the nine deadclick surfaces that hit
+# `SURFACE_DEADLINE_S`: 56-90 controls in 360s is 4-6s/control, and the two fixed waits alone
+# are 1.65s of that per non-reset click (`docs/notebook/proof/l11-52deeb767/README.md`, 2c).
+#
+# `quiesce()` returns once the page has been quiet -- on BOTH the DOM (the SAME MutationObserver
+# feed `EFFECT_JS` reads, `window.__proof.muts`) AND the network (`Tap.inflight`/
+# `Tap.last_activity`) -- for `QUIET_MS`, never before `QUIESCE_FLOOR_MS` has elapsed, capped at
+# `ceiling_ms` (the OLD constant, 450 / 1200: a control that genuinely keeps mutating or keeps a
+# request open for the whole window waits EXACTLY as long as the flat sleep it replaces, never
+# longer). A control with nothing left to settle returns after `QUIESCE_FLOOR_MS` instead of
+# paying the whole ceiling -- most of the win, since `QUIESCE_FLOOR_MS` << the ceilings it caps.
+#
+# ⛔⛔ ROUND 2 -- read this before touching either signal or the floor; both are load-bearing and
+# for DIFFERENT reasons (l11dc-4dfc5e447/INVALID.md, a real re-run of the deadclick sweep):
+#
+#   "`quiesce()` ends the click window after 120 ms without DOM mutations. It ignores network
+#    activity. The planted poller fetches every 200 ms, so no request lands inside the
+#    shortened window." -- round 1 (DOM-only, no floor) read every genuinely-dead planted
+#    control as settled almost instantly (nothing ever mutates), so `EFFECT_JS`'s
+#    `[hoverFrom..now)` observation window was routinely shorter than ONE full poller tick --
+#    `plant-poller: NOT-SEEN`, and the deadclick control failed before a single surface measured.
+#
+#   - **The FLOOR fixes the control above**, by construction: `QUIESCE_FLOOR_MS` is derived from
+#     `PLANT_POLL_INTERVAL_MS` (1.5x it, never a second literal), so the window always spans more
+#     than one full poller period regardless of phase.
+#   - **The floor alone does NOT fix a real control whose effect waits on a slow reply** -- "the
+#     same flaw affects real controls: a click whose visible effect waits on a server reply would
+#     read DEAD" -- a floor is a fixed budget; a control whose fetch takes LONGER than the floor
+#     would still read quiet (nothing currently happening) the instant the floor elapses, if
+#     nothing else were watching the network. The NETWORK check is what keeps waiting for as long
+#     as `Tap.inflight` is non-empty, up to the full ceiling, independent of the floor.
+#   - Neither one is dispensable in favour of the other: the floor answers "did we wait through at
+#     least one background cycle"; the network check answers "is something still outstanding right
+#     now". A rail for each is in `tests/test_notebook_proof_walk.py`, mutation-proved by dropping
+#     each independently.
+#
+# ⛔ IT MUST NOT SEED THE **DOM** SIGNAL FROM MUTATION HISTORY FROM *BEFORE* THIS CALL. A round-1
+# draft returned near-instantly whenever `P.muts`' last entry was already older than `quiet_ms` --
+# which reads right for "the page has been idle a while" and reads WRONG for "the click's own
+# effect has not started rendering yet": on a real page whose last unrelated mutation was, say,
+# 300ms in the past, that draft would declare quiescence on the very FIRST poll, before the
+# click's own React re-render had a chance to produce even one mutation -- misjudging a LIVE
+# control as DEAD. Caught by this lane's own "never settles" rail going GREEN when it should have
+# gone RED (0.002s instead of the ceiling). `_QUIESCE_RESET_JS` marks the length+time this
+# SPECIFIC `quiesce()` call started from, so `QUIESCE_DOM_JS` always requires at least one full
+# `quiet_ms` window of OBSERVED stability after the call begins -- never a backdated one.
+QUIET_MS = 120   # the minimum EITHER signal must stay stable before it counts as settled
+                 # -- comfortably above a requestAnimationFrame tick, comfortably below the
+                 # shortest debounce this file's own surfaces use (300ms) so a debounced write is
+                 # never cut off mid-fire
+
+QUIESCE_FLOOR_MS = int(PLANT_POLL_INTERVAL_MS * 1.5)   # 300ms -- derived, not guessed: exceeds
+                 # one full poller period (200ms) with a safety margin, so a window starting at
+                 # ANY phase relative to the poller's ticks still spans at least one of them.
+                 # Never restate the 200ms here -- PLANT_POLL_INTERVAL_MS is the one spelling.
+
+_QUIESCE_RESET_JS = r"""() => { const P = window.__proof;
+  if (P) { const t = performance.now(); P.__wk6QLen = P.muts.length; P.__wk6QAt = t; P.__wk6QStart = t; } }"""
+
+# DOM + floor, together, in ONE native `wait_for_function` call (no per-poll Python round trip):
+# `floorMs` blocks an early return regardless of how quiet the DOM already is; once past it, the
+# DOM must additionally have been stable (no new `P.muts` entries) for `quietMs`.
+QUIESCE_DOM_JS = r"""(args) => {
+  const [quietMs, floorMs] = args;
+  const P = window.__proof;
+  if (!P) return true;
+  const now = performance.now();
+  const len = P.muts.length;
+  if (len !== P.__wk6QLen) { P.__wk6QLen = len; P.__wk6QAt = now; }
+  if ((now - P.__wk6QStart) < floorMs) return false;
+  return (now - P.__wk6QAt) >= quietMs;
+}"""
+
+
+def quiesce(pg, tap: "Tap", ceiling_ms: int, quiet_ms: int = QUIET_MS,
+            floor_ms: int = QUIESCE_FLOOR_MS) -> None:
+    """Wait until the page has been quiet on BOTH signals this instrument already tracks -- the
+    DOM (`QUIESCE_DOM_JS`, MEASURED FROM THIS CALL, never before `floor_ms`; see the comment
+    above `QUIET_MS`) and the network (`Tap.inflight` / `Tap.last_activity` -- the SAME request
+    tracking `click_one`'s own judge already reads for `obs['requests']`, extended in `Tap` to
+    also know when a request FINISHES, never a second tracker) -- capped at `ceiling_ms` total,
+    the adaptive replacement for a flat `pg.wait_for_timeout(ceiling_ms)`. A control that never
+    quiesces on either axis waits the FULL ceiling, exactly as the flat sleep it replaces did; a
+    `TimeoutError` from that case (or a closed page) is the expected outcome, not a failure, so
+    it is swallowed the same way the surrounding code already swallows a best-effort `hover()`.
+
+    Sequenced rather than merged into one poll loop, for cost: phase 1 is ONE native
+    `wait_for_function` call (the DOM+floor check runs entirely in the browser, no per-tick
+    Python<->CDP round trip); phase 2 is a Python-only loop over whatever ceiling budget phase 1
+    left, checking `tap.inflight`/`tap.last_activity` directly -- no `evaluate` call at all, so
+    it costs one `wait_for_timeout` per tick and nothing more. See the ROUND 2 comment above this
+    function for why both phases -- and the floor inside phase 1 -- are each load-bearing."""
+    started = time.monotonic()
+    deadline = started + ceiling_ms / 1000.0
+    try:
+        pg.evaluate(_QUIESCE_RESET_JS)
+        pg.wait_for_function(QUIESCE_DOM_JS, arg=[quiet_ms, min(floor_ms, ceiling_ms)], timeout=ceiling_ms)
+    except Exception:  # noqa: BLE001
+        pass
+    while True:
+        now = time.monotonic()
+        if now >= deadline:
+            return
+        if not tap.inflight and (time.time() - tap.last_activity) * 1000.0 >= quiet_ms:
+            return
+        remaining_ms = (deadline - now) * 1000.0
+        try:
+            pg.wait_for_timeout(min(30.0, max(1.0, remaining_ms)))
+        except Exception:  # noqa: BLE001
+            return
+
+
 def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str) -> dict:
     if surf.before_click:
         try:
             surf.before_click(pg)
         except Exception:  # noqa: BLE001
             pass
-    if not pg.evaluate(TARGET_JS, [root, c["key"], c["nth"]]):
+    if not safe_evaluate(pg, TARGET_JS, [root, c["key"], c["nth"]]):
         return {"verdict": "NOT-FOUND", "reset": False}
     loc = pg.locator("[data-proof-target]").first
     touch = VIEWPORTS.get(mode, {}).get("touch", False)
     if c.get("field"):
         # a field is judged by focus arriving IN it: start from nothing focused
-        pg.evaluate("() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); }")
+        safe_evaluate(pg, "() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); }")
     url0 = pg.url
-    origin0 = pg.evaluate("() => performance.timeOrigin")
-    hover_from = pg.evaluate(MARK_JS)["mark"]
+    origin0 = safe_evaluate(pg, "() => performance.timeOrigin")
+    hover_from = safe_evaluate(pg, MARK_JS)["mark"]
     if not touch:
         try:
-            loc.hover(timeout=2500)
+            loc.hover(timeout=HOVER_TIMEOUT_MS)
         except Exception:  # noqa: BLE001
             pass
-    pg.wait_for_timeout(450)
-    m = pg.evaluate(MARK_JS)
-    fs0 = pg.evaluate(FORMSTATE_JS, root)
+    quiesce(pg, tap, 450)
+    m = safe_evaluate(pg, MARK_JS)
+    fs0 = safe_evaluate(pg, FORMSTATE_JS, root)
     n0, ev0 = len(tap.reqs), dict(tap.events)
     try:
         if touch:
-            loc.tap(timeout=3500)
+            loc.tap(timeout=ACTION_TIMEOUT_MS)
         else:
-            loc.click(timeout=3500)
+            loc.click(timeout=ACTION_TIMEOUT_MS)
     except Exception as e:  # noqa: BLE001
         msg = str(e)
         inter = next((ln.strip() for ln in msg.splitlines() if "intercepts pointer events" in ln), "")
         return {"verdict": "OCCLUDED" if inter else "NOT-ACTIONABLE",
                 "reason": (inter or msg.splitlines()[0])[:240], "reset": True}
-    pg.wait_for_timeout(1200)
+    quiesce(pg, tap, 1200)
     reloaded = False
     try:
-        reloaded = pg.evaluate("() => performance.timeOrigin") != origin0
+        reloaded = safe_evaluate(pg, "() => performance.timeOrigin") != origin0
         if reloaded:
             raise RuntimeError("document reloaded")
-        eff = pg.evaluate(EFFECT_JS, [hover_from, m["mark"], m.get("bgMark", 0)])
-        fs1 = pg.evaluate(FORMSTATE_JS, root)
+        eff = safe_evaluate(pg, EFFECT_JS, [hover_from, m["mark"]])
+        fs1 = safe_evaluate(pg, FORMSTATE_JS, root)
+    except EvalTimeout:
+        raise   # a stuck read is TIMEOUT, never mistaken for the page having navigated
     except Exception as e:  # noqa: BLE001 -- a full navigation replaced the document
         eff = {"dom": 0, "expanded": 0, "focus_moved": False, "printed": m["printed"], "clip": m["clip"],
                "samples": [f"no in-page reading: {type(e).__name__}"]}
         fs1 = fs0
         reloaded = True
-    reqs = tap.reqs[n0:]
-    bg = eff.get("bg_requests") or []
+    # ⭐ wave 10 lane WK7 -- the race WK6 measured but could not close (l11dc-4dfc5e447/INVALID.md,
+    # the comment this replaces). Window membership used to be TWO independently-paced snapshots
+    # compared against each other: `m["bgMark"]` was a JS-side index into `P.bgReqs`, read via its
+    # OWN `evaluate()` round trip; `n0 = len(tap.reqs)` (above) was a Python-side index into a
+    # SEPARATE list, populated only as Playwright's CDP dispatcher happened to deliver each
+    # "request" message -- a delivery that lags the JS-side push by an amount `wait_for_timeout`
+    # could shrink (stress-tested ~1/25 -> ~1/40) but never eliminate, because the two lists are
+    # driven by two different clocks (a synchronous in-page push vs an asynchronous CDP message).
+    #
+    # ORDER: `m = safe_evaluate(pg, MARK_JS)` always ran first (see above); the OLD code then read
+    # `n0` a fixed ~50ms later. WHAT LANDS BETWEEN THEM: any request whose JS-side classification
+    # (before/after the mark; background or not) and whose Python-side ARRIVAL disagree -- which
+    # needs no coincidence AT the click, only ordinary CDP delivery jitter for anything sent
+    # shortly before or during the window.
+    #
+    # THREE verdict errors, by which side of the mismatch a request falls on:
+    #   - FALSE LIVE (the dangerous direction): a background request JS correctly places BEFORE
+    #     its own mark (excluded from the old `bg_requests` slice) whose Python-side row arrives
+    #     AFTER `n0` anyway -- present in `reqs`, absent from `bg_requests`, so nothing subtracts
+    #     it. A DEAD control reads LIVE, hiding exactly what this instrument exists to find.
+    #   - FALSE DEAD: the opposite skew -- JS places a request INSIDE the window (so the old
+    #     `bg_requests` slice contains it) but its Python row arrives BEFORE `n0` (not in `reqs`
+    #     at all). `without_background` matches by (method, url) COUNT, not identity, so that
+    #     phantom `bg_requests` entry can instead cancel a genuine LATER click-caused request at
+    #     the same endpoint, erasing real evidence.
+    #   - A misclassified background request: with several same-endpoint requests in flight (the
+    #     ordinary shape of a poller), count-based matching can subtract the WRONG occurrence --
+    #     the verdict happens to land right, but the reported `background_ignored` list names an
+    #     instance that never actually fired during this click.
+    #
+    # ⛔ `deadclick_sweep` does NOT retry on an INVALID control -- it runs the planted-poller
+    # control ONCE and reports whatever `control_ok` says. The retired comment here claimed
+    # otherwise ("a residual miss here reads [INVALID]... and the controller re-runs"); that was
+    # never true of the shipped sweep, only of one test's OWN 3-attempt loop, since removed.
+    #
+    # THE FIX: one authority, not two snapshots. INSTRUMENT_JS's `stamp` (see the comment above
+    # it) tags EVERY outgoing fetch/XHR -- background or not -- with `seq` (one monotonic counter,
+    # `P.reqSeq`) and `bg` (whether `P.bgDepth > 0` at send time), ON THE REQUEST ITSELF, as
+    # headers, read back by `Tap._on_request`/`_proof_headers` whenever CDP delivery happens to
+    # catch up. `MARK_JS`'s `reqMark` is `P.reqSeq` at the SAME instant `P.armedAt` is set -- the
+    # window mark and every request's stamp are drawn from the SAME counter, so:
+    #   - `bg` is an intrinsic, per-request fact now, never re-derived from a windowed slice of a
+    #     second list -- closes the FALSE LIVE direction above unconditionally, independent of
+    #     delivery timing.
+    #   - `seq >= mark_seq` is a single-clock comparison that closes the general case too (a stray
+    #     NON-background request delivered late), the same way.
+    # `n0` stays as a cheap, always-SAFE lower bound -- Python's own list only grows, and CDP
+    # preserves send order on one connection, so nothing genuinely post-click can land before it
+    # -- `seq`/`bg` REFINE that coarse set; they do not replace the need to bound it somewhere.
+    #
+    # ⛔⛔ round 2: `stamp` is SAME-ORIGIN ONLY (see the comment above it in INSTRUMENT_JS) -- a
+    # third-party server that does not allow our headers would reject a stamped cross-origin
+    # request, and the instrument must never break a real product request to measure it. A
+    # cross-origin `r` therefore always has `r["seq"] is None` and `r.get("bg")` falsy -- the
+    # `r.get("seq") is None` branch above is what keeps it in `candidates` on the `n0` bound
+    # ALONE, exactly as any request would have been judged before this lane, and it is NEVER
+    # promoted into `bg` (we do not know it came from a pre-armed timer, so it is not claimed
+    # as background) or given any seq-based precision it was never able to earn. WHAT THIS
+    # MEANS FOR A VERDICT: an unstamped (cross-origin, or non-fetch/XHR) request that lands in
+    # the coarse `n0..now` window still counts as click evidence -- the same residual risk this
+    # whole lane exists to close for same-origin traffic, left open ON PURPOSE for cross-origin
+    # traffic, because closing it would mean breaking the product being observed.
+    mark_seq = m.get("reqMark")
+    candidates = tap.reqs[n0:]
+    if mark_seq is not None:
+        candidates = [r for r in candidates if r.get("seq") is None or r["seq"] >= mark_seq]
+    reqs = candidates
+    bg = [r for r in candidates if r.get("bg")]
     obs = {"dom": eff.get("dom", 0), "expanded": eff.get("expanded", 0), "focus_moved": eff.get("focus_moved"),
            "requests": reqs, "background_requests": bg,
            "noise_endpoints": sorted(W.noise_endpoints), "url_before": url0,
@@ -2006,8 +2500,146 @@ def _restore_prefs(W: World, acct: str, snap: dict) -> list[str]:
 LS_JS = "() => { try { return JSON.stringify(Object.keys(localStorage).sort().map(k => [k, localStorage.getItem(k)])); } catch (e) { return ''; } }"
 
 
-def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False) -> dict:
-    """Every enabled control of one surface, each clicked from the SAME starting state.
+# ── wave 10 lane WK4/WK5: the dead-click sweep's hang on `nb-bulk` (docs/notebook/proof/wk3-d5ca882b9/HUNG-deadclick.md) ──
+# WK3 measured a ~50-minute, ~0%-CPU stall inside the per-control loop, hard-killed with no
+# shutdown checkpoint. Every explicit Playwright wait in `click_one` already carries its own
+# timeout (hover 2.5s, click 3.5s, the settle waits are fixed `wait_for_timeout`s) -- none of
+# those can hang. What CANNOT hang-proof itself is `page.evaluate(...)`: Playwright's Python API
+# takes no `timeout=` for it at all, so a call whose JS never returns control (native browser UI
+# outside the page's own JS thread -- a `<select>`'s OS-native popup is the one this file's own
+# `window.print` stub does NOT cover, since BulkActionBar's folder picker is a real `<select>`)
+# blocks the walk process forever, not the browser: the sandbox's OWN requests kept answering
+# throughout WK3's stall, which is what a page-JS-thread block, not a crashed server, looks like.
+#
+# ⛔⛔ WK4 (`e1ef47435`) wrapped that risk in `_run_with_deadline`, a wall-clock watchdog that ran
+# the wrapped call on a `threading.Thread` and, on overrun, called into that thread's Playwright
+# objects (closing a browser context) FROM THE OUTER THREAD. Playwright's sync API dispatches
+# every one of its objects (`Page`, `BrowserContext`, `Locator`, ...) through a greenlet bound to
+# the ONE OS thread that created `sync_playwright()`; a second thread touching ANY of them raises
+# immediately ("Cannot switch to a different thread"), which is what happened to every one of the
+# 39 deadclick surface x mode cells the very first time `deadclick_surface`'s own `fresh()` tried
+# to open a page from inside the watchdog's worker thread (docs/notebook/proof/wk4-e1ef47435/
+# deadclick.json, `controls.raw.reason` and every per-surface `reason`, verbatim). The mechanism
+# built to catch a hang never got the chance to: the wrapped call failed on its own, instantly,
+# for an unrelated reason, and the watchdog's own timeout path never fired.
+#
+# ⭐ WK5's redesign (this lane): NO Playwright object is ever touched from a second OS THREAD --
+# because none is ever touched by a second thread at all. The per-CLICK bound (`_click_or_timeout`
+# below) stays on the ONE thread that owns the page: every `page.evaluate` call `click_one` makes
+# now goes through `safe_evaluate` (above `click_one`), whose JS-SIDE `Promise.race` against a JS
+# `setTimeout` makes a stuck async handler return a bounded sentinel instead of blocking Python's
+# read of the CDP response forever -- an ordinary Python exception (`EvalTimeout`) on the SAME
+# thread, not a preemption from another one. click/tap/hover already carry Playwright-native
+# `timeout=`. The per-SURFACE bound (`deadclick_surface_bounded`) is a PROCESS boundary instead of
+# a thread one: the parent spawns `--deadclick-worker` as a CHILD PYTHON PROCESS (its own
+# `sync_playwright()`, its own greenlet, its own browser), waits on it, and kills the OS process
+# tree at the deadline -- the parent NEVER calls a method on a Playwright object the child
+# created; it only starts the child, waits, and reads the JSON file the child wrote. A process
+# boundary has no greenlet to violate, so a kill here is safe regardless of what the child's
+# single thread is doing when it happens, including a genuine native-renderer freeze that even
+# `safe_evaluate`'s JS-side timer cannot catch (see its own docstring).
+
+CLICK_DEADLINE_S = 25.0     # per control: several safe_evaluate calls, each well under this, plus
+                            # click_one's own bounded waits; a control that still runs long is
+                            # relabeled TIMEOUT rather than read as an ordinary slow verdict
+SURFACE_DEADLINE_S = 360.0  # per surface x mode: the child process's hard ceiling, enforced by
+                            # the parent killing the OS process tree -- the backstop for anything
+                            # the per-click guard cannot reach (inside `fresh()`'s own
+                            # `surf.open()`, before any control has been clicked, OR a renderer
+                            # wedged at the native level, which no in-process guard can catch)
+
+
+def _kill_process_tree(pid: int) -> None:
+    """Hard-kill `pid` and everything it spawned -- the browser Playwright launched underneath
+    it, not just the Python interpreter. `Popen.kill()` alone only signals the direct child; on
+    Windows that can orphan a chromium.exe the child never got the chance to close. Best-effort,
+    the same way `notebook_perf_harness.Sandbox.stop`'s own last-resort kill is: the parent is
+    force-closing an OS process it does not own the internals of, so a failure here is swallowed,
+    not raised -- the caller's own timeout handling is what matters, not this cleanup succeeding."""
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=15)
+        else:
+            os.killpg(pid, signal.SIGKILL)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _click_or_timeout(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: str,
+                       deadline: float = CLICK_DEADLINE_S) -> dict:
+    """`click_one`, bounded WITHOUT a second thread. `click_one`'s own Playwright waits that
+    accept a `timeout=` (click/tap/hover) already carry one; every `page.evaluate` it makes goes
+    through `safe_evaluate`, whose JS-side race turns a stuck async handler into a bounded
+    `EvalTimeout` on THIS thread rather than an indefinite block. A control that nonetheless runs
+    past `deadline` (several evaluate calls each near their own ceiling, say) is relabeled TIMEOUT
+    after the fact instead of reading as an ordinary slow verdict.
+
+    What this cannot catch is a renderer wedged at the native/OS level -- nothing can run ANY JS,
+    so `safe_evaluate`'s own JS-side timer never fires either. That class is bounded by the
+    per-surface PROCESS deadline in `deadclick_surface_bounded`, never here: a control caught only
+    by that outer bound still ends its whole SURFACE in a named TIMEOUT, and the sweep continues
+    to the next surface -- it does not hang the walk, it just costs a coarser-grained verdict."""
+    started = time.monotonic()
+    try:
+        r = click_one(W, pg, tap, root, c, surf, mode)
+    except EvalTimeout as e:
+        return {"verdict": "TIMEOUT", "reset": True, "reason": f"evaluate: {e}"[:240],
+                "elapsed_ms": round((time.monotonic() - started) * 1000, 1)}
+    except Exception as e:  # noqa: BLE001
+        return {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True,
+                "elapsed_ms": round((time.monotonic() - started) * 1000, 1)}
+    elapsed = time.monotonic() - started
+    r = dict(r)
+    # ⭐ wave 10 lane WK6: where the per-click time actually goes (l11-52deeb767/README.md, 2c)
+    # -- recorded on EVERY control, not just the slow ones, so the distribution is read from the
+    # evidence rather than guessed at.
+    r["elapsed_ms"] = round(elapsed * 1000, 1)
+    if elapsed > deadline:
+        r["verdict"] = "TIMEOUT"
+        r["reset"] = True
+        r["reason"] = f"completed in {elapsed:.1f}s, past the {deadline:.0f}s per-click budget"
+    return r
+
+
+DEADCLICK_CONTEXT_TIMEOUT_MS = 20000  # a per-context default for anything below with no
+                                       # explicit timeout= of its own (a bare .fill()/.click()
+                                       # inside a surf.open() function) -- well below Playwright's
+                                       # native 30s default, comfortably above every explicit
+                                       # timeout this file's own surfaces already use
+
+# ── wave 10 lane WK6: dedupe a repeated control, never drop it silently ────────────────────
+# `CONTROLS_JS` already computes a `key` that survives a re-render (tag|role|name, digits
+# folded) -- it is how a card for note "r025839" and a card for note "r019284" collide to the
+# SAME key ("BUTTON||Proof rich r# #") and are told apart only by `nth`. The nine deadclick
+# surfaces that hit `SURFACE_DEADLINE_S` are exactly the ones built on `s_list`'s seeded
+# account: 34 near-identical note cards contribute 2 controls each (open, select) -- 68 of the
+# ~88 controls a 360s budget reached on `nb-list` alone (l11-52deeb767/README.md, 2c). Clicking
+# the 4th through 34th occurrence of the SAME pattern proves nothing the 1st-3rd did not already
+# prove: if note #1's open button is LIVE, note #34's is not an independent fact.
+#
+# So only the first `SAMPLE_PER_KEY` occurrences of a `key` are actually judged; every later one
+# is recorded with verdict `REPEATED` -- named, counted, in `rec["controls"]` like any other row
+# -- never just left out of the list. `rec["measured"]` / `rec["skipped_repeated"]` (updated
+# after every control, so a hard-killed TIMEOUT surface still reports an honest partial split)
+# are the coverage accounting the controller reads: found (`enumerated`) = capped (never even
+# listed) + measured + skipped_repeated, always, whether the surface finishes or is killed.
+SAMPLE_PER_KEY = 3
+
+
+def _sample_gate(key_seen: dict[str, int], key: str, sample_per_key: int = SAMPLE_PER_KEY) -> bool:
+    """True once `key`'s `sample_per_key`-th occurrence has already been spent -- this and every
+    later occurrence of the SAME key is `REPEATED`, never clicked. Pure and stateless beyond the
+    caller-owned `key_seen` counter (mutated in place, one entry per distinct key) so the
+    dedupe/sampling rule is provable without a browser: `tests/test_notebook_proof_walk.py`."""
+    key_seen[key] = key_seen.get(key, 0) + 1
+    return key_seen[key] > sample_per_key
+
+
+def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False, on_progress=None) -> dict:
+    """Every enabled control of one surface, each clicked from the SAME starting state -- except
+    a control whose `key` (tag|role|name, digits folded) has already been sampled
+    `SAMPLE_PER_KEY` times, which is recorded `REPEATED` rather than clicked again (see the
+    comment above `SAMPLE_PER_KEY`).
 
     ⛔ State is the trap: a click can collapse the folder panel, switch the view or change a
     preference, and every later control would then be measured on a different page (the
@@ -2015,11 +2647,22 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     click the surface is reopened from scratch -- a NEW browser context from the member's
     stored state (pristine localStorage) and the member's server preferences put back -- when
     the click wrote anything, navigated, changed the page's control set, or changed local
-    storage. Otherwise the same page is reused (Escape pressed twice)."""
+    storage. Otherwise the same page is reused (Escape pressed twice).
+
+    `on_progress`, when given, is called with a COPY of `rec` after every control (and on the
+    early UNREACHED return) -- see `_deadclick_worker_main`, which uses it to flush this
+    surface's progress to disk so a parent that has to hard-kill this function's OS process at
+    the deadline still salvages whatever had already run, the same contract the old thread-based
+    `handle['rec']` used to provide, now surviving a process kill rather than depending on a
+    thread that shares memory with the one being killed."""
     rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": [], "resets": 0,
-           "prefs_restored": []}
+           "prefs_restored": [], "measured": 0, "skipped_repeated": 0}
     holder = {"ctx": None, "acct": None}
     snap = {}
+
+    def progress():
+        if on_progress is not None:
+            on_progress(dict(rec))
 
     def fresh():
         if holder["ctx"] is not None:
@@ -2034,15 +2677,16 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
         if "prefs" not in snap:
             snap["prefs"] = _prefs(W, acct) if acct != "anon" else {}
         ctx = W.new_context(acct, mode)
+        ctx.set_default_timeout(DEADCLICK_CONTEXT_TIMEOUT_MS)
         holder["ctx"] = ctx
         pg = ctx.new_page()
         tap = Tap(pg)
         root = surf.open(W, pg)
         if plant:
-            pg.evaluate(PLANT_DEADCLICK_JS, root)
+            safe_evaluate(pg, PLANT_DEADCLICK_JS, root)
         rec.setdefault("noise", []).append(idle_noise(W, pg, tap))
-        keys = sorted({c["key"] for c in (pg.evaluate(CONTROLS_JS, root) or [])})
-        return pg, tap, root, keys, pg.evaluate(LS_JS)
+        keys = sorted({c["key"] for c in (safe_evaluate(pg, CONTROLS_JS, root) or [])})
+        return pg, tap, root, keys, safe_evaluate(pg, LS_JS)
 
     try:
         pg, tap, root, keys0, ls0 = fresh()
@@ -2050,46 +2694,64 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
         rec.update(status="UNREACHED", reason=f"{type(e).__name__}: {e}"[:300])
         if holder["ctx"] is not None:
             holder["ctx"].close()
+        progress()
         return rec
-    listing = pg.evaluate(CONTROLS_JS, root) or []
+    listing = safe_evaluate(pg, CONTROLS_JS, root) or []
     if plant:
         listing = [c for c in listing if c["name"].startswith("Planted")]
     rec["enumerated"] = len(listing)
     rec["capped"] = max(0, len(listing) - MAX_CONTROLS)
+    progress()
+    key_seen: dict[str, int] = {}
     for c in listing[:MAX_CONTROLS]:
         row = {k: c[k] for k in ("key", "nth", "tag", "role", "name", "field", "box")}
+        if _sample_gate(key_seen, c["key"]):
+            row.update(verdict="REPEATED",
+                       reason=(f"the same control (tag|role|name, digits folded) repeated; only "
+                               f"the first {SAMPLE_PER_KEY} of this key are sampled, this is "
+                               f"#{key_seen[c['key']]}"))
+            rec["controls"].append(row)
+            rec["skipped_repeated"] += 1
+            progress()
+            continue
         if c["disabled"]:
             row["verdict"] = "DISABLED"
             rec["controls"].append(row)
+            rec["measured"] += 1
+            progress()
             continue
         if SESSION_ENDING.search(c["name"]):
             row.update(verdict="SKIPPED", reason="ends the session")
             rec["controls"].append(row)
+            rec["measured"] += 1
+            progress()
             continue
         if c["tag"] == "A" and c["href"].startswith("#") and re.match(r"(?i)skip\b", c["name"]):
             row.update(verdict="SKIPPED", reason="a skip link: its door is the keyboard (shown on focus)")
             rec["controls"].append(row)
+            rec["measured"] += 1
+            progress()
             continue
-        try:
-            r = click_one(W, pg, tap, root, c, surf, mode)
-        except Exception as e:  # noqa: BLE001
-            r = {"verdict": "ERROR", "reason": f"{type(e).__name__}: {e}"[:240], "reset": True}
+        r = _click_or_timeout(W, pg, tap, root, c, surf, mode)
         if not r.get("reset"):
             try:
-                keys1 = sorted({x["key"] for x in (pg.evaluate(CONTROLS_JS, root) or [])})
-                if keys1 != keys0 or pg.evaluate(LS_JS) != ls0:
+                keys1 = sorted({x["key"] for x in (safe_evaluate(pg, CONTROLS_JS, root) or [])})
+                if keys1 != keys0 or safe_evaluate(pg, LS_JS) != ls0:
                     r["reset"] = True
                     r["state_left_changed"] = True
             except Exception:  # noqa: BLE001
                 r["reset"] = True
         row.update({k: v for k, v in r.items() if k != "reset"})
         rec["controls"].append(row)
+        rec["measured"] += 1
+        progress()
         if r.get("reset"):
             rec["resets"] += 1
             try:
                 pg, tap, root, keys0, ls0 = fresh()
             except Exception as e:  # noqa: BLE001
                 rec["aborted"] = f"could not reopen the surface: {type(e).__name__}: {e}"[:300]
+                progress()
                 break
     if holder["acct"] and holder["acct"] != "anon" and not holder["acct"].startswith("fresh"):
         rec["prefs_restored"] += _restore_prefs(W, holder["acct"], snap.get("prefs", {}))
@@ -2102,12 +2764,99 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
     for r in rec["controls"]:
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
     rec["counts"] = counts
+    progress()
     return rec
+
+
+def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool = False,
+                               deadline: float | None = None) -> dict:
+    """`deadclick_surface`, run in a CHILD OS PROCESS with a wall-clock ceiling the PARENT
+    enforces by killing that process -- never by touching its Playwright objects from a second
+    THREAD, the exact defect the comment above this section documents ("Cannot switch to a
+    different thread"). A process boundary carries no such rule: this function starts the child
+    (`--deadclick-worker`, see `_deadclick_worker_main`), waits on it, and reads the JSON file it
+    wrote -- nothing here ever calls a method on a Playwright object the child created, so a hard
+    kill at the deadline is safe regardless of what the child's one thread is doing, including a
+    renderer wedged at the native level that even `safe_evaluate`'s JS-side timer cannot catch.
+
+    The child reuses the PARENT's already-seeded accounts and fixtures (`W.fx`/`W.states`,
+    written to `--worker-in`) rather than re-running `seed()` -- signups are rate-limited 21s
+    apart, so re-seeding per surface would multiply the whole walk's wall time by the surface
+    count for no benefit. The child flushes its record to `--worker-out` after every control, so
+    a hard kill still salvages whatever it had already measured -- the same contract the old
+    thread-based `handle['rec']` used to provide, now surviving an OS-level kill rather than
+    depending on a thread that shares memory with the one being killed."""
+    # Late-bound on purpose: a def-time default would capture SURFACE_DEADLINE_S at import, and
+    # `--surface-deadline` (which rebinds the module global before the sweep) would reach nothing.
+    if deadline is None:
+        deadline = SURFACE_DEADLINE_S
+    seed_path = out_path = None
+    started = time.monotonic()
+    try:
+        fd, name = tempfile.mkstemp(prefix="nbwalk-seed-", suffix=".json")
+        os.close(fd)
+        seed_path = Path(name)
+        seed_path.write_text(json.dumps({"base": W.base, "fx": W.fx, "states": W.states},
+                                         ensure_ascii=False, default=str), encoding="utf-8")
+        fd, name = tempfile.mkstemp(prefix="nbwalk-out-", suffix=".json")
+        os.close(fd)
+        out_path = Path(name)
+        out_path.unlink(missing_ok=True)   # the child writes this; its absence at the end is real
+        cmd = [sys.executable, str(Path(__file__).resolve()), "--deadclick-worker",
+               "--worker-surface", surf.sid, "--worker-mode", mode,
+               "--worker-in", str(seed_path), "--worker-out", str(out_path),
+               "--worker-art", str(W.art)]
+        if plant:
+            cmd.append("--worker-plant")
+        kw = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt"
+              else {"start_new_session": True})
+        proc = subprocess.Popen(cmd, cwd=str(REPO), stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.PIPE, text=True, **kw)
+        timed_out, stderr_tail = False, ""
+        try:
+            _, stderr_out = proc.communicate(timeout=deadline)
+            stderr_tail = (stderr_out or "")[-800:]
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            _kill_process_tree(proc.pid)
+            try:
+                proc.communicate(timeout=15)
+            except Exception:  # noqa: BLE001
+                pass
+        elapsed = round(time.monotonic() - started, 1)
+        rec = None
+        if out_path.exists():
+            try:
+                rec = json.loads(out_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                rec = None
+        if rec is None:
+            rec = {"surface": surf.sid, "mode": mode, "manifest": list(surf.manifest), "controls": []}
+        if timed_out:
+            rec["status"] = "TIMEOUT"
+            rec["reason"] = (f"exceeded the {deadline:.0f}s per-surface budget "
+                              f"(its process was force-closed so the sweep could continue)")
+            rec["elapsed_s"] = elapsed
+        elif rec.get("status") not in ("MEASURED", "UNREACHED"):
+            # the worker exited (whatever its returncode) without ever reaching a terminal status
+            # of its own -- a crash, never silently promoted to a MEASURED that never happened
+            rec["status"] = "ERROR"
+            rec.setdefault("reason", f"the worker process ended (rc {proc.returncode}) without a "
+                                      f"terminal status" + (f"; stderr: {stderr_tail}" if stderr_tail else ""))
+            rec["elapsed_s"] = elapsed
+        return rec
+    finally:
+        for p in (seed_path, out_path):
+            try:
+                if p is not None:
+                    p.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def deadclick_sweep(W: World, only: list[str]) -> dict:
     out = {"telemetry_never_evidence": list(TELEMETRY_PATHS), "surfaces": [], "controls": {}}
-    ctl = deadclick_surface(W, surface_by_id("nb-list"), "desk", plant=True)
+    ctl = deadclick_surface_bounded(W, surface_by_id("nb-list"), "desk", plant=True)
     names = {"Planted dead styled control": "plant-dead-styled", "Planted dead control": "plant-dead",
              "Planted live control": "plant-live"}
     got = {}
@@ -2129,13 +2878,59 @@ def deadclick_sweep(W: World, only: list[str]) -> dict:
         if "deadclick" not in surf.sweeps or not wanted(surf, only):
             continue
         for mode in surf.modes:
-            rec = deadclick_surface(W, surf, mode)
+            rec = deadclick_surface_bounded(W, surf, mode)
             out["surfaces"].append(rec)
             say(f"[{rec.get('status')}] deadclick {surf.sid} ({mode}): {rec.get('counts') or rec.get('reason', '')}")
             dump("deadclick", out)
     out["noise_endpoints"] = sorted(W.noise_endpoints)
     dump("deadclick", out)
     return out
+
+
+def _deadclick_worker_main(args) -> int:
+    """The per-surface deadclick CHILD `deadclick_surface_bounded` spawns (`--deadclick-worker`):
+    its own `sync_playwright()`, its own browser, its own OS process -- so the parent can hard-
+    kill it at the deadline without ever touching a Playwright object from a second thread. Reads
+    the parent's already-seeded fixtures and account storage_state (`--worker-in`, JSON; never
+    re-runs `seed()` -- see `deadclick_surface_bounded`'s docstring for why), measures exactly one
+    surface x mode, and writes its record to `--worker-out` after EVERY control so a hard kill
+    still salvages whatever ran before the deadline."""
+    from playwright.sync_api import sync_playwright
+    surf = surface_by_id(args.worker_surface)
+    out_path = Path(args.worker_out)
+    seeded = json.loads(Path(args.worker_in).read_text(encoding="utf-8"))
+
+    def flush(rec: dict) -> None:
+        tmp = out_path.with_name(out_path.name + ".tmp")
+        tmp.write_text(json.dumps(rec, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
+        os.replace(tmp, out_path)
+
+    flush({"surface": surf.sid, "mode": args.worker_mode, "manifest": list(surf.manifest),
+           "controls": [], "resets": 0, "prefs_restored": [], "status": "IN-PROGRESS"})
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            try:
+                Wc = World(browser, seeded["base"], Path(args.worker_art))
+                Wc.fx = seeded.get("fx") or {}
+                Wc.states = seeded.get("states") or {}
+                Wc.admin_login()
+                rec = deadclick_surface(Wc, surf, args.worker_mode, plant=bool(args.worker_plant),
+                                         on_progress=flush)
+            finally:
+                browser.close()
+    except Exception as e:  # noqa: BLE001 -- the parent still reads whatever this flushed first
+        try:
+            existing = json.loads(out_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            existing = {"surface": surf.sid, "mode": args.worker_mode, "manifest": list(surf.manifest),
+                        "controls": []}
+        existing["status"] = "ERROR"
+        existing["reason"] = f"{type(e).__name__}: {e}"[:300]
+        flush(existing)
+        return 1
+    flush(rec)
+    return 0
 
 
 # ── silent failures ──────────────────────────────────────────────────────────
@@ -2152,6 +2947,22 @@ SILENT_READ_SURFACES = ("nb-list", "nb-home", "nb-note", "nb-tasks", "nb-graph",
 
 def _act_click(name, exact=True):
     def act(W, pg):
+        press(pg, pg.get_by_role("button", name=name, exact=exact).first)
+    return act
+
+
+def _act_more_menu_click(name, exact=True):
+    """Like `_act_click`, but for a WRITE_ACTIONS entry whose button lives in the editor's
+    "More note actions" overflow (NoteMoreMenu.jsx) rather than on the bare note page --
+    Lock/Archive/Save as template, same as `f_note_btn`/`f_save_template` in the census sweep
+    (clause 5d, wave 10 lane WK3). `surface_by_id("nb-note").open()` is `s_note`, which never
+    opens that menu, so a bare `_act_click` timed out waiting for a button that was never
+    shown -- the 5d README's "lock"/"archive"/"save-template" UNREACHED writes. Not a feature's
+    own door (mirrors `open_more_note_actions`' own contract): opening the menu is not the write
+    itself, so a write that genuinely disappeared from the menu still reads UNREACHED here, not
+    silently NO-WRITE."""
+    def act(W, pg):
+        open_more_note_actions(pg)
         press(pg, pg.get_by_role("button", name=name, exact=exact).first)
     return act
 
@@ -2176,7 +2987,34 @@ def _act_new_folder(W, pg):
 
 
 def _act_confirm_delete(W, pg):
+    """Wave 10 lane WK4 (5d): the ConfirmModal's own "Delete" is not always the whole door.
+    `onDeleteConfirm` (NoteEditorPage.jsx) asks the local durable store first
+    (`noteHasUnsentWork`) and, when the note reads as still holding words the server does not
+    have, opens a SECOND dialog (UnsentTrashDialog, "Trash anyway") instead of trashing --
+    found live tracing WK3's `trash-note` NO-WRITE: the probe's one click landed on a
+    ConfirmModal that never fires the DELETE request on that branch, so nothing was ever
+    silently missed downstream, the probe itself stopped one dialog short of the real door."""
     press(pg, pg.locator(POPUP).get_by_role("button", name=re.compile(r"^(Delete|Move to Trash)", re.I)).last)
+    again = pg.get_by_role("button", name="Trash anyway", exact=True).filter(visible=True)
+    try:
+        again.first.wait_for(state="visible", timeout=2500)
+    except Exception:  # noqa: BLE001 -- the ordinary path: the first Delete already trashed it
+        return
+    press(pg, again.first)
+
+
+def _act_save_template(W, pg):
+    """Wave 10 lane WK4 (5d/G-155): "Save as template" (NoteMenuActions.jsx) does not itself
+    write -- it only REVEALS an inline name form (`templateDraft`, defaulting to the note's
+    title), and the POST fires on that form's own submit. `_act_more_menu_click` stopped at
+    the reveal, which is exactly WK3's `save-template` NO-WRITE: the button this probe pressed
+    never sends a request on any branch, so there was nothing for the forced-failure sweep to
+    force. Drive the submit too."""
+    open_more_note_actions(pg)
+    press(pg, pg.get_by_role("button", name="Save as template", exact=True).first)
+    inp = pg.get_by_label("Template name")
+    inp.wait_for(state="visible", timeout=6000)
+    press(pg, pg.get_by_role("button", name="Save template", exact=True).first)
 
 
 def _act_create_link(W, pg):
@@ -2187,9 +3025,9 @@ WRITE_ACTIONS = (
     ("save-body", "nb-note", _act_type),
     ("add-tag", "nb-note", _act_tag),
     ("favorite", "nb-note", _act_click("Add to Favorites")),
-    ("lock", "nb-note", _act_click("Lock")),
-    ("archive", "nb-note", _act_click("Archive")),
-    ("save-template", "nb-note", _act_click("Save as template")),
+    ("lock", "nb-note", _act_more_menu_click("Lock")),
+    ("archive", "nb-note", _act_more_menu_click("Archive")),
+    ("save-template", "nb-note", _act_save_template),
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),
@@ -2986,12 +3824,27 @@ def f_today(W, door):
 
 
 def f_save_template(W, door):
-    pg, nid = c_note(W, door, title=f"Tmpl {door} {W.run}")
+    """G-155 (wave 10 lane WK4): the prior check -- "template" appears anywhere on the page --
+    was satisfied by the still-OPEN "Save as template" disclosure's own label (NoteMenuActions.jsx
+    reveals an inline `templateDraft` form on that click; nothing is written until the form is
+    submitted), so a menu that opens and a template that saves were indistinguishable to this
+    probe. The independent signal is the member's own template list: GET /api/j2/note-templates
+    carries a row this run made, named for the note it copied."""
+    title = f"Tmpl {door} {W.run} {time.time():.0f}"
+    pg, nid = c_note(W, door, title=title)
     open_more_note_actions(pg)   # "Save as template" (G-155) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, btn(pg, "Save as template"))
-    pg.wait_for_timeout(1500)
-    txt = pg.locator("body").inner_text()
-    must(re.search(r"template", txt, re.I), "no word about the template")
+    inp = pg.get_by_label("Template name")
+    inp.wait_for(state="visible", timeout=6000)
+    if door == "keyboard":
+        pg.keyboard.press("Enter")   # the autofocused draft input submits its own <form>
+        how += "; Enter (submits the template-name field)"
+    else:
+        how += "; " + use(pg, door, pg.get_by_role("button", name="Save template", exact=True).first)
+    ok = wait_true(lambda: any(
+        t.get("title") == title or t.get("name") == title
+        for t in (W.api().get(W.base + "/api/j2/note-templates").json().get("templates") or [])), 8)
+    must(ok, f"GET /api/j2/note-templates lists no template named {title!r} after Save as template")
     return how
 
 
@@ -3174,6 +4027,26 @@ def f_export(W, door):
     return how
 
 
+def _first_run_tour_seen(tour_loc, timeout_ms: float = 1500) -> bool:
+    """Wave 10 lane WK4 (G-171, diagnosed by lane FX2 -- docs/notebook/proof/fx2-788f3a439/
+    item1-g171-keyboard/): whether the first-run tour dialog actually opened THIS run --
+    WAITED for, never sampled once. `f_first_run` used to read `tour.count() > 0`
+    immediately after ResearchHome's own "Welcome to your Notebook" heading became
+    visible; the heading renders at ~386ms live and the tour DIALOG lazy-loads at
+    ~1074ms, so that immediate sample read the dialog as absent on every single run,
+    skipped the Skip-tour dismiss branch, and let the tour open a moment later and
+    correctly trap keyboard focus (Skip<->Next) around "Add a sample notebook" --
+    which a keyboard door can then never Tab to. That is exactly G-171's own reading,
+    every run of this program: "not reached with Tab in 220 presses" -- a PROBE RACE,
+    not a product defect. A timeout here (the dialog genuinely never opens) is the
+    honest negative, not a hang: it is bounded by `timeout_ms`, never indefinite."""
+    try:
+        tour_loc.wait_for(state="visible", timeout=timeout_ms)
+        return True
+    except Exception:  # noqa: BLE001 -- the timeout IS the answer: it did not auto-open
+        return False
+
+
 def f_first_run(W, door):
     acct = W.fresh_account()
     pg, tap = W.page(acct, DOOR_MODE[door])
@@ -3181,9 +4054,14 @@ def f_first_run(W, door):
     mark_root(pg)
     pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
     tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
-    tour_seen = tour.count() > 0
+    tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
-    if skip.count():
+    if tour_seen:
+        try:
+            skip.wait_for(state="visible", timeout=1500)
+        except Exception:  # noqa: BLE001 -- the dialog opened but its own Skip button never did
+            pass
+    if tour_seen and skip.count():
         use(pg, door, skip)
         pg.wait_for_timeout(600)
     how = use(pg, door, btn(pg, "Add a sample notebook"))
@@ -3476,11 +4354,25 @@ def findings_count(sweep: str, out: dict) -> int:
     raise ValueError(f"no finding count defined for {sweep!r}")
 
 
+def _axe_core_path() -> Path:
+    """The repo's exact-pinned axe-core build (`app/package.json`'s `axe-core` devDependency,
+    checked by `test_axe_is_the_repo_s_exact_pin`). `NOTEBOOK_PROOF_WALK_AXE_CORE` is a
+    read-only escape hatch for a worktree whose `app/node_modules` is a JUNCTION into another
+    lane's install that predates axe-core's introduction to this program (wave 10 lane WK3,
+    measured live: the junction target had no `axe-core` directory at all, so EVERY sweep --
+    not just axe -- failed before seeding, since this path is read unconditionally at the top
+    of `run_sweeps`). Never written by this tool. Unset (the default, every other worktree
+    whose junction already carries the pin) resolves the identical path as before."""
+    override = os.environ.get("NOTEBOOK_PROOF_WALK_AXE_CORE")
+    return Path(override) if override else REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+
+
 def run_sweeps(base: str, art: Path, sweeps: list[str], only: list[str]) -> None:
     from playwright.sync_api import sync_playwright
-    axe_path = REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    axe_path = _axe_core_path()
     axe_src = axe_path.read_text(encoding="utf-8")
-    res["axe_core"] = {"path": str(axe_path.relative_to(REPO)), "bytes": len(axe_src)}
+    axe_rel = str(axe_path.relative_to(REPO)) if REPO in axe_path.resolve().parents else str(axe_path)
+    res["axe_core"] = {"path": axe_rel, "bytes": len(axe_src)}
     with sync_playwright() as p:
         browser = p.chromium.launch()
         W = World(browser, base, art)
@@ -3533,7 +4425,20 @@ def main(argv=None) -> int:
     ap.add_argument("--sweeps", default=",".join(SWEEPS))
     ap.add_argument("--only", default="", help="surface-id prefixes (a shake-out; the evidence run runs all)")
     ap.add_argument("--no-hold", action="store_true", help="do not hold the sandbox past +120 s (shake-out only)")
+    ap.add_argument("--surface-deadline", type=float, default=None,
+                    help="deadclick: per surface x mode ceiling in seconds (default SURFACE_DEADLINE_S); recorded in run.json")
+    # internal: the per-surface deadclick child `deadclick_surface_bounded` spawns -- never a
+    # human-facing flag, see `_deadclick_worker_main`
+    ap.add_argument("--deadclick-worker", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-surface", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-mode", default="desk", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-plant", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-in", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-out", help=argparse.SUPPRESS)
+    ap.add_argument("--worker-art", help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
+    if args.deadclick_worker:
+        return _deadclick_worker_main(args)
     if args.self_check:
         return self_check()
     if not args.out_dir or not args.artifacts:
@@ -3543,11 +4448,15 @@ def main(argv=None) -> int:
     if bad:
         ap.error(f"unknown sweep(s) {bad}; known: {SWEEPS}")
     only = [s.strip() for s in args.only.split(",") if s.strip()]
+    if args.surface_deadline is not None:
+        global SURFACE_DEADLINE_S
+        SURFACE_DEADLINE_S = float(args.surface_deadline)
     out_dir, art = Path(args.out_dir), Path(args.artifacts)
     out_dir.mkdir(parents=True, exist_ok=True)
     art.mkdir(parents=True, exist_ok=True)
     OUT["dir"] = out_dir
     res.update({"tip": args.tip, "sweeps": sweeps, "only": only, "gates": GATES,
+                "surface_deadline_s": SURFACE_DEADLINE_S,
                 "started": time.strftime("%Y-%m-%dT%H:%M:%S%z")})
     from tools import notebook_perf_harness as H
     sys.path.insert(0, str(REPO / "scripts"))
