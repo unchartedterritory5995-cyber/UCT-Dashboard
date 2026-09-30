@@ -67,13 +67,14 @@ def pct_of(sorted_vals, q):
 #: index 38 (second largest) and that one picks index 37. Kept deliberately — a
 #: changed formula would break comparison with every p95 already recorded.
 QUANTITY = "client wall-clock ms (incl. TLS/CDN/network; not Server-Timing dur)"
+SERVER_QUANTITY = "server ms from Server-Timing dur (excl. TLS/CDN/network)"
 
 
-def pct_line(label, sorted_vals, qs=(0.50, 0.95), extra=""):
+def pct_line(label, sorted_vals, qs=(0.50, 0.95), extra="", quantity=QUANTITY):
     """One percentile line that always carries its n and its quantity."""
     parts = " ".join(f"p{int(q * 100)}={pct_of(sorted_vals, q):.0f}" for q in qs)
     tail = f", {extra}" if extra else ""
-    return f"  {label} {parts} (n={len(sorted_vals)}{tail}; {QUANTITY})"
+    return f"  {label} {parts} (n={len(sorted_vals)}{tail}; {quantity})"
 
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -105,7 +106,22 @@ def _stratified(universe: list[str], n: int) -> list[str]:
     return [universe[int(i * step)] for i in range(n)]
 
 
-def _serve_layer(base: str, sym: str, tf: str, nbars: int, client: httpx.Client):
+def server_dur_ms(server_timing: str):
+    """The server's own compute time from `Server-Timing: bars;desc="..";dur=<ms>`, or None.
+
+    ⭐ Read BESIDE the wall clock, never instead of it. 2026-09-30: a read took
+    1,120 ms wall for 73.5 ms of server time -- without this number the client's
+    network and the product are indistinguishable."""
+    if "dur=" not in (server_timing or ""):
+        return None
+    try:
+        return float(server_timing.split("dur=", 1)[1].split(";", 1)[0].split(",", 1)[0].strip())
+    except ValueError:
+        return None
+
+
+def _serve_timing(base: str, sym: str, tf: str, nbars: int, client: httpx.Client) -> dict:
+    """ONE read: `{layer, wall, code, nbars, server_ms}`. The single probe implementation."""
     t0 = time.perf_counter()
     try:
         r = client.get(f"{base}/api/bars/{sym}", params={"tf": tf, "bars": nbars}, timeout=20)
@@ -119,9 +135,17 @@ def _serve_layer(base: str, sym: str, tf: str, nbars: int, client: httpx.Client)
             nb = len(r.json().get("bars", []))
         except Exception:
             pass
-        return layer, wall, r.status_code, nb
+        return {"layer": layer, "wall": wall, "code": r.status_code, "nbars": nb,
+                "server_ms": server_dur_ms(st)}
     except Exception as e:
-        return f"ERR:{type(e).__name__}", (time.perf_counter() - t0) * 1000.0, 0, 0
+        return {"layer": f"ERR:{type(e).__name__}", "wall": (time.perf_counter() - t0) * 1000.0,
+                "code": 0, "nbars": 0, "server_ms": None}
+
+
+def _serve_layer(base: str, sym: str, tf: str, nbars: int, client: httpx.Client):
+    """`(layer, wall, code, nbars)` -- kept for its callers; a view over `_serve_timing`."""
+    t = _serve_timing(base, sym, tf, nbars, client)
+    return t["layer"], t["wall"], t["code"], t["nbars"]
 
 
 def main():
@@ -142,9 +166,12 @@ def main():
         for tf in tfs:
             nbars = args.bars_d if tf in ("D", "W", "M") else args.bars_i
             layers = Counter()
-            warm_ms, stale_ms, cold_ms, cold_syms = [], [], [], []
+            warm_ms, stale_ms, cold_ms, cold_syms, server = [], [], [], [], []
             for sym in sample:
-                layer, wall, code, nb = _serve_layer(args.base, sym, tf, nbars, client)
+                t = _serve_timing(args.base, sym, tf, nbars, client)
+                layer, wall, code, nb = t["layer"], t["wall"], t["code"], t["nbars"]
+                if t["server_ms"] is not None and (layer in WARM or layer in STALE_SERVED):
+                    server.append(t["server_ms"])
                 layers[layer] += 1
                 if layer in WARM:
                     warm_ms.append(wall)
@@ -168,6 +195,10 @@ def main():
             if nowait:
                 print(pct_line("no-wait latency", nowait,
                                extra=f"of which stale-served={len(stale_ms)}"))
+                if server:
+                    print(pct_line("no-wait SERVER dur", sorted(server),
+                                   extra="beside the wall line, not a gate input",
+                                   quantity=SERVER_QUANTITY))
             else:
                 # ⛔ NEVER SILENT. The old code was `if warm_ms:` with no else, so an
                 # empty warm set printed NOTHING and a reader took the next line —

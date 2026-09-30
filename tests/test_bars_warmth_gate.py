@@ -656,11 +656,43 @@ def test_connection_setup_is_paid_OUTSIDE_the_timed_sample(gate, monkeypatch):
 
     audit = gate.audit_module()
     monkeypatch.setattr(audit, "_universe", lambda: ["AAA", "BBB"])
-    monkeypatch.setattr(audit, "_serve_layer",
-                        lambda base, sym, tf, bars, client: (calls.append(("timed", sym)) or ("mem", 1.0, 200, 1)))
+    monkeypatch.setattr(audit, "_serve_timing",
+                        lambda base, sym, tf, bars, client: (calls.append(("timed", sym)) or
+                            {"layer": "mem", "wall": 1.0, "code": 200, "nbars": 1, "server_ms": 0.5}))
     # the gate's own-client path, driven through a stub client factory
     import httpx
     monkeypatch.setattr(httpx, "Client", lambda **k: type("C", (), {"get": Client().get, "close": lambda self: None})())
     gate.sample_timeframe("https://x", "D", 2, 10, audit=audit)
     assert calls[0] == ("warm", "https://x/api/health")
     assert [c[0] for c in calls[1:]] == ["timed", "timed"]
+
+
+# ── server time BESIDE the wall clock (2026-09-30: network vs product) ────────
+
+def test_server_dur_is_parsed_from_the_header_the_route_emits(gate):
+    audit = gate.audit_module()
+    assert audit.server_dur_ms('bars;desc="stale-swr";dur=73.5') == 73.5
+    assert audit.server_dur_ms('bars;desc="mem"') is None
+    assert audit.server_dur_ms("") is None
+
+
+def test_server_p95_is_reported_beside_and_never_moves_the_verdict(gate):
+    fast_server = [("stale-swr", 900.0, 5.0)] * 20          # slow wall, fast server
+    r = gate.timeframe_result("D", fast_server)
+    assert r["server_p95_ms"] == 5.0 and r["p95_ms"] == 900.0
+    code, _ = gate.verdict([("D", r["p95_ms"])])
+    assert code == gate.EXIT_OVER                           # verdict is on wall only
+    import inspect
+    assert "server" not in inspect.signature(gate.verdict).parameters
+
+
+def test_two_tuple_samples_still_work_and_report_no_server_time(gate):
+    r = gate.timeframe_result("D", [("mem", 10.0)] * 20)
+    assert r["p95_ms"] == 10.0 and r["server_p95_ms"] is None
+
+
+def test_the_server_line_names_ITS_OWN_quantity_not_the_wall_clock(gate):
+    audit = gate.audit_module()
+    line = audit.pct_line("x", [1.0] * 20, quantity=audit.SERVER_QUANTITY)
+    assert "Server-Timing dur" in line and "client wall-clock" not in line
+    assert "client wall-clock" in audit.pct_line("x", [1.0] * 20)
