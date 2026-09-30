@@ -1757,8 +1757,12 @@ B0_WAVES = (
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
     ('wave 10 L1c', L1C_TAG, None, None),
-    ('wave 10 RS', RS2_TIP2_TAG, None, None),
-    ('wave 10 RS2', RS2_TAG, None, None),
+    # Integrator, 2026-09-29: both RS waves tied to their REAL squashes. RS's evidence reached master
+    # inside L5 (#252, head a01573e66 -> squash 0812b5ec3) and RS2's inside L8 (#255, head 0bb2f1c33 ->
+    # squash 6f563c158). The self-referential stopgap tags above could never be proven once the
+    # branches were squashed (the RS2 lane's own note asked for exactly this replacement).
+    ('wave 10 RS', 'notebook-wave10-L5-tip-2026-09-29', 'a01573e66', '0812b5ec3'),
+    ('wave 10 RS2', 'notebook-wave10-L8-tip-2026-09-29', '0bb2f1c33', '6f563c158'),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -2710,7 +2714,7 @@ def build(pages_dir=None):
                                  walk9('B25_saved_view')],
       {'N': ['N_savedview'], 'E': ['E_savedsearch'], 'O': ['O_views']},
       'B25: a table view saved by name; on a fresh page the saved view reopened as a table.')
-    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 174, "key: 'thesis',")] + TPL_EV,
+    R('G-026', TPL_V, [code(f'{LB}/notebookTemplates.js', 231, "key: 'thesis',")] + TPL_EV,
       {'N': ['N_dbtemplate'], 'E': ['E_templates'], 'O': ['O_templates']}, TPL_NOTE, TPL_LEVER)
     # Editor
     R('G-030', 'P', [code(f'{LB}/tiptap.js', 120, 'Table.configure'), walk9('B01_slash_menu'), walk9('B02_code_math_callout')],
@@ -2780,7 +2784,7 @@ def build(pages_dir=None):
       'An internal architecture row (Compass reads notes through the Ask retrieval).')
     # Temporal correctness / provenance
     R('G-060', 'NA', [code(f'{JT}/db.py', 954, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
-    R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 309, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 336, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: frozen as of insertion).')
     R('G-062', 'BO', [code(f'{JT}/fact_registry.py', 52, '"analyst_price_target_consensus": FactTypeDef('),
                       code(f'{JT}/fact_registry.py', 32, 'rights_class: RightsClass'),
@@ -2863,11 +2867,11 @@ def build(pages_dir=None):
       'A UCT convention row.')
     R('G-128', 'NA', [test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
     # Continuation / organization (Wave H)
-    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 322, 'Continue working'), walk9('B17_older_rows')],
+    R('G-110', ('P', 'NV', 'NV'), [code(f'{NB}/ResearchHome.jsx', 324, 'Continue working'), walk9('B17_older_rows')],
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 25, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 26, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -3014,7 +3018,7 @@ def build(pages_dir=None):
       'page is about importing a .docx as a page, a different act, so no Notion verdict.')
     R('G-161', ('NV', 'P', 'NV'), [code(f'{JT}/inbound_email.py', 12, 'NOTEBOOK_INBOUND_EMAIL_ENABLED'),
                                   flag('NOTEBOOK_INBOUND_EMAIL_ENABLED', 'armed'), walk7('W16_email_in'),
-                                  record(FLAGS, 1122, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
+                                  record(FLAGS, 1137, 'Walked 2026-09-27 as bench@'), D(13, 'provider-agnostic inbound webhook')],
       {'N': NFN, 'E': ['E_emailin'], 'O': NFO},
       'Armed 2026-09-27 and walked by hand as bench@ (a Gmail message with a PDF became a note with its attachment); '
       'W16 walked the door on a sandbox in wave 7. PARITY with Evernote\'s email-in as named.')
@@ -3263,7 +3267,7 @@ def build(pages_dir=None):
     ]
     C[6] = [
         ('a design review against the three competitors signs off each surface', 'NOT MET',
-         [record('docs/notebook/design-review.md', '6-7', 'reviewed, not signed off')],
+         [record('docs/notebook/design-review.md', '11', 'reviewed, not signed off')],
          'the independent review ran (10E-2) and does NOT sign off: behind on the first phone screen (D-1), on editor '
          'density (D-3) and on a template gallery (D-4); D-2, D-5 and D-6 were fixed by F5. Owner state, partial: the '
          'owner countersigned ONE surface\'s placement -- D-3\'s "..." menu ("yes keep them in the menu", '

@@ -143,6 +143,12 @@ export function toGraphDocument(definition) {
   if (!isPlainObject(compute) || compute.kind !== 'ast') {
     return { ok: false, reason: 'not an ast definition' }
   }
+  // ⛔ C18 — an object program that reads values from the runtime lane
+  // (`objectProgram.js::RUNTIME_AT_CALL`) keeps its own trees: its placeholders
+  // are not graph nodes, and binding them to a graph would make them read NaN.
+  if (definition.objects && definition.objects.runtime) {
+    return { ok: false, reason: 'objects read values from the runtime lane and stay inlined' }
+  }
   const trees = compute.trees
   if (!isPlainObject(trees) || Object.keys(trees).length < 2) {
     return { ok: false, reason: 'not a multi-tree document — one tree is compute.ast' }

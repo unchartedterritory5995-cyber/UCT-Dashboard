@@ -797,13 +797,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const patchSettings = useCallback((patch) => {
     const next = { ...wlSettings, ...patch }
     if (onSettingsPersist) onSettingsPersist(next)
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(next))
+    // S5 CP2: a literal key here (== WATCHLIST_SETTINGS_KEY) keeps this call site
+    // readable by the setPref opaque-key rail; the stored key is unchanged.
+    else setPref('watchlist_settings', JSON.stringify(next))
   }, [wlSettings, setPref, onSettingsPersist])
   const resetSettings = useCallback(() => {
     // Clear back to the theme-following default (null override for a widget; the
     // theme default blob for the standalone page).
     if (onSettingsPersist) onSettingsPersist(null)
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(placedTheme)))
+    // S5 CP2: literal key, same reason as patchSettings above.
+    else setPref('watchlist_settings', JSON.stringify(watchlistDefaultsForTheme(placedTheme)))
   }, [setPref, onSettingsPersist, prefs])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
@@ -914,7 +917,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (serialized === lastWrittenPerfRef.current) return
     const current = JSON.stringify(parsePref(prefs?.[WATCHLIST_PERF_COLS_KEY], null) ?? [])
     lastWrittenPerfRef.current = serialized
-    if (serialized !== current) setPref(WATCHLIST_PERF_COLS_KEY, serialized)
+    // S5 CP2: literal key (== WATCHLIST_PERF_COLS_KEY) so this call site is a
+    // literal, not opaque, setPref site; stored key unchanged.
+    if (serialized !== current) setPref('watchlist_perf_cols', serialized)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visiblePerf])
   const setVisiblePerf = useCallback((updater) => {

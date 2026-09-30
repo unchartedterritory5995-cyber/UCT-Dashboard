@@ -1,0 +1,195 @@
+{
+ "tip": "bddf6cd91adedfbd283ed0d9093e37a319c00e65",
+ "instrument": "dra_walk.py",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\dra-data\\d256",
+ "port": 8242,
+ "folder_create_status": 200,
+ "d2_list_390": {
+  "before": {
+   "present": true,
+   "visible": true,
+   "box": {
+    "top": 58,
+    "bottom": 157,
+    "left": 12,
+    "right": 373,
+    "width": 361,
+    "height": 99
+   },
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": true
+  },
+  "dismiss_clicked": true,
+  "after_dismiss": {
+   "present": false,
+   "visible": false,
+   "box": null,
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": false
+  },
+  "seen_key_after_dismiss": "1",
+  "after_reload": {
+   "present": false,
+   "visible": false,
+   "box": null,
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": false
+  },
+  "dismissal_remembered": true
+ },
+ "d2_editor_1200": {
+  "before": {
+   "present": true,
+   "visible": true,
+   "box": {
+    "top": 12,
+    "bottom": 78,
+    "left": 80,
+    "right": 1152,
+    "width": 1072,
+    "height": 66
+   },
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": true
+  },
+  "dismiss_clicked": true,
+  "after_dismiss": {
+   "present": false,
+   "visible": false,
+   "box": null,
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": false
+  },
+  "seen_key_after_dismiss": "1",
+  "after_reload": {
+   "present": false,
+   "visible": false,
+   "box": null,
+   "overlaps": [],
+   "slot_index_in_main": 0,
+   "dismiss_present": false
+  },
+  "dismissal_remembered": true
+ },
+ "d6_editor_1200": [
+  {
+   "present": true,
+   "root": "[role=\"toolbar\"][aria-label=\"Editor toolbar\"]",
+   "text": "B",
+   "width": 26,
+   "height": 24,
+   "passes_24": true
+  },
+  {
+   "present": true,
+   "root": "[role=\"toolbar\"][aria-label=\"Editor toolbar\"]",
+   "text": "I",
+   "width": 24,
+   "height": 24,
+   "passes_24": true
+  },
+  {
+   "present": true,
+   "root": "[role=\"toolbar\"][aria-label=\"Editor toolbar\"]",
+   "text": "H1",
+   "width": 33.3,
+   "height": 24,
+   "passes_24": true
+  }
+ ],
+ "d5_extra_1200": {
+  "initial": {
+   "found": true,
+   "cue": "true",
+   "scrollLeft": 0,
+   "scrollWidth": 1348,
+   "clientWidth": 786
+  },
+  "keyboard": {
+   "reachable": true,
+   "after_focus": {
+    "found": true,
+    "cue": "false",
+    "scrollLeft": 562,
+    "scrollWidth": 1348,
+    "clientWidth": 786
+   },
+   "focused_is_target": true
+  },
+  "wheel_scroll": {
+   "found": true,
+   "cue": "true",
+   "scrollLeft": 500,
+   "scrollWidth": 1348,
+   "clientWidth": 786
+  }
+ },
+ "d6_sidebar_1200": [
+  {
+   "present": true,
+   "sel": "button[aria-label=\"Rename D6 folder\"]",
+   "width": 24,
+   "height": 24,
+   "passes_24": true,
+   "text": ""
+  },
+  {
+   "present": true,
+   "sel": "button[aria-label=\"Rename D6tag\"]",
+   "width": 24,
+   "height": 24,
+   "passes_24": true,
+   "text": ""
+  }
+ ],
+ "stop": "graceful to the shutdown checkpoint, then forced exit",
+ "integrity_log": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-dra\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-13-47.md",
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-dra\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-13-47.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-29 21:14:02",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-29 21:16:53",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-29 21:18:49",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-29 21:19:05",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-dra\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T21-13-47.md",
+ "not_run": null
+}

@@ -247,10 +247,13 @@ describe('⛔ boundaries stated rather than approximated', () => {
     // ⛔ NO PARTIAL BODY EXECUTION. Compiling the statements it understands and
     // skipping the loop would produce a program that runs and computes something
     // other than what the member wrote.
-    const src = `${head}f(x) =>\n    var s = 0.0\n    while s < 3\n        s := s + 1\n    s\nplot(f(1))\n`
+    // ⚰️ C18 — the construct was a `while`, which now lowers (`loops.test.js`).
+    // `varip` still refuses by name, and the rail keeps asking the same thing:
+    // one statement this lane cannot read refuses the WHOLE program.
+    const src = `${head}f(x) =>\n    varip s = 0.0\n    s := s + x\n    s\nplot(f(1))\n`
     const built = buildRuntimeIr(src, { bars: BARS })
     expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('runtime:loop')
+    expect(built.refusal.guard).toBe('runtime:varip')
     expect(built.ir).toBeUndefined()
   })
 

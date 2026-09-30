@@ -376,6 +376,9 @@ export default function ChartRender() {
   // LEVELS section (owner 9/26: "levels and lines"). Drawn only when passed; no
   // other caller sends them, so every existing chart is unchanged.
   const res = lvl('res'), piv = lvl('piv'), sup = lvl('sup')
+  // ?res2= ?sup2= — the NEXT MAJOR level each side (owner 2026-09-30: "near +
+  // major"), drawn dotted so the first test and the bigger line read apart.
+  const res2 = lvl('res2'), sup2 = lvl('sup2')
 
   // ?exttag=post:764.97 — the extended-hours print as the orange Pre/Post chip
   // on the right axis, exactly the tag the Charts widget draws from the live
@@ -398,11 +401,13 @@ export default function ChartRender() {
     if (stop) L.push({ price: stop, color: '#e74c3c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Stop' })
     if (t1) L.push({ price: t1, color: '#c9a84c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'T1' })
     if (t2) L.push({ price: t2, color: '#c9a84c', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'T2' })
+    if (res2) L.push({ price: res2, color: '#e07b39', lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: 'Resistance 2' })
     if (res) L.push({ price: res, color: '#e07b39', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Resistance' })
     if (piv) L.push({ price: piv, color: '#8a8f98', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Pivot' })
     if (sup) L.push({ price: sup, color: '#4aa3df', lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: 'Support' })
+    if (sup2) L.push({ price: sup2, color: '#4aa3df', lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: 'Support 2' })
     return L
-  }, [entry, stop, t1, t2, res, piv, sup, extTag?.session, extTag?.price])
+  }, [entry, stop, t1, t2, res, res2, piv, sup, sup2, extTag?.session, extTag?.price])
 
   // The owner's saved chart settings.
   //

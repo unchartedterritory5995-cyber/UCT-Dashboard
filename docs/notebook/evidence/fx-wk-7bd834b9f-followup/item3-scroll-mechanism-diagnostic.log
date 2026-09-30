@@ -1,0 +1,18 @@
+[run] r202736
+[seed] 42.5s
+
+=== nb-timeline @390, BEFORE any scroll ===
+{
+  "innerHeight": 844,
+  "mainScrollHeight": 2216,
+  "mainClientHeight": 844,
+  "docScrollHeight": 844,
+  "docClientHeight": 844,
+  "weekRect": [
+    44,
+    727,
+    48.46875,
+    44
+  ],
+  "scrollY": 0
+}

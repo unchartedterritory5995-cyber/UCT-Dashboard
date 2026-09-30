@@ -23,12 +23,47 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
-import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
-import { interpret, maxLookback } from './ast/interpret'
+import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
+import {
+  interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
+} from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
+
+// ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
+//
+// A program carrying `runtime` (see `objectProgram.js::RUNTIME_AT_CALL`) has
+// placeholder trees whose columns come from ONE run of the script through the
+// per-bar runtime lane (`runtime/runtimeColumns.js::runtimeObjectValues`).
+//
+// ⭐ REGISTERED, NEVER IMPORTED — the same rule the runtime pane follows
+// (`nativeRegistry.registerRuntimeLane`): the runtime lane is member-door
+// machinery behind the member-pane gate, and no path from the app entry may reach
+// it without that gate (`memberPaneGate.test.js`). The member door imports it —
+// and so registers it — whenever it translates a script.
+// ⛔ UNTIL IT IS REGISTERED, every placeholder reads UNKNOWN (`runtime:not-loaded`)
+// — withheld, never guessed. A chart that opens a SAVED document before the member
+// door has loaded in that session draws those objects only once it has.
+let runtimeObjectValuesFn = null
+export function registerObjectRuntimeValues(fn) {
+  runtimeObjectValuesFn = typeof fn === 'function' ? fn : null
+}
+
+/** ⭐ C18 — did the member leave every input at the author's default, and edit no
+ *  folded parameter? The runtime lane runs the script AS WRITTEN; a knob the
+ *  member moved is in the drawing's trees and not in that run. */
+function inputsAtDefaults(definition, inputs) {
+  const manifest = definition && definition.compute && definition.compute.paramManifest
+  if (manifest && Object.keys(manifest).length) return false
+  for (const input of (definition && definition.inputs) || []) {
+    if (!input || typeof input.key !== 'string') continue
+    const v = inputs ? inputs[input.key] : undefined
+    if (v !== undefined && !Object.is(v, input.default)) return false
+  }
+  return true
+}
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -96,7 +131,10 @@ import { barOpenInstant } from '../indicators.js'
  *  drop objects TradingView draws. A probe that refuses answers `null` too: the
  *  real run succeeded, and a probe is not allowed to take a drawing away on a
  *  refusal of its own. */
-export const PREFIX_PROBE = 1e12
+// ⭐ C12s — `PREFIX_PROBE` and `probeValuesOf` live in `interpret.js` now (the
+// plot lane's root agreement asks the same question with the same set); both
+// names stay exported from here for every existing importer.
+export { PREFIX_PROBE, probeValuesOf }
 
 /** ⭐⭐ C12r (2026-09-29) — ONE OBJECT PER DISTINCT SUBTREE, ACROSS THE PASS.
  *
@@ -163,6 +201,8 @@ export function readsBoundedState(tree) {
 
 const sameValue = (a, b) => a === b || (a !== a && b !== b)
 
+/** `probeValuesOf` — see `interpret.js` (C17, moved there by C12s). */
+
 /** The bars on which `col` (the tree's real column) depends on a recurrence
  *  prefix, as a `Uint8Array`, or `null` when there are none.
  *
@@ -177,28 +217,62 @@ const sameValue = (a, b) => a === b || (a !== a && b !== b)
  *  dependence carried through one past the bound is not seen — it reads as
  *  today's behaviour, never as a new withheld object.
  *
- *  `memos` is keyed by the probed length, one pair of maps per length, because a
- *  memoised column is only valid for the series it was computed over. */
+ *  `memos` is keyed by the probed length, then by the probe value (one memo per
+ *  value, `probeValuesOf`), because a memoised column is only valid for the
+ *  series and the prefix it was computed over. */
 export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new Map()) {
   if (!col || !readsBoundedState(tree)) return null
   let reach
   try { reach = maxLookback(tree) } catch { reach = col.length }
-  const n = Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
+  // ⭐ C12s — a SWITCHED recurrence is unknown wherever its reset lies outside
+  // the window, which can be any bar, so its tree is probed over the whole
+  // series (the prefix bound above holds only for the warm-up curtain).
+  const n = readsSwitchedState(tree)
+    ? col.length
+    : Math.min(col.length, Number.isFinite(reach) && reach > 0 ? reach : col.length)
   if (n <= 0) return null
   const probeBars = n < bars.length ? bars.slice(0, n + 1) : bars
-  if (!memos.has(probeBars.length)) memos.set(probeBars.length, [new Map(), new Map()])
-  const [memoHi, memoLo] = memos.get(probeBars.length)
-  let hi
-  let lo
+  // ⭐ C19 — the real pass's columns serve a probe only over the SAME bars: a
+  // truncated probe series ends earlier, and `barstate.*` answers at its end.
+  const probeOpts = probeBars === bars ? iopts : { ...iopts, probeBase: undefined }
+  if (!memos.has(probeBars.length)) memos.set(probeBars.length, new Map())
+  const bySign = memos.get(probeBars.length)
+  // ⭐ C17 — one probe per value `probeValuesOf` names, each with its own memo
+  // (a column computed at one probe value must never answer for another).
+  const switched = readsSwitchedState(tree)
+  // ⭐⭐ C12s — a switched tree's unknown bars are READ OFF THE TREE, not only
+  // probed: one probe value cannot stand for two unknown recurrences that Pine
+  // holds at different values, nor for a value inside a range test
+  // (`interpret.js::switchedDependencyMask`). A mask that cannot be computed
+  // withholds the whole series — the safe direction.
+  let dep = null
+  if (switched) {
+    if (!memos.has('c12s-dep')) memos.set('c12s-dep', new Map())
+    try {
+      dep = switchedDependencyMask(tree, bars, inputs, budget, undefined, { ...iopts, crossMemo: memos.get('c12s-dep') })
+    } catch {
+      dep = new Uint8Array(col.length).fill(1)
+    }
+  }
+  const probed = []
   try {
-    hi = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoHi, prefixProbe: PREFIX_PROBE })
-    lo = interpret(tree, probeBars, inputs, budget, undefined, { ...iopts, crossMemo: memoLo, prefixProbe: -PREFIX_PROBE })
-  } catch {
-    return null
+    for (const p of probeValuesOf(tree)) {
+      if (!bySign.has(p)) bySign.set(p, new Map())
+      probed.push(interpret(tree, probeBars, inputs, budget, undefined, { ...probeOpts, crossMemo: bySign.get(p), prefixProbe: p }))
+    }
+  } catch (err) {
+    // ⛔ C19 — A PROBE THE NODE BUDGET REFUSES PROVES NOTHING, so nothing is
+    // published on its word. The real run was charged against the pass's memo
+    // (`interpret.js::evaluationUnits`) and a probe against its own, so a tree
+    // the pass admitted can be refused here; the safe direction is every bar
+    // withheld, never the `null` below (which publishes every bar).
+    if (err && err.guard === 'budget:nodes') return new Uint8Array(col.length).fill(1)
+    if (!dep) return null
+    probed.length = 0
   }
   let mask = null
-  for (let i = 0; i < n; i++) {
-    if (!sameValue(col[i], hi[i]) || !sameValue(col[i], lo[i])) {
+  for (let i = 0; i < col.length; i++) {
+    if ((dep && dep[i]) || (i < n && probed.some((pc) => !sameValue(col[i], pc[i])))) {
       if (!mask) mask = new Uint8Array(col.length)
       mask[i] = 1
     }
@@ -245,9 +319,11 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       const tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
-      const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
+      const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
-      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
+      // ⭐ C19 — a probe reads the columns no probe value can move from THIS
+      // pass's memo (`interpret.js::passView`) instead of recomputing them.
+      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -388,6 +464,19 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
+  // ⭐⭐ C18 — the placeholders' columns, from ONE runtime run (or withheld).
+  let runtime = null
+  if (program.runtime) {
+    runtime = runtimeObjectValuesFn
+      ? runtimeObjectValuesFn(program.runtime, bars, {
+        tf: evalOpts.tf,
+        newestBarIsForming: evalOpts.newestBarIsForming,
+        fromListing: evalOpts.historyFromListing === true,
+        atDefaults: inputsAtDefaults(definition, opts.inputs),
+      })
+      : { cols: [], unknown: [], served: false, reason: 'runtime:not-loaded' }
+  }
+  const barCount = Array.isArray(bars) ? bars.length : 0
   // ⭐ IDENTITY BINDING. The program's own `trees` array IS the node table, so
   // tree index i becomes node index i and the runtime's single `{v:'graph'}`
   // vocabulary serves both forms without a second evaluator.
@@ -401,13 +490,26 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const probeMemos = new Map()
   const intern = makeInterner()
   for (const i of graphNodesReferenced(bound)) {
+    // ⭐ C18 — a runtime placeholder is read off the run, never interpreted.
+    const rk = runtimeAtIndex(trees[i])
+    if (rk >= 0) {
+      const col = runtime && runtime.cols[rk]
+      if (col) {
+        columns.set(i, col)
+        if (runtime.unknown[rk]) unknown.set(i, runtime.unknown[rk])
+      } else {
+        columns.set(i, new Float64Array(barCount).fill(NaN))
+        unknown.set(i, new Uint8Array(barCount).fill(1))
+      }
+      continue
+    }
     try {
       const tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
-      const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
+      const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)
+      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
@@ -420,12 +522,30 @@ export function objectReaderFor(definition, bars, opts = {}) {
       })
     }
   }
-  const readNode = (node, bar) => {
+  const readNode = (node, bar, loopVars) => {
     const col = columns.get(node)
     if (!col) return NaN
+    // ⭐⭐ C20 — a per-pass (or text) value the runtime lane read at the end of the
+    // bar: the pass the object runtime's loop is on (`loopVars`, the counter the
+    // loop op declares — `objectProgram.js::rtLoopId`), or slot 0 outside a loop.
+    // ⛔ A bar or pass the run never wrote answers `na` (text: `undefined`), which
+    // is exactly what a statement that never ran reads as.
+    if (col.byBar) {
+      const passes = col.byBar.get(bar)
+      const miss = col.text ? undefined : NaN
+      if (!passes) return miss
+      const i = col.loop ? (loopVars && loopVars.get(col.loop)) : 0
+      if (!Number.isInteger(i) || i < 0 || i >= passes.length) return miss
+      const v = passes[i]
+      return v === undefined ? miss : v
+    }
     const v = col[bar]
     return v === undefined ? NaN : v
   }
   const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
-  return { program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees' }
+  return {
+    program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees',
+    // ⭐ C18 — whether the runtime values were served, and if not, why (named).
+    ...(runtime ? { runtime: { served: runtime.served, reason: runtime.reason } } : {}),
+  }
 }

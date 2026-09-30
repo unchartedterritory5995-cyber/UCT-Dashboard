@@ -95,6 +95,10 @@ export const DROP_KEYS = Object.freeze({
   // …except a DELETE withheld that way: the object Pine deletes stays.
   'state:removal': C(LOSS.REMOVES,
     "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),
+  // ⭐ C18 — a drawing whose values the runtime lane answers, one of whose
+  // properties could not be read: dropped whole (`pine.js::rtHeldProp`).
+  'runtime:prop': C(LOSS.PARTIAL,
+    'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
   'cell:address': C(LOSS.PARTIAL, 'a table cell write whose row/column cannot be read — a missing cell'),
   'cell:text': C(LOSS.PARTIAL,

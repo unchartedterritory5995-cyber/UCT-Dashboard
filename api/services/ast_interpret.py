@@ -1573,6 +1573,89 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
 #: per call: two readings of one manifest is how a lane comes to disagree with
 #: itself between a chart request and an alert evaluation.
 RECURRENCES: Mapping[str, Any] = recurrences()
+
+
+# --------------------------------------------------------------------------- #
+# C12s -- a SWITCHED recurrence, the port of ``interpret.js::switchedVarSeed``
+# --------------------------------------------------------------------------- #
+#
+# ``var int n = 0`` + ``n := c ? n + 1 : 0`` never forgets its seed through the
+# ``self + 1`` arm, but DOES through the reset arm: on a bar where ``c`` is false
+# the value is ``0`` whatever came before. The translator marks such a
+# recurrence's seed ``(0 / 0) * <seed>`` -- ``NaN`` to any reader that does not
+# know the mark, the real seed for one that does -- and its window then starts
+# from an UNKNOWN state. A bar is published only where the value came out known
+# (it did not read the state it started from) and the forgetting step lies
+# inside the window; elsewhere it is not computable (``NaN``, or the caller's
+# ``prefixProbe``). One authority for the rule: the JS docstring; this is the
+# same algorithm, held equal by ``tests/fixtures/ast/switched_counter_parity.json``.
+
+#: "Any number, or ``na``" -- the one abstract value of the switched window.
+_UNKNOWN = object()
+
+#: The probe the root agreement fills a not-computable bar with, both signs.
+PREFIX_PROBE = 1e12
+
+
+def _is_zero_over_zero(n: Any) -> bool:
+    return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/"
+            and isinstance(n.get("args"), list) and len(n["args"]) == 2
+            and all(isinstance(a, dict) and a.get("type") == "num" and a.get("value") == 0
+                    for a in n["args"]))
+
+
+def switched_seed_of(n: Any) -> Any:
+    """The real seed a switched mark carries, or ``None`` when ``n`` is not one."""
+    if (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "*"
+            and isinstance(n.get("args"), list) and len(n["args"]) == 2
+            and _is_zero_over_zero(n["args"][0]) and n["args"][1]):
+        return n["args"][1]
+    return None
+
+
+def reads_switched_state(tree: Any) -> bool:
+    """Does this tree hold a switched recurrence anywhere? Iterative."""
+    stack = [tree]
+    seen = set()
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict) or id(n) in seen:
+            continue
+        seen.add(id(n))
+        args = n.get("args")
+        if (n.get("type") == "call" and n.get("name") in RECURRENCES
+                and isinstance(args, list)):
+            rec = RECURRENCES[n["name"]]
+            seed_at = rec.get("seed") if isinstance(rec, Mapping) else None
+            if isinstance(seed_at, int) and seed_at < len(args) and switched_seed_of(args[seed_at]):
+                return True
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def probe_values_of(tree: Any) -> List[float]:
+    """``interpret.js::probeValuesOf`` -- +-``PREFIX_PROBE`` and every finite
+    literal an ``==`` / ``!=`` compares against."""
+    out: List[float] = [PREFIX_PROBE, -PREFIX_PROBE]
+    stack = [tree]
+    seen = 0
+    while stack and seen < 100000:
+        n = stack.pop()
+        seen += 1
+        if not isinstance(n, dict):
+            continue
+        args = n.get("args") if isinstance(n.get("args"), list) else None
+        if n.get("type") == "op" and n.get("name") in ("==", "!=") and args:
+            for a in args:
+                v = a.get("value") if isinstance(a, dict) else None
+                if (isinstance(a, dict) and a.get("type") == "num"
+                        and isinstance(v, (int, float)) and not isinstance(v, bool)
+                        and math.isfinite(v) and float(v) not in out):
+                    out.append(float(v))
+        if args:
+            stack.extend(args)
+    return out
 RECURRENCE_BINDINGS: tuple = recurrence_bindings()
 
 
@@ -3448,8 +3531,60 @@ def node_count(ast: Any) -> int:
     ⚠️ STILL ITERATIVE, so it survives the 8,001-node tree that makes ``interpret``
     itself raise ``RecursionError``. That asymmetry is the point: a budget guard
     runs BEFORE the walker and must not need the walker to be safe first.
+
+    ⭐⭐ C19 (2026-09-30) — UNITS OF WHAT IS COMPUTED, the port of
+    ``interpret.js::evaluationUnits``. Integrator ruling: a shared subtree counts
+    once where the evaluator genuinely evaluates it once, and a subtree repeated
+    but evaluated separately counts every time. So a self-free node is one unit
+    per (scope, shape) — the ``_memo`` keys on the shape within one ``interpret``
+    call — a node reading a recurrence bind is one unit per (scope, recurrence,
+    shape) — the step memo keys on the shape within one recurrence; the bind
+    read itself (``self``) computes nothing and is one unit per shape — and a
+    ``tf`` / ``tf_live`` / ``sym`` child is a scope of its own (a fresh
+    ``interpret`` on other bars). This lane has no cross-column pass memo, so
+    nothing here is held: the JS lane's ``held`` argument has no counterpart.
     """
-    return structural_maps(ast)[2]
+    return evaluation_units(ast)
+
+
+#: Node types whose child a FRESH ``interpret`` evaluates on other bars.
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym"))
+
+
+def evaluation_units(root: Any) -> int:
+    """How many units the evaluator computes — see ``node_count``. Iterative;
+    a unit is visited once (its children's units depend only on it)."""
+    id_of, free_of, _ = structural_maps(root)
+    binds = _bind_names()
+
+    def is_bind(x: Any) -> bool:
+        return isinstance(x, dict) and x.get("type") == "series" and x.get("name") in binds
+
+    units: set = set()
+    stack = [(root, "", "")]
+    while stack:
+        node, scope, rec = stack.pop()
+        sid = id_of[id(node)]
+        # A READ of what is already held -- a literal, a memoised column, the
+        # running value itself (``self``, ``self[k]``) -- is one unit per shape per
+        # scope; what a recurrence COMPUTES per step (its spine's operators and
+        # calls) is keyed on the recurrence. The port of ``evaluationUnits``.
+        read = (free_of[id(node)] or is_bind(node)
+                or (isinstance(node, dict) and node.get("type") == "offset"
+                    and is_bind((node.get("args") or [None])[0])))
+        key = (scope, sid) if read else (scope, rec, sid)
+        if key in units:
+            continue
+        units.add(key)
+        if not isinstance(node, dict):
+            continue
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child_scope = "%s>%s" % (scope, sid) if node.get("type") in _SCOPE_TYPES else scope
+        spec = RECURRENCES.get(node.get("name")) if node.get("type") == "call" else None
+        body_at = spec.get("body") if isinstance(spec, Mapping) and isinstance(spec.get("body"), int) else -1
+        for ai, a in enumerate(args):
+            stack.append((a, child_scope, "%s|%s" % (scope, sid) if ai == body_at else rec))
+    return len(units)
 
 
 # --------------------------------------------------------------------------- #
@@ -3573,6 +3708,100 @@ def interpret(ast: Any, bars: List[dict],
               budget: Optional[Mapping[str, Any]] = None,
               scalars: Optional[Mapping[str, Any]] = None,
               opts: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
+    """``_interpret_column`` plus C12s's ROOT AGREEMENT -- the port of
+    ``interpret.js::interpret``. A tree holding a switched recurrence is
+    re-evaluated with every not-computable bar filled by each probe value, and a
+    bar whose answer moves is withheld. Every other tree takes one pass,
+    unchanged. See the JS docstring; the two lanes are held equal by
+    ``tests/fixtures/ast/switched_counter_parity.json``."""
+    column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
+    probe = (opts or {}).get("prefixProbe")
+    probing = isinstance(probe, (int, float)) and not isinstance(probe, bool)
+    if (not probing and (opts or {}).get("switchedAgreement") is not False
+            and reads_switched_state(ast)):
+        real = list(column)
+        # the proof: every bar within reach of an unknown switched bar is withheld
+        dep = switched_dependency_mask(ast, bars, inputs, budget, scalars, opts)
+        for i, d in enumerate(dep or []):
+            if d:
+                real[i] = math.nan
+        # ...and the probe, for a dependence the tree's lookback under-claims
+        for p in probe_values_of(ast):
+            probed = _interpret_column(ast, bars, inputs, budget, scalars,
+                                       dict(opts or {}, prefixProbe=p))
+            for i, (a, b) in enumerate(zip(real, probed)):
+                if not (a == b or (math.isnan(a) and math.isnan(b))):
+                    real[i] = math.nan
+        column = real
+    # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
+    # `indicator_compute`'s alignment rule and spec §4's format, and the same
+    # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
+    return [None if math.isnan(v) else v for v in column]
+
+
+def switched_dependency_mask(tree: Any, bars: List[dict],
+                             inputs: Optional[Mapping[str, Any]] = None,
+                             budget: Optional[Mapping[str, Any]] = None,
+                             scalars: Optional[Mapping[str, Any]] = None,
+                             opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::switchedDependencyMask`` -- the bars of a tree that can read
+    an unknown switched bar (1 = withheld), or ``None`` when it holds none.
+
+    ``max_lookback`` is a tree sum, so a path from the root down to a switched
+    node ``a`` adds at most ``max_lookback(root) - max_lookback(a)`` bars of reach;
+    the root's bar ``i`` is withheld when any bar of ``[i - reach, i]`` is one of
+    ``a``'s unknown bars (where ``a`` answers ``+PREFIX_PROBE`` and
+    ``-PREFIX_PROBE`` differently). A switched node under ``tf`` / ``sym`` reads
+    other bars, so its tree is withheld whole."""
+    n = len(bars)
+    nodes: List[dict] = []
+    crosses = False
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        args = node.get("args")
+        if (node.get("type") == "call" and node.get("name") in RECURRENCES
+                and isinstance(args, list)):
+            seed_at = RECURRENCES[node["name"]].get("seed")
+            if isinstance(seed_at, int) and seed_at < len(args) and switched_seed_of(args[seed_at]):
+                if under:
+                    crosses = True
+                nodes.append(node)
+        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not nodes:
+        return None
+    if crosses:
+        return [1] * n
+    # no ``try`` (``test_ast_budget.py``): a tree ``interpret`` evaluated
+    # measures, and a refusal here reaches the caller as the refusal it is
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    for a in nodes:
+        reach = max(0, root_reach - max_lookback(a))
+        hi = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=PREFIX_PROBE))
+        lo = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, prefixProbe=-PREFIX_PROBE))
+        last = -math.inf
+        for i in range(n):
+            x, y = hi[i], lo[i]
+            if not (x == y or (math.isnan(x) and math.isnan(y))):
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+    return mask
+
+
+def _interpret_column(ast: Any, bars: List[dict],
+                      inputs: Optional[Mapping[str, Any]] = None,
+                      budget: Optional[Mapping[str, Any]] = None,
+                      scalars: Optional[Mapping[str, Any]] = None,
+                      opts: Optional[Mapping[str, Any]] = None) -> List[float]:
     """Evaluate a canonical AST over bars → one aligned column of ``len(bars)``.
 
     :param ast:    a canonical tree (``parse.js::canonicalise``'s output)
@@ -4210,15 +4439,25 @@ def interpret(ast: Any, bars: List[dict],
         # is evaluated ONCE, by the ordinary walker. Only the spine that actually
         # depends on the previous bar is re-evaluated per step — so ``sma`` inside
         # a body costs one pass, not ``bars x warmup`` of them.
-        columns: Dict[int, Any] = {}
+        # ⭐⭐ C19 (2026-09-30) — KEYED ON THE STRUCTURAL ID, the port of the same
+        # change in ``interpret.js``: every spine operator is pointwise and pure,
+        # so two nodes of one shape in one recurrence are one value per step,
+        # whether or not they are one object — and a document loaded from JSON
+        # shares no objects at all. ``node_count`` charges one unit per shape per
+        # recurrence; this is what makes that the work actually done.
+        def sk(x: Any) -> Any:
+            got = _id_of.get(id(x))
+            return ("obj", id(x)) if got is None else got
+
+        columns: Dict[Any, Any] = {}
         planned = set()
 
         def plan(x: Any) -> None:
-            if id(x) in planned:
+            if sk(x) in planned:
                 return
-            planned.add(id(x))
+            planned.add(sk(x))
             if not reads(x):
-                columns[id(x)] = eval_node(x)
+                columns[sk(x)] = eval_node(x)
                 return
             if is_bind(x):
                 return
@@ -4273,7 +4512,7 @@ def interpret(ast: Any, bars: List[dict],
         step_memo: dict = {}
 
         def step(x: Any, j: int, history: list) -> float:
-            got = columns.get(id(x), _MISSING)
+            got = columns.get(sk(x), _MISSING)
             if got is not _MISSING:
                 return got[j] if _is_column(got) else got
             if is_bind(x):
@@ -4282,7 +4521,7 @@ def interpret(ast: Any, bars: List[dict],
             # walks whole columns and cannot see a value that lives in this loop.
             if x.get("type") == "offset" and is_bind((x.get("args") or [None])[0]):
                 return history[int(x.get("value", 0))]
-            held = step_memo.get(id(x), _MISSING)
+            held = step_memo.get(sk(x), _MISSING)
             if held is not _MISSING:
                 return held
             values = [step(child, j, history) for child in x["args"]]
@@ -4290,11 +4529,78 @@ def interpret(ast: Any, bars: List[dict],
                 out_v = apply_op_step(x, values)
             else:
                 out_v = _POINTWISE[x["name"]](*values)
-            step_memo[id(x)] = out_v
+            step_memo[sk(x)] = out_v
             return out_v
 
-        seed = _to_column(eval_node(node["args"][rec["seed"]]), length)
+        # ⭐ C12s -- a switched mark carries the real seed; the switched window
+        # never reads it (it starts from an unknown state).
+        switched_real = switched_seed_of(node["args"][rec["seed"]])
+        seed = _to_column(eval_node(switched_real if switched_real is not None
+                                    else node["args"][rec["seed"]]), length)
+        probe = (opts or {}).get("prefixProbe")
+        fill = (float(probe) if isinstance(probe, (int, float)) and not isinstance(probe, bool)
+                else math.nan)
+
+        if switched_real is not None:
+            if lag["max"] > 0:
+                _refuse("interpret:recurrence",
+                        f"— a switched {node['name']}(…) reads `{bind}[{lag['max']}]`; the "
+                        f"reset rule is proved for a body that reads only its previous value")
+
+            def step_unknown(x: Any, j: int, state: Any) -> Any:
+                """``interpret.js::stepListing`` without the bar-0 reads: every
+                operator answers ``_UNKNOWN`` for an unknown input except a
+                ternary whose condition is known. One evaluation per node."""
+                memo: dict = {}
+
+                def walk(n: Any) -> Any:
+                    key = sk(n)
+                    if key in memo:
+                        return memo[key]
+                    got = columns.get(key, _MISSING)
+                    if got is not _MISSING:
+                        v = got[j] if _is_column(got) else got
+                    elif is_bind(n):
+                        v = state
+                    else:
+                        vals = [walk(c) for c in n["args"]]
+                        if n["type"] == "op" and n.get("name") == _TERNARY_NAME and len(vals) == 3:
+                            # a condition that is not computable (NaN) picks no arm
+                            # a member can rely on: unknown, as in the JS lane
+                            v = (_UNKNOWN if vals[0] is _UNKNOWN or _isnan(vals[0])
+                                 else apply_op_step(n, vals))
+                        elif any(u is _UNKNOWN for u in vals):
+                            v = _UNKNOWN
+                        elif n["type"] == "op":
+                            v = apply_op_step(n, vals)
+                        else:
+                            v = _POINTWISE[n["name"]](*vals)
+                    memo[key] = v
+                    return v
+
+                return walk(x)
+
+            col = _nan_col(length)
+            state: Any = _UNKNOWN
+            last_forget = -math.inf
+            for j in range(length):
+                forgot = step_unknown(body, j, _UNKNOWN)
+                if forgot is not _UNKNOWN:
+                    last_forget = j
+                    v = forgot
+                elif state is _UNKNOWN:
+                    v = _UNKNOWN
+                else:
+                    v = step_unknown(body, j, state)
+                state = v
+                col[j] = v if (v is not _UNKNOWN and last_forget > j - warmup) else fill
+            return col
+
         out = _nan_col(length)
+        # ⭐ C12s -- the probe the root agreement asks with fills the not-computable
+        # prefix, exactly as ``interpret.js``'s ``opts.prefixProbe`` does.
+        for i in range(min(warmup, length)):
+            out[i] = fill
         for i in range(warmup, length):
             # ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no
             # "two bars ago", and the seed is the only defined value in scope -- the
@@ -4311,11 +4617,7 @@ def interpret(ast: Any, bars: List[dict],
             out[i] = history[0]
         return out
 
-    column = _to_column(eval_node(ast), length)
-    # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
-    # `indicator_compute`'s alignment rule and spec §4's format, and the same
-    # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
-    return [None if math.isnan(v) else v for v in column]
+    return _to_column(eval_node(ast), length)
 
 
 def interpret_trees(trees: Any, bars: List[dict], *,

@@ -259,6 +259,12 @@ def _git(args: list[str]) -> str:
                           encoding="utf-8", errors="replace", check=True).stdout.strip()
 
 
+def _git_raw(args: list[str]) -> str:
+    """`_git` WITHOUT the strip: for output whose leading whitespace is data (porcelain status)."""
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", check=True).stdout
+
+
 # ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═# ═
 # ⛔⛔ THE RE-DERIVATION RULE, codified 2026-09-14.
 #
@@ -511,7 +517,11 @@ def gate_read_identical(sha_a: str, sha_b: str, paths=GATE_READ_PATHS, run=None)
 def tree_state() -> tuple[str, list[str]]:
     """(HEAD, dirty paths). Both halves matter: a clean tree at the wrong commit is still wrong."""
     head = _git(["rev-parse", "HEAD"])
-    dirty = [ln for ln in _git(["status", "--porcelain=v1"]).split("\n") if ln.strip()]
+    # ⛔ NOT `_git(...)`: it `.strip()`s the whole output, which eats the LEADING SPACE of the first
+    # porcelain line. " M docs/x.log" became "M docs/x.log", `_real_dirt`'s fixed `e[3:]` slice then
+    # read "ocs/x.log", and a gate's own tracked shard log (modified, listed first) was not exempted:
+    # the L10 gate of 2026-09-30 ran all six shards and was voided as TREE_DRIFT on its own output.
+    dirty = [ln.rstrip("\r") for ln in _git_raw(["status", "--porcelain=v1"]).split("\n") if ln.strip()]
     return head, dirty
 
 

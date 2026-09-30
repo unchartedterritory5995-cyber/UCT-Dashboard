@@ -40,7 +40,9 @@ def test_every_market_is_one_product_of_three_ordered_components():
         assert p is not None, sym
         assert p.components == (f"COT:{sym}:COMM", f"COT:{sym}:LARGE", f"COT:{sym}:SMALL")
         assert p.family == reg.FAM_POSITIONING
-        assert p.pane_layout == "separate" and p.grouped is True
+        assert p.grouped is True
+        assert p.group_title == f"{cot_service.SYMBOL_NAMES[sym]} · COT"
+        assert p.group_note == "Net Contracts"
         assert p.display == f"{cot_service.SYMBOL_NAMES[sym]} COT"
 
 
@@ -61,7 +63,9 @@ def test_the_product_row_says_how_to_lay_itself_out():
     assert row["family"] == "positioning" and row["family_label"] == "Positioning"
     assert row["source_type"] == reg.SRC_COT
     assert row["presentation"] == reg.PRES_HISTOGRAM
-    assert row["pane_layout"] == "separate" and row["grouped"] is True
+    assert "pane_layout" not in row          # one shared pane, like every product
+    assert row["grouped"] is True
+    assert row["group_title"] == "Nasdaq-100 E-Mini · COT" and row["group_note"] == "Net Contracts"
     comps = row["component_rows"]
     assert [c["short"] for c in comps] == ["Commercials", "Large Speculators",
                                            "Small Speculators"]
@@ -72,7 +76,7 @@ def test_the_product_row_says_how_to_lay_itself_out():
 
 def test_aaii_keeps_its_shared_pane_and_independent_components():
     row = disc.product_row(reg.get_product("AAII:SURVEY"))
-    assert row["pane_layout"] == "shared" and row["grouped"] is False
+    assert row["grouped"] is False and row["group_note"] == ""
     assert row["source_type"] == reg.SRC_SURVEY
     assert all("palette" not in c for c in row["component_rows"])
 

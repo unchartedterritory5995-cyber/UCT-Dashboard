@@ -46,6 +46,12 @@ class ThinVolumeRenderer {
       if (w < 2 && slot >= 4) w = 2
       if (w >= slot) w = Math.floor(slot) - 1
       if (w < 1) w = 1
+      // ⭐ AN OPTIONAL HORIZONTAL OFFSET, as a fraction of the slot (2026-09-30). Zero —
+      // the default, and every volume pane — draws exactly as before. Several series
+      // sharing ONE pane (a COT dataset's three participants) each take a different
+      // offset so their columns sit SIDE BY SIDE in the slot instead of on top of one
+      // another; nothing is stacked or summed, every column still grows from zero.
+      const off = Math.round(slot * (Number(options.offsetRatio) || 0))
       for (let i = data.visibleRange.from; i < data.visibleRange.to; i++) {
         const bar = data.bars[i]
         const item = bar?.originalData
@@ -53,7 +59,7 @@ class ThinVolumeRenderer {
         const yMedia = priceConverter(item.value)
         if (yMedia == null) continue
         const y = Math.round(yMedia * vpr)
-        const left = Math.round(bar.x * hpr - w / 2)
+        const left = Math.round(bar.x * hpr - w / 2) + off
         const top = Math.min(y, zeroY)
         const h = Math.max(1, Math.abs(zeroY - y))
         // Per-point color arrives as bar.barColor, NOT originalData.color — LWC's
@@ -101,6 +107,8 @@ export class ThinVolumeSeries {
       // clear gap while the bars carry enough area to match the columns style's
       // visual weight (0.45 read ~"50% opacity" to the owner at daily zoom).
       widthRatio: 0.62,
+      // Column centre offset from the bar's x, as a fraction of the slot (0 = centred).
+      offsetRatio: 0,
     }
   }
 }

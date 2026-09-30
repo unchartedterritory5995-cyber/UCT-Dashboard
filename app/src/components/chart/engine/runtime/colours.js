@@ -126,6 +126,30 @@ export const COLOUR_FNS = Object.freeze({
       r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(a.length > 3 ? a[3] : 0),
     }),
   },
+  // ⭐⭐ C18 — `color.from_gradient(value, bottom, top, bottomColour, topColour)`
+  // COMPILES, and its colour is NEVER invented. TradingView's interpolation curve
+  // is still unmeasured (the note above), so without a caller's probe the run
+  // stops here by name, exactly as before. With one
+  // (`collections.js::probedEmpty` — `budget.unmeasured`) it answers the PROBE
+  // colour and records the hit: the caller runs twice at two probes and serves
+  // only what did not move, so a gradient that feeds nothing but a drawing
+  // (max-pain's heatmap boxes, which the object program holds) costs nothing,
+  // and one that reaches a served value withholds it.
+  'color.from_gradient': {
+    args: ['number', 'number', 'number', 'number', 'number'],
+    returns: 'colour',
+    minArgs: 5,
+    maxArgs: 5,
+    fn: (a, budget) => {
+      const u = budget && budget.unmeasured
+      if (!u) {
+        throw new ColourError('`color.from_gradient` — this engine does not compute it: the '
+          + 'vendor\'s interpolation curve has not been measured, and a colour is never invented')
+      }
+      u.hits.push('color.from_gradient')
+      return u.colourProbe
+    },
+  },
 })
 
 export const COLOUR_NAMES = Object.freeze(Object.keys(COLOUR_FNS))

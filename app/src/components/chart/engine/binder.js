@@ -83,6 +83,7 @@ import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapR
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
+import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
  *  09:30–16:00 ET window `StockChart.sessionBars` applies to the chart's own bars, so
@@ -141,6 +142,19 @@ const SERIES_CTOR = {
   // computes, and then silently does not exist. `engineLwc()` in StockChart must
   // carry the constructor this names, or the same hole opens one file over.
   candlestick: 'CandlestickSeries',
+}
+
+/**
+ * Create the series a pool key names.
+ *
+ * ⭐ `columns` IS THE ONE CUSTOM SERIES: zero-based histogram columns that can be
+ * narrowed and offset (`thinVolumeSeries.js`, the same class the volume pane's
+ * "Histogram" style already draws with). Every other key is a built-in constructor
+ * from `SERIES_CTOR`, exactly as before.
+ */
+function addSeriesFor(chart, LWC, key, options, paneIndex) {
+  if (key === 'columns') return chart.addCustomSeries(new ThinVolumeSeries(), options, paneIndex)
+  return chart.addSeries(LWC[SERIES_CTOR[key]], options, paneIndex)
 }
 
 /**
@@ -1517,8 +1531,7 @@ export function createBinder({ chart, LWC }) {
       let guideHandles = (b.from && b.from.guideHandles) || []
 
       if (!series) {
-        const ctor = LWC[SERIES_CTOR[b.poolKey]]
-        const created = attempt(() => chart.addSeries(ctor, options, paneIndex))
+        const created = attempt(() => addSeriesFor(chart, LWC, b.poolKey, options, paneIndex))
         if (!created.ok || !created.value) continue
         series = created.value
         guideHandles = []
@@ -1866,7 +1879,6 @@ export function createBinder({ chart, LWC }) {
       const runData = []
       if (wanted.length) {
         const ropts = runSeriesOptions(p.options)
-        const ctor = LWC[SERIES_CTOR[b.poolKey]]
         for (let k = 0; k < wanted.length; k++) {
           let rs = carried[k] || null
           const same = !!rs && carriedData[k] === wanted[k]
@@ -1874,7 +1886,7 @@ export function createBinder({ chart, LWC }) {
             if (b.from.paneIndex !== paneIndex) attempt(() => rs.moveToPane(paneIndex))
             if (!sameOptions(b.from.runOptions, ropts)) attempt(() => rs.applyOptions(ropts))
           } else {
-            const made = attempt(() => chart.addSeries(ctor, ropts, paneIndex))
+            const made = attempt(() => addSeriesFor(chart, LWC, b.poolKey, ropts, paneIndex))
             rs = made.ok ? made.value : null
           }
           if (!rs) continue

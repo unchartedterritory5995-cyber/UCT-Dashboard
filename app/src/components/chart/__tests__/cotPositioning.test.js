@@ -1,13 +1,15 @@
-// COT POSITIONING → CHART PANES.
+// COT POSITIONING → ONE CHART PANE.
 //
-// ⭐ ONE ADD, ONE LOGICAL INDICATOR, THREE ORDINARY PANES. A COT dataset arrives from
-// the Market Indicators catalogue as a PRODUCT row (`family: 'positioning'`,
-// `pane_layout: 'separate'`, `grouped: true`). These cases hold the contract from the
-// catalogue row to the stored blob:
+// ⭐ ONE ADD, ONE LOGICAL INDICATOR, ONE PANE, THREE HISTOGRAMS. A COT dataset arrives
+// from the Market Indicators catalogue as a PRODUCT row (`family: 'positioning'`,
+// `grouped: true`, a `group_title`). These cases hold the contract from the catalogue
+// row to the stored blob:
 //
 //   · it files under the Positioning tab and is found by the words a member types
-//   · adding it creates exactly three `dataSeries` instances, in pane order, each in
-//     a pane of its own, each a HISTOGRAM in its COT category colour
+//   · adding it creates exactly three `dataSeries` instances: the first hosts ONE
+//     pane and the other two are guests on its scale, each a HISTOGRAM in its COT
+//     category colour, standing SIDE BY SIDE in the slot (never stacked)
+//   · the pane is titled once by the group; values read as whole contracts
 //   · the three are ONE indicator: removing or hiding any part acts on all three
 //   · the blob survives `mergeChartSettings` and never restores twice
 //
@@ -18,14 +20,20 @@ import { describe, it, expect } from 'vitest'
 import {
   marketIndicatorResults, createFromResult, tabOf, resultsForTab, LIBRARY_TABS,
   FAMILY_DEFAULT_PLOT_STYLE, productResult, glyphFamilyOf, symbolLibraryRow,
-  CREATE_VIA, PRODUCT_LAYOUT,
+  CREATE_VIA, sideBySideBars, GROUP_BARS_SPAN, GROUP_PANE_HEIGHT,
 } from '../discoveryCatalog'
+import { paneMap } from '../chartDataMap'
 import {
   removeInstance, setInstanceHidden, duplicateInstance, findInstance, groupMemberIds,
   addInstance,
 } from '../engine/instanceControls'
 import { resolveDisplayTarget, paneOwnerOf, paneOwnKeys } from '../engine/displayTarget'
-import { resolvePlotStyle } from '../engine/presentation'
+import { resolvePlotStyle, presentedPlot, histogramBarOf } from '../engine/presentation'
+import { poolKey, seriesOptionsForPlot } from '../engine/pool'
+import { paneGroupOf } from '../engine/paneReadoutPlacement'
+import { fundamentalFormatOfInstance, formatFundamentalValue } from '../engine/fundamentalFormat'
+import { __setMarketIndicatorsForTest } from '../../../hooks/useMarketIndicators'
+import { parsePaneOfTarget } from '../engine/sourceRef'
 import { normalizeInstances } from '../engine/instances'
 import { mergeChartSettings } from '../chartDefaults'
 import { matches } from '../IndicatorLibraryDialog'
@@ -37,7 +45,8 @@ const cotRow = (sym, name, extra = {}) => ({
   display: `${name} COT`, short: `${sym} COT`,
   family: 'positioning', family_label: 'Positioning',
   source_type: 'cot', frequency: 'weekly', unit: 'contracts', domain: 'signed',
-  presentation: 'histogram', pane_layout: 'separate', grouped: true,
+  presentation: 'histogram', grouped: true,
+  group_title: `${name} · COT`, group_note: 'Net Contracts',
   description: `CFTC Commitments of Traders for ${name} futures.`,
   components: [`COT:${sym}:COMM`, `COT:${sym}:LARGE`, `COT:${sym}:SMALL`],
   component_rows: [
@@ -92,8 +101,8 @@ describe('discovery — the Positioning category', () => {
     expect(res.name).toBe('Nasdaq-100 E-Mini COT')
     expect(res.category).toBe('Positioning')
     expect(res.create.via).toBe(CREATE_VIA.PRODUCT)
-    expect(res.create.layout).toBe(PRODUCT_LAYOUT.PANES)
-    expect(res.create.group).toEqual({ name: 'Nasdaq-100 E-Mini COT' })
+    expect(res.create.layout).toBeUndefined()
+    expect(res.create.group).toEqual({ name: 'Nasdaq-100 E-Mini · COT', note: 'Net Contracts' })
   })
 
   it('every COT dataset lands in Positioning and nowhere else', () => {
@@ -134,15 +143,82 @@ describe('adding one COT dataset', () => {
       ['Commercials', 'Large Speculators', 'Small Speculators'])
   })
 
-  it('each part is a pane of its OWN — three panes, not one shared', () => {
+  it('⭐ ONE PANE: the first part hosts it and the other two are its guests', () => {
     const cs = addCot()
-    const parts = cotParts(cs)
-    for (const p of parts) {
-      expect(resolveDisplayTarget(p, cs)).toBe('pane')
-      expect(paneOwnerOf(p, cs)).toBe(p.instanceId)
+    const [host, ...guests] = cotParts(cs)
+    expect(resolveDisplayTarget(host, cs)).toBe('pane')
+    expect(paneOwnerOf(host, cs)).toBe(host.instanceId)
+    for (const g of guests) {
+      expect(parsePaneOfTarget(g.placement.target)).toBe(host.instanceId)
+      expect(paneOwnerOf(g, cs)).toBe(host.instanceId)
     }
-    const own = paneOwnKeys(cs.indicatorInstances, cs)
-    expect(parts.every((p) => own.has(p.instanceId))).toBe(true)
+    expect([...paneOwnKeys(cs.indicatorInstances, cs)]).toEqual([host.instanceId])
+  })
+
+  it('⭐ THE THREE STAND SIDE BY SIDE — equal shares of the slot, never stacked', () => {
+    const bars = cotParts(addCot()).map((p) => p.presentation.bar)
+    expect(bars).toEqual(sideBySideBars(3))
+    const w = GROUP_BARS_SPAN / 3
+    for (const b of bars) expect(b.width).toBeCloseTo(w, 4)
+    expect(bars.map((b) => b.offset)).toEqual([-0.28, 0, 0.28])
+    // Each column stays inside its own slot, and no two overlap.
+    for (const b of bars) expect(Math.abs(b.offset) + b.width / 2).toBeLessThanOrEqual(0.5)
+    for (let i = 1; i < bars.length; i++) {
+      expect(bars[i].offset - bars[i - 1].offset).toBeGreaterThanOrEqual(bars[i].width - 1e-9)
+    }
+  })
+
+  it('draws as zero-based COLUMNS carrying that geometry on ONE shared scale', () => {
+    const def = registry.getDefinition('dataSeries')
+    for (const p of cotParts(addCot())) {
+      const plot = presentedPlot(def.plots[0], p)
+      expect(plot.style).toBe('histogram')
+      expect(poolKey(plot)).toBe('columns')
+      const opts = seriesOptionsForPlot(plot, { scaleId: 'right' })
+      expect(opts.widthRatio).toBe(p.presentation.bar.width)
+      expect(opts.offsetRatio).toBe(p.presentation.bar.offset)
+      expect(opts.priceScaleId).toBe('right')
+    }
+  })
+
+  it('the pane starts taller than a lone series — a DEFAULT on the host only', () => {
+    const [host, ...guests] = cotParts(addCot())
+    expect(host.presentation.paneHeight).toBe(GROUP_PANE_HEIGHT)
+    for (const g of guests) expect(g.presentation.paneHeight).toBeUndefined()
+    const cs = addCot()
+    expect(cs.paneSizes).toBeUndefined()           // member intent is never written
+  })
+
+  it('the Inspector names the pane by the group, not by its host participant', () => {
+    const cs = addCot()
+    const [host] = cotParts(cs)
+    const rows = cotParts(cs).map((p) => ({ id: p.instanceId, instanceId: p.instanceId,
+      defId: 'dataSeries', label: p.display.compact, engineOwned: true }))
+    const groups = paneMap(rows, cs, (id) => registry.getDefinition(id), {})
+    const pane = groups.find((g) => g.id === host.instanceId)
+    expect(pane.name).toBe('Nasdaq-100 E-Mini · COT')
+    expect(pane.rows.map((r) => r.instanceId)).toEqual(cotParts(cs).map((p) => p.instanceId))
+    expect(groups.filter((g) => g.kind === 'pane')).toHaveLength(1)
+  })
+
+  it('all three tag their latest value on the shared axis — not only the host', () => {
+    const def = registry.getDefinition('dataSeries')
+    for (const p of cotParts(addCot())) {
+      // Placement answers `lastValue: false` for a guest; the participant's own answer wins.
+      const opts = seriesOptionsForPlot(presentedPlot(def.plots[0], p), { scaleId: 'right', lastValue: false })
+      expect(opts.lastValueVisible).toBe(true)
+    }
+    const plain = { instanceId: 'x', defId: 'dataSeries', inputs: {}, presentation: { plotStyle: 'histogram' } }
+    expect(seriesOptionsForPlot(presentedPlot(def.plots[0], plain), { scaleId: 'right', lastValue: false })
+      .lastValueVisible).toBe(false)
+  })
+
+  it('a histogram WITHOUT bar geometry is still the plain HistogramSeries', () => {
+    const def = registry.getDefinition('dataSeries')
+    const plain = { instanceId: 'x', defId: 'dataSeries', inputs: {}, presentation: { plotStyle: 'histogram' } }
+    expect(poolKey(presentedPlot(def.plots[0], plain))).toBe('histogram')
+    // Geometry that would push a column out of its own slot is no geometry at all.
+    expect(histogramBarOf({ presentation: { bar: { width: 0.9, offset: 0.3 } } })).toBeNull()
   })
 
   it('⭐ ALL THREE DEFAULT TO HISTOGRAM', () => {
@@ -174,12 +250,36 @@ describe('adding one COT dataset', () => {
       SERIES_COLORS.commercials, SERIES_COLORS.largeSpecs, SERIES_COLORS.smallSpecs])
   })
 
-  it('the three share ONE group, named for the dataset', () => {
+  it('the three share ONE group, titled for the dataset', () => {
     const parts = cotParts(addCot())
     const ids = new Set(parts.map((p) => p.group?.id))
     expect(ids.size).toBe(1)
     expect([...ids][0]).toBe(`grp:${parts[0].instanceId}`)
-    expect(parts.every((p) => p.group.name === 'Nasdaq-100 E-Mini COT')).toBe(true)
+    expect(parts.every((p) => p.group.name === 'Nasdaq-100 E-Mini · COT'
+      && p.group.note === 'Net Contracts')).toBe(true)
+  })
+
+  it('the pane legend is titled once by the group — only when every row is a member', () => {
+    const cs = addCot(addInstance({ indicatorInstances: [] }, 'rsi', registry))
+    const chips = cotParts(cs).map((p) => ({ instanceId: p.instanceId }))
+    expect(paneGroupOf(chips, cs)).toMatchObject({ name: 'Nasdaq-100 E-Mini · COT', note: 'Net Contracts' })
+    const rsi = live(cs).find((i) => i.defId === 'rsi')
+    expect(paneGroupOf([...chips, { instanceId: rsi.instanceId }], cs)).toBeNull()
+    expect(paneGroupOf([{ instanceId: rsi.instanceId }], cs)).toBeNull()
+  })
+
+  it('values read as whole contracts — 62,340 — through the catalogue unit', () => {
+    __setMarketIndicatorsForTest({ rows: [NQ], components: NQ.components.map((id) => ({
+      id, symbol: id, unit: 'contracts', source_type: 'cot', presentation: 'histogram' })) })
+    try {
+      const [first] = cotParts(addCot())
+      const fmt = fundamentalFormatOfInstance(first, (id) => registry.getDefinition(id), [])
+      expect(fmt).toBe('num0')
+      expect(formatFundamentalValue(-62340, fmt)).toBe('-62,340')
+      expect(formatFundamentalValue(52346, fmt)).toBe('52,346')
+    } finally {
+      __setMarketIndicatorsForTest(null)
+    }
   })
 
   it('an explicit member style still wins after creation', () => {
@@ -235,6 +335,8 @@ describe('one logical indicator', () => {
     const parts = cotParts(twice)
     expect(parts).toHaveLength(6)
     expect(new Set(parts.map((p) => p.group.id)).size).toBe(2)
+    // …each with ONE pane of its own: two hosts, never one merged pane.
+    expect(paneOwnKeys(twice.indicatorInstances, twice).size).toBe(2)
     const after = removeInstance(twice, parts[4].instanceId, registry)
     expect(cotParts(after)).toHaveLength(3)
   })

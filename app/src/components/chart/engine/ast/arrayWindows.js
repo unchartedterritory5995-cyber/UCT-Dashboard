@@ -42,7 +42,7 @@ import { splitMethodName } from './ufcs.js'
 const ADD = new Set(['push', 'unshift'])
 const EVICT = new Set(['pop', 'shift'])
 /** The reads a window answers. Everything else under `array.` keeps its refusal. */
-export const WINDOW_READ_MEMBERS = Object.freeze(new Set(['size', 'get', 'first', 'last']))
+export const WINDOW_READ_MEMBERS = Object.freeze(new Set(['size', 'get', 'first', 'last', 'max', 'min', 'sum', 'avg', 'indexof']))
 /** A window wider than this is refused: its reads are unrolled per slot. */
 export const MAX_WINDOW_CAP = 64
 

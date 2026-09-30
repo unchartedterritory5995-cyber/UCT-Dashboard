@@ -59,6 +59,7 @@
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+import { RUNTIME_AT_CALL } from './parse.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -155,6 +156,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'from', 'to',                                // the `loop` bounds
   'step',                                      // …and its `by` step
   'cond',                                      // C16: a `latch`'s condition
+  'withhold',                                  // C11c: unmeasured on this bar
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -215,6 +217,63 @@ export const DEFAULT_OBJECT_LIMITS = Object.freeze({
 /** A collection's own ceiling. Bounded BY CONSTRUCTION — the wave forbids "a
  *  general arbitrary Pine heap", and an unbounded object array is one. */
 export const MAX_COLLECTION_CAP = 500
+
+/** ⭐⭐ C18 — A TREE THE PER-BAR RUNTIME LANE ANSWERS, READ WHERE ITS DRAWING STANDS.
+ *
+ *  Some values a drawing needs are computed IMPERATIVELY — a `while` that converges,
+ *  arrays filled and scanned by helpers — and the columnar model has no node for
+ *  "what the loop left behind". `pine.js` then writes, in place of the tree it could
+ *  not build, a placeholder `__uct_runtime_at(k)`, and the program carries
+ *  `runtime: { v, source, at }`: the script itself and, per `k`, the statement the
+ *  drawing stands at (`line`, `column` of its first token) and the raw parse node
+ *  of the value (`null` = the statement's REACHED signal, which carries every `if`
+ *  around it). `objectColumns.js` runs the script once on the chart's bars through
+ *  the runtime lane (`runtimeColumns.js::runtimeObjectValues`) and reads each
+ *  placeholder's column from it — the ONE evaluator, not a second.
+ *
+ *  ⛔ SERVED ONLY WHERE EXACT, and otherwise the placeholder reads UNKNOWN, so C17
+ *  withholds what reads it: see `runtimeObjectValues` for the rules. */
+// ⭐ C19 — declared in `parse.js` (the budget's unit count reads it too), re-exported
+// here for every existing importer. One authority, never restated.
+export { RUNTIME_AT_CALL }
+export const RUNTIME_PROGRAM_VERSION = 1
+/** The `k` of a runtime placeholder tree, or -1. */
+export const runtimeAtIndex = (tree) => {
+  if (!tree || typeof tree !== 'object' || tree.type !== 'call' || tree.name !== RUNTIME_AT_CALL) return -1
+  const a = Array.isArray(tree.args) ? tree.args[0] : null
+  return a && a.type === 'num' && Number.isInteger(a.value) && a.value >= 0 ? a.value : -1
+}
+/** ⛔ A stored runtime program is bounded like everything else in a document. */
+export const MAX_RUNTIME_SOURCE = 200000
+export const MAX_RUNTIME_VALUES = 512
+
+/** ⭐⭐ C20 — THE KINDS A RUNTIME VALUE MAY BE ASKED FOR (`runtime.at[k].kind`).
+ *  Absent = a number (C18). `text` is a string the run computes (a label chosen
+ *  among literals, a concatenation of strings) — ⛔ never a number the run would
+ *  format: every number a member reads is formatted by the object runtime
+ *  (`{t:'num', fmt}`), the one formatter vendor-measured for object text. `colour`
+ *  is a colour the run computes, served only where the run left it opaque
+ *  (`runtimeColumns.js`; the transparency is `{c:'new'}`'s). */
+export const RUNTIME_VALUE_KINDS = Object.freeze(['text', 'colour'])
+
+/** ⭐ C20 — the counter id of a `while` loop the runtime lane reads per pass,
+ *  from the loop's own position (`runtime.at[k].loop`). One authority: the object
+ *  program's loop op and the reader's per-pass columns both ask this. */
+export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop && loop.column)}`
+
+/** ⭐⭐ C20 — A DRAWING COLOUR WITH ITS TRANSPARENCY SET, as the object lane
+ *  writes it: `#RRGGBB` for an opaque colour, `#RRGGBBAA` otherwise, alpha
+ *  `round((1 − t/100) × 255)`. ONE formula for a colour the program folds at
+ *  translate time (`pine.js::staticObjectColourOf`) and one the object runtime
+ *  sets per bar (`{c:'new'}`), so the two cannot disagree. `color.new` SETS the
+ *  transparency — a base's own alpha is replaced, never stacked. */
+export function withObjectTransparency(hex, t) {
+  const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
+  if (!base) return null
+  if (!(t > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
+}
 
 /** ⭐⭐ HOW FAR BACK A HANDLE'S HISTORY MAY BE READ — `line.delete(l[1])`.
  *
@@ -453,6 +512,15 @@ function assertColorNode(v, where, depth = 0) {
       assertColorNode(v.then, `${where}.then`, depth + 1)
       assertColorNode(v.else, `${where}.else`, depth + 1)
       return
+    // ⭐⭐ C20 — a colour the RUNTIME lane computed (a packed integer, served only
+    // opaque), and `color.new(c, t)` with its transparency set per bar.
+    case 'rt':
+      assertValueRef(v.v, `${where}.v`)
+      return
+    case 'new':
+      assertColorNode(v.of, `${where}.of`, depth + 1)
+      assertValueRef(v.t, `${where}.t`)
+      return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
   }
@@ -676,6 +744,37 @@ function* walkOps(ops, prefix = 'objects.ops') {
   }
 }
 
+/** ⭐ C18 — the shape of `program.runtime` (see `RUNTIME_AT_CALL`). */
+function assertRuntimeProgram(rt) {
+  if (!isObj(rt)) throw new Error('objects.runtime: expected an object')
+  if (rt.v !== RUNTIME_PROGRAM_VERSION) {
+    throw new Error(`objects.runtime: v must be ${RUNTIME_PROGRAM_VERSION}, got ${JSON.stringify(rt.v)}`)
+  }
+  if (typeof rt.source !== 'string' || !rt.source || rt.source.length > MAX_RUNTIME_SOURCE) {
+    throw new Error(`objects.runtime: source must be the script, 1..${MAX_RUNTIME_SOURCE} characters`)
+  }
+  if (!Array.isArray(rt.at) || !rt.at.length || rt.at.length > MAX_RUNTIME_VALUES) {
+    throw new Error(`objects.runtime: at must list 1..${MAX_RUNTIME_VALUES} values`)
+  }
+  rt.at.forEach((a, k) => {
+    if (!isObj(a) || !Number.isInteger(a.line) || a.line < 1 || !Number.isInteger(a.column) || a.column < 0) {
+      throw new Error(`objects.runtime.at[${k}]: needs a whole line and column`)
+    }
+    if (a.node !== null && !isObj(a.node)) throw new Error(`objects.runtime.at[${k}]: node is a parse node or null`)
+    // ⭐ C20 — the kind asked for, the loop read per pass, a loop's pass count.
+    if (a.kind !== undefined && !RUNTIME_VALUE_KINDS.includes(a.kind)) {
+      throw new Error(`objects.runtime.at[${k}]: kind is one of [${RUNTIME_VALUE_KINDS}], got ${JSON.stringify(a.kind)}`)
+    }
+    if (a.loop !== undefined && (!isObj(a.loop) || !Number.isInteger(a.loop.line) || a.loop.line < 1
+        || !Number.isInteger(a.loop.column) || a.loop.column < 0)) {
+      throw new Error(`objects.runtime.at[${k}]: loop names the loop's whole line and column`)
+    }
+    if (a.passes !== undefined && (a.passes !== true || a.node !== null || a.loop !== undefined || a.kind !== undefined)) {
+      throw new Error(`objects.runtime.at[${k}]: a pass count is {line, column, node: null, passes: true}`)
+    }
+  })
+}
+
 export function assertObjectProgram(program) {
   if (!isObj(program)) {
     throw new Error(`objects: expected an object program, got ${program === null ? 'null' : typeof program}`)
@@ -705,6 +804,7 @@ export function assertObjectProgram(program) {
     colls.set(c.id, c)
   }
   const nums = new Set((program.nums || []).map((n) => n.id))
+  if (program.runtime !== undefined) assertRuntimeProgram(program.runtime)
 
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
@@ -722,6 +822,9 @@ export function assertObjectProgram(program) {
     if (op.when !== null && op.when !== undefined) {
       assertValueRef(op.when, `${where}.when`, live)
     }
+    // ⭐ C11c — a step's WITHHOLD is a plain graph value: true on a bar a window
+    // reduction it reads is unmeasured (`pine.js` `Resolver.windowAmbiguity`).
+    if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
     /** ⭐ C14 — a create/update's own coordinates and text may read object
      *  state only OUTSIDE a loop body (a scalar is written once per bar). */
     const opLive = live.inLoop ? null : live
@@ -918,6 +1021,8 @@ export function graphNodesReferenced(program) {
   const walkColor = (c) => {
     if (!isObj(c)) return
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
+    if (c.c === 'rt') walkValue(c.v)
+    if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
   }
   const walkValue = (v) => {
     if (!isObj(v)) return
@@ -966,6 +1071,8 @@ export function treeRefsOfOp(op) {
   const walkColor = (c) => {
     if (!isObj(c)) return
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
+    if (c.c === 'rt') walkValue(c.v)
+    if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
   }
   function walkValue(v) {
     if (!isObj(v)) return
@@ -1057,6 +1164,8 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     if (c.c === 'if') {
       return { ...c, cond: bindValue(c.cond), then: bindColor(c.then), else: bindColor(c.else) }
     }
+    if (c.c === 'rt') return { ...c, v: bindValue(c.v) }
+    if (c.c === 'new') return { ...c, of: bindColor(c.of), t: bindValue(c.t) }
     return c
   }
   function bindValue(v) {

@@ -1,0 +1,39 @@
+{"surface": "list", "width": 390, "touch": true, "shot": "drr-list-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["All notes"]}
+{"surface": "table", "width": 390, "touch": true, "shot": "drr-table-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 5, "headings": ["All notes"]}
+{"surface": "board", "width": 390, "touch": true, "shot": "drr-board-390.png", "overflow_px": 0, "targets_lt_24": 2, "targets_lt_44": 3, "headings": ["All notes"]}
+{"surface": "calendar", "width": 390, "touch": true, "shot": "drr-calendar-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["All notes"]}
+{"surface": "graph", "width": 390, "touch": true, "shot": "drr-graph-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["All notes"]}
+{"surface": "timeline", "width": 390, "touch": true, "shot": "drr-timeline-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["All notes"]}
+{"surface": "tasks", "width": 390, "touch": true, "shot": "drr-tasks-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["All notes", "Tasks"]}
+{"surface": "editor", "width": 390, "touch": true, "shot": "drr-editor-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 5, "headings": ["Alpha thesis NVDA"]}
+{"surface": "templates", "width": 390, "touch": true, "shot": "drr-templates-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 6, "headings": ["All notes"]}
+{"surface": "search-sidebar", "width": 390, "touch": true, "shot": "drr-search-sidebar-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 3, "headings": ["All notes"]}
+{"surface": "search-palette", "width": 390, "touch": true, "shot": "drr-search-palette-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 3, "headings": ["All notes"]}
+{"surface": "share-publish", "width": 390, "touch": true, "shot": "drr-share-publish-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 4, "headings": ["Alpha thesis NVDA"]}
+{"surface": "phone-cold-note-url", "width": 390, "touch": true, "shot": "drr-phone-cold-note-url-390.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 5, "headings": ["Alpha thesis NVDA"]}
+{"surface": "list", "width": 820, "touch": true, "shot": "drr-list-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 7, "headings": ["Trade Journal", "All notes"]}
+{"surface": "table", "width": 820, "touch": true, "shot": "drr-table-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 16, "headings": ["Trade Journal", "All notes"]}
+{"surface": "board", "width": 820, "touch": true, "shot": "drr-board-820.png", "overflow_px": 0, "targets_lt_24": 2, "targets_lt_44": 3, "headings": ["Trade Journal", "All notes"]}
+{"surface": "calendar", "width": 820, "touch": true, "shot": "drr-calendar-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["Trade Journal", "All notes"]}
+{"surface": "graph", "width": 820, "touch": true, "shot": "drr-graph-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["Trade Journal", "All notes"]}
+{"surface": "timeline", "width": 820, "touch": true, "shot": "drr-timeline-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["Trade Journal", "All notes"]}
+{"surface": "tasks", "width": 820, "touch": true, "shot": "drr-tasks-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 1, "headings": ["Trade Journal", "All notes", "Tasks"]}
+{"surface": "editor", "width": 820, "touch": true, "shot": "drr-editor-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 3, "headings": ["Trade Journal", "Alpha thesis NVDA"]}
+{"surface": "templates", "width": 820, "touch": true, "shot": "drr-templates-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 7, "headings": ["Trade Journal", "All notes"]}
+{"surface": "search-sidebar", "width": 820, "touch": true, "shot": "drr-search-sidebar-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 9, "headings": ["Trade Journal", "All notes"]}
+{"surface": "search-palette", "width": 820, "touch": true, "shot": "drr-search-palette-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 8, "headings": ["Trade Journal", "All notes"]}
+{"surface": "share-publish", "width": 820, "touch": true, "shot": "drr-share-publish-820.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": 2, "headings": ["Trade Journal", "Alpha thesis NVDA"]}
+{"surface": "list", "width": 1200, "touch": false, "shot": "drr-list-1200.png", "overflow_px": 0, "targets_lt_24": 6, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "table", "width": 1200, "touch": false, "shot": "drr-table-1200.png", "overflow_px": 0, "targets_lt_24": 7, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "board", "width": 1200, "touch": false, "shot": "drr-board-1200.png", "overflow_px": 0, "targets_lt_24": 3, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "calendar", "width": 1200, "touch": false, "shot": "drr-calendar-1200.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "graph", "width": 1200, "touch": false, "shot": "drr-graph-1200.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "timeline", "width": 1200, "touch": false, "shot": "drr-timeline-1200.png", "overflow_px": 0, "targets_lt_24": 8, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "tasks", "width": 1200, "touch": false, "shot": "drr-tasks-1200.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": null, "headings": ["Trade Journal", "All notes", "Tasks"]}
+{"surface": "editor", "width": 1200, "touch": false, "shot": "drr-editor-1200.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": null, "headings": ["Trade Journal", "Alpha thesis NVDA"]}
+{"surface": "templates", "width": 1200, "touch": false, "shot": "drr-templates-1200.png", "overflow_px": 0, "targets_lt_24": 12, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "search-sidebar", "width": 1200, "touch": false, "shot": "drr-search-sidebar-1200.png", "overflow_px": 0, "targets_lt_24": 6, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "search-palette", "width": 1200, "touch": false, "shot": "drr-search-palette-1200.png", "overflow_px": 0, "targets_lt_24": 6, "targets_lt_44": null, "headings": ["Trade Journal", "All notes"]}
+{"surface": "share-publish", "width": 1200, "touch": false, "shot": "drr-share-publish-1200.png", "overflow_px": 0, "targets_lt_24": 0, "targets_lt_44": null, "headings": ["Trade Journal", "Alpha thesis NVDA"]}
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; stop: graceful to the shutdown checkpoint, then forced exit; log: C:\Users\Patrick\uct-worktrees\notebook-w10-drr\docs\plans\joystick\sandbox-runs\2026-09-29T22-01-52.md
+record: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\drr-record.json

@@ -183,6 +183,12 @@ export function collectObjectOps(stmts, h) {
     // carry (inside a loop it cannot run, or a method it does not read). The
     // converter treats each as diverged from TradingView's (`divergedColls`).
     lostColls: [],
+    // ⭐ C21 — beside each lost collection, WHY (`<what>@<line>`), same index.
+    lostCollsWhy: [],
+  }
+  const loseColl = (name, why, tok) => {
+    diagnostics.lostColls.push(name)
+    diagnostics.lostCollsWhy.push(`${why}@${tok && tok.line !== undefined ? tok.line : '?'}`)
   }
   let siteSeq = 0
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
@@ -248,6 +254,73 @@ export function collectObjectOps(stmts, h) {
   const scalars = getterScalars(stmts, h)
   let inlineSeq = 0
   let inlineDepth = 0
+  /** How many loops (of any kind) the walk is inside right now. */
+  let loopNest = 0
+  /** ⭐ C20 — the `while` whose body is being read for the runtime lane, or null. */
+  let rtLoop = null
+
+  /**
+   * ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS.
+   *
+   * A `while` cannot be a counted `loop` op the object runtime runs on its own —
+   * its test is re-read every pass, which only an interpreter can do. But the
+   * RUNTIME lane is one: it runs the loop exactly, and (C18) reads a drawing's
+   * values where the drawing stands. So a `while` whose body only MAKES drawings
+   * (`line.new(…)` / `label.new(…)` / `box.new(…)` as statements) becomes a loop
+   * op whose passes, guards and values all come from ONE run of the script
+   * (`pine.js`, `rtLoop`) — in Pine's creation order, pass by pass.
+   *
+   * ⛔ ONLY WHEN ALL OF IT CAN BE CARRIED, otherwise nothing changes: the member
+   * door asked (`h.rtLoops`), the loop runs on the last bar only (an enclosing
+   * `barstate.islast`, `h.isLastBarGuard` — the converter's own test), it is not
+   * inside another loop or an inlined helper, and its body holds nothing but
+   * statement creates — no handle kept, no delete, no list edit, no nested loop
+   * that draws, no refused helper. A body that holds anything else is read again
+   * the old way, with every counter and diagnostic rolled back first, so the
+   * legacy refusal (`loopBlocked`) is exactly what it always was.
+   */
+  const rtLoopTry = (st, t, guards, inLoop, bodyScope) => {
+    if (!h.rtLoops || inLoop || loopIds.length || loopNest || inlineDepth || rtLoop) return false
+    if (typeof h.isLastBarGuard !== 'function'
+        || !guards.some((g) => !g.negate && h.isLastBarGuard(g.toks))) return false
+    const marks = Object.fromEntries(Object.entries(diagnostics)
+      .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.length]))
+    const inlinedBefore = diagnostics.inlinedCalls
+    const seq = siteSeq
+    const iseq = inlineSeq
+    const declsBefore = new Map(decls)
+    const outer = ops
+    const body = []
+    ops = body
+    rtLoop = { nest: loopNest + 1 }
+    loopNest += 1
+    try {
+      walk(st.sub || [], guards, true, bodyScope)
+    } finally {
+      loopNest -= 1
+      rtLoop = null
+      ops = outer
+    }
+    const clean = Object.entries(marks).every(([k, n]) => diagnostics[k].length === n)
+      && diagnostics.inlinedCalls === inlinedBefore
+      && body.length > 0 && body.every((o) => o.k === 'create' && !o.into && !o.once)
+    if (clean) {
+      const loop = { line: t[0].line, column: t[0].column }
+      for (const o of body) o.rtLoop = loop
+      ops.push({
+        k: 'loop', rt: true, rtLoop: loop, body, guards, locals: bodyScope,
+        loopIds: [], at: t[0], line: st.header[0].line,
+      })
+      return true
+    }
+    for (const [k, n] of Object.entries(marks)) diagnostics[k].length = n
+    diagnostics.inlinedCalls = inlinedBefore
+    siteSeq = seq
+    inlineSeq = iseq
+    decls.clear()
+    for (const [k, v] of declsBefore) decls.set(k, v)
+    return false
+  }
   /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
    *
    *  ⭐ AND WHAT ITS BODY WOULD HAVE REMOVED (`bodyEffects`), because a refused
@@ -401,8 +474,14 @@ export function collectObjectOps(stmts, h) {
               refuseCall('var-init', rh.fn, st)
               continue
             }
+            // ⭐⭐ C11c — `[Line, A, B] = drawLL(…)`: a TUPLE of the handles the
+            // body returns, one name each (see the tuple arm in `inlineCall`).
+            const tupleClose = h.isPunct(t[0], '[') ? t.findIndex((x) => h.isPunct(x, ']')) : -1
+            const tupleNames = tupleClose > 0 && asIdx > tupleClose
+              ? t.slice(1, tupleClose).filter((x) => x.kind === 'ident').map((x) => String(x.value))
+              : null
             const intoTok = reIdx >= 0 ? t[asIdx - 1] : h.boundName(t, asIdx)
-            const into = intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null
+            const into = tupleNames || (intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null)
             inlineAt(rh, rhs, 1, into, guards, inLoop, st, localScope)
             continue
           }
@@ -527,7 +606,13 @@ export function collectObjectOps(stmts, h) {
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
         if (!head) {
-          walk(st.sub || [], guards, true, bodyScope)
+          // ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS. See `rtLoopTry`.
+          if (word === 'while' && rtLoopTry(st, t, guards, inLoop, bodyScope)) {
+            if (loopRe.length) localScope = [...localScope, ...loopRe]
+            continue
+          }
+          loopNest += 1
+          try { walk(st.sub || [], guards, true, bodyScope) } finally { loopNest -= 1 }
           if (loopRe.length) localScope = [...localScope, ...loopRe]
           continue
         }
@@ -535,7 +620,8 @@ export function collectObjectOps(stmts, h) {
         const body = []
         ops = body
         loopIds.push(head.id)
-        walk(st.sub || [], guards, inLoop, bodyScope)
+        loopNest += 1
+        try { walk(st.sub || [], guards, inLoop, bodyScope) } finally { loopNest -= 1 }
         loopIds.pop()
         ops = outer
         if (loopRe.length) localScope = [...localScope, ...loopRe]
@@ -735,6 +821,28 @@ export function collectObjectOps(stmts, h) {
         // not recognise it and it FALLS THROUGH to this one. Splitting it here
         // would reintroduce exactly the once-initialised divergence that branch
         // refuses, by the back door.
+        // ── ⭐⭐ C11c — `x := y` / `x = y` BETWEEN TWO HANDLES ───────────────
+        // Pine copies the handle: `x` names the object `y` names NOW, and every
+        // setter, getter or delete through `x` reaches that object. ⚰️ Unread,
+        // the statement fell through to nothing — no op, no count — so
+        // pro-trading-art's `topLine := Line` left `topLine` empty and its
+        // `topLine.set_x2(bar_index)` extended no line (a `set_x2` TradingView
+        // makes, dropped without a word). An eager register copy (`copy` →
+        // `setreg`), the shape a returned handle and a list read already take.
+        // ⛔ Not a `var` (initialised once — the branch above refuses that
+        // shape for creates for the same reason), not a field of a user type,
+        // and not across two families (a Pine type error, left as it was).
+        const copyFrom = rhs.length === 1 && rhs[0].kind === 'ident' ? decls.get(String(rhs[0].value)) : null
+        if (copyFrom && copyFrom.kind !== 'coll' && word !== 'var' && word !== 'varip'
+            && !String(name).includes('.') && (!held || (held.kind !== 'coll' && held.family === copyFrom.family))) {
+          if (inLoop) { diagnostics.loopBlocked.push(`${copyFrom.family} copy`); continue }
+          if (!held) decls.set(name, { family: copyFrom.family, kind: 'local' })
+          ops.push({
+            k: 'copy', into: name, from: String(rhs[0].value), fromSite: null,
+            guards, locals: localScope, loopIds: [...loopIds], at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
         const named = word !== 'var' && word !== 'varip' ? createNameIn(rhs) : null
         if (named) {
           // ⛔ THE FAMILY COMES FROM THE CONSTRUCTOR, and the declaration is
@@ -783,7 +891,7 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_MUTATORS.has(method)) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
-            if (c && decls.get(c) && decls.get(c).kind === 'coll') diagnostics.lostColls.push(c)
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -1219,7 +1327,11 @@ export function collectObjectOps(stmts, h) {
     // ⚰️ Deleting these outright (first cut of the loop reader) made a `while`
     // body emit its ops as if they ran ONCE, which is precisely the lie the
     // original refusal existed to prevent.
-    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
+    // ⭐ C20 — a statement create DIRECTLY in the body of a `while` the runtime
+    // lane reads per pass (`rtLoopTry`) is carried; everything else still refuses.
+    const rtCarried = inLoop && !!rtLoop && loopNest === rtLoop.nest && !intoName && !once
+      && inlineDepth === 0
+    if (inLoop && !rtCarried) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
     const args = argsOf(rhs)
     if (!args) { diagnostics.unsupported.push(`${ns}.new`); return false }
     siteSeq += 1
@@ -1246,7 +1358,7 @@ export function collectObjectOps(stmts, h) {
       if (method === 'delete') {
         const a = argsOf(toks)
         const p = a && a[0] ? poppedFrom(a[0].value) : null
-        if (p) diagnostics.lostColls.push(p.coll)
+        if (p) loseColl(p.coll, `loop:${ns}.${method}`, toks[0])
       }
       return
     }
@@ -1433,7 +1545,7 @@ export function collectObjectOps(stmts, h) {
       if (popped) {
         if (inLoop) {
           diagnostics.loopBlocked.push(`${popped.family}.delete`)
-          diagnostics.lostColls.push(popped.coll)
+          loseColl(popped.coll, `loop:${popped.family}.delete`, toks[0])
           return true
         }
         emitMethodOn(popped.family, 'delete', { name: null, value: recv, tok: toks[0] },
@@ -1502,10 +1614,10 @@ export function collectObjectOps(stmts, h) {
     if (d.kind === 'coll') {
       if (!COLLECTION_CALLS.has(method)) {
         diagnostics.unsupported.push(`array.${method}`)
-        if (COLLECTION_MUTATORS.has(method)) diagnostics.lostColls.push(recv)
+        if (COLLECTION_MUTATORS.has(method)) loseColl(recv, `coll:${method}`, toks[0])
         return true
       }
-      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(recv); return true }
+      if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(recv, `loop:array.${method}`, toks[0]); return true }
       emitCollectionOn(method, recv, args, toks, guards, st, scope)
       return true
     }
@@ -1532,7 +1644,7 @@ export function collectObjectOps(stmts, h) {
     // ⭐ RISK-043 STILL STANDS FOR WHAT IT PROTECTS — an object-family collection
     // op inside a loop this reader cannot execute is still refused and still
     // counted. This is WHEN irrelevance is noticed, not what happens after.
-    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); diagnostics.lostColls.push(collName); return }
+    if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(collName, `loop:array.${method}`, toks[0]); return }
     emitCollectionOn(method, collName, args.slice(1), toks, guards, st, scope)
   }
 
@@ -1665,7 +1777,7 @@ export function collectObjectOps(stmts, h) {
       const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }
-    const { locals, mutable } = bodyNames(def, h)
+    const { locals, mutable, carried } = bodyNames(def, h)
     inlineSeq += 1
     const suffix = `${INLINE_SUFFIX}${inlineSeq}`
     const meta = {
@@ -1673,6 +1785,7 @@ export function collectObjectOps(stmts, h) {
       suffix,
       callLine: st.header[0].line,
       mutable: new Set([...mutable].map((n) => n + suffix)),
+      carried: new Set([...carried].map((n) => n + suffix)),
     }
     const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
@@ -1695,6 +1808,49 @@ export function collectObjectOps(stmts, h) {
     const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
     for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
+    // ⭐⭐ C11c — A TUPLE OF RETURNED HANDLES. Pine returns the body's last
+    // statement; `[Line, A, B]` there hands each caller name the handle the
+    // body's own name holds at the return — an eager register copy per element
+    // (`copy` → `setreg`), under the call's guards, exactly the one-handle
+    // return below done once per position. ⚰️ Unread, `topLine := Line` copied
+    // from a name nothing declared and was dropped without a count, so every
+    // setter and getter through `topLine` acted on a register nothing wrote.
+    // An element that is not a handle is a value — the value walk's, not ours.
+    // ⛔ A tuple whose length is not the caller's refuses by name.
+    if (Array.isArray(into)) {
+      const tail = rw.stmts[rw.stmts.length - 1]
+      const tt = (tail && tail.header) || []
+      const tclose = h.isPunct(tt[0], '[') ? tt.findIndex((x) => h.isPunct(x, ']')) : -1
+      if (tclose !== tt.length - 1) return refuseCall('return-type', fnName, st, `\`${fnName}\` does not end in a tuple`)
+      const parts = []
+      let cur = []
+      for (const x of tt.slice(1, tclose)) {
+        if (h.isPunct(x, ',')) { parts.push(cur); cur = [] } else cur.push(x)
+      }
+      parts.push(cur)
+      if (parts.length !== into.length) {
+        return refuseCall('return-type', fnName, st, `\`${fnName}\` returns ${parts.length} values into ${into.length} names`)
+      }
+      const copies = []
+      for (let k = 0; k < parts.length; k += 1) {
+        const p = parts[k]
+        const d = p.length === 1 && p[0].kind === 'ident' ? decls.get(String(p[0].value)) : null
+        if (!d || d.kind === 'coll') continue
+        const existing = decls.get(into[k])
+        if (existing && (existing.kind === 'coll' || existing.family !== d.family)) {
+          return refuseCall('return-type', fnName, st, `\`${into[k]}\` already holds a ${existing.kind === 'coll' ? 'list' : existing.family}`)
+        }
+        copies.push({ name: into[k], from: String(p[0].value), family: d.family, existing })
+      }
+      for (const c of copies) {
+        if (!c.existing) decls.set(c.name, { family: c.family, kind: 'local' })
+        ops.push({
+          k: 'copy', into: c.name, from: c.from, fromSite: null, guards, locals: scope, loopIds: [...loopIds],
+          at: st.header[0], line: st.header[0].line,
+        })
+      }
+      return true
+    }
     // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
     // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,
     // `ln := line.new(…)` and a bare `ln` all return the handle; a bare

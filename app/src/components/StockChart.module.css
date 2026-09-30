@@ -142,6 +142,41 @@
   font-weight: 500;
 }
 .paneLegend strong { font-weight: 600; }
+/* ⭐ A PANE THAT IS ONE LOGICAL INDICATOR WEARS ITS NAME ONCE (2026-09-30) — the COT
+   pane reads `NASDAQ-100 E-MINI · COT  Net Contracts` above its three participant
+   rows, so the market is never repeated three times. It spans the whole grid, uses
+   the legend's own two inks, and is a single compact line — a title, not a header. */
+.paneLegendTitle {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-bright);
+  white-space: nowrap;
+  margin-bottom: -3px;
+}
+/* ⭐ THE GROUPED PANE READS ON ONE LINE — title, note, then each participant's
+   name + value (owner, 2026-09-30: a three-row stack sat on top of the bars). The
+   rows are `LegendRow`'s own horizontal variant, the one the volume strip uses. */
+.paneLegend.paneLegendGroup {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 2px;
+}
+.paneLegendGroup .paneLegendTitle {
+  margin-bottom: 0;
+}
+.paneLegendNote {
+  margin-left: 8px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-muted);
+}
 /* ⚰️ `pointer-events: auto` WAS ON `.volLegItem` AND THE CONTAINER STAYED `none`,
    to keep the crosshair passing through the GAPS between readings. It worked
    exactly as designed and the design was wrong: the 12px gaps, the 7px padding and

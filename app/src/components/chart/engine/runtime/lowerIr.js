@@ -31,7 +31,22 @@ const BIN_OP = Object.freeze({
 })
 const UN_OP = Object.freeze({ '!': OP.NOT, 'u-': OP.NEG })
 
+/** ⭐ C18 — is this IR expression provably 0 or 1 on every bar (never `na`)?
+ *  A comparison is (`interpret.js::cmp` answers 0 for `na`); a `not`, `and` or
+ *  `or` of such is; a literal 0/1 is. Nothing else is claimed. */
+const CMP_OPS = new Set(['<', '>', '<=', '>=', '==', '!='])
+const isBoolIr = (e) => {
+  if (!e) return false
+  if (e.kind === EXPR.NUM) return e.value === 0 || e.value === 1
+  if (e.kind === EXPR.BINARY && CMP_OPS.has(e.op)) return true
+  if (e.kind === EXPR.BINARY && (e.op === '&&' || e.op === '||')) return isBoolIr(e.left) && isBoolIr(e.right)
+  if (e.kind === EXPR.UNARY && e.op === '!') return isBoolIr(e.of)
+  return false
+}
+
 export function lowerIrProgram(ir) {
+  /** ⭐ C18 — v6 `and`/`or` short-circuit (see the BINARY arm). */
+  const lazyLogic = Number(ir && ir.version) >= 6
   const code = []
   const consts = []
   const pointwise = []
@@ -260,6 +275,30 @@ export function lowerIrProgram(ir) {
       case EXPR.BINARY: {
         const op = BIN_OP[e.op]
         if (op === undefined) throw new LoweringGap('operator', `\`${e.op}\``)
+        // ⭐⭐ C18 — PINE v6's `and` / `or` ARE LAZY: the right operand is not
+        // evaluated once the left decides. That matters exactly when the right
+        // one can STOP the script — max-pain's `array.size(strikes) == 0 or rs !=
+        // array.get(strikes, array.size(strikes) - 1)` reads index -1 of an empty
+        // array if it is evaluated, which is an error in Pine only when it runs.
+        // ⛔ ONLY WHEN BOTH OPERANDS ARE PROVABLY 0/1 (`isBoolIr`): then the
+        // eager `logical` and the short-circuit answer the SAME value on every
+        // bar (no `na` can reach either), and the one thing that changes is that
+        // the undecided side is not run — Pine v6's rule. A v5 script, and any
+        // operand that may be `na`, keeps the eager form untouched.
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && isBoolIr(e.left) && isBoolIr(e.right)) {
+          expr(e.left)
+          const toFalse = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+          if (e.op === '||') emit(OP.CONST, constIndex(1))
+          else expr(e.right)
+          const toEnd = here()
+          emit(OP.JUMP, 0)
+          patch(toFalse, 1, here())
+          if (e.op === '||') expr(e.right)
+          else emit(OP.CONST, constIndex(0))
+          patch(toEnd, 1, here())
+          return
+        }
         expr(e.left); expr(e.right); emit(op)
         return
       }
@@ -273,6 +312,27 @@ export function lowerIrProgram(ir) {
         // ⚠️ BOTH ARMS EVALUATE — Pine's `?:` over values, mirroring
         // `interpret.js`. A branch that can have an EFFECT is a statement
         // (`STMT.IF`) and must never be routed here.
+        // ⭐⭐ C18 — …EXCEPT WHERE AN ARM CAN STOP THE SCRIPT. Pine's `?:` runs only
+        // the arm it picks: max-pain's heatmap reads `level < heatmap_levels - 1 ?
+        // array.get(test_prices, level + 1) : …`, whose unpicked arm is an
+        // out-of-range read on the last level — and TradingView drew all twelve
+        // boxes, so it never ran it (vendor capture
+        // `options-max-pain-calculator-backquant-rddt-1d-2026-09-28`). With a test
+        // that is provably 0/1 (`isBoolIr`) the jump form answers exactly what
+        // `SELECT` does on every bar — `SELECT`'s `na` test cannot occur — and the
+        // unpicked arm is not evaluated. Any other test keeps `SELECT`.
+        if (isBoolIr(e.test)) {
+          expr(e.test)
+          const toElse = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+          expr(e.then)
+          const toEnd = here()
+          emit(OP.JUMP, 0)
+          patch(toElse, 1, here())
+          expr(e.else)
+          patch(toEnd, 1, here())
+          return
+        }
         expr(e.test); expr(e.then); expr(e.else); emit(OP.SELECT)
         return
       case EXPR.BUILTIN: {
@@ -435,6 +495,45 @@ export function lowerIrProgram(ir) {
           // value — a hang, not a wrong number, and the ceiling would be the only
           // thing that noticed.
           for (const at of frame.continues) patch(at, 1, contTarget)
+          for (const at of frame.breaks) patch(at, 1, endTarget)
+          break
+        }
+        case STMT.WHILE: {
+          // ⭐⭐ C18 — PINE'S `while`, LOWERED FAITHFULLY:
+          //
+          //     count = 0
+          //   top:
+          //     LOOP_TICK depth                 (the run-wide LOOP_ITERATIONS)
+          //     if not test → end               (`na` is false, as in `if`)
+          //     count = count + 1
+          //     WHILE_BOUND line (count)        (this ENTRY's WHILE_ITERATIONS)
+          //     body
+          //     jump top                        (`continue` lands here too)
+          //   end:                              (`break` lands here)
+          //
+          // ⛔ THE TEST IS RE-READ EVERY PASS — no once-evaluated slot, unlike
+          // `for`. ⛔ The count is checked AFTER the test passes and BEFORE the
+          // body runs, so exactly `WHILE_ITERATIONS` bodies may run and the next
+          // one stops the run by name: a loop that finishes on its last allowed
+          // pass is served whole, never a pass short.
+          const cnt = slotAddr(s.countSlot)
+          const store = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.STORE_PERSIST : OP.STORE_LOCAL, sl.index)
+          const load = (sl) => emit(sl.kind === SLOT.PERSIST ? OP.LOAD_PERSIST : OP.LOAD_LOCAL, sl.index)
+          emit(OP.CONST, constIndex(0)); store(cnt)
+          const top = here()
+          emit(OP.LOOP_TICK, loops.length + 1)
+          expr(s.test)
+          const exitJump = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+          load(cnt); emit(OP.CONST, constIndex(1)); emit(OP.ADD); store(cnt)
+          load(cnt); emit(OP.WHILE_BOUND, s.line)
+          loops.push({ breaks: [], continues: [] })
+          stmts(s.body)
+          const frame = loops.pop()
+          emit(OP.JUMP, top)
+          const endTarget = here()
+          patch(exitJump, 1, endTarget)
+          for (const at of frame.continues) patch(at, 1, top)
           for (const at of frame.breaks) patch(at, 1, endTarget)
           break
         }
@@ -641,5 +740,13 @@ function persistTotal(ir) {
     const fn = ir.functions[cs.fn]
     top = Math.max(top, cs.persistBase + (fn ? fn.persistCount : 0))
   }
+  // ⭐⭐ C21 — AND AT LEAST EVERY FUNCTION'S OWN FRAME, CALLED OR NOT. A function
+  // body is emitted and validated whether or not a call site reaches it, and its
+  // `var` guard (`JUMP_IF_INIT`) names a FRAME-RELATIVE slot that the program's
+  // bound must hold. ⚰️ Measured: `f() => var float x = na` beside `plot(close)`
+  // refused to lower (`JUMP_IF_INIT slot 0 outside 0 persists`) — and it lowered
+  // only by accident when another function's same-named plain local was wrongly
+  // made persistent (`pineRuntimeFrontend.js::declarationPersists`).
+  for (const fn of ir.functions || []) top = Math.max(top, fn ? fn.persistCount : 0)
   return top
 }

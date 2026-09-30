@@ -183,3 +183,11 @@ scripts/rth-close.ps1 -text
 # `core.autocrlf=true` the DOL XML checked out CRLF and two tests failed on a
 # line-ending reason only. Stored blobs are LF; keep the working copy LF too.
 tests/econ/fixtures/** text=auto eol=lf
+
+# Vitest snapshot files. Vitest rewrites a .snap with `
+` endings whenever the
+# snapshot test runs; with `core.autocrlf=true` (this box) a CRLF checkout then
+# reads as modified though its content equals the blob, and the six-shard gate
+# ends in TREE DRIFT (seen on journalGrids.seedParity.test.jsx.snap). Stored
+# blobs are LF; keep the working copy LF too.
+*.snap text eol=lf

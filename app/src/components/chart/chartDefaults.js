@@ -18,6 +18,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 import { explicitLegendMode } from './legendMode'
 import { explicitBarInfoFields } from './barInfoFields'
 import { adoptOverlayAverages } from './maAdoption'
+import { migrateLegacyCotGroups } from './engine/legacyCotGroups'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -519,7 +520,9 @@ export function mergeChartSettings(userSettings) {
   // ⭐ EVERY RETURN IS ADOPTED — see `maAdoption.js`. A member with no stored blob
   // reads the defaults, and the defaults' four averages are instances too; a blob
   // that fails to parse falls back to those same defaults.
-  const raw = mergeChartSettingsRaw(userSettings)
+  // ⭐ A three-pane COT group saved by the short-lived 2026-09-30 release reads as the
+  // current one-pane group — see `engine/legacyCotGroups.js` (identity when absent).
+  const raw = migrateLegacyCotGroups(mergeChartSettingsRaw(userSettings))
   const out = adoptOverlayAverages(raw)
   return out === raw ? out : placeAdopted(out, raw)
 }
