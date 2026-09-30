@@ -1,0 +1,16 @@
+[
+  {"symbol": "USEMPIRE", "field_path": "source.params", "old": {"file": "ESMS SA diffusion file", "column": "GACDISA", "column_verified": false},
+   "new": {"file": "esms_seasonallyadjusted_diffusion.csv", "column": "GACDISA"},
+   "evidence": "Official file https://www.newyorkfed.org/medialibrary/media/survey/empire/data/esms_seasonallyadjusted_diffusion.csv (linked from newyorkfed.org/survey/empire/empiresurvey_overview 'Historical Tables > Diffusion Indexes > Seasonally adjusted: csv'). Header 'surveyDate,GACDISA,NOCDISA,...'. The NY Fed 'Data definitions' PDF (medialibrary/media/survey/empire/data/diffusion_idx.pdf) defines 'Current - Seasonally Adjusted: GACDISA  Current General Business Conditions'. Column CONFIRMED."},
+  {"symbol": "USEMPIRE", "field_path": "source.provider_series_id", "old": "ESMS SA diffusion file (GACDISA?)", "new": "esms_seasonallyadjusted_diffusion.csv:GACDISA",
+   "evidence": "As above."},
+  {"symbol": "USEMPIRE", "field_path": "source.verified", "old": false, "new": true,
+   "evidence": "Live 2026-09-28 (docs/economic-data/verification/nyfed.txt): 303 monthly rows 2001-07..2026-09, first 2001-07 -13.3, Sep 2026 = 7.6 and Aug 2026 = 20.6, matching the NY Fed September 2026 report text 'The headline general business conditions index fell thirteen points but remained positive at 7.6.' History start 2001-07 = registry history_start. Licensing: NY Fed Terms of Use permit business use with the required notice (registry licensing already GREEN/cleared, notice_required true, attribution nyfed). Enabling (status unverified -> enabled) is the coordinator's call."},
+  {"symbol": "USEMPIRE", "field_path": "source.verified_evidence", "old": "catalog_notes.md lists this provider id as unverified",
+   "new": "NY Fed ESMS SA diffusion CSV column GACDISA (definition: diffusion_idx.pdf 'Current General Business Conditions', SA); live 2026-09-28 2001-07..2026-09, Sep 2026 7.6 = NY Fed report; docs/economic-data/verification/nyfed.txt",
+   "evidence": "docs/economic-data/verification/nyfed.txt"},
+  {"symbol": "USEMPIRE", "field_path": "notes", "old": ["unverified: ESMS column mnemonic 'GACDISA?' not confirmed; the adapter agent confirms it."], "new": [],
+   "evidence": "Confirmed (see source.params)."},
+  {"symbol": "USEMPIRE", "field_path": "catalog_row.fred_equivalent", "old": "GACDISA066MSFRBNY?", "new": "GACDISA066MSFRBNY",
+   "evidence": "Provenance only (FRED is never a source): the FRED id embeds the NY Fed column name GACDISA; no FRED data read or stored."}
+]

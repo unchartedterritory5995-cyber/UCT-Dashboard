@@ -1,0 +1,10 @@
+{
+ "_comment": "SYNTHESISED BEA API error shape",
+ "BEAAPI": {
+  "Request": {},
+  "Error": {
+   "APIErrorCode": "40",
+   "APIErrorDescription": "The dataset requested requires parameter TableName which was not provided."
+  }
+ }
+}

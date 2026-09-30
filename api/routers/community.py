@@ -101,6 +101,16 @@ def _attach_authors(items):
         if aid and bmap.get(aid):
             author["badges"] = bmap[aid]
         i["author"] = author
+        # TERM-056 (owner ruling 2026-09-29): an address written on the Floor links ONLY when
+        # the AUTHOR shared the object; a private one is marked private, never named.
+        if "body" in i and ":" in (i.get("body") or ""):
+            try:
+                from api.services import address_space
+                links = address_space.shared_links(aid, address_space.text_of_body(i["body"]))
+                if links:
+                    i["address_links"] = links
+            except Exception:  # noqa: BLE001 -- a chip must never break a feed
+                pass
     return items
 
 

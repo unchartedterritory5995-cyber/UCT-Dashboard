@@ -1,0 +1,73 @@
+FISCAL DATA adapter -- live verification (keyless), run 2026-09-29T02:1xZ (= 2026-09-28 evening ET)
+Command: python -m tools.econ.verify_fiscaldata   (5 GETs total, sequential, api.fiscaldata.treasury.gov)
+
+SUMMARY
+symbol    provider id (confirmed)                                   count  oldest      newest      newest value               Phase 0              result
+USDEBT    v2/accounting/od/debt_to_penny : tot_pub_debt_out_amt      8401  1993-04-01  2026-09-25  40,097,178,119,750.91 USD  $40.097T (09-25)     MATCH (exact)
+USTGA     v1/accounting/dts/operating_cash_balance (3 label eras)    5271  2005-10-03  2026-09-25  945,290 ($M)               945,290 (09-25)      MATCH (exact)
+USMTSDEF  v1/accounting/mts/mts_table_1 : current_month_dfct_sur_amt  155  2013-10     2026-08     166,796,952,277.38 USD     $166.8B Aug deficit  MATCH (exact)
+Secondary references: USMTSDEF Aug = outlays 526,829,688,118.80 - receipts 360,032,735,841.42 = 166,796,952,277.38
+(the report's own columns). USTGA splices: 2021-10-01 open 215,160 == 2021-09-30 FRA close 215,160;
+2022-04-18 'Opening Balance' 578,473 == 2022-04-15 TGA close 578,473. (FRED manual cross-check attempted;
+fred.stlouisfed.org did not answer within 120 s; not retried.)
+
+FINDINGS
+1. TGA schema history (full dataset scanned: 16,646 rows, 5,271 dates, exactly ONE TGA row per date, no gaps):
+     2005-10-03..2021-09-30  'Federal Reserve Account'                           close_today_bal
+     2021-10-01..2022-04-15  'Treasury General Account (TGA)'                    close_today_bal
+     2022-04-18..            'Treasury General Account (TGA) Closing Balance'    open_today_bal (close_today_bal "null" on all 1,114 rows)
+   'Tax and Loan Note Accounts' (to 2012), 'Supplementary Financing Program', 'Financial Institution Account' and
+   'Short-Term Cash Investments' are NOT the TGA and are never summed in. The format switch is 2022-04-18 (the
+   registry note says Oct 2022). Full history back to 2005-10-03 is covered, no break. The adapter requests ALL
+   account types in the window (no server-side label filter), so a date whose label drifts raises MalformedPayload
+   instead of silently dropping out; a Closing-Balance row whose close_today_bal becomes non-null and different
+   also fails closed.
+2. MTS: record_date = report month end; each report carries the current-FY months AND all 12 prior-FY months
+   (classification_desc = month name; parent row 'FY yyyy'; Oct-Dec belong to calendar year FY-1). API history
+   begins with the 2015-03-31 report, so the first month is 2013-10 (FY2014), not 2015-10. Months are RESTATED in
+   later reports for up to ~2 years: 92 of 155 months changed at least once (e.g. 2015-05 82.39B -> 84.07B,
+   2015-11 64.55B -> 62.87B). The adapter takes each month from the NEWEST report that carries it. Registry
+   revision.type 'minor_routine' (3-period window) would make validate.check_mutation reject those restatements;
+   a correction is proposed.
+3. SIGN: current_month_dfct_sur_amt is DEFICIT-POSITIVE (Aug 2026 +166.80B = outlays - receipts; April 2026
+   surplus = -215.02B; Sep 2025 surplus = -197.94B). Adapter param `sign` (default +1 = provider convention);
+   `sign: -1` gives the FRED MTSDS133FMS convention (surplus +, deficit -). A correction is proposed; the
+   coordinator decides. USDEFICIT12M (sum of 12) inherits whichever sign is chosen.
+4. No ETag / Last-Modified on any Fiscal Data response, so source_published_at is None.
+5. Release calendar https://api.fiscaldata.treasury.gov/services/calendar/release: times are UTC. Evidence: DTS
+   is 20:00 on dates <= 2026-10-30 and 21:00 from 2026-11-02; Debt to the Penny is 20:15 then 21:15. The one-hour
+   jump sits exactly on the US DST end (2026-11-01). Converted to ET, every row is 16:00 (DTS), 16:15 (DTP) or 14:00
+   (MTS, its documented 2 p.m. release). The window is forward-only (2026-09-28..2027-01-05). There is no Oct-2026
+   MTS row (the Phase 1 research saw the same gap; do not infer it). Exposed as fiscaldata.release_calendar(http)
+   (dicts: dataset_id, calendar_key fiscal:dts|dtp|mts, at_utc, sched_date/sched_time ET, tz, precision 'exact',
+   source 'authoritative_feed', released) and as FiscalDataAdapter.calendar_events(horizon_days, http).
+   The `released` flag is not evidence of arrival: Phase 1 saw a future TOP row flagged released.
+
+RAW RUN OUTPUT
+# Fiscal Data live verification  2026-09-29T02:12Z  (keyless)
+
+USDEBT  request_key=fiscaldata:v2/accounting/od/debt_to_penny:tot_pub_debt_out_amt:history:..
+  count=8401  NA=0  weekend_rows=0  oldest=1993-04-01  newest=2026-09-25..2026-09-25  newest_value=40097178119750.91  units='USD'  bytes=601479  source_published_at=None  warnings=[]
+  Phase0 2026-09-25 = 40097178119750.91  adapter = 40097178119750.91  -> MATCH
+
+USTGA  request_key=fiscaldata:v1/accounting/dts/operating_cash_balance:open_today_bal:history:..
+  count=5271  NA=0  weekend_rows=0  oldest=2005-10-03  newest=2026-09-25..2026-09-25  newest_value=945290.0  units='Millions USD'  bytes=2148975  source_published_at=None  warnings=[]
+  Phase0 2026-09-25 = 945290.0  adapter = 945290.0  -> MATCH
+  splice 2021-09-30: 215160.0
+  splice 2021-10-01: 132452.0
+  splice 2022-04-15: 578473.0
+  splice 2022-04-18: 841253.0
+
+USMTSDEF  request_key=fiscaldata:v1/accounting/mts/mts_table_1:current_month_dfct_sur_amt:history:..
+  count=155  NA=0  weekend_rows=0  oldest=2013-10-01  newest=2026-08-01..2026-08-31  newest_value=166796952277.38  units='USD'  bytes=649989  source_published_at=None  warnings=[]
+  Phase0 2026-08-01 = 166796952277.38  adapter = 166796952277.38  -> MATCH
+  2026-04-01: -215024135197.77  (provider sign: deficit +, surplus -)
+  2025-09-01: -197937721277.68  (provider sign: deficit +, surplus -)
+  2013-10-01: 90586195000.53  (provider sign: deficit +, surplus -)
+
+calendar: 801 rows, 134 for fiscal:dts/dtp/mts; window 2026-09-28..2027-01-05
+  fiscal:dtp: ET times {'16:15 ET': 66}; next unreleased 2026-09-29 16:15
+  fiscal:dts: ET times {'16:00 ET': 66}; next unreleased 2026-09-29 16:00
+  fiscal:mts: ET times {'14:00 ET': 2}; next unreleased 2026-11-12 14:00
+
+http stats: {'by_host': {'api.fiscaldata.treasury.gov': {'200': 5}}, 'total': 5}

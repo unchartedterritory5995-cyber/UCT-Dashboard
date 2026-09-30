@@ -182,3 +182,50 @@ def test_the_auth_payload_carries_the_flag(monkeypatch):
     assert auth._address_space_enabled() is False
     monkeypatch.setenv(a.ENABLED_ENV, "1")
     assert auth._address_space_enabled() is True
+
+
+# ── TERM-056: addresses in PUBLIC text resolve against the AUTHOR's shared objects ──────
+
+def test_floor_text_links_only_what_the_author_shared():
+    """Owner ruling 2026-09-29. A shared layout links (via its share token), a private one is
+    marked private WITHOUT its name, somebody else's object and ordinary text get nothing."""
+    import uuid
+    from api.services import auth_db, auth_service, charts_layout_service as cls, watchlist_service
+    auth_db.init_db()
+    cls._init_db()
+    author = auth_service.create_user(f"fl-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    other = auth_service.create_user(f"fo-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    private = cls.upsert("user", author, "My Secret Board", {"widgets": [], "cols": 24}, None, None)
+    shared = cls.upsert("user", author, "Swing Board", {"widgets": [], "cols": 24}, None, None)
+    token = cls.share(author, shared["id"])["token"]
+    theirs = cls.upsert("user", other, "Not Yours", {"widgets": [], "cols": 24}, None, None)
+    wl = watchlist_service.create_watchlist(author, "Semis", is_public=True)
+
+    text = (f"see L:{shared['id']} and L:{private['id']} and L:{theirs['id']}, "
+            f"W:{wl['id']} -- also W:3 in a row")
+    links = {l["address"]: l for l in a.shared_links(author, text)}
+
+    assert links[f"L:{shared['id']}"]["shared"] is True
+    assert links[f"L:{shared['id']}"]["to"] == f"/charts?openShared={token}"
+    assert links[f"L:{shared['id']}"]["name"] == "Swing Board"
+    assert links[f"L:{private['id']}"] == {"address": f"L:{private['id']}", "kind": "layout",
+                                          "kind_label": "Chart layout", "shared": False}
+    assert "My Secret Board" not in str(links)                  # a private title never leaks
+    assert f"L:{theirs['id']}" not in links                     # not the author's: no chip
+    assert links[f"W:{wl['id']}"]["to"] == f"/charts?openWatchlist=community:{wl['id']}"
+    assert "W:3" not in links                                   # ordinary text stays text
+    assert a.shared_links(None, text) == []                     # the mentor has no objects
+
+
+def test_the_floor_payload_carries_the_links():
+    from api.routers import community as router_mod
+    import uuid
+    from api.services import auth_db, auth_service, charts_layout_service as cls
+    auth_db.init_db()
+    cls._init_db()
+    author = auth_service.create_user(f"fp-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    lay = cls.upsert("user", author, "Board", {"widgets": [], "cols": 24}, None, None)
+    body = '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"L:%s"}]}]}' % lay["id"]
+    items = router_mod._attach_authors([{"author_id": author, "body": body}, {"author_id": author, "body": "no address"}])
+    assert items[0]["address_links"][0]["shared"] is False
+    assert "address_links" not in items[1]

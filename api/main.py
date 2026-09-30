@@ -9000,6 +9000,8 @@ app.include_router(user_playbook_router.router)  # My Playbook /api/upb/*
 app.include_router(education_router.router)
 app.include_router(fundamentals_router.router, dependencies=_OPEN_READS)
 app.include_router(fundamentals_pit_router.router)  # historical PIT fundamentals; dark unless FUNDAMENTALS_PIT_ENABLED=1
+from api.routers import econ as econ_router  # noqa: E402 -- beside its mount: keeps the line-keyed bars census stable
+app.include_router(econ_router.router)  # economic data member API; dark unless ECON_ENABLED=1
 app.include_router(analyst_router.router)
 app.include_router(portfolio_heat_router.router)  # A14 CP1 -- GET /api/portfolio/heat
 app.include_router(filings_router.router, dependencies=_OPEN_READS)

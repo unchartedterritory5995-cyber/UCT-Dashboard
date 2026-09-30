@@ -1,0 +1,51 @@
+<!doctype html>
+<!--
+  ECONOMIC DATA — PHASE 1 HARNESS (dev only).
+
+  The REAL engine binder on the REAL lightweight-charts drawing economic series
+  (`econ:<SYMBOL>`) two ways: as the PRIMARY chart on a series-native timeline,
+  and as an overlay pane on a (SYNTHETIC) SPY-like host at D / W / 5m.
+  Data: ?src=fixtures (default; src/econHarness/fixtures/*.json, built from the
+  Phase 0 proof captures) or ?src=api (the local backend's /api/econ/* through the
+  vite proxy -> localhost:8000). Host bars are ALWAYS the synthetic fixture; this
+  page never requests /api/bars and never opens /charts.
+
+  `vite build` takes index.html as its single input, so this entry never ships.
+
+  Run:  npx vite --host 127.0.0.1 --port <free>        (from app/)
+  Then: http://127.0.0.1:<port>/econ-harness.html?scenario=cpi
+        scenarios: cpi fedfunds crude claims gdp overlay-d overlay-w overlay-5
+  Audit: window.__econ.audit()   Nav proof: window.__econ.navTest()
+-->
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Economic data harness</title>
+    <style>
+      :root { --bg: #0e1014; --fg: #e6e8ec; --muted: #8a919e; --line: #262a33; }
+      html, body { margin: 0; background: var(--bg); color: var(--fg);
+        font: 13px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+      header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+      header h1 { font-size: 15px; margin: 0; font-weight: 600; }
+      header .tag { color: var(--muted); font-size: 12px; }
+      nav { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 16px; }
+      nav a, nav button { color: var(--fg); background: #1a1d24; border: 1px solid var(--line); border-radius: 4px;
+        padding: 3px 8px; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer; }
+      nav a.on { border-color: #4f9cf9; color: #4f9cf9; }
+      #wrap { position: relative; margin: 0 16px; }
+      #chart { width: 1280px; height: 620px; }
+      #legend { position: absolute; left: 8px; top: 6px; z-index: 3; pointer-events: none; font-size: 12px;
+        background: rgba(14,16,20,.72); padding: 4px 6px; border-radius: 4px; }
+      #legend div { white-space: nowrap; }
+      #foot { padding: 8px 16px; color: var(--muted); font-size: 12px; max-width: 1280px; }
+    </style>
+  </head>
+  <body>
+    <header><h1 id="title">Economic data harness</h1><span class="tag" id="sub"></span></header>
+    <nav id="nav"></nav>
+    <div id="wrap"><div id="chart"></div><div id="legend"></div></div>
+    <div id="foot"></div>
+    <script type="module" src="/src/econHarness/econHarness.js"></script>
+  </body>
+</html>

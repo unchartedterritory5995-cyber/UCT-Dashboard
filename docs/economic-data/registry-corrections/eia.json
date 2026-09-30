@@ -1,0 +1,44 @@
+[
+ {
+  "symbol": "USCRUDEINV",
+  "field_path": "source.params.v2_route",
+  "old": null,
+  "new": "petroleum/stoc/wstk",
+  "evidence": "Keyed mode: EIA v2 data route (inferred from dnav referring page PET_STOC_WSTK_A_EPC0_SAX_MBBL_W; NOT yet confirmed with a key). Without it the adapter uses /v2/seriesid/PET.WCESTUS1.W (one call, refuses partial answers). docs/economic-data/verification/eia.txt"
+ },
+ {
+  "symbol": "USGASPRICE",
+  "field_path": "source.params.v2_route",
+  "old": null,
+  "new": "petroleum/pri/gnd",
+  "evidence": "Keyed mode: inferred from dnav referring page PET_PRI_GND_A_EPMR_PTE_DPGAL_W; NOT yet confirmed with a key. docs/economic-data/verification/eia.txt"
+ },
+ {
+  "symbol": "USGASPRICE",
+  "field_path": "release.cadence",
+  "old": "Weekly, Monday (Gasoline & Diesel Fuel Update)",
+  "new": "Weekly, Tuesday (Gasoline & Diesel Fuel Update for the Monday survey)",
+  "evidence": "Live 2026-09-28: gasdiesel page 'Release Date: September 22, 2026' (Tuesday) for 09/21 data, RSS pubDate Tue 22 Sep 2026 13:29Z, hist_xls LM Tue 13:26:28Z, pswrgvwall.xls LM 13:38:08Z; 'Next Release Date: September 29, 2026' (Tuesday). docs/economic-data/verification/eia.txt"
+ },
+ {
+  "symbol": "USGASPRICE",
+  "field_path": "release.typical_time_note",
+  "old": "~17:00",
+  "new": "~09:30 (Tuesday)",
+  "evidence": "Same evidence: files modified 13:26-13:38Z = 09:26-09:38 ET Tuesday. The existing lag rule (pe+1 day 17:00 ET) stays conservative (late side); time_et could tighten to 10:00 once a second week confirms."
+ },
+ {
+  "symbol": "USCRUDEINV",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Live EIA dnav 2026-09-28: 2,295 weeks 1982-08-20..2026-09-18 (all Fridays), wk 9/18 426,398 == Phase 0 xls & table1.csv (docs/economic-data/verification/eia.txt)",
+  "evidence": "verify_eia run"
+ },
+ {
+  "symbol": "USGASPRICE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Live EIA dnav 2026-09-28: 1,884 weeks 1990-08-20..2026-09-21 (all Mondays; 6 '--' NA weeks 1990-12..1991-01), 09/21 4.478 == gasdiesel page/RSS (docs/economic-data/verification/eia.txt)",
+  "evidence": "verify_eia run"
+ }
+]

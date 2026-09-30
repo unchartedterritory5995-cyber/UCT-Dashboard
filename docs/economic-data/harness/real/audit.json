@@ -1,0 +1,3245 @@
+{
+  "_run": {
+    "at": "2026-09-29T16:34:54.635Z",
+    "base": "http://127.0.0.1:5468",
+    "src": "api",
+    "dbBefore": {
+      "db": {
+        "path": "C:/w/econ1-data/econ.db",
+        "bytes": 18178048,
+        "mtime": "2026-09-29T16:33:15.826Z",
+        "sha256": "561812ba11bea9d543c1f71813d79ccfba15d5c02cb3afe47bd9e29c022e4e3a"
+      },
+      "wal": {
+        "path": "C:/w/econ1-data/econ.db-wal",
+        "bytes": 1182472,
+        "mtime": "2026-09-29T16:34:37.057Z"
+      },
+      "note": "WAL present: committed pages may live in -wal; sha256 is of the main file only"
+    },
+    "dbAfter": {
+      "db": {
+        "path": "C:/w/econ1-data/econ.db",
+        "bytes": 18178048,
+        "mtime": "2026-09-29T16:33:15.826Z",
+        "sha256": "561812ba11bea9d543c1f71813d79ccfba15d5c02cb3afe47bd9e29c022e4e3a"
+      },
+      "wal": {
+        "path": "C:/w/econ1-data/econ.db-wal",
+        "bytes": 1182472,
+        "mtime": "2026-09-29T16:34:37.057Z"
+      },
+      "note": "WAL present: committed pages may live in -wal; sha256 is of the main file only"
+    }
+  },
+  "cpi": {
+    "audit": {
+      "scenario": "cpi",
+      "title": "(a) Primary · monthly line · CPI",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 956,
+        "firstRow": "1947-04-01",
+        "lastRow": "2026-09-11",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 956,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1947, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1947-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num3",
+          "valuedBars": 955,
+          "interiorGaps": 1,
+          "sampleValue": 334.131,
+          "axisText": "334.131",
+          "legendText": "USCPI 334.131 · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 1,
+              "firstBar": "2026-01-30",
+              "lastBar": "2026-01-30",
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 956,
+      "fit": {
+        "from": 0,
+        "to": 959
+      },
+      "fitTime": {
+        "from": "1947-04-01",
+        "to": "2026-09-11"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 359.63,
+          "to": 599.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 299.63,
+          "to": 539.38
+        },
+        "requested": -60,
+        "shift": -60,
+        "visibleTime": {
+          "from": "1972-01-21",
+          "to": "1992-02-19"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -119.88,
+          "to": 119.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1947-04-01",
+          "to": "1957-02-21"
+        },
+        "firstBarTime": "1947-04-01"
+      },
+      "ok": true
+    }
+  },
+  "fedfunds": {
+    "audit": {
+      "scenario": "fedfunds",
+      "title": "(b) Primary · step · Fed funds target range (upper + lower) + EFFR",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 4640,
+        "firstRow": "2008-12-17",
+        "lastRow": "2026-09-29",
+        "collapsed": 133,
+        "grid": "B",
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USFEDFUNDSU": {
+          "status": "available",
+          "points": 4468,
+          "nullPoints": 0,
+          "firstAvailable": "12/17/2008, 11:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "2008-12-16",
+          "lastPeriod": "2026-09-28",
+          "frequency": "D",
+          "maxAgeDays": 10,
+          "formatKey": "pct2",
+          "valuedBars": 4640,
+          "interiorGaps": 0,
+          "sampleValue": 4,
+          "axisText": "4.00%",
+          "legendText": "USFEDFUNDSU 4.00% · Sep 28, 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-28",
+            "expected_period": "2026-09-28",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-28",
+            "expectedPeriod": "2026-09-28",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 30, 2026 ~09:00 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        },
+        "USFEDFUNDSL": {
+          "status": "available",
+          "points": 4468,
+          "nullPoints": 0,
+          "firstAvailable": "12/17/2008, 11:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "2008-12-16",
+          "lastPeriod": "2026-09-28",
+          "frequency": "D",
+          "maxAgeDays": 10,
+          "formatKey": "pct2",
+          "valuedBars": 4640,
+          "interiorGaps": 0,
+          "sampleValue": 3.75,
+          "axisText": "3.75%",
+          "legendText": "USFEDFUNDSL 3.75% · Sep 28, 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-28",
+            "expected_period": "2026-09-28",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-28",
+            "expectedPeriod": "2026-09-28",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 30, 2026 ~09:00 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        },
+        "USEFFR": {
+          "status": "available",
+          "points": 2658,
+          "nullPoints": 0,
+          "firstAvailable": "3/2/2016, 11:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "2016-03-01",
+          "lastPeriod": "2026-09-28",
+          "frequency": "D",
+          "maxAgeDays": 10,
+          "formatKey": "pct2",
+          "valuedBars": 2760,
+          "interiorGaps": 0,
+          "sampleValue": 3.88,
+          "axisText": "3.88%",
+          "legendText": "USEFFR 3.88% · Sep 28, 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-28",
+            "expected_period": "2026-09-28",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-28",
+            "expectedPeriod": "2026-09-28",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 30, 2026 ~09:00 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFEDFUNDSU",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 1,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USFEDFUNDSL",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 1,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e2",
+          "symbol": "USEFFR",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 4640,
+      "fit": {
+        "from": 2196,
+        "to": 4643
+      },
+      "fitTime": {
+        "from": "2017-05-18",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 3113.63,
+          "to": 3725.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 2960.63,
+          "to": 3572.38
+        },
+        "requested": -153,
+        "shift": -153,
+        "visibleTime": {
+          "from": "2020-04-22",
+          "to": "2022-08-29"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -305.88,
+          "to": 305.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2008-12-17",
+          "to": "2010-02-18"
+        },
+        "firstBarTime": "2008-12-17"
+      },
+      "ok": true
+    }
+  },
+  "crude": {
+    "audit": {
+      "scenario": "crude",
+      "title": "(c) Primary · weekly · U.S. crude stocks ex SPR (1982-2026)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 2293,
+        "firstRow": "1982-09-02",
+        "lastRow": "2026-09-23",
+        "collapsed": 2,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCRUDEINV": {
+          "status": "available",
+          "points": 2295,
+          "nullPoints": 0,
+          "firstAvailable": "9/2/1982, 11:00:00 ET",
+          "lastAvailable": "9/23/2026, 10:30:00 ET",
+          "firstPeriod": "1982-08-14",
+          "lastPeriod": "2026-09-18",
+          "frequency": "W",
+          "maxAgeDays": 13,
+          "formatKey": "mbbl@1000",
+          "valuedBars": 2293,
+          "interiorGaps": 0,
+          "sampleValue": 426398,
+          "axisText": "426.4M bbl",
+          "legendText": "USCRUDEINV 426.4M bbl · wk 9/18",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-12",
+            "expected_period": "2026-09-12",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "10:30",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-12",
+            "expectedPeriod": "2026-09-12",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "10:30",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 30, 2026 ~10:30 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCRUDEINV",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 2293,
+      "fit": {
+        "from": 0,
+        "to": 2296
+      },
+      "fitTime": {
+        "from": "1982-09-02",
+        "to": "2026-09-23"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 861,
+          "to": 1435
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 717,
+          "to": 1291
+        },
+        "requested": -144,
+        "shift": -144,
+        "visibleTime": {
+          "from": "1996-07-11",
+          "to": "2007-07-12"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -287,
+          "to": 287
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1982-09-02",
+          "to": "1988-04-14"
+        },
+        "firstBarTime": "1982-09-02"
+      },
+      "ok": true
+    }
+  },
+  "claims": {
+    "audit": {
+      "scenario": "claims",
+      "title": "(c2) Primary · weekly · Initial claims",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 3069,
+        "firstRow": "1967-01-20",
+        "lastRow": "2026-09-25",
+        "collapsed": 47,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USICSA": {
+          "status": "available",
+          "points": 3116,
+          "nullPoints": 0,
+          "firstAvailable": "1/20/1967, 08:30:00 ET",
+          "lastAvailable": "9/25/2026, 08:30:00 ET",
+          "firstPeriod": "1967-01-01",
+          "lastPeriod": "2026-09-19",
+          "frequency": "W",
+          "maxAgeDays": 13,
+          "formatKey": "num0",
+          "valuedBars": 3069,
+          "interiorGaps": 0,
+          "sampleValue": 197000,
+          "axisText": "197,000",
+          "legendText": "USICSA 197,000 · wk 9/19",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-13",
+            "expected_period": "2026-09-13",
+            "next_release": {
+              "date": "2026-10-01",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-13",
+            "expectedPeriod": "2026-09-13",
+            "nextRelease": {
+              "date": "2026-10-01",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Oct 1, 2026 ~08:30 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USICSA",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 3069,
+      "fit": {
+        "from": 661,
+        "to": 3072
+      },
+      "fitTime": {
+        "from": "1979-09-21",
+        "to": "2026-09-25"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 1565.13,
+          "to": 2167.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 1414.13,
+          "to": 2016.88
+        },
+        "requested": -151,
+        "shift": -151,
+        "visibleTime": {
+          "from": "1994-02-25",
+          "to": "2005-12-23"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -301.38,
+          "to": 301.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1967-01-20",
+          "to": "1972-11-03"
+        },
+        "firstBarTime": "1967-01-20"
+      },
+      "ok": true
+    }
+  },
+  "gdp": {
+    "audit": {
+      "scenario": "gdp",
+      "title": "(d) Primary · quarterly histogram · Real GDP q/q ann.",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 316,
+        "firstRow": "1947-08-29",
+        "lastRow": "2026-07-30",
+        "collapsed": 1,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USRGDPQA": {
+          "status": "available",
+          "points": 317,
+          "nullPoints": 0,
+          "firstAvailable": "8/29/1947, 08:30:00 ET",
+          "lastAvailable": "7/30/2026, 08:30:00 ET",
+          "firstPeriod": "1947-04-01",
+          "lastPeriod": "2026-06-30",
+          "frequency": "Q",
+          "maxAgeDays": 120,
+          "formatKey": "pct1",
+          "valuedBars": 316,
+          "interiorGaps": 0,
+          "sampleValue": 1.5,
+          "axisText": "1.5%",
+          "legendText": "USRGDPQA 1.5% · Q2 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-04-01",
+            "expected_period": "2026-04-01",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "exact"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-04-01",
+            "expectedPeriod": "2026-04-01",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "exact",
+              "text": "Next release: Sep 30, 2026 08:30 ET"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USRGDPQA",
+          "poolKey": "histogram",
+          "paneIndex": 0,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 316,
+      "fit": {
+        "from": 0,
+        "to": 319
+      },
+      "fitTime": {
+        "from": "1947-08-29",
+        "to": "2026-07-30"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 119.63,
+          "to": 199.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 99.63,
+          "to": 179.38
+        },
+        "requested": -20,
+        "shift": -20,
+        "visibleTime": {
+          "from": "1972-05-30",
+          "to": "1992-08-01"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -39.88,
+          "to": 39.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1947-08-29",
+          "to": "1957-08-29"
+        },
+        "firstBarTime": "1947-08-29"
+      },
+      "ok": true
+    }
+  },
+  "overlay-d": {
+    "audit": {
+      "scenario": "overlay-d",
+      "title": "(e) Overlay · daily host (SYNTHETIC) + CPI pane + NFP change pane",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "D",
+        "bars": 716,
+        "first": "2024-01-02",
+        "last": "2026-09-29"
+      },
+      "primary": null,
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 956,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1947, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1947-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num3",
+          "valuedBars": 700,
+          "interiorGaps": 2,
+          "sampleValue": 334.131,
+          "axisText": "334.131",
+          "legendText": "USCPI 334.131 · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 9,
+              "firstBar": "2026-02-02",
+              "lastBar": "2026-02-12",
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        },
+        "USNFPCHG": {
+          "status": "available",
+          "points": 1051,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1939, 08:30:00 ET",
+          "lastAvailable": "9/4/2026, 08:30:00 ET",
+          "firstPeriod": "1939-02-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 694,
+          "interiorGaps": 1,
+          "sampleValue": 162,
+          "axisText": "162.0K",
+          "legendText": "USNFPCHG 162.0K · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 2, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 3,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USNFPCHG",
+          "poolKey": "histogram",
+          "paneIndex": 2,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": [
+        {
+          "symbol": "USCPI",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/11/2026, 08:30:00 ET",
+          "releasedAtUtc": "2026-09-11T12:30:00.000Z",
+          "firstBarIndex": 703,
+          "firstBarTime": "2026-09-11",
+          "firstBarUtc": null,
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": "Jul 2026",
+          "legendAtFirstBar": "USCPI 334.131 · Aug 2026",
+          "legendAtPreviousBar": "USCPI 332.813 · Jul 2026",
+          "barsShowingBeforeRelease": 0,
+          "ok": true
+        }
+      ],
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 716,
+      "fit": {
+        "from": 0,
+        "to": 719
+      },
+      "fitTime": {
+        "from": "2024-01-02",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 269.63,
+          "to": 449.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 224.63,
+          "to": 404.38
+        },
+        "requested": -45,
+        "shift": -45,
+        "visibleTime": {
+          "from": "2024-11-11",
+          "to": "2025-07-22"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -89.88,
+          "to": 89.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-02",
+          "to": "2024-05-07"
+        },
+        "firstBarTime": "2024-01-02"
+      },
+      "ok": true
+    }
+  },
+  "overlay-w": {
+    "audit": {
+      "scenario": "overlay-w",
+      "title": "(f) Overlay · weekly host (SYNTHETIC) + CPI + NFP change",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "W",
+        "bars": 144,
+        "first": "2024-01-01",
+        "last": "2026-09-28"
+      },
+      "primary": null,
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 956,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1947, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1947-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num3",
+          "valuedBars": 142,
+          "interiorGaps": 2,
+          "sampleValue": 334.131,
+          "axisText": "334.131",
+          "legendText": "USCPI 334.131 · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 1,
+              "firstBar": "2026-02-02",
+              "lastBar": "2026-02-02",
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        },
+        "USNFPCHG": {
+          "status": "available",
+          "points": 1051,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1939, 08:30:00 ET",
+          "lastAvailable": "9/4/2026, 08:30:00 ET",
+          "firstPeriod": "1939-02-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 140,
+          "interiorGaps": 1,
+          "sampleValue": 162,
+          "axisText": "162.0K",
+          "legendText": "USNFPCHG 162.0K · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 2, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 3,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USNFPCHG",
+          "poolKey": "histogram",
+          "paneIndex": 2,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": [
+        {
+          "symbol": "USCPI",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/11/2026, 08:30:00 ET",
+          "releasedAtUtc": "2026-09-11T12:30:00.000Z",
+          "firstBarIndex": 140,
+          "firstBarTime": "2026-09-07",
+          "firstBarUtc": null,
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": "Jul 2026",
+          "legendAtFirstBar": "USCPI 334.131 · Aug 2026",
+          "legendAtPreviousBar": "USCPI 332.813 · Jul 2026",
+          "barsShowingBeforeRelease": 0,
+          "ok": true
+        }
+      ],
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 144,
+      "fit": {
+        "from": 0,
+        "to": 147
+      },
+      "fitTime": {
+        "from": "2024-01-01",
+        "to": "2026-09-28"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 55.13,
+          "to": 91.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 46.13,
+          "to": 82.88
+        },
+        "requested": -9,
+        "shift": -9,
+        "visibleTime": {
+          "from": "2024-11-18",
+          "to": "2025-08-04"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -18.38,
+          "to": 18.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-01",
+          "to": "2024-05-13"
+        },
+        "firstBarTime": "2024-01-01"
+      },
+      "ok": true
+    }
+  },
+  "overlay-5": {
+    "audit": {
+      "scenario": "overlay-5",
+      "title": "(f) Overlay · 5-minute host (SYNTHETIC, 04:00-20:00 ET) + CPI",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "5",
+        "bars": 768,
+        "first": "9/24/2026, 04:00:00 ET",
+        "last": "9/29/2026, 19:55:00 ET"
+      },
+      "primary": null,
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCPI": {
+          "status": "available",
+          "points": 956,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1947, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1947-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num3",
+          "valuedBars": 768,
+          "interiorGaps": 0,
+          "sampleValue": 334.131,
+          "axisText": "334.131",
+          "legendText": "USCPI 334.131 · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 0,
+              "firstBar": null,
+              "lastBar": null,
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        },
+        "USEFFR": {
+          "status": "available",
+          "points": 2658,
+          "nullPoints": 0,
+          "firstAvailable": "3/2/2016, 11:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "2016-03-01",
+          "lastPeriod": "2026-09-28",
+          "frequency": "D",
+          "maxAgeDays": 10,
+          "formatKey": "pct2",
+          "valuedBars": 768,
+          "interiorGaps": 0,
+          "sampleValue": 3.88,
+          "axisText": "3.88%",
+          "legendText": "USEFFR 3.88% · Sep 28, 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-28",
+            "expected_period": "2026-09-28",
+            "next_release": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-28",
+            "expectedPeriod": "2026-09-28",
+            "nextRelease": {
+              "date": "2026-09-30",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 30, 2026 ~09:00 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USEFFR",
+          "poolKey": "line",
+          "paneIndex": 2,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": [
+        {
+          "symbol": "USCPI",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/11/2026, 08:30:00 ET",
+          "releasedAtUtc": "2026-09-11T12:30:00.000Z",
+          "firstBarIndex": 0,
+          "firstBarTime": "9/24/2026, 04:00:00 ET",
+          "firstBarUtc": "2026-09-24T08:00:00.000Z",
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": null,
+          "legendAtFirstBar": "USCPI 334.131 · Aug 2026",
+          "legendAtPreviousBar": null,
+          "barsShowingBeforeRelease": 0,
+          "ok": true
+        }
+      ],
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 768,
+      "fit": {
+        "from": 0,
+        "to": 771
+      },
+      "fitTime": {
+        "from": 1790222400,
+        "to": 1790711700
+      },
+      "zoomIn": {
+        "range": {
+          "from": 289.13,
+          "to": 481.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 241.13,
+          "to": 433.88
+        },
+        "requested": -48,
+        "shift": -48,
+        "visibleTime": {
+          "from": 1790323500,
+          "to": 1790583000
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -96.38,
+          "to": 96.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": 1790222400,
+          "to": 1790251500
+        },
+        "firstBarTime": 1790236800
+      },
+      "ok": true
+    }
+  },
+  "nfp": {
+    "audit": {
+      "scenario": "nfp",
+      "title": "(g) Primary · monthly histogram · Nonfarm payrolls change (k persons, negatives)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 1049,
+        "firstRow": "1939-04-11",
+        "lastRow": "2026-09-04",
+        "collapsed": 2,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USNFPCHG": {
+          "status": "available",
+          "points": 1051,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1939, 08:30:00 ET",
+          "lastAvailable": "9/4/2026, 08:30:00 ET",
+          "firstPeriod": "1939-02-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 1049,
+          "interiorGaps": 0,
+          "sampleValue": 162,
+          "axisText": "162.0K",
+          "legendText": "USNFPCHG 162.0K · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-02",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 2, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USNFPCHG",
+          "poolKey": "histogram",
+          "paneIndex": 0,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 1049,
+      "fit": {
+        "from": 0,
+        "to": 1052
+      },
+      "fitTime": {
+        "from": "1939-04-11",
+        "to": "2026-09-04"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 394.5,
+          "to": 657.5
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 328.5,
+          "to": 591.5
+        },
+        "requested": -66,
+        "shift": -66,
+        "visibleTime": {
+          "from": "1966-08-08",
+          "to": "1988-08-05"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -131.5,
+          "to": 131.5
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1939-04-11",
+          "to": "1950-04-11"
+        },
+        "firstBarTime": "1939-04-11"
+      },
+      "ok": true
+    }
+  },
+  "tradebal": {
+    "audit": {
+      "scenario": "tradebal",
+      "title": "(g2) Primary · monthly histogram · Trade balance (usd_compact, negatives)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 387,
+        "firstRow": "1994-03-21",
+        "lastRow": "2026-09-03",
+        "collapsed": 4,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USTRADEBAL": {
+          "status": "available",
+          "points": 391,
+          "nullPoints": 0,
+          "firstAvailable": "3/21/1994, 08:30:00 ET",
+          "lastAvailable": "9/3/2026, 08:30:00 ET",
+          "firstPeriod": "1994-01-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "usd_compact@1000000",
+          "valuedBars": 387,
+          "interiorGaps": 0,
+          "sampleValue": -88576,
+          "axisText": "-$88.58B",
+          "legendText": "USTRADEBAL -$88.58B · Jul 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-07-01",
+            "expected_period": "2026-07-01",
+            "next_release": {
+              "date": "2026-10-06",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "exact"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-07-01",
+            "expectedPeriod": "2026-07-01",
+            "nextRelease": {
+              "date": "2026-10-06",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "exact",
+              "text": "Next release: Oct 6, 2026 08:30 ET"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USTRADEBAL",
+          "poolKey": "histogram",
+          "paneIndex": 0,
+          "lineType": null,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 387,
+      "fit": {
+        "from": 0,
+        "to": 390
+      },
+      "fitTime": {
+        "from": "1994-03-21",
+        "to": "2026-09-03"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 146.25,
+          "to": 243.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 122.25,
+          "to": 219.75
+        },
+        "requested": -24,
+        "shift": -24,
+        "visibleTime": {
+          "from": "2004-07-19",
+          "to": "2012-09-18"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -48.75,
+          "to": 48.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1994-03-21",
+          "to": "1998-06-18"
+        },
+        "firstBarTime": "1994-03-21"
+      },
+      "ok": true
+    }
+  },
+  "cpiyoy": {
+    "audit": {
+      "scenario": "cpiyoy",
+      "title": "(h) Primary · DERIVED line · CPI y/y (yoy_pct of CPI NSA)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 1352,
+        "firstRow": "1914-04-01",
+        "lastRow": "2026-09-11",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USCPIYOY": {
+          "status": "available",
+          "points": 1352,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1914, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1914-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "pct1",
+          "valuedBars": 1351,
+          "interiorGaps": 1,
+          "sampleValue": 3.3965478924364856,
+          "axisText": "3.4%",
+          "legendText": "USCPIYOY 3.4% · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 1,
+              "firstBar": "2026-01-30",
+              "lastBar": "2026-01-30",
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USCPIYOY",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 1352,
+      "fit": {
+        "from": 0,
+        "to": 1355
+      },
+      "fitTime": {
+        "from": "1914-04-01",
+        "to": "2026-09-11"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 508.13,
+          "to": 846.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 423.13,
+          "to": 761.88
+        },
+        "requested": -85,
+        "shift": -85,
+        "visibleTime": {
+          "from": "1949-06-29",
+          "to": "1977-08-19"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -169.38,
+          "to": 169.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1914-04-01",
+          "to": "1928-05-30"
+        },
+        "firstBarTime": "1914-04-01"
+      },
+      "ok": true
+    }
+  },
+  "t10y2y": {
+    "audit": {
+      "scenario": "t10y2y",
+      "title": "(h2) Primary · DERIVED line · 10y-2y spread (pp)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 8057,
+        "firstRow": "1976-06-07",
+        "lastRow": "2026-09-28",
+        "collapsed": 4520,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "UST10Y2Y": {
+          "status": "available",
+          "points": 12577,
+          "nullPoints": 0,
+          "firstAvailable": "6/7/1976, 23:59:00 ET",
+          "lastAvailable": "9/28/2026, 16:15:00 ET",
+          "firstPeriod": "1976-06-01",
+          "lastPeriod": "2026-09-25",
+          "frequency": "D",
+          "maxAgeDays": 10,
+          "formatKey": "pp2",
+          "valuedBars": 8057,
+          "interiorGaps": 0,
+          "sampleValue": 0.3600000000000003,
+          "axisText": "0.36 pp",
+          "legendText": "UST10Y2Y 0.36 pp · Sep 25, 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-09-25",
+            "expected_period": "2026-09-25",
+            "next_release": {
+              "date": "2026-09-29",
+              "time": "16:15",
+              "tz": "America/New_York",
+              "precision": "rule"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-09-25",
+            "expectedPeriod": "2026-09-25",
+            "nextRelease": {
+              "date": "2026-09-29",
+              "time": "16:15",
+              "tz": "America/New_York",
+              "precision": "rule",
+              "text": "Next release: Sep 29, 2026 ~16:15 ET (est.)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "UST10Y2Y",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 8057,
+      "fit": {
+        "from": 5633,
+        "to": 8060
+      },
+      "fitTime": {
+        "from": "2016-12-14",
+        "to": "2026-09-28"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 6543.13,
+          "to": 7149.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 6391.13,
+          "to": 6997.88
+        },
+        "requested": -152,
+        "shift": -152,
+        "visibleTime": {
+          "from": "2020-01-08",
+          "to": "2022-06-17"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -303.38,
+          "to": 303.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1976-06-07",
+          "to": "1982-04-05"
+        },
+        "firstBarTime": "1976-06-07"
+      },
+      "ok": true
+    }
+  },
+  "fhfa": {
+    "audit": {
+      "scenario": "fhfa",
+      "title": "(i) Primary · FHFA HPI (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 427,
+        "firstRow": "1991-04-11",
+        "lastRow": "2026-09-29",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USFHFAHPI": {
+          "status": "available",
+          "points": 427,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1991, 09:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "1991-01-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num2",
+          "valuedBars": 427,
+          "interiorGaps": 0,
+          "sampleValue": 443.52,
+          "axisText": "443.52",
+          "legendText": "USFHFAHPI 443.52 · Jul 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-07-01",
+            "expected_period": "2026-07-01",
+            "next_release": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-07-01",
+            "expectedPeriod": "2026-07-01",
+            "nextRelease": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact",
+              "text": "Next release: Oct 27, 2026 09:00 ET"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFHFAHPI",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USFHFAHPI",
+        "ps": "2026-06-01",
+        "view": "latest",
+        "asof": null,
+        "value": 442.34,
+        "placedAt": "2026-09-01T03:59:00.000Z",
+        "legendAtRow": "USFHFAHPI 442.34 · Jun 2026",
+        "row": "2026-08-31"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 427,
+      "fit": {
+        "from": 0,
+        "to": 430
+      },
+      "fitTime": {
+        "from": "1991-04-11",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 161.25,
+          "to": 268.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 134.25,
+          "to": 241.75
+        },
+        "requested": -27,
+        "shift": -27,
+        "visibleTime": {
+          "from": "2002-06-09",
+          "to": "2011-06-09"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -53.75,
+          "to": 53.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1991-04-11",
+          "to": "1995-10-09"
+        },
+        "firstBarTime": "1991-04-11"
+      },
+      "ok": true
+    }
+  },
+  "jolts": {
+    "audit": {
+      "scenario": "jolts",
+      "title": "(i2) Primary · JOLTS openings (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 308,
+        "firstRow": "2001-03-01",
+        "lastRow": "2026-09-29",
+        "collapsed": 1,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USJOLTSO": {
+          "status": "available",
+          "points": 309,
+          "nullPoints": 0,
+          "firstAvailable": "3/1/2001, 10:00:00 ET",
+          "lastAvailable": "9/29/2026, 10:00:00 ET",
+          "firstPeriod": "2000-12-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 308,
+          "interiorGaps": 0,
+          "sampleValue": 7079,
+          "axisText": "7.08M",
+          "legendText": "USJOLTSO 7.08M · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Nov 3, 2026 10:00 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USJOLTSO",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USJOLTSO",
+        "ps": "2026-07-01",
+        "view": "latest",
+        "asof": null,
+        "value": 7335,
+        "placedAt": "2026-09-01T14:00:00.000Z",
+        "legendAtRow": "USJOLTSO 7.33M · Jul 2026",
+        "row": "2026-09-01"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 308,
+      "fit": {
+        "from": 0,
+        "to": 311
+      },
+      "fitTime": {
+        "from": "2001-03-01",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 116.63,
+          "to": 194.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 97.63,
+          "to": 175.38
+        },
+        "requested": -19,
+        "shift": -19,
+        "visibleTime": {
+          "from": "2009-03-10",
+          "to": "2015-10-16"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -38.88,
+          "to": 38.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2001-03-01",
+          "to": "2004-05-11"
+        },
+        "firstBarTime": "2001-03-01"
+      },
+      "ok": true
+    }
+  },
+  "overlay-fhfa-d": {
+    "audit": {
+      "scenario": "overlay-fhfa-d",
+      "title": "(j) Overlay · daily host (SYNTHETIC) + FHFA HPI + JOLTS + CPI",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "D",
+        "bars": 716,
+        "first": "2024-01-02",
+        "last": "2026-09-29"
+      },
+      "primary": null,
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USFHFAHPI": {
+          "status": "available",
+          "points": 427,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1991, 09:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "1991-01-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num2",
+          "valuedBars": 716,
+          "interiorGaps": 0,
+          "sampleValue": 443.52,
+          "axisText": "443.52",
+          "legendText": "USFHFAHPI 443.52 · Jul 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-07-01",
+            "expected_period": "2026-07-01",
+            "next_release": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-07-01",
+            "expectedPeriod": "2026-07-01",
+            "nextRelease": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact",
+              "text": "Next release: Oct 27, 2026 09:00 ET"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        },
+        "USJOLTSO": {
+          "status": "available",
+          "points": 309,
+          "nullPoints": 0,
+          "firstAvailable": "3/1/2001, 10:00:00 ET",
+          "lastAvailable": "9/29/2026, 10:00:00 ET",
+          "firstPeriod": "2000-12-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 700,
+          "interiorGaps": 1,
+          "sampleValue": 7079,
+          "axisText": "7.08M",
+          "legendText": "USJOLTSO 7.08M · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Nov 3, 2026 10:00 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        },
+        "USCPI": {
+          "status": "available",
+          "points": 956,
+          "nullPoints": 1,
+          "firstAvailable": "4/1/1947, 08:30:00 ET",
+          "lastAvailable": "9/11/2026, 08:30:00 ET",
+          "firstPeriod": "1947-01-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num3",
+          "valuedBars": 700,
+          "interiorGaps": 2,
+          "sampleValue": 334.131,
+          "axisText": "334.131",
+          "legendText": "USCPI 334.131 · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-10-14",
+              "time": "08:30",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Oct 14, 2026 08:30 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [
+            {
+              "period": "2025-10-01..2025-10-31",
+              "placedAt": "1/30/2026, 23:59:00 ET",
+              "bars": 9,
+              "firstBar": "2026-02-02",
+              "lastBar": "2026-02-12",
+              "valuedBars": 0,
+              "drawnPoints": 0
+            }
+          ],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFHFAHPI",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USJOLTSO",
+          "poolKey": "line",
+          "paneIndex": 2,
+          "lineType": 0,
+          "renderSeries": 2,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e2",
+          "symbol": "USCPI",
+          "poolKey": "line",
+          "paneIndex": 3,
+          "lineType": 0,
+          "renderSeries": 3,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": [
+        {
+          "symbol": "USFHFAHPI",
+          "period": "2026-07-01..2026-07-31",
+          "periodEnd": "2026-07-31",
+          "releasedAt": "9/29/2026, 09:00:00 ET",
+          "releasedAtUtc": "2026-09-29T13:00:00.000Z",
+          "firstBarIndex": 715,
+          "firstBarTime": "2026-09-29",
+          "firstBarUtc": null,
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Jul 2026",
+          "observationAtPreviousBar": "Jun 2026",
+          "legendAtFirstBar": "USFHFAHPI 443.52 · Jul 2026",
+          "legendAtPreviousBar": "USFHFAHPI 442.34 · Jun 2026",
+          "barsShowingBeforeRelease": 0,
+          "expectFirstBar": "2026-09-29",
+          "ok": true
+        },
+        {
+          "symbol": "USJOLTSO",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/29/2026, 10:00:00 ET",
+          "releasedAtUtc": "2026-09-29T14:00:00.000Z",
+          "firstBarIndex": 715,
+          "firstBarTime": "2026-09-29",
+          "firstBarUtc": null,
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": "Jul 2026",
+          "legendAtFirstBar": "USJOLTSO 7.08M · Aug 2026",
+          "legendAtPreviousBar": "USJOLTSO 7.33M · Jul 2026",
+          "barsShowingBeforeRelease": 0,
+          "expectFirstBar": "2026-09-29",
+          "ok": true
+        },
+        {
+          "symbol": "USCPI",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/11/2026, 08:30:00 ET",
+          "releasedAtUtc": "2026-09-11T12:30:00.000Z",
+          "firstBarIndex": 703,
+          "firstBarTime": "2026-09-11",
+          "firstBarUtc": null,
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": "Jul 2026",
+          "legendAtFirstBar": "USCPI 334.131 · Aug 2026",
+          "legendAtPreviousBar": "USCPI 332.813 · Jul 2026",
+          "barsShowingBeforeRelease": 0,
+          "ok": true
+        }
+      ],
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 716,
+      "fit": {
+        "from": 0,
+        "to": 719
+      },
+      "fitTime": {
+        "from": "2024-01-02",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 269.63,
+          "to": 449.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 224.63,
+          "to": 404.38
+        },
+        "requested": -45,
+        "shift": -45,
+        "visibleTime": {
+          "from": "2024-11-11",
+          "to": "2025-07-22"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -89.88,
+          "to": 89.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2024-01-02",
+          "to": "2024-05-07"
+        },
+        "firstBarTime": "2024-01-02"
+      },
+      "ok": true
+    }
+  },
+  "overlay-jolts-5": {
+    "audit": {
+      "scenario": "overlay-jolts-5",
+      "title": "(k) Overlay · 5-minute host (SYNTHETIC) + JOLTS + FHFA",
+      "src": "api",
+      "placement": "available",
+      "kind": "overlay",
+      "errors": [],
+      "host": {
+        "symbol": "SYNTH_SPY",
+        "synthetic": true,
+        "tf": "5",
+        "bars": 768,
+        "first": "9/24/2026, 04:00:00 ET",
+        "last": "9/29/2026, 19:55:00 ET"
+      },
+      "primary": null,
+      "asof": null,
+      "asofIso": null,
+      "series": {
+        "USJOLTSO": {
+          "status": "available",
+          "points": 309,
+          "nullPoints": 0,
+          "firstAvailable": "3/1/2001, 10:00:00 ET",
+          "lastAvailable": "9/29/2026, 10:00:00 ET",
+          "firstPeriod": "2000-12-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 768,
+          "interiorGaps": 0,
+          "sampleValue": 7079,
+          "axisText": "7.08M",
+          "legendText": "USJOLTSO 7.08M · Aug 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-08-01",
+            "expected_period": "2026-08-01",
+            "next_release": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-08-01",
+            "expectedPeriod": "2026-08-01",
+            "nextRelease": {
+              "date": "2026-11-03",
+              "time": "10:00",
+              "tz": "America/New_York",
+              "precision": "time_configured",
+              "text": "Next release: Nov 3, 2026 10:00 ET (typical)"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        },
+        "USFHFAHPI": {
+          "status": "available",
+          "points": 427,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1991, 09:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "1991-01-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num2",
+          "valuedBars": 768,
+          "interiorGaps": 0,
+          "sampleValue": 443.52,
+          "axisText": "443.52",
+          "legendText": "USFHFAHPI 443.52 · Jul 2026",
+          "currentness": {
+            "state": "CURRENT",
+            "latest_period": "2026-07-01",
+            "expected_period": "2026-07-01",
+            "next_release": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact"
+            }
+          },
+          "currentnessView": {
+            "state": "current",
+            "backendState": "CURRENT",
+            "claimsCurrent": true,
+            "historical": false,
+            "latestPeriod": "2026-07-01",
+            "expectedPeriod": "2026-07-01",
+            "nextRelease": {
+              "date": "2026-10-27",
+              "time": "09:00",
+              "tz": "America/New_York",
+              "precision": "exact",
+              "text": "Next release: Oct 27, 2026 09:00 ET"
+            }
+          },
+          "view": "latest",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USJOLTSO",
+          "poolKey": "line",
+          "paneIndex": 1,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        },
+        {
+          "instanceId": "e1",
+          "symbol": "USFHFAHPI",
+          "poolKey": "line",
+          "paneIndex": 2,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": [
+        {
+          "symbol": "USJOLTSO",
+          "period": "2026-08-01..2026-08-31",
+          "periodEnd": "2026-08-31",
+          "releasedAt": "9/29/2026, 10:00:00 ET",
+          "releasedAtUtc": "2026-09-29T14:00:00.000Z",
+          "firstBarIndex": 648,
+          "firstBarTime": "9/29/2026, 10:00:00 ET",
+          "firstBarUtc": "2026-09-29T14:00:00.000Z",
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Aug 2026",
+          "observationAtPreviousBar": "Jul 2026",
+          "legendAtFirstBar": "USJOLTSO 7.08M · Aug 2026",
+          "legendAtPreviousBar": "USJOLTSO 7.33M · Jul 2026",
+          "barsShowingBeforeRelease": 0,
+          "expectFirstBarUtc": "2026-09-29T14:00:00Z",
+          "ok": true
+        },
+        {
+          "symbol": "USFHFAHPI",
+          "period": "2026-07-01..2026-07-31",
+          "periodEnd": "2026-07-31",
+          "releasedAt": "9/29/2026, 09:00:00 ET",
+          "releasedAtUtc": "2026-09-29T13:00:00.000Z",
+          "firstBarIndex": 636,
+          "firstBarTime": "9/29/2026, 09:00:00 ET",
+          "firstBarUtc": "2026-09-29T13:00:00.000Z",
+          "firstBarAfterPeriodEnd": true,
+          "observationAtFirstBar": "Jul 2026",
+          "observationAtPreviousBar": "Jun 2026",
+          "legendAtFirstBar": "USFHFAHPI 443.52 · Jul 2026",
+          "legendAtPreviousBar": "USFHFAHPI 442.34 · Jun 2026",
+          "barsShowingBeforeRelease": 0,
+          "expectFirstBarUtc": "2026-09-29T13:00:00Z",
+          "ok": true
+        }
+      ],
+      "probeValue": null,
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 768,
+      "fit": {
+        "from": 0,
+        "to": 771
+      },
+      "fitTime": {
+        "from": 1790222400,
+        "to": 1790711700
+      },
+      "zoomIn": {
+        "range": {
+          "from": 289.13,
+          "to": 481.88
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 241.13,
+          "to": 433.88
+        },
+        "requested": -48,
+        "shift": -48,
+        "visibleTime": {
+          "from": 1790323500,
+          "to": 1790583000
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -96.38,
+          "to": 96.38
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": 1790222400,
+          "to": 1790251500
+        },
+        "firstBarTime": 1790236800
+      },
+      "ok": true
+    }
+  },
+  "fhfa-asof-before": {
+    "audit": {
+      "scenario": "fhfa",
+      "title": "(i) Primary · FHFA HPI (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 426,
+        "firstRow": "1991-04-11",
+        "lastRow": "2026-08-31",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": 1790686799,
+      "asofIso": "2026-09-29T12:59:59.000Z",
+      "series": {
+        "USFHFAHPI": {
+          "status": "available",
+          "points": 426,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1991, 09:00:00 ET",
+          "lastAvailable": "8/31/2026, 23:59:00 ET",
+          "firstPeriod": "1991-01-01",
+          "lastPeriod": "2026-06-30",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num2",
+          "valuedBars": 426,
+          "interiorGaps": 0,
+          "sampleValue": 442.53,
+          "axisText": "442.53",
+          "legendText": "USFHFAHPI 442.53 · Jun 2026",
+          "currentness": {
+            "state": null,
+            "historical": true
+          },
+          "currentnessView": {
+            "state": "no_expectation",
+            "backendState": null,
+            "claimsCurrent": false,
+            "historical": true,
+            "asof": 1790686799,
+            "latestPeriod": null,
+            "expectedPeriod": null,
+            "nextRelease": {
+              "date": null,
+              "time": null,
+              "tz": null,
+              "precision": "unknown",
+              "text": "As of 2026-09-29T12:59:59Z (historical view)"
+            }
+          },
+          "view": "asof",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFHFAHPI",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USFHFAHPI",
+        "ps": "2026-06-01",
+        "view": "asof",
+        "asof": 1790686799,
+        "value": 442.53,
+        "placedAt": "2026-09-01T03:59:00.000Z",
+        "legendAtRow": "USFHFAHPI 442.53 · Jun 2026",
+        "row": "2026-08-31"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 426,
+      "fit": {
+        "from": 0,
+        "to": 429
+      },
+      "fitTime": {
+        "from": "1991-04-11",
+        "to": "2026-08-31"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 160.87,
+          "to": 268.13
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 133.87,
+          "to": 241.13
+        },
+        "requested": -27,
+        "shift": -27,
+        "visibleTime": {
+          "from": "2002-05-09",
+          "to": "2011-06-09"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -53.63,
+          "to": 53.63
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1991-04-11",
+          "to": "1995-10-09"
+        },
+        "firstBarTime": "1991-04-11"
+      },
+      "ok": true
+    }
+  },
+  "fhfa-asof-after": {
+    "audit": {
+      "scenario": "fhfa",
+      "title": "(i) Primary · FHFA HPI (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 427,
+        "firstRow": "1991-04-11",
+        "lastRow": "2026-09-29",
+        "collapsed": 0,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": 1790686800,
+      "asofIso": "2026-09-29T13:00:00.000Z",
+      "series": {
+        "USFHFAHPI": {
+          "status": "available",
+          "points": 427,
+          "nullPoints": 0,
+          "firstAvailable": "4/11/1991, 09:00:00 ET",
+          "lastAvailable": "9/29/2026, 09:00:00 ET",
+          "firstPeriod": "1991-01-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "num2",
+          "valuedBars": 427,
+          "interiorGaps": 0,
+          "sampleValue": 443.52,
+          "axisText": "443.52",
+          "legendText": "USFHFAHPI 443.52 · Jul 2026",
+          "currentness": {
+            "state": null,
+            "historical": true
+          },
+          "currentnessView": {
+            "state": "no_expectation",
+            "backendState": null,
+            "claimsCurrent": false,
+            "historical": true,
+            "asof": 1790686800,
+            "latestPeriod": null,
+            "expectedPeriod": null,
+            "nextRelease": {
+              "date": null,
+              "time": null,
+              "tz": null,
+              "precision": "unknown",
+              "text": "As of 2026-09-29T13:00:00Z (historical view)"
+            }
+          },
+          "view": "asof",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USFHFAHPI",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USFHFAHPI",
+        "ps": "2026-06-01",
+        "view": "asof",
+        "asof": 1790686800,
+        "value": 442.34,
+        "placedAt": "2026-09-01T03:59:00.000Z",
+        "legendAtRow": "USFHFAHPI 442.34 · Jun 2026",
+        "row": "2026-08-31"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 427,
+      "fit": {
+        "from": 0,
+        "to": 430
+      },
+      "fitTime": {
+        "from": "1991-04-11",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 161.25,
+          "to": 268.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 134.25,
+          "to": 241.75
+        },
+        "requested": -27,
+        "shift": -27,
+        "visibleTime": {
+          "from": "2002-06-09",
+          "to": "2011-06-09"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -53.75,
+          "to": 53.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "1991-04-11",
+          "to": "1995-10-09"
+        },
+        "firstBarTime": "1991-04-11"
+      },
+      "ok": true
+    }
+  },
+  "jolts-asof-before": {
+    "audit": {
+      "scenario": "jolts",
+      "title": "(i2) Primary · JOLTS openings (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 307,
+        "firstRow": "2001-03-01",
+        "lastRow": "2026-09-01",
+        "collapsed": 1,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": 1790690399,
+      "asofIso": "2026-09-29T13:59:59.000Z",
+      "series": {
+        "USJOLTSO": {
+          "status": "available",
+          "points": 308,
+          "nullPoints": 0,
+          "firstAvailable": "3/1/2001, 10:00:00 ET",
+          "lastAvailable": "9/1/2026, 10:00:00 ET",
+          "firstPeriod": "2000-12-01",
+          "lastPeriod": "2026-07-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 307,
+          "interiorGaps": 0,
+          "sampleValue": 7271,
+          "axisText": "7.27M",
+          "legendText": "USJOLTSO 7.27M · Jul 2026",
+          "currentness": {
+            "state": null,
+            "historical": true
+          },
+          "currentnessView": {
+            "state": "no_expectation",
+            "backendState": null,
+            "claimsCurrent": false,
+            "historical": true,
+            "asof": 1790690399,
+            "latestPeriod": null,
+            "expectedPeriod": null,
+            "nextRelease": {
+              "date": null,
+              "time": null,
+              "tz": null,
+              "precision": "unknown",
+              "text": "As of 2026-09-29T13:59:59Z (historical view)"
+            }
+          },
+          "view": "asof",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USJOLTSO",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USJOLTSO",
+        "ps": "2026-07-01",
+        "view": "asof",
+        "asof": 1790690399,
+        "value": 7271,
+        "placedAt": "2026-09-01T14:00:00.000Z",
+        "legendAtRow": "USJOLTSO 7.27M · Jul 2026",
+        "row": "2026-09-01"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 307,
+      "fit": {
+        "from": 0,
+        "to": 310
+      },
+      "fitTime": {
+        "from": "2001-03-01",
+        "to": "2026-09-01"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 116.25,
+          "to": 193.75
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 97.25,
+          "to": 174.75
+        },
+        "requested": -19,
+        "shift": -19,
+        "visibleTime": {
+          "from": "2009-03-10",
+          "to": "2015-09-09"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -38.75,
+          "to": 38.75
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2001-03-01",
+          "to": "2004-05-11"
+        },
+        "firstBarTime": "2001-03-01"
+      },
+      "ok": true
+    }
+  },
+  "jolts-asof-after": {
+    "audit": {
+      "scenario": "jolts",
+      "title": "(i2) Primary · JOLTS openings (as-of aware)",
+      "src": "api",
+      "placement": "available",
+      "kind": "primary",
+      "errors": [],
+      "host": null,
+      "primary": {
+        "rows": 308,
+        "firstRow": "2001-03-01",
+        "lastRow": "2026-09-29",
+        "collapsed": 1,
+        "grid": null,
+        "ohlcFieldsOnRows": false,
+        "candleSeries": 0
+      },
+      "asof": 1790690400,
+      "asofIso": "2026-09-29T14:00:00.000Z",
+      "series": {
+        "USJOLTSO": {
+          "status": "available",
+          "points": 309,
+          "nullPoints": 0,
+          "firstAvailable": "3/1/2001, 10:00:00 ET",
+          "lastAvailable": "9/29/2026, 10:00:00 ET",
+          "firstPeriod": "2000-12-01",
+          "lastPeriod": "2026-08-31",
+          "frequency": "M",
+          "maxAgeDays": 45,
+          "formatKey": "k_persons@1000",
+          "valuedBars": 308,
+          "interiorGaps": 0,
+          "sampleValue": 7079,
+          "axisText": "7.08M",
+          "legendText": "USJOLTSO 7.08M · Aug 2026",
+          "currentness": {
+            "state": null,
+            "historical": true
+          },
+          "currentnessView": {
+            "state": "no_expectation",
+            "backendState": null,
+            "claimsCurrent": false,
+            "historical": true,
+            "asof": 1790690400,
+            "latestPeriod": null,
+            "expectedPeriod": null,
+            "nextRelease": {
+              "date": null,
+              "time": null,
+              "tz": null,
+              "precision": "unknown",
+              "text": "As of 2026-09-29T14:00:00Z (historical view)"
+            }
+          },
+          "view": "asof",
+          "nullPeriods": [],
+          "legendMatchesAxis": true
+        }
+      },
+      "bindings": [
+        {
+          "instanceId": "e0",
+          "symbol": "USJOLTSO",
+          "poolKey": "line",
+          "paneIndex": 0,
+          "lineType": 0,
+          "renderSeries": 1,
+          "drawnThroughGaps": 0
+        }
+      ],
+      "alignment": null,
+      "probeValue": {
+        "symbol": "USJOLTSO",
+        "ps": "2026-07-01",
+        "view": "asof",
+        "asof": 1790690400,
+        "value": 7335,
+        "placedAt": "2026-09-01T14:00:00.000Z",
+        "legendAtRow": "USJOLTSO 7.33M · Jul 2026",
+        "row": "2026-09-01"
+      },
+      "drawnThroughGapsTotal": 0
+    },
+    "nav": {
+      "bars": 308,
+      "fit": {
+        "from": 0,
+        "to": 311
+      },
+      "fitTime": {
+        "from": "2001-03-01",
+        "to": "2026-09-29"
+      },
+      "zoomIn": {
+        "range": {
+          "from": 116.63,
+          "to": 194.38
+        },
+        "widthRatio": 0.25
+      },
+      "pan": {
+        "range": {
+          "from": 97.63,
+          "to": 175.38
+        },
+        "requested": -19,
+        "shift": -19,
+        "visibleTime": {
+          "from": "2009-03-10",
+          "to": "2015-10-16"
+        }
+      },
+      "origin": {
+        "range": {
+          "from": -38.88,
+          "to": 38.88
+        },
+        "firstBarCentred": true,
+        "visibleTime": {
+          "from": "2001-03-01",
+          "to": "2004-05-11"
+        },
+        "firstBarTime": "2001-03-01"
+      },
+      "ok": true
+    }
+  }
+}

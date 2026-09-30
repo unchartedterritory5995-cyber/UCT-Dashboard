@@ -135,7 +135,13 @@ function sourceStemOf(def, inputs) {
   const declared = (def.inputs || []).find((i) => i && i.type === 'source')
   if (!declared) return null
   const raw = (inputs && inputs[declared.key] !== undefined) ? inputs[declared.key] : declared.default
-  if (typeof raw !== 'string' || !raw.startsWith('sym:')) return null
+  if (typeof raw !== 'string') return null
+  // ⭐ An ECONOMIC series is named by its registry symbol (`econ:USCPI` -> USCPI).
+  if (raw.startsWith('econ:')) {
+    const s = raw.slice(5)
+    return s && !s.includes(':') ? s : null
+  }
+  if (!raw.startsWith('sym:')) return null
   const parts = raw.split(':')
   return parts.length === 3 && parts[1] ? parts[1] : null
 }
@@ -194,7 +200,13 @@ export function chipValueText(chip) {
   if (chip.value == null || !Number.isFinite(chip.value)) return ''
   // ⭐ A historical fundamental reads in its catalogue unit (`$365.0B`, `24.3%`),
   // formatted from the VALUE each time -- so a crosshair move re-reads correctly.
-  if (typeof chip.format === 'string' && chip.format) return formatFundamentalValue(chip.value, chip.format)
+  if (typeof chip.format === 'string' && chip.format) {
+    const text = formatFundamentalValue(chip.value, chip.format)
+    // ⭐ An ECONOMIC value names the period it DESCRIBES (`334.13 · Aug 2026`) --
+    // the bar it sits on is its RELEASE, not its period, and a reader must not
+    // have to guess which.
+    return typeof chip.observation === 'string' && chip.observation ? `${text} · ${chip.observation}` : text
+  }
   if (chip.compact === true) return compactValue(chip.value)
   return chip.value.toFixed(Number.isInteger(chip.decimals) ? chip.decimals : DEFAULT_DECIMALS)
 }
@@ -394,6 +406,12 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
     const frameSuffix = typeof e.frame === 'string' && e.frame ? ` · ${tfLabel(e.frame)}` : ''
     const label = chipLabel(def, plot, inputs,
       typeof displayFor === 'function' ? displayFor(e.defId, e.instanceId) : null) + frameSuffix
+    // The observation period of the value under the crosshair (economic only).
+    let observation = ''
+    if (typeof e.observationAt === 'function' && hoveredTime !== undefined) {
+      const o = e.observationAt(hoveredTime)
+      if (typeof o === 'string') observation = o
+    }
 
     out.push({
       defId: def.id,
@@ -404,8 +422,9 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
       decimals,
       compact,
       ...(format ? { format } : {}),
+      ...(observation ? { observation } : {}),
       value,
-      text: `${label} ${chipValueText({ value, decimals, compact, format })}`,
+      text: `${label} ${chipValueText({ value, decimals, compact, format, observation })}`,
       ...(frameSuffix ? { frameSuffix } : {}),
     })
     inputsByChip.set(out.length - 1, inputs)
@@ -689,7 +708,8 @@ export function engineChips(bindings, seriesData, registry, instances) {
     .filter(b => b && b.series)
     .map(b => ({ defId: b.defId, plotKey: b.plotKey, series: b.series, lastValue: b.lastValue, instanceId: b.instanceId,
       ...(typeof b.valueAt === 'function' ? { valueAt: b.valueAt } : {}),
-      ...(typeof b.frame === 'string' && b.frame ? { frame: b.frame } : {}) }))
+      ...(typeof b.frame === 'string' && b.frame ? { frame: b.frame } : {}),
+      ...(typeof b.observationAt === 'function' ? { observationAt: b.observationAt } : {}) }))
   // ⛔ PER INSTANCE, NEVER PER DEFINITION. `cs.indicators[defId]` is the LEGACY
   // lane's answer and is simply wrong here: two instances of one definition are
   // two different periods and two different colours on one chart.

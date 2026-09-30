@@ -1,0 +1,978 @@
+{
+ "code": "C:\\w\\econint\\api\\services\\econ\\__init__.py",
+ "db": "C:\\w\\econint-data\\econ.db",
+ "census": [
+  {
+   "symbol": "USCPINSA",
+   "exp": {
+    "count": 1364,
+    "oldest": "1913-01-01",
+    "newest": "2026-08-01",
+    "latest": 334.98,
+    "na": 1
+   },
+   "count": 1364,
+   "oldest": "1913-01-01",
+   "newest": "2026-08-01",
+   "latest": 334.98,
+   "srv_status": 200,
+   "srv_count": 1364,
+   "srv_oldest": "1913-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 334.98,
+   "na": 1,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USCPI",
+   "exp": {
+    "count": 956,
+    "oldest": "1947-01-01",
+    "newest": "2026-08-01",
+    "latest": 334.131,
+    "na": 1
+   },
+   "count": 956,
+   "oldest": "1947-01-01",
+   "newest": "2026-08-01",
+   "latest": 334.131,
+   "srv_status": 200,
+   "srv_count": 956,
+   "srv_oldest": "1947-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 334.131,
+   "na": 1,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USRGDPQA",
+   "exp": {
+    "count": 317,
+    "oldest": "1947-04-01",
+    "newest": "2026-04-01",
+    "latest": 1.5,
+    "na": 0
+   },
+   "count": 317,
+   "oldest": "1947-04-01",
+   "newest": "2026-04-01",
+   "latest": 1.5,
+   "srv_status": 200,
+   "srv_count": 317,
+   "srv_oldest": "1947-04-01",
+   "srv_newest": "2026-04-01",
+   "srv_latest": 1.5,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USPCEPI",
+   "exp": {
+    "count": 811,
+    "oldest": "1959-01-01",
+    "newest": "2026-07-01",
+    "latest": 131.659,
+    "na": 0
+   },
+   "count": 811,
+   "oldest": "1959-01-01",
+   "newest": "2026-07-01",
+   "latest": 131.659,
+   "srv_status": 200,
+   "srv_count": 811,
+   "srv_oldest": "1959-01-01",
+   "srv_newest": "2026-07-01",
+   "srv_latest": 131.659,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USDEBT",
+   "exp": {
+    "count": 8401,
+    "oldest": "1993-04-01",
+    "newest": "2026-09-25",
+    "latest": 40097178119750.91,
+    "na": 0
+   },
+   "count": 8401,
+   "oldest": "1993-04-01",
+   "newest": "2026-09-25",
+   "latest": 40097178119750.91,
+   "srv_status": 200,
+   "srv_count": 8401,
+   "srv_oldest": "1993-04-01",
+   "srv_newest": "2026-09-25",
+   "srv_latest": 40097178119750.91,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USTGA",
+   "exp": {
+    "count": 5271,
+    "oldest": "2005-10-03",
+    "newest": "2026-09-25",
+    "latest": 945290.0,
+    "na": 0
+   },
+   "count": 5272,
+   "oldest": "2005-10-03",
+   "newest": "2026-09-28",
+   "latest": 959572.0,
+   "srv_status": 200,
+   "srv_count": 5272,
+   "srv_oldest": "2005-10-03",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 959572.0,
+   "na": 0,
+   "verdict": "MISMATCH"
+  },
+  {
+   "symbol": "USMTSDEF",
+   "exp": {
+    "count": 155,
+    "oldest": "2013-10-01",
+    "newest": "2026-08-01",
+    "latest": 166796952277.38,
+    "na": 0
+   },
+   "count": 155,
+   "oldest": "2013-10-01",
+   "newest": "2026-08-01",
+   "latest": 166796952277.38,
+   "srv_status": 200,
+   "srv_count": 155,
+   "srv_oldest": "2013-10-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 166796952277.38,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "UST10Y",
+   "exp": {
+    "count": 16169,
+    "oldest": "1962-01-02",
+    "newest": "2026-09-25",
+    "latest": 5.17,
+    "na": 0
+   },
+   "count": 16170,
+   "oldest": "1962-01-02",
+   "newest": "2026-09-28",
+   "latest": 5.24,
+   "srv_status": 200,
+   "srv_count": 16170,
+   "srv_oldest": "1962-01-02",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 5.24,
+   "na": 0,
+   "verdict": "MISMATCH"
+  },
+  {
+   "symbol": "USM2",
+   "exp": {
+    "count": 812,
+    "oldest": "1959-01-01",
+    "newest": "2026-08-01",
+    "latest": 23342.8,
+    "na": 0
+   },
+   "count": 812,
+   "oldest": "1959-01-01",
+   "newest": "2026-08-01",
+   "latest": 23342.8,
+   "srv_status": 200,
+   "srv_count": 812,
+   "srv_oldest": "1959-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 23342.8,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USFEDBAL",
+   "exp": {
+    "count": 1241,
+    "oldest": "2002-12-12",
+    "newest": "2026-09-17",
+    "latest": 6747704.0,
+    "na": 0
+   },
+   "count": 1241,
+   "oldest": "2002-12-12",
+   "newest": "2026-09-17",
+   "latest": 6747704.0,
+   "srv_status": 200,
+   "srv_count": 1241,
+   "srv_oldest": "2002-12-12",
+   "srv_newest": "2026-09-17",
+   "srv_latest": 6747704.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USEFFR",
+   "exp": {
+    "count": 2658,
+    "oldest": "2016-03-01",
+    "newest": "2026-09-28",
+    "latest": 3.88,
+    "na": 0
+   },
+   "count": 2658,
+   "oldest": "2016-03-01",
+   "newest": "2026-09-28",
+   "latest": 3.88,
+   "srv_status": 200,
+   "srv_count": 2658,
+   "srv_oldest": "2016-03-01",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 3.88,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USFEDFUNDSU",
+   "exp": {
+    "count": 4468,
+    "oldest": "2008-12-16",
+    "newest": "2026-09-28",
+    "latest": 4.0,
+    "na": 0
+   },
+   "count": 4468,
+   "oldest": "2008-12-16",
+   "newest": "2026-09-28",
+   "latest": 4.0,
+   "srv_status": 200,
+   "srv_count": 4468,
+   "srv_oldest": "2008-12-16",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 4.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USFEDFUNDSL",
+   "exp": {
+    "count": 4468,
+    "oldest": "2008-12-16",
+    "newest": "2026-09-28",
+    "latest": 3.75,
+    "na": 0
+   },
+   "count": 4468,
+   "oldest": "2008-12-16",
+   "newest": "2026-09-28",
+   "latest": 3.75,
+   "srv_status": 200,
+   "srv_count": 4468,
+   "srv_oldest": "2008-12-16",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 3.75,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USSOFR",
+   "exp": {
+    "count": 2121,
+    "oldest": "2018-04-02",
+    "newest": "2026-09-28",
+    "latest": 3.9,
+    "na": 0
+   },
+   "count": 2121,
+   "oldest": "2018-04-02",
+   "newest": "2026-09-28",
+   "latest": 3.9,
+   "srv_status": 200,
+   "srv_count": 2121,
+   "srv_oldest": "2018-04-02",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 3.9,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USRRP",
+   "exp": {
+    "count": 3250,
+    "oldest": "2013-09-23",
+    "newest": "2026-09-28",
+    "latest": 851000000.0,
+    "na": 0
+   },
+   "count": 3251,
+   "oldest": "2013-09-23",
+   "newest": "2026-09-29",
+   "latest": 11446000000.0,
+   "srv_status": 200,
+   "srv_count": 3251,
+   "srv_oldest": "2013-09-23",
+   "srv_newest": "2026-09-29",
+   "srv_latest": 11446000000.0,
+   "na": 0,
+   "verdict": "MISMATCH"
+  },
+  {
+   "symbol": "USFHFAHPI",
+   "exp": {
+    "count": 427,
+    "oldest": "1991-01-01",
+    "newest": "2026-07-01",
+    "latest": 443.52,
+    "na": 0
+   },
+   "count": 427,
+   "oldest": "1991-01-01",
+   "newest": "2026-07-01",
+   "latest": 443.52,
+   "srv_status": 200,
+   "srv_count": 427,
+   "srv_oldest": "1991-01-01",
+   "srv_newest": "2026-07-01",
+   "srv_latest": 443.52,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USCRUDEINV",
+   "exp": {
+    "count": 2295,
+    "oldest": "1982-08-14",
+    "newest": "2026-09-12",
+    "latest": 426398.0,
+    "na": 0
+   },
+   "count": 2295,
+   "oldest": "1982-08-14",
+   "newest": "2026-09-12",
+   "latest": 426398.0,
+   "srv_status": 200,
+   "srv_count": 2295,
+   "srv_oldest": "1982-08-14",
+   "srv_newest": "2026-09-12",
+   "srv_latest": 426398.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USGASPRICE",
+   "exp": {
+    "count": 1885,
+    "oldest": "1990-08-14",
+    "newest": "2026-09-22",
+    "latest": 4.465,
+    "na": 6
+   },
+   "count": 1885,
+   "oldest": "1990-08-14",
+   "newest": "2026-09-22",
+   "latest": 4.465,
+   "srv_status": 200,
+   "srv_count": 1885,
+   "srv_oldest": "1990-08-14",
+   "srv_newest": "2026-09-22",
+   "srv_latest": 4.465,
+   "na": 6,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USICSA",
+   "exp": {
+    "count": 3116,
+    "oldest": "1967-01-01",
+    "newest": "2026-09-13",
+    "latest": 197000.0,
+    "na": 0
+   },
+   "count": 3116,
+   "oldest": "1967-01-01",
+   "newest": "2026-09-13",
+   "latest": 197000.0,
+   "srv_status": 200,
+   "srv_count": 3116,
+   "srv_oldest": "1967-01-01",
+   "srv_newest": "2026-09-13",
+   "srv_latest": 197000.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USUNRATE",
+   "exp": {
+    "count": 944,
+    "oldest": "1948-01-01",
+    "newest": "2026-08-01",
+    "latest": 4.1,
+    "na": 1
+   },
+   "count": 944,
+   "oldest": "1948-01-01",
+   "newest": "2026-08-01",
+   "latest": 4.1,
+   "srv_status": 200,
+   "srv_count": 944,
+   "srv_oldest": "1948-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 4.1,
+   "na": 1,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USNFP",
+   "exp": {
+    "count": 1052,
+    "oldest": "1939-01-01",
+    "newest": "2026-08-01",
+    "latest": 159075.0,
+    "na": 0
+   },
+   "count": 1052,
+   "oldest": "1939-01-01",
+   "newest": "2026-08-01",
+   "latest": 159075.0,
+   "srv_status": 200,
+   "srv_count": 1052,
+   "srv_oldest": "1939-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 159075.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USJOLTSO",
+   "exp": {
+    "count": 309,
+    "oldest": "2000-12-01",
+    "newest": "2026-08-01",
+    "latest": 7079.0,
+    "na": 0
+   },
+   "count": 309,
+   "oldest": "2000-12-01",
+   "newest": "2026-08-01",
+   "latest": 7079.0,
+   "srv_status": 200,
+   "srv_count": 309,
+   "srv_oldest": "2000-12-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 7079.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USCPIYOY",
+   "exp": {
+    "count": 1352,
+    "oldest": "1914-01-01",
+    "newest": "2026-08-01",
+    "latest": 3.3965478924364856,
+    "na": 1
+   },
+   "count": 1352,
+   "oldest": "1914-01-01",
+   "newest": "2026-08-01",
+   "latest": 3.3965478924364856,
+   "srv_status": 200,
+   "srv_count": 1352,
+   "srv_oldest": "1914-01-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 3.3965478924364856,
+   "na": 1,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USPCEPIYOY",
+   "exp": {
+    "count": 799,
+    "oldest": "1960-01-01",
+    "newest": "2026-07-01",
+    "latest": 3.7011657214870874,
+    "na": 0
+   },
+   "count": 799,
+   "oldest": "1960-01-01",
+   "newest": "2026-07-01",
+   "latest": 3.7011657214870874,
+   "srv_status": 200,
+   "srv_count": 799,
+   "srv_oldest": "1960-01-01",
+   "srv_newest": "2026-07-01",
+   "srv_latest": 3.7011657214870874,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "UST10Y2Y",
+   "exp": {
+    "count": 12577,
+    "oldest": "1976-06-01",
+    "newest": "2026-09-25",
+    "latest": 0.3600000000000003,
+    "na": 0
+   },
+   "count": 12578,
+   "oldest": "1976-06-01",
+   "newest": "2026-09-28",
+   "latest": 0.3200000000000003,
+   "srv_status": 200,
+   "srv_count": 12578,
+   "srv_oldest": "1976-06-01",
+   "srv_newest": "2026-09-28",
+   "srv_latest": 0.3200000000000003,
+   "na": 0,
+   "verdict": "MISMATCH"
+  },
+  {
+   "symbol": "USNFPCHG",
+   "exp": {
+    "count": 1051,
+    "oldest": "1939-02-01",
+    "newest": "2026-08-01",
+    "latest": 162.0,
+    "na": 0
+   },
+   "count": 1051,
+   "oldest": "1939-02-01",
+   "newest": "2026-08-01",
+   "latest": 162.0,
+   "srv_status": 200,
+   "srv_count": 1051,
+   "srv_oldest": "1939-02-01",
+   "srv_newest": "2026-08-01",
+   "srv_latest": 162.0,
+   "na": 0,
+   "verdict": "MATCH"
+  },
+  {
+   "symbol": "USDEBTGDP",
+   "exp": {
+    "count": 133,
+    "oldest": "1993-04-01",
+    "newest": "2026-04-01",
+    "latest": 121.47484518677751,
+    "na": 0
+   },
+   "count": 133,
+   "oldest": "1993-04-01",
+   "newest": "2026-04-01",
+   "latest": 121.47484518677751,
+   "srv_status": 200,
+   "srv_count": 133,
+   "srv_oldest": "1993-04-01",
+   "srv_newest": "2026-04-01",
+   "srv_latest": 121.47484518677751,
+   "na": 0,
+   "verdict": "MATCH"
+  }
+ ],
+ "census_all": {
+  "n": 43,
+  "mismatch": [
+   {
+    "symbol": "UST2Y",
+    "ok": false,
+    "got": [
+     12578,
+     "1976-06-01",
+     "2026-09-28",
+     4.92
+    ],
+    "exp": [
+     12577,
+     "1976-06-01",
+     "2026-09-25",
+     4.81
+    ]
+   },
+   {
+    "symbol": "UST10Y",
+    "ok": false,
+    "got": [
+     16170,
+     "1962-01-02",
+     "2026-09-28",
+     5.24
+    ],
+    "exp": [
+     16169,
+     "1962-01-02",
+     "2026-09-25",
+     5.17
+    ]
+   },
+   {
+    "symbol": "UST10Y2Y",
+    "ok": false,
+    "got": [
+     12578,
+     "1976-06-01",
+     "2026-09-28",
+     0.3200000000000003
+    ],
+    "exp": [
+     12577,
+     "1976-06-01",
+     "2026-09-25",
+     0.3600000000000003
+    ]
+   },
+   {
+    "symbol": "USRRP",
+    "ok": false,
+    "got": [
+     3251,
+     "2013-09-23",
+     "2026-09-29",
+     11446000000.0
+    ],
+    "exp": [
+     3250,
+     "2013-09-23",
+     "2026-09-28",
+     851000000.0
+    ]
+   },
+   {
+    "symbol": "USTGA",
+    "ok": false,
+    "got": [
+     5272,
+     "2005-10-03",
+     "2026-09-28",
+     959572.0
+    ],
+    "exp": [
+     5271,
+     "2005-10-03",
+     "2026-09-25",
+     945290.0
+    ]
+   }
+  ]
+ },
+ "revision": {
+  "USFHFAHPI": {
+   "period": "2026-06-01",
+   "versions": [
+    {
+     "available_at": 1788235140,
+     "et": "2026-08-31 23:59:00 ET",
+     "value": 442.53,
+     "pit": "L",
+     "method": "rule",
+     "release_id": 13451
+    },
+    {
+     "available_at": 1790686800,
+     "et": "2026-09-29 09:00:00 ET",
+     "value": 442.34,
+     "pit": "V",
+     "method": "scheduled",
+     "release_id": 13591
+    }
+   ],
+   "release_rows": [
+    {
+     "available_at": 1788235140,
+     "value": 442.53,
+     "pit_class": "L",
+     "available_method": "rule",
+     "release_key": "backfill:USFHFAHPI:run1790649709:retimed-2026-09-29:retimed-2026-09-29b",
+     "scheduled_at": null
+    },
+    {
+     "available_at": 1790686800,
+     "value": 442.34,
+     "pit_class": "V",
+     "available_method": "scheduled",
+     "release_key": "fhfa:hpi_monthly:2026-07",
+     "scheduled_at": 1790686800
+    }
+   ],
+   "live_available_at": 1790686800,
+   "live_et": "2026-09-29 09:00:00 ET",
+   "before": {
+    "asof": 1790686799,
+    "asof_et": "2026-09-29 08:59:59 ET",
+    "status": 200,
+    "view": "asof",
+    "currentness": {
+     "state": null,
+     "historical": true
+    },
+    "value": 442.53,
+    "t": 1788235140
+   },
+   "after": {
+    "asof": 1790686800,
+    "asof_et": "2026-09-29 09:00:00 ET",
+    "status": 200,
+    "view": "asof",
+    "currentness": {
+     "state": null,
+     "historical": true
+    },
+    "value": 442.34,
+    "t": 1788235140
+   },
+   "latest_view": {
+    "value": 442.34,
+    "t": 1788235140,
+    "t_et": "2026-08-31 23:59:00 ET"
+   }
+  },
+  "USJOLTSO": {
+   "period": "2026-07-01",
+   "versions": [
+    {
+     "available_at": 1788271200,
+     "et": "2026-09-01 10:00:00 ET",
+     "value": 7271.0,
+     "pit": "L",
+     "method": "scheduled:history",
+     "release_id": 13597
+    },
+    {
+     "available_at": 1790690400,
+     "et": "2026-09-29 10:00:00 ET",
+     "value": 7335.0,
+     "pit": "V",
+     "method": "scheduled",
+     "release_id": 14040
+    }
+   ],
+   "release_rows": [
+    {
+     "available_at": 1788271200,
+     "value": 7271.0,
+     "pit_class": "L",
+     "available_method": "scheduled:history",
+     "release_key": "backfill:USJOLTSO:backfill-1790687482:retimed-2026-09-29:retimed-2026-09-29b",
+     "scheduled_at": null
+    },
+    {
+     "available_at": 1790690400,
+     "value": 7335.0,
+     "pit_class": "V",
+     "available_method": "scheduled",
+     "release_key": "bls:jolts:2026-08",
+     "scheduled_at": 1790690400
+    }
+   ],
+   "live_available_at": 1790690400,
+   "live_et": "2026-09-29 10:00:00 ET",
+   "before": {
+    "asof": 1790690399,
+    "asof_et": "2026-09-29 09:59:59 ET",
+    "status": 200,
+    "view": "asof",
+    "currentness": {
+     "state": null,
+     "historical": true
+    },
+    "value": 7271.0,
+    "t": 1788271200
+   },
+   "after": {
+    "asof": 1790690400,
+    "asof_et": "2026-09-29 10:00:00 ET",
+    "status": 200,
+    "view": "asof",
+    "currentness": {
+     "state": null,
+     "historical": true
+    },
+    "value": 7335.0,
+    "t": 1788271200
+   },
+   "latest_view": {
+    "value": 7335.0,
+    "t": 1788271200,
+    "t_et": "2026-09-01 10:00:00 ET"
+   }
+  }
+ },
+ "leaks_before_schedule": 0,
+ "obs_total": 99423,
+ "releases_with_sched": 8,
+ "audit_derived": {
+  "USCPIYOY": {
+   "reasons": 0,
+   "rows": 1352,
+   "sample": []
+  },
+  "USCPIMOM": {
+   "reasons": 0,
+   "rows": 955,
+   "sample": []
+  },
+  "USCORECPIYOY": {
+   "reasons": 0,
+   "rows": 824,
+   "sample": []
+  },
+  "USNFPCHG": {
+   "reasons": 0,
+   "rows": 1051,
+   "sample": []
+  },
+  "USPCEPIYOY": {
+   "reasons": 0,
+   "rows": 799,
+   "sample": []
+  },
+  "UST10Y2Y": {
+   "reasons": 0,
+   "rows": 12578,
+   "sample": []
+  },
+  "USDEBTGDP": {
+   "reasons": 0,
+   "rows": 133,
+   "sample": []
+  }
+ },
+ "hardening": {
+  "USCPINSA_2025-09": {
+   "rows": [
+    {
+     "et": "2025-10-24 08:30:00 ET",
+     "value": 324.8,
+     "pit": "L",
+     "method": "scheduled:history"
+    }
+   ],
+   "catchup_floor_et": "2026-01-30 23:59:00 ET",
+   "ok": false
+  },
+  "USNFP_2025-09": {
+   "rows": [
+    {
+     "et": "2025-11-20 08:30:00 ET",
+     "value": 158548.0,
+     "pit": "L",
+     "method": "scheduled:history"
+    }
+   ],
+   "ok": true
+  },
+  "UST10Y_null_rows": 0,
+  "UST2Y_null_rows": 0,
+  "UST10Y2Y_null_rows": 0,
+  "gas_holiday_weeks": {
+   "holiday_week_rows": 260,
+   "before_wednesday": [],
+   "samples": [
+    [
+     "2025-09-01",
+     "2025-09-03 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2025-10-13",
+     "2025-10-15 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2025-11-10",
+     "2025-11-13 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2026-01-19",
+     "2026-01-21 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2026-01-26",
+     "2026-01-29 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2026-02-16",
+     "2026-02-18 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2026-05-25",
+     "2026-05-27 23:59:00 ET",
+     "rule"
+    ],
+    [
+     "2026-09-07",
+     "2026-09-09 23:59:00 ET",
+     "rule"
+    ]
+   ]
+  },
+  "funding_lapses": {
+   "file_exists": true,
+   "path": "C:\\w\\econint\\api\\services\\econ\\calendars\\funding_lapses.json",
+   "loaded_ids": [
+    "1995-11",
+    "1995-12",
+    "2013-10",
+    "2018-12",
+    "2025-10",
+    "2026-01"
+   ],
+   "n": 6
+  }
+ },
+ "retail": {
+  "USRETAIL": {
+   "status": "unverified",
+   "source_verified": false,
+   "fail_closed_note": [
+    "ruling 2026-09-29: status='unverified' -- FAIL CLOSED: econ_export history (737,763 Aug) vs advance release table (773,947) differ ~4.8% on every month; basis (employer-only benchmark, April 2025) unresolved"
+   ]
+  },
+  "dependents": {
+   "USRETAILXA": {
+    "status": "disabled",
+    "exists": true,
+    "inputs": null
+   },
+   "USRETAILCTRL": {
+    "status": "unverified",
+    "exists": true,
+    "inputs": [
+     "USRETAIL",
+     "USRETAILMV",
+     "USRETAILGAS",
+     "USRETAILBM",
+     "USRETAILFS"
+    ]
+   },
+   "USRETAILMOM": {
+    "status": "disabled",
+    "exists": true,
+    "inputs": [
+     "USRETAIL"
+    ]
+   },
+   "USRETCTRLMOM": {
+    "status": "unverified",
+    "exists": true,
+    "inputs": [
+     "USRETAILCTRL"
+    ]
+   }
+  },
+  "enabled_retail": [],
+  "serving_USRETAIL": [
+   404,
+   {
+    "detail": "not_found"
+   }
+  ],
+  "db_rows_USRETAIL": 0
+ },
+ "validate_registry": [],
+ "enabled_count": 42
+}

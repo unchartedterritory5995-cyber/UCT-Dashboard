@@ -1,0 +1,63 @@
+[
+ {
+  "symbol": "USRETAIL",
+  "field_path": "source.params.recent_flags",
+  "old": null,
+  "new": [
+   "a",
+   "p"
+  ],
+  "evidence": "MARTS publishes the newest month as an ADVANCE (a) estimate and the prior month as PRELIMINARY (p) (marts_current.xlsx Table 1 header '(a)'/'(p)'); neither the export nor EITS carries a flag, so census.py applies them by position, newest first."
+ },
+ {
+  "symbol": "USHOUST",
+  "field_path": "source.params.recent_flags",
+  "old": null,
+  "new": [
+   "p"
+  ],
+  "evidence": "New Residential Construction: the newest month is preliminary and revised the next month (newresconst.xlsx '(p)'). Position-derived flag."
+ },
+ {
+  "symbol": "USDURGOODS",
+  "field_path": "source.params.advance_program",
+  "old": null,
+  "new": "advm3",
+  "evidence": "Full M3 (program m3) lags the ADVANCE durable goods report by ~1 week: on 2026-09-29 m3/MDM/NO ends Jul-2026 (339,392) while advm3 (econ_export M3ADV) already has Aug-2026 = 338,604. census.py fills months the full program has not published from advm3, flagged 'a'; the full-program value wins for every month it has. docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)"
+ },
+ {
+  "symbol": "USTRADEBAL",
+  "field_path": "history_start",
+  "old": "1992-01",
+  "new": "1994-01",
+  "evidence": "econ_export FTD/BOPGS/BAL (SA) is NA for Jan-1992..Dec-1993; first value Jan-1994. docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)"
+ },
+ {
+  "symbol": "USRETAIL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Phase 1 census adapter live verification 2026-09-29 via census.gov/econ_export (same program/category/data_type codes as EITS): marts/44X72/SM: 416 obs 1992-01..2026-08; header 'Seasonally Adjusted Sales - Monthly [Millions of Dollars]'. Aug-2026 = 737,763 (see LEVEL DISCREPANCY in census.txt: marts_current.xlsx Table 1 shows 773,947). docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)",
+  "evidence": "tools/econ/verify_census.py output"
+ },
+ {
+  "symbol": "USHOUST",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Phase 1 census adapter live verification 2026-09-29 via census.gov/econ_export (same program/category/data_type codes as EITS): resconst/ASTARTS/TOTAL: 812 obs 1959-01..2026-08; header 'Annual Rate for Housing Units Started ... Seasonally Adjusted Total Units [Thousands of Units]'. Aug-2026 = 1,275 = Phase 0 newresconst.xlsx. docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)",
+  "evidence": "tools/econ/verify_census.py output"
+ },
+ {
+  "symbol": "USDURGOODS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Phase 1 census adapter live verification 2026-09-29 via census.gov/econ_export (same program/category/data_type codes as EITS): m3/MDM/NO: header 'Durable Goods: U.S. Total / Seasonally Adjusted New Orders [Millions of Dollars]', 1992-02..2026-07 (+ advm3 Aug-2026 338,604). docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)",
+  "evidence": "tools/econ/verify_census.py output"
+ },
+ {
+  "symbol": "USTRADEBAL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Phase 1 census adapter live verification 2026-09-29 via census.gov/econ_export (same program/category/data_type codes as EITS): ftd/BOPGS/BAL: header 'Balance of Payment Goods and Services ... Seasonally Adjusted Balance [Millions of Dollars]'; Jul-2026 -88,576 = FT-900 Exhibit 1 (exh1.xlsx, LM 2026-09-24) total balance July -88,576 and Jan-Jun 2026 identical. docs/economic-data/verification/census.txt (tools/econ/verify_census.py, 2026-09-29, keyless econ_export CSV)",
+  "evidence": "tools/econ/verify_census.py output"
+ }
+]

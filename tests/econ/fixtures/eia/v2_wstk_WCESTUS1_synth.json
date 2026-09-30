@@ -1,0 +1,64 @@
+{
+ "_note": "SYNTHESISED (no EIA key available): shape per EIA API v2 documentation; values copied from the live dnav page 2026-09-28",
+ "response": {
+  "total": "3",
+  "dateFormat": "YYYY-MM-DD",
+  "frequency": "weekly",
+  "data": [
+   {
+    "period": "2026-09-18",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": 426398,
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-09-11",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": 423429,
+    "units": "MBBL"
+   },
+   {
+    "period": "2026-09-04",
+    "duoarea": "NUS",
+    "area-name": "U.S.",
+    "product": "EPC0",
+    "product-name": "Crude Oil",
+    "process": "SAX",
+    "process-name": "Ending Stocks Excluding SPR",
+    "series": "WCESTUS1",
+    "series-description": "U.S. Ending Stocks excluding SPR of Crude Oil (Thousand Barrels)",
+    "value": 424069,
+    "units": "MBBL"
+   }
+  ]
+ },
+ "request": {
+  "command": "/v2/petroleum/stoc/wstk/data/",
+  "params": {
+   "frequency": "weekly",
+   "data": [
+    "value"
+   ],
+   "facets": {
+    "series": [
+     "WCESTUS1"
+    ]
+   }
+  }
+ },
+ "apiVersion": "2.1.11"
+}

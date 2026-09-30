@@ -183,8 +183,9 @@ MODEL_PROVIDER_KEYS = (
 # e-mail and earnings-audio vendors. Left untouched — the sandbox's pages need
 # their data, and this lane's scope is model spend only.
 NON_MODEL_KEYS = (
-    "ALPHAVANTAGE_API_KEY", "BULLFLOW_API_KEY", "EARNINGS_AUDIO_API_KEY",
-    "FINNHUB_API_KEY", "FINVIZ_API_KEY", "FMP_API_KEY", "FRED_API_KEY",
+    "ALPHAVANTAGE_API_KEY", "BEA_API_KEY", "BLS_API_KEY", "BULLFLOW_API_KEY",
+    "CENSUS_API_KEY", "EARNINGS_AUDIO_API_KEY", "EIA_API_KEY",
+    "FINNHUB_API_KEY", "FINVIZ_API_KEY", "FMP_API_KEY",
     "MASSIVE_API_KEY", "POLYGON_API_KEY", "RESEND_API_KEY", "THEFLY_API_KEY",
     "TWITTERAPI_IO_API_KEY", "UW_API_KEY",
 )
