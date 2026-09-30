@@ -1927,7 +1927,13 @@ const clockFieldAt = (field, a) => {
   return null
 }
 
-const BUILTIN_CALL_TREE = Object.freeze({
+/** ⭐ C23 — the fewest arguments an expansion below is defined for, where the
+ *  expansion itself would silently build something for fewer. ONE place: the
+ *  Resolver refuses `math.avg(x)` from it and so does the runtime lane, which
+ *  lowers the same expansion over runtime state. */
+export const BUILTIN_CALL_TREE_MIN_ARGS = Object.freeze({ avg: 2 })
+
+export const BUILTIN_CALL_TREE = Object.freeze({
   // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
   //
   // ⛔ GROUPED LEFT, AS THE LINE ABOVE READS: `(100 * (src - src[n])) / src[n]`.
@@ -9782,6 +9788,45 @@ export class Resolver {
    *  a look-behind one and backtest beautifully.
    */
   securityAsNode(node, resolveInner) {
+    const target = this.requestTargetOf(node)
+    if (!target) return null
+    const { other, code, live } = target
+    const positional = target.positional
+
+    // 4. compose, innermost first.
+    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
+    // inner call instead of the whole expression, and then wants EXACTLY this
+    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
+    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
+    // the tuple form from becoming a second authority on what a request means.
+    // ⭐ C10 — the child is resolved IN the requested timeframe's context; see
+    // `requestPeriod`. The identity (`code` null) leaves the context unchanged.
+    const outerPeriod = this.requestPeriod
+    if (code) this.requestPeriod = code
+    let out
+    try {
+      out = resolveInner ? resolveInner() : this.resolve(positional[2])
+    } finally {
+      this.requestPeriod = outerPeriod
+    }
+    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
+    if (other) out = { type: 'sym', value: other, args: [out] }
+    return out
+  }
+
+  /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
+   *  `{own, other, code, live, positional}`, or null for a shape this door refuses.
+   *  `own !== null && other === null && code === null` is THE IDENTITY — this
+   *  chart's own bars at this chart's own period, whatever `lookahead` says.
+   *
+   *  ⛔ SPLIT OUT OF `securityAsNode`, NEVER COPIED. The runtime lane asks it the
+   *  same question for a request whose value only the run can compute, so the two
+   *  lanes cannot disagree about which requests are the identity — one reader of
+   *  the symbol, the period, the base-period guard and every `lookahead` spelling.
+   *  ⚠️ It reads bindings through `this.env`, so a caller whose names can be
+   *  SHADOWED by something the env does not hold (the runtime lane's mutable
+   *  slots) must rule those out before asking. */
+  requestTargetOf(node) {
     const args = node.args || []
 
     // ⚠️ EVERY ARGUMENT IS A `{name, value}` WRAPPER, because Pine has named
@@ -9941,25 +9986,7 @@ export class Resolver {
     // `timeframe.period` is the identity the same way `lookahead_off` is.
     if (live && !code) live = false
 
-    // 4. compose, innermost first.
-    // ⭐ THE ONE SUBSTITUTION POINT. A TUPLE request resolves element k of its
-    // inner call instead of the whole expression, and then wants EXACTLY this
-    // wrapping — same symbol rule, same timeframe rule, same lookahead rule, same
-    // `sym`-must-be-outer ordering. Passing the inner resolution in is what keeps
-    // the tuple form from becoming a second authority on what a request means.
-    // ⭐ C10 — the child is resolved IN the requested timeframe's context; see
-    // `requestPeriod`. The identity (`code` null) leaves the context unchanged.
-    const outerPeriod = this.requestPeriod
-    if (code) this.requestPeriod = code
-    let out
-    try {
-      out = resolveInner ? resolveInner() : this.resolve(positional[2])
-    } finally {
-      this.requestPeriod = outerPeriod
-    }
-    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (other) out = { type: 'sym', value: other, args: [out] }
-    return out
+    return { own, other, code, live, positional }
   }
 
   /**
@@ -10195,7 +10222,7 @@ export class Resolver {
           + 'depend on the bar — TO UNBLOCK: write the flag as a literal',
           locate(tok))
       }
-      if (bare === 'avg' && built.length < 2) {
+      if (own(BUILTIN_CALL_TREE_MIN_ARGS, bare) && built.length < BUILTIN_CALL_TREE_MIN_ARGS[bare]) {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
       }
@@ -19939,6 +19966,13 @@ function naSelectorTakesElse(ast) {
  *  colour — a named `color.x`, a `#RRGGBB` literal, and `color.new(base, t)` —
  *  factored out rather than re-typed, so the branches of a conditional and a
  *  plain `color=` can never disagree about what counts as a colour. */
+/** ⭐ C23 — THE NODE `input.color(…)` DRAWS WITH until a member moves the picker:
+ *  its first argument (`defval`, named or not). ONE reader, used by every colour
+ *  reader in this file and by the runtime lane, which lowers the same node as the
+ *  colour value at defaults (`input.color` mints no member parameter — the knob
+ *  is not a Track F kind, `skippedInputs` reports it). */
+export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] || {}).value
+
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   // ⭐ 2026-09-28 (ruling 1) — a constant-selected ternary is its branch.
@@ -19999,7 +20033,7 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
   // kind), and that loss is already reported by `skippedInputs` — this carries
   // the value without claiming the control.
   if (node.type === 'call' && node.name === 'input.color') {
-    return staticColourOf(((node.args || [])[0] || {}).value, env, depth + 1, ctx)
+    return staticColourOf(inputColourDefaultNode(node), env, depth + 1, ctx)
   }
   // ⭐⭐ 2026-09-28 — v4's `input(<colour>, type = input.color)` IS THE SAME PICKER.
   // Before `input.color` existed, a colour input was the generic `input()` whose
@@ -20115,7 +20149,7 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   }
   if (node.type !== 'call') return null
   if (node.name === 'input.color') {
-    return colourHelperAlpha(((node.args || [])[0] || {}).value, env, ctx, depth + 1)
+    return colourHelperAlpha(inputColourDefaultNode(node), env, ctx, depth + 1)
   }
   // The v4 generic `input(<colour>)` — the same door `staticColourOf` opens.
   if (node.name === 'input') {
@@ -20180,7 +20214,7 @@ function colourTransparencyOf(node, env, depth = 0) {
     // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
     // moves the colour picker's alpha still gets the default rendering, and for
     // Uncharted Clouds that governs the entire cloud opacity.
-    return colourTransparencyOf(((node.args || [])[0] || {}).value, env, depth + 1)
+    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1)
   }
   if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
     const opacity = colourHelperAlpha(node, env, null)

@@ -15,9 +15,11 @@
 //   · the ten drawing lists diverge (`collsDivergedWhy`): the floating lists' bar-0
 //     pushes read the loop counter, the historical lists' pushes sit in a loop
 //     whose bound reads an array; their 39 reads are withheld (`coll:diverged`);
-//   · the runtime lane refuses it first on `barstate.isfirst` (window-dependent),
-//     and behind that on six more compile walls — and on the bar that matters it
-//     needs more than `INSTRUCTIONS_PER_BAR` (200,000; not raised, by ruling).
+//   · the runtime lane BUILDS it since C23 (its seven compile walls and the
+//     eager v6 `and` served on a pane) — and on the bar that matters it needs
+//     247,425 VM instructions as written (with this file's hooks 256,060; the
+//     C21 substituted run needed 290,066 at `db6190f3f`, the eager `and`s being
+//     the difference) against `INSTRUCTIONS_PER_BAR` (200,000; not raised, by ruling).
 //
 // ⭐ WHAT C21 FIXED ON THE WAY — A WRONG VALUE IN THE RUNTIME LANE. A plain local
 // `float htf_o = get_htf_open(i)` in `detect_pattern_at_index` was lowered as a
@@ -51,31 +53,12 @@ const NAMES = ['Evening Star', 'Morning Star', 'Shooting Star', 'Hammer', 'Inver
 /** A pattern text → a code, line-exact (`Hammer` is not `Inverted Hammer`). */
 const codeOf = (t) => NAMES.reduce((c, n, j) => c + (`\n${t}\n`.includes(`\n${n}\n`) ? 2 ** j : 0), 0)
 
-/** ⭐ The runtime lane cannot build the script as written (the walls named above).
- *  Each substitution is EXACT on this capture — a from-listing 1D chart at the
- *  author's defaults — and each must match exactly once. */
-const SUBSTITUTIONS = [
-  // bar 0 is the listing bar, TradingView's first (`history.startsAtBar0`)
-  [/barstate\.isfirst/g, 'bar_index == 0', 1],
-  // `timeframe.change("D")` on 1D: false on bar 0, true on every later bar (C8, measured)
-  [/timeframe\.change\(higher_timeframe\)/g, 'bar_index > 0', 1],
-  // a request at the chart's own symbol and timeframe is the identity (C10)
-  [/request\.security\(syminfo\.tickerid, higher_timeframe,\s*\n\s*(.*),\s*\n\s*lookahead=barmerge\.lookahead_off\)/g,
-    '($1)', 1],
-  // Pine's two-argument mean
-  [/math\.avg\((\w+), (\w+)\)/g, '(($1 + $2) / 2)', 2],
-  // the author's defaults (the run is served at defaults only)
-  [/input\.color\((color\.rgb\([^)]*\)|[\w.]+)[^\n]*\)$/gm, '$1', 9],
-  // RDDT's tick: pricescale 100, minmov 1
-  [/syminfo\.mintick/g, '0.01', 1],
-  // an alert draws nothing and writes no variable
-  [/alert\(get_timeframe_label[^\n]*/g, 'int c21_noop = 0', 1],
-  // Pine v6 short-circuits `and`; the runtime lane evaluates this one eagerly
-  // (an operand it cannot prove 0/1) and would read index -1 — named, not changed
-  [/candle_array_index >= 0 and candle_array_index < array\.size\(candle_in_pattern\) and array\.get\(candle_in_pattern, candle_array_index\)/g,
-    'candle_array_index >= 0 and candle_array_index < array.size(candle_in_pattern) ? array.get(candle_in_pattern, candle_array_index) : false', 1],
-]
-
+/** ⭐⭐ C23 — THE SCRIPT AS WRITTEN. C21 measured the runtime lane by
+ *  SUBSTITUTING seven compile walls (`isfirst`, `timeframe.change`, the
+ *  own-timeframe request, `math.avg`, the colour inputs, `syminfo.mintick`,
+ *  `alert`) and the eager v6 `and`; C23 serves each one on a pane
+ *  (`runtimeWallsC23.test.js`), so the run below reads the vendor's own source
+ *  with nothing replaced — only the instrument hooks are added. */
 const HOOK_HEAD = [
   'var array<float> c21_codes = array.new<float>()',
   'c21_code(string t) =>',
@@ -89,11 +72,6 @@ const PLOTS = 50
 
 function instrumented(source) {
   let src = source
-  for (const [re, to, times] of SUBSTITUTIONS) {
-    const hits = (src.match(re) || []).length
-    expect(hits, `${re} matches ${times}x`).toBe(times)
-    src = src.replace(re, to)
-  }
   // the pattern codes, pushed where the script's own 200-candle scan finds each
   const at = '            if pattern_found\n                int num_in_pattern = get_pattern_candle_count(pattern_text)\n'
   expect(src.split(at).length - 1).toBe(1)
@@ -144,7 +122,9 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
     expect(od.collsDiverged).toBe(10)
     expect(od.collsDivergedWhy.filter((e) => /coll:push@4[1-3]\d$/.test(e))).toHaveLength(5)
     expect(od.dropReasons['coll:diverged']).toBe(39)
-    expect(od.runtimeRefused).toBe('pine:window-dependent')
+    // ⭐ C23 — the runtime lane now BUILDS the script (was `pine:window-dependent`,
+    // the first of seven walls); the drawing still stops on the host walls above.
+    expect(od.runtimeRefused ?? null).toBeNull()
   })
 
   it('⭐ the runtime run finds TradingView\'s 43 patterns in its order — and the bar is over the ceiling', () => {
@@ -153,7 +133,7 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
     expect(cap.symbol.minmov / cap.symbol.pricescale).toBe(0.01)
     const bars = toProductBars(cap)
     const built = buildRuntimeIr(instrumented(cap.source.text), {
-      bars, inputs: {}, objectTrees: [], basePeriod: 'D', tf: 'D',
+      bars, inputs: {}, objectTrees: [], pane: true, symbol: { ticker: 'RDDT', exchange: 'NYSE' }, basePeriod: 'D', tf: 'D',
       ...runtimeClockOpts(cap.newestBarIsForming === false ? false : null, { tf: 'D' }),
     })
     expect(built.ok, JSON.stringify(built.refusal)).toBe(true)

@@ -470,6 +470,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
     runtime = runtimeObjectValuesFn
       ? runtimeObjectValuesFn(program.runtime, bars, {
         tf: evalOpts.tf,
+        // ⭐ C23 — the symbol the trees are folded with, so the run settles
+        // `syminfo.mintick` from the same `symbolScope.json` row (or refuses).
+        symbol: opts.symbol,
         newestBarIsForming: evalOpts.newestBarIsForming,
         fromListing: evalOpts.historyFromListing === true,
         atDefaults: inputsAtDefaults(definition, opts.inputs),
