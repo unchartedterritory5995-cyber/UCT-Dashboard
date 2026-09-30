@@ -600,6 +600,18 @@ def _schedule_store_repair(ticker: str, tf: str) -> None:
             _repair_inflight.discard(key)
 
 
+def split_adjust_active() -> bool:
+    """Does the SERVE path apply a missing split factor right now?
+
+    ⭐ ONE ANSWER, TWO READERS: `sanitize_daily_bars` below asks it before
+    adjusting, and `adjustment_basis` asks it before telling a member the chart
+    is split-adjusted. They used to decide separately, and the label kept saying
+    "adjusted by UCT" after `BARS_SPLIT_REPAIR_ENABLED=0` had stopped the
+    adjustment (measured on production 2026-09-30)."""
+    from api.services import bars_split_repair as _bsr
+    return _ENABLED and _bsr.enabled()
+
+
 # ── Public entry point ──────────────────────────────────────────────────────
 def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
@@ -629,8 +641,7 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
         # switch that leaves the faulty computation running and only declines to save
         # its output is not a kill switch; it is the `lesson_gate_that_cannot_fail`
         # shape, and it cost a repair attempt that looked like a no-op.
-        from api.services import bars_split_repair as _bsr
-        if meta and meta.get("splits") and _bsr.enabled():
+        if meta and meta.get("splits") and split_adjust_active():
             unadjusted = unadjusted_splits(bars, meta["splits"])
             if unadjusted:
                 bars = _apply_split_adjust(bars, meta["splits"], unadjusted)
