@@ -7,10 +7,13 @@ files that own them. Every judge carries its planted-defect control here as well
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import tempfile
+import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -19,6 +22,73 @@ from tools import notebook_feature_rail_census as RC
 from tools import notebook_proof_walk as W
 
 REPO = Path(__file__).resolve().parents[1]
+
+# ── wave 10 lane WK6 round 2: a real origin for a fetch()-using fixture ────────────────────
+# `page.set_content()` alone leaves the page on `about:blank`, whose opaque origin makes a
+# RELATIVE `fetch('/api/...')` fail synchronously (no URL to resolve it against) -- so no
+# "request" event ever fires and `page.route()` never engages. `_FIXTURE_DOC_URL` is fulfilled
+# entirely by `page.route()` (never a real network call, never a real server) so `pg.goto()`
+# gives the page a real origin a relative fetch can resolve against.
+_FIXTURE_DOC_URL = "http://notebook-fixture.test/"
+
+
+def _goto_fixture_doc(pg, html: str) -> None:
+    pg.route(_FIXTURE_DOC_URL, lambda route: route.fulfill(status=200, content_type="text/html", body=html))
+    pg.goto(_FIXTURE_DOC_URL)
+
+
+# ── wave 10 lane WK6 round 2: a REAL loopback server for a genuinely-delayed fetch ──────────
+# A `page.route()` handler that calls `time.sleep()` does NOT give a genuinely-delayed
+# response -- Playwright Python's sync API dispatches route callbacks on its one connection
+# thread, so a sleeping handler stalls EVERY other Playwright call issued while it sleeps,
+# including `locator.click()`'s own internal actionability polling. MEASURED: a 0.7s
+# `time.sleep()` inside a `page.route()` handler made `loc.click()` itself take ~0.71s to
+# RETURN -- the click, not quiesce(), was absorbing the delay, which would have made any
+# rail built on it pass for the wrong reason regardless of what `quiesce()` does.
+# Fulfilling the route from a background `threading.Thread` instead is NOT a fix -- Playwright
+# Python's sync API is greenlet-bound to the thread that created it, and a cross-thread
+# `route.fulfill()` call raises `greenlet.error: cannot switch to a different thread`
+# (reproduced in the session scratchpad, `wk6_probe_thread_route.py`).
+# A genuine fix needs a delay OUTSIDE Playwright's own connection entirely: a real, separate
+# TCP server on a background thread that the BROWSER (not Playwright's Python driver) talks
+# to over real sockets. ⚠️ It must be SAME-ORIGIN with the page, not merely CORS-permissive --
+# a page origin Chrome cannot classify as loopback (e.g. an unresolved `page.route()`-only
+# hostname, which Chrome treats as public address space) hitting a REAL `127.0.0.1` target
+# trips Private Network Access and the fetch fails with `ERR_FAILED` before any CORS headers
+# are even read (reproduced, `wk6_probe_realserver.py`) -- so the fixture DOCUMENT is served
+# by this same loopback server too, and the fetch path is relative.
+class _DelayedHandler(BaseHTTPRequestHandler):
+    def do_GET(self):  # noqa: N802 -- BaseHTTPRequestHandler's own naming
+        if self.path.startswith(self.server.slow_path):  # type: ignore[attr-defined]
+            time.sleep(self.server.slow_seconds)  # type: ignore[attr-defined]
+            body, ctype = b"{}", "application/json"
+        else:
+            body, ctype = self.server.doc_html, "text/html"  # type: ignore[attr-defined]
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):  # noqa: D401 -- silence BaseHTTPRequestHandler's stderr logging
+        pass
+
+
+@contextlib.contextmanager
+def _loopback_doc_with_delayed_endpoint(doc_html: str, slow_path: str, slow_seconds: float):
+    """Serves `doc_html` at `/` and a `slow_seconds`-delayed 200 JSON response at `slow_path`,
+    both from one real `127.0.0.1` server -- yields the doc's URL."""
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _DelayedHandler)
+    srv.doc_html = doc_html.encode()
+    srv.slow_path = slow_path
+    srv.slow_seconds = slow_seconds
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}/"
+    finally:
+        srv.shutdown()
+        thread.join(timeout=5)
 
 
 def test_the_judges_self_check_passes():
@@ -531,27 +601,184 @@ def test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_
     """Goal (a): `quiesce()` must not spend its whole ceiling on a page that is already quiet
     (the waste this lane measured), and must still bound a page that NEVER settles at exactly
     the ceiling the flat sleep it replaces used to spend unconditionally -- a genuinely slow
-    effect is never cut short, and a genuinely stuck one is never waited on forever."""
+    effect is never cut short, and a genuinely stuck one is never waited on forever. (round 2:
+    the floor means "already quiet" now costs QUIESCE_FLOOR_MS, not near-zero -- still well
+    under the 500ms budget this rail checks.)"""
     pg = real_browser.new_page()
     try:
         pg.set_content('<div id="x">still</div>')
         pg.evaluate(W.INSTRUMENT_JS)
+        tap = W.Tap(pg)
         started = time.monotonic()
-        W.quiesce(pg, 900)
+        W.quiesce(pg, tap, 900)
         elapsed = time.monotonic() - started
         assert elapsed < 0.5, f"quiesce spent the whole ceiling on an already-quiet page ({elapsed}s)"
+        assert elapsed >= W.QUIESCE_FLOOR_MS / 1000, (
+            f"quiesce returned before its own floor ({elapsed}s < {W.QUIESCE_FLOOR_MS}ms)")
 
         # CONTROL: a page that never stops mutating waits the FULL ceiling -- same as the flat
         # sleep it replaces, never longer and never cut short
         pg.evaluate("() => { setInterval(() => {"
                     "  document.getElementById('x').textContent = String(Math.random()); }, 20); }")
         started = time.monotonic()
-        W.quiesce(pg, 400)
+        W.quiesce(pg, tap, 400)
         elapsed = time.monotonic() - started
         assert elapsed >= 0.35, f"quiesce returned early on a page that never quiesced ({elapsed}s)"
         assert elapsed < 2.0, f"quiesce waited past its own ceiling ({elapsed}s)"
     finally:
         pg.close()
+
+
+def test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet(real_browser):
+    """Goal (a) round 2, the network half in isolation: a page whose DOM never changes at all
+    (so the DOM+floor phase is satisfied at QUIESCE_FLOOR_MS) but whose ONE request never
+    resolves must still make `quiesce()` wait the FULL ceiling -- proving the network check is
+    genuinely load-bearing and not a no-op alongside the DOM/floor phase
+    (l11dc-4dfc5e447/INVALID.md: "the same flaw affects real controls: a click whose visible
+    effect waits on a server reply would read DEAD")."""
+    pg = real_browser.new_page()
+    try:
+        pg.route("**/api/never-resolves", lambda route: None)   # never fulfilled, never aborted
+        _goto_fixture_doc(pg, '<div id="x">still</div>')   # a real origin -- a relative fetch()
+        pg.evaluate(W.INSTRUMENT_JS)                        # from about:blank fails synchronously
+        tap = W.Tap(pg)
+        pg.evaluate("() => { fetch('/api/never-resolves').catch(() => {}); }")
+        started = time.monotonic()
+        W.quiesce(pg, tap, 600)
+        elapsed = time.monotonic() - started
+        assert elapsed >= 0.55, (
+            f"quiesce returned early despite a request still in flight ({elapsed}s) -- "
+            f"the network check is not being consulted")
+        assert elapsed < 1.5, f"quiesce waited past its own ceiling ({elapsed}s)"
+    finally:
+        pg.close()
+
+
+def test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_real_quiesce(real_browser):
+    """Reproduces the CONTROL itself end to end -- `PLANT_DEADCLICK_JS` on a real page (given a
+    real origin by `_goto_fixture_doc` so its poller's relative `fetch()` resolves; the poll
+    itself intercepted via `page.route`), run through the WHOLE pipeline
+    (`deadclick_surface(plant=True)` -> `click_one` -> the real `quiesce()`), then judged by the
+    SAME arithmetic `deadclick_sweep`'s own non-vacuity control uses
+    (`control_ok('deadclick', got)`). Round 1's floor-less `quiesce()` read
+    `plant-poller: NOT-SEEN` here (l11dc-4dfc5e447/INVALID.md); this is the rail that would have
+    caught it before the real walk did.
+
+    ⚠️ Retries up to 3 times on the SAME, pre-existing tolerance `deadclick_sweep` itself has for
+    this control: `click_one`'s `n0`/`bgMark` are two INDEPENDENTLY-paced marks (see the comment
+    above `pg.wait_for_timeout(50)` in `click_one`) and a residual skew between them occasionally
+    misattributes one of the poller's OWN background requests to a dead plant, exactly the class
+    `control_ok` exists to catch (a miss here reads `[INVALID]`, never a silent wrong verdict,
+    and the real controller re-runs). Stress-tested at roughly 1 miss in 25-40 draws
+    (`wk6_repro_plant3.py`, session scratchpad) -- a bounded retry mirrors that same tolerance
+    rather than lowering it; it is not masking a flaky MEASUREMENT, the measurement is exact
+    every time, the underlying control occasionally is.
+
+    ⚠️ MEASURED: this rail is NOT the mutation-proof vehicle for requirement #1 (network) or #2
+    (floor) individually -- it stayed GREEN across 5 consecutive runs with the floor alone
+    disabled, and even across 3 consecutive runs with BOTH the floor AND the network check
+    disabled at once. Two compounding reasons, both measured, neither a defect in the fix:
+    (a) the planted poller's OWN 200ms-period background fetch keeps something in
+    `tap.inflight` often enough that phase 2 (network wait) frequently supplies the dwell time
+    phase 1's floor is supposed to guarantee, so disabling the floor alone rarely shows through
+    here; (b) with `QUIET_MS=120` against a 200ms poll period, a SINGLE click's window still
+    has a ~60% chance of straddling a tick even with NEITHER mechanism active, and this test's
+    OWN 3-attempt retry (needed for the unrelated `n0`/`bgMark` race above) turns that into a
+    ~93.6% chance of passing anyway. **The dedicated, deterministic mutation-proof rails are
+    `test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet` +
+    `test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE` for the
+    network signal, and `test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles`'s
+    floor assertion for the floor** -- this test's job is END-TO-END reproduction of the real
+    control on ordinary (unmutated) code, which it does, reliably; it is not sensitive enough to
+    serve as evidence that either fix is present."""
+    def open_fixture(W_, pg):
+        pg.route("**/api/proof-plant/poll*",
+                  lambda route: route.fulfill(status=200, content_type="application/json", body="{}"))
+        _goto_fixture_doc(pg, '<div data-proof-root="notebook"></div>')
+        return '[data-proof-root="notebook"]'
+
+    names = {"Planted dead styled control": "plant-dead-styled", "Planted dead control": "plant-dead",
+             "Planted live control": "plant-live"}
+    last_got, last_why = None, None
+    for _attempt in range(3):
+        surf = W.Surface("t-plant-poller", open_fixture, sweeps=("deadclick",))
+        world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+        rec = W.deadclick_surface(world, surf, "desk", plant=True)
+        assert rec["status"] == "MEASURED", rec
+
+        got = {}
+        for r in rec["controls"]:
+            for label, cid in names.items():
+                if r["name"].startswith(label) and cid not in got:
+                    got[cid] = r["verdict"]
+                    break
+        # ⛔ NON-VACUITY, the same check `deadclick_sweep` itself applies: the poller must
+        # actually have fired INSIDE a dead click's own window, or "DEAD, DEAD" proves nothing.
+        polled = [r for r in rec["controls"] if r["name"].startswith("Planted dead")
+                  and any("/api/proof-plant/poll" in b for b in (r.get("background_ignored") or []))]
+        got["plant-poller"] = "IN-WINDOW" if polled else "NOT-SEEN"
+
+        ok, why = W.control_ok("deadclick", got)
+        if ok:
+            assert got == {"plant-dead-styled": "DEAD", "plant-dead": "DEAD", "plant-live": "LIVE",
+                           "plant-poller": "IN-WINDOW"}, got
+            return
+        last_got, last_why = got, why
+    pytest.fail(f"{last_why} -- got {last_got} (after 3 attempts)")
+
+
+def test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE(real_browser):
+    """The network signal's OWN reason to exist, at the `click_one` level rather than the
+    quiesce-only level above: a control whose fetch is intercepted with a delay before its DOM
+    update lands. A DOM-only, floor-less `quiesce()` would read this DEAD -- the DOM is quiet
+    (nothing has happened YET) the instant the fixed 120ms window elapses, long before the
+    response (and the mutation it triggers) arrives.
+
+    ⚠️ round 2: the mock endpoint's path is under `/api/j2/telemetry/...` -- a
+    `TELEMETRY_PATHS`-matching prefix -- ON PURPOSE. `judge_click`'s pre-existing
+    `if reqs: eff.append("request")` rule credits the mere INITIATION of a click's own fetch
+    (visible in `tap.reqs` the instant it dispatches, unaffected by whether `quiesce()` ever
+    waits for it) as "request" evidence on its own -- so with a plain (non-telemetry) endpoint
+    this test would read LIVE via the "request" effect alone, REGARDLESS of whether quiesce()
+    ever waited for the network or the DOM mutation ever landed. Routing the fetch through
+    `is_telemetry()` strips it from `judge_click`'s `reqs` (line ~172-173) while leaving it
+    fully visible to `Tap` (which tracks every request by Playwright event, URL-agnostic) --
+    so `quiesce()`'s phase-2 network wait still genuinely blocks on it. The ONLY evidence this
+    test's LIVE verdict can be won on is the delayed DOM mutation itself.
+
+    ⚠️ 700ms, not 400ms: phase 1 (`QUIESCE_DOM_JS`) is DOM-only and returns once
+    `QUIESCE_FLOOR_MS` (300) AND `QUIET_MS` (120) have both elapsed with no mutation seen --
+    which, with NO mutation ever occurring before the fetch resolves, is just `now - start >=
+    300ms`, independent of the network entirely. A delay close to that 300-420ms band cannot
+    cleanly attribute a LIVE verdict to the NETWORK wait (phase 2) rather than the FLOOR
+    (phase 1) alone -- 700ms clears that band by a wide margin while staying safely under the
+    post-click `quiesce()` call's 1200ms ceiling (~820ms total: 700ms to resolve + 120ms
+    quiet).
+
+    ⚠️ The delay is a REAL loopback server (`_loopback_doc_with_delayed_endpoint`), not a
+    `page.route()` handler doing `time.sleep()` -- see that helper's docstring for why the
+    obvious version measurably breaks this exact test (the CLICK absorbs the delay, not
+    quiesce())."""
+    doc = (
+        '<div data-proof-root="notebook">'
+        '  <button aria-label="Slow effect" onclick="'
+        "fetch('/api/j2/telemetry/slow-effect').then(function () {"
+        "  var p = document.createElement('p'); p.textContent = 'done';"
+        "  document.querySelector('[data-proof-root=notebook]').appendChild(p); })"
+        '">Slow</button>'
+        '</div>')
+
+    def open_fixture(W_, pg):
+        pg.goto(doc_url)
+        return '[data-proof-root="notebook"]'
+
+    with _loopback_doc_with_delayed_endpoint(doc, "/api/j2/telemetry/slow-effect", 0.7) as doc_url:
+        surf = W.Surface("t-slow-effect", open_fixture, sweeps=("deadclick",))
+        world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+        rec = W.deadclick_surface(world, surf, "desk")
+    assert rec["status"] == "MEASURED", rec
+    row = next(c for c in rec["controls"] if c["name"] == "Slow effect")
+    assert row["verdict"] == "LIVE", row
 
 
 def test_a_repeated_control_key_is_sampled_and_the_rest_are_named_REPEATED_never_dropped(real_browser):
