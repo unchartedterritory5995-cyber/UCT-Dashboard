@@ -11,7 +11,6 @@ This lane has no cross-column pass memo, so the half it owns is:
   * the step memo shares by SHAPE, so a tree read back from JSON (no shared
     objects) costs the one unit per shape it is charged.
 """
-import copy
 import json
 import pathlib
 import time
@@ -121,13 +120,16 @@ def test_an_operator_reading_self_under_two_recurrences_counts_twice_and_RUNS_tw
 
 
 def test_a_dag_spine_read_back_from_json_steps_in_linear_time():
-    # The C12r DAG from SHARED objects, but deep-copied: every path its own dict.
+    # The C12r DAG from SHARED objects, read back from JSON: every path its own dict.
     # Charged one unit per shape, it must COST one evaluation per shape per step;
     # keyed on id() a step walked every path (2^12 per step here).
     s = _series("self")
     for _ in range(12):
         s = _op("/", _op("+", s, s), _num(2))
-    tree = copy.deepcopy(_accum(_num(1), s, 60))
+    # ⛔ a JSON round trip, NOT ``copy.deepcopy``: deepcopy keeps shared
+    # references shared (its memo), so the DAG would survive the copy.
+    tree = json.loads(json.dumps(_accum(_num(1), s, 60)))
+    assert tree["args"][1]["args"][0]["args"][0] is not tree["args"][1]["args"][0]["args"][1]
     assert ast_interpret.node_count(tree) == ast_interpret.structural_maps(tree)[2]
     assert ast_interpret.node_count(tree) < 128
     bars = _bars(120)
