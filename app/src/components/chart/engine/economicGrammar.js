@@ -28,9 +28,10 @@
 // Kept dependency-free so `sourceRef`, `gapRuns` and `fundamentalFormat` can
 // read it without joining the fetch/cache layer's import graph.
 
-import { ECON_MARK, parseEconomicSource } from './econMark'
+import { parseEconomicSource } from './econMark'
 
-export { ECON_MARK, parseEconomicSource }
+export const ECON_MARK = 'econ:'
+export { parseEconomicSource }
 /** The canonical id namespace the API speaks (`ECON:USCPI`). */
 export const ECON_NAMESPACE = 'ECON'
 

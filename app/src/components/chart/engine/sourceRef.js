@@ -649,7 +649,8 @@ function sourceStem(def, instance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null
   const parsed = parseSource(sources[0][1])
-  return parsed && (parsed.kind === 'symbol' || parsed.kind === 'economic') ? parsed.symbol : null
+  // Only symbol / fundamental / economic results carry `symbol`; a fundamental is not named by its ticker.
+  return parsed && parsed.kind !== 'fundamental' ? parsed.symbol || null : null
 }
 
 /**
