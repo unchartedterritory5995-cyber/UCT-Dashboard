@@ -84,10 +84,12 @@ describe('what a tuple destructure still refuses, and why that matters more', ()
   })
 
   it('🔴🔴 …and a request `securityAsNode` will not take still refuses BY NAME', () => {
-    // ⛔ THE SAFETY, RELOCATED AND STILL ASSERTED. An empty timeframe cannot resolve
-    // to one servable period, so the slot's own request refuses — per element,
-    // through the namespace's sentence, never a silent bind.
-    const r = one(`${head}[a, b] = request.security(syminfo.tickerid, "", [close, open])\nplot(a)`)
+    // ⛔ THE SAFETY, RELOCATED AND STILL ASSERTED. A multi-period code (`3M`)
+    // cannot resolve to one servable period, so the slot's own request refuses —
+    // per element, through the namespace's sentence, never a silent bind.
+    // ⚰️ This used `""` until C28b: an empty timeframe IS the chart's own
+    // (Pine's reference for `request.security`), so it is the identity now.
+    const r = one(`${head}[a, b] = request.security(syminfo.tickerid, "3M", [close, open])\nplot(a)`)
     expect(r.ok).toBe(false)
     expect(r.guard).toBe('pine:request')
   })

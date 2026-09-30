@@ -184,7 +184,12 @@ const CASES = [
     // recurrences now. The three `✦ OB` TradingView draws are drawn, id for id
     // (`vendorHarness.c12sSwitched`); `R▲`/`R▼` convert but their guard is over the
     // node budget at run time, which the layer names (`unreadableGuards`).
-    objectsOnly: false, kind: 'partial', text: partial(3, 38) },
+    // ⭐ 3 -> 7 on 2026-09-30 (C28): four cells read `knnVal` off its
+    // declaration — the vote that reassigns it sits in an `if` whose fold stops
+    // at a `for` — and drew `◈ NEUTRAL`, `0%`, `29 ▼ BEAR`, `↓-3` where
+    // TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR`, `↓-17`. They are
+    // withheld now (`vendorHarness.c28StaleSnapshot`): more not drawn, none wrong.
+    objectsOnly: false, kind: 'partial', text: partial(7, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the

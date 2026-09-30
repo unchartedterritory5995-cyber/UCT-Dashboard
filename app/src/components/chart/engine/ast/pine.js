@@ -5810,6 +5810,11 @@ export class Resolver {
      *  which is the same claim `finalBindings.get(name) === bound` makes at the
      *  top level — asked of the object rather than of the name. */
     this.finalLocals = opts.finalLocals || new Set()
+    /** ⭐ C28 — the source position (token index) of the binding whose tree is
+     *  being read, while `resolveBindingInner` is inside one; `undefined` at an
+     *  output's own top level. `staleSnapshotRead` compares it with the first
+     *  write the closing pass could not fold. */
+    this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -6118,6 +6123,34 @@ export class Resolver {
     try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
   }
 
+  /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
+   *  the env AS IT STOOD where it was written (`new Map(env)`), and the closing
+   *  pass condemns a name only in the FINAL env, after the walk. So a name bound
+   *  BELOW a write the walk could not fold still held the name's older binding in
+   *  its snapshot, and read it as if the write had never happened. ⚰️ MEASURED
+   *  on artemis-oscillator-pro (RDDT 1D): `float knnVal = 50.0`, then
+   *  `knnVal := kBull / knnK * 100.0` inside an `if` whose fold stops at a `for`,
+   *  then `knnIsBull = knnVal >= 60.0` — the plot lane read `50 >= 60` on every
+   *  bar, and the objects pane drew `◈ NEUTRAL`, `0%`, `29 ▼ BEAR` and `↓-3`
+   *  where TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR` and `↓-17`.
+   *
+   *  ⭐ ONE RULE: a historic top-level binding of a condemned name (`stale`,
+   *  stamped by the closing pass) is read only by a binding written BEFORE the
+   *  first write the walk could not fold — there it is Pine's value (a
+   *  statement above a reassignment reads what it held then). Read anywhere
+   *  else — below that write, at an output's top level, or inside a function
+   *  call frame whose call position this does not track — it refuses with the
+   *  condemnation's own sentence. `var` state keeps its own guard
+   *  (`staleLastWord`); a parameter or a local that shares the name is not in
+   *  the historic set and is untouched. */
+  staleSnapshotRead(bound, name) {
+    if (!name || bound.kind !== 'expr') return
+    const fin = this.finalBindings.get(name)
+    if (!fin || fin.kind !== 'opaque' || !fin.stale || !fin.stale.bindings.has(bound)) return
+    if (this.frames.length === 0 && Number.isFinite(this.readAt) && this.readAt < fin.stale.cut) return
+    throw new PineRefusal(fin.guard, fin.message, fin.at)
+  }
+
   resolveBindingInner(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
@@ -6146,6 +6179,7 @@ export class Resolver {
       throw this.undefinedName(name, tok)
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
+    this.staleSnapshotRead(bound, name)
     if (bound.kind === 'state') {
       // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
       // `bound` is then not the last word on the name, and folding IT into an
@@ -6477,7 +6511,9 @@ export class Resolver {
     }
     this.stack.add(bound)
     const prevEnv = this.env
+    const prevReadAt = this.readAt
     if (bound.env) this.env = bound.env
+    if (bound.at && Number.isFinite(bound.at.index)) this.readAt = bound.at.index
     try {
       const body = this.resolve(bound.node)
       if (isFinalOfMutable && this.recurrenceSeeds.has(name)
@@ -6563,6 +6599,7 @@ export class Resolver {
       this.stack.delete(bound)
       this.stack = prevStack
       this.env = prevEnv
+      this.readAt = prevReadAt
       this.buildingRecurrence = wasBuilding
       if (buildMarker) {
         const k = this.stateBuilds.lastIndexOf(buildMarker)
@@ -10340,7 +10377,15 @@ export class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
+    // `request.security`: "To use the chart's main timeframe, use an empty
+    // string or the `timeframe.period` variable." The `''` spelling (a literal,
+    // or an `input.timeframe` whose default is `''`) is therefore the identity,
+    // the same request `timeframe.period` makes. ⚰️ It fell through to
+    // `pine:request`, and a colour written through it drew in the pane's gold
+    // where TradingView draws the script's own (donchian-channels, RDDT 1D).
     const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
+      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
@@ -19476,6 +19521,19 @@ function translatePineResult(source, opts = {}) {
   // ⚠️ IT MUST OVERWRITE. Every other marker in this function refuses to clobber
   // an existing binding, which is right for them and wrong for this: the whole
   // job is to replace a binding the walk was too optimistic about.
+  // ⭐ C28 — what `Resolver.staleSnapshotRead` reads: every TOP-LEVEL binding the
+  // name held before it was condemned (`envLog`'s `prev`s and the one it holds
+  // now), and the first position its value stopped being known (`cut`). Stamped
+  // onto the condemning binding, because only the final env ever sees it.
+  const condemnStale = (name, cut, condemn) => {
+    const bindings = new Set()
+    for (const e of envLog.get(name) || []) if (e.prev) bindings.add(e.prev)
+    const before = env.get(name)
+    if (before) bindings.add(before)
+    condemn()
+    const fin = env.get(name)
+    if (fin && fin.kind === 'opaque' && Number.isFinite(cut)) fin.stale = { cut, bindings }
+  }
   for (const [name, toks] of reassigned) {
     const missed = toks.find((t) => !ctx.consumed.has(t.index))
     const why = unfoldable.get(name)
@@ -19523,10 +19581,11 @@ function translatePineResult(source, opts = {}) {
         ? `\`${name}\` — and the fold stopped before it, at line ${why.line}: ${why.message}`
         : null
       const reason = carried || fromChain || `\`${name}\``
-      forceOpaque(name, 'pine:reassign', locate(missed), reason)
+      const cut = Math.min(...toks.filter((t) => !ctx.consumed.has(t.index)).map((t) => t.index))
+      condemnStale(name, cut, () => forceOpaque(name, 'pine:reassign', locate(missed), reason))
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
-      forceOpaque(name, why.guard,
-        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+      condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
     }
   }
   // ⛔⛔ A TOP-LEVEL `array.set` INVALIDATES ITS VECTOR TOO, AND UNTIL
@@ -19569,8 +19628,8 @@ function translatePineResult(source, opts = {}) {
   for (const [name, why] of unfoldable) {
     const bound = env.get(name)
     if (!bound || bound.kind === 'opaque') continue
-    forceOpaque(name, why.guard,
-      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+    condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
   }
 
   /** ⭐ THE LAST WORD ON EVERY NAME, captured once the walk is over. It answers
@@ -21629,6 +21688,43 @@ function chainPalette(acc) {
   return { palette, opacity: agree && a0 !== null ? a0 : null }
 }
 
+/** ⭐⭐ C28b — A COLOUR COMPUTED BY `request.security` IS THE SAME RULE, ASKED
+ *  IN THE REQUESTED CONTEXT. `request.security(sym, tf, a ? c1 : b ? c2 : na)`
+ *  with every leaf a static colour picks its leaf by tests evaluated on the
+ *  requested bars — so the rule is the inner one, and only its DECIDING tree
+ *  (the two-colour test, or the chain's index) moves inside the request:
+ *  `request.security(sym, tf, <that tree>)`. The Resolver then answers the
+ *  wrapped tree through `securityAsNode`, the one reader of symbol, period and
+ *  lookahead, so a colour and a plot of the same request cannot disagree; a
+ *  request it refuses fails soft to `colorDynamic`, as any rule does.
+ *  ⚰️ MEASURED on donchian-channels (NYSE:RDDT 1D): `color =
+ *  request.security(syminfo.tickerid, timeframeInput, close > basis[1] ? … :
+ *  close < basis[1] ? … : na)` drew its Basis in the pane's gold on 533 bars
+ *  where TradingView draws blue, red, or nothing.
+ *  Returns `undefined` for a call that is not a request (the caller goes on),
+ *  else the rule or null. New rules never mint (`withholdMint`, R36). */
+function securityColourRule(node, env, depth, ctx) {
+  if (node.name !== 'request.security' && node.name !== 'security') return undefined
+  const args = node.args || []
+  const placed = positionaliseSecurityArgs(args)
+  if (!placed || placed[2] === undefined) return null
+  let at = args.findIndex((a) => a && a.name === 'expression')
+  if (at < 0) {
+    let k = -1
+    at = args.findIndex((a) => a && !a.name && (k += 1) === 2)
+  }
+  if (at < 0) return null
+  const inner = colourConditional(placed[2], env, depth + 1, ctx)
+  if (!inner || inner.inline) return inner && inner.inline ? null : inner
+  const wrap = (tree) => ({
+    ...node,
+    args: args.map((a, i) => (i === at ? { ...a, value: tree } : a)),
+  })
+  if (inner.indexTree) return { ...inner, indexTree: wrap(inner.indexTree), withholdMint: true }
+  if (inner.test) return { ...inner, test: wrap(inner.test), withholdMint: true }
+  return inner
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -21662,6 +21758,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   // the outer call's arguments.
   if (node.type === 'call') {
     if (ctx && ctx.inline) return null
+    const requested = securityColourRule(node, env, depth, ctx)
+    if (requested !== undefined) return requested
     const helper = openColourHelper(node, env, ctx)
     if (!helper) return null
     const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })

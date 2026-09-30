@@ -154,9 +154,14 @@ describe('⭐ ta.percentile_linear_interpolation is a declared, window, cross-la
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).not.toBe('pine:function')
     expect(t.refusal.message).not.toMatch(/percentile/i)
-    expect(t.refusal.guard).toBe('pine:state')
-    expect(t.refusal.message).toMatch(/`comp(Len|High|Low)`/)
-    expect(t.refusal.message).toMatch(/carry each other/)
-    expect(t.refusal.route).toBe('runtime')
+    // ⚰️ RE-PINNED 2026-09-30 (C28, `Resolver.staleSnapshotRead`). The coupled
+    // `compHigh`/`compLen` refusal was reached THROUGH `if isContracted` (line
+    // 387), read off `isContracted`'s declaration at line 374 — but line 382
+    // reassigns it inside an `if` whose fold stops at the `for` on line 378, so
+    // at line 387 its value is not the declaration's. The first wall is now
+    // that write, named where it is.
+    expect(t.refusal.guard).toBe('pine:reassign')
+    expect(t.refusal.message).toMatch(/`isContracted`/)
+    expect(t.refusal.message).toMatch(/line 378/)
   })
 })
