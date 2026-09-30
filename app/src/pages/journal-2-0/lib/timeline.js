@@ -143,3 +143,38 @@ export function layoutTimeline(notes, { timeBy, zoom, groupBy, anchor, defsById,
   const ordered = [...lanes.values()].sort((a, b) => (a.catchAll - b.catchAll) || a.label.localeCompare(b.label))
   return { window: win, lanes: ordered, unscheduled, outside }
 }
+
+/**
+ * Wave 10 lane DR-F (D-9) — which bucket the axis should open scrolled to.
+ *
+ * The axis always drew its FIRST bucket (day 1 of the month, the Monday of the
+ * first week) at the left edge with no auto-scroll, so a month whose activity
+ * sits near its end opened looking empty until the member scrolled the whole
+ * width by hand (design-review-2.md D-9). `todayKey` falls inside `layout.window`
+ * on every FRESH open (the anchor a component mounts with is `today()`, and a
+ * window built around an anchor always contains it) — so the common case is
+ * simply "today's own bucket".
+ *
+ * The exception is a member who has already paged away with Previous/Next: that
+ * window may hold no `today` at all. Scrolling to day 1 of an unrelated month is
+ * no more useful than staying there, so the fallback is the bucket holding the
+ * MOST RECENT placed activity in this specific window — the same "where did my
+ * notes land" question the empty-window text below the grid already answers in
+ * words. A window with nothing placed in it (nothing to point at) returns null,
+ * and the axis is left at its natural start rather than guessing.
+ */
+export function timelineFocusBucketKey(layout, todayKey) {
+  const win = layout?.window
+  if (!win) return null
+  if (todayKey >= win.start && todayKey <= win.end) {
+    const hit = win.buckets.find((b) => todayKey >= b.start && todayKey <= b.end)
+    if (hit) return hit.key
+  }
+  let latest = null
+  for (const lane of layout.lanes || []) {
+    for (const key of Object.keys(lane.cells || {})) {
+      if (latest === null || key > latest) latest = key
+    }
+  }
+  return latest
+}
