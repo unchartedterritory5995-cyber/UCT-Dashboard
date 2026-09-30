@@ -31,6 +31,14 @@ describe('ChartRender ?res= ?piv= ?sup=', () => {
       [['Resistance', 772.97], ['Pivot', 769.97], ['Support', 766.3]])
   })
 
+  it('draws the major levels as a second, dotted Resistance/Support line (owner 9/30)', () => {
+    mount('sym=SPY&tf=D&res=766.69&res2=775.14&piv=764.51&sup=762.28&sup2=749.6')
+    const got = lines().map((l) => [l.title, l.price, l.lineStyle])
+    expect(got).toEqual([
+      ['Resistance 2', 775.14, 1], ['Resistance', 766.69, 2], ['Pivot', 764.51, 2],
+      ['Support', 762.28, 2], ['Support 2', 749.6, 1]])
+  })
+
   it('draws nothing extra when they are absent or invalid', () => {
     mount('sym=SPY&tf=D&entry=100')
     expect(lines().map((l) => l.title)).toEqual(['Entry'])
