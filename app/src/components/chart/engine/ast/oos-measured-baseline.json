@@ -281,13 +281,8 @@
   },
   "mid_engagement__16-ict-smc-guide.pine": {
     "outputs": 20,
-    "refusals": [
-      "pine:state",
-      "pine:state",
-      "pine:state",
-      "pine:state"
-    ],
-    "flat": 12,
+    "refusals": [],
+    "flat": 16,
     "pair": 0,
     "fillFlat": 0,
     "fillPair": 0

@@ -3881,16 +3881,27 @@ export function forgetsOnReset(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
   const bind = spec.recurrence.binds
-  const carries = (n) => containsSelfSeries(n, table)
+  // ⭐⭐ C22 — `self` IS THE NEAREST RECURRENCE'S, here as in `interpret`
+  // (`structuralMaps`: a recurrence binds the `self` in its own body). A reset
+  // condition that reads ANOTHER `var` — `if trend != trend[1]` resetting a
+  // count, where `trend` is itself `accum(…, … self …)` — reads that
+  // accumulator's column, not this state; asking `containsSelfSeries` there
+  // found the inner body's `self` and refused the reset (`pine:state`), so
+  // trend-duration's `TrendCount` (`+= 1` every bar, `:= 0` at a flip) stayed
+  // a "running total" it is not. `containsFreeSelfSeries` is that scoping, read
+  // off the manifest's own `recurrence.body` slot.
+  const carries = (n) => containsFreeSelfSeries(n, table)
   if (!carries(node)) return false
-  // a lagged read of the state anywhere — `self[k]` — is outside the proof
+  // a lagged read of THIS state anywhere — `self[k]` — is outside the proof (a
+  // nested recurrence's body binds its own `self`, and is not walked)
   const stack = [node]
   while (stack.length) {
     const n = stack.pop()
     if (!n || typeof n !== 'object') continue
     if (n.type === 'offset' && Array.isArray(n.args) && n.args[0]
         && n.args[0].type === 'series' && n.args[0].name === bind) return false
-    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    const inner = n.type === 'call' && table.functions[n.name] && table.functions[n.name].recurrence
+    if (Array.isArray(n.args)) n.args.forEach((a, i) => { if (!inner || i !== inner.body) stack.push(a) })
   }
   const resets = (n) => {
     if (!n || typeof n !== 'object') return true

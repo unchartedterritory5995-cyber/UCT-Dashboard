@@ -3879,6 +3879,577 @@
         0,
         0
       ]
+    },
+    {
+      "name": "counter-reset-by-other-var",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": "!=",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "accum",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 0
+                      },
+                      {
+                        "type": "op",
+                        "name": "?:",
+                        "args": [
+                          {
+                            "type": "op",
+                            "name": ">",
+                            "args": [
+                              {
+                                "type": "series",
+                                "name": "close"
+                              },
+                              {
+                                "type": "op",
+                                "name": "+",
+                                "args": [
+                                  {
+                                    "type": "offset",
+                                    "value": 1,
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": 0.5
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 1
+                          },
+                          {
+                            "type": "op",
+                            "name": "?:",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": "<",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "-",
+                                    "args": [
+                                      {
+                                        "type": "offset",
+                                        "value": 1,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "num",
+                                        "value": 0.5
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": -1
+                              },
+                              {
+                                "type": "series",
+                                "name": "self"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "accum",
+                        "args": [
+                          {
+                            "type": "num",
+                            "value": 0
+                          },
+                          {
+                            "type": "op",
+                            "name": "?:",
+                            "args": [
+                              {
+                                "type": "op",
+                                "name": ">",
+                                "args": [
+                                  {
+                                    "type": "series",
+                                    "name": "close"
+                                  },
+                                  {
+                                    "type": "op",
+                                    "name": "+",
+                                    "args": [
+                                      {
+                                        "type": "offset",
+                                        "value": 1,
+                                        "args": [
+                                          {
+                                            "type": "series",
+                                            "name": "close"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "type": "num",
+                                        "value": 0.5
+                                      }
+                                    ]
+                                  }
+                                ]
+                              },
+                              {
+                                "type": "num",
+                                "value": 1
+                              },
+                              {
+                                "type": "op",
+                                "name": "?:",
+                                "args": [
+                                  {
+                                    "type": "op",
+                                    "name": "<",
+                                    "args": [
+                                      {
+                                        "type": "series",
+                                        "name": "close"
+                                      },
+                                      {
+                                        "type": "op",
+                                        "name": "-",
+                                        "args": [
+                                          {
+                                            "type": "offset",
+                                            "value": 1,
+                                            "args": [
+                                              {
+                                                "type": "series",
+                                                "name": "close"
+                                              }
+                                            ]
+                                          },
+                                          {
+                                            "type": "num",
+                                            "value": 0.5
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "num",
+                                    "value": -1
+                                  },
+                                  {
+                                    "type": "series",
+                                    "name": "self"
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      },
+      "expected": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
     }
   ]
 }
