@@ -83,6 +83,7 @@ import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapR
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
+import { otherSymbolsSignature } from './otherSymbols'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -682,6 +683,9 @@ export function createBinder({ chart, LWC }) {
         const reader = objectReaderFor(def, bars, {
           inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
           newestBarIsForming: ctx.newestBarIsForming ?? null,
+          // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
+          secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
+          exchangeOf: ctx.exchangeOf,
           // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
           // document's own declaration is asked inside `objectReaderFor`.
           ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
@@ -1202,7 +1206,10 @@ export function createBinder({ chart, LWC }) {
       // ⭐ C12w — the listing statement is part of what the columns were computed
       // from: it can arrive AFTER the bars (the listing date is its own fetch), and
       // a memo keyed only on the bars would keep the curtained columns.
-      const sig = inputsSignature(inst.inputs) + sourceSig
+      // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
+      // (or changes) must recompute, exactly as a symbol SOURCE does above.
+      const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
       const memo = computeMemo.get(inst.instanceId)
       let cols
@@ -1248,7 +1255,12 @@ export function createBinder({ chart, LWC }) {
             // ⭐ C12w — ONLY the chart's own series can start at the listing
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
-            ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}) }))
+            ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
+            // secondary bars and our store's exchange per ticker, decided by
+            // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
+            // frame's timeframe, the secondary's are the chart's).
+            secondary, exchangeOf: ctx.exchangeOf, framed: !!frame }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least

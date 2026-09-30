@@ -657,6 +657,11 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // and it rides OUTSIDE the trees, so no tree hash moves. A document without
     // it (saved before this, or from another translator) keeps the bounded window.
     recurrenceOrigin: PINE_RECURRENCE_ORIGIN,
+    // ⭐⭐ C26 — the other symbols the trees read and how the script SPELLED each
+    // (`translatePine`'s `otherSymbols`). The bind decides from it which listing
+    // TradingView means (`engine/otherSymbols.js`); absent for every script that
+    // reads no other symbol, so no other document changes.
+    ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
   }
 
   return {
