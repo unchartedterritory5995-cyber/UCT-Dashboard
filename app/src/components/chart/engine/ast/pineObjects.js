@@ -415,7 +415,8 @@ export function collectObjectOps(stmts, h) {
     rootMark = ops.length
   }
   const walk = (list, guards, inLoop, scope) => {
-    let prevIfCond = null
+    // ⭐⭐ C22 — EVERY earlier condition of the chain, not the last one: see `else`.
+    let prevIfConds = []
     // ⭐ C11b — the scope the chain's FIRST `if` stood in (see `guardAt`).
     let prevIfLocals = null
     let localScope = scope
@@ -534,7 +535,7 @@ export function collectObjectOps(stmts, h) {
       if (word === 'if') {
         const condEnd = t.length
         const cond = t.slice(1, condEnd)
-        prevIfCond = cond
+        prevIfConds = [cond]
         prevIfLocals = localScope
         // ⭐⭐ C11b — A CONDITION IS READ WHERE ITS `if` STANDS (`locals`), not where
         // the op under it stands: the block may reassign a name the condition
@@ -557,13 +558,22 @@ export function collectObjectOps(stmts, h) {
         continue
       }
       if (word === 'else') {
-        // `else if cond` → not(prev) and cond ; bare `else` → not(prev)
+        // `else if c2` → not(c1) and c2 ; a later `else if c3` → not(c1) and
+        // not(c2) and c3 ; bare `else` → not(every earlier condition).
+        // ⛔⛔ C22 (H14) — EVERY EARLIER ARM'S CONDITION IS NEGATED, not the last
+        // one's. Pine runs an arm only when every arm above it was false; this
+        // carried `not(c2)` alone into the third arm, so on a bar where `c1` and
+        // `c3` both held it ran arm ONE and arm THREE. ⚰️ MEASURED on RDDT 1D
+        // (`if close > open` / `else if close > close[1]` / `else`, bars 401–631):
+        // the `else` label drawn on 124 bars where Pine draws 107 — a confident
+        // wrong picture, live on the objects pane. The value lane's fold of the
+        // same chain was right (a nested ternary); only the object guards drifted.
         const isElseIf = t[1] && t[1].kind === 'ident' && t[1].value === 'if'
         const next = [...guards]
-        if (prevIfCond) next.push({ toks: prevIfCond, negate: true, locals: prevIfLocals })
+        for (const c of prevIfConds) next.push({ toks: c, negate: true, locals: prevIfLocals })
         if (isElseIf) {
           const cond = t.slice(2)
-          prevIfCond = cond
+          prevIfConds = [...prevIfConds, cond]
           next.push({ toks: cond, negate: false, locals: prevIfLocals })
         }
         // ⭐ C11b — an `else` arm starts from the scope BEFORE the chain: the arm
