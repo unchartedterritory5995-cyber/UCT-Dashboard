@@ -115,6 +115,9 @@ function handTypedReads() {
  * a list nobody dares shrink.
  */
 const HAND_TYPED_BASELINE = [
+  // The DEV-ONLY Economic UI acceptance harness (app/econ-ui-harness.html), never a member
+  // route: it reads ?scenario=/?sym= to pick a LOCAL test fixture, not a /charts deep link.
+  'testing/economic/econUiHarness.jsx',
   // A headless renderer for the Discord/bot image path — a different door by design.
   'pages/ChartRender.jsx',
   // The admin-only `?gridspike=N&tf=D|5` perf harness (CLAUDE.md, Multi-Chart Grid).

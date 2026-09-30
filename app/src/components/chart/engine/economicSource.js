@@ -290,7 +290,7 @@ function _rowsOf(points, placement) {
  *   `bars` is registered so `economicColumn(econ:<symbol>)` over it returns that
  *   series' column exactly (no projection).
  */
-export function economicTimelineOf(list, { placement = PLACEMENTS.AVAILABLE, grid = null, through = null } = {}) {
+export function economicTimelineOf(list, { placement = PLACEMENTS.AVAILABLE, grid = null, through = null, bare = false } = {}) {
   const series = (Array.isArray(list) ? list : []).filter((x) => x && x.symbol)
   const per = series.map((x) => ({ ...x, symbol: String(x.symbol).toUpperCase(), ..._rowsOf(x.points, placement) }))
   const dateSet = new Set()
@@ -305,7 +305,11 @@ export function economicTimelineOf(list, { placement = PLACEMENTS.AVAILABLE, gri
     dates = [...dateSet].sort()
   }
   const first = per[0]
-  const bars = dates.map((d) => {
+  // ⭐ `bare` (the PRIMARY CHART in StockChart): rows are `{t}` and NOTHING else.
+  // StockChart reads bar fields by their stock meaning — `v` is VOLUME there — so a
+  // row carrying the observation as `v` would draw CPI as volume bars. The value
+  // lives only in the registered column (and its `__econ` points), never on a row.
+  const bars = bare ? dates.map((d) => Object.freeze({ t: d })) : dates.map((d) => {
     const p = first ? first.byDate.get(d) : null
     return Object.freeze(p
       ? { t: d, v: p.v, ps: p.ps, pe: p.pe, pit: p.pit, tAvailable: p.tAvailable ?? p.t }

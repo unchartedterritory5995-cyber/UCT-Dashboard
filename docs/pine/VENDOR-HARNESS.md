@@ -169,6 +169,9 @@ by name as not compared by v1.
 ## Warm-up vs steady state
 
 - `history.startsAtBar0: true` ⇒ **no warm-up region**; every bar counts.
+  ⭐ C12w: it is ALSO our side's listing statement — `runOurSide` passes it as `historyFromListing`,
+  exactly as `StockChart` passes the listing-date check, so a translated `var` is read from bar 0
+  (`interpret.js::listingPass`, objects-triage § C12w).
 - else a capture-declared warm-up (legacy `_vendor_parity_warmup_bars`, labelled
   as FITTED) is used when present;
 - else our evaluator's own `maxLookback` for the plot (derived, never typed).

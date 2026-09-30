@@ -50,7 +50,7 @@
 import {
   TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, BAR_READERS, ARG_DOMAINS,
   ARG_DOMAIN, isPointwise, LOOKBACK_RE, SESSION_LOOKBACK, SESSION_MAX_BARS,
-  SERIES_LOOKBACK, usableWindowBound,
+  SERIES_LOOKBACK, usableWindowBound, RUNTIME_AT_CALL,
 } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
@@ -559,6 +559,303 @@ export const MAX_RECURRENCE_STEPS = 12000000
  *  carried per STEP, and the step loop already runs `bars x warmup` times, so a
  *  deep lag is paid on every bar of every symbol in a universe sweep. */
 export const MAX_SELF_LAG = 4
+
+// --------------------------------------------------------------------------- //
+// ⭐⭐ C12w — the listing seed: the ONE exception to the bounded window
+// --------------------------------------------------------------------------- //
+//
+// RULING R-W (`docs/pine/vendor-harness/objects-triage-2026-09-28.md`, "Rulings,
+// 2026-09-29"): the bounded window above STAYS the default. The only exception
+// is a series the CALLER proves starts at the symbol's first-ever bar — there
+// our bar 0 IS the vendor's bar 0, so a state seeded there and carried over the
+// whole series is Pine's own value, bar counters included, and the curtain may
+// lift. The fact arrives as `opts.historyFromListing === true` and is NEVER
+// inferred here from a bar count: a fetch that happened to be short is not a
+// listing.
+//
+// ⛔⛔ WHAT THE TREE CANNOT TELL US, AND WHY THIS IS NOT JUST "RUN FROM BAR 0".
+// `pine.js` emits the SAME `self` for a bare read of a `var` and for its
+// history read `x[1]` (`varSeedOf`), and on bar 0 — and only there — Pine
+// answers them differently: the bare read is the initializer, the history read
+// is `na`. The seed slot holds ONE of those (`varSeedOf` chooses), and the tree
+// does not record which reads are which. So on bar 0 each `self` read is only
+// known up to a SET of candidates, and the pass keeps every candidate the tree
+// is consistent with:
+//
+//   an unguarded read      the seed's own bar-0 value, `na` included: a bare-only
+//                          `var` seeds its initializer, a history-only one `na`
+//                          (Pine's `x[1]` on bar 0), a mixed one `na` only when
+//                          its initializer IS `na`, and `nz(x[1], s)` folded to
+//                          `accum(s, …)` reads `s` there
+//   the MARKED seed        unknown — a mixed `var` whose initializer is not `na`
+//   (`ambiguousVarSeed`)   reads that initializer bare and `na` through history,
+//                          and one seed slot cannot hold both
+//   a read inside `nz(…)`  the seed OR `na`: it may be a bare read (the seed) or
+//   (first argument)       a guarded history read (`na`, which `nz` replaces)
+//   any lag `self[k]`      unknown on the bars where it reaches before bar 0 —
+//                          `na` for a `var`, the seed for `nz(x[k], s)`
+//
+// plus the SELF-REFERENCE form (`x = na(x[1]) ? S : U`), whose bar-0 value is the
+// seed itself with no update run. Every candidate trajectory is carried forward;
+// a bar's value is published only where they ALL agree on a concrete number or
+// `na`. Where they do not, the bar is exactly as not-computable as the bounded
+// window's prefix: `NaN` (or `prefixProbe`, so `objectColumns.unknownMask` sees
+// it) before `warmup`, and the bounded window's own value from `warmup` on —
+// so no bar is ever LESS computed than without the exception.
+//
+// ⛔ A CANDIDATE SET, NOT A GUESS: the candidates are chosen so that Pine's own
+// bar-0 reading is always among them, which is what makes an agreeing bar exact.
+// Where the forms differ past bar 0 (a self-reference re-seeding after an `na`)
+// the pass inherits the bounded window's own modelling, unchanged.
+//
+// ⚠️ THE COST STAYS INSIDE THE SAME CEILING. The pass is `trajectories × bars`
+// steps plus, for a bar the trajectories never agree on past `warmup`, the
+// bounded window's `warmup` steps. It runs only when
+// `(trajectories + warmup) × bars <= MAX_RECURRENCE_STEPS`; otherwise it is not
+// taken and the bounded window answers exactly as it always has. No ceiling is
+// raised, and nothing new refuses.
+
+/** "Any number, or `na`" — see `stepListing`. A unique object, so it can never be
+ *  confused with a number and can never be written into a column. */
+export const LISTING_UNKNOWN = Object.freeze({ listingUnknown: true })
+
+/** How many bar-0 reads inside `nz(…)` are enumerated two ways before they are
+ *  all treated as unknown instead: `1 + 2^7 = 129` trajectories at most, below
+ *  the 250-bar warm-up every Pine `var` carries, so the listing pass never costs
+ *  more steps than the window it replaces. Past it the reads are unknown —
+ *  still sound, only less often known. */
+export const LISTING_MAX_GUARDED_READS = 7
+
+/** ⭐⭐ THE ONE `var` SEED WHOSE BARE READ THE TREE CANNOT SETTLE — marked.
+ *
+ *  A `var` read both bare and through an UNGUARDED history read seeds `na`
+ *  (`pine.js::varSeedOf` — the history read is `na` on bar 0 and poisons the
+ *  step), while its bare read on bar 0 is the initializer. When the initializer
+ *  is itself `na` the two agree and `0 / 0` says everything. When it is not, the
+ *  seed is written `-(0 / 0)` instead: the SAME value everywhere the bounded
+ *  window reads it (`-NaN` is `NaN`, in both lanes), and the one shape the
+ *  listing pass must not read as "every bar-0 read is this seed".
+ *
+ *  ⛔ WHY THE TREE AND NOT THE DOCUMENT. The seed is what `accum` is handed; a
+ *  side record of "which recurrences are ambiguous" would have to survive the
+ *  bind-time fold, the graph and the store, and a fold that dropped it would
+ *  make an ambiguous seed read as a settled one. The shape travels with the node.
+ *  It moves the tree hash of exactly the scripts that have such a `var`. */
+export const ambiguousVarSeed = () => ({
+  type: 'op',
+  name: 'u-',
+  args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }],
+})
+const isZeroOverZero = (n) => !!n && n.type === 'op' && n.name === '/'
+  && Array.isArray(n.args) && n.args.length === 2
+  && n.args.every((a) => a && a.type === 'num' && a.value === 0)
+export const isAmbiguousVarSeed = (n) => !!n && n.type === 'op' && n.name === 'u-'
+  && Array.isArray(n.args) && n.args.length === 1 && isZeroOverZero(n.args[0])
+
+// --------------------------------------------------------------------------- //
+// C12s — a SWITCHED recurrence: published only where the window forgot its seed
+// --------------------------------------------------------------------------- //
+//
+// `var int n = 0` + `n := c ? n + 1 : 0` is a run-length counter. Its `self + 1`
+// arm never forgets the seed, so the bounded window (`accum(seed, body, W)`
+// seeded `W` bars back) would count over the last `W` bars instead of since the
+// reset — which is why `pine.js::forgetsItsSeed` refuses it. But the OTHER arm
+// does forget: on a bar where `c` is false the value is `0` whatever came
+// before. So from the last reset on, the value no longer depends on the seed at
+// all — it is Pine's own number, exactly.
+//
+// ⭐ THE RULE, PER BAR AND NEVER BY BAR NUMBER: the window for bar `t` starts
+// from an UNKNOWN state (`LISTING_UNKNOWN`, "any number or `na`") instead of a
+// guessed seed, and runs the body with `stepListing`'s arithmetic, where every
+// operator answers unknown for an unknown input EXCEPT a ternary whose condition
+// is known. A bar whose value comes out known did not read the state it started
+// from, so it is exact under every seed Pine could have held; a bar that stays
+// unknown is withheld exactly as the curtain withholds (`NaN`, or `prefixProbe`
+// so `objectColumns.unknownMask` and `interpret`'s root agreement see it).
+//
+// ⚠️ THE WINDOW STAYS `W` BARS, SO `maxLookback` STAYS TRUE. A bar is published
+// only when the forgetting step lies inside `(t - W, t]` — so a published value
+// is a function of the last `W + 1` bars, as `_functions_recurrence` promises.
+// A streak longer than `W` is withheld even though its value is computable from
+// the fetched bars: it would then depend on how many bars the caller fetched.
+// Bars below `W` are published when the forgetting step lies at or after bar 0
+// — the value is exact, and whether it is shown depends only on the data.
+//
+// ⛔ THE MARK. The translator writes the seed as `(0 / 0) * <seed>` —
+// `switchedVarSeed` — which is `NaN` to any reader that does not know it (both
+// lanes evaluate it to `NaN`), carries the REAL seed for the listing pass
+// (C12w: from the listing the counter is exact everywhere, seed and all), and
+// is the one shape no Pine translation writes as a seed (railed in
+// `switchedCounter.test.js` over the corpus).
+export const switchedVarSeed = (seed) => ({
+  type: 'op',
+  name: '*',
+  args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }, seed],
+})
+/** The real seed a switched mark carries, or null when `n` is not one. */
+export const switchedSeedOf = (n) => (!!n && n.type === 'op' && n.name === '*'
+  && Array.isArray(n.args) && n.args.length === 2 && isZeroOverZero(n.args[0]) && n.args[1]
+  ? n.args[1] : null)
+
+/** Does this tree hold a switched recurrence anywhere (nested `tf`/`sym`
+ *  children included)? Iterative, so the 8,001-node escape tree cannot overflow
+ *  it. ⛔ No module-level memo: this file holds no state between calls
+ *  (`interpret.test.js`'s purity rail), and one walk per call is cheap beside
+ *  the evaluation it gates. */
+export function readsSwitchedState(tree) {
+  if (!tree || typeof tree !== 'object') return false
+  let found = false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length && !found) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'call' && own(RECURRENCES, n.name) && Array.isArray(n.args)) {
+      const rec = RECURRENCES[n.name]
+      if (rec && switchedSeedOf(n.args[rec.seed])) { found = true; break }
+    }
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return found
+}
+
+/** ⭐⭐ C12 / C17 — THE PROBE VALUES A TREE NEEDS, NOT ONLY ±PREFIX_PROBE.
+ *
+ *  Moved here from `objectColumns.js` (C12s), which re-exports both names: the
+ *  plot lane's root agreement below asks the same question with the same set,
+ *  and two copies of one probe set is how two lanes come to disagree about
+ *  which bars are known.
+ *
+ *  An EQUALITY cannot see a prefix filled with ±1e12: `laststate == 1` answers
+ *  false for `NaN`, for `+1e12` and for `-1e12` alike, so every bar before the
+ *  curtain read as KNOWN-false — while Pine's `laststate` there is a real 0, 1
+ *  or 2. ⚰️ MEASURED on `rsi-swing-indicator` (NYSE:RDDT 1D, 2026-09-28): the
+ *  guards `laststate == 2 and isOverbought` / `laststate == 1 and isOversold`
+ *  were never withheld before bar 250, so the run believed no swing label had
+ *  been made there; its first label then read `last_actual_label_hh_price` at
+ *  its declared 0 and said "HH" where TradingView's says "LH".
+ *
+ *  So a tree is probed once more at every finite literal an `==` / `!=`
+ *  compares against: a prefix equal to it is exactly the value that flips the
+ *  comparison. ⚠️ An equality between the state and another SERIES is still
+ *  blind (no literal to probe at) — named, not solved. */
+export const PREFIX_PROBE = 1e12
+export function probeValuesOf(tree) {
+  const out = new Set([PREFIX_PROBE, -PREFIX_PROBE])
+  const stack = [tree]
+  let seen = 0
+  while (stack.length && seen < 100000) {
+    const n = stack.pop()
+    seen += 1
+    if (!n || typeof n !== 'object') continue
+    const args = Array.isArray(n.args) ? n.args : null
+    if (n.type === 'op' && (n.name === '==' || n.name === '!=') && args) {
+      for (const a of args) {
+        if (a && a.type === 'num' && typeof a.value === 'number' && Number.isFinite(a.value)) out.add(a.value)
+      }
+    }
+    if (args) for (const a of args) stack.push(a)
+  }
+  return [...out]
+}
+
+const listingSame = (a, b) => a === b || (a !== a && b !== b)
+const listingKey = (v) => {
+  if (v === LISTING_UNKNOWN) return 'U'
+  if (v !== v) return 'N'
+  if (v === 0 && 1 / v < 0) return '-0'
+  return String(v)
+}
+
+/** The listing pass. Returns the column, or `null` when it is not taken (over
+ *  the step ceiling), in which case the caller runs the bounded window. */
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup }) {
+  const s0 = seed[0]
+  // A guarded read has two candidates only when the seed is a number; with an
+  // `na` seed both readings are `na`.
+  const twoWay = !ambiguousSeed && !Number.isNaN(s0)
+  const beforeBar0 = () => new Array(maxSelfLag + 1).fill(LISTING_UNKNOWN)
+
+  // Bar 0, first reading: every read is the seed (or unknown, for the marked
+  // seed and for a lag that reaches before bar 0); a guarded one is counted so
+  // it can be enumerated below.
+  let guardedReads = 0
+  const firstRead = (lag, guarded) => {
+    if (lag > 0 || ambiguousSeed) return LISTING_UNKNOWN
+    if (guarded && twoWay) guardedReads += 1
+    return s0
+  }
+  const starts = [s0, stepT(0, beforeBar0(), firstRead)]
+  if (twoWay && guardedReads > 0) {
+    if (guardedReads > LISTING_MAX_GUARDED_READS) {
+      starts.push(stepT(0, beforeBar0(), (lag, guarded) => (lag > 0 || guarded ? LISTING_UNKNOWN : s0)))
+    } else {
+      // mask 0 is the all-seed reading already taken above
+      for (let mask = 1; mask < (1 << guardedReads); mask++) {
+        let at = 0
+        starts.push(stepT(0, beforeBar0(), (lag, guarded) => {
+          if (lag > 0) return LISTING_UNKNOWN
+          if (!guarded) return s0
+          const asNa = (mask >> at) & 1
+          at += 1
+          return asNa ? NaN : s0
+        }))
+      }
+    }
+  }
+  if ((starts.length + warmup) * length > MAX_RECURRENCE_STEPS) {
+    if (sink) sink.listing = { taken: false, trajectories: starts.length }
+    return null
+  }
+
+  const agreed = (values) => {
+    const first = values[0]
+    if (first === LISTING_UNKNOWN) return LISTING_UNKNOWN
+    for (let k = 1; k < values.length; k++) if (!listingSame(values[k], first)) return LISTING_UNKNOWN
+    return first
+  }
+  const dedupe = (trajectories) => {
+    if (trajectories.length < 2) return trajectories
+    const seen = new Map()
+    for (const h of trajectories) {
+      const key = h.map(listingKey).join('|')
+      if (!seen.has(key)) seen.set(key, h)
+    }
+    return [...seen.values()]
+  }
+
+  let steps = starts.length
+  let unknownBars = 0
+  let trajectories = dedupe(starts.map((v) => {
+    const h = beforeBar0()
+    h[0] = v
+    return h
+  }))
+  let peak = trajectories.length
+  const place = (i, value) => {
+    if (value !== LISTING_UNKNOWN) { out[i] = value; return }
+    unknownBars += 1
+    // C12s: a switched window answers from bar 0 (`windowFrom`), so the listing
+    // pass is never less known than the curtain on any bar.
+    if (i >= windowFrom) { out[i] = windowAt(i); steps += warmup; return }
+    out[i] = prefixProbe === null ? NaN : prefixProbe
+  }
+  place(0, agreed(trajectories.map((h) => h[0])))
+  for (let j = 1; j < length; j++) {
+    for (const h of trajectories) {
+      const next = stepT(j, h, null)
+      for (let k = maxSelfLag; k > 0; k--) h[k] = h[k - 1]
+      h[0] = next
+    }
+    steps += trajectories.length
+    trajectories = dedupe(trajectories)
+    if (trajectories.length > peak) peak = trajectories.length
+    place(j, agreed(trajectories.map((h) => h[0])))
+  }
+  if (sink) sink.listing = { taken: true, trajectories: peak, steps, unknownBars }
+  return out
+}
 
 /** ⛔ THE ONLY WAY THIS MODULE ASKS WHETHER A NAME EXISTS. `name in obj` walks
  *  the prototype chain and `obj[name]` returns whatever it finds there. */
@@ -3173,7 +3470,22 @@ export function structuralMaps(root) {
     }
     let free = !(n.type === 'series' && binds.has(n.name))
     const childIds = []
-    for (const a of args) {
+    // ⭐⭐ C12r (2026-09-29) — A RECURRENCE BINDS THE `self` IN ITS OWN BODY.
+    // `self` names the NEAREST enclosing recurrence's running value — the rule
+    // `runRecurrence`'s `reads` walk and its nested-recurrence refusal already
+    // apply — so an `accum(seed, body, W)` whose seed and warm-up read no outer
+    // `self` is a plain column of these bars, whatever its body reads. Treating
+    // the body's own `self` as free left every accumulator AND every ancestor
+    // of one un-memoised: ⚰️ MEASURED on `rsi-swing-indicator` (632 bars) one
+    // object tree with TWO distinct accumulator shapes ran 299 recurrences
+    // (47.2M steps, 56 s), because each of 99 references re-ran its fold.
+    // `nodeCount` already counted them once (`distinct`), so the budget and the
+    // work had drifted apart — the direction the note above forbids.
+    const rec = n.type === 'call' && typeof n.name === 'string' && Object.prototype.hasOwnProperty.call(RECURRENCES, n.name)
+      ? RECURRENCES[n.name] : null
+    const bodyAt = rec && Number.isInteger(rec.body) ? rec.body : -1
+    for (let ai = 0; ai < args.length; ai += 1) {
+      const a = args[ai]
       // ⛔⛔ THROW, NEVER INVENT A KEY. The first version of this walk pushed a
       // placeholder when a child was missing, so a 128-deep chain collapsed to
       // TWO distinct shapes and `nodeCount` answered 2. A silent fallback here
@@ -3183,7 +3495,7 @@ export function structuralMaps(root) {
         throw new Error('structuralMaps: a child was keyed after its parent — the post-order is broken')
       }
       childIds.push(idOf.get(a))
-      if (!freeOf.get(a)) free = false
+      if (ai !== bodyAt && !freeOf.get(a)) free = false
     }
     // ⚠️ DELIMITED. Without separators `op` + `u-` + `''` and `op` + `u` + `-`
     // produce the same shape, and a collision under-counts exactly like the
@@ -3194,7 +3506,9 @@ export function structuralMaps(root) {
   return { idOf, freeOf, distinct: byShape.size }
 }
 
-/** How many DISTINCT subtrees the tree has. The number `budget:nodes` thresholds.
+/** How many DISTINCT subtrees the tree has — since C19, how many UNITS the
+ *  evaluator computes (`evaluationUnits`, below): the number `budget:nodes`
+ *  thresholds. `held` is the caller's pass memo, when it has one.
  *
  *  ⭐⭐ DISTINCT, NOT TOTAL — and it is honest ONLY because the interpreter
  *  memoises on the same ids. A translated script inlines rather than names (the
@@ -3205,8 +3519,156 @@ export function structuralMaps(root) {
  *  ⛔ THE TWO MOVE TOGETHER. Counting the DAG WITHOUT the memo is the opposite
  *  error and a far worse one — a budget under-reporting real cost. If the memo is
  *  ever narrowed, narrow this with it. */
-export function nodeCount(ast) {
-  return structuralMaps(ast).distinct
+export function nodeCount(ast, held) {
+  return evaluationUnits(ast, held).count
+}
+
+/** The node types whose child is evaluated by a FRESH `interpret` call on other
+ *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
+ *  own, with its own memo. See `evaluationUnits`. */
+const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym'])
+
+/** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
+ *  units it memoises. The number `budget:nodes` thresholds.
+ *
+ *  Integrator ruling (2026-09-30): a SHARED subtree counts ONCE, but only where
+ *  the evaluator genuinely evaluates it once; a subtree that is textually
+ *  repeated but evaluated separately counts every time. The cap is not raised.
+ *
+ *  So a unit is the key the evaluator's own memo uses, never a guess at it:
+ *    - a self-free node is memoised on its STRUCTURAL id within one `interpret`
+ *      call (`evalNode`'s `memo`), so its unit is (scope, structural id);
+ *    - an operator or call that reads a recurrence bind is evaluated once per
+ *      step within ONE recurrence (`runRecurrence`'s step memo, keyed
+ *      structurally since C19), so its unit is (scope, the recurrence it belongs
+ *      to, structural id) — the same `self + 1` under two recurrences is two
+ *      computations. The bind read itself (`self`, `self[k]`) computes nothing
+ *      — it is a slot of the step's own history — so, like a literal or a
+ *      column, it is one unit per shape per scope;
+ *    - a `tf` / `tf_live` / `sym` child runs in a fresh `interpret` call on other
+ *      bars with a fresh memo, so its nodes are units of a scope of their own —
+ *      `close` on the chart's bars and `close` on the weekly bars are two.
+ *
+ *  ⭐ `held` — the columns a PASS already holds (`objectColumns`' pass memo,
+ *  `crossMemo`, keyed on the interned node object). `evalNode` answers a
+ *  self-free root-scope node the pass holds without walking below it, so here it
+ *  costs one unit — the read of its column — and nothing beneath it. A shape is
+ *  held only when EVERY object of it in this tree is held: the evaluator's memo
+ *  keeps whichever object it reaches first, and an un-held twin reached first
+ *  computes the whole subtree.
+ *
+ *  ⛔ ITERATIVE, like `structuralMaps`, so it survives the 8,001-node tree. The
+ *  walk visits a unit once: a unit's children's units depend only on the unit
+ *  (a self-free node's descendants are self-free except a recurrence's own
+ *  body, which is keyed on that recurrence). */
+export function evaluationUnits(root, held) {
+  const { idOf, freeOf } = structuralMaps(root)
+  const heldShape = new Map()
+  if (held && typeof held.has === 'function') {
+    const seen = new Set()
+    const stack = [root]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || Array.isArray(n) || seen.has(n)) continue
+      seen.add(n)
+      if (freeOf.get(n)) {
+        const sid = idOf.get(n)
+        heldShape.set(sid, (heldShape.get(sid) ?? true) && passHolds(held, n))
+      }
+      // only the chart's own scope: a child under `tf` / `sym` reads another memo
+      if (SCOPE_TYPES.has(n.type)) continue
+      if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+    }
+  }
+  const binds = bindNames()
+  const isBind = (x) => !!x && typeof x === 'object' && x.type === 'series' && binds.has(x.name)
+  const units = new Set()
+  const stack = [[root, '', '']]
+  while (stack.length) {
+    const [n, scope, rec] = stack.pop()
+    const sid = idOf.get(n)
+    // ⭐ A READ OF WHAT IS ALREADY HELD IS ONE UNIT PER SHAPE, WHEREVER IT IS READ:
+    // a literal, a memoised column, and the running value itself (`self`,
+    // `self[k]` — a slot of the step's own history, computed by nothing). What a
+    // recurrence COMPUTES per step is its spine's operators and calls, and those
+    // are keyed on the recurrence below: `self + 1` under two recurrences is two.
+    // ⭐ C18/C19 — a RUNTIME PLACEHOLDER (`__uct_runtime_at(k)`) is a value the
+    // per-bar runtime lane computed; the object pass reads its column and never
+    // interprets it, so it is one read and nothing below it is counted (it is
+    // self-free, so `read` already holds; the `continue` below is the rule).
+    const runtimeRead = !!n && n.type === 'call' && n.name === RUNTIME_AT_CALL
+    const read = freeOf.get(n) || isBind(n) || (n && n.type === 'offset' && isBind(n.args && n.args[0]))
+    // the chart's own read shapes — nearly every unit — keep the bare id
+    // (a number never equals a string key, and `rec` always holds a `|`)
+    const key = read ? (scope === '' ? sid : `${scope}|${sid}`) : `${scope}|${rec}|${sid}`
+    const free = freeOf.get(n)
+    if (units.has(key)) continue
+    units.add(key)
+    if (!n || typeof n !== 'object' || Array.isArray(n)) continue
+    if (runtimeRead) continue
+    if (scope === '' && free && heldShape.get(sid) === true) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope
+    const spec = n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name)
+      ? RECURRENCES[n.name] : null
+    const bodyAt = spec && Number.isInteger(spec.body) ? spec.body : -1
+    for (let ai = 0; ai < args.length; ai += 1) {
+      stack.push([args[ai], childScope, ai === bodyAt ? `${scope}|${sid}` : rec])
+    }
+  }
+  return { count: units.size }
+}
+
+/** Does the pass hold this node's column? The ONE predicate `evalNode` skips on
+ *  and `evaluationUnits` counts on — called by both, never restated. */
+export function passHolds(held, n) {
+  return held !== null && held !== undefined && typeof held.has === 'function' && held.has(n)
+}
+
+/** Does this subtree hold no recurrence? Every use of `prefixProbe` sits inside a
+ *  recurrence (its warm-up fill, the switched window, the listing pass) or on an
+ *  offset OF one (`enteringStateUnknown`), so such a subtree's column is the
+ *  same under every probe value. Iterative; `cache` lives for one call. */
+function readsNoRecurrence(root, cache) {
+  if (!root || typeof root !== 'object') return true
+  if (cache.has(root)) return cache.get(root)
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [n, expanded] = stack.pop()
+    if (!n || typeof n !== 'object' || cache.has(n)) continue
+    const args = Array.isArray(n.args) ? n.args : []
+    if (!expanded) {
+      stack.push([n, true])
+      for (const a of args) stack.push([a, false])
+      continue
+    }
+    let answer = !(n.type === 'call' && typeof n.name === 'string' && own(RECURRENCES, n.name))
+    for (const a of args) {
+      if (answer && a && typeof a === 'object' && cache.get(a) === false) answer = false
+    }
+    cache.set(n, answer)
+  }
+  return cache.get(root)
+}
+
+/** ⭐⭐ C19 — WHAT ONE `interpret` CALL CAN READ WITHOUT COMPUTING, as one object
+ *  with `has` / `get`: its own pass memo (`opts.crossMemo`), and — for a PROBE
+ *  run (`opts.prefixProbe`) handed the real pass's memo as `opts.probeBase` over
+ *  the SAME bars — every column of that memo whose subtree holds no recurrence
+ *  (`readsNoRecurrence`: no probe value can move it). `evalNode` answers from
+ *  it and `assertBudget` charges against it: the same object, so what the
+ *  budget counts as free is exactly what the evaluator does not compute. */
+function passView(opts) {
+  const memo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  const base = opts && typeof opts.prefixProbe === 'number' && opts.probeBase instanceof Map
+    ? opts.probeBase : null
+  if (memo === null && base === null) return null
+  const plain = new Map()
+  const fromBase = (n) => base !== null && base.has(n) && readsNoRecurrence(n, plain)
+  return {
+    has: (n) => (memo !== null && memo.has(n)) || fromBase(n),
+    get: (n) => (memo !== null && memo.has(n) ? memo.get(n) : base.get(n)),
+  }
 }
 
 // --------------------------------------------------------------------------- //
@@ -3264,7 +3726,126 @@ function readsClock(ast, table) {
   return false
 }
 
+/** ⭐⭐ C12s — THE ROOT AGREEMENT: a tree that reads a switched recurrence is
+ *  published only on the bars where its answer does not depend on the state
+ *  that recurrence could not compute.
+ *
+ *  A switched recurrence's own column is exact where it is known (see
+ *  `switchedVarSeed`) and `NaN` where it is not — but a `NaN` downstream is
+ *  Pine's `na`, and `meObCount == 4` answers a confident FALSE for it, `na(x)`
+ *  a confident TRUE. Unlike the warm-up prefix, those bars can sit anywhere in
+ *  the series, so no prefix blanking reaches them. So the tree is evaluated
+ *  again with every not-computable bar filled by each probe value
+ *  (`probeValuesOf`: ±1e12 and every literal an equality compares against) and
+ *  a bar whose answer moves is withheld (`NaN`). The object lane asks the same
+ *  question bar by bar through `objectColumns.unknownMask` and passes
+ *  `switchedAgreement: false` so it is not paid twice.
+ *
+ *  ⚠️ A PROBE, NOT A PROOF, downstream of the recurrence — the same limit C17
+ *  names for `unknownMask` (an equality against another SERIES has no literal
+ *  to probe at). The recurrence's own value is proved; what a tree does with an
+ *  unknown one is probed.
+ *
+ *  ⛔ A tree with no switched recurrence takes the single pass unchanged, so no
+ *  existing column moves. The returned column is a COPY: the real run's column
+ *  may be the memoised one another plot shares. */
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
+  const probing = !!opts && typeof opts.prefixProbe === 'number'
+  if (probing || (opts && opts.switchedAgreement === false) || !readsSwitchedState(ast)) {
+    return interpretOnce(ast, bars, inputs, budget, scalars, opts)
+  }
+  const real = interpretOnce(ast, bars, inputs, budget, scalars, opts)
+  if (!isColumn(real)) return real
+  const out = Float64Array.from(real)
+  // ⭐ THE PROOF: every bar within reach of an unknown switched bar is withheld.
+  const dep = switchedDependencyMask(ast, bars, inputs, budget, scalars, opts)
+  for (let i = 0; i < out.length; i++) if (dep[i]) out[i] = NaN
+  // ⭐ …AND THE PROBE, for a dependence the tree's lookback under-claims.
+  for (const p of probeValuesOf(ast)) {
+    const probed = toColumn(interpretOnce(ast, bars, inputs, budget, scalars,
+      { ...(opts || {}), prefixProbe: p, crossMemo: probeMemo(opts, p) }), out.length)
+    for (let i = 0; i < out.length; i++) {
+      const a = out[i]
+      const b = probed[i]
+      if (!(a === b || (a !== a && b !== b))) out[i] = NaN
+    }
+  }
+  return out
+}
+
+/** One memo per probe value, beside (never inside) the real run's entries. */
+function probeMemo(opts, p) {
+  const shared = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  if (!shared) return undefined
+  const key = `c12s-probe\u0001${p}`
+  let memo = shared.get(key)
+  if (!(memo instanceof Map)) { memo = new Map(); shared.set(key, memo) }
+  return memo
+}
+
+/** ⭐⭐ C12s — THE BARS OF A TREE THAT CAN READ AN UNKNOWN SWITCHED BAR, as a
+ *  0/1 column (1 = withheld), or null when the tree holds no switched
+ *  recurrence.
+ *
+ *  ⛔ WHY NOT THE PROBE ALONE. A probe fills every unknown bar with ONE value,
+ *  and a range test answers the same for all of them: `n > 0 and n < 2` is
+ *  false at `NaN`, `+1e12` and `-1e12` alike while Pine's `n` there is 1. And
+ *  two unknown recurrences are probed at the SAME value, so a condition that
+ *  needs them DIFFERENT (`countSell == 1 and countBuy == 0`) is never true
+ *  under any probe. ⚰️ MEASURED on `btc-charlie-trader-xo-macro-trend-scanner`
+ *  (AGEN 1D): its Bear shape read a confident 0 on bar 24, where the same
+ *  script run from the listing reads 1.
+ *
+ *  ⭐ SO THE DEPENDENCE IS READ OFF THE TREE, NOT GUESSED. `maxLookback` is a
+ *  tree sum: a path from the root down to a switched node `a` adds at most
+ *  `maxLookback(root) - maxLookback(a)` bars of reach above `a`. The root's bar
+ *  `i` can therefore read `a` only on bars `[i - reach, i]`, and it is withheld
+ *  when any of those is one of `a`'s unknown bars (where `a` answers two
+ *  different probes differently). A switched node under `tf` / `sym` reads other
+ *  bars, so its tree is withheld whole — sound, and named. */
+export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const nodes = []
+  let crossesBars = false
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && own(RECURRENCES, node.name) && Array.isArray(node.args)
+        && switchedSeedOf(node.args[RECURRENCES[node.name].seed])) {
+      if (under) crossesBars = true
+      nodes.push(node)
+    }
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym'
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1 — the only typed array this pure module uses
+  const mask = new Float64Array(n)
+  if (crossesBars) { mask.fill(1); return mask }
+  // ⛔ NO `try` (`budget.test.js`): a tree `interpret` evaluated measures, and a
+  // refusal here must reach the caller as the refusal it is
+  const rootReach = maxLookback(tree)
+  for (const a of nodes) {
+    const reach = Math.max(0, rootReach - maxLookback(a))
+    const probe = (p) => toColumn(interpretOnce(a, bars, inputs, budget, scalars,
+      { ...(opts || {}), prefixProbe: p, crossMemo: probeMemo(opts, p) }), n)
+    const hi = probe(PREFIX_PROBE)
+    const lo = probe(-PREFIX_PROBE)
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const x = hi[i]
+      const y = lo[i]
+      if (!(x === y || (x !== x && y !== y))) last = i
+      if (i - last <= reach) mask[i] = 1
+    }
+  }
+  return mask
+}
+
+function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
@@ -3281,7 +3862,14 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // ⛔ NOT WRAPPED IN A `try`. A `RangeError` from a tree this admits must reach
   // the caller AS a `RangeError`; relabelling it as a budget refusal is the same
   // wrong-door defect this whole phase is about, wearing a different coat.
-  assertBudget(ast, budget)
+  // ⭐⭐ C19 — THE MEMO THIS RUN WILL READ IS WHAT IT IS CHARGED AGAINST. A column
+  // the caller's pass already holds (`opts.crossMemo`, as it stands before a node
+  // of this tree is walked) is answered by `evalNode` without walking below it
+  // (`passHolds`), so it costs one read here (`evaluationUnits`). Derived from
+  // the memo itself, never from a second ledger: a probe run with its own memo
+  // is charged for what IT computes.
+  const readable = passView(opts)
+  assertBudget(ast, budget, readable)
   // ⛔ THE TREE-SHAPE RULE FOR `sym`, asked once per tree rather than per bar,
   // and by the same helper `maxLookback` calls.
   assertSymPlacement(ast, refuse)
@@ -3491,6 +4079,20 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // spent a week removing. `nan(length)` already fills the prefix; the loop
         // deliberately starts AT `back` rather than clamping an index.
         for (let i = back; i < length; i++) out[i] = src[i - back]
+        // ⭐⭐ C12w — A STATE READ ONE BAR BEFORE BAR 0 IS THE STATE ENTERING
+        // BAR 0. `pine.js::partialStateRead` writes a read of a `var` above its
+        // own write as `accum(…)[k + 1]` (C12r's statement-START binding); on the
+        // bar where that reaches index -1 Pine reads the value the `var` enters
+        // bar 0 with — its initializer for a bare read, `na` for a history read,
+        // and the tree does not say which. Only under the listing exception is
+        // bar 0 claimed to be Pine's bar 0, so only there does it matter: the bar
+        // is UNKNOWN (the probe, so `unknownMask` withholds what reads it) unless
+        // both readings are `na` — an unmarked seed whose bar-0 value is `na`.
+        // Without a probe it is `NaN` either way, so no plotted value moves.
+        if (opts && opts.historyFromListing === true && typeof opts.prefixProbe === 'number'
+            && back >= 1 && back <= length && enteringStateUnknown(n.args[0])) {
+          out[back - 1] = opts.prefixProbe
+        }
         return out
       }
       case 'sym': {
@@ -3506,7 +4108,7 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
 
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
-            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`) }),
+            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -3561,7 +4163,7 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
         // clock or `tf` reads the right base.
         const child = toColumn(
           interpret(n.args[0], htf, inputs, budget, scalars,
-            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`) }),
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`tf\u0001${code}`), probeBase: undefined }),
           htf.length)
         // \u26d4\u26d4 THE LAST *CLOSED* BAR, AND THIS LINE IS THE REPAINT STORY. A base bar
         // in bucket `b` reads bucket `b - 1`. Reading `b` would hand a Monday its own
@@ -3706,19 +4308,34 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
   // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
   // so a subtree that reads a recurrence bind is never cached here either.
   const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
-  // ⛔⛔ A NESTED `tf` / `sym` READ RUNS ON OTHER BARS, SO IT GETS ITS OWN MEMO
-  // (H14 hotfix 2026-09-29, from lane C12r). `crossMemo` is keyed on the node
-  // OBJECT and was handed to the nested `interpret` unchanged, so a node object
-  // shared between the chart's own bars and a `tf('W', …)` child answered the
-  // child with the CHART's column (`close` shared by `close` and `tf('W', close)`
-  // read 106 where the weekly close is 148 — the shape `graph.js::expandGraph`
-  // produces for every V2 document). A child scope per code / ticker keeps
-  // sharing WITHIN one bar set and nothing across two. Nested scopes compose.
+  // ⛔⛔ C12r (2026-09-29) — A NESTED `tf` / `sym` READ RUNS ON OTHER BARS, SO IT
+  // GETS ITS OWN MEMO. `crossMemo` is keyed on the node OBJECT and was handed
+  // to the nested `interpret` unchanged, so a node object shared between the
+  // chart's own bars and a `tf('W', …)` child answered the child with the
+  // CHART's column. ⚰️ MEASURED: `close` shared by `close` and `tf('W', close)`
+  // (the shape `graph.js::expandGraph` produces for every V2 document, and
+  // `bind.js::foldBound` keeps) read 106 where the weekly close is 148. The
+  // comment above says the memo must never serve another bar set; this is the
+  // door it was served through. A child scope per code / ticker keeps sharing
+  // WITHIN one bar set and nothing across two. Nested scopes compose.
   const scopedCrossMemo = (key) => {
     if (crossMemo === null) return undefined
     let scoped = crossMemo.get(key)
     if (!(scoped instanceof Map)) { scoped = new Map(); crossMemo.set(key, scoped) }
     return scoped
+  }
+
+  /** C12w — is the state a recurrence ENTERS bar 0 with unknowable from its
+   *  tree? True unless the seed is unmarked and its bar-0 value is `na` (then a
+   *  bare read and a history read both answer `na`). See the `offset` arm. */
+  const enteringStateUnknown = (child) => {
+    if (!child || child.type !== 'call' || !own(RECURRENCES, child.name)) return false
+    const rec = fnSpec(child.name).recurrence
+    // C12s: a switched mark reads its REAL seed here — the mark itself is `NaN`,
+    // which would read as "both readings are `na`" and call the bar exact.
+    const seedNode = switchedSeedOf(child.args[rec.seed]) || child.args[rec.seed]
+    if (isAmbiguousVarSeed(seedNode)) return true
+    return !Number.isNaN(toColumn(evalNode(seedNode), length)[0])
   }
 
   const evalNode = (n) => {
@@ -3738,8 +4355,8 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // kills the mutation, add it and delete this paragraph.
     const id = freeOf.get(n) ? idOf.get(n) : undefined
     if (id !== undefined && memo.has(id)) return memo.get(id)
-    if (crossMemo !== null && id !== undefined && crossMemo.has(n)) {
-      const shared = crossMemo.get(n)
+    if (id !== undefined && passHolds(readable, n)) {
+      const shared = readable.get(n)
       memo.set(id, shared)
       return shared
     }
@@ -3850,14 +4467,16 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // was measured (`recurrenceSteps.measure.test.js`) and how a caller can
     // report a refusal BY NODE instead of letting a NaN reach a cell — the same
     // arrangement `textTooDeep` has one lane over, for the same reason.
+    let stepRecord = null
     if (opts && Array.isArray(opts.stepSink)) {
-      opts.stepSink.push({
+      stepRecord = {
         name: node.name,
         warmup,
         bars: length,
         steps: length * warmup,
         exceeded: length * warmup > MAX_RECURRENCE_STEPS,
-      })
+      }
+      opts.stepSink.push(stepRecord)
     }
     if (length * warmup > MAX_RECURRENCE_STEPS) {
       refuse('interpret:steps',
@@ -3906,10 +4525,23 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // inside a body costs one pass, not `bars × warmup` of them.
     const columns = new Map()
     const planned = new Set()
+    // ⭐ C12r — how many parents reach each node, so a step memoises only the
+    // spine nodes that are actually shared (`stepMemo` below).
+    const refs = new Map()
+    // ⭐⭐ C19 (2026-09-30) — KEYED ON THE STRUCTURAL ID, not the node object.
+    // Every spine operator is pointwise and pure, so two nodes of one shape in
+    // one recurrence are one value per step whether or not they are one object;
+    // keyed on the object, a V1 document (no shared objects after a save) paid
+    // for each copy while `nodeCount` charged for one. The step memo, the plan
+    // and the listing walker now share what the budget counts
+    // (`evaluationUnits`): one unit per shape per recurrence.
+    const sk = (x) => { const id = idOf.get(x); return id === undefined ? x : id }
     const plan = (x) => {
-      if (planned.has(x)) return
-      planned.add(x)
-      if (!reads(x)) { columns.set(x, evalNode(x)); return }
+      const k = sk(x)
+      refs.set(k, (refs.get(k) || 0) + 1)
+      if (planned.has(k)) return
+      planned.add(k)
+      if (!reads(x)) { columns.set(k, evalNode(x)); return }
       if (isBind(x)) return
       if (x.type === 'offset') {
         // ⭐⭐ `self[k]` IS THE SECOND-ORDER CASE, AND IT IS THE KEYSTONE. A 2-pole
@@ -3960,21 +4592,131 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     }
     plan(body)
 
-    const step = (x, j, history) => {
-      if (columns.has(x)) {
-        const v = columns.get(x)
-        return isColumn(v) ? v[j] : v
+    // ⭐⭐ C12r (2026-09-29) — ONE STEP EVALUATES EACH SPINE NODE ONCE. The spine
+    // is a DAG: a `var` written in several blocks folds each block over the
+    // previous binding, and every branch that reads the previous binding holds
+    // the SAME node object. Walked as a tree, a step paid for each path to a
+    // node — ⚰️ MEASURED on `rsi-swing-indicator`: two accumulators, 316k steps,
+    // 3 s per object tree, exponential in the number of `:=` blocks. Every
+    // operator here is pointwise and evaluated eagerly (both ternary arms, as
+    // before), so evaluating a shared node once per step returns the same
+    // number by construction. The memo lives for ONE step only: the running
+    // value, and so every spine node, changes from step to step.
+    // ⭐ And it is COMPILED once, into one closure per spine node, rather than
+    // re-dispatched on the node's shape at every step: the shape is fixed for
+    // the whole loop. A shared node remembers the step it last answered for
+    // (`stepNo`), which is the one-step memo without a map per step.
+    let stepNo = 0
+    const compiled = new Map()
+    const compile = (x) => {
+      const k = sk(x)
+      if (compiled.has(k)) return compiled.get(k)
+      let fn
+      if (columns.has(k)) {
+        const v = columns.get(k)
+        fn = isColumn(v) ? (j) => v[j] : () => v
+      } else if (isBind(x)) {
+        fn = (j, history) => history[0]
+      } else if (x.type === 'offset' && isBind(x.args[0])) {
+        // `self[k]`, resolved HERE rather than by the generic offset arm — that
+        // one walks whole columns and has no idea this value exists only inside
+        // the loop.
+        const k = x.value
+        fn = (j, history) => history[k]
+      } else {
+        const kids = x.args.map(compile)
+        const n = kids.length
+        const isOp = x.type === 'op'
+        const pointwise = isOp ? null : POINTWISE[x.name]
+        const raw = (j, history) => {
+          const values = new Array(n)
+          for (let a = 0; a < n; a += 1) values[a] = kids[a](j, history)
+          return isOp ? applyOpStep(x, values) : pointwise(...values)
+        }
+        if (refs.get(k) > 1) {
+          let at = -1
+          let held
+          fn = (j, history) => {
+            if (at !== stepNo) { held = raw(j, history); at = stepNo }
+            return held
+          }
+        } else {
+          fn = raw
+        }
       }
-      if (isBind(x)) return history[0]
-      // `self[k]`, resolved HERE rather than by the generic offset arm — that one
-      // walks whole columns and has no idea this value exists only inside the loop.
-      if (x.type === 'offset' && isBind(x.args[0])) return history[x.value]
-      const values = x.args.map((child) => step(child, j, history))
-      if (x.type === 'op') return applyOpStep(x, values)
-      return POINTWISE[x.name](...values)
+      compiled.set(k, fn)
+      return fn
     }
 
-    const seed = toColumn(evalNode(node.args[rec.seed]), length)
+    const stepBody = compile(body)
+
+    /** `step`, for the listing pass (C12w): the same arithmetic, plus one
+     *  abstract value.
+     *
+     *  `LISTING_UNKNOWN` stands for "any number, or `na`" — a read whose Pine value
+     *  this tree cannot tell us. Every operator and pointwise call that sees it
+     *  answers it, EXCEPT a ternary whose condition is known, which picks its arm
+     *  exactly as `TERNARY` does. Sound by construction: nothing concrete comes
+     *  out of an unknown input unless the unknown was never consulted.
+     *
+     *  `read(lag, guarded)`, when given, answers the running value's reads instead
+     *  of `history` (bar 0 only); `guarded` is true inside the FIRST argument of
+     *  an `nz`, which is where `pine.js` counts a `var`'s history read as guarded
+     *  (`varSeedOf`).
+     *
+     *  ⭐ ONE EVALUATION PER NODE PER STEP, like C12r's `compile` above: the spine
+     *  is a DAG (a `var` written in several blocks shares its previous binding),
+     *  and walked as a tree it is exponential in the number of `:=` blocks. The
+     *  memo is keyed by node AND guard context, and lives for one call — a shared
+     *  node is one Pine value at one point in the bar, so answering it once is
+     *  exact; the same node reached inside and outside an `nz` asks both ways. */
+    const stepListing = (x, j, history, read, strict = false) => {
+      const memo = new Map()
+      // ⛔ C19 — BY SHAPE only where every read is `history`: then two nodes of
+      // one shape are one value. A bar-0 `read` answers each READ SITE on its
+      // own (the listing enumerates every site's reading — `listingPass`), so
+      // two sites of one shape are two answers there, keyed on the object as
+      // before. That branch runs on one bar, so it costs nothing to keep.
+      const keyOf = read ? (n) => n : sk
+      const walk = (n, guarded) => {
+        const key = guarded ? 1 : 0
+        const nk = keyOf(n)
+        let byGuard = memo.get(nk)
+        if (byGuard && byGuard[key] !== undefined) return byGuard[key]
+        let v
+        if (columns.has(sk(n))) {
+          const c = columns.get(sk(n))
+          v = isColumn(c) ? c[j] : c
+        } else if (isBind(n)) {
+          v = read ? read(0, guarded) : history[0]
+        } else if (n.type === 'offset' && isBind(n.args[0])) {
+          v = read ? read(n.value, guarded) : history[n.value]
+        } else {
+          const nzCall = n.type === 'call' && n.name === 'nz'
+          const values = n.args.map((child, k) => walk(child, guarded || (nzCall && k === 0)))
+          if (n.type === 'op' && n.name === '?:' && values.length === 3) {
+            // `strict` (C12s): a condition that is not computable (`NaN`) picks no
+            // arm the member can rely on, so the switched window reads it as
+            // unknown rather than as the `NaN` the column would carry.
+            v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
+              ? LISTING_UNKNOWN : TERNARY(values[0], values[1], values[2])
+          } else if (values.some((u) => u === LISTING_UNKNOWN)) {
+            v = LISTING_UNKNOWN
+          } else {
+            v = n.type === 'op' ? applyOpStep(n, values) : POINTWISE[n.name](...values)
+          }
+        }
+        if (!byGuard) { byGuard = [undefined, undefined]; memo.set(nk, byGuard) }
+        byGuard[key] = v
+        return v
+      }
+      return walk(x, false)
+    }
+    // ⭐ C12s — a switched mark carries the REAL seed for the listing pass; the
+    // bounded window never reads it (its window starts from an unknown state).
+    const switchedReal = switchedSeedOf(node.args[rec.seed])
+    const seedNode = switchedReal || node.args[rec.seed]
+    const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
     // not-computable prefix with that value instead of `NaN`, so a caller can
@@ -3982,7 +4724,49 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     // (`objectColumns.js::unknownMask`). No member-facing lane passes it: the
     // prefix is still `NaN` everywhere a value is shown.
     if (opts && typeof opts.prefixProbe === 'number') out.fill(opts.prefixProbe, 0, Math.min(warmup, length))
-    for (let i = warmup; i < length; i++) {
+    /** ⭐ C12s — the SWITCHED window, all bars in one pass. See
+     *  `switchedVarSeed` for the rule. One forward pass is enough, and it is
+     *  exact rather than an approximation of the per-bar window: with one lag,
+     *  a step that answers known from an UNKNOWN state (`forgets`) makes every
+     *  later step known, and the window for bar `t` (which starts unknown at
+     *  `t - W`) is known exactly when such a step lies in `(t - W, t]`. Where
+     *  it is known it equals the forward value, because the unknown value is
+     *  sound: a result that came out known from an unknown input is the same
+     *  result for every concrete input. */
+    const switchedColumn = () => {
+      if (maxSelfLag > 0) {
+        refuse('interpret:recurrence',
+          `— a switched ${node.name}(…) reads \`${bind}[${maxSelfLag}]\`; the reset rule `
+          + 'is proved for a body that reads only its previous value')
+      }
+      const fill = opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : NaN
+      const col = nan(length)
+      const unknownState = [LISTING_UNKNOWN]
+      let state = LISTING_UNKNOWN
+      let lastForget = -Infinity
+      let withheld = 0
+      for (let j = 0; j < length; j++) {
+        const forgot = stepListing(body, j, unknownState, null, true)
+        let v
+        if (forgot !== LISTING_UNKNOWN) {
+          lastForget = j
+          v = forgot
+        } else if (state === LISTING_UNKNOWN) {
+          v = LISTING_UNKNOWN
+        } else {
+          v = stepListing(body, j, [state], null, true)
+        }
+        state = v
+        if (v !== LISTING_UNKNOWN && lastForget > j - warmup) col[j] = v
+        else { col[j] = fill; withheld += 1 }
+      }
+      if (stepRecord) stepRecord.switched = { withheld }
+      return col
+    }
+    const switched = switchedReal ? switchedColumn() : null
+    /** The bounded window's value at bar `i >= warmup` — the definition above.
+     *  A switched recurrence answers from its own column (C12s). */
+    const windowAt = switched ? (i) => switched[i] : (i) => {
       // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
       // bars ago" to read, and the seed is the only defined value in scope — the
       // same initial condition Pine states by hand as `nz(x[1], x)`. ⛔ NOT zero: a
@@ -3990,12 +4774,30 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
       // reports that climb as signal.
       const history = new Array(maxSelfLag + 1).fill(seed[i - warmup])
       for (let j = i - warmup + 1; j <= i; j++) {
-        const next = step(body, j, history)
+        stepNo += 1
+        const next = stepBody(j, history)
         for (let k = maxSelfLag; k > 0; k--) history[k] = history[k - 1]
         history[0] = next
       }
-      out[i] = history[0]
+      return history[0]
     }
+    // ⭐⭐ C12w — THE ONE RULED EXCEPTION (R-W, 2026-09-29). Only when the CALLER
+    // states that bar 0 of these bars is the symbol's first-ever bar
+    // (`opts.historyFromListing === true`, never inferred here). See `listingPass`.
+    if (opts && opts.historyFromListing === true && length > 0) {
+      const listed = listingPass({
+        seed, ambiguousSeed: isAmbiguousVarSeed(seedNode),
+        warmup, length, maxSelfLag, out, windowAt, sink: stepRecord,
+        prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
+        stepT: (j, history, read) => stepListing(body, j, history, read),
+        ...(switched ? { windowFrom: 0 } : {}),
+      })
+      if (listed) return listed
+    }
+    // ⭐ C12s — a switched column is its own answer on every bar, the prefix
+    // included: a bar below `warmup` whose reset lies inside the data is exact.
+    if (switched) return switched
+    for (let i = warmup; i < length; i++) out[i] = windowAt(i)
     return out
   }
 

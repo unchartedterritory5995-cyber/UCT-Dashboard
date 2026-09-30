@@ -242,10 +242,19 @@ describe('⛔ C — the unmeasured and the impossible stop BY NAME, never answer
       .toThrow(/array\.indexof for an na value/)
   })
 
-  it('⛔ `array.slice` stays refused BY NAME — its result is a view, not a copy', () => {
-    const r = build('a = array.from(close, high)\nb = array.slice(a, 0, 1)\nplot(b.size())\n')
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('runtime:array')
-    expect(r.refusal.message).toContain('array.slice')
+  it('⛔ `array.slice` is a VIEW in Pine — served as a copy only while neither side is written', () => {
+    // ⚰️ C18 — this refused at build. It is served now, and the view/copy
+    // difference is refused where it could show: a write to the slice OR to its
+    // source after the slice stops the run by name (`collections.js::SLICED`).
+    const ok = runPine('a = array.from(close, high)\nb = array.slice(a, 0, 1)\nplot(b.size())\nplot(b.get(0))\n')
+    expect(ok[0]).toEqual(new Array(N).fill(1))
+    expect(ok[1]).toEqual(closes)
+    expect(() => runPine('a = array.from(close, high)\nb = array.slice(a, 0, 1)\narray.set(b, 0, 5.0)\nplot(b.size())\n'))
+      .toThrow(/array\.set: this array shares storage with an `array\.slice`/)
+    expect(() => runPine('a = array.from(close, high)\nb = array.slice(a, 0, 1)\narray.push(a, 5.0)\nplot(b.size())\n'))
+      .toThrow(/array\.push: this array shares storage with an `array\.slice`/)
+    // ⛔ CONTROL — `array.copy` of a slice is an ordinary array, freely written.
+    const c = runPine('a = array.from(close, high)\nb = array.copy(array.slice(a, 0, 1))\narray.set(b, 0, 5.0)\nplot(b.get(0))\n')
+    expect(c[0]).toEqual(new Array(N).fill(5))
   })
 })

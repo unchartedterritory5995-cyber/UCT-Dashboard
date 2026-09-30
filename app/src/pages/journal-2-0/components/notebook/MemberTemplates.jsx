@@ -6,21 +6,49 @@
  * (a button in a button is one control to a screen reader). Delete asks once,
  * in words, before it acts — a template is the member's own work and there is
  * no trash for it. Every failure is a sentence on screen, never a silent no-op.
+ *
+ * Wave 10 lane DR-C (design finding D-4): two additions, both optional so a
+ * caller that omits them sees byte-identical behaviour (the a11y rail renders
+ * this component bare, with neither prop):
+ *   * `query` — the gallery's search text (already lower-cased and trimmed by
+ *     the caller); filters this section's cards by name, never hides the
+ *     "Daily notes start from" preference control or the empty-state copy;
+ *   * `onPreview(payload | null)` — opens the SAME TemplatePreview.jsx the
+ *     built-in cards use. The full body isn't in this component's own list
+ *     (only names are, by design — see memberTemplates.js), so Preview reads
+ *     it once via `getMemberTemplate`, the same call `onPick`'s caller makes
+ *     when it actually creates the note; "Use this template" from inside the
+ *     preview calls `onPick(t)` unchanged, so creation still goes through the
+ *     one door this component has always used.
  */
 import { useState } from 'react'
 import {
-  deleteMemberTemplate, renameMemberTemplate, useMemberTemplates,
+  deleteMemberTemplate, getMemberTemplate, renameMemberTemplate, useMemberTemplates,
 } from '../../lib/memberTemplates'
 import { DAILY_TEMPLATE_PREF } from '../../lib/dailyNote'
 import usePreferences from '../../../../hooks/usePreferences'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './TemplatePicker.module.css'
 
-export default function MemberTemplates({ onPick, busy = false }) {
+export default function MemberTemplates({ onPick, busy = false, query = '', onPreview = () => {} }) {
   const { templates, error, isLoading } = useMemberTemplates()
   const [renaming, setRenaming] = useState(null) // { id, draft }
   const [confirmDelete, setConfirmDelete] = useState(null) // id
   const [working, setWorking] = useState(false)
   const [message, setMessage] = useState(null) // { text, tone }
+  const q = query.trim().toLowerCase()
+  const visible = q ? templates.filter((t) => t.name.toLowerCase().includes(q)) : templates
+
+  const openPreview = async (t) => {
+    const base = { label: t.name, subtitle: t.title && t.title !== t.name ? t.title : null }
+    onPreview({ ...base, body: null, loading: true, onUse: () => {} })
+    try {
+      const full = await getMemberTemplate(t.id)
+      onPreview({ ...base, body: full.bodyJson, onUse: () => { onPreview(null); onPick(t) } })
+    } catch (e) {
+      onPreview({ ...base, body: null, loadError: e?.message || "Couldn't load this template.", onUse: () => {} })
+    }
+  }
   // Wave 6 (item 4): which of these makes each new daily note (a preference).
   // A template deleted since needs no guard here: a <select> shows its first
   // option ("A blank page") for a value it does not have, and Today itself says
@@ -88,8 +116,11 @@ export default function MemberTemplates({ onPick, busy = false }) {
             {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </label>
+        {q && visible.length === 0 && (
+          <p className={styles.memberNote} role="status">No saved templates match “{query.trim()}”.</p>
+        )}
         <div className={styles.grid}>
-          {templates.map((t) => (
+          {visible.map((t) => (
             <div key={t.id} className={styles.memberItem}>
               {renaming?.id === t.id ? (
                 <form className={styles.renameForm} onSubmit={submitRename}>
@@ -129,6 +160,11 @@ export default function MemberTemplates({ onPick, busy = false }) {
                 </div>
               ) : renaming?.id !== t.id && (
                 <div className={styles.memberActions}>
+                  <button type="button" className={styles.miniBtn}
+                    onClick={() => openPreview(t)}
+                    aria-label={`Preview ${t.name}`}>
+                    <UIcon name="eye" size={12} gold={false} /> Preview
+                  </button>
                   <button type="button" className={styles.miniBtn}
                     onClick={() => { setConfirmDelete(null); setRenaming({ id: t.id, draft: t.name }) }}
                     aria-label={`Rename ${t.name}`}>

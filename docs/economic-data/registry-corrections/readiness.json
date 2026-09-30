@@ -1,0 +1,1528 @@
+[
+ {
+  "symbol": "USMONBASE",
+  "field_path": "units.raw",
+  "old": "Millions USD",
+  "new": "Billions USD",
+  "evidence": "Live 2026-09-30 FRB_h6_xml.zip H6_MBASE/RESMO14A_N.M: UNIT_MULT=1e+09 (Currency, USD); with 'Millions USD' the adapter identity check refused the series (multiplier '1e+09' != 1e+06). docs/economic-data/readiness/verify_fed_ddp.txt"
+ },
+ {
+  "symbol": "USMONBASE",
+  "field_path": "units.scale",
+  "old": 1000000,
+  "new": 1000000000,
+  "evidence": "Same: values are billions of USD."
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "units.raw",
+  "old": "Billions USD",
+  "new": "Millions USD",
+  "evidence": "Live 2026-09-30 FRB_h8_xml.zip H8/B1001NCBA: UNIT_MULT=1000000 (the adapter identity check refused 'Billions USD': multiplier '1000000' != 1e+09). docs/economic-data/readiness/verify_fed_ddp.txt"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "Same."
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "units.raw",
+  "old": "Billions USD",
+  "new": "Millions USD",
+  "evidence": "Live 2026-09-30 FRB_h8_xml.zip H8/B1023NCBA: UNIT_MULT=1000000 (identity check refused 'Billions USD')."
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "Same."
+ },
+ {
+  "symbol": "USDEPOSITS",
+  "field_path": "units.raw",
+  "old": "Billions USD",
+  "new": "Millions USD",
+  "evidence": "Live 2026-09-30 FRB_h8_xml.zip H8/B1058NCBAM: UNIT_MULT=1000000 (identity check refused 'Billions USD')."
+ },
+ {
+  "symbol": "USDEPOSITS",
+  "field_path": "units.scale",
+  "old": 1000000000,
+  "new": 1000000,
+  "evidence": "Same."
+ },
+ {
+  "symbol": "USCORECAPEX",
+  "field_path": "source.params.advance_program",
+  "old": null,
+  "new": "advm3",
+  "evidence": "calendar_key census:m3adv = the Advance Report on Durable Goods; without the advance program the full-M3 fetch lacks the advance month for ~1 week after every census:m3adv event (would read DELAYED). Same shape as enabled USDURGOODS (m3/MDM/NO + advance_program advm3). EXPANSION-151.md"
+ },
+ {
+  "symbol": "USPRIME",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFSPBLP_N.B desc 'Prime rate', Percent, 18,135 days 1955-08-04..2026-09-28, last 7.00. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPRIME",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDISCRATE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFSRP_F02_N.B desc 'Discount rate', Percent, 6,188 days 2003-01-09..2026-09-28, last 4.00. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDISCRATE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST3M",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCM03_N.B desc '3-month Treasury constant maturity', 11,268 days 1981-09-01..2026-09-28, last 4.28. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST3M",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST6M",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCM06_N.B desc '6-month Treasury constant maturity', 11,268 days 1981-09-01..2026-09-28, last 4.41. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST6M",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST1Y",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY01_N.B desc '1-year Treasury constant maturity', 16,170 days 1962-01-02..2026-09-28, last 4.59. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST1Y",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST5Y",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY05_N.B desc '5-year Treasury constant maturity', 16,170 days 1962-01-02..2026-09-28, last 5.06. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST5Y",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST30Y",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY30_N.B desc '30-year Treasury constant maturity', 12,400 days 1977-02-15..2026-09-28, last 5.56. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST30Y",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST5YTIPS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY05_XII_N.B desc '5-year inflation indexed Treasury constant maturity', 5,939 days 2003-01-02..2026-09-28, last 2.73. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST5YTIPS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "UST10YTIPS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H15/RIFLGFCY10_XII_N.B desc '10-year inflation indexed Treasury constant maturity', 5,939 days 2003-01-02..2026-09-28, last 2.90. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "UST10YTIPS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USFEDUST",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H41/RESPPALGUO_N.WW desc 'Assets: Securities Held Outright: U.S. Treasury securities: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 4,558,332. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USFEDUST",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USRESBAL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H41/RESH4R_N.WW desc '... Reserve balances with Federal Reserve Banks: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 2,969,922. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USRESBAL",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USTGAFED",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H41/RESPPLLDT_N.WW desc '... U.S. Treasury, General Account: Wednesday level', UNIT_MULT 1e6, 1,241 weeks to w/e 2026-09-23, last 947,317. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USTGAFED",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USM1",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H6_M1/M1.M desc 'M1; Seasonally adjusted', UNIT_MULT 1e9, 812 months 1959-01..2026-08, last 19,991.1. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USM1",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USMONBASE",
+  "field_path": "source.verified_evidence",
+  "old": "catalog_notes.md lists this provider id as unverified",
+  "new": "Readiness 2026-09-30 (Gate 3): live H6_MBASE/RESMO14A_N.M desc 'Monetary base; total; not seasonally adjusted', UNIT_MULT 1e9 (units corrected), 812 months 1959-01..2026-08, last 5,411.6. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USMONBASE",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "live identity + history verified (see verified_evidence)"
+ },
+ {
+  "symbol": "USMONBASE",
+  "field_path": "status",
+  "old": "unverified",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H8/B1001NCBA desc 'Bank credit, all commercial banks, seasonally adjusted', UNIT_MULT 1e6 (units corrected), 2,803 weeks to w/e 2026-09-16, last 19,876,325.9 = H.8 release 2026-09-25 $19,876.3 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live H8/B1023NCBA desc 'Commercial and industrial loans, all commercial banks, seasonally adjusted', UNIT_MULT 1e6 (units corrected), 2,803 weeks, last 2,965,268.9 = H.8 release $2,965.3 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCONSCRED",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live G19/CCOUT/DTCTL.M desc 'Total consumer credit owned and securitized, seasonally adjusted level', 1,003 months 1943-01..2026-07, last 5,186,204.07 = G.19 2026-09-08 $5,186.2 bn. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCONSCRED",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USMFGPROD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live G17 IP_MAJOR_INDUSTRY_GROUPS/IP.GMF.S desc 'Manufacturing (NAICS); s.a. IP', 656 months 1972-01..2026-08, last 99.0964. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USMFGPROD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCAPUTIL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'DDP mnemonic + start verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live G17 CAPUTL/CAPUTL.B50001.S desc 'Total index; s.a. CAPUTL', 716 months 1967-01..2026-08, last 76.2717. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCAPUTIL",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDOLLARIDX",
+  "field_path": "source.verified_evidence",
+  "old": "catalog_notes.md lists this provider id as unverified",
+  "new": "Readiness 2026-09-30 (Gate 3): live H10/JRXWTFB_N.B desc 'Nominal Broad Dollar Index', 5,198 days 2006-01-02..2026-09-25, last 120.33. docs/economic-data/readiness/verify_fed_ddp.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDOLLARIDX",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "live identity + history verified (see verified_evidence)"
+ },
+ {
+  "symbol": "USDOLLARIDX",
+  "field_path": "status",
+  "old": "unverified",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPERMIT",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export RESCONST APERMITS/TOTAL SA header verified; 800 months 1960-01..2026-08, last 1,403. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPERMIT",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USNEWHOME",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export RESSALES ASOLD/TOTAL SA; 764 months 1963-01..2026-08, last 684. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USNEWHOME",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USNHMSUPPLY",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export RESSALES FORSALE/MONSUP SA; 764 months 1963-01..2026-08, last 8.5. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USNHMSUPPLY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCONSTSPD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export VIP AXXXX/T SA; 295 months 2002-01..2026-07, last 2,157,581. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCONSTSPD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCORECAPEX",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export M3 NXA/NO SA + M3ADV advance month; 415 months 1992-02..2026-08(a), last 87,629. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCORECAPEX",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USFACTORD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export M3 MTM/NO SA; 414 months 1992-02..2026-07, last 663,616. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USFACTORD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USBUSINV",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export MTIS TOTBUS/IM SA; 415 months 1992-01..2026-07, last 2,764,708. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USBUSINV",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USBUSISR",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export MTIS TOTBUS/IR SA; 415 months 1992-01..2026-07, last 1.30. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USBUSISR",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USEXPORTS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export FTD BOPGS/EXP SA; 415 months 1992-01..2026-07, last 310,723. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USEXPORTS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USIMPORTS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'EITS code verified'",
+  "new": "Readiness 2026-09-30 (Gate 3): live econ_export FTD BOPGS/IMP SA; 415 months 1992-01..2026-07, last 399,299. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USIMPORTS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USSPR",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET WCSSTUS1 weekly (identity: page links hist_xls/WCSSTUS1w.xls); 2,295 weeks w/e 1982-08-20..2026-09-18, last 284,552. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USSPR",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCRUDEPROD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET WCRFPUS2 weekly; 2,278 weeks w/e 1983-01-07..2026-09-18, last 13,939. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCRUDEPROD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USGASINV",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET WGTSTUS1 weekly; 1,916 weeks w/e 1990-01-05..2026-09-18, last 206,046. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USGASINV",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDISTINV",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET WDISTUS1 weekly; 2,295 weeks w/e 1982-08-20..2026-09-18, last 107,431. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDISTINV",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USREFUTIL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET WPULEUS3 weekly; 1,873 weeks w/e 1990-11-02..2026-09-18, last 94.0. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USREFUTIL",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDIESELPRICE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Series ID verified via EIA dnav'",
+  "new": "Readiness 2026-09-30 (Gate 3): live dnav PET EMD_EPD2D_PTE_NUS_DPG weekly (Monday survey); 1,698 weeks 1994-03-21..2026-09-28, last 6.382. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDIESELPRICE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDEBTPUB",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'",
+  "new": "Readiness 2026-09-30 (Gate 3): live debt_to_penny debt_held_public_amt; 8,402 days 1993-04-01..2026-09-28 (2,958 provider-null days before daily figures), last 32,386,263,609,755.87. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDEBTPUB",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USMTSREC",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'",
+  "new": "Readiness 2026-09-30 (Gate 3): live mts_table_1 current_month_gross_rcpt_amt (MTH rows); 155 months 2013-10..2026-08, last 360,032,735,841.42. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USMTSREC",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USMTSOUT",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'Endpoint+field verified live'",
+  "new": "Readiness 2026-09-30 (Gate 3): live mts_table_1 current_month_gross_outly_amt (MTH rows); 155 months 2013-10..2026-08, last 526,829,688,118.80. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USMTSOUT",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USFSPDP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister LB000003 'Final sales to private domestic purchasers' Chained Dollars Level scale -6, T10406:8; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USFSPDP",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A008RX 'Nonresidential' Chained Dollars Level scale -6, T10106:9; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPERSINC",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A065RC 'Equals: Personal income' Current Dollars scale -6, T20600:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPERSINC",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USDPI",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A067RC 'Disposable personal income' Current Dollars scale -6, T20600:27; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USDPI",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USRDPI",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A067RX 'Disposable personal income' Chained Dollars scale -6, T20600:37; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USRDPI",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPCE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister DPCERC 'Personal consumption expenditures' Current Dollars scale -6, T20600:29|T20805:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPCE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USRPCE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister DPCERX 'Personal consumption expenditures' Chained Dollars scale -6, T20806:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USRPCE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USSAVRATE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A072RC 'Personal saving as a percentage of disposable personal income' Ratio scale 0, T20600:35; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USSAVRATE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPCESVCXHE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister IA001260 'PCE services excluding energy and housing' Fisher Price Index scale 0, T20804:28; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPCESVCXHE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'verified via DBnomics BEA mirror'",
+  "new": "Readiness 2026-09-30 (Gate 3): live NIPA flat file (keyless) + SeriesRegister A051RC 'Corporate profits with inventory valuation and capital consumption adjustments' Current Dollars scale -6, T61600D:1; history + UNIT_MULT verified by the adapter. docs/economic-data/readiness/verify_other.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPIFOOD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SAF1 'Food in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1947 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPIFOOD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPIENERGY",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SA0E 'Energy in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPIENERGY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPISHELTER",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SAH1 'Shelter in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPISHELTER",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPIOER",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SEHC 'Owners' equivalent rent of residences in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1983 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPIOER",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPISVCXSH",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SASL2RS 'Services less rent of shelter in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1985 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPISVCXSH",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPISVCXEN",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SASLE 'Services less energy services in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1967 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPISVCXEN",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPICOREGDS",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SACL1E 'Commodities less food and energy commodities in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPICOREGDS",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCPIUSEDCAR",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog cu.series CUSR0000SETA02 'Used cars and trucks in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USCPIUSEDCAR",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPPICORE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/WPSFD49104 'PPI Commodity data for Final demand less foods and energy, seasonally adjusted', base 201004; Aug 2026 154.842(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPPICORE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPPIFDNSA",
+  "field_path": "source.verified_evidence",
+  "old": "catalog_notes.md lists this provider id as unverified",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/WPUFD4 'PPI Commodity data for Final demand, not seasonally adjusted', base Nov 2009; Aug 2026 157.604(P), Jul 157.155(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPPIFDNSA",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "live identity + history verified (see verified_evidence)"
+ },
+ {
+  "symbol": "USPPIFDNSA",
+  "field_path": "status",
+  "old": "unverified",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USIMPPRICE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/EIUIR 'Monthly import price index for BEA End Use, All commodities, not seasonally adjusted', base 2000=100; Aug 2026 150.8, Jul 149.8(R); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USIMPPRICE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPROD",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog pr.series PRS85006092: sector 8500 (nonfarm business), measure 09 (labor productivity), duration 2 (% change from previous quarter at annual rate), seasonal S, 1947 Q02..2026 Q02; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPROD",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USULC",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog pr.series PRS85006112: sector 8500, measure 11 (unit labor costs), duration 2 (% change q/q at annual rate), seasonal S, 1947 Q02..2026 Q02; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USULC",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USU6",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS13327709 '(Seas) Total unemployed, plus all persons marginally attached ... plus total employed part time for economic reasons ... (U-6)', percent; Aug 2026 7.7; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USU6",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USLFPR",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS11300000 '(Seas) Labor Force Participation Rate', percent; Aug 2026 61.6; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USLFPR",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USEPOP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS12300000 '(Seas) Employment-Population Ratio', percent; Aug 2026 59.1; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USEPOP",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USEPOP2554",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/LNS12300060 '(Seas) Employment-Population Ratio - 25-54 yrs.', percent; Aug 2026 80.4; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USEPOP2554",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USPRIVNFP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000001 'All employees, thousands, total private, seasonally adjusted'; Aug 2026 135,752(P), 1939..2026; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USPRIVNFP",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USMFGNFP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES3000000001 'All employees, thousands, manufacturing, seasonally adjusted'; Aug 2026 12,638(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USMFGNFP",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USGOVNFP",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES9000000001 'All employees, thousands, government, seasonally adjusted'; Aug 2026 preliminary ~23.3M; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USGOVNFP",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USAHE",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000003 'Average hourly earnings of all employees, total private, seasonally adjusted'; Aug 2026 $37.75(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USAHE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USAWH",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog data.bls.gov/timeseries/CES0500000002 'Average weekly hours of all employees, total private, seasonally adjusted'; Aug 2026 34.4(P); data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USAWH",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USJOLTSQ",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000QUL: seasonal S, industry 000000 total nonfarm, dataelement QU (quits), ratelevel L (level, thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USJOLTSQ",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USJOLTSQR",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000QUR: seasonal S, total nonfarm, QU quits, R rate (percent), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USJOLTSQR",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USJOLTSH",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000HIL: seasonal S, total nonfarm, HI hires, L level (thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USJOLTSH",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USJOLTSL",
+  "field_path": "source.verified_evidence",
+  "old": "Phase 0 catalog (2026-09-28): 'ID verified via BLS API'",
+  "new": "Readiness 2026-09-30 (Gate 3): live BLS catalog jt.series JTS000000000000000LDL: seasonal S, total nonfarm, LD layoffs and discharges, L level (thousands), 2000 M12..2026 M08; data via BLS API v1 (local backfill 1997+; full history = keyed production backfill). docs/economic-data/readiness/verify_bls_identity.txt; local backfill census docs/economic-data/readiness/CATALOG.csv",
+  "evidence": "verify_readiness / BLS catalog"
+ },
+ {
+  "symbol": "USJOLTSL",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3: live identity/units/frequency/SA/history, calendar key known, local backfill 0 rejections / 0 leaks (CATALOG.md)"
+ },
+ {
+  "symbol": "USCORECPIMOM",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCORECPI",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USCORECPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCORECPIMOM",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCPISHYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCPISHELTER",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCPISHELTER); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCPISHYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCPISCXSYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCPISVCXSH",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCPISVCXSH); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCPISCXSYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USPPIYOY",
+  "field_path": "source.verified_evidence",
+  "old": "input(s) unverified: USPPIFDNSA",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USPPIFDNSA); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USPPIYOY",
+  "field_path": "source.verified",
+  "old": false,
+  "new": true,
+  "evidence": "all inputs enabled and verified"
+ },
+ {
+  "symbol": "USPPIYOY",
+  "field_path": "status",
+  "old": "unverified",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USPPIMOM",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USPPIFD",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USPPIFD); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USPPIMOM",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCOREPPIYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USPPICORE",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USPPICORE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCOREPPIYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USAHEYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USAHE",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USAHE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USAHEYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USICSA4W",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USICSA",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed sma(USICSA); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USICSA4W",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USPCEPIMOM",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USPCEPI",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USPCEPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USPCEPIMOM",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCOREPCEYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCOREPCE",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USCOREPCE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCOREPCEYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCOREPCEMOM",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCOREPCE",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed mom_pct(USCOREPCE); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCOREPCEMOM",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "UST10Y3M",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: UST10Y, UST3M",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST10Y, UST3M); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "UST10Y3M",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "UST10YBE",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: UST10Y, UST10YTIPS",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST10Y, UST10YTIPS); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "UST10YBE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "UST5YBE",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: UST5Y, UST5YTIPS",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed spread(UST5Y, UST5YTIPS); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "UST5YBE",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USM2YOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USM2",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USM2); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USM2YOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCONSCREDCHG",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCONSCRED",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed diff(USCONSCRED); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCONSCREDCHG",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USDEFICIT12M",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USMTSDEF",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed sum(USMTSDEF); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USDEFICIT12M",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USCRUDEINVCHG",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USCRUDEINV",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed diff(USCRUDEINV); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USCRUDEINVCHG",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USFHFAHPIYOY",
+  "field_path": "source.verified_evidence",
+  "old": "all inputs verified: USFHFAHPI",
+  "new": "Readiness 2026-09-30 (Gate 3): UCT-computed yoy_pct(USFHFAHPI); every input enabled+verified; audit_derived clean on the local DB (CATALOG.md)",
+  "evidence": "derive audit"
+ },
+ {
+  "symbol": "USFHFAHPIYOY",
+  "field_path": "status",
+  "old": "disabled",
+  "new": "enabled",
+  "evidence": "passed Gate 3 (derived: inputs enabled, op supported, audit_derived clean)"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "release.lag_rule.days",
+  "old": 5,
+  "new": 9,
+  "evidence": "H.8 carries the Wednesday of the PREVIOUS week: release Fri 2026-09-25 -> week ending 2026-09-16 (9 d); same 9-day lag on archived releases 1996-06-14, 2001-01-05, 2008-01-04, 2015-01-02. pe+5 placed rows 4 days BEFORE publication (look-ahead leak)"
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "release.lag_rule.days",
+  "old": 5,
+  "new": 9,
+  "evidence": "same as USBANKCRED (H.8, pe+5 was early)"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "release.lag_rule.basis",
+  "old": "Friday for week ending Wednesday; holiday weeks slip to Monday",
+  "new": "H.8 Friday 16:15 carries the Wednesday 9 days earlier (Thursday when Friday is a federal holiday)",
+  "evidence": "FRB H.8 page + archived releases"
+ },
+ {
+  "symbol": "USBANKCRED",
+  "field_path": "release.cadence",
+  "old": "Weekly, Friday (week ending Wednesday)",
+  "new": "Weekly, Friday 16:15 ET (Wednesday level of the previous week)",
+  "evidence": "FRB H.8 page"
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "release.lag_rule.basis",
+  "old": "Friday for week ending Wednesday; holiday weeks slip to Monday",
+  "new": "H.8 Friday 16:15 carries the Wednesday 9 days earlier (Thursday when Friday is a federal holiday)",
+  "evidence": "FRB H.8 page + archived releases"
+ },
+ {
+  "symbol": "USCILOANS",
+  "field_path": "release.cadence",
+  "old": "Weekly, Friday (week ending Wednesday)",
+  "new": "Weekly, Friday 16:15 ET (Wednesday level of the previous week)",
+  "evidence": "FRB H.8 page"
+ },
+ {
+  "symbol": "USCORPPROF",
+  "field_path": "release.calendar_key",
+  "old": "bea:gdp",
+  "new": "bea:profits",
+  "evidence": "BEA release_dates.json lists 'Corporate Profits' separately (2026: May 28, Jun 25, Aug 26, Sep 30, Nov 25, Dec 23); profits are NOT in the advance GDP estimate, so bea:gdp made the series read DELAYED after every advance release. New key bea:profits labels a quarter's first profits release NEW and later ones /rev<n>"
+ },
+ {
+  "symbol": "USRNRFI",
+  "field_path": "history_start",
+  "old": "1947-Q1",
+  "new": "2007-Q1",
+  "evidence": "BEA NipaDataQ.txt carries A008RX (chained 2017 $) from 2007Q1 only (78 quarters), live 2026-09-30"
+ },
+ {
+  "symbol": "USCONSTSPD",
+  "field_path": "history_start",
+  "old": "1993-01",
+  "new": "2002-01",
+  "evidence": "Census econ_export VIP AXXXX/T SA returns 2002-01..2026-07 (295 months), live 2026-09-30"
+ },
+ {
+  "symbol": "USGASINV",
+  "field_path": "history_start",
+  "old": "1990-08-03?",
+  "new": "1990-01-05",
+  "evidence": "EIA dnav WGTSTUS1: first week ending 1990-01-05 (was '1990-08-03?')"
+ },
+ {
+  "symbol": "USREFUTIL",
+  "field_path": "history_start",
+  "old": "1990-01-05?",
+  "new": "1990-11-02",
+  "evidence": "EIA dnav WPULEUS3: first week ending 1990-11-02 (was '1990-01-05?')"
+ },
+ {
+  "symbol": "USMTSREC",
+  "field_path": "history_start",
+  "old": "2015-10",
+  "new": "2013-10",
+  "evidence": "fiscaldata mts_table_1 MTH rows start 2013-10 (155 months), live 2026-09-30"
+ },
+ {
+  "symbol": "USMTSOUT",
+  "field_path": "history_start",
+  "old": "2015-10",
+  "new": "2013-10",
+  "evidence": "same as USMTSREC"
+ },
+ {
+  "symbol": "USCPISVCXSH",
+  "field_path": "history_start",
+  "old": "1983-01",
+  "new": "1985-01",
+  "evidence": "BLS cu.series CUSR0000SASL2RS begin 1985 M01 (was 1983-01)"
+ },
+ {
+  "symbol": "USCRUDEINVCHG",
+  "field_path": "revision.type",
+  "old": "none",
+  "new": "minor_routine",
+  "evidence": "diff of USCRUDEINV, whose WPSR levels revise (minor_routine); 'none' claimed an unrevised history the input does not have"
+ },
+ {
+  "symbol": "USCRUDEINVCHG",
+  "field_path": "pit.backfill_class",
+  "old": "U",
+  "new": "L",
+  "evidence": "follows revision.type minor_routine (U only when revision none)"
+ },
+ {
+  "symbol": "USDEBTPUB",
+  "field_path": "history_start",
+  "old": "1993-04-01",
+  "new": "1997-09-30",
+  "evidence": "fiscaldata debt_to_penny debt_held_public_amt is null (provider-stated) for every day before 1997-09-30; first valued day 1997-09-30 (local DB 2026-09-30). Rows before 2005-04-04 are PIT L (BACKCAST_BEFORE, 'daily figures only from April 4, 2005')"
+ }
+]

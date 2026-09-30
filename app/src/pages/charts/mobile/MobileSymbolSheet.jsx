@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../../components/mobile/Sheet'
 import CompanyLogo from '../../../components/CompanyLogo'
 import UIcon from '../../../components/ui/UIcon'
@@ -20,15 +20,15 @@ const TICKERISH = /^[A-Z][A-Z0-9.-]{0,9}$/
  * All search state lives in SearchBody, which the Sheet unmounts on close —
  * every open starts from a fresh query with no reset effects.
  */
-export default function MobileSymbolSheet({ open, onClose, onPick, className = '' }) {
+export default function MobileSymbolSheet({ open, onClose, onPick, className = '', economic = false }) {
   return (
     <Sheet open={open} onClose={onClose} variant="fullscreen" ariaLabel="Symbol search" className={`${styles.searchPanel} ${className}`}>
-      <SearchBody onClose={onClose} onPick={onPick} />
+      <SearchBody onClose={onClose} onPick={onPick} economic={economic} />
     </Sheet>
   )
 }
 
-function SearchBody({ onClose, onPick }) {
+function SearchBody({ onClose, onPick, economic = false }) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   /* ⭐ THE CATEGORY FILTER THE API ALREADY SUPPORTED. `/api/ticker-search` has
@@ -37,6 +37,10 @@ function SearchBody({ onClose, onPick }) {
      most — had no control at all. */
   const [chip, setChip] = useState('all')
   const [breadthAll, setBreadthAll] = useState([])
+  // ⭐ ECONOMIC — the desktop dropdown's rule, same lazy module: opt-in per host,
+  // present only once `/api/econ/catalog` answered 200 for this member.
+  const [econ, setEcon] = useState(null)
+  const chips = useMemo(() => (econ ? econ.withEconomicChip(CHIPS) : CHIPS), [econ])
   const inputRef = useRef(null)
   const abortRef = useRef(null)
 
@@ -45,6 +49,15 @@ function SearchBody({ onClose, onPick }) {
     const t = requestAnimationFrame(() => inputRef.current?.focus())
     return () => cancelAnimationFrame(t)
   }, [])
+
+  useEffect(() => {
+    if (!economic || econ) return undefined
+    let alive = true
+    import('../../../components/chart/economic/econSearch')
+      .then((m) => m.probeEconomic().then((ok) => { if (alive && ok) setEcon(m) }))
+      .catch(() => { /* offline: no economic chip */ })
+    return () => { alive = false }
+  }, [economic, econ])
 
   // The UCT breadth catalog, fetched once — the Breadth chip filters this list
   // rather than the ticker index, exactly as the desktop dropdown does.
@@ -76,13 +89,13 @@ function SearchBody({ onClose, onPick }) {
     // round trip can improve an answer we already hold in full.
     if (chip === 'index') { setResults(INDICES_PRESET.filter((r) => matchQ(r, q))); return undefined }
     if (chip === 'breadth') { setResults(breadthAll.filter((r) => matchQ(r, q))); return undefined }
-    const typeParam = CHIPS.find((c) => c.key === chip)?.type || ''
+    const typeParam = chips.find((c) => c.key === chip)?.type || ''
     const t = setTimeout(async () => {
       try {
         abortRef.current?.abort()
         const ctl = new AbortController()
         abortRef.current = ctl
-        const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=20${typeParam ? `&type=${typeParam}` : ''}`
+        const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=20${typeParam ? `&type=${typeParam}` : (econ ? '&type=all_economic' : '')}`
         const r = await fetch(url, { signal: ctl.signal, credentials: 'include' })
         if (!r.ok) return
         const data = await r.json()
@@ -94,7 +107,7 @@ function SearchBody({ onClose, onPick }) {
       } catch { /* aborted / offline — keep whatever is showing */ }
     }, 150)
     return () => clearTimeout(t)
-  }, [query, chip, breadthAll])
+  }, [query, chip, breadthAll, econ, chips])
 
   const handleChange = (e) => {
     const v = e.target.value.toUpperCase()
@@ -117,6 +130,20 @@ function SearchBody({ onClose, onPick }) {
      chart with nothing having warned you. `rowIdentity` is the same function the
      desktop dropdown uses, so the two surfaces cannot drift again. */
   const row = (r, keyPrefix = '') => {
+    if (r.economic && econ) {
+      // The clean name leads, the display symbol follows — never a company logo.
+      return (
+        <button key={`${keyPrefix}${r.ticker}`} type="button" className={styles.resultRow}
+          onClick={() => commit(r.ticker)}>
+          <econ.EconGlyph size={30} />
+          <span className={styles.resultName} style={{ color: 'var(--text)' }}>{r.name}</span>
+          <span className={styles.resultTags}>
+            <span className={styles.resultExch}>{r.symbol}</span>
+            <span className={styles.symBadge}>Economic</span>
+          </span>
+        </button>
+      )
+    }
     const { exchange, badge } = rowIdentity(r)
     return (
       <button key={`${keyPrefix}${r.ticker}`} type="button"
@@ -171,7 +198,7 @@ function SearchBody({ onClose, onPick }) {
       </div>
 
       <div className={styles.symChipRow} role="tablist" aria-label="Filter symbols by category">
-        {CHIPS.map((c) => (
+        {chips.map((c) => (
           <button
             key={c.key}
             type="button"
@@ -206,11 +233,12 @@ function SearchBody({ onClose, onPick }) {
                 {recents.map((sy) => row({ ticker: sy }, 'r-'))}
               </>
             )}
-            <div className={styles.sectionLabel}>Popular</div>
+            <div className={styles.sectionLabel}>{chip === 'economic' && econ ? 'Economic series' : 'Popular'}</div>
             {(chip === 'index' ? INDICES_PRESET
               : chip === 'breadth' ? breadthAll
+              : (chip === 'economic' && econ) ? econ.browseEconomicRows()
               : chip === 'all' ? POPULAR_RESULTS
-              : POPULAR_RESULTS.filter((r) => r.type === CHIPS.find((c) => c.key === chip)?.type)
+              : POPULAR_RESULTS.filter((r) => r.type === chips.find((c) => c.key === chip)?.type)
             ).map((r) => row(r, 'p-'))}
           </>
         )}

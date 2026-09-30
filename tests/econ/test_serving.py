@@ -68,7 +68,7 @@ def test_modes_agree_with_the_builder(mode, db_path):
     assert body["points"] == want["points"] and body["meta"] == want["meta"]
 
 
-@pytest.mark.parametrize("sym", ["USCPIFOOD", "USPPIFDNSA", "USUMCSENT", "ECON:USCPIFOOD", "USNOPE",
+@pytest.mark.parametrize("sym", ["USRETAILXA", "USGOODSBAL", "USUMCSENT", "ECON:USRETAILXA", "USNOPE",
                                  "AAPL", "ECON:AAPL", "FOO:USCPI", "USCPI:X", "x" * 80])
 def test_non_servable_is_404_never_partial(mode, sym):
     st, body, tag = serving.series(sym)
@@ -100,7 +100,7 @@ def test_disabled_after_publish_is_refused_at_the_door(mode, monkeypatch):
 def test_catalog_and_no_internals(mode):
     st, body, tag = serving.catalog()
     assert st == 200 and set(body) == {"series", "attributions"}
-    assert len(body["series"]) == 42
+    assert len(body["series"]) == 136     # 42 cohort + 94 launch (readiness)
     assert_no_internals(body)
     assert_no_internals(serving.series("USCPI")[1])
 
@@ -129,7 +129,7 @@ def test_tampered_artifacts_are_sanitized(tmp_path, monkeypatch):
               "points": [[T1, 1.0, "2026-07-01", "2026-07-31", "V"]]}
     status = {"service": {"published_at": 1, "nested": {"x": 1}},
               "series": [{"symbol": "USCPI", "state": "CURRENT", "value": 320.5, "points": [1]},
-                         {"symbol": "USCPIFOOD", "state": "CURRENT"}]}
+                         {"symbol": "USRETAILXA", "state": "CURRENT"}]}
     for key, doc, gz in ((P.series_key("USCPI"), series, True), (P.STATUS_KEY, status, False)):
         p = root.joinpath(*key.split("/"))
         p.parent.mkdir(parents=True, exist_ok=True)

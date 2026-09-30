@@ -1476,7 +1476,7 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
 - **Full universe pre-cache**: background thread on startup fetches 3,742 tickers (`api/data/cap_universe.json`) × 5 TFs = 18,425 entries. Also pulls tickers from wire_data (UCT20, candidates, earnings), theme taxonomy (all tiers), watchlists, and tagged tickers. Continuous refresh loop cycles permanently.
 - **SWR prefetch**: `app/src/utils/prefetchBars.js` — `prefetchBars(tickers, tf)` warms adjacent tickers in list contexts, `prefetchAllTimeframes(sym)` warms all 5 TFs on selection. Wired into DrillModal, ThemeTrackerPage, Watchlists, CustomScan. `prefetchBar(sym)` on TickerPopup hover.
-- **Stale intraday detection**: `_is_intraday_stale()` checks if Massive data is >5 days old (catches pre-split bars), falls back to yfinance (split-adjusted).
+- **Stale intraday detection**: `_is_intraday_stale()` checks if Massive data is >5 days old and escalates to FMP/yfinance. ⚰️ This said it "catches pre-split bars" -- it does not: a split inside a FRESH payload never trips it, adjusted or not (`tests/test_intraday_split_is_not_staleness.py`, TERM-055). It catches a series that STOPPED. Split detection is `bars_sanitize.unadjusted_splits`, D/W/M only; an unadjusted intraday split is served as-is today.
 - **Lookback caps**: daily/weekly capped at 30 years (10,950 days) to avoid strftime crash on pre-1900 dates. Intraday scales dynamically: `bars_per_day = 390 / multiplier`, lookback = `max_bars / bars_per_day * 1.5`.
 - **Startup purge**: `bars_disk_cache.purge_empty()` removes empty cache files from prior bugs.
 

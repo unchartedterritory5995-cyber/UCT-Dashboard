@@ -1,0 +1,114 @@
+[run] r195633
+[seed] 42.5s
+[VALID] geometry control: every planted defect failed the instrument as it must
+[FINDINGS] geometry nb-list @390: tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Expand Sample notebook; occluded:Sample notebook; occluded:Rename Sample notebook; occluded:Add subfolder to Sample notebook
+[FINDINGS] geometry nb-list @820: tap:Select Proof PDF r195633; tap:Select Proof public r195633; tap:Select Proof ledger 2 r195633; tap:Select Proof ledger 1 r195633; tap:Select Proof ledger 0 r195633; tap:Select Proof rich base r195633
+[CLEAN] geometry nb-list @1200: 
+[FINDINGS] geometry nb-table @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; tap:Select Proof PDF r195633; tap:UPDATED; tap:Select Proof public r195633; tap:?
+[FINDINGS] geometry nb-table @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Select all notes in view; tap:TITLE; tap:UPDATED; tap:Select Proof PDF r195633; tap:Select Proof public r195633
+[FINDINGS] geometry nb-table @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-board @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; tap:?
+[FINDINGS] geometry nb-board @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?
+[FINDINGS] geometry nb-board @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-calendar @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; tap:?; occluded:Review Date
+[FINDINGS] geometry nb-calendar @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?
+[FINDINGS] geometry nb-calendar @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-timeline @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; occluded:Week; tap:?; occluded:Folder
+[FINDINGS] geometry nb-timeline @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?
+[FINDINGS] geometry nb-timeline @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-graph @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Archived; tap:?; occluded:Import; occluded:Export; occluded:Today
+[FINDINGS] geometry nb-graph @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?
+[FINDINGS] geometry nb-graph @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-tasks @390: tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1; occluded:Expand Sample notebook; occluded:Sample notebook; occluded:Rename Sample notebook; occluded:Add subfolder to Sample notebook
+[FINDINGS] geometry nb-tasks @820: tap:?
+[CLEAN] geometry nb-tasks @1200: 
+[FINDINGS] geometry nb-search @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Clear search; tap:Search filters; occluded:List view; tap:?; occluded:Sort notes
+[FINDINGS] geometry nb-search @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Clear search; tap:Search filters; tap:Select Proof PDF r195633; tap:Select Proof public r195633; tap:Select Proof ledger 2 r195633
+[FINDINGS] geometry nb-search @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-trash @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:?; occluded:Unfiled; tap:Clear filter
+[FINDINGS] geometry nb-trash @820: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Clear filter; tap:?
+[FINDINGS] geometry nb-trash @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry nb-note @390: tap:Folder; tap:Ticker; tap:Note title; tap:Subtitle; tap:?; occluded:Add property
+[FINDINGS] geometry nb-note @820: tap:Folder; tap:Ticker; tap:?
+[FINDINGS] geometry nb-note @1200: occluded:Code block language
+[FINDINGS] geometry nb-note-first-run @390: tap:Folder; tap:Ticker; tap:Note title; tap:Subtitle; tap:?; overflow:div._orbCluster_15gv2_303 "◉"
+[FINDINGS] geometry nb-note-first-run @820: tap:Folder; tap:Ticker; tap:?
+[CLEAN] geometry nb-note-first-run @1200: 
+[FINDINGS] geometry ed-find @390: tap:Folder; tap:Ticker; tap:Note title; tap:Subtitle; occluded:Show replace; occluded:Find in note
+[FINDINGS] geometry ed-find @820: tap:Folder; tap:Ticker; tap:?
+[CLEAN] geometry ed-find @1200: 
+[FINDINGS] geometry ed-property @390: overflow:div._orbCluster_15gv2_303._tuckedRight_1; tap:Folder; tap:Ticker; tap:Note title; tap:Subtitle; tap:?
+[FINDINGS] geometry ed-property @820: tap:Folder; tap:Ticker; occluded:Code block language; tap:?
+[CLEAN] geometry ed-property @1200: 
+[FINDINGS] geometry settings-cards @390: occluded:Connect; tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry settings-cards @820: tap:?; overflow:div._orbCluster_15gv2_303._tuckedRight_1
+[FINDINGS] geometry settings-cards @1200: overflow:div._orbCluster_15gv2_303._tuckedRight_1
+
+[written] C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\fx-artifacts\fx-geometry-repro.json
+
+=== nb-list @ 390 ===
+{"kind": "occluded", "control": "Expand Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [36, -1, 44, 44]}
+{"kind": "occluded", "control": "Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [82, -3, 82, 48]}
+{"kind": "occluded", "control": "Rename Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [166, -1, 44, 44]}
+{"kind": "occluded", "control": "Select Proof ledger 2 r195633", "tag": "INPUT", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [54, 730, 24, 24]}
+
+=== nb-table @ 390 ===
+{"kind": "occluded", "control": "Archived", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, -7, 272, 44]}
+
+=== nb-board @ 390 ===
+{"kind": "occluded", "control": "Archived", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, -7, 272, 44]}
+
+=== nb-calendar @ 390 ===
+{"kind": "occluded", "control": "Archived", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, -7, 272, 44]}
+
+=== nb-timeline @ 390 ===
+{"kind": "occluded", "control": "Archived", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, -7, 272, 44]}
+{"kind": "occluded", "control": "Week", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "span \"Log\"", "by_modal": false, "box": [44, 727, 48, 44]}
+{"kind": "occluded", "control": "Folder", "tag": "SELECT", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [101, -2, 80, 44]}
+
+=== nb-graph @ 390 ===
+{"kind": "occluded", "control": "Archived", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, -7, 272, 44]}
+{"kind": "occluded", "control": "Import", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [44, -9, 92, 44]}
+{"kind": "occluded", "control": "Export", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [144, -9, 93, 44]}
+
+=== nb-tasks @ 390 ===
+{"kind": "occluded", "control": "Expand Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [36, -1, 44, 44]}
+{"kind": "occluded", "control": "Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [82, -3, 82, 48]}
+{"kind": "occluded", "control": "Rename Sample notebook", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [166, -1, 44, 44]}
+
+=== nb-search @ 390 ===
+{"kind": "occluded", "control": "List view", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [47, 715, 44, 44]}
+{"kind": "occluded", "control": "Sort notes", "tag": "SELECT", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [44, -17, 163, 44]}
+{"kind": "occluded", "control": "Select Proof rich base r195633", "tag": "INPUT", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [54, 722, 24, 24]}
+
+=== nb-trash @ 390 ===
+{"kind": "occluded", "control": "Unfiled", "tag": "BUTTON", "area": "journal-shell", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [82, 18, 272, 44]}
+
+=== nb-note @ 390 ===
+{"kind": "occluded", "control": "Add property", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [60, -12, 88, 44]}
+{"kind": "occluded", "control": "Suggest values with Compass", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [148, -12, 101, 44]}
+{"kind": "occluded", "control": "Task item checkbox for Review the base", "tag": "INPUT", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [60, 732, 16, 16]}
+
+=== nb-note @ 1200 ===
+{"kind": "occluded", "control": "Code block language", "tag": "SELECT", "area": "notebook", "by": "div._orbCluster_15gv2_303 \"\u25c9\"", "hit": "circle", "by_modal": false, "box": [1003, 758, 109, 23]}
+
+=== nb-note-first-run @ 390 ===
+{"kind": "occluded", "control": "Undo", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [62, -5, 47, 44]}
+{"kind": "occluded", "control": "Redo", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [111, -5, 47, 44]}
+{"kind": "occluded", "control": "Aa", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [159, -5, 78, 44]}
+
+=== ed-find @ 390 ===
+{"kind": "occluded", "control": "Show replace", "tag": "BUTTON", "area": "notebook", "by": "div._logFab_z41fg_737 \"Log\"", "hit": "button[Log a trade]._logFabBtn_z41fg_767 \"Log\"", "by_modal": false, "box": [71, 719, 44, 44]}
+{"kind": "occluded", "control": "Find in note", "tag": "INPUT", "area": "notebook", "by": "div._orbCluster_15gv2_303 \"\u25c9\"", "hit": "text", "by_modal": false, "box": [71, 771, 248, 44]}
+{"kind": "occluded", "control": "Add property", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [60, -12, 88, 44]}
+{"kind": "occluded", "control": "Suggest values with Compass", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "header._topBar_2m0cv_45 \"Journal\"", "by_modal": false, "box": [148, -12, 101, 44]}
+
+=== ed-property @ 390 ===
+{"kind": "occluded", "control": "Add property", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [60, -2, 88, 44]}
+{"kind": "occluded", "control": "Suggest values with Compass", "tag": "BUTTON", "area": "notebook", "by": "div._shell_6uhgd_1 \"Skip to main content\"", "hit": "span._pageTitle_2m0cv_101 \"Journal\"", "by_modal": false, "box": [148, -2, 101, 44]}
+
+=== ed-property @ 820 ===
+{"kind": "occluded", "control": "Code block language", "tag": "SELECT", "area": "notebook", "by": "div._orbCluster_15gv2_303 \"\u25c9\"", "hit": "button[Train Me \u2014 teach the assistant a prefere]._trainBtn_15gv2_393", "by_modal": false, "box": [598, 1114, 134, 44]}
+
+=== settings-cards @ 390 ===
+{"kind": "occluded", "control": "Connect", "tag": "BUTTON", "area": "journal-shell", "by": "div._wrap_s9jcl_1", "hit": "svg", "by_modal": false, "box": [255, 765, 93, 44]}

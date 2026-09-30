@@ -10248,7 +10248,7 @@ async def _ticker_types_generation():
 
 
 @app.get("/api/ticker-types/etf-index-symbols", dependencies=_OPEN_READS)
-async def _ticker_types_etf_index_symbols():
+def _ticker_types_etf_index_symbols():  # plain def: runs off the loop (stall 2026-09-30 08:08 ET, 5.0s on etf_index_snapshot)
     """Return every ticker classified as ETF or INDEX (bulk).
 
     Cached in-process for 5 minutes to avoid hitting SQLite on every page

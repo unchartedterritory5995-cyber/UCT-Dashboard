@@ -249,6 +249,11 @@ function paneTargetIds() {
  * reaching here is a definition that never registered, and a chart that draws is
  * better than a chart that throws inside the paint.
  */
+function instancePaneHeight(inst) {
+  const h = inst && inst.presentation && inst.presentation.paneHeight
+  return (typeof h === 'number' && Number.isFinite(h) && h > 0 && h < 1) ? h : null
+}
+
 function paneHeightFor(defId) {
   const h = getDefinition(defId)?.placement?.pane?.height
   return (typeof h === 'number' && Number.isFinite(h) && h > 0 && h < 1) ? h : DEFAULT_PANE_HEIGHT
@@ -712,7 +717,15 @@ export function computePaneLayout(instances, opts) {
   // layout (`hasVolumeBand`) is the other case and is not a pane at all.
   const hasSeparateVolumePane = firstPaneIndex > mainPaneIndex + 1
   const keys = orderedPaneKeys(instances, excluded, keepKeys, includeKeys, defByKey)
-  const heightOf = (key) => paneHeightFor(defByKey.get(key))
+  // ⭐ AN INSTANCE MAY DECLARE ITS OWN DEFAULT (`presentation.paneHeight`), which
+  // outranks its definition's. A COT dataset's host carries one: its single pane holds
+  // three series under a four-line legend, where a lone data series' 0.15 is too
+  // short. Still a DEFAULT — a member's drag (`paneSizes`) wins over it as always.
+  const instById = new Map()
+  for (const i of (Array.isArray(instances) ? instances : [])) {
+    if (i && typeof i.instanceId === 'string') instById.set(i.instanceId, i)
+  }
+  const heightOf = (key) => instancePaneHeight(instById.get(key)) || paneHeightFor(defByKey.get(key))
 
   // Bottom-to-top, because that is the order the squeeze and both shaves run in
   // and their tie-breaks are index-sensitive. Volume is the TOP band: it sits

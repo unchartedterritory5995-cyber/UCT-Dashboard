@@ -62,7 +62,11 @@ FISCAL_URL = "https://api.fiscaldata.treasury.gov/services/calendar/release"
 MTS_DATASET_ID = "015-BFS-2014Q1-13"
 
 GDP_MIN_ADVANCE_DAYS = 20   # BEA's advance estimate never lands < ~25 days after quarter end
-BEA_RELEASES = {"Gross Domestic Product": "bea:gdp", "Personal Income and Outlays": "bea:pio"}
+PROFITS_MIN_LAG_DAYS = 45   # corporate profits first appear with the 2nd GDP estimate (~58 d; Q4 ~86 d)
+BEA_RELEASES = {"Gross Domestic Product": "bea:gdp", "Personal Income and Outlays": "bea:pio",
+                "Corporate Profits": "bea:profits"}
+# A release the feed may drop without invalidating the others (GDP/PIO stay mandatory).
+BEA_OPTIONAL = frozenset({"Corporate Profits"})
 CENSUS_INDICATORS = (   # (lower-case name prefix, calendar key) -- first match wins
     ("advance monthly sales for retail and food services", "census:marts"),
     ("new residential construction", "census:resconst"),
@@ -76,8 +80,9 @@ CENSUS_INDICATORS = (   # (lower-case name prefix, calendar key) -- first match 
 )
 CENSUS_MIN_ROWS = 100    # a full-year list view has ~174 rows; the phase-0 copy had 22
 
-CONFIGURED_FILES = ("bls_2026.json", "fed_g17.json", "fhfa_hpi.json", "nyfed_esms.json")
+CONFIGURED_FILES = ("bls_2026.json", "fed_g17.json", "fed_g19.json", "fhfa_hpi.json", "nyfed_esms.json")
 EIA_HOLIDAY_FILE = "eia_wpsr_holidays.json"
+EIA_NGS_HOLIDAY_FILE = "eia_ngs_holidays.json"
 
 # Rule citations (agency statements, fetched 2026-09-28; see RELEASE-SYSTEM.md).
 CITE = {
@@ -110,6 +115,19 @@ CITE = {
                      "are released on Wednesday (but still represent Monday's price)'. Label = the Monday survey date",
     "dol:claims": "rule: DOL weekly claims news release Thursday 08:30 ET for the week ending the previous "
                   "Saturday; NO holiday-shift rule is published on any fetchable DOL page",
+    "fed:h8": "rule: FRB H.8 page (https://www.federalreserve.gov/releases/h8/, read 2026-09-30) 'These data are "
+              "released each Friday, generally at 4:15 p.m., unless Friday is a federal holiday, in which case the "
+              "data will be released on Thursday, generally at 4:15 p.m.'; each release adds the Wednesday level of "
+              "the PREVIOUS week (release 2026-09-25 -> week ending 2026-09-16; same 9-day lag in the 1996, 2001, "
+              "2008 and 2015 archived releases); label = that Wednesday",
+    "fed:h10": "rule: FRB H.10 page (https://www.federalreserve.gov/releases/h10/, read 2026-09-30) 'On Mondays at "
+               "4:15 p.m. the Federal Reserve Board releases daily ... U.S. dollar indexes for the previous business "
+               "week. If Monday falls on a Federal Holiday, the data will be released on the following business "
+               "day'; label = the last business day of the previous week",
+    "eia:ngs": "rule: EIA Weekly Natural Gas Storage Report (https://ir.eia.gov/ngs/schedule.html, read 2026-09-30) "
+               "'10:30 a.m. eastern time on Thursdays' for the week ending the previous Friday; holiday weeks from "
+               "the EIA NGS holiday table, else the OMB PFEI 2026 footnote 6 rule (holiday Mon/Fri: no change; "
+               "Tue/Wed: Friday 10:30; Thursday: Wednesday 12:00)",
 }
 
 # calendar key -> (provider, source class) -- the status coverage table.
@@ -123,12 +141,15 @@ KNOWN_CALENDARS = {
     "bls:cpi": ("bls_2026", S.CONFIGURED), "bls:empsit": ("bls_2026", S.CONFIGURED),
     "bls:ppi": ("bls_2026", S.CONFIGURED), "bls:eci": ("bls_2026", S.CONFIGURED),
     "bls:jolts": ("bls_2026", S.CONFIGURED),
+    "bls:prod": ("bls_2026", S.CONFIGURED), "bls:mxp": ("bls_2026", S.CONFIGURED),
+    "bea:profits": ("bea_feed", S.AUTHORITATIVE_FEED),
     "fed:g17": ("fed_g17", S.CONFIGURED), "fhfa:hpi_monthly": ("fhfa_hpi", S.CONFIGURED),
+    "fed:g19": ("fed_g19", S.CONFIGURED),
     "nyfed:esms": ("nyfed_esms", S.CONFIGURED),
     "fiscal:mts": ("fiscal_feed", S.AUTHORITATIVE_FEED),
     **{k: ("rule", S.RULE) for k in ("fed:h15", "fed:h41", "fed:h6", "nyfed:effr", "nyfed:obfr", "nyfed:sofr",
                                      "nyfed:rrp", "fiscal:dts", "fiscal:dtp", "eia:wpsr", "eia:gasdiesel",
-                                     "dol:claims")},
+                                     "dol:claims", "fed:h8", "fed:h10", "eia:ngs")},
 }
 DAILY_KEYS = frozenset({"fed:h15", "nyfed:effr", "nyfed:obfr", "nyfed:sofr", "nyfed:rrp", "fiscal:dts",
                         "fiscal:dtp"})
@@ -277,6 +298,8 @@ def bea_events(payload) -> CalendarBatch:
     for name, key in BEA_RELEASES.items():
         block = data.get(name)
         if not isinstance(block, dict) or not isinstance(block.get("release_dates"), list):
+            if name in BEA_OPTIONAL:
+                continue                      # its events stay as stored; GDP/PIO still refresh
             raise CalendarParseError(f"bea: release {name!r} missing")
         instants = set()
         for s in block["release_dates"]:
@@ -305,6 +328,18 @@ def bea_events(payload) -> CalendarBatch:
                 lag = (d - qend).days
                 n = 0 if lag <= 45 else 1 if lag <= 75 else 2 if lag <= 110 else 3
                 n = max(n, per_q.get(base, -1) + 1)          # labels strictly increase per quarter
+                per_q[base] = n
+                label = base if n == 0 else f"{base}/rev{n}"
+            elif key == "bea:profits":
+                # Corporate profits are NOT in the advance GDP estimate: a quarter first
+                # appears with the 2nd estimate (~58 d; Q4 with the 3rd, ~86 d). A release
+                # carries the latest quarter that ended >= PROFITS_MIN_LAG_DAYS before it;
+                # its FIRST release is NEW, later ones revise ('/rev<n>').
+                y, q = timeutil.quarter_of(d)
+                while (d - timeutil.quarter_bounds(y, q)[1]).days < PROFITS_MIN_LAG_DAYS:
+                    y, q = (y, q - 1) if q > 1 else (y - 1, 4)
+                base = f"{y}Q{q}"
+                n = per_q.get(base, -1) + 1
                 per_q[base] = n
                 label = base if n == 0 else f"{base}/rev{n}"
             else:
@@ -453,6 +488,38 @@ def _eia_exceptions(directory: Path = CALENDAR_DIR) -> tuple[dict, Optional[str]
     return ex, (doc.get("coverage") or {}).get("end"), (doc.get("citations") or {}).get("wpsr", "")
 
 
+def _ngs_exceptions(directory: Path = CALENDAR_DIR) -> tuple[dict, str]:
+    doc = json.loads((directory / EIA_NGS_HOLIDAY_FILE).read_text(encoding="utf-8"))
+    return {r[0]: (r[1], r[2]) for r in doc["exceptions"]}, (doc.get("citations") or {}).get("ngs", "")
+
+
+def _ngs_event(add, fri: date, lo: date, hi: date, ex: dict, cite: str) -> None:
+    """eia:ngs for the week ending Friday `fri`: the EIA holiday table first, then the
+    OMB PFEI footnote rule, else Thursday 10:30."""
+    if fri.isoformat() in ex:
+        alt, t = ex[fri.isoformat()]
+        rel = timeutil.as_date(alt)
+        if lo <= rel <= hi:
+            add("eia:ngs", fri.isoformat(), rel, t, P.EXACT.value, S.CONFIGURED.value,
+                f"holiday exception from the EIA NGS holiday table: {cite}")
+        return
+    tue, wed, thu, nfri = (fri + timedelta(days=k) for k in (4, 5, 6, 7))
+    hol = timeutil.is_federal_holiday
+    if hol(thu):
+        rel, t, note = wed, "12:00", "PFEI footnote 6: holiday on Thursday -> Wednesday at noon"
+    elif hol(tue) or hol(wed):
+        rel, t, note = nfri, "10:30", "PFEI footnote 6: holiday on Tuesday/Wednesday -> Friday 10:30"
+    else:
+        rel, t, note = thu, "10:30", ""
+    if not lo <= rel <= hi:
+        return
+    if hol(rel):
+        add("eia:ngs", fri.isoformat(), rel, None, P.UNKNOWN.value, S.RULE.value,
+            "holiday week whose PFEI alternate day is also a holiday -> release day unknown")
+    else:
+        add("eia:ngs", fri.isoformat(), rel, t, note=note)
+
+
 def _days(start: date, end: date):
     d = start
     while d <= end:
@@ -491,8 +558,30 @@ def rule_events(today, *, back_days: int = 70, fwd_days: int = 120, daily_back: 
             if dlo <= rel <= dhi:
                 add(key, obs.isoformat(), rel, t)
     ex, ex_end, ex_cite = _eia_exceptions(directory)
+    ngs_ex, ngs_cite = _ngs_exceptions(directory)
     for d in _days(lo - timedelta(days=14), hi):
         wd = d.weekday()
+        if wd == 4:                                          # week ending Friday -> NGS Thursday
+            _ngs_event(add, d, lo, hi, ngs_ex, ngs_cite)
+        if wd == 0:                                          # H.10 Monday: the previous business week
+            rel = timeutil.on_or_after_business_day(d)
+            last = d - timedelta(days=3)
+            while not timeutil.is_business_day(last):
+                last -= timedelta(days=1)
+            if lo <= rel <= hi and last > d - timedelta(days=7):
+                add("fed:h10", last.isoformat(), rel, "16:15")
+        if wd == 2:                                          # Wednesday level -> H.8 the NEXT week's Friday
+            fri = d + timedelta(days=9)
+            if timeutil.is_federal_holiday(fri):
+                thu = fri - timedelta(days=1)
+                if timeutil.is_federal_holiday(thu):
+                    if lo <= thu <= hi:
+                        add("fed:h8", d.isoformat(), thu, None, P.UNKNOWN.value, RS,
+                            "Friday AND Thursday are federal holidays: no published rule -> day unknown")
+                elif lo <= thu <= hi:
+                    add("fed:h8", d.isoformat(), thu, "16:15", note="Friday federal holiday -> Thursday")
+            elif lo <= fri <= hi:
+                add("fed:h8", d.isoformat(), fri, "16:15")
         if wd == 2:                                          # Wednesday level -> H.4.1 Thursday
             rel = timeutil.on_or_after_business_day(d + timedelta(days=1))
             if lo <= rel <= hi:

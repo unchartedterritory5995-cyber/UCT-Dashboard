@@ -131,6 +131,104 @@ def _enqueue_name_backfill(ticker: str) -> None:
 _CHIP_TYPES = {"stock": {"stock"}, "etf": {"etf"}, "index": {"index"}}
 
 
+# ─── ECONOMIC SERIES (ECON:USCPI …) — the fifth searchable family ────────────
+#
+# ⛔⛔ DARK BY CONSTRUCTION. Economic rows exist in this response ONLY when the
+# econ member API is live (`ECON_ENABLED=1`, the router's own flag — read here,
+# never a second one) AND the caller passes the SAME entitlement the econ routes
+# enforce (`require_bars_access` ≡ `_bars_entitled` above: `meets_plan_gate`).
+# Flag unset → this block is never entered and the response is byte-identical
+# to the pre-econ one, for every chip, every caller.
+#
+# ⛔ AND THE "All" MERGE IS OPT-IN (`type=all_economic`). `/api/ticker-search` has
+# fourteen consumers (CommandPalette, journal, TickerPopup, the Discord
+# autocomplete…) that treat every row as a TRADABLE TICKER; an `ECON:USCPI` row
+# handed to a trade drawer is a broken row. Only the chart's symbol search asks
+# for it. `type=economic` (the chip) is explicit by itself.
+#
+# ⭐ ONE AUTHORITY FOR WHAT IS DISCOVERABLE: `serving.catalog()` — exactly the
+# rows `/api/econ/catalog` hands the same member (enabled MEMBER series that are
+# servable, re-checked against this build's registry), so a searched row always
+# opens. Support-only series, FRED rows and licensing internals never arrive.
+
+def _econ_enabled() -> bool:
+    import os
+    return os.environ.get("ECON_ENABLED", "0") == "1"
+
+
+def _econ_norm(s) -> str:
+    """lower-case, every non-alphanumeric run -> one space: '10-Year Treasury'
+    and '10 year treasury' are one query."""
+    import re
+    return re.sub(r"[^a-z0-9]+", " ", str(s or "").lower()).strip()
+
+
+def _econ_catalog_rows() -> list:
+    from api.services.econ import serving as _econ_serving
+    status, body, _etag = _econ_serving.catalog()
+    if status != 200 or not isinstance(body, dict):
+        return []
+    return [r for r in (body.get("series") or []) if isinstance(r, dict) and r.get("symbol")]
+
+
+def _econ_match(row: dict, q: str, qtok: list) -> Optional[int]:
+    """0 exact identity/alias/synonym · 1 prefix · 2 every word found · None."""
+    sym = str(row.get("symbol") or "").lower()
+    names = [_econ_norm(row.get("name")), _econ_norm(row.get("short_name"))]
+    aliases = [_econ_norm(a) for a in (row.get("aliases") or [])]
+    syns = [_econ_norm(s) for s in (row.get("synonyms") or [])]
+    if q in (sym, f"econ {sym}") or q in aliases or q in syns or q in names:
+        return 0
+    if len(q) < 2:
+        return None
+    if sym.startswith(q) or any(s.startswith(q) for s in syns) or any(n.startswith(q) for n in names):
+        return 1
+    words = set()
+    for text in names + syns + aliases + [sym, _econ_norm(row.get("category")), _econ_norm(row.get("subcategory"))]:
+        words.update(text.split())
+    if qtok and all(any(w.startswith(t) for w in words) for t in qtok):
+        return 2
+    return None
+
+
+def _econ_rows(q: str, limit: int) -> list:
+    """[(score, row)] for the query, best first, deduped by symbol."""
+    qn = _econ_norm(q)
+    if not qn:
+        return []
+    qtok = qn.split()
+    scored = []
+    seen = set()
+    for i, r in enumerate(_econ_catalog_rows()):
+        sym = str(r["symbol"]).upper()
+        if sym in seen:
+            continue
+        s = _econ_match(r, qn, qtok)
+        if s is None:
+            continue
+        seen.add(sym)
+        src = r.get("source") if isinstance(r.get("source"), dict) else {}
+        units = r.get("units") if isinstance(r.get("units"), dict) else {}
+        pres = r.get("presentation")
+        style = pres.get("style") if isinstance(pres, dict) else (pres if isinstance(pres, str) else None)
+        # ⭐ THE CLEAN NAME IS THE HEADLINE, the display symbol the secondary —
+        # never a raw provider id (`CUSR0000SA0` is an alias for search only).
+        scored.append((s, i, {
+            "ticker": f"ECON:{sym}", "symbol": sym,
+            "name": r.get("name") or r.get("short_name") or sym,
+            "short_name": r.get("short_name") or None,
+            "type": "economic", "exchange": None, "entity_id": None,
+            "economic": True,
+            "agency": src.get("agency") or None,
+            "frequency": r.get("frequency") or None,
+            "units": units.get("display") or None,
+            "category": r.get("category") or None,
+            "presentation": style,
+        }))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [(s, row) for s, _i, row in scored[:limit]]
+
+
 def _fallback_symbol_scan(qq: str, limit: int):
     """Symbol-only scan over cap_universe — used only until the rich index has built
     (best-effort startup window). Names come from the ticker_meta cache.
@@ -170,7 +268,9 @@ def ticker_search(
     (leveraged/inverse products whose NAME references it), and "bull 2x" or "uranium"
     find products by description.
 
-    `type` filters by category chip: stock | etf | index | breadth | '' (all).
+    `type` filters by category chip: stock | etf | index | breadth | economic | '' (all).
+    `type=all_economic` is "All" plus economic rows (the chart symbol search only);
+    both economic chips are inert unless ECON_ENABLED=1 and the caller is entitled.
 
     Row shape: {"ticker","name"|None,"type","exchange"|None,"entity_id"|None,[breadth|delisted flags]}
 
@@ -185,6 +285,24 @@ def ticker_search(
         return {"results": []}
 
     chip = (type or "").strip().lower()
+
+    # ECONOMIC SERIES — see `_econ_rows`. ⛔ Flag unset: never entered, so every
+    # response below is byte-identical to the pre-econ endpoint.
+    want_econ = False
+    if _econ_enabled():
+        if chip == "economic":
+            if not _bars_entitled(uct_session):
+                return {"results": []}
+            try:
+                return {"results": [row for _s, row in _econ_rows(q, limit)]}
+            except Exception:  # noqa: BLE001 -- an econ fault never breaks search
+                return {"results": []}
+        # ⭐ The opt-in rides the EXISTING `type` parameter (no new parameter: the
+        # in-process Discord caller pins this function's signature). Everything
+        # below treats it exactly as "All".
+        if chip == "all_economic":
+            chip = ""
+            want_econ = True
     want_breadth = chip in ("", "all", "breadth")
     want_delisted = chip in ("", "all")
     index_types = _CHIP_TYPES.get(chip)  # None for all/breadth
@@ -271,9 +389,30 @@ def ticker_search(
                     row["description"] = rec.get("description") or ""
                     row["presentation"] = rec.get("presentation")
                     row["domain"] = rec.get("domain")
+                    # ⚠️ THE SAME GROUP FACTS THE CATALOGUE ROW CARRIES, so a
+                    # searched COT dataset and a browsed one create the same
+                    # titled pane and file under the same tab.
+                    row["family"] = rec.get("family")
+                    row["family_label"] = rec.get("family_label")
+                    row["grouped"] = rec.get("grouped")
+                    row["group_title"] = rec.get("group_title")
+                    row["group_note"] = rec.get("group_note")
+                    row["tags"] = rec.get("tags") or []
                 (m_front if rec.get("symbol_hit") else m_back).append(row)
             results = m_front + results + m_back
         except Exception:
+            pass
+
+    # ECONOMIC rows in "All" (opt-in, entitled, flag on): an exact identity /
+    # alias / synonym hit ("CPI", "fed funds", "10-year treasury") leads; the rest
+    # follow the live tickers.
+    if want_econ and _bars_entitled(uct_session):
+        try:
+            e_front, e_back = [], []
+            for score, row in _econ_rows(q, limit):
+                (e_front if score == 0 else e_back).append(row)
+            results = e_front + results + e_back
+        except Exception:  # noqa: BLE001
             pass
 
     # DELISTED tickers (Yahoo, Twitter, Lehman…) — a live ticker sharing a symbol wins.

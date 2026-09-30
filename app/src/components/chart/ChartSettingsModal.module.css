@@ -2166,6 +2166,12 @@
      the member needs to know. The mask is on the RIGHT only, because the strip
      starts at its own beginning — and the active tab is scrolled into view when
      it changes, so the keyboard never chooses something it cannot see. */
+}
+/* ⚠️ THE FADE ONLY WHEN IT IS TRUE (2026-09-30). With `Positioning` last the strip
+   fills to within a few pixels of its edge (389 of 393px, measured), and the
+   unconditional mask faded the last tab out. `data-overflowing` is measured by the
+   component (ResizeObserver), so a narrower panel still gets the fade AND the scroll. */
+.insTabs[data-overflowing='true'] {
   mask-image: linear-gradient(to right, #000 calc(100% - 22px), transparent 100%);
 }
 .insTabs::-webkit-scrollbar { display: none; }

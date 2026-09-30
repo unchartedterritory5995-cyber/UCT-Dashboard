@@ -3,8 +3,8 @@ FastAPI router for Gamma Exposure (GEX) endpoints.
 """
 
 from fastapi import APIRouter, Depends, Query
-from api.middleware.auth_middleware import get_current_user
-from api.gex_service import get_gex_data, get_gex_compare
+from api.middleware.auth_middleware import get_current_user, require_admin
+from api.gex_service import get_gex_data, get_gex_compare, get_gex_source_parity
 
 router = APIRouter(prefix="/api/gex", tags=["gex"])
 
@@ -49,3 +49,15 @@ async def gex_compare(
     per-strike comparison array.
     """
     return await get_gex_compare(ticker, dte)
+
+
+@router.get("/source-parity")
+async def gex_source_parity(
+    ticker: str = Query("SPY", description="Ticker symbol"),
+    dte: str = Query("week", description="DTE filter: 0dte, week, month, all"),
+    _admin: dict = Depends(require_admin),
+):
+    """LCQ-02, ADMIN ONLY: GEX computed from Schwab and from Massive side by side, so the
+    licensed source can be judged before `GEX_CHAIN_SOURCE` moves off `schwab`. Awaits both
+    fetches (real awaits -- never blocks the event loop)."""
+    return await get_gex_source_parity(ticker, dte)

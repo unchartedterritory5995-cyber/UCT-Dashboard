@@ -10,3 +10,9 @@ export function parseEconomicSource(value) {
   const m = RE.exec(value)
   return m ? { kind: 'economic', symbol: m[1].toUpperCase() } : null
 }
+// `ECON:<SYMBOL>` — the API / primary-chart identity (not a source string). Byte-lean on
+// purpose (entry chunk): every stock-only chart path asks this ONE question.
+const ID_RE = /^ECON:[A-Za-z]\w{1,31}$/i
+export function isEconomicId(value) {
+  return typeof value === 'string' && ID_RE.test(value.trim())
+}

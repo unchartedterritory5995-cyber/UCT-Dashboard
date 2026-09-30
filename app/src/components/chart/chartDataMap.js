@@ -72,6 +72,12 @@ export const HIDDEN_GROUP = 'hidden'
  * @param {Function} [defOf]   definition lookup, for the pane names
  * @returns {MapGroup[]}
  */
+function groupTitleOf(instances, instanceId) {
+  const inst = instances.find((i) => i && !i.deleted && i.instanceId === instanceId)
+  const g = inst && inst.group
+  return g && typeof g.name === 'string' && g.name ? g.name : null
+}
+
 export function paneMap(rows, settings, defOf, volumeOpts) {
   const list = Array.isArray(rows) ? rows : []
   const instances = Array.isArray(settings?.indicatorInstances) ? settings.indicatorInstances : []
@@ -191,7 +197,10 @@ export function paneMap(rows, settings, defOf, volumeOpts) {
       byHost.set(row.instanceId, {
         id: row.instanceId,
         kind: 'pane',
-        name: names.get(row.instanceId) || row.label,
+        // ⭐ A PANE HOSTED BY A GROUPED INSTANCE (a COT dataset) IS NAMED BY THE
+        // GROUP — `Nasdaq-100 E-Mini · COT` — the title its chart legend wears, not
+        // after whichever participant happens to host it.
+        name: groupTitleOf(instances, row.instanceId) || names.get(row.instanceId) || row.label,
         rows: [],
         host: row,
       })

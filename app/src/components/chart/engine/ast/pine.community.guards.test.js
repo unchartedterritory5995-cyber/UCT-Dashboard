@@ -144,7 +144,11 @@ const REFUSES = Object.freeze({
   // separate, unrelated, pre-existing gap this engine has always had --
   // `is_near_since_back`'s multi-statement `for` loop, which a
   // single-expression-per-column engine cannot store at all.
-  '25-spy-expected-move-by-vix.pine': ['pine:block', 56, 'for'],
+  // ⚰️ '25-spy-expected-move-by-vix.pine' WAS HERE as ['pine:block', 56, 'for'] and it
+  // TRANSLATES now — C12s (2026-09-30): the VWAP column's running sums reset on every
+  // session start, and a reset counter is a SWITCHED recurrence. Its level plots still
+  // stop on the `for` @56 (named per output in its refusals); the script as a whole is
+  // no longer refused, so it left this map for `pine.community.test.js`'s roster.
   // ⭐ WAS `pine:named-argument` @47 ON `source`. Two walls fell in one change —
   // the named `ta.sma` at 47 and the fully-named `request.security` at 41 — and
   // the third is honest: line 40 reads another symbol built by `ticker.new(…)`.

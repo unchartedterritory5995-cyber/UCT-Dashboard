@@ -70,6 +70,7 @@ Usage
 from __future__ import annotations
 
 import argparse
+import math
 import datetime as _dt
 import importlib.util
 import json
@@ -100,6 +101,13 @@ ALARM_LAYERS = frozenset({"fetch", "miss"})
 
 #: ⛔ THREE NAMED CODES, so collapsing two of them is a VISIBLE EDIT to this block
 #: rather than a `return 1` somewhere in a branch.
+#: The fewest no-wait samples over which a p95 is not simply the maximum:
+#: 5% of n must be at least one sample. DERIVED from the quantile, never typed.
+#: ⚰️ 2026-09-30 RTH: the gate exited 0 WITHIN on no-wait n = 2 (D) and n = 1 (5)
+#: -- a "p95" of two samples is their larger one. It refused an EMPTY set only.
+P95_Q = 0.95
+MIN_NOWAIT_N = math.ceil(1.0 / (1.0 - P95_Q) - 1e-9)
+
 EXIT_WITHIN = 0
 EXIT_OVER = 1
 EXIT_INCONCLUSIVE = 2
@@ -315,10 +323,18 @@ def sample_timeframe(base: str, tf: str, n: int, bars: int, audit=None, client=N
     if own:
         client = httpx.Client(headers={"User-Agent": _UA}, follow_redirects=True)
     try:
+        # ⛔ Pay connection setup (DNS/TLS/CDN) OUTSIDE the timed sample. Measured
+        # 2026-09-30: an unwarmed first read took 1,120 ms wall for 73.5 ms of
+        # server time, and one such sample moves a 40-sample p95. Best effort --
+        # a failed warm-up leaves the sample to say what it measured.
+        try:
+            client.get(f"{base}/api/health", timeout=20)
+        except Exception:
+            pass
         out = []
         for sym in sample:
-            layer, wall, _code, _nbars = audit._serve_layer(base, sym, tf, bars, client)
-            out.append((layer, wall))
+            t = audit._serve_timing(base, sym, tf, bars, client)
+            out.append((t["layer"], t["wall"], t["server_ms"]))
         return out
     finally:
         if own:
@@ -360,10 +376,15 @@ def timeframe_result(tf: str, samples, in_rth: bool = True, audit=None) -> dict:
     layers: Counter = Counter()
     nowait: list = []
     waited: list = []
-    for layer, wall in samples or []:
+    server: list = []
+    for sample in samples or []:
+        layer, wall = sample[0], sample[1]
+        srv = sample[2] if len(sample) > 2 else None
         layers[layer] += 1
         if layer in audit.WARM or layer in audit.STALE_SERVED:
             nowait.append(float(wall))
+            if srv is not None:
+                server.append(float(srv))
         else:
             waited.append(float(wall))
     total = sum(layers.values())
@@ -379,6 +400,9 @@ def timeframe_result(tf: str, samples, in_rth: bool = True, audit=None) -> dict:
         "p95_ms": None,
         "p50_ms": None,
         "waited_p95_ms": None,
+        # ⭐ BESIDE the verdict, never in it: the server's own time for the same
+        # no-wait reads. 2026-09-30 needed this to tell the network from the product.
+        "server_p95_ms": None,
         "not_computable": None,
         "bar_ms": P95_BAR_MS,
         "tier_alarm": tier_alarm(tf, layers, in_rth, audit=audit),
@@ -393,11 +417,18 @@ def timeframe_result(tf: str, samples, in_rth: bool = True, audit=None) -> dict:
               "latency below as a p95: that substitution is the recorded defect "
               "this runner exists to make impossible.")
         return res
+    if len(nowait) < MIN_NOWAIT_N:
+        res["not_computable"] = (
+            f"NOT COMPUTABLE on tf={tf} — only {len(nowait)} of {total} reads did "
+            f"not wait; a p95 needs at least {MIN_NOWAIT_N} or it is just the "
+            f"slowest of a handful. ⛔ Neither a PASS nor a FAIL.")
+        return res
     ordered = sorted(nowait)
     res["p50_ms"] = float(audit.pct_of(ordered, 0.50))
     res["p95_ms"] = float(audit.pct_of(ordered, 0.95))
     res["waited_p95_ms"] = (float(audit.pct_of(sorted(waited), 0.95))
                             if waited else None)
+    res["server_p95_ms"] = float(audit.pct_of(sorted(server), 0.95)) if server else None
     return res
 
 
@@ -521,17 +552,19 @@ def result_lines(header, results, code, reason, health) -> list:
         f"`/api/health` = **{health.get('status')}**, and the ET stamp in the title. "
         "A recorded number without these is not a recorded gate reading.",
         "", "## The p95, the bar, and which side of it", "",
-        "| tf | p95 | bar | side | p50 | no-wait n | sampled |",
-        "|---|---|---|---|---|---|---|",
+        "| tf | p95 | bar | side | p50 | no-wait n | sampled | server p95 (beside, not an input) |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in results:
         if r["p95_ms"] is None:
             out.append(f"| {r['tf']} | NOT COMPUTABLE | {P95_BAR_MS:.0f} ms | "
-                       f"neither | — | 0 | {r['n']} |")
+                       f"neither | — | {r['nowait_n']} | {r['n']} | — |")
         else:
             side = "WITHIN" if r["p95_ms"] <= P95_BAR_MS else "OVER"
             out.append(f"| {r['tf']} | {r['p95_ms']:.0f} ms | {P95_BAR_MS:.0f} ms | "
-                       f"{side} | {r['p50_ms']:.0f} ms | {r['nowait_n']} | {r['n']} |")
+                       f"{side} | {r['p50_ms']:.0f} ms | {r['nowait_n']} | {r['n']} | "
+                       + (f"{r['server_p95_ms']:.0f} ms |" if r.get("server_p95_ms") is not None
+                          else "not reported |"))
     out += ["", "## Tier mix — BESIDE the numbers, never a pass/fail input", "",
             "⛔ Clause 2 says so explicitly, because a pass bought by serving stale "
             "data is not a pass. `verdict()` cannot see any of this: its only "
@@ -712,12 +745,15 @@ def main(argv=None, health_fn=None, clock_fn=None, session_fn=None,
         r = timeframe_result(tf, samples, in_rth=True)
         results.append(r)
         if r["p95_ms"] is None:
-            say(f"  tf={tf:<3} NOT COMPUTABLE (n={r['n']}, all waited)")
+            say(f"  tf={tf:<3} NOT COMPUTABLE (no-wait n={r['nowait_n']} of {r['n']}, "
+                f"minimum {MIN_NOWAIT_N})")
         else:
             say(f"  tf={tf:<3} p95={r['p95_ms']:.0f}ms p50={r['p50_ms']:.0f}ms "
                 f"(no-wait n={r['nowait_n']} of {r['n']}) "
                 f"warm={r['warm']} stale-served={r['stale_served']} "
-                f"waited={r['waited']}")
+                f"waited={r['waited']} | server p95="
+                + (f"{r['server_p95_ms']:.0f}ms" if r.get("server_p95_ms") is not None
+                   else "not reported"))
         if r["tier_alarm"]:
             say(f"       {r['tier_alarm']}")
 

@@ -86,6 +86,19 @@ export const DROP_KEYS = Object.freeze({
     'an object whose text a lost setter writes — withheld, never drawn with its creation text'),
   'content:withheld': C(LOSS.PARTIAL,
     'a step on an object withheld because its text was lost — it acts on nothing drawn'),
+  // ⭐ C14 (2026-09-29) — a step that reads a drawing's state (`label.get_y(l)`)
+  // which this program cannot carry (a lost setter, create or handle): withheld,
+  // never drawn off the value this chart happens to hold. A missing object or a
+  // stale one, never an extra one…
+  'state:lost': C(LOSS.PARTIAL,
+    "a step reading a drawing's state this chart cannot carry — withheld, never drawn off a different value"),
+  // …except a DELETE withheld that way: the object Pine deletes stays.
+  'state:removal': C(LOSS.REMOVES,
+    "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),
+  // ⭐ C18 — a drawing whose values the runtime lane answers, one of whose
+  // properties could not be read: dropped whole (`pine.js::rtHeldProp`).
+  'runtime:prop': C(LOSS.PARTIAL,
+    'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
   'cell:address': C(LOSS.PARTIAL, 'a table cell write whose row/column cannot be read — a missing cell'),
   'cell:text': C(LOSS.PARTIAL,
@@ -94,8 +107,15 @@ export const DROP_KEYS = Object.freeze({
   'cellpatch:address': C(LOSS.PARTIAL, 'a cell setter whose row/column cannot be read — a missing style'),
   'coll:unknown': C(LOSS.LIST, 'a change to an object list this chart does not know'),
   'coll:push': C(LOSS.LIST, 'an object never entered into the list a later delete reads'),
+  'coll:unshift': C(LOSS.LIST, 'an object never entered at the front of the list a later delete reads'),
   'coll:set': C(LOSS.LIST, 'a list slot never overwritten, so a later delete reads the old handle'),
   'coll:remove': C(LOSS.LIST, 'a handle never taken out of the list, so a later delete hits it twice'),
+  // ⭐ C16 (2026-09-29) — a READ of an object list that lost a change (its
+  // `array.size`, a slot, a handle copied out of one): our list is no longer
+  // TradingView's, so the step is withheld. A LIST loss like the others — a
+  // withheld delete is also on `lostRemovals`, which is what refuses the drawing.
+  'coll:diverged': C(LOSS.LIST,
+    'a step that reads an object list which lost a change, so it would act on a handle TradingView\'s list does not hold there'),
   // ⭐ 2026-09-27 — the call-site inliner (`objectFnInline.js`). `x := f(…)`
   // copies the handle an inlined body returned into the caller's register; when
   // that copy cannot be read, the register keeps what it held before, so a later
@@ -124,6 +144,7 @@ export const GUARD_KINDS = Object.freeze({
   clear: C(LOSS.REMOVES,
     'a `table.clear` whose condition cannot be read — the cells Pine wipes keep last bar\'s text'),
   coll_push: C(LOSS.LIST, 'a list push whose condition cannot be read'),
+  coll_unshift: C(LOSS.LIST, 'a list unshift whose condition cannot be read'),
   coll_set: C(LOSS.LIST, 'a list set whose condition cannot be read'),
   coll_remove: C(LOSS.LIST, 'a list remove whose condition cannot be read'),
   coll_pop: C(LOSS.LIST, 'a list pop whose condition cannot be read'),
@@ -133,6 +154,11 @@ export const GUARD_KINDS = Object.freeze({
     "a returned handle whose condition cannot be read — the caller's variable keeps the previous object for a later delete"),
   reset: C(LOSS.LIST,
     "a `x := box(na)` whose condition cannot be read — the variable keeps the object Pine let go of, for a later delete"),
+  // ⭐ C14 — a number read off a drawing into a scalar. It is never dropped as
+  // an op (a scalar whose write cannot be carried makes its READERS refuse),
+  // so this entry exists to keep the roster total, not because it fires.
+  getnum: C(LOSS.PARTIAL,
+    'a number read off a drawing whose condition cannot be read — every step that reads it is refused'),
 })
 
 /** `fn:<why>` — a call to a drawing function of the script's own that the reader

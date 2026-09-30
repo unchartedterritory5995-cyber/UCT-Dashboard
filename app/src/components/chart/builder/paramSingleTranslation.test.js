@@ -67,7 +67,14 @@ describe('C2D.1 — the option is inert on the saved computation', () => {
       without.forEach((o, i) => {
         expect(astHash(with_[i].ast), `output ${i}`).toBe(astHash(o.ast))
       })
-    })
+    // ⚠️ 60 s, NOT THE DEFAULT 15 (C9, 2026-09-29), AND SAID SO. Two member-door
+    // translations of `mid_engagement__22-rsi-levels-regime-map`: measured 11.7 s
+    // before C9, ~19 s after, alone on this box. The cost is real and named in
+    // `objects-triage-2026-09-28.md` § C9 — the five reversal/setup outputs now
+    // translate in the declare pass (each comparison resolves both sides twice
+    // through `constIntOf`, a pre-existing cost whose fix moves param ids).
+    // Every translation stays inside the 10 s `PINE_TRANSLATE_BUDGET_MS`.
+    }, 60000)
   }
 })
 

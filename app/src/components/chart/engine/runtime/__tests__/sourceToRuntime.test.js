@@ -187,7 +187,12 @@ describe('⛔ precise refusals — the next dependency is EXPOSED, never hidden'
     // loop's — and it refuses under the SAME guard, so this row, the LINE row
     // and the NOTHING-IS-DROPPED row below all keep asking exactly what they
     // asked before.
-    ['a loop', `${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, 'runtime:loop'],
+    // ⚰️⚰️ C18 — AND `while` LOWERS NOW TOO (`loops.test.js`), so no loop is a
+    // BUILD refusal any more: a loop that does not stop is stopped at RUN time by
+    // `WHILE_ITERATIONS`, by name. The row moves to `varip`, which still refuses
+    // at build — the category this table asks about is "a statement this lane
+    // cannot read", and that is what `varip` is.
+    ['a varip', `${head}varip s = 0.0\ns := s + 1\nplot(s)\n`, 'runtime:varip'],
     // ⚰️ `a user function → runtime:function` LIVED HERE UNTIL 2E, which gave
     // functions real call frames. The case moved rather than being deleted: what
     // it asserts now is that a function this front end cannot READ still refuses
@@ -271,7 +276,9 @@ plot(a)
     // treatment the day it lands.
     ['an UNDECLARED builtin fed by state', `${head}var x = 0.0\nx := close\nplot(ta.vwma(x, 3))\n`, 'runtime:call-undeclared-builtin-state'],
     ['a TEXT builtin fed by state', `${head}var x = 0.0\nx := close\nplot(str.length(str.tostring(x)))\n`, 'runtime:call-text-state'],
-    ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(int(x))\n`, 'runtime:call-conversion-state'],
+    // ⚰️ C18 — `int(x)` and `float(x)` over state now LOWER (truncation, and the
+    // identity — Pine's documented casts); `bool(x)` is the conversion still refused.
+    ['a CONVERSION fed by state', `${head}var x = 0.0\nx := close / 3\nplot(bool(x) ? 1 : 0)\n`, 'runtime:call-conversion-state'],
     ['a strategy', `//@version=5\nstrategy("s")\nplot(close)\n`, 'runtime:declaration'],
   ]
   for (const [label, src, guard] of CASES) {
@@ -281,14 +288,14 @@ plot(a)
   }
 
   it('⭐ a refusal carries a source LINE, so a gap is attributable', () => {
-    const r = refusalOf(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`)
+    const r = refusalOf(`${head}varip s = 0.0\ns := s + 1\nplot(s)\n`)
     expect(r.line).toBeGreaterThan(0)
   })
 
   it('⛔ NOTHING IS SILENTLY DROPPED — an unsupported statement refuses the PROGRAM', () => {
     // A front end that skipped what it could not lower would accept this script
     // and quietly compute a different indicator.
-    const built = buildRuntimeIr(`${head}var s = 0.0\nwhile s < 5\n    s := s + 1\nplot(s)\n`, { bars: BARS })
+    const built = buildRuntimeIr(`${head}var s = 0.0\nvarip t = 0.0\ns := s + 1\nplot(s)\n`, { bars: BARS })
     expect(built.ok).toBe(false)
     expect(built.ir).toBeUndefined()
   })

@@ -91,7 +91,7 @@ def test_a_WARM_ticker_serves_normally_and_never_kicks_a_cold_fetch(monkeypatch)
     rows = [(20260818, 1.0, 1.1, 0.9, 1.05, 100)]
     monkeypatch.setattr(bars_fetch._sqlite, "get_bars", lambda s, tf, n: rows)
     monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars", lambda r, tf, t=None: [{"t": 1}])
-    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf: True)
+    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda ts, tf, ticker=None: True)
     monkeypatch.setattr(bars_fetch, "_is_cold_stale_daily", lambda tf, ts: True)   # force Layer 4
     monkeypatch.setattr(bars_fetch, "_daily_deblockable", lambda tf, ts: False)
     monkeypatch.setattr(bars_fetch, "_history_complete", lambda s, tf: True)

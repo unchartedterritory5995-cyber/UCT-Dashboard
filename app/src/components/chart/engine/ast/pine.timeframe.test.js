@@ -245,9 +245,15 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     expect(src).toMatch(/t\s*=\s*time\(i_range_1\)/)
     expect(src).toMatch(/na\(t\[1\]\)\s*or\s*t\s*>\s*t\[1\]/)
     const out = translatePine(src)
-    expect(out.ok).toBe(false)
-    expect(out.refusal.guard).toBe('pine:block')
-    expect(String(out.refusal.message)).not.toMatch(/OPENING TIMESTAMP|dayopentime/)
+    // ⭐ C12s (2026-09-30): the VWAP column now translates (its running sums reset
+    // on `start`, a SWITCHED recurrence), so the script is `ok`; every refusal it
+    // still carries is the `for` wall, and none of them names `time`.
+    expect(out.ok).toBe(true)
+    expect(out.refusals.length).toBeGreaterThan(0)
+    for (const r of out.refusals) {
+      expect(r.guard).toBe('pine:block')
+      expect(String(r.message)).not.toMatch(/OPENING TIMESTAMP|dayopentime/)
+    }
   })
 })
 

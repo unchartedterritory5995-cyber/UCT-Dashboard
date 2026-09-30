@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AuthContext } from '../../../context/AuthContext'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences from '../../../hooks/usePreferences'
 import { WorkspaceContext } from '../../charts/WorkspaceContext'
@@ -39,6 +40,16 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
   // Seeded ONCE per open. A later pref round-trip must not stomp the board the
   // user is currently dragging.
   const [board, setBoard] = useState(() => parseBoard(prefs?.[DRILL_BOARD_PREF]))
+  // MVP trial withdrawal block (2026-09-30-mvp-preregistration-ravi.md; NOW-gate clause 4):
+  // while TERMINAL_NEXT_ENABLED is off, a user TAGGED into the terminal-next cohort sees the
+  // drill WITHOUT its chart. Members are never tagged, so they see it exactly as before.
+  // ⛔ DISPLAY ONLY: `board` (the saved state, persisted below) keeps the chart, so switching
+  // back on restores it untouched. Never write `shownBoard` anywhere.
+  const withdrawn = (useContext(AuthContext)?.cohortsWithdrawn || []).includes('terminal-next')
+  const shownBoard = useMemo(
+    () => (withdrawn ? { ...board, widgets: board.widgets.filter((w) => w.id === LIST_WIDGET_ID) } : board),
+    [board, withdrawn],
+  )
   const onBoardChange = useCallback((fn) => {
     setBoard(prev => (typeof fn === 'function' ? fn(prev) : fn))
   }, [])
@@ -273,7 +284,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>
             <BreadthDrillBoard
-              board={board}
+              board={shownBoard}
               onBoardChange={onBoardChange}
               onPopOut={popOut}
               poppedIds={poppedIds}
@@ -283,7 +294,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose 
             {/* Ejected widgets. Rendered from the SAME board state and inside the
                 SAME providers, so a popped list still publishes into colour group
                 A and the chart in the modal follows it — and vice versa. */}
-            {board.widgets.filter(w => poppedIds.includes(w.id)).map(w => (
+            {shownBoard.widgets.filter(w => poppedIds.includes(w.id)).map(w => (
               <PopoutWindow
                 key={w.id}
                 title={`UCT — ${w.id === LIST_WIDGET_ID ? source.label || 'Breadth' : 'Chart'}`}

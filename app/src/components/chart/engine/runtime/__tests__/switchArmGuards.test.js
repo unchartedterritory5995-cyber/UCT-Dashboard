@@ -117,7 +117,12 @@ describe('⛔ an arm condition this lane cannot read is refused, never run ungua
     // ⭐ 2026-09-27: the arms' box getters are now LIFTED (see `liftLive` in
     // pine.js), so both labels are carried — each under a guard that reads the
     // box register's edge through a crossing, never a constant.
-    const readsBox = (w) => JSON.stringify(w).includes('"v":"cross"') && JSON.stringify(w).includes('"v":"get"')
+    // ⭐ C16 (2026-09-29): an arm's object-state condition is LATCHED — evaluated
+    // once where the `switch` stands (`{k:'latch'}`) and read as `{v:'latch'}` —
+    // so the guard is followed through its latch to the condition it holds.
+    const latchCond = new Map(((objs && objs.ops) || []).filter((op) => op.k === 'latch').map((op) => [op.id, op.cond]))
+    const expand = (w) => JSON.stringify(w, (k, v) => (v && v.v === 'latch' ? latchCond.get(v.id) : v))
+    const readsBox = (w) => expand(w).includes('"v":"cross"') && expand(w).includes('"v":"get"')
     expect(labels.length).toBe(2)
     for (const op of labels) expect(readsBox(op.when), JSON.stringify(op.when)).toBe(true)
   })

@@ -123,8 +123,43 @@ _started = False
 _loop: asyncio.AbstractEventLoop | None = None
 
 
+# TERM-017: the lag DISTRIBUTION, one count per serviced probe. Fixed upper bounds
+# (ms); the last bucket is everything above the final bound.
+# ⭐ Per-process state is fatal for a CUMULATIVE quantity (a leak slope, a max over
+# days) and adequate for a DISTRIBUTIONAL one measured inside one pod's life -- so
+# this lives in-process and is read together with `started_at`, never summed
+# across pods. ⛔ It arms nothing: `should_kill` does not read it.
+LAG_BUCKETS_MS = (1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000)
+
+
+def _bucket_index(lag_ms: float) -> int:
+    for i, hi in enumerate(LAG_BUCKETS_MS):
+        if lag_ms <= hi:
+            return i
+    return len(LAG_BUCKETS_MS)
+
+
+def lag_percentiles(counts: list[int]) -> dict:
+    """Upper-bound percentiles from the histogram: `p99_le_ms: 25` means 99% of
+    checks were serviced within 25 ms. `None` above the last bound or with no data."""
+    total = sum(counts)
+    out = {}
+    for name, q in (("p50_le_ms", 0.50), ("p90_le_ms", 0.90), ("p99_le_ms", 0.99)):
+        if not total:
+            out[name] = None
+            continue
+        need, run = q * total, 0
+        for i, c in enumerate(counts):
+            run += c
+            if run >= need:
+                out[name] = LAG_BUCKETS_MS[i] if i < len(LAG_BUCKETS_MS) else None
+                break
+    return out
+
+
 def _fresh_state() -> dict:
     return {
+        "lag_counts": [0] * (len(LAG_BUCKETS_MS) + 1),
         "last_lag_ms": 0.0,
         "max_lag_ms": 0.0,
         "checks": 0,
@@ -181,7 +216,10 @@ def get_status() -> dict:
     """Read-only snapshot of the watchdog's telemetry. Never raises."""
     with _lock:
         s = dict(_state)
+        counts = list(s["lag_counts"])
     return {
+        "lag_histogram": {"bounds_ms": list(LAG_BUCKETS_MS), "counts": counts,
+                          **lag_percentiles(counts)},
         "enabled": s["enabled"],
         "observe_only": s["observe_only"],
         "running": s["running"],
@@ -314,6 +352,7 @@ def _probe_ran(sched_monotonic: float, evt: threading.Event) -> None:
         if lag_ms > _state["max_lag_ms"]:
             _state["max_lag_ms"] = lag_ms
         _state["checks"] += 1
+        _state["lag_counts"][_bucket_index(lag_ms)] += 1
         _state["missed_streak"] = 0
         _state["last_ok_monotonic"] = run_monotonic
         _state["last_checked_at"] = time.time()
@@ -421,6 +460,7 @@ def start_watchdog(loop: asyncio.AbstractEventLoop | None = None) -> bool:
         with _lock:
             _state["missed_streak"] = 0
             _state["checks"] = 0
+            _state["lag_counts"] = [0] * (len(LAG_BUCKETS_MS) + 1)
             _state["last_lag_ms"] = 0.0
             _state["max_lag_ms"] = 0.0
             _state["last_ok_monotonic"] = time.monotonic()

@@ -30,7 +30,7 @@
 import { useRef, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import { CATALYST_TAG_DISPLAY_ORDER } from '../../lib/taxonomy/a8Taxonomy'
-import { formatNumber } from '../../lib/presentation/presentationPrimitives'
+import { formatNumber, formatNumberMax } from '../../lib/presentation/presentationPrimitives'
 import styles from './AbsenceReceipt.module.css'
 
 export const DEFAULT_LIST_LABEL = "today's catalyst list"
@@ -59,7 +59,10 @@ const SIGNAL_LABELS = Object.freeze({
   scanner_setup: 'Scanner setup',
 })
 
-const TICKER_RE = /^[A-Z]{1,6}$/
+// S8 provenance rail (presentationSingleFormatter.test.js): a `/.../` literal is
+// a shape the family's comment-stripper cannot model, so this is `new RegExp`
+// instead -- same pattern, no flags, `.test()` behaves identically.
+const TICKER_RE = new RegExp('^[A-Z]{1,6}$')
 
 function ordinalRank(r, n) {
   return Number.isFinite(r) && Number.isFinite(n) ? `${formatNumber(r)} of ${formatNumber(n)}` : null
@@ -69,7 +72,10 @@ function fmtSignal(v) {
   if (v === true) return 'yes'
   if (v === false) return 'no'
   if (typeof v === 'number') {
-    return Number.isFinite(v) ? v.toLocaleString('en-US', { maximumFractionDigits: 2 }) : null
+    // S8 provenance rail: no locale formatter call in code -- route through S10.
+    // absent: null (not the em-dash default) so a non-finite signal is DROPPED
+    // by the caller's `!= null` filter, same as the retired direct call.
+    return formatNumberMax(v, { maxDecimals: 2, absent: null })
   }
   return typeof v === 'string' && v.trim() ? v : null
 }

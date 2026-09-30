@@ -1,0 +1,295 @@
+{
+  "_about": "C19 (2026-09-30): the node budget counts the evaluator's UNITS (interpret.js::evaluationUnits / ast_interpret.evaluation_units). Both lanes assert every case against the same numbers; `distinct` is the old count, kept so the difference is visible.",
+  "cases": [
+    {
+      "name": "one accumulator written twice is ONE set of units",
+      "tree": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "call",
+                "name": "accum",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      },
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "units": 9,
+      "distinct": 9
+    },
+    {
+      "name": "the same accumulator on the chart and under tf('W') is TWO",
+      "tree": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "series",
+                    "name": "close"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "type": "tf",
+            "value": "W",
+            "args": [
+              {
+                "type": "call",
+                "name": "accum",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      },
+                      {
+                        "type": "series",
+                        "name": "close"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "units": 14,
+      "distinct": 8
+    },
+    {
+      "name": "self + 1 under two recurrences is two computations (the bind read itself is one)",
+      "tree": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "series",
+                        "name": "open"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      },
+                      {
+                        "type": "num",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "<",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "series",
+                        "name": "open"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "self"
+                      },
+                      {
+                        "type": "num",
+                        "value": 1
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
+        ]
+      },
+      "units": 15,
+      "distinct": 14
+    },
+    {
+      "name": "close on the chart and close of another ticker are TWO",
+      "tree": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "sym",
+            "value": "SPY",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      },
+      "units": 4,
+      "distinct": 3
+    }
+  ]
+}

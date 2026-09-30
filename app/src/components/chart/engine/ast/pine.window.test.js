@@ -316,27 +316,66 @@ describe('the fold computes what the ENGINE computes, derived', () => {
 // the deliberate asymmetry, on the record
 // --------------------------------------------------------------------------- //
 
-describe('the BAR-OFFSET door is NOT folded, and that is a decision', () => {
-  it('⛔ `close[20 / 2]` and `close[len / 2]` still refuse at `pine:offset-literal`', () => {
-    // ⚠️ THE MIRROR LANE, DECLARED RATHER THAN FORGOTTEN
-    // (`lesson_rail_the_mirror_not_just_the_lane`). `pine.js`'s `case 'offset'`
-    // has the identical shape — resolve, then require a whole-number `num` — and
-    // the identical fold would widen it. It is left alone in THIS change for two
-    // reasons worth writing down:
-    //
-    //   1. It changes a refusal a gate already pins: `pine.offset.test.js` asserts
-    //      `close[1 + 1]` refuses, and folding would make it translate. That is a
-    //      ruling to make deliberately, not a side effect of a window fix.
-    //   2. It makes a DELIBERATELY DEAD guard live. `pine.js`'s `folded.value < 0`
-    //      check is documented as unreachable "until anything folds constant
-    //      arithmetic", and its subject is `close[-1]` — NEXT BAR, the one
-    //      construction the whole non-repainting guarantee rests on being
-    //      inexpressible. Waking that guard deserves its own rails.
-    //
-    // ⛔ SO THIS TEST IS THE RECORD, NOT AN ENDORSEMENT. It goes red the day
-    // somebody folds the offset lane, and whoever does that should delete it and
-    // write the negative-offset rails in its place.
+describe('C9 — the BAR-OFFSET door folds exactly as the window door does', () => {
+  // ⚰️ THIS BLOCK WAS "the BAR-OFFSET door is NOT folded, and that is a decision"
+  // and pinned `close[len / 2]` as a refusal, saying: whoever folds the offset
+  // lane should delete it and write the negative-offset rails in its place.
+  // C9 (2026-09-29) folded it — `artemis-oscillator-pro`'s fourteen trees read
+  // `high[pivSpan]` with `pivSpan = math.max(drmLen / 2, 2)`, a `simple int`
+  // Pine computes before bar 0 — so these are those rails.
+  it('⭐ an offset computed from an input folds to the same whole number a window does', () => {
+    expect(formula('len = input(20)\nplot(close[len / 2])')).toBe('close[10]')
+    expect(formula('len = input.int(14)\nps = math.max(len / 2, 2)\nplot(high[ps])')).toBe('high[7]')
+    // the window door, on the same expression, for the agreement
+    expect(formula('len = input.int(14)\nps = math.max(len / 2, 2)\nplot(ta.sma(close, ps))')).toBe('sma(close, 7)')
+  })
+
+  it('🔴 a FRACTIONAL fold still refuses — the offset is never rounded', () => {
+    // 21 / 2 is 10.5; Pine's history index is an int, and guessing which way
+    // TradingView would take it is exactly what this lane does not do.
+    expect(refusal('len = input(21)\nplot(close[len / 2])').guard).toBe('pine:offset-literal')
+  })
+
+  it('🔴🔴 a NEGATIVE fold still refuses — the forward reference stays shut', () => {
+    // `foldWindow` hands back only a whole number ≥ 0, so `len - 30` (−10) stays
+    // the unfolded tree and meets the whole-number check: `close[-10]` is a
+    // future bar.
+    const r = refusal('len = input(20)\nplot(close[len - 30])')
+    expect(['pine:offset-negative', 'pine:offset-literal']).toContain(r.guard)
+  })
+
+  it('🔴 a SERIES offset still refuses — a per-bar read is not a window', () => {
+    expect(refusal('plot(close[bar_index - 3])').guard).toBe('pine:offset-literal')
+    expect(refusal('n = ta.sma(close, 3)\nplot(close[math.round(n)])').guard).toBe('pine:offset-literal')
+  })
+
+  it('⭐ at the MEMBER DOOR a bare input offset folds, and the input is window-bound', () => {
+    // `declareInputs` hands an input back as an identifier; the offset refused
+    // it, while `sma(close, len)` in the same pass folded it.
+    const out = translatePine(script('len = input.int(14)\nplot(high[len])'), { declareInputs: 'all' })
+    expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
+    expect(out.outputs[out.selected].formula).toBe('high[14]')
+    // ⛔ recorded BEFORE the fold erased it, so the member door refuses the knob
+    // by name rather than hand back one that moves nothing here.
+    const len = out.outputs[out.selected].inputsFolded.find((e) => e.name === 'len')
+    expect(len && len.windowBound).toBe(true)
+  })
+
+  it('⭐ a PIVOT count computed from an input folds too, in the pass that holds it literal', () => {
+    // The object lane and the member door's second pass hold `len` as a literal,
+    // where `foldPivotBars` used to fold only a DECLARED input — so
+    // `ta.pivothigh(high, ps, ps)` refused `pine:arity` over a 7 the window arm
+    // folds in the same pass.
+    expect(formula('len = input.int(14)\nps = math.max(len / 2, 2)\nplot(ta.pivothigh(high, ps, ps))'))
+      .toBe('pivothigh(high, 7, 7)[7]')
+    expect(refusal('len = input.int(15)\nps = math.max(len / 2, 2)\nplot(ta.pivothigh(high, ps, ps))').guard)
+      .toBe('pine:arity')
+  })
+
+  it('⛔ a WRITTEN arithmetic index keeps its parse-time refusal (unchanged)', () => {
+    // `close[20 / 2]` never reaches the fold: the parser reads a literal first
+    // and names the offset rule (`pine.offset.test.js`, `close[1 + 1]`).
+    // Recorded so a later change to that door is deliberate.
     expect(refusal('plot(close[20 / 2])').guard).toBe('pine:offset-literal')
-    expect(refusal('len = input(20)\nplot(close[len / 2])').guard).toBe('pine:offset-literal')
   })
 })

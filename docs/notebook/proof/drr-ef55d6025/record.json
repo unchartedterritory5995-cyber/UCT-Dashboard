@@ -1,0 +1,800 @@
+{
+  "walk": "notebook-drr",
+  "tip": "ef55d6025",
+  "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\drr-data",
+  "port": 8391,
+  "started_at": "2026-09-29T22:11:41-0500",
+  "setup_error": null,
+  "seed": {
+    "folder_id": "c49a916ce0f54c5890a5df0381688b77",
+    "n1": "9c8e67ba6e6247c396dd2a09e5c6943b",
+    "n2": "af6d23e63a8c40b88aa97262f9f3fc19",
+    "n3": "1d4b7a7d36854adfa64de261f987c61f",
+    "n4": "1c8cd20cbb864abbad3fc2844dc53dde",
+    "n5": "3ff3d01ba6744d5bbcb8017f46cb9e80",
+    "n6": "112b168a91a246a78f0e8e3013a8b9fa",
+    "share_status": 200,
+    "publish_status": 200
+  },
+  "seed_link_task": {
+    "link_inserted": false,
+    "link_error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for get_by_role(\"option\", name=\"Beta thesis AMD\").first\n",
+    "task_items": 3
+  },
+  "rows": [
+    {
+      "surface": "list",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-list-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "All notes"
+      ]
+    },
+    {
+      "surface": "table",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-table-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 5,
+      "headings": [
+        "All notes"
+      ]
+    },
+    {
+      "surface": "board",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-board-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 2,
+      "targets_lt_44": 3,
+      "headings": [
+        "All notes"
+      ],
+      "board_state": {
+        "found": true,
+        "cue": "true",
+        "columns": 5,
+        "scrollLeft": 0,
+        "scrollWidth": 1348,
+        "clientWidth": 302
+      }
+    },
+    {
+      "surface": "calendar",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-calendar-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "All notes"
+      ]
+    },
+    {
+      "surface": "graph",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-graph-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "All notes"
+      ]
+    },
+    {
+      "surface": "timeline",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-timeline-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "All notes"
+      ]
+    },
+    {
+      "surface": "tasks",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-tasks-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "All notes",
+        "Tasks"
+      ]
+    },
+    {
+      "surface": "editor",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-editor-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 5,
+      "headings": [
+        "Alpha thesis NVDA"
+      ]
+    },
+    {
+      "surface": "templates",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-templates-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 6,
+      "headings": [
+        "All notes"
+      ],
+      "builtin_card_count": 25
+    },
+    {
+      "surface": "search-sidebar",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-search-sidebar-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 3,
+      "headings": [
+        "All notes"
+      ],
+      "best_matches_present": false
+    },
+    {
+      "surface": "search-palette",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-search-palette-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 3,
+      "headings": [
+        "All notes"
+      ],
+      "best_matches_present": true
+    },
+    {
+      "surface": "share-publish",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-share-publish-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 4,
+      "headings": [
+        "Alpha thesis NVDA"
+      ],
+      "seeded_share_status": 200,
+      "seeded_publish_status": 200
+    },
+    {
+      "surface": "phone-cold-note-url",
+      "width": 390,
+      "touch": true,
+      "shot": "drr-phone-cold-note-url-390.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 5,
+      "headings": [
+        "Alpha thesis NVDA"
+      ],
+      "title_input_visible": true
+    },
+    {
+      "surface": "list",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-list-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 7,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "table",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-table-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 16,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "board",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-board-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 2,
+      "targets_lt_44": 3,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "board_state": {
+        "found": true,
+        "cue": "true",
+        "columns": 5,
+        "scrollLeft": 0,
+        "scrollWidth": 1348,
+        "clientWidth": 466
+      }
+    },
+    {
+      "surface": "calendar",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-calendar-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "graph",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-graph-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "timeline",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-timeline-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "tasks",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-tasks-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 1,
+      "headings": [
+        "Trade Journal",
+        "All notes",
+        "Tasks"
+      ]
+    },
+    {
+      "surface": "editor",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-editor-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 3,
+      "headings": [
+        "Trade Journal",
+        "Alpha thesis NVDA"
+      ]
+    },
+    {
+      "surface": "templates",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-templates-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 7,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "builtin_card_count": 25
+    },
+    {
+      "surface": "search-sidebar",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-search-sidebar-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 9,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "best_matches_present": false
+    },
+    {
+      "surface": "search-palette",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-search-palette-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 8,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "best_matches_present": true
+    },
+    {
+      "surface": "share-publish",
+      "width": 820,
+      "touch": true,
+      "shot": "drr-share-publish-820.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": 2,
+      "headings": [
+        "Trade Journal",
+        "Alpha thesis NVDA"
+      ],
+      "seeded_share_status": 200,
+      "seeded_publish_status": 200
+    },
+    {
+      "surface": "list",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-list-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 6,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "table",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-table-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 7,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "board",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-board-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 3,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "board_state": {
+        "found": true,
+        "cue": "true",
+        "columns": 5,
+        "scrollLeft": 0,
+        "scrollWidth": 1348,
+        "clientWidth": 786
+      }
+    },
+    {
+      "surface": "calendar",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-calendar-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "graph",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-graph-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "timeline",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-timeline-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 8,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ]
+    },
+    {
+      "surface": "tasks",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-tasks-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes",
+        "Tasks"
+      ]
+    },
+    {
+      "surface": "editor",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-editor-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "Alpha thesis NVDA"
+      ]
+    },
+    {
+      "surface": "templates",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-templates-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 12,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "builtin_card_count": 25
+    },
+    {
+      "surface": "search-sidebar",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-search-sidebar-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 6,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "best_matches_present": false
+    },
+    {
+      "surface": "search-palette",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-search-palette-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 6,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "All notes"
+      ],
+      "best_matches_present": true
+    },
+    {
+      "surface": "share-publish",
+      "width": 1200,
+      "touch": false,
+      "shot": "drr-share-publish-1200.png",
+      "overflow_px": 0,
+      "targets_lt_24": 0,
+      "targets_lt_44": null,
+      "headings": [
+        "Trade Journal",
+        "Alpha thesis NVDA"
+      ],
+      "seeded_share_status": 200,
+      "seeded_publish_status": 200
+    }
+  ],
+  "d2_coachmark": {
+    "390": {
+      "present": false,
+      "visible": false,
+      "box": null,
+      "overlaps": []
+    },
+    "1200": {
+      "present": false,
+      "visible": false,
+      "box": null,
+      "overlaps": []
+    }
+  },
+  "d3_editor_rows": {
+    "editor": {
+      "title_rect": [
+        414,
+        380,
+        698,
+        57
+      ],
+      "root_top": 213,
+      "rows_above_title": 3,
+      "controls_above_title": 27,
+      "rows": [
+        {
+          "row": 1,
+          "top": 221,
+          "bottom": 251,
+          "names": [
+            "Add to Favorites",
+            "Ask a question about this note",
+            "Find in note",
+            "Share",
+            "Folder",
+            "Ticker",
+            "Writing help",
+            "Outline",
+            "More note actions"
+          ],
+          "x_w": [
+            [
+              456,
+              37
+            ],
+            [
+              501,
+              59
+            ],
+            [
+              568,
+              62
+            ],
+            [
+              639,
+              71
+            ],
+            [
+              718,
+              90
+            ],
+            [
+              816,
+              84
+            ],
+            [
+              908,
+              102
+            ],
+            [
+              1018,
+              77
+            ],
+            [
+              1103,
+              37
+            ]
+          ]
+        },
+        {
+          "row": 2,
+          "top": 263,
+          "bottom": 288,
+          "names": [
+            "Font family",
+            "Text size",
+            "B",
+            "I",
+            "Text color and highlight",
+            "H1",
+            "H2",
+            "\u2022 List",
+            "1. List",
+            "\u275d",
+            "</>",
+            "Insert link",
+            "Insert image",
+            "Attach a file"
+          ],
+          "x_w": [
+            [
+              386,
+              112
+            ],
+            [
+              500,
+              58
+            ],
+            [
+              560,
+              26
+            ],
+            [
+              588,
+              24
+            ],
+            [
+              614,
+              27
+            ],
+            [
+              643,
+              33
+            ],
+            [
+              678,
+              33
+            ],
+            [
+              714,
+              44
+            ],
+            [
+              760,
+              50
+            ],
+            [
+              812,
+              24
+            ],
+            [
+              838,
+              35
+            ],
+            [
+              876,
+              32
+            ],
+            [
+              910,
+              32
+            ],
+            [
+              944,
+              32
+            ]
+          ]
+        },
+        {
+          "row": 3,
+          "top": 297,
+          "bottom": 343,
+          "names": [
+            "Start voice input",
+            "Dismiss tip",
+            "Horizontal rule",
+            "Insert widget"
+          ],
+          "x_w": [
+            [
+              386,
+              44
+            ],
+            [
+              637,
+              44
+            ],
+            [
+              688,
+              30
+            ],
+            [
+              720,
+              63
+            ]
+          ]
+        }
+      ],
+      "editor_pane": [
+        370,
+        786
+      ],
+      "delete_on_screen": null,
+      "more_note_actions": {
+        "rect": [
+          1103,
+          223,
+          37,
+          27
+        ]
+      },
+      "inside_more_note_actions": {
+        "panel_label": "More note actions",
+        "items": [
+          "Version history",
+          "Duplicate note",
+          "Lock",
+          "Archive",
+          "Save as template",
+          "Open a note beside\u2026",
+          "PNG",
+          "Print",
+          "Export",
+          "Delete"
+        ],
+        "delete_place": 10,
+        "delete_is_last": true
+      }
+    }
+  },
+  "errors": [],
+  "sandbox_integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drr\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T22-01-52.md",
+    "required": [
+      "pre-boot (baseline)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-09-29 22:02:05",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-09-29 22:04:15",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-prewarm (+120s)",
+        "at": "2026-09-29 22:06:12",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-09-29 22:11:10",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  },
+  "sandbox_log": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\drr-shots\\sandbox.log"
+}

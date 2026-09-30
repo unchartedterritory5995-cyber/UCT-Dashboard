@@ -117,7 +117,7 @@ decision is recorded as scope).
   into the repo; the Wave Q1 observation made a standing dashboard.
 - **Onboarding:** Notebook help-centre articles; an interactive first-run tour; a sample notebook;
   the member templates from Phase 2.
-- **Interop:** HTML / JSON / docx export; two-way sync where a provider allows it (G-093); a
+- **Interop:** HTML / JSON / docx export; ~~two-way sync where a provider allows it (G-093)~~ (OUT, D18); a
   documented read API if G-085 is taken up.
 
 ### Phase 7 — Prove it
@@ -165,6 +165,10 @@ that warn you when they break. It is a *personal* tool that shares well, not a t
 | D15 | Backups | Build a restore-drill tool with integrity checks (the owner runs it with production credentials); **document the backup window** as the deletion window rather than rewriting snapshots. ⚰️ *Corrected 2026-09-23:* this said "14-day"; `authdb_backup.RETAIN` is 14 **snapshots** (every 6h + nightly ≈ 3 days), so the privacy policy states "up to 7 days" | Standard practice; rewriting snapshots is risky |
 | D16 | Gate baseline | Re-adopted from a fresh master gate at each landing; timeouts never banked | Keeps every gate readable |
 | D17 | Browser verification and judgement calls (owner, 2026-09-25) | **Every lane, fix and landing is verified autonomously in a REAL browser** — a census-pinned sandbox driven by Playwright (or the Chrome tools for the controller's own pass) — before it is accepted, beside the unit rails; the controller makes every remaining product/technical judgement call and records it. Permission-gated actions (master merges, production flips, production accounts, purchases, legal sign-off) stay the owner's | Owner, verbatim: *"Do tests autonously in the browser for any testing. Make this a core of all decisions going foreward in the entire plan"*; jsdom has been green while the real browser was broken (iOS Iterator crash, the hub nav freeze) |
+| D18 | Two-way sync (clause 11; ruling R-6) | **OUT, a permanent recorded no** (controller, owner-delegated 2026-09-29). Connectors stay import-only; this supersedes the interop build-list line on two-way sync (G-093) | Writing back into a member's Notion, Dropbox or OneDrive can overwrite their data in a system we cannot roll back; the import path is safe and already live. The scorecard keeps the clause's own text and reads it as a recorded no, never MET |
+| D19 | Cold-start offline (clause 10; ruling R-7) | **OUT, a permanent recorded no** (controller, owner-delegated 2026-09-29), confirming D6 | Cold start needs a caching service worker, which could serve a stale bundle straight through a rollback. Open-tab durability is live and is the durability that matters. The scorecard reads the clause as a recorded no, never MET |
+| D20 | Size cap (G-035; clause 14) | **No hard cap** (controller, owner-delegated 2026-09-29), confirming D9: the typing budget binds up to 2,000 paragraphs; beyond it the slowdown is a documented limit, not a defect | Virtualizing the editor is a large change for the top few percent of note sizes; the budget below the cap is measured and enforced |
+| D21 | Owner delegation (2026-09-29) | The owner delegated every remaining judgement call to the controller in chat ("you decide it all and make the work happen"). The controller may countersign design-review-2's surfaces it accepts (S-2), recorded as "controller, owner-delegated 2026-09-29", never as the owner's own signature | Keeps the programme moving while the owner-only readings (user study, soak, devices, screen reader, zero retention) stay the owner's |
 
 ## 4. The build programme (waves, three agents at a time)
 

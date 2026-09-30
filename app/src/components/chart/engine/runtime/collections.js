@@ -163,6 +163,59 @@ const realNumbers = (arr, what) => {
   return arr
 }
 
+/** ⭐⭐ C18 — A REDUCTION OF AN EMPTY ARRAY, UNDER A CALLER'S PROBE.
+ *
+ *  What Pine answers for `array.avg` & co. of an EMPTY array is not measured —
+ *  but a capture can prove that Pine did NOT stop the script there (k-clustering
+ *  averages its empty sixth cluster on every pass of its `while`, and TradingView
+ *  drew the result). The value itself may still be unknowable, so it is not
+ *  guessed: a caller that owns a `budget.unmeasured = { probe, hits }` gets its
+ *  PROBE back and the hit recorded, runs the program again at a second probe, and
+ *  serves an output only where the two runs agree — an output that does not move
+ *  when the unknown value moves does not depend on it
+ *  (`objectColumns.js::runtimeColumnsForObjects`).
+ *
+ *  ⛔ WITHOUT a probe the refusal stands, word for word: the runtime pane and
+ *  every other caller keep `realNumbers`' stop. ⛔ AN `na` ELEMENT is a different
+ *  question (skip it, or poison the result?) and is never probed here. */
+const probedEmpty = (arr, what, budget) => {
+  const u = budget && budget.unmeasured
+  if (arr.length || !u) return null
+  u.hits.push(what)
+  return { value: u.probe }
+}
+
+/** ⭐⭐ C18 — `array.slice` IS A VIEW IN PINE: the slice and its source share
+ *  storage, so a write through either reaches both. This runtime answers it
+ *  with a COPY and LINKS the two, and a later write to either REFUSES by name —
+ *  so the copy is served exactly where it cannot be told apart from the view
+ *  (neither is changed after the slice: k-clustering's `[array.slice(mu, 0, k),
+ *  …]` is read and `array.copy`'d, never written). */
+const SLICED = Symbol('uct.array.sliced')
+const guardSliceWrite = (arr, what) => {
+  if (arr && arr[SLICED]) {
+    throw new CollectionError(`${what}: this array shares storage with an \`array.slice\` — `
+      + 'Pine writes through to both, and this runtime holds them as copies, so the write '
+      + 'is refused rather than letting the two disagree')
+  }
+  return arr
+}
+
+/** ⭐ C18 — a member the corpus writes that this runtime does not compute:
+ *  it COMPILES (so a script can be read) and STOPS the run by name the moment it
+ *  is actually reached with elements — k-clustering names `array.median` and
+ *  `array.stdev` in branches its default inputs never take. An EMPTY array takes
+ *  the caller's probe like any other reduction. */
+const unmeasuredReduction = (name) => ({
+  args: ['array', 'number'], returns: 'number', minArgs: 1, maxArgs: 2,
+  fn: (a, budget) => {
+    const p = probedEmpty(a[0], name, budget)
+    if (p) return p.value
+    throw new CollectionError(`${name} — this runtime does not compute it yet, and it stops `
+      + 'the run here rather than answering with a guess')
+  },
+})
+
 /** ⛔ AN `na` SEARCH VALUE IS REFUSED: whether Pine's `indexof`/`includes`
  *  match `na` against an `na` element is unmeasured, and IEEE equality would
  *  answer "never" by accident rather than by measurement. */
@@ -191,14 +244,14 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'any',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
-      return nonEmpty(a[0], 'array.shift').shift()
+      return nonEmpty(guardSliceWrite(a[0], 'array.shift'), 'array.shift').shift()
     },
   },
   'array.pop': {
     args: ['array'], returns: 'any',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
-      return nonEmpty(a[0], 'array.pop').pop()
+      return nonEmpty(guardSliceWrite(a[0], 'array.pop'), 'array.pop').pop()
     },
   },
   'array.unshift': {
@@ -206,14 +259,14 @@ const C11_MEMBERS = {
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
       budget.peak('ARRAY_ELEMENTS', a[0].length + 1)
-      a[0].unshift(a[1])
+      guardSliceWrite(a[0], 'array.unshift').unshift(a[1])
     },
   },
   'array.remove': {
     args: ['array', 'number'], returns: 'any',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
-      return a[0].splice(at(a[0], a[1], 'array.remove'), 1)[0]
+      return guardSliceWrite(a[0], 'array.remove').splice(at(a[0], a[1], 'array.remove'), 1)[0]
     },
   },
   // `array.concat(id1, id2)` appends id2's elements to id1 and RETURNS id1 —
@@ -223,6 +276,7 @@ const C11_MEMBERS = {
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[1].length)
       budget.peak('ARRAY_ELEMENTS', a[0].length + a[1].length)
+      guardSliceWrite(a[0], 'array.concat')
       for (const v of a[1]) a[0].push(v)
       return a[0]
     },
@@ -245,6 +299,8 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const p = probedEmpty(a[0], 'array.max', budget)
+      if (p) return p.value
       return realNumbers(a[0], 'array.max').reduce((m, v) => (v > m ? v : m), -Infinity)
     },
   },
@@ -252,6 +308,8 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const p = probedEmpty(a[0], 'array.min', budget)
+      if (p) return p.value
       return realNumbers(a[0], 'array.min').reduce((m, v) => (v < m ? v : m), Infinity)
     },
   },
@@ -259,6 +317,8 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const p = probedEmpty(a[0], 'array.sum', budget)
+      if (p) return p.value
       return realNumbers(a[0], 'array.sum').reduce((s, v) => s + v, 0)
     },
   },
@@ -266,6 +326,8 @@ const C11_MEMBERS = {
     args: ['array'], returns: 'number',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', a[0].length)
+      const p = probedEmpty(a[0], 'array.avg', budget)
+      if (p) return p.value
       const xs = realNumbers(a[0], 'array.avg')
       return xs.reduce((s, v) => s + v, 0) / xs.length
     },
@@ -440,7 +502,7 @@ export const ARRAY_FNS = Object.freeze({
     args: ['array', 'number', 'any'], returns: 'void',
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
-      a[0][at(a[0], a[1], 'array.set')] = a[2]
+      guardSliceWrite(a[0], 'array.set')[at(a[0], a[1], 'array.set')] = a[2]
     },
   },
   'array.push': {
@@ -448,7 +510,7 @@ export const ARRAY_FNS = Object.freeze({
     fn: (a, budget) => {
       budget.charge('ARRAY_OPERATIONS', 1)
       budget.peak('ARRAY_ELEMENTS', a[0].length + 1)
-      a[0].push(a[1])
+      guardSliceWrite(a[0], 'array.push').push(a[1])
     },
   },
   'array.copy': {
@@ -457,9 +519,30 @@ export const ARRAY_FNS = Object.freeze({
   },
   'array.clear': {
     args: ['array'], returns: 'void',
-    fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); a[0].length = 0 },
+    fn: (a, budget) => { budget.charge('ARRAY_OPERATIONS', 1); guardSliceWrite(a[0], 'array.clear').length = 0 },
   },
   ...C11_MEMBERS,
+  // ⭐⭐ C18 — see `SLICED`. `from` inclusive, `to` exclusive; Pine stops the
+  // script on a bound outside the array, and so does this.
+  'array.slice': {
+    args: ['array', 'number', 'number'], returns: 'array',
+    fn: (a, budget) => {
+      const src = a[0]
+      const from = a[1]
+      const to = a[2]
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to > src.length || from > to) {
+        throw new CollectionError(`array.slice: [${from}, ${to}) is outside an array of ${src.length} — `
+          + 'Pine stops the script here rather than answering na')
+      }
+      budget.peak('ARRAY_ELEMENTS', to - from)
+      const out = src.slice(from, to)
+      out[SLICED] = true
+      src[SLICED] = true
+      return out
+    },
+  },
+  'array.median': unmeasuredReduction('array.median'),
+  'array.stdev': unmeasuredReduction('array.stdev'),
 })
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS))
