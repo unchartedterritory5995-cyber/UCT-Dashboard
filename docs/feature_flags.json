@@ -87,6 +87,12 @@
       ],
       "note": "ARMED on web 2026-09-29 22:26:45Z by the agent at the owner's instruction (\"Do it now\"). Verified in production as smoke@: auth payload address_space_enabled=true; anonymous search 401; a probe layout created through /api/charts/layouts was found by name as L:101, resolved, renamed and resolved again to the same address, deleted, then answered 404 -- nothing left behind. TERM-038 (FB-S2-03), ENABLEMENT GATE, default OFF, read per call in api/services/address_space.py::is_enabled(). SERVICE: web. What it arms: GET /api/address/search?q= and GET /api/address/resolve?a= (404 while off, signed-in when on) and the command palette's Saved rows. Saved things become names: every chart layout (own + prebuilt), watchlist and note gets an address <prefix>:<id> (L/W/N), typeable by NAME in the palette and resolving to the page door that already opens it (/charts?openLayout=, /charts?openWatchlist=user:, /journal/notebook?note=). Keyed on id, so a rename keeps the address. The kinds are derived from the schema (every owned + named CREATE TABLE); tests/test_address_space.py fails by name on one that is neither a kind nor exempt with a reason. Rollback: set 0 (a DELETE does not restart web)."
     },
+    "ANALYST_REVISIONS_ENABLED": {
+      "status": "dark",
+      "since": "2026-09-30",
+      "where": [],
+      "note": "TERM-073 (FB-A4-01), ENABLEMENT GATE, default OFF, read per request in api/services/research/analyst_revisions.py::is_enabled(). SERVICE: web. Unset: GET /api/research/analyst-revisions/{ticker} answers the FastAPI 404 to every caller and the Research > Analyst Ratings revision panel renders nothing. Set: paid members see what changed in the nightly analyst pass (consensus, price target, 30d up/downgrades, EPS growth) between consecutive retained snapshots, with the window, snapshot count and source; an unchanged run reads 'no revision', and the contributor count is stated as not retained. Owner decides when to arm; the timeline has been retained since 2026-09-28. Rollback: unset."
+    },
     "AI_POPULATION_CAP_MODE": {
       "status": "dark",
       "where": [],
