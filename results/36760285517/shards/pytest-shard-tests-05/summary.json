@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 2937,
+  "passed": 2926,
+  "failed": 5,
+  "errored": 0,
+  "skipped": 6,
+  "wall_s": 507.37,
+  "failed_files": [
+    "tests/test_discord_close_note.py",
+    "tests/test_discord_render_observe.py",
+    "tests/test_document_ocr.py",
+    "tests/test_e2e_sandbox_guard.py",
+    "tests/test_entitlements_manifest.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "5 failed, 2926 passed, 6 skipped, 26 warnings in 507.37s (0:08:27)",
+  "ok": true
+}
