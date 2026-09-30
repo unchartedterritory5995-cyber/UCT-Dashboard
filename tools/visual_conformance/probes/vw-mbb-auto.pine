@@ -1,0 +1,14 @@
+//@version=6
+indicator("UCTPROBE_MBB_AUTO", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C9: "no max_bars_back declared - TradingView sizes the buffer by its own
+// detection, which no capture measures". No max_bars_back here on purpose.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. A runtime buffer error is itself the reading.
+
+int k = bar_index % 400
+
+plot(bar_index,             "M00_bar_index_CONTROL")
+plot(k,                     "M01_k")
+plot(close[k],              "M02_close_at_k")
+plot(na(close[k]) ? 1 : 0,  "M03_close_at_k_is_na")

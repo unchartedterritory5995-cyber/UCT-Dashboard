@@ -30,6 +30,13 @@ text that produced a fixture is versioned beside it.
 | `vw-object-gc-a.pine` | the corpus's 50-vs-51 split reproduced at the default cap: contraction-box, makuchaku and ultimate-pivot shapes, one family each | objects triage · C7 (1 of 4) |
 | `vw-object-gc-b.pine` | A with ONE dimension changed per family — na coordinates, sporadic rate, `if` scope — at the same default cap | C7 (2 of 4) |
 | `vw-object-gc-c.pine` | caps 5/7/3: does `label.delete` free a slot (live vs ring), are `var`-held boxes exempt (touched or not), what a last-bar burst over the cap keeps | C7 (3 of 4) |
+| `vw-bar-counters.pine` | four `var`/history counter spellings + `ta.cum(1)` beside `bar_index`, from the listing (capture NYSE:RDDT 1D) | objects triage 2026-09-28 · C12w (2026-09-30) |
+| `vw-gradient.pine` | `color.from_gradient` 0→1 sweep and out-of-range clamp, with/without `color.new` on top; `color.new(c, 70.5)` — as `color.r/g/b/t` numbers | C20 (2026-09-30) |
+| `vw-other-symbol.pine` | bare `"SPY"` vs `"AMEX:SPY"`, bare `"BRK.B"` vs `"NYSE:BRK.B"` inside `request.security`, + a last-bar label printing the AMEX:SPY read (capture NYSE:RDDT 1D) | C26 (2026-09-30) |
+| `vw-tf-period.pine` | `timeframe.period` spelling on a v6 1D/1W/1M chart (equality rows + a label printing it) | C15 (a) (2026-09-30) |
+| `vw-offset-na.pine` | what `close[e]` reads when `e` is `na` (alone in its file) | C9 (2026-09-30) |
+| `vw-mbb-auto.pine` | a dynamic offset up to 399 with NO `max_bars_back` declared — does the vendor's auto-sizing serve it | C9 (2026-09-30) |
+| `vw-ne-na.pine` | `!=` / `==` / `>` / `not` with an `na` series operand | C14 (2026-09-30) |
 | `vw-object-gc-d.pine` | `label.all`/`line.all`/`box.all` sizes before/after creates per bar (WHEN the collector trims), and multi-tf's burst-with-nothing-after, array-held vs unheld. Vendor-only: ours refuses `label.all` | C7 (4 of 4) |
 
 ⛔⛔ **`tickerid-containment.pine` and `exchange-spelling.pine` ARE NOT INTERCHANGEABLE.** They read different `syminfo` fields and answer different questions. The 2026-09-09 capture ran the first and `symbolScope.json::confirmed` stayed empty, because the map is keyed on `syminfo.exchange` and that run never read it. The vendor can rewrite a prefix (`SP:SPX` → `SP_DLY:SPX`), so a tickerid prefix is not evidence about `syminfo.exchange` — `exchange-spelling.pine` N11 measures that gap rather than assuming it closed.

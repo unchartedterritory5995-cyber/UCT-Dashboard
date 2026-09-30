@@ -1,0 +1,36 @@
+//@version=6
+indicator("UCTPROBE_BAR_COUNTERS", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C12w ("Bar counters ... Settling it needs ... (c) a capture: a probe plotting
+// both counters beside bar_index on NYSE:RDDT 1D from the listing day").
+// CAPTURE: NYSE:RDDT 1D, full history loaded (listing 2024-03-21), inputs at defaults.
+//
+// C00 is the non-vacuity control. Each counter row is expected to be bar_index or
+// bar_index + 1; which one, and whether bar 0 is na, is the reading.
+// ASCII only, so the vendor-stored text and the committed bytes compare cleanly.
+
+// C01 - the `var` spelling the door refuses: accum(0, self + 1)
+var int n1 = 0
+n1 := n1 + 1
+
+// C02 - the self-reference spelling (v6 form: declare, then reassign from history)
+int n2 = 0
+n2 := na(n2[1]) ? 0 : n2[1] + 1
+
+// C03 - compound assignment on a var
+var int n3 = 0
+n3 += 1
+
+// C04 - a var seeded na, counted from its own na test
+var int n4 = na
+n4 := na(n4) ? 0 : n4 + 1
+
+plot(bar_index,                "C00_bar_index_CONTROL")
+plot(n1,                       "C01_var_n_plus_1")
+plot(n2,                       "C02_na_hist_seeded_counter")
+plot(n3,                       "C03_var_compound")
+plot(n4,                       "C04_var_na_seed_counter")
+plot(ta.cum(1),                "C05_ta_cum_1")
+plot(n1 - bar_index,           "C06_n1_minus_bar_index")
+plot(n2 - bar_index,           "C07_n2_minus_bar_index")
