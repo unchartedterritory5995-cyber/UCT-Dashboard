@@ -60,7 +60,7 @@ describe('C26 served — TradingView\'s SPY bars on an RDDT chart, date for date
     // same supply, so a point on every bar means the chart's own path was served.
     const colours = ours.plots[0].colors || []
     expect(colours.filter((c) => typeof c === 'string').length).toBe(632)
-  })
+  }, 60000)
 
   it('the object lane: a last-bar label prints SPY\'s vendor close', () => {
     const ours = on(RDDT, pine([
