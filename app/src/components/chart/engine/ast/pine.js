@@ -13021,6 +13021,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // `pine:undefined`. That is a loud refusal, which is the right direction — a
   // silently wrong number is the one outcome this seam must not produce.
   const rawTrees = objectOpts.rawTrees === true
+  const approxRecords = objectOpts.approxRecords || new Set()
   // ⭐⭐ PER-ITERATION TREES. Off, a counter-dependent value is REFUSED (the
   // safe answer, and what every caller without a runtime lane must get). On,
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
@@ -14940,7 +14941,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
-      // ⛔⛔ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED STAYS CONDEMNED HERE.
+      // ⚰️ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED USED TO STAY CONDEMNED HERE.
       // After the walk, every name with a `:=` the fold never consumed is forced
       // opaque on `env` ("the binding the walk DID produce would be a lie about
       // that name"). The per-statement record was taken BEFORE that overrule, so
@@ -14948,12 +14949,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `poor-man039s-volume-profile`, `row0_text = ""` then
       // `for … row0_text := row0_text + "#"` drew its label with the text "" —
       // TradingView draws `####…`. The overrule's verdict wins.
+      // ⭐⭐ C11b — …AND WHAT IT COULD NOT SEE IS NOW IN THE SCOPE ITSELF. Every
+      // statement that reassigns a name is an entry here, in program order: a
+      // `:=`/`+=` line, an `if`/`else` chain, a `switch`, and a loop (whose
+      // names are refused inside it and after it). So a RECORDED binding is
+      // exact at its own position even when the walk condemned the name for a
+      // reassignment it could not fold ELSEWHERE — and an entry for a
+      // reassignment nobody recorded (the loop's, one the fold refused) is
+      // refused below by name. `poor-man`'s `row0_text` is refused after its
+      // loop by that entry, not by the overrule; `ict-killzones`' `int c = 1` is
+      // read as 1 before its first `c += 1`, where the overrule refused every
+      // cell of a table whose only other writes sit in a dead `for … in`.
       const top = env.get(b.name)
-      if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
+      if (bound && approxRecords.has(bound) && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
         scoped.set(b.name, top)
         continue
       }
       if (bound) { scoped.set(b.name, bound); continue }
+      if (b.reassign && b.st && !b.st.synthetic) {
+        scoped.set(b.name, {
+          kind: 'opaque',
+          guard: 'pine:reassign',
+          message: `${REFUSALS['pine:reassign']} — \`${b.name}\` changes at line `
+            + `${b.st.header && b.st.header[0] ? b.st.header[0].line : '?'} in a way this reader `
+            + 'cannot follow, so what it holds after that is not known here',
+          at: b.st.header && b.st.header[0] ? locate(b.st.header[0]) : null,
+        })
+        continue
+      }
       // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
       // widened what the collector records (typed declarations, `:=` targets),
       // and the counter promptly read 98 over 14 names — every one of them a
@@ -15668,6 +15691,8 @@ function translatePineResult(source, opts = {}) {
    *  needs no name matching and cannot mis-pair two locals of the same name in
    *  sibling blocks. */
   const bindingByStatement = new Map()
+  /** ⭐ C11b — the records a nested harvest made (see `harvestBlockLocals`). */
+  const approxRecords = new Set()
   /** The same per-statement record the block folder keeps — see `record` inside
    *  `foldStatements`. One statement may bind several names (`[u, d] = f()`). */
   const recordTop = (stmt2, name) => {
@@ -15709,10 +15734,41 @@ function translatePineResult(source, opts = {}) {
     // `pine.community.guards` ("every refusing script refuses at exactly this
     // guard, line and token"). A harvest whose only job is to BIND names must
     // not be able to change which guard a script refuses at.
+    // ⭐⭐ C11b — ONLY THIS LEVEL'S FOLD IS EXACT, and it may not be overwritten.
+    // The fold above reads `list` in order from the state at its start, so what
+    // it records is the name's value at each statement. The recursion below
+    // re-reads every nested block from `scope` — the state at the END of this
+    // fold — which is a different state for any name the list reassigns
+    // sequentially: measured on `ict-killzones`, `int c = 1`, `c += 1`, then
+    // `if …` `c += 1` re-recorded the inner `c += 1` as 5 where the fold had
+    // recorded 3, and the table's "Low" cell moved from column 3 to column 5.
+    // So the recursion fills only statements this fold never reached, into its
+    // own map, and those records are marked APPROXIMATE (`approxRecords`):
+    // `scopeFor` trusts them only for a name the walk did not condemn.
     const harvestCtx = { consumed: new Set(), bindingByStatement }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
+    const nested = new Map()
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestBlockLocals(st2.sub, scope)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested)
+    }
+    for (const [st2, byName] of nested) {
+      let into = bindingByStatement.get(st2)
+      if (!into) { into = new Map(); bindingByStatement.set(st2, into) }
+      for (const [name, b] of byName) {
+        if (into.has(name)) continue
+        into.set(name, b)
+        approxRecords.add(b)
+      }
+    }
+  }
+  /** The recursion's own fold: same reader, its own record map (see above). */
+  const harvestNested = (list, baseEnv, into) => {
+    if (!list || !list.length) return
+    const scope = new Map(baseEnv)
+    const ctx2 = { consumed: new Set(), bindingByStatement: into }
+    try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
+    for (const st2 of list) {
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into)
     }
   }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
@@ -17290,6 +17346,7 @@ function translatePineResult(source, opts = {}) {
       return r
     }, bindingByStatement, {
       rawTrees: opts.objectRawTrees === true,
+      approxRecords,
       iterTrees: opts.objectIterTrees === true,
     })
   } catch (err) {

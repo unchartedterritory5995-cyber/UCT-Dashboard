@@ -424,6 +424,11 @@ export function collectObjectOps(stmts, h) {
           if (rhs.length) walk([{ ...arm, header: rhs }], g, inLoop, localScope)
           else walk(arm.sub || [], g, inLoop, localScope)
         }
+        // ⭐ C11b — what an arm reassigns is a new binding after the `switch`
+        // (the value walk records it against this statement when it folds it).
+        for (const name of reassignedIn(st.sub || [])) {
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
+        }
         continue
       }
 
@@ -448,7 +453,7 @@ export function collectObjectOps(stmts, h) {
         // v2 is the empty string: a blank cell where the author wrote a number,
         // reading as "the value is empty" — a claim they never made.
         for (const name of reassignedIn(st.sub || [])) {
-          localScope = [...localScope, { name, toks: t, st }]
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
         continue
       }
@@ -469,7 +474,7 @@ export function collectObjectOps(stmts, h) {
         // and `foldIfChain` keys its record on the chain's FIRST statement, so
         // this points at `st` for the join the same way.
         for (const name of reassignedIn(st.sub || [])) {
-          localScope = [...localScope, { name, toks: t, st }]
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
         continue
       }
@@ -490,17 +495,24 @@ export function collectObjectOps(stmts, h) {
         // Same for `for … by <step>`: the op has no step, so pretending 1 would
         // draw every row of a loop the author wrote to skip.
         const head = word === 'for' ? parseForHead(t) : null
+        // ⭐⭐ C11b — A NAME THE LOOP REASSIGNS HAS NO SINGLE VALUE inside it (the
+        // previous iteration's) nor, to this reader, after it: it is entered as
+        // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
+        const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
+        const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
         if (!head) {
-          walk(st.sub || [], guards, true, localScope)
+          walk(st.sub || [], guards, true, bodyScope)
+          if (loopRe.length) localScope = [...localScope, ...loopRe]
           continue
         }
         const outer = ops
         const body = []
         ops = body
         loopIds.push(head.id)
-        walk(st.sub || [], guards, inLoop, localScope)
+        walk(st.sub || [], guards, inLoop, bodyScope)
         loopIds.pop()
         ops = outer
+        if (loopRe.length) localScope = [...localScope, ...loopRe]
         // ⛔ A LOOP THAT COLLECTED NOTHING IS NOT EMITTED. `assertObjectProgram`
         // refuses an empty body ("a loop with an empty body draws nothing"), and
         // it is right to — but the honest answer here is that this loop drew
@@ -870,7 +882,7 @@ export function collectObjectOps(stmts, h) {
         // every op after it. Entering the reassignment makes `scopeFor` read the
         // walk's OWN record for THIS statement (top-level `recordTop`, a block's
         // `foldStatements` record) — the binding the value walk made right there.
-        localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st }]
+        localScope = [...localScope, { name: String(t[0].value), toks: t.slice(2), st, reassign: true }]
       }
       const declEq = h.findTop(t, (x) => h.isPunct(x, '='))
       const isArrow = h.findTop(t, (x) => h.isPunct(x, '=>')) >= 0
@@ -881,7 +893,12 @@ export function collectObjectOps(stmts, h) {
         }
       }
       // any other statement may still hide a nested block
-      if (st.sub && st.sub.length) walk(st.sub, guards, inLoop, localScope)
+      if (st.sub && st.sub.length) {
+        walk(st.sub, guards, inLoop, localScope)
+        for (const name of reassignedIn(st.sub)) {
+          localScope = [...localScope, { name, toks: t, st, reassign: true }]
+        }
+      }
     }
   }
 

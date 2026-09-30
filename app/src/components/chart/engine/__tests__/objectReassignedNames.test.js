@@ -28,6 +28,7 @@ import { describe, it, expect } from 'vitest'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects } from '../objectRuntime'
+import { toRenderState } from '../objectRenderState'
 
 const N = 60
 /** Deterministic, uneven bars: up and down closes interleave and highs both
@@ -50,6 +51,19 @@ function run(body) {
   const diag = d.translation.objectDiagnostics || {}
   const reader = objectReaderFor(d.definition, BARS, { tf: 'D', symbol: 'TEST' })
   expect(reader, `no object program — ${JSON.stringify(diag.dropReasons)}`).toBeTruthy()
+  const r = evaluateObjects(reader.program, {
+    barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t,
+  })
+  return { diag, labels: r.live.filter((o) => o.family === 'label') }
+}
+
+/** As `run`, but a program that draws nothing is an answer, not a failure. */
+function runLoose(body) {
+  const d = memberPaneDefinition({ source: HEAD + body, id: 'u_c11b_reassign_l', name: 'c11b' })
+  expect(d.ok, d.reason).toBe(true)
+  const diag = d.translation.objectDiagnostics || {}
+  const reader = objectReaderFor(d.definition, BARS, { tf: 'D', symbol: 'TEST' })
+  if (!reader) return { diag, labels: [] }
   const r = evaluateObjects(reader.program, {
     barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t,
   })
@@ -167,6 +181,67 @@ describe('⭐⭐ C11b — a reassignment is what a drawing after it reads', () =
     const drawn = r.live.filter((l) => l.family === 'label' && Number.isFinite(l.props.y))
     expect(drawn.length, 'past the warm-up the labels must be drawn at all').toBeGreaterThan(20)
     for (const l of drawn) expect(l.props.y, `bar ${l.createdBar}`).toBe(pine.get(l.createdBar))
+  })
+
+  it('⭐⭐ a counter advanced across nested blocks addresses each cell where Pine does (ict-killzones)', () => {
+    // The data table's header, in miniature: `int c = 1`, a cell at `c`, `c += 1`,
+    // then two cells under `if stats`, each followed by `c += 1` — and a later
+    // `for … in` (never entered: its guard is off) that also advances `c`, so the
+    // walk condemns `c` for a write it cannot fold. Pine puts the three cells in
+    // columns 1, 2, 3. Before this change the loop's condemnation refused all
+    // three; a first cut that lifted it drew "Low" in column 5, reading a
+    // harvest record re-made from the END of the block.
+    const src = [
+      'show_data = input.bool(true, "t")', 'stats = input.bool(true, "p")', 'more = input.bool(false, "l")',
+      'var lvls = array.new<float>()',
+      'if show_data and barstate.islast',
+      '    var tbl = table.new(position.top_right, 20, 20)',
+      '    int c = 1',
+      '    table.cell(tbl, c, 0, "Range")',
+      '    c += 1',
+      '    if stats',
+      '        table.cell(tbl, c, 0, "High")',
+      '        c += 1',
+      '        table.cell(tbl, c, 0, "Low")',
+      '        c += 1',
+      '    if more',
+      '        for l in lvls',
+      '            table.cell(tbl, c, 0, "x")',
+      '            c += 1',
+    ].join('\n') + '\n'
+    const d = memberPaneDefinition({ source: HEAD + src, id: 'u_c11b_counter', name: 'c11b' })
+    expect(d.ok, d.reason).toBe(true)
+    const reader = objectReaderFor(d.definition, BARS, { tf: 'D', symbol: 'TEST' })
+    const r = evaluateObjects(reader.program, { barCount: N, readNode: reader.readNode, readTime: (i) => BARS[i].t })
+    const cells = toRenderState(r.live, { bars: BARS, tf: 'D' }).tables.flatMap((t) => t.cells || [])
+    expect(cells.map((c) => [c.col, c.row, c.text])).toEqual([[1, 0, 'Range'], [2, 0, 'High'], [3, 0, 'Low']])
+  })
+
+  it('⛔ a name a LOOP reassigns is refused after the loop, never read as it stood before it', () => {
+    const { labels, diag } = runLoose(['x = 1.0', 'for i = 0 to 2', '    x := x + 1',
+      'label.new(bar_index, high, str.tostring(x))'].join('\n') + '\n')
+    expect(labels, 'a label drawn from the value before the loop').toEqual([])
+    expect(diag.droppedOps).toBeGreaterThan(0)
+  })
+
+  it('⛔ a name a `switch` reassigns is not read as it stood before the `switch`', () => {
+    const { labels } = runLoose(['x = 1.0', 'switch', '    close > open => x := 2.0', '    => x := 3.0',
+      'label.new(bar_index, high, str.tostring(x))'].join('\n') + '\n')
+    for (const l of labels) {
+      const b = BARS[l.createdBar]
+      expect(l.props.text, `bar ${l.createdBar}`).toBe(b.c > b.o ? '2' : '3')
+    }
+  })
+
+  it('⭐ a name reassigned inside an `if` EXPRESSION\'s arm is its new value after it', () => {
+    // Pine: y is 2 on an up bar (the arm ran), 1 otherwise.
+    const { labels } = run(['y = 1.0', 'x = if close > open', '    y := 2.0', '    close', 'else', '    open',
+      'label.new(bar_index, x, str.tostring(y))'].join('\n') + '\n')
+    expect(labels.length).toBe(N)
+    for (const l of labels) {
+      const b = BARS[l.createdBar]
+      expect(l.props.text, `bar ${l.createdBar}`).toBe(b.c > b.o ? '2' : '1')
+    }
   })
 
   it('⭐ a read BEFORE the reassignment still sees the value before it', () => {
