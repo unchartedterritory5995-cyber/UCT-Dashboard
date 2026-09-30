@@ -56,3 +56,26 @@ Every number is read from committed raw evidence (R-RAW); the raw evidence was c
   - it applies only when the occluder is the control's own component, i.e. `sameHub` read from the control's own occlusion reading;
   - a different element with the same geometry still reads CONFIRMED (the GX rails, mutation-proved).
 - **Sandbox:** CLEAN at all four checkpoints.
+
+## The final walk on the L12 tree: every sweep, after TY's follow-ups
+
+- **Evidence:** `l12final-035b301b6/`, committed in `406c13f64` (R-RAW) before this reading.
+- **The tree:** L12 `035b301b6`, which includes TY's toolbar re-render bailout and both follow-ups:
+  - `3b6e6fde4`: G-131 text colour on touch; `selectionEmpty` and highlight state in the signature; the audit rail.
+  - `c9b303c63`: Quote after "1. List" is disabled with a reason.
+- **Walk settings:** `--surface-deadline 900`.
+- **Run health:** all five controls VALID, the sandbox CLEAN at all four checkpoints, 0 errors, 0 page errors.
+
+| sweep | reading |
+|---|---|
+| census (2b) | WORKS 113, N/A 30, NOT-DRIVEN 22, **BROKEN 0, NO-DOOR 0**. G-131 WORKS on desktop, touch and keyboard. The pre-follow-up walk `l12full-62e252649` read touch BROKEN. |
+| dead clicks (2c) | **39/39 surfaces MEASURED in one run, 0 DEAD.** LIVE 564, CURRENT-NO-OP 16, DISABLED 9 (Quote inside a list is now one of these), NOT-FOUND 9, OCCLUDED 9, NOT-ACTIONABLE 3. REPEATED 972 is per-key sampling: at most 3 of each repeated control are clicked, and every other one is recorded by name, never dropped. |
+| silent (5d) | reads 72/72 SENTENCE; writes 24 SENTENCE + 4 EXEMPT; **0 SILENT** |
+| axe (9a) | 123/123 runs, **0 violations** |
+| geometry (6c inventory) | 129 cells; 2440 findings (the raw inventory; 6c is read on the L3 classification above) |
+
+**The follow-ups this walk verifies.** TY's bailout regressed two things, and the walk before this one found both:
+- **G-131 on touch.** TY could not reproduce it in jsdom, so this walk is its proof.
+- **The Quote button.** Its old LIVE reading was really the re-render's side effects. After "1. List" the command is a schema refusal (`listItem` content is `paragraph block*`).
+
+Both are fixed and both read clean here.
