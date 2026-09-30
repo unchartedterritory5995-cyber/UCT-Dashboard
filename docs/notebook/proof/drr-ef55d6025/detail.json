@@ -1,0 +1,357 @@
+{
+  "targets_1200": {
+    "list": [],
+    "table": [
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select all notes in view",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Alpha thesis NVDA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Beta thesis AMD",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Delta thesis MSFT",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Gamma thesis TSLA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Trade checklist -- AMD add",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Epsilon thesis AAPL",
+        "w": 16,
+        "h": 16
+      }
+    ],
+    "board": [
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Beta thesis AMD",
+        "w": 216,
+        "h": 18
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Alpha thesis NVDA",
+        "w": 216,
+        "h": 18
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Gamma thesis TSLA",
+        "w": 216,
+        "h": 18
+      }
+    ],
+    "timeline": [
+      {
+        "tag": "select",
+        "role": null,
+        "name": "Last updated Created Review Date",
+        "w": 104,
+        "h": 22
+      },
+      {
+        "tag": "select",
+        "role": null,
+        "name": "Folder Tag",
+        "w": 69,
+        "h": 22
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Week",
+        "w": 48,
+        "h": 20
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Month",
+        "w": 51,
+        "h": 20
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Quarter",
+        "w": 59,
+        "h": 20
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Previous month",
+        "w": 30,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Next month",
+        "w": 30,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Today",
+        "w": 50,
+        "h": 20
+      }
+    ],
+    "templates": [
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Alpha thesis NVDA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Beta thesis AMD",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Delta thesis MSFT",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Gamma thesis TSLA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Trade checklist -- AMD add",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Epsilon thesis AAPL",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Daily Game Plan",
+        "w": 76,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Post-Market Debrief",
+        "w": 76,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Weekly Plan",
+        "w": 76,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Weekly Review",
+        "w": 76,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Monthly Review",
+        "w": 76,
+        "h": 21
+      },
+      {
+        "tag": "button",
+        "role": null,
+        "name": "Preview Quarterly Review",
+        "w": 76,
+        "h": 21
+      }
+    ],
+    "search-sidebar": [
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Alpha thesis NVDA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Beta thesis AMD",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Delta thesis MSFT",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Gamma thesis TSLA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Trade checklist -- AMD add",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Epsilon thesis AAPL",
+        "w": 16,
+        "h": 16
+      }
+    ],
+    "search-palette": [
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Alpha thesis NVDA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Beta thesis AMD",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Delta thesis MSFT",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Gamma thesis TSLA",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Trade checklist -- AMD add",
+        "w": 16,
+        "h": 16
+      },
+      {
+        "tag": "input",
+        "role": null,
+        "name": "Select Epsilon thesis AAPL",
+        "w": 16,
+        "h": 16
+      }
+    ]
+  },
+  "graph_link_retry": {
+    "option_count": 0,
+    "option_texts": [],
+    "clicked": false,
+    "error": "Locator.click: Timeout 3000ms exceeded.\nCall log:\n  - waiting for locator(\"[role=\\\"option\\\"]\").first\n",
+    "noteLink_count_after": 0
+  },
+  "d2_detail": {
+    "me_plan": "pro",
+    "me_paid_equiv": true,
+    "orb_button_present": 3,
+    "coachmark_seen_flag": null
+  },
+  "sandbox_integrity": {
+    "path": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-drr\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T22-15-46.md",
+    "required": [
+      "pre-boot (baseline)",
+      "shutdown"
+    ],
+    "checkpoints": [
+      {
+        "label": "pre-boot (baseline)",
+        "at": "2026-09-29 22:15:53",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "post-boot (+15s)",
+        "at": "2026-09-29 22:17:01",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      },
+      {
+        "label": "shutdown",
+        "at": "2026-09-29 22:18:27",
+        "root": "C:\\data",
+        "db_files": 62,
+        "verdict": "CLEAN"
+      }
+    ],
+    "status": "CLEAN",
+    "clean": true,
+    "why": ""
+  }
+}
