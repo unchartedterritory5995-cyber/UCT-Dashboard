@@ -14,6 +14,10 @@ watch paths set in the Railway service settings (never railway.json — that fil
 # open_reads_gate, chart_health_alerts, earnings_estimates, liveflow_monitor,
 # massive, massive_adapter, reference_corp_actions). Same fix as above: move a
 # watched file in the deploying push, which restarts the tape - ship off-hours.
+# 2026-09-30 - deploy trigger. `api/services/auth_service.validate_session`
+# (reached here via flow_admin_auth's cookie fallback) now reads an auth.db that
+# never gained `users.toolkit` as "no toolkit" instead of raising. It exists FOR
+# this worker, which never runs auth_db.init_db. Shipped after 18:00 ET.
 is shared by all three services): api/{massive_ws_worker,massive_processor,
 flow_db,confluence_flow,flow_worker_main,live_massive_router,flow_router,flow_router_mount,
 flow_heal_enrich,flow_gap_autofill,massive_flatfiles_worker,flow_watchdog,
