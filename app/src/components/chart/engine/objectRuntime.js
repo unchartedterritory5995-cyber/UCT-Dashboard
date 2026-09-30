@@ -764,6 +764,14 @@ export function beginObjects(program, ctx) {
           return parts.some((p) => p === null) ? null : parts.join('')
         }
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
+        // ⭐⭐ C32 — a number that moves per PASS (a loop counter's arithmetic, a
+        // window element it picks), by the same `str.tostring` rules as `num`.
+        // ⛔ A value this pass cannot say withholds the text, never an empty one.
+        case 'val': {
+          const n = value(t.v)
+          if (typeof n !== 'number') { textsWithheld += 1; return null }
+          return formatNumber(n, t.fmt)
+        }
         default: return ''
       }
     }
@@ -900,6 +908,23 @@ export function beginObjects(program, ctx) {
         }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
         case 'num': return nums.get(ref.id) ?? NaN
+        // ⭐⭐ C32 — `w.get(i)` of a bounded window by the loop counter: Pine index
+        // `k` of `size` elements is newest-first slot `k` (unshift) or
+        // `size − 1 − k` (push — index 0 is the oldest). ⛔ An index outside the
+        // elements is where Pine STOPS the script (`array.get` out of bounds): a
+        // runtime error, never an `na` cell.
+        case 'wget': {
+          const k = value(ref.args[0])
+          const size = numOf(value(ref.args[1]))
+          if (typeof k !== 'number' || !Number.isInteger(k) || !Number.isInteger(size)) return undefined
+          if (k < 0 || k >= size) {
+            runtimeError(`\`array.get\` index ${k} is out of bounds of an array of ${size} on bar ${bar} — TradingView stops the script there`)
+            return undefined
+          }
+          const j = ref.order === 'unshift' ? k : size - 1 - k
+          if (j < 0 || j >= ref.args.length - 2) return undefined
+          return numOf(value(ref.args[2 + j]))
+        }
         default: return undefined
       }
     }
@@ -1031,6 +1056,7 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
+      if (t.t === 'val') return tainted(t.v, depth + 1)
       return false
     }
     const colorTainted = (c, depth) => {

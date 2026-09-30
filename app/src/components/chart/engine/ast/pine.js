@@ -742,7 +742,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // ⛔ It imports nothing from here, so there is no cycle: it returns refusal
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
-import { seriesWindowOf, WINDOW_READ_MEMBERS, spanOf, windowWriterStatements } from './arrayWindows.js'
+import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -7485,18 +7485,34 @@ export class Resolver {
     // model is the window as the BAR leaves it, served only where a read sees
     // exactly that; anywhere else this read — never the window — refuses.
     if (w.readVerdict) {
-      const why = w.readVerdict(this.windowReadPos(w, node, args))
-      if (why) {
+      const pos = this.windowReadPos(w, node, args)
+      const why = w.readVerdict(pos)
+      // ⭐⭐ C32 — ABOVE THE FIRST WRITER the array still holds LAST bar's
+      // elements, so its LENGTH there is last bar's length: the model one bar
+      // back (`sizePrev`). Only the length — a slot or a reduction read there
+      // keeps the refusal below.
+      if (why && member === 'size' && w.readAbove && w.readAbove(pos)) {
+        member = 'sizePrev'
+      } else if (why) {
         throw new PineRefusal('pine:collection',
           `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`,
           locate(node.tok))
       }
     }
+    // ⭐⭐ C32 — a read that is UNKNOWN on some bars (last bar's length on bar
+    // 0; the length of a window too wide to unroll before it fills) is served
+    // only where a drawing step can be withheld on those bars, memo or not.
+    const ambiguousRead = member === 'sizePrev' || (member === 'size' && w.sizeOnly)
+    if (ambiguousRead && !this.windowAmbiguity) {
+      throw new PineRefusal('pine:collection',
+        `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and its length here is `
+        + 'unknown on some bars, where only a drawing step can be withheld', locate(node.tok))
+    }
     // ⭐ C11c — a read that depends only on the window (its size, a fixed slot,
     // a reduction) resolves in the window's own scope, so it is the same tree
     // wherever it is read: built once per translation. A read with an operand
     // of its own (a series index, a search value) is not memoised.
-    const constIdx = (member === 'get' || member === 'sizeAtLeast' || member === 'sizeBelow')
+    const constIdx = (member === 'get' || member === 'sizeAtLeast' || member === 'sizeBelow' || member === 'slot')
       && args[1] && args[1].type === 'number' ? args[1].value : null
     const memoKey = member === 'indexof' || (member === 'get' && constIdx === null) ? null
       : `${member}:${constIdx === null ? '' : constIdx}`
@@ -7513,7 +7529,7 @@ export class Resolver {
       const tree = this.resolveWindowReadOnce(w, member, args, node)
       let key = null
       let amb = null
-      if ((REDUCTION_MEMBERS.has(member) || (w.doubles && w.sites && w.sites.length > 1)) && this.windowAmbiguity) {
+      if ((REDUCTION_MEMBERS.has(member) || ambiguousRead || (w.doubles && w.sites && w.sites.length > 1)) && this.windowAmbiguity) {
         try { key = printFormula(tree) } catch { key = null }
         amb = key === null ? null : this.windowAmbiguity.get(key) || null
       }
@@ -7588,8 +7604,14 @@ export class Resolver {
     const refuse = (why) => new PineRefusal('pine:collection',
       `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`, at)
     const sizeTest = member === 'sizeAtLeast' || member === 'sizeBelow'
-    if (!WINDOW_READ_MEMBERS.has(member) && !sizeTest) throw refuse(`\`array.${member}\` of one is not folded`)
+    if (!WINDOW_READ_MEMBERS.has(member) && !sizeTest && member !== 'slot' && member !== 'sizePrev') throw refuse(`\`array.${member}\` of one is not folded`)
     if (!w.env) throw refuse('it is read before the statement that fills it')
+    // ⭐⭐ C32 — A WINDOW WIDER THAN `MAX_WINDOW_CAP` (`arrayWindows.js`,
+    // `sizeOnly`) is read for its LENGTH only: every other read would unroll its
+    // slots past the cap, which stays where it is.
+    if (w.sizeOnly && member !== 'size' && member !== 'sizePrev' && !sizeTest) {
+      throw refuse(`a window of ${w.cap} slots is read only for its length — its elements would be unrolled past ${MAX_WINDOW_CAP} slots`)
+    }
     const T = (kind, value) => ({ kind, value, line: tok.line, column: tok.column, index: tok.index })
     const P = (v) => T('punct', v)
     const N = (n) => T('number', n)
@@ -7668,7 +7690,42 @@ export class Resolver {
       this.windowAmbiguity.set(key, resolveToks(doubleAmb))
       return tree
     }
+    // ⭐⭐ C32 — A LENGTH THAT IS UNKNOWN ON SOME BARS, registered with its
+    // ambiguity (`na` of the tree) so every drawing step that reads it is
+    // withheld there (`op.withhold`), never drawn off a guess:
+    //   * `sizeOnly` — a window too wide to unroll: its length is `cap` once the
+    //     cap-th most recent add exists, and unknown before (one `valuewhen`,
+    //     never a slot sum);
+    //   * `sizePrev` — above the first writer: the length one bar back, unknown
+    //     on the first bar (what the array held before it is not in the series).
+    const ambiguous = (toks) => {
+      if (sites && w.doubles) throw refuse('it is added to at two places that may run on one bar, and its length here is withheld per step')
+      const tree = resolveToks(toks)
+      if (!this.windowAmbiguity) throw refuse('its length here is unknown on some bars, where only a drawing step can be withheld')
+      let key = null
+      try { key = printFormula(tree) } catch { key = null }
+      if (key === null) throw refuse('a read of its length could not be registered with its ambiguity')
+      this.windowAmbiguity.set(key, resolveToks([I('na'), P('('), ...toks, P(')')]))
+      return tree
+    }
+    const lengthToks = () => (w.sizeOnly
+      ? [P('('), ...has(w.cap - 1), P('=='), N(1), P('?'), N(w.cap), P(':'), I('na'), P(')')]
+      : sizeToks())
+    if (member === 'size' && w.sizeOnly) return ambiguous(lengthToks())
+    if (member === 'sizePrev') return ambiguous([P('('), ...lengthToks(), P(')'), P('['), N(1), P(']')])
     if (member === 'size') return done(resolveToks(sizeToks()))
+    // ⭐⭐ C32 — ONE SLOT, NEWEST FIRST (`slot j` is the j-th most recent add),
+    // for a read whose Pine index is the LOOP COUNTER (`buildObjectProgram`'s
+    // `loopWindowGetOf`): the object runtime maps the pass's index onto a slot
+    // per pass (`{v:'wget'}`), so the slot trees are per BAR and the pick is per
+    // PASS. ⛔ A window two sites may both add to on one bar is refused here: its
+    // ambiguity is withheld per STEP, and a pass is not a step.
+    if (member === 'slot') {
+      const j = args[1] && args[1].type === 'number' ? args[1].value : null
+      if (!Number.isInteger(j) || j < 0 || j >= w.cap) throw refuse(`slot ${j} is outside its ${w.cap} slots`)
+      if (doubleAmb) throw refuse('it is added to at two places that may run on one bar, and a slot read by a loop counter cannot be withheld per pass')
+      return resolveToks(vw(value, j))
+    }
     if (sizeTest) {
       // ⭐ C22 — `windowSizeComparison`: the K-th most recent add exists.
       const K = args[1].value
@@ -14274,6 +14331,14 @@ function windowReadVerdict(m, stmts, writerStmts) {
   }
 }
 
+/** ⭐⭐ C32 — does a read at position `p` stand ABOVE the window's first
+ *  writing statement, where the array still holds last bar's elements? (Its
+ *  LENGTH there is the model one bar back — `Resolver` member `sizePrev`.) */
+function windowReadAbove(m, stmts) {
+  const firstFrom = spanOf(stmts[m.firstWriter]).from
+  return (p) => Number.isFinite(p) && p < firstFrom
+}
+
 /** ⭐ C21 — the opening clause of a refusal of an inlined function's own mutable
  *  local (`inlinedLocalBinding`); `noteGuardRefusal` names its subject. */
 const HELPER_LOCAL_CLAUSE = 'a function\'s own variable that changes while the function runs cannot be read '
@@ -14648,6 +14713,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         m.inline = true
         m.bodySpan = bodySpan
         m.readVerdict = windowReadVerdict(m, b.stmts, writers)
+        m.readAbove = windowReadAbove(m, b.stmts)
         vec.window = m
       }
     }
@@ -15925,6 +15991,101 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     return null
   }
 
+  /** ⭐⭐ C32 — `w.get(i)` / `array.get(w, i)` of a bounded WINDOW (`arrayWindows.js`)
+   *  whose index is the LOOP COUNTER, on the host lane → `{v:'wget'}`.
+   *
+   *  A tree is one value per BAR and the counter is one per PASS, so neither
+   *  side can say this alone: the window's newest-first slots are per-bar trees
+   *  (`Resolver` member `slot`), its length another, and the object runtime
+   *  picks the slot per pass by Pine's own index order (a push window's index 0
+   *  is its OLDEST element). ⛔ An index outside `0 … size − 1` is what Pine
+   *  stops the script on (`array.get`: index out of bounds) — the runtime says
+   *  so (`runtimeError`), never an `na` cell. Each slot and the length are read
+   *  where the call stands (`windowReadVerdict`), so a read the window model is
+   *  not exact at keeps its refusal. Anything else returns null. */
+  const loopWindowGetOf = (node) => {
+    if (!hostPasses || !node || node.type !== 'call' || !Array.isArray(node.args)) return null
+    let recvName = null
+    let idxNode = null
+    if (node.name === 'array.get') {
+      const [a0, a1] = node.args
+      if (node.args.length !== 2 || !a0 || !a1 || a0.name || a1.name || !a0.value || a0.value.type !== 'name') return null
+      recvName = a0.value.name
+      idxNode = a1.value
+    } else {
+      const mf = splitMethodName(String(node.name || ''))
+      if (!mf || mf.method !== 'get' || node.args.length !== 1 || node.args[0].name) return null
+      recvName = mf.recv
+      idxNode = node.args[0].value
+    }
+    if (!recvName || !idxNode || !mentionsLoop(idxNode)) return null
+    const k = loopArgRef(idxNode)
+    if (!k) return null
+    const r = makeResolver(scopeEnv)
+    const vec = r.windowVectorOf(recvName)
+    const w = vec && vec.window
+    if (!w) return null
+    const recv = { type: 'name', name: recvName, tok: node.tok }
+    try {
+      const size = w.fixed ? { v: 'const', value: w.cap } : internTree(r.resolveWindowRead(w, 'size', [recv], node))
+      const slots = []
+      for (let j = 0; j < w.cap; j += 1) {
+        slots.push(internTree(r.resolveWindowRead(w, 'slot', [recv, { type: 'number', value: j, tok: node.tok }], node)))
+      }
+      if (!size || slots.some((s) => !s)) return null
+      return { v: 'wget', order: w.order, args: [k, size, ...slots] }
+    } catch (err) {
+      lastCanonRefusal = err
+      return null
+    }
+  }
+  /** ⭐ C32 — a NUMBER that moves per pass: the counter's own arithmetic
+   *  (`loopArgRef`) or a window element picked by it, through a body local
+   *  (`lenBull = bullishCount.get(i)`) opened into its binding. */
+  const loopNumOf = (node, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name' && !loopIds.includes(node.name)) {
+      const opened = openName(node, scopeEnv, 0)
+      if (!opened) return null
+      const saved = scopeEnv
+      scopeEnv = opened.env
+      try { return loopNumOf(opened.node, depth + 1) } finally { scopeEnv = saved }
+    }
+    return loopWindowGetOf(node) || loopArgRef(node)
+  }
+  /** ⭐⭐ C32 — A TEXT THAT MOVES PER PASS, on the host lane: literals, `+`, and
+   *  `str.tostring(x [, "fmt"])` where `x` is a per-pass number (`loopNumOf`).
+   *  The number is formatted by the object runtime's `str.tostring` rules (the
+   *  ONE authority, as for `{t:'num'}`); a part that does not move per pass is
+   *  the ordinary text reader's. Anything else returns null and the slot keeps
+   *  its refusal (`loopValuesUnresolved`). */
+  const loopTextOf = (node, depth = 0) => {
+    if (!node || depth > 16) return null
+    if (node.type === 'string') return { t: 'lit', s: String(node.value) }
+    if (!mentionsLoop(node)) return textNodeOf(node, scopeEnv)
+    if (node.type === 'name' && !loopIds.includes(node.name)) {
+      const opened = openName(node, scopeEnv, 0)
+      if (!opened) return null
+      const saved = scopeEnv
+      scopeEnv = opened.env
+      try { return loopTextOf(opened.node, depth + 1) } finally { scopeEnv = saved }
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      const a = loopTextOf(node.left, depth + 1)
+      const b = a && loopTextOf(node.right, depth + 1)
+      return a && b ? { t: 'cat', args: [a, b] } : null
+    }
+    if (node.type === 'call' && (node.name === 'str.tostring' || node.name === 'tostring')
+        && Array.isArray(node.args) && node.args.length >= 1 && node.args.length <= 2
+        && node.args.every((a) => a && !a.name)) {
+      const fmtNode = node.args[1] && node.args[1].value
+      if (fmtNode && fmtNode.type !== 'string') return null
+      const v = loopNumOf(node.args[0].value)
+      if (!v) return null
+      return { t: 'val', v, ...(fmtNode ? { fmt: String(fmtNode.value) } : {}) }
+    }
+    return null
+  }
   const valueRef = (node, slot) => {
     if (!node) return null
     // ⭐⭐ ASKED BEFORE THE TEXT AND COLOUR SLOTS, DELIBERATELY. A cell whose
@@ -15935,6 +16096,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (loopIds.length && mentionsLoop(node)) {
       const r = loopArgRef(node)
       if (r) return r
+      // ⭐⭐ C32 — a TEXT that moves per pass (`loopTextOf`) is served on the host
+      // lane too: the per-bar parts are trees, the per-pass parts value refs the
+      // object runtime evaluates on each pass (`{t:'val'}`).
+      if (hostPasses && slot && TEXT_SLOTS.has(slot)) {
+        const lt = loopTextOf(node)
+        if (lt) return { v: 'text', node: lt }
+      }
       // ⭐⭐ THE PER-ROW CHANNEL. The address grammar above could not say this
       // value, so it becomes a TREE the caller evaluates once per iteration.
       // ⛔ A COLOUR SLOT IS STILL REFUSED. A colour node is its own grammar
@@ -17390,6 +17558,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const walkN = (t, d) => {
       if (!t || typeof t !== 'object' || d > 48) return
       if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) trees.add(t.tree)
+      if (t.t === 'val') walkV(t.v, d + 1)   // C32 — a per-pass number
       if (t.t === 'cat') (t.args || []).forEach((a) => walkN(a, d + 1))
       if (t.t === 'if' || t.c === 'if') { walkV(t.cond, d + 1); walkN(t.then, d + 1); walkN(t.else, d + 1) }
       // ⭐ C20 — a runtime colour, and `color.new(c, t)`.
@@ -18736,8 +18905,15 @@ function translatePineResult(source, opts = {}) {
     if (declared) return { refused: `its cap is the member input \`${nm}\`, which is set after this window is laid out` }
     // every mention of the name outside its own declaration must be a window's
     // length check: `….size() > nm` / `array.size(x) > nm`
-    const declStmt = stmts.find((s) => s.header && s.header[0] && String(s.header[0].value) === nm
-      && isPunct(s.header[1], '='))
+    // ⭐ C32 — the declaration may carry a type word (`int knnLen = input.int(…)`,
+    // artemis-oscillator-pro): the name is the first identifier before `=`, after
+    // any leading type words. ⚰️ Matching only `nm = …` counted a typed
+    // declaration as a stray read of its own cap and refused the window.
+    const declStmt = stmts.find((s) => {
+      const t = s.header || []
+      const i = t.findIndex((x) => x.kind === 'ident' && String(x.value) === nm)
+      return i >= 0 && i <= 3 && isPunct(t[i + 1], '=') && t.slice(0, i).every((x) => x.kind === 'ident')
+    })
     let stray = null
     const scan = (list) => {
       for (const s of list || []) {
@@ -18806,6 +18982,7 @@ function translatePineResult(source, opts = {}) {
     // label's text down with it, though those read the window where it is exact.
     const m = got.model
     m.readVerdict = windowReadVerdict(m, stmts, stmts.filter((s) => vec.writers.some((w) => w.stmt === s)))
+    m.readAbove = windowReadAbove(m, stmts)
     // a token inside a function DEFINITION is read at the call (`windowReadPos`)
     m.inDefinition = (p) => definitionSpans.some((s) => p >= s.from && p <= s.to)
     vec.window = m
