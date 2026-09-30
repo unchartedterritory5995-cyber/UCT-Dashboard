@@ -19432,14 +19432,19 @@ export default function StockChart({
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
       {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
-        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => (
+        && paneReadoutRows(crosshairData.chips, paneLayoutRef.current, chipPaneHost, cs).map((row) => {
+        // ⭐ ONE LOGICAL INDICATOR (a COT dataset) READS ON ONE LINE (owner,
+        // 2026-09-30): title, then each participant's name and value to its right,
+        // so the readout sits above the bars instead of stacking down over them.
+        const group = paneGroupOf(row.chips, cs)
+        return (
         <div
           key={row.key}
           ref={(el) => {
             const m = paneLegendRefs.current
             if (el) { m.set(row.key, el); pinPaneLegend(el, row.key) } else m.delete(row.key)
           }}
-          className={styles.paneLegend}
+          className={group ? `${styles.paneLegend} ${styles.paneLegendGroup}` : styles.paneLegend}
           data-pane-legend={row.key}
         >
           {/* ⭐⭐ LEGEND V2 — A PANE READOUT IS A STUDY STACK. Same component,
@@ -19453,19 +19458,16 @@ export default function StockChart({
               this pane belongs to the same instance group (a COT dataset's three
               participants), the group's name heads the stack once and the rows keep
               their short participant names. Any other pane is untouched. */}
-          {(() => {
-            const g = paneGroupOf(row.chips, cs)
-            return g ? (
-              <div className={styles.paneLegendTitle} data-pane-group-title={g.id}>
-                {g.name}
-                {g.note ? <span className={styles.paneLegendNote}>{g.note}</span> : null}
-              </div>
-            ) : null
-          })()}
+          {group ? (
+            <div className={styles.paneLegendTitle} data-pane-group-title={group.id}>
+              {group.name}
+              {group.note ? <span className={styles.paneLegendNote}>{group.note}</span> : null}
+            </div>
+          ) : null}
           {row.chips.map((c, ci) => (
             <LegendRow
               key={`${c.instanceId}::${c.plotKey}`}
-              vertical
+              vertical={!group}
               /* ⭐ SIBLING OUTPUTS OF ONE INSTANCE READ AS A GROUP (§7) — MACD
                  and SIG stack with the second indented, rather than as two
                  unrelated studies that happen to share a pane. Adjacency is the
@@ -19522,7 +19524,8 @@ export default function StockChart({
             />
           ))}
         </div>
-      ))}
+        )
+      })}
       {!disablePatterns && bars?.length > 0 && (
         <PatternOverlay
           chart={chartRef.current}

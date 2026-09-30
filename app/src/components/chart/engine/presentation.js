@@ -383,7 +383,11 @@ export function presentedPlot(plot, instance, ctx) {
   // nothing happen.
   if (!styleChanged && !sign && !look && !bar) return plot
   const next = { ...plot }
-  if (bar) next.bar = bar
+  // ⭐ A SIDE-BY-SIDE PARTICIPANT TAGS ITS OWN LATEST VALUE ON THE AXIS (owner,
+  // 2026-09-30). In a COT pane the guests would otherwise defer to the host and the
+  // scale would show Commercials alone; each of the three reads its own net
+  // contracts there. A plot-level answer outranks placement's (`pool.seriesOptionsForPlot`).
+  if (bar) { next.bar = bar; next.lastValueVisible = true }
   if (styleChanged) next.style = defStyle
   if (look) Object.assign(next, look)
   // Dots carry their size in `width`, because that is the field the `markers`
