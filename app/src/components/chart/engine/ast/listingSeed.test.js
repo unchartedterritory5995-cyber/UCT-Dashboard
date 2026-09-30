@@ -17,7 +17,7 @@
 import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine.js'
 import {
-  interpret, MAX_RECURRENCE_STEPS, isAmbiguousVarSeed, LISTING_MAX_GUARDED_READS,
+  interpret, MAX_RECURRENCE_STEPS, isAmbiguousVarSeed, ambiguousVarSeed, LISTING_MAX_GUARDED_READS,
 } from './interpret.js'
 
 const N = 420
@@ -154,6 +154,41 @@ describe('C12w — where the tree cannot settle bar 0, nothing is drawn that Pin
     expect(seeds.every(isAmbiguousVarSeed), 'the mixed seed lost its mark').toBe(true)
     const got = run(ast, { historyFromListing: true })
     expect(got.every(Number.isNaN), `a number reached bar ${got.findIndex((v) => !Number.isNaN(v))}`).toBe(true)
+  })
+
+  it('⛔ the MARKED seed is never read as the bare value — trusting it would DRAW a wrong number', () => {
+    // `var m = 5.0; m := close < 105 ? (nz(m) + close) / 2 : m[1]`: bare and
+    // unguarded-history, initializer 5 — the marked case. Bar 0 (close 100) takes
+    // the bare arm: Pine reads m = 5 there, so (5 + 100) / 2 = 52.5. The seed slot
+    // holds `na`; read as the bare value it would give (nz(na) + 100) / 2 = 50 —
+    // a confident wrong number. (The V06 fixture above cannot tell: its `f[2]` is
+    // unknown on bar 0 whatever the seed says.)
+    // The translator's convergence gate refuses this spelling, so the tree is written
+    // out as `varSeedOf` marks it: accum(-(0 / 0), close < 105 ? (nz(self, 0) + close) / 2 : self, W).
+    const self = { type: 'series', name: 'self' }
+    const close = { type: 'series', name: 'close' }
+    const ast = {
+      type: 'call', name: 'accum', args: [
+        ambiguousVarSeed(),
+        { type: 'op', name: '?:', args: [
+          { type: 'op', name: '<', args: [close, { type: 'num', value: 105 }] },
+          { type: 'op', name: '/', args: [{ type: 'op', name: '+', args: [{ type: 'call', name: 'nz', args: [self, { type: 'num', value: 0 }] }, close] }, { type: 'num', value: 2 }] },
+          self,
+        ] },
+        { type: 'num', value: W },
+      ],
+    }
+    let m = 5
+    let prev = NaN
+    const ref = CLOSE.map((c, i) => {
+      const v = c < 105 ? ((Number.isNaN(i === 0 ? m : prev) ? 0 : (i === 0 ? m : prev)) + c) / 2 : prev
+      prev = v
+      return v
+    })
+    expect(ref[0]).toBe(52.5)
+    const got = run(ast, { historyFromListing: true })
+    const wrong = got.findIndex((v, i) => Number.isFinite(v) && !same(v, ref[i]))
+    expect(wrong, `bar ${wrong}: drew ${got[wrong]} where Pine draws ${ref[wrong]}`).toBe(-1)
   })
 
   it('⛔ a counter that never forgets does NOT read bar_index: `accum(0, self + 1)` is two Pine spellings', () => {
