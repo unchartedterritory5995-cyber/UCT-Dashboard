@@ -897,12 +897,21 @@ PLANT_MISLABEL_JS = r"""() => {
 PLANT_RESTSCROLL_JS = r"""() => {
   const wrap = document.createElement('div'); wrap.setAttribute('data-proof-plant', 'restscroll');
   wrap.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:180px;overflow-y:auto;background:#fff;z-index:2;';
-  const spacerTop = document.createElement('div'); spacerTop.style.cssText = 'height:8px;';
+  // clearTarget sits mid-content (280px of spacer on BOTH sides) -- close to the top of the
+  // content, `block:'center'` cannot scroll PAST 0, so it can never move at all (the bug this
+  // fixture exists to catch: it read INVALID, `plant-scroll-clear` stuck OCCLUDED, measured
+  // live 2026-09-29). With room on both sides, centring genuinely relocates it.
+  const spacerTop = document.createElement('div'); spacerTop.style.cssText = 'height:280px;';
   const clearTarget = document.createElement('button'); clearTarget.type = 'button';
   clearTarget.setAttribute('aria-label', 'Planted scroll-clear target'); clearTarget.setAttribute('data-proof-control', 'plant-scroll-clear');
-  clearTarget.style.cssText = 'width:120px;height:44px;display:block;margin:4px;';
-  const spacerMid = document.createElement('div'); spacerMid.style.cssText = 'height:400px;';
-  wrap.appendChild(spacerTop); wrap.appendChild(clearTarget); wrap.appendChild(spacerMid);
+  clearTarget.style.cssText = 'width:120px;height:44px;display:block;margin:0;';
+  const spacerBottom = document.createElement('div'); spacerBottom.style.cssText = 'height:280px;';
+  wrap.appendChild(spacerTop); wrap.appendChild(clearTarget); wrap.appendChild(spacerBottom);
+  document.body.appendChild(wrap);
+  // start scrolled so clearTarget's CURRENT screen position sits under the fixed band below,
+  // with slack in both scroll directions -- `scrollIntoView({block:'center'})` then has
+  // somewhere real to move it to.
+  wrap.scrollTop = 270;
   const pinnedTarget = document.createElement('button'); pinnedTarget.type = 'button';
   pinnedTarget.setAttribute('aria-label', 'Planted pinned target'); pinnedTarget.setAttribute('data-proof-control', 'plant-scroll-pinned');
   pinnedTarget.style.cssText = 'position:fixed;left:8px;top:110px;width:120px;height:44px;z-index:1;';
@@ -910,7 +919,7 @@ PLANT_RESTSCROLL_JS = r"""() => {
   const bar = document.createElement('div'); bar.setAttribute('data-proof-control', 'plant-fixed-bar');
   bar.setAttribute('data-proof-plant', 'restscroll');
   bar.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:50px;background:rgba(0,0,0,.01);z-index:3;';
-  document.body.appendChild(wrap); document.body.appendChild(pinnedTarget); document.body.appendChild(bar);
+  document.body.appendChild(pinnedTarget); document.body.appendChild(bar);
   return true; }"""
 
 PLANT_AXE_JS = r"""(root) => {
