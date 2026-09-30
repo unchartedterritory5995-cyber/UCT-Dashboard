@@ -108,7 +108,9 @@ _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 # each line is a reason, with its kind first. `no-door` means a real saved object that
 # has no URL instruction to open it yet -- the next thing to build, not a wontfix.
 EXEMPT: dict[str, str] = {
-    "theme_sets": "no-door: a theme set has no URL instruction that opens it yet",
+    "theme_sets": "no-door: a theme set is a Themes-widget option on the /charts board "
+                  "(opts.themeSetId), not a page; a door needs ChartsWorkspace to find or "
+                  "add that widget first (build D, 2026-09-30, stopped here by choice)",
     "playbooks": "no-door: Journal 1.0 playbooks, a retired surface with no route that opens one",
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
     "upb_entries": "no-door: user playbook entries have no URL instruction yet",
