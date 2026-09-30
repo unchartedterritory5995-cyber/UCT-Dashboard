@@ -313,7 +313,9 @@ def control_ok(sweep: str, got: dict) -> tuple[bool, str]:
         want = {"plant-swallow:500": "SILENT", "plant-swallow:offline": "SILENT",
                 "plant-honest:500": "SENTENCE", "plant-honest:offline": "SENTENCE"}
     elif sweep == "geometry":
-        want = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found"}
+        want = {"plant-wide": "found", "plant-small": "found", "plant-covered": "found",
+                "plant-mislabel": "named-the-real-occluder", "plant-scroll-clear": "CLEAR",
+                "plant-scroll-pinned": "OCCLUDED"}
     elif sweep == "axe":
         want = {"color-contrast": "found", "button-name": "found"}
     elif sweep == "census":
@@ -613,6 +615,44 @@ GEOM_JS = r"""() => {
     return 'app-chrome';
   };
   const clipsX = (cs) => ['hidden', 'auto', 'scroll', 'clip'].includes(cs.overflowX);
+  // ⛔ wave 10 lane WK3, fix 1 (found by lane FX): `hit.closest('...,section,aside,div')`
+  // climbed from a non-matching hit (e.g. MobileNav's <header>, not itself a div) up through
+  // EVERY intervening div, including a full-viewport app-shell wrapper -- and `desc()` reads
+  // an ancestor's `.innerText`, the FIRST rendered line of its WHOLE subtree, which for that
+  // wrapper is a portaled skip link's own text (off-screen via `top:-9999px`, but `innerText`
+  // does not consider off-screen positioning, only display/visibility). The skip link was
+  // blamed for occlusions it never causes. Fix: only accept a candidate ancestor whose OWN
+  // bounding box is not (near-)viewport-spanning -- a genuine popup/card is far smaller than
+  // the page; the app shell is not. A rejected candidate falls back to naming HIT itself.
+  const viewportArea = vw * vh;
+  const tightOccluderAncestor = (hit) => {
+    for (let a = hit; a && a !== document.body; a = a.parentElement) {
+      if (!(a.matches && a.matches('[role=dialog],[role=tooltip],[role=status],[role=menu],[role=listbox],[data-proof-popup],section,aside,div'))) continue;
+      const r = a.getBoundingClientRect();
+      if (r.width * r.height > 0 && r.width * r.height <= viewportArea * 0.85) return a;
+    }
+    return hit;
+  };
+  // ⛔ wave 10 lane WK3, fix 2 (controller ruling, "at rest" semantics): a control that sits
+  // under FIXED/STICKY chrome (the voice orb, the Log-Trade FAB, a sticky header) mid-scroll
+  // is not a layout regression BY ITSELF -- a floating element always covers something while
+  // the page is mid-scroll. `canEscapeByScroll(el)` answers whether EL has anywhere to go: a
+  // control that is itself fixed/sticky, or trapped inside fixed/sticky chrome with no
+  // scrollable ancestor before it, cannot move -- an overlap there IS a real finding. A
+  // control with a genuine scrollable ancestor (even one nested inside fixed-positioned
+  // chrome, like a panel with its own scrollbar) CAN be brought clear.
+  const isFixedOrSticky = (el) => { const p = getComputedStyle(el).position; return p === 'fixed' || p === 'sticky'; };
+  const canEscapeByScroll = (el) => {
+    if (isFixedOrSticky(el)) return false;
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if ((cs.overflowY === 'auto' || cs.overflowY === 'scroll') && a.scrollHeight > a.clientHeight + 1) return true;
+      if (cs.position === 'fixed' || cs.position === 'sticky') return false;
+    }
+    const m = document.querySelector('main');
+    if (m && m.contains(el) && m.scrollHeight > m.clientHeight + 10) return true;
+    return document.scrollingElement.scrollHeight > innerHeight + 10;
+  };
   const res = {vw, vh, docScrollW: de.scrollWidth, docClientW: de.clientWidth, pageScrollers: [], offenders: [], controls: []};
   const main = document.querySelector('main');
   if (main) {
@@ -702,19 +742,37 @@ GEOM_JS = r"""() => {
     if (inViewport) {
       const pts = [[cx, cy], [b.x + b.width * 0.2, b.y + b.height * 0.25], [b.x + b.width * 0.8, b.y + b.height * 0.25],
                    [b.x + b.width * 0.2, b.y + b.height * 0.75], [b.x + b.width * 0.8, b.y + b.height * 0.75]];
-      let covered = 0, centerCovered = false, occ = null;
+      let covered = 0, centerCovered = false, occ = null, occHitEl = null;
       pts.forEach(([x, y], i) => {
         if (x < 0 || y < 0 || x > vw || y > vh) return;
         const hit = document.elementFromPoint(x, y);
         if (!hit || hit === el || el.contains(hit) || hit.contains(el)) return;
         if (hit.closest('[data-proof-ignore]')) return;
         covered++; if (i === 0) centerCovered = true;
-        if (!occ) { occ = desc(hit.closest('[role=dialog],[role=tooltip],[role=status],section,aside,div') || hit);
+        if (!occ) { occ = desc(tightOccluderAncestor(hit));
+                    occHitEl = hit;
                     c.occluderHit = desc(hit);
                     c.occluderPopup = !!(hit.closest('[data-proof-popup]') && !el.closest('[data-proof-popup]'));
                     c.occluderModal = !!(hit.closest('[aria-modal="true"]') || (hit.querySelector && hit.querySelector('[aria-modal="true"]'))); }
       });
       c.coveredPoints = covered; c.centerCovered = centerCovered; c.occluder = occ;
+      // fix 2: an occluder that is fixed/sticky chrome gets one more chance -- scroll EL to the
+      // centre of its own scroller (if it has one to escape into) and look again. Restore the
+      // scroll position immediately after so later controls in this same pass are unaffected.
+      if (occ && (centerCovered || covered >= 3) && occHitEl && isFixedOrSticky(occHitEl) && canEscapeByScroll(el)) {
+        const savedX = window.scrollX, savedY = window.scrollY;
+        const savedTops = [];
+        for (let a = el.parentElement; a; a = a.parentElement) savedTops.push([a, a.scrollTop]);
+        el.scrollIntoView({block: 'center', inline: 'nearest'});
+        const b2 = el.getBoundingClientRect();
+        const cx2 = b2.x + b2.width / 2, cy2 = b2.y + b2.height / 2;
+        const hit2 = (cx2 >= 0 && cy2 >= 0 && cx2 <= vw && cy2 <= vh) ? document.elementFromPoint(cx2, cy2) : null;
+        const stillCovered = !!(hit2 && hit2 !== el && !el.contains(hit2) && !hit2.contains(el) && !hit2.closest('[data-proof-ignore]'));
+        c.restScrollClear = !stillCovered;
+        if (!stillCovered) { c.centerCovered = false; c.coveredPoints = 0; c.occluder = null; }
+        for (const [a, top] of savedTops) a.scrollTop = top;
+        window.scrollTo(savedX, savedY);
+      }
     }
     res.controls.push(c);
   }
@@ -812,6 +870,57 @@ WIDE_REACHABLE_JS = r"""() => {
     if ((cs.overflowX === 'auto' || cs.overflowX === 'scroll') && a.scrollWidth > a.clientWidth + 1) return true;
   }
   return false; }"""
+
+# CONTROL for fix 1 (occluder mislabel): a wrapper whose FIRST child is off-screen text,
+# containing a full-viewport HEADER (never matched by 'div', so the OLD code climbed past it)
+# that covers a planted target. The correct occluder description must name the header (or at
+# least never quote the decoy text) -- reproduces the exact shape lane FX measured live.
+PLANT_MISLABEL_JS = r"""() => {
+  const wrap = document.createElement('div'); wrap.setAttribute('data-proof-plant', 'mislabel');
+  wrap.style.cssText = 'position:fixed;inset:0;pointer-events:none;';
+  const target = document.createElement('button'); target.type = 'button';
+  target.setAttribute('aria-label', 'Planted mislabel target'); target.setAttribute('data-proof-control', 'plant-mislabel-target');
+  target.style.cssText = 'position:fixed;left:50%;top:50%;width:120px;height:44px;pointer-events:auto;z-index:1;';
+  const decoy = document.createElement('span'); decoy.textContent = 'Off-screen decoy text';
+  decoy.style.cssText = 'position:absolute;top:-9999px;left:-9999px;';
+  const occ = document.createElement('header'); occ.setAttribute('data-proof-control', 'plant-mislabel-occluder');
+  occ.style.cssText = 'position:fixed;inset:0;pointer-events:auto;z-index:2;';
+  wrap.appendChild(target); wrap.appendChild(decoy); wrap.appendChild(occ);
+  document.body.appendChild(wrap); return true; }"""
+
+# CONTROL for fix 2 (at-rest semantics): `plant-fixed-bar` is a FIXED band pinned over a small
+# scrollable panel's own top edge. `plant-scroll-clear` starts under that band but lives in the
+# panel's OWN internal scroller, so centring it moves it clear -- must read CLEAR (the same
+# shape as the voice orb passing over content mid-scroll). `plant-scroll-pinned` starts under
+# the identical band but is ITSELF position:fixed with nothing to scroll it into -- must stay
+# OCCLUDED, proving the fix does not turn every fixed-chrome overlap into a false negative.
+PLANT_RESTSCROLL_JS = r"""() => {
+  const wrap = document.createElement('div'); wrap.setAttribute('data-proof-plant', 'restscroll');
+  wrap.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:180px;overflow-y:auto;background:#fff;z-index:2;';
+  // clearTarget sits mid-content (280px of spacer on BOTH sides) -- close to the top of the
+  // content, `block:'center'` cannot scroll PAST 0, so it can never move at all (the bug this
+  // fixture exists to catch: it read INVALID, `plant-scroll-clear` stuck OCCLUDED, measured
+  // live 2026-09-29). With room on both sides, centring genuinely relocates it.
+  const spacerTop = document.createElement('div'); spacerTop.style.cssText = 'height:280px;';
+  const clearTarget = document.createElement('button'); clearTarget.type = 'button';
+  clearTarget.setAttribute('aria-label', 'Planted scroll-clear target'); clearTarget.setAttribute('data-proof-control', 'plant-scroll-clear');
+  clearTarget.style.cssText = 'width:120px;height:44px;display:block;margin:0;';
+  const spacerBottom = document.createElement('div'); spacerBottom.style.cssText = 'height:280px;';
+  wrap.appendChild(spacerTop); wrap.appendChild(clearTarget); wrap.appendChild(spacerBottom);
+  document.body.appendChild(wrap);
+  // start scrolled so clearTarget's CURRENT screen position sits under the fixed band below,
+  // with slack in both scroll directions -- `scrollIntoView({block:'center'})` then has
+  // somewhere real to move it to.
+  wrap.scrollTop = 270;
+  const pinnedTarget = document.createElement('button'); pinnedTarget.type = 'button';
+  pinnedTarget.setAttribute('aria-label', 'Planted pinned target'); pinnedTarget.setAttribute('data-proof-control', 'plant-scroll-pinned');
+  pinnedTarget.style.cssText = 'position:fixed;left:8px;top:110px;width:120px;height:44px;z-index:1;';
+  pinnedTarget.setAttribute('data-proof-plant', 'restscroll');
+  const bar = document.createElement('div'); bar.setAttribute('data-proof-control', 'plant-fixed-bar');
+  bar.setAttribute('data-proof-plant', 'restscroll');
+  bar.style.cssText = 'position:fixed;left:8px;top:100px;width:220px;height:50px;background:rgba(0,0,0,.01);z-index:3;';
+  document.body.appendChild(pinnedTarget); document.body.appendChild(bar);
+  return true; }"""
 
 PLANT_AXE_JS = r"""(root) => {
   const R = (root && document.querySelector(root)) || document.body;
@@ -1768,6 +1877,40 @@ def geometry_sweep(W: World, only: list[str]) -> dict:
             got["plant-small"] = f"{'missed' if want_small else 'wrongly flagged'} at {w}"
         if not covered:
             got["plant-covered"] = f"missed at {w}"
+
+    # CONTROL for fix 1 (occluder mislabel) and fix 2 (at-rest semantics), each plant read in
+    # ISOLATION (sequentially unplanted before the next) so neither's full-viewport fixed
+    # element can shadow the other's occluder.
+    pg, tap, root, acct = open_surface(W, surface_by_id("nb-list"), "desktop")
+    try:
+        pg.evaluate(PLANT_MISLABEL_JS)
+        pg.wait_for_timeout(200)
+        g1 = pg.evaluate(GEOM_JS)
+        pg.evaluate(UNPLANT_JS, "mislabel")
+        pg.wait_for_timeout(200)
+        pg.evaluate(PLANT_RESTSCROLL_JS)
+        pg.wait_for_timeout(200)
+        g2 = pg.evaluate(GEOM_JS)
+        pg.evaluate(UNPLANT_JS, "restscroll")
+    finally:
+        pg.close()
+    by_name1 = {c.get("name"): c for c in g1.get("controls", [])}
+    mislabel = by_name1.get("Planted mislabel target")
+    occ_desc = (mislabel or {}).get("occluder") or ""
+    if mislabel is None:
+        got["plant-mislabel"] = "control not found"
+    elif "decoy" in occ_desc.lower():
+        got["plant-mislabel"] = f"named the decoy: {occ_desc!r}"
+    elif "plant-mislabel-occluder" not in occ_desc:
+        got["plant-mislabel"] = f"named neither the decoy nor the real occluder: {occ_desc!r}"
+    else:
+        got["plant-mislabel"] = "named-the-real-occluder"
+
+    def _geo_verdict(c):
+        return "OCCLUDED" if (c and c.get("occluder") and (c.get("centerCovered") or c.get("coveredPoints", 0) >= 3)) else "CLEAR"
+    by_name2 = {c.get("name"): c for c in g2.get("controls", [])}
+    got["plant-scroll-clear"] = _geo_verdict(by_name2.get("Planted scroll-clear target"))
+    got["plant-scroll-pinned"] = _geo_verdict(by_name2.get("Planted pinned target"))
     ok, why = control_ok("geometry", got)
     out["controls"] = {"got": got, "ok": ok, "why": why, "rows": ctl_rows}
     say(f"[{'VALID' if ok else 'INVALID'}] geometry control: {why}")
@@ -2156,6 +2299,22 @@ def _act_click(name, exact=True):
     return act
 
 
+def _act_more_menu_click(name, exact=True):
+    """Like `_act_click`, but for a WRITE_ACTIONS entry whose button lives in the editor's
+    "More note actions" overflow (NoteMoreMenu.jsx) rather than on the bare note page --
+    Lock/Archive/Save as template, same as `f_note_btn`/`f_save_template` in the census sweep
+    (clause 5d, wave 10 lane WK3). `surface_by_id("nb-note").open()` is `s_note`, which never
+    opens that menu, so a bare `_act_click` timed out waiting for a button that was never
+    shown -- the 5d README's "lock"/"archive"/"save-template" UNREACHED writes. Not a feature's
+    own door (mirrors `open_more_note_actions`' own contract): opening the menu is not the write
+    itself, so a write that genuinely disappeared from the menu still reads UNREACHED here, not
+    silently NO-WRITE."""
+    def act(W, pg):
+        open_more_note_actions(pg)
+        press(pg, pg.get_by_role("button", name=name, exact=exact).first)
+    return act
+
+
 def _act_type(W, pg):
     _editor_end(pg)
     pg.keyboard.type(" proof words typed", delay=20)
@@ -2187,9 +2346,9 @@ WRITE_ACTIONS = (
     ("save-body", "nb-note", _act_type),
     ("add-tag", "nb-note", _act_tag),
     ("favorite", "nb-note", _act_click("Add to Favorites")),
-    ("lock", "nb-note", _act_click("Lock")),
-    ("archive", "nb-note", _act_click("Archive")),
-    ("save-template", "nb-note", _act_click("Save as template")),
+    ("lock", "nb-note", _act_more_menu_click("Lock")),
+    ("archive", "nb-note", _act_more_menu_click("Archive")),
+    ("save-template", "nb-note", _act_more_menu_click("Save as template")),
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),
@@ -3476,11 +3635,25 @@ def findings_count(sweep: str, out: dict) -> int:
     raise ValueError(f"no finding count defined for {sweep!r}")
 
 
+def _axe_core_path() -> Path:
+    """The repo's exact-pinned axe-core build (`app/package.json`'s `axe-core` devDependency,
+    checked by `test_axe_is_the_repo_s_exact_pin`). `NOTEBOOK_PROOF_WALK_AXE_CORE` is a
+    read-only escape hatch for a worktree whose `app/node_modules` is a JUNCTION into another
+    lane's install that predates axe-core's introduction to this program (wave 10 lane WK3,
+    measured live: the junction target had no `axe-core` directory at all, so EVERY sweep --
+    not just axe -- failed before seeding, since this path is read unconditionally at the top
+    of `run_sweeps`). Never written by this tool. Unset (the default, every other worktree
+    whose junction already carries the pin) resolves the identical path as before."""
+    override = os.environ.get("NOTEBOOK_PROOF_WALK_AXE_CORE")
+    return Path(override) if override else REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+
+
 def run_sweeps(base: str, art: Path, sweeps: list[str], only: list[str]) -> None:
     from playwright.sync_api import sync_playwright
-    axe_path = REPO / "app" / "node_modules" / "axe-core" / "axe.min.js"
+    axe_path = _axe_core_path()
     axe_src = axe_path.read_text(encoding="utf-8")
-    res["axe_core"] = {"path": str(axe_path.relative_to(REPO)), "bytes": len(axe_src)}
+    axe_rel = str(axe_path.relative_to(REPO)) if REPO in axe_path.resolve().parents else str(axe_path)
+    res["axe_core"] = {"path": axe_rel, "bytes": len(axe_src)}
     with sync_playwright() as p:
         browser = p.chromium.launch()
         W = World(browser, base, art)
