@@ -77,8 +77,17 @@ const CASES = [
   // as the two Pine operations it is — the delete AND the pop — so each of its
   // six lost deletes brings its lost pop with it (`guard:coll_pop`, six more
   // steps attempted and dropped). Same verdict: partial, drawn.
+  // 147 of 215 since C11b (2026-09-29): its `_ph` / `_pl` arrays are read as the
+  // one-slot windows they are, so the current-chart levels become readable —
+  // the six lines, their deletes and pops, and the PDH / PDL labels are drawn
+  // (the vendor rail vendorHarness.c11bHtfLiquidity pins them id for id). The
+  // total rises by 12: steps this reader could not see before are counted now,
+  // the six list `unshift`s among them (carried, not dropped). What is
+  // still dropped is the other symbols' rows (`guard:cell`, and `cell:text` for
+  // cells whose guard now reads but whose text does not). Same verdict:
+  // partial, drawn.
   { cls: 'partial objects-only, lost deletes remove nothing drawn', script: 'htf-liquidity-dashboard-tfo__ec8f8316a4',
-    objectsOnly: true, kind: 'partial', text: partial(195, 203) },
+    objectsOnly: true, kind: 'partial', text: partial(147, 215) },
   // ⭐ C16 (2026-09-29) — the corpus's bounded-eviction idiom, served whole:
   // `if array.size(rays) > maxRays` + `line.delete(array.shift(rays))`. This row
   // was the 'removal lost: a delete' fixture until the shift became a readable

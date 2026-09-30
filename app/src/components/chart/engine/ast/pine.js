@@ -739,6 +739,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // ⛔ It imports nothing from here, so there is no cycle: it returns refusal
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
+import { seriesWindowOf, WINDOW_READ_MEMBERS } from './arrayWindows.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -7048,6 +7049,61 @@ export class Resolver {
     return n
   }
 
+  /** ⭐⭐ C11b — one read of a bounded window (`arrayWindows.js`), as a series.
+   *
+   *  Slot j, newest first, is `ta.valuewhen(cond, value, j)`: the value added on
+   *  the j-th most recent bar the add's conditions held (each read as Pine's
+   *  `if` reads it — `na` is false). A slot the window has not filled yet is
+   *  `na`, which is also what a sized creation holds there. Built as Pine and
+   *  resolved by THIS resolver in the scope the add stood in, so the value and
+   *  the conditions mean exactly what they meant at the write. */
+  resolveWindowRead(w, member, args, node) {
+    const tok = node.tok || {}
+    const at = locate(node.tok)
+    const refuse = (why) => new PineRefusal('pine:collection',
+      `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`, at)
+    if (!WINDOW_READ_MEMBERS.has(member)) throw refuse(`\`array.${member}\` of one is not folded`)
+    if (!w.env) throw refuse('it is read before the statement that fills it')
+    const T = (kind, value) => ({ kind, value, line: tok.line, column: tok.column, index: tok.index })
+    const P = (v) => T('punct', v)
+    const cond = []
+    for (const g of w.guards) {
+      if (cond.length) cond.push(T('ident', 'and'))
+      cond.push(P('('), T('ident', 'na'), P('('), ...g, P(')'), P('?'), T('number', 0), P(':'), P('('), ...g, P(')'), P(')'))
+    }
+    if (!cond.length) cond.push(T('number', 1))
+    const vw = (src, j) => [T('ident', 'ta.valuewhen'), P('('), ...cond, P(','), P('('), ...src, P(')'), P(','), T('number', j), P(')')]
+    const has = (j) => [P('('), T('ident', 'not'), T('ident', 'na'), P('('), ...vw([T('number', 1)], j), P(')'), P('?'), T('number', 1), P(':'), T('number', 0), P(')')]
+    const resolveToks = (toks) => {
+      const prev = this.env
+      this.env = w.env
+      try { return this.resolve(parseWholeExpression(toks)) } finally { this.env = prev }
+    }
+    if (member === 'size') {
+      if (w.fixed) return cNum(w.cap)
+      const sum = []
+      for (let j = 0; j < w.cap; j += 1) { if (j) sum.push(P('+')); sum.push(...has(j)) }
+      return resolveToks(sum)
+    }
+    // newest-first slot for an index counted the way Pine counts it (from index 0).
+    let j = null
+    if (member === 'get') {
+      const idx = args[1] ? this.resolve(args[1]) : null
+      if (!idx || idx.type !== 'num' || !Number.isInteger(idx.value)) throw refuse('its index is not a whole number fixed before the chart runs')
+      if (idx.value < 0 || idx.value >= w.cap) throw refuse(`index ${idx.value} is outside its ${w.cap} slots`)
+      if (w.order === 'unshift') j = idx.value
+      else if (w.fixed) j = w.cap - 1 - idx.value
+    } else if (member === 'first') {
+      if (w.order === 'unshift') j = 0
+      else if (w.fixed) j = w.cap - 1
+    } else if (member === 'last') {
+      if (w.order === 'push') j = 0
+      else if (w.fixed) j = w.cap - 1
+    }
+    if (j === null) throw refuse(`\`array.${member}\` counts from its OLDEST slot, whose place moves as the window fills`)
+    return resolveToks(vw(w.value, j))
+  }
+
   resolveVectorRead(name, node) {
     const member = name.slice('array.'.length)
     const args = (node.args || []).filter((a) => !a.name)
@@ -7065,6 +7121,11 @@ export class Resolver {
     const vec = head && head.type === 'bound'
       ? head.binding
       : (headName ? this.env.get(headName) : null)
+    // ⭐⭐ C11b — A BOUNDED WINDOW IS READ AS THE SERIES IT IS, in the OBJECT pass
+    // only (a drawing's reads). See `arrayWindows.js`.
+    if (this.objectPass && vec && vec.kind === 'vector' && vec.window) {
+      return this.resolveWindowRead(vec.window, member, args, node)
+    }
     // ⛔ THE READ RAIL (F2's other half). A name read as an array that has no
     // recorded creation is a GUARD, never `na`: a silent `na` from a read that
     // SUCCEEDED is indistinguishable from a member's own empty array.
@@ -8425,6 +8486,19 @@ export class Resolver {
     }
     if (ns === 'input' || name === 'input') return this.resolveInput(node)
 
+    // ⭐⭐ C11b — `w.size()` / `w.get(0)` ON A BOUNDED WINDOW is `array.size(w)`,
+    // read before the type guard below mistakes the receiver for a user type.
+    if (this.objectPass && ns !== 'array') {
+      const mf = splitMethodName(name)
+      const recv = mf ? this.env.get(mf.recv) : null
+      if (mf && recv && recv.kind === 'vector' && recv.window && !this.shadowedByDefinition(mf.method)) {
+        return this.resolveVectorRead(`array.${mf.method}`, {
+          ...node,
+          name: `array.${mf.method}`,
+          args: [{ name: null, value: { type: 'name', name: mf.recv, tok: node.tok } }, ...(node.args || [])],
+        })
+      }
+    }
     const asType = this.typeRefusalFor(name, node.tok)
     if (asType) throw asType
 
@@ -12811,6 +12885,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (prior.kind === 'state') {
         env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
         ctx.consumed.add(toks[mut].index)
+        // ⭐ C11b — the state path records too; the expression path below always did.
+        record(st, nameTok.value)
         i += 1
         continue
       }
@@ -13060,6 +13136,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // `pine:undefined`. That is a loud refusal, which is the right direction — a
   // silently wrong number is the one outcome this seam must not produce.
   const rawTrees = objectOpts.rawTrees === true
+  const approxRecords = objectOpts.approxRecords || new Set()
   // ⭐⭐ PER-ITERATION TREES. Off, a counter-dependent value is REFUSED (the
   // safe answer, and what every caller without a runtime lane must get). On,
   // it becomes a tree the caller promises to evaluate ONCE PER ITERATION — a
@@ -14810,7 +14887,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   }
   /** Does this READER body (nested loops included) change collection `id`'s
    *  length — a push, remove, shift, pop or clear on it? */
-  const LENGTH_CHANGING = new Set(['coll_push', 'coll_remove', 'coll_shift', 'coll_pop', 'coll_clear'])
+  const LENGTH_CHANGING = new Set(['coll_push', 'coll_unshift', 'coll_remove', 'coll_shift', 'coll_pop', 'coll_clear'])
   const bodyChangesLength = (body, id) => (body || []).some((b) => !!b
     && ((LENGTH_CHANGING.has(b.k) && collId.get(b.coll) === id)
       || (b.k === 'loop' && bodyChangesLength(b.body, id))))
@@ -14865,6 +14942,10 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // read whose position this pass cannot place.
   const envLog = objectOpts.envLog || null
   const walkStarts = objectOpts.walkStarts || []
+  /** ⭐ C11b — the walk's own top-level statements. A name bound or rebound AT
+   *  the top level is answered by position (`bindingAt`); only what happens
+   *  INSIDE an op's own statement comes from the op's block scope. */
+  const topStatements = objectOpts.topStatements || null
   /** The walk statement a token sits in → `{k, next}` (its start, the next
    *  statement's start), or null. */
   const stmtKeyOf = (tok) => {
@@ -14944,8 +15025,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         let at = null
         if (!ws.length) at = key.next
         else if (rs.some((r) => r === null) || ws.some((w) => w.index === null)) at = null
-        else if (rs.every((r) => ws.every((w) => r < w.index))) at = key.k
-        else if (rs.every((r) => ws.every((w) => r > w.index))) at = key.next
+        // ⭐⭐ C11b — A WRITE INSIDE THE OP'S OWN STATEMENT IS READ WHERE IT
+        // STANDS, not by the statement's two ends. The op starts from the name as
+        // the statement BEGAN (`bindingAt(nm, key.k)`), and every write the op's
+        // own block path has already run is an entry in its block scope, applied
+        // over this in program order (`scopeFor`): a read above the write sees the
+        // start, a read below it sees the write, a guard sees the scope its `if`
+        // stood in, and an `else` arm never sees the `if` arm's writes. A write
+        // this pass cannot record is an entry refused by name there.
+        else at = key.k
         if (at === null) { stale.push(nm); continue }
         const b = bindingAt(nm, at)
         if (b !== env.get(nm)) overrides.set(nm, b)
@@ -15020,7 +15108,19 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return null
   }
 
-  const guardOf = (guards) => {
+  // ⭐⭐ C11b — EACH CONDITION IS READ IN THE SCOPE ITS `if` STOOD IN (`g.locals`,
+  // stamped by `collectObjectOps`), never the op's: a block may reassign a name
+  // its own condition read, and Pine evaluated that condition once, before the
+  // block ran. The op's scope (`scopeEnv`) is restored whatever happens.
+  const guardOf = (guards, op) => {
+    const opScope = scopeEnv
+    try {
+      return guardOfIn(guards, opScope, op)
+    } finally {
+      scopeEnv = opScope
+    }
+  }
+  const guardOfIn = (guards, opScope, op) => {
     let acc = null
     let lastBarOnly = false
     let requiresLive = null
@@ -15028,6 +15128,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     /** ⭐ The conjuncts that read object state (see `liftLive`), in order. */
     const liveParts = []
     for (const g of guards) {
+      scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
       try { node = parseWholeExpression(g.toks) } catch { return undefined }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
@@ -15304,9 +15405,15 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         scoped.set(b.name, inlinedLocalBinding(b, scoped))
         continue
       }
+      // ⭐⭐ C11b — A TOP-LEVEL STATEMENT'S BINDING IS THE BASE'S TO GIVE. The
+      // base reads every top-level name at the op's own position (`bindingAt`);
+      // an entry keyed on a top-level statement would pin the name to that
+      // statement's record instead — a declaration read after its own `:=` was
+      // exactly that (`x = 1.0` / `x := 2.0` drew "1").
+      if (topStatements && envLog && topStatements.has(b.st)) continue
       const byName = bindingByStatement && b.st ? bindingByStatement.get(b.st) : null
       const bound = byName ? byName.get(b.name) : null
-      // ⛔⛔ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED STAYS CONDEMNED HERE.
+      // ⚰️ A BINDING THE REASSIGNMENT OVERRULE CONDEMNED USED TO STAY CONDEMNED HERE.
       // After the walk, every name with a `:=` the fold never consumed is forced
       // opaque on `env` ("the binding the walk DID produce would be a lie about
       // that name"). The per-statement record was taken BEFORE that overrule, so
@@ -15314,12 +15421,30 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       // `poor-man039s-volume-profile`, `row0_text = ""` then
       // `for … row0_text := row0_text + "#"` drew its label with the text "" —
       // TradingView draws `####…`. The overrule's verdict wins.
+      // ⭐⭐ C11b — …UNLESS THE RECORD IS EXACT AT ITS OWN POSITION. Every
+      // statement that reassigns a name is an entry in this scope, in program
+      // order (a loop's or a fold-refused write as a refused entry, below), so a
+      // record the walk made for THIS statement is what the name holds here even
+      // when the name is condemned for a write elsewhere. Only an APPROXIMATE
+      // record (`approxRecords`, a nested block re-folded from its parent's end
+      // state) keeps the condemnation.
       const top = base.get(b.name)
-      if (bound && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
+      if (bound && approxRecords.has(bound) && top && top.kind === 'opaque' && top.guard === 'pine:reassign') {
         scoped.set(b.name, top)
         continue
       }
       if (bound) { scoped.set(b.name, bound); continue }
+      if (b.reassign && b.st && !b.st.synthetic) {
+        scoped.set(b.name, {
+          kind: 'opaque',
+          guard: 'pine:reassign',
+          message: `${REFUSALS['pine:reassign']} — \`${b.name}\` changes at line `
+            + `${b.st.header && b.st.header[0] ? b.st.header[0].line : '?'} in a way this reader `
+            + 'cannot follow, so what it holds after that is not known here',
+          at: b.st.header && b.st.header[0] ? locate(b.st.header[0]) : null,
+        })
+        continue
+      }
       // ⛔ A MISS IS ONLY A MISS IF NOTHING AT ALL BOUND THE NAME. ⚰️ R2 step 3
       // widened what the collector records (typed declarations, `:=` targets),
       // and the counter promptly read 98 over 14 names — every one of them a
@@ -15421,7 +15546,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     diagnostics.attemptedOps += 1
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
-    const g = guardOf(op.guards)
+    const g = guardOf(op.guards, op)
     if (g === undefined) {
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
@@ -15688,6 +15813,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const value = targetRef(op.args[0])
         if (!value) { lostColl(op.coll); dropped('coll:push'); continue }
         ops.push({ k: 'push', coll: id, value, when, ...lastBarOnly })
+      } else if (method === 'unshift') {
+        // ⭐ C11b — the add at the FRONT; every slot after it moves up one.
+        const value = targetRef(op.args[0])
+        if (!value) { lostColl(op.coll); dropped('coll:unshift'); continue }
+        ops.push({ k: 'push', front: true, coll: id, value, when, ...lastBarOnly })
       } else if (method === 'set') {
         const index = op.args[0] ? liveOrValueRef(op.args[0].value) : null
         const value = targetRef(op.args[1])
@@ -15734,7 +15864,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const stateGuard = (op.guards || []).some((gd) => {
       try { return readsState(parseWholeExpression(gd.toks)) } catch { return true }
     })
-    const g = value && !stateGuard ? guardOf(op.guards) : undefined
+    const g = value && !stateGuard ? guardOf(op.guards, op) : undefined
     if (!value || g === undefined) { lostScalars.add(op.name); continue }
     const stale = staleReads(op, { k: 'setnum', when: g.when })
     if (stale.length) { noteReadBeforeWrite(op, stale); lostScalars.add(op.name); continue }
@@ -16287,6 +16417,8 @@ function translatePineResult(source, opts = {}) {
    *  needs no name matching and cannot mis-pair two locals of the same name in
    *  sibling blocks. */
   const bindingByStatement = new Map()
+  /** ⭐ C11b — the records a nested harvest made (see `harvestBlockLocals`). */
+  const approxRecords = new Set()
   /** The same per-statement record the block folder keeps — see `record` inside
    *  `foldStatements`. One statement may bind several names (`[u, d] = f()`). */
   const recordTop = (stmt2, name) => {
@@ -16328,10 +16460,41 @@ function translatePineResult(source, opts = {}) {
     // `pine.community.guards` ("every refusing script refuses at exactly this
     // guard, line and token"). A harvest whose only job is to BIND names must
     // not be able to change which guard a script refuses at.
+    // ⭐⭐ C11b — ONLY THIS LEVEL'S FOLD IS EXACT, and it may not be overwritten.
+    // The fold above reads `list` in order from the state at its start, so what
+    // it records is the name's value at each statement. The recursion below
+    // re-reads every nested block from `scope` — the state at the END of this
+    // fold — which is a different state for any name the list reassigns
+    // sequentially: measured on `ict-killzones`, `int c = 1`, `c += 1`, then
+    // `if …` `c += 1` re-recorded the inner `c += 1` as 5 where the fold had
+    // recorded 3, and the table's "Low" cell moved from column 3 to column 5.
+    // So the recursion fills only statements this fold never reached, into its
+    // own map, and those records are marked APPROXIMATE (`approxRecords`):
+    // `scopeFor` trusts them only for a name the walk did not condemn.
     const harvestCtx = { consumed: new Set(), bindingByStatement }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
+    const nested = new Map()
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestBlockLocals(st2.sub, scope)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested)
+    }
+    for (const [st2, byName] of nested) {
+      let into = bindingByStatement.get(st2)
+      if (!into) { into = new Map(); bindingByStatement.set(st2, into) }
+      for (const [name, b] of byName) {
+        if (into.has(name)) continue
+        into.set(name, b)
+        approxRecords.add(b)
+      }
+    }
+  }
+  /** The recursion's own fold: same reader, its own record map (see above). */
+  const harvestNested = (list, baseEnv, into) => {
+    if (!list || !list.length) return
+    const scope = new Map(baseEnv)
+    const ctx2 = { consumed: new Set(), bindingByStatement: into }
+    try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
+    for (const st2 of list) {
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into)
     }
   }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
@@ -16407,6 +16570,54 @@ function translatePineResult(source, opts = {}) {
     vec.writers = (arrayWrites.get(name) || []).slice()
     return vec
   }
+  /** ⭐ C11b — statement → the series windows whose add it holds (see
+   *  `arrayWindows.js`); the walk snapshots `env` there for their reads. */
+  const windowEnvAt = new Map()
+  /** A `var` vector whose every write is a bounded window → its model, attached
+   *  as `vec.window` (read by the OBJECT pass only — `resolveVectorRead`). The
+   *  refusal reason is kept on the binding (`vec.windowRefused`) for diagnosis
+   *  only: no member-facing surface reads it yet (object diagnostics carry
+   *  counts, not sentences), so it must not be cited as one. */
+  const withWindow = (vec, name, stmtIndex) => {
+    if (!vec || !vec.persists || !vec.writers || !vec.writers.length) return vec
+    const n0 = !vec.sizeNode ? 0
+      : (vec.sizeNode.type === 'number' && Number.isInteger(vec.sizeNode.value) ? vec.sizeNode.value : null)
+    if (n0 === null) { vec.windowRefused = `\`${name}\`'s length is not a number written into the script`; return vec }
+    if (vec.initNode || vec.elementNodes) { vec.windowRefused = `\`${name}\` is created with values`; return vec }
+    let got
+    try {
+      got = seriesWindowOf({
+        stmts, name, n0,
+        writerStmts: new Set(vec.writers.map((w) => w.stmt)),
+        h: { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression },
+        creationSizeOf: (other) => {
+          const b = env.get(other)
+          if (!b || b.kind !== 'vector' || !b.persists) return null
+          return !b.sizeNode ? 0 : (b.sizeNode.type === 'number' ? b.sizeNode.value : null)
+        },
+      })
+    } catch (err) {
+      got = { refused: String((err && err.message) || err) }
+    }
+    if (got.refused) { vec.windowRefused = got.refused; return vec }
+    // ⛔ EVERY READ AFTER THE LAST WRITE: a top-level statement that mentions the
+    // array and is not one of its writers must come after all of them.
+    const writers = new Set(vec.writers.map((w) => w.stmt))
+    const mentionsName = (st) => [...(st.header || []), ...(st.body || [])].some((t) => t.kind === 'ident'
+      && (String(t.value) === name || String(t.value).split('.')[0] === name))
+      || (st.sub || []).some(mentionsName)
+    for (let k = stmtIndex + 1; k < stmts.length; k += 1) {
+      if (writers.has(stmts[k]) || !mentionsName(stmts[k])) continue
+      if (k < got.model.lastWriter) {
+        vec.windowRefused = `\`${name}\` is read at line ${stmts[k].header[0].line}, before its last write`
+        return vec
+      }
+    }
+    vec.window = got.model
+    if (!windowEnvAt.has(got.model.addStmt)) windowEnvAt.set(got.model.addStmt, [])
+    windowEnvAt.get(got.model.addStmt).push(got.model)
+    return vec
+  }
   // ⭐⭐ C12r — WHAT EVERY TOP-LEVEL NAME WAS BOUND TO WHERE EACH STATEMENT
   // STARTS. The walk rebinds `env` statement by statement, and the plot lane
   // reads it AS IT STANDS at each `plot` — that is how a plot above
@@ -16432,6 +16643,8 @@ function translatePineResult(source, opts = {}) {
   while (si < stmts.length) {
     const stmt = stmts[si]
     si += 1
+    // ⭐ C11b — a window's reads resolve in the scope its add stood in.
+    if (windowEnvAt.has(stmt)) for (const m of windowEnvAt.get(stmt)) m.env = new Map(env)
     const toks = stmt.header
     const first = toks[0]
     logPos = first && Number.isFinite(first.index) ? first.index : null
@@ -16509,7 +16722,7 @@ function translatePineResult(source, opts = {}) {
       // `uncharted-clouds.pine` line 57 by instrumenting the walk, 2026-09-14.
       if (word === 'var' && nameTok && eq > 0) {
         const vec = vectorFromRhs(toks.slice(eq + 1), nameTok, true, env, notes, markOpaque)
-        if (vec) { env.set(nameTok.value, withWriters(vec, nameTok.value)); continue }
+        if (vec) { env.set(nameTok.value, withWindow(withWriters(vec, nameTok.value), nameTok.value, si - 1)); continue }
         if (vec === false) continue
       }
       if (word === 'var' && nameTok && eq > 0) {
@@ -17920,9 +18133,11 @@ function translatePineResult(source, opts = {}) {
       return r
     }, bindingByStatement, {
       rawTrees: opts.objectRawTrees === true,
+      approxRecords,
       iterTrees: opts.objectIterTrees === true,
       envLog,
       walkStarts,
+      topStatements: new Set(stmts),
       mutableNames: reassigned,
     })
   } catch (err) {

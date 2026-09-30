@@ -1501,9 +1501,13 @@ export function beginObjects(program, ctx) {
             fail(`collection ${op.coll} exceeded Pine's array size of ${PINE_ARRAY_MAX} (bar ${bar})`)
             break
           }
-          arr.push(inst)
-          // ⭐ C17 — the slot keeps whether the handle pushed into it was known.
-          collSlotTaint.get(op.coll).push(taintSeen && refTainted(op.value))
+          // ⭐ C11b — `array.unshift(bs, b)` is the same add at the FRONT (`front`).
+          // ⭐ C17 — the slot keeps whether the handle pushed into it was known,
+          // at the same end.
+          {
+            const slotTaint = taintSeen && refTainted(op.value)
+            if (op.front) { arr.unshift(inst); collSlotTaint.get(op.coll).unshift(slotTaint) } else { arr.push(inst); collSlotTaint.get(op.coll).push(slotTaint) }
+          }
           break
         }
         case 'collset': {

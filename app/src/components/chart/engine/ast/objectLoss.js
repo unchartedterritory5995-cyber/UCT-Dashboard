@@ -103,6 +103,7 @@ export const DROP_KEYS = Object.freeze({
   'cellpatch:address': C(LOSS.PARTIAL, 'a cell setter whose row/column cannot be read — a missing style'),
   'coll:unknown': C(LOSS.LIST, 'a change to an object list this chart does not know'),
   'coll:push': C(LOSS.LIST, 'an object never entered into the list a later delete reads'),
+  'coll:unshift': C(LOSS.LIST, 'an object never entered at the front of the list a later delete reads'),
   'coll:set': C(LOSS.LIST, 'a list slot never overwritten, so a later delete reads the old handle'),
   'coll:remove': C(LOSS.LIST, 'a handle never taken out of the list, so a later delete hits it twice'),
   // ⭐ C16 (2026-09-29) — a READ of an object list that lost a change (its
@@ -139,6 +140,7 @@ export const GUARD_KINDS = Object.freeze({
   clear: C(LOSS.REMOVES,
     'a `table.clear` whose condition cannot be read — the cells Pine wipes keep last bar\'s text'),
   coll_push: C(LOSS.LIST, 'a list push whose condition cannot be read'),
+  coll_unshift: C(LOSS.LIST, 'a list unshift whose condition cannot be read'),
   coll_set: C(LOSS.LIST, 'a list set whose condition cannot be read'),
   coll_remove: C(LOSS.LIST, 'a list remove whose condition cannot be read'),
   coll_pop: C(LOSS.LIST, 'a list pop whose condition cannot be read'),

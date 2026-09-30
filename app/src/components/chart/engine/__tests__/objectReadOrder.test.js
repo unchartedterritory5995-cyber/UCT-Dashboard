@@ -127,14 +127,34 @@ if close > open
     for (const l of labels) expect(l.props.y).toBe(BARS[l.createdBar].h)
   })
 
-  it('⛔ a name one op reads BOTH before and after a write in one statement is refused by name', () => {
+  // ⚰️ C11b (2026-09-29): this case was REFUSED by name (`readBeforeWrite`
+  // ['st@6'], one `guard:create` drop) because a read-order plan had only the
+  // statement's two ends to choose from. It is now read where each read stands:
+  // the guard in the scope its `if` stood in (the statement's start, last bar's
+  // `st`), the label's `st` after the block's own `st := 1`. Held against Pine.
+  it('⭐ a name one op reads BOTH before and after a write in one statement is read at each position', () => {
     const t = tr(`var int st = 0
 if st == 0 and close > open
     st := 1
     label.new(bar_index, st, "X")
 if close < open
     st := 0`)
-    expect(t.objectDiagnostics.readBeforeWrite).toEqual(['st@6'])
-    expect(t.objectDiagnostics.dropReasons['guard:create']).toBe(1)
+    expect(t.objectDiagnostics.readBeforeWrite).toBeUndefined()
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    let st = 0
+    const want = []
+    for (let i = 0; i < N; i += 1) {
+      const b = BARS[i]
+      if (st === 0 && b.c > b.o) { st = 1; want.push(i) }
+      if (b.c < b.o) st = 0
+    }
+    const labels = run(t).live.filter((o) => o.family === 'label')
+    const ours = labels.map((o) => o.createdBar)
+    expect(ours.length).toBeGreaterThan(40)
+    // nothing drawn that Pine does not draw, and past the warm-up, all of it
+    expect(ours.filter((b) => !want.includes(b))).toEqual([])
+    expect(want.filter((b) => b >= ours[0])).toEqual(ours)
+    // the label reads `st` AFTER the block's own write
+    for (const l of labels) expect(l.props.y).toBe(1)
   })
 })
