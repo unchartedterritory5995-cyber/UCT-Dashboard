@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -567,6 +567,27 @@ const PINE_TF_SPELLING = Object.freeze({
   '60': '60', '1H': '60', '240': '240', '4H': '240',
   D: 'D', '1D': 'D', W: 'W', M: 'M',
 })
+
+/** The periods whose OPENING TIME `time(<tf>)` serves on a daily chart (C30),
+ *  keyed by every spelling the vendor capture witnessed or `PINE_TF_SPELLING`
+ *  already folds ("1W" = "W", "1M" = "M"). `"3M"` and `"12M"` are the probe's own
+ *  spellings; nothing else (`"6M"`, `"1Y"`, `"2W"` …) was asked, so nothing else
+ *  is here. `null` for anything outside it. */
+/** The one sentence every `time(<timeframe>)` refusal carries — what the form
+ *  IS, what translates, and where a member can go instead. */
+const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
+  + 'period — the anchor Pine scripts compare with `>` to detect a new day '
+  + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
+  + 'translates, and so do `"W"`, `"M"`, `"3M"` and `"12M"` on a daily chart '
+  + '(vendor capture `vw-time-tf-spy-1d-2026-09-28`). Any OTHER period this engine does not have a node for: '
+  + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
+  + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
+  + 'an anchor comparison is usually asking'
+const TIME_ANCHOR_PERIODS = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M', '3M': '3M', '12M': '12M' })
+export function timeAnchorPeriodOf(raw) {
+  const key = String(raw).trim().toUpperCase()
+  return Object.prototype.hasOwnProperty.call(TIME_ANCHOR_PERIODS, key) ? TIME_ANCHOR_PERIODS[key] : null
+}
 
 /** Every timeframe CODE this door recognises — DERIVED from the spelling map's
  *  values rather than retyped, so a spelling that lands tomorrow is recognised by
@@ -9691,6 +9712,61 @@ export class Resolver {
     return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
   }
 
+  /** ⭐⭐ `time("W" | "M" | "3M" | "12M")` ON A DAILY CHART — THE OPENING TIME OF
+   *  THE HIGHER-TIMEFRAME PERIOD CONTAINING EACH BAR (C30, 2026-09-30). Returns a
+   *  node, or throws a `pine:function` refusal that names the form it cannot take.
+   *
+   *  THE READING (`tests/fixtures/vendor/harness/vw-time-tf-spy-1d-2026-09-28.json`,
+   *  probe `tools/visual_conformance/probes/vw-time-tf.pine`, AMEX:SPY 1D, 900
+   *  bars 2023-02-24 → 2026-09-25): `time(tf)` is the `time` of the FIRST DAILY
+   *  BAR of the bar's New York ISO week (Monday-first) / calendar month / calendar
+   *  quarter (Jan, Apr, Jul, Oct) / calendar year — the session OPEN (09:30 New
+   *  York, in that day's own DST), never the calendar boundary. A holiday-Monday
+   *  week anchors to its Tuesday bar (17 such weeks in the window, 0 mismatches);
+   *  a month whose 1st is a weekend or holiday anchors to its first trading day.
+   *  0 mismatches for all four on every bar OUTSIDE the first partial period.
+   *
+   *  ⛔ THE FIRST PARTIAL PERIOD IS WITHHELD. The vendor answers its real open
+   *  there (bar 0, Friday 2023-02-24, reads −3 days: Tuesday 2023-02-21, a bar
+   *  before the chart's window), which the loaded series does not hold. The tree
+   *  is `valuewhenOccurrence(<period key != key[1]>, time, 0)`: the key's `[1]`
+   *  is `na` on the oldest bar, so nothing opens a period before the first
+   *  boundary the series SHOWS, and every bar up to it is `NaN` — which
+   *  `interpret.js::periodAnchorMask` then WITHHOLDS in both lanes (a `NaN` read
+   *  downstream is Pine's `na`, and the vendor's value there is not `na`) — never
+   *  an older bar's open and never the chart's first bar posing as the period's.
+   *
+   *  ⛔ DAILY CHART ONLY, TWICE: the translation refuses when it is told a chart
+   *  that is not `D`, and — because the member door translates ONCE before it
+   *  knows the chart and saves one tree for every timeframe — the tree itself is
+   *  blank wherever `periodseconds` is not a day's. `time("W")` on an intraday,
+   *  weekly or monthly chart is unmeasured. So is every other period (`"2W"`,
+   *  `"6M"`, `"1Y"` …), a screen, and `time_close(<tf>)` for these periods (the
+   *  probe did not ask). */
+  periodAnchorOf(period, pineName, tok) {
+    const at = locate(tok)
+    const spelled = { W: '"W"', M: '"M"', '3M': '"3M"', '12M': '"12M"' }[period]
+    const no = (why) => new PineRefusal('pine:function',
+      `${REFUSALS['pine:function']} — \`${pineName}(${spelled})\`: ${why}. ${timeAnchorSentence(pineName)}`, at)
+    if (!this.strict) {
+      throw no('the opening time of a higher-timeframe period is read here only on a chart '
+        + 'pane; a screen evaluates stored daily bars that carry no clock')
+    }
+    if (this.basePeriod !== 'D') {
+      throw no('it is measured on a DAILY chart only (vendor capture '
+        + '`vw-time-tf-spy-1d-2026-09-28`), and this chart is '
+        + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe `
+        + 'on this timeframe')
+    }
+    // The boolean that opens a period — one builder, shared with the anchor test
+    // (`interpret.js::periodFirstCondition`, where the keys are stated).
+    const first = periodFirstCondition(period)
+    const secs = cCall('valuewhenOccurrence', [first, cSeries('time'), cNum(0)])
+    const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
+    const onDaily = cOp('==', [clockLeaf('periodseconds'), cNum(timeframeSeconds('D'))])
+    return cOp('?:', [onDaily, value, cOp('/', [cNum(0), cNum(0)])])
+  }
+
   /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR
    *  WAS MEASURED ANSWERING IT (2026-09-27/28). Returns a node, or throws a
    *  `pine:function` refusal that names the form it could not take.
@@ -11024,16 +11100,12 @@ export class Resolver {
           const leaf = clockLeaf('dayopentime')
           return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
         }
+        const anchorPeriod = rawTf === null ? null : timeAnchorPeriodOf(rawTf)
+        if (anchorPeriod !== null) return this.periodAnchorOf(anchorPeriod, pineName, tok)
       }
       throw new PineRefusal('pine:function',
         anchorForm
-          ? `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
-            + 'period — the anchor Pine scripts compare with `>` to detect a new day '
-            + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
-            + 'translates. Any OTHER period this engine does not have a node for: '
-            + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
-            + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
-            + 'an anchor comparison is usually asking'
+          ? timeAnchorSentence(pineName)
           : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
     }
     if (!key) {

@@ -1043,7 +1043,10 @@
     "__uct_param_6": ""
   },
   "corpus/committed/volumized-order-blocks-flux-charts__1675b2b8e3.pine": {},
-  "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine": {},
+  "corpus/committed/vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine": {
+    "__uct_param_1": "Fibo extension 2",
+    "__uct_param_2": "Fibo extension 1"
+  },
   "corpus/committed/williams-fractal-trailing-stops__UOOIN5REYl.pine": {
     "__uct_param_1": "Williams Fractal Range Forwards",
     "__uct_param_2": "Show Williams Trailing Stop"
