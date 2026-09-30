@@ -5644,6 +5644,8 @@ export class Resolver {
     this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
     this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
     this.budgetSteps = 0
+    /** ⭐ C24 — first-time work no `Map`/`Set` size records (see `firstTimeMark`). */
+    this.firstTimeWork = 0
     /** Current and peak resolution nesting. See `PINE_TRANSLATE_MAX_DEPTH`. */
     this.depth = 0
     this.peakDepth = 0
@@ -6557,23 +6559,116 @@ export class Resolver {
    * raise for an operand that simply is not one; the caller then declines the
    * rewrite and the ordinary path produces the real refusal, with the real caret.
    */
-  constIntOf(node) {
+  constIntOf(node, probed = null) {
     if (!node) return null
     const direct = litInt(node)
     if (direct !== null) return direct
     let folded = null
-    try { folded = this.resolve(node) } catch { return null }
+    if (probed) {
+      try { folded = this.resolveProbed(node, probed) } catch { return null }
+    } else {
+      try { folded = this.resolve(node) } catch { return null }
+    }
     if (!folded || folded.type !== 'num') return null
     const v = Number(folded.value)
     return Number.isInteger(v) && v >= 0 ? v : null
   }
 
-  boundedBarssinceThroughBinding(node) {
+  /**
+   * ⭐⭐ C24 — A PROBE'S RESOLUTION IS KEPT FOR THE ORDINARY PATH, NOT REPEATED.
+   *
+   * `boundedBarssinceThroughBinding` asks `constIntOf` of BOTH operands of every
+   * comparison, and `constIntOf` answers by RESOLVING — so the ordinary path
+   * below it resolved the same two operands, in the same scope, a second time.
+   * A comparison inside a binding a comparison reads doubles again at every
+   * level: measured on `mid_engagement__22-rsi-levels-regime-map`, that repeat
+   * was most of its translation.
+   *
+   * ⛔⛔ THE PROBE IS NOT SKIPPED, AND THAT IS THE WHOLE POINT. `resolve` MINTS
+   * Track F parameter ids as a side effect (`paramMint`), and the probe is the
+   * FIRST resolution of these operands, so it is what fixes their mint order —
+   * on a refused output too, since the mint counter is shared across outputs. A
+   * pre-check that skipped the probe moved saved ids on corpus scripts
+   * (`72s-strategy-adaptive-hull-…`, `adaptive-trend-following-suite-…`) and was
+   * reverted (objects triage § C9). Here the probe runs exactly as before; only a
+   * REPEAT of it — the swapped re-probe of the same operand, and the ordinary
+   * path's resolve — is replaced by the tree the first one returned, and only
+   * when that first one did no first-time work (below), so the repeat it stands
+   * in for would have minted nothing and cost exactly the steps it recorded.
+   *
+   * ⛔ REPLAYED ONLY INTO THE STATE IT WAS MADE IN. The entry records the
+   * resolver's scope (`env`, cycle `stack`, argument `frames`, `selfReads`,
+   * `paramMint`, the object pass) and is used only when every one is still the
+   * same object; anything else resolves for real. A refusal is never kept.
+   *
+   * ⛔ THE STEP BUDGET IS CHARGED AS IF IT HAD RUN. The replay adds the probe's
+   * own step count, so `budgetSteps` — and every `pine:timeout` step rail — reads
+   * what it read before. When those steps would pass the cap, it resolves for
+   * real instead, so the refusal fires at the node, with the caret, it always did.
+   */
+  resolveProbed(node, probed) {
+    const hit = probed.get(node)
+    if (hit && hit.env === this.env && hit.stack === this.stack && hit.frames === this.frames
+      && hit.framesLength === this.frames.length && hit.selfReads === this.selfReads
+      && hit.paramMint === this.paramMint && hit.objectPass === this.objectPass
+      && !(this.maxSteps > 0 && this.budgetSteps + hit.steps > this.maxSteps)) {
+      const before = this.budgetSteps
+      this.budgetSteps += hit.steps
+      const period = BUDGET_CHECK_MASK + 1
+      if (Math.floor(before / period) !== Math.floor(this.budgetSteps / period)) {
+        this.checkClock(node && node.tok)
+      }
+      return hit.tree
+    }
+    const env = this.env
+    const stack = this.stack
+    const frames = this.frames
+    const framesLength = this.frames.length
+    const selfReads = this.selfReads
+    const paramMint = this.paramMint
+    const objectPass = this.objectPass
+    const before = this.budgetSteps
+    const mark = this.firstTimeMark()
+    const tree = this.resolve(node)
+    // ⛔ ONLY A RESOLUTION THAT DID NO FIRST-TIME WORK IS KEPT. Minting a new
+    // parameter (its `minval`/`maxval`/`step` resolve once, at creation) or
+    // filling a cache (`partialReadCache`, `recurrenceColumns`, …) makes the
+    // FIRST resolution dearer than a repeat; charging that to the replay would
+    // over-count `budgetSteps`. Such a resolution is not kept, so the ordinary
+    // path resolves for real — exactly as before — and its own probes, now
+    // repeats, are the ones replayed.
+    if (this.firstTimeMark() === mark) {
+      probed.set(node, {
+        tree, steps: this.budgetSteps - before,
+        env, stack, frames, framesLength, selfReads, paramMint, objectPass,
+      })
+    }
+    return tree
+  }
+
+  /** A number that moves whenever a resolution does work a repeat would not:
+   *  a parameter minted, or an entry added to any cache or record the resolver
+   *  holds (every `Map`/`Set` field, read generically so a cache added later is
+   *  covered the day it lands), or a memo filled on an object the resolver does
+   *  not own (`firstTimeWork` — a window's `readMemo`). Balanced add/delete (the
+   *  cycle `stack`) nets 0. Conservative by construction: a record that grows
+   *  without changing a repeat's cost only costs a replay, never a wrong count. */
+  firstTimeMark() {
+    let n = this.firstTimeWork
+    if (this.paramMint) n += this.paramMint.counter + this.paramMint.byNode.size
+    for (const k in this) {
+      const v = this[k]
+      if (v instanceof Map || v instanceof Set) n += v.size
+    }
+    return n
+  }
+
+  boundedBarssinceThroughBinding(node, probed = null) {
     let { op, left, right } = node
     if (!own(FLIP, op)) return null
     // Either order, exactly as the direct shape allows.
-    if (this.constIntOf(left) !== null) { [op, left, right] = [FLIP[op], right, left] }
-    const k = this.constIntOf(right)
+    if (this.constIntOf(left, probed) !== null) { [op, left, right] = [FLIP[op], right, left] }
+    const k = this.constIntOf(right, probed)
     if (k === null || !left) return null
     // ⚰️ A BARE IDENTIFIER IS A `name` HERE, NOT A `bound`. The `bound` shape
     // exists, but binding lookup happens INSIDE `resolve` (`this.env.get(name)`),
@@ -6985,6 +7080,12 @@ export class Resolver {
         tok ? locate(tok) : null)
     }
     if ((this.budgetSteps & BUDGET_CHECK_MASK) !== 0) return
+    this.checkClock(tok)
+  }
+
+  /** The wall-clock half of `checkBudget`, also asked by a replayed probe
+   *  (`resolveProbed`) whose charged steps cross a sampling boundary. */
+  checkClock(tok) {
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
@@ -7243,6 +7344,9 @@ export class Resolver {
         amb = key === null ? null : this.windowAmbiguity.get(key) || null
       }
       w.readMemo.set(memoKey, { tree, key, amb })
+      // ⭐ C24 — a memo on the WINDOW object, not the resolver: first-time work
+      // `firstTimeMark` cannot see by size, so it is counted here.
+      this.firstTimeWork += 1
       return tree
     }
     return this.resolveWindowReadOnce(w, member, args, node)
@@ -7749,7 +7853,15 @@ export class Resolver {
         // — so the shape above, which needs the call and the literal in one
         // expression, saw none of them. The identity is the SAME identity; only
         // the distance between the two halves changed.
-        const viaBinding = this.boundedBarssinceThroughBinding(node)
+        // ⭐ C24 — what the probe resolved is kept for the ordinary path at the
+        // bottom of this case (`resolveProbed`), so neither operand resolves twice.
+        // ⛔ Not when a rewrite BETWEEN the two can do work of its own (a run-length
+        // counter's state binding, a bare `obv`): the ordinary path then resolves
+        // after that work, exactly as it did.
+        const probed = own(FLIP, node.op)
+          && !this.stateBindingOf(node.left) && !this.stateBindingOf(node.right)
+          && !isBareObv(node.left) && !isBareObv(node.right) ? new Map() : null
+        const viaBinding = this.boundedBarssinceThroughBinding(node, probed)
         if (viaBinding) return viaBinding
         // ⭐⭐ …AND A RUN-LENGTH COUNTER IS BOUNDED THE SAME WAY. See
         // `runLengthShape`: `downRun >= 3` can only be decided by three bars, so
@@ -7880,6 +7992,10 @@ export class Resolver {
             throw err
           }
           return foldLogicalIdentity(mapped, decidedBy, right, this.table)
+        }
+        if (probed) {
+          return foldLogicalIdentity(mapped,
+            this.resolveProbed(node.left, probed), this.resolveProbed(node.right, probed), this.table)
         }
         return foldLogicalIdentity(mapped,
           this.resolve(node.left), this.resolve(node.right), this.table)
