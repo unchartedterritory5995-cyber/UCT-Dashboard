@@ -196,10 +196,15 @@
 /* In flight: dimmed, but still readable and still showing its new column. */
 .cardBusy { opacity: 0.55; }
 
+/* Wave 10 lane DR-F (design finding D-8): 216x18 at 1200 -- under WCAG 2.5.8's
+   24px floor with no exception (it is the ONLY way to open the note from the
+   board; the card around it has no click handler of its own). 24px on both
+   axes is already ample width-wise (216 >> 24); the gap was the height. */
 .cardTitle {
   background: none;
   border: none;
   padding: 0;
+  min-height: 24px;
   text-align: left;
   font-size: 13px;
   line-height: 1.35;

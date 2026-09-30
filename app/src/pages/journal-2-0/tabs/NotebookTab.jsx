@@ -140,6 +140,22 @@ const SB_MIN = 190
 const SB_MAX = 520
 const SB_DEFAULT = 260
 
+// Wave 10 lane DR-F (design finding D-7): on a phone the folder/tag tree is
+// long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and,
+// like the rest of this page, simply stacks ahead of whatever comes next in
+// document order. List's own landing tolerates that (the reviewer's own
+// verdict: "no folder panel ahead of the note list", D-1/D-2 closed) because
+// it is reached by a fresh navigation — scroll position 0, the member scrolls
+// PAST the tree at their own pace. Every other mode in VIEW_MODES is reached
+// by a same-page click on the view-switcher icon row, which does not reset
+// scroll: the member is already scrolled down to where that row sits, the new
+// view's content starts right there, and on a short phone viewport that is
+// mostly below the fold — further covered by the fixed Log-Trade button and
+// voice orb (design-review-2.md D-7, reproduced at 390px). Derived from
+// VIEW_MODES rather than a second hand-typed list, so a mode added there is
+// covered the day it lands, never silently exempted.
+const CONTENT_FIRST_PHONE_MODES = new Set(VIEW_MODES.map((m) => m.id).filter((id) => id !== 'list'))
+
 // Obsidian-style "toggle left panel" glyph — a rounded frame with the left
 // column filled, matching the button the user referenced.
 function SidebarToggleIcon() {
@@ -449,6 +465,30 @@ export default function NotebookTab() {
   // lists as cards. Unlike the Trash its notes still open (archive is not trash).
   const isArchiveView = folderId === ARCHIVED_FOLDER
   const isShelfView = isTrashView || isArchiveView
+
+  // D-7 fix: on a phone, give a content-first view mode the first screen by
+  // collapsing the SAME sidebar the desktop toggle already controls — never a
+  // second, parallel piece of state. `sidebarOpen` still defaults to true
+  // (List's own landing, and the very first paint of any mode, are
+  // unaffected until this fires), and nothing here writes the member's
+  // persisted preference (`toggleSidebar`, an explicit tap, still does that
+  // via localStorage) — this is a transient, per-view-mode default. Reading
+  // `window.innerWidth` directly here (rather than `useIsTouch()`) is
+  // deliberate and matches this file's own click-triggered-state convention:
+  // it runs in response to the view-mode CHANGE, not on every render, so the
+  // useMediaQuery staleness gotcha (CLAUDE.md, "Responsive / Mobile System")
+  // does not apply. The panel stays reachable either way: collapsed, the
+  // floating `.sidebarToggle` un-hides at phone width (NotebookTab.module.css)
+  // to reopen it; open, FolderSidebar's own header button closes it again
+  // (`.sbHeader > .sbHeaderBtn`, likewise un-hidden at phone for this).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.innerWidth > 640) return
+    if (isShelfView || noteId) return
+    if (!CONTENT_FIRST_PHONE_MODES.has(viewMode)) return
+    setSidebarOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isShelfView, noteId])
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see

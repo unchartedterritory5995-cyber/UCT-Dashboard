@@ -77,3 +77,61 @@ describe('the timeline', () => {
     expect(onSettingsChange).toHaveBeenLastCalledWith({ timeBy: 'updated', zoom: 'month', groupBy: 'folder' })
   })
 })
+
+// Wave 10 lane DR-F (design finding D-9): the axis opened at day 1 with no
+// auto-scroll -- a month whose activity sits near its end (this suite's `today`,
+// Sep 24, with note "b" also updated on the 24th) read as empty until the member
+// scrolled the whole width by hand. jsdom lays nothing out, so this cannot see
+// "today's column is centred" -- it proves the DECISION was made: the DOM node
+// for today's own bucket is the one handed to `scrollIntoView`.
+describe('D-9 -- the axis scrolls itself to today on open (rendered)', () => {
+  let scrollSpy
+  beforeEach(() => {
+    scrollSpy = vi.fn()
+    // eslint-disable-next-line no-undef -- Element is a jsdom global here
+    Element.prototype.scrollIntoView = scrollSpy
+  })
+
+  it('on first render, scrolls today\'s own bucket into view (inline-centered, no vertical fight)', () => {
+    renderIt()
+    expect(scrollSpy).toHaveBeenCalled()
+    const el = scrollSpy.mock.contexts[0]
+    expect(el.getAttribute('data-bucket-key')).toBe('2026-09-24')
+    expect(scrollSpy).toHaveBeenLastCalledWith({ inline: 'center', block: 'nearest' })
+  })
+
+  it('a range change (zoom to Week) scrolls again, to the new window\'s today bucket', () => {
+    renderIt()
+    scrollSpy.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Week' }))
+    expect(scrollSpy).toHaveBeenCalled()
+    const el = scrollSpy.mock.contexts.at(-1)
+    expect(el.getAttribute('data-bucket-key')).toBe('2026-09-24')
+  })
+
+  it('paging away from today (Next month) does not scroll to a today that is no longer in the window', () => {
+    renderIt()
+    scrollSpy.mockClear()
+    // October has neither note in it -- an empty window has nothing to point at.
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByText('Oct 2026')).toBeInTheDocument()
+    expect(scrollSpy).not.toHaveBeenCalled()
+  })
+
+  it('re-rendering with the SAME window (a data-only change) does not scroll again', () => {
+    const { rerender } = renderIt()
+    scrollSpy.mockClear()
+    rerender(
+      <NoteTimelineView notes={[...NOTES, { id: 'c', title: 'Third', folderId: 'f1', tags: [], updatedAt: '2026-09-24T15:00:00+00:00', createdAt: '2026-09-24T15:00:00+00:00', propertiesJson: {} }]}
+        propertyDefs={[REVIEW]} onOpenNote={onOpenNote} onSettingsChange={onSettingsChange} today={today} />,
+    )
+    expect(scrollSpy).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL: the target element really is the one carrying today\'s bucket key, not merely any element', () => {
+    renderIt()
+    const el = scrollSpy.mock.contexts[0]
+    expect(el.tagName).toBe('TH')
+    expect(el.textContent).toBe('24')
+  })
+})

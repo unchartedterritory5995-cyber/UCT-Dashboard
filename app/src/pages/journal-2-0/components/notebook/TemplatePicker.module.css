@@ -87,8 +87,14 @@
   align-items: center;
   gap: 6px;
 }
+/* Wave 10 lane DR-F (design finding D-8): the built-in gallery's "Preview"
+   button measured 76x21 at 1200 -- under WCAG 2.5.8's 24px floor with no
+   exception (it is the ONLY way to open the read-only preview; the card
+   itself does not open it). 24px height at every width; the touch tier below
+   still floors it further, to the 44px finger target. */
 .miniBtn {
   padding: 2px 8px;
+  min-height: 24px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
