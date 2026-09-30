@@ -381,3 +381,19 @@ describe('⚰️ the recorded divergence is FIXED — the before/after, pinned',
     }
   })
 })
+
+describe('TERM-066 golden — a pre-1900 date formats, it does not crash or blank', () => {
+  // Ledger A3's strftime crash class. 1895-06-10 12:00 UTC is 7:00 AM in New York:
+  // after 1883 standard time, before 1918 daylight saving, so the answer is fixed.
+  const epoch1895 = Date.UTC(1895, 5, 10, 12, 0, 0) / 1000
+
+  it('formatDateTimeEt renders a negative epoch as a real ET date-time', () => {
+    expect(epoch1895).toBeLessThan(0)
+    expect(formatDateTimeEt(epoch1895)).toBe('6/10/1895, 7:00:00 AM ET')
+  })
+
+  it('formatTimeEt renders the same instant, never "Invalid Date" or the absent value', () => {
+    const out = formatTimeEt(new Date(epoch1895 * 1000), { absent: 'ABSENT' })
+    expect(out).toBe('7:00 AM')
+  })
+})

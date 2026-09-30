@@ -194,8 +194,6 @@ export const BASELINE = new Map([
   ['app/src/pages/ModelBook.jsx', 'model book table'],
   ['app/src/pages/OptionsFlow.jsx', PARTNER],
   ['app/src/pages/OptionsFlow_admin.jsx', 'admin copy of OptionsFlow — follows the partner file, not migrated independently'],
-  ['app/src/pages/screener/shell/liveSort.js', 'the screener\'s live re-sort comparator — FB-S10-01\'s named first consumer, next in line'],
-  ['app/src/pages/screener/shell/VirtualResults.jsx', 'the screener grid (server-sorted, virtualized) — FB-S10-01\'s named first consumer, next in line'],
   ['app/src/pages/ThemeTrackerPage.jsx', 'theme tracker tab sort'],
   ['app/src/pages/UCT20.jsx', 'UCT20 list (numeric ±1 direction, rank order default)'],
   ['app/src/pages/Watchlists.jsx', 'the watchlist grid — itself shared by five widgets (Scanner/EtfHoldings/PeriodSort/BreadthDrill/Watchlist); persisted under uct.watchlist.cols'],
@@ -205,6 +203,9 @@ export const BASELINE = new Map([
 export const MIGRATED = [
   'app/src/pages/journal-2-0/components/TradesTable.jsx',
   'app/src/pages/journal-2-0/components/PositionsTable.jsx',
+  // 2026-09-30, FB-S10-01's named first consumer; parity in screenerGrid.seedParity.test.jsx
+  'app/src/pages/screener/shell/VirtualResults.jsx',
+  'app/src/pages/screener/shell/liveSort.js',
 ]
 
 const fmt = (sigs) => sigs.map((s) => `${s.signal}@${s.line}`).join(', ')

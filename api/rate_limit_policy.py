@@ -163,7 +163,7 @@ FAMILIES: dict[str, Family] = {
          "/api/ticker-logo", "/api/ticker-ipo", "/api/ticker-types", "/api/logos",
          "/api/quote-of-the-day", "/api/market-calendar", "/api/massive",
          "/api/provenance", "/api/etf", "/api/single-stock-etfs", "/api/delisted",
-         "/api/maintenance"),
+         "/api/maintenance", "/api/adjustment-basis"),
     ),
     "render": Family(
         TIER_BULK,
@@ -231,7 +231,7 @@ FAMILIES: dict[str, Family] = {
          "/api/upb", "/api/member", "/api/portfolio", "/api/risk-summary",
          "/api/pre-trade-checklist", "/api/psychology-events", "/api/coaching-notes",
          "/api/skill-assessments", "/api/wire-feedback", "/api/charts",
-         "/api/workspace", "/api/tracings"),
+         "/api/workspace", "/api/tracings", "/api/address"),
     ),
     "community-content": Family(
         TIER_STANDARD,

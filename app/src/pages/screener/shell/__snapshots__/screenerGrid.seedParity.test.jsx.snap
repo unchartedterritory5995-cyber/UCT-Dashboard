@@ -1,0 +1,111 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`screener grid — seed parity (recorded before the migration) > every header click requests the same next sort 1`] = `
+[
+  {
+    "col": "price",
+    "next": {
+      "dir": "desc",
+      "key": "price",
+    },
+    "start": null,
+  },
+  {
+    "col": "ticker",
+    "next": {
+      "dir": "desc",
+      "key": "ticker",
+    },
+    "start": null,
+  },
+  {
+    "col": "price",
+    "next": {
+      "dir": "asc",
+      "key": "price",
+    },
+    "start": {
+      "dir": "desc",
+      "key": "price",
+    },
+  },
+  {
+    "col": "ticker",
+    "next": {
+      "dir": "desc",
+      "key": "ticker",
+    },
+    "start": {
+      "dir": "desc",
+      "key": "price",
+    },
+  },
+  {
+    "col": "price",
+    "next": {
+      "dir": "desc",
+      "key": "price",
+    },
+    "start": {
+      "dir": "asc",
+      "key": "price",
+    },
+  },
+  {
+    "col": "ticker",
+    "next": {
+      "dir": "desc",
+      "key": "ticker",
+    },
+    "start": {
+      "dir": "asc",
+      "key": "price",
+    },
+  },
+]
+`;
+
+exports[`screener grid — seed parity (recorded before the migration) > header DOM is byte-identical in every sort state 1`] = `
+[
+  "<div role="row" class="_gridRow_53f36e _gridHead_53f36e"><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e _stickyCol_53f36e"><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Ticker</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Company</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Price</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Chg%</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">RS</button></div></div>",
+  "<div role="row" class="_gridRow_53f36e _gridHead_53f36e"><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e _stickyCol_53f36e"><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Ticker</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Company</button></div><div role="columnheader" aria-sort="descending" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Price<span aria-hidden="true"> ↓</span></button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Chg%</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">RS</button></div></div>",
+  "<div role="row" class="_gridRow_53f36e _gridHead_53f36e"><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e _stickyCol_53f36e"><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Ticker</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Company</button></div><div role="columnheader" aria-sort="ascending" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Price<span aria-hidden="true"> ↑</span></button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Chg%</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">RS</button></div></div>",
+  "<div role="row" class="_gridRow_53f36e _gridHead_53f36e"><div role="columnheader" aria-sort="ascending" style="display: flex; align-items: center;" class="_hcell_53f36e _stickyCol_53f36e"><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Ticker<span aria-hidden="true"> ↑</span></button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Company</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Price</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Chg%</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">RS</button></div></div>",
+  "<div role="row" class="_gridRow_53f36e _gridHead_53f36e"><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e _stickyCol_53f36e"><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Ticker</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Company</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Price</button></div><div role="columnheader" aria-sort="none" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">Chg%</button></div><div role="columnheader" aria-sort="descending" style="display: flex; align-items: center;" class="_hcell_53f36e "><button type="button" class="_hbtn_53f36e" style="flex: 1 1 auto; min-width: 0px;">RS<span aria-hidden="true"> ↓</span></button></div></div>",
+]
+`;
+
+exports[`screener grid — seed parity (recorded before the migration) > the live re-sort order is identical, blanks and ties included 1`] = `
+[
+  {
+    "dir": "asc",
+    "key": "price",
+    "order": "L185,L196,L233,L294,L116,L149,L159,L282,L0,L38,L63,L197,L241,L254,L272,L288,L35,L109,L113,L137,L163,L56,L212,L36,L77,L139,L210,L222,L227,L289,L30,L88,L140,L164,L58,L168,L237,L62,L134,L173,L174,L226,L47,L270,L98,L135,L264,L75,L147,L152,L273,L15,L247,L18,L34,L87,L92,L99,L183,L81,L209,L243,L154,L258,L27,L103,L115,L123,L215,L287,L8,L112,L136,L175,L178,L276,L278,L20,L49,L186,L187,L202,L224,L246,L253,L280,L6,L72,L108,L130,L213,L230,L19,L41,L172,L206,L220,L225,L286,L43,L242,L275,L297,L54,L78,L80,L291,L5,L17,L59,L66,L271,L29,L31,L65,L169,L179,L3,L33,L71,L102,L121,L142,L160,L198,L251,L285,L298,L299,L189,L249,L9,L16,L48,L50,L89,L110,L171,L219,L10,L46,L51,L79,L162,L180,L208,L290,L7,L21,L70,L138,L205,L216,L45,L132,L133,L165,L190,L90,L107,L143,L155,L158,L166,L211,L217,L248,L255,L259,L32,L177,L244,L252,L95,L120,L245,L24,L82,L148,L4,L86,L153,L170,L231,L265,L268,L284,L1,L40,L60,L106,L188,L218,L238,L266,L105,L223,L229,L235,L260,L2,L118,L122,L76,L111,L131,L157,L257,L97,L125,L126,L228,L269,L39,L119,L127,L128,L150,L192,L221,L283,L117,L124,L156,L182,L184,L204,L292,L191,L199,L240,L263,L293,L12,L96,L234,L256,L26,L42,L55,L57,L85,L141,L144,L146,L161,L194,L195,L277,L14,L25,L37,L53,L68,L83,L167,L193,L201,L279,L93,L262,L274,L101,L207,L250,L261,L267,L69,L73,L74,L84,L114,L129,L151,L176,L295,L44,L11,L13,L22,L23,L28,L52,L61,L64,L67,L91,L94,L100,L104,L145,L181,L200,L203,L214,L232,L236,L239,L281,L296",
+  },
+  {
+    "dir": "desc",
+    "key": "price",
+    "order": "L44,L69,L73,L74,L84,L114,L129,L151,L176,L295,L101,L207,L250,L261,L267,L93,L262,L274,L14,L25,L37,L53,L68,L83,L167,L193,L201,L279,L26,L42,L55,L57,L85,L141,L144,L146,L161,L194,L195,L277,L12,L96,L234,L256,L191,L199,L240,L263,L293,L117,L124,L156,L182,L184,L204,L292,L39,L119,L127,L128,L150,L192,L221,L283,L97,L125,L126,L228,L269,L76,L111,L131,L157,L257,L2,L118,L122,L105,L223,L229,L235,L260,L1,L40,L60,L106,L188,L218,L238,L266,L4,L86,L153,L170,L231,L265,L268,L284,L24,L82,L148,L95,L120,L245,L32,L177,L244,L252,L90,L107,L143,L155,L158,L166,L211,L217,L248,L255,L259,L45,L132,L133,L165,L190,L7,L21,L70,L138,L205,L216,L10,L46,L51,L79,L162,L180,L208,L290,L9,L16,L48,L50,L89,L110,L171,L219,L189,L249,L3,L33,L71,L102,L121,L142,L160,L198,L251,L285,L298,L299,L29,L31,L65,L169,L179,L5,L17,L59,L66,L271,L54,L78,L80,L291,L43,L242,L275,L297,L19,L41,L172,L206,L220,L225,L286,L6,L72,L108,L130,L213,L230,L20,L49,L186,L187,L202,L224,L246,L253,L280,L8,L112,L136,L175,L178,L276,L278,L27,L103,L115,L123,L215,L287,L154,L258,L81,L209,L243,L18,L34,L87,L92,L99,L183,L15,L247,L75,L147,L152,L273,L98,L135,L264,L47,L270,L62,L134,L173,L174,L226,L58,L168,L237,L30,L88,L140,L164,L36,L77,L139,L210,L222,L227,L289,L56,L212,L35,L109,L113,L137,L163,L0,L38,L63,L197,L241,L254,L272,L288,L116,L149,L159,L282,L185,L196,L233,L294,L11,L13,L22,L23,L28,L52,L61,L64,L67,L91,L94,L100,L104,L145,L181,L200,L203,L214,L232,L236,L239,L281,L296",
+  },
+  {
+    "dir": "asc",
+    "key": "chg_pct_1d",
+    "order": "L32,L166,L170,L179,L224,L270,L49,L99,L125,L163,L211,L215,L230,L242,L247,L250,L279,L288,L27,L56,L65,L67,L74,L82,L86,L90,L95,L134,L157,L171,L185,L268,L14,L22,L45,L47,L63,L98,L136,L205,L214,L216,L251,L253,L286,L23,L34,L80,L85,L91,L101,L116,L180,L226,L265,L272,L16,L19,L28,L29,L76,L79,L103,L118,L130,L131,L139,L155,L187,L260,L274,L275,L0,L9,L26,L43,L145,L158,L209,L299,L1,L8,L13,L191,L200,L243,L263,L266,L20,L40,L59,L70,L94,L137,L162,L175,L202,L203,L208,L223,L229,L119,L140,L160,L161,L181,L236,L256,L287,L51,L62,L73,L110,L149,L165,L169,L177,L194,L225,L259,L280,L285,L295,L296,L11,L12,L39,L41,L75,L114,L128,L146,L150,L152,L159,L176,L178,L189,L190,L192,L193,L204,L221,L273,L297,L54,L84,L92,L102,L213,L235,L248,L249,L252,L271,L3,L17,L21,L30,L42,L58,L64,L69,L96,L109,L112,L123,L133,L135,L138,L153,L164,L183,L198,L220,L241,L294,L298,L2,L18,L24,L35,L37,L48,L50,L57,L60,L66,L71,L88,L106,L122,L142,L151,L172,L184,L188,L195,L212,L218,L232,L237,L277,L283,L68,L105,L107,L111,L120,L129,L141,L156,L174,L186,L196,L201,L231,L254,L255,L278,L291,L293,L5,L6,L15,L33,L52,L61,L77,L78,L81,L89,L108,L121,L124,L132,L147,L210,L219,L228,L234,L240,L246,L262,L276,L284,L38,L44,L87,L93,L127,L168,L222,L238,L258,L264,L267,L282,L290,L7,L10,L25,L72,L97,L115,L143,L199,L217,L281,L46,L53,L100,L148,L154,L167,L197,L207,L257,L292,L144,L173,L4,L31,L36,L55,L83,L104,L113,L117,L126,L182,L206,L227,L233,L239,L244,L245,L261,L269,L289",
+  },
+  {
+    "dir": "desc",
+    "key": "chg_pct_1d",
+    "order": "L144,L173,L46,L53,L100,L148,L154,L167,L197,L207,L257,L292,L7,L10,L25,L72,L97,L115,L143,L199,L217,L281,L38,L44,L87,L93,L127,L168,L222,L238,L258,L264,L267,L282,L290,L5,L6,L15,L33,L52,L61,L77,L78,L81,L89,L108,L121,L124,L132,L147,L210,L219,L228,L234,L240,L246,L262,L276,L284,L68,L105,L107,L111,L120,L129,L141,L156,L174,L186,L196,L201,L231,L254,L255,L278,L291,L293,L2,L18,L24,L35,L37,L48,L50,L57,L60,L66,L71,L88,L106,L122,L142,L151,L172,L184,L188,L195,L212,L218,L232,L237,L277,L283,L3,L17,L21,L30,L42,L58,L64,L69,L96,L109,L112,L123,L133,L135,L138,L153,L164,L183,L198,L220,L241,L294,L298,L54,L84,L92,L102,L213,L235,L248,L249,L252,L271,L11,L12,L39,L41,L75,L114,L128,L146,L150,L152,L159,L176,L178,L189,L190,L192,L193,L204,L221,L273,L297,L51,L62,L73,L110,L149,L165,L169,L177,L194,L225,L259,L280,L285,L295,L296,L119,L140,L160,L161,L181,L236,L256,L287,L20,L40,L59,L70,L94,L137,L162,L175,L202,L203,L208,L223,L229,L1,L8,L13,L191,L200,L243,L263,L266,L0,L9,L26,L43,L145,L158,L209,L299,L16,L19,L28,L29,L76,L79,L103,L118,L130,L131,L139,L155,L187,L260,L274,L275,L23,L34,L80,L85,L91,L101,L116,L180,L226,L265,L272,L14,L22,L45,L47,L63,L98,L136,L205,L214,L216,L251,L253,L286,L27,L56,L65,L67,L74,L82,L86,L90,L95,L134,L157,L171,L185,L268,L49,L99,L125,L163,L211,L215,L230,L242,L247,L250,L279,L288,L32,L166,L170,L179,L224,L270,L4,L31,L36,L55,L83,L104,L113,L117,L126,L182,L206,L227,L233,L239,L244,L245,L261,L269,L289",
+  },
+  {
+    "dir": "asc",
+    "key": "company",
+    "order": "L0,L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,L16,L17,L18,L19,L20,L21,L22,L23,L24,L25,L26,L27,L28,L29,L30,L31,L32,L33,L34,L35,L36,L37,L38,L39,L40,L41,L42,L43,L44,L45,L46,L47,L48,L49,L50,L51,L52,L53,L54,L55,L56,L57,L58,L59,L60,L61,L62,L63,L64,L65,L66,L67,L68,L69,L70,L71,L72,L73,L74,L75,L76,L77,L78,L79,L80,L81,L82,L83,L84,L85,L86,L87,L88,L89,L90,L91,L92,L93,L94,L95,L96,L97,L98,L99,L100,L101,L102,L103,L104,L105,L106,L107,L108,L109,L110,L111,L112,L113,L114,L115,L116,L117,L118,L119,L120,L121,L122,L123,L124,L125,L126,L127,L128,L129,L130,L131,L132,L133,L134,L135,L136,L137,L138,L139,L140,L141,L142,L143,L144,L145,L146,L147,L148,L149,L150,L151,L152,L153,L154,L155,L156,L157,L158,L159,L160,L161,L162,L163,L164,L165,L166,L167,L168,L169,L170,L171,L172,L173,L174,L175,L176,L177,L178,L179,L180,L181,L182,L183,L184,L185,L186,L187,L188,L189,L190,L191,L192,L193,L194,L195,L196,L197,L198,L199,L200,L201,L202,L203,L204,L205,L206,L207,L208,L209,L210,L211,L212,L213,L214,L215,L216,L217,L218,L219,L220,L221,L222,L223,L224,L225,L226,L227,L228,L229,L230,L231,L232,L233,L234,L235,L236,L237,L238,L239,L240,L241,L242,L243,L244,L245,L246,L247,L248,L249,L250,L251,L252,L253,L254,L255,L256,L257,L258,L259,L260,L261,L262,L263,L264,L265,L266,L267,L268,L269,L270,L271,L272,L273,L274,L275,L276,L277,L278,L279,L280,L281,L282,L283,L284,L285,L286,L287,L288,L289,L290,L291,L292,L293,L294,L295,L296,L297,L298,L299",
+  },
+  {
+    "dir": "desc",
+    "key": "company",
+    "order": "L0,L1,L2,L3,L4,L5,L6,L7,L8,L9,L10,L11,L12,L13,L14,L15,L16,L17,L18,L19,L20,L21,L22,L23,L24,L25,L26,L27,L28,L29,L30,L31,L32,L33,L34,L35,L36,L37,L38,L39,L40,L41,L42,L43,L44,L45,L46,L47,L48,L49,L50,L51,L52,L53,L54,L55,L56,L57,L58,L59,L60,L61,L62,L63,L64,L65,L66,L67,L68,L69,L70,L71,L72,L73,L74,L75,L76,L77,L78,L79,L80,L81,L82,L83,L84,L85,L86,L87,L88,L89,L90,L91,L92,L93,L94,L95,L96,L97,L98,L99,L100,L101,L102,L103,L104,L105,L106,L107,L108,L109,L110,L111,L112,L113,L114,L115,L116,L117,L118,L119,L120,L121,L122,L123,L124,L125,L126,L127,L128,L129,L130,L131,L132,L133,L134,L135,L136,L137,L138,L139,L140,L141,L142,L143,L144,L145,L146,L147,L148,L149,L150,L151,L152,L153,L154,L155,L156,L157,L158,L159,L160,L161,L162,L163,L164,L165,L166,L167,L168,L169,L170,L171,L172,L173,L174,L175,L176,L177,L178,L179,L180,L181,L182,L183,L184,L185,L186,L187,L188,L189,L190,L191,L192,L193,L194,L195,L196,L197,L198,L199,L200,L201,L202,L203,L204,L205,L206,L207,L208,L209,L210,L211,L212,L213,L214,L215,L216,L217,L218,L219,L220,L221,L222,L223,L224,L225,L226,L227,L228,L229,L230,L231,L232,L233,L234,L235,L236,L237,L238,L239,L240,L241,L242,L243,L244,L245,L246,L247,L248,L249,L250,L251,L252,L253,L254,L255,L256,L257,L258,L259,L260,L261,L262,L263,L264,L265,L266,L267,L268,L269,L270,L271,L272,L273,L274,L275,L276,L277,L278,L279,L280,L281,L282,L283,L284,L285,L286,L287,L288,L289,L290,L291,L292,L293,L294,L295,L296,L297,L298,L299",
+  },
+]
+`;

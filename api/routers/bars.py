@@ -429,6 +429,17 @@ def _econ_refusal(ticker: str) -> JSONResponse:
     return resp
 
 
+def _breadth_etag(body: bytes) -> str:
+    """Strong validator for a Breadth history body: payload hash + the authority token."""
+    import hashlib as _hl
+    try:
+        from api.services import breadth_authority as _ba
+        tok = _ba.token()
+    except Exception:
+        tok = "v1"
+    return '"b-%s-%s"' % (_hl.sha256(tok.encode()).hexdigest()[:8], _hl.sha256(body).hexdigest()[:32])
+
+
 def _is_breadth_symbol(ticker: str) -> bool:
     try:
         from api.services import breadth_symbols as _bsym
@@ -1101,7 +1112,7 @@ def _is_iso_date(t) -> bool:
 
 
 def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
-                       v: str = "", d: str = "") -> JSONResponse:
+                       v: str = "", d: str = "", if_none_match: str = ""):
     """Core serving logic for edge-cacheable SEALED history — SHARED by the web route
     (below) and the WORKER's origin route (worker_main._build_app). It reads only what is
     already stored in THIS process's bars.db (the worker's DEEP db when called there, the
@@ -1189,7 +1200,16 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     # would splice pre-switch history under the fresh tail. Breadth series are cached server-side
     # anyway; a short public cache costs one cheap origin read.
     if _is_breadth_symbol(ticker):
-        out.headers["Cache-Control"] = "public, max-age=300, stale-while-revalidate=60"
+        # ⭐ REVALIDATE EVERY TIME, 304 ONLY ON AN IDENTICAL REPRESENTATION. `no-cache` lets the
+        # browser and the edge keep the body but never reuse it unchecked; the ETag is the hash
+        # of the exact payload + the breadth authority token, so V1 ↔ V2 (either direction), a
+        # new sealed day or any value change can never be answered "unchanged".
+        out.headers["Cache-Control"] = "no-cache"
+        etag = _breadth_etag(out.body)
+        out.headers["ETag"] = etag
+        if if_none_match and etag in [t.strip() for t in if_none_match.split(",")]:
+            from fastapi.responses import Response as _Resp
+            return _Resp(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
     elif d and last_sealed and d == last_sealed:
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
@@ -1239,6 +1259,7 @@ async def _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin):
 @router.get("/api/bars-history/{ticker}")
 async def get_bars_history(
     ticker: str,
+    request: Request,
     _access: dict = Depends(require_bars_access),
     tf: str = Query(default="D", description="Timeframe: D, W, M (sealed history only)"),
     bars: int = Query(default=60000, ge=1, le=60000, description="Max sealed bars to return"),
@@ -1276,7 +1297,8 @@ async def get_bars_history(
             return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
-    return serve_bars_history(ticker, tf, bars, v, d)
+    return serve_bars_history(ticker, tf, bars, v, d,
+                              if_none_match=request.headers.get("if-none-match", ""))
 
 
 @router.post("/api/admin/warm-universe")

@@ -7,6 +7,10 @@ import { render, screen, within } from '@testing-library/react'
 // EstimatesTab.test.jsx for the narrowed-Estimates coverage) and is
 // deliberately distinct from RatingsTab (UCT's own composite methodology).
 
+// TERM-073's revision panel fetches on its own; its behaviour is covered by
+// AnalystRevisions.test.jsx, so here it is stubbed and the tab is tested alone.
+vi.mock('./AnalystRevisions', () => ({ default: () => null }))
+
 vi.mock('../../../hooks/useLivePrices', () => ({
   default: () => ({ prices: { AAPL: { price: 200, change_pct: 1.2 } }, isLoading: false, error: null, refresh: () => {} }),
 }))
