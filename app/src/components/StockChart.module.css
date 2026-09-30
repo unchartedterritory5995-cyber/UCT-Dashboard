@@ -156,6 +156,20 @@
   white-space: nowrap;
   margin-bottom: -3px;
 }
+/* ⭐ THE GROUPED PANE READS ON ONE LINE — title, note, then each participant's
+   name + value (owner, 2026-09-30: a three-row stack sat on top of the bars). The
+   rows are `LegendRow`'s own horizontal variant, the one the volume strip uses. */
+.paneLegend.paneLegendGroup {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: 14px;
+  row-gap: 2px;
+}
+.paneLegendGroup .paneLegendTitle {
+  margin-bottom: 0;
+}
 .paneLegendNote {
   margin-left: 8px;
   font-weight: 500;

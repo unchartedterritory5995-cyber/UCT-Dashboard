@@ -201,6 +201,18 @@ describe('adding one COT dataset', () => {
     expect(groups.filter((g) => g.kind === 'pane')).toHaveLength(1)
   })
 
+  it('all three tag their latest value on the shared axis — not only the host', () => {
+    const def = registry.getDefinition('dataSeries')
+    for (const p of cotParts(addCot())) {
+      // Placement answers `lastValue: false` for a guest; the participant's own answer wins.
+      const opts = seriesOptionsForPlot(presentedPlot(def.plots[0], p), { scaleId: 'right', lastValue: false })
+      expect(opts.lastValueVisible).toBe(true)
+    }
+    const plain = { instanceId: 'x', defId: 'dataSeries', inputs: {}, presentation: { plotStyle: 'histogram' } }
+    expect(seriesOptionsForPlot(presentedPlot(def.plots[0], plain), { scaleId: 'right', lastValue: false })
+      .lastValueVisible).toBe(false)
+  })
+
   it('a histogram WITHOUT bar geometry is still the plain HistogramSeries', () => {
     const def = registry.getDefinition('dataSeries')
     const plain = { instanceId: 'x', defId: 'dataSeries', inputs: {}, presentation: { plotStyle: 'histogram' } }
