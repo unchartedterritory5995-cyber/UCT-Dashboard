@@ -20,6 +20,7 @@ def stores(monkeypatch):
                    OTHER: [{"id": "99", "name": "Somebody Else's Board"}]},
         "watchlist": {MEMBER: [{"id": "w-abc", "name": "Semis Watch"}]},
         "note": {MEMBER: [{"id": "n1", "name": "Swing trading plan"}, {"id": "n2", "name": "Untitled"}]},
+        "screen": {MEMBER: [{"id": "7", "name": "Swing leaders scan"}]},
     }
     for kind, k in list(a.KINDS.items()):
         monkeypatch.setitem(a.KINDS, kind, a.Kind(k.prefix, k.label, k.table,
@@ -83,6 +84,7 @@ def test_a_name_finds_the_object_and_its_door(stores):
     names = [(r["kind"], r["name"], r["address"], r["to"]) for r in out["results"]]
     assert ("layout", "Swing Board", "L:12", "/charts?openLayout=12") in names
     assert ("note", "Swing trading plan", "N:n1", "/journal/notebook?note=n1") in names
+    assert ("screen", "Swing leaders scan", "S:7", "/screener?savedScreen=7") in names
     assert out["unavailable"] == []
 
 
@@ -116,7 +118,7 @@ def test_an_unreadable_store_is_named_not_empty(stores, monkeypatch):
     monkeypatch.setitem(a.KINDS, "note", a.Kind(k.prefix, k.label, k.table, boom, k.door))
     out = a.search(MEMBER, "swing")
     assert out["unavailable"] == ["note"]
-    assert [r["kind"] for r in out["results"]] == ["layout"]
+    assert sorted(r["kind"] for r in out["results"]) == ["layout", "screen"]
 
 
 # ── The routes: dark, then signed-in only ──────────────────────────────────────────
@@ -165,8 +167,11 @@ def test_the_real_listers_run_against_real_stores():
     lay = charts_layout_service.upsert("user", uid, "Probe Board", {"widgets": [], "cols": 12}, None, None)
     wl = watchlist_service.create_watchlist(uid, "Probe Watch")
     note = j2notes.create_note(uid, {"title": "Probe note", "body_md": "x"})
+    from api.services.screener import saved_screens
+    saved_screens.init()
+    scr = saved_screens.create(uid, "Probe Scan", {"filters": []})
     want = {"layout": (str(lay["id"]), "Probe Board"), "watchlist": (str(wl["id"]), "Probe Watch"),
-            "note": (str(note["id"]), "Probe note")}
+            "note": (str(note["id"]), "Probe note"), "screen": (str(scr["id"]), "Probe Scan")}
     for kind, k in a.KINDS.items():
         rows = k.lister(uid)
         assert isinstance(rows, list), kind
@@ -229,3 +234,26 @@ def test_the_floor_payload_carries_the_links():
     items = router_mod._attach_authors([{"author_id": author, "body": body}, {"author_id": author, "body": "no address"}])
     assert items[0]["address_links"][0]["shared"] is False
     assert "address_links" not in items[1]
+
+
+def test_floor_text_links_a_saved_screen_only_when_the_author_made_it_public():
+    """Build D (2026-09-30): a public saved screen links through its share token; a private
+    one is marked private WITHOUT its name; somebody else's gets nothing."""
+    import uuid
+    from api.services import auth_db, auth_service
+    from api.services.screener import saved_screens as ss
+    auth_db.init_db()
+    ss.init()
+    author = auth_service.create_user(f"fs-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    other = auth_service.create_user(f"fx-{uuid.uuid4().hex[:8]}@example.invalid", "Probe-Pass-2026!")["id"]
+    pub = ss.create(author, "Leaders Scan", {"filters": []}, is_public=True)
+    priv = ss.create(author, "My Secret Scan", {"filters": []})
+    theirs = ss.create(other, "Not Yours", {"filters": []}, is_public=True)
+    links = {l["address"]: l for l in a.shared_links(
+        author, f"try S:{pub['id']} or S:{priv['id']} or S:{theirs['id']}")}
+    assert links[f"S:{pub['id']}"]["to"] == f"/screener?screen={pub['share_token']}"
+    assert links[f"S:{pub['id']}"]["name"] == "Leaders Scan"
+    assert links[f"S:{priv['id']}"] == {"address": f"S:{priv['id']}", "kind": "screen",
+                                        "kind_label": "Saved screen", "shared": False}
+    assert "My Secret Scan" not in str(links)
+    assert f"S:{theirs['id']}" not in links
