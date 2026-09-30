@@ -7,7 +7,26 @@ import {
   widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable, asOfDayOf,
 } from '../../../widgets/registry'
 import { peekDrawings } from '../../../components/chart/drawingsStore'
-import { resolveOwnChartMergedSettings } from '../../../components/chart/pane/ownChartSettings'
+
+// ⭐ `ownChartSettings` is loaded ON FIRST STAMP, never statically. It merges
+// through chartDefaults → nativeRegistry → the whole Pine engine, and a static
+// import here put that engine on the Notebook's first open (NotebookTab →
+// NoteEditorPage → here) and on every Journal page (AddPositionModal → here),
+// where the promotion gate's first-open byte budget is measured. Nothing on
+// those routes needs the engine until a chart is inserted, and the stamp is
+// fire-and-forget into editor storage — so a lazy import costs nothing a member
+// can see. `entryExcludesChartEngine.test.js` rails the Notebook's closure.
+let _ownChart = null
+let _ownChartLoad = null
+function loadOwnChartSettings() {
+  if (!_ownChartLoad) {
+    _ownChartLoad = import('../../../components/chart/pane/ownChartSettings').then(
+      (mod) => { _ownChart = mod; return mod },
+      (err) => { _ownChartLoad = null; throw err }, // a failed load is retried next stamp
+    )
+  }
+  return _ownChartLoad
+}
 
 // The embed document schema, v1 (see the plan doc: "expensive to change
 // later"). Every stored notebook doc carries these attrs verbatim.
@@ -105,15 +124,23 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
  *  untouched widget starts from, and stamping it is how journal charts lost
  *  the user's MAs/legend/colors (chart-parity round). NoteEditorPage calls
  *  this whenever prefs land/change; never throws (storage not ready → the
- *  insert falls back to unset settings). */
+ *  insert falls back to unset settings). The first stamp waits for the lazy
+ *  settings module (see the loader above); once it is loaded every stamp is
+ *  synchronous again. Stamps waiting on that first load share ONE promise, so
+ *  they apply in call order and the newest prefs win (railed). Returns a
+ *  promise that settles when this stamp is applied; it never rejects. */
 export function stampChartSettings(editor, prefs) {
-  if (!editor) return
-  try {
-    editor.storage.uctJournalWidgets = {
-      ...(editor.storage.uctJournalWidgets || {}),
-      chartSettings: resolveOwnChartMergedSettings(prefs || {}),
-    }
-  } catch { /* storage not ready — the insert falls back to unset settings */ }
+  if (!editor) return Promise.resolve()
+  const apply = (mod) => {
+    try {
+      editor.storage.uctJournalWidgets = {
+        ...(editor.storage.uctJournalWidgets || {}),
+        chartSettings: mod.resolveOwnChartMergedSettings(prefs || {}),
+      }
+    } catch { /* storage not ready — the insert falls back to unset settings */ }
+  }
+  if (_ownChart) { apply(_ownChart); return Promise.resolve() }
+  return loadOwnChartSettings().then(apply, () => { /* retried on the next stamp */ })
 }
 
 // Slash-command timeframe tokens → the tf codes the bars API speaks.
