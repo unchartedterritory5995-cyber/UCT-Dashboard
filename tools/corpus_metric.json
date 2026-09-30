@@ -2231,8 +2231,8 @@
         "pine:function",
         "pine:collection",
         "pine:reassign",
+        "pine:builtin",
         "pine:drawing",
-        "pine:request",
         "pine:block",
         "pine:window",
         "pine:offset-literal"
@@ -2241,8 +2241,8 @@
         "pine:function",
         "pine:collection",
         "pine:reassign",
+        "pine:builtin",
         "pine:drawing",
-        "pine:request",
         "pine:block",
         "pine:window",
         "pine:offset-literal"
