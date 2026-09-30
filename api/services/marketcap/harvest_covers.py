@@ -34,6 +34,15 @@ KEEP = ("dei:EntityCommonStockSharesOutstanding", "dei:TradingSymbol", "dei:Secu
         "dei:NoTradingSymbolFlag", "dei:SecurityReportingObligation", "dei:EntityCentralIndexKey")
 
 
+def select_ciks(inputs: sqlite3.Connection, ciks: list[int]) -> list[tuple[int, str]]:
+    """Phase 2: EVERY XBRL periodic filing of the given (multi-class) issuers."""
+    q = ",".join("?" * len(PERIODIC))
+    out = []
+    for c in ciks:
+        out += inputs.execute(f"SELECT cik, accn FROM filing WHERE cik=? AND is_xbrl=1 AND form IN ({q})", (c, *PERIODIC)).fetchall()
+    return sorted(set(out))
+
+
 def select(inputs: sqlite3.Connection) -> list[tuple[int, str]]:
     q = ",".join("?" * len(PERIODIC))
     have = {a for (a,) in inputs.execute("SELECT DISTINCT accn FROM fact WHERE tag='dei:EntityCommonStockSharesOutstanding'")}
@@ -74,12 +83,12 @@ def harvest_one(cik: int, accn: str) -> tuple[str, list, list]:
     return ("OK" if facts else "EMPTY"), files, facts
 
 
-def run(inputs_path: str, out: str, workers: int = 6, limit: int | None = None) -> dict:
+def run(inputs_path: str, out: str, workers: int = 6, limit: int | None = None, ciks: list | None = None) -> dict:
     inp = sqlite3.connect(inputs_path)
     db = sqlite3.connect(out, check_same_thread=False)
     db.executescript(DDL)
     done = {a for (a,) in db.execute("SELECT accn FROM cover_status")}
-    todo = [x for x in select(inp) if x[1] not in done]
+    todo = [x for x in (select_ciks(inp, ciks) if ciks else select(inp)) if x[1] not in done]
     if limit:
         todo = todo[:limit]
     lock = threading.Lock()
@@ -113,8 +122,10 @@ def main(argv=None) -> int:
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--limit", type=int)
+    ap.add_argument("--ciks-file", help="JSON list of CIKs: harvest ALL their XBRL periodic filings (phase 2)")
     a = ap.parse_args(argv)
-    print(json.dumps(run(a.inputs, a.out, a.workers, a.limit)))
+    ciks = json.load(open(a.ciks_file)) if a.ciks_file else None
+    print(json.dumps(run(a.inputs, a.out, a.workers, a.limit, ciks)))
     return 0
 
 
