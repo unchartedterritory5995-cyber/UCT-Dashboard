@@ -16,10 +16,12 @@
  *   * `onPreview(payload | null)` — opens the SAME TemplatePreview.jsx the
  *     built-in cards use. The full body isn't in this component's own list
  *     (only names are, by design — see memberTemplates.js), so Preview reads
- *     it once via `getMemberTemplate`, the same call `onPick`'s caller makes
- *     when it actually creates the note; "Use this template" from inside the
- *     preview calls `onPick(t)` unchanged, so creation still goes through the
- *     one door this component has always used.
+ *     it once via `getMemberTemplate`; "Use this template" from inside the
+ *     preview hands `onPick` that SAME already-fetched record (not the bare
+ *     summary the card itself carries), so the caller's own read -- the one
+ *     `onPick`'s caller makes when a card is clicked directly -- is skipped
+ *     rather than repeating a GET this component already made. Creation still
+ *     goes through the one door this component has always used.
  */
 import { useState } from 'react'
 import {
@@ -44,7 +46,7 @@ export default function MemberTemplates({ onPick, busy = false, query = '', onPr
     onPreview({ ...base, body: null, loading: true, onUse: () => {} })
     try {
       const full = await getMemberTemplate(t.id)
-      onPreview({ ...base, body: full.bodyJson, onUse: () => { onPreview(null); onPick(t) } })
+      onPreview({ ...base, body: full.bodyJson, onUse: () => { onPreview(null); onPick(full) } })
     } catch (e) {
       onPreview({ ...base, body: null, loadError: e?.message || "Couldn't load this template.", onUse: () => {} })
     }

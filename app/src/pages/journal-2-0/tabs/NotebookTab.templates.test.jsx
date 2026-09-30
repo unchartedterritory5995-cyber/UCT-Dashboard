@@ -90,4 +90,26 @@ describe('creating from a member template', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t open the template “Weekly review”. Nothing was created.'.replace('’', "'"))
     expect(calls.some((c) => c.url === '/api/j2/notes' && c.method === 'POST')).toBe(false)
   })
+
+  // Wave 10 (DR-C follow-up, M-open-item 7): Preview already reads the full
+  // template (title/bodyJson/properties) to render it. "Use this template"
+  // used to hand the picker's bare SUMMARY (no bodyJson) back to
+  // `createFromMemberTemplate`, which unconditionally re-read it -- a second
+  // GET for data already sitting in the preview's own state.
+  it('using a template from its preview does not re-read what the preview already fetched', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: 'Templates' }))
+    const [mine] = await screen.findAllByRole('region', { name: 'Your templates' })
+    fireEvent.click(await within(mine).findByRole('button', { name: 'Preview Weekly review' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Weekly review' })
+    await within(dialog).findByText('What worked')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use this template' }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'new1'))
+    const reads = calls.filter((c) => c.url === '/api/j2/note-templates/t1' && c.method === 'GET')
+    expect(reads).toHaveLength(1)
+    const post = calls.find((c) => c.url === '/api/j2/notes' && c.method === 'POST')
+    expect(post.body).toMatchObject({ title: 'Week', bodyJson: BODY })
+    const put = calls.find((c) => c.url === '/api/j2/notes/new1' && c.method === 'PUT')
+    expect(put.body).toEqual({ properties: { 'builtin:thesis_status': 'active' } })
+  })
 })
