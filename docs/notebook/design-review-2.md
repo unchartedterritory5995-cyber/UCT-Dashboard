@@ -375,3 +375,26 @@ limitation. It reproduces on demand, is scoped to the `[[` suggestion menu speci
 lane's own task-checklist typing, with no popup in the way, persisted correctly), and is
 **out of this lane's brief** (D-7/D-8/D-9 plus the two confirmations) -- named here rather than
 silently worked around, for whoever picks up the `[[` menu next.
+
+## Controller countersign (wave 10, lane SC, 2026-09-30)
+
+Ruling D21 (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`, the decisions table): *"The controller may
+countersign design-review-2's surfaces it accepts (S-2), recorded as 'controller,
+owner-delegated 2026-09-29', never as the owner's own signature."* Checked against this
+document's own closure bar (the "Overall" verdict above ties sign-off to D-7, D-8 and D-9):
+**every item this review lists is now closed with evidence** -- see "D-7 / D-8 / D-9 follow-up"
+above (rails, before/after screenshots, and the two independently-confirmed graph-edge /
+tasks-list rows). Nothing in D-1..D-9 remains open.
+
+**Countersigned, all seven surfaces** (list and sidebar; editor; views; templates; share and
+publish; search; phone) -- recorded as **controller, owner-delegated 2026-09-29**, not the
+owner's own signature, per D21.
+
+**What this countersign does NOT cover:** the `[[` link-suggestion popup race against autosave,
+named directly above. It is real, reproducible and unfixed -- but it is not one of this review's
+own named surface findings (it surfaced while DR-F was confirming the graph edge, explicitly
+"out of this lane's brief"), so it is not something the review's own closure bar required
+closed. Recorded here rather than left implicit, for whoever tracks it next: it is a
+functionality/data-integrity defect (the popup's own search fires correctly; the autosave race
+is what loses it), not a competitor-parity gap, and it belongs to standard #2 (Functionality),
+not this design review.
