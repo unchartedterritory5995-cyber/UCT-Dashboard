@@ -43,8 +43,11 @@ def run(inputs_path: str, n: int, lo: str, hi: str) -> dict:
     inp = sqlite3.connect(inputs_path)
     out = Counter()
     wrong, missing = [], []
-    for cik, accn, form, fd, rd, as_of, val in sample(inp, n, lo, hi):
-        b = get_head(f"{SEC.WWW}/Archives/edgar/data/{cik}/{accn}.txt")
+    rows = sample(inp, n, lo, hi)
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(16) as ex:           # prefetch into the cache (rate-limited by the SEC client)
+        heads = list(ex.map(lambda r: get_head(f"{SEC.WWW}/Archives/edgar/data/{r[0]}/{r[1]}.txt"), rows))
+    for (cik, accn, form, fd, rd, as_of, val), b in zip(rows, heads):
         if b is None:
             out["NO_FILE"] += 1
             continue
