@@ -106,23 +106,23 @@ def test_cached_rank_map_is_cache_only_and_never_computes(monkeypatch):
     calls = []
     monkeypatch.setattr(rs_ranking, "_get_universe",
                         lambda: calls.append(1) or [])
-    cache.invalidate(rs_ranking._CACHE_KEY)
+    rs_ranking._rs_cache.invalidate(rs_ranking._CACHE_KEY)
     assert rs_ranking.cached_rank_map() == {}
     assert calls == [], "cached_rank_map computed instead of reading the cache"
 
 
 def test_cached_rank_map_keys_are_uppercased():
-    cache.set(rs_ranking._CACHE_KEY,
+    rs_ranking._rs_cache.set(rs_ranking._CACHE_KEY,
               [{"ticker": "nvda", "rs_rank": 97, "rs_score": 41.2}], ttl=60)
     try:
         assert rs_ranking.cached_rank_map()["NVDA"]["rs_rank"] == 97
     finally:
-        cache.invalidate(rs_ranking._CACHE_KEY)
+        rs_ranking._rs_cache.invalidate(rs_ranking._CACHE_KEY)
 
 
 def test_get_rs_for_ticker_reads_the_same_map():
     """One reader of the cache's shape — the lookup and the map cannot disagree."""
-    cache.set(rs_ranking._CACHE_KEY,
+    rs_ranking._rs_cache.set(rs_ranking._CACHE_KEY,
               [{"ticker": "NVDA", "rs_rank": 97, "rs_score": 41.2},
                {"ticker": "INTC", "rs_rank": 4, "rs_score": -8.0}], ttl=60)
     try:
@@ -130,4 +130,4 @@ def test_get_rs_for_ticker_reads_the_same_map():
         assert rs_ranking.get_rs_for_ticker("AAPL") is None
         assert rs_ranking.get_rs_for_ticker("INTC") is rs_ranking.cached_rank_map()["INTC"]
     finally:
-        cache.invalidate(rs_ranking._CACHE_KEY)
+        rs_ranking._rs_cache.invalidate(rs_ranking._CACHE_KEY)

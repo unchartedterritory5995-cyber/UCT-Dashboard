@@ -12,7 +12,7 @@ from api.services.cache import cache
 
 @pytest.fixture
 def cold(monkeypatch):
-    cache.invalidate(svc._CACHE_KEY)
+    svc._rs_cache.invalidate(svc._CACHE_KEY)
     calls = []
     gate = threading.Event()
 
@@ -25,7 +25,7 @@ def cold(monkeypatch):
     monkeypatch.setattr(svc, "_warm_inflight", False)
     yield calls, gate
     gate.set()
-    cache.invalidate(svc._CACHE_KEY)
+    svc._rs_cache.invalidate(svc._CACHE_KEY)
 
 
 def test_a_cold_cache_answers_503_and_starts_ONE_rebuild_for_many_requests(cold):
@@ -51,9 +51,23 @@ def test_the_request_thread_itself_never_computes(cold, monkeypatch):
 
 def test_a_warm_cache_is_served(monkeypatch):
     rows = [{"ticker": "NVDA", "rs_score": 1.0, "rs_rank": 99, "returns": {}}]
-    cache.set(svc._CACHE_KEY, rows, ttl=60)
+    svc._rs_cache.set(svc._CACHE_KEY, rows, ttl=60)
     try:
         r = route.rs_rankings(_user={})
         assert r.status_code == 200 and b"NVDA" in r.body
     finally:
-        cache.invalidate(svc._CACHE_KEY)
+        svc._rs_cache.invalidate(svc._CACHE_KEY)
+
+
+def test_churn_in_the_shared_cache_cannot_evict_the_rankings():
+    """The shared LRU sat at 999/1000 on 2026-09-30; filling it past its bound
+    must not take the RS list with it."""
+    rows = [{"ticker": "NVDA", "rs_score": 1.0, "rs_rank": 99, "returns": {}}]
+    svc._rs_cache.set(svc._CACHE_KEY, rows, ttl=60)
+    try:
+        for i in range(cache.max_size + 50):
+            cache.set(f"__churn_{i}", i, ttl=60)
+        assert svc.cached_rankings() == rows
+    finally:
+        svc._rs_cache.invalidate(svc._CACHE_KEY)
+        cache.delete_prefix("__churn_")

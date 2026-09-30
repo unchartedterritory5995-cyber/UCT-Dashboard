@@ -19,13 +19,20 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
 from api.services import rs_weighted_return
-from api.services.cache import cache
+from api.services.cache import TTLCache, cache
 from api.services.massive import get_agg_bars
 
 logger = logging.getLogger(__name__)
 
 _CACHE_KEY = "rs_rankings"
 _CACHE_TTL = 3600  # 1 hour
+
+# ⛔ ITS OWN INSTANCE, NOT THE SHARED LRU. The shared `cache` ran at 999/1000
+# entries on 2026-09-30 (memory probe), churned by small `bars_*` keys, so an
+# hourly-read ~3,685-row list is the first thing it evicts -- and a cold RS list
+# is what put two full rebuilds on request threads at 08:08 ET that morning.
+# Two slots: the list is ONE key; nothing else lives here.
+_rs_cache = TTLCache(max_size=2)
 
 
 def _disk_universe() -> list[str]:
@@ -164,7 +171,7 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     Results cached for 1 hour. `force=True` recomputes even if cached — used by
     the background re-warmer so the cache never lapses cold onto a real request.
     """
-    cached = cache.get(_CACHE_KEY)
+    cached = _rs_cache.get(_CACHE_KEY)
     if cached is not None and not force:
         return cached
 
@@ -211,7 +218,7 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     # Sort descending by rank (best RS first)
     ranked.sort(key=lambda x: x["rs_rank"], reverse=True)
 
-    cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
+    _rs_cache.set(_CACHE_KEY, ranked, ttl=_CACHE_TTL)
     logger.info(f"[rs_ranking] Cached {len(ranked)} RS rankings")
     return ranked
 
@@ -222,7 +229,7 @@ _warm_inflight = False
 
 def cached_rankings() -> list[dict] | None:
     """The ranked list from the CACHE only; ``None`` when cold. Never computes."""
-    return cache.get(_CACHE_KEY)
+    return _rs_cache.get(_CACHE_KEY)
 
 
 def kick_background_warm() -> bool:
@@ -266,7 +273,7 @@ def cached_rank_map() -> dict:
     reverted in `68392f4`. Cold cache returns ``{}``, and the caller's job is to
     COUNT that, not to hide it.
     """
-    rankings = cache.get(_CACHE_KEY)
+    rankings = _rs_cache.get(_CACHE_KEY)
     if not rankings:
         return {}
     out = {}
