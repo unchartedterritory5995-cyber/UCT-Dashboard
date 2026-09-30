@@ -328,16 +328,19 @@ export function collectObjectOps(stmts, h) {
   // ⭐ C14 — WHERE IN THE BAR EACH OP RUNS: the ordinal of the top-level
   // statement it came from (`topPos`), stamped on every op (loop bodies too).
   // See `varWrites` below for what it is compared with.
+  // ⭐ C12r — and the TOKEN INDEX that statement starts at (`topTok`), which is
+  // what `pine.js` keys the walk's per-statement bindings by (`envLog`).
   let rootPos = -1
+  let rootTok = null
   let rootMark = 0
-  const stampTop = (list, pos) => {
+  const stampTop = (list, pos, tok) => {
     for (const o of list) {
-      if (o.topPos === undefined) o.topPos = pos
-      if (o.k === 'loop' && Array.isArray(o.body)) stampTop(o.body, pos)
+      if (o.topPos === undefined) { o.topPos = pos; o.topTok = tok }
+      if (o.k === 'loop' && Array.isArray(o.body)) stampTop(o.body, pos, tok)
     }
   }
   const stampRootSince = () => {
-    if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos)
+    if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos, rootTok)
     rootMark = ops.length
   }
   const walk = (list, guards, inLoop, scope) => {
@@ -346,7 +349,11 @@ export function collectObjectOps(stmts, h) {
     const isRoot = list === stmts
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     for (const st of splitCommaStatements(list, h)) {
-      if (isRoot) { stampRootSince(); rootPos += 1 }
+      if (isRoot) {
+        stampRootSince()
+        rootPos += 1
+        rootTok = st.header && st.header[0] && Number.isFinite(st.header[0].index) ? st.header[0].index : null
+      }
       const t = st.header
       if (!t || !t.length) continue
       const first = t[0]
@@ -1628,7 +1635,12 @@ export function collectObjectOps(stmts, h) {
     // ⭐ C14 — an op the body produced. A getter in it was written where it
     // stands only when it reads the BODY's own handle; one pasted in from an
     // argument was evaluated at the call, before the body's earlier statements.
-    for (let i = before; i < sink.length; i += 1) sink[i].inlined = true
+    // ⭐ C12r — and WHERE the call stands: the body's reads of top-level names
+    // happen at the call (Pine runs the body there), so a read-order question
+    // about them is asked at this token, not at the definition's. The outermost
+    // call writes last, so a nested call's ops carry the real call site.
+    const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
+    for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
     // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
     // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,

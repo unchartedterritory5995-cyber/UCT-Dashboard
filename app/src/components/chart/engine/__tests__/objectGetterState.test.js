@@ -11,8 +11,9 @@
 //
 // Each half has the control that fails without it. What stays refused, by name:
 // a getter inside arithmetic, a scalar anything else also writes, a read of a
-// name before its own later write in the bar (`readBeforeWrite`), and a getter
-// on state this program lost (`state:lost`).
+// name one op makes both before and after a write of it in ONE statement
+// (`readBeforeWrite`, narrowed by C12r — a read before a LATER statement's
+// write is now served), and a getter on state this program lost (`state:lost`).
 import { describe, it, expect } from 'vitest'
 import { translatePine } from '../ast/pine'
 import { assertObjectProgram } from '../ast/objectProgram'
@@ -148,10 +149,15 @@ if close > open
     st := 1
 if close < open
     st := 2`
-  it('⛔ is refused by name — its end-of-bar value is not Pine\'s value there', () => {
+  // ⭐ C12r (2026-09-29): served since the object pass binds a read where it
+  // stands — last bar's END value, `accum(…)[1]` (`objectReadOrder.test.js`
+  // holds the semantics against a Pine replay). The refusal that stood here is
+  // now the narrower same-statement case, railed there too.
+  it('⭐ is SERVED — the guard reads last bar\'s end value, never this bar\'s', () => {
     const t = tr(late)
-    expect(t.objectDiagnostics.readBeforeWrite).toEqual(['st@5'])
-    expect(t.objectDiagnostics.dropReasons['guard:create']).toBe(1)
+    expect(t.objectDiagnostics.readBeforeWrite).toBeUndefined()
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    expect(opsOf(t).some((o) => o.k === 'create')).toBe(true)
   })
   it('✓ CONTROL — read AFTER the bar\'s writes, it is kept', () => {
     const t = tr(`var int st = 0

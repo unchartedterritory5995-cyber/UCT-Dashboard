@@ -3167,7 +3167,21 @@ function builtinTupleParts(toks, close, names, env, first) {
  *  ⛔ An offset node is identified STRUCTURALLY (it owns an `n` and an `arg`)
  *  rather than by a type string, so a unary `-name` — which also carries `arg` —
  *  cannot be mistaken for a bar read. */
+// ⭐ C12r — memoised per (parsed node, name): the same binding is asked this on
+// every read of it, and the walk visits every key of a parse tree. ⚰️ MEASURED
+// on `mid_engagement__22-rsi-levels-regime-map`: ~0.5 s of one translation.
+// Keyed on the node OBJECT, which the walk only reads.
+const readsOwnPreviousMemo = new WeakMap()
 function readsOwnPrevious(node, name) {
+  if (!node || typeof node !== 'object') return false
+  let byName = readsOwnPreviousMemo.get(node)
+  if (!byName) { byName = new Map(); readsOwnPreviousMemo.set(node, byName) }
+  if (byName.has(name)) return byName.get(name)
+  const answer = readsOwnPreviousWalk(node, name)
+  byName.set(name, answer)
+  return answer
+}
+function readsOwnPreviousWalk(node, name) {
   let found = false
   const walk = (n) => {
     if (found || !n || typeof n !== 'object') return
@@ -14747,35 +14761,115 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // wrong bar-position value. ⚠️ Reads reached only through a user function's
   // body are not seen by this check.
   const varWrites = collected.varWrites || new Map()
-  const readBeforeWrite = (op) => {
-    if (rawTrees || !varWrites.size || op.topPos === undefined) return []
-    const hits = new Set()
-    const check = (name, index) => {
+  // ⭐⭐ C12r — …SO EACH READ IS BOUND WHERE IT STANDS (2026-09-29). Pine runs
+  // the script top to bottom once per bar: a top-level name read in statement
+  // S holds last bar's end value carried through only the writes ABOVE the
+  // read. The walk records what every name was bound to where each statement
+  // began (`envLog`, `walkStarts`); an op reads a name at its own statement's
+  // START when every write of the name inside that statement comes after
+  // every read of it there, and at the statement's END when every such write
+  // comes before. A START binding of a `var` is not its accumulator: the
+  // Resolver reads it as `partialStateRead` does in the plot lane — the
+  // writes above the read folded over the accumulator's previous bar
+  // (`accum(…)[1]`), one rule for both lanes. ⚰️ MEASURED on
+  // `rsi-swing-indicator`: `if (laststate == 2 and isOverbought)` (line 85)
+  // read the END-OF-BAR fold, false on 632 of 632 bars; bound here it reads
+  // `accum(…)[1]`. What stays refused by name (`readBeforeWrite`): a name one
+  // op reads both before and after a write of it in the same statement, and a
+  // read whose position this pass cannot place.
+  const envLog = objectOpts.envLog || null
+  const walkStarts = objectOpts.walkStarts || []
+  /** The walk statement a token sits in → `{k, next}` (its start, the next
+   *  statement's start), or null. */
+  const stmtKeyOf = (tok) => {
+    if (!Number.isFinite(tok) || !walkStarts.length) return null
+    let lo = 0
+    let hi = walkStarts.length - 1
+    let at = -1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      if (walkStarts[mid] <= tok) { at = mid; lo = mid + 1 } else hi = mid - 1
+    }
+    if (at < 0) return null
+    return { k: walkStarts[at], next: at + 1 < walkStarts.length ? walkStarts[at + 1] : Infinity }
+  }
+  /** `name`'s binding where the statement starting at `pos` began. ⛔ A name
+   *  the closing pass condemned (`opaque` on the final `env`) stays condemned. */
+  const bindingAt = (name, pos) => {
+    const fin = env.get(name)
+    const log = envLog && envLog.get(name)
+    if (!log || (fin && fin.kind === 'opaque')) return fin
+    for (const e of log) if (e.pos >= pos) return e.prev === undefined ? fin : e.prev
+    return fin
+  }
+  /** name → the token positions one reader op reads it at. A token that is not
+   *  in the op's own statement came from an inlined body, which Pine runs at
+   *  the call (`siteIndex`); a position this cannot place is `null`. */
+  const readSitesOf = (op, k) => {
+    const sites = new Map()
+    const posOf = (idx) => {
+      if (!Number.isFinite(idx)) return null
+      if (idx >= k) return idx
+      return Number.isFinite(op.siteIndex) && op.siteIndex >= k ? op.siteIndex : null
+    }
+    const add = (name, idx) => {
       const nm = String(name)
-      if (regId.has(nm) || collId.has(nm) || numId.has(nm)) return
-      const ws = varWrites.get(nm)
-      if (!ws) return
-      for (const w of ws) {
-        if (w.top > op.topPos || (w.top === op.topPos
-          && (index === null || w.index === null || op.inlined || w.index >= index))) { hits.add(nm); return }
-      }
+      if (!sites.has(nm)) sites.set(nm, [])
+      sites.get(nm).push(posOf(idx))
     }
     const walkNames = (node, index, depth = 0) => {
       if (!node || typeof node !== 'object' || depth > 48) return
-      if (node.type === 'name') check(node.name, index)
-      for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) walkNames(node[k], index, depth + 1)
+      if (node.type === 'name') add(node.name, index)
+      for (const key of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'recv']) walkNames(node[key], index, depth + 1)
       if (Array.isArray(node.args)) node.args.forEach((a) => walkNames(a && a.value !== undefined ? a.value : a, index, depth + 1))
     }
     for (const g of op.guards || []) {
-      const toks = g.toks || []
-      const idx = toks.length && Number.isFinite(toks[0].index) ? toks[0].index : null
-      for (const tk of toks) if (tk && tk.kind === 'ident') check(tk.value, idx)
+      for (const tk of g.toks || []) if (tk && tk.kind === 'ident') add(tk.value, tk.index)
     }
     const at = op.at && Number.isFinite(op.at.index) ? op.at.index : null
     for (const a of op.args || []) walkNames(a && a.value !== undefined ? a.value : a, at)
-    for (const k of ['from', 'to', 'step']) if (op[k]) walkNames(op[k].value !== undefined ? op[k].value : op[k], at)
-    return [...hits]
+    for (const key of ['from', 'to', 'step']) if (op[key]) walkNames(op[key].value !== undefined ? op[key].value : op[key], at)
+    // an inlined body's own locals read top-level names at the call too
+    for (const b of op.locals || []) {
+      if (!b || !b.st || !b.st.synthetic) continue
+      for (const tk of b.toks || []) if (tk && tk.kind === 'ident') add(tk.value, tk.index)
+    }
+    return sites
   }
+  const NO_PLAN = { overrides: null, stale: [] }
+  const planMemo = new WeakMap()
+  /** One reader op's positional bindings: `overrides` (name → the binding it
+   *  reads, only for names the walk rebinds at or after its statement) and
+   *  `stale` (the names it cannot be given one binding for). */
+  const positionalPlan = (op) => {
+    if (rawTrees || !envLog || !op || !Number.isFinite(op.topTok)) return NO_PLAN
+    if (planMemo.has(op)) return planMemo.get(op)
+    let plan = NO_PLAN
+    const key = stmtKeyOf(op.topTok)
+    if (key) {
+      const overrides = new Map()
+      const stale = []
+      for (const [nm, rs] of readSitesOf(op, key.k)) {
+        if (regId.has(nm) || collId.has(nm) || numId.has(nm)) continue
+        const log = envLog.get(nm)
+        if (!log || !log.some((e) => e.pos >= key.k)) continue
+        const ws = (varWrites.get(nm) || [])
+          .filter((w) => w.index === null || (w.index >= key.k && w.index < key.next))
+        let at = null
+        if (!ws.length) at = key.next
+        else if (rs.some((r) => r === null) || ws.some((w) => w.index === null)) at = null
+        else if (rs.every((r) => ws.every((w) => r < w.index))) at = key.k
+        else if (rs.every((r) => ws.every((w) => r > w.index))) at = key.next
+        if (at === null) { stale.push(nm); continue }
+        const b = bindingAt(nm, at)
+        if (b !== env.get(nm)) overrides.set(nm, b)
+      }
+      if (overrides.size || stale.length) plan = { overrides: overrides.size ? overrides : null, stale }
+    }
+    planMemo.set(op, plan)
+    return plan
+  }
+  const readBeforeWrite = (op) => positionalPlan(op).stale
   /** The names `readBeforeWrite` flags whose END-OF-BAR tree is actually IN
    *  what the converted op reads — a name that folded away (`x == -1 and
    *  choch` with `choch` an input that is false) cannot make it wrong. */
@@ -14794,7 +14888,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
           return ast ? printFormula(ast) : null
         } catch { return null }
       }
-      const f = formulaIn(scopeFor(src.locals))
+      const f = formulaIn(scopeFor(src.locals, src))
       // ⭐ A BLOCK SCOPE THAT BINDS THE NAME DIFFERENTLY from the walk's final
       // binding is the value AT this statement (`reassignedIn`: the bar's
       // earlier writes folded over last bar's value) — right whatever is
@@ -15088,10 +15182,34 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
    *
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
    *  every op in one block — so a 40-cell dashboard builds one scope, not 40. */
-  const scopeFor = (locals) => {
-    if (!locals || !locals.length) return env
-    if (scopeCache.has(locals)) return scopeCache.get(locals)
-    const scoped = new Map(env)
+  // ⭐ C12r — the base an op's scope layers over: `env`, or `env` with the
+  // names the walk rebinds at or after the op's statement bound where the op
+  // reads them (`positionalPlan`). Shared by every op with the same bindings.
+  const bindingIds = new WeakMap()
+  let bindingSeq = 0
+  const bindingIdOf = (b) => {
+    if (!b || typeof b !== 'object') return String(b)
+    if (!bindingIds.has(b)) { bindingSeq += 1; bindingIds.set(b, bindingSeq) }
+    return bindingIds.get(b)
+  }
+  const baseCache = new Map()
+  const baseFor = (op) => {
+    const plan = op ? positionalPlan(op) : NO_PLAN
+    if (!plan.overrides) return env
+    const key = [...plan.overrides].map(([n, b]) => `${n}=${bindingIdOf(b)}`).sort().join('|')
+    if (baseCache.has(key)) return baseCache.get(key)
+    const base = new Map(env)
+    for (const [n, b] of plan.overrides) base.set(n, b)
+    baseCache.set(key, base)
+    return base
+  }
+  const scopeFor = (locals, op) => {
+    const base = baseFor(op)
+    if (!locals || !locals.length) return base
+    let byLocals = scopeCache.get(base)
+    if (!byLocals) { byLocals = new Map(); scopeCache.set(base, byLocals) }
+    if (byLocals.has(locals)) return byLocals.get(locals)
+    const scoped = new Map(base)
     for (const b of locals) {
       // ⭐⭐ A LOCAL OF AN INLINED FUNCTION BODY — the walk never saw these
       // statements (they are a per-call-site rewrite; see `objectFnInline.js`),
@@ -15129,7 +15247,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       diagnostics.unboundLocalNames = diagnostics.unboundLocalNames || []
       if (!diagnostics.unboundLocalNames.includes(b.name)) diagnostics.unboundLocalNames.push(b.name)
     }
-    scopeCache.set(locals, scoped)
+    byLocals.set(locals, scoped)
     return scoped
   }
 
@@ -15215,7 +15333,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       continue
     }
     diagnostics.attemptedOps += 1
-    scopeEnv = scopeFor(op.locals)
+    scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
     const g = guardOf(op.guards)
     if (g === undefined) {
@@ -15267,7 +15385,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       ops = body
       convertList(op.body || [])
       ops = outer
-      scopeEnv = scopeFor(op.locals)
+      scopeEnv = scopeFor(op.locals, op)
       loopIds = op.loopIds || []
       // ⛔ An empty body is refused by `assertObjectProgram` ("a loop with an
       // empty body draws nothing"), so a loop whose every op was dropped is
@@ -15520,7 +15638,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   const getnumPlan = new Map()
   for (const op of collected.ops) {
     if (op.k !== 'getnum' || !numId.has(op.name)) continue
-    scopeEnv = scopeFor(op.locals)
+    scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
     let node = null
     try { node = parseWholeExpression(op.rhs) } catch { node = null }
@@ -15549,7 +15667,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const src = srcOf.get(o)
         if (o.k === 'loop' && Array.isArray(o.body)) {
           if (src) {
-            scopeEnv = scopeFor(src.locals)
+            scopeEnv = scopeFor(src.locals, src)
             loopIds = src.loopIds || []
             const staleBounds = staleReads(src, { when: o.when, from: o.from, to: o.to, step: o.step })
             if (staleBounds.length) {
@@ -15566,7 +15684,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         }
         // ⭐ a latch stays: its readers are judged through it (`opRefs`).
         if (!src || o.k === 'latch') { out.push(o); continue }
-        scopeEnv = scopeFor(src.locals)
+        scopeEnv = scopeFor(src.locals, src)
         loopIds = src.loopIds || []
         const stale = staleReads(src, o)
         if (!stale.length) { out.push(o); continue }
@@ -15679,6 +15797,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // counted (`coll:diverged`), with what it would have drawn or removed carried
   // into the same ledgers a dropped op feeds (`lostCreate`, `lostRemovals`,
   // `contentLost`), so the member door's partial-drawing rule sees it.
+  const divergedPass = () => {
   if (divergedColls.size || taintedRegs.size || lostCreateRegs.size) {
     const unknownLatches = new Set()
     const readsUnknown = (v, depth = 0) => {
@@ -15749,6 +15868,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     ops = pruneDiverged(ops)
     diagnostics.collsDiverged = divergedColls.size
   }
+  }
+  divergedPass()
+  let divergedSeen = divergedColls.size
 
   // ⭐⭐ WITHHOLD EVERY OBJECT WHOSE CONTENT A LOST STEP WROTE — see `contentLost`.
   // The lost step names a handle (a register, a create site, a collection slot);
@@ -15823,6 +15945,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // program that reads no object state takes exactly one content pass.
   withholdContent()
   while (statePass()) withholdContent()
+  // ⭐⭐ C12r (2026-09-29) — A LIST `statePass` DIVERGED IS DIVERGED FOR ITS READERS
+  // TOO. `statePass` withholds a push/set/remove it cannot carry and records the
+  // collection in `divergedColls`, but it runs AFTER `divergedPass`, so the
+  // reads of that list — `array.size(ls) > 3` guarding `line.delete(array.shift(
+  // ls))` — survived and ran over a list missing its pushes (C14's open item).
+  // Each pass can feed the others, so all three run to a fixed point.
+  while (divergedColls.size > divergedSeen) {
+    divergedSeen = divergedColls.size
+    divergedPass()
+    withholdContent()
+    while (statePass()) withholdContent()
+  }
   if (nums.length) {
     diagnostics.getterScalars = {
       served: [...numId.keys()].filter((n) => !lostScalars.has(n) && !lostNums.has(numId.get(n))).sort(),
@@ -16199,12 +16333,35 @@ function translatePineResult(source, opts = {}) {
     vec.writers = (arrayWrites.get(name) || []).slice()
     return vec
   }
+  // ⭐⭐ C12r — WHAT EVERY TOP-LEVEL NAME WAS BOUND TO WHERE EACH STATEMENT
+  // STARTS. The walk rebinds `env` statement by statement, and the plot lane
+  // reads it AS IT STANDS at each `plot` — that is how a plot above
+  // `x := …` reads last bar's `x`. The object pass runs after the walk, over
+  // the FINAL `env`, so it needs the same answer by position: `envLog` records,
+  // per name, the binding it held when a statement that changed it began
+  // (`prev`, keyed by that statement's first token index), and `walkStarts`
+  // every statement start the walk took (an `if … else` chain it folds is ONE
+  // start). `buildObjectProgram` reads both (`bindingAt`). Nothing else does.
+  const envLog = new Map()
+  const walkStarts = []
+  let logPos = null
+  const envSetRaw = env.set
+  env.set = function setLogged(k, v) {
+    if (logPos !== null) {
+      let log = envLog.get(k)
+      if (!log) { log = []; envLog.set(k, log) }
+      if (!log.length || log[log.length - 1].pos !== logPos) log.push({ pos: logPos, prev: this.get(k) })
+    }
+    return envSetRaw.call(this, k, v)
+  }
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
     si += 1
     const toks = stmt.header
     const first = toks[0]
+    logPos = first && Number.isFinite(first.index) ? first.index : null
+    if (logPos !== null) walkStarts.push(logPos)
 
     // `[a, b] = f()` — a tuple destructure, read by the SHARED reader so this
     // walk and `foldStatements` can never disagree about one construct.
@@ -16859,6 +17016,8 @@ function translatePineResult(source, opts = {}) {
 
     notes.push(noteOf('pine:statement', REFUSALS['pine:statement'], first))
   }
+  logPos = null
+  delete env.set
 
   // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
   //
@@ -17688,6 +17847,8 @@ function translatePineResult(source, opts = {}) {
     }, bindingByStatement, {
       rawTrees: opts.objectRawTrees === true,
       iterTrees: opts.objectIterTrees === true,
+      envLog,
+      walkStarts,
     })
   } catch (err) {
     // ⛔ THE MESSAGE SURVIVES. A bare `{failed:true}` says a script defeated the
