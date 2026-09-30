@@ -28,8 +28,8 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // link button in `ScreensManager` builds its URL from this same module, so the
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
-import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
-import { PUBLISHED_ROUTE, PUBLISHED_NOTE_ROUTE } from './pages/journal-2-0/lib/notePublishLink'
+import { SHARED_NOTE_PATH, SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
+import { PUBLISHED_PATH, PUBLISHED_ROUTE, PUBLISHED_NOTE_ROUTE } from './pages/journal-2-0/lib/notePublishLink'
 import { TRACK_RECORD_ROUTE } from './pages/journal-2-0/lib/trackRecordLink'
 // The formula share link's route pattern. ⛔ DERIVED, never retyped: the Copy
 // button in `SharePanel` builds its URL from this same module. Before it existed
@@ -323,6 +323,15 @@ function OptionsFlowRoute() {
 // interactive chart, and the intro film never plays inside Discord's frame.
 const DISCORD_LAUNCH = typeof window !== 'undefined' && isDiscordLaunch(window.location.search)
 
+// The public share link (/share/n/:token) and published-note page (/p/:slug,
+// /p/:slug/n/:pid) — reached by a STRANGER clicking a link a member sent, never
+// by someone who has chosen to open the app. The exact-match list below can't
+// cover these: the real path carries a token/slug after the prefix, so this is
+// PREFIX-matched, derived from the same *_PATH constants the routes below
+// register and the Share/Publish buttons build their copyable links from —
+// never a second, retyped literal that could drift from the real route.
+const INTRO_SKIP_PREFIXES = [`${SHARED_NOTE_PATH}/`, `${PUBLISHED_PATH}/`]
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -357,7 +366,11 @@ export default function App() {
           // and the door was unusable. A probe that reads the DOM cannot see
           // occlusion; `share_target_phone_audit.py` now checks it explicitly.
           '/journal/share', '/journal/capture-connect',
-        ].includes(window.location.pathname) && (
+        ].includes(window.location.pathname)
+          // The public share link and published-note page — same reasoning, a
+          // stranger's first paint, prefix-matched because a token/slug follows.
+          // See INTRO_SKIP_PREFIXES above.
+          && !INTRO_SKIP_PREFIXES.some((prefix) => window.location.pathname.startsWith(prefix)) && (
           <IntroAnimation />
         )}
         {/* Global right-click → "+ Add to Portfolio" on every StockChart.
