@@ -4,6 +4,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import AskCitationView from '../components/notebook/AskCitationView'
 import { ASK_CITATION_TYPE, claimFromBlock } from './askInsert'
+import { stepsIntroduceNodeType } from './stepInsertsNodeType'
 
 /**
  * G-064 — one citation inside an inserted answer (spec §4.2).
@@ -49,6 +50,17 @@ export function staleCitationDecorations(doc) {
     return false
   })
   return DecorationSet.create(doc, decos)
+}
+
+/** Does the doc hold ANY askCitation chip, stale or not? */
+function hasAskCitation(doc) {
+  let found = false
+  doc.descendants((node) => {
+    if (found) return false
+    if (node.type.name === ASK_CITATION_TYPE) { found = true; return false }
+    return true
+  })
+  return found
 }
 
 function parseJsonAttr(raw) {
@@ -142,11 +154,34 @@ export const AskCitation = Node.create({
   },
 
   addProseMirrorPlugins() {
+    // ⛔⛔ Wave 10 (TY, standard 4 -- typing budget): `apply` used to re-walk the
+    // WHOLE document on every keystroke of EVERY note, whether or not it had
+    // ever held an Ask citation chip -- this extension is in every editor's
+    // roster (buildExtensions()). `hasCitation` is a CLOSURE, never plugin
+    // state, because the plugin's state VALUE is a bare DecorationSet read
+    // directly by two rails (`askCitationStaleKey.getState(...).find()` in
+    // AskCitationView.live.test.jsx and askInsertNodes.test.js) and must stay
+    // one. It tracks whether the doc has EVER held a chip, so a note that
+    // never has can skip the walk outright: `staleCitationDecorations` would
+    // find nothing to mark stale regardless, so the empty set already held is
+    // the answer. A note that DOES hold one keeps re-walking on every
+    // keystroke, exactly as before -- staleness depends on the text AROUND a
+    // chip changing, not just whether one exists, so that direction stays
+    // correct rather than becoming a heuristic.
+    let hasCitation = false
     return [new Plugin({
       key: askCitationStaleKey,
       state: {
-        init: (_config, state) => staleCitationDecorations(state.doc),
-        apply: (tr, old) => (tr.docChanged ? staleCitationDecorations(tr.doc) : old),
+        init: (_config, state) => {
+          hasCitation = hasAskCitation(state.doc)
+          return staleCitationDecorations(state.doc)
+        },
+        apply: (tr, old) => {
+          if (!tr.docChanged) return old
+          if (!hasCitation && !stepsIntroduceNodeType(tr, ASK_CITATION_TYPE)) return old
+          hasCitation = true
+          return staleCitationDecorations(tr.doc)
+        },
       },
       props: {
         decorations(state) { return askCitationStaleKey.getState(state) },
