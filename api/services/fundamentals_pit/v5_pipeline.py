@@ -151,12 +151,19 @@ def classify(conn, entry: tuple, acq: dict, now: float) -> tuple[str, str | None
 
 # ── splits ────────────────────────────────────────────────────────────────────────────────────────────────────
 def sync_splits(conn, *, days: int = 21, now: float, rows_fn=None) -> dict:
-    """New Massive split rows for the recent window -> the companies whose ledger they touch."""
+    """New Massive split rows for the recent window, NEVER beyond today (ET).
+
+    ⛔ MEASURED 2026-09-30: the first production daily batch fetched 30 days AHEAD and stored 35 announced-but-not-
+    yet-effective splits. The frozen base's ledger runs to its build date only; a split must not re-base per-share
+    history before its ex-date. Future-dated massive rows are purged (they are re-fetched once effective).
+    Which companies need re-derivation is decided by stale_derivations(), not here."""
     if rows_fn is None:
         from .split_ledger import massive_rows_chunked
         rows_fn = massive_rows_chunked
     today = dt.datetime.fromtimestamp(now, ET).date()
-    rows = rows_fn((today - dt.timedelta(days=days)).isoformat(), (today + dt.timedelta(days=30)).isoformat())
+    with conn:
+        purged = conn.execute("DELETE FROM split_event WHERE source='massive' AND ex_date > ?", (today.isoformat(),)).rowcount
+    rows = [r for r in rows_fn((today - dt.timedelta(days=days)).isoformat(), today.isoformat()) if r[1] <= today.isoformat()]
     have = set(conn.execute("SELECT ticker, ex_date, ratio FROM split_event WHERE source='massive'").fetchall())
     new = [r for r in rows if (r[0].upper(), r[1], float(r[2])) not in have]
     n = I.ingest_splits(conn, new, "massive", now=now) if new else 0
@@ -164,7 +171,22 @@ def sync_splits(conn, *, days: int = 21, now: float, rows_fn=None) -> dict:
     ciks: set[int] = set()
     for t in tick:
         ciks |= {c for (c,) in conn.execute("SELECT cik FROM ticker_map WHERE ticker=?", (t,))}
-    return {"fetched": len(rows), "new_rows": n, "tickers": sorted(tick), "ciks": sorted(ciks)}
+    return {"fetched": len(rows), "new_rows": n, "purged_future_rows": purged, "tickers": sorted(tick), "ciks": sorted(ciks)}
+
+
+def stale_derivations(conn) -> dict[int, dict]:
+    """Every company whose CURRENT inputs (facts, evidence, split ledger) differ from its last build's input hash,
+    with the ledger's row-count movement since that build (gained / lost). This is how a new split -- ingested in any
+    batch -- reaches derivation."""
+    out = {}
+    for (cik,) in conn.execute("SELECT cik FROM series_build WHERE derivation_version=5").fetchall():
+        info = S.build_info(conn, cik, VP.V5)
+        _ledger, rows, _conflict = D.company_ledger(conn, cik)
+        if info and D._input_hash(conn, cik, rows, VP.V5) != info["input_hash"]:
+            before = int((info["detail"] or {}).get("split_rows") or 0)
+            out[cik] = {"split_rows_at_build": before, "split_rows_now": len(rows),
+                        "gained": max(0, len(rows) - before), "lost": max(0, before - len(rows)) or (1 if len(rows) == before else 0)}
+    return out
 
 
 # ── discovery by kind ─────────────────────────────────────────────────────────────────────────────────────────
@@ -326,6 +348,21 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 touched[cik] = ch
         b.rec["acquisition"] = {**acq_rep, "failed": acq_rep["failed"][:30], "failed_n": len(acq_rep["failed"]),
                                 "companies_with_new_inputs": len(touched)}
+        # STALE SCAN (daily / sweep): companies whose inputs moved without a filing (splits, ticker metadata)
+        if kind in ("daily", "sweep"):
+            stale = stale_derivations(conn)
+            added = []
+            pend_now = {c for (c,) in conn.execute("SELECT cik FROM v5_pending")}
+            with conn:
+                for cik, st in stale.items():
+                    if cik in pend_now:
+                        continue
+                    conn.execute("INSERT OR REPLACE INTO v5_pending VALUES (?,?,?,?)", (cik, None, 1, int(now)))
+                    conn.execute("INSERT INTO v5_ledger_change VALUES (?,?,?) ON CONFLICT(cik) DO UPDATE SET "
+                                 "gained=gained+excluded.gained, lost=lost+excluded.lost", (cik, st["gained"], st["lost"]))
+                    added.append(cik)
+            b.rec["stale_scan"] = {"stale": len(stale), "added_to_pending": added[:100], "added_n": len(added),
+                                   "detail": {str(c): stale[c] for c in added[:100]}}
         # DERIVING (every pending company whose evidence is complete)
         b.state("DERIVING")
         todo = [c for (c,) in conn.execute("SELECT cik FROM v5_pending ORDER BY cik")]

@@ -351,6 +351,30 @@ def test_quarantine_restores_a_company_from_an_earlier_version(env):
     live.close()
 
 
+def test_split_sync_never_stores_a_future_split_and_purges_old_ones(env):
+    live = L.connect_live(env["p"])
+    live.execute("INSERT INTO split_event VALUES ('TST','2026-10-20',0.1,'massive',NULL,1)"); live.commit()
+    asked = []
+    def rows(lo, hi):
+        asked.append(hi)
+        return [("TST", "2026-09-28", 2.0, None), ("TST", "2026-10-05", 3.0, None)]
+    r = PL.sync_splits(live, now=NOW, rows_fn=rows)
+    got = live.execute("SELECT ex_date, ratio FROM split_event WHERE ticker='TST' ORDER BY ex_date").fetchall()
+    live.close()
+    assert asked == ["2026-09-29"] and r["purged_future_rows"] == 1 and got == [("2026-09-28", 2.0)]
+
+
+def test_a_new_split_reaches_derivation_through_the_stale_scan(env):
+    live = L.connect_live(env["p"])
+    live.execute("INSERT INTO split_event VALUES ('TST','2026-09-28',2.0,'massive',NULL,1)"); live.commit()
+    live.close()
+    SV.clear_cache()
+    rec = PL.run_batch("daily", target=env["t"], p=env["p"], now=NOW, days_fn=lambda d, **k: None,
+                       fetch_company=_fetch(FACTS, ACCNS), fetch_instance=lambda c, a: None, sync_split=False)
+    assert rec["stale_scan"]["added_to_pending"] == [CIK] and rec["stale_scan"]["detail"][str(CIK)]["gained"] == 1
+    assert rec["state"] == "PUBLISHED" and rec["validation"]["quarantined"] == []
+
+
 # ── serving seam + rollback ─────────────────────────────────────────────────
 def test_serving_defaults_to_v4_and_follows_the_control_object(env):
     SV.clear_cache()
