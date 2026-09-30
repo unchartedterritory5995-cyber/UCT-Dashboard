@@ -109,12 +109,13 @@ def test_search_finds_the_dataset_and_never_a_child(q):
 # ── serving ──────────────────────────────────────────────────────────────────
 
 ROWS = [
-    # date (as-of Tuesday), large,  comm,   small
-    ("2026-08-25", 52346, -62340, 9995),
-    ("2026-09-01", 48000, -57000, 9000),
-    ("2026-09-08", -1200, 3400, -2200),     # every sign flips
-    ("2026-09-15", 30000, -41000, 11000),
+    # as-of Tuesday, large,  comm,   small       public: the following Friday
+    ("2026-08-25", 52346, -62340, 9995),     # → 2026-08-28
+    ("2026-09-01", 48000, -57000, 9000),     # → 2026-09-04
+    ("2026-09-08", -1200, 3400, -2200),      # → 2026-09-11   (every sign flips)
+    ("2026-09-15", 30000, -41000, 11000),    # → 2026-09-18
 ]
+PUBLIC = ["2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18"]
 COL = {"LARGE": 1, "COMM": 2, "SMALL": 3}
 
 
@@ -131,7 +132,7 @@ def cot_db(tmp_path, monkeypatch):
     # Pin "today" so the carry's end is deterministic.
     real = ms.weekday_calendar
     monkeypatch.setattr(ms, "weekday_calendar",
-                        lambda start, end=None: real(start, end or "2026-09-18"))
+                        lambda start, end=None: real(start, end or "2026-09-25"))
     return path
 
 
@@ -139,17 +140,26 @@ def _by_day(code, tf="D"):
     return {b["t"]: b["c"] for b in ms.build_bars(f"COT:NQ:{code}", tf)["bars"]}
 
 
-def test_every_weekday_carries_the_latest_report_until_the_next(cot_db):
+def test_nothing_is_served_before_the_first_report_was_public(cot_db):
+    days = _by_day("COMM")
+    for d in ("2026-08-25", "2026-08-26", "2026-08-27"):     # as-of Tue, Wed, Thu
+        assert d not in days
+    assert min(days) == "2026-08-28"
+
+
+def test_each_report_starts_on_its_public_friday_and_carries(cot_db):
     for code, idx in COL.items():
         days = _by_day(code)
-        # One bar per weekday, report date through "today" (2026-09-18).
-        assert len(days) == 19
-        assert days["2026-08-25"] == ROWS[0][idx]          # the report's own date
-        assert days["2026-08-28"] == ROWS[0][idx]          # carried Wed-Fri
-        assert days["2026-08-31"] == ROWS[0][idx]          # …and Monday
-        assert days["2026-09-01"] == ROWS[1][idx]          # next report takes over
-        assert days["2026-09-14"] == ROWS[2][idx]
-        assert days["2026-09-18"] == ROWS[3][idx]          # latest, carried to today
+        # Report B (as-of Tue 09-01) is unknown Tue-Thu: report A still stands.
+        for d in ("2026-08-28", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03"):
+            assert days[d] == ROWS[0][idx], (code, d)
+        assert days["2026-09-04"] == ROWS[1][idx]          # published Friday → supersedes
+        assert days["2026-09-07"] == ROWS[1][idx]          # carried (Labor Day: no bar drawn)
+        assert days["2026-09-10"] == ROWS[1][idx]          # C not yet public
+        assert days["2026-09-11"] == ROWS[2][idx]
+        assert days["2026-09-17"] == ROWS[2][idx]
+        assert days["2026-09-18"] == ROWS[3][idx]
+        assert days["2026-09-25"] == ROWS[3][idx]          # latest, carried to today
 
 
 def test_no_bar_on_a_weekend(cot_db):
@@ -157,16 +167,19 @@ def test_no_bar_on_a_weekend(cot_db):
     assert "2026-08-29" not in days and "2026-08-30" not in days
 
 
-def test_a_report_never_appears_before_its_own_date(cot_db):
+def test_no_value_ever_precedes_its_public_date(cot_db):
     days = _by_day("COMM")
-    assert min(days) == ROWS[0][0]
-    assert days["2026-08-31"] != ROWS[1][2], "2026-09-01's report leaked into the day before"
+    for (asof, _l, comm, _s), pub in zip(ROWS, PUBLIC):
+        assert all(day >= pub for day, v in days.items() if v == comm), asof
 
 
 def test_the_values_are_the_stores_exactly_never_interpolated(cot_db):
     api = cot_service.get_cot_data("NQ", 52)
-    served = set(_by_day("COMM").values())
-    assert served == {r["commercial_net"] for r in api}
+    assert set(_by_day("COMM").values()) == {r["commercial_net"] for r in api}
+
+
+def test_the_cot_tab_still_labels_reports_by_as_of(cot_db):
+    assert [r["date"] for r in cot_service.get_cot_data("NQ", 52)] == [r[0] for r in ROWS]
 
 
 def test_positive_and_negative_values_survive(cot_db):
@@ -174,10 +187,30 @@ def test_positive_and_negative_values_survive(cot_db):
     assert any(v > 0 for v in vals) and any(v < 0 for v in vals)
 
 
-def test_weekly_timeframe_is_the_report_in_force_each_friday(cot_db):
+def test_weekly_bar_is_the_week_the_report_became_public(cot_db):
     bars = ms.build_bars("COT:NQ:COMM", "W")["bars"]
-    assert [b["t"] for b in bars] == ["2026-08-28", "2026-09-04", "2026-09-11", "2026-09-18"]
-    assert [b["c"] for b in bars] == [r[2] for r in ROWS]
+    # Each report lands in the week of its Friday publication — its own week here,
+    # never the week before.
+    assert [b["t"] for b in bars] == PUBLIC + ["2026-09-25"]
+    assert [b["c"] for b in bars] == [r[2] for r in ROWS] + [ROWS[3][2]]
+
+
+def test_a_holiday_week_report_lands_in_the_following_week(tmp_path, monkeypatch):
+    path = str(tmp_path / "cot.db")
+    monkeypatch.setattr(cot_service, "DB_PATH", path)
+    cot_service.init_db()
+    cot_service._upsert_records([
+        {"symbol": "NQ", "date": d, "large_spec_net": 1, "commercial_net": v,
+         "small_spec_net": 1, "open_interest": 1}
+        for d, v in (("2026-11-17", 100), ("2026-11-24", 200))   # Thanksgiving week
+    ])
+    real = ms.weekday_calendar
+    monkeypatch.setattr(ms, "weekday_calendar",
+                        lambda start, end=None: real(start, end or "2026-12-04"))
+    days = _by_day("COMM")
+    assert days["2026-11-27"] == 100 and days["2026-11-30"] == 200   # released Monday
+    weeks = {b["t"]: b["c"] for b in ms.build_bars("COT:NQ:COMM", "W")["bars"]}
+    assert weeks["2026-11-27"] == 100 and weeks["2026-12-04"] == 200
 
 
 def test_intraday_collapses_to_the_daily_answer(cot_db):
@@ -203,8 +236,9 @@ def test_a_publication_gap_is_a_hole_not_a_flat_line(tmp_path, monkeypatch):
     monkeypatch.setattr(ms, "weekday_calendar",
                         lambda start, end=None: real(start, end or "2026-02-20"))
     days = _by_day("COMM")
-    assert "2026-01-16" in days and "2026-01-20" not in days    # 12-day cap
-    assert days["2026-02-17"] == 200
+    # 2026-01-06 → public Fri 01-09; carried 12 days to 01-21, then a hole.
+    assert days["2026-01-09"] == 100 and "2026-01-21" in days and "2026-01-22" not in days
+    assert "2026-02-17" not in days and days["2026-02-20"] == 200   # public Fri 02-20
 
 
 def test_a_market_with_no_rows_serves_nothing(cot_db):

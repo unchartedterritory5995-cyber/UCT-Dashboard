@@ -728,10 +728,14 @@ def _cot_series(sym: str, code: str, column: str, name: str) -> Series:
                     "interpolated).",
         methodology_version="cot-legacy-v1",
         history_start=None,                    # answered at runtime by the store
-        observation_semantics="The date is the report's AS-OF TUESDAY — the positions "
-                              "held at that day's close, as the COT tab dates them.",
-        knowledge_semantics="CFTC publish the report the following Friday (3:30pm ET), "
-                            "so a Tuesday value became public three days after its date.",
+        observation_semantics="Each report describes positions at the close of its "
+                              "AS-OF TUESDAY — its identity, and the date the COT tab and "
+                              "/api/cot label it by.",
+        knowledge_semantics="Served from its PUBLIC date, never its as-of date: CFTC "
+                            "release it the following Friday 15:30 ET (next publication "
+                            "day after a Wed-Fri holiday; CFTC's own schedule after a "
+                            "lapse or outage) — `cot_release.available_day`. A bar dated "
+                            "D carries the newest report public by D's close.",
         provenance="`cot_service` → `cot.db` `cot_records`, the store behind "
                    "`/api/cot/{symbol}` and the Breadth page's COT tab. This project "
                    "added NO ingestion.",
