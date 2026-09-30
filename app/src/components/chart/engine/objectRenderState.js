@@ -291,11 +291,6 @@ export function toRenderState(live, opts = {}) {
       const x = xOf(p.x, p.xloc, clock)
       const y = num(p.y)
       if (x === null) { dropped.label += 1; continue }
-      // ⛔ A WITHHELD TEXT (`null`, the object runtime's answer when no capture
-      // pins what the vendor draws — `pineTextFormat.js`) IS NOT DRAWN, and nor
-      // is the label it belongs to: an empty bubble where the vendor shows a
-      // number is a wrong picture, not a partial one.
-      if (p.text === null) { dropped.label += 1; continue }
       labels.push({
         id: o.id,
         x,
@@ -317,7 +312,6 @@ export function toRenderState(live, opts = {}) {
       const top = num(p.top)
       const bottom = num(p.bottom)
       if (left === null || right === null || top === null || bottom === null) { dropped.box += 1; continue }
-      if (p.text === null) { dropped.box += 1; continue }   // a withheld text — see the label arm
       // ⛔⛔ `Math.min` ON A TIME IS ARITHMETIC, AND A DAILY TIME IS A STRING.
       // ⚰️ `Math.min("2026-09-04", "2026-08-01")` is `NaN`, so every box on a
       // daily chart came out with `left = right = NaN` and painted 59,000 px off
@@ -356,13 +350,7 @@ export function toRenderState(live, opts = {}) {
         // day produce — so it fixes the order itself rather than inheriting one
         // producer's habit. A table whose row order depends on which cell the
         // author happened to write first is not a table.
-        // ⛔ A cell whose text is withheld (`null`) is not drawn — the cell IS its
-        // text. Counted under `dropped.cell`, present only when it happened.
-        cells: [...(o.cells || [])].filter((c) => {
-          if (c.props.text !== null) return true
-          dropped.cell = (dropped.cell || 0) + 1
-          return false
-        }).sort((x, y) => (x.row - y.row) || (x.col - y.col)).map((c) => ({
+        cells: [...(o.cells || [])].sort((x, y) => (x.row - y.row) || (x.col - y.col)).map((c) => ({
           col: c.col,
           row: c.row,
           text: c.props.text === undefined || c.props.text === null ? '' : String(c.props.text),

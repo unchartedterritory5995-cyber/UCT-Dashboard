@@ -3960,12 +3960,6 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
 
     const seed = toColumn(evalNode(node.args[rec.seed]), length)
     const out = nan(length)
-    // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
-    // not-computable prefix with that value instead of `NaN`, so a caller can
-    // evaluate a tree twice more and see which bars' results DEPEND on the prefix
-    // (`objectColumns.js::unknownMask`). No member-facing lane passes it: the
-    // prefix is still `NaN` everywhere a value is shown.
-    if (opts && typeof opts.prefixProbe === 'number') out.fill(opts.prefixProbe, 0, Math.min(warmup, length))
     for (let i = warmup; i < length; i++) {
       // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
       // bars ago" to read, and the seed is the only defined value in scope — the

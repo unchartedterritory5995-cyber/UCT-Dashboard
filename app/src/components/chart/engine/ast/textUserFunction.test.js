@@ -133,18 +133,17 @@ plot(close)
     expect(dropped['cell:text']).toBe(1)
   })
 
-  // ─── ⭐⭐ NESTED TEXT HELPERS (R2 step 2a → C15, objects-triage step 13) ────
+  // ─── ⛔⛔ NESTED TEXT HELPERS REFUSE BY NAME (R2 step 2a) ──────────────────
   //
-  // ⚰️ One level of user function was inlined through the Resolver's own frame
-  // and TWO refused by name, because the frame CHAIN did not resolve. That was
-  // right until a capture needed it: reverse-stochastic-momentum-index-on-chart
-  // lost its one info-box label to `f_crossText(P, X, T, D)` reading
-  // `f_negVal(X, D)`. The inner call is now served by SUBSTITUTION — its
-  // arguments rewritten through the outer frame into the outer CALLER's own
-  // names — which is the one-level case again, not a chain.
-  // ⛔ What substitution cannot express (an argument still naming the outer
-  // function's own non-expression local) keeps refusing by name, with its line.
-  it('⭐⭐ a helper calling a helper is SERVED — the inner body, substituted', () => {
+  // One level of user function is inlined through the Resolver's own frame.
+  // TWO would need the frame CHAIN, and the attempt at that did not resolve —
+  // so rather than ship a half-working chain, or let it fail into
+  // `unresolvedValues` where it is a number with no name on it, the outer call
+  // is refused, recorded with its line, and the cell is dropped and counted.
+  //
+  // ⭐ Nothing in the corpus needs it yet: v2's `f_formatVolume` calls no helper.
+  // The diagnostic is what keeps that a measurement rather than an assumption.
+  it('⛔⛔ a helper calling a helper is REFUSED BY NAME, with its line', () => {
     const src = `${HEAD}f_inner(_x) =>
     str.tostring(_x, '#.##')
 f_outer(_x) =>
@@ -155,43 +154,12 @@ if barstate.islast
 plot(close)
 `
     const { t, cells: got, dropped } = cells(src)
-    expect(dropped['cell:text']).toBeUndefined()
-    expect(got).toHaveLength(1)
-    const text = got[0].props.text.node
-    expect(text.t).toBe('cat')
-    const flat = []
-    const walk = (n) => { if (n.t === 'cat') n.args.forEach(walk); else flat.push(n) }
-    walk(text)
-    expect(flat.map((n) => n.t)).toEqual(['lit', 'num', 'lit'])
-    expect(flat[0].s).toBe('[')
-    expect(flat[1].fmt).toBe('#.##')
-    expect(flat[2].s).toBe(']')
-    // ⭐ the number is the CALLER's `volume`, read through both frames
-    expect(t.objects.trees[flat[1].tree]).toEqual({ type: 'series', name: 'volume' })
-    expect(t.objectDiagnostics.nestedTextHelpers).toBeUndefined()
-  })
-
-  it('⛔⛔ …and an argument that still names the OUTER body is REFUSED BY NAME, with its line', () => {
-    // ⭐ `p` ALSO NAMES A GLOBAL, on purpose: read at the caller, the argument
-    // would silently become `close` — the wrong number, confidently drawn.
-    const src = `${HEAD}p = close
-f_pair(_v) =>
-    [_v * 2, _v * 3]
-f_inner(_x) =>
-    str.tostring(_x, '#.##')
-f_outer(_x) =>
-    [p, q] = f_pair(_x)
-    '[' + f_inner(p) + ']'
-if barstate.islast
-    var table tt = table.new(position.top_right, 1, 1)
-    table.cell(tt, 0, 0, f_outer(volume))
-plot(close)
-`
-    const { t, cells: got, dropped } = cells(src)
     expect(got).toHaveLength(0)
     expect(dropped['cell:text']).toBe(1)
-    // ⛔ NAMED AND LOCATED — the INNER call's line, inside `f_outer`'s body.
-    expect(t.objectDiagnostics.nestedTextHelpers).toEqual(['f_inner@10'])
+    // ⛔ NAMED AND LOCATED, never a silent `unresolvedValues` bump. The line is
+    // the INNER call's, inside `f_outer`'s body — which is the line a member
+    // would have to change.
+    expect(t.objectDiagnostics.nestedTextHelpers).toEqual(['f_inner@6'])
   })
 
   it('⭐ …and ONE level still resolves, so the refusal is about nesting only', () => {

@@ -201,7 +201,6 @@ function objectsOf(def, bars, ctx) {
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
-      readUnknown: reader.readUnknown,
     })
     const state = toRenderState(run.live, { bars, tf: ctx.tf })
     const cells = state.tables.flatMap((t) => t.cells || [])

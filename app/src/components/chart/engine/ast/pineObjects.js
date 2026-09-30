@@ -39,7 +39,6 @@ import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -232,8 +231,6 @@ export function collectObjectOps(stmts, h) {
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
   const userMethods = new Set([...fnDefs.keys()].filter((n) => fnDefs.get(n).isMethod))
   const pureFns = pureFunctions(fnDefs, drawFns)
-  /** Top-level names fixed for the whole run — see `barInvariantNames`. */
-  const invariantNames = barInvariantNames(stmts, h)
   let inlineSeq = 0
   let inlineDepth = 0
   /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
@@ -248,9 +245,9 @@ export function collectObjectOps(stmts, h) {
    *  loud answer, never "removes nothing". */
   const refuseCall = (why, fn, st, detail) => {
     const def = fnDefs.get(fn)
-    const effects = why === 'return-type' ? { kinds: {}, families: [], creates: [] }
+    const effects = why === 'return-type' ? { kinds: {}, families: [] }
       : def ? bodyEffects(def, fnDefs, objColls)
-        : { kinds: { delete: 1 }, families: [null], creates: [null] }
+        : { kinds: { delete: 1 }, families: [null] }
     diagnostics.refusedCalls.push({
       why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
       ...(detail ? { detail } : {}),
@@ -1373,13 +1370,7 @@ export function collectObjectOps(stmts, h) {
     // ⛔ A CONDITIONAL CALL SEES ONLY THE BARS IT RUNS ON. See the header of
     // `objectFnInline.js`: a body that reads history under a conditional call
     // measures a different set of bars than the every-bar value model does.
-    // ⭐ C13 (2026-09-29): a guard built only from inputs and constants holds on
-    // every bar or on none, so the call's history is the every-bar history —
-    // see `guardIsBarInvariant`. ⛔ A counted loop still refuses: its body runs
-    // several times per bar, so no guard can make that history the columnar one.
-    const varies = loopIds.length > 0
-      || guards.some((g) => !guardIsBarInvariant(g.toks, invariantNames))
-    if (varies) {
+    if (guards.length || loopIds.length) {
       const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }

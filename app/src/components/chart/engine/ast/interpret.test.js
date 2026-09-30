@@ -1257,15 +1257,13 @@ describe('the interpreter is PURE', () => {
     expect(scScan.imports).toEqual(['./market_calendar.json', './calendarCompact.js'])
     expect(scan(scTree).findings).toEqual(SC_WIDENED.map((n) => `free identifier: ${n}`).sort())
     // …and the one code edge beside the dataset: `calendarCompact.js` rebuilds the
-    // dataset's rows from the bundle's compact form (dates as day numbers). It
-    // needs `Date` only as `Date.UTC` over dates it is HANDED — measured both
-    // ways, like the modules above — and must be a leaf.
+    // dataset's rows from the bundle's compact form. It is scanned with NO
+    // widening and must be a leaf, so the calendar's closure stays exactly this.
     const ccTree = acorn.parse(fs.readFileSync(path.join(CLOCK_LIB, 'calendarCompact.js'), 'utf8'),
       { ecmaVersion: 2023, sourceType: 'module' })
-    const ccScan = scan(ccTree, ['Date'])
+    const ccScan = scan(ccTree)
     expect(ccScan.findings, 'calendarCompact.js reached something outside pure arithmetic').toEqual([])
     expect(ccScan.imports).toEqual([])
-    expect(scan(ccTree).findings).toEqual(['free identifier: Date'])
     // ⛔ AND THE WIDENING IS EXACTLY WHAT IT CLAIMS. Without the extension the
     // findings must be precisely the two names it spells — no more (or the
     // extension is hiding something) and no fewer (or it is admitting a name
