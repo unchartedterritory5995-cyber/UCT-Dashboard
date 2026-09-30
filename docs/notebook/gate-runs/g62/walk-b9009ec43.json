@@ -1,0 +1,77 @@
+{
+ "errors": [],
+ "checks": {
+  "G1_activation_explicit_value": {
+   "verdict": "PASS",
+   "status": 200,
+   "fact": {
+    "id": "9057f9e58bd044b1bcb22b94b881e6fe",
+    "noteId": "ca35b66ac79f4a1ba4193e3e26f14f6c",
+    "entityId": null,
+    "ticker": "NVDA",
+    "factType": "analyst_price_target_consensus",
+    "factLabel": "Analyst Price Target (Consensus)",
+    "period": null,
+    "value": 195.0,
+    "unit": "usd_per_share",
+    "currency": "USD",
+    "temporalMode": "snapshot",
+    "observedAt": "2026-09-30T21:52:48.863074+00:00",
+    "sourceAsOf": null,
+    "source": "fmp",
+    "sourceRef": null,
+    "rightsClass": "conditional",
+    "caption": null,
+    "createdAt": "2026-09-30T21:52:48.863074+00:00"
+   },
+   "note_id": "ca35b66ac79f4a1ba4193e3e26f14f6c"
+  },
+  "G2_unknown_type_refused": {
+   "verdict": "PASS",
+   "status": 400,
+   "note": "proves the SAME refusal branch note_facts.create_fact_observation uses for an inactive-but-known type; the inactive-type case itself is covered by test_wave_f_facts.py::test_create_fact_rejects_an_inactive_fact_type_generically and the router's mirror, both with a real monkeypatched inactive registry entry"
+  },
+  "G3_auto_resolve_or_honest_failure": {
+   "verdict": "PASS",
+   "branch": "fmp_live_data",
+   "status": 200,
+   "value": 342.13
+  },
+  "G4_frozen_at_insert": {
+   "verdict": "PASS",
+   "f1_id": "44168c1c5d4949aaac1e8f2d1d67ea38",
+   "f1_value_after": 410.0,
+   "f2_id": "a5bdc0cdd2d943a6a9986166cebdb6c3",
+   "f2_value": 455.0,
+   "f1_has_current_key": false,
+   "note": "two distinct rows; the FIRST is unchanged after the SECOND lands; neither carries a 'current' key -- a snapshot fact is never read-time re-derived"
+  },
+  "G5_slash_command_door": {
+   "verdict": "PASS",
+   "hint_item_offered": true,
+   "capture_item_offered": true,
+   "financial_fact_node_count": 1,
+   "note": "0 nodes = honest failure (no FMP data in this sandbox), 1 node = a real FMP-sourced capture rendered -- both are correct outcomes; only a count outside {0,1} or a missing menu item is a FAIL"
+  },
+  "G6_tickerpopup_door": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "no [data-testid='ticker-AAPL'] trigger found on /journal/trades -- the Open Positions tab may not be the default sub-tab; re-point this step at whichever sub-tab TradesSurface lands on by default"
+  },
+  "G7_render_and_attribution": {
+   "verdict": "PASS",
+   "card_text": "GOOGL\nAnalyst Price Target (Consensus)\nCAPTURED\n$220.50\nCaptured Sep 30, 2026, 4:53 PM\nSource: FMP"
+  },
+  "G8_errors": {
+   "verdict": "PASS",
+   "pageerror_count": 0,
+   "pageerrors": []
+  }
+ },
+ "admin_login_ok": true,
+ "comp_status": 200,
+ "verify_email_status": 200,
+ "account": {
+  "role": "member",
+  "paid_equiv": true
+ }
+}
