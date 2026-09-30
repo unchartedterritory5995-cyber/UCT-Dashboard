@@ -48,6 +48,9 @@ export const OHLC_FAMILY = Object.freeze({
   VOLATILITY: 'volatility',
   INDICATOR: 'indicator',
   SURVEY: 'survey',
+  // ⭐ AN ECONOMIC OBSERVATION SERIES (`ECON:USCPI`): one value per period, no
+  // auction — never on the allow-list below, so it can never be offered candles.
+  ECONOMIC: 'economic',
   UNKNOWN: 'unknown',
 })
 

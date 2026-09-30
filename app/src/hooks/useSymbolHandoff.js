@@ -100,6 +100,11 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true } = 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (peekDisplayable(requestedSym, tf)) { commit(); return undefined }
 
+    // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
+    // or prefetch through the bars lane (it would 404) — the chart loads it from
+    // /api/econ itself, so the request commits straight through.
+    if (/^ECON:/i.test(String(requestedSym))) { commit(); return undefined }
+
     // ⛔ INTRADAY ONLY, AND THAT IS A SCOPE DECISION NOT AN OVERSIGHT.
     //   • D/W/M: the defect is intraday (the frontier maths is bucket
     //     arithmetic over a session), daily already paints from the pack, and

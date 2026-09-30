@@ -33,6 +33,8 @@ import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
+import { isEconomicId } from '../engine/econMark'
+import useEconomicCatalog from '../engine/useEconomicCatalog'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -119,6 +121,11 @@ function ChartPane({
   onActivate = undefined,
   showTfBar = true,
   tfCodes = null,
+  // ⭐ May the symbol search offer ECONOMIC series (`ECON:USCPI`)? Only a surface
+  // whose chart is the member's own charting chart opts in (the /charts ChartWidget);
+  // a trade drawer or a popup keeps a ticker-only search. Even then the category
+  // appears only for a member `/api/econ/catalog` answers 200 (dark by construction).
+  allowEconomic = false,
   // Workspace-supplied: apply a UCT theme to EVERY chart in the layout at once.
   // Passed through to the settings modal's themes gallery ("All charts" scope).
   onApplyThemeAll = null,
@@ -150,7 +157,14 @@ function ChartPane({
   // the meta row lives inside the TF bar). Gate the fetch — and its 5-min poll
   // loop — on whether that row can even render, so a compact/mini/no-tf-bar
   // pane across ~20 surfaces never opens a request it can't show.
-  const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar)
+  // ⭐ ECONOMIC SERIES (`ECON:USCPI`) — a registry-backed NON-INSTRUMENT identity:
+  // no ticker meta, no delisted lookup, no snapshot, no logo, no quote, no session.
+  const isEcon = isEconomicId(sym)
+  const econSym = isEcon ? String(sym).trim().slice(5).toUpperCase() : null
+  const econCat = useEconomicCatalog(isEcon)
+  const econRow = isEcon ? (econCat.list.find((r) => r && String(r.symbol).toUpperCase() === econSym) || null) : null
+  const econName = econRow ? (econRow.name || econRow.short_name || econSym) : econSym
+  const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar && !isEcon)
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
@@ -171,9 +185,9 @@ function ChartPane({
   const { isEtf } = useEtfSymbols()
   // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
   // dash for them (like Next Earnings), only real stocks get a value.
-  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadth || String(sym || '').startsWith('^')
+  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadth || isEcon || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
-  const synthDailyOnly = themeIdx.isIndex || isBreadth   // no live feed, D/W/M only
+  const synthDailyOnly = themeIdx.isIndex || isBreadth || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
   const idxGain = useMemo(() => {
@@ -384,6 +398,8 @@ function ChartPane({
     ? _themeViewLabel
     : isBreadth
     ? `${sym} · ${breadthRec.name}`
+    : isEcon
+    ? (econName && econName !== econSym ? `${econName} · ${econSym}` : econSym)
     : themeIdx.isIndex
     ? indexLabel
     : hdr.titleMode === 'ticker'
@@ -400,7 +416,7 @@ function ChartPane({
   // A breadth symbol has no intraday basis, so lock its TF bar to D/W/M (no overflow
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
-  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : (isBreadth ? DWM : null)
+  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadth || isEcon) ? DWM : null)
   const visibleTfs = (() => {
     if (Array.isArray(effTfCodes)) return effTfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -421,10 +437,10 @@ function ChartPane({
   // host-locked tfCodes set is never trimmed.
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, tfCap)
+    : trimTimeframes(visibleTfs, (isBreadth || isEcon) ? breadthTf : tf, tfCap)
   shownTfCountRef.current = responsiveTfs.length
   const infoAbbrev = infoForceAbbrev
-  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
+  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadth && !isEcon && !themeIdx.isIndex)
     ? sym
     : headerLabel
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
@@ -447,7 +463,8 @@ function ChartPane({
   // Info Row — the fields the user picked (migrates a legacy show* blob). Each extra data
   // source (live quote / perf / rvol+ipo meta / theme) is fetched for THIS one symbol ONLY
   // when a field that needs it is actually shown.
-  const infoFieldKeys = useMemo(() => headerFieldKeys(hdr), [hdr])
+  // An economic series has no market cap, earnings, quote or theme — no info row.
+  const infoFieldKeys = useMemo(() => (isEcon ? [] : headerFieldKeys(hdr)), [hdr, isEcon])
   const infoGate = !compact && !mini && showTfBar
   // A delisted ticker has no live feed, so never open the live-quote poll for one
   // (it would return nothing and render a broken 0.00%). Its Info-Row quote fields
@@ -737,14 +754,15 @@ function ChartPane({
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
+          economic={allowEconomic}
+          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadth && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
             up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
-          session={compact ? null : (isDWMtf
+          session={(compact || isEcon) ? null : (isDWMtf
             ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: sessionForceAbbrev }
             : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: sessionForceAbbrev })}
           showClock={!compact}
@@ -755,7 +773,7 @@ function ChartPane({
       {showTfBar && (
         <ChartTfBar
           rootRef={tfBarRef}
-          tf={isBreadth ? breadthTf : tf}
+          tf={(isBreadth || isEcon) ? breadthTf : tf}
           visibleTfs={responsiveTfs}
           onTf={handleTf}
           /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
@@ -834,7 +852,7 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
-          tf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          tf={(isBreadth || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
           /* The old drawing-toolbar compare entry is retired — comparisons are
              managed by the /charts Tools → Compare Symbols panel now (rendering via
              cs.comparisonSymbols is unchanged). */
@@ -865,6 +883,14 @@ function ChartPane({
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
             watermarkBrandMark: true,   // UCT compass mark, not a company-logo lookup
+          } : {})}
+          {...(isEcon ? {
+            // ECONOMIC SERIES: StockChart owns the data path (`useEconomicPrimary`
+            // — /api/econ, never /api/bars); the pane only names it. Watermark =
+            // the display symbol with the series' name beneath, no logo lookup.
+            liveUpdates: false,
+            watermark: econSym,
+            watermarkName: econName && econName !== econSym ? econName : undefined,
           } : {})}
           {...(!themeIdx.isIndex && isDelisted ? {
             // DELISTED (never a theme index): freeze live updates + curated watermark
@@ -1001,7 +1027,7 @@ function ChartPane({
       <AttachedPineDisclosures settings={chartCs} barsLoaded={drawnBars} />
       <ChartSettingsModal
         open={settingsOpen}
-        chartTf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+        chartTf={(isBreadth || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
         onClose={() => setSettingsOpen(false)}
         scrollTo={settingsOpen ? settingsTarget : null}
         settings={chartCs}

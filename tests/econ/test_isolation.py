@@ -280,11 +280,87 @@ def test_edge_routes_an_econ_symbol_on_the_bars_path_to_web():
     assert "/api/bars/*" in pkg and "econ" not in pkg
 
 
-# ── ticker search: econ is not a stock row (Phase 2 adds its own tab) ───────
+# ── ticker search: econ rows only on the enabled + entitled path (Phase 2) ──
+#
+# Phase 1 rail ("search never reads the econ registry") REPLACED by the Phase 2
+# contract: `/api/ticker-search` may read the econ catalogue ONLY when
+# ECON_ENABLED=1 AND the caller passes the bars entitlement (`meets_plan_gate`,
+# the same rule as `require_bars_access`). Flag unset / anonymous / free: no econ
+# row, and the econ serving layer is not touched at request time. The stock
+# symbol-search INDEX (`ticker_search_index`) never imports econ at all.
 
-def test_symbol_search_index_does_not_read_the_econ_registry():
-    """Seam note: econ discovery is `registry.search_view()` (Phase 2, 6th Add
-    Indicator tab). The stock symbol-search index must not import it."""
+def test_symbol_search_INDEX_never_imports_econ_and_the_router_only_lazily():
     hits = [p for p in (REPO / "api").rglob("*search*.py")
             if any(m.startswith("api.services.econ") for m in _imports(p))]
-    assert hits == []
+    assert [h.relative_to(REPO).as_posix() for h in hits] == ["api/routers/ticker_search.py"]
+    # every econ import in the router is FUNCTION-LOCAL (read at request time on the
+    # gated path only), never a module-level import
+    tree = ast.parse((REPO / "api/routers/ticker_search.py").read_text(encoding="utf-8"))
+    top = [n for n in tree.body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    assert not any((getattr(n, "module", "") or "").startswith("api.services.econ")
+                   or any(a.name.startswith("api.services.econ") for a in n.names) for n in top)
+
+
+class _Tripwire:
+    def __init__(self):
+        self.touched = []
+
+    def __getattr__(self, name):
+        self.touched.append(name)
+        raise AssertionError(f"econ serving touched at request time: {name}")
+
+
+@pytest.fixture
+def search_client(monkeypatch):
+    import sys
+    import api.bars_auth as bars_auth
+    import api.routers.ticker_search as ts
+    import api.services.econ as econ_pkg
+    wire = _Tripwire()
+    monkeypatch.setattr(econ_pkg, "serving", wire, raising=False)
+    monkeypatch.setitem(sys.modules, "api.services.econ.serving", wire)
+
+    def as_(user):
+        for mod in (bars_auth, ts):
+            monkeypatch.setattr(mod, "validate_session", lambda _t, _u=user: dict(_u) if _u else None)
+            monkeypatch.setattr(mod, "get_user_plan", lambda _i, _u=user: (_u or {}).get("plan", "free"))
+    app = FastAPI()
+    app.include_router(ts.router)
+    return TestClient(app), wire, as_
+
+
+_PAID = {"id": "p", "email": "p@x", "role": "member", "plan": "pro"}
+_FREE = {"id": "f", "email": "f@x", "role": "member", "plan": "free"}
+
+
+def _search(client, user, **params):
+    return client.get("/api/ticker-search", params={"q": "CPI", "limit": 20, **params},
+                      cookies={"uct_session": "t"} if user else {})
+
+
+@pytest.mark.parametrize("flag,user", [(None, _PAID), (None, None), ("1", None), ("1", _FREE)],
+                         ids=["dark-paid", "dark-anon", "on-anon", "on-free"])
+def test_search_never_touches_econ_unless_enabled_AND_entitled(search_client, monkeypatch, flag, user):
+    client, wire, as_ = search_client
+    if flag:
+        monkeypatch.setenv("ECON_ENABLED", flag)
+    else:
+        monkeypatch.delenv("ECON_ENABLED", raising=False)
+    as_(user)
+    for params in ({}, {"type": "all_economic"}, {"type": "economic"}):
+        r = _search(client, user, **params)
+        assert r.status_code == 200
+        assert not any(str(x.get("ticker", "")).startswith("ECON:") or x.get("type") == "economic"
+                       for x in r.json()["results"])
+    assert wire.touched == []
+
+
+def test_NEGATIVE_CONTROL_enabled_and_entitled_does_read_the_catalogue(search_client, monkeypatch):
+    """The tripwire must fire on the one path allowed to read econ — proving the
+    test above would catch a leak rather than passing vacuously."""
+    client, wire, as_ = search_client
+    monkeypatch.setenv("ECON_ENABLED", "1")
+    as_(_PAID)
+    r = _search(client, _PAID, type="economic")
+    assert r.status_code == 200 and r.json() == {"results": []}   # the tripwire's refusal is swallowed (fail closed)
+    assert wire.touched == ["catalog"]

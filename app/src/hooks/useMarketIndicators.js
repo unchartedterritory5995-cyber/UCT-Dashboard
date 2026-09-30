@@ -115,6 +115,9 @@ export function isMarketIndicator(sym) {
  */
 export function canonicalFamily(sym) {
   if (!sym) return OHLC_FAMILY.UNKNOWN
+  // ⛔⛔ `ECON:*` IS ECONOMIC BY ITS NAMESPACE, before and without any registry —
+  // it can never fall through to `security` (candles) nor wait on `unknown`.
+  if (/^ECON:/i.test(String(sym).trim())) return OHLC_FAMILY.ECONOMIC
   const breadth = breadthSymbolFamily(sym)
   if (breadth === OHLC_FAMILY.BREADTH) return OHLC_FAMILY.BREADTH
 
