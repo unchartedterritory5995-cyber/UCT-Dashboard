@@ -382,6 +382,20 @@ describe('⭐⭐ C22 — an inlined body\'s `if` chain over its locals is a valu
     expect(labels(run(t))).toEqual([])
     expect(JSON.stringify(t.objectDiagnostics)).toMatch(/pine:state/)
   })
+
+  it('⛔ CONTROL — a `var` local holds the last bar’s value, never its initialiser (`pine:state`)', () => {
+    const t = tr([
+      'g(x) =>',
+      '    var float v = na',
+      '    if x > 1',
+      '        v := x',
+      '    if not na(v)',
+      `        label.new(bar_index, v, ${Q}G${Q})`,
+      'g(close - open)',
+    ])
+    expect(labels(run(t))).toEqual([])
+    expect(JSON.stringify(t.objectDiagnostics)).toMatch(/pine:state/)
+  })
 })
 
 describe('⭐⭐ C22 — text picked per bar between literals, compared with a literal', () => {

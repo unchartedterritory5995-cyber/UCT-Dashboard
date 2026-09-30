@@ -418,7 +418,12 @@ export function collectObjectOps(stmts, h) {
     const prior = new Map()
     for (const b of scope || []) {
       if (!b.st || !b.st.synthetic) continue
-      if (b.reassign) prior.delete(b.name)
+      // ⛔ A `var` / `varip` local is not its initialiser on this bar: it holds
+      // what the last bar (or the last pass of a loop) left, so a chain over it
+      // has no "value before" this reader knows (C21's `update_drawings`).
+      const w0 = b.st.header && b.st.header[0]
+      const persists = w0 && w0.kind === 'ident' && (w0.value === 'var' || w0.value === 'varip')
+      if (b.reassign || persists) prior.delete(b.name)
       else prior.set(b.name, b.toks)
     }
     const armsOf = (list, i) => {

@@ -110,8 +110,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
     const PINNED = {
       'artemis-oscillator-pro__ea1097ca9e': {
         plain: [603, 758613, 'b59350139db56c8b'], manifest: [603, 758621, '71eed9b8287182f3'] },
+      // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
+      // where they stand; drawing identical, no refusal moved). Re-pinned from
+      // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
+      // exactly as the merged tree does: C24's replay still charges what the
+      // repeat would have. Pre-C22, pre-C24: [691, 4876, 'f537521acc6fad15'].
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [691, 4876, 'f537521acc6fad15'], manifest: [691, 4876, 'f537521acc6fad15'] },
+        plain: [691, 5704, '83d96de74e5b2d0d'], manifest: [691, 5704, '83d96de74e5b2d0d'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {

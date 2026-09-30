@@ -41,12 +41,15 @@ plot(close)
     ])
   })
 
+  // ⭐ C22 — a chain that only assigns a plain local a value is now read as
+  // that value (`foldLocalChain`: `v` IS `close > open ? close : na` here), so
+  // the refusal is named on a chain that reads what it assigns.
   it('⭐ a plain local the helper reassigns', () => {
     const t = translatePine(`${HEAD}var box b = box.new(bar_index, high, bar_index + 1, low)
 upd() =>
     float v = na
     if close > open
-        v := close
+        v := v + close
     if not na(v)
         box.set_top(b, v)
 upd()
