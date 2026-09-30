@@ -741,7 +741,7 @@ const OWN_SYMBOL_NAMES = new Set([
 // ⛔ It imports nothing from here, so there is no cycle: it returns refusal
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
-import { seriesWindowOf, WINDOW_READ_MEMBERS, spanOf } from './arrayWindows.js'
+import { seriesWindowOf, WINDOW_READ_MEMBERS, spanOf, windowWriterStatements } from './arrayWindows.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
 
@@ -6917,6 +6917,47 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ C22 — `node == lit` (`want`) or `node != lit` (`!want`) as a per-bar
+   *  number, where `node` is text chosen per bar between strings WRITTEN in the
+   *  script: a ternary (an `if` chain folds to one) whose every leaf is a known
+   *  string, reached through names, parameters and a user function's result.
+   *  Each leaf is compared here — 1 or 0 — so no text reaches a tree. Null for
+   *  anything else (a leaf this cannot read, an `if` with no `else`), and the
+   *  caller keeps its refusal. */
+  textEqTree(node, lit, want, depth = 0) {
+    if (!node || typeof node !== 'object' || depth > 64) return null
+    const s = this.stringValueOf(node)
+    if (s !== null) return cNum((s === lit) === want ? 1 : 0)
+    if (node.type === 'ternary') {
+      if (node.noElse) return null
+      const test = this.condition(this.resolve(node.test), 'ternary', node.tok)
+      if (test.type === 'num') return this.textEqTree(test.value !== 0 ? node.yes : node.no, lit, want, depth + 1)
+      const yes = this.textEqTree(node.yes, lit, want, depth + 1)
+      if (!yes) return null
+      const no = this.textEqTree(node.no, lit, want, depth + 1)
+      if (!no) return null
+      return cOp('?:', [test, yes, no])
+    }
+    const viaBinding = (b) => (b && b.kind === 'expr' && b.node ? this.textEqTree(b.node, lit, want, depth + 1) : null)
+    if (node.type === 'bound') return this.throughBinding(node.binding, viaBinding)
+    if (node.type === 'name') {
+      if (own(this.table.series, node.name)) return null
+      const b = this.env.get(node.name)
+      return b ? this.throughBinding(b, viaBinding) : null
+    }
+    if (node.type === 'call' && Array.isArray(node.args)) {
+      const b = this.env.get(node.name)
+      if (!b || b.kind !== 'fn' || !b.value || b.value.kind !== 'expr' || !b.value.node) return null
+      if (node.args.some((a) => a.name) || node.args.length !== b.params.length) return null
+      if (this.frames.length >= MAX_CALL_DEPTH) return null
+      const callerEnv = this.env
+      this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+      this.env = b.value.env || callerEnv
+      try { return this.textEqTree(b.value.node, lit, want, depth + 1) } finally { this.frames.pop(); this.env = callerEnv }
+    }
+    return null
+  }
+
   /** A node as BIND-TIME TEXT: a `string` node for something already known, or a
    *  `symtext` node for something a symbol will decide. Null when the node is not
    *  text at all, so every caller falls through to its ordinary refusal.
@@ -7172,6 +7213,11 @@ export class Resolver {
    *  the call frames, innermost first) is a bare name bound to one. Anything
    *  else is null — a computed argument is not the caller's window. */
   windowVectorOf(name) {
+    // ⭐ C22 — a window declared inside an inlined drawing function (`inlineWindows`)
+    if (this.inlineWindows && this.inlineWindows.has(name)) {
+      const v = this.inlineWindows.get(name)
+      return v.window ? v : null
+    }
     let b = this.env ? this.env.get(name) : null
     let depth = this.frames.length - 1
     for (let hops = 0; hops < MAX_CALL_DEPTH && b; hops += 1) {
@@ -7187,13 +7233,34 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ C22 — a `var` array declared inside an inlined drawing function that
+   *  has no window model: refused by name, with why, whichever spelling reads
+   *  it (`array.m(z, …)` or `z.m(…)`). A name that is not one returns. */
+  refuseInlineWindow(name, tok) {
+    const vec = this.objectPass && this.inlineWindows ? this.inlineWindows.get(name) : null
+    if (!vec || vec.window) return
+    throw new PineRefusal('pine:collection',
+      `${REFUSALS['pine:collection']} — \`${String(name).split(INLINE_SUFFIX)[0]}\` is declared inside a drawing function and ${vec.windowRefused}`,
+      locate(tok))
+  }
+
   /** ⭐⭐ C22 — the source position a window read is evaluated at: its own
    *  token, unless that token sits in a function DEFINITION (a helper or a read
    *  method runs where it is called) — then the call site the object pass is
    *  converting (`windowReadSite`: the op's inlined call, else its statement).
    *  Null when neither is known, which `readVerdict` refuses. */
-  windowReadPos(w, node) {
+  windowReadPos(w, node, args) {
     const p = node && node.tok && Number.isFinite(node.tok.index) ? node.tok.index : null
+    // ⭐⭐ C22 — A WINDOW DECLARED INSIDE AN INLINED FUNCTION is read where its
+    // BODY stands: the read's own token, else — a read written in a helper the
+    // body hands the window to — the window's own name, which the helper was
+    // given at the call inside the body. Anywhere else it cannot be placed.
+    if (w.inline) {
+      const inBody = (x) => Number.isFinite(x) && x >= w.bodySpan.from && x <= w.bodySpan.to
+      if (inBody(p)) return p
+      const a0 = args && args[0] && args[0].tok && Number.isFinite(args[0].tok.index) ? args[0].tok.index : null
+      return inBody(a0) ? a0 : null
+    }
     if (p !== null && !(w.inDefinition && w.inDefinition(p))) return p
     const s = this.windowReadSite
     if (!s) return null
@@ -7244,7 +7311,7 @@ export class Resolver {
     // model is the window as the BAR leaves it, served only where a read sees
     // exactly that; anywhere else this read — never the window — refuses.
     if (w.readVerdict) {
-      const why = w.readVerdict(this.windowReadPos(w, node))
+      const why = w.readVerdict(this.windowReadPos(w, node, args))
       if (why) {
         throw new PineRefusal('pine:collection',
           `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`,
@@ -7255,7 +7322,8 @@ export class Resolver {
     // a reduction) resolves in the window's own scope, so it is the same tree
     // wherever it is read: built once per translation. A read with an operand
     // of its own (a series index, a search value) is not memoised.
-    const constIdx = member === 'get' && args[1] && args[1].type === 'number' ? args[1].value : null
+    const constIdx = (member === 'get' || member === 'sizeAtLeast' || member === 'sizeBelow')
+      && args[1] && args[1].type === 'number' ? args[1].value : null
     const memoKey = member === 'indexof' || (member === 'get' && constIdx === null) ? null
       : `${member}:${constIdx === null ? '' : constIdx}`
     if (memoKey !== null) {
@@ -7271,7 +7339,7 @@ export class Resolver {
       const tree = this.resolveWindowReadOnce(w, member, args, node)
       let key = null
       let amb = null
-      if (REDUCTION_MEMBERS.has(member) && this.windowAmbiguity) {
+      if ((REDUCTION_MEMBERS.has(member) || (w.doubles && w.sites && w.sites.length > 1)) && this.windowAmbiguity) {
         try { key = printFormula(tree) } catch { key = null }
         amb = key === null ? null : this.windowAmbiguity.get(key) || null
       }
@@ -7281,24 +7349,114 @@ export class Resolver {
     return this.resolveWindowReadOnce(w, member, args, node)
   }
 
+  /** ⭐⭐ C22 — `array.size(w) >= K` (and `>`, `<`, `<=`, either side) on a
+   *  bounded window, as the existence of ONE slot. A growing window's length is
+   *  the number of adds so far, capped, so it reaches K exactly when the K-th
+   *  most recent add exists: `not na(ta.valuewhen(cond, 1, K − 1))`. ⚰️ The
+   *  length was the SUM of every slot's existence — one `valuewhen` per slot —
+   *  and vdubus-pattern-gen's guards (`array.size(zzP) >= 5` under
+   *  `array.size(waveHighs_val) >= 3`) measured 135–146 nodes against the
+   *  128-node budget: every climax and standard pattern of its fast zigzag was
+   *  a failed column, drawn nowhere. Identical per bar; the budget is untouched.
+   *  Null for anything else — the ordinary resolution stands. */
+  windowSizeComparison(node) {
+    if (!['>=', '>', '<', '<='].includes(node.op)) return null
+    const sizeOf = (n) => {
+      if (!n || n.type !== 'call' || !Array.isArray(n.args)) return null
+      let recv = null
+      if (n.name === 'array.size') {
+        const a = n.args.filter((x) => !x.name)
+        if (a.length !== 1 || n.args.length !== 1) return null
+        recv = a[0].value
+      } else {
+        const mf = splitMethodName(n.name)
+        if (!mf || mf.method !== 'size' || n.args.length) return null
+        recv = { type: 'name', name: mf.recv, tok: n.tok }
+      }
+      if (!recv) return null
+      let vec = null
+      if (recv.type === 'bound' && recv.binding && recv.binding.kind === 'vector') vec = recv.binding
+      else if (recv.type === 'name') {
+        vec = this.windowVectorOf(recv.name)
+        if (!vec) {
+          const b = this.env ? this.env.get(recv.name) : null
+          vec = b && b.kind === 'vector' ? b : null
+        }
+      }
+      return vec && vec.window ? { w: vec.window, recv, call: n } : null
+    }
+    let s = sizeOf(node.left)
+    let other = node.right
+    let op = node.op
+    if (!s) {
+      s = sizeOf(node.right)
+      other = node.left
+      op = { '>=': '<=', '>': '<', '<': '>', '<=': '>=' }[node.op]
+    }
+    if (!s) return null
+    let t
+    try { t = this.resolve(other) } catch { return null }
+    const k = t && t.type === 'num' ? t.value : constantValueOf(t)
+    if (!Number.isInteger(k)) return null
+    for (const n of declaredInputNames(t)) this.windowBoundInputs.add(n)
+    // size ≥ K ⇔ at least K; size > k ⇔ at least k + 1; size < k ⇔ not at least k
+    const K = op === '>=' || op === '<' ? k : k + 1
+    const member = op === '>=' || op === '>' ? 'sizeAtLeast' : 'sizeBelow'
+    return this.resolveWindowRead(s.w, member, [s.recv, { type: 'number', value: K }], s.call)
+  }
+
   resolveWindowReadOnce(w, member, args, node) {
     const tok = node.tok || {}
     const at = locate(node.tok)
     const refuse = (why) => new PineRefusal('pine:collection',
       `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`, at)
-    if (!WINDOW_READ_MEMBERS.has(member)) throw refuse(`\`array.${member}\` of one is not folded`)
+    const sizeTest = member === 'sizeAtLeast' || member === 'sizeBelow'
+    if (!WINDOW_READ_MEMBERS.has(member) && !sizeTest) throw refuse(`\`array.${member}\` of one is not folded`)
     if (!w.env) throw refuse('it is read before the statement that fills it')
     const T = (kind, value) => ({ kind, value, line: tok.line, column: tok.column, index: tok.index })
     const P = (v) => T('punct', v)
     const N = (n) => T('number', n)
     const I = (s) => T('ident', s)
-    const cond = []
-    for (const g of w.guards) {
-      if (cond.length) cond.push(I('and'))
-      cond.push(P('('), I('na'), P('('), ...g, P(')'), P('?'), N(0), P(':'), P('('), ...g, P(')'), P(')'))
+    const condOf = (guards) => {
+      const c = []
+      for (const g of guards) {
+        if (c.length) c.push(I('and'))
+        c.push(P('('), I('na'), P('('), ...g, P(')'), P('?'), N(0), P(':'), P('('), ...g, P(')'), P(')'))
+      }
+      if (!c.length) c.push(N(1))
+      return c
     }
-    if (!cond.length) cond.push(N(1))
+    // ⭐⭐ C22 — SEVERAL ADD SITES (`arrayWindows.js::multiSiteWindow`): an event
+    // is any site's condition, and its element the LAST site's value that ran
+    // (Pine runs them in order, so the later add is the newer slot).
+    const sites = w.sites && w.sites.length > 1 ? w.sites : null
+    const siteConds = sites ? sites.map((s) => condOf(s.guards)) : null
+    let cond = condOf(w.guards)
+    let value = w.value
+    if (sites) {
+      cond = []
+      siteConds.forEach((c, k) => { if (k) cond.push(I('or')); cond.push(P('('), ...c, P(')')) })
+      value = [P('('), ...sites[0].value, P(')')]
+      for (let k = 1; k < sites.length; k += 1) {
+        value = [P('('), P('('), ...siteConds[k], P(')'), P('?'), P('('), ...sites[k].value, P(')'), P(':'), ...value, P(')')]
+      }
+    }
     const vw = (src, j) => [I('ta.valuewhen'), P('('), ...cond, P(','), P('('), ...src, P(')'), P(','), N(j), P(')')]
+    // ⛔ A BAR TWO SITES MAY BOTH ADD ON gains two elements, which this one-per-
+    // bar series cannot carry: every read is ambiguous while such a bar is among
+    // the last `cap` events (after that every slot is a single add again).
+    let doubleAmb = null
+    if (sites && w.doubles) {
+      const n = []
+      siteConds.forEach((c, k) => { if (k) n.push(P('+')); n.push(P('('), P('('), ...c, P(')'), P('?'), N(1), P(':'), N(0), P(')')) })
+      const dbl = [P('('), P('('), ...n, P(')'), P('>'), N(1), P('?'), N(1), P(':'), N(0), P(')')]
+      doubleAmb = []
+      for (let j = 0; j < w.cap; j += 1) {
+        if (j) doubleAmb.push(I('or'))
+        const x = vw(dbl, j)
+        doubleAmb.push(P('('), P('('), I('na'), P('('), ...x, P(')'), P('?'), N(0), P(':'), ...x, P(')'), P('>'), N(0), P(')'))
+      }
+    }
     const has = (j) => [P('('), I('not'), I('na'), P('('), ...vw([N(1)], j), P(')'), P('?'), N(1), P(':'), N(0), P(')')]
     /** Resolved in the scope the add stood in; `extra` binds the read site's
      *  own operands (an index, a search value) under reserved names, each as
@@ -7323,7 +7481,25 @@ export class Resolver {
       sum.push(P(')'))
       return sum
     }
-    if (member === 'size') return resolveToks(sizeToks())
+    /** ⭐ C22 — a read of a window that can double registers that ambiguity. */
+    const done = (tree) => {
+      if (!doubleAmb) return tree
+      if (!this.windowAmbiguity) throw refuse('it is added to at two places that may run on one bar, and only a drawing step can be withheld there')
+      let key = null
+      try { key = printFormula(tree) } catch { key = null }
+      if (key === null) throw refuse('a read of it could not be registered with its ambiguity')
+      this.windowAmbiguity.set(key, resolveToks(doubleAmb))
+      return tree
+    }
+    if (member === 'size') return done(resolveToks(sizeToks()))
+    if (sizeTest) {
+      // ⭐ C22 — `windowSizeComparison`: the K-th most recent add exists.
+      const K = args[1].value
+      const want = member === 'sizeAtLeast' ? 1 : 0
+      const atLeast = w.fixed || K <= 0 ? (K <= w.cap ? 1 : 0) : (K > w.cap ? 0 : null)
+      if (atLeast !== null) return done(resolveToks([P('('), N(atLeast), P('=='), N(want), P(')')]))
+      return done(resolveToks([P('('), ...has(K - 1), P('=='), N(want), P(')')]))
+    }
     // ⭐⭐ C11c — a slot whose place depends on a VALUE (a series index, or a
     // push window's oldest-first count while it fills) is a pick over the cap
     // slots: `J == 0 ? slot0 : J == 1 ? slot1 : … : na`. An index outside the
@@ -7331,7 +7507,7 @@ export class Resolver {
     const pick = (jToks, extra) => {
       let out = [I('na')]
       for (let j = w.cap - 1; j >= 0; j -= 1) {
-        out = [P('('), P('('), ...jToks, P(')'), P('=='), N(j), P('?'), ...vw(w.value, j), P(':'), ...out, P(')')]
+        out = [P('('), P('('), ...jToks, P(')'), P('=='), N(j), P('?'), ...vw(value, j), P(':'), ...out, P(')')]
       }
       return resolveToks(out, extra)
     }
@@ -7364,14 +7540,14 @@ export class Resolver {
       } else {
         // `last` is index size − 1: the newest slot of a push window, the oldest
         // of an unshift one.
-        if (w.order === 'push') return resolveToks(vw(w.value, 0))
-        if (w.fixed) return resolveToks(vw(w.value, w.cap - 1))
-        return pick([P('('), ...sizeToks(), P('-'), N(1), P(')')], null)
+        if (w.order === 'push') return done(resolveToks(vw(value, 0)))
+        if (w.fixed) return done(resolveToks(vw(value, w.cap - 1)))
+        return done(pick([P('('), ...sizeToks(), P('-'), N(1), P(')')], null))
       }
       if (k !== null && (w.order === 'unshift' || w.fixed)) {
-        return resolveToks(vw(w.value, w.order === 'unshift' ? k : w.cap - 1 - k))
+        return done(resolveToks(vw(value, w.order === 'unshift' ? k : w.cap - 1 - k)))
       }
-      return pick(jOfIndex(kToks || [N(k)]), extra)
+      return done(pick(jOfIndex(kToks || [N(k)]), extra))
     }
     // ⭐⭐ C11c — REDUCTIONS AND A SEARCH over the window's elements, in Pine's
     // own index order (a sum adds oldest-first for a push window, newest-first
@@ -7387,7 +7563,7 @@ export class Resolver {
     // ambiguity holds (`op.withhold`), counted, never drawn off a guess. A
     // search for an `na` value is ambiguous for the same reason.
     if (!REDUCTION_MEMBERS.has(member) && member !== 'indexof') throw refuse(`\`array.${member}\` of one is not folded`)
-    const v = (j) => vw(w.value, j)
+    const v = (j) => vw(value, j)
     const elements = []
     for (let j = 0; j < w.cap; j += 1) elements.push(j)
     // newest-first slots in Pine index order
@@ -7402,6 +7578,7 @@ export class Resolver {
       orAmb([...sizeToks(), P('=='), N(0)])
       for (const j of elements) orAmb([...has(j), P('=='), N(1), I('and'), I('na'), P('('), ...v(j), P(')')])
     }
+    if (doubleAmb) orAmb(doubleAmb)
     const extra = member === 'indexof' ? new Map([['__uct_win_search', operand(1)]]) : null
     let body
     if (member === 'indexof') {
@@ -7479,6 +7656,13 @@ export class Resolver {
     let vec = head && head.type === 'bound'
       ? head.binding
       : (headName ? this.env.get(headName) : null)
+    // ⭐⭐ C22 — a `var` array declared inside a drawing function the object
+    // reader inlined: its own window per call site (`buildObjectProgram`'s
+    // `inlineWindows`), or the reason it has none, by name.
+    if (this.objectPass && headName && this.inlineWindows && this.inlineWindows.has(headName)) {
+      this.refuseInlineWindow(headName, node.tok)
+      vec = this.inlineWindows.get(headName)
+    }
     // ⭐ C11c — a window handed to a user function is its parameter there; the
     // read follows the call frame to the argument (`windowVectorOf`).
     if (this.objectPass && vec && vec.kind === 'param' && headName) {
@@ -7748,6 +7932,10 @@ export class Resolver {
         return cOp('u-', [inner])
       }
       case 'binary': {
+        // ⭐⭐ C22 — A WINDOW'S LENGTH AGAINST A WHOLE NUMBER is ONE slot's
+        // existence (`windowSizeComparison`), never the sum of every slot's.
+        const sizeCmp = this.objectPass ? this.windowSizeComparison(node) : null
+        if (sizeCmp) return sizeCmp
         // ⭐⭐ A COMPARISON CAN BOUND WHAT ITS OPERAND CANNOT — and like the
         // string fold below, it is asked BEFORE either operand is resolved,
         // because resolving `ta.obv` or a one-argument `ta.barssince` IS the
@@ -7828,6 +8016,24 @@ export class Resolver {
           const rt = lt ? this.textOperandOf(node.right) : null
           if (lt && rt && (lt.type === 'symtext' || rt.type === 'symtext')) {
             return { type: 'textop', name: node.op === '==' ? 'eq' : 'ne', args: [lt, rt] }
+          }
+        }
+        // ⭐⭐ C22 — TEXT CHOSEN PER BAR BETWEEN WRITTEN STRINGS, COMPARED WITH A
+        // WRITTEN STRING, is a NUMBER per bar (`textEqTree`). vdubus-pattern-gen:
+        // `rawName == "Gartley"`, where `rawName = f_getHarmonicName(…)` picks one
+        // of six literals by the ratios. No string ever becomes a node: each
+        // literal the choice can land on is compared here and replaced by 1 or 0.
+        // ⛔ The OBJECT pass only, and never under an enum read (`textEqOff`):
+        // a `position` / `style` word picked per bar from text is the enum
+        // reader's to refuse or serve, and a per-bar table position read off a
+        // condition the budget refuses would draw at the renderer's default —
+        // uncharted-volume-v2's volume table, measured.
+        if (this.objectPass && !this.textEqOff && (node.op === '==' || node.op === '!=')) {
+          const ls = this.stringValueOf(node.left)
+          const rs = ls === null ? this.stringValueOf(node.right) : null
+          if (ls !== null || rs !== null) {
+            const eq = this.textEqTree(ls !== null ? node.right : node.left, ls !== null ? ls : rs, node.op === '==')
+            if (eq) return eq
           }
         }
         // ⭐⭐ `%` IS A CALL, NOT A NEW OPERATOR — and that is the whole fix.
@@ -8855,6 +9061,7 @@ export class Resolver {
     if (this.objectPass && ns !== 'array') {
       const mf = splitMethodName(name)
       const recv = mf ? this.windowVectorOf(mf.recv) : null
+      if (mf && !recv) this.refuseInlineWindow(mf.recv, node.tok)
       if (mf && recv && recv.kind === 'vector' && recv.window) {
         // ⭐⭐ C11c — A SCRIPT'S OWN READ-METHOD ON A WINDOW (`top.middlePrice()`,
         // `method middlePrice(array<float> a) => a.get(a.size() - 2)`) is its
@@ -13701,15 +13908,50 @@ function splitLastBarNode(node) {
   return { rest: node, isLast: false }
 }
 
+/** ⭐⭐ C22 — WHERE A WINDOW READ STANDS, JUDGED: null where the read sees
+ *  exactly the window as the bar leaves it (the model), else why not. After the
+ *  last writing statement it does; inside a writing statement only where every
+ *  site that holds the position is `exclusive` (its arm cannot run with the
+ *  add's) or `served` (every add that may run on its bar ran, with its removal,
+ *  before it — `arrayWindows.js::multiSiteWindow`); above the first writer, or
+ *  between writers, it does not. */
+function windowReadVerdict(m, stmts, writerStmts) {
+  const writerSpans = writerStmts.map(spanOf)
+  const addSpans = m.addSpans || [m.addSpan]
+  const firstFrom = spanOf(stmts[m.firstWriter]).from
+  const lastTo = spanOf(stmts[m.lastWriter]).to
+  const addLine = m.addStmt && m.addStmt.header && m.addStmt.header[0] ? m.addStmt.header[0].line : '?'
+  return (p) => {
+    if (!Number.isFinite(p)) return 'the read cannot be placed in the bar'
+    if (p > lastTo) return null
+    const inAdd = addSpans.some((s) => s && p >= s.from && p <= s.to)
+    if (inAdd || writerSpans.some((s) => p >= s.from && p <= s.to)) {
+      const sites = m.readsInWriters.filter((x) => p >= x.from && p <= x.to)
+      if (sites.length && sites.every((x) => x.exclusive || x.served)) return null
+      if (inAdd) return `it is read inside the statement that adds to it (line ${addLine}), where this bar's add may already have happened`
+      return 'it is read inside a statement that changes it'
+    }
+    if (p < firstFrom) return `it is read above line ${addLine}, where it still holds last bar's elements`
+    return `it is read between its add (line ${addLine}) and its removal, where it may hold one element more than its ${m.cap} slots`
+  }
+}
+
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
   // ⭐ C22 — every Resolver this pass builds knows the op `convertList` is
   // converting (`windowReadSite`, read by `Resolver.windowReadPos`); outside a
   // conversion it is null, and a window read that needs a call site refuses.
   let windowReadSite = null
+  /** ⭐ C22 — set while an ENUM is read (`enumNodeOf`): `Resolver.textEqTree` is off. */
+  const textEqGate = { off: false }
+  /** ⭐⭐ C22 — `var` arrays declared inside an inlined drawing function, one per
+   *  call site (filled below, once `collectObjectOps` has inlined them). */
+  const inlineWindows = new Map()
   const makeResolver = (scope) => {
     const r = makeResolverRaw(scope)
     r.windowReadSite = windowReadSite
+    r.inlineWindows = inlineWindows
+    r.textEqOff = textEqGate.off
     return r
   }
   // ⭐⭐ RAW-TREE MODE — the trees are for the RUNTIME LANE, not the V2 graph.
@@ -13957,6 +14199,109 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       },
     } : {}),
   })
+  // ⭐⭐ C22 — A `var` ARRAY DECLARED INSIDE A DRAWING FUNCTION IS ITS CALL
+  // SITE'S OWN WINDOW. Pine gives every call site its own `var` storage (the
+  // inliner renames the body's locals per site), so vdubus-pattern-gen's
+  //     f_runEngine(depth, …) =>
+  //         var float[] zzP = array.new_float()
+  //         ph = ta.pivothigh(high, depth, depth)
+  //         if not na(ph)
+  //             array.unshift(zzP, ph) …
+  //     f_runEngine(fastDepth, …)
+  //     f_runEngine(slowDepth, …)
+  // keeps two zigzags. A body the call runs on EVERY bar is exactly a top-level
+  // block, so its window is modelled over the rewritten body (`seriesWindowOf`),
+  // read in the scope of the body's own declarations above its first writer
+  // and the top level, and placed by the body's own positions
+  // (`Resolver.windowReadPos`). ⛔ A call under a condition or in a loop, a body
+  // local the adds read that the body reassigns, or a top-level name the script
+  // reassigns, refuses by name — never read at a bar it was not written for.
+  {
+    const H = { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression, capOf: null }
+    const mutableTop = objectOpts.mutableNames || new Set()
+    for (const b of collected.inlineBodies || []) {
+      const declared = new Map()
+      for (const st of b.stmts) {
+        const t = st.header || []
+        if (!t.length || t[0].kind !== 'ident' || t[0].value !== 'var' || (st.sub || []).length) continue
+        const eq = findTop(t, (x) => isPunct(x, '='))
+        const nameTok = eq >= 2 ? t[eq - 1] : null
+        const name = nameTok && nameTok.kind === 'ident' ? String(nameTok.value) : null
+        if (!name || !name.endsWith(b.suffix)) continue
+        const rhs = t.slice(eq + 1)
+        const ctor = rhs[0] && rhs[0].kind === 'ident' ? String(rhs[0].value) : ''
+        if (!['array.new_float', 'array.new_int'].includes(ctor) || !isPunct(rhs[1], '(')) continue
+        const n0 = isPunct(rhs[2], ')') && rhs.length === 3 ? 0
+          : (rhs.length === 4 && rhs[2].kind === 'number' && isPunct(rhs[3], ')') ? rhs[2].value : null)
+        declared.set(name, n0)
+      }
+      if (!declared.size) continue
+      // the body's names it REASSIGNS (`x := …`, `x += …`) anywhere
+      const reassignedHere = new Set()
+      const scanRe = (list) => {
+        for (const st of list || []) {
+          const t = st.header || []
+          for (let i = 0; i + 1 < t.length; i += 1) {
+            if (t[i].kind === 'ident' && t[i + 1].kind === 'punct' && [':=', '+=', '-=', '*=', '/=', '%='].includes(t[i + 1].value)) {
+              reassignedHere.add(String(t[i].value))
+            }
+          }
+          scanRe(st.sub)
+        }
+      }
+      scanRe(b.stmts)
+      const spans = b.stmts.map(spanOf).filter((x) => Number.isFinite(x.from))
+      const bodySpan = { from: Math.min(...spans.map((x) => x.from)), to: Math.max(...spans.map((x) => x.to)) }
+      for (const [name, n0] of declared) {
+        const vec = { kind: 'vector', inline: true, window: null, windowRefused: null }
+        inlineWindows.set(name, vec)
+        if (!b.everyBar) { vec.windowRefused = `\`${b.fn}\` is called under a condition, so it does not run on every bar`; continue }
+        if (n0 === null) { vec.windowRefused = 'its length is not a number written into the script'; continue }
+        const writers = windowWriterStatements(b.stmts, name, stmts, H)
+        if (!writers.length) { vec.windowRefused = 'nothing fills it with `push`/`unshift`'; continue }
+        let got
+        try {
+          got = seriesWindowOf({
+            stmts: b.stmts, name, n0, writerStmts: new Set(writers), defStmts: stmts, h: H,
+            creationSizeOf: (other) => (declared.has(other) ? declared.get(other) : null),
+          })
+        } catch (err) {
+          got = { refused: String((err && err.message) || err) }
+        }
+        if (got.refused) { vec.windowRefused = got.refused; continue }
+        const m = got.model
+        // the scope: the top level, and the body's own plain declarations above
+        // its first writer, each in the scope of the ones before it
+        const scope = new Map(env)
+        const bound = new Set()
+        for (const st of b.stmts.slice(0, m.firstWriter)) {
+          const t = st.header || []
+          if (!t.length || (st.sub || []).length || (t[0].kind === 'ident' && ['var', 'varip'].includes(t[0].value))) continue
+          const eq = findTop(t, (x) => isPunct(x, '='))
+          const nameTok = eq > 0 ? boundName(t, eq) : null
+          const nm = nameTok && nameTok.kind === 'ident' ? String(nameTok.value) : null
+          if (!nm || !nm.endsWith(b.suffix) || reassignedHere.has(nm)) continue
+          try {
+            scope.set(nm, exprBinding(parseWholeExpression(t.slice(eq + 1)), new Map(scope), locate(t[0])))
+            bound.add(nm)
+          } catch { /* left unbound: a read of it refuses where it stands */ }
+        }
+        const reads = (m.sites || [{ guards: m.guards, value: m.value }])
+          .flatMap((s) => [...s.guards.flat(), ...(s.value || [])])
+        const unsettled = reads.find((x) => x.kind === 'ident' && !String(x.value).includes('.')
+          && (String(x.value).endsWith(b.suffix) ? !bound.has(String(x.value)) : mutableTop.has(String(x.value))))
+        if (unsettled) {
+          vec.windowRefused = `what it is filled with reads \`${String(unsettled.value).split(INLINE_SUFFIX)[0]}\`, which is not settled where it is added`
+          continue
+        }
+        m.env = scope
+        m.inline = true
+        m.bodySpan = bodySpan
+        m.readVerdict = windowReadVerdict(m, b.stmts, writers)
+        vec.window = m
+      }
+    }
+  }
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
     loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
@@ -15123,8 +15468,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  across 109 drawing scripts); crashing is very much worse than either. */
   const enumNodeOf = (node, scope) => {
     enumLeaves = true
+    textEqGate.off = true
     let t = null
-    try { t = textNodeOf(node, scope) } finally { enumLeaves = false }
+    try { t = textNodeOf(node, scope) } finally { enumLeaves = false; textEqGate.off = false }
     return holdsFormattedNumber(t) ? null : t
   }
 
@@ -17797,24 +18143,7 @@ function translatePineResult(source, opts = {}) {
     // `if … size() > samples` removals) took the table's cells and every trend
     // label's text down with it, though those read the window where it is exact.
     const m = got.model
-    const writerSpans = stmts.filter((s) => vec.writers.some((w) => w.stmt === s)).map(spanOf)
-    const addSpan = m.addSpan
-    const firstFrom = spanOf(stmts[m.firstWriter]).from
-    const lastTo = spanOf(stmts[m.lastWriter]).to
-    const lineOf = (s) => (s.header && s.header[0] ? s.header[0].line : '?')
-    const addLine = lineOf(m.addStmt)
-    m.readVerdict = (p) => {
-      if (!Number.isFinite(p)) return 'the read cannot be placed in the bar'
-      if (p > lastTo) return null
-      if (p >= addSpan.from && p <= addSpan.to) {
-        const r = m.readsInWriters.find((x) => p >= x.from && p <= x.to)
-        if (r && r.exclusive) return null
-        return `it is read inside the statement that adds to it (line ${addLine}), where this bar's add may already have happened`
-      }
-      if (writerSpans.some((s) => p >= s.from && p <= s.to)) return 'it is read inside a statement that changes it'
-      if (p < firstFrom) return `it is read above line ${addLine}, where it still holds last bar's elements`
-      return `it is read between its add (line ${addLine}) and its removal, where it may hold one element more than its ${m.cap} slots`
-    }
+    m.readVerdict = windowReadVerdict(m, stmts, stmts.filter((s) => vec.writers.some((w) => w.stmt === s)))
     // a token inside a function DEFINITION is read at the call (`windowReadPos`)
     m.inDefinition = (p) => definitionSpans.some((s) => p >= s.from && p <= s.to)
     vec.window = m

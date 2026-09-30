@@ -180,6 +180,19 @@ function writesName(st, name, fnDefs, h) {
   return (st.sub || []).some((s) => writesName(s, name, fnDefs, h))
 }
 
+/** ⭐ C22 — the statements of `stmts` that write `name` (a mutating member, a
+ *  reassignment, or a helper defined in `defStmts` it is handed to). The
+ *  caller's writer set for a window declared inside a drawing function's body,
+ *  where the top level's `arrayWritesByName` never looked. */
+export function windowWriterStatements(stmts, name, defStmts, h) {
+  const fnDefs = readFunctionDefs(defStmts || stmts, h)
+  // its own `var name = array.new_…()` declaration is the creation, not a write
+  const isDecl = (t) => t[0] && t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip')
+    && t.some((x, i) => x.kind === 'ident' && String(x.value) === name && h.isPunct(t[i + 1], '='))
+  return (stmts || []).filter((st) => !definitionHeader(st.header || [], h) && !isDecl(st.header || [])
+    && writesName(st, name, fnDefs, h))
+}
+
 /**
  * The window model of the `var` array `name`, or `{refused}`.
  *
@@ -191,11 +204,16 @@ function writesName(st, name, fnDefs, h) {
  * @param {object}   p.h            the reader helpers (`isPunct`, `findTop`, `boundName`)
  * @param {(n: string) => number|null} p.creationSizeOf  another array's creation size
  */
-export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf }) {
-  const fnDefs = readFunctionDefs(stmts, h)
+export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf, defStmts = null }) {
+  // ⭐ C22 — a window declared INSIDE a drawing function (`defStmts`: the
+  // script's top level, where the helpers it hands the array to are defined).
+  const fnDefs = readFunctionDefs(defStmts || stmts, h)
   const ops = []            // every add/evict, on ANY array, in program order
   let refused = null
   let seq = 0
+  /** ⭐ C22 — program order over every add, removal AND read (`seq` counts
+   *  writes only: the fixed window's "removal right after the add" reads it). */
+  let ord = 0
   let inlineSeq = 0
   const refuse = (why) => { if (!refused) refused = why; return false }
   /** ⭐ C22 — the statements that only READ `name` inside a statement that
@@ -216,10 +234,7 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
         return refuse(`\`${name}\` is changed inside a condition (\`${text(cond)}\`)`)
       }
       const idx = cond.map((x) => x.index).filter(Number.isFinite)
-      readSites.push({ from: Math.min(...idx), to: Math.max(...idx), line: cond[0] && cond[0].line, path: condPath })
-    }
-    if ([...written].some((w) => mentionsToks(cond, w))) {
-      return refuse(`a condition (\`${text(cond)}\`) reads a name its own statement changed above it`)
+      readSites.push({ from: Math.min(...idx), to: Math.max(...idx), line: cond[0] && cond[0].line, path: condPath, ord: ord++ })
     }
     return true
   }
@@ -242,11 +257,13 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
         // An eviction guard: a length check whose body ONLY evicts. ⭐ C22 — a
         // length check whose body does something else is an ordinary `if` (a
         // drawing guarded by another window's `size() > 0`), read below.
-        if (sg && (st.sub || []).length && (st.sub || []).every((s2) => evictOf(s2.header || []))) {
+        // ⭐ C22 — `array.pop(zzP), array.pop(zzL)` on one line is two removals.
+        const evictBody = splitCommaStatements(st.sub || [], h)
+        if (sg && evictBody.length && evictBody.every((s2) => evictOf(s2.header || []))) {
           if (sg.refused) return refuse(sg.refused)
-          for (const s2 of st.sub || []) {
+          for (const s2 of evictBody) {
             const e = evictOf(s2.header || [])
-            ops.push({ kind: 'evict', arr: e.arr, member: e.member, guards, size: sg, seq: seq++, callGuarded, path })
+            ops.push({ kind: 'evict', arr: e.arr, member: e.member, guards, size: sg, seq: seq++, ord: ord++, callGuarded, path })
           }
           const next = items[i + 1]
           if (next && next.header && next.header[0] && next.header[0].value === 'else') {
@@ -254,7 +271,7 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
           }
           continue
         }
-        if (sg && (st.sub || []).some((s2) => evictOf(s2.header || []))) {
+        if (sg && evictBody.some((s2) => evictOf(s2.header || []))) {
           return refuse(`the block under \`${text(cond)}\` does more than evict`)
         }
         const chain = (chainSeq += 1)
@@ -264,8 +281,21 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
         // condition is `na` takes the `else`, as Pine reads it: `negatedGuard`).
         // ⚰️ An `else` that touched the array used to refuse the whole window —
         // trend-duration adds to `bullishCount` in the `else` of `if trend`.
+        // ⭐ C22 — a condition that reads a name its own statement changed above
+        // it would be read at the statement's START (`w.env`), before that
+        // change: refused — but only where it GUARDS an add or a removal. A
+        // condition over nothing this window keeps (vdubus's `if isHS →
+        // shouldDraw := true`) changes nothing the model reads.
+        const readsWritten = (c) => [...written].some((w) => mentionsToks(c, w))
+        const guardedWrite = (c, from) => {
+          if (ops.length > from) return refuse(`a condition (\`${text(c)}\`) reads a name its own statement changed above it`)
+          return true
+        }
         const prior = [cond]
+        const priorW = [readsWritten(cond)]
+        let opsFrom = ops.length
         collect(st.sub || [], [...guards, cond], depth, callGuarded, [...path, { chain, arm: 0 }])
+        if (priorW[0] && !guardedWrite(cond, opsFrom)) return false
         let arm = 0
         while (!refused && items[i + 1] && items[i + 1].header && items[i + 1].header[0]
             && items[i + 1].header[0].kind === 'ident' && items[i + 1].header[0].value === 'else') {
@@ -279,10 +309,16 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
               return refuse('an eviction guard inside an `else`')
             }
             if (!conditionOk(c2, [...path, { chain, arm, cond: true }])) return false
+            const c2W = readsWritten(c2)
+            opsFrom = ops.length
             collect(items[i].sub || [], [...guards, ...negs, c2], depth, callGuarded, [...path, { chain, arm }])
+            if ((c2W || priorW.some(Boolean)) && !guardedWrite(c2W ? c2 : prior[priorW.indexOf(true)], opsFrom)) return false
             prior.push(c2)
+            priorW.push(c2W)
           } else {
+            opsFrom = ops.length
             collect(items[i].sub || [], [...guards, ...negs], depth, callGuarded, [...path, { chain, arm }])
+            if (priorW.some(Boolean) && !guardedWrite(prior[priorW.indexOf(true)], opsFrom)) return false
             break
           }
         }
@@ -300,7 +336,7 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
       const callStmt = !!word && h.isPunct(t[1], '(') && closeOf(t, 1, h) === t.length - 1
       if (touches && !(callStmt && directOp(t, h)) && !writesName(st, name, fnDefs, h)) {
         const sp = spanOf(st)
-        readSites.push({ from: sp.from, to: sp.to, line: t[0].line, path })
+        readSites.push({ from: sp.from, to: sp.to, line: t[0].line, path, ord: ord++ })
         for (const w of assignedBy(t, h)) written.add(w)
         continue
       }
@@ -314,10 +350,10 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
               if (op.arr === name && [...written].some((w) => mentionsToks(op.args[0] || [], w))) {
                 return refuse(`the value added (\`${text(op.args[0] || []).slice(0, 40)}\`) reads a name its own statement changed above it`)
               }
-              ops.push({ kind: 'add', arr: op.arr, member: op.member, value: op.args[0], guards, seq: seq++, callGuarded, path })
+              ops.push({ kind: 'add', arr: op.arr, member: op.member, value: op.args[0], guards, seq: seq++, ord: ord++, callGuarded, path })
               if (op.args.length !== 1) return refuse(`\`${op.member}\` with ${op.args.length} arguments`)
             } else if (EVICT.has(op.member)) {
-              ops.push({ kind: 'evict', arr: op.arr, member: op.member, guards, seq: seq++, callGuarded, path })
+              ops.push({ kind: 'evict', arr: op.arr, member: op.member, guards, seq: seq++, ord: ord++, callGuarded, path })
             } else if (op.arr === name) {
               return refuse(`\`${name}\` is changed by \`${op.member}\``)
             }
@@ -382,6 +418,9 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
   let lastWriter = -1
   let addStmt = null
   let addSpan = null
+  /** ⭐ C22 — every top-level statement group holding an add, its head index. */
+  const addSpans = []
+  let firstAddHead = -1
   // ⭐ C22 — a top-level `if … else if … else` chain is several statements in
   // `stmts`, one per arm; it is ONE statement of Pine's, read whole from its
   // `if` (an arm's guard is the negation of the arms above it).
@@ -403,10 +442,13 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
     const readsBefore = readSites.length
     written.clear()
     collect(group, [], 0, false)
+    for (const o of ops.slice(before)) o.head = head
     if (ops.slice(before).some((o) => o.kind === 'add' && o.arr === name)) {
-      addStmt = stmts[head]
       const spans = group.map(spanOf)
-      addSpan = { from: Math.min(...spans.map((x) => x.from)), to: Math.max(...spans.map((x) => x.to)) }
+      const sp = { from: Math.min(...spans.map((x) => x.from)), to: Math.max(...spans.map((x) => x.to)) }
+      addSpans.push(sp)
+      // the FIRST add group's start is where the model's scope is taken
+      if (firstAddHead < 0) { firstAddHead = head; addStmt = stmts[head]; addSpan = sp }
     }
     for (const r of readSites.slice(readsBefore)) r.stmt = stmts[head]
   }
@@ -414,6 +456,13 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
   const mine = ops.filter((o) => o.arr === name)
   const adds = mine.filter((o) => o.kind === 'add')
   const evicts = mine.filter((o) => o.kind === 'evict')
+  // ⭐⭐ C22 — SEVERAL ADD SITES, or a removal that sits in its add's own arm
+  // (`if not na(ph) → unshift; if size() > 10 → pop`), take the general model.
+  if (adds.length > 1 || (adds.length === 1 && evicts.length === 1 && evicts[0].size
+      && (evicts[0].guards.length || evicts[0].callGuarded))) {
+    return multiSiteWindow({ name, n0, adds, evicts, ops, readSites, addStmt, addSpan, addSpans,
+      firstWriter, lastWriter, firstAddHead, stmts, h, creationSizeOf })
+  }
   if (adds.length !== 1) return { refused: `\`${name}\` is added to at ${adds.length} places` }
   if (evicts.length !== 1) return { refused: `\`${name}\` is shortened at ${evicts.length} places` }
   const add = adds[0]
@@ -460,14 +509,6 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
   // Two arms of one chain never run on the same bar — except that a later
   // arm's CONDITION runs on every bar an earlier arm did not, so a condition
   // read (`cond`) excludes only an add in an EARLIER arm.
-  const excludes = (a, b) => {
-    for (let k = 0; k < Math.min(a.length, b.length); k += 1) {
-      if (a[k].chain !== b[k].chain) return false
-      if (a[k].arm !== b[k].arm) return a[k].cond ? a[k].arm > b[k].arm : true
-      if (a[k].cond) return false
-    }
-    return false
-  }
   const inWriters = readSites.map((r) => ({
     from: r.from, to: r.to, line: r.line,
     exclusive: r.stmt === addStmt && excludes(r.path, add.path || []),
@@ -483,6 +524,150 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
       lastWriter,
       readsInWriters: inWriters,
       capInput: (ev.size && ev.size.capInput) || null,
+    },
+  }
+}
+
+/** ⭐ C22 — can the statement at arm path `a` never run on a bar the one at
+ *  `b` runs? Two arms of one chain never run together — except that a later
+ *  arm's CONDITION runs on every bar an earlier arm did not, so a condition
+ *  read (`cond`) excludes only something in an EARLIER arm. */
+function excludes(a, b) {
+  for (let k = 0; k < Math.min(a.length, b.length); k += 1) {
+    if (a[k].chain !== b[k].chain) return false
+    if (a[k].arm !== b[k].arm) return a[k].cond ? a[k].arm > b[k].arm : true
+    if (a[k].cond) return false
+  }
+  return false
+}
+
+/**
+ * ⭐⭐ C22 — A WINDOW ADDED TO AT SEVERAL PLACES, OR SHORTENED IN ITS ADD'S OWN
+ * ARM (vdubus-pattern-gen's zigzag, one per `f_runEngine` call):
+ *
+ *     if not na(ph)
+ *         array.unshift(zzP, ph)
+ *         if array.size(zzP) > 10
+ *             array.pop(zzP), array.pop(zzL)
+ *         if array.size(zzP) >= 5 …   ← reads the window its own arm just wrote
+ *     if not na(pl)
+ *         array.unshift(zzP, pl)
+ *         …
+ *
+ * Pine runs the statements in order, so on a bar both conditions hold the
+ * window gains TWO elements, the second newer. The model stays a one-element-
+ * per-bar series: slot j is `ta.valuewhen(c₁ or c₂, c₂ ? v₂ : v₁, j)` — exact
+ * on every bar at most one add runs. A bar two may run on is AMBIGUOUS
+ * (`doubles`): every read is registered with the ambiguity "one of the last
+ * `cap` events was a double" and the steps it reaches are withheld there, never
+ * drawn off one element short.
+ *
+ * ⛔ Each add owns a length check right after it, under the same conditions,
+ * with one cap — or one shared check after every add, on every bar. Anything
+ * else refuses by name. A read inside a writing statement is exact where every
+ * add that may run on its bar has run, with its removal, before it — or cannot
+ * run on the bar it does (`served`).
+ */
+function multiSiteWindow({ name, n0, adds, evicts, ops, readSites, addStmt, addSpan, addSpans,
+  firstWriter, lastWriter, firstAddHead, stmts, h, creationSizeOf }) {
+  if (adds.some((a) => a.guards.some((g) => mentionsToks(g, name)))) {
+    return { refused: `\`${name}\` is added to under a condition that reads it` }
+  }
+  const order = adds[0].member
+  if (adds.some((a) => a.member !== order)) {
+    return { refused: `\`${name}\` is added to with both \`push\` and \`unshift\`` }
+  }
+  if (n0 !== 0) return { refused: `\`${name}\` starts with ${n0} slots and is added to at ${adds.length} places` }
+  const evictOf = new Map()
+  const shared = evicts.length === 1 && !evicts[0].guards.length && !evicts[0].callGuarded ? evicts[0] : null
+  if (shared) {
+    if (!shared.size) return { refused: `\`${name}\`'s removal is not a length check` }
+    if (adds.some((a) => a.ord > shared.ord)) return { refused: `\`${name}\` is added to after it is shortened` }
+    for (const a of adds) evictOf.set(a, shared)
+  } else {
+    if (evicts.length !== adds.length) {
+      return { refused: `\`${name}\` is added to at ${adds.length} places and shortened at ${evicts.length}` }
+    }
+    const mine = [...adds, ...evicts].sort((x, y) => x.ord - y.ord)
+    for (let k = 0; k < mine.length; k += 1) {
+      const a = mine[k]
+      if (a.kind !== 'add') continue
+      const e = mine[k + 1]
+      if (!e || e.kind !== 'evict' || !e.size || e.callGuarded !== a.callGuarded
+          || text(e.guards.flat()) !== text(a.guards.flat())) {
+        return { refused: `\`${name}\`'s length check is not the step after each add, under the same conditions` }
+      }
+      evictOf.set(a, e)
+    }
+  }
+  for (const [a, e] of evictOf) {
+    if ((a.member === 'push') !== (e.member === 'shift')) {
+      return { refused: `\`${name}\` adds with \`${a.member}\` and removes with \`${e.member}\` — not the oldest` }
+    }
+  }
+  const caps = new Set([...evictOf.values()].map((e) => e.size.k))
+  if (caps.size !== 1) return { refused: `\`${name}\` is kept to different lengths at different places` }
+  const cap = [...caps][0]
+  if (!(cap >= 1) || cap > MAX_WINDOW_CAP) return { refused: `a window of ${cap} slots` }
+  for (const e of new Set(evictOf.values())) {
+    if (e.size.of === name) continue
+    // A twin: another array added to at the same places, in step, from the same size.
+    const twin = ops.filter((o) => o.arr === e.size.of && o.kind === 'add')
+    const inStep = twin.length === adds.length && adds.every((a) => twin.some((t) => t.head === a.head
+      && text(t.guards.flat()) === text(a.guards.flat()) && t.ord < evictOf.get(a).ord))
+    if (!inStep || creationSizeOf(e.size.of) !== n0) {
+      return { refused: `\`${name}\` is shortened by the length of \`${e.size.of}\`, which is not added to in step with it` }
+    }
+  }
+  // Every add's condition and value are read in the scope the FIRST add's
+  // statement started in (the caller's `addStmt`): a later statement's add
+  // must not read a name a statement between the two changes.
+  const assignedIn = (list, out) => {
+    for (const st of list || []) { for (const w of assignedBy(st.header || [], h)) out.add(w); assignedIn(st.sub, out) }
+    return out
+  }
+  for (const a of adds) {
+    if (a.head === firstAddHead) continue
+    const between = assignedIn(stmts.slice(firstAddHead, a.head), new Set())
+    const hit = [...between].find((w) => mentionsToks([...a.guards.flat(), ...(a.value || [])], w))
+    if (hit) {
+      return { refused: `\`${name}\` is added to under \`${hit}\`, which a statement between its add sites changes` }
+    }
+  }
+  let doubles = false
+  for (let i = 0; i < adds.length; i += 1) {
+    for (let j = i + 1; j < adds.length; j += 1) {
+      if (!excludes(adds[i].path || [], adds[j].path || []) && !excludes(adds[j].path || [], adds[i].path || [])) doubles = true
+    }
+  }
+  // A read nested in an add's own block, after that add and its removal, runs
+  // only on bars that add ran: any LATER add that runs with it makes the bar a
+  // double (ambiguous, withheld), so on every other bar it sees the model.
+  const within = (r, a) => {
+    const ap = a.path || []
+    const rp = r.path || []
+    return ap.length <= rp.length && ap.every((x, k) => rp[k].chain === x.chain && rp[k].arm === x.arm && !rp[k].cond)
+  }
+  const done = (a, r) => a.ord < r.ord && evictOf.get(a).ord < r.ord
+  const served = (r) => {
+    const anchored = doubles && adds.some((a) => done(a, r) && within(r, a))
+    return adds.every((a) => excludes(r.path || [], a.path || []) || done(a, r) || anchored)
+  }
+  const capE = [...evictOf.values()].find((e) => e.size.capInput)
+  return {
+    model: {
+      name, order, cap, fixed: false, n0,
+      guards: adds[0].guards,
+      value: adds[0].value,
+      sites: adds.map((a) => ({ guards: a.guards, value: a.value })),
+      doubles,
+      addStmt,
+      addSpan,
+      addSpans,
+      firstWriter,
+      lastWriter,
+      readsInWriters: readSites.map((r) => ({ from: r.from, to: r.to, line: r.line, exclusive: false, served: served(r) })),
+      capInput: capE ? capE.size.capInput : null,
     },
   }
 }

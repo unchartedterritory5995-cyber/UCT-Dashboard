@@ -185,6 +185,10 @@ export function collectObjectOps(stmts, h) {
     lostColls: [],
   }
   let siteSeq = 0
+  /** ⭐ C22 — every body this pass inlined, rewritten for its call site, and
+   *  whether the call runs on EVERY bar (no guard, no loop): a `var` array its
+   *  body declares is then that call site's own window (`buildObjectProgram`). */
+  const inlineBodies = []
   /** Counter names of the loops currently open, innermost last. ⭐ Stamped onto
    *  every op emitted inside one, because the VALUE resolver lives in `pine.js`
    *  and has no other way to know that `r` is an iteration rather than a name it
@@ -380,6 +384,112 @@ export function collectObjectOps(stmts, h) {
   }
 
   /**
+   * ⭐⭐ C22 — AN `if` CHAIN IN AN INLINED BODY THAT ONLY ASSIGNS ITS LOCALS IS
+   * A VALUE. vdubus-pattern-gen's `f_runEngine`:
+   *
+   *     shouldDraw = false
+   *     if isHS
+   *         shouldDraw := true
+   *     else
+   *         if rawName == "Gartley" and showGartley
+   *             shouldDraw := true
+   *         else if …
+   *     if showStandard and f_checkStandardBearish() and shouldDraw   ← reads it
+   *
+   * Pine runs the chain in order, so after it `shouldDraw` IS
+   * `isHS ? true : (rawName == "Gartley" and showGartley ? true : … : false)` on
+   * this bar — each condition read as Pine's `if` reads it (`na` is false). The
+   * value walk folds this shape at the top level; an inlined body was never
+   * walked, so the name was opaque (`pine:state`) and every drawing it guarded
+   * was dropped.
+   * ⛔ EXACTLY THAT SHAPE: every arm holds only `name := expr` for a local whose
+   * value before the chain is known (a declaration or an earlier fold), or a
+   * nested chain of the same kind; no condition or value reads a name the chain
+   * assigns. Anything else returns null and the name stays opaque, as before.
+   * @returns {{end: number, bindings: Map<string, object[]>}|null}
+   */
+  const foldLocalChain = (items, at, scope) => {
+    const prior = new Map()
+    for (const b of scope || []) {
+      if (!b.st || !b.st.synthetic) continue
+      if (b.reassign) prior.delete(b.name)
+      else prior.set(b.name, b.toks)
+    }
+    const armsOf = (list, i) => {
+      const arms = [{ cond: list[i].header.slice(1), body: list[i].sub || [] }]
+      let k = i
+      while (list[k + 1] && list[k + 1].header && list[k + 1].header[0]
+          && list[k + 1].header[0].kind === 'ident' && list[k + 1].header[0].value === 'else') {
+        k += 1
+        const eh = list[k].header
+        if (eh[1] && eh[1].kind === 'ident' && eh[1].value === 'if') arms.push({ cond: eh.slice(2), body: list[k].sub || [] })
+        else { arms.push({ cond: null, body: list[k].sub || [] }); break }
+      }
+      return { arms, end: k }
+    }
+    const top = armsOf(items, at)
+    const assigned = reassignedIn(items.slice(at, top.end + 1).map((s) => ({ header: [], sub: s.sub || [] })))
+    if (!assigned.size) return null
+    const a0 = items[at].header[0]
+    const T = (kind, value) => ({ kind, value, line: a0.line, column: a0.column, index: a0.index })
+    const P = (v) => T('punct', v)
+    let bad = false
+    let foldChain = null
+    const foldList = (list, env) => {
+      const its = splitCommaStatements(list, h)
+      let cur = env
+      for (let i = 0; i < its.length && !bad; i += 1) {
+        const t = its[i].header || []
+        if (!t.length) { bad = true; break }
+        if (t[0].kind === 'ident' && t[0].value === 'if') {
+          const c = armsOf(its, i)
+          cur = foldChain(c.arms, cur)
+          i = c.end
+          continue
+        }
+        if (t.length > 2 && t[0].kind === 'ident' && h.isPunct(t[1], ':=') && !(its[i].sub || []).length
+            && cur.has(String(t[0].value))) {
+          const rhs = t.slice(2)
+          if (rhs.some((x) => x.kind === 'ident' && assigned.has(String(x.value)))) { bad = true; break }
+          cur = new Map(cur)
+          cur.set(String(t[0].value), rhs)
+          continue
+        }
+        bad = true
+      }
+      return cur
+    }
+    foldChain = (arms, env) => {
+      if (arms.some((a) => a.cond && (!a.cond.length
+          || a.cond.some((x) => x.kind === 'ident' && assigned.has(String(x.value)))))) { bad = true; return env }
+      const results = arms.map((a) => foldList(a.body, env))
+      if (bad) return env
+      const out = new Map(env)
+      const hasElse = !arms[arms.length - 1].cond
+      for (const n of assigned) {
+        if (!env.has(n)) continue
+        if (!results.some((r) => r.get(n) !== env.get(n))) continue
+        let acc = hasElse ? results[arms.length - 1].get(n) : env.get(n)
+        for (let k = (hasElse ? arms.length - 2 : arms.length - 1); k >= 0; k -= 1) {
+          const c = arms[k].cond
+          acc = [P('('), P('('), T('ident', 'na'), P('('), ...c, P(')'), P('?'), T('number', 0), P(':'), P('('), ...c, P(')'), P(')'),
+            P('?'), P('('), ...results[k].get(n), P(')'), P(':'), P('('), ...acc, P(')'), P(')')]
+        }
+        out.set(n, acc)
+      }
+      return out
+    }
+    const folded = foldChain(top.arms, prior)
+    if (bad) return null
+    const bindings = new Map()
+    for (const n of assigned) {
+      if (!folded.has(n)) return null
+      if (folded.get(n) !== prior.get(n)) bindings.set(n, folded.get(n))
+    }
+    return bindings.size ? { end: top.end, bindings } : null
+  }
+
+  /**
    * `guards` is a stack of `{ toks, negate }`; the runtime AND of all of them.
    * `scope` is the BLOCK-LOCAL bindings seen so far, in order.
    *
@@ -421,8 +531,20 @@ export function collectObjectOps(stmts, h) {
     let prevIfLocals = null
     let localScope = scope
     const isRoot = list === stmts
+    // ⭐ C22 — a chain of an inlined body folded into its locals' values
+    // (`foldLocalChain`), applied once its last arm has been walked.
+    let pendingFold = null
+    const applyFold = (at) => {
+      if (!pendingFold || pendingFold.end !== at) return
+      for (const [name, toks] of pendingFold.bindings) {
+        localScope = [...localScope, { name, toks, st: pendingFold.st, assign: true }]
+      }
+      pendingFold = null
+    }
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
-    for (const st of splitCommaStatements(list, h)) {
+    const walkItems = splitCommaStatements(list, h)
+    for (let wi = 0; wi < walkItems.length; wi += 1) {
+      const st = walkItems[wi]
       if (isRoot) {
         stampRootSince()
         rootPos += 1
@@ -541,6 +663,10 @@ export function collectObjectOps(stmts, h) {
         // the op under it stands: the block may reassign a name the condition
         // read (`if high >= hh` → `hh := high`), and the op below must not see
         // its own `if` re-evaluated with the new value (`camarilla`, measured).
+        if (st.synthetic) {
+          const f = foldLocalChain(walkItems, wi, localScope)
+          if (f) pendingFold = { ...f, st }
+        }
         walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
         // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
         // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
@@ -555,6 +681,7 @@ export function collectObjectOps(stmts, h) {
         for (const name of reassignedIn(st.sub || [])) {
           localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
+        applyFold(wi)
         continue
       }
       if (word === 'else') {
@@ -585,6 +712,7 @@ export function collectObjectOps(stmts, h) {
         for (const name of reassignedIn(st.sub || [])) {
           localScope = [...localScope, { name, toks: t, st, reassign: true }]
         }
+        applyFold(wi)
         continue
       }
       if (word === 'for' || word === 'while') {
@@ -1793,6 +1921,7 @@ export function collectObjectOps(stmts, h) {
     const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
     diagnostics.inlinedCalls += 1
+    inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 })
     const sink = ops
     const before = sink.length
     inlineDepth += 1
@@ -1940,5 +2069,5 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined }
+  return { decls, ops, diagnostics, scalars, varWrites, definedNames: defined, inlineBodies }
 }

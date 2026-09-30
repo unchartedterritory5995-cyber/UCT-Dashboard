@@ -174,12 +174,14 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       expect(diag.droppedOps).toBeGreaterThan(0)
       if (want) expect(JSON.stringify(diag)).toMatch(want)
     }
-    it('two places that add', () => refusedWith([
+    // ⚰️ Two places that add were refused here until C22; the same order at
+    // both is served now (`objectWindowSites.test.js`). Two orders are not.
+    it('two places that add, one at the front and one at the back', () => refusedWith([
       'var w = array.new_float()',
       'if close > open',
       '    w.unshift(high)',
       'if close < open',
-      '    w.unshift(low)',
+      '    w.push(low)',
       'if w.size() > 1',
       '    w.pop()',
       'if w.size() > 0',
