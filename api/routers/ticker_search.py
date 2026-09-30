@@ -389,6 +389,14 @@ def ticker_search(
                     row["description"] = rec.get("description") or ""
                     row["presentation"] = rec.get("presentation")
                     row["domain"] = rec.get("domain")
+                    # ⚠️ THE SAME LAYOUT FACTS THE CATALOGUE ROW CARRIES, so a
+                    # searched COT dataset and a browsed one create the same
+                    # three panes and file under the same tab.
+                    row["family"] = rec.get("family")
+                    row["family_label"] = rec.get("family_label")
+                    row["pane_layout"] = rec.get("pane_layout")
+                    row["grouped"] = rec.get("grouped")
+                    row["tags"] = rec.get("tags") or []
                 (m_front if rec.get("symbol_hit") else m_back).append(row)
             results = m_front + results + m_back
         except Exception:

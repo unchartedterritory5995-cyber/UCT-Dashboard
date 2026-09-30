@@ -16,11 +16,11 @@ describe('the Economic tab is dark by construction', () => {
   test('without economics the tab list IS LIBRARY_TABS (identity) — five tabs, unchanged', () => {
     expect(libraryTabsFor()).toBe(LIBRARY_TABS)
     expect(libraryTabsFor({ economic: false })).toBe(LIBRARY_TABS)
-    expect(LIBRARY_TABS.map((t) => t.key)).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'indexes'])
+    expect(LIBRARY_TABS.map((t) => t.key)).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'positioning'])
   })
   test('with economics: the sixth tab, appended', () => {
     const tabs = libraryTabsFor({ economic: true })
-    expect(tabs.map((t) => t.label)).toEqual(['Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Indexes', 'Economic'])
+    expect(tabs.map((t) => t.label)).toEqual(['Technical', 'Fundamentals', 'Breadth', 'Symbols', 'Positioning', 'Economic'])
     expect(tabs[5]).toBe(ECONOMIC_TAB)
     expect(libraryTabsFor({ economic: true })).toBe(tabs)
   })

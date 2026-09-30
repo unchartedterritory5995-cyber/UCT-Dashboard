@@ -64,7 +64,7 @@ describe.each([404, 401, 403])('catalogue %i — the Add surface is exactly what
     show({}); openIndicators(); openAdd()
     await waitFor(() => expect(calls.some((u) => u.startsWith('/api/econ/catalog'))).toBe(true))
     await new Promise((r) => setTimeout(r, 20))
-    expect(tabKeys()).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'indexes'])
+    expect(tabKeys()).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'positioning'])
     expect(econRows()).toHaveLength(0)
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'CPI' } })
     await new Promise((r) => setTimeout(r, 50))
@@ -73,10 +73,10 @@ describe.each([404, 401, 403])('catalogue %i — the Add surface is exactly what
 })
 
 describe('catalogue 200 — the sixth tab', () => {
-  it('Economic tab appears after Indexes', async () => {
+  it('Economic tab appears after Positioning', async () => {
     stubFetch(200)
     show({}); openIndicators(); openAdd()
-    await waitFor(() => expect(tabKeys()).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'indexes', 'economic']))
+    await waitFor(() => expect(tabKeys()).toEqual(['technical', 'fundamentals', 'breadth', 'symbols', 'positioning', 'economic']))
   })
 
   it('BROWSE: click the tab, click a row -> one dataSeries over econ:USFEDFUNDSU, step, own pane', async () => {

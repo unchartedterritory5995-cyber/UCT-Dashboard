@@ -42,8 +42,11 @@ def test_a_shipped_component_carries_what_a_capability_gate_reads():
     by_id = {r["id"]: r for r in cat.get("components", [])}
     for cid in reg.PRODUCT_COMPONENT_IDS:
         row = by_id[cid]
-        assert row["source_type"] == reg.SRC_SURVEY
-        assert row["ohlc_capable"] is False, f"{cid} is a survey and cannot mean candles"
+        # ⚠️ A SURVEY (AAII) OR A COT NET POSITION — both one scalar per week, and
+        # the claim that matters to the gate is that neither is an OHLC source type.
+        assert row["source_type"] in (reg.SRC_SURVEY, reg.SRC_COT)
+        assert row["source_type"] not in reg.OHLC_CAPABLE
+        assert row["ohlc_capable"] is False, f"{cid} is weekly and cannot mean candles"
         assert row["presentation"], f"{cid} must say how it wants to be drawn"
 
 

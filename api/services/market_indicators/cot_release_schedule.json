@@ -1,0 +1,59 @@
+{
+  "_doc": "WHEN each CFTC Commitments of Traders report became PUBLIC, where it was not the normal rule. The normal rule (cot_release.py): released the Friday after the as-of Tuesday at 15:30 ET; a federal holiday or closure on the Wednesday, Thursday or Friday of that week moves the release to the next federal publication day (CFTC's own 2026 schedule: Jan 5, Jun 22, Jul 6, Nov 16, Nov 30, Dec 28 are all such Mondays; a TUESDAY holiday does not move it: as-of Mon 2025-11-10 was scheduled Fri 2025-11-14). The cot_records store keeps only the as-of date, so these are the authoritative exceptions. Every entry is on the LATE side: a chart or formula may see a report late, never early.",
+  "id": "cot_release_schedule",
+  "imported_at": "2026-09-30",
+  "release_time_et": "15:30",
+  "overrides": [
+    {
+      "id": "2025-10-lapse",
+      "basis": "official",
+      "source": "CFTC PR 9138-25 (resume 2025-11-19, chronological) and PR 9147-25 (accelerated schedule table; normal schedule from the 2025-12-23 report)",
+      "citations": ["https://www.cftc.gov/PressRoom/PressReleases/9138-25", "https://www.cftc.gov/PressRoom/PressReleases/9147-25"],
+      "releases": {
+        "2025-09-30": "2025-11-19",
+        "2025-10-07": "2025-11-21",
+        "2025-10-14": "2025-11-25",
+        "2025-10-21": "2025-12-02",
+        "2025-10-28": "2025-12-05",
+        "2025-11-04": "2025-12-09",
+        "2025-11-10": "2025-12-10",
+        "2025-11-18": "2025-12-12",
+        "2025-11-25": "2025-12-15",
+        "2025-12-02": "2025-12-17",
+        "2025-12-09": "2025-12-19",
+        "2025-12-16": "2025-12-23",
+        "2025-12-23": "2025-12-29"
+      }
+    },
+    {
+      "id": "2018-12-lapse",
+      "basis": "derived from the official rule",
+      "source": "CFTC PR 7864-19: first catch-up report (as-of 2018-12-24) published Friday 2019-02-01, then 'one report on Tuesday and another on Friday of each week' in chronological order until current. Applied to the store's as-of dates, the sequence meets the normal schedule at the as-of 2019-03-05 report (Friday 2019-03-08).",
+      "citations": ["https://www.cftc.gov/PressRoom/PressReleases/7864-19"],
+      "releases": {
+        "2018-12-24": "2019-02-01",
+        "2018-12-31": "2019-02-05",
+        "2019-01-08": "2019-02-08",
+        "2019-01-15": "2019-02-12",
+        "2019-01-22": "2019-02-15",
+        "2019-01-29": "2019-02-19",
+        "2019-02-05": "2019-02-22",
+        "2019-02-12": "2019-02-26",
+        "2019-02-19": "2019-03-01",
+        "2019-02-26": "2019-03-05"
+      }
+    }
+  ],
+  "bounds": [
+    {
+      "id": "2023-02-ion",
+      "basis": "late-side bound (per-report dates not published)",
+      "source": "CFTC PR 8662-23 and COT Historical Special Announcements: the ION cyber incident delayed every report from the one due Friday 2023-02-03 (as-of 2023-01-31); catch-up publications ran from 2023-02-24 with the last delayed publications announced through 2023-03-21. Every delayed report is therefore placed at the END of 2023-03-21 ET.",
+      "citations": ["https://www.cftc.gov/PressRoom/PressReleases/8662-23", "https://www.cftc.gov/MarketReports/CommitmentsofTraders/HistoricalSpecialAnnouncements/index.htm"],
+      "asof_from": "2023-01-31",
+      "asof_through": "2023-03-14",
+      "available_date": "2023-03-21",
+      "available_time_et": "23:59"
+    }
+  ]
+}
