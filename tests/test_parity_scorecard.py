@@ -761,7 +761,12 @@ def test_every_backticked_evidence_path_in_the_cells_is_extracted():
     # and the corrected production writing-help run. 42 + 3 = 45.
     # Lane SC (2026-09-30) added 6 more the 9a/2b/5d/6c cells now cite: the L11 proof walk's README,
     # run.json, census.json, silent.json, deadclick.json and axe.json. 45 + 6 = 51.
-    assert len(paths) == 51, (len(paths), paths)
+    # Lane SC2 (2026-09-30) re-scored 2c and 6c on new evidence: the 2c cell no longer cites the L11
+    # proof walk's deadclick.json (-1) and now cites the L12 dead-click full sweep's run.json plus the
+    # targeted re-run's run.json and deadclick.json (+3); the 6c cell now also cites the L12 layout
+    # re-confirm's run-meta.json (+1) and both new cells cite the shared l12-READINGS.md (+1).
+    # 51 - 1 + 3 + 1 + 1 = 55.
+    assert len(paths) == 55, (len(paths), paths)
     for p in ('docs/notebook/proof/evernote-evidence-2026-09-26.jsonl',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T14-58-03.md',
               'docs/notebook/evidence/wave9-9b-8a0098029/sandbox-integrity-2026-09-26T15-30-24.md',

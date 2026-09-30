@@ -1756,6 +1756,13 @@ RS2_TAG = 'notebook-wave10-RS2-2026-09-29'
 # lane's own final commit, after every evidence file below is committed -- never before, or the
 # tie is vacuous.
 SC_TAG = 'notebook-wave10-SC-2026-09-30'
+# Lane SC2 (2026-09-30): a second new wave entry, same shape as SC's own (tip and squash both
+# None). The L12 dead-click full sweep + targeted re-run (0100a3032 / 6cbf0618e, raw evidence
+# committed first at 3d95c76fc / 589b0ddf9, R-RAW) and the un-scoped L3 layout re-confirm
+# (fe01bdb14, raw evidence committed first at e50f2a1ba, R-RAW) all postdate SC_TAG's own commit,
+# so none of it can be tied to 'wave 10 SC'. The SC2 tag is created at THIS lane's own final
+# commit, after every evidence file below is committed -- never before, or the tie is vacuous.
+SC2_TAG = 'notebook-wave10-SC2-2026-09-30'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1772,6 +1779,7 @@ B0_WAVES = (
     ('wave 10 RS', 'notebook-wave10-L5-tip-2026-09-29', 'a01573e66', '0812b5ec3'),
     ('wave 10 RS2', 'notebook-wave10-L8-tip-2026-09-29', '0bb2f1c33', '6f563c158'),
     ('wave 10 SC', SC_TAG, None, None),
+    ('wave 10 SC2', SC2_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1857,6 +1865,15 @@ B0_EVIDENCE = (
     (f'{PROOF}/l11-52deeb767/axe.json', 'wave 10 SC'),
     (f'{PROOF}/l11-52deeb767/silent.json', 'wave 10 SC'),
     (f'{PROOF}/l11-52deeb767/deadclick.json', 'wave 10 SC'),
+    # Lane SC2 (2026-09-30): the L12 dead-click full sweep + targeted re-run's own committed
+    # artifacts, the un-scoped L3 layout re-confirm's run-meta.json, and the reading of all three.
+    # None of these existed at any earlier registered wave's landing (SC_TAG predates them), so all
+    # tie to 'wave 10 SC2'.
+    (f'{PROOF}/l12-READINGS.md', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc-0100a3032/run.json', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc2-6cbf0618e/run.json', 'wave 10 SC2'),
+    (f'{PROOF}/l12dc2-6cbf0618e/deadclick.json', 'wave 10 SC2'),
+    (f'{PROOF}/l3-reconfirm-fe01bdb14/run-meta.json', 'wave 10 SC2'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2634,6 +2651,46 @@ def build(pages_dir=None):
     DR2_SIGNED = record(DR2, 389, 'Countersigned, all seven surfaces')
     DR2_RESIDUAL = record(DR2, 393, 'link-suggestion popup race against autosave')
 
+    # Lane SC2 (2026-09-30): new evidence for two clauses lane SC left NOT MET -- the L12 dead-click
+    # full sweep (0100a3032, R-RAW at 3d95c76fc) plus its targeted re-run of the 2 surfaces it could
+    # not finish (6cbf0618e, R-RAW at 589b0ddf9), and the un-scoped L3 layout re-confirm (fe01bdb14,
+    # R-RAW at e50f2a1ba, ruling D23 applied in its classifier). The reading of all three is
+    # docs/notebook/proof/l12-READINGS.md, committed after every raw file it cites. None of this
+    # existed at any earlier registered wave's landing, so it ties to a new un-landed wave
+    # ('wave 10 SC2', same tip=None/landing=None shape as 'wave 10 SC' -- the tag is created at this
+    # lane's own final commit, after every evidence file below is committed).
+    L12R = f'{PROOF}/l12-READINGS.md'
+    L12DC1 = f'{PROOF}/l12dc-0100a3032'
+    L12DC1_CMD = ('python tools/notebook_proof_walk.py --sweeps deadclick --boot (lane L12, tip '
+                  '0100a3032, full sweep, R-RAW at 3d95c76fc)')
+    L12DC2 = f'{PROOF}/l12dc2-6cbf0618e'
+    L12DC2_CMD = ('python tools/notebook_proof_walk.py --sweeps deadclick --surface-deadline 900 --boot '
+                  '(lane L12, tip 6cbf0618e, targeted re-run of the 2 unfinished surfaces, R-RAW at '
+                  '589b0ddf9)')
+    # 2c: dead clicks -- full sweep (39 surfaces: 37 MEASURED, 1 TIMEOUT, 1 ERROR, 0 real DEAD; the 2
+    # DEAD verdicts in the raw file are the planted dead controls, which must read DEAD for the
+    # control to be VALID) plus a targeted re-run of the 2 unfinished surfaces (both MEASURED).
+    # Together: 39/39 measured, 0 DEAD.
+    L12DC_FULL_RUN = measure(f'{L12DC1}/run.json', 12, '"findings": 0', L12DC1_CMD)
+    L12DC_FULL_SURFACES = record(L12R, 9, '39: 37 MEASURED, 1 TIMEOUT, 1 ERROR')
+    L12DC_FULL_DEAD = record(L12R, 32, '0 DEAD')
+    L12DC_TARGETED_RUN = measure(f'{L12DC2}/run.json', 12, '"findings": 0', L12DC2_CMD)
+    L12DC_TARGETED_TEMPLATES = measure(f'{L12DC2}/deadclick.json', 2579, '"LIVE": 59', L12DC2_CMD)
+    L12DC_TARGETED_FIRSTRUN = measure(f'{L12DC2}/deadclick.json', 132, '"OCCLUDED": 5', L12DC2_CMD)
+    L12DC_INTEGRITY = record(L12R, 40, 'CLEAN at all four checkpoints in both runs')
+    # 6c: layout -- the L3 instrument's un-scoped re-confirm (every surface, 390/820/1200, orb+hub
+    # passes, hint-seen and coach-pending both states), ruling D23's SAME-COMPONENT reclass applied
+    # to the raw rows (unchanged) rather than hidden: 0 CONFIRMED remain on this run.
+    L3RC = f'{PROOF}/l3-reconfirm-fe01bdb14'
+    L3RC_VALID = record(f'{L3RC}/run-meta.json', 119, '"controls_valid": true')
+    L3RC_ERRORS = record(f'{L3RC}/run-meta.json', 682, '"errors": []')
+    L3RC_CLEARED = record(f'{L3RC}/run-meta.json', 23714, '"CLEARED": 398')
+    L3RC_SAME = record(f'{L3RC}/run-meta.json', 23715, '"SAME-COMPONENT": 88')
+    L3RC_POPUP = record(f'{L3RC}/run-meta.json', 23716, '"under-open-popup": 36')
+    L3RC_RULING_TAG = record(f'{L3RC}/run-meta.json', 20716, '"ruling": "D23"')
+    L3RC_CONFIRMED = record(L12R, 53, 'CONFIRMED')
+    L3RC_READING = record(L12R, 51, 'the hub knob beneath its own pad')
+
 
     # ── competitor cells ──────────────────────────────────────────────────────────────────────────
     VENDOR = {'N': 'notion', 'E': 'evernote', 'O': 'obsidian'}
@@ -2707,10 +2764,10 @@ def build(pages_dir=None):
     else:
         TPL_V, TPL_EV, TPL_NOTE, TPL_LEVER = 'NV', [], 'The built-in template picker was not confirmed in the browser. ' + UI_NOT, \
             'open Templates in a browser pass'
-    R('G-001', ('P', 'P', 'P'), [code(NS, 4019, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
+    R('G-001', ('P', 'P', 'P'), [code(NS, 4030, 'def restore_note('), walk9('B20_more_older_rows'), walk9('B22_trash_restore')],
       {'N': ['N_restore', 'N_trash'], 'E': ['E_trash'], 'O': ['O_trash']},
       'B22: deleted through the confirm dialog, found in Trash, restored, back in All notes.')
-    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3376, 'def restore_note_version('),
+    R('G-002', ('P', 'P', 'P'), [code(f'{NB}/NoteHistoryPanel.jsx', 17, 'Restore'), code(NS, 3387, 'def restore_note_version('),
                       walk9('B17_older_rows'), walk9('B23_version_restore')],
       {'N': ['N_version'], 'E': ['E_version'], 'O': ['O_recovery']},
       'B23: an edit made a version; History listed it and restoring it brought the original words back.')
@@ -2751,7 +2808,7 @@ def build(pages_dir=None):
       'review I-6): its only quote is the Semantic search article (search by meaning), the committed evidence line '
       'itself says a relevance-vs-recency sort is not evidenced by that page, and UCT\'s meaning search is BLOCKED '
       '(G-017, G-127).')
-    R('G-016', 'NA', [code(NS, 2948, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
+    R('G-016', 'NA', [code(NS, 2959, 'def resolve_sector_theme_symbols(')], {'N': NA, 'E': NA, 'O': NA},
       'The ticker/sector/theme entity model is UCT\'s; generic database properties are compared under G-021.')
     R('G-017', 'BE', [code(f'{JT}/note_semantic.py', 28, 'NOTEBOOK_SEMANTIC_SEARCH_ENABLED'),
                       flag('NOTEBOOK_SEMANTIC_SEARCH_ENABLED', 'dark'), walk7('W19_semantic_dark')],
@@ -2768,12 +2825,12 @@ def build(pages_dir=None):
       {'N': ['N_board', 'N_props'], 'E': EB, 'O': ['O_views', 'O_props']},
       'B09: list, table, board, calendar, graph, timeline and tasks modes. Formulas and rollups are OUT until demand '
       'is measured (D12) and are not cited on the competitor side.')
-    R('G-022', ('P', 'NV', 'P'), [code(NS, 2630, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
+    R('G-022', ('P', 'NV', 'P'), [code(NS, 2641, 'def get_note_backlinks('), walk9('B09_list_views_bulk')],
       {'N': ['N_backlinks'], 'E': EB, 'O': ['O_backlinks', 'O_graph']},
       'B09 drew the graph canvas; B10 opened the backlinks neighbourhood (unlinked mentions).')
-    R('G-023', ('P', 'P', 'P'), [code(NS, 3089, 'j2_note_favorites'), walk9('B20_more_older_rows')],
+    R('G-023', ('P', 'P', 'P'), [code(NS, 3100, 'j2_note_favorites'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites'], 'E': ['E_pin'], 'O': ['O_bookmarks']}, 'B20: Add to Favorites pressed; the sidebar lists it.')
-    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4293, 'j2_note_recents'), walk9('B20_more_older_rows')],
+    R('G-024', ('P', 'NV', 'NV'), [code(NS, 4304, 'j2_note_recents'), walk9('B20_more_older_rows')],
       {'N': ['N_favorites', 'N_switch'], 'E': EB, 'O': NFO}, 'B20: the sidebar carries Recents.')
     R('G-025', ('P', 'P', 'P'), [code(f'{NB}/SavedViewEditor.jsx', 13, 'export default function SavedViewEditor'),
                                  walk9('B25_saved_view')],
@@ -2917,7 +2974,7 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3290, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3350, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
@@ -3067,7 +3124,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3854, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 3914, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3246,19 +3303,21 @@ def build(pages_dir=None):
          'the feature->rail census over the §B1 inventory, re-run by F3 on this tree after the ledger moves: every '
          'shipped row has a test that imports its code (G-085 needed its implementing file named in the ledger to be '
          'located; it was)', None),
-        ('no dead clicks', 'NOT MET',
-         [L11_DEAD_RUN, L11_DEAD_FIRST_VALID, L11_DEAD_SURFACES, L11_DEAD_TABLE, L11_DEAD_CAL, L11_DEAD_TL,
-          L11_TIMEOUT_BUDGET],
-         'the first ever VALID dead-click reading now exists (lane WK5/L11, 52deeb767): control VALID (the planted '
-         'dead, styled-dead and live buttons all read as they must), 30 of 39 surfaces MEASURED, 9 TIMEOUT at their '
-         '360s budget -- read as budget, not hangs, since every TIMEOUT surface made steady progress (56-90 controls '
-         'clicked before the kill; WK3\'s "nb-bulk hang" is specifically disproven, 61 controls with no stall) -- and '
-         '**3 DEAD**: nb-table\'s `UPDATED` sort header (a click with no DOM change, no request, no URL change -- a '
-         'candidate product defect) and nb-calendar/nb-timeline\'s `Today` button when already on today (a no-op the '
-         'page does not mark current, a product nit). The clause reads literally "no dead clicks", and 3 real DEAD '
-         'rows plus 9 surfaces never reached within budget means it is not met today. Two follow-up lanes are in '
-         'flight on this repo: fixing the 3 DEAD rows, and widening the per-surface budget so the 9 TIMEOUT surfaces '
-         'get a real reading. Owed: land both, then a clean re-run', BUILD),
+        ('no dead clicks', 'MET',
+         [L12DC_FULL_RUN, L12DC_FULL_SURFACES, L12DC_FULL_DEAD, L12DC_TARGETED_RUN, L12DC_TARGETED_TEMPLATES,
+          L12DC_TARGETED_FIRSTRUN, L12DC_INTEGRITY],
+         'lane L12 closed the two gaps lane SC\'s reading left: a full sweep at 0100a3032 (39 surfaces: 37 '
+         'MEASURED, 1 TIMEOUT -- nb-templates, the flat 360s ceiling after 59 of 60 enumerated controls, none DEAD; '
+         '1 ERROR -- nb-first-run-clicks, the walk\'s own setup login timing out before any click; 0 real DEAD, the '
+         'only 2 DEAD verdicts in the raw file are the planted dead controls proving the control VALID), then a '
+         'targeted re-run of exactly those two surfaces at 6cbf0618e with `--surface-deadline 900`: nb-templates '
+         'reads LIVE 59 + CURRENT-NO-OP 1, nb-first-run-clicks reads OCCLUDED 5 (the first-run tour dialog covers '
+         'the page by design -- the same reading L11 got on the surfaces it could reach). Together the two runs '
+         'cover all 39 surface x mode cells, every one MEASURED, 0 DEAD. The three DEAD rows L11 found are gone by '
+         'independent fixes, not by this instrument: nb-table\'s `UPDATED` sort header got a server-side toggle '
+         '(FX4) and the calendar/timeline `Today` buttons are marked `aria-current` (FX4), so both read '
+         'CURRENT-NO-OP now. Sandbox CLEAN at all four checkpoints in both runs. The clause reads literally "no '
+         'dead clicks"; the full 39/39 measured cell now reads exactly that', None),
         ('no known data-loss path', 'MET',
          [code('app/src/pages/journal-2-0/lib/offline/doorEnumeration.test.js', 732, 'NO door is a loss'),
           code(f'{JT}/notes.py', 828, 'MAX_BODY_DEPTH = 97'), test_f3('tests/test_notes_cas_is_atomic.py'),
@@ -3308,9 +3367,21 @@ def build(pages_dir=None):
          [measure(PB, 399, '74.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60')], '', None),
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
          [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
-          record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY')],
+          record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
+          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 269,
+               'export function toolbarStateReducer(prev, editor)'),
+          code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
+               'export function stepsIntroduceNodeType(tr, name)')],
          'below the cap: waiting on the controller\'s quiet slot (10A\'s typing A/B; its loaded p95 sits at the line, '
-         'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling', QUIET),
+         'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling. Lane TY (e1999ca5f, '
+         '15ab6b886, on this tree) built two more levers since the 17.6 ms reading above: a `useReducer` bailout '
+         'so a keystroke that touches no toolbar-visible state (bold/italic/heading/list/undo/redo/...) no longer '
+         're-renders NoteEditorPage\'s whole ~4,000-line subtree just to keep the formatting toolbar in sync, and '
+         'two ProseMirror plugins (the code-block highlighter, the Ask-citation staleness decorator) that used to '
+         'walk the WHOLE document on every keystroke now short-circuit via `stepsIntroduceNodeType` once a note '
+         'has never held the node type each one cares about. Built and test-green (928 passed per the lane\'s own '
+         'run), NOT measured: no quiet-box A/B has read what either lever does to the 16 ms/char number. This does '
+         'not move the verdict -- the owed quiet-slot reading stays owed', QUIET),
         ('search p95 < 100 ms at 50k notes', 'MET',
          [measure(PB, '299-303', 'ops still above 100 ms p95 at 50k',
                   'python tools/notebook_scale_benchmark.py --tiers 50000 --thresholds docs/notebook/perf-budgets.json --budget search'),
@@ -3362,25 +3433,35 @@ def build(pages_dir=None):
          '(Functionality), not this clause -- named rather than hidden', None),
         ('consistent tokens', 'MET', [test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js'),
                                      code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain')], '', None),
-        ('no layout regressions at 390/820/1200', 'NOT MET',
+        ('no layout regressions at 390/820/1200', 'MET',
          [L11_GEOM_RUN, L11_GEOM_BREAKDOWN, L11_GEOM_TABLE, record(PR, '80-81', 'control VALID'),
           record(PR, '109-110', 'Leads that need a screenshot before they count'),
-          L3_TIP, L3_LEADS, L3_FINDING, D3P_TIP, D3P_LEADS, D5_CUE, D5_OVERFLOW],
-         '10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every CONFIRMED finding and F4 moved '
-         'the skip link off the tab strip. Two later, driven sweeps now report CONFIRMED (not merely leaded) '
-         'occlusions at 390: L3 (tip a2016db20) finds 8 CONFIRMED -- the editor\'s own "Joystick, Notebook" control '
-         'occluded by the hub across scroll states, stable between L3\'s own before/after fix; D3P (after-r2, tip '
-         'c226c163c) finds 32 CONFIRMED leads at 390, an unchanged count across its own before/after/after-r2 runs, '
-         'so not something D3P\'s change introduced, but not cleared by it either. D5\'s board scroll-fade cue is a '
-         'genuine improvement: its round-1-fix capture shows the CSS mask-image cue present and the column overflow '
-         'correctly detected at 1200/820/390 with 0 page errors, though the browser-rendered scrollbar itself was '
-         'not scanned there ("box off-screen or zero-sized"). Lane WK5/L11\'s own re-run of the raw geometry sweep '
-         '(52deeb767, control VALID, 129/129 cells) reads 2437 findings (occluded 2110, tap 273, overflow 54), up '
-         'from WK4\'s 2278 -- but this sweep is an INVENTORY of raw occluded/tap/overflow counts, not a CONFIRMED-vs- '
-         'leaded classification the way L3/D3P/D5 above are, so it does not by itself move this clause; the rise is '
-         'read as consistent with an extra seeded sample notebook adding rows to the same collection views (not '
-         'independently measured). A confirmed, reproduced occlusion at 390 is what the clause asks about; the '
-         'standard is achievable (D5 shows it closing cleanly) but is not met today', BUILD),
+          L3_TIP, L3_LEADS, L3_FINDING, D3P_TIP, D3P_LEADS, D5_CUE, D5_OVERFLOW,
+          D(23, 'It is reported in its own status, SAME-COMPONENT, never dropped and never counted as '
+                'CONFIRMED'),
+          L3RC_VALID, L3RC_ERRORS, L3RC_CLEARED, L3RC_SAME, L3RC_POPUP, L3RC_RULING_TAG, L3RC_CONFIRMED],
+         'history, kept honest: 10E-1\'s sweep found overlays and a page wider than a phone; F5 closed every '
+         'CONFIRMED finding and F4 moved the skip link off the tab strip. Two later, driven sweeps then reported '
+         'real CONFIRMED occlusions at 390: L3 (tip a2016db20) found **8 CONFIRMED**, D3P (after-r2, tip '
+         'c226c163c) found **32 CONFIRMED**, both entirely the same thing -- the editor\'s own "Joystick, '
+         'Notebook" hub knob occluded by the hub across scroll states -- and this clause stood NOT MET on those '
+         'counts through lane SC\'s own re-score. **Ruling D23** (controller, owner-delegated 2026-09-30) is why '
+         'they now read SAME-COMPONENT rather than CONFIRMED: an occlusion whose occluder is the control\'s own '
+         'component\'s designed hit surface (the instrument\'s `sameHub` flag -- the hub knob is deliberately '
+         '`pointer-events: none`, so its own pad is the real, documented hit surface) is not a layout regression '
+         'for this clause; it is reported in its own status, never dropped and never counted as CONFIRMED, and a '
+         'DIFFERENT element at the same geometry still counts CONFIRMED. Applied to the L3/D3P instrument\'s own '
+         'raw rows (unchanged; each reclassified row stamped `ruling: "D23"`), both runs\' CONFIRMED counts move '
+         'to SAME-COMPONENT and 0 remain CONFIRMED on either. Lane L12\'s un-scoped re-confirm (fe01bdb14, every '
+         'surface, 390/820/1200, orb+hub passes, hint-seen and coach-pending both states) independently '
+         'corroborates this at full coverage rather than re-reading those same rows: `controls_valid: true`, '
+         '`errors: []`, named leads CLEARED 398 + SAME-COMPONENT 88 (the same hub-knob-under-its-pad class D23 '
+         'names) + under-open-popup 36 (a menu open over the page by intent), **0 CONFIRMED**. D5\'s board '
+         'scroll-fade cue remains a genuine improvement (CSS mask-image cue present, column overflow correctly '
+         'detected at 1200/820/390 with 0 page errors). Lane WK5/L11\'s own raw geometry sweep (52deeb767, '
+         'control VALID, 129/129 cells, 2437 findings) is an INVENTORY of raw occluded/tap/overflow counts, not a '
+         'CONFIRMED-vs-leaded classification, and does not by itself move this clause. A confirmed, reproduced '
+         'occlusion at 390 that is not the control\'s own component is what the clause asks about; none remains', None),
     ]
     C[7] = [
         ('restore rehearsed end-to-end on a schedule', 'NOT MET',
@@ -3558,21 +3639,31 @@ def build(pages_dir=None):
           measure(f'{QS}/qs-curve.log', 178, 'VERDICT: BUDGET BREACH',
                   'python tools/notebook_scale_benchmark.py --curve (quiet slot, 2026-09-29 07:06 CT)'),
           measure(f'{QS}/qs-curve2.log', 178, 'VERDICT: BUDGET BREACH',
-                  'python tools/notebook_scale_benchmark.py --curve (repeat, 2026-09-29 07:09 CT)')],
+                  'python tools/notebook_scale_benchmark.py --curve (repeat, 2026-09-29 07:09 CT)'),
+          D(22, 'measures the connection model production uses'),
+          code('tools/notebook_scale_benchmark.py', 943, 'if args.curve and not connection_explicit:'),
+          code('tools/notebook_scale_benchmark.py', 944,
+               'primary_connection, diagnostic_connection = "per-call", "shared"'),
+          record(PB, 899, 'ruling D22'), record(PB, 915, 'owed before the scorecard cites 14d as MET')],
          'the curve and its bounds are built (10A); every reading taken so far BREACHes (count_notes, folder '
          'counts, backlinks, list_tasks bending between 10k and 25k), including lane RS\'s two quiet-slot repeats. '
-         'Lane PC diagnosed the cause (branch feat/notebook-w10-pc @ 844a3c957, not merged here, read but not '
-         're-verified against this tree): the benchmark holds one long-lived SQLite connection with SQLite\'s '
-         'default 2 MB page cache against a ~490 MB database at 50k notes, and the super-linear shape is that cache '
+         'Lane PC diagnosed the cause: the benchmark holds one long-lived SQLite connection with SQLite\'s default '
+         '2 MB page cache against a ~490 MB database at 50k notes, and the super-linear shape is that cache '
          'spilling, not an algorithm -- with a page cache sized for the database or with mmap, every op is linear '
          'or better. Production does not use the benchmark\'s connection model: api/services/auth_db.get_connection '
          'opens a fresh connection per call (no pool, no cache_size), which PC measured sub-linear (fit 0.32-0.65) '
-         'on the same ops. PC\'s own verdict: "NOT MET, and a ruling is needed" -- whether the curve should run in '
-         'the per-call model production uses (with the bench model kept as a diagnostic), or production should set '
-         'its own cache_size/mmap_size, is an owner ruling not yet taken. The bounds in perf-budgets.json are '
-         'unchanged. Marked NOT MET, not NOT MEASURED — QUIET SLOT: two quiet-slot readings and PC\'s diagnosis are '
-         'enough to say the bench-model curve breaches; what is missing is the ruling on which model the clause '
-         'should measure, never another quiet run', OWNER),
+         'on the same ops. This text used to say PC\'s branch "is not merged here"; that is stale -- PC landed via '
+         'L5 (0812b5ec3, PR #252, an ancestor of HEAD) and ruling D22 (controller, owner-delegated 2026-09-30) has '
+         'since sharpened PC\'s own 2026-09-29 ruling into a structural default: a bare `--curve` now measures '
+         'production\'s per-call connection model, and only that reading gates the verdict; the shared (bench) '
+         'model that produced every BREACH cited above runs automatically beside it as a reported diagnostic '
+         '(`report["curve_diagnostic"]`), its breach recorded and never hidden, never gating. This is implemented '
+         'on this tree, not just ruled: an explicit `--connection` is still honored exactly as asked, and the '
+         'per-call default fires only for a bare `--curve`. The verdict stays NOT MET: D22 changes what future '
+         'curve readings measure by default, it does not itself constitute one. A quiet-box reading of the '
+         'per-call model does not exist yet on this tree -- perf-budgets.md says so in the same words this row '
+         'now does ("that re-read is owed before the scorecard cites 14d as MET") -- and none is invented here. '
+         'The bounds in perf-budgets.json are unchanged', OWNER),
     ]
     try:
         TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
