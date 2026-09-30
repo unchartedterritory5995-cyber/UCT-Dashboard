@@ -30,14 +30,14 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, OP_VALUE_FIELDS,
 } from './ast/objectProgram'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
 // passed. This is the seam it was built for.
 import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
-// ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'}`, see
+// ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
@@ -52,9 +52,21 @@ const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k)
 export const OBJECT_STATUS = Object.freeze({
   OK: 'ok',
   LIMIT_EXCEEDED: 'OBJECT_LIMIT_EXCEEDED',
+  // ⭐ C9 — a Pine RUNTIME error (a history read past the buffer, or at a
+  // negative / fractional offset). TradingView stops the script and draws
+  // nothing, so `finish` holds nothing — never the objects made before it.
+  RUNTIME_ERROR: 'OBJECT_RUNTIME_ERROR',
 })
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/** Pine's own ceiling on an array's length (the reference: "the maximum size of
+ *  an array is 100,000"). A collection that would pass it stops the run, as
+ *  Pine's runtime error stops the script. */
+export const PINE_ARRAY_MAX = 100000
+
+/** A latch whose condition read the warm-up curtain (`readUnknown`). */
+const LATCH_UNKNOWN = Symbol('latch-unknown')
 
 /** The most addresses one `table.merge_cells` may span — Pine's own table is at
  *  most 100 × 100 and anything larger is an argument that was never a size. */
@@ -167,6 +179,10 @@ export function beginObjects(program, ctx) {
   /** table instanceId → Map<"col,row", props> — cells are addressed, not listed */
   const cells = new Map()
   const regs = new Map((program.regs || []).map((r) => [r.id, null]))
+  /** ⭐ C14 — scalars only getters write (`program.nums`), written in op order.
+   *  ⛔ Where a getter can be answered exactly is the CONVERTER's ruling
+   *  (`pine.js` `staleReads` / `statePass`): this runtime only holds them. */
+  const nums = new Map((program.nums || []).map((n) => [n.id, n.init ?? NaN]))
   /** ⭐⭐ REGISTER HISTORY — what each register held at the END of each recent
    *  bar, newest last, for Pine's `l[n]` on a drawing variable (see
    *  `MAX_HANDLE_BACK`). ⛔ Sized by the deepest `back` the PROGRAM reads, so a
@@ -213,6 +229,7 @@ export function beginObjects(program, ctx) {
       if (Array.isArray(v.args) && (v.v === 'bool' || v.v === 'cmp' || v.v === 'cross')) v.args.forEach(walk)
     }
     walk(op.when)
+    walk(op.cond)
     crossAtoms.set(op, found)
     return found
   }
@@ -246,6 +263,26 @@ export function beginObjects(program, ctx) {
   const fail = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.LIMIT_EXCEEDED; reason = why }
   }
+  const runtimeError = (why) => {
+    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
+  }
+  /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
+   *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
+  const atAtoms = new Map()
+  const atNodesOf = (op) => {
+    let found = atAtoms.get(op)
+    if (found) return found
+    found = []
+    const walk = (v) => {
+      if (!isObj(v)) return
+      if (v.v === 'at') found.push(v)
+      if (Array.isArray(v.args)) v.args.forEach(walk)
+    }
+    for (const f of OP_VALUE_FIELDS) walk(op[f])
+    for (const v of Object.values(op.props || {})) if (isObj(v) && !v.r) walk(v)
+    atAtoms.set(op, found)
+    return found
+  }
 
   /**
    * ⭐⭐ THE ONE WAY AN OBJECT STOPS EXISTING.
@@ -257,10 +294,12 @@ export function beginObjects(program, ctx) {
    *   · it leaves `live`, so nothing renders it
    *   · its table cells go with it
    *   · its family's slot is returned
-   *   · ⛔ AND IT LEAVES EVERY CONTAINER THAT NAMED IT. A register or collection
-   *     still holding the id is a handle to nothing, and the next write against
-   *     it lands nowhere without a word — the "why did my update stop working"
-   *     bug. That rule predates eviction; eviction now owes it too.
+   *   · ⛔ AND IT LEAVES EVERY REGISTER THAT NAMED IT. A register still holding
+   *     the id is a handle to nothing, and the next write against it lands
+   *     nowhere without a word — the "why did my update stop working" bug.
+   *     That rule predates eviction; eviction now owes it too.
+   *   · ⭐ A COLLECTION IS THE EXCEPTION, BY PINE'S RULE (C16): an `array<box>`
+   *     keeps a deleted box's slot — see the note in the body.
    *
    * ⚠️ A SECOND COPY OF THIS IS THE DEFECT IT PREVENTS. Two teardown paths drift
    * the first time either is touched, and the half that forgets a container
@@ -338,10 +377,16 @@ export function beginObjects(program, ctx) {
     cells.delete(inst.id)
     counts[inst.family] -= 1
     for (const [rid, held] of regs) if (held === inst.id) regs.set(rid, null)
-    for (const [cid, arr] of colls) {
-      const at = arr.indexOf(inst.id)
-      if (at >= 0) arr.splice(at, 1)
-    }
+    // ⭐⭐ C16 (2026-09-29) — A COLLECTION KEEPS THE HANDLE. Pine's
+    // `box.delete(b)` (and its collector) ends the OBJECT and leaves every
+    // `array<box>` exactly as it was: `array.size` is unchanged and the slot
+    // still holds the — now dead — handle, which is why the corpus writes
+    // `box.delete(array.shift(boxes))` and `box.delete(b)` + `array.remove(bs, i)`
+    // as PAIRS. ⚰️ This used to splice the id out of every collection, so a
+    // delete followed by the script's own `array.remove(bs, i)` removed TWO
+    // elements, and `array.size` read one short of TradingView's for every
+    // object deleted but not yet removed. A write through a dead slot is the
+    // counted no-op every op already makes of a dead id (`writesToDeleted`).
     // ⭐ A fill leaves the index and takes nothing with it; a LINE takes every
     // fill that named it. The recursion is one level deep by construction — the
     // branch above returns before it can nest.
@@ -503,6 +548,9 @@ export function beginObjects(program, ctx) {
     const loopVars = new Map()
     /** `cross` node → its answer on THIS bar (see `crossState`). */
     const crossNow = new Map()
+    /** ⭐ C16 — latch id → its condition's answer where its `if` stands, this
+     *  bar (this ITERATION inside a loop): `true`, `false` or `LATCH_UNKNOWN`. */
+    const latches = new Map()
     let opsThisBar = 0
 
     /**
@@ -652,6 +700,18 @@ export function beginObjects(program, ctx) {
           return undefined
         }
         case 'time': return readTime(bar)
+        // ⭐⭐ C9 — `x[e]` with a per-bar `e`: `x` on bar `bar - e`. The op was
+        // checked before its values were read (`atCheck`), so here `e` is a
+        // whole number in [0, limit); a bar before the first is `na`.
+        case 'at': {
+          const back = numOf(value(ref.args[1]))
+          const k = bar - back
+          if (!Number.isInteger(k) || k < 0) return NaN
+          const src = ref.args[0]
+          if (src.v === 'bar') return k
+          if (src.v === 'graph') return readNode(src.node, k, loopVars)
+          return undefined
+        }
         // ⛔⛔ TEXT AND COLOUR ARE EVALUATED PER BAR LIKE EVERYTHING ELSE. A
         // dashboard whose cells were computed once and reused would show the
         // first bar's numbers forever, which is the exact failure mode a
@@ -667,6 +727,12 @@ export function beginObjects(program, ctx) {
           const x = inst && inst.props ? inst.props[ref.prop] : undefined
           return typeof x === 'number' ? x : NaN
         }
+        // ⭐ C16 — `array.size(bs)`: the collection's length as it stands NOW,
+        // dead and `na` slots included (Pine's count — see `reap`).
+        case 'size': {
+          const arr = colls.get(ref.coll)
+          return arr ? arr.length : undefined
+        }
         // ⛔ EVERY argument is evaluated — no short-circuit — so which operands
         // were read never depends on the values, exactly as the columnar lane.
         case 'bool': {
@@ -676,9 +742,43 @@ export function beginObjects(program, ctx) {
           return xs.reduce((acc, x) => f(acc, x))
         }
         case 'cmp': return BINARY[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
+        // ⭐ C16 — the `if`'s condition as it was evaluated ONCE, where it stands.
+        case 'latch': {
+          const x = latches.get(ref.id)
+          return x === true ? 1 : x === false ? 0 : NaN
+        }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
+        case 'num': return nums.get(ref.id) ?? NaN
         default: return undefined
       }
+    }
+
+    /** ⭐⭐ C9 — may this op's history reads run on this bar? Asked AFTER its
+     *  guard: Pine evaluates `x[e]` only where the statement runs, so an `na` or
+     *  out-of-range `e` on a bar the guard skips is nothing at all.
+     *  'ok' · 'unknown' (withhold the op on this bar) · 'error' (Pine stops). */
+    const atCheck = (op) => {
+      for (const at of atNodesOf(op)) {
+        const back = numOf(value(at.args[1]))
+        if (Number.isNaN(back)) return 'unknown'
+        if (!Number.isInteger(back) || back < 0 || back >= at.limit) {
+          runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
+            : !Number.isInteger(back) ? 'not a whole number of bars'
+              : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
+          return 'error'
+        }
+        const k = bar - back
+        const src = at.args[0]
+        if (k >= 0 && src.v === 'graph' && readUnknown && readUnknown(src.node, k)) return 'unknown'
+      }
+      return 'ok'
+    }
+
+    /** Does this guard read a latch whose condition was unknowable? */
+    const readsUnknownLatch = (v, depth = 0) => {
+      if (!isObj(v) || v.v === 'graph' || v.v === 'tree' || depth > 32) return false
+      if (v.v === 'latch') return latches.get(v.id) === LATCH_UNKNOWN
+      return Array.isArray(v.args) && v.args.some((a) => readsUnknownLatch(a, depth + 1))
     }
 
     /** Step every crossing in this op's guard, once, for this bar. */
@@ -739,7 +839,15 @@ export function beginObjects(program, ctx) {
     for (const op of list) {
       // ⭐ A guard that reads object state steps its crossings HERE, at the op's
       // own position and before any skip below — once per bar, every bar.
-      if (op.when && op.when.v !== 'graph' && op.when.v !== 'tree') observeCrossings(op)
+      if ((op.when && op.when.v !== 'graph' && op.when.v !== 'tree') || op.cond) observeCrossings(op)
+      // ⭐⭐ C16 — A LATCH: the `if`'s object-state condition, evaluated ONCE,
+      // here, before any op of its block runs (Pine evaluates it once). An
+      // unknowable condition (the warm-up curtain) is remembered as unknown, and
+      // every op reading it is withheld and counted below, never run off a guess.
+      if (op.k === 'latch') {
+        latches.set(op.id, unknownAt(op, bar) ? LATCH_UNKNOWN : truthy(value(op.cond)))
+        continue
+      }
       // ⭐⭐ `barstate.islast` LIVES HERE, AS A FLAG, NOT AS A GRAPH NODE.
       // Pine's own idiom for a dashboard is "draw it once, on the newest bar",
       // and an object program is a picture of the chart as it stands — so this
@@ -757,8 +865,13 @@ export function beginObjects(program, ctx) {
       // than values so that object state can never leak into the pure graph.
       if (op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar)) { withheldUnknown += 1; continue }
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
+      if (op.k !== 'loop') {
+        const at = atCheck(op)
+        if (at === 'error') return false
+        if (at === 'unknown') { withheldUnknown += 1; continue }
+      }
       opsThisBar += 1
       opsExecuted += 1
       if (opsThisBar > limits.opsPerBar) {
@@ -1078,22 +1191,45 @@ export function beginObjects(program, ctx) {
           regs.set(op.reg, op.value === null ? null : resolveRef(op.value))
           break
         }
+        case 'setnum': {
+          nums.set(op.num, numOf(value(op.value)))
+          break
+        }
         case 'push': {
           const arr = colls.get(op.coll)
           const inst = resolveRef(op.value)
-          if (!arr || inst === null) break
-          if (arr.length >= collCap.get(op.coll)) {
+          if (!arr) break
+          // ⭐⭐ C16 — `array.push(bs, b)` with `b` `na` STILL PUSHES, in Pine: the
+          // array grows by one `na` slot. ⚰️ This used to skip it, so every later
+          // `array.size` and index read disagreed with TradingView by one per
+          // `na` ever pushed. The slot is `null` here; a write through it is the
+          // counted no-op any dead handle is.
+          // ⛔ THE CAP COUNTS LIVE OBJECTS, and only once the array is that long:
+          // a dead or `na` slot holds no object (C16 keeps deleted handles in
+          // their arrays, above), and counting them would refuse a script whose
+          // drawing never holds more than a handful of boxes at a time.
+          if (arr.length >= collCap.get(op.coll)
+            && arr.filter((id) => id !== null && live.has(id)).length >= collCap.get(op.coll)) {
             fail(`collection ${op.coll} exceeded its cap of ${collCap.get(op.coll)} (bar ${bar})`)
             break
           }
-          arr.push(inst)
+          // ⛔ PINE'S OWN CEILING ON AN ARRAY'S LENGTH — past it Pine stops the
+          // script with a runtime error, so this stops too rather than growing.
+          if (arr.length >= PINE_ARRAY_MAX) {
+            fail(`collection ${op.coll} exceeded Pine's array size of ${PINE_ARRAY_MAX} (bar ${bar})`)
+            break
+          }
+          // ⭐ C11b — `array.unshift(bs, b)` is the same add at the FRONT (`front`).
+          if (op.front) arr.unshift(inst)
+          else arr.push(inst)
           break
         }
         case 'collset': {
           const arr = colls.get(op.coll)
           const i = Number(value(op.index))
           const inst = resolveRef(op.value)
-          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length && inst !== null) arr[i] = inst
+          // ⭐ C16 — `array.set(bs, i, na)` stores `na`, exactly as `push` above.
+          if (arr && Number.isInteger(i) && i >= 0 && i < arr.length) arr[i] = inst
           break
         }
         case 'collremove': {
@@ -1164,10 +1300,15 @@ export function beginObjects(program, ctx) {
   }
   const heldCounts = { ...counts }
   for (const fam of withheldFams) heldCounts[fam] = 0
+  // ⭐ C9 — a Pine runtime error draws NOTHING on TradingView, so nothing is
+  // held here: the objects made before the error are not a smaller picture of
+  // the script, they are a picture TradingView never shows.
+  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR
+  if (stopped) for (const fam of Object.keys(heldCounts)) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
-  const ordered = [...live.values()].filter((o) => !withheldFams.has(o.family))
+  const ordered = stopped ? [] : [...live.values()].filter((o) => !withheldFams.has(o.family))
     .sort((a, b) => a.id - b.id)
 
   return {

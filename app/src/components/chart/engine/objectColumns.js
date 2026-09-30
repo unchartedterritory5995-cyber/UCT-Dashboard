@@ -26,7 +26,7 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram } from './ast/objectProgram'
 import { interpret, maxLookback } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor } from './nativeRegistry'
+import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -97,6 +97,58 @@ import { barOpenInstant } from '../indicators.js'
  *  real run succeeded, and a probe is not allowed to take a drawing away on a
  *  refusal of its own. */
 export const PREFIX_PROBE = 1e12
+
+/** ⭐⭐ C12r (2026-09-29) — ONE OBJECT PER DISTINCT SUBTREE, ACROSS THE PASS.
+ *
+ *  `interpret`'s cross-column memo (`crossMemo`) is keyed on the node OBJECT,
+ *  and the object lane's trees are separate objects even where they are the
+ *  same subtree — each op's tree is resolved on its own, and the V2 form's
+ *  `nodeTree` builds a fresh tree per node. ⚰️ MEASURED on
+ *  `rsi-swing-indicator`: fifteen trees each re-ran the same two `var`
+ *  accumulators, three times over with the warm-up probes. Interning by the
+ *  canonical shape (`type`, `name`, `value`, `args` — every key a canonical
+ *  node has, `parse.js::CANONICAL_KEYS`, and the exact identity
+ *  `interpret.js::structuralMaps` memoises on) makes the memo see them as one.
+ *  Pure: a node is copied only when an argument was replaced, never mutated.
+ *  ⛔ Its lifetime is ONE pass, like the memo it feeds. */
+export function makeInterner() {
+  const byKey = new Map()
+  const idOf = new Map()
+  const canonOf = new Map()
+  const litKey = (v) => `l${JSON.stringify(v === undefined ? null : v)}`
+  return (root) => {
+    if (!root || typeof root !== 'object') return root
+    const stack = [[root, false]]
+    while (stack.length) {
+      const [n, expanded] = stack.pop()
+      if (canonOf.has(n)) continue
+      const args = Array.isArray(n.args) ? n.args : null
+      if (!expanded) {
+        stack.push([n, true])
+        if (args) for (const a of args) if (a && typeof a === 'object' && !canonOf.has(a)) stack.push([a, false])
+        continue
+      }
+      let changed = false
+      const parts = []
+      const next = args ? args.map((a) => {
+        if (!a || typeof a !== 'object') { parts.push(litKey(a)); return a }
+        const c = canonOf.get(a)
+        parts.push(`n${idOf.get(c)}`)
+        if (c !== a) changed = true
+        return c
+      }) : null
+      const key = `${n.type}\u0001${JSON.stringify(n.name ?? null)}\u0001${JSON.stringify(n.value ?? null)}\u0001${args ? parts.join(',') : '-'}`
+      let c = byKey.get(key)
+      if (!c) {
+        c = changed ? { ...n, args: next } : n
+        byKey.set(key, c)
+        idOf.set(c, idOf.size)
+      }
+      canonOf.set(n, c)
+    }
+    return canonOf.get(root)
+  }
+}
 
 export function readsBoundedState(tree) {
   const stack = [tree]
@@ -186,10 +238,13 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ ONE MEMO PER PROBE SIGN (and probed length) for the whole pass, beside `crossMemo` — a probe
   // value must never be served to the real column, nor one sign to the other.
   const probeMemos = new Map()
+  // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
+  const intern = makeInterner()
   for (const node of wanted) {
     try {
-      const tree = fold(nodeTree(graph, node))
-      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null }
+      const tree = intern(fold(nodeTree(graph, node)))
+      const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo })
       columns.set(node, col)
       const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, iopts, probeMemos)
@@ -307,6 +362,10 @@ export function objectReaderFor(definition, bars, opts = {}) {
     budget: definition.compute && definition.compute.budget,
     tf: opts.tf,
     newestBarIsForming: opts.newestBarIsForming ?? null,
+    // ⭐ C12w — the listing exception, decided by the SAME gate the plot lane
+    // asks (`historyFromListingFor`), so an object and the plot beside it can
+    // never read two different answers about where the series starts.
+    historyFromListing: historyFromListingFor(definition, opts),
     fold,
   }
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
@@ -340,10 +399,12 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const crossMemo = new Map()
   const unknown = new Map()
   const probeMemos = new Map()
+  const intern = makeInterner()
   for (const i of graphNodesReferenced(bound)) {
     try {
-      const tree = fold(trees[i])
-      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming }
+      const tree = intern(fold(trees[i]))
+      const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+        ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo })
       columns.set(i, col)
       const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, iopts, probeMemos)

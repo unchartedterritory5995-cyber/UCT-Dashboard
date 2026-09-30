@@ -154,6 +154,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'startCol', 'startRow', 'endCol', 'endRow',  // this branch's
   'from', 'to',                                // the `loop` bounds
   'step',                                      // …and its `by` step
+  'cond',                                      // C16: a `latch`'s condition
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -165,6 +166,14 @@ export const OBJECT_OP_KINDS = Object.freeze([
   'cellpatch', 'clearcells',
   // ⭐ `table.merge_cells` — a rectangle drawn as one cell (2026-09-28).
   'mergecells',
+  // ⭐ C14 — `x := label.get_y(l)`: a number read off a drawing, in op order.
+  'setnum',
+  // ⭐⭐ C16 — `latch`: an `if`'s object-state condition, evaluated ONCE where
+  // the `if` stands and read by every op of its block (and of its `else`) as
+  // `{v:'latch', id}`. Pine evaluates the condition once; re-evaluating it per
+  // op let `box.delete(b)` change `box.get_top(b)` under the `array.remove`
+  // written beside it, which then never ran (institutional-smc, measured).
+  'latch',
   // ⭐⭐ THE TENTH KIND, AND THE FIRST ONE THAT CONTAINS OTHER OPS.
   //
   // ⚰ `pineObjects.js` refuses an object operation inside a `for`/`while` and
@@ -249,9 +258,29 @@ export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*'])
  *   { v:'cross', dir:'over'|'under', args:[a,b] }   `ta.crossover/crossunder(a,b)`,
  *        observed ONCE PER BAR at the op's position, previous pair carried
  */
-export const LIVE_GUARD_KINDS = Object.freeze(['get', 'bool', 'cmp', 'cross'])
+/*
+ * ⭐⭐ C16 (2026-09-29) — AND A COLLECTION'S LENGTH, `array.size(bs)`.
+ *
+ *   { v:'size',  coll }                         that collection's length NOW,
+ *                                               dead and `na` slots included —
+ *                                               Pine's `array.size`
+ *
+ * It is object state for exactly the reason a getter is: the collection is the
+ * runtime's, and a graph node meaning "however many boxes that array holds" would
+ * make the graph depend on the program that depends on it. It reaches three
+ * places, each the corpus's own idiom and nothing wider:
+ *   · a guard — `if array.size(bs) >= 3` (and, C16, inside a counted loop body
+ *     too: a `get`/`size` comparison has one answer per iteration; only a
+ *     `cross` is observed once per bar, so only a `cross` is still refused there);
+ *   · a loop bound — `for i = array.size(bs) - 1 to 0`;
+ *   · a collection index — `array.pop(bs)` is slot `array.size(bs) - 1`.
+ * ⛔ Still never a coordinate, a caption, a screener column or a tree.
+ */
+export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross'])
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
-export const LIVE_CMP_OPS = Object.freeze(['<', '<=', '>', '>='])
+/** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
+ *  `BINARY` table, like the four orderings. */
+export const LIVE_CMP_OPS = Object.freeze(['<', '<=', '>', '>=', '==', '!='])
 /** The NUMERIC properties a getter may read, per family — Pine's
  *  `box.get_top/bottom/left/right`, `line.get_x1/y1/x2/y2`, `label.get_x/y`.
  *  ⛔ `get_text`/`get_price` are not here: one is text, the other interpolates. */
@@ -260,8 +289,44 @@ export const GETTER_PROPS = Object.freeze({
   line: Object.freeze({ get_x1: 'x1', get_y1: 'y1', get_x2: 'x2', get_y2: 'y2' }),
   label: Object.freeze({ get_x: 'x', get_y: 'y' }),
 })
+/**
+ * ⭐⭐ C9 (2026-09-29) — A HISTORY READ WHOSE OFFSET IS A SERIES.
+ *
+ *   { v:'at', args:[src, back], limit }
+ *
+ * Pine's `x[e]` with `e` computed per bar — `up[n - a1]`, `low[bar_index - k]` —
+ * reads `x` on bar `bar - e`. The V2 graph cannot say it (an offset node's bar
+ * count is a literal, so `maxLookback` stays a tree sum); the runtime holds every
+ * column for the whole loaded window, so it reads `src` at that bar here.
+ *
+ * `src` is a column (`tree`/`graph`) or `bar` (`bar_index` read back is the bar
+ * it was read on); `back` is any numeric value reference. `limit` is the
+ * script's DECLARED `max_bars_back` — the buffer TradingView sizes the series to
+ * — so how far back a read may reach is decidable before bar 0. The runtime:
+ *   · `bar - back < 0`  → `na` (a bar before the first one; Pine's `close[1]` on bar 0)
+ *   · `back` is `na`    → the op is WITHHELD on that bar (TradingView does not
+ *                         error there — `extrapolated-pivot-connector` draws — but
+ *                         what it reads is not measured)
+ *   · `back` negative, fractional, or ≥ `limit` → a Pine RUNTIME ERROR: the run
+ *                         stops and nothing is drawn, as TradingView draws nothing
+ */
+export const MAX_BARS_BACK_CAP = 5000
+
+/**
+ * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
+ * holds what the program last set on an object, so it answers:
+ *
+ *   program.nums = [{ id, init }]            a scalar only getters write
+ *   { k:'setnum', num, value:{v:'get'…} }    written at its statement's place
+ *   { v:'num', id }                          read — like `get`: a guard operand,
+ *                                            a WHOLE coordinate, a text `if` operand
+ *
+ * ⛔ A bare `get`/`num` is legal as a whole create/update coordinate and in a
+ * text `if` condition too — never inside arithmetic, a colour, a cell or a loop.
+ * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
+ */
 /** The value-reference kinds whose `args` are value references too. */
-const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross'])
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -308,7 +373,7 @@ export function isNaRef(v) {
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
  */
-function assertTextNode(v, where, depth = 0) {
+function assertTextNode(v, where, depth = 0, live = null) {
   if (depth > 16) throw new Error(`${where}: text expression nested deeper than 16`)
   if (!isObj(v)) throw new Error(`${where}: expected a text node`)
   switch (v.t) {
@@ -353,12 +418,15 @@ function assertTextNode(v, where, depth = 0) {
       return
     case 'cat':
       if (!Array.isArray(v.args) || !v.args.length) throw new Error(`${where}: a concatenation needs parts`)
-      v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1))
+      v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1, live))
       return
     case 'if':
-      assertValueRef(v.cond, `${where}.cond`)
-      assertTextNode(v.then, `${where}.then`, depth + 1)
-      assertTextNode(v.else, `${where}.else`, depth + 1)
+      // ⭐ C14 — object state in a text condition; ⛔ never a crossing (it is
+      // stepped once per bar at a GUARD, and a text has no such position).
+      if (live && JSON.stringify(v.cond).includes('"cross"')) throw new Error(`${where}: a crossing in a text`)
+      assertValueRef(v.cond, `${where}.cond`, live)
+      assertTextNode(v.then, `${where}.then`, depth + 1, live)
+      assertTextNode(v.else, `${where}.else`, depth + 1, live)
       return
     default:
       throw new Error(`${where}: unknown text node ${JSON.stringify(v.t)}`)
@@ -393,12 +461,21 @@ function assertColorNode(v, where, depth = 0) {
 /** Does this value reference read object state anywhere beneath it? */
 function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
-  if (v.v === 'get') return true
+  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
-/** The four live-guard kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs}`. */
+/** The live kinds — see `LIVE_GUARD_KINDS`. `live` is `{regs, colls, inLoop}`. */
 function assertLiveRef(v, where, live) {
+  // ⭐ C16 — a length reads a DECLARED collection; a latch is read only AFTER
+  // the op that sets it (the validator walks ops in the runtime's order).
+  if (v.v === 'size' || v.v === 'latch') {
+    if (!(v.v === 'size' ? live.colls.has(v.coll) : live.latches.has(v.id))) throw new Error(`${where}: undeclared ${v.v}`)
+    return
+  }
+  // ⛔ A CROSSING IS OBSERVED ONCE PER BAR, AT THE OP'S POSITION; a loop body
+  // runs several times a bar, so "the previous pair" has no single answer there.
+  if (v.v === 'cross' && live.inLoop) throw new Error(`${where}: a cross in a loop body`)
   if (v.v === 'get') {
     const t = v.target
     if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
@@ -410,6 +487,10 @@ function assertLiveRef(v, where, live) {
     if (!props.includes(v.prop)) {
       throw new Error(`${where}: a ${reg.family} has no readable numeric property ${JSON.stringify(v.prop)} — [${props}]`)
     }
+    return
+  }
+  if (v.v === 'num') {
+    if (live.inLoop || !live.nums || !live.nums.has(v.id)) throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
     return
   }
   const arity = v.v === 'bool' ? (v.op === 'not' ? [1, 1] : [2, 64]) : [2, 2]
@@ -429,10 +510,10 @@ function assertLiveRef(v, where, live) {
 
 function assertValueRef(v, where, live = null) {
   if (!isObj(v)) throw new Error(`${where}: expected a value reference object, got ${typeof v}`)
-  if (LIVE_GUARD_KINDS.includes(v.v)) {
+  if (LIVE_GUARD_KINDS.includes(v.v) || v.v === 'num') {
     if (!live) {
-      throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in the guard `
-        + '(`when`) of an op outside any loop body')
+      throw new Error(`${where}: a \`${v.v}\` reference reads object state and is legal only in a guard, `
+        + 'a loop bound or an index')
     }
     assertLiveRef(v, where, live)
     return
@@ -497,6 +578,21 @@ function assertValueRef(v, where, live = null) {
     case 'param':
       if (typeof v.id !== 'string' || !v.id) throw new Error(`${where}: a param reference needs an id`)
       return
+    // ⭐⭐ C9 — see `MAX_BARS_BACK_CAP`.
+    case 'at': {
+      if (!Array.isArray(v.args) || v.args.length !== 2) {
+        throw new Error(`${where}: a history read takes a source and a bar count`)
+      }
+      const src = v.args[0]
+      if (!isObj(src) || !['tree', 'graph', 'bar'].includes(src.v)) {
+        throw new Error(`${where}: a history read's source must be a column or bar_index, got ${JSON.stringify(src && src.v)}`)
+      }
+      if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
+        throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+      return
+    }
     case 'bar':
     case 'time':
       return
@@ -515,7 +611,7 @@ function assertValueRef(v, where, live = null) {
   }
 }
 
-function assertRefExpr(v, where, regs, colls) {
+function assertRefExpr(v, where, regs, colls, live) {
   if (!isObj(v)) throw new Error(`${where}: expected an object reference expression`)
   switch (v.r) {
     case 'reg': {
@@ -536,7 +632,9 @@ function assertRefExpr(v, where, regs, colls) {
     case 'coll': {
       const c = colls.get(v.id)
       if (!c) throw new Error(`${where}: collection ${JSON.stringify(v.id)} is not declared`)
-      assertValueRef(v.index, `${where}.index`)
+      // ⭐ C16 — an index may read the collection's own length (`array.pop(bs)`
+      // is slot `array.size(bs) - 1`).
+      assertValueRef(v.index, `${where}.index`, live)
       return c.family
     }
     default:
@@ -606,20 +704,27 @@ export function assertObjectProgram(program) {
     if (colls.has(c.id)) throw new Error(`objects: collection ${c.id} is declared twice`)
     colls.set(c.id, c)
   }
+  const nums = new Set((program.nums || []).map((n) => n.id))
 
   const ops = program.ops
   if (!Array.isArray(ops)) throw new Error('objects: ops must be an array')
   const siteFamily = new Map()
+  const latches = new Set()
   for (const [where, op] of walkOps(ops)) {
     if (!isObj(op)) throw new Error(`${where}: expected an operation object`)
     if (!OBJECT_OP_KINDS.includes(op.k)) {
       throw new Error(`${where}: unknown operation ${JSON.stringify(op.k)}, expected one of [${OBJECT_OP_KINDS}]`)
     }
-    // ⭐ ONLY a guard may read object state, and only outside a loop body — a
-    // body op runs several times a bar, so "observed once per bar" has no answer.
+    // ⭐ A GUARD, A LOOP BOUND AND A COLLECTION INDEX may read object state
+    // (`LIVE_GUARD_KINDS`). ⛔ Inside a loop body a `cross` is still refused —
+    // it is observed once per bar, and a body runs several times a bar.
+    const live = { regs, colls, latches, nums, inLoop: where.includes('.body[') }
     if (op.when !== null && op.when !== undefined) {
-      assertValueRef(op.when, `${where}.when`, where.includes('.body[') ? null : { regs })
+      assertValueRef(op.when, `${where}.when`, live)
     }
+    /** ⭐ C14 — a create/update's own coordinates and text may read object
+     *  state only OUTSIDE a loop body (a scalar is written once per bar). */
+    const opLive = live.inLoop ? null : live
     if (op.lastBarOnly !== undefined && op.lastBarOnly !== true) {
       throw new Error(`${where}: lastBarOnly is a flag — it is either absent or true`)
     }
@@ -645,13 +750,17 @@ export function assertObjectProgram(program) {
     // separately still falls through to it — and a loop was reported as
     // *"names undeclared collection undefined"*, a sentence about a feature it
     // has nothing to do with.
-    if (op.k === 'loop') {
+    if (op.k === 'latch') {
+      // ⭐ its id is only ever a key its readers name — `undeclared latch` above
+      assertValueRef(op.cond, `${where}.cond`, live)
+      latches.add(op.id)
+    } else if (op.k === 'loop') {
       if (!ID_RE.test(String(op.id))) {
         throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
-      assertValueRef(op.from, `${where}.from`)
-      assertValueRef(op.to, `${where}.to`)
-      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`)
+      assertValueRef(op.from, `${where}.from`, live)
+      assertValueRef(op.to, `${where}.to`, live)
+      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`, live)
       if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
       if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
     } else if (op.k === 'create') {
@@ -661,7 +770,7 @@ export function assertObjectProgram(program) {
       if (!ID_RE.test(String(op.site))) throw new Error(`${where}: create needs a site id matching ${ID_RE}`)
       if (siteFamily.has(op.site)) throw new Error(`${where}: site ${op.site} is created twice`)
       siteFamily.set(op.site, op.family)
-      assertProps(op, where, op.family, regs, colls, siteFamily)
+      assertProps(op, where, op.family, regs, colls, siteFamily, opLive)
       if (op.into !== null && op.into !== undefined) {
         const reg = regs.get(op.into)
         if (!reg) throw new Error(`${where}: create stores into undeclared register ${JSON.stringify(op.into)}`)
@@ -672,7 +781,7 @@ export function assertObjectProgram(program) {
     } else if (op.k === 'update' || op.k === 'delete' || op.k === 'cell'
       || op.k === 'cellpatch' || op.k === 'clear' || op.k === 'clearcells'
       || op.k === 'mergecells') {
-      const fam = resolveTargetFamily(op, where, regs, colls, siteFamily)
+      const fam = resolveTargetFamily(op, where, regs, colls, siteFamily, live)
       // ⭐ `cell` (Pine's PUT) and `cellpatch` (its `cell_set_*` PATCH) are two
       // operations with ONE SHAPE, so the door checks them with one rule — master's
       // wording, kept. What separates them is what the RUNTIME does with an address
@@ -705,12 +814,15 @@ export function assertObjectProgram(program) {
         assertValueRef(op.endCol, `${where}.endCol`)
         assertValueRef(op.endRow, `${where}.endRow`)
       }
-      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily)
+      if (op.k === 'update') assertProps(op, where, fam, regs, colls, siteFamily, opLive)
+    } else if (op.k === 'setnum') {
+      if (!opLive || !nums.has(op.num) || op.value?.v !== 'get') throw new Error(`${where}: bad setnum`)
+      assertLiveRef(op.value, where, opLive)
     } else if (op.k === 'setreg') {
       const reg = regs.get(op.reg)
       if (!reg) throw new Error(`${where}: setreg names undeclared register ${JSON.stringify(op.reg)}`)
       if (op.value !== null) {
-        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls, live)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== reg.family) {
           throw new Error(`${where}: register ${op.reg} holds ${reg.family}, cannot be assigned a ${resolved}`)
@@ -720,14 +832,14 @@ export function assertObjectProgram(program) {
       const c = colls.get(op.coll)
       if (!c) throw new Error(`${where}: ${op.k} names undeclared collection ${JSON.stringify(op.coll)}`)
       if (op.k === 'push' || op.k === 'collset') {
-        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls)
+        const fam = assertRefExpr(op.value, `${where}.value`, regs, colls, live)
         const resolved = fam === null ? siteFamily.get(op.value.id) : fam
         if (resolved && resolved !== c.family) {
           throw new Error(`${where}: collection ${op.coll} holds ${c.family}, cannot take a ${resolved}`)
         }
-        if (op.k === 'collset') assertValueRef(op.index, `${where}.index`)
+        if (op.k === 'collset') assertValueRef(op.index, `${where}.index`, live)
       }
-      if (op.k === 'collremove') assertValueRef(op.index, `${where}.index`)
+      if (op.k === 'collremove') assertValueRef(op.index, `${where}.index`, live)
     }
   }
 
@@ -749,15 +861,15 @@ export function assertObjectProgram(program) {
   return { sites: [...siteFamily.keys()], regs: [...regs.keys()], colls: [...colls.keys()] }
 }
 
-function resolveTargetFamily(op, where, regs, colls, siteFamily) {
-  const fam = assertRefExpr(op.target, `${where}.target`, regs, colls)
+function resolveTargetFamily(op, where, regs, colls, siteFamily, live) {
+  const fam = assertRefExpr(op.target, `${where}.target`, regs, colls, live)
   if (fam !== null) return fam
   const f = siteFamily.get(op.target.id)
   if (!f) throw new Error(`${where}: site ${JSON.stringify(op.target.id)} is referenced but never created`)
   return f
 }
 
-function assertProps(op, where, family, regs, colls, siteFamily) {
+function assertProps(op, where, family, regs, colls, siteFamily, live = null) {
   const allowed = FAMILY_PROPS[family]
   if (!allowed) throw new Error(`${where}: no property vocabulary for family ${JSON.stringify(family)}`)
   const props = op.props
@@ -775,7 +887,9 @@ function assertProps(op, where, family, regs, colls, siteFamily) {
       }
       continue
     }
-    assertValueRef(v, `${where}.props.${k}`)
+    // ⭐ C14 — a WHOLE coordinate may read object state; a text `if` may test it.
+    if (live && v.v === 'text') assertTextNode(v.node, where, 0, live)
+    else assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num') ? live : null)
   }
 }
 

@@ -878,6 +878,8 @@ v1). A series-dependent displacement still refuses; a fractional fold now says s
 it); its guard's own comments tie it to the forward-reference guarantee, so it wants
 its own ruling.
 
+⭐ **2026-09-29 (C9, `pine/c9-dynamic-offsets`): FOLDED, and the per-bar case served.** An offset built from inputs and constants now folds through the window arm's own `foldWindow` (whole number ≥ 0 or refused; the input is window-bound), at the member door too. A per-bar offset (`x[bar_index - k]`) still refuses in the V2 graph — `maxLookback` stays a tree sum — and is read by the object runtime instead (`{v:'at'}`, bounded by the declared `max_bars_back`). Rules and measurements: `docs/pine/vendor-harness/objects-triage-2026-09-28.md` § C9.
+
 ### ⭐⭐ Follow-up, same day — a LEFTWARD displacement is now DRAWN where Pine draws it
 
 ⚰️ **The defect (pre-existing, not introduced by the fold above, but widened by it):**
