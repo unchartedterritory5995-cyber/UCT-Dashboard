@@ -2266,11 +2266,9 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin",
         "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:builtin",
         "pine:reassign"
       ]
     },
@@ -2759,10 +2757,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:state"
+        "pine:reassign"
       ],
       "screenerGuards": [
-        "pine:state"
+        "pine:reassign"
       ]
     },
     {

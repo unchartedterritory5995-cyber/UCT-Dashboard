@@ -5809,6 +5809,11 @@ export class Resolver {
      *  which is the same claim `finalBindings.get(name) === bound` makes at the
      *  top level — asked of the object rather than of the name. */
     this.finalLocals = opts.finalLocals || new Set()
+    /** ⭐ C28 — the source position (token index) of the binding whose tree is
+     *  being read, while `resolveBindingInner` is inside one; `undefined` at an
+     *  output's own top level. `staleSnapshotRead` compares it with the first
+     *  write the closing pass could not fold. */
+    this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -6117,6 +6122,34 @@ export class Resolver {
     try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
   }
 
+  /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
+   *  the env AS IT STOOD where it was written (`new Map(env)`), and the closing
+   *  pass condemns a name only in the FINAL env, after the walk. So a name bound
+   *  BELOW a write the walk could not fold still held the name's older binding in
+   *  its snapshot, and read it as if the write had never happened. ⚰️ MEASURED
+   *  on artemis-oscillator-pro (RDDT 1D): `float knnVal = 50.0`, then
+   *  `knnVal := kBull / knnK * 100.0` inside an `if` whose fold stops at a `for`,
+   *  then `knnIsBull = knnVal >= 60.0` — the plot lane read `50 >= 60` on every
+   *  bar, and the objects pane drew `◈ NEUTRAL`, `0%`, `29 ▼ BEAR` and `↓-3`
+   *  where TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR` and `↓-17`.
+   *
+   *  ⭐ ONE RULE: a historic top-level binding of a condemned name (`stale`,
+   *  stamped by the closing pass) is read only by a binding written BEFORE the
+   *  first write the walk could not fold — there it is Pine's value (a
+   *  statement above a reassignment reads what it held then). Read anywhere
+   *  else — below that write, at an output's top level, or inside a function
+   *  call frame whose call position this does not track — it refuses with the
+   *  condemnation's own sentence. `var` state keeps its own guard
+   *  (`staleLastWord`); a parameter or a local that shares the name is not in
+   *  the historic set and is untouched. */
+  staleSnapshotRead(bound, name) {
+    if (!name || bound.kind !== 'expr') return
+    const fin = this.finalBindings.get(name)
+    if (!fin || fin.kind !== 'opaque' || !fin.stale || !fin.stale.bindings.has(bound)) return
+    if (this.frames.length === 0 && Number.isFinite(this.readAt) && this.readAt < fin.stale.cut) return
+    throw new PineRefusal(fin.guard, fin.message, fin.at)
+  }
+
   resolveBindingInner(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
@@ -6145,6 +6178,7 @@ export class Resolver {
       throw this.undefinedName(name, tok)
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
+    this.staleSnapshotRead(bound, name)
     if (bound.kind === 'state') {
       // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
       // `bound` is then not the last word on the name, and folding IT into an
@@ -6473,7 +6507,9 @@ export class Resolver {
     }
     this.stack.add(bound)
     const prevEnv = this.env
+    const prevReadAt = this.readAt
     if (bound.env) this.env = bound.env
+    if (bound.at && Number.isFinite(bound.at.index)) this.readAt = bound.at.index
     try {
       const body = this.resolve(bound.node)
       if (isFinalOfMutable && this.recurrenceSeeds.has(name)
@@ -6559,6 +6595,7 @@ export class Resolver {
       this.stack.delete(bound)
       this.stack = prevStack
       this.env = prevEnv
+      this.readAt = prevReadAt
       this.buildingRecurrence = wasBuilding
       if (buildMarker) {
         const k = this.stateBuilds.lastIndexOf(buildMarker)
@@ -19421,6 +19458,19 @@ function translatePineResult(source, opts = {}) {
   // ⚠️ IT MUST OVERWRITE. Every other marker in this function refuses to clobber
   // an existing binding, which is right for them and wrong for this: the whole
   // job is to replace a binding the walk was too optimistic about.
+  // ⭐ C28 — what `Resolver.staleSnapshotRead` reads: every TOP-LEVEL binding the
+  // name held before it was condemned (`envLog`'s `prev`s and the one it holds
+  // now), and the first position its value stopped being known (`cut`). Stamped
+  // onto the condemning binding, because only the final env ever sees it.
+  const condemnStale = (name, cut, condemn) => {
+    const bindings = new Set()
+    for (const e of envLog.get(name) || []) if (e.prev) bindings.add(e.prev)
+    const before = env.get(name)
+    if (before) bindings.add(before)
+    condemn()
+    const fin = env.get(name)
+    if (fin && fin.kind === 'opaque' && Number.isFinite(cut)) fin.stale = { cut, bindings }
+  }
   for (const [name, toks] of reassigned) {
     const missed = toks.find((t) => !ctx.consumed.has(t.index))
     const why = unfoldable.get(name)
@@ -19468,10 +19518,11 @@ function translatePineResult(source, opts = {}) {
         ? `\`${name}\` — and the fold stopped before it, at line ${why.line}: ${why.message}`
         : null
       const reason = carried || fromChain || `\`${name}\``
-      forceOpaque(name, 'pine:reassign', locate(missed), reason)
+      const cut = Math.min(...toks.filter((t) => !ctx.consumed.has(t.index)).map((t) => t.index))
+      condemnStale(name, cut, () => forceOpaque(name, 'pine:reassign', locate(missed), reason))
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
-      forceOpaque(name, why.guard,
-        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+      condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
     }
   }
   // ⛔⛔ A TOP-LEVEL `array.set` INVALIDATES ITS VECTOR TOO, AND UNTIL
@@ -19514,8 +19565,8 @@ function translatePineResult(source, opts = {}) {
   for (const [name, why] of unfoldable) {
     const bound = env.get(name)
     if (!bound || bound.kind === 'opaque') continue
-    forceOpaque(name, why.guard,
-      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+    condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
   }
 
   /** ⭐ THE LAST WORD ON EVERY NAME, captured once the walk is over. It answers

@@ -108,8 +108,16 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
     // and pro-trading-art (a window's `readMemo`), adaptive-trend-following and
     // 72s-hull (Track F minting — the two § C9 names).
     const PINNED = {
+      // ⭐ C28 moved artemis and 72s-hull (`Resolver.staleSnapshotRead`): a name
+      // bound below a write the walk could not fold now refuses at the read
+      // instead of resolving on through the declaration, so fewer Resolvers are
+      // built and fewer steps spent. 72s-hull's outputs are byte-identical (the
+      // refusal is inside a probe); artemis withholds four cells TradingView
+      // does not draw (`vendorHarness.c28StaleSnapshot`). Pre-C28: artemis
+      // plain [603, 758613, 'b59350139db56c8b'] / manifest [603, 758621,
+      // '71eed9b8287182f3'], 72s-hull [101, 1387, 'a3aad37da07d35dd'] both.
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [603, 758613, 'b59350139db56c8b'], manifest: [603, 758621, '71eed9b8287182f3'] },
+        plain: [521, 405316, '0ed727028fb37e4b'], manifest: [521, 405324, '4fd1716a833c1b5d'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
@@ -122,7 +130,7 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
         plain: [38, 20104, '1c4c4d2d8bb41941'], manifest: [38, 20110, '751365c865ed51f9'] },
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [101, 1387, 'a3aad37da07d35dd'], manifest: [101, 1387, 'a3aad37da07d35dd'] },
+        plain: [101, 931, 'b03efcd81da53a58'], manifest: [101, 931, 'b03efcd81da53a58'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {
