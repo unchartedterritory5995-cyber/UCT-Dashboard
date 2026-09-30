@@ -191,6 +191,27 @@ describe('C12w — where the tree cannot settle bar 0, nothing is drawn that Pin
     expect(wrong, `bar ${wrong}: drew ${got[wrong]} where Pine draws ${ref[wrong]}`).toBe(-1)
   })
 
+  it('⛔ …and its bars are UNKNOWN, not a confident `na` — the object lane must still withhold them', () => {
+    // `var m = 5.0; m := close < 105 ? (m + close) / 2 : m[1]`: Pine takes the bare
+    // arm on bar 0 and draws (5 + 100) / 2 = 52.5, then carries numbers. Read as
+    // the bare value, the marked `na` seed gives `na` on bar 0 — and so does the
+    // self-reference reading — so the two AGREE on a confident `na` that Pine never
+    // draws, and an `if na(m)` op would fire off it. Correct: every bar before the
+    // warm-up is UNKNOWN, which `prefixProbe` (what `unknownMask` reads) exposes.
+    const src = pine(['var float m = 5.0', 'm := close < 105 ? (m + close) / 2 : m[1]', 'plot(m)'])
+    const ast = treeOf(src)
+    const seeds = []
+    const walk = (n) => {
+      if (!n || typeof n !== 'object') return
+      if (n.type === 'call' && n.name === 'accum') seeds.push(n.args[0])
+      for (const a of n.args || []) walk(a)
+    }
+    walk(ast)
+    expect(seeds.every(isAmbiguousVarSeed)).toBe(true)
+    const probed = run(ast, { historyFromListing: true, prefixProbe: 1e12 })
+    expect(probed.slice(0, W).every((v) => v === 1e12), 'a marked bar was published as known').toBe(true)
+  })
+
   it('⛔ a counter that never forgets does NOT read bar_index: `accum(0, self + 1)` is two Pine spellings', () => {
     // `var n = 0; n := n + 1` reads bar_index + 1; `n = na(n[1]) ? 0 : n[1] + 1`
     // reads bar_index. Both translate to this tree, which cannot say which — so
