@@ -10337,7 +10337,15 @@ export class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
+    // `request.security`: "To use the chart's main timeframe, use an empty
+    // string or the `timeframe.period` variable." The `''` spelling (a literal,
+    // or an `input.timeframe` whose default is `''`) is therefore the identity,
+    // the same request `timeframe.period` makes. ⚰️ It fell through to
+    // `pine:request`, and a colour written through it drew in the pane's gold
+    // where TradingView draws the script's own (donchian-channels, RDDT 1D).
     const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
+      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
@@ -21625,6 +21633,43 @@ function chainPalette(acc) {
   return { palette, opacity: agree && a0 !== null ? a0 : null }
 }
 
+/** ⭐⭐ C28b — A COLOUR COMPUTED BY `request.security` IS THE SAME RULE, ASKED
+ *  IN THE REQUESTED CONTEXT. `request.security(sym, tf, a ? c1 : b ? c2 : na)`
+ *  with every leaf a static colour picks its leaf by tests evaluated on the
+ *  requested bars — so the rule is the inner one, and only its DECIDING tree
+ *  (the two-colour test, or the chain's index) moves inside the request:
+ *  `request.security(sym, tf, <that tree>)`. The Resolver then answers the
+ *  wrapped tree through `securityAsNode`, the one reader of symbol, period and
+ *  lookahead, so a colour and a plot of the same request cannot disagree; a
+ *  request it refuses fails soft to `colorDynamic`, as any rule does.
+ *  ⚰️ MEASURED on donchian-channels (NYSE:RDDT 1D): `color =
+ *  request.security(syminfo.tickerid, timeframeInput, close > basis[1] ? … :
+ *  close < basis[1] ? … : na)` drew its Basis in the pane's gold on 533 bars
+ *  where TradingView draws blue, red, or nothing.
+ *  Returns `undefined` for a call that is not a request (the caller goes on),
+ *  else the rule or null. New rules never mint (`withholdMint`, R36). */
+function securityColourRule(node, env, depth, ctx) {
+  if (node.name !== 'request.security' && node.name !== 'security') return undefined
+  const args = node.args || []
+  const placed = positionaliseSecurityArgs(args)
+  if (!placed || placed[2] === undefined) return null
+  let at = args.findIndex((a) => a && a.name === 'expression')
+  if (at < 0) {
+    let k = -1
+    at = args.findIndex((a) => a && !a.name && (k += 1) === 2)
+  }
+  if (at < 0) return null
+  const inner = colourConditional(placed[2], env, depth + 1, ctx)
+  if (!inner || inner.inline) return inner && inner.inline ? null : inner
+  const wrap = (tree) => ({
+    ...node,
+    args: args.map((a, i) => (i === at ? { ...a, value: tree } : a)),
+  })
+  if (inner.indexTree) return { ...inner, indexTree: wrap(inner.indexTree), withholdMint: true }
+  if (inner.test) return { ...inner, test: wrap(inner.test), withholdMint: true }
+  return inner
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -21658,6 +21703,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   // the outer call's arguments.
   if (node.type === 'call') {
     if (ctx && ctx.inline) return null
+    const requested = securityColourRule(node, env, depth, ctx)
+    if (requested !== undefined) return requested
     const helper = openColourHelper(node, env, ctx)
     if (!helper) return null
     const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
