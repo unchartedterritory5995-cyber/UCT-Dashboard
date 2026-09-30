@@ -1,0 +1,27 @@
+{
+  "started": "2026-09-30T00:21:50-0500",
+  "action1_writes": [],
+  "action2_writes": [
+    {
+      "t": 1790745812.05549,
+      "method": "DELETE",
+      "url": "http://127.0.0.1:8341/api/j2/notes/42f75ba61856483eba5a29551bdfb349"
+    }
+  ],
+  "action2_dialogs_now": 0,
+  "action2_before": "Skip to main content\nSkip to note\nUCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nSeasoned\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach \u2014 markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n\u25be\nRECENTS\nfx2 trash ctxshare\nfx2 save-template ctxshare\nAdd thesis starter views\nAll notes\n2\nUnfiled\n2\nArchived\n0\nTrash\n0\n+ New folder\nfx2 trash ctxshare\nAsk\nFind\nShare\nUnfiled\nWriting help\nOutline\nDefault\nSans Serif\nSerif\nMonospace\nArial\nHelvetica\nVerdana\nTahoma\nTrebuchet MS\nCalibri\nCentury Gothic\nGeorgia\nTimes New Roman\nGaramond\nPalatino\nCambria\nBaskerville\nCourier New\nConsolas\nLucida Sans\nComic Sans MS\nImpact\nBrush Script MT\nSize\n12\n13\n14\n15\n16\n17\n18\n20\n22\n24\n28\n32\n36\n40\n48\n60\n72\nB\nI\nA\nH1\nH2\n\u2022 List\n1. List\n\u275d\n</>\nNew: speak instead of type. Tap the mic to dictate, or  to talk through it with Compass.\n\u2015\n\u229e Insert\nAdd property\nSuggest values\n\nprobe body 2\n\n?\n\u25c9\n\u22ee",
+  "action2_after": "Skip to main content\nSkip to notes list\nUCT\nINTELLIGENCE\nSearch\n\u2318K\nUCT Terminal\nCharts\nMorning Wire\nDashboard\nAI Search\nUCT 20\nBreadth\nScreener\nOptions Flow\nFlow Record\nLive Flow\nCatalysts History\nModel Book\nFormula Reference\nThe Desk\nJournal\nPortfolio Risk\nSeasoned\nPRO\nSettings\nSupport\nWebsite\n\nMeet Compass\n\nTap the compass button  to talk to your trading coach \u2014 markets, setups, and your journal, all by voice.\n\nGot it\nTrade Journal\nToday\nTrades\nCalendar\nNotebook\nInsights\nCompass\nLog Trade\n?\nDefault\n$100,000.00\n\u25be\nRECENTS\nfx2 save-template ctxshare\nAdd thesis starter views\nAll notes\n1\nUnfiled\n1\nArchived\n0\nTrash\n1\n+ New folder\nResearch home\nAsk\nCONTINUE WORKING\nView all\nfx2 save-template ctxshare\ntoday\n?\n\u25c9\n\u22ee",
+  "action2_idb_databases": [
+    "uct_notebook_bbc4a9fd-d436-4ed8-a12b-69d8e921dbdb"
+  ],
+  "log": [
+    "[00:23:18] SANDBOX IDENTITY: ok=True http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-21-52.md (identity 38a30e1aadf1..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)",
+    "[00:23:21] === action 1: save-template (single click, cached context) ===",
+    "[00:23:29] action 1 writes: []",
+    "[00:23:29] === action 2: trash-note (cached context, right after save-template) ===",
+    "[00:23:40] action 2 writes: [{'t': 1790745812.05549, 'method': 'DELETE', 'url': 'http://127.0.0.1:8341/api/j2/notes/42f75ba61856483eba5a29551bdfb349'}]  dialogs_now=0",
+    "[00:23:44] IDB databases visible: ['uct_notebook_bbc4a9fd-d436-4ed8-a12b-69d8e921dbdb']",
+    "[00:24:38] sandbox stop: graceful to the shutdown checkpoint, then forced exit"
+  ],
+  "finished": "2026-09-30T00:24:38-0500"
+}
