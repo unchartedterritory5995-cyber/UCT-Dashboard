@@ -222,7 +222,8 @@ export function parseSource(value) {
     // symbol-less -- `{kind:'economic', symbol}`, a kind no bars/fundamental/
     // breadth reader matches, so it can never be fetched as a ticker. Malformed
     // (`econ:`, `econ:AAPL:close`) is `null`, never Close.
-    return parseEconomicSource(value) || (SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : null)
+    // (no bar field starts with `econ:`, so trying the economic parse last is the same answer)
+    return SOURCE_BAR_FIELDS.includes(value) ? { kind: 'bar', field: value } : parseEconomicSource(value)
   }
   const body = value.slice(1)
   const at = body.lastIndexOf(SEP)
