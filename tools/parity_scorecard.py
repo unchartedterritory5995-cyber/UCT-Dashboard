@@ -91,6 +91,8 @@ INVENTORY_REV = '00742b54c'      # the plan the §B1 inventory was built from (l
 # ── wave 10's evidence (every path is committed; the tips named are the trees each run measured) ──
 W10_WALK = 'docs/notebook/gate-runs/wave10/walk-L1a-14310c206.json'   # the L1a landing walk (10B rows)
 W10_WALK_TOOL = 'tools/notebook_wave10b_walk.py'
+G62_WALK = 'docs/notebook/gate-runs/g62/walk-4d2a4edfa-run3.json'   # lane G62's consensus walk, run 3
+G62_WALK_TOOL = 'tools/notebook_g62_consensus_walk.py'
 PROOF = 'docs/notebook/proof'                                          # 10E-1 + the follow-up lanes
 KBD_F4 = 'docs/notebook/evidence/a11y-f4-keyboard-2026-09-27/walk-all.json'   # the keyboard re-walk (F4)
 KBD_TOOL = 'docs/notebook/evidence/a11y-second-review-2026-09-27/keyboard_walk.py'
@@ -1769,6 +1771,10 @@ SC2_TAG = 'notebook-wave10-SC2-2026-09-30'
 # cannot stay tied to 'wave 10 SC2'. A pushed tag is never moved, so the file moves to SC3, whose
 # tag is created at L13's own final commit, after the file is final -- never before.
 SC3_TAG = 'notebook-wave10-SC3-2026-09-30'
+# Integrator L13 (2026-09-30): lane G62's real-browser walk (run 3 at 4d2a4edfa, 8/8 PASS) is
+# committed after SC3_TAG, so it needs its own wave. The tag is cut at the commit that registers
+# it here, after the report is final.
+L13A_TAG = 'notebook-wave10-L13a-2026-09-30'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1787,6 +1793,7 @@ B0_WAVES = (
     ('wave 10 SC', SC_TAG, None, None),
     ('wave 10 SC2', SC2_TAG, None, None),
     ('wave 10 SC3', SC3_TAG, None, None),
+    ('wave 10 L13a', L13A_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1881,6 +1888,7 @@ B0_EVIDENCE = (
     (f'{PROOF}/l12dc2-6cbf0618e/run.json', 'wave 10 SC2'),
     (f'{PROOF}/l12dc2-6cbf0618e/deadclick.json', 'wave 10 SC2'),
     (f'{PROOF}/l3-reconfirm-fe01bdb14/run-meta.json', 'wave 10 SC2'),
+    ('docs/notebook/gate-runs/g62/walk-4d2a4edfa-run3.json', 'wave 10 L13a'),  # lane G62's walk
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -1899,6 +1907,7 @@ B0_TIPS = (
     ('aa2417c2c', L1C_TAG),                            # F5's after-run (axe, geometry)
     ('0555889ef', L1C_TAG),                            # F4's keyboard re-walk
     ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
+    ('4d2a4edfa', L13A_TAG),                           # lane G62's consensus walk, run 3
 )
 _PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
 
@@ -2915,14 +2924,15 @@ def build(pages_dir=None):
     R('G-060', 'NA', [code(f'{JT}/db.py', 954, 'j2_fact_observations')], {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique.')
     R('G-061', 'NA', [code(f'{LB}/widgetEmbedCore.js', 336, 'export function resolveEmbedRender(attrs)')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: frozen as of insertion).')
-    R('G-062', 'NV', [code(f'{JT}/fact_registry.py', 69, '"analyst_price_target_consensus": FactTypeDef('),
+    R('G-062', 'NA', [code(f'{JT}/fact_registry.py', 69, '"analyst_price_target_consensus": FactTypeDef('),
                       code(f'{JT}/fact_registry.py', 41, 'rights_class: RightsClass'),
-                      record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 91, 'Analyst-consensus storage (G-062): UNBLOCKED')],
+                      record('docs/notebook/VENDOR-TERMS-2026-09-23.md', 91, 'Analyst-consensus storage (G-062): UNBLOCKED'),
+                      walk_at(G62_WALK_TOOL, G62_WALK, '4d2a4edfa', 'G5_slash_command_door'),
+                      walk_at(G62_WALK_TOOL, G62_WALK, '4d2a4edfa', 'G6_tickerpopup_door')],
       {'N': NA, 'E': NA, 'O': NA},
-      'Legal sign-off landed (owner, 2026-09-25): FMP licensing approved directly, so the conditional '
-      'fact type is no longer owner-blocked -- capture is ACTIVE and unit-verified (was BLOCKED/owner). '
-      + UI_NOT,
-      'a real-browser walk (controller lane G62) confirming the SlashMenu + TickerPopup doors')
+      'UCT-unique. Legal sign-off landed (owner, 2026-09-25): FMP licensing approved directly, so the '
+      'conditional fact type is ACTIVE; both member doors (the /consensus slash command and the '
+      'TickerPopup button) walked PASS in a real browser, G3 on live FMP data.')
     R('G-063', 'NA', [code(f'{LB}/widgetEmbedCore.js', 7, 'asOfDayOf')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT correctness bug row.')
     R('G-064', 'NA', [code(f'{LB}/askInsert.js', 13, "export const ASK_INSERT_TYPE = 'askInsert'"),
                       flag('NOTEBOOK_ASK_INSERT_ON', 'armed')], {'N': NA, 'E': NA, 'O': NA},
