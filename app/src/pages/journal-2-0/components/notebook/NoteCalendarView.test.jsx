@@ -149,6 +149,26 @@ describe('NoteCalendarView', () => {
     expect(screen.getByText('September 2026')).toBeInTheDocument()
   })
 
+  /**
+   * ⛔⛔ FX4 (wave 10, proof-walk item 2): clicking Today while the grid
+   * already shows today's month was a dead click -- `setCursor` bailed out
+   * on the same value, so nothing in the DOM said so. `aria-current="date"`
+   * is the attribute `tools/notebook_proof_walk.py`'s target census reads to
+   * mark a no-op click CURRENT rather than DEAD (`el.getAttribute(
+   * 'aria-current') && value !== 'false'`) -- present exactly while the
+   * click really would be a no-op, gone the moment it would not be, and the
+   * button stays live (it still navigates back from elsewhere).
+   */
+  it('Today carries aria-current="date" only while the grid already shows today, and loses it the moment it would not be a no-op', () => {
+    renderCal()
+    const todayBtn = screen.getByRole('button', { name: 'Today' })
+    expect(todayBtn).toHaveAttribute('aria-current', 'date')
+    fireEvent.click(screen.getByLabelText('Next month'))
+    expect(todayBtn).not.toHaveAttribute('aria-current')
+    fireEvent.click(todayBtn)
+    expect(todayBtn).toHaveAttribute('aria-current', 'date')
+  })
+
   it('opens the note that was clicked', () => {
     const onOpenNote = vi.fn()
     renderCal({ notes: [n('a', 'NVDA review', '2026-09-10')], onOpenNote })
