@@ -7,7 +7,8 @@
 
 import { describe, it, expect } from 'vitest'
 import legacy from '../__fixtures__/legacyCotThreePane.f288540c4.json'
-import { migrateLegacyCotGroups } from '../engine/legacyCotGroups'
+import { migrateLegacyCotGroups, PANE_TARGET_PREFIX } from '../engine/legacyCotGroups'
+import { paneOfTarget, parsePaneOfTarget } from '../engine/sourceRef'
 import { mergeChartSettings } from '../chartDefaults'
 import { mergeSettingsOverride } from '../instanceShape'
 import { marketIndicatorResults, createFromResult, sideBySideBars, GROUP_PANE_HEIGHT } from '../discoveryCatalog'
@@ -108,6 +109,14 @@ describe('the old three-pane save', () => {
     const other = (x) => live(x).filter((i) => !String(i.inputs?.source || '').startsWith('sym:COT:'))
     expect(other(cs)).toEqual(other(load({ ...before, indicatorInstances: other(before) })))
     expect(hosts(cs)).toContain(live(cs).find((i) => i.defId === 'rsi').instanceId)
+  })
+})
+
+describe('the entry-bundle constraint', () => {
+  it('the inlined pane-target prefix is exactly the one sourceRef writes and parses', () => {
+    expect(paneOfTarget('inst:dataSeries:1')).toBe(`${PANE_TARGET_PREFIX}inst:dataSeries:1`)
+    const [host, guest] = cot(load(legacy.one))
+    expect(parsePaneOfTarget(guest.placement.target)).toBe(host.instanceId)
   })
 })
 

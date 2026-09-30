@@ -31,7 +31,15 @@
 // unchanged — the SAME object.
 
 import { sideBySideBars, GROUP_PANE_HEIGHT } from './groupBars'
-import { paneOfTarget } from './sourceRef'
+
+// ⛔⛔ THIS MODULE IS IMPORTED BY `chartDefaults` — THE APP'S ENTRY BUNDLE — SO IT MAY
+// DEPEND ON NOTHING HEAVY. Importing `sourceRef` for `paneOfTarget` dragged the pool,
+// placement, pane-layout and fundamentals modules into every page's first load (+411 KB
+// on the Notebook's measured first-open budget, caught by `notebook bytes`). The one
+// thing it needed is the display-target prefix, stated here and railed against
+// `sourceRef.paneOfTarget` in `__tests__/legacyCotGroups.test.js`.
+export const PANE_TARGET_PREFIX = '@'
+const paneOfTarget = (id) => PANE_TARGET_PREFIX + id
 
 const PARTS = ['COMM', 'LARGE', 'SMALL']
 const SOURCE = /^sym:COT:([A-Z0-9]+):(COMM|LARGE|SMALL):close$/
