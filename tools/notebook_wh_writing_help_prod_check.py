@@ -56,7 +56,6 @@ import os
 import pathlib
 import sys
 import time
-import urllib.parse
 from datetime import datetime, timezone
 
 for _s in (sys.stdout, sys.stderr):
@@ -78,6 +77,9 @@ NOTE_TEXT = (
 # WRITING_HELP_CHOICES (app/src/pages/journal-2-0/lib/writingHelpStream.js) has
 # no "tighten" entry; "Rewrite shorter" is the closest real product action.
 CHOICE_LABEL = "Rewrite shorter"
+# Cleanup read-back: poll by note id for up to ~15 s (a delete can land after the click returns).
+CLEANUP_POLL_TRIES = 10
+CLEANUP_POLL_MS = 1500
 
 
 def _now() -> str:
@@ -336,18 +338,29 @@ def main(argv=None) -> int:
             rec.step("delete_clicked", ok=True, screenshot=s5)
 
             # ── 11. confirm gone from the live list, present only in trash ──
-            q = urllib.parse.quote(title)
-            live_resp = ctx.request.get(f"{base}/api/j2/notes?q={q}&deleted=false&limit=50")
-            live_ids = [n["id"] for n in live_resp.json().get("notes", [])] if live_resp.ok else None
-            trash_resp = ctx.request.get(f"{base}/api/j2/notes?q={q}&deleted=true&limit=50")
-            trash_ids = [n["id"] for n in trash_resp.json().get("notes", [])] if trash_resp.ok else None
-            gone_from_list = live_ids is not None and note_id not in live_ids
-            in_trash = trash_ids is not None and note_id in trash_ids
+            # Polled BY ID, never read once by title. Run 2026-09-29b read once
+            # 1.5 s after the click and still found the note live: the delete had
+            # not landed yet, and a single read turned that race into exit 1.
+            gone_from_list = in_trash = False
+            live_status = trash_status = None
+            attempts = 0
+            for attempts in range(1, CLEANUP_POLL_TRIES + 1):
+                live_resp = ctx.request.get(f"{base}/api/j2/notes?deleted=false&limit=200")
+                trash_resp = ctx.request.get(f"{base}/api/j2/notes?deleted=true&limit=200")
+                live_status, trash_status = live_resp.status, trash_resp.status
+                live_ids = [n["id"] for n in live_resp.json().get("notes", [])] if live_resp.ok else None
+                trash_ids = [n["id"] for n in trash_resp.json().get("notes", [])] if trash_resp.ok else None
+                gone_from_list = live_ids is not None and note_id not in live_ids
+                in_trash = trash_ids is not None and note_id in trash_ids
+                if gone_from_list and in_trash:
+                    break
+                page.wait_for_timeout(CLEANUP_POLL_MS)
             rec.step(
                 "cleanup_confirmed",
                 ok=gone_from_list and in_trash,
                 gone_from_live_list=gone_from_list, in_trash=in_trash,
-                live_http_status=live_resp.status, trash_http_status=trash_resp.status,
+                live_http_status=live_status, trash_http_status=trash_status,
+                attempts=attempts,
             )
             if not (gone_from_list and in_trash):
                 rec.finish("FAILED", "cleanup could not be confirmed by API read-back")
