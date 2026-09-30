@@ -1,0 +1,100 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "census": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 1,
+   "seconds": 709.3
+  },
+  "geometry": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 2311,
+   "seconds": 674.6
+  },
+  "axe": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 633.2
+  },
+  "silent": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 960.7
+  }
+ },
+ "tip": "d5ca882b94c6c73156166cf6198327540497193a",
+ "sweeps": [
+  "deadclick",
+  "silent",
+  "geometry",
+  "axe",
+  "census"
+ ],
+ "only": [],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-29T20:01:12-0500",
+ "data_dir": "C:/Users/Patrick/AppData/Local/Temp/claude/C--Users-Patrick/441b0c89-c1d8-471c-bd31-2a4fb712ee30/scratchpad/wk3-data",
+ "base": "http://127.0.0.1:8319",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8319 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-wk3\\docs\\plans\\joystick\\sandbox-runs\\2026-09-29T20-01-15.md (identity 7b71a9fdae1f..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\wk3-data)"
+ },
+ "axe_core": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\wk3-axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r200215",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "2478f27d2ad8410290ab8d15bc14bbe3",
+  "share_url": "/share/n/tGI3Im0qgkCZnmL7bPrn4PJiQifYxjiy",
+  "publish_url": "/p/vdkdU50qcNmrRT8Bo8dKJw",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "e0d5bee7f67446da8c8e32ed15f7ab76",
+  "first_run_account": "fresh1",
+  "first_run_note": "34b40d6c24a84ce7a762cce2efad9f82",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 62.9,
+ "findings_total": 2312
+}

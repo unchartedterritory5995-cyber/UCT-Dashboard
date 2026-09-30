@@ -47,6 +47,14 @@
    piece of art. */
 .navBtn:first-child svg { transform: rotate(180deg); }
 
+/* FX4 (proof-walk item 2): the visible half of the `aria-current="date"` fix
+   -- Today already reads as current to assistive tech; this is the sighted
+   cue, same gold accent the active month uses elsewhere in this file. */
+.todayBtn[aria-current] {
+  border-color: var(--ut-gold);
+  color: var(--ut-gold);
+}
+
 .monthLabel {
   font-size: 13px;
   font-weight: 600;

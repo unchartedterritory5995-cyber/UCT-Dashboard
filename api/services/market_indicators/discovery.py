@@ -149,6 +149,72 @@ def product_row(p) -> dict:
     return out
 
 
+# ── THE FOLLOW-THE-CHART COT INDICATOR ──────────────────────────────────────
+#
+# ⭐ ONE CATALOGUE ROW SHAPED EXACTLY LIKE A PER-MARKET COT PRODUCT, so the client's
+# product path creates it unchanged — only its components name no market:
+# `COT:AUTO:COMM|LARGE|SMALL`. The chart resolves `AUTO` from `cot_symbols` below.
+
+_FOLLOW_TOKENS = ("COT", "COMMITMENT OF TRADERS", "COMMITMENTS OF TRADERS", "CFTC",
+                  "POSITIONING", "FUTURES POSITIONING", "NET CONTRACTS",
+                  *(name.upper() for _c, _col, name in reg.COT_COMPONENTS))
+
+
+def _follow_id(code: str) -> str:
+    return f"COT:{reg.COT_FOLLOW}:{code}"
+
+
+def cot_follow_components() -> list[dict]:
+    """Classification rows for `COT:AUTO:*` — the same semantics as every market's.
+
+    ⚠️ CLASSIFIABLE, NEVER SERVABLE. The client needs to know a stored `AUTO` source is
+    a signed, weekly, contracts-unit histogram with no candles (the Inspector formats
+    and gates on it); `/api/bars/COT:AUTO:COMM` resolves nothing and serves nothing.
+    """
+    out = []
+    template = reg.COT_MARKETS[0]
+    for code, _col, name in reg.COT_COMPONENTS:
+        row = indicator_row(reg.get(f"COT:{template}:{code}"))
+        cid = _follow_id(code)
+        row.update(id=cid, symbol=cid, display=f"COT · {name}", short=name,
+                   aliases=[], product=reg.COT_FOLLOW_ID,
+                   product_display=reg.COT_FOLLOW_DISPLAY, follows="chart_symbol")
+        out.append(row)
+    return out
+
+
+def cot_follow_row() -> dict:
+    """The ONE listed COT row."""
+    template = reg.get_product(f"COT:{reg.COT_MARKETS[0]}")
+    out = product_row(template)
+    comps = cot_follow_components()
+    out.update(
+        id=reg.COT_FOLLOW_ID, symbol=reg.COT_FOLLOW_ID,
+        display=reg.COT_FOLLOW_DISPLAY, short="COT",
+        description="CFTC Commitments of Traders for the futures market behind the chart "
+                    "symbol — the weekly net position of Commercials, Large Speculators "
+                    "and Small Speculators, in one pane. Shows on related ETFs and "
+                    "indexes (QQQ → Nasdaq-100 E-Mini, GLD → Gold, TLT → 30-Year "
+                    "T-Bond…); on any other symbol it draws nothing.",
+        components=[c["id"] for c in comps],
+        primary_component=comps[0]["id"],
+        component_rows=[{"id": c["id"], "display": c["display"], "short": c["short"],
+                         "presentation": c["presentation"], "domain": c["domain"],
+                         "palette": pal}
+                        for c, pal in zip(comps, template.palette)],
+        group_title=reg.COT_FOLLOW_DISPLAY,
+        tags=list(_FOLLOW_TOKENS),
+        aliases=[reg.COT_FOLLOW_ID, reg.COT_FOLLOW_DISPLAY.upper()],
+        follows="chart_symbol",
+    )
+    return out
+
+
+def _follow_haystack() -> str:
+    return " ".join(naming.search_tokens(reg.COT_FOLLOW_ID, reg.COT_FOLLOW_DISPLAY,
+                                         _FOLLOW_TOKENS, reg.FAMILY_LABEL[reg.FAM_POSITIONING]))
+
+
 def _breadth_haystack(row: dict) -> str:
     return " ".join(str(v).upper() for v in (
         row.get("display"), row.get("short"), row.get("symbol"),
@@ -173,7 +239,10 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
     # address); this is a statement about the browsable catalogue and nothing else.
     rows.extend(indicator_row(s) for s in src
                 if s.id not in reg.PRODUCT_COMPONENT_IDS)
-    rows.extend(product_row(p) for p in reg.products())
+    # ⚠️ LISTED products only: the per-market COT products still resolve and still
+    # classify (their components ship below), but the member finds ONE COT row.
+    rows.extend(product_row(p) for p in reg.listed_products())
+    rows.append(cot_follow_row())
     # ⛔⛔ THE COMPONENTS STILL SHIP — IN THEIR OWN ARRAY, NEVER IN `rows`.
     #
     # ⚰️ MEASURED IN A BROWSER: dropping them from the payload entirely made them
@@ -193,6 +262,7 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
     # component IS chartable, so refusing to classify it is the unsafe direction.
     components = [indicator_row(s) for s in src
                   if s.id in reg.PRODUCT_COMPONENT_IDS]
+    components.extend(cot_follow_components())
 
     if include_breadth:
         try:
@@ -213,6 +283,8 @@ def catalogue(include_dormant: bool = False, include_breadth: bool = True) -> di
             seen.add(f)
             fams.append({"id": f, "label": reg.FAMILY_LABEL[f]})
     return {"rows": rows, "components": components, "families": fams,
+            # ⭐ chart symbol → the COT market the follow indicator draws there.
+            "cot_symbols": reg.cot_symbols_payload(),
             "family_order": reg.FAMILY_ORDER,
             "universes": [{"id": u, "label": naming.universe_display(u)}
                           for u in ("uct", "us", "nasdaq", "nyse")]}
@@ -289,7 +361,10 @@ def search(q: str, limit: int = 40, include_dormant: bool = False,
                 # and its components' words — so "bullish" would find nothing at all
                 # while the row that carries the word is deliberately unlisted.
                 prod = reg.get_product(r["id"])
-                hay = " ".join(prod.tokens) if prod is not None else own
+                if r["id"] == reg.COT_FOLLOW_ID:
+                    hay = _follow_haystack()
+                else:
+                    hay = " ".join(prod.tokens) if prod is not None else own
         else:
             hay = _breadth_haystack(r)
         code = str(r.get("id", "")).split(":")[-1].upper()

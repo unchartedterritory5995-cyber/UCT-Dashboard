@@ -132,9 +132,15 @@
   cursor: pointer;
   opacity: 0.55;
 }
+/* Wave 10 lane DR-F (design finding D-8): 16x16 at 1200 -- under WCAG 2.5.8's
+   24px floor with no exception to excuse it (this IS the focusable control a
+   keyboard/switch/screen-reader user lands on; its 32px `.selectBox` wrapper
+   is a bigger POINTER hit area, not a substitute target). 24px at every
+   width; the touch tier below used to carry its own copy of the same 24px
+   value -- now redundant and removed, not two authorities over one number. */
 .selectBox input {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   margin: 0;
   cursor: pointer;
   accent-color: var(--ut-gold);
@@ -159,7 +165,10 @@
   /* Wave 10 follow-up F5 (keyboard review A2R-10): the checkbox ITSELF measured 16x16
      at 820 -- the 44 px label around it takes the tap, but the control a screen
      reader and a switch user land on was under WCAG 2.5.8's 24. It grows to 24; its
-     44 px label is unchanged. Rail: a11y/targetFloors.test.js. */
+     44 px label is unchanged. Rail: a11y/targetFloors.test.js. Restated (not just
+     inherited) here on purpose: this is what A2R-10's own rail reads at the touch
+     media query. The base rule above now carries the SAME 24px floor for 1200
+     (D-8 -- it was also missing there), which is what D-8's own rail reads. */
   .selectBox input {
     width: 24px;
     height: 24px;

@@ -646,3 +646,20 @@ def test_windowed_history_still_refuses_a_real_gap_across_the_union(tmp_path):
                           run_id="gap")
     r = out[0].series["USCPI"]
     assert r.status == "rejected" and any("partial" in x for x in r.reasons), r
+
+
+def test_backfill_initializes_an_empty_derived_series_even_when_parent_unchanged(tmp_path, keyed):
+    """A derived series enabled AFTER its parent was loaded stays UNINITIALIZED forever under
+    'derive only downstream of changes'. A backfill of the parent computes it when it is empty
+    -- and never touches a derived series that already has data."""
+    s = seeded(tmp_path, ents("USCPI"))
+    assert n_rows(s, "USCPIMOM") == 0
+    E = ents("USCPI", "USCPIMOM")
+    fa = FakeAdapter([{"observations": HIST}], name="bls")
+    outs = ingest.backfill(s, E, http=None, now=NOW0 + 60, adapter_for=lambda n: fa, entries=E, publish=False)
+    assert all(o.ok for o in outs) and n_rows(s, "USCPI") == 44     # parent unchanged
+    assert n_rows(s, "USCPIMOM") == 43
+    before = n_rows(s)
+    fa2 = FakeAdapter([{"observations": HIST}], name="bls")
+    ingest.backfill(s, E, http=None, now=NOW0 + 120, adapter_for=lambda n: fa2, entries=E, publish=False)
+    assert n_rows(s) == before                                       # idempotent, no new vintages

@@ -13,7 +13,7 @@
 // hides; the back control exists, is a real button, and goes back to the right list)
 // and the STRUCTURAL half (the phone rule itself, in the media block that applies at
 // 390 and not at 820). The real-browser verdict is d2_phone_measure.py's `deep` row.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -64,6 +64,16 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => nu
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
 vi.mock('../components/notebook/ResearchHome', () => ({
   default: () => <div data-testid="research-home">Research Home</div>,
+}))
+// D-7's own tests below switch view mode -- NotesTableView (an icon-row mode) and
+// NoteTasksView (reached by its own `?view=tasks` URL too) stand in for the six
+// content-first modes so switching doesn't try to lazy-load and render the real
+// ones (NoteBoardView.test.jsx etc. already cover their own content).
+vi.mock('../components/notebook/NotesTableView', () => ({
+  default: () => <div data-testid="notes-table" />,
+}))
+vi.mock('../components/notebook/NoteTasksView', () => ({
+  default: () => <div data-testid="note-tasks" />,
 }))
 
 import NotebookTab from './NotebookTab'
@@ -190,6 +200,75 @@ describe('D-1 -- a ?note= link opens the note (rendered)', () => {
   })
 })
 
+// ── D-7 (design re-review, docs/notebook/design-review-2.md): a content-first
+// view mode collapses the SAME sidebar the desktop toggle already controls, at
+// phone width only. jsdom applies no CSS, so this cannot see "the tree is 0
+// width" -- it proves the STATE change (the "Show folders panel" toggle,
+// conditionally rendered only while collapsed, is the rendered signal) and that
+// it is scoped to phone width, exactly like NotebookTab.phoneNote's own D-1
+// blocks prove `data-note-open` rather than the pixels it produces.
+const realWidth = window.innerWidth
+const setWidth = (w) => Object.defineProperty(window, 'innerWidth', { value: w, configurable: true, writable: true })
+const showFoldersBtn = () => screen.queryByRole('button', { name: 'Show folders panel' })
+
+describe('D-7 -- a content-first view mode gives the view the first screen on a phone (rendered)', () => {
+  afterEach(() => setWidth(realWidth))
+
+  it('List, the default landing, never collapses the panel at phone width', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('switching to an icon-row mode (Table) at phone width collapses the panel', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    await screen.findByTestId('notes-table')
+    expect(showFoldersBtn()).not.toBeNull()
+  })
+
+  it('the SAME switch at 820px (not a phone) never collapses the panel', async () => {
+    setWidth(820)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    await screen.findByTestId('notes-table')
+    expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('the floating toggle -- the EXISTING control, never a new one -- reopens the panel', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    await screen.findByTestId('notes-table')
+    fireEvent.click(showFoldersBtn())
+    expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('Tasks -- reached by its own ?view=tasks URL -- ALSO collapses the panel (it shares the icon row and the same mechanism, even though this walk reached it by URL)', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=tasks')
+    await screen.findByTestId('note-tasks')
+    expect(showFoldersBtn()).not.toBeNull()
+  })
+
+  it('a note open at phone width is unaffected -- D-1/D-2\'s own mechanism still owns that case', () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all&note=n1')
+    expect(showFoldersBtn()).toBeNull()
+  })
+
+  it('CONTROL: the panel is genuinely reachable while collapsed -- toggling shows the real FolderSidebar again', async () => {
+    setWidth(390)
+    renderAt('/journal/notebook?view=all')
+    fireEvent.click(screen.getByRole('button', { name: 'Table view' }))
+    await screen.findByTestId('notes-table')
+    expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument() // never unmounted, only hidden by CSS
+    fireEvent.click(showFoldersBtn())
+    expect(screen.getByTestId('folder-sidebar')).toBeInTheDocument()
+  })
+})
+
 // ── the structural half: the phone rule, where it applies ──────────────────────
 const CSS = readFileSync(
   join(process.cwd(), 'src/pages/journal-2-0/tabs/NotebookTab.module.css'),
@@ -282,5 +361,51 @@ describe('D-1 -- the phone rule (structural; d2_phone_measure.py is the verdict)
   it('⭐ CONTROL -- the parser sees an absent rule as absent', () => {
     const without = '@media (max-width: 640px) { .sidebarSlot { width: 100% !important; } }'
     expect(declaresProp(mediaBodiesAt(without, 390).join('\n'), HIDE, 'display', /^none$/)).toBe(false)
+  })
+})
+
+// ── D-7 -- the phone rule (structural; the D-7 before/after walk is the verdict) ──
+// Before this fix, `.wrap.collapsed .sidebarSlot` was forced back to `width: 100%
+// !important` INSIDE the phone query -- collapsing did nothing at 390px, and the
+// floating toggle that would have reopened it was `display: none` there too, so
+// there was no way to hide the tree at phone width at all. Both are gone now: the
+// base (non-media) rule's `width: 0` (already true at every OTHER width) is left
+// to apply at phone as well, and the toggle is a real 44px control there.
+describe('D-7 -- the phone rule (structural)', () => {
+  const phone = mediaBodiesAt(CSS, 390).join('\n')
+  const base = baseRules(CSS)
+
+  it('⛔ NON-VACUITY -- a phone block was found and it still names the sidebar slot', () => {
+    expect(phone).toMatch(/sidebarSlot/)
+  })
+
+  it('at 390px, collapsed genuinely hides the panel: the BASE width:0 rule is not fought back open', () => {
+    expect(declaresProp(base, '.wrap.collapsed .sidebarSlot', 'width', /^0/)).toBe(true)
+    expect(declaresProp(phone, '.wrap.collapsed .sidebarSlot', 'width', /^100%/)).toBe(false)
+  })
+
+  it('at 390px, collapsed ALSO zeroes height -- measured live (drf-d7-board-390.png): width:0 alone left a ~450px gap, because `.wrap` is a COLUMN here and a 0-width box still reports the height its now one-character-per-line content wraps to', () => {
+    expect(declaresProp(phone, '.wrap.collapsed .sidebarSlot', 'height', /^0/)).toBe(true)
+  })
+
+  it('the floating toggle is no longer forced off at phone width -- it is the D-7 reveal control', () => {
+    expect(declaresProp(phone, '.sidebarToggle', 'display', /^none$/)).toBe(false)
+  })
+
+  it('the toggle is a real 44px finger target at every width (base rule, never phone-only)', () => {
+    expect(declaresProp(base, '.sidebarToggle', 'width', /tap-min/)).toBe(true)
+    expect(declaresProp(base, '.sidebarToggle', 'height', /tap-min/)).toBe(true)
+  })
+
+  it('the collapsed main column keeps clear of the (now larger) toggle, at every width', () => {
+    expect(declaresProp(base, '.wrap.collapsed .main', 'padding-left', /^62px$/)).toBe(true)
+    // no phone-specific override left pulling it back down to the old, now-too-small 20px
+    expect(declaresProp(phone, '.wrap.collapsed .main', 'padding-left', /.+/)).toBe(false)
+  })
+
+  it('⭐ CONTROL -- the parser sees the OLD forced-open declaration when it is there', () => {
+    const old = mediaBodiesAt('@media (max-width: 640px) { .wrap.collapsed .sidebarSlot { width: 100% !important; } }', 390).join('\n')
+    expect(declaresProp(old, '.wrap.collapsed .sidebarSlot', 'width', /^100%/)).toBe(true)
+    expect(declaresProp(old, '.wrap.collapsed .sidebarSlot', 'width', /^0/)).toBe(false)
   })
 })

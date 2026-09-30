@@ -140,6 +140,22 @@ const SB_MIN = 190
 const SB_MAX = 520
 const SB_DEFAULT = 260
 
+// Wave 10 lane DR-F (design finding D-7): on a phone the folder/tag tree is
+// long (Recents, All notes/Unfiled/Archived/Trash, a folder tree, tags) and,
+// like the rest of this page, simply stacks ahead of whatever comes next in
+// document order. List's own landing tolerates that (the reviewer's own
+// verdict: "no folder panel ahead of the note list", D-1/D-2 closed) because
+// it is reached by a fresh navigation — scroll position 0, the member scrolls
+// PAST the tree at their own pace. Every other mode in VIEW_MODES is reached
+// by a same-page click on the view-switcher icon row, which does not reset
+// scroll: the member is already scrolled down to where that row sits, the new
+// view's content starts right there, and on a short phone viewport that is
+// mostly below the fold — further covered by the fixed Log-Trade button and
+// voice orb (design-review-2.md D-7, reproduced at 390px). Derived from
+// VIEW_MODES rather than a second hand-typed list, so a mode added there is
+// covered the day it lands, never silently exempted.
+const CONTENT_FIRST_PHONE_MODES = new Set(VIEW_MODES.map((m) => m.id).filter((id) => id !== 'list'))
+
 // Obsidian-style "toggle left panel" glyph — a rounded frame with the left
 // column filled, matching the button the user referenced.
 function SidebarToggleIcon() {
@@ -449,6 +465,30 @@ export default function NotebookTab() {
   // lists as cards. Unlike the Trash its notes still open (archive is not trash).
   const isArchiveView = folderId === ARCHIVED_FOLDER
   const isShelfView = isTrashView || isArchiveView
+
+  // D-7 fix: on a phone, give a content-first view mode the first screen by
+  // collapsing the SAME sidebar the desktop toggle already controls — never a
+  // second, parallel piece of state. `sidebarOpen` still defaults to true
+  // (List's own landing, and the very first paint of any mode, are
+  // unaffected until this fires), and nothing here writes the member's
+  // persisted preference (`toggleSidebar`, an explicit tap, still does that
+  // via localStorage) — this is a transient, per-view-mode default. Reading
+  // `window.innerWidth` directly here (rather than `useIsTouch()`) is
+  // deliberate and matches this file's own click-triggered-state convention:
+  // it runs in response to the view-mode CHANGE, not on every render, so the
+  // useMediaQuery staleness gotcha (CLAUDE.md, "Responsive / Mobile System")
+  // does not apply. The panel stays reachable either way: collapsed, the
+  // floating `.sidebarToggle` un-hides at phone width (NotebookTab.module.css)
+  // to reopen it; open, FolderSidebar's own header button closes it again
+  // (`.sbHeader > .sbHeaderBtn`, likewise un-hidden at phone for this).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.innerWidth > 640) return
+    if (isShelfView || noteId) return
+    if (!CONTENT_FIRST_PHONE_MODES.has(viewMode)) return
+    setSidebarOpen(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode, isShelfView, noteId])
 
   // `total` is the TRUE count from SQL for this filter set (folder/tag), never
   // the length of `notes` — a migrated library of thousands of notes must see
@@ -1851,7 +1891,15 @@ export default function NotebookTab() {
           ) : (
             <select
               className={styles.sortSelect}
-              value={sort}
+              // FX4 (wave 10, coordinator round 2): the Table view's header
+              // buttons can now set `sort` to a DIRECTIONAL value
+              // (`updated_asc`/`title_desc`) this dropdown has no option
+              // for -- an unmapped `value` renders as an unselected control,
+              // which would read as "nothing chosen" while the table is very
+              // much sorted. Show the FIELD regardless of direction; picking
+              // an option here still resets to that field's natural
+              // direction, which is the expected behavior either way.
+              value={sort === 'updated_asc' ? 'updated' : sort === 'title_desc' ? 'title' : sort}
               onChange={(e) => setSort(e.target.value)}
               // Wave 8 (8A, axe select-name): a select with no name is read as
               // "combo box, Recently updated" with nothing saying what it orders.
@@ -1888,21 +1936,38 @@ export default function NotebookTab() {
                 lived only in a CSS class, which is invisible to it by
                 definition. Written once, the attribute cannot be on four of
                 them and off the fifth.
+
+                ⛔⛔ FX2 (wave 10, proof-walk item 2): `aria-pressed` alone was not
+                enough — it was on buttons sitting in a bare `<div>`, and a
+                labelled `[role=group]`/`[role=radiogroup]`/`[role=tablist]`/
+                `[role=toolbar]` ancestor is what actually turns "pressed" into
+                "the currently active one of a related set" for assistive tech
+                (and is what this program's own dead-click instrument's
+                `current`-state check requires, `CONTROLS_JS` in
+                `tools/notebook_proof_walk.py`). A screen-reader user heard
+                seven identical "pressed"/"not pressed" buttons with no signal
+                they were one control. Each button already behaves like an
+                independent toggle (Tab visits each one, Enter/Space fires it) —
+                the WAI-ARIA "group of toggle buttons" pattern, which needs no
+                roving-tabindex change — so the fix is the missing group role
+                and its label, not new keyboard behaviour.
               */}
-              {VIEW_MODES.map(({ id, icon, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
-                  onClick={() => setViewMode(id)}
-                  disabled={Boolean(activeView)}
-                  aria-pressed={viewMode === id}
-                  aria-label={label}
-                  title={label}
-                >
-                  <UIcon name={icon} size={14} gold={false} />
-                </button>
-              ))}
+              <div className={styles.viewModeGroup} role="group" aria-label="View">
+                {VIEW_MODES.map(({ id, icon, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`${styles.viewModeBtn} ${viewMode === id ? styles.viewModeActive : ''}`}
+                    onClick={() => setViewMode(id)}
+                    disabled={Boolean(activeView)}
+                    aria-pressed={viewMode === id}
+                    aria-label={label}
+                    title={label}
+                  >
+                    <UIcon name={icon} size={14} gold={false} />
+                  </button>
+                ))}
+              </div>
               {/*
                 ⛔ NO "Save this view" IN GRAPH MODE -- still true, for a
                 DIFFERENT reason than this comment used to give. The server's

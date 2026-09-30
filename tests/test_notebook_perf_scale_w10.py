@@ -217,6 +217,88 @@ def test_main_curve_against_a_thresholds_file(tmp_path, capsys, quiet_sink):
     assert code == 2 and "BREACH [curve]" in capsys.readouterr().out
 
 
+# ── 2b. D22 (controller, owner-delegated 2026-09-30): the curve's default connection model ────
+#
+# Standard 14's "no super-linear curve" clause reads the model production actually opens its
+# notes-store connections under -- a fresh one per call (auth_db.get_connection), not the
+# benchmark's own long-lived one. The bench/shared model -- what every curve reading up to and
+# including PR #252 ran under -- is kept as a DIAGNOSTIC: reported beside the primary reading,
+# its breach recorded, never hidden, and never gating.
+
+_D22_TH = lambda max_slope=1000: {  # noqa: E731 -- a tiny fixture, not a public name
+    "curve": {"tiers": [80, 150], "max_slope": max_slope, "max_last_segment_slope": 1000, "why": "t"},
+}
+
+
+def test_curve_defaults_to_per_call_and_the_bench_model_runs_as_a_diagnostic(tmp_path, capsys, quiet_sink):
+    """A bare --curve (no --connection) gates clause 14d in the per-call model, and the bench
+    model runs automatically beside it in the SAME report, reported and never gating."""
+    th = tmp_path / "th.json"
+    th.write_text(json.dumps(_D22_TH()), encoding="utf-8")
+    out_json = tmp_path / "report.json"
+    code = bench.main(["--curve", "--tiers", "80,150", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--thresholds", str(th), "--json", str(out_json)])
+    text = capsys.readouterr().out
+    assert code == 0, text
+    report = json.loads(out_json.read_text(encoding="utf-8"))
+    # the report NAMES which model it measured, in the machine-readable form and in prose
+    assert report["meta"]["connection"] == "per-call"
+    assert report["meta"]["connection_explicit"] is False
+    assert report["meta"]["connection_diagnostic"] == "shared"
+    assert "connection model: per-call" in text and "D22" in text
+    # the bench model's own curve is IN THE SAME REPORT, beside the primary one -- not hidden
+    assert "curve_diagnostic" in report and report["curve_diagnostic"]["connection"] == "shared"
+    assert report["curve_diagnostic"]["breaches"] == []          # recorded either way; here: none
+    assert "=== Curve DIAGNOSTIC (connection=shared" in text
+    assert "diagnostic shared: 0 breach(es) recorded, not gating" in text
+
+
+def test_the_bench_model_stays_explicitly_selectable_and_disables_the_diagnostic(tmp_path, capsys, quiet_sink):
+    """`--connection shared`, given explicitly, is honored exactly as asked: ONLY that model
+    runs (no automatic per-call diagnostic pass) -- the bench model is still selectable on its
+    own, same as before D22."""
+    th = tmp_path / "th.json"
+    th.write_text(json.dumps(_D22_TH()), encoding="utf-8")
+    out_json = tmp_path / "report.json"
+    code = bench.main(["--curve", "--tiers", "80,150", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--thresholds", str(th), "--connection", "shared",
+                       "--json", str(out_json)])
+    text = capsys.readouterr().out
+    assert code == 0, text
+    report = json.loads(out_json.read_text(encoding="utf-8"))
+    assert report["meta"]["connection"] == "shared"
+    assert report["meta"]["connection_explicit"] is True
+    assert report["meta"]["connection_diagnostic"] is None
+    assert "curve_diagnostic" not in report
+    assert "DIAGNOSTIC" not in text
+
+
+def test_an_explicit_per_call_also_disables_the_automatic_diagnostic(tmp_path, capsys, quiet_sink):
+    th = tmp_path / "th.json"
+    th.write_text(json.dumps(_D22_TH()), encoding="utf-8")
+    code = bench.main(["--curve", "--tiers", "80,150", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--thresholds", str(th), "--connection", "per-call"])
+    text = capsys.readouterr().out
+    assert code == 0, text
+    assert "connection model: per-call (explicit)" in text
+    assert "DIAGNOSTIC" not in text
+
+
+def test_a_curve_breach_under_the_default_per_call_model_still_gates_and_the_diagnostic_still_runs(
+        tmp_path, capsys, quiet_sink):
+    """A defaulted (not explicit) run still GATES on the per-call model's own breach, and the
+    bench-model diagnostic still runs and is reported even when the primary reading already
+    breached -- its breach (if any) is recorded, never gating, never silently skipped."""
+    th = tmp_path / "th.json"
+    th.write_text(json.dumps(_D22_TH(max_slope=-1000)), encoding="utf-8")   # impossible: forces a breach
+    code = bench.main(["--curve", "--tiers", "80,150", "--reps", "1", "--warmup", "0", "--paragraphs", "1",
+                       "--work-dir", str(tmp_path), "--thresholds", str(th)])
+    text = capsys.readouterr().out
+    assert code == 2 and "BREACH [curve]" in text
+    assert "connection model: per-call" in text
+    assert "=== Curve DIAGNOSTIC (connection=shared" in text          # still ran, still reported
+
+
 # ── 3. the ratio check (R-10) ─────────────────────────────────────────────────
 
 def test_the_ratio_line_is_the_budget_line_at_the_reference_boxs_speed():

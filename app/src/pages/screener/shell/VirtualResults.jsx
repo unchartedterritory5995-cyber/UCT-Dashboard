@@ -6,6 +6,7 @@ import UIcon from '../../../components/ui/UIcon'
 import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS, descFor, DESC_TRIGGER_W } from '../columnDefs'
 import ColumnDesc from './ColumnDesc'
+import { nextSort, ariaSortFor } from '../../../lib/presentation/dataGrid'
 import styles from './ScannerShell.module.css'
 
 // The virtualized grid-table door: an ARIA grid on top of @tanstack/react-virtual.
@@ -97,11 +98,12 @@ const VirtualResults = forwardRef(function VirtualResults({ rows, columns, sort,
   }, [last?.index, hasMore, isLoading, displayRows.length, onLoadMore])
 
   const gridCols = columns.map(colWidth).join(' ')
-  const toggleSort = key => onSort(s => s && s.key === key
-    ? { key, dir: s.dir === 'desc' ? 'asc' : 'desc' }
-    : { key, dir: 'desc' })
-  const ariaSort = key => sort?.key === key
-    ? (sort.dir === 'desc' ? 'descending' : 'ascending') : 'none'
+  // TERM-065: the sort DECISIONS come from the DataGrid seed; the sort STATE stays
+  // in ScannerShell (the screener sorts server-side). A new column starts
+  // descending, the seed's default. `screenerGrid.seedParity.test.jsx` holds the
+  // hand-rolled grid's own output, recorded before this line changed.
+  const toggleSort = key => onSort(s => nextSort(s, key))
+  const ariaSort = key => ariaSortFor(sort, key, 'none')
 
   const cellValue = (row, key) => {
     const lp = livePrices?.[row.ticker]

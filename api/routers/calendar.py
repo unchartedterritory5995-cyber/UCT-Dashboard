@@ -3927,7 +3927,15 @@ def _build_vevent(sym: str, report_date: str, timing: str) -> str:
 _ICS_NOTICE_UID = "uct-calendar-link-notice@uctintelligence.com"
 
 
-def _build_notice_vevent(summary: str) -> str:
+#: TERM-084 (c): `scope=all` is anonymous, so it is BOUNDED rather than gated -- the
+#: calendar's own Export falls back to it for a member without a token, and a gate
+#: would break that download. Nearest reports first (the list is date-sorted), and a
+#: cut calendar SAYS it was cut, inside the member's calendar app.
+ICS_ALL_MAX_EVENTS = int(os.environ.get("ICS_ALL_MAX_EVENTS", "1000") or 1000)
+_ICS_TRUNCATED_UID = "uct-earnings-truncated@uctintelligence.com"
+
+
+def _build_notice_vevent(summary: str, uid: str | None = None) -> str:
     """One all-day event on TODAY (ET, from the injected clock) telling the member,
     inside their own calendar app, that their subscribe link needs refreshing.
 
@@ -3940,7 +3948,7 @@ def _build_notice_vevent(summary: str) -> str:
     d1 = (today + timedelta(days=1)).strftime("%Y%m%d")
     return (
         "BEGIN:VEVENT\r\n"
-        f"UID:{_ICS_NOTICE_UID}\r\n"
+        f"UID:{uid or _ICS_NOTICE_UID}\r\n"
         f"DTSTART;VALUE=DATE:{d0}\r\n"
         f"DTEND;VALUE=DATE:{d1}\r\n"
         f"SUMMARY:{summary}\r\n"
@@ -4231,7 +4239,16 @@ def export_calendar_ics(
         _logger.warning("[ics] collect reporters failed: %s", e)
         reporters = []
 
+    truncated = None
+    if scope != "mine" and len(reporters) > ICS_ALL_MAX_EVENTS:
+        truncated = len(reporters)
+        reporters = reporters[:ICS_ALL_MAX_EVENTS]
     vevents = [_build_vevent(sym, ds, timing) for sym, ds, timing in reporters]
+    if truncated:
+        vevents.append(_build_notice_vevent(
+            f"UCT: showing the next {ICS_ALL_MAX_EVENTS} of {truncated} earnings reports"
+            " - export My Stocks from UCT Calendar for your names",
+            uid=_ICS_TRUNCATED_UID))
     if notice:
         vevents.append(_build_notice_vevent(notice))
     body = _build_vcalendar(vevents)

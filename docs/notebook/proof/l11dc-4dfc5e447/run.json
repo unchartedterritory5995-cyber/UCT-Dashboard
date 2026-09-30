@@ -1,0 +1,70 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {},
+ "tip": "4dfc5e4470e2391d565806e8cba9e67abfd0554a",
+ "sweeps": [
+  "deadclick"
+ ],
+ "only": [],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "started": "2026-09-30T05:36:56-0500",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\l11dc-data",
+ "base": "http://127.0.0.1:8353",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8353 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-l11\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T05-36-58.md (identity 79399a247a32..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\l11dc-data)"
+ },
+ "axe_core": {
+  "path": "app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r053744",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "6bae06ccd95f4c4a818fe2de5b664b41",
+  "share_url": "/share/n/y2QnrTdIh-ELriTfiHHVQftpR3fWy2bk",
+  "publish_url": "/p/sKzT9FE2A1-WLa7v2QrMDA",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "6f791177fb004ba5862a1a404771fd57",
+  "first_run_account": "fresh1",
+  "first_run_note": "c545822530e840c4beb2706945344c74",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 63.0
+}

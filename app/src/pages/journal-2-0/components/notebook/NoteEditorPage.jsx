@@ -216,6 +216,144 @@ export function canRunHistory(editor, cmd) {
   try { return Boolean(editor.can()[cmd]?.()) } catch { return false }
 }
 
+/**
+ * Wave 10 (TY, standard 4 -- typing budget): the toolbar-sync SIGNATURE the
+ * `transaction` / `selectionUpdate` listeners below compare against, so a
+ * keystroke that leaves every one of these values unchanged triggers NO
+ * re-render of the whole editor page -- see `toolbarStateReducer`.
+ *
+ * ⛔⛔ THE AUDIT (owner finding, L12 full proof walk 62e252649, G-131 touch
+ * BROKEN after this reducer landed): every value the NoteEditorPage SUBTREE
+ * reads from `editor.state` / `editor.isActive` / `editor.getAttributes` /
+ * `editor.can()` at RENDER time, live, with no subscription of its own --
+ * cross-referenced against the field that covers it. A component with its OWN
+ * `editor.on('transaction', …)` (LinkPasteMenu, NoteStats, NoteOutline, and
+ * -- added by this same finding -- TableToolbar) is NOT in this list: it
+ * re-renders itself and this reducer cannot make it stale. TableToolbar was
+ * the first one FOUND this way (`NoteEditorPage.wave6.test.jsx`'s "Add a row"
+ * hung behind the bailout before it got a field), but it reads FAR more than
+ * one boolean at render time -- `tableAtSelection`, then six commands' worth
+ * of `editor.can()` for its row/column buttons' disabled state, `sortable`,
+ * `ctx`, `width`, `header` -- every one of them selection- or doc-dependent,
+ * and every table EDIT is itself a transaction that touches none of the
+ * fields below. Enumerating all of those here would have been both fragile
+ * and the wrong shape; giving the bar its own subscription (mirroring
+ * LinkPasteMenu) is what removed `inTable` from this signature entirely. A
+ * component that only reads `editor` inside an EVENT HANDLER (CaptureInboxTray's
+ * `place()`, the task-jump effect, the conflict-merge path) is not in this
+ * list either -- those run at click/effect time, never render time, so they
+ * always see the live editor regardless of this bailout.
+ *
+ *   read (file:line)                                           | field
+ *   ------------------------------------------------------------|----------------
+ *   NoteEditorPage.jsx isActive('bold')                          | bold
+ *   NoteEditorPage.jsx isActive('italic')                        | italic
+ *   NoteEditorPage.jsx isActive('heading',{level:1})             | h1
+ *   NoteEditorPage.jsx isActive('heading',{level:2})             | h2
+ *   NoteEditorPage.jsx isActive('bulletList')                    | bulletList
+ *   NoteEditorPage.jsx isActive('orderedList')                   | orderedList
+ *   NoteEditorPage.jsx isActive('blockquote')                    | blockquote
+ *   NoteEditorPage.jsx isActive('codeBlock')                     | codeBlock
+ *   NoteEditorPage.jsx getAttributes('textStyle').fontFamily     | fontFamily
+ *   NoteEditorPage.jsx getAttributes('textStyle').fontSize       | fontSize
+ *   NoteEditorPage.jsx getAttributes('textColor').color          | textColor
+ *   NoteEditorPage.jsx canRunHistory(editor,'undo'/'redo')       | canUndo/canRedo
+ *   TextColorMenu.jsx `editor.getAttributes('textColor').color`  | textColor (shared)
+ *   TextColorMenu.jsx `editor.isActive('highlight')`             | highlightActive
+ *   TextColorMenu.jsx `editor.getAttributes('highlight').color`  | highlightColor
+ *
+ * `isActive` / `getAttributes` resolve against the CURRENT SELECTION, never a
+ * document walk, so every row above is O(1) per keystroke regardless of note
+ * size. A field added to ANY of these render reads -- this file's JSX or a
+ * child that does not self-subscribe -- must be added here too, or it goes
+ * stale behind a bailed-out render; `NoteEditorPage.toolbarSignatureAudit.test.js`
+ * greps this file and TextColorMenu.jsx for exactly this shape and fails BY
+ * NAME on an uncovered one. A component whose render-time reads are numerous
+ * or fine-grained (TableToolbar's shape) should get ITS OWN subscription
+ * instead of growing this list -- re-rendering one small floating bar every
+ * keystroke costs nothing the typing budget measures.
+ *
+ * ⛔⛔ `selectionEmpty` (`editor.state.selection.empty`) closes the gap the
+ * walk actually exercises: `TextColorMenu.jsx`'s `apply()` calls
+ * `editor.chain().focus().setTextColor(...)`, and a color/highlight command
+ * run against an EMPTY selection sets a STORED MARK for the next character
+ * typed -- it colors NOTHING already on the page, so the note's HTML shows no
+ * mark at all ("no colour mark in the note" is exactly what that produces).
+ * `select text -> open the picker -> pick a swatch` is a SELECTION
+ * transitioning empty -> non-empty immediately before the picker opens --
+ * precisely the shape none of the other fields track, since none of them
+ * describe "is there a selection", only what marks/blocks apply to wherever
+ * it is. Tracked as a BOOLEAN, not the selection's `from`/`to` range:
+ * continuous typing keeps the cursor collapsed throughout (`empty` stays
+ * `true` the entire time), so the typing budget's win is UNCHANGED -- only
+ * the act of selecting text (or replacing one), which is not itself a
+ * keystroke the 16 ms/char budget measures, now pays the one render it needs.
+ *
+ * ⛔⛔ `canBlockquote` (second G-131 finding, L12 full walk 62e252649 +
+ * `docs/notebook/proof/l12full-62e252649/deadclick.json`): the dead-click
+ * sweep read the ❝ button DEAD right after "1. List" on BOTH `nb-note` and
+ * `ed-property`. Measured directly (`editor.can().toggleBlockquote()`,
+ * `app/src/pages/journal-2-0/lib/__bqProbe.test.js`, real buildExtensions()):
+ * the selection was collapsed inside an ordered-list item's paragraph, and
+ * `toggleBlockquote().run()` genuinely returns `false` there and changes
+ * NOTHING -- the same click on a plain paragraph (no list) works exactly as
+ * expected (`can()===true`, HTML gains a `<blockquote>`). This is PROSEMIRROR
+ * SCHEMA, not a regression: `listItem`'s content expression is `paragraph
+ * block*`, so wrapping its one paragraph in a blockquote would leave the
+ * listItem without the leading `paragraph` the schema requires, and
+ * `findWrapping` correctly refuses. It was refused before e1999ca5f too --
+ * the pre-bailout walk's "LIVE" verdict
+ * (`docs/notebook/proof/l12dc-0100a3032/deadclick.json`) was a FALSE
+ * POSITIVE: its only recorded effects were `attributes:type` mutations on
+ * two unrelated INPUT elements (Add-a-tag, Upload-image) -- collateral DOM
+ * churn from the OLD whole-page re-render, not the blockquote toggle. And
+ * `blockquote: editor.isActive('blockquote')` was already in THIS reducer
+ * the moment e1999ca5f introduced it (verified: `git show
+ * e1999ca5f -- NoteEditorPage.jsx | grep blockquote`), so the button's
+ * pressed state was never missing from the signature either -- 3b6e6fde4
+ * changes NOTHING about this outcome. The real gap: nothing told the MEMBER
+ * the click did nothing. `canBlockquote` closes it -- mirrors
+ * `canUndo`/`canRedo`'s `canRunHistory(editor, cmd)` pattern exactly, so the
+ * button now renders `disabled` with a reason instead of silently eating
+ * the tap.
+ */
+export function readToolbarFormatState(editor) {
+  return {
+    bold: editor.isActive('bold'),
+    italic: editor.isActive('italic'),
+    h1: editor.isActive('heading', { level: 1 }),
+    h2: editor.isActive('heading', { level: 2 }),
+    bulletList: editor.isActive('bulletList'),
+    orderedList: editor.isActive('orderedList'),
+    blockquote: editor.isActive('blockquote'),
+    canBlockquote: canRunHistory(editor, 'toggleBlockquote'),
+    codeBlock: editor.isActive('codeBlock'),
+    fontFamily: editor.getAttributes('textStyle').fontFamily || '',
+    fontSize: editor.getAttributes('textStyle').fontSize || '',
+    textColor: editor.getAttributes('textColor').color || '',
+    highlightActive: editor.isActive('highlight'),
+    highlightColor: editor.isActive('highlight') ? (editor.getAttributes('highlight').color || 'yellow') : '',
+    canUndo: canRunHistory(editor, 'undo'),
+    canRedo: canRunHistory(editor, 'redo'),
+    selectionEmpty: Boolean(editor.state?.selection?.empty),
+  }
+}
+
+/**
+ * `prev` starts `null`, so the first call after mount always re-renders once
+ * (matches the old unconditional-bump behaviour). After that, returning the
+ * SAME object reference when nothing changed is what lets React bail out of
+ * re-rendering NoteEditorPage's subtree (`useReducer`'s documented
+ * Object.is bailout) -- never a value the render reads, only a value it is
+ * keyed on, so this changes WHEN the page re-renders, never WHAT it renders.
+ */
+export function toolbarStateReducer(prev, editor) {
+  if (!editor || editor.isDestroyed) return prev
+  const next = readToolbarFormatState(editor)
+  if (prev && Object.keys(next).every((k) => prev[k] === next[k])) return prev
+  return next
+}
+
 // G-064 fix round 1 (F5) — ONE string, read by both the direct-click insert
 // path and the pending-hand-off path, so the two can never say something
 // different about the same outcome.
@@ -476,13 +614,23 @@ export function NoteLinkedTradeChips({ noteId }) {
  * press never runs it twice: the `mousedown` that ran it marks the press, and the `click` that
  * follows is swallowed. A key pressed on the button clears that mark first, so a keyboard
  * activation always acts. Rail: NoteEditorPage.toolButtonKeyboard.test.jsx.
+ *
+ * ⛔ `disabled` (G-131 second finding): a native `disabled` button receives
+ * NO mousedown/click at all from the browser, so passing it through is
+ * sufficient on its own -- the G-160 press/click dedup above still only
+ * matters for an ENABLED button and is untouched for one. `title` doubles as
+ * the disabled-state REASON when the caller passes one; a member who taps a
+ * disabled tool sees why, rather than a click that silently did nothing
+ * (`lesson: a control that can be dismissed [here: refused] needs the member
+ * to know it, not just a developer reading the registry`).
  */
-function ToolButton({ active, onClick, label, title }) {
+function ToolButton({ active, onClick, label, title, disabled }) {
   const ranOnPressRef = useRef(false)
   return (
     <button
       type="button"
-      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''}`}
+      className={`${styles.toolBtn} ${active ? styles.toolBtnActive : ''} ${disabled ? styles.toolBtnDisabled : ''}`}
+      disabled={disabled}
       onMouseDown={(e) => { e.preventDefault(); ranOnPressRef.current = true; onClick() }}
       onKeyDown={() => { ranOnPressRef.current = false }}
       onClick={() => {
@@ -493,6 +641,33 @@ function ToolButton({ active, onClick, label, title }) {
       aria-label={title}
     >{label}</button>
   )
+}
+
+/**
+ * ⛔⛔ FX2 (wave 10, proof-walk item 3), `unsentInEditor`'s companion to
+ * `canonicalBodyJson`: StarterKit's TrailingNode extension appends an empty
+ * paragraph via `appendTransaction` whenever a doc's last node is not
+ * already one -- a PLUGIN hook that fires on the editor's own initial
+ * content-load transaction, never on a bare schema parse. So
+ * `editorRef.current.getJSON()` carries that trailing paragraph the moment
+ * the editor mounts a note whose last node is a table, code block,
+ * block-math node, callout or task list, and a schema-only parse of the
+ * server's raw JSON never will. Strips exactly ONE trailing paragraph with
+ * NO content (never one holding a member's real, if empty-looking, mark or
+ * text node -- `content` absent or `[]` only) from a doc's top-level
+ * `content` array, symmetrically on whichever side has it, so the
+ * comparison this feeds cannot be fooled into calling a genuine last-line
+ * edit "nothing changed" (a paragraph the member actually typed into is
+ * never "empty" by this test) or into calling TrailingNode's own housekeeping
+ * an edit.
+ */
+function stripTrailingEmptyParagraph(doc) {
+  if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content) || !doc.content.length) return doc
+  const last = doc.content[doc.content.length - 1]
+  const isEmptyParagraph = last?.type === 'paragraph' && (!last.content || last.content.length === 0)
+    && !last.attrs && !last.marks
+  if (!isEmptyParagraph) return doc
+  return { ...doc, content: doc.content.slice(0, -1) }
 }
 
 export default function NoteEditorPage({
@@ -1929,12 +2104,15 @@ export default function NoteEditorPage({
   editorRef.current = editor
   const unreadable = useUnreadableNote(editor)
   // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
-  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
-  // counter on every selection/mark change to keep the toolbar in sync.
-  const [, bumpToolbar] = useReducer((x) => x + 1, 0)
+  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump
+  // on every selection/mark change to keep the toolbar in sync -- but through
+  // `toolbarStateReducer`, which bails out (same object reference) on a
+  // keystroke that changed neither the active marks/block nor undo/redo, so
+  // plain typing stops forcing a page-wide re-render (standard 4, O(1) check).
+  const [, bumpToolbar] = useReducer(toolbarStateReducer, null)
   useEffect(() => {
     if (!editor) return undefined
-    const update = () => bumpToolbar()
+    const update = () => bumpToolbar(editor)
     editor.on('transaction', update)
     editor.on('selectionUpdate', update)
     return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
@@ -2062,7 +2240,7 @@ export default function NoteEditorPage({
   useEffect(() => {
     if (!editor || editor.isDestroyed || unreadable || editor.isEditable === !locked) return
     editor.setEditable(!locked, false)
-    bumpToolbar()
+    bumpToolbar(editor)
   }, [editor, locked, unreadable])
 
   /**
@@ -2979,6 +3157,14 @@ export default function NoteEditorPage({
   // for 30 days, so the copy stays proportional rather than "permanently".
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const onDeleteRequest = () => setConfirmingDelete(true)
+  // ⛔ Wave 10 F7 (Part A, 5d): a failed trash said so via `chromeMsg`, which auto-dismisses
+  // 2.4s after it is set (see the effect above) -- gone long before the proof walk's own
+  // 6s wait looked, and gone well before a member who glanced away would look back. Read
+  // SILENT under BOTH a forced 500 and a forced-offline DELETE. `trashFailure` is the same
+  // "stays until dismissed" SaveFailed slot favorite/tag already use -- one write, one slot.
+  // Rail: a11y/silentFailures.test.jsx / NoteEditorPage.unsentTrash.test.jsx.
+  const [trashFailure, setTrashFailure] = useState(null)
+  useEffect(() => { setTrashFailure(null) }, [noteId])
   const trashNow = async () => {
     let res = null
     try {
@@ -2991,6 +3177,7 @@ export default function NoteEditorPage({
       // "a noteLink chip elsewhere in this tab is now stale" class as a
       // rename (Wave D closure pass finding), so the same cache-bust applies.
       invalidateNoteLinkTarget(noteId)
+      setTrashFailure(null)
       // Wave 8 (8A): say WHICH note went, so the list can put focus on the
       // row after it (NotebookTab.closeNote).
       onBack({ trashed: noteId })
@@ -2999,7 +3186,11 @@ export default function NoteEditorPage({
     // ⛔ M15 (wave 6 fix round 1): a refused or dropped Delete says so -- a fixed
     // sentence, never the server's words. It used to do nothing at all, so
     // "Trash anyway" closed its dialog and the note simply stayed.
-    setChromeMsg('Couldn’t move this note to the Trash — try again.')
+    // ⛔ NEVER TRASHED. `res?.ok` was never true, so the note this editor is
+    // showing was never removed from the server or navigated away from --
+    // there is no optimistic removal on this path to roll back, only the
+    // member's belief that Delete worked, which this sentence corrects.
+    setTrashFailure('Couldn’t move this note to the Trash. Nothing changed.')
   }
 
   // ⛔ Wave 6 item 11 — A NOTE STILL HOLDING UNSENT WORDS IS NOT TRASHED UNASKED.
@@ -3020,6 +3211,55 @@ export default function NoteEditorPage({
     }
   }
   /**
+   * ⛔⛔ FX2 (wave 10, proof-walk item 3): `cur.bodyJson` is
+   * `editorRef.current.getJSON()` -- ProseMirror's OWN serialization, which
+   * fills in every node/mark's declared attribute defaults (a table cell's
+   * `colspan`/`rowspan`/`colwidth`, and the same shape for callouts, task
+   * items and block-math). `last.bodyJson` was never round-tripped through
+   * that schema -- it is the RAW JSON the server returned on load, which for
+   * a note authored with minimal attrs (most imports, and every fixture in
+   * this program's own seed data) never carried those defaults at all. Two
+   * documents describing the SAME content then serialize to two DIFFERENT
+   * JSON strings, and a note that was never edited reads as "the note's
+   * text" is unsent -- reached live, on a note with a table, a code block, a
+   * block-math node, a callout or a task list, immediately after opening it
+   * and choosing Delete: the FIRST confirm produced "This note has words the
+   * server doesn't have yet" instead of trashing it. Reproduced for every one
+   * of those five node types (`docs/notebook/proof/fx2-<sha>/repro4-*.json`);
+   * a bare paragraph or heading was never affected, because neither node
+   * declares an attribute with a default.
+   *
+   * The fix compares like with like: `last.bodyJson` is parsed through the
+   * SAME schema and re-serialized ONCE before the comparison, so both sides
+   * carry the same filled-in defaults. Never throws -- a body the schema
+   * cannot parse (a truly stale/incompatible shape) falls back to the RAW
+   * value, which is exactly today's comparison and therefore never a new
+   * failure mode, only a narrower one.
+   *
+   * ⛔⛔ ATTRIBUTE DEFAULTS ARE NOT THE ONLY GAP `nodeFromJSON` LEAVES.
+   * StarterKit's TrailingNode extension appends an empty paragraph via
+   * `appendTransaction` -- a PLUGIN hook, which only runs on a dispatched
+   * transaction, never on a bare `Schema.nodeFromJSON` parse -- whenever the
+   * doc's last node is not already a paragraph (a table, a code block, a
+   * block-math node, a callout, a task list: measured live, every one of
+   * them). So `editorRef.current.getJSON()` (`cur.bodyJson`) carries that
+   * trailing paragraph the moment the editor mounts, and a schema-only parse
+   * of the server's raw JSON never will. `stripTrailingEmptyParagraph`
+   * normalizes it away on BOTH sides (symmetric, so it costs nothing when
+   * neither side has one) rather than re-deriving TrailingNode's own rule
+   * (which node types need one) -- a second copy of that rule would drift
+   * the moment the editor's own trailing-node config changes.
+   */
+  const canonicalBodyJson = (json) => {
+    try {
+      const schema = editorRef.current?.schema
+      if (!schema || json == null) return json
+      return schema.nodeFromJSON(json).toJSON()
+    } catch {
+      return json
+    }
+  }
+  /**
    * What the EDITOR holds that the server's last copy does not -- the one
    * answer both the Delete gate and its dialog ask.
    *
@@ -3036,7 +3276,9 @@ export default function NoteEditorPage({
     if (cur && !baseHasNoBody(last)) {
       if ((cur.title || '') !== (last.title || '')) parts.push('the title')
       if ((cur.subtitle || '') !== (last.subtitle || '')) parts.push('the subtitle')
-      if (JSON.stringify(cur.bodyJson) !== JSON.stringify(last.bodyJson)) parts.push('the note’s text')
+      const curBody = stripTrailingEmptyParagraph(cur.bodyJson)
+      const lastBody = stripTrailingEmptyParagraph(canonicalBodyJson(last.bodyJson))
+      if (JSON.stringify(curBody) !== JSON.stringify(lastBody)) parts.push('the note’s text')
     }
     return parts
   }
@@ -3337,10 +3579,21 @@ export default function NoteEditorPage({
             {OFFLINE_VIEWING_BANNER}
           </div>
         )}
+        {/* ⛔ Wave 10 F7 (Part A, 5d): the retrying state used to put its whole sentence
+            (`friendlySaveError(..., {retrying:true})`, e.g. "Couldn't reach the server —
+            your note is unchanged, retrying automatically.") ONLY in the `title` tooltip
+            attribute, and rendered nothing but the single word "Reconnecting…" as VISIBLE
+            text. A member reading the screen -- never hovering a status line -- saw one word
+            with no explanation of what failed or whether their words were safe: the proof
+            walk's silent-failure sweep read this as SILENT under a forced-offline autosave
+            PUT (`is_sentence` requires 3+ words; "Reconnecting…" is one). The sentence is
+            now the VISIBLE text, same as the 'error' branch already did. */}
         {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
-          <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
-            {saveStatus === 'reconnecting' && 'Reconnecting…'}
-            {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
+          <div className={styles.saveStatus} role="status">
+            <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+            {saveStatus === 'reconnecting'
+              ? (saveErrorMsg || 'Reconnecting…')
+              : `Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}
           </div>
         )}
         <div className={styles.headerControls} data-tour="ask-row" ref={askRowRef}>
@@ -3409,6 +3662,7 @@ export default function NoteEditorPage({
           />
           <SaveFailed message={tagWriteFailure} onDismiss={() => setTagWriteFailure(null)} />
           <SaveFailed message={favoriteFailure} onDismiss={() => setFavoriteFailure(null)} />
+          <SaveFailed message={trashFailure} onDismiss={() => setTrashFailure(null)} />
           {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
           {/* Wave 10 lane K2 (D-3): Writing help and Outline moved up from the formatting row
               so the formatting row fits ONE line at 1200 px. Both keep their names, their
@@ -3720,6 +3974,8 @@ export default function NoteEditorPage({
               active={editor.isActive('blockquote')}
               onClick={() => editor.chain().focus().toggleBlockquote().run()}
               label="❝"
+              disabled={!canRunHistory(editor, 'toggleBlockquote')}
+              title={canRunHistory(editor, 'toggleBlockquote') ? undefined : "Quote isn't available inside a list -- exit the list first"}
             />
             <ToolButton
               active={editor.isActive('codeBlock')}

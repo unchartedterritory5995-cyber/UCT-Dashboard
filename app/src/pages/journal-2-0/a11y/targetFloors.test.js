@@ -444,3 +444,105 @@ describe('WK2: the widget palette head buttons reach 24px width (WidgetPalette.m
     expect(lastDecl(old, '.headBtn', 'min-width')).toBeUndefined()
   })
 })
+
+// Wave 10 lane DR-F (design re-review D-8, docs/notebook/design-review-2.md): the
+// SAME target-floor class D-6 closed on the editor, unaudited on six other 1200px
+// surfaces -- read against `record.json`/`detail.json`
+// (docs/notebook/proof/drr-ef55d6025/): the 16x16 row-selection checkbox on
+// List/Table/Templates/Search-result rows (one shared component, `NoteCard.jsx`,
+// covers all four; Table's own `.selectBox input` is a second, separate copy);
+// the board's 216x18 note-title link; the templates gallery's 76x21 "Preview"
+// button; and Timeline's own eight toolbar controls at 20-22px. Each below is a
+// genuine gap, not a WCAG 2.5.8 spacing/equivalent exception (the header comment
+// names those exceptions; none of these six have a bigger same-function control
+// beside them -- the checkbox's 32/28px wrapper is a bigger POINTER hit area, not
+// an independently reachable equivalent target).
+describe('D-8: the row-selection checkbox reaches 24px at 1200 (NoteCard.module.css, list/templates/search)', () => {
+  const card = rulesWithMedia(read(join(NB, 'NoteCard.module.css')))
+
+  it('the checkbox is at least 24x24 OUTSIDE any @media (desktop was never floored)', () => {
+    expect(px(lastDecl(card, '.selectBox input', 'width'))).toBeGreaterThanOrEqual(24)
+    expect(px(lastDecl(card, '.selectBox input', 'height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('the touch tier keeps its own 24x24 (A2R-10, unmoved by this fix)', () => {
+    expect(px(lastDecl(card, '.selectBox input', 'width', TOUCH))).toBeGreaterThanOrEqual(24)
+    expect(px(lastDecl(card, '.selectBox input', 'height', TOUCH))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (16x16, no base floor) fails the check', () => {
+    const old = rulesWithMedia(`.selectBox input { width: 16px; height: 16px; }
+      @media (max-width: 1024px) { .selectBox input { width: 24px; height: 24px; } }`)
+    expect(px(lastDecl(old, '.selectBox input', 'width'))).toBeLessThan(24)
+  })
+})
+
+describe('D-8: the row-selection checkbox reaches 24px at 1200 (NotesTableView.module.css, table)', () => {
+  const table = rulesWithMedia(read(join(NB, 'NotesTableView.module.css')))
+
+  it('the checkbox (a row\'s own, and "Select all notes in view") is at least 24x24 outside any @media', () => {
+    expect(px(lastDecl(table, '.selectBox input', 'width'))).toBeGreaterThanOrEqual(24)
+    expect(px(lastDecl(table, '.selectBox input', 'height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (16x16, no base floor) fails the check', () => {
+    const old = rulesWithMedia('.selectBox input { width: 16px; height: 16px; }')
+    expect(px(lastDecl(old, '.selectBox input', 'width'))).toBeLessThan(24)
+  })
+})
+
+describe('D-8: a board card\'s title link reaches 24px height (NoteBoardView.module.css)', () => {
+  const board = rulesWithMedia(read(join(NB, 'NoteBoardView.module.css')))
+
+  it('.cardTitle has a 24px height floor -- it is the ONLY way to open the note from a board card', () => {
+    expect(px(lastDecl(board, '.cardTitle', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('CONTROL: the measured declaration (padding: 0, no min-height) fails the check', () => {
+    const old = rulesWithMedia('.cardTitle { padding: 0; font-size: 13px; line-height: 1.35; }')
+    expect(lastDecl(old, '.cardTitle', 'min-height')).toBeUndefined()
+  })
+})
+
+describe('D-8: the templates gallery\'s "Preview" button reaches 24px height (TemplatePicker.module.css)', () => {
+  const tpl = rulesWithMedia(read(join(NB, 'TemplatePicker.module.css')))
+
+  it('.miniBtn has a 24px height floor outside any @media -- 76px wide already clears the width axis', () => {
+    expect(px(lastDecl(tpl, '.miniBtn', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('the touch tier still floors it further, to --tap-min', () => {
+    expect(lastDecl(tpl, '.miniBtn', 'min-height', TOUCH)).toBe('var(--tap-min)')
+  })
+
+  it('CONTROL: the measured declaration (padding only, no min-height) fails the check', () => {
+    const old = rulesWithMedia('.miniBtn { padding: 2px 8px; font-size: 11px; }')
+    expect(lastDecl(old, '.miniBtn', 'min-height')).toBeUndefined()
+  })
+})
+
+describe('D-8: all eight Timeline toolbar controls reach 24px height (NoteTimelineView.module.css)', () => {
+  const tl = rulesWithMedia(read(join(NB, 'NoteTimelineView.module.css')))
+
+  it('Place-by / Group-by (.control select) floor to 24px outside any @media', () => {
+    expect(px(lastDecl(tl, '.control select', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('Week/Month/Quarter and Previous/Next/Today (.zoomBtn, .navBtn) floor to 24px outside any @media', () => {
+    expect(px(lastDecl(tl, '.zoomBtn', 'min-height'))).toBeGreaterThanOrEqual(24)
+    expect(px(lastDecl(tl, '.navBtn', 'min-height'))).toBeGreaterThanOrEqual(24)
+  })
+
+  it('the touch tier still floors all three further, to --tap-min', () => {
+    expect(lastDecl(tl, '.control select', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(lastDecl(tl, '.zoomBtn', 'min-height', TOUCH)).toBe('var(--tap-min)')
+    expect(lastDecl(tl, '.navBtn', 'min-height', TOUCH)).toBe('var(--tap-min)')
+  })
+
+  it('CONTROL: the measured declarations (22px select, 20-21px buttons, no base floor) fail the check', () => {
+    const old = rulesWithMedia(`.control select { padding: 2px 6px; font-size: 12px; }
+      .zoomBtn, .navBtn { padding: 2px 8px; font-size: 12px; }`)
+    expect(lastDecl(old, '.control select', 'min-height')).toBeUndefined()
+    expect(lastDecl(old, '.zoomBtn', 'min-height')).toBeUndefined()
+  })
+})

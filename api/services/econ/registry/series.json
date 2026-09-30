@@ -4430,6 +4430,14 @@
       "frequency": "M",
       "seasonal_adjustment": "SA",
       "typical_release_time_et": "08:30"
+    },
+    "validation": {
+      "plausibility_exempt": [
+        {
+          "period": "1945-09-01",
+          "evidence": "BLS CES manufacturing employment (CES3000000001), Sep-1945: end of WWII war production after VJ Day (1945-08-15); authoritative BLS value, reviewed 2026-09-30"
+        }
+      ]
     }
   },
   {

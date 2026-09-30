@@ -754,6 +754,91 @@ _ROWS += [
 ]
 
 
+# ── THE ONE COT INDICATOR THAT FOLLOWS THE CHART (2026-09-30) ────────────────
+#
+# ⭐⭐ A MEMBER ADDS "COT (Commitment of Traders)" ONCE; THE CHART SYMBOL PICKS THE
+# MARKET. On QQQ it draws Nasdaq-100 E-Mini positioning, on GLD Gold, on TLT the
+# 30-Year T-Bond — and on a symbol with no related futures market (AAPL) it draws
+# NOTHING: no pane, no legend. The stored indicator names no market at all: its three
+# sources are `sym:COT:AUTO:<PART>:close`, and the chart swaps `AUTO` for the market
+# this table maps the chart symbol to, at render time, never in the saved blob.
+#
+# ⛔ UNLEVERED FUNDS AND INDEXES ONLY (owner, 2026-09-30). A 3× or inverse fund is a
+# different exposure, not a proxy; it stays unmapped and shows nothing. A market with
+# no fund here (lumber, cattle, the peso…) drops out of the product — its per-market
+# series stay resolvable, they are simply no longer offered.
+#
+# ⚠️ EVERY TARGET MUST BE A MARKET `cot_service` SERVES — checked at import, below.
+
+COT_FOLLOW = "AUTO"
+COT_FOLLOW_ID = "COT"
+COT_FOLLOW_DISPLAY = "COT (Commitment of Traders)"
+
+#: COT market → the chart symbols that show it, in the order a member would name them.
+COT_SYMBOLS_BY_MARKET = {
+    "ES": ("SPY", "IVV", "VOO", "SPYM", "SPX", "XSP"),   # SPYM = the renamed SPLG
+    "NQ": ("QQQ", "QQQM", "NDX", "XND"),
+    "YM": ("DIA", "DJX"),
+    "QR": ("IWM", "VTWO", "RUT"),
+    "EW": ("MDY", "IJH", "IVOO"),
+    "VI": ("VXX", "VIXY", "VIXM", "VIX"),
+    "GC": ("GLD", "IAU", "GLDM", "SGOL", "BAR", "AAAU"),
+    "SI": ("SLV", "SIVR"),
+    "HG": ("CPER",),
+    "PL": ("PPLT",),
+    "PA": ("PALL",),
+    "CL": ("USO", "USL", "DBO"),
+    "BZ": ("BNO",),
+    "RB": ("UGA",),
+    "NG": ("UNG", "UNL"),
+    "ZW": ("WEAT",),
+    "ZC": ("CORN",),
+    "ZS": ("SOYB",),
+    "SB": ("CANE",),
+    "ZB": ("TLT", "SPTL", "VGLT"),
+    "UD": ("EDV", "ZROZ"),
+    "ZN": ("IEF",),
+    "ZF": ("IEI",),
+    "ZT": ("SHY",),
+    "DX": ("UUP",),
+    "E6": ("FXE",),
+    "J6": ("FXY",),
+    "B6": ("FXB",),
+    "S6": ("FXF",),
+    "D6": ("FXC",),
+    "A6": ("FXA",),
+    "BTC": ("IBIT", "FBTC", "GBTC", "ARKB", "BITB", "BITO"),
+    "ETH": ("ETHA", "FETH", "ETHE"),
+}
+
+
+def _cot_symbol_map() -> dict:
+    out: dict = {}
+    for market, syms in COT_SYMBOLS_BY_MARKET.items():
+        if market not in COT_MARKETS:
+            raise ValueError(f"COT follow map names {market}, which cot_service does not serve")
+        for t in syms:
+            if t in out:
+                raise ValueError(f"{t} maps to two COT markets ({out[t]}, {market})")
+            out[t] = market
+    return out
+
+
+#: Chart symbol → COT market. ⛔ The ONE place a symbol is related to a market.
+COT_SYMBOL_MAP = _cot_symbol_map()
+
+
+def cot_market_for(symbol: str) -> Optional[str]:
+    """The COT market a chart symbol shows, or None (the indicator draws nothing)."""
+    return COT_SYMBOL_MAP.get((symbol or "").strip().upper())
+
+
+def cot_symbols_payload() -> dict:
+    """What the client needs to resolve `AUTO`: symbol → {market, name}."""
+    return {t: {"market": m, "name": _cot.SYMBOL_NAMES.get(m, m)}
+            for t, m in COT_SYMBOL_MAP.items()}
+
+
 # ── DELIBERATELY ABSENT, AND WHY ─────────────────────────────────────────────
 #
 # ⛔⛔ TRIN / ARMS INDEX IS NOT REGISTERED — not even dormant. A dormant row is a
@@ -915,6 +1000,11 @@ class Product:
     #: Colour TOKENS, one per component, resolved by the client's palette — never a raw
     #: hex here. Empty means "the client's default product palette".
     palette: tuple = ()
+    #: ⭐ WHETHER A MEMBER CAN FIND IT. An unlisted product still RESOLVES (a saved
+    #: chart, `COT:NQ` typed as a primary symbol) — it is only absent from the
+    #: browsable catalogue and search. The per-market COT products are unlisted: the
+    #: one follow-the-chart COT indicator replaced them (2026-09-30).
+    listed: bool = True
 
     @property
     def family_label(self) -> str:
@@ -1047,6 +1137,7 @@ def _cot_product(sym: str) -> Product:
         group_title=f"{market} · COT",
         group_note="Net Contracts",
         palette=("cot.commercials", "cot.largeSpecs", "cot.smallSpecs"),
+        listed=False,
     )
 
 
@@ -1063,6 +1154,10 @@ PRODUCT_COMPONENT_IDS = frozenset(
 
 def products() -> list[Product]:
     return list(PRODUCTS)
+
+
+def listed_products() -> list[Product]:
+    return [p for p in PRODUCTS if p.listed]
 
 
 def get_product(pid: str) -> Optional[Product]:

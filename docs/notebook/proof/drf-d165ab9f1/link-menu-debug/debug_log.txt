@@ -1,0 +1,30 @@
+[console:error] Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+[net] GET http://127.0.0.1:8396/api/j2/notes?folder_id=__unfiled__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/folder-counts -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes?sort=updated&limit=1&deleted=true -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes?folder_id=__archived__&sort=updated&limit=1 -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/recents -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/tags -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/favorites -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2 -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/excerpts -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/documents -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/facts -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/evidence-candidates -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes?sort=updated -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes?sort=title -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/thesis-summary -> 200
+[step] ProseMirror ready
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/trade-ref/resolve -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/backlinks -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/related-from -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/unlinked-mentions -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/properties -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/reviews -> 200
+[net] GET http://127.0.0.1:8396/api/j2/notes/recents -> 200
+[net] POST http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2/opened -> 200
+[dump after [[ ] {'popupPresent': True, 'popupHTML': '<div class="_popupWrap_b22hn_1" style="position: fixed; z-index: 9999; left: 1012px; top: 791.391px;"><div class="react-renderer"><div class="_menu_b22hn_7" role="listbox" id="uct-note-link-menu" aria-label="Link to a note"><div class="_empty_b22hn_95">No matching notes</div></div></div></div>', 'listboxPresent': True, 'listboxHTML': '<div class="_menu_b22hn_7" role="listbox" id="uct-note-link-menu" aria-label="Link to a note"><div class="_empty_b22hn_95">No matching notes</div></div>', 'bodyHasNoMatching': True}
+[net] GET http://127.0.0.1:8396/api/j2/notes?q=Beta&limit=8 -> 200
+[net] PUT http://127.0.0.1:8396/api/j2/notes/359e5c9051454d20a5c658efd28fd4d2 -> 200
+[dump after full query] {'popupPresent': False, 'popupHTML': None, 'listboxPresent': False, 'listboxHTML': None, 'bodyHasNoMatching': False}
+[dump after extra wait] {'popupPresent': False, 'popupHTML': None, 'listboxPresent': False, 'listboxHTML': None, 'bodyHasNoMatching': False}

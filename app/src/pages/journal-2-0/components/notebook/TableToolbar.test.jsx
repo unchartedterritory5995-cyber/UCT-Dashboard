@@ -200,6 +200,40 @@ describe('<TableToolbar>', () => {
   })
 })
 
+// Wave 10 (TY, standard 4 -- typing budget). NoteEditorPage's toolbar-sync
+// reducer (readToolbarFormatState/toolbarStateReducer) bails out of a
+// re-render for a keystroke that changes none of its tracked fields -- and
+// table edits (Add a row, Delete column, …) are themselves transactions that
+// touch none of them. Every OTHER test in this file mounts through `Harness`,
+// which re-renders on every transaction ITSELF -- exactly what NoteEditorPage
+// used to do unconditionally, and what would have masked this gap here too.
+// These mount the BARE component, no external re-render driver at all: if
+// TableToolbar did not own its own subscription, none of the assertions
+// below could ever become true, because nothing would ever tell React to
+// look at it again after the first paint.
+describe('<TableToolbar> owns its own freshness -- no Harness, no external re-render driver', () => {
+  it('appears when the caret moves into a table and disappears when it moves out, mounted bare', () => {
+    const ed = mount([P('before'), TABLE])
+    render(<TableToolbar editor={ed} />)
+    caretIn(ed, 'before')
+    expect(screen.queryByRole('toolbar', { name: 'Table' })).toBeNull()
+    caretIn(ed, 'NVDA')
+    expect(screen.getByRole('toolbar', { name: 'Table' })).toBeTruthy()
+    caretIn(ed, 'before')
+    expect(screen.queryByRole('toolbar', { name: 'Table' })).toBeNull()
+  })
+
+  it("a button's disabled state follows a table edit with no external re-render: deleting down to one row disables 'Delete this row'", () => {
+    const ed = mount([TABLE])
+    render(<TableToolbar editor={ed} />)
+    caretIn(ed, 'NVDA')
+    expect(screen.getByRole('button', { name: 'Delete this row' })).not.toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete this row' })) // 2 rows -> 1
+    caretIn(ed, 'Sym')
+    expect(screen.getByRole('button', { name: 'Delete this row' }), 'deleting the last row would empty the table').toBeDisabled()
+  })
+})
+
 describe('Tab / Shift-Tab between cells', () => {
   const press = (ed, key, shiftKey = false) => fireEvent.keyDown(ed.view.dom, { key, code: key, shiftKey })
 

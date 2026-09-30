@@ -1,0 +1,101 @@
+{
+  "label": "BEFORE",
+  "started": "2026-09-30T00:58:13-0500",
+  "view_switcher": {
+    "wrap_outer_role": null,
+    "has_group_descendant": false,
+    "group_role": null,
+    "group_aria_label": null,
+    "buttons": [
+      {
+        "text_or_label": "List view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "true",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Table view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Board view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Calendar view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Graph view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Timeline view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Tasks view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": "false",
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      },
+      {
+        "text_or_label": "Save view",
+        "role": "button (implicit, native <button>)",
+        "aria_pressed": null,
+        "aria_selected": null,
+        "closest_group_role": null,
+        "closest_group_label": null
+      }
+    ]
+  },
+  "table_headers": [
+    {
+      "text": "",
+      "aria_sort": null
+    },
+    {
+      "text": "Title",
+      "aria_sort": null
+    },
+    {
+      "text": "Ticker",
+      "aria_sort": null
+    },
+    {
+      "text": "Updated",
+      "aria_sort": null
+    }
+  ],
+  "log": [
+    "[00:59:08] SANDBOX IDENTITY: ok=True http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-58-15.md (identity abbabe565faf..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)",
+    "[00:59:15] view switcher: {\"wrap_outer_role\": null, \"has_group_descendant\": false, \"group_role\": null, \"group_aria_label\": null, \"buttons\": [{\"text_or_label\": \"List view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"true\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Table view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Board view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Calendar view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Graph view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Timeline view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Tasks view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": \"false\", \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}, {\"text_or_label\": \"Save view\", \"role\": \"button (implicit, native <button>)\", \"aria_pressed\": null, \"aria_selected\": null, \"closest_group_role\": null, \"closest_group_label\": null}]}",
+    "[00:59:16] table headers: [{\"text\": \"\", \"aria_sort\": null}, {\"text\": \"Title\", \"aria_sort\": null}, {\"text\": \"Ticker\", \"aria_sort\": null}, {\"text\": \"Updated\", \"aria_sort\": null}]",
+    "[00:59:43] sandbox stop: graceful (rc 0)"
+  ],
+  "finished": "2026-09-30T00:59:43-0500"
+}

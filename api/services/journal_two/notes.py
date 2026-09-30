@@ -1912,6 +1912,17 @@ def list_notes(
                     "updated": "updated_at DESC",
                     "created": "created_at DESC",
                     "title": "title COLLATE NOCASE ASC",
+                    # FX4 (wave 10, coordinator round 2): the Notebook table's
+                    # Title/Updated header toggle used to be a client-side
+                    # reverse of whatever page was loaded, which is wrong for
+                    # any member past the first page — reversing the 100
+                    # newest notes shows the 100 newest, backwards, labelled
+                    # oldest-first. These two are the real reverse directions,
+                    # each with an explicit `id ASC` tiebreak (same reasoning
+                    # as "deleted" below) so two notes sharing a timestamp, or
+                    # a case-insensitive title, still page deterministically.
+                    "updated_asc": "updated_at ASC, id ASC",
+                    "title_desc": "title COLLATE NOCASE DESC, id ASC",
                     # Trash view default: most recently deleted first — a member
                     # scanning for "the thing I just deleted" shouldn't have to sort.
                     # Ties break by id: a batch trash stamps ONE deleted_at on many

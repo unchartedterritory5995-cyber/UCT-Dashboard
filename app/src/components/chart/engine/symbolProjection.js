@@ -47,6 +47,33 @@ function fieldOf(bar, field) {
   }
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
+function firstKeyKind(bars) {
+  for (const b of bars) {
+    const t = b && typeof b === 'object' ? b.t : undefined
+    if (typeof t === 'number' && Number.isFinite(t)) return 'number'
+    if (typeof t === 'string' && ISO_DAY.test(t)) return 'day'
+    if (t !== undefined && t !== null) return 'other'
+  }
+  return null
+}
+
+/** One side keys days as unix seconds, the other as `YYYY-MM-DD`. */
+function mixedDayKeys(a, b) {
+  const ka = firstKeyKind(a)
+  const kb = firstKeyKind(b)
+  return (ka === 'number' && kb === 'day') || (ka === 'day' && kb === 'number')
+}
+
+/** A UTC-midnight unix-seconds key → its `YYYY-MM-DD`; anything else unchanged. */
+function toDayKey(t) {
+  if (typeof t === 'number' && Number.isFinite(t) && t % 86400 === 0) {
+    return new Date(t * 1000).toISOString().slice(0, 10)
+  }
+  return t
+}
+
 /**
  * Project a secondary symbol's field onto the primary bars' timeline.
  *
@@ -61,19 +88,26 @@ export function projectSymbolField(secondaryBars, field, primaryBars) {
   const secondary = Array.isArray(secondaryBars) ? secondaryBars : []
   if (!secondary.length || !primary.length) return out
 
+  // ⭐ ONE DAY, TWO SPELLINGS (2026-09-30). Index daily bars (`/api/bars/SPX`) key
+  // their day as UNIX SECONDS AT UTC MIDNIGHT; every other daily series — stocks,
+  // COT, breadth — as `"YYYY-MM-DD"`. Same bar, so when (and only when) the two
+  // sides disagree on the KIND of key, a UTC-midnight number is read as its day.
+  // Same-kind keys still join exactly, so the intraday rule above is untouched.
+  const dayKey = mixedDayKeys(primary, secondary) ? toDayKey : (k) => k
+
   // FIRST WINS on a duplicate timestamp, matching the formula lane exactly. A
   // duplicate is a data defect either way; what matters is that both lanes make
   // the same choice about it.
   const at = new Map()
   for (let j = 0; j < secondary.length; j++) {
     const b = secondary[j]
-    const key = b && typeof b === 'object' ? b.t : undefined
+    const key = b && typeof b === 'object' ? dayKey(b.t) : undefined
     if (key !== undefined && key !== null && !at.has(key)) at.set(key, j)
   }
 
   for (let i = 0; i < primary.length; i++) {
     const b = primary[i]
-    const key = b && typeof b === 'object' ? b.t : undefined
+    const key = b && typeof b === 'object' ? dayKey(b.t) : undefined
     if (key === undefined || key === null) continue
     const j = at.get(key)
     if (j !== undefined) out[i] = fieldOf(secondary[j], field)

@@ -1,0 +1,129 @@
+{
+ "wave": 10,
+ "lane": "10E-1",
+ "instrument": "tools/notebook_proof_walk.py",
+ "errors": [],
+ "pageerrors": [],
+ "controls": {},
+ "sweep_status": {
+  "deadclick": {
+   "control_ok": true,
+   "control_why": "every planted defect failed the instrument as it must",
+   "findings": 0,
+   "seconds": 1085.3
+  }
+ },
+ "tip": "6cbf0618e92cb0670d306b8d908cb7982efea2ae",
+ "sweeps": [
+  "deadclick"
+ ],
+ "only": [
+  "nb-templates",
+  "nb-first-run-clicks"
+ ],
+ "gates": {
+  "J2_SHARE_LINKS_ENABLED": "1",
+  "NOTEBOOK_PUBLISH_ENABLED": "1",
+  "NOTEBOOK_ONBOARDING_ENABLED": "1",
+  "NOTEBOOK_ASK_INSERT_ON": "1",
+  "NOTEBOOK_WRITING_HELP_ENABLED": "1",
+  "COMPASS_NOTES_TOOL_ENABLED": "1",
+  "NOTEBOOK_PERSONAL_API_ENABLED": "1",
+  "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": "1",
+  "NOTEBOOK_TASK_REMINDERS_ENABLED": "1",
+  "NOTEBOOK_INBOUND_EMAIL_ENABLED": "1",
+  "J2_OCR_ENABLED": "1",
+  "ANTHROPIC_API_KEY": "",
+  "OPENAI_API_KEY": ""
+ },
+ "surface_deadline_s": 900.0,
+ "started": "2026-09-30T09:13:22-0500",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\l12dc2-data",
+ "base": "http://127.0.0.1:8356",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8356 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-l12\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T09-13-25.md (identity e0b53adef518..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\l12dc2-data)"
+ },
+ "axe_core": {
+  "path": "app\\node_modules\\axe-core\\axe.min.js",
+  "bytes": 580480
+ },
+ "run": "r091513",
+ "seed": {
+  "sample_status": 200,
+  "folder": "Sample notebook",
+  "rich_note": "43f7339dea3e481593c49dcab9e89264",
+  "share_url": "/share/n/rwe65wnha0_BHwxor7cfzXA1oM9stXoh",
+  "publish_url": "/p/aXMurwuBgFrClwkX7Ai1gw",
+  "share_status": 200,
+  "publish_status": 200,
+  "share_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "token"
+  ],
+  "publish_raw_keys": [
+   "createdAt",
+   "expiresAt",
+   "kind",
+   "noindex",
+   "path",
+   "slug",
+   "targetId",
+   "updatedAt"
+  ],
+  "pdf_note": "b123ad99105e4041bd06da9c8e8f32a2",
+  "first_run_account": "fresh1",
+  "first_run_note": "a8e47a4d24604202a2935b069046e407",
+  "fresh_list_account": "fresh-list"
+ },
+ "seed_seconds": 61.4,
+ "findings_total": 0,
+ "prewarm_checkpoint_reached": true,
+ "stop": "graceful (rc 0)",
+ "first_line": "SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN, shutdown CLEAN; 62 db files hashed; log: docs\\notebook\\proof\\l12dc2-6cbf0618e\\integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\proof\\l12dc2-6cbf0618e\\integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown",
+   "post-prewarm (+120s)"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-09-30 09:13:32",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-09-30 09:15:11",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-09-30 09:17:14",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-09-30 09:34:29",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": ""
+ },
+ "not_run": null,
+ "finished": "2026-09-30T09:34:32-0500"
+}

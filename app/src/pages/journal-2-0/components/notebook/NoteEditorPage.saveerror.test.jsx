@@ -71,20 +71,31 @@ describe('NoteEditorPage — save-error sanitization (P1-1 fix)', () => {
     expect(await screen.findByText('Save failed: Title is required')).toBeInTheDocument()
   })
 
-  it('a retryable 5xx with no detail never shows the bare code, even in the reconnecting tooltip', async () => {
+  // ⛔⛔ Wave 10 F7 (Part A, 5d): this whole sentence used to live ONLY in the
+  // `title` tooltip attribute, and the VISIBLE text was the single word
+  // "Reconnecting…" -- no explanation of what failed, no reassurance the note
+  // was unchanged. The proof walk's silent-failure sweep forced a PUT
+  // /api/j2/notes/{id} to fail offline and read this SILENT (`is_sentence`
+  // requires 3+ words and 12+ characters; "Reconnecting…" is one word). The
+  // sentence is now the VISIBLE text, same as the 'error' branch always did.
+  it('a retryable 5xx with no detail never shows the bare code, and the sentence is VISIBLE text, not just a tooltip', async () => {
     updateMock.mockRejectedValue(httpError('500', 500))
     await renderEditor()
     await triggerAutosave()
 
-    expect(await screen.findByText('Reconnecting…')).toBeInTheDocument()
-    const status = screen.getByText('Reconnecting…').closest('[title]')
-    expect(status.getAttribute('title')).not.toBe('500')
-    expect(status.getAttribute('title')).not.toContain('500')
-    expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
-    expect(status.getAttribute('title')).toMatch(/retrying automatically/i)
+    expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument()
+    // ⛔ Queried by "retrying automatically" rather than "couldn't reach the server":
+    // NoteLinkedTradeChips's own (unrelated, unmocked-fetch) LoadFailed sentence also
+    // contains "Couldn't reach the server" -- only the autosave status carries this.
+    const status = await screen.findByText(/retrying automatically/i)
+    expect(status).toHaveAttribute('role', 'status')
+    expect(status.textContent).not.toBe('Reconnecting…')
+    expect(status.textContent).not.toContain('500')
+    expect(status.textContent).toMatch(/couldn't reach the server/i)
+    expect(status.textContent).toMatch(/retrying automatically/i)
   })
 
-  it('a network error (no status at all) never shows "undefined" or a raw status', async () => {
+  it('a network error (no status at all) never shows "undefined" or a raw status, in the VISIBLE text', async () => {
     updateMock.mockRejectedValue(new Error('Failed to fetch'))
     await renderEditor()
     await triggerAutosave()
@@ -93,35 +104,33 @@ describe('NoteEditorPage — save-error sanitization (P1-1 fix)', () => {
     // since wave 7 fix round 1 (review M-4) friendlySaveError reads it as the
     // network failure it is, instead of preserving it verbatim. The regression
     // this guards is still a BARE status code slipping through.
-    const status = screen.getByText('Reconnecting…').closest('[title]')
-    expect(status.getAttribute('title')).not.toMatch(/^\d{3}$/)
-    expect(status.getAttribute('title')).not.toContain('Failed to fetch')
-    expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
+    const status = await screen.findByText(/retrying automatically/i)
+    expect(status.textContent).not.toMatch(/^\d{3}$/)
+    expect(status.textContent).not.toContain('Failed to fetch')
+    expect(status.textContent).toMatch(/couldn't reach the server/i)
   })
 
   // Wave 7 whole-branch fix (lane H nit N-3): the network reading is keyed on the
   // BROWSER'S network words, never on the error's class. A TypeError is also what a
   // programming fault on the save path throws, and calling that "couldn't reach the
   // server" sends a member to check a connection that is fine.
-  it('a code fault (a TypeError that is not a network word) is never called the network, nor shown verbatim', async () => {
+  it('a code fault (a TypeError that is not a network word) is never called the network, nor shown verbatim, in the VISIBLE text', async () => {
     updateMock.mockRejectedValue(new TypeError("Cannot read properties of undefined (reading 'bodyJson')"))
     await renderEditor()
     await triggerAutosave()
 
-    const status = (await screen.findByText('Reconnecting…')).closest('[title]')
-    const said = status.getAttribute('title')
-    expect(said).not.toMatch(/couldn't reach the server/i)
-    expect(said).not.toContain('Cannot read properties')
-    expect(said).toBe('Could not save — retrying automatically.')
+    const status = await screen.findByText('Could not save — retrying automatically.')
+    expect(status.textContent).not.toMatch(/couldn't reach the server/i)
+    expect(status.textContent).not.toContain('Cannot read properties')
   })
 
-  it('CONTROL — Safari\'s network TypeError ("Load failed") still reads as the network', async () => {
+  it('CONTROL — Safari\'s network TypeError ("Load failed") still reads as the network, in the VISIBLE text', async () => {
     updateMock.mockRejectedValue(new TypeError('Load failed'))
     await renderEditor()
     await triggerAutosave()
 
-    const status = (await screen.findByText('Reconnecting…')).closest('[title]')
-    expect(status.getAttribute('title')).toMatch(/couldn't reach the server/i)
-    expect(status.getAttribute('title')).not.toContain('Load failed')
+    const status = await screen.findByText(/retrying automatically/i)
+    expect(status.textContent).toMatch(/couldn't reach the server/i)
+    expect(status.textContent).not.toContain('Load failed')
   })
 })

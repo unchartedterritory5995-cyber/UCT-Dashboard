@@ -29,8 +29,20 @@
 // ⭐ IDEMPOTENT BY CONSTRUCTION: the output has a `group.note`, bar geometry and guest
 // targets, each of which alone fails the signature, so a second pass returns its input
 // unchanged — the SAME object.
+//
+// ─── SECOND STEP: THE PER-MARKET GROUP → THE ONE THAT FOLLOWS THE CHART ─────
+//
+// From 2026-09-30 COT is ONE indicator whose market follows the chart symbol
+// (`engine/cotFollow.js`); the 58 per-market entries are no longer offered. A
+// per-market one-pane group — exactly as `createFromResult` built it, or as the first
+// step above leaves a three-pane one — is rewritten to name no market: its sources
+// become `sym:COT:AUTO:<PART>:close` and its title `COT (Commitment of Traders)`.
+// Ids, colours, visibility, bar geometry and the pane's place are all kept.
+// Same rules: an exact signature (`perMarketGroupAt`), anything else left alone by
+// identity, and the output (`AUTO`) fails the signature so a second pass is a no-op.
 
 import { sideBySideBars, GROUP_PANE_HEIGHT } from './groupBars'
+import { COT_FOLLOW_TOKEN, COT_FOLLOW_DISPLAY, cotFollowSource } from './cotFollow'
 
 // ⛔⛔ THIS MODULE IS IMPORTED BY `chartDefaults` — THE APP'S ENTRY BUNDLE — SO IT MAY
 // DEPEND ON NOTHING HEAVY. Importing `sourceRef` for `paneOfTarget` dragged the pool,
@@ -56,7 +68,7 @@ function legacyGroupAt(members) {
     if (m.defId !== 'dataSeries') return null
     const src = m.inputs && m.inputs.source
     const hit = typeof src === 'string' ? SOURCE.exec(src) : null
-    if (!hit) return null
+    if (!hit || hit[1] === COT_FOLLOW_TOKEN) return null
     if (sym !== null && hit[1] !== sym) return null
     sym = hit[1]
     if (byPart[hit[2]]) return null                     // a duplicated part
@@ -78,18 +90,92 @@ function legacyGroupAt(members) {
   return { byPart, group: g, market: name[1] }
 }
 
-/**
- * Settings blob → the same blob with every legacy three-pane COT group converted to
- * the one-pane form, or the INPUT OBJECT itself when there is nothing to convert.
- */
-export function migrateLegacyCotGroups(cs) {
-  if (!cs || typeof cs !== 'object' || !Array.isArray(cs.indicatorInstances)) return cs
+function groupsOf(cs) {
   const byGroup = new Map()
   for (const i of cs.indicatorInstances) {
     if (!isLive(i) || !i.group || typeof i.group.id !== 'string') continue
     if (!byGroup.has(i.group.id)) byGroup.set(i.group.id, [])
     byGroup.get(i.group.id).push(i)
   }
+  return byGroup
+}
+
+const ONE_PANE_NAME = /^(.+) · COT$/
+const ONE_PANE_NOTE = 'Net Contracts'
+
+/** The per-market ONE-PANE group, or null — the exact form `createFromResult` built. */
+function perMarketGroupAt(members) {
+  if (members.length !== 3) return null
+  const byPart = {}
+  let sym = null
+  for (const m of members) {
+    if (m.defId !== 'dataSeries') return null
+    const src = m.inputs && m.inputs.source
+    const hit = typeof src === 'string' ? SOURCE.exec(src) : null
+    if (!hit || hit[1] === COT_FOLLOW_TOKEN) return null
+    if (sym !== null && hit[1] !== sym) return null
+    sym = hit[1]
+    if (byPart[hit[2]]) return null
+    byPart[hit[2]] = m
+    if (!(m.presentation && m.presentation.bar)) return null
+  }
+  if (!PARTS.every((p) => byPart[p])) return null
+  const hostId = byPart.COMM.instanceId
+  const g = byPart.COMM.group
+  if (!g || GROUP_ID.exec(g.id)?.[1] !== hostId) return null
+  if (g.note !== ONE_PANE_NOTE || typeof g.name !== 'string' || !ONE_PANE_NAME.test(g.name)) return null
+  for (const m of members) {
+    if (!m.group || m.group.id !== g.id || m.group.name !== g.name || m.group.note !== g.note) return null
+  }
+  // The Commercials part hosts the pane; the other two are its guests — as created.
+  if (byPart.COMM.placement && byPart.COMM.placement.target) return null
+  for (const part of ['LARGE', 'SMALL']) {
+    const t = byPart[part].placement && byPart[part].placement.target
+    if (t !== paneOfTarget(hostId)) return null
+  }
+  const hidden = byPart.COMM.hidden === true
+  if (members.some((m) => (m.hidden === true) !== hidden)) return null
+  return { byPart, group: g }
+}
+
+function followCotGroups(cs) {
+  const edits = new Map()
+  for (const members of groupsOf(cs).values()) {
+    const found = perMarketGroupAt(members)
+    if (!found) continue
+    const group = { ...found.group, name: COT_FOLLOW_DISPLAY }
+    for (const part of PARTS) {
+      const m = found.byPart[part]
+      const compact = m.display && typeof m.display.compact === 'string' ? m.display.compact : ''
+      edits.set(m.instanceId, {
+        ...m,
+        inputs: { ...m.inputs, source: cotFollowSource(part) },
+        group,
+        // The name a fresh add of the follow row gives it (`COT · Commercials`).
+        ...(m.display && typeof m.display === 'object' && compact
+          ? { display: { ...m.display, name: `COT · ${compact}` } } : {}),
+      })
+    }
+  }
+  if (!edits.size) return cs
+  return {
+    ...cs,
+    indicatorInstances: cs.indicatorInstances.map((i) => (i && edits.has(i.instanceId) ? edits.get(i.instanceId) : i)),
+  }
+}
+
+/**
+ * Settings blob → the same blob with every legacy COT group converted — three-pane →
+ * one-pane, then per-market → follow-the-chart — or the INPUT OBJECT itself when
+ * there is nothing to convert.
+ */
+export function migrateLegacyCotGroups(cs) {
+  if (!cs || typeof cs !== 'object' || !Array.isArray(cs.indicatorInstances)) return cs
+  return followCotGroups(threePaneToOnePane(cs))
+}
+
+function threePaneToOnePane(cs) {
+  const byGroup = groupsOf(cs)
   const edits = new Map()          // instanceId → replacement instance
   const retiredPanes = new Set()   // pane keys that stop existing (LARGE / SMALL)
   const resized = new Set()        // pane keys whose stored share no longer means anything

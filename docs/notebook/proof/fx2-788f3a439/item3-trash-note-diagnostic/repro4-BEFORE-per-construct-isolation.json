@@ -1,0 +1,52 @@
+{
+  "started": "2026-09-30T00:31:53-0500",
+  "results": {
+    "plain": {
+      "unsent_dialog_shown": false,
+      "ok": true
+    },
+    "heading": {
+      "unsent_dialog_shown": false,
+      "ok": true
+    },
+    "table": {
+      "unsent_dialog_shown": true,
+      "ok": true
+    },
+    "codeBlock": {
+      "unsent_dialog_shown": true,
+      "ok": true
+    },
+    "blockMath": {
+      "unsent_dialog_shown": true,
+      "ok": true
+    },
+    "callout": {
+      "unsent_dialog_shown": true,
+      "ok": true
+    },
+    "taskList": {
+      "unsent_dialog_shown": true,
+      "ok": true
+    }
+  },
+  "log": [
+    "[00:33:11] SANDBOX IDENTITY: ok=True http://127.0.0.1:8341 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-fx2\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T00-31-55.md (identity 920ff69bfd7f..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\fx2-data)",
+    "[00:33:35] === checking construct: plain ===",
+    "[00:33:41] plain: unsent_dialog_shown=False",
+    "[00:33:41] === checking construct: heading ===",
+    "[00:33:47] heading: unsent_dialog_shown=False",
+    "[00:33:47] === checking construct: table ===",
+    "[00:33:52] table: unsent_dialog_shown=True",
+    "[00:33:52] === checking construct: codeBlock ===",
+    "[00:33:57] codeBlock: unsent_dialog_shown=True",
+    "[00:33:57] === checking construct: blockMath ===",
+    "[00:34:03] blockMath: unsent_dialog_shown=True",
+    "[00:34:03] === checking construct: callout ===",
+    "[00:34:08] callout: unsent_dialog_shown=True",
+    "[00:34:08] === checking construct: taskList ===",
+    "[00:34:14] taskList: unsent_dialog_shown=True",
+    "[00:36:00] sandbox stop: graceful to the shutdown checkpoint, then forced exit"
+  ],
+  "finished": "2026-09-30T00:36:00-0500"
+}

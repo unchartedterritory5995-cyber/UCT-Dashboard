@@ -134,6 +134,7 @@ import {
 // valued half, so there is still exactly one formatting pipeline.
 import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
+import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 // ⭐ THE LEGEND ROW FOR THE THINGS THAT ARE NOT ENGINE INSTANCES — the MA
@@ -6413,7 +6414,20 @@ export default function StockChart({
   // difference is a tombstoned instance that still names one — one request for an
   // instrument the member did configure, against a first paint that would
   // otherwise draw nothing.
-  const _storedInstances = useCallback(() => cs.indicatorInstances, [cs])
+  //
+  // ⭐⭐ …AND THE COT INDICATOR FOLLOWS THE CHART SYMBOL (`engine/cotFollow.js`).
+  // `csView` is `cs` with every stored `sym:COT:AUTO:*` source resolved to the market
+  // this symbol maps to — or those instances REMOVED when it maps to none (AAPL):
+  // no pane, no legend, no request. ⛔ A READ VIEW ONLY: every write keeps using `cs`,
+  // so nothing can persist a resolved market or lose the indicator on an unmapped
+  // symbol. `cs` itself is returned (by identity) when there is no COT indicator.
+  const _cotFollow = useMemo(() => cotFollowOf(sym, _miRegistry.cotSymbols),
+    [sym, _miRegistry.cotSymbols])
+  const csView = useMemo(() => {
+    const list = resolveCotFollow(cs.indicatorInstances, _cotFollow)
+    return list === cs.indicatorInstances ? cs : { ...cs, indicatorInstances: list }
+  }, [cs, _cotFollow])
+  const _storedInstances = useCallback(() => csView.indicatorInstances, [csView])
   // ⭐ WHICH PANE A CHIP BELONGS TO, IN PANE-KEY UNITS. Pane keys are host
   // instance ids, so a chip's pane is: its own instance when it hosts one, or the
   // host it follows. `resolveDisplayTarget` is the same authority the layout and
@@ -6521,14 +6535,14 @@ export default function StockChart({
   // IDENTITY stable while nothing changes, which is what stops that dependency
   // repainting continuously.
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, cs)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, csView)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
-  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, cs)
+  const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, csView)
   // ⭐ THE FOURTH SOURCE FAMILY'S DATA — historical point-in-time fundamentals
   // (`fund:`). Same seam, same stable-identity discipline as the line above; a
   // chart with no `fund:` source makes no request at all.
-  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, cs)
+  const fundamentalSources = useFundamentalSources(_storedInstances, _defOf, sym, csView)
   // ⭐ THE FIFTH SOURCE FAMILY'S DATA — economic series (`econ:<SYMBOL>`), for an
   // overlay on ANY chart and for the primary economic series alike. Same seam, same
   // stable-identity discipline; a chart with no `econ:` source makes no request.
@@ -8137,7 +8151,7 @@ export default function StockChart({
   // of `updateChart` for the same reason `secondarySources` is: frames land
   // asynchronously and must repaint when they do. See `engine/useCalcFrames.js`.
   const { frames: calcFrames, refreshFrame: refreshCalcFrame } = useCalcFrames(
-    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, cs)
+    _storedInstances, _defOf, sym, resolvedTf, filteredBars, instFetcher, csView)
   const refreshCalcFrameRef = useRef(refreshCalcFrame)
   refreshCalcFrameRef.current = refreshCalcFrame
 
@@ -11718,6 +11732,11 @@ export default function StockChart({
           // STORED (including a tombstone) passes through untouched, exactly as
           // it does today. `flipBWithANonEmptySet.test.jsx` drives this with a
           // non-empty set and asserts an un-flipped `bb` is not projected.
+          // ⛔ THE STORED BLOB (`cs`), NOT `csView`. These two sets answer "does the
+          // blob HOLD this id / this definition", which blocks a legacy-toggle
+          // projection. On a symbol the COT indicator does not follow (AAPL) the view
+          // has no `dataSeries` left, so reading it here projected `legacy:dataSeries`
+          // — a stray `Series` line of the chart's own close (measured in the harness).
           const stored = Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : []
           const storedIds = new Set(
             stored.map(i => (i && typeof i === 'object' ? i.instanceId : undefined)),
@@ -11749,13 +11768,13 @@ export default function StockChart({
             normalizeInstances(stored, engineRegistry).kept.map(i => i.defId),
           )
           const source = engineDrawsAnything()
-            ? migrateLegacyToInstances(cs, engineRegistry)   // instances are the authority…
+            ? migrateLegacyToInstances(csView, engineRegistry)   // instances are the authority…
               .filter((i) => {
                 if (storedIds.has(i && i.instanceId)) return true   // stored: always
                 if (!ENGINE_OWNED.has(i && i.defId)) return false  // …projected: FLIPPED only
                 return !liveStoredDefIds.has(i.defId)              // …and not already drawn
               })
-            : cs.indicatorInstances                          // Flip A: only STORED instances draw
+            : csView.indicatorInstances                      // Flip A: only STORED instances draw
           const migrated = normalizeInstances(source, engineRegistry).kept
             // ⚠️ ONE GATE NOW, AND IT USED TO BE TWO (B5 Task 4). The second read
             // `|| (engineOn && ENGINE_OWNED.has(i.defId))` — a
@@ -11814,7 +11833,7 @@ export default function StockChart({
             showMaLabels: !!cs.showMaLabels,
             lastBarOff: !!lastBarOffRef.current,
             ema9Color: ema9MatchCandle ? mbUpOpaque : null,
-            targetOf: (inst) => resolveDisplayTarget(inst, cs),
+            targetOf: (inst) => resolveDisplayTarget(inst, csView),
           }).kept
           // ⭐ ON AN ECONOMIC PRIMARY, AN INSTANCE THAT READS THE CHART'S OWN
           // O/H/L/C/V (the default EMA 9 / 20 / SMA 50 / 200, an RSI of close) has
@@ -13717,7 +13736,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, secondarySources, serverColumnsGeneration])
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, economicSources, _econId, historyFromListing, otherSymbolExchangeOf, csView, secondarySources, serverColumnsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -19592,7 +19611,8 @@ export default function StockChart({
         // ⭐ ONE LOGICAL INDICATOR (a COT dataset) READS ON ONE LINE (owner,
         // 2026-09-30): title, then each participant's name and value to its right,
         // so the readout sits above the bars instead of stacking down over them.
-        const group = paneGroupOf(row.chips, cs)
+        // ⭐ `csView`, so a follow-the-chart COT pane is titled for the market it drew.
+        const group = paneGroupOf(row.chips, csView)
         return (
         <div
           key={row.key}

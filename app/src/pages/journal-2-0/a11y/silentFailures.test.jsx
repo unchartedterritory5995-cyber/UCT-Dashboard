@@ -10,7 +10,7 @@
 // (fixtures.jsx), fail one request, and assert the sentence a member reads.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
-import { installFetch, latchWave8Flags, Providers, NOTES, noteDetail } from './fixtures'
+import { installFetch, latchWave8Flags, Providers, NOTES, noteDetail, defaultRoutes } from './fixtures'
 import NoteEditorPage, { NoteLinkedTradeChips } from '../components/notebook/NoteEditorPage'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteBacklinksSection from '../components/notebook/NoteBacklinksSection'
@@ -68,6 +68,59 @@ describe('a failed WRITE is said, and stays said', () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 3000)) })
     expect(screen.getByRole('alert')).toHaveTextContent("Couldn't add that tag.")
     expect(document.body.textContent).not.toContain('zqproofraw')
+  }, 15_000)
+
+  // ⛔⛔ Wave 10 F7 (Part A, 5d), wk4's incidental finding: the proof walk's forced-failure
+  // sweep, while exercising add-tag, also found a SECOND write endpoint under that same
+  // action -- `PUT /api/j2/notes/{id}`, the note's own body/title autosave, firing because
+  // the note was left dirty. It read SILENT under forced-offline. Traced: `commitSave`'s
+  // retryable branch (NoteEditorPage.jsx) already computed a real, member-readable sentence
+  // (`friendlySaveError(..., {retrying:true})`) -- but only ever put it in the `title`
+  // TOOLTIP attribute, rendering just the single word "Reconnecting…" as VISIBLE text
+  // (`is_sentence` needs 3+ words; one word reads SILENT). This drives that exact wire --
+  // a dirty title, autosave's PUT forced offline -- and asserts the VISIBLE text, not a
+  // tooltip nobody hovers.
+  it('the note-body autosave PUT (the secondary write add-tag also drives): a forced-offline retry says a real sentence, not just "Reconnecting…"', async () => {
+    const spy = installFetch()
+    spy.mockImplementation((input, init = {}) => {
+      const url = typeof input === 'string' ? input : input?.url || ''
+      const path = url.split('?')[0]
+      const method = String(init?.method || 'GET').toUpperCase()
+      if (method === 'PUT' && /^\/api\/j2\/notes\/[^/]+$/.test(path)) {
+        return Promise.reject(new TypeError('Failed to fetch'))
+      }
+      const table = defaultRoutes()
+      const hit = table.find(([re]) => re.test(path))
+      const val = hit ? hit[1] : {}
+      const [status, body] = Array.isArray(val) && typeof val[0] === 'number' ? val : [200, val]
+      return Promise.resolve({
+        ok: status >= 200 && status < 300,
+        status,
+        headers: { get: () => null },
+        json: () => Promise.resolve(typeof body === 'function' ? body(url) : body),
+        text: () => Promise.resolve(JSON.stringify(body)),
+        blob: () => Promise.resolve(new Blob([])),
+      })
+    })
+    const { unmount } = render(
+      <Providers route="/journal/notebook?note=n1">
+        <NoteEditorPage noteId="n1" onBack={() => {}} showBack={false} />
+      </Providers>,
+    )
+    await screen.findByPlaceholderText('Title')
+    await waitFor(() => {
+      if (!document.querySelector('.ProseMirror')?.editor) throw new Error('editor not mounted')
+    })
+    await settle()
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'edited while offline' } })
+    // past the 800ms autosave debounce (AUTOSAVE_MS in NoteEditorPage.jsx)
+    await act(async () => { await new Promise((r) => setTimeout(r, 900)) })
+    expect(screen.queryByText('Reconnecting…')).not.toBeInTheDocument()
+    const status = await screen.findByText(/couldn't reach the server/i)
+    expect(status.textContent).not.toBe('Reconnecting…')
+    expect(status.textContent.trim().split(/\s+/).length).toBeGreaterThanOrEqual(3)
+    expect(status.textContent).toMatch(/retrying automatically/i)
+    unmount() // clears the retry timer this failure scheduled (real timers, not fake)
   }, 15_000)
 })
 
