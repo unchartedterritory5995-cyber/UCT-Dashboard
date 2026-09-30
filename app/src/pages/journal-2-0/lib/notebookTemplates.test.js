@@ -13,10 +13,26 @@ const KEYS = [
   'post-market-debrief',
   'weekly-plan',
   'weekly-review',
+  'monthly-review',
+  'quarterly-review',
   'thesis',
+  'sector-theme-research',
+  'watchlist-thesis',
+  'catalyst-tracker',
+  'ipo-notes',
+  'meeting-notes',
   'trade-review',
   'swing-log',
   'earnings-play',
+  'trade-plan',
+  'position-sizing-worksheet',
+  'setup-playbook-entry',
+  'options-trade-plan',
+  'risk-checklist',
+  'mistake-log',
+  'lessons-learned',
+  'goals',
+  'drawdown-recovery-plan',
   'tilt-log',
 ]
 
@@ -30,7 +46,7 @@ const RICH_CTX = {
 }
 
 describe('notebook templates catalog', () => {
-  it('exports exactly the eight planned templates (stable keys)', () => {
+  it('exports exactly the built-in catalog, in order (stable keys, wave 10 lane DR-C breadth)', () => {
     expect(TEMPLATES.map((t) => t.key)).toEqual(KEYS)
   })
 
