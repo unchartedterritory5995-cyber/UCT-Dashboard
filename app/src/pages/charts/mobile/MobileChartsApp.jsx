@@ -512,7 +512,7 @@ export default function MobileChartsApp({
         />
       )}
 
-      <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} className={sheetTheme} />
+      <MobileSymbolSheet open={sheet === 'symbol'} onClose={closeSheet} onPick={handleSymbolPick} className={sheetTheme} economic />
       <MobileTfSheet
         open={sheet === 'tf'}
         onClose={closeSheet}

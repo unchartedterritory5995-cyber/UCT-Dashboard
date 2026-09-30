@@ -541,6 +541,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         tf={tf}
         onSymbolChange={handleSymbolChange}
         onTfChange={setTf}
+        allowEconomic
         stored={activeStoredSettings}
         onStore={persistActiveSettings}
         chartId={paneChartId}

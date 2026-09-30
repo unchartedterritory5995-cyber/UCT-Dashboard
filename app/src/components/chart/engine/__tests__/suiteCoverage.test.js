@@ -183,6 +183,9 @@ const ACKNOWLEDGED_CHART = [
   // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this
   // line was added, which is the order this rail asks for.
   'src/components/chart/builder/memberPane',
+  // Economic data Phase 2 UI (2026-09-30): econUi words + fixtures. Run green
+  // (1 file / 18 tests) BEFORE this line was added.
+  'src/components/chart/economic',
   'src/components/chart/engine',
   'src/components/chart/engine/__tests__',
   // The vendor-comparison harness (2026-09-27). Run green (2 files / 41 tests)

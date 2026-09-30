@@ -50,15 +50,30 @@ def test_all_237_catalog_rows_imported():
 def test_status_and_cohort_counts():
     c = Counter(e["status"] for e in R.all())
     # 2026-09-29 rulings: USICSA+USEMPIRE enabled (adapter-verified), USRETAIL failed closed (basis conflict)
-    assert c == {"enabled": 42, "disabled": 138, "unverified": 40, "excluded": 17}
+    # 2026-09-30 readiness (Gate 3, registry-corrections/readiness.json): 94 launch series enabled
+    assert c == {"enabled": 136, "disabled": 48, "unverified": 36, "excluded": 17}
     cohort = {e["symbol"] for e in R.cohort()}
     assert cohort == COHORT_41 | {"USCORECPINSA", "USGDP"}
     enabled = {e["symbol"] for e in R.enabled()}
-    assert enabled <= cohort, "only cohort series may be enabled in Phase 1"
     assert cohort - enabled == {"USRETAIL"}
     assert R.get("USRETAIL")["status"] == "unverified" and R.get("USRETAIL")["source"]["verified"] is False
     assert "FAIL CLOSED" in " ".join(R.get("USRETAIL")["notes"])
     assert R.get("USICSA")["status"] == "enabled" and R.get("USEMPIRE")["status"] == "enabled"
+
+
+def test_readiness_enables_only_launch_candidates_and_keeps_retail_closed():
+    """Every enabled non-cohort series is one of the 151 launch candidates, and the
+    retail family stays failed closed until the owner resolves the basis conflict."""
+    launch = {r["symbol"] for r in csv.DictReader(open(Path(__file__).resolve().parents[2] / "docs" / "economic-data"
+                                                       / "expansion_151.csv", encoding="utf-8"))}
+    cohort = {e["symbol"] for e in R.cohort()}
+    extra = {e["symbol"] for e in R.enabled()} - cohort
+    assert len(extra) == 94 and extra <= launch
+    for sym in ("USRETAIL", "USRETAILXA", "USRETAILCTRL", "USRETAILMOM", "USRETCTRLMOM"):
+        assert R.get(sym)["status"] != "enabled", sym
+    for e in R.all():
+        if e["licensing"]["class"] in ("YELLOW", "RED"):
+            assert e["status"] != "enabled", e["symbol"]
 
 
 def test_every_red_row_is_excluded_and_every_excluded_row_is_red():

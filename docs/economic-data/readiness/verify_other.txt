@@ -1,0 +1,117 @@
+# launch-catalog readiness verification  2026-09-30T15:31Z  (keyless; history mode; validate_fetch against an empty store)
+# registry-corrections overlay: USGDP.units.raw, USGDP.units.scale, USGDP.source.params.unit_mult, USFSPDP.units.raw, USFSPDP.units.scale, USFSPDP.source.params.unit_mult, USRNRFI.units.raw, USRNRFI.units.scale, USRNRFI.source.params.unit_mult, USPERSINC.units.raw, USPERSINC.units.scale, USPERSINC.source.params.unit_mult, USDPI.units.raw, USDPI.units.scale, USDPI.source.params.unit_mult, USRDPI.units.raw, USRDPI.units.scale, USRDPI.source.params.unit_mult, USPCE.units.raw, USPCE.units.scale, USPCE.source.params.unit_mult, USRPCE.units.raw, USRPCE.units.scale, USRPCE.source.params.unit_mult, USCORPPROF.units.raw, USCORPPROF.units.scale, USCORPPROF.source.params.unit_mult, USM1.source.params.dataset, USM1.source.provider_series_id, USMONBASE.source.params.dataset, USMONBASE.source.provider_series_id, USMFGPROD.source.params.dataset, USMFGPROD.source.provider_series_id, USTGAFED.source.params.alt
+
+## bea  (12 series)
+USGDP         NIPA T10105 L1 (A191RC)                      n=   318 NA=   0 1947-01-01..2026-04-01  newest 2026-04-01..2026-06-30 = 32,563,030.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=Q history_start=1947-Q1
+              request bea:flat:NipaDataQ.txt:A191RC  pub_at=1790771402
+USFSPDP       NIPA T10406 L8 (LB000003)                    n=   318 NA=   0 1947-01-01..2026-04-01  newest 2026-04-01..2026-06-30 = 21,432,079.0000  -> VALID
+              registry units='Millions chained 2017 USD, SAAR' scale=1000000 SA=SAAR freq=Q history_start=1947-Q1
+              request bea:flat:NipaDataQ.txt:LB000003  pub_at=1790771402
+USRNRFI       NIPA T10106 L9 (A008RX)                      n=    78 NA=   0 2007-01-01..2026-04-01  newest 2026-04-01..2026-06-30 = 3,985,726.0000  -> VALID
+              registry units='Millions chained 2017 USD, SAAR' scale=1000000 SA=SAAR freq=Q history_start=1947-Q1
+              request bea:flat:NipaDataQ.txt:A008RX  pub_at=1790771402
+USPERSINC     NIPA T20600 L1 (A065RC)                      n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 27,626,933.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:A065RC  pub_at=1790771402
+USDPI         NIPA T20600 L27 (A067RC)                     n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 24,223,171.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:A067RC  pub_at=1790771402
+USRDPI        NIPA T20600 L37 (A067RX)                     n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 18,410,473.0000  -> VALID
+              registry units='Millions chained 2017 USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:A067RX  pub_at=1790771402
+USPCE         NIPA T20600 L29 (DPCERC) / T20805 L1         n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 22,308,527.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:DPCERC  pub_at=1790771402
+USRPCE        NIPA T20806 L1 (DPCERX)                      n=   236 NA=   0 2007-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 16,955,276.0000  -> VALID
+              registry units='Millions chained 2017 USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=2007-01
+              request bea:flat:NipaDataM.txt:DPCERX  pub_at=1790771402
+USSAVRATE     NIPA T20600 L35 (A072RC)                     n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 4.1000  -> VALID
+              registry units='Percent of DPI' scale=1 SA=SA freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:A072RC  pub_at=1790771402
+USPCESVCXHE   NIPA T20804 L28 (IA001260)                   n=   812 NA=   0 1959-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 134.7310  -> VALID
+              registry units='Index 2017=100' scale=1 SA=SA freq=M history_start=1959-01
+              request bea:flat:NipaDataM.txt:IA001260  pub_at=1790771402
+USCORPPROF    NIPA T61600D L1 (A051RC)                     n=   318 NA=   0 1947-01-01..2026-04-01  newest 2026-04-01..2026-06-30 = 4,709,453.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=Q history_start=1947-Q1
+              request bea:flat:NipaDataQ.txt:A051RC  pub_at=1790771402
+USCURACCT     FETCH FAILED MalformedPayload: bea: dataset 'ITA' not implemented for USCURACCT
+              registry units='Millions USD' scale=1000000 SA=SA freq=Q history_start=1960-Q1
+
+## census  (12 series)
+USRETAILXA    marts/44Y72/SM                               n=   416 NA=   0 1992-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 598,585.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-01
+              request census:export:MARTS:44Y72:SM:SA:1992-2026  pub_at=None
+USPERMIT      resconst/APERMITS/TOTAL                      n=   800 NA=   0 1960-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 1,403.0000  -> VALID
+              registry units='Thousands of units, SAAR' scale=1000 SA=SAAR freq=M history_start=1960-01
+              request census:export:RESCONST:APERMITS:TOTAL:SA:1960-2026  pub_at=None
+USNEWHOME     ressales/ASOLD/TOTAL                         n=   764 NA=   0 1963-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 684.0000  -> VALID
+              registry units='Thousands of units, SAAR' scale=1000 SA=SAAR freq=M history_start=1963-01
+              request census:export:RESSALES:ASOLD:TOTAL:SA:1963-2026  pub_at=None
+USNHMSUPPLY   ressales/FORSALE/MONSUP                      n=   764 NA=   0 1963-01-01..2026-08-01  newest 2026-08-01..2026-08-31 = 8.5000  -> VALID
+              registry units='Months' scale=1 SA=SA freq=M history_start=1963-01
+              request census:export:RESSALES:FORSALE:MONSUP:SA:1963-2026  pub_at=None
+USCONSTSPD    vip/AXXXX/T                                  n=   295 NA=   0 2002-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 2,157,581.0000  -> VALID
+              registry units='Millions USD, SAAR' scale=1000000 SA=SAAR freq=M history_start=1993-01
+              request census:export:VIP:AXXXX:T:SA:1993-2026  pub_at=None
+USCORECAPEX   m3/NXA/NO                                    n=   414 NA=   0 1992-02-01..2026-07-01  newest 2026-07-01..2026-07-31 = 85,716.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-02
+              request census:export:M3:NXA:NO:SA:1992-2026  pub_at=None
+USFACTORD     m3/MTM/NO                                    n=   414 NA=   0 1992-02-01..2026-07-01  newest 2026-07-01..2026-07-31 = 663,616.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-02
+              request census:export:M3:MTM:NO:SA:1992-2026  pub_at=None
+USBUSINV      mtis/TOTBUS/IM                               n=   415 NA=   0 1992-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 2,764,708.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-01
+              request census:export:MTIS:TOTBUS:IM:SA:1992-2026  pub_at=None
+USBUSISR      mtis/TOTBUS/IR                               n=   415 NA=   0 1992-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 1.3000  -> VALID
+              registry units='Ratio' scale=1 SA=SA freq=M history_start=1992-01
+              request census:export:MTIS:TOTBUS:IR:SA:1992-2026  pub_at=None
+USEXPORTS     ftd/BOPGS/EXP                                n=   415 NA=   0 1992-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 310,723.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-01
+              request census:export:FTD:BOPGS:EXP:SA:1992-2026  pub_at=None
+USIMPORTS     ftd/BOPGS/IMP                                n=   415 NA=   0 1992-01-01..2026-07-01  newest 2026-07-01..2026-07-31 = 399,299.0000  -> VALID
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-01
+              request census:export:FTD:BOPGS:IMP:SA:1992-2026  pub_at=None
+USGOODSBAL    FETCH FAILED MalformedPayload: census: no values for census:export:FTD:BOPG:BAL:SA:1992-2026
+              registry units='Millions USD' scale=1000000 SA=SA freq=M history_start=1992-01
+
+## dol  (1 series)
+USCCSA        DOL ETA national claims (continued, SA)      n=  3113 NA=   0 1967-01-01..2026-08-23  newest 2026-08-23..2026-08-29 = 1,765,000.0000  -> VALID
+              registry units='Number of claims' scale=1 SA=SA freq=W/SAT history_start=1967-01-07
+              request dol:r539cy:us:continued:SA:history:1967-2026  pub_at=None
+
+## eia  (7 series)
+USSPR         PET.WCSSTUS1.W                               n=  2295 NA=   0 1982-08-14..2026-09-12  newest 2026-09-12..2026-09-18 = 284,552.0000  -> VALID
+              registry units='Thousand barrels' scale=1000 SA=NSA freq=W/FRI history_start=1982-08-20
+              request eia:dnav:PET.WCSSTUS1.W:history:..  pub_at=None  warnings: hist_xls Last-Modified is not on the page's Release Date; not used
+USCRUDEPROD   PET.WCRFPUS2.W                               n=  2278 NA=   0 1983-01-01..2026-09-12  newest 2026-09-12..2026-09-18 = 13,939.0000  -> VALID
+              registry units='Thousand barrels/day' scale=1000 SA=NSA freq=W/FRI history_start=1983-01-07
+              request eia:dnav:PET.WCRFPUS2.W:history:..  pub_at=None  warnings: hist_xls Last-Modified is not on the page's Release Date; not used
+USGASINV      PET.WGTSTUS1.W                               n=  1916 NA=   0 1989-12-30..2026-09-12  newest 2026-09-12..2026-09-18 = 206,046.0000  -> VALID
+              registry units='Thousand barrels' scale=1000 SA=NSA freq=W/FRI history_start=1990-08-03?
+              request eia:dnav:PET.WGTSTUS1.W:history:..  pub_at=None  warnings: hist_xls Last-Modified is not on the page's Release Date; not used
+USDISTINV     PET.WDISTUS1.W                               n=  2295 NA=   0 1982-08-14..2026-09-12  newest 2026-09-12..2026-09-18 = 107,431.0000  -> VALID
+              registry units='Thousand barrels' scale=1000 SA=NSA freq=W/FRI history_start=1982-08-20
+              request eia:dnav:PET.WDISTUS1.W:history:..  pub_at=None  warnings: hist_xls Last-Modified is not on the page's Release Date; not used
+USREFUTIL     PET.WPULEUS3.W                               n=  1873 NA=   0 1990-10-27..2026-09-12  newest 2026-09-12..2026-09-18 = 94.0000  -> VALID
+              registry units='Percent' scale=1 SA=NSA freq=W/FRI history_start=1990-01-05?
+              request eia:dnav:PET.WPULEUS3.W:history:..  pub_at=None  warnings: hist_xls Last-Modified is not on the page's Release Date; not used
+USDIESELPRICE PET.EMD_EPD2D_PTE_NUS_DPG.W                  n=  1698 NA=   0 1994-03-15..2026-09-22  newest 2026-09-22..2026-09-28 = 6.3820  -> VALID
+              registry units='USD per gallon' scale=1 SA=NSA freq=W/MON history_start=1994-03-21
+              request eia:dnav:PET.EMD_EPD2D_PTE_NUS_DPG.W:history:..  pub_at=1790686030
+USNATGASSTOR  FETCH FAILED MalformedPayload: eia USNATGASSTOR: provider error redirect (key rejected or missing)
+              registry units='Billion cubic feet' scale=1000000000 SA=NSA freq=W/FRI history_start=2010-01-01
+
+## fiscaldata  (4 series)
+USDEBTPUB     v2/accounting/od/debt_to_penny : debt_held_p n=  8402 NA=2958 1993-04-01..2026-09-28  newest 2026-09-28..2026-09-28 = 32,386,263,609,755.8711  -> VALID
+              registry units='USD' scale=1 SA=NSA freq=D history_start=1993-04-01
+              request fiscaldata:v2/accounting/od/debt_to_penny:debt_held_public_amt:history:..  pub_at=None
+USMTSREC      v1/accounting/mts/mts_table_1 : current_mont n=   155 NA=   0 2013-10-01..2026-08-01  newest 2026-08-01..2026-08-31 = 360,032,735,841.4200  -> VALID
+              registry units='USD' scale=1 SA=NSA freq=M history_start=2015-10
+              request fiscaldata:v1/accounting/mts/mts_table_1:current_month_gross_rcpt_amt:history:..  pub_at=None
+USMTSOUT      v1/accounting/mts/mts_table_1 : current_mont n=   155 NA=   0 2013-10-01..2026-08-01  newest 2026-08-01..2026-08-31 = 526,829,688,118.8000  -> VALID
+              registry units='USD' scale=1 SA=NSA freq=M history_start=2015-10
+              request fiscaldata:v1/accounting/mts/mts_table_1:current_month_gross_outly_amt:history:..  pub_at=None
+USMTSINT      NO VALUES  reasons=[]
+
+# http stats: {"api.fiscaldata.treasury.gov": {"200": 11}, "apps.bea.gov": {"200": 11}, "oui.doleta.gov": {"200": 1}, "www.census.gov": {"200": 12}, "www.eia.gov": {"200": 6, "206": 6, "302": 1, "error:TransportError": 2}}

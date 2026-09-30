@@ -24,6 +24,27 @@ talks to production. Sources (file names inside --sources):
   census/*.html              Wayback captures of the Census economic-indicator calendar list
                              view; only rows whose release date is ON/BEFORE the capture date
                              are kept (an observed release, not a stale schedule).
+  bls_archive_{prod,ximpim}_2026.html
+                             BLS archived news-release lists for Productivity and Costs
+                             (bls.gov/bls/news-release/prod.htm, links prod2_MMDDYYYY) and Import/
+                             Export Price Indexes (ximpim.htm), Wayback 2026 captures; the FIRST
+                             ('Preliminary') release of a quarter / month; 08:30 time_configured.
+  fed_<rel>_releaseDates.json
+                             The Board's own release-date archives (the JSON behind
+                             federalreserve.gov/releases/<rel>/default.htm "Release Dates"; every
+                             release actually posted, 1996+): H.8 / H.4.1 / H.10 / G.19 / H.6.
+                             DATE ONLY; the time comes from fed_statcalendar.json when that exact
+                             date is listed there (exact), else the row is date-only (end of day).
+                             Release -> period mapping (checked on archived releases, FED_MAPPING):
+                             H.8 week = the latest Wednesday >= 8 days before the release; H.4.1 =
+                             the latest Wednesday before it; H.10 = every business day of the week
+                             before it; G.19 = the 2nd month before the release month; H.6 (monthly
+                             era from 2021-02-23) = the previous month. A period is mapped to the
+                             FIRST release that can carry it, and only inside a plausibility window
+                             (an archive gap -- e.g. H.10 2007-2008 -- leaves periods unmapped
+                             rather than mapped to a far later release).
+  fed_statcalendar.json      https://www.federalreserve.gov/data/statcalendar.json (the Board's
+                             statistical release calendar: title, month, days, time). Times only.
 
 Rows: {calendar_key: {period_label: [release_date_ET, time_ET|null, precision, source_id]}}.
 A null time means DATE ONLY: backfill places such a row at the END of that ET day
@@ -40,8 +61,9 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import Optional
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT =Path(__file__).resolve().parents[2]
 OUT = ROOT / "api" / "services" / "econ" / "calendars" / "release_history.json"
 MONS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
         "November", "December"]
@@ -272,6 +294,132 @@ def census_pages(files: list[tuple[str, dt.date]]) -> dict:
     return out
 
 
+# ─────────────────────────────── BLS quarterly P&C ───────────────────────────
+
+_QNAME = {"First": 1, "Second": 2, "Third": 3, "Fourth": 4}
+
+
+def bls_prod(texts: list[tuple[str, dt.date]]) -> dict:
+    """Productivity and Costs archive: '<YYYY> <Nth> Quarter (Preliminary|Revised)' ->
+    the FIRST (preliminary) release date of each quarter."""
+    rows: dict[str, set] = {}
+    for s, snap in texts:
+        for li in re.findall(r"<li>(.*?)</li>", s, re.S):
+            m = re.search(r"archives/prod2_(\d{8})\.(?:htm|pdf)", li)
+            if not m:
+                continue
+            d = m.group(1)
+            day = dt.date(int(d[4:]), int(d[:2]), int(d[2:4]))
+            if day > snap:
+                continue
+            txt = " ".join(re.sub(r"<[^>]+>", " ", li).split())
+            q = re.search(r"(\d{4})\s+(First|Second|Third|Fourth)\s+Quarter", txt)
+            if not q:
+                continue
+            rows.setdefault(f"{q.group(1)}Q{_QNAME[q.group(2)]}", set()).add(day)
+    out = {}
+    for label, days in rows.items():
+        pe = _month_end(int(label[:4]), int(label[-1]) * 3)
+        after = sorted(d for d in days if d > pe)
+        if after:
+            out[label] = after[0].isoformat()
+    return out
+
+
+# ─────────────────────────────── Fed release-date archives ────────────────────
+
+FED_STATCAL_TITLE = {"h8": "H.8", "h41": "H.4.1", "h10": "H.10", "g19": "G.19", "h6": "H.6"}
+FED_MAPPING = {   # evidence for each release -> period rule (archived releases read 2026-09-30)
+    "h8": "archived releases 1996-06-14, 2001-01-05, 2008-01-04, 2015-01-02, 2026-09-25 each carry the Wednesday "
+          "9 days earlier as their latest week (H.8 page: released Friday, Thursday when Friday is a holiday)",
+    "h41": "H.4.1 page: 'released each Thursday' for the week ended Wednesday (the Wednesday level)",
+    "h10": "H.10 page: 'On Mondays ... releases daily ... for the previous business week'; the following "
+           "business day when Monday is a holiday",
+    "g19": "archived releases 1996-12-06 (Oct 1996), 2000-06-07 (Apr), 2008-10-07 (Aug), 2013-10-07 (Aug), "
+           "2025-10-07 (Aug), 2025-11-07 (Sep), 2026-09-08 (Jul): the second month before the release month",
+    "h6": "monthly release since 2021-02-23 (4th Tuesday) carries the previous month; the weekly era is NOT "
+          "mapped (the archive does not say which weekly release first carried a month)",
+}
+
+
+def _fed_dates(doc) -> list[dt.date]:
+    out = set()
+    for y in doc:
+        for m in y.get("Months") or ():
+            for x in m.get("Dates") or ():
+                x = re.sub(r"\*+$", "", str(x))            # '20210223***' = a footnoted release (still a release)
+                if re.fullmatch(r"\d{8}", x):
+                    try:
+                        out.add(dt.date(int(x[:4]), int(x[4:6]), int(x[6:])))
+                    except ValueError:
+                        pass
+    return sorted(out)
+
+
+def _statcal_times(doc: dict, title: str) -> dict:
+    """{date: 'HH:MM'} for one release family from statcalendar.json."""
+    out = {}
+    for e in doc.get("events") or ():
+        t = str(e.get("title") or "").strip()
+        if not (t.startswith(title + " ") or t.startswith(title + "-")):
+            continue
+        if not re.fullmatch(r"\d{4}-\d{2}", str(e.get("month") or "")):
+            continue
+        m = re.fullmatch(r"(\d{1,2}):(\d{2}) ([ap])\.m\.", str(e.get("time") or "").strip())
+        if not m:
+            continue
+        hh = int(m.group(1)) % 12 + (12 if m.group(3) == "p" else 0)
+        y, mo = int(e["month"][:4]), int(e["month"][5:])
+        for d in str(e.get("days") or "").split(","):
+            if d.strip().isdigit():
+                out[dt.date(y, mo, int(d))] = f"{hh:02d}:{m.group(2)}"
+    return out
+
+
+def _first_on_or_after(dates: list[dt.date], d: dt.date) -> Optional[dt.date]:
+    import bisect
+    i = bisect.bisect_left(dates, d)
+    return dates[i] if i < len(dates) else None
+
+
+def fed_archive(rel: str, dates: list[dt.date]) -> dict:
+    """period label -> first release date that carries it (see FED_MAPPING)."""
+    out: dict[str, dt.date] = {}
+    if not dates:
+        return out
+    lo, hi = dates[0], dates[-1]
+    if rel in ("h8", "h41"):
+        lag, window = (8, 16) if rel == "h8" else (1, 8)
+        w = lo - dt.timedelta(days=30)
+        w += dt.timedelta(days=(2 - w.weekday()) % 7)                  # first Wednesday
+        while w <= hi:
+            r = _first_on_or_after(dates, w + dt.timedelta(days=lag))
+            if r is not None and (r - w).days <= window:
+                out[w.isoformat()] = r
+            w += dt.timedelta(days=7)
+    elif rel == "h10":
+        d = lo - dt.timedelta(days=14)
+        while d <= hi:
+            if d.weekday() < 5:
+                fri = d + dt.timedelta(days=4 - d.weekday())
+                r = _first_on_or_after(dates, fri + dt.timedelta(days=1))
+                if r is not None and (r - d).days <= 14:
+                    out[d.isoformat()] = r
+            d += dt.timedelta(days=1)
+    elif rel in ("g19", "h6"):
+        back = 2 if rel == "g19" else 1
+        for r in dates:
+            if rel == "h6" and r < dt.date(2021, 2, 23):
+                continue
+            pm = r.replace(day=1)
+            for _ in range(back):
+                pm = (pm - dt.timedelta(days=1)).replace(day=1)
+            lab = f"{pm.year}-{pm.month:02d}"
+            if lab not in out or r < out[lab]:
+                out[lab] = r
+    return out
+
+
 # ─────────────────────────────── main ────────────────────────────────────────
 
 MANUAL = {   # official BLS lapse notices (https://www.bls.gov/bls/2025-lapse-revised-release-dates.htm)
@@ -334,6 +482,30 @@ def build(src: Path) -> dict:
     for key, rows in census_pages(files).items():
         for lab, (d, tm) in rows.items():
             fam.setdefault(key, {})[lab] = [d, tm, "exact", "census_listview"]
+    # BLS Productivity and Costs + Import/Export Price Indexes (archive lists, 2002+)
+    p = src / "bls_archive_prod_2026.html"
+    reg("bls_archive_prod_2026", p, "https://www.bls.gov/bls/news-release/prod.htm (Wayback 20260819060112)")
+    for lab, d in bls_prod([(_read(p), dt.date(2026, 8, 19))]).items():
+        fam.setdefault("bls:prod", {})[lab] = [d, "08:30", "time_configured", "bls_archive_prod"]
+    p = src / "bls_archive_ximpim_2026.html"
+    reg("bls_archive_ximpim_2026", p, "https://www.bls.gov/bls/news-release/ximpim.htm (Wayback 20260927134815)")
+    for lab, d in bls_archive([(_read(p), dt.date(2026, 9, 27))], "ximpim").items():
+        fam.setdefault("bls:mxp", {})[lab] = [d, "08:30", "time_configured", "bls_archive_ximpim"]
+    # Fed release-date archives (+ statcalendar times)
+    p = src / "fed_statcalendar.json"
+    reg("fed_statcalendar", p, "https://www.federalreserve.gov/data/statcalendar.json (fetched 2026-09-30)",
+        "times only: a row is 'exact' when statcalendar lists that same date for the release")
+    statcal = json.loads(p.read_text(encoding="utf-8-sig"))
+    for rel, key in (("h8", "fed:h8"), ("h41", "fed:h41"), ("h10", "fed:h10"), ("g19", "fed:g19"),
+                     ("h6", "fed:h6")):
+        p = src / f"fed_{rel}_releaseDates.json"
+        reg(f"fed_{rel}_archive", p, f"https://www.federalreserve.gov/releases/{rel}/releaseDates.json "
+                                     f"(fetched 2026-09-30)", "mapping: " + FED_MAPPING[rel])
+        times = _statcal_times(statcal, FED_STATCAL_TITLE[rel])
+        for lab, d in fed_archive(rel, _fed_dates(json.loads(p.read_text(encoding="utf-8-sig")))).items():
+            tm = times.get(d)
+            fam.setdefault(key, {})[lab] = [d.isoformat(), tm, "exact" if tm else "date_only",
+                                            f"fed_{rel}_archive"]
     return {
         "_doc": ("ACTUAL historical release dates (evidence) for backfill placement. Built by "
                  "tools/econ/build_release_history.py from saved agency pages (sources below, sha256). "

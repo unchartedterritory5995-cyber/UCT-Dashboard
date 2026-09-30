@@ -193,3 +193,42 @@ Cost: a full new DB, a maintenance window for the ingestion service, and every a
 **Option B: store-level supersession of a backfill run.** A new `backfill` release would supersede an older backfill release's placement, and the store would ignore superseded rows in `latest`/`asof`. This changes append-only semantics (rows become invisible without being deleted) and needs a migration plus new query semantics. It was deliberately **not** done in this pass (owner rule).
 
 Recommendation: keep Option A as the operator procedure. Consider Option B only if production backfill corrections become routine.
+
+## 7. Launch-catalog readiness (2026-09-30): release archives for the Fed families, BLS P&C / import prices, corporate profits
+
+Priority applied everywhere: **agency-stated release (date + time) > agency date with configured time or end of ET day > published cadence rule > conservative lag/era/lapse margin**. A row moves earlier only when an agency archive states the release of that exact period; nothing moves earlier on an assumption.
+
+### 7a. New evidence in `release_history.json` (built by `tools/econ/build_release_history.py`; sources + sha256 in the file, copies in `C:\w\econready-data\sources\release_history\`)
+
+| family | periods | source | release -> period mapping (evidence) | time |
+|---|---|---|---|---|
+| `fed:h8` | w/e 1996-05-29 .. 2026-09-16 (1,582) | Board archive `releases/h8/releaseDates.json` | latest Wednesday >= 8 d before the release (archived releases 1996-06-14, 2001-01-05, 2008-01-04, 2015-01-02, 2026-09-25 all carry the Wednesday 9 d earlier) | `statcalendar.json` time when it lists the date (400 rows exact 16:15), else date only -> 23:59 |
+| `fed:h41` | w/e 1996-06-19 .. 2026-09-23 (1,580) | `releases/h41/releaseDates.json` | latest Wednesday before the release (H.4.1 page) | 16:30 exact (402) / date only |
+| `fed:h10` | days 1996-06-21 .. 2026-09-25 (7,221) | `releases/h10/releaseDates.json` | every business day of the week before the release (H.10 page); 2007-2008 missing from the archive -> left unmapped (registry rule pe+10) | 16:15 exact (1,925) / date only |
+| `fed:g19` | 1996-04 .. 2026-07 (364) | `releases/g19/releaseDates.json` | 2nd month before the release month (archived 1996-12-06 = Oct 1996, 2000-06-07 = Apr, 2008-10-07 = Aug, 2013-10-07 = Aug, 2025-10/11, 2026-09-08 = Jul) | 15:00 exact (92) / date only |
+| `fed:h6` | 2021-01 .. 2026-08 (68) | `releases/h6/releaseDates.json` | monthly era only (from 2021-02-23): previous month. The weekly era is not mapped (the archive does not say which weekly release first carried a month) | exact where listed (incl. **2022-02-22 16:30**) |
+| `bls:prod` | 2002Q1 .. 2026Q1 (97) | BLS archived news releases `prod.htm` (Wayback 2026-08-19) | first ("Preliminary") release of the quarter | 08:30 time_configured |
+| `bls:mxp` | 2002-05 .. 2026-08 (291) | BLS archived news releases `ximpim.htm` (Wayback 2026-09-27) | first release of the month | 08:30 time_configured |
+
+Placement rule changes (`backfill_timing.py`, `funding_lapses.json`):
+- **H.8 lag was a look-ahead leak.** USBANKCRED / USCILOANS carried `pe+5 16:15`; H.8 publishes the Wednesday level 9 days later (Friday). Corrected to `pe+9 16:15` (registry-corrections/readiness.json); family bound: a Friday that is an executive-order closure (not a holiday) -> end of the next publication day; era margin pe+21 before the archive (1996-05-29). Negative control `test_readiness.py::test_negative_control_the_old_h8_rule_was_a_lookahead_leak`: without the archive, the old lag places >= 190 of the last 200 archived weeks before their release; the new rule places 0.
+- **H.6 1:00 p.m. was early once.** The Board's calendar lists the 2022-02-22 H.6 (Jan 2022) at 4:30 p.m.; the 4th-Tuesday-13:00 bound placed USM2/USM1 Jan-2022 3.5 h early. Now snapped to 16:30 (`test_h6_monthly_release_at_1630_is_not_placed_at_1300`).
+- **Corporate profits** (`bea:profits`, INFERRED label, min lag 45 d, era pe+120 before 1985). The 2025 lapse catch-up for profits ran to 2026-04-09 (Q4-2025), past the BEA family catch-up 2026-03-13: `Lapse.window_end` now takes the max over every matching catch-up pattern, and `bea:profits: 2026-04-09` is recorded, so Q4-2025 cannot land on 2026-04-02 (`test_corporate_profits_2025q4_waits_for_the_april_catch_up`).
+- G.19 era margin pe+50 before 1996-04. USDEBTPUB joins USDEBT in `BACKCAST_BEFORE` (daily figures only from 2005-04-04 -> L).
+
+Effect on the local readiness DB (backfill rows, placement re-derived with and without the new archives): USFEDBAL / USFEDUST 1,229 of 1,241 re-timed (1,200 earlier: the registry rule said Friday, the archive says Thursday; 29 later: holiday/closure weeks); USM2 / USM1 68 of 812 (monthly era, to the archived date/time); USBANKCRED 1,190 (1,161 later = the leak fix); USCONSCRED 351; USDOLLARIDX 4,524 (Monday releases instead of pe+10); USPROD 88; USIMPPRICE 281. Every snapped row equals its archived release (`test_every_archived_release_places_the_row_at_the_release`), and `readiness_census.py` counts **0 rows placed before an archived agency release** across all 136 enabled series.
+
+### 7b. Accuracy breakdown (local DB, non-derived backfill rows, `docs/economic-data/readiness/CATALOG.md`)
+
+| class | rows |
+|---|---:|
+| exact (agency date + time) | 10,182 |
+| reconstructed (agency date with configured time / end of day, or a published cadence rule) | 139,191 |
+| conservative (registry lag, era margin, lapse floor) | 90,551 |
+| unknown (does not re-derive) | 0 |
+
+BLS rows in this DB cover 1997-2026 only (keyless quota); the production keyed backfill adds the older, mostly era-margin (conservative) CPI/Employment/Productivity rows.
+
+### 7c. Not tightened (no fetchable authoritative archive found)
+- DOL weekly claims: `oui.doleta.gov/unemploy/claims_arch.asp` lists no releases; dol.gov news pages are not script-fetchable. USICSA stays on the Thursday cadence rule + holiday/closure bounds + era margin.
+- EIA natural-gas storage (series not enabled), Census programs outside the three captured list-view families, BEA before the feed window, MTS: unchanged (conservative).

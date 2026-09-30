@@ -40,6 +40,8 @@ import { symbolSource, canonicalSymbol, derivedSourceName, paneOfTarget } from '
 import { addInstance, setInstanceInput, findInstance, setInstanceDisplayTarget } from './engine/instanceControls'
 import { cachedBars, SOURCE_STATUS } from './engine/secondaryBars'
 import { fundamentalSource } from './engine/fundamentalGrammar'
+import { economicSource } from './engine/economicGrammar'
+import { econFacts, economicSubtitle } from './economic/econUi'
 import { SERIES_COLORS as COT_SERIES_COLORS } from '../../pages/cot/cotPalette'
 import { GROUP_PANE_HEIGHT, sideBySideBars } from './engine/groupBars'
 
@@ -664,6 +666,12 @@ export function semanticNamesFor(res) {
   if (res.kind === 'fundamental') {
     const n = str(res.name, '') || id
     return { full: n, compact: n }
+  }
+  // ⭐ AN ECONOMIC SERIES NAMES ITSELF BY ITS REGISTRY SHORT NAME in a list
+  // ("Core CPI: All Items Less Food & Energy") and by its DISPLAY SYMBOL in a pane
+  // legend (`USCORECPI`) — never by a provider id, never by its chip.
+  if (res.kind === 'economic') {
+    return { full: str(res.metricShort, '') || str(res.name, '') || id, compact: id }
   }
   if (res.kind !== 'breadth') {
     // A security names itself: `QQQ` is the thing, and `res.name` is the gloss.
@@ -1308,6 +1316,21 @@ export const LIBRARY_TABS = Object.freeze([
 ])
 
 /**
+ * ⭐ THE SIXTH TAB, AND IT IS NOT IN `LIBRARY_TABS`.
+ *
+ * ⛔⛔ DARK BY CONSTRUCTION. `Economic` exists only for a member whose
+ * `/api/econ/catalog` answered 200 (the server's `ECON_ENABLED` AND the bars
+ * entitlement) — `libraryTabsFor({economic: true})`. Every other chart (flag
+ * unset, 401, 403, offline) gets `LIBRARY_TABS` BY IDENTITY: the same five tabs,
+ * the same keyboard ring, the same frozen array its tests already pin.
+ */
+export const ECONOMIC_TAB = Object.freeze({ key: 'economic', label: 'Economic' })
+const _LIBRARY_TABS_ECON = Object.freeze([...LIBRARY_TABS, ECONOMIC_TAB])
+export function libraryTabsFor({ economic = false } = {}) {
+  return economic ? _LIBRARY_TABS_ECON : LIBRARY_TABS
+}
+
+/**
  * POPULAR — curated, by DEFINITION ID.
  *
  * ⛔⛔ IDS, NOT ROWS, AND THAT IS THE WHOLE SAFETY OF IT. This list says which
@@ -1391,6 +1414,53 @@ export function fundamentalResults(metrics) {
 }
 
 /**
+ * ⭐ ECONOMIC: THE MEMBER CATALOGUE `/api/econ/catalog` PUBLISHES (the Economic tab).
+ *
+ * `fundamentalResults`' twin. Every row creates an ordinary `dataSeries` whose
+ * source is `econ:<SYMBOL>` (symbol-less — it does NOT follow the charted ticker),
+ * drawn in its OWN pane (`dataSeries` is `autoPane`) with its own scale, projected
+ * onto the host's bars at release time (`economicSource.economicColumn`).
+ *
+ * ⛔ THE REGISTRY STYLE RIDES THE CREATE DESCRIPTOR (`presentation.plotStyle`:
+ * line / step / histogram), so `FAMILY_DEFAULT_PLOT_STYLE.economic` ('area') never
+ * repaints a policy-rate step or a signed payrolls histogram as an area.
+ * ⛔ Candles are impossible here by grammar: `econ:` is never `kind: 'symbol'`.
+ *
+ * Search: the name, the short name, the display symbol, the category, and every
+ * registry alias / synonym ("cpi", "core cpi", "fed funds", "10-year treasury").
+ */
+export function economicResults(list) {
+  const out = []
+  const seen = new Set()
+  for (const row of Array.isArray(list) ? list : []) {
+    const f = econFacts(row)
+    if (!f || seen.has(f.symbol)) continue
+    const source = economicSource(f.symbol)
+    if (!source) continue
+    seen.add(f.symbol)
+    const syn = [...(Array.isArray(row.synonyms) ? row.synonyms : []), ...(Array.isArray(row.aliases) ? row.aliases : [])]
+      .filter((t) => typeof t === 'string' && t)
+    // "10 year treasury" also answers "10-year treasury"
+    const variants = syn.map((t) => t.replace(/(\d) (?=[a-z])/gi, '$1-')).filter((t) => !syn.includes(t))
+    const style = f.style === 'step' || f.style === 'histogram' || f.style === 'line' ? f.style : 'line'
+    out.push(result({
+      id: f.symbol,
+      kind: 'economic',
+      name: f.name,
+      shortName: f.symbol,
+      lead: f.name,
+      sub: economicSubtitle(row),
+      category: f.category || 'Economic',
+      description: [row.description, economicSubtitle(row)].filter(Boolean).join(' — '),
+      tags: ['economic', f.symbol.toLowerCase(), ...syn, ...variants],
+      metricShort: f.shortName,
+      create: { via: CREATE_VIA.DATA_SERIES, source, presentation: { plotStyle: style } },
+    }))
+  }
+  return out
+}
+
+/**
  * Which tab does one result belong to? Canonical fields only.
  *
  * ⚠️ `popular` IS NOT ANSWERED HERE, because it is not exclusive — Moving
@@ -1403,6 +1473,7 @@ export function tabOf(res) {
   if (res.kind === 'breadth') return 'breadth'
   if (res.kind === 'positioning') return 'positioning'
   if (res.kind === 'fundamental') return 'fundamentals'
+  if (res.kind === 'economic') return 'economic'
   // ⭐ EVERY SECURITY — stock, ETF or index — IS A SYMBOL (owner, 2026-09-30). The
   // server's classification still rides on the row as its `category`, which is what
   // the list's headings and chips print; it no longer picks a tab.
@@ -1452,6 +1523,8 @@ export const GLYPH_FAMILIES = Object.freeze({
   security: 'ind-security',
   formula: 'ind-formula',
   series: 'ind-series',
+  // ⚠️ REUSES the series mark (no new icon in the entry chunk's UIcon table).
+  economic: 'ind-series',
 })
 
 /**
@@ -1498,6 +1571,7 @@ export function glyphFamilyOf(res) {
   // net position draws.
   if (tab === 'positioning') return 'momentum'
   if (tab === 'fundamentals') return 'fundamental'
+  if (tab === 'economic') return 'economic'
   if (tab === 'formulas') return 'formula'
   if (tab === 'symbols' || tab === 'indexes' || tab === 'etfs') return 'security'
   const cat = String(res.category || '').toLowerCase()

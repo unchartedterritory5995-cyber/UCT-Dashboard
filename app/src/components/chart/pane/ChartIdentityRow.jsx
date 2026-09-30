@@ -16,6 +16,7 @@ export default function ChartIdentityRow({
   boundsRef = null,
   themeVars = undefined,
   onSymbolChange = null,
+  economic = false,
   showChange = true,
   dayGain = null,
   dayGainColors = {},
@@ -50,6 +51,7 @@ export default function ChartIdentityRow({
             labelColor={labelColor}
             boundsRef={boundsRef}
             themeVars={themeVars}
+            economic={economic}
           />
         ) : (
           // Same test id the SymbolSearch branch renders under, so one query

@@ -1,0 +1,44 @@
+# BLS identity verification (keyless; NO api.bls.gov quota used) -- 2026-09-30
+# Sources: BLS's own series catalogs https://download.bls.gov/pub/time.series/{cu,pr,jt}/<pre>.series
+# (header: series_id, codes, seasonal, base, series_title, begin/end) and the BLS series pages
+# https://data.bls.gov/timeseries/<ID> (title, seasonal adjustment, base, latest values), read 2026-09-30.
+# Data (values/history) come from api.bls.gov v1 in the local backfill (docs/economic-data/readiness/CATALOG.md).
+
+USCPIFOOD     cu.series CUSR0000SAF1 'Food in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1947 M01..2026 M08
+USCPIENERGY   cu.series CUSR0000SA0E 'Energy in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08
+USCPISHELTER  cu.series CUSR0000SAH1 'Shelter in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08
+USCPIOER      cu.series CUSR0000SEHC 'Owners' equivalent rent of residences in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1983 M01..2026 M08
+USCPISVCXSH   cu.series CUSR0000SASL2RS 'Services less rent of shelter in U.S. city average, all urban consumers, seasonally adjusted' base DECEMBER 1982=100, 1985 M01..2026 M08
+USCPISVCXEN   cu.series CUSR0000SASLE 'Services less energy services in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1967 M01..2026 M08
+USCPICOREGDS  cu.series CUSR0000SACL1E 'Commodities less food and energy commodities in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1957 M01..2026 M08
+USCPIUSEDCAR  cu.series CUSR0000SETA02 'Used cars and trucks in U.S. city average, all urban consumers, seasonally adjusted' base 1982-84=100, 1953 M01..2026 M08
+USPPICORE     data.bls.gov/timeseries/WPSFD49104 'PPI Commodity data for Final demand less foods and energy, seasonally adjusted', base 201004; Aug 2026 154.842(P)
+USPPIFDNSA    data.bls.gov/timeseries/WPUFD4 'PPI Commodity data for Final demand, not seasonally adjusted', base Nov 2009; Aug 2026 157.604(P), Jul 157.155(P)
+USIMPPRICE    data.bls.gov/timeseries/EIUIR 'Monthly import price index for BEA End Use, All commodities, not seasonally adjusted', base 2000=100; Aug 2026 150.8, Jul 149.8(R)
+USPROD        pr.series PRS85006092: sector 8500 (nonfarm business), measure 09 (labor productivity), duration 2 (% change from previous quarter at annual rate), seasonal S, 1947 Q02..2026 Q02
+USULC         pr.series PRS85006112: sector 8500, measure 11 (unit labor costs), duration 2 (% change q/q at annual rate), seasonal S, 1947 Q02..2026 Q02
+USU6          data.bls.gov/timeseries/LNS13327709 '(Seas) Total unemployed, plus all persons marginally attached ... plus total employed part time for economic reasons ... (U-6)', percent; Aug 2026 7.7
+USLFPR        data.bls.gov/timeseries/LNS11300000 '(Seas) Labor Force Participation Rate', percent; Aug 2026 61.6
+USEPOP        data.bls.gov/timeseries/LNS12300000 '(Seas) Employment-Population Ratio', percent; Aug 2026 59.1
+USEPOP2554    data.bls.gov/timeseries/LNS12300060 '(Seas) Employment-Population Ratio - 25-54 yrs.', percent; Aug 2026 80.4
+USPRIVNFP     data.bls.gov/timeseries/CES0500000001 'All employees, thousands, total private, seasonally adjusted'; Aug 2026 135,752(P), 1939..2026
+USMFGNFP      data.bls.gov/timeseries/CES3000000001 'All employees, thousands, manufacturing, seasonally adjusted'; Aug 2026 12,638(P)
+USGOVNFP      data.bls.gov/timeseries/CES9000000001 'All employees, thousands, government, seasonally adjusted'; Aug 2026 preliminary ~23.3M
+USAHE         data.bls.gov/timeseries/CES0500000003 'Average hourly earnings of all employees, total private, seasonally adjusted'; Aug 2026 $37.75(P)
+USAWH         data.bls.gov/timeseries/CES0500000002 'Average weekly hours of all employees, total private, seasonally adjusted'; Aug 2026 34.4(P)
+USJOLTSQ      jt.series JTS000000000000000QUL: seasonal S, industry 000000 total nonfarm, dataelement QU (quits), ratelevel L (level, thousands), 2000 M12..2026 M08
+USJOLTSQR     jt.series JTS000000000000000QUR: seasonal S, total nonfarm, QU quits, R rate (percent), 2000 M12..2026 M08
+USJOLTSH      jt.series JTS000000000000000HIL: seasonal S, total nonfarm, HI hires, L level (thousands), 2000 M12..2026 M08
+USJOLTSL      jt.series JTS000000000000000LDL: seasonal S, total nonfarm, LD layoffs and discharges, L level (thousands), 2000 M12..2026 M08
+
+# BEA identity (SeriesRegister.txt, apps.bea.gov/national/Release/TXT/SeriesRegister.txt, fetched 2026-09-30):
+USFSPDP       LB000003 'Final sales to private domestic purchasers' Chained Dollars Level scale -6, T10406:8
+USRNRFI       A008RX 'Nonresidential' Chained Dollars Level scale -6, T10106:9
+USPERSINC     A065RC 'Equals: Personal income' Current Dollars scale -6, T20600:1
+USDPI         A067RC 'Disposable personal income' Current Dollars scale -6, T20600:27
+USRDPI        A067RX 'Disposable personal income' Chained Dollars scale -6, T20600:37
+USPCE         DPCERC 'Personal consumption expenditures' Current Dollars scale -6, T20600:29|T20805:1
+USRPCE        DPCERX 'Personal consumption expenditures' Chained Dollars scale -6, T20806:1
+USSAVRATE     A072RC 'Personal saving as a percentage of disposable personal income' Ratio scale 0, T20600:35
+USPCESVCXHE   IA001260 'PCE services excluding energy and housing' Fisher Price Index scale 0, T20804:28
+USCORPPROF    A051RC 'Corporate profits with inventory valuation and capital consumption adjustments' Current Dollars scale -6, T61600D:1

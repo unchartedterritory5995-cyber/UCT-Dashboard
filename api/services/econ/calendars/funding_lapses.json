@@ -44,7 +44,7 @@
       "start": "2025-10-01",
       "end": "2025-11-12",
       "affected": ["bls:*", "bea:*", "census:*", "dol:claims", "fed:g17", "fiscal:mts"],
-      "catch_up_end": {"bls:*": "2026-01-30", "bea:*": "2026-03-13", "census:*": "2026-04-29", "fed:g17": "2025-12-23"},
+      "catch_up_end": {"bls:*": "2026-01-30", "bea:*": "2026-03-13", "bea:profits": "2026-04-09", "census:*": "2026-04-29", "fed:g17": "2025-12-23"},
       "confidence": "official: DOL 'lapse in appropriations in effect from October 1, 2025, through November 12, 2025'; P.L. 119-37 signed 2025-11-12. BLS revised release dates (official): Sep Employment Situation 2025-11-20, Oct CPI cancelled, PPI Dec 2025 moved to 2026-01-30. BEA: Q3 initial GDP 2025-12-23, Q4 second estimate 2026-03-13. Census list view: Feb/Mar 2026 housing starts 2026-04-29. G.17 (BLS source data): Sep 2025 on 2025-12-03, Oct/Nov on 2025-12-23. DOL claims not published 2025-10-02..11-13. EIA: 'publications will continue to be released according to established schedules' -> not affected. MTS: not evidenced -> included conservatively",
       "citations": ["https://www.bls.gov/bls/2025-lapse-revised-release-dates.htm", "https://www.congress.gov/crs_external_products/R/PDF/R48765/R48765.2.pdf", "https://www.bea.gov/news/2025/gross-domestic-product-3rd-quarter-2025-initial-estimate", "https://www.census.gov/economic-indicators/calendar-listview.html", "https://www.federalreserve.gov/releases/g17/default.htm", "https://www.dol.gov/newsroom/releases/eta/eta20251120"]
     },

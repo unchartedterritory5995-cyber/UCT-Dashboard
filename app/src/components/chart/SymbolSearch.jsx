@@ -1,5 +1,5 @@
 // app/src/components/chart/SymbolSearch.jsx — Clickable symbol badge + centered symbol-search modal
-import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import CompanyLogo from '../CompanyLogo'
 import uctMark from '../intro/assets/compass-mark.png'
@@ -33,13 +33,19 @@ function highlighted(text, query, styles) {
   return parts
 }
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, economic = false }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
   const [activeIdx, setActiveIdx] = useState(0)
   const [chip, setChip] = useState('all')
   const [breadthAll, setBreadthAll] = useState([])
+  // ⭐ ECONOMIC SERIES — opt-in per surface (`economic`: a chart that can draw
+  // one), loaded lazily, and present only once `/api/econ/catalog` answered 200
+  // for this member (`econSearch.probeEconomic`). Until then — and forever on a
+  // dark deploy — `econ` is null and this component is exactly what it was.
+  const [econ, setEcon] = useState(null)
+  const chips = useMemo(() => (econ ? econ.withEconomicChip(CHIPS) : CHIPS), [econ])
   const inputRef = useRef(null)
   const wrapRef = useRef(null)
   const listRef = useRef(null)
@@ -100,6 +106,15 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     return () => cancelAnimationFrame(id)
   }, [open, boundsRef])
 
+  useEffect(() => {
+    if (!economic || !open || econ) return undefined
+    let alive = true
+    import('./economic/econSearch')
+      .then((m) => m.probeEconomic().then((ok) => { if (alive && ok) setEcon(m) }))
+      .catch(() => { /* offline: no economic chip */ })
+    return () => { alive = false }
+  }, [economic, open, econ])
+
   // Fetch the full UCT breadth catalog once (on first open) so the Breadth chip has a
   // real list to preload + filter (works on any backend — independent of search).
   useEffect(() => {
@@ -128,7 +143,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (!open) return undefined
     navByKbdRef.current = false   // a fresh query/chip resets keyboard selection
     const q = query.trim()
-    const typeParam = CHIPS.find(c => c.key === chip)?.type || ''
+    const typeParam = chips.find(c => c.key === chip)?.type || ''
 
     if (chip === 'index') {
       setResults(INDICES_PRESET.filter(r => matchQ(r, q)))
@@ -137,6 +152,11 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     }
     if (chip === 'breadth') {
       setResults(breadthAll.filter(r => matchQ(r, q)))
+      setActiveIdx(0)
+      return undefined
+    }
+    if (chip === 'economic' && !q) {
+      setResults(econ ? econ.browseEconomicRows() : [])
       setActiveIdx(0)
       return undefined
     }
@@ -151,7 +171,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     if (abortRef.current) abortRef.current.abort()
     const ctl = new AbortController()
     abortRef.current = ctl
-    const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=40${typeParam ? `&type=${typeParam}` : ''}`
+    const url = `/api/ticker-search?q=${encodeURIComponent(q)}&limit=40${typeParam ? `&type=${typeParam}` : (econ ? '&type=all_economic' : '')}`
     const t = setTimeout(() => {
       fetch(url, { signal: ctl.signal })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -172,7 +192,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
         })
     }, 150)
     return () => { clearTimeout(t); ctl.abort() }
-  }, [query, open, chip, breadthAll])
+  }, [query, open, chip, breadthAll, econ, chips])
 
   // Auto-scroll active item into view during keyboard navigation
   useEffect(() => {
@@ -206,11 +226,11 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     } else if (e.key === 'Tab') {
       // Tab / Shift+Tab cycles the category chips (TradingView-ish quick filter).
       e.preventDefault()
-      const i = CHIPS.findIndex(c => c.key === chip)
-      const n = (i + (e.shiftKey ? -1 : 1) + CHIPS.length) % CHIPS.length
-      setChip(CHIPS[n].key)
+      const i = chips.findIndex(c => c.key === chip)
+      const n = (i + (e.shiftKey ? -1 : 1) + chips.length) % chips.length
+      setChip(chips[n].key)
     }
-  }, [results, activeIdx, submit, query, chip])
+  }, [results, activeIdx, submit, query, chip, chips])
 
   if (!onSymbolChange) {
     // Read-only mode — just show symbol, not clickable
@@ -300,7 +320,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
             </div>
 
             <div className={styles.chipRow}>
-              {CHIPS.map(c => (
+              {chips.map(c => (
                 <button
                   key={c.key}
                   type="button"
@@ -324,6 +344,8 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                 >
                   {r._typed ? (
                     <span className={styles.resultTyped}>Go to <strong>{r.ticker}</strong></span>
+                  ) : (r.economic && econ) ? (
+                    <econ.EconRowBody r={r} query={query} styles={styles} highlighted={highlighted} />
                   ) : (
                     <>
                       <span className={styles.resultLogo}>

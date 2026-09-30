@@ -664,6 +664,11 @@ const AWAITING_A_DECISION = {
     'NOT AN ORPHAN, NOT A PRODUCT — the dev-only Vite entry for app/econ-harness.html '
     + '(Economic Data Phase 1 acceptance). Never built (vite build takes index.html '
     + 'only; railed by econHarnessAbsent.test.js) and never reachable from App.jsx by design.',
+  'app/src/econHarness/captureUiAcceptance.mjs':
+    'NOT AN ORPHAN — the Economic UI acceptance driver (`node src/econHarness/captureUiAcceptance.mjs`), '
+    + 'dev-only tooling against a LOCAL server; run by hand, never shipped.',
+  'app/src/econHarness/cdp.mjs':
+    'NOT AN ORPHAN — the Chrome DevTools helper imported only by the econ acceptance drivers above. Tooling.',
   'app/src/econHarness/captureScenarios.mjs':
     'NOT AN ORPHAN, NOT A PRODUCT — the node/CDP driver for app/econ-harness.html '
     + '(`node src/econHarness/captureScenarios.mjs`). Tooling, run by hand.',
