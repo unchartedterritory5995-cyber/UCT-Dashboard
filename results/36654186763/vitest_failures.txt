@@ -1,0 +1,30 @@
+src/hooks/usePreferences.additionsOnly.test.js :: S5 CP2 — additions only > NO NEW opaque-key call site appears — the way around this rail is railed
+    pages/Watchlists.jsx: 3 opaque setPref site(s), 2 baselined pages/journal-2-0/components/notebook/ResearchHome.jsx: 1 opaque setPref site(s), 0 baselined pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx: 1 opaque setPref site(s), 0 baselined  A setPref call whose key is a VARIABLE is invisible to this rail — it cannot tell which preference is being written. That is why the count is pinned: passing a new key through a variable must not be the quiet way past the gate. Prefer a literal key. If the key genuinely must be computed, say so here.: expected [ …(3) ] to deeply equal []
+src/lib/journal-2-0/format.test.js :: dateShort (MM/DD/YY) > ISO date → short format
+    expected '04/08/26' to be '04/09/26' // Object.is equality
+src/lib/journal-2-0/format.test.js :: dateLong (MM/DD/YYYY) > Date object → long format
+    expected '04/08/2026' to be '04/09/2026' // Object.is equality
+src/lib/presentation/presentationSingleFormatter.test.js :: the S8 provenance family formats nothing of its own > no file in it calls a locale formatter in CODE
+    these must format through lib/presentation instead: expected [ Array(1) ] to deeply equal []
+src/lib/presentation/presentationSingleFormatter.test.js :: the S8 provenance family formats nothing of its own > none of these files contains a regex literal the stripper cannot model
+    AbsenceReceipt.jsx: expected '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\…' not to match /[=(,]\s*\/[^/*\s][^\n]*\/[gimsuy]*/[^
+src/pages/breadth/heatmapRegistry.golden.test.js :: the heatmap registry is unchanged by R1 > serialises exactly as the golden recorded before the move
+    expected { …(4) } to deeply equal { …(4) }
+src/pages/charts/VersionHistory.workspace.test.jsx :: STATE-2: a stored board that cannot be read is never autosaved over > corrupt stored layout: the default board shows, the debounce and the unmount flush both refuse, the member is told
+    expected [ [ 'charts_workspace_layout', …(1) ] ] to deeply equal []
+src/pages/charts/VersionHistory.workspace.test.jsx :: STATE-2: a stored board that cannot be read is never autosaved over > a deliberate member action still writes: New Layout replaces the unreadable value
+    expected [ [ …(5) ], [] ] to deeply equal [ [] ]
+src/pages/charts/VersionHistory.workspace.test.jsx :: STATE-2: a stored board that cannot be read is never autosaved over > the held notice can be dismissed, and dismissing it does not lift the guard
+    expected [ [ 'charts_workspace_layout', …(1) ] ] to deeply equal []
+src/pages/charts/widgets/ScanObjectCard.test.jsx :: 🔴 the object OPENS in the shipped builder and SAVES through its own door > lands in the Formula field on the Conditions tab, and Save writes that exact tree
+    [2mexpect([22m[31melement[39m[2m).toHaveValue([22m[32m(close > sma(close, 50))[39m[2m)[22m  Expected the element to have value: [32m  (close > sma(close, 50))[39m Received: [31m[39m
+src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js :: no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) > every built asset is clear
+    app/dist/assets missing — run `npm run build`; this rail reads BUILT output and with no build it measures nothing: expected false to be true // Object.is equality
+src/components/chart/engine/ast/pine.depth.test.js :: src/components/chart/engine/ast/pine.depth.test.js
+    ENOENT: no such file or directory, open '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/fixtures/pine/10-supertrend.pine'
+src/components/chart/engine/ast/pine.timeout.test.js :: src/components/chart/engine/ast/pine.timeout.test.js
+    ENOENT: no such file or directory, open '/home/runner/work/UCT-Dashboard/UCT-Dashboard/app/home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/fixtures/pine/13-average-true-range.pine'
+src/components/chart/engine/ast/targetScriptReport.measure.test.js :: ⭐⭐ the target list — what each script actually needs > ⭐⭐ reports every target: both lanes, plus the look-ahead scan
+    1 target(s) named in target-scripts.json do not exist on disk: expected 1 to be +0 // Object.is equality
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.test.js :: 3 · the comparator > the tolerance is derived from pricescale, and a legacy readDecimals states its own floor
+    expected 0.000049999999999999996 to be 0.00005 // Object.is equality
