@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2445,
+  "passed": 2429,
+  "failed": 13,
+  "errored": 0,
+  "skipped": 3,
+  "wall_s": 803.12,
+  "failed_files": [
+    "tests/test_notebook_bench_uct.py",
+    "tests/test_notebook_rollback_chain.py",
+    "tests/test_parity_scorecard.py",
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "13 failed, 2429 passed, 3 skipped, 23 warnings in 803.12s (0:13:23)",
+  "ok": true
+}

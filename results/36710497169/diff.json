@@ -1,0 +1,99 @@
+{
+  "verdict": "NEW_FAILURES",
+  "counts": {
+    "new": 2,
+    "fixed": 5,
+    "unchanged": 161,
+    "missing": 0,
+    "baseline": 166,
+    "current": 163,
+    "current_ran": 35125,
+    "new_flaky": 0,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 2
+  },
+  "arithmetic": "baseline 166 = unchanged 161 + fixed 5 + missing 0  |  current 163 = unchanged 161 + new 2 + new-but-flaky 0",
+  "invalid_because": [],
+  "baseline_run_id": "36710319052",
+  "current_run_id": "36710497169",
+  "baseline_sha": "1f92e2f2de1e8c3ef5b5feed3a0e26e01f4690a0",
+  "current_sha": "f40b541c2e2e403171b60392a898e58ccd2f3354",
+  "commit_range": "1f92e2f2de1e8c3ef5b5feed3a0e26e01f4690a0..f40b541c2e2e403171b60392a898e58ccd2f3354",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_consensus-ok]",
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_graph_wire_size|test_a_caller_that_does_not_ask_still_gets_the_forest",
+    "pytest|tests.test_graph_wire_size|test_a_malformed_stored_graph_is_readable_but_never_expandable",
+    "pytest|tests.test_graph_wire_size|test_compacting_is_lossless_the_program_survives",
+    "pytest|tests.test_graph_wire_size|test_serialisation_and_parse_cost_of_each_read_shape",
+    "pytest|tests.test_graph_wire_size|test_stored_response_and_compact_response_bytes"
+  ],
+  "new_flaky": [],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_term072_fmp_parity|test_parity_with_the_legacy_recording[analyst_intel._fmp_consensus-ok]": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_term072_fmp_parity.py or anything it imports"
+    },
+    "pytest|tests.test_term082_day_metrics_serve_stale|test_concurrent_cold_requests_collapse_onto_one_build": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_term082_day_metrics_serve_stale.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_a_caller_that_does_not_ask_still_gets_the_forest": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_a_malformed_stored_graph_is_readable_but_never_expandable": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_compacting_is_lossless_the_program_survives": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_serialisation_and_parse_cost_of_each_read_shape": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_graph_wire_size.py or anything it imports"
+    },
+    "pytest|tests.test_graph_wire_size|test_stored_response_and_compact_response_bytes": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 1f92e2f2d..f40b541c2 touched tests/test_graph_wire_size.py or anything it imports"
+    }
+  }
+}
