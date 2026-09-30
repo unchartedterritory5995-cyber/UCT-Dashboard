@@ -1,0 +1,96 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.status {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.heading {
+  margin: 6px 0 0;
+  color: var(--text-bright);
+  font-size: 14px;
+  font-weight: 700;
+}
+.para {
+  margin: 0;
+}
+.paraEmpty {
+  margin: 0;
+  min-height: 1em;
+}
+.list {
+  margin: 0;
+  padding-left: 20px;
+}
+.taskList {
+  list-style: none;
+  padding-left: 0;
+}
+.taskItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.taskCheck {
+  flex: 0 0 auto;
+}
+.hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 4px 0;
+}
+.quote {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent);
+  color: var(--text-muted);
+}
+.code {
+  padding: 0 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  font-family: var(--font-mono, monospace);
+}
+.codeBlock {
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+}
+.img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.actions button {
+  min-height: var(--tap-min, 44px);
+}
