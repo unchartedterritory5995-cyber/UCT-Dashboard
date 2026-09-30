@@ -518,6 +518,13 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
     seen_sym: set = set()
     archive_todo: list = []
     acq_by_sym: dict[str, int] = {}
+    # history coverage is judged over ALL of this call's payloads for a series (validate.check_partial)
+    union_by_sym: dict[str, set] = {}
+    if mode == "history":
+        for r in results:
+            if not r.not_modified:
+                for o in r.observations:
+                    union_by_sym.setdefault(o.series_id, set()).add(o.period_start)
     for r in results:
         acq = store.record_acquisition(out.adapter, secrets.redact(r.request_key)[:900], started_at=now)
         out.acq_ids.append(acq)
@@ -537,7 +544,8 @@ def run_fetch(store, specs, mode: str, now: int, http, adapter, *, start: Option
                 seen_sym.add(s)
                 acc, reasons = validate.validate_fetch(by_sym[s], r, store, now=now, mode=mode,
                                                        start=start.isoformat() if start else None,
-                                                       end=end.isoformat() if end else None, requested_ids=syms)
+                                                       end=end.isoformat() if end else None, requested_ids=syms,
+                                                       covered_periods=union_by_sym.get(s, set()) if mode == "history" else None)
                 if reasons:
                     rejected_any = True
                     outcome = "rejected"
