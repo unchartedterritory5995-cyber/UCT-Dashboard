@@ -401,8 +401,14 @@ export function collectObjectOps(stmts, h) {
               refuseCall('var-init', rh.fn, st)
               continue
             }
+            // ⭐⭐ C11c — `[Line, A, B] = drawLL(…)`: a TUPLE of the handles the
+            // body returns, one name each (see the tuple arm in `inlineCall`).
+            const tupleClose = h.isPunct(t[0], '[') ? t.findIndex((x) => h.isPunct(x, ']')) : -1
+            const tupleNames = tupleClose > 0 && asIdx > tupleClose
+              ? t.slice(1, tupleClose).filter((x) => x.kind === 'ident').map((x) => String(x.value))
+              : null
             const intoTok = reIdx >= 0 ? t[asIdx - 1] : h.boundName(t, asIdx)
-            const into = intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null
+            const into = tupleNames || (intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null)
             inlineAt(rh, rhs, 1, into, guards, inLoop, st, localScope)
             continue
           }
@@ -735,6 +741,28 @@ export function collectObjectOps(stmts, h) {
         // not recognise it and it FALLS THROUGH to this one. Splitting it here
         // would reintroduce exactly the once-initialised divergence that branch
         // refuses, by the back door.
+        // ── ⭐⭐ C11c — `x := y` / `x = y` BETWEEN TWO HANDLES ───────────────
+        // Pine copies the handle: `x` names the object `y` names NOW, and every
+        // setter, getter or delete through `x` reaches that object. ⚰️ Unread,
+        // the statement fell through to nothing — no op, no count — so
+        // pro-trading-art's `topLine := Line` left `topLine` empty and its
+        // `topLine.set_x2(bar_index)` extended no line (a `set_x2` TradingView
+        // makes, dropped without a word). An eager register copy (`copy` →
+        // `setreg`), the shape a returned handle and a list read already take.
+        // ⛔ Not a `var` (initialised once — the branch above refuses that
+        // shape for creates for the same reason), not a field of a user type,
+        // and not across two families (a Pine type error, left as it was).
+        const copyFrom = rhs.length === 1 && rhs[0].kind === 'ident' ? decls.get(String(rhs[0].value)) : null
+        if (copyFrom && copyFrom.kind !== 'coll' && word !== 'var' && word !== 'varip'
+            && !String(name).includes('.') && (!held || (held.kind !== 'coll' && held.family === copyFrom.family))) {
+          if (inLoop) { diagnostics.loopBlocked.push(`${copyFrom.family} copy`); continue }
+          if (!held) decls.set(name, { family: copyFrom.family, kind: 'local' })
+          ops.push({
+            k: 'copy', into: name, from: String(rhs[0].value), fromSite: null,
+            guards, locals: localScope, loopIds: [...loopIds], at: t[0], line: st.header[0].line,
+          })
+          continue
+        }
         const named = word !== 'var' && word !== 'varip' ? createNameIn(rhs) : null
         if (named) {
           // ⛔ THE FAMILY COMES FROM THE CONSTRUCTOR, and the declaration is
@@ -1695,6 +1723,49 @@ export function collectObjectOps(stmts, h) {
     const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
     for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
+    // ⭐⭐ C11c — A TUPLE OF RETURNED HANDLES. Pine returns the body's last
+    // statement; `[Line, A, B]` there hands each caller name the handle the
+    // body's own name holds at the return — an eager register copy per element
+    // (`copy` → `setreg`), under the call's guards, exactly the one-handle
+    // return below done once per position. ⚰️ Unread, `topLine := Line` copied
+    // from a name nothing declared and was dropped without a count, so every
+    // setter and getter through `topLine` acted on a register nothing wrote.
+    // An element that is not a handle is a value — the value walk's, not ours.
+    // ⛔ A tuple whose length is not the caller's refuses by name.
+    if (Array.isArray(into)) {
+      const tail = rw.stmts[rw.stmts.length - 1]
+      const tt = (tail && tail.header) || []
+      const tclose = h.isPunct(tt[0], '[') ? tt.findIndex((x) => h.isPunct(x, ']')) : -1
+      if (tclose !== tt.length - 1) return refuseCall('return-type', fnName, st, `\`${fnName}\` does not end in a tuple`)
+      const parts = []
+      let cur = []
+      for (const x of tt.slice(1, tclose)) {
+        if (h.isPunct(x, ',')) { parts.push(cur); cur = [] } else cur.push(x)
+      }
+      parts.push(cur)
+      if (parts.length !== into.length) {
+        return refuseCall('return-type', fnName, st, `\`${fnName}\` returns ${parts.length} values into ${into.length} names`)
+      }
+      const copies = []
+      for (let k = 0; k < parts.length; k += 1) {
+        const p = parts[k]
+        const d = p.length === 1 && p[0].kind === 'ident' ? decls.get(String(p[0].value)) : null
+        if (!d || d.kind === 'coll') continue
+        const existing = decls.get(into[k])
+        if (existing && (existing.kind === 'coll' || existing.family !== d.family)) {
+          return refuseCall('return-type', fnName, st, `\`${into[k]}\` already holds a ${existing.kind === 'coll' ? 'list' : existing.family}`)
+        }
+        copies.push({ name: into[k], from: String(p[0].value), family: d.family, existing })
+      }
+      for (const c of copies) {
+        if (!c.existing) decls.set(c.name, { family: c.family, kind: 'local' })
+        ops.push({
+          k: 'copy', into: c.name, from: c.from, fromSite: null, guards, locals: scope, loopIds: [...loopIds],
+          at: st.header[0], line: st.header[0].line,
+        })
+      }
+      return true
+    }
     // ── the RETURN VALUE, when it is a drawing handle ─────────────────────
     // Pine returns the value of the body's LAST statement. `ret = line.new(…)`,
     // `ln := line.new(…)` and a bare `ln` all return the handle; a bare

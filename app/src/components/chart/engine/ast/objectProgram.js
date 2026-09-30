@@ -155,6 +155,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'from', 'to',                                // the `loop` bounds
   'step',                                      // …and its `by` step
   'cond',                                      // C16: a `latch`'s condition
+  'withhold',                                  // C11c: unmeasured on this bar
 ])
 
 export const OBJECT_OP_KINDS = Object.freeze([
@@ -722,6 +723,9 @@ export function assertObjectProgram(program) {
     if (op.when !== null && op.when !== undefined) {
       assertValueRef(op.when, `${where}.when`, live)
     }
+    // ⭐ C11c — a step's WITHHOLD is a plain graph value: true on a bar a window
+    // reduction it reads is unmeasured (`pine.js` `Resolver.windowAmbiguity`).
+    if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
     /** ⭐ C14 — a create/update's own coordinates and text may read object
      *  state only OUTSIDE a loop body (a scalar is written once per bar). */
     const opLive = live.inLoop ? null : live

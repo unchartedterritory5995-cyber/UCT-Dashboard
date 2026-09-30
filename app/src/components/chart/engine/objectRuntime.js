@@ -880,6 +880,11 @@ export function beginObjects(program, ctx) {
       return 'ok'
     }
 
+    /** ⭐ C11c — is this step's value unmeasured on this bar? (`op.withhold`: a
+     *  window reduction over an `na` element or an empty window, whose answer
+     *  no capture pins.) Withheld and counted, never run off a guess. */
+    const withheldAt = (op) => op.withhold != null && truthy(value(op.withhold))
+
     /** Does this guard read a latch whose condition was unknowable? */
     const readsUnknownLatch = (v, depth = 0) => {
       if (!isObj(v) || v.v === 'graph' || v.v === 'tree' || depth > 32) return false
@@ -993,6 +998,18 @@ export function beginObjects(program, ctx) {
         }
         case 'text': return textTainted(v.node, depth + 1)
         case 'color': return colorTainted(v.node, depth + 1)
+        // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
+        // the unknown one holds (`logical`: a false or `na` operand makes the
+        // result falsy either way) — the same certainty C17's known-false
+        // guard skip rests on. ⚰️ Measured on pro-trading-art: `ta.crossunder(
+        // close, topLine.get_y2()) and extendSignal` (an input, false) latched
+        // UNKNOWN whenever `topLine` was, withheld the `set_x2` Pine never ran
+        // and blanked TradingView's first double-top line. ⛔ Not `or`: a true
+        // operand beside an `na` one is `na`, not true.
+        case 'bool':
+          if (v.op === 'and' && Array.isArray(v.args)
+              && v.args.some((a) => !valueUnknown(a) && !truthy(numOf(value(a))))) return false
+          return Array.isArray(v.args) && v.args.some((a) => tainted(a, depth + 1))
         default: return Array.isArray(v.args) && v.args.some((a) => tainted(a, depth + 1))
       }
     }
@@ -1090,7 +1107,7 @@ export function beginObjects(program, ctx) {
       // unknowable condition (the warm-up curtain) is remembered as unknown, and
       // every op reading it is withheld and counted below, never run off a guess.
       if (op.k === 'latch') {
-        const latched = unknownAt(op, bar) || tainted(op.cond) ? LATCH_UNKNOWN : truthy(value(op.cond))
+        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) ? LATCH_UNKNOWN : truthy(value(op.cond))
         if (latched === LATCH_UNKNOWN) taintSeen = true
         latches.set(op.id, latched)
         continue
@@ -1124,6 +1141,11 @@ export function beginObjects(program, ctx) {
         taintOutputs(op)
         continue
       }
+      // ⭐⭐ C11c — a step whose value reads an UNMEASURED window reduction on this
+      // bar (`op.withhold`) is withheld, and — C17's rule — marks everything it
+      // would have written. ⛔ No known-false shortcut: its guard may itself read
+      // the reduction, so its falseness is as unmeasured as its value.
+      if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
       // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
       if (handleUnknown || guardTainted(op)) { withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
