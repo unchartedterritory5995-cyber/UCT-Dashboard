@@ -19,8 +19,9 @@
 // raw blob still contains the records `normalizeInstances` dropped and the
 // definitions the engine is not allowed to draw; fetching for those would be
 // network traffic for series that will never be bound.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
+import { fetchableOtherSymbols } from './otherSymbols'
 import { ensureAll, subscribe } from './secondaryBars'
 
 /** Do two maps hold the same entry OBJECT for the same symbols? */
@@ -82,5 +83,55 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
 
 /** One shared empty state, so "this chart needs nothing" is a stable identity. */
 const EMPTY = Object.freeze({ key: '', map: null })
+
+// ─── ⭐⭐ C26 — OUR STORE'S EXCHANGE FOR A PINE DOCUMENT'S OTHER SYMBOLS ─────────
+//
+// `otherSymbols.js` serves `"AMEX:SPY"` only when our store's listing of SPY
+// answers to that Pine spelling, and that is a fact about the STORE: the same
+// `/api/ticker-meta/{sym}` `exchange` the chart's own symbol reads
+// (`useTickerMeta`), fetched once per ticker per session. ⛔ A failed or missing
+// lookup is `null` — the bind then refuses the read by name, never guesses.
+
+const _exchanges = new Map()   // ticker -> exchange string | null
+const _asked = new Set()
+
+async function _askExchange(ticker, notify) {
+  if (_asked.has(ticker)) return
+  _asked.add(ticker)
+  try {
+    const r = await fetch(`/api/ticker-meta/${encodeURIComponent(ticker)}`, { credentials: 'include' })
+    const j = r.ok ? await r.json() : null
+    const e = j && typeof j.exchange === 'string' && j.exchange.trim() ? j.exchange.trim() : null
+    _exchanges.set(ticker, e)
+    if (!r.ok) _asked.delete(ticker)
+  } catch {
+    _asked.delete(ticker)
+  }
+  notify()
+}
+
+/**
+ * A synchronous `exchangeOf(ticker)` for the binder, over the OTHER symbols the
+ * chart's Pine documents read. Its identity changes only when an answer lands,
+ * so it can join `updateChart`'s dependencies without repainting on every render.
+ */
+export function useOtherSymbolExchanges(instances, defOf, revalidate) {
+  const [gen, setGen] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const list = instances ? instances() : null
+    const tickers = new Set()
+    for (const inst of Array.isArray(list) ? list : []) {
+      const def = inst && defOf ? defOf(inst.defId) : null
+      for (const t of fetchableOtherSymbols(def)) tickers.add(t)
+    }
+    for (const t of tickers) {
+      if (!_exchanges.has(t)) _askExchange(t, () => { if (alive) setGen((g) => g + 1) })
+    }
+    return () => { alive = false }
+  }, [instances, defOf, revalidate])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => (t) => (_exchanges.has(t) ? _exchanges.get(t) : null), [gen])
+}
 
 export default useSecondarySources

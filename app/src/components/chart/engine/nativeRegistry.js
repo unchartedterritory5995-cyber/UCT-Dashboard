@@ -101,6 +101,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
+import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
 // moved to `ast/bind.js`, beside `bindingConstants` and `symbolConstantsWith`,
@@ -1598,6 +1599,9 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // confident wrong length.
   const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
   const bound = (tree) => foldBound(tree, bindConsts)
+  // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
+  // tree of the document (`otherSymbolsFor`).
+  const other = otherSymbolsFor(def, ctx)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -1676,7 +1680,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
           // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-            ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}), crossMemo })
+            ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+            ...(other ? { symbols: other.symbols } : {}), crossMemo })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -1687,7 +1692,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
             message: String((err && err.message) || err) }
       }
     }
-    return withColumnErrors(out, errors)
+    return withOtherSymbols(withColumnErrors(out, errors), other)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -1710,12 +1715,47 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  return {
+  return withOtherSymbols({
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
         newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}) }),
+        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+        ...(other ? { symbols: other.symbols } : {}) }),
+  }, other)
+}
+
+/** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
+ *  or null when the document reads none. The member door's Pine documents are
+ *  the only ones decided here: a `sym` in a document from any other translator
+ *  keeps the unsupplied answer it always had. */
+export function otherSymbolsFor(def, ctx) {
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
+  if (!symTickersOf(def).length && !(def.meta.otherSymbols || []).length) return null
+  return resolveOtherSymbols(def, {
+    secondary: ctx && ctx.secondary,
+    exchangeOf: ctx && ctx.exchangeOf,
+    symbol: ctx && ctx.symbol,
+    framed: !!(ctx && ctx.framed),
+  })
+}
+
+/** The key a column map carries its other-symbol decision under — non-enumerable
+ *  for the same reason `__columnErrors` is (a visible key is a phantom plot). */
+const OTHER_SYMBOLS = '__otherSymbols'
+
+function withOtherSymbols(out, other) {
+  if (other) {
+    Object.defineProperty(out, OTHER_SYMBOLS, {
+      value: Object.freeze({ served: other.served, refused: other.refused }), enumerable: false,
+    })
   }
+  return out
+}
+
+/** ⭐ C26 — which other symbols a computed column map was served, and which were
+ *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
+export function otherSymbolReport(columns) {
+  return (columns && columns[OTHER_SYMBOLS]) || null
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine

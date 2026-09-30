@@ -34,8 +34,97 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
+import { otherSymbolRequestsOf } from '../../otherSymbols'
+import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import fs from 'node:fs'
+import path from 'node:path'
+
+// ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
+//
+// A script that reads another symbol needs that symbol's bars on OUR side, and
+// the only honest source is a capture TradingView gave us: the vendor's own bars,
+// receipt-verified, of that listing at the chart's timeframe. The chart supplies
+// the same thing from `/api/bars` (`useSecondarySources`); the harness supplies it
+// from `tests/fixtures/vendor/harness/`. ⛔ Nothing is synthesised: a symbol with
+// no committed capture is supplied NOTHING, and the note names the capture that
+// is missing.
+
+const OTHER_CAPTURE_DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
+let otherIndex = null
+
+/** `TICKER|tf` → `{bars, exchange, file, last}` over the committed native
+ *  captures (receipt-verified). Where two captures hold one listing at one
+ *  timeframe, the one reaching the later bar wins (then the deeper one). */
+function otherCaptureIndex() {
+  if (otherIndex) return otherIndex
+  otherIndex = new Map()
+  if (!fs.existsSync(OTHER_CAPTURE_DIR)) return otherIndex
+  for (const name of fs.readdirSync(OTHER_CAPTURE_DIR).sort()) {
+    if (!name.endsWith('.json')) continue
+    let cap
+    try { cap = JSON.parse(fs.readFileSync(path.join(OTHER_CAPTURE_DIR, name), 'utf8')) } catch { continue }
+    if (!cap || cap.schema !== 'uct.vendor-capture/v1' || !cap.bars || !Array.isArray(cap.bars.rows)) continue
+    if (!validateCapture(cap).ok) continue
+    const { ticker, exchange } = symbolOf(cap)
+    if (!ticker) continue
+    const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
+    const bars = toProductBars(cap)
+    const last = bars.length ? String(bars[bars.length - 1].t) : ''
+    const held = otherIndex.get(key)
+    if (held && (held.last > last || (held.last === last && held.bars.length >= bars.length))) continue
+    otherIndex.set(key, { bars, exchange: storeExchangeOfCapture(cap, exchange), file: name, last })
+  }
+  return otherIndex
+}
+
+/** OUR STORE's exchange spelling for a captured listing — the key
+ *  `symbolScope.json::confirmed` is written in. A capture carries TradingView's
+ *  spelling (`AMEX` for SPY), and the store's (`NYSE Arca`) is linked to it only
+ *  by a confirmed row's WITNESS: the row whose witness IS this listing answers.
+ *  Failing that, a store key that is its own Pine spelling (`NYSE`, `NASDAQ`,
+ *  `OTC`) is the same string in both worlds. `AMEX` without a witness is
+ *  ambiguous (`NYSE Arca` and `NYSE American` both answer it): null. */
+function storeExchangeOfCapture(cap, tvExchange) {
+  const pro = String((cap.symbol && (cap.symbol.pro_name || cap.symbol.full_name)) || '').toUpperCase()
+  const confirmed = (SYMBOL_SCOPE && SYMBOL_SCOPE.confirmed) || {}
+  for (const [store, row] of Object.entries(confirmed)) {
+    if (store.startsWith('_') || !row || typeof row !== 'object') continue
+    if (String(row.witness || '').toUpperCase() === pro) return store
+  }
+  const tv = typeof tvExchange === 'string' ? tvExchange : ''
+  const own = confirmed[tv]
+  return own && typeof own === 'object' && own.pine === tv ? tv : null
+}
+
+/** The secondary supply a capture's script asks for, and the notes naming what
+ *  could not be supplied. */
+function otherSymbolSupply(def, capture) {
+  const requests = otherSymbolRequestsOf(def)
+  if (!requests.length) return { secondary: null, exchangeOf: null, notes: [] }
+  const tf = tfCodeOf(capture.timeframe)
+  const index = otherCaptureIndex()
+  const secondary = new Map()
+  const notes = []
+  for (const { ticker } of requests) {
+    const hit = index.get(`${ticker}|${tf}`)
+    if (hit) {
+      secondary.set(ticker, { bars: hit.bars, status: 'available', exchange: hit.exchange })
+      notes.push(`other symbol ${ticker}: bars from the committed capture ${hit.file}`)
+    } else {
+      secondary.set(ticker, { bars: [], status: 'no_data' })
+      notes.push(`other symbol ${ticker}: no committed capture of ${ticker} at ${capture.timeframe} — `
+        + 'the vendor bars (and listing) this read would need')
+    }
+  }
+  const exchangeOf = (t) => {
+    const e = secondary.get(t)
+    return e && e.exchange ? e.exchange : null
+  }
+  return { secondary, exchangeOf, notes }
+}
 
 /** The id every harness run installs under. Satisfies `defSchema.ID_RE` (it is
  *  the member pane's own prefix) and is uninstalled after every run. */
@@ -144,6 +233,8 @@ function drawnColours(def, bars, ctx) {
     symbol: ctx.symbol,
     newestBarIsForming: ctx.newestBarIsForming,
     historyFromListing: ctx.historyFromListing === true,
+    secondary: ctx.secondary || null,
+    exchangeOf: ctx.exchangeOf,
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -199,6 +290,7 @@ function objectsOf(def, bars, ctx) {
     const reader = objectReaderFor(def, bars, {
       inputs: undefined, tf: ctx.tf, symbol: ctx.symbol, newestBarIsForming: ctx.newestBarIsForming,
       historyFromListing: ctx.historyFromListing === true,
+      secondary: ctx.secondary || null, exchangeOf: ctx.exchangeOf,
     })
     if (!reader) return { drawsObjects: true, ok: false, reason: 'objectReaderFor returned null' }
     const run = evaluateObjects(reader.program, {
@@ -311,7 +403,16 @@ export function runOurSide(capture) {
       // stopped growing AND began on the listing day. Same fact, same door.
       historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
     }
+    // ⭐ C26 — another symbol's bars, from committed captures only.
+    const supply = otherSymbolSupply(def, capture)
+    if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
+    notes.push(...supply.notes)
     const cols = registry.computeFor(def, bars, undefined, ctx)
+    const otherReport = registry.otherSymbolReport(cols)
+    if (otherReport) {
+      for (const t of otherReport.served) notes.push(`other symbol ${t}: served`)
+      for (const r of otherReport.refused) notes.push(`other symbol ${r.ticker}: refused (${r.code}) — ${r.reason}`)
+    }
 
     let colours
     try {

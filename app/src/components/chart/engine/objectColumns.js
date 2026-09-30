@@ -26,9 +26,10 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
+  symAlignmentMask,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor, historyFromListingFor } from './nativeRegistry'
+import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -288,6 +289,20 @@ export function unknownMask(tree, col, bars, inputs, budget, iopts, memos = new 
  *        lane hands `interpret`. See the header for what passing none cost.
  * @returns {{ readNode: (node:number, bar:number)=>number, columns: Map, failed: number[] }}
  */
+/** ⭐⭐ C26 — an object tree that reads another symbol is UNKNOWN (withheld by
+ *  C17, never drawn) on every bar whose answer depends on an other-symbol bar we
+ *  do not hold (`interpret.js::symAlignmentMask`) — merged into the warm-up
+ *  mask, one channel. Asked only when the bind supplied `symbols`. */
+function withSymMask(mask, tree, bars, iopts) {
+  if (!iopts || !iopts.symbols) return mask
+  const sm = symAlignmentMask(tree, bars, iopts)
+  if (!sm) return mask
+  if (!mask) return sm
+  const out = new Uint8Array(Math.max(mask.length, sm.length))
+  for (let i = 0; i < out.length; i++) out[i] = (mask[i] || sm[i]) ? 1 : 0
+  return out
+}
+
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
@@ -318,12 +333,13 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     try {
       const tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
-        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}) }
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.symbols ? { symbols: opts.symbols } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
+      const mask = withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -443,7 +459,13 @@ export function objectReaderFor(definition, bars, opts = {}) {
     // never read two different answers about where the series starts.
     historyFromListing: historyFromListingFor(definition, opts),
     fold,
+    // ⭐⭐ C26 — the other symbols this binding may read, decided by the SAME
+    // function the plot lane asks (`nativeRegistry.otherSymbolsFor`), so an object
+    // and the plot beside it can never be served two different instruments.
+    symbols: undefined,
   }
+  const otherSymbols = otherSymbolsFor(definition, opts)
+  if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
   // instant in MILLISECONDS, exactly what the same name reads inside a tree
   // (`time * 1000`, off the clock column `barOpenInstant` fills). The runtime
@@ -460,7 +482,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
     const { readNode, readUnknown, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph' }
+    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -509,10 +531,11 @@ export function objectReaderFor(definition, bars, opts = {}) {
     try {
       const tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
-        ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}) }
+        ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos)
+      const mask = withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
@@ -547,7 +570,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
   return {
-    program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees',
+    program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
     // ⭐ C18 — whether the runtime values were served, and if not, why (named).
     ...(runtime ? { runtime: { served: runtime.served, reason: runtime.reason } } : {}),
   }

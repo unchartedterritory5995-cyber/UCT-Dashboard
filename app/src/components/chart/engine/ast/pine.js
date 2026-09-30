@@ -4145,6 +4145,32 @@ function venueArgIsServable(node) {
   return US_EQUITY_VENUES.has(String(node.value).trim().toUpperCase())
 }
 
+/** ⭐ C26 — the EXCHANGE a `ticker.new(prefix, ticker, …)` / `tickerid(…)` call
+ *  names, as `otherSymbolOf` records it: the literal uppercased, `'@syminfo.prefix'`
+ *  for the chart's own prefix, `'?'` for anything else (a bound name, an
+ *  expression — never guessed), or `undefined` when the call writes no prefix. */
+function tickerCallPrefixOf(call) {
+  const args = (call && call.args) || []
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i]
+    if (!a) continue
+    if (!(a.name === 'prefix' || (!a.name && i === 0))) continue
+    const v = a.value
+    if (v && v.type === 'string') return String(v.value).trim().toUpperCase()
+    if (v && v.type === 'name' && v.name === 'syminfo.prefix') return '@syminfo.prefix'
+    return '?'
+  }
+  return undefined
+}
+
+/** ⭐⭐ C26 — the other-symbol requests of the translation IN FLIGHT: ticker →
+ *  the set of venue spellings (`Resolver.otherSymbolOf`) the script wrote for it.
+ *  Opened and closed by `translatePine` around ONE translation (saved and
+ *  restored, so a nested translation cannot leak into its caller's), and written
+ *  by `securityAsNode` exactly where it emits a `sym` node — so every sym node in
+ *  every tree of the result, plot or object pass, has its spelling here. */
+let OTHER_SYMBOL_SINK = null
+
 /** The NAME inside `not na(<name>)`, or null. */
 function naGuardedName(node) {
   if (!node || node.type !== 'unary' || node.op !== 'not') return null
@@ -9823,6 +9849,25 @@ export class Resolver {
    *  is the honest answer rather than emitting a node nothing can serve.
    */
   otherSymbolNameOf(node, depth = 0) {
+    const found = this.otherSymbolOf(node, depth)
+    return found ? found.ticker : null
+  }
+
+  /** ⭐⭐ C26 — `otherSymbolNameOf` WITH THE SPELLING THE SCRIPT WROTE BESIDE THE
+   *  TICKER: `{ticker, venue}` or null. The ticker is exactly what
+   *  `otherSymbolNameOf` answers (it is this function's projection, never a second
+   *  reader); `venue` is the exchange prefix the member typed — `'AMEX'` for
+   *  `"AMEX:SPY"` or `ticker.new("AMEX", "SPY")`, `''` for a bare `"SPY"`,
+   *  `'@syminfo.prefix'` for `ticker.new(syminfo.prefix, "SPY")` (the CHART's
+   *  exchange, settled at bind), `'?'` for a prefix this door cannot read.
+   *
+   *  ⛔ THE VENUE DOES NOT CHANGE WHAT TRANSLATES. The tree is the same `sym` node
+   *  it always was; the spelling travels beside it (`translatePine`'s
+   *  `otherSymbols`, the member door's `meta.otherSymbols`) so the BIND can ask
+   *  `symbolScope.json::confirmed` which listing TradingView means — the one
+   *  question translation cannot answer, because our store's exchange for a
+   *  ticker is a fact about the store (`engine/otherSymbols.js`). */
+  otherSymbolOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ THE SAME TWO SHAPES, ON THE OTHER SIDE OF THE QUESTION.
     // `26-spy-to-es` writes `t = is_spy ? ticker.new('AMEX','SPY',…) :
@@ -9831,24 +9876,32 @@ export class Resolver {
     // whose symbol is perfectly decidable at translation time.
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.otherSymbolNameOf(taken, depth + 1) : null
+      return taken ? this.otherSymbolOf(taken, depth + 1) : null
     }
     const tick = this.tickerCallArg(node)
-    if (tick) return this.otherSymbolNameOf(tick, depth + 1)
+    if (tick) {
+      const inner = this.otherSymbolOf(tick, depth + 1)
+      if (!inner) return null
+      // ⭐ THE CALL'S OWN PREFIX ARGUMENT IS THE VENUE. A ticker that ALSO carries
+      // one (`ticker.new('AMEX', 'NYSE:SPY')`) names two venues: unreadable.
+      const prefix = tickerCallPrefixOf(node)
+      if (prefix === undefined) return inner
+      return { ticker: inner.ticker, venue: inner.venue ? '?' : prefix }
+    }
     if (node.type === 'string') {
-      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
-      // one string — see `tickerWithoutVenue` for why the venue is dropped and what
-      // that costs.
       // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
       // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
       // disagree about one script.
-      const ticker = tickerWithoutVenue(String(node.value).trim().toUpperCase())
+      const raw = String(node.value).trim().toUpperCase()
+      const ticker = tickerWithoutVenue(raw)
       // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
-      return ticker !== null && TICKER_SHAPE.test(ticker) ? ticker : null
+      if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
+      const found = VENUE_QUALIFIED.exec(raw)
+      return { ticker, venue: found ? found[1] : '' }
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.otherSymbolNameOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') return this.otherSymbolOf(bound.node, depth + 1)
       return null
     }
     // ⭐ `input.symbol('SPY')` FOLDS TO ITS DEFAULT, the same way `input.timeframe`
@@ -9860,12 +9913,12 @@ export class Resolver {
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
         if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolNameOf(a.value, depth + 1)
+          const folded = this.otherSymbolOf(a.value, depth + 1)
           if (folded !== null && node.tok) {
             this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
               call: node.name,
               title: null,
-              folded: `'${folded}'`,
+              folded: `'${folded.ticker}'`,
               line: node.tok.line,
               column: node.tok.column,
             })
@@ -9926,7 +9979,16 @@ export class Resolver {
       this.requestPeriod = outerPeriod
     }
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (other) out = { type: 'sym', value: other, args: [out] }
+    if (other) {
+      out = { type: 'sym', value: other, args: [out] }
+      // ⭐ C26 — the spelling beside the node, for the bind's confirmed-table
+      // check (`OTHER_SYMBOL_SINK`). Recorded on EMISSION, so a request that
+      // never became a node records nothing.
+      if (OTHER_SYMBOL_SINK) {
+        if (!OTHER_SYMBOL_SINK.has(other)) OTHER_SYMBOL_SINK.set(other, new Set())
+        OTHER_SYMBOL_SINK.get(other).add(target.venue == null ? '?' : target.venue)
+      }
+    }
     return out
   }
 
@@ -9967,7 +10029,9 @@ export class Resolver {
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
     const own = this.ownSymbolNameOf(positional[0])
-    const other = own === null ? this.otherSymbolNameOf(positional[0]) : null
+    const otherSym = own === null ? this.otherSymbolOf(positional[0]) : null
+    const other = otherSym ? otherSym.ticker : null
+    const venue = otherSym ? otherSym.venue : null
     if (own === null && other === null) return null
 
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
@@ -10102,7 +10166,7 @@ export class Resolver {
     // `timeframe.period` is the identity the same way `lookahead_off` is.
     if (live && !code) live = false
 
-    return { own, other, code, live, positional }
+    return { own, other, venue, code, live, positional }
   }
 
   /**
@@ -17499,8 +17563,24 @@ function isHostLane(opts) {
  * it again meets the test instead of the bug.
  */
 export function translatePine(source, opts = {}) {
-  const t = translatePineResult(source, opts)
+  const outerSink = OTHER_SYMBOL_SINK
+  const sink = new Map()
+  OTHER_SYMBOL_SINK = sink
+  let t
+  try {
+    t = translatePineResult(source, opts)
+  } finally {
+    OTHER_SYMBOL_SINK = outerSink
+  }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ C26 — WHICH OTHER SYMBOLS THE TREES READ, AND HOW EACH WAS SPELLED.
+  // Present only when a `sym` node was emitted, so every other result is
+  // byte-identical to before. Sorted, so one script is one array.
+  if (sink.size) {
+    t.otherSymbols = [...sink.keys()].sort().map((ticker) => ({
+      ticker, spellings: [...sink.get(ticker)].sort(),
+    }))
+  }
   // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
   // literal that nothing else holds, so there is nothing to protect from
   // mutation — while a copy would re-key a result the callers pass around by
