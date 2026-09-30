@@ -55,6 +55,13 @@ def _make_frozen(path, gaps=ba.PIT_GAPS_RULED, body=("2026-09-01", "pct_above_50
     return n
 
 
+@pytest.fixture(autouse=True)
+def _fresh_memos():
+    ba._DERIVED_MEMO.clear()
+    ba._LEGACY_MEMO.update(at=0.0, data=None)
+    yield
+
+
 @pytest.fixture
 def v2(tmp_path, monkeypatch):
     root = tmp_path / "bv2"
@@ -206,7 +213,8 @@ def test_a_tampered_publication_is_refused(v2):
 
 
 # ── the Monitor overlay ──────────────────────────────────────────────────────
-def test_monitor_rows_take_v2_values_keep_other_fields_and_mark_authority(v2):
+def test_monitor_rows_take_v2_values_keep_other_fields_and_mark_authority(v2, monkeypatch):
+    monkeypatch.setattr(ba, "legacy_ad_cum", lambda frm="0000": {"2026-03-20": 777.0})
     rows = [
         {"date": "2026-03-20", "pct_above_50sma": 11.0, "vix": 20.0, "mcclellan_osc": 5.0},
         {"date": "2026-03-23", "pct_above_50sma": 12.0, "vix": 21.0, "mcclellan_osc": 6.0},
@@ -216,11 +224,13 @@ def test_monitor_rows_take_v2_values_keep_other_fields_and_mark_authority(v2):
     ]
     ba.overlay_monitor_rows(rows, ("2026-09-29",))
     by = {r["date"]: r for r in rows}
-    assert by["2026-03-20"] == {"date": "2026-03-20", "pct_above_50sma": 11.0, "vix": 20.0,
-                                "mcclellan_osc": 5.0}                      # legacy untouched
+    assert {k: by["2026-03-20"][k] for k in ("pct_above_50sma", "vix", "mcclellan_osc")} == \
+        {"pct_above_50sma": 11.0, "vix": 20.0, "mcclellan_osc": 5.0}            # legacy V1 values kept
+    assert by["2026-03-20"]["adv_decline_cum"] == 777.0                      # full-history A/D lineage
+    assert "_authority" not in by["2026-03-20"]
     assert by["2026-03-23"]["pct_above_50sma"] == _val("2026-03-23", "pct_above_50sma")
     assert by["2026-03-23"]["vix"] == 21.0                                   # non-Breadth kept
-    assert by["2026-03-23"]["mcclellan_osc"] is None                         # pending decision
+    assert by["2026-03-23"]["mcclellan_osc"] == _mcc_after_seed([_val("2026-03-23", "adv_decline")])
     assert by["2026-03-23"]["_authority"] == ba.V2_FROZEN
     assert by["2026-03-24"]["_authority"] == ba.V2_GAP
     assert all(by["2026-03-24"][m] is None for m in M)                       # no substitution
@@ -268,14 +278,15 @@ def test_monitor_v1_mode_is_byte_identical(monitor, monkeypatch):
     assert rows["2026-03-23"]["pct_above_50sma"] == 40.0
 
 
-def test_monitor_v2_direct_derived_and_pending_fields(monitor):
+def test_monitor_v2_direct_and_derived_fields(monitor):
     rows = {r["date"]: r for r in monitor.get_history(15)}
     frozen = ba.v2_rows("2026-03-23")
     r = rows["2026-03-23"]
     assert r["_authority"] == ba.V2_FROZEN
     for m in ("pct_above_50sma", "ratio_5day", "hi_ratio", "net_new_high_low"):
         assert r[m] == frozen[m][3], m                  # DIRECT V2 — never recomputed from V1 rows
-    assert r["mcclellan_osc"] is None and r["adv_decline_cum"] is None   # decision pending
+    assert r["mcclellan_osc"] == _mcc_after_seed([frozen["adv_decline"][3]])
+    assert r["adv_decline_cum"] == ba.AD_BRIDGE["seed_value"] + frozen["adv_decline"][3]
     assert r["breadth_score"] is not None                                # derived from V2 + sentiment
     g = rows["2026-03-24"]
     assert g["_authority"] == ba.V2_GAP
@@ -283,7 +294,8 @@ def test_monitor_v2_direct_derived_and_pending_fields(monitor):
     assert g["breadth_score"] is None                                   # no fake derived certainty
     assert g["vix"] == 18.0                                             # the session still happened
     legacy = rows["2026-03-20"]
-    assert "_authority" not in legacy and legacy["mcclellan_osc"] == 42.0
+    assert "_authority" not in legacy and legacy["mcclellan_osc"] == 42.0     # legacy published McClellan
+    assert legacy["adv_decline_cum"] == 10.0 * 5          # full-history lineage: 5 collector rows <= 03-20
     assert rows["2026-09-29"]["_authority"] == ba.PROVISIONAL
     assert rows["2026-09-29"]["pct_above_50sma"] == 40.0                # collector value, flagged
     assert rows["2026-09-22"]["_authority"] == ba.V2_FROZEN             # V1 hole filled by V2
@@ -311,5 +323,101 @@ def test_chart_series_splices_legacy_v2_gaps_and_provisional(monitor, monkeypatc
     assert daily["2026-09-29"]["c"] == 40.0                    # provisional collector body
     body = ba.v2_rows("2026-09-01")["pct_above_50sma"]
     assert daily["2026-09-01"]["h"] == daily["2026-09-01"]["l"] == round(body[3], 4)
-    assert bs._build_breadth_series("UCTMC", "mcclellan_osc")[-1]["t"] < ba.V2_START \
-        if bs._build_breadth_series("UCTMC", "mcclellan_osc") else True
+    mc = {b["t"]: b for b in bs._build_breadth_series("UCTMC", "mcclellan_osc")}
+    assert mc["2026-03-20"]["c"] == 42.0                                     # legacy V1 published
+    assert mc["2026-03-23"]["c"] == _mcc_after_seed([ba.v2_rows("2026-03-23")["adv_decline"][3]])
+    assert "2026-03-24" not in mc and "2026-09-23" not in mc                # gaps emit no value
+    ad = {b["t"]: b["c"] for b in bs._build_breadth_series("UCTAD", "adv_decline_cum")}
+    assert ad["2026-03-20"] == 50.0 and ad["2026-03-23"] == ba.AD_BRIDGE["seed_value"] + \
+        ba.v2_rows("2026-03-23")["adv_decline"][3]
+
+
+
+# ── the derived-field bridges (owner rulings 2026-09-29) ─────────────────────
+A19, A39 = 2.0 / 20, 2.0 / 40
+
+
+def _mcc_after_seed(values):
+    e19, e39 = ba.MCCLELLAN_BRIDGE["ema19_seed"], ba.MCCLELLAN_BRIDGE["ema39_seed"]
+    for v in values:
+        e19 = A19 * v + (1 - A19) * e19
+        e39 = A39 * v + (1 - A39) * e39
+    return round(e19 - e39, 1)
+
+
+def test_the_pinned_seeds_are_the_audited_values():
+    m, a = ba.MCCLELLAN_BRIDGE, ba.AD_BRIDGE
+    assert ba.SEED_SESSION == "2026-03-20" and m["seed_session"] == a["seed_session"] == "2026-03-20"
+    assert (m["ema19_seed"], m["ema39_seed"]) == (-447.32198711685294, -243.95100545909787)
+    assert m["ema19_seed"] - m["ema39_seed"] == m["reconstructed_osc_at_seed"]
+    assert round(m["reconstructed_osc_at_seed"], 1) - m["stored_v1_osc_at_seed"] == pytest.approx(m["accepted_discontinuity"])
+    assert a["seed_value"] == 806344.0 and a["seed_value"] != -995
+    assert m["v2_input_start"] == a["v2_input_start"] == "2026-03-23"
+
+
+def test_first_update_gap_hold_and_resume(v2):
+    d = ba.derived_uct()
+    v = lambda x: ba.v2_rows(x)["adv_decline"][3]
+    assert d["2026-03-23"]["mcclellan_osc"] == _mcc_after_seed([v("2026-03-23")])
+    assert d["2026-03-24"] == {"mcclellan_osc": None, "adv_decline_cum": None, "authority": ba.V2_GAP}
+    # the gap neither feeds zero nor decays: 03-25 == seed + 03-23 + 03-25 exactly
+    assert d["2026-03-25"]["mcclellan_osc"] == _mcc_after_seed([v("2026-03-23"), v("2026-03-25")])
+    assert d["2026-03-25"]["adv_decline_cum"] == (806344.0 + v("2026-03-23")) + v("2026-03-25")
+    zero_fed = _mcc_after_seed([v("2026-03-23"), 0.0, v("2026-03-25")])
+    assert d["2026-03-25"]["mcclellan_osc"] != zero_fed or v("2026-03-23") == 0      # missing != zero
+    seq = [v(x) for x in ("2026-03-23", "2026-03-25")]
+    assert d["2026-08-31"]["mcclellan_osc"] is None and d["2026-08-31"]["adv_decline_cum"] is None
+    seq.append(v("2026-09-01"))
+    assert d["2026-09-01"]["mcclellan_osc"] == _mcc_after_seed(seq)
+    assert d["2026-09-23"]["mcclellan_osc"] is None
+    seq += [v("2026-09-22"), v("2026-09-24")]
+    assert d["2026-09-24"]["mcclellan_osc"] == _mcc_after_seed(seq)
+    run = 806344.0
+    for x in seq:
+        run += x
+    assert d["2026-09-24"]["adv_decline_cum"] == run
+    assert d["2026-09-23"]["adv_decline_cum"] is None
+
+
+def test_no_v1_and_no_uct_backtest_input_enters_the_recurrence(v2, tmp_path, monkeypatch):
+    before = ba.derived_uct()
+    # poisoning every non-uct universe of the artifact, and any V1 value offered for a canonical
+    # session, must not move one derived value
+    p = ba.frozen_path()
+    import sqlite3 as _sq
+    os.chmod(p, 0o644)
+    c = _sq.connect(p)
+    c.execute("UPDATE breadth_daily_ohlc SET c = c + 1000 WHERE universe <> 'uct'")
+    c.commit(); c.close()
+    import hashlib as _h
+    monkeypatch.setattr(ba, "FROZEN_SHA256", _h.sha256(open(p, "rb").read()).hexdigest())
+    monkeypatch.setattr(ba, "FROZEN_BYTES", os.path.getsize(p))
+    ba._FROZEN.update(stat=None, data=None)
+    assert ba.available()[0], ba.available()
+    after = ba.derived_uct({"2026-03-23": 99999.0, "2026-09-24": -99999.0})    # "V1" offers ignored
+    assert {k: v for k, v in after.items() if k <= ba.FROZEN_END} == {k: v for k, v in before.items() if k <= ba.FROZEN_END}
+
+
+def test_provisional_tail_continues_flagged_and_is_replaced_by_canonical(v2):
+    d = ba.derived_uct({"2026-09-29": 100.0}, ("2026-09-29",))
+    assert d["2026-09-29"]["authority"] == ba.PROVISIONAL
+    assert d["2026-09-29"]["adv_decline_cum"] == d["2026-09-24"]["adv_decline_cum"] + 100.0
+    b, e = _pub(d="2026-09-25")
+    ba.adopt_publication(b, e)
+    d2 = ba.derived_uct({"2026-09-29": 100.0}, ("2026-09-29",))
+    assert d2["2026-09-25"]["authority"] == ba.V2_LIVE
+    assert d2["2026-09-29"]["adv_decline_cum"] == d2["2026-09-25"]["adv_decline_cum"] + 100.0
+
+
+def test_ad_and_mcclellan_are_window_independent_across_readers(monitor):
+    a = {r["date"]: (r["adv_decline_cum"], r["mcclellan_osc"]) for r in monitor.get_history(4)}
+    b = {r["date"]: (r["adv_decline_cum"], r["mcclellan_osc"]) for r in monitor.get_history(20)}
+    c = {r["date"]: (r["adv_decline_cum"], r["mcclellan_osc"]) for r in monitor.get_history_deep(20)}
+    for d in a:
+        assert a[d] == b[d] == c.get(d, a[d]), d
+
+
+def test_the_seed_check_reports_drift_from_the_live_v1_stores(monitor):
+    chk = ba.seed_check()
+    assert chk["sessions"] == 5 and chk["ad"] == 50.0
+    assert chk["ad_seed_matches"] is False and chk["lineage_matches"] is False      # a fixture, not production

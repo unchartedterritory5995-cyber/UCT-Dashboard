@@ -658,7 +658,18 @@ describe('the whole corpus, in one number', () => {
     // (`nz(self, 0) == 3 || … ? 0 : …` — a latch that is never set). Read by
     // position, `state` and its partner each read the other before setting their
     // own, and both columns refuse `pine:state` (`route: 'runtime'`).
-    expect(columns).toBe(43)
+    // ⭐ 43 → 47 ON 2026-09-29 (branch `pine/c12-block-state`, triage C12), FOUR
+    // NAMED COLUMNS, all `02-ict-retracement-to-order-block-screener`'s (usable 2 →
+    // 6): its four Retrace outputs read `nz(current_state[1])` above three
+    // reassignments of that `var` inside `trigger()` and refused `pine:state`;
+    // `selfOffsetLag` now reads it as the accumulator's `self` (the reduced
+    // `trigger()` idiom is held against a bar-0 replay in
+    // `pine.crossOwnState.test.js`). ⚠️ Two of the four nest `trigger()` in
+    // `trigger()` and measure lookback 1032 > 960, so they translate and cannot be
+    // SAVED — the same standing as `volume-spikes…`'s plain 1000 > 960, which this
+    // lane's budget check deliberately does not take (see `pine.js`, "A plain
+    // over-long window … is NOT taken here"); the member door refuses them by name.
+    expect(columns).toBe(47)
 
     // ⛔ THE CONTROL THAT KEEPS THE LINE ABOVE HONEST. Asserting 58 alone would go
     // green again the moment somebody restored the all-files reduce and the corpus

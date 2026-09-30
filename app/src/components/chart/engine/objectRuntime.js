@@ -30,7 +30,7 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced,
 } from './ast/objectProgram'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
@@ -41,6 +41,9 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
+// ⭐ `str.format`'s number rendering — the SAME module whose grammar the
+// translator compiled the pattern with (C15, objects-triage step 13).
+import { formatMessageNumber } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
  *  prototype chain (`constructor`, `toString`) and read as a declared pool. */
@@ -127,6 +130,37 @@ export function beginObjects(program, ctx) {
   const readNode = ctx.readNode || (() => NaN)
   const readParam = ctx.readParam || (() => undefined)
   const readTime = ctx.readTime || ((i) => i)
+  /** ⭐⭐ C12 — A VALUE THE LANE CANNOT COMPUTE YET IS NOT A VALUE THAT IS `na`.
+   *
+   *  A `var` folds to `accum(seed, body, W)`, which is `NaN` on every bar before
+   *  its warm-up (`interpret.js::runRecurrence`) — and Pine's `var` is a real
+   *  number there. The two are the same `NaN` in a column, so a guard written
+   *  `if pivHi >= prevHigh … else lh := true` takes its `else` on bar 222 and a
+   *  label says "LH" where TradingView's says "HH" (measured,
+   *  `market-structure-by-leviathan`, NYSE:RDDT 1D 2026-09-28). A missing
+   *  object is a gap; a wrong one is a lie.
+   *
+   *  ⛔ SO AN OP THAT READS ANY SUCH NODE ON SUCH A BAR DOES NOT RUN — its guard,
+   *  its coordinates and its text are all unknowable there, and the count of
+   *  what was withheld is reported (`stats.withheldUnknown`), never hidden.
+   *  `objectColumns.objectReaderFor` answers `readUnknown`; a caller with no
+   *  bounded state (the runtime lane runs its `var`s from bar 0) passes none. */
+  const readUnknown = typeof ctx.readUnknown === 'function' ? ctx.readUnknown : null
+  const opNodes = new Map()
+  const nodesOfOp = (op) => {
+    let found = opNodes.get(op)
+    if (found) return found
+    // a loop's own bounds only — each body op is asked on its own when it runs
+    found = graphNodesReferenced({ ops: [op.k === 'loop' ? { ...op, body: [] } : op] })
+    opNodes.set(op, found)
+    return found
+  }
+  const unknownAt = (op, bar) => {
+    if (!readUnknown) return false
+    for (const n of nodesOfOp(op)) if (readUnknown(n, bar)) return true
+    return false
+  }
+  let withheldUnknown = 0
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -144,6 +178,9 @@ export function beginObjects(program, ctx) {
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
   const counts = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
   const peak = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  /** How many objects Pine's collector cut, per family — see `collect` and
+   *  `lostCreates` in `finish`. */
+  const collectedBy = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
 
   /** site ids whose ONCE create has already fired. ⭐ Pine's `var x = expr`
    *  initialises the first time the path is reached and never again. */
@@ -193,6 +230,10 @@ export function beginObjects(program, ctx) {
    *  `fillBetween`. */
   let fillsReplaced = 0
   let fillsWithoutLines = 0
+  /** ⭐ TEXT EVALUATIONS THAT CAME BACK WITHHELD — a `str.format` number no
+   *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
+   *  text is then `null` and the render state does not draw it. */
+  let textsWithheld = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -365,6 +406,7 @@ export function beginObjects(program, ctx) {
       if (inst.family !== family || inst.createdBar === bar || held.has(inst.id)) continue
       reap(inst)
       evicted += 1
+      collectedBy[family] += 1
       if (ctx.trace) events.push({ bar, k: 'evict', family, id: inst.id })
     }
   }
@@ -533,6 +575,14 @@ export function beginObjects(program, ctx) {
         case 'lit': return t.s
         case 'num': {
           const n = Number(readNode(t.node, bar, loopVars))
+          // ⭐⭐ `str.format`'s `{N}` — `null` when no capture pins what the
+          // vendor would draw for THIS value. ⛔ Never a fallback to another
+          // format: a withheld text is not drawn; a guessed one is drawn wrong.
+          if (t.form === 'message') {
+            const s = formatMessageNumber(n, t.fmt)
+            if (s === null) textsWithheld += 1
+            return s
+          }
           return formatNumber(n, t.fmt)
         }
         // ⭐⭐ A VALUE THAT IS ALREADY TEXT. ⛔ A non-string answers the EMPTY
@@ -542,7 +592,18 @@ export function beginObjects(program, ctx) {
           const v = readNode(t.node, bar, loopVars)
           return typeof v === 'string' ? v : ''
         }
-        case 'cat': return (t.args || []).map(textOf).join('')
+        // ⭐ A SYMBOL'S TEXT the binding could not settle (`bindObjectProgram`
+        // replaces a settled one with a literal before it gets here) — withheld,
+        // because the only honest spellings are the ones the binding holds.
+        case 'sym':
+          textsWithheld += 1
+          return null
+        // ⛔ ONE WITHHELD PART WITHHOLDS THE WHOLE TEXT — "+5x: " with its number
+        // missing is a different text from the vendor's, not a shorter one.
+        case 'cat': {
+          const parts = (t.args || []).map(textOf)
+          return parts.some((p) => p === null) ? null : parts.join('')
+        }
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
         default: return ''
       }
@@ -696,6 +757,7 @@ export function beginObjects(program, ctx) {
       // than values so that object state can never leak into the pure graph.
       if (op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
+      if (unknownAt(op, bar)) { withheldUnknown += 1; continue }
       if (op.when != null && !truthy(value(op.when))) continue
       opsThisBar += 1
       opsExecuted += 1
@@ -1062,14 +1124,56 @@ export function beginObjects(program, ctx) {
   }
 
   const finish = () => {
+  // ⭐⭐ A FAMILY THE COLLECTOR CUT WHILE THE PROGRAM LOST CREATES OF IT IS
+  // WITHHELD (C13, 2026-09-29).
+  //
+  // Pine's collector cuts a family by COUNT: past `cap + 5` the oldest go until
+  // `cap` remain (`collect`). A create this program lost (`program.lostCreates`
+  // — the converter's `create:*`, `guard:create`, `content:lost`, a refused
+  // helper's body, a loop it never read) still counts on TradingView's side, so
+  // once the collector has run the two sides cut at different moments and hold
+  // DIFFERENT objects: TradingView removed ones this chart keeps. That is not a
+  // smaller picture, it is a wrong one — the one loss the member door refuses
+  // (`objectLoss.js`, ruling 2026-09-27: "anything whose loss leaves an object
+  // on screen that Pine would have removed").
+  //
+  // ⚰️ MEASURED 2026-09-29 (NYSE:RDDT 1D). `high-low-open-mid-ranges` draws its
+  // weekly range lines, loses its `vline` dividers (an unreadable guard), and
+  // counts 504 lines against TradingView's 504 — the right COUNT with the wrong
+  // lines. `sector-rotation` counts 50/50 lines too, but TradingView's sit at
+  // bars 33–57 and ours at the chart's last 50 bars: it loses four guarded
+  // `line.new`s that TradingView runs.
+  //
+  // ⛔ ONLY WHEN THIS RUN'S COLLECTOR ACTUALLY CUT THE FAMILY. Below the trigger
+  // nothing is removed on this side, and a lost create is only a MISSING object
+  // (drawn, disclosed). ⚠️ The converse is NOT covered: TradingView, holding the
+  // lost objects too, can pass its trigger while this run does not — nothing
+  // here can count creates that never ran. Named, not hidden.
+  //
+  // ⛔ `'*'` (a family the converter could not name) withholds every family the
+  // collector cut. A fill spans two lines, so withheld lines take their fills.
+  const lost = new Set(Array.isArray(program.lostCreates) ? program.lostCreates : [])
+  const withheldFams = new Set()
+  for (const fam of Object.keys(POOL_LIMITS)) {
+    if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
+  }
+  if (withheldFams.has('line')) withheldFams.add('linefill')
+  const withheld = {}
+  for (const o of live.values()) {
+    if (withheldFams.has(o.family)) withheld[o.family] = (withheld[o.family] || 0) + 1
+  }
+  const heldCounts = { ...counts }
+  for (const fam of withheldFams) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
   // later object under an earlier one and quietly change what the author drew.
-  const ordered = [...live.values()].sort((a, b) => a.id - b.id)
+  const ordered = [...live.values()].filter((o) => !withheldFams.has(o.family))
+    .sort((a, b) => a.id - b.id)
 
   return {
     status,
     reason,
+    ...(withheldFams.size ? { withheld } : {}),
     live: ordered.map((o) => ({
       family: o.family,
       id: o.id,
@@ -1078,12 +1182,14 @@ export function beginObjects(program, ctx) {
       props: { ...o.props },
       ...(o.family === 'table' ? { cells: cellsOf(cells.get(o.id)) } : {}),
     })),
-    counts: { ...counts },
+    counts: heldCounts,
     stats: {
       created, updated, deleted, cellsCleared, writesToDeleted, opsExecuted, maxOpsInABar,
       ...(tablesReplaced ? { tablesReplaced } : {}),
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
+      ...(textsWithheld ? { textsWithheld } : {}),
+      ...(withheldUnknown ? { withheldUnknown } : {}),
       peakLive: { ...peak },
       liveTotal: ordered.length,
       nextId,

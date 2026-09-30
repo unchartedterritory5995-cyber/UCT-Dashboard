@@ -50,6 +50,7 @@ function stubFetch(ok = true) {
   }))
 }
 const inboxPost = () => posted.find(p => p.url.includes('/api/j2/inbox'))
+const opened = () => screen.findByText('Daily chart of NVDA, frozen at now')
 
 beforeEach(() => {
   localStorage.clear()
@@ -81,9 +82,12 @@ test('CONTROL — the destinations are absent until the entry is opened', () => 
   expect(screen.queryByText(/frozen at now/i)).toBeNull()
 })
 
-test('opening it says WHAT is being frozen and offers every destination', () => {
+test('opening it says WHAT is being frozen and offers every destination', async () => {
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
 
   // ⭐ The sentence a human reads. There is no chart in scope here, so the member
   // is told exactly what this door knows — a daily chart, anchored at now — rather
@@ -100,6 +104,9 @@ test('opening it says WHAT is being frozen and offers every destination', () => 
 test('choosing a destination inserts the chart and tells the member where it landed', async () => {
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
   fireEvent.click(screen.getByRole('button', { name: 'Notebook inbox' }))
 
   // ⛔ THE RENDERED SENTENCE, not a setter call. And it must still be on screen
@@ -116,6 +123,9 @@ test('choosing a destination inserts the chart and tells the member where it lan
 test('the frozen params are HONEST about what was and was not known', async () => {
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
   fireEvent.click(screen.getByRole('button', { name: 'Notebook inbox' }))
   await waitFor(() => expect(inboxPost()).toBeTruthy())
 
@@ -137,6 +147,9 @@ test("the anchor is the moment the member ASKED, not the moment they picked a de
   const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(OPENED_AT)
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
 
   // …the member deliberates for ten minutes.
   nowSpy.mockReturnValue(OPENED_AT + 600_000)
@@ -153,6 +166,9 @@ test('the default timeframe keeps the note renderable forever — an intraday on
   // intraday default degrades to a placeholder chip inside a kept note.
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
   fireEvent.click(screen.getByRole('button', { name: 'Notebook inbox' }))
   await waitFor(() => expect(inboxPost()).toBeTruthy())
 
@@ -167,6 +183,9 @@ test('a failed send says so, in words', async () => {
   stubFetch(false)
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: ENTRY }))
+  // The capture core is LAZY (journalCaptureLoader.js — it kept the Pine engine
+  // out of the entry chunk), so the section opens once that module resolves.
+  await opened()
   fireEvent.click(screen.getByRole('button', { name: 'Notebook inbox' }))
   await screen.findByText('Capture failed — try again')
 })

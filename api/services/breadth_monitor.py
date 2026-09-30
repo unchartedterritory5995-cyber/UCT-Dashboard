@@ -713,8 +713,8 @@ def _derive_ascending(result_asc: list, adv_decline_seed: float) -> None:
 
         # Cumulative A/D line
         ad = row.get("adv_decline")
-        if row.get("_decision_pending") and "adv_decline_cum" in row["_decision_pending"]:
-            row["adv_decline_cum"] = None     # withheld under V2 until the owner rules
+        if row.get("_v2_derived"):
+            pass      # V2: the ONE canonical, window-independent A/D (breadth_authority) — kept as set
         elif ad is not None:
             adv_decline_cum += ad
             row["adv_decline_cum"] = adv_decline_cum
@@ -1388,3 +1388,48 @@ def pit_export(since: str = "2026-01-01") -> dict:
                       "keys": len(m), "healed": bool(m.get("_healed")),
                       "universe_count": m.get("universe_count")}
     return out
+
+
+# ── V1 lineage for the Breadth V2 derived-field bridges (breadth_authority) ──────
+def v1_merged_adv_decline(through: str) -> list:
+    """[(date, adv_decline)] ascending, every V1 session <= `through` — the DEEP reader's merge
+    rule (`_adv_decline_seed_before`): the collector's stored value wins where both stores have
+    the date, the trusted-source reconstructed OHLC close fills the rest; None/absent skipped.
+    This is the input of both V2 bridge seeds; it never depends on a reader's window."""
+    coll: dict = {}
+    try:
+        with _conn() as c:
+            for (d, v) in c.execute(
+                    "SELECT date, json_extract(metrics, '$.adv_decline') FROM breadth_snapshots "
+                    "WHERE date <= ?", (through,)).fetchall():
+                if v is not None:
+                    coll[d] = v
+    except Exception:
+        pass
+    recon: dict = {}
+    try:
+        from api.services import breadth_daily_ohlc as ohlc
+        import datetime as _dt
+        nxt = (_dt.date.fromisoformat(through) + _dt.timedelta(days=1)).isoformat()
+        recon = {d: v for d, v in ohlc.metric_before("adv_decline", nxt).items() if v is not None}
+    except Exception:
+        recon = {}
+    merged = {**recon, **coll}
+    return sorted((d, float(v)) for d, v in merged.items() if d <= through)
+
+
+def v1_lineage_digest(series: list) -> str:
+    import hashlib
+    return hashlib.sha256("\n".join("%s %r" % (d, v) for d, v in series).encode()).hexdigest()
+
+
+def rebuild_mcclellan_state(series: list) -> tuple:
+    """(ema19, ema39) rebuilt from a V1 net-advance series — the V1 recurrence (breadth_live:
+    α = 2/20 and 2/40, seeded at the first observation), run ONCE over the full history.
+    A deterministic BRIDGE state: V1 never persisted its own EMA pair."""
+    a19, a39 = 2.0 / 20, 2.0 / 40
+    e19 = e39 = None
+    for _d, v in series:
+        e19 = v if e19 is None else a19 * v + (1 - a19) * e19
+        e39 = v if e39 is None else a39 * v + (1 - a39) * e39
+    return e19, e39

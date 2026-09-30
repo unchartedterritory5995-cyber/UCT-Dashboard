@@ -387,12 +387,17 @@ describe('what still refuses, and by WHICH name', () => {
     // ⛔ A method needs the function table to bind a receiver as argument 0 and
     // `ufcs.js` to route the call form to it — separately schedulable, so
     // separately named. One label over both is the mis-sizing this row was.
+    // ⭐ C11 (2026-09-29): a method declared ONCE now binds
+    // (`methodsAndArrayMembers.test.js`); what keeps this guard is an OVERLOADED
+    // name, which Pine resolves by the receiver's type and this lane does not.
     const r = refusalOf(
       'type Point\n'
       + '    float x = 0.0\n'
       + 'method bump(Point this, float d) =>\n'
       + '    this.x := this.x + d\n'
       + '    this.x\n'
+      + 'method bump(array<float> this, float d) =>\n'
+      + '    this.push(d)\n'
       + 'plot(close)\n')
     expect(r.guard).toBe('runtime:udt-method')
     expect(r.message).toContain('bump')
