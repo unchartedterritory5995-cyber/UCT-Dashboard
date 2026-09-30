@@ -307,23 +307,44 @@ def _levels_for_book(r: dict) -> dict:
         m = _PRICE_TXT_RE.search(str(text or ""))
         return float(m.group(1).replace(",", "")) if m else 0.0
 
+    # Owner ruling 2026-09-29: ONE set of levels everywhere. When the wire
+    # stamps the letter's trade-card levels onto the leadership row
+    # (card_entry / card_stop / card_t1 / card_t2), the book shows exactly
+    # those and nothing else — no mixing a card entry with an engine stop.
+    # A row without card_entry (every payload before the wire change) takes
+    # the original path below, unchanged.
+    ce = _f(r.get("card_entry"))
+    if ce > 0:
+        cs, c1, c2 = _f(r.get("card_stop")), _f(r.get("card_t1")), _f(r.get("card_t2"))
+        return {"entry": ce, "stop": cs if cs > 0 else None,
+                "t1": c1 if c1 > 0 else None, "t2": c2 if c2 > 0 else None,
+                "levels_source": "card"}
+
     price = _f(r.get("price"))
     e, s = _f(r.get("entry_px")), _f(r.get("stop_px"))
     t1, t2 = _f(r.get("t1_px")), _f(r.get("t2_px"))
     sane = (e > 0 and s > 0 and s < e and t1 >= e * 0.98
             and (not price or abs(e - price) / price <= 0.35))
+    src = "engine_px"
     if not sane:
         e, s = _parse(r.get("entry")), _parse(r.get("stop"))
         t1, t2 = _parse(r.get("target_1")), _parse(r.get("target_2"))
-    return {"entry": e or None, "stop": s or None, "t1": t1 or None, "t2": t2 or None}
+        src = "prose"
+    return {"entry": e or None, "stop": s or None, "t1": t1 or None, "t2": t2 or None,
+            "levels_source": src}
 
 
 @router.get("/r/book")
 def render_book(token: str = "", part: int = 0):
     """The Full Book — the 20 leadership names for the newsletter's rendered
     board image. part=1 → ranks 1-10, part=2 → 11-20, 0 → all. Fields shown are
-    exactly what the letter already publishes daily (no internal scoring leaks
-    beyond the public UCT score)."""
+    exactly what the letter already publishes daily.
+
+    The score still ORDERS the rows but is no longer SENT: owner ruling
+    2026-09-29, the letter shows no internal scores, so the rendered board
+    dropped its score badge and this payload stopped carrying the number.
+    `levels_source` says which authority produced entry/stop/t1/t2 for a row
+    ("card" | "engine_px" | "prose") — see _levels_for_book."""
     _check_token(token)
     try:
         from api.services import engine as _eng
@@ -339,7 +360,6 @@ def render_book(token: str = "", part: int = 0):
             "rank": i,
             "sym": (r.get("sym") or "").upper(),
             "theme": r.get("theme") or r.get("sector") or "",
-            "score": r.get("score"),
             "setup": r.get("setup_type") or "",
             **lv,
         })
@@ -374,8 +394,12 @@ def render_econ(token: str = ""):
                      "event": e.get("event") or "", "estimate": e.get("estimate") or "",
                      "is_key": bool(e.get("is_key"))})
     for f in rc.get("fed") or []:
+        # speaker/title are passed through when the wire carries them, so the
+        # panel can print "Fed Speaker: <Name>" instead of a bare "Fed Speaker"
+        # (which it now drops — owner ruling 2026-09-29: name it or drop it).
         rows.append({"time": f.get("time") or "", "kind": "fed",
                      "event": f.get("event") or "", "note": f.get("note") or "",
+                     "speaker": f.get("speaker") or "", "title": f.get("title") or "",
                      "is_key": True})
     rows.sort(key=lambda r: _tkey(r["time"]))
     amc = [s for s in (rc.get("amc") or []) if s]
