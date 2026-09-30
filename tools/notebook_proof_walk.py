@@ -2769,7 +2769,7 @@ def deadclick_surface(W: World, surf: Surface, mode: str, *, plant: bool = False
 
 
 def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool = False,
-                               deadline: float = SURFACE_DEADLINE_S) -> dict:
+                               deadline: float | None = None) -> dict:
     """`deadclick_surface`, run in a CHILD OS PROCESS with a wall-clock ceiling the PARENT
     enforces by killing that process -- never by touching its Playwright objects from a second
     THREAD, the exact defect the comment above this section documents ("Cannot switch to a
@@ -2786,6 +2786,10 @@ def deadclick_surface_bounded(W: World, surf: Surface, mode: str, *, plant: bool
     a hard kill still salvages whatever it had already measured -- the same contract the old
     thread-based `handle['rec']` used to provide, now surviving an OS-level kill rather than
     depending on a thread that shares memory with the one being killed."""
+    # Late-bound on purpose: a def-time default would capture SURFACE_DEADLINE_S at import, and
+    # `--surface-deadline` (which rebinds the module global before the sweep) would reach nothing.
+    if deadline is None:
+        deadline = SURFACE_DEADLINE_S
     seed_path = out_path = None
     started = time.monotonic()
     try:
@@ -4421,6 +4425,8 @@ def main(argv=None) -> int:
     ap.add_argument("--sweeps", default=",".join(SWEEPS))
     ap.add_argument("--only", default="", help="surface-id prefixes (a shake-out; the evidence run runs all)")
     ap.add_argument("--no-hold", action="store_true", help="do not hold the sandbox past +120 s (shake-out only)")
+    ap.add_argument("--surface-deadline", type=float, default=None,
+                    help="deadclick: per surface x mode ceiling in seconds (default SURFACE_DEADLINE_S); recorded in run.json")
     # internal: the per-surface deadclick child `deadclick_surface_bounded` spawns -- never a
     # human-facing flag, see `_deadclick_worker_main`
     ap.add_argument("--deadclick-worker", action="store_true", help=argparse.SUPPRESS)
@@ -4442,11 +4448,15 @@ def main(argv=None) -> int:
     if bad:
         ap.error(f"unknown sweep(s) {bad}; known: {SWEEPS}")
     only = [s.strip() for s in args.only.split(",") if s.strip()]
+    if args.surface_deadline is not None:
+        global SURFACE_DEADLINE_S
+        SURFACE_DEADLINE_S = float(args.surface_deadline)
     out_dir, art = Path(args.out_dir), Path(args.artifacts)
     out_dir.mkdir(parents=True, exist_ok=True)
     art.mkdir(parents=True, exist_ok=True)
     OUT["dir"] = out_dir
     res.update({"tip": args.tip, "sweeps": sweeps, "only": only, "gates": GATES,
+                "surface_deadline_s": SURFACE_DEADLINE_S,
                 "started": time.strftime("%Y-%m-%dT%H:%M:%S%z")})
     from tools import notebook_perf_harness as H
     sys.path.insert(0, str(REPO / "scripts"))

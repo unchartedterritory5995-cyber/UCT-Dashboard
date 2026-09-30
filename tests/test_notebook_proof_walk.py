@@ -1274,3 +1274,17 @@ def test_the_first_run_tour_is_WAITED_for_not_sampled_once():
     started = time.monotonic()
     assert W._first_run_tour_seen(never, timeout_ms=100) is False
     assert time.monotonic() - started < 1.0, "a dialog that never opens must not block past its own budget"
+
+
+def test_surface_deadline_is_late_bound_so_the_cli_flag_reaches_the_bounded_runner():
+    """`--surface-deadline` rebinds the module global before the sweep. A def-time default
+    (`deadline=SURFACE_DEADLINE_S`) would capture the import-time value and the flag would reach
+    nothing (the CLAUDE.md "default argument is bound at import" trap). The default must be None,
+    resolved in the body."""
+    import inspect
+    sig = inspect.signature(W.deadclick_surface_bounded)
+    assert sig.parameters["deadline"].default is None, "deadline must be late-bound"
+    src = inspect.getsource(W.deadclick_surface_bounded)
+    assert "deadline = SURFACE_DEADLINE_S" in src, "the body must resolve the module global at call time"
+    ap_src = inspect.getsource(W.main)
+    assert "--surface-deadline" in ap_src and "global SURFACE_DEADLINE_S" in ap_src
