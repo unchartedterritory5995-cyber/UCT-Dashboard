@@ -8,7 +8,10 @@ files that own them. Every judge carries its planted-defect control here as well
 from __future__ import annotations
 
 import contextlib
+import hashlib
+import importlib
 import json
+import os
 import re
 import tempfile
 import threading
@@ -89,6 +92,157 @@ def _loopback_doc_with_delayed_endpoint(doc_html: str, slow_path: str, slow_seco
     finally:
         srv.shutdown()
         thread.join(timeout=5)
+
+
+# ── wave 10 lane WK7, round 2: a real THIRD-PARTY origin ────────────────────────────────────
+# `INSTRUMENT_JS`'s `stamp` must never fire cross-origin (a non-safelisted header forces a CORS
+# preflight, and a third-party server that does not explicitly allow ours would reject the real
+# request -- this instrument must never perturb a genuine product request). This server plays
+# that third party: it records the RAW headers of every request it actually receives (a
+# preflight OPTIONS included), which is what "the server or route actually received" means --
+# not what the page's own JS believes it sent. Answers everything permissively so a MUTATED
+# (broken) build's preflight still completes and lands on the wire where this can see it,
+# rather than the browser silently blocking it before the evidence exists.
+class _OriginRecordingHandler(BaseHTTPRequestHandler):
+    def _cors(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "*")
+        self.send_header("Access-Control-Allow-Methods", "*")
+
+    def do_OPTIONS(self):  # noqa: N802
+        self.server.received.append(dict(self.headers.items()))  # type: ignore[attr-defined]
+        self.send_response(204)
+        self._cors()
+        self.end_headers()
+
+    def do_GET(self):  # noqa: N802
+        self.server.received.append(dict(self.headers.items()))  # type: ignore[attr-defined]
+        body = b"{}"
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):  # noqa: D401
+        pass
+
+
+@contextlib.contextmanager
+def _recording_cross_origin_server():
+    """A second real `127.0.0.1` server, on its OWN port -- a different port is a different
+    origin to Chrome, and both ends being real loopback addresses (never a `page.route()`-only
+    synthetic hostname) avoids the Private Network Access trap documented above."""
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _OriginRecordingHandler)
+    srv.received = []
+    thread = threading.Thread(target=srv.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield srv
+    finally:
+        srv.shutdown()
+        thread.join(timeout=5)
+
+
+def _run_cross_origin_probe(real_browser) -> dict:
+    """One run: a real page on real loopback origin A fires (1) a fetch to real loopback
+    origin B (a different PORT, hence cross-origin to Chrome) and (2) a same-origin fetch back
+    to A. Returns what B's OWN server actually received on the wire (never what the page
+    believes it sent) plus the same-origin request's Tap-recorded `seq`."""
+    with _recording_cross_origin_server() as cross, \
+         _loopback_doc_with_delayed_endpoint(
+             '<div data-proof-root="notebook"></div>', "/api/wk7-same-origin-control", 0.0) as doc_url:
+        def open_fixture(W_, pg):
+            pg.goto(doc_url)
+            return '[data-proof-root="notebook"]'
+
+        surf = W.Surface("t-cross-origin", open_fixture, sweeps=("deadclick",))
+        world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+        ctx = world.new_context("acct", "desk")
+        pg = ctx.new_page()
+        try:
+            root = surf.open(world, pg)
+            tap = W.Tap(pg)
+            cross_url = f"http://127.0.0.1:{cross.server_address[1]}/api/third-party"
+            pg.evaluate("(u) => fetch(u).catch(() => {})", cross_url)
+            pg.evaluate("() => fetch('/api/wk7-same-origin-control').catch(() => {})")
+            pg.wait_for_timeout(400)
+            same_origin = [r for r in tap.reqs if "wk7-same-origin-control" in r["url"]]
+        finally:
+            pg.close()
+            ctx.close()
+        return {"cross_received": list(cross.received),
+                "same_origin_seq": same_origin[0]["seq"] if same_origin else None}
+
+
+def test_a_cross_origin_fetch_carries_no_proof_headers_and_a_same_origin_one_still_does(real_browser):
+    """The shipped fix: a genuinely cross-origin request (a real, different loopback origin)
+    reaches the third party's OWN wire with no `x-uct-proof-seq`/`x-uct-proof-bg` -- read off
+    what that server actually received, not off any client-side belief -- while the ordinary
+    same-origin request in the SAME run is still stamped, proving the origin check narrows
+    rather than disables the whole mechanism."""
+    result = _run_cross_origin_probe(real_browser)
+    # ⛔ NON-VACUITY: the third party must have actually been reached, or "no proof headers"
+    # proves nothing.
+    assert result["cross_received"], f"the cross-origin server received nothing: {result}"
+    for headers in result["cross_received"]:
+        assert "x-uct-proof-seq" not in headers, headers
+        assert "x-uct-proof-bg" not in headers, headers
+    assert result["same_origin_seq"] is not None, (
+        f"the same-origin control was never stamped either -- the origin check is not merely "
+        f"narrow, it is dead: {result}")
+
+
+def test_mutation_removing_the_origin_check_reds_the_cross_origin_rail(real_browser):
+    """Mutation-proof for the CORS fix, per `feedback_mutation_check_never_git_checkout`:
+    capture the source's own bytes, remove fetch's `sameOrigin` gate (stamp unconditionally,
+    the pre-round-2 shape), show the SAME cross-origin probe above now leaks proof headers onto
+    the third party's wire, then restore the captured bytes via `os.replace` and verify the
+    restore by sha256 -- never `git checkout`."""
+    target = REPO / "tools" / "notebook_proof_walk.py"
+    original = target.read_bytes()
+    original_sha = hashlib.sha256(original).hexdigest()
+
+    old = b"if (sameOrigin(url)) {"
+    assert original.count(old) == 1, "the origin-gate line is not present exactly once"
+    new = b"if (true) {"
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="wk7_mutate_origin_"))
+    capture_path = tmp_dir / "notebook_proof_walk.captured"
+    tmp_write = capture_path.with_suffix(".tmp")
+    tmp_write.write_bytes(original)
+    os.replace(tmp_write, capture_path)
+    assert hashlib.sha256(capture_path.read_bytes()).hexdigest() == original_sha, (
+        "the capture did not read back identically -- refusing to mutate on an unproven capture")
+
+    def _write_atomic(data: bytes) -> None:
+        tmp = target.with_suffix(".wk7mutorigin.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, target)
+
+    try:
+        mutated = original.replace(old, new)
+        assert mutated != original, "the mutation applied nothing"
+        assert hashlib.sha256(mutated).hexdigest() != original_sha
+        _write_atomic(mutated)
+        importlib.reload(W)
+
+        result = _run_cross_origin_probe(real_browser)
+        carried = [h for h in result["cross_received"]
+                   if "x-uct-proof-seq" in h or "x-uct-proof-bg" in h]
+        assert carried, (
+            f"MUTATION DID NOT RED: removing the origin check still sent no proof headers "
+            f"cross-origin (result: {result}) -- the origin gate may not be doing the work "
+            f"this test thinks it is")
+    finally:
+        _write_atomic(capture_path.read_bytes())
+        restored_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+        assert restored_sha == original_sha, (
+            f"RESTORE FAILED: {target} is not byte-identical to the captured original "
+            f"(sha {restored_sha[:16]} != {original_sha[:16]})")
+        importlib.reload(W)
+        assert W.self_check() == 0, "post-restore self_check failed -- the module did not come back clean"
 
 
 def test_the_judges_self_check_passes():
@@ -328,22 +482,30 @@ def test_the_geometry_control_requires_the_mislabel_and_restscroll_plants():
     assert W.control_ok("geometry", {**base, "plant-scroll-pinned": "CLEAR"})[0] is False
 
 
+# wave 10 lane WK7: background-ness now travels ON THE REQUEST, as headers (INSTRUMENT_JS's
+# `stamp`), never a second array with its own snapshot index -- so the harness reads it back the
+# way `Tap._on_request` does, off the fetch call itself, not off a `P.bgReqs` slice that no
+# longer exists. `Headers` is a Node global (undici-backed since Node 18), no polyfill needed.
 _NODE_HARNESS = r"""
 globalThis.window = globalThis;
-globalThis.location = {href: 'http://sandbox.test/journal/notebook'};
+globalThis.location = {href: 'http://sandbox.test/journal/notebook', origin: 'http://sandbox.test'};
 globalThis.document = {documentElement: null, addEventListener() {}};
 globalThis.navigator = {};
-globalThis.fetch = () => Promise.resolve({ok: true});
+globalThis.__calls = [];
+globalThis.fetch = (input, init) => {
+  globalThis.__calls.push({url: String(input), method: (init && init.method) || 'GET',
+    headers: Object.fromEntries(((init && init.headers) || new Headers()).entries())});
+  return Promise.resolve({ok: true});
+};
 globalThis.requestAnimationFrame = (cb) => setTimeout(() => cb(0), 1);
 eval(require('fs').readFileSync(0, 'utf8'));          // INSTRUMENT_JS, then MARK_JS as `mark`
-const P = window.__proof;
 // a poller set up BEFORE the click is armed (the voice poll's shape), firing AFTER it
 setTimeout(() => fetch('/api/voice/insights/unspoken'), 30);
 const t = performance.now(); while (performance.now() - t < 3) {}   // the arm comes strictly later
 const m = mark();                                      // the click is armed here, at top level
 // a timer the CLICK schedules (a debounce) is the click's own
 setTimeout(() => fetch('/api/j2/notes/abc/favorite', {method: 'POST'}), 5);
-setTimeout(() => process.stdout.write(JSON.stringify({bg: P.bgReqs.slice(m.bgMark)})), 80);
+setTimeout(() => process.stdout.write(JSON.stringify({calls: globalThis.__calls, reqMark: m.reqMark})), 80);
 """
 
 
@@ -356,12 +518,21 @@ def test_the_in_page_half_tags_a_pre_arm_timer_request_and_not_the_clicks_own(tm
     r = subprocess.run([node, "-e", _NODE_HARNESS], input=js, capture_output=True, text=True,
                        encoding="utf-8", timeout=60)
     assert r.returncode == 0, r.stderr[-2000:]
-    bg = json.loads(r.stdout)["bg"]
-    urls = [(b["method"], b["url"]) for b in bg]
-    # the poll set up before the arm fired after it: background
-    assert ("GET", "http://sandbox.test/api/voice/insights/unspoken") in urls, urls
+    out = json.loads(r.stdout)
+    # the harness's own `fetch` stub captures `String(input)` verbatim, unresolved -- unlike the
+    # RETIRED `P.bgReqs.push({..., url: u.href})`, `stamp` never builds an absolute URL (it has
+    # no need to: everything it records now travels as headers on the real request, which the
+    # browser resolves itself). Key by the same relative path INSTRUMENT_JS was handed.
+    calls = {c["url"]: c for c in out["calls"]}
+    poll = calls["/api/voice/insights/unspoken"]
+    own = calls["/api/j2/notes/abc/favorite"]
+    # the poll set up before the arm fired after it: stamped background, on the wire
+    assert poll["headers"].get("x-uct-proof-bg") == "1", poll
+    # every stamped request carries the SAME counter the window mark is drawn from
+    assert int(poll["headers"]["x-uct-proof-seq"]) >= 0
     # CONTROL: the click's own timer is NOT background (else every debounced click reads DEAD)
-    assert not [u for u in urls if "favorite" in u[1]], urls
+    assert "x-uct-proof-bg" not in own["headers"], own
+    assert own["method"] == "POST"
 
 
 # ── F7 Part A: a failure that is silent BY DESIGN is declared, with its reason ─────────────────
@@ -664,15 +835,18 @@ def test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_r
     `plant-poller: NOT-SEEN` here (l11dc-4dfc5e447/INVALID.md); this is the rail that would have
     caught it before the real walk did.
 
-    ⚠️ Retries up to 3 times on the SAME, pre-existing tolerance `deadclick_sweep` itself has for
-    this control: `click_one`'s `n0`/`bgMark` are two INDEPENDENTLY-paced marks (see the comment
-    above `pg.wait_for_timeout(50)` in `click_one`) and a residual skew between them occasionally
-    misattributes one of the poller's OWN background requests to a dead plant, exactly the class
-    `control_ok` exists to catch (a miss here reads `[INVALID]`, never a silent wrong verdict,
-    and the real controller re-runs). Stress-tested at roughly 1 miss in 25-40 draws
-    (`wk6_repro_plant3.py`, session scratchpad) -- a bounded retry mirrors that same tolerance
-    rather than lowering it; it is not masking a flaky MEASUREMENT, the measurement is exact
-    every time, the underlying control occasionally is.
+    ⭐ wave 10 lane WK7: NO RETRY, and none is needed any more. `click_one` used to compare TWO
+    independently-paced marks -- `n0` (Python's own list, populated as CDP delivers) and
+    `bgMark` (a JS-side snapshot of a SEPARATE list) -- and a residual skew between them
+    occasionally misattributed one of the poller's OWN background requests to a dead plant
+    (stress-tested at roughly 1 miss in 25-40 draws, `wk6_repro_plant3.py`, session
+    scratchpad). This rail carried a 3-attempt retry for exactly that reason. WK7 removed the
+    second mark: every request now carries its OWN `bg` flag on the wire (INSTRUMENT_JS's
+    `stamp`), read back whenever Playwright's CDP delivery happens to catch up -- there is no
+    longer a second snapshot to race against `n0`, so the retry this test carried for that race
+    is gone with it (see the comment above `click_one`'s window-membership block for the full
+    characterisation, and `test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click`
+    below for a deterministic, forced reproduction that no longer needs a retry either).
 
     ⚠️ MEASURED: this rail is NOT the mutation-proof vehicle for requirement #1 (network) or #2
     (floor) individually -- it stayed GREEN across 5 consecutive runs with the floor alone
@@ -682,9 +856,10 @@ def test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_r
     `tap.inflight` often enough that phase 2 (network wait) frequently supplies the dwell time
     phase 1's floor is supposed to guarantee, so disabling the floor alone rarely shows through
     here; (b) with `QUIET_MS=120` against a 200ms poll period, a SINGLE click's window still
-    has a ~60% chance of straddling a tick even with NEITHER mechanism active, and this test's
-    OWN 3-attempt retry (needed for the unrelated `n0`/`bgMark` race above) turns that into a
-    ~93.6% chance of passing anyway. **The dedicated, deterministic mutation-proof rails are
+    has a ~60% chance of straddling a tick even with NEITHER mechanism active -- an UNRELATED
+    statistical property of the floor/network mechanisms, not of the mark race, and not a
+    reason to retry (a poller that never ticks inside the window fails `plant-poller` honestly,
+    which is what the control is for). **The dedicated, deterministic mutation-proof rails are
     `test_quiesce_keeps_waiting_while_a_request_is_in_flight_even_though_the_DOM_is_quiet` +
     `test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE` for the
     network signal, and `test_quiesce_returns_early_when_quiet_and_still_honours_its_ceiling_when_it_never_settles`'s
@@ -699,32 +874,240 @@ def test_the_planted_poller_control_reads_DEAD_DEAD_LIVE_IN_WINDOW_through_the_r
 
     names = {"Planted dead styled control": "plant-dead-styled", "Planted dead control": "plant-dead",
              "Planted live control": "plant-live"}
-    last_got, last_why = None, None
-    for _attempt in range(3):
-        surf = W.Surface("t-plant-poller", open_fixture, sweeps=("deadclick",))
-        world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
-        rec = W.deadclick_surface(world, surf, "desk", plant=True)
-        assert rec["status"] == "MEASURED", rec
+    surf = W.Surface("t-plant-poller", open_fixture, sweeps=("deadclick",))
+    world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+    rec = W.deadclick_surface(world, surf, "desk", plant=True)
+    assert rec["status"] == "MEASURED", rec
 
-        got = {}
-        for r in rec["controls"]:
-            for label, cid in names.items():
-                if r["name"].startswith(label) and cid not in got:
-                    got[cid] = r["verdict"]
-                    break
-        # ⛔ NON-VACUITY, the same check `deadclick_sweep` itself applies: the poller must
-        # actually have fired INSIDE a dead click's own window, or "DEAD, DEAD" proves nothing.
-        polled = [r for r in rec["controls"] if r["name"].startswith("Planted dead")
-                  and any("/api/proof-plant/poll" in b for b in (r.get("background_ignored") or []))]
-        got["plant-poller"] = "IN-WINDOW" if polled else "NOT-SEEN"
+    got = {}
+    for r in rec["controls"]:
+        for label, cid in names.items():
+            if r["name"].startswith(label) and cid not in got:
+                got[cid] = r["verdict"]
+                break
+    # ⛔ NON-VACUITY, the same check `deadclick_sweep` itself applies: the poller must
+    # actually have fired INSIDE a dead click's own window, or "DEAD, DEAD" proves nothing.
+    polled = [r for r in rec["controls"] if r["name"].startswith("Planted dead")
+              and any("/api/proof-plant/poll" in b for b in (r.get("background_ignored") or []))]
+    got["plant-poller"] = "IN-WINDOW" if polled else "NOT-SEEN"
 
-        ok, why = W.control_ok("deadclick", got)
-        if ok:
-            assert got == {"plant-dead-styled": "DEAD", "plant-dead": "DEAD", "plant-live": "LIVE",
-                           "plant-poller": "IN-WINDOW"}, got
-            return
-        last_got, last_why = got, why
-    pytest.fail(f"{last_why} -- got {last_got} (after 3 attempts)")
+    ok, why = W.control_ok("deadclick", got)
+    assert ok, f"{why} -- got {got}"
+    assert got == {"plant-dead-styled": "DEAD", "plant-dead": "DEAD", "plant-live": "LIVE",
+                   "plant-poller": "IN-WINDOW"}, got
+
+
+# ── wave 10 lane WK7: a DETERMINISTIC reproduction of the closed two-marks race ──────────────
+#
+# The bug (see the comment above `click_one`'s window-membership block, and INSTRUMENT_JS's
+# `stamp` comment, for the full characterisation): `click_one` used to compare a JS-side index
+# snapshot (`bgMark`, into `P.bgReqs`) against a Python-side index snapshot (`n0`, into
+# `tap.reqs`) -- two lists populated at genuinely different rates (one synchronous in-page push,
+# one asynchronous CDP delivery). Reproducing the mismatch by WAITING for real CDP jitter is
+# exactly what the OLD tests did (~1 miss in 25-40 draws) -- probabilistic, not deterministic.
+#
+# `_delayed_delivery_tap_class()` makes it deterministic instead: it builds a `Tap` subclass,
+# fresh each call so it always inherits from whatever `W.Tap` CURRENTLY is (this matters for the
+# mutation-proof test below, which reloads `W` mid-run), that WITHHOLDS one marked request's row
+# from `self.reqs` until `release_held()` runs. The row is built eagerly, on the SAME thread
+# Playwright calls back on -- exactly like ordinary operation -- so nothing here touches a
+# Playwright object off-thread; only WHEN it lands in `self.reqs` is deferred. Releasing it from
+# inside `click_one`'s OWN second `quiesce()` call (patched in, no background thread, no sleep to
+# "hope" the timing lines up) guarantees the release happens strictly AFTER `n0` was captured and
+# strictly BEFORE `reqs = tap.reqs[n0:]` is read -- the exact ordering the old comparison could
+# not survive, produced by construction rather than by chance.
+def _delayed_delivery_tap_class():
+    class _DelayedDeliveryTap(W.Tap):
+        """Withholds any request whose URL contains `self._marker` from `self.reqs`/
+        `self.inflight` until `release_held()` is called -- a deterministic stand-in for CDP
+        delivery lag, not a hack around it: the row is computed the same way and at the same
+        moment `Tap._on_request` always computes it, only ITS APPEARANCE in `self.reqs` is
+        deferred."""
+
+        def __init__(self, pg, marker: str):
+            self._marker = marker
+            self._held: list[dict] = []
+            super().__init__(pg)
+
+        def _on_request(self, r):
+            if self._marker not in r.url:
+                return super()._on_request(r)
+            seq, bg = W._proof_headers(r)
+            self._held.append({"t": time.time(), "method": r.method, "url": r.url, "seq": seq, "bg": bg})
+
+        def release_held(self) -> list[dict]:
+            held, self._held = self._held, []
+            for row in held:
+                self.reqs.append(row)
+                self.last_activity = time.time()
+            return held
+
+    return _DelayedDeliveryTap
+
+
+_WK7_REPRO_MARKER = "/api/wk7-race-repro-poll"
+
+
+def _run_forced_stale_bg_repro(real_browser) -> dict:
+    """One deterministic run of the forced reproduction. A background-poller-shaped request
+    (`PLANT_DEADCLICK_JS`'s own poller shape: a `setTimeout` scheduled long before any click is
+    ever armed, so `born < P.armedAt` is true the instant a real click arms) fires during fixture
+    setup -- well before `click_one` takes its first mark, so its stamped `seq` is unambiguously
+    less than every `reqMark` this run will ever see, and its stamped `bg` is unambiguously '1'.
+    `_DelayedDeliveryTap` withholds its arrival until `click_one`'s SECOND `quiesce()` call
+    (post-click) releases it -- strictly after `n0`, exactly the ordering the old comparison
+    mishandled. Returns `click_one`'s result dict for a click on a control with NO other effect,
+    so `verdict` alone says whether the stale background request was misattributed."""
+    DelayedTap = _delayed_delivery_tap_class()
+
+    def open_fixture(W_, pg):
+        pg.route(f"**{_WK7_REPRO_MARKER}*",
+                  lambda route: route.fulfill(status=200, content_type="application/json", body="{}"))
+        pg.route("**/api/wk7-race-repro-decoy*",
+                  lambda route: route.fulfill(status=200, content_type="application/json", body="{}"))
+        _goto_fixture_doc(pg, '<div data-proof-root="notebook">'
+                               '<button aria-label="Dead control">Dead control</button></div>')
+        pg.evaluate(r"""(marker) => { setTimeout(() => fetch(marker + '?race=1',
+          {credentials: 'include'}), 0); }""", _WK7_REPRO_MARKER)
+        pg.wait_for_timeout(60)   # let the browser actually dispatch the fetch (the Tap hook,
+        # already installed, withholds it regardless). A SECOND, ordinary request follows it --
+        # advancing `P.reqSeq` PAST the marker's own value -- so `click_one`'s own mark (taken
+        # after this) is unambiguously later than the marker's stamp on an otherwise-empty page.
+        # Without this, a fixture with nothing else on it can hand the marker request the SAME
+        # seq the click's own mark reads (nothing else having incremented the counter in
+        # between), which proves nothing about staleness one way or the other.
+        pg.evaluate("() => { fetch('/api/wk7-race-repro-decoy'); }")
+        pg.wait_for_timeout(30)
+        return '[data-proof-root="notebook"]'
+
+    surf = W.Surface("t-wk7-race-repro", open_fixture, sweeps=("deadclick",))
+    world = W.World(real_browser, "http://127.0.0.1:1", Path(tempfile.gettempdir()))
+    ctx = world.new_context("acct", "desk")
+    pg = ctx.new_page()
+    try:
+        tap = DelayedTap(pg, _WK7_REPRO_MARKER)   # installed BEFORE navigation, like `W.page()`
+        root = surf.open(world, pg)
+        listing = W.safe_evaluate(pg, W.CONTROLS_JS, root)
+        ctl = next(c for c in listing if c["name"] == "Dead control")
+
+        calls = {"n": 0}
+        real_quiesce = W.quiesce
+
+        def released_quiesce(pg_, tap_, ceiling_ms, *a, **kw):
+            calls["n"] += 1
+            if calls["n"] == 2 and isinstance(tap_, DelayedTap):
+                released = tap_.release_held()
+                assert len(released) == 1, (
+                    f"the forced request never arrived to be withheld (got {released}) -- "
+                    f"the reproduction is not exercising anything")
+                # ⛔ NON-VACUITY: the released row must actually be STALE relative to this
+                # click's own window, or nothing below proves anything about the race (measured
+                # miss during this lane's own build: an otherwise-empty fixture handed the
+                # marker the SAME `seq` the click's mark later read, since nothing else had
+                # advanced `P.reqSeq` in between -- `open_fixture`'s decoy request exists to
+                # rule that out, and this assertion is what would have caught it).
+                current_seq = pg_.evaluate("() => window.__proof.reqSeq")
+                assert released[0]["seq"] is not None and released[0]["seq"] < current_seq, (
+                    f"the forced request is not stale (seq={released[0]['seq']!r}, "
+                    f"current P.reqSeq={current_seq!r}) -- it would not be excluded by EITHER "
+                    f"the fixed or the mutated code, so it cannot reproduce the race")
+            return real_quiesce(pg_, tap_, ceiling_ms, *a, **kw)
+
+        prev_quiesce = W.quiesce
+        W.quiesce = released_quiesce
+        try:
+            return W.click_one(world, pg, tap, root, ctl, surf, "desk")
+        finally:
+            W.quiesce = prev_quiesce
+    finally:
+        pg.close()
+        ctx.close()
+
+
+def test_a_late_delivered_background_poll_is_never_misattributed_to_a_dead_click(real_browser):
+    """The deterministic reproduction, asserted against the SHIPPED code: `verdict` must read
+    DEAD every time. Looped 20 times and the pass count reported -- since the delay is a
+    Python-side hook rather than genuine timing, this is not a statistical claim; it must be
+    20/20, and a single miss means the fix regressed."""
+    runs = 20
+    passed = 0
+    misses = []
+    for i in range(runs):
+        r = _run_forced_stale_bg_repro(real_browser)
+        if r.get("verdict") == "DEAD":
+            passed += 1
+        else:
+            misses.append({"run": i, "verdict": r.get("verdict"), "effects": r.get("effects")})
+    print(f"[wk7-repro] {passed}/{runs} runs read DEAD")
+    assert passed == runs, f"{passed}/{runs} DEAD -- misses: {misses}"
+
+
+def test_mutation_reintroducing_the_two_snapshot_marking_reds_the_SAME_reproduction(real_browser):
+    """Mutation-proof, per `feedback_mutation_check_never_git_checkout`: capture the source's own
+    bytes, mutate ONE localized block back to a two-independent-snapshots shape, show the SAME
+    forced reproduction above now misattributes (LIVE), then restore the captured bytes via
+    `os.replace` and verify the restore by sha256 -- never `git checkout`, which would clobber
+    any concurrent edit to this file (`lesson_a_prepared_revert_is_verified_by_what_it_changes`).
+
+    THE MUTATION: `bg` goes back to being WINDOWED (only excludable when its OWN `seq >= reqMark`
+    -- mirroring the old `P.bgReqs.slice(bgMark)`, "background requests DURING this window") while
+    `reqs` stays windowed ONLY by `n0` (the old Python-only boundary, no `seq` refinement at all).
+    Two independent windowing decisions, exactly the retired defect: the reproduction's stale
+    background request (seq < reqMark, bg=1, delivered late) is then present in `reqs` (n0 alone
+    does not exclude it) and ABSENT from the windowed `bg` (its seq is too old) -- nothing
+    subtracts it -- FALSE LIVE, on demand."""
+    target = REPO / "tools" / "notebook_proof_walk.py"
+    original = target.read_bytes()
+    original_sha = hashlib.sha256(original).hexdigest()
+
+    lines = original.splitlines(keepends=True)
+    start = next(i for i, ln in enumerate(lines) if ln.lstrip().startswith(b'mark_seq = m.get("reqMark")'))
+    old_block = b"".join(lines[start:start + 6])
+    # a loose content check, so a future reflow of this block fails LOUD here rather than
+    # silently mutating the wrong six lines
+    for needle in (b"candidates = tap.reqs[n0:]", b"reqs = candidates",
+                   b'bg = [r for r in candidates if r.get("bg")]'):
+        assert needle in old_block, f"{needle!r} not found where expected -- block drifted:\n{old_block!r}"
+    assert original.count(old_block) == 1, "the fix block is not present exactly once"
+
+    term = b"\r\n" if lines[start].endswith(b"\r\n") else b"\n"
+    new_block = (b'    reqs = tap.reqs[n0:]' + term +
+                 b'    bg = [r for r in reqs if r.get("bg") and r.get("seq") is not None and '
+                 b'r["seq"] >= (m.get("reqMark") or 0)]' + term)
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="wk7_mutate_"))
+    capture_path = tmp_dir / "notebook_proof_walk.captured"
+    tmp_write = capture_path.with_suffix(".tmp")
+    tmp_write.write_bytes(original)
+    os.replace(tmp_write, capture_path)
+    assert hashlib.sha256(capture_path.read_bytes()).hexdigest() == original_sha, (
+        "the capture did not read back identically -- refusing to mutate on an unproven capture")
+
+    def _write_atomic(data: bytes) -> None:
+        tmp = target.with_suffix(".wk7mut.tmp")
+        tmp.write_bytes(data)
+        os.replace(tmp, target)
+
+    try:
+        mutated = original.replace(old_block, new_block)
+        assert mutated != original, "the mutation applied nothing"
+        assert hashlib.sha256(mutated).hexdigest() != original_sha
+        _write_atomic(mutated)
+        importlib.reload(W)
+
+        r = _run_forced_stale_bg_repro(real_browser)
+        assert r.get("verdict") == "LIVE", (
+            f"MUTATION DID NOT RED: reintroducing the two-snapshot marking still read "
+            f"{r.get('verdict')!r} (result: {r}) -- the fix block may not be doing the work "
+            f"this test thinks it is")
+    finally:
+        _write_atomic(capture_path.read_bytes())
+        restored_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+        assert restored_sha == original_sha, (
+            f"RESTORE FAILED: {target} is not byte-identical to the captured original "
+            f"(sha {restored_sha[:16]} != {original_sha[:16]})")
+        importlib.reload(W)
+        assert W.self_check() == 0, "post-restore self_check failed -- the module did not come back clean"
 
 
 def test_a_control_whose_DOM_change_lands_700ms_after_its_own_fetch_still_reads_LIVE(real_browser):

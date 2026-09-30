@@ -369,11 +369,21 @@ INSTRUMENT_JS = r"""
   // 1.5 s idle window that learns noise endpoints, so no idle window could ever have seen it.
   // Timer callbacks carry a flag: a callback scheduled BEFORE the current click was armed
   // (`P.armedAt`, set by MARK_JS), or scheduled by a callback that was itself background, runs
-  // as background, and every fetch / XHR it sends is recorded in `P.bgReqs`. A timer the CLICK
-  // scheduled (a debounce, a setTimeout(0)) is born after the arm and stays the click's.
+  // as background. A timer the CLICK scheduled (a debounce, a setTimeout(0)) is born after the
+  // arm and stays the click's.
   // Residual, stated: a background callback's work after an `await` (a promise continuation)
   // is not followed -- only the synchronous send inside the timer callback is attributed.
-  P.armedAt = Infinity; P.bgDepth = 0; P.bgReqs = [];
+  //
+  // ⭐ wave 10 lane WK7: EVERY outgoing fetch/XHR (background or not) is now stamped, on the
+  // wire, with `P.reqSeq` -- ONE monotonically increasing counter -- plus a `bg` flag read off
+  // `P.bgDepth` AT SEND TIME. This is what `click_one` and `Tap._on_request` (Python) read back
+  // off the SAME captured request via its headers: `bg`-ness is an intrinsic, per-request fact
+  // now, never a second, separately-paced list (`P.bgReqs`, sliced by an index snapshot taken
+  // via its OWN `evaluate()` round trip) that a Python-side snapshot (`n0 = len(tap.reqs)`,
+  // populated as Playwright's CDP messages happen to arrive) then had to be compared against.
+  // See the long comment above `click_one`'s window-membership block for the race this closes
+  // and why "two independently-paced snapshots" was the defect, not "not waiting long enough".
+  P.armedAt = Infinity; P.bgDepth = 0; P.reqSeq = 0;
   const wrapTimer = (name) => {
     const orig = window[name];
     if (typeof orig !== 'function') return;
@@ -388,34 +398,65 @@ INSTRUMENT_JS = r"""
     };
   };
   wrapTimer('setTimeout'); wrapTimer('setInterval'); wrapTimer('requestAnimationFrame');
-  const noteBg = (method, url) => {
-    if (P.bgDepth <= 0) return;
-    try { const u = new URL(String(url), location.href); u.hash = '';
-          P.bgReqs.push({method: String(method || 'GET').toUpperCase(), url: u.href}); } catch (e) {}
+  // `stamp` assigns THIS request the next value of the one counter every request (and every
+  // window mark, via MARK_JS's `reqMark`) is drawn from, and tags it `bg` when it was sent from
+  // inside a pre-armed timer callback. `setHeader` is the caller's own way to attach a header
+  // (fetch's `Headers`, XHR's `setRequestHeader`) -- `stamp` itself never touches the network.
+  //
+  // ⛔⛔ wave 10 lane WK7, round 2 (controller ruling): SAME-ORIGIN ONLY. A non-safelisted
+  // custom header on a CROSS-origin request forces a CORS preflight; a third-party server that
+  // does not explicitly allow `x-uct-proof-seq`/`x-uct-proof-bg` REJECTS the real request, so
+  // stamping unconditionally would make the instrument break a genuine product request during
+  // the walk -- exactly the thing it must never do. `sameOrigin` resolves the request's URL
+  // against `location.href` (fetch: the string/URL/Request's own `.url`; XHR: captured in a
+  // wrapped `open`, since `send` alone never sees it) and `stamp` is skipped entirely -- no
+  // header, no `Headers` object built, no touched `init` -- for anything that resolves
+  // elsewhere. A cross-origin request is therefore NEVER perturbed by this instrument, full
+  // stop; see the comment above `click_one`'s window-membership block for what an unstamped
+  // request means for a verdict.
+  const resolveURL = (u) => { try { return new URL(String(u), location.href); } catch (e) { return null; } };
+  const sameOrigin = (u) => { const r = resolveURL(u); return !!r && r.origin === location.origin; };
+  const stamp = (setHeader) => {
+    const seq = ++P.reqSeq;
+    try { setHeader('x-uct-proof-seq', String(seq)); if (P.bgDepth > 0) setHeader('x-uct-proof-bg', '1'); } catch (e) {}
+    return seq;
   };
   const f0 = window.fetch;
   if (typeof f0 === 'function') window.fetch = function (input, init) {
     try {
       const isReq = input && typeof input === 'object' && 'url' in input;
-      noteBg((init && init.method) || (isReq ? input.method : 'GET'), isReq ? input.url : input);
+      const url = isReq ? input.url : input;
+      if (sameOrigin(url)) {
+        const h = new Headers((input && typeof input === 'object' && input.headers) || undefined);
+        if (init && init.headers) { const extra = new Headers(init.headers); extra.forEach((v, k) => h.set(k, v)); }
+        stamp((k, v) => h.set(k, v));
+        init = Object.assign({}, init, {headers: h});
+      }
     } catch (e) {}
-    return f0.apply(this, arguments);
+    return f0.call(this, input, init);
   };
   const XO = window.XMLHttpRequest && window.XMLHttpRequest.prototype;
   if (XO) {
     const o0 = XO.open, s0 = XO.send;
-    XO.open = function (m, u) { this.__proofReq = [m, u]; return o0.apply(this, arguments); };
-    XO.send = function () { if (this.__proofReq) noteBg(this.__proofReq[0], this.__proofReq[1]); return s0.apply(this, arguments); };
+    XO.open = function (method, url) { this.__proofUrl = url; return o0.apply(this, arguments); };
+    XO.send = function () {
+      if (this.__proofUrl !== undefined && sameOrigin(this.__proofUrl)) {
+        stamp((k, v) => this.setRequestHeader(k, v));
+      }
+      return s0.apply(this, arguments);
+    };
   }
 })();
 """
 
 # Arms the click as well as marking it: every timer callback scheduled before this moment is
 # background from now on (see INSTRUMENT_JS), so a poll that fires inside the click's window is
-# never credited to the click. `bgMark` is where this click's background requests start.
+# never credited to the click. `reqMark` is `P.reqSeq`'s value at this instant -- the SAME
+# counter every request is stamped with (INSTRUMENT_JS's `stamp`), so window membership is a
+# plain `seq >= reqMark` comparison in Python, never a second snapshot of a second list.
 MARK_JS = r"""() => { const P = window.__proof; P.focusMark = document.activeElement;
   P.armedAt = performance.now();
-  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip, bgMark: P.bgReqs.length}; }"""
+  return {mark: P.base + P.muts.length, printed: P.printed, clip: P.clip, reqMark: P.reqSeq}; }"""
 
 # Add every element that mutated in [from, now) to the page's noise set (the idle window).
 NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
@@ -430,7 +471,7 @@ NOISE_JS = r"""(from) => { const P = window.__proof; let n = 0;
 # Attribute changes ON the control itself count only when they are aria-* (a toggle); a class
 # or style change there is pointer styling (":active", "pressed" classes) and never evidence.
 EFFECT_JS = r"""(args) => {
-  const [hoverFrom, clickFrom, bgFrom] = args; const P = window.__proof;
+  const [hoverFrom, clickFrom] = args; const P = window.__proof;
   const ctl = document.querySelector('[data-proof-target]');
   const local = new Set();
   for (let i = Math.max(0, hoverFrom - P.base); i < clickFrom - P.base && i < P.muts.length; i++) {
@@ -478,7 +519,6 @@ EFFECT_JS = r"""(args) => {
   out.already_focused = !!(ctl && P.focusMark && (P.focusMark === ctl || ctl.contains(P.focusMark)));
   out.focus_after = f ? desc(f) : null;
   out.printed = P.printed; out.clip = P.clip;
-  out.bg_requests = (P.bgReqs || []).slice(bgFrom || 0).slice(0, 40);
   return out;
 }"""
 
@@ -1004,6 +1044,35 @@ def dump(name: str, obj) -> None:
                                           encoding="utf-8", newline="\n")
 
 
+def _proof_headers(r) -> tuple[int | None, bool]:
+    """The ONE fact `click_one` needs about a request, read off the request ITSELF: the JS-side
+    monotonic `seq` INSTRUMENT_JS's `stamp` assigned it (see the comment above `MARK_JS`), and
+    whether it was sent from inside a pre-armed timer (`bg`). Both travel on the wire as headers
+    -- never a second, separately-paced list -- so they are available whenever Playwright's CDP
+    delivery happens to catch up, regardless of HOW LATE that is. `seq` is `None` for a request
+    the instrumentation never saw fit to stamp:
+      - not fetch/XHR at all (unchanged from before this lane: those were never classified
+        either way), or
+      - ⛔⛔ round 2: CROSS-ORIGIN. `INSTRUMENT_JS`'s `stamp` is same-origin-only BY DESIGN (a
+        non-safelisted header on a cross-origin request forces a CORS preflight, and a
+        third-party server that does not allow ours would reject the real request -- this
+        instrument must never perturb what the product does). A cross-origin request is
+        therefore honestly reported as `seq=None, bg=False` -- NEVER guessed at either
+        direction: not silently folded into `bg` (we do not know it came from a pre-armed
+        timer), and not given a manufactured `seq` that would claim precision this request
+        was never given the chance to prove. See the comment above `click_one`'s
+        window-membership block for what an unstamped request means for a verdict: it falls
+        back to the coarse, pre-WK7 `n0`-only boundary -- the ONLY thing this lane could not
+        make precise without breaking the product it is supposed to be observing."""
+    try:
+        h = r.headers or {}
+    except Exception:  # noqa: BLE001
+        h = {}
+    raw = h.get("x-uct-proof-seq")
+    seq = int(raw) if raw is not None and str(raw).isdigit() else None
+    return seq, h.get("x-uct-proof-bg") == "1"
+
+
 class Tap:
     """What one page did that the DOM cannot say: its requests and its browser doors.
 
@@ -1012,7 +1081,10 @@ class Tap:
     `reqs` already recorded every request's START; this adds FINISH/FAIL so a caller can ask
     "is anything outstanding right now", the question `quiesce()` needs answered to avoid
     declaring quiet while a control's own fetch is still in flight
-    (l11dc-4dfc5e447/INVALID.md)."""
+    (l11dc-4dfc5e447/INVALID.md).
+
+    ⭐ wave 10 lane WK7: every recorded request also carries `seq`/`bg` (`_proof_headers`) --
+    see the comment above `click_one`'s window-membership block for what this closes."""
 
     def __init__(self, pg):
         self.reqs: list[dict] = []
@@ -1030,7 +1102,8 @@ class Tap:
         pg.on("pageerror", lambda e: res["pageerrors"].append(str(e)[:300]))
 
     def _on_request(self, r):
-        self.reqs.append({"t": time.time(), "method": r.method, "url": r.url})
+        seq, bg = _proof_headers(r)
+        self.reqs.append({"t": time.time(), "method": r.method, "url": r.url, "seq": seq, "bg": bg})
         self.inflight.add(id(r))
         self.last_activity = time.time()
 
@@ -2273,27 +2346,6 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
             pass
     quiesce(pg, tap, 450)
     m = safe_evaluate(pg, MARK_JS)
-    # ⚠️ wave 10 lane WK6 round 2, a PRE-EXISTING boundary race, MEASURED not fully closed:
-    # `m["bgMark"]` is a JS-side index into `P.bgReqs`; `n0 = len(tap.reqs)` below is a
-    # Python-side index into a SEPARATE list, populated asynchronously as Playwright delivers
-    # "request" CDP messages on its own schedule. The two are supposed to mark "the same
-    # instant" and do not exactly -- a background request JS correctly counts as landing BEFORE
-    # `bgMark` can still appear in `tap.reqs` AFTER `n0` (its Python-side delivery simply lagged
-    # the JS-side push), producing an extra, unmatched "request" effect on a genuinely dead
-    # control. With the floor now guaranteeing a background poller ticks inside most windows
-    # (`QUIESCE_FLOOR_MS`), this pre-existing skew is exercised far more often than before.
-    # `wait_for_timeout` pumps Playwright's own dispatcher (see `wait_true`'s docstring above),
-    # draining most already-in-transit CDP messages before `n0` is read -- MEASURED to cut the
-    # rate substantially (stress-tested: ~1 in 25 draws down to ~1 in 40, `wk6_repro_plant3.py`
-    # in the session scratchpad), NOT to zero -- doubling the wait to 100ms bought no further
-    # improvement, so the residual is a genuine index/clock skew between two independently-paced
-    # channels, not a drainable queue. A real fix needs a SHARED checkpoint (e.g. a timestamp on
-    # both sides, not a list length) and is out of this lane's scope (quiesce sizing + dedup).
-    # This is exactly the class `deadclick_sweep`'s own `control_ok` check exists to catch: a
-    # residual miss here reads `[INVALID]`, never a silent wrong answer, and the controller
-    # re-runs -- `tests/test_notebook_proof_walk.py`'s own reproduction of this control retries
-    # on that same, documented tolerance, never a hidden flake mask.
-    pg.wait_for_timeout(50)
     fs0 = safe_evaluate(pg, FORMSTATE_JS, root)
     n0, ev0 = len(tap.reqs), dict(tap.events)
     try:
@@ -2312,7 +2364,7 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
         reloaded = safe_evaluate(pg, "() => performance.timeOrigin") != origin0
         if reloaded:
             raise RuntimeError("document reloaded")
-        eff = safe_evaluate(pg, EFFECT_JS, [hover_from, m["mark"], m.get("bgMark", 0)])
+        eff = safe_evaluate(pg, EFFECT_JS, [hover_from, m["mark"]])
         fs1 = safe_evaluate(pg, FORMSTATE_JS, root)
     except EvalTimeout:
         raise   # a stuck read is TIMEOUT, never mistaken for the page having navigated
@@ -2321,8 +2373,74 @@ def click_one(W: World, pg, tap: Tap, root: str, c: dict, surf: Surface, mode: s
                "samples": [f"no in-page reading: {type(e).__name__}"]}
         fs1 = fs0
         reloaded = True
-    reqs = tap.reqs[n0:]
-    bg = eff.get("bg_requests") or []
+    # ⭐ wave 10 lane WK7 -- the race WK6 measured but could not close (l11dc-4dfc5e447/INVALID.md,
+    # the comment this replaces). Window membership used to be TWO independently-paced snapshots
+    # compared against each other: `m["bgMark"]` was a JS-side index into `P.bgReqs`, read via its
+    # OWN `evaluate()` round trip; `n0 = len(tap.reqs)` (above) was a Python-side index into a
+    # SEPARATE list, populated only as Playwright's CDP dispatcher happened to deliver each
+    # "request" message -- a delivery that lags the JS-side push by an amount `wait_for_timeout`
+    # could shrink (stress-tested ~1/25 -> ~1/40) but never eliminate, because the two lists are
+    # driven by two different clocks (a synchronous in-page push vs an asynchronous CDP message).
+    #
+    # ORDER: `m = safe_evaluate(pg, MARK_JS)` always ran first (see above); the OLD code then read
+    # `n0` a fixed ~50ms later. WHAT LANDS BETWEEN THEM: any request whose JS-side classification
+    # (before/after the mark; background or not) and whose Python-side ARRIVAL disagree -- which
+    # needs no coincidence AT the click, only ordinary CDP delivery jitter for anything sent
+    # shortly before or during the window.
+    #
+    # THREE verdict errors, by which side of the mismatch a request falls on:
+    #   - FALSE LIVE (the dangerous direction): a background request JS correctly places BEFORE
+    #     its own mark (excluded from the old `bg_requests` slice) whose Python-side row arrives
+    #     AFTER `n0` anyway -- present in `reqs`, absent from `bg_requests`, so nothing subtracts
+    #     it. A DEAD control reads LIVE, hiding exactly what this instrument exists to find.
+    #   - FALSE DEAD: the opposite skew -- JS places a request INSIDE the window (so the old
+    #     `bg_requests` slice contains it) but its Python row arrives BEFORE `n0` (not in `reqs`
+    #     at all). `without_background` matches by (method, url) COUNT, not identity, so that
+    #     phantom `bg_requests` entry can instead cancel a genuine LATER click-caused request at
+    #     the same endpoint, erasing real evidence.
+    #   - A misclassified background request: with several same-endpoint requests in flight (the
+    #     ordinary shape of a poller), count-based matching can subtract the WRONG occurrence --
+    #     the verdict happens to land right, but the reported `background_ignored` list names an
+    #     instance that never actually fired during this click.
+    #
+    # ⛔ `deadclick_sweep` does NOT retry on an INVALID control -- it runs the planted-poller
+    # control ONCE and reports whatever `control_ok` says. The retired comment here claimed
+    # otherwise ("a residual miss here reads [INVALID]... and the controller re-runs"); that was
+    # never true of the shipped sweep, only of one test's OWN 3-attempt loop, since removed.
+    #
+    # THE FIX: one authority, not two snapshots. INSTRUMENT_JS's `stamp` (see the comment above
+    # it) tags EVERY outgoing fetch/XHR -- background or not -- with `seq` (one monotonic counter,
+    # `P.reqSeq`) and `bg` (whether `P.bgDepth > 0` at send time), ON THE REQUEST ITSELF, as
+    # headers, read back by `Tap._on_request`/`_proof_headers` whenever CDP delivery happens to
+    # catch up. `MARK_JS`'s `reqMark` is `P.reqSeq` at the SAME instant `P.armedAt` is set -- the
+    # window mark and every request's stamp are drawn from the SAME counter, so:
+    #   - `bg` is an intrinsic, per-request fact now, never re-derived from a windowed slice of a
+    #     second list -- closes the FALSE LIVE direction above unconditionally, independent of
+    #     delivery timing.
+    #   - `seq >= mark_seq` is a single-clock comparison that closes the general case too (a stray
+    #     NON-background request delivered late), the same way.
+    # `n0` stays as a cheap, always-SAFE lower bound -- Python's own list only grows, and CDP
+    # preserves send order on one connection, so nothing genuinely post-click can land before it
+    # -- `seq`/`bg` REFINE that coarse set; they do not replace the need to bound it somewhere.
+    #
+    # ⛔⛔ round 2: `stamp` is SAME-ORIGIN ONLY (see the comment above it in INSTRUMENT_JS) -- a
+    # third-party server that does not allow our headers would reject a stamped cross-origin
+    # request, and the instrument must never break a real product request to measure it. A
+    # cross-origin `r` therefore always has `r["seq"] is None` and `r.get("bg")` falsy -- the
+    # `r.get("seq") is None` branch above is what keeps it in `candidates` on the `n0` bound
+    # ALONE, exactly as any request would have been judged before this lane, and it is NEVER
+    # promoted into `bg` (we do not know it came from a pre-armed timer, so it is not claimed
+    # as background) or given any seq-based precision it was never able to earn. WHAT THIS
+    # MEANS FOR A VERDICT: an unstamped (cross-origin, or non-fetch/XHR) request that lands in
+    # the coarse `n0..now` window still counts as click evidence -- the same residual risk this
+    # whole lane exists to close for same-origin traffic, left open ON PURPOSE for cross-origin
+    # traffic, because closing it would mean breaking the product being observed.
+    mark_seq = m.get("reqMark")
+    candidates = tap.reqs[n0:]
+    if mark_seq is not None:
+        candidates = [r for r in candidates if r.get("seq") is None or r["seq"] >= mark_seq]
+    reqs = candidates
+    bg = [r for r in candidates if r.get("bg")]
     obs = {"dom": eff.get("dom", 0), "expanded": eff.get("expanded", 0), "focus_moved": eff.get("focus_moved"),
            "requests": reqs, "background_requests": bg,
            "noise_endpoints": sorted(W.noise_endpoints), "url_before": url0,
