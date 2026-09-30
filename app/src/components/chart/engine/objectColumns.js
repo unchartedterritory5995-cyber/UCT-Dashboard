@@ -511,9 +511,23 @@ export function objectReaderFor(definition, bars, opts = {}) {
       })
     }
   }
-  const readNode = (node, bar) => {
+  const readNode = (node, bar, loopVars) => {
     const col = columns.get(node)
     if (!col) return NaN
+    // ⭐⭐ C20 — a per-pass (or text) value the runtime lane read at the end of the
+    // bar: the pass the object runtime's loop is on (`loopVars`, the counter the
+    // loop op declares — `objectProgram.js::rtLoopId`), or slot 0 outside a loop.
+    // ⛔ A bar or pass the run never wrote answers `na` (text: `undefined`), which
+    // is exactly what a statement that never ran reads as.
+    if (col.byBar) {
+      const passes = col.byBar.get(bar)
+      const miss = col.text ? undefined : NaN
+      if (!passes) return miss
+      const i = col.loop ? (loopVars && loopVars.get(col.loop)) : 0
+      if (!Number.isInteger(i) || i < 0 || i >= passes.length) return miss
+      const v = passes[i]
+      return v === undefined ? miss : v
+    }
     const v = col[bar]
     return v === undefined ? NaN : v
   }

@@ -4933,6 +4933,11 @@ export function buildRuntimeIr(source, opts = {}) {
   const objectAtEmitted = new Set()
   /** ⭐ per value: `num`, or the non-numeric kind that kept it out. */
   const objectAtKinds = []
+  /** ⭐ C20 — per value, the per-iteration buffer it rides (-1: a per-bar output). */
+  const objectAtIters = []
+  /** ⭐ C20 — the `while` loops the object pass reads per pass, innermost last:
+   *  `{key, countSlot, depth}` (`depth` = `loopDepth` outside the loop). */
+  const rtLoopStack = []
   let loopDepth = 0
   const posKey = (line, column) => `${line}:${column}`
   // ⭐ A position names ANY token of the statement's header — the object pass
@@ -4948,28 +4953,61 @@ export function buildRuntimeIr(source, opts = {}) {
       if (hit) specs = specs ? specs.concat(hit) : hit
     }
     if (!specs) return
-    if (loopDepth > 0 || owner !== null) {
-      throw new RuntimeRefusal('runtime:object-position',
-        'a drawing value this lane was asked to read stands inside a loop or a function body, '
-        + 'where it has more than one value a bar', locate(first))
-    }
-    for (const { k, node } of specs) {
+    // ⭐ C20 — a loop's PASS COUNT is emitted by the loop itself, after it
+    // (`while` below); it is not a value read before the statement.
+    specs = specs.filter((s) => !s.passes)
+    if (!specs.length) return
+    for (const spec of specs) {
+      const { k, node } = spec
+      // ⭐⭐ C20 — A VALUE ASKED FOR INSIDE A LOOP is read PER PASS of the loop
+      // the object pass named (`spec.loop`), into a per-pass buffer indexed by
+      // the pass the run is on (the `while`'s own count, 1-based, minus one).
+      // ⛔ Only that loop, only DIRECTLY inside it (a nested loop runs the
+      // statement several times per pass), and never in a function body.
+      const ctx = spec.loop ? rtLoopStack[rtLoopStack.length - 1] : null
+      if (spec.loop) {
+        if (!ctx || ctx.key !== posKey(spec.loop.line, spec.loop.column)
+            || loopDepth !== ctx.depth + 1 || owner !== null) {
+          throw new RuntimeRefusal('runtime:object-position',
+            'a drawing value asked for once per pass of a loop stands somewhere else — nested in a '
+            + 'second loop, in a function body, or outside the loop it names', locate(first))
+        }
+      } else if (loopDepth > 0 || owner !== null) {
+        throw new RuntimeRefusal('runtime:object-position',
+          'a drawing value this lane was asked to read stands inside a loop or a function body, '
+          + 'where it has more than one value a bar', locate(first))
+      }
       if (objectAtEmitted.has(k)) {
         throw new RuntimeRefusal('runtime:object-position',
           'a drawing statement this lane reads a value at was reached twice in one walk', locate(first))
       }
       objectAtEmitted.add(k)
-      // ⛔ THE OBJECT PASS ASKS FOR A NUMBER — it wrote the placeholder where a
-      // numeric tree would have stood. A value that is TEXT, a colour or an array
-      // here is NOT emitted (a `na` stands in, and the kind is reported), so the
-      // caller can leave that one value out rather than format a string as a
-      // number (`objectAtKinds`).
+      // ⛔ THE OBJECT PASS NAMES THE KIND IT ASKS FOR (`spec.kind`: a number by
+      // default, `text`, or `colour`). A value of another kind is NOT emitted (a
+      // `na` stands in, and the kind is reported), so the caller can leave that
+      // one value out — or ask again for the kind it is — rather than format a
+      // string as a number (`objectAtKinds`).
+      const want = spec.kind || 'num'
       const kind = !node ? 'num'
         : holdsText(node, scope) ? 'text'
           : holdsColour(node, scope) ? 'colour'
             : holdsArray(node, scope) ? 'array' : 'num'
       objectAtKinds[k] = kind
-      out.push(emit(objectAtOutputs[k], node && kind === 'num' ? lowerExpr(node, scope) : (node ? naValue() : num(1))))
+      const value = !node ? num(1) : (kind === want ? lowerExpr(node, scope) : naValue())
+      // ⭐ C20 — a text value, and every per-pass value, rides a per-ITERATION
+      // buffer (the only channel that holds a string): slot 0 for a statement
+      // outside any loop, the pass index inside one. `runtimeColumns` reads the
+      // buffers at the end of every bar and resets them.
+      const buf = objectAtIters[k]
+      if (buf >= 0) {
+        iterOutputs[buf] = { kind: kind === 'text' && want === 'text' ? 'text' : 'num' }
+        const index = ctx ? binary('-', read(ctx.countSlot), num(1)) : num(0)
+        // ⛔ A value of the wrong kind is not written at all: the buffer's kind
+        // is the requested one, and a `na` in a text buffer would be a type error.
+        if (kind === want || !node) out.push(emitIter(buf, index, value))
+      } else {
+        out.push(emit(objectAtOutputs[k], value))
+      }
     }
   }
 
@@ -5200,10 +5238,36 @@ export function buildRuntimeIr(source, opts = {}) {
         const testIr = lowerExpr(parseWholeExpression(testToks), scope)
         const inner = new Scope(scope)
         const countSlot = newSlot(`while@${first.line} passes`, false)
+        // ⭐⭐ C20 — A LOOP THE OBJECT PASS READS PER PASS. Its body's drawing
+        // values are written per pass (see `emitObjectValuesAt`) and, after the
+        // loop, how many passes this entry ran — the loop's own count, which the
+        // lowering leaves holding exactly that (`lowerIr.js`, STMT.WHILE).
+        const loopKey = posKey(first.line, first.column)
+        const passSpecs = (objectAt.get(loopKey) || []).filter((s) => s.passes)
+        if (passSpecs.length) rtLoopStack.push({ key: loopKey, countSlot, depth: loopDepth })
         loopDepth += 1
         let body
-        try { body = lowerStmts(st.sub || [], inner) } finally { loopDepth -= 1 }
+        try {
+          body = lowerStmts(st.sub || [], inner)
+        } finally {
+          loopDepth -= 1
+          if (passSpecs.length) rtLoopStack.pop()
+        }
         out.push(whileStmt({ countSlot, test: testIr, body, line: Number(first.line) || 0 }))
+        for (const { k } of passSpecs) {
+          if (loopDepth > 0 || owner !== null) {
+            throw new RuntimeRefusal('runtime:object-position',
+              'a loop the object pass reads per pass stands inside another loop or a function body, '
+              + 'where it runs more than once a bar', locate(first))
+          }
+          if (objectAtEmitted.has(k)) {
+            throw new RuntimeRefusal('runtime:object-position',
+              'a loop this lane reads per pass was reached twice in one walk', locate(first))
+          }
+          objectAtEmitted.add(k)
+          objectAtKinds[k] = 'num'
+          out.push(emit(objectAtOutputs[k], read(countSlot)))
+        }
         continue
       }
       if (word === 'break') { out.push(breakStmt()); continue }
@@ -6258,11 +6322,27 @@ export function buildRuntimeIr(source, opts = {}) {
     iterPending.set(spec.counter, list)
   })
   ;(opts.objectTreesAt || []).forEach((spec, k) => {
-    outputs.push({ call: 'objtree', role: `at ${spec.line}:${spec.column} #${k}` })
-    objectAtOutputs.push(outputs.length - 1)
+    // ⭐ C20 — a text value and a per-pass value ride a per-iteration buffer; a
+    // number read once a bar (and a loop's pass count) rides a per-bar output.
+    const perIter = !spec.passes && (!!spec.loop || spec.kind === 'text')
+    if (perIter) {
+      iterOutputs.push(null)
+      objectAtIters.push(iterOutputs.length - 1)
+      objectAtOutputs.push(-1)
+    } else {
+      outputs.push({ call: 'objtree', role: `at ${spec.line}:${spec.column} #${k}` })
+      objectAtOutputs.push(outputs.length - 1)
+      objectAtIters.push(-1)
+    }
     const key = posKey(spec.line, spec.column)
     const list = objectAt.get(key) || []
-    list.push({ k, node: spec.node || null })
+    list.push({
+      k,
+      node: spec.node || null,
+      ...(spec.kind ? { kind: spec.kind } : {}),
+      ...(spec.loop ? { loop: spec.loop } : {}),
+      ...(spec.passes ? { passes: true } : {}),
+    })
     objectAt.set(key, list)
   })
   try {
@@ -6584,7 +6664,7 @@ export function buildRuntimeIr(source, opts = {}) {
   // ⭐ `objectIterTreeKinds` rides the RESULT rather than the program: it is a
   // fact about what this lane DECIDED, which the object side needs in order to
   // render a buffer's value, and which nothing downstream of the program reads.
-  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds }
+  return { ok: true, ir, diagnostics, objectIterTreeKinds, objectAtOutputs, objectAtKinds, objectAtIters }
 }
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE SAME GUARD, THE SENTENCE THIS LANE CAN KEEP.

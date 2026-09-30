@@ -248,6 +248,73 @@ export function collectObjectOps(stmts, h) {
   const scalars = getterScalars(stmts, h)
   let inlineSeq = 0
   let inlineDepth = 0
+  /** How many loops (of any kind) the walk is inside right now. */
+  let loopNest = 0
+  /** ⭐ C20 — the `while` whose body is being read for the runtime lane, or null. */
+  let rtLoop = null
+
+  /**
+   * ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS.
+   *
+   * A `while` cannot be a counted `loop` op the object runtime runs on its own —
+   * its test is re-read every pass, which only an interpreter can do. But the
+   * RUNTIME lane is one: it runs the loop exactly, and (C18) reads a drawing's
+   * values where the drawing stands. So a `while` whose body only MAKES drawings
+   * (`line.new(…)` / `label.new(…)` / `box.new(…)` as statements) becomes a loop
+   * op whose passes, guards and values all come from ONE run of the script
+   * (`pine.js`, `rtLoop`) — in Pine's creation order, pass by pass.
+   *
+   * ⛔ ONLY WHEN ALL OF IT CAN BE CARRIED, otherwise nothing changes: the member
+   * door asked (`h.rtLoops`), the loop runs on the last bar only (an enclosing
+   * `barstate.islast`, `h.isLastBarGuard` — the converter's own test), it is not
+   * inside another loop or an inlined helper, and its body holds nothing but
+   * statement creates — no handle kept, no delete, no list edit, no nested loop
+   * that draws, no refused helper. A body that holds anything else is read again
+   * the old way, with every counter and diagnostic rolled back first, so the
+   * legacy refusal (`loopBlocked`) is exactly what it always was.
+   */
+  const rtLoopTry = (st, t, guards, inLoop, bodyScope) => {
+    if (!h.rtLoops || inLoop || loopIds.length || loopNest || inlineDepth || rtLoop) return false
+    if (typeof h.isLastBarGuard !== 'function'
+        || !guards.some((g) => !g.negate && h.isLastBarGuard(g.toks))) return false
+    const marks = Object.fromEntries(Object.entries(diagnostics)
+      .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.length]))
+    const inlinedBefore = diagnostics.inlinedCalls
+    const seq = siteSeq
+    const iseq = inlineSeq
+    const declsBefore = new Map(decls)
+    const outer = ops
+    const body = []
+    ops = body
+    rtLoop = { nest: loopNest + 1 }
+    loopNest += 1
+    try {
+      walk(st.sub || [], guards, true, bodyScope)
+    } finally {
+      loopNest -= 1
+      rtLoop = null
+      ops = outer
+    }
+    const clean = Object.entries(marks).every(([k, n]) => diagnostics[k].length === n)
+      && diagnostics.inlinedCalls === inlinedBefore
+      && body.length > 0 && body.every((o) => o.k === 'create' && !o.into && !o.once)
+    if (clean) {
+      const loop = { line: t[0].line, column: t[0].column }
+      for (const o of body) o.rtLoop = loop
+      ops.push({
+        k: 'loop', rt: true, rtLoop: loop, body, guards, locals: bodyScope,
+        loopIds: [], at: t[0], line: st.header[0].line,
+      })
+      return true
+    }
+    for (const [k, n] of Object.entries(marks)) diagnostics[k].length = n
+    diagnostics.inlinedCalls = inlinedBefore
+    siteSeq = seq
+    inlineSeq = iseq
+    decls.clear()
+    for (const [k, v] of declsBefore) decls.set(k, v)
+    return false
+  }
   /** ⛔ A REFUSED CALL IS A DROP, and says which function and why.
    *
    *  ⭐ AND WHAT ITS BODY WOULD HAVE REMOVED (`bodyEffects`), because a refused
@@ -533,7 +600,13 @@ export function collectObjectOps(stmts, h) {
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
         if (!head) {
-          walk(st.sub || [], guards, true, bodyScope)
+          // ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS. See `rtLoopTry`.
+          if (word === 'while' && rtLoopTry(st, t, guards, inLoop, bodyScope)) {
+            if (loopRe.length) localScope = [...localScope, ...loopRe]
+            continue
+          }
+          loopNest += 1
+          try { walk(st.sub || [], guards, true, bodyScope) } finally { loopNest -= 1 }
           if (loopRe.length) localScope = [...localScope, ...loopRe]
           continue
         }
@@ -541,7 +614,8 @@ export function collectObjectOps(stmts, h) {
         const body = []
         ops = body
         loopIds.push(head.id)
-        walk(st.sub || [], guards, inLoop, bodyScope)
+        loopNest += 1
+        try { walk(st.sub || [], guards, inLoop, bodyScope) } finally { loopNest -= 1 }
         loopIds.pop()
         ops = outer
         if (loopRe.length) localScope = [...localScope, ...loopRe]
@@ -1247,7 +1321,11 @@ export function collectObjectOps(stmts, h) {
     // ⚰️ Deleting these outright (first cut of the loop reader) made a `while`
     // body emit its ops as if they ran ONCE, which is precisely the lie the
     // original refusal existed to prevent.
-    if (inLoop) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
+    // ⭐ C20 — a statement create DIRECTLY in the body of a `while` the runtime
+    // lane reads per pass (`rtLoopTry`) is carried; everything else still refuses.
+    const rtCarried = inLoop && !!rtLoop && loopNest === rtLoop.nest && !intoName && !once
+      && inlineDepth === 0
+    if (inLoop && !rtCarried) { diagnostics.loopBlocked.push(`${ns}.new`); return false }
     const args = argsOf(rhs)
     if (!args) { diagnostics.unsupported.push(`${ns}.new`); return false }
     siteSeq += 1

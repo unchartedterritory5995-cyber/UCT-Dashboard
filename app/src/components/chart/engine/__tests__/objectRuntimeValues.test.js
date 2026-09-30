@@ -119,11 +119,15 @@ describe('⛔⛔ served only where exact — otherwise UNKNOWN, and withheld', (
 describe('⛔ what is NOT read from the runtime lane keeps its refusal', () => {
   afterEach(() => { vi.unstubAllEnvs() })
 
-  it('a drawing INSIDE a loop is still the reader\'s refusal', () => {
-    const t = translatePine(HEAD + 'if barstate.islast\n    int i = 0\n    while i < 2\n        label.new(bar_index, i, "x")\n        i += 1\n',
-      { strict: true, objects: true, objectRuntimeCheck: probeObjectRuntime })
+  it('a drawing INSIDE a loop is the reader\'s refusal WITHOUT the member door\'s check (C20 reads it with one)', () => {
+    const src = 'if barstate.islast\n    int i = 0\n    while i < 2\n        label.new(bar_index, i, "x")\n        i += 1\n'
+    const t = translatePine(HEAD + src, { strict: true, objects: true })
     expect(t.objectDiagnostics.loopBlockedCalls).toEqual(['label.new'])
     expect(t.objects).toBe(null)
+    // ⭐ C20 — with it, the loop is read per pass (`objectRuntimeLoops.test.js`)
+    const c = translatePine(HEAD + src, { strict: true, objects: true, objectRuntimeCheck: probeObjectRuntime })
+    expect(c.objectDiagnostics.loopBlockedCalls).toEqual([])
+    expect(c.objects.ops.some((o) => o.k === 'loop')).toBe(true)
   })
 
   it('a value opened from a binding whose name is REASSIGNED is not moved to the drawing', () => {
@@ -137,25 +141,39 @@ describe('⛔ what is NOT read from the runtime lane keeps its refusal', () => {
     expect(texts).toEqual([])
   })
 
-  it('a TEXT value is never read as a number: the runtime names it, and the pass leaves it out', () => {
+  it('a TEXT value is never read as a number: the runtime names it, and the pass asks for TEXT (C20)', () => {
     const src = 'if barstate.islast\n    int i = 0\n    string w = "a"\n    while i < 2\n        w := w + "b"\n        i += 1\n'
       + '    label.new(bar_index, close, w)\nplot(close)\n'
     const d = door(src)
-    const { live } = draw(d)
-    // no label drawn with a number where the script wrote a word
-    expect(live.filter((o) => o.family === 'label')).toEqual([])
+    const at = d.definition.objects.runtime.at
+    // ⛔ never a number placeholder for the word…
+    expect(at.filter((a) => a.node && a.node.name === 'w' && !a.kind)).toEqual([])
+    // …⭐ the string the run holds, asked for as text
+    expect(at.filter((a) => a.node && a.node.name === 'w' && a.kind === 'text').length).toBe(1)
+    expect(labels(draw(d).live)).toEqual([[BARS[N - 1].c, 'abb']])
   })
 
   it('a runtime-fed drawing with a property this chart cannot read is dropped WHOLE (`runtime:prop`)', () => {
+    // a `size` the loop reassigns: an enum slot takes no runtime text (C20 reads
+    // WORDS for a text slot only), so it stays unreadable
+    const src = WHILE_SUM.replace('    float s = 0.0\n', '    float s = 0.0\n    string sz = size.small\n')
+      .replace('        i += 1\n', '        sz := size.large\n        i += 1\n')
+      .replace('label.new(bar_index, s, "sum")', 'label.new(bar_index, s, "sum", size = sz)') + 'plot(close)\n'
+    const d = door(src)
+    const diag = d.translation.objectDiagnostics
+    expect((diag.droppedPropNames || []).some((n) => n.startsWith('label.size'))).toBe(true)
+    expect(diag.dropReasons['runtime:prop']).toBe(1)
+    expect(labels(draw(d).live)).toEqual([])
+  })
+
+  it('⭐ C20 — `color.new(red, <input>)` is no longer unreadable: the run supplies the transparency', () => {
+    // measured: max-pain's pin-zone box writes exactly this
     const src = 't = input.int(80, "t")\n' + WHILE_SUM.replace('label.new(bar_index, s, "sum")',
       'label.new(bar_index, s, "sum", color = color.new(color.red, t))') + 'plot(close)\n'
     const d = door(src)
-    const diag = d.translation.objectDiagnostics
-    // `color.new(red, <input>)` is a colour the columnar door cannot read (measured:
-    // max-pain's pin-zone box writes exactly this)
-    expect((diag.droppedPropNames || []).some((n) => n.startsWith('label.color'))).toBe(true)
-    expect(diag.dropReasons['runtime:prop']).toBe(1)
-    expect(labels(draw(d).live)).toEqual([])
+    expect(d.translation.objectDiagnostics.dropReasons['runtime:prop']).toBeUndefined()
+    const [lab] = draw(d).live.filter((o) => o.family === 'label')
+    expect([lab.props.y, lab.props.text, lab.props.color]).toEqual([LAST3, 'sum', '#F2364533'])
   })
 
   it('⛔ CONTROL — the same label with a colour the door CAN read is drawn', () => {

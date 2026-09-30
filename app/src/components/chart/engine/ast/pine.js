@@ -124,7 +124,8 @@ import {
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP,
-  RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES,
+  RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
+  withObjectTransparency,
 } from './objectProgram.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -13642,6 +13643,25 @@ export function objectEnumValue(name) {
   return undefined
 }
 
+/** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
+ *  conjuncts are lifted; anything else stays in the expression and refuses.
+ *  ⭐ C20 — module level so the object reader's `while` pre-check
+ *  (`pineObjects.js::rtLoopTry`) asks the very function the converter lifts with. */
+function splitLastBarNode(node) {
+  if (!node) return { rest: node, isLast: false }
+  if (node.type === 'name' && node.name === 'barstate.islast') return { rest: null, isLast: true }
+  if (node.type === 'binary' && (node.op === 'and' || node.op === '&&')) {
+    const a = splitLastBarNode(node.left)
+    const b = splitLastBarNode(node.right)
+    if (!a.isLast && !b.isLast) return { rest: node, isLast: false }
+    const rest = a.rest && b.rest
+      ? { type: 'binary', op: node.op, left: a.rest, right: b.rest, tok: node.tok }
+      : (a.rest || b.rest)
+    return { rest, isLast: true }
+  }
+  return { rest: node, isLast: false }
+}
+
 function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement,
   objectOpts = {}) {
   // ⭐⭐ RAW-TREE MODE — the trees are for the RUNTIME LANE, not the V2 graph.
@@ -13696,6 +13716,14 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   // unmeasured spelling) keeps that reason: the runtime lane does not know it.
   const rtCheck = !rawTrees && typeof objectOpts.runtimeCheck === 'function'
     ? objectOpts.runtimeCheck : null
+  // ⭐⭐ C20 — TEXT, COLOURS AND `while` DRAWINGS READ FROM THE RUNTIME LANE
+  // (`rtTextOf`, `rtColourOf`, `pineObjects.js::rtLoopTry`), gated once here.
+  // ⛔ NOT IN A SCRIPT THAT READS `timeframe.period`: the run spells a daily
+  // chart's period `D`, and on a v6 chart TradingView does not (objects-triage
+  // C15 — measured on ema-ribbon). A text, a colour or a statement REACHED under
+  // a test of that spelling would be drawn off the wrong branch; the runtime lane
+  // is not asked for any of the three there.
+  const rtC20 = !!rtCheck && !/\btimeframe\.period\b/.test(strippedForScan(String(source || '')))
   // `pine:reassign` — a name a loop or block reassigns, which the fold cannot
   // settle; `pine:undefined` — a block local the value walk never bound because
   // the block holds a statement it does not fold (max-pain's heatmap locals sit
@@ -13746,18 +13774,52 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     const t = node.tok || {}
     return `${at}|${node.type}:${node.name || node.op || ''}:${t.line}:${t.column}`
   }
-  const rtPlaceholder = (node) => {
+  /** ⭐ C20 — the kind the runtime lane said a value IS, when it was asked for
+   *  another (`translatePine`'s runtime rounds): the next round asks for that kind
+   *  where the consumer can take it (a text slot, a colour slot) and nowhere else. */
+  const rtKnownKind = objectOpts.runtimeKinds instanceof Map ? objectOpts.runtimeKinds : null
+  const rtPlaceholder = (node, want = 'num') => {
     if (rtSpecs.length >= MAX_RUNTIME_VALUES) return null
     const key = rtKeyOf(node)
     // ⛔ A value the runtime lane named as not a number stays refused (see
     // `translatePine`'s runtime rounds).
     if (rtExclude && rtExclude.has(key)) return null
+    // ⛔ C20 — nor is a value asked for as a kind the runtime lane said it is not.
+    const known = rtKnownKind ? rtKnownKind.get(key) : undefined
+    if (node && known !== undefined && known !== want) return null
     const k = rtSpecs.length
     rtKeys.push(key)
-    rtSpecs.push({ line: rtOp.at.line, column: rtOp.at.column, node: node ? rtSanitize(node) : null })
+    rtSpecs.push({
+      line: rtOp.at.line,
+      column: rtOp.at.column,
+      node: node ? rtSanitize(node) : null,
+      ...(node && want !== 'num' ? { kind: want } : {}),
+      // ⭐ C20 — inside a `while` the runtime lane reads per pass (`rtLoop`).
+      ...(rtOp.rtLoop ? { loop: { line: rtOp.rtLoop.line, column: rtOp.rtLoop.column } } : {}),
+    })
     diagnostics.runtimeValues = (diagnostics.runtimeValues || 0) + 1
     return { type: 'call', name: RUNTIME_AT_CALL, args: [{ type: 'num', value: k }] }
   }
+  /** ⭐ C20 — the placeholder for a runtime `while`'s pass count, keyed at the
+   *  loop's own position (`runtimeColumns.js` reads it as the loop's last pass). */
+  const rtPassesPlaceholder = (loop) => {
+    if (rtSpecs.length >= MAX_RUNTIME_VALUES) return null
+    const k = rtSpecs.length
+    rtKeys.push(`${loop.line}:${loop.column}|passes`)
+    rtSpecs.push({ line: loop.line, column: loop.column, node: null, passes: true })
+    diagnostics.runtimeValues = (diagnostics.runtimeValues || 0) + 1
+    return { type: 'call', name: RUNTIME_AT_CALL, args: [{ type: 'num', value: k }] }
+  }
+  /** ⭐ C20 — the kind of a placeholder tree (`num` for anything that is not one). */
+  const rtKindOfTree = (tree) => {
+    const k = runtimeAtIndex(tree)
+    return k >= 0 && rtSpecs[k] ? (rtSpecs[k].kind || 'num') : null
+  }
+  /** ⭐ C20 — may this node be read from the runtime lane AT the drawing? In its
+   *  own arguments (and not re-scoped), or stable between its binding and the
+   *  drawing (`rtStableNode`). */
+  const rtReadable = (node, envOverride) => !!rtOp
+    && ((rtArgNodes && rtArgNodes.has(node) && !envOverride) || rtStableNode(node))
   /** ⭐⭐ C18 — may a node that is NOT in the drawing's own arguments be read at
    *  the drawing? It was reached by opening a name into its binding (`pin_prob =
    *  … ? "HIGH" : …`), so Pine evaluated it where that binding stands. Reading it
@@ -13836,8 +13898,17 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
   })()
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
-  const collected = collectObjectOps(stmts,
-    { isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression })
+  const collected = collectObjectOps(stmts, {
+    isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression,
+    // ⭐ C20 — `while` loops the runtime lane reads per pass; the SAME last-bar
+    // test the converter lifts (`splitLastBarNode`), never a second one.
+    ...(rtC20 ? {
+      rtLoops: true,
+      isLastBarGuard: (toks) => {
+        try { return splitLastBarNode(parseWholeExpression(toks)).isLast } catch { return false }
+      },
+    } : {}),
+  })
   const diagnostics = {
     loopBlocked: collected.diagnostics.loopBlocked.length,
     loopBlockedCalls: [...new Set(collected.diagnostics.loopBlocked)].sort(),
@@ -14039,6 +14110,18 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // ⭐⭐ See `rawTrees` at the top of this function. The node goes on almost
     // untouched — but a FRAME cannot ride a raw tree, so it is applied to it.
     if (rawTrees) return node ? substituteFrame(node, inline) : null
+    // ⭐⭐ C20 — A DRAWING MADE INSIDE A RUNTIME `while` READS EVERY VALUE FROM THE
+    // RUN, PER PASS — never from the columnar lane, even where that lane has an
+    // answer. The columnar answer is one number per BAR; inside a loop a value may
+    // move every pass (a body local, a `ta.*` call Pine evaluates each pass), and
+    // a per-bar number reused for every pass is exactly the wrong picture this
+    // lane refuses to draw. The run is the one evaluator that saw each pass.
+    if (rtOp && rtOp.rtLoop && !inline && node) {
+      lastCanonRefusal = { guard: 'runtime:loop-value', message: 'a value inside a runtime loop the run cannot read here' }
+      const ph = rtReadable(node, envOverride) ? rtPlaceholder(node) : null
+      if (!ph) diagnostics.unresolvedValues += 1
+      return ph
+    }
     try {
       // ⭐⭐ R2 STEP 2 — INSIDE A CALL FRAME WHEN THE TEXT READER IS INSIDE ONE.
       // `inline` is `{bound, args, callerEnv}`, set only while walking a user
@@ -14723,7 +14806,12 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // exactly what lost the label. This walk is already bounded by
     // `TEXT_MAX_DEPTH` (each open costs one level below).
     const opened = openName(node, scope, 0)
-    if (opened) return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+    if (opened) {
+      // ⭐ C20 — a name whose binding the columnar reader cannot build is read as
+      // the STRING the run holds for it, where it stands (`rtTextOf`).
+      return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+        || rtTextOf(node, inline, envAt)
+    }
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here
     // inside a loop — `array.get(syms, r)`, a watchlist row — IS text; and the
@@ -14752,7 +14840,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     // way this door cannot read — carrying the NUMBER is closer to the truth
     // than carrying nothing, and it is the only branch here that guesses.
     const ast = canonicalOf(node, inline, envAt)
-    if (!ast) return null
+    // ⭐ C20 — a STRING only the runtime lane holds (`rtTextOf`).
+    if (!ast) return rtTextOf(node, inline, envAt)
     // ⭐ INSIDE A `str.format` ARGUMENT THIS IS NOT A GUESS: a number is exactly
     // what `{N}` is handed, and `messageNumber` says how it is drawn.
     return numNode(ast, undefined, true)
@@ -14777,12 +14866,86 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         const decided = decidedTest(condTree)
         if (decided !== null) return decided !== 0 ? then : other
       }
-      if (!cond || !then || !other) return null
+      if (!cond || !then || !other) return rtColourOf(node, scope, depth)
       return { c: 'if', cond, then, else: other }
     }
     const opened = openName(node, scope, depth)
-    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1)
-    return null
+    // ⭐ C20 — a name whose binding cannot be read here is read from the run.
+    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1) || rtColourOf(node, scope, depth)
+    return rtColourOf(node, scope, depth)
+  }
+
+  /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
+   *
+   *  `color.new(c, t)` is carried as `{c:'new', of, t}`: `c`'s colour (read here
+   *  or from the run) with its transparency SET per bar to `t` (a literal, or a
+   *  value the run computes) by the object runtime's one formula
+   *  (`objectProgram.js::withObjectTransparency`). Any other colour the run
+   *  computes is `{c:'rt'}`, served only where the run left it OPAQUE — the run
+   *  packs a transparency into a byte that does not round-trip to TradingView's
+   *  opacity (`runtimeColumns.js`), so a transparent one is unknown.
+   *
+   *  ⛔ Only for a drawing the runtime lane feeds (`rtOp`, a create or an update:
+   *  the object runtime HOLDS an object whose colour comes back unserved rather
+   *  than paint it a default), only for a node read where the drawing stands
+   *  (`rtReadable`), and never where the script reads `timeframe.period` (`rtC20`).
+   *  ⛔ `t` is never folded here: an input folded into a colour would mint a
+   *  member parameter (R36's rule), so it is read from the run, at defaults. */
+  const rtColourOf = (node, scope, depth) => {
+    if (!rtC20 || !rtOp || (rtOp.k !== 'create' && rtOp.k !== 'update') || !node || depth > 12) return null
+    if (!rtReadable(node)) return null
+    if (node.type === 'call' && node.name === 'color.new') {
+      const args = node.args || []
+      if (args.length === 2 && !args.some((a) => !a || a.name)) {
+        const of = colorNodeOf(args[0].value, scope, depth + 1)
+        const tn = args[1].value
+        let t = null
+        if (tn && tn.type === 'number' && Number.isFinite(Number(tn.value))) t = { v: 'const', value: Number(tn.value) }
+        else if (tn && rtReadable(tn)) {
+          const ph = rtOp.rtLoop ? canonicalOf(tn) : rtPlaceholder(tn)
+          t = ph ? internTree(ph) : null
+        }
+        if (of && t) return { c: 'new', of, t }
+      }
+    }
+    const ph = rtPlaceholder(node, 'colour')
+    return ph ? { c: 'rt', v: internTree(ph) } : null
+  }
+
+  /** ⭐⭐ C20 — A DRAWING TEXT ONLY THE RUNTIME LANE CAN COMPUTE — a STRING the
+   *  run holds (a label chosen among literals under a condition the columnar lane
+   *  cannot read, a concatenation of such strings), `{t:'str'}`.
+   *
+   *  ⛔⛔ NEVER A NUMBER THE RUN WOULD FORMAT. A number in a text is formatted by
+   *  the object runtime (`{t:'num', fmt}`, `str.tostring`'s vendor-measured rules —
+   *  `formatVendorRules.test.js`); the run has no `str.tostring` and must not grow
+   *  a second formatter. So only a node with no call in it but `math.*`, `na`,
+   *  `nz` is asked (`rtTextSafe`), and the run must say the value IS text.
+   *  ⛔ Only where the columnar lane refused as IMPERATIVE (`rtAdmits`) or inside
+   *  a runtime `while` — a refusal of its own (the warm-up curtain, another
+   *  timeframe) keeps its reason. */
+  const RT_TEXT_CALL = /^math\.[A-Za-z_]+$|^(na|nz)$/
+  const rtTextSafe = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 64) return !n
+    if (Array.isArray(n)) return n.every((x) => rtTextSafe(x, depth + 1))
+    if (n.type === 'call') {
+      if (!RT_TEXT_CALL.test(String(n.name || ''))) return false
+      return (n.args || []).every((a) => rtTextSafe(a && a.value !== undefined ? a.value : a, depth + 1))
+    }
+    if (n.type === 'name' && /^(syminfo|timeframe)\./.test(String(n.name || ''))) return false
+    if (n.type === 'method' || n.type === 'member' || n.type === 'offset') return false
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok' || !v || typeof v !== 'object') continue
+      if (!rtTextSafe(v, depth + 1)) return false
+    }
+    return true
+  }
+  const rtTextOf = (node, inline, envAt) => {
+    if (!rtC20 || !rtOp || inline || enumLeaves || !node) return null
+    if (!(rtOp.rtLoop || rtAdmits(lastCanonRefusal))) return null
+    if (!rtTextSafe(node) || !rtReadable(node, envAt)) return null
+    const ph = rtPlaceholder(node, 'text')
+    return ph ? { t: 'str', tree: internTree(ph).tree } : null
   }
 
   const TEXT_SLOTS = new Set(['text', 'tooltip'])
@@ -15025,7 +15188,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       }
     }
     if (slot && TEXT_SLOTS.has(slot)) {
-      const t = textNodeOf(node, scopeEnv)
+      // ⭐ C20 — the whole text from the runtime lane when the columnar reader
+      // could not build it (`rtTextOf` says when that is allowed).
+      const t = textNodeOf(node, scopeEnv) || rtTextOf(node, null, null)
       return t ? { v: 'text', node: t } : null
     }
     if (slot && isColourSlot(slot)) {
@@ -15854,6 +16019,11 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     /** ⭐ C18 — a condition only the runtime lane can read: the op then runs where
      *  the runtime ARRIVES at its statement, which carries every `if` around it. */
     let needReached = false
+    // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
+    // its statement, pass by pass — whatever the guards say, and even with none
+    // (a `continue` above it skips it on some passes, which no guard shows).
+    const inRtLoop = !!(rtOp && rtOp.rtLoop)
+    if (inRtLoop) needReached = true
     for (const g of guards) {
       scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
@@ -15921,6 +16091,7 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
         liveParts.push(g.negate ? { v: 'bool', op: 'not', args: [latched] } : latched)
         continue
       }
+      if (inRtLoop) continue
       let ast = canonicalOf(node)
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
@@ -16020,22 +16191,8 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     return out
   }
 
-  /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
-   *  conjuncts are lifted; anything else stays in the expression and refuses. */
-  const splitLastBar = (node) => {
-    if (!node) return { rest: node, isLast: false }
-    if (node.type === 'name' && node.name === 'barstate.islast') return { rest: null, isLast: true }
-    if (node.type === 'binary' && (node.op === 'and' || node.op === '&&')) {
-      const a = splitLastBar(node.left)
-      const b = splitLastBar(node.right)
-      if (!a.isLast && !b.isLast) return { rest: node, isLast: false }
-      const rest = a.rest && b.rest
-        ? { type: 'binary', op: node.op, left: a.rest, right: b.rest, tok: node.tok }
-        : (a.rest || b.rest)
-      return { rest, isLast: true }
-    }
-    return { rest: node, isLast: false }
-  }
+  /** `barstate.islast and X` → `{rest: X, isLast: true}` (`splitLastBarNode`). */
+  const splitLastBar = splitLastBarNode
 
   /** An op's block-local bindings → a resolver scope layered over `env`.
    *  ⚠️ Cached by the locals ARRAY, which `collectObjectOps` shares between
@@ -16257,6 +16414,9 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
       if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) trees.add(t.tree)
       if (t.t === 'cat') (t.args || []).forEach((a) => walkN(a, d + 1))
       if (t.t === 'if' || t.c === 'if') { walkV(t.cond, d + 1); walkN(t.then, d + 1); walkN(t.else, d + 1) }
+      // ⭐ C20 — a runtime colour, and `color.new(c, t)`.
+      if (t.c === 'rt') walkV(t.v, d + 1)
+      if (t.c === 'new') { walkN(t.of, d + 1); walkV(t.t, d + 1) }
     }
     walkV(o.when, 0)
     if (o.k === 'setnum') walkV(o.value, 0)
@@ -16285,6 +16445,36 @@ function buildObjectProgram(stmts, source, env, makeResolver, bindingByStatement
     scopeEnv = scopeFor(op.locals, op)
     loopIds = op.loopIds || []
     lastCanonRefusal = null
+    // ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS (`pineObjects.js::
+    // rtLoopTry`). It becomes a counted loop `0 to N-1` over the run's own pass
+    // count (`rtPassesPlaceholder`; `na` — zero passes — on every bar the loop was
+    // not reached), and each body op reads its guard (the statement REACHED on
+    // that pass) and its values from the same run, per pass (`canonicalOf`,
+    // `guardOfIn`). The object runtime then makes the drawings in Pine's order:
+    // pass by pass, statement by statement.
+    if (op.k === 'loop' && op.rt) {
+      const loseLoop = (why) => {
+        unconverted(op.body, why)
+        for (const b of op.body || []) if (b.k === 'create') { lostCreate(b.family); lostInto(b) }
+        dropped(why)
+      }
+      if (!rtCheck || !op.rtLoop || !rtLastBarOnly(op)) { loseLoop('loop:runtime'); continue }
+      rtOp = { ...op, at: { line: op.rtLoop.line, column: op.rtLoop.column } }
+      const passes = rtPassesPlaceholder(op.rtLoop)
+      rtOp = null
+      const to = passes ? internTree(passes) : null
+      if (!to) { loseLoop('loop:runtime'); continue }
+      const outer = ops
+      const body = []
+      ops = body
+      convertList(op.body || [])
+      ops = outer
+      scopeEnv = scopeFor(op.locals, op)
+      loopIds = []
+      if (!body.length) { dropped('loop:empty'); continue }
+      ops.push({ k: 'loop', id: rtLoopId(op.rtLoop), from: { v: 'const', value: 0 }, to, body, lastBarOnly: true })
+      continue
+    }
     // ⭐ C18 — cleared by the `finally` of this op's `try`, below.
     rtOp = rtEligibleOp(op) ? op : null
     rtArgNodes = rtOp ? rtCollectArgNodes(op) : null
@@ -18898,7 +19088,7 @@ function translatePineResult(source, opts = {}) {
     // and by nothing else. Unset, this pass behaves byte-identically to before.
     // ⭐ C18 — `runtimeCheck` is the member door's compile check for values read
     // from the runtime lane (`buildObjectProgram`, `rtCheck`); see below.
-    const runPass = (runtimeCheck, runtimeExclude) => buildObjectProgram(stmts, source, env, (scope) => {
+    const runPass = (runtimeCheck, runtimeExclude, runtimeKinds) => buildObjectProgram(stmts, source, env, (scope) => {
       // ⭐⭐ R2 — THE FACTORY HONOURS THE SCOPE IT IS HANDED, AND IT NEVER DID.
       //
       // ⚰️ MEASURED 2026-09-13. The signature was `() => …`: every caller has
@@ -18965,6 +19155,7 @@ function translatePineResult(source, opts = {}) {
       windowAmbiguity: objectWindowAmbiguity,
       runtimeCheck,
       runtimeExclude,
+      runtimeKinds,
     })
     const check = typeof opts.objectRuntimeCheck === 'function' ? opts.objectRuntimeCheck : null
     objectPass = runPass(check || undefined)
@@ -18977,13 +19168,23 @@ function translatePineResult(source, opts = {}) {
     // for a number) is left out by itself and the pass asked again, at most twice.
     if (check && objectPass && objectPass.runtimeSpecs) {
       const exclude = new Set()
+      // ⭐ C20 — what the runtime lane said a value IS, when asked for another
+      // kind: the next pass asks for that kind wherever a text or colour slot can
+      // take it (`rtPlaceholder`), and leaves it out everywhere else.
+      const kinds = new Map()
+      const ASKABLE = new Set(['num', 'text', 'colour'])
       for (let round = 0; ; round += 1) {
         const verdict = check(source, objectPass.runtimeSpecs)
         if (verdict && verdict.ok) break
         const named = verdict && Array.isArray(verdict.exclude) ? verdict.exclude : []
-        if (round < 2 && named.length) {
-          for (const k of named) exclude.add(objectPass.runtimeKeys[k])
-          objectPass = runPass(check, exclude)
+        if (round < 3 && named.length) {
+          named.forEach((k, i) => {
+            const key = objectPass.runtimeKeys[k]
+            const is = verdict && Array.isArray(verdict.kinds) ? verdict.kinds[i] : undefined
+            if (ASKABLE.has(is) && !kinds.has(key)) kinds.set(key, is)
+            else exclude.add(key)
+          })
+          objectPass = runPass(check, exclude, kinds)
           if (!objectPass.runtimeSpecs) break
           continue
         }
@@ -19937,9 +20138,8 @@ function staticObjectColourOf(node, env) {
   if (!base || t === null) return hex
   const own = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(hex)
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
-  if (!(t > 0)) return base[0]
-  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
-  return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
+  // ⭐ C20 — the one formula, shared with the object runtime's `{c:'new'}`.
+  return withObjectTransparency(base[0], t)
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.

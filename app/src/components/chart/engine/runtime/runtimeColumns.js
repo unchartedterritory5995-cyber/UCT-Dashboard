@@ -25,6 +25,7 @@ import { runtimeClockOpts, newestBarIsFormingFrom } from '../ast/pineRuntimeCloc
 import { lowerIrProgram } from './lowerIr.js'
 import { execute } from './vm.js'
 import { Budget } from './limits.js'
+import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 
 /**
@@ -135,6 +136,10 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
  *  compile. ⛔ A program that asks another symbol or timeframe is refused here:
  *  the object reader has no other bars to hand it, and a request answered `na`
  *  would draw a picture of a fetch that did not happen. */
+/** ⭐ C20 — the kind a runtime value was asked for: a pass count and a REACHED
+ *  signal are numbers; otherwise the spec says (`text`, `colour`), default a number. */
+const wantedKind = (spec) => (spec && !spec.passes && spec.node && spec.kind) || 'num'
+
 export function probeObjectRuntime(source, specs) {
   let built
   try {
@@ -148,11 +153,17 @@ export function probeObjectRuntime(source, specs) {
   if ((built.ir.requests || []).length) {
     return { ok: false, refusal: { guard: 'runtime:request', message: 'the script requests other bars' } }
   }
-  // ⭐ A value that is not a number here (text, a colour, an array) is named by
-  // index, so the object pass can leave exactly those out and ask again.
-  const exclude = (built.objectAtKinds || []).map((kind, k) => (kind === 'num' ? -1 : k)).filter((k) => k >= 0)
+  // ⭐ A value that is not of the kind the object pass asked for (a number by
+  // default; C20 also asks for `text` and `colour`) is named by index WITH the
+  // kind it is, so the object pass can leave exactly those out, or ask again for
+  // the kind it is, and try once more.
+  const kinds = built.objectAtKinds || []
+  const exclude = kinds.map((kind, k) => (kind === wantedKind(specs[k]) ? -1 : k)).filter((k) => k >= 0)
   if (exclude.length) {
-    return { ok: false, exclude, refusal: { guard: 'runtime:object-kind', message: 'a value is not a number' } }
+    return {
+      ok: false, exclude, kinds: exclude.map((k) => kinds[k]),
+      refusal: { guard: 'runtime:object-kind', message: 'a value is not of the kind asked for' },
+    }
   }
   try {
     lowerIrProgram(built.ir)
@@ -196,7 +207,8 @@ const _objectMemo = new WeakMap()
 export function runtimeObjectValues(rt, bars, ctx = {}) {
   const rows = Array.isArray(bars) ? bars : []
   const n = rows.length
-  const k = (rt && Array.isArray(rt.at)) ? rt.at.length : 0
+  const at = (rt && Array.isArray(rt.at)) ? rt.at : []
+  const k = at.length
   const withheld = (reason) => ({
     cols: Array.from({ length: k }, () => new Float64Array(n).fill(NaN)),
     unknown: Array.from({ length: k }, () => new Uint8Array(n).fill(1)),
@@ -221,7 +233,7 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         bars: rows,
         inputs: {},
         objectTrees: [],
-        objectTreesAt: rt.at,
+        objectTreesAt: at,
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),
       })
@@ -230,44 +242,121 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
     }
     if (!built.ok) return withheld((built.refusal && built.refusal.guard) || 'runtime:build')
     if ((built.ir.requests || []).length) return withheld('runtime:request')
-    if ((built.objectAtKinds || []).some((kind) => kind !== 'num')) return withheld('runtime:object-kind')
+    if ((built.objectAtKinds || []).some((kind, j) => kind !== wantedKind(at[j]))) return withheld('runtime:object-kind')
     let program
     try { program = lowerIrProgram(built.ir) } catch { return withheld('runtime:lower') }
     const series = ['o', 'h', 'l', 'c', 'v'].map((f) => Float64Array.from(rows.map((b) => b[f])))
+    // ⭐⭐ C20 — PER-PASS AND TEXT VALUES ARE READ AT THE END OF EVERY BAR.
+    // They ride per-iteration buffers (`vm.js` allocates them ONCE and every bar
+    // overwrites them), so what a bar wrote is copied out in `onBar` — only on a
+    // bar the loop ran (its pass count) or the statement was reached (a text in
+    // slot 0) — and the buffer is reset, so the next bar cannot read it back.
+    const iterOf = built.objectAtIters || []
+    const passesOut = new Map()
+    at.forEach((s, j) => {
+      if (s && s.passes) passesOut.set(`${s.line}:${s.column}`, built.objectAtOutputs[j])
+    })
+    const hasIters = iterOf.some((b) => b >= 0)
     const runAt = (probe) => {
       const budget = new Budget()
       budget.unmeasured = { ...probe, hits: [] }
+      const snaps = at.map(() => null)
+      const overflow = new Uint8Array(n)
+      const onBar = (bar, iters, outputs) => {
+        for (let j = 0; j < k; j += 1) {
+          const b = iterOf[j]
+          if (!(b >= 0)) continue
+          const buf = iters[b]
+          const s = at[j]
+          let len = 0
+          if (s.loop) {
+            const o = passesOut.get(`${s.loop.line}:${s.loop.column}`)
+            const passes = o === undefined ? NaN : outputs[o][bar]
+            if (!(passes >= 1)) continue
+            // ⛔ More passes than a buffer holds: the values past it were never
+            // written, so the bar is unknown, never read short.
+            if (passes > ITER_SLOTS) overflow[bar] = 1
+            len = Math.min(passes, ITER_SLOTS)
+          } else {
+            if (buf[0] === undefined || (typeof buf[0] === 'number' && Number.isNaN(buf[0]))) continue
+            len = 1
+          }
+          if (!snaps[j]) snaps[j] = new Map()
+          snaps[j].set(bar, Array.from(buf.slice(0, len)))
+          buf.fill(Array.isArray(buf) ? undefined : NaN, 0, len)
+        }
+      }
       const res = execute(program, {
         bars: n,
         series,
         columns: program.columns,
         confirmed: forming === false,
         barTimes: rows.map((b) => b.t),
-      }, undefined, { budget })
-      return { outputs: res.outputs, hits: budget.unmeasured.hits.length }
+      }, undefined, { budget, ...(hasIters ? { onBar } : {}) })
+      return { outputs: res.outputs, snaps, overflow, hits: budget.unmeasured.hits.length }
     }
     let first
     try { first = runAt(RUNTIME_PROBES[0]) } catch (err) {
       return withheld(err && err.limit ? `runtime:${err.limit}` : `runtime:${(err && err.name) || 'error'}`)
     }
-    const cols = built.objectAtOutputs.map((o) => first.outputs[o])
-    const unknown = cols.map(() => null)
+    let second = null
     if (first.hits) {
-      let second
       try { second = runAt(RUNTIME_PROBES[1]) } catch (err) {
         return withheld(err && err.limit ? `runtime:${err.limit}` : `runtime:${(err && err.name) || 'error'}`)
       }
-      built.objectAtOutputs.forEach((o, j) => {
-        const a = first.outputs[o]
-        const b = second.outputs[o]
-        for (let i = 0; i < n; i += 1) {
-          const same = Object.is(a[i], b[i]) || (Number.isNaN(a[i]) && Number.isNaN(b[i]))
-          if (!same) {
-            if (!unknown[j]) unknown[j] = new Uint8Array(n)
-            unknown[j][i] = 1
+    }
+    const same = (a, b) => Object.is(a, b) || (Number.isNaN(a) && Number.isNaN(b))
+    const cols = []
+    const unknown = []
+    for (let j = 0; j < k; j += 1) {
+      const s = at[j]
+      let mask = null
+      const mark = (i) => { if (!mask) mask = new Uint8Array(n); mask[i] = 1 }
+      if (iterOf[j] >= 0) {
+        // ⭐ A per-bar map of per-pass values: the object reader indexes it by the
+        // loop counter (`loop`) or reads slot 0 (a text outside any loop).
+        const byBar = first.snaps[j] || new Map()
+        if (second) {
+          const other = second.snaps[j] || new Map()
+          for (let i = 0; i < n; i += 1) {
+            const a = byBar.get(i)
+            const b = other.get(i)
+            if (!a && !b) continue
+            if (!a || !b || a.length !== b.length || a.some((x, q) => !same(x, b[q]))) mark(i)
           }
         }
-      })
+        if (s.loop) for (let i = 0; i < n; i += 1) if (first.overflow[i]) mark(i)
+        cols.push({ byBar, text: s.kind === 'text', loop: s.loop ? rtLoopId(s.loop) : null })
+      } else {
+        const o = built.objectAtOutputs[j]
+        const a = first.outputs[o]
+        const b = second ? second.outputs[o] : null
+        let col = a
+        if (s.passes) {
+          // ⭐ A LOOP'S LAST PASS INDEX, read as the object program's counted loop
+          // `0 to N-1`: no pass (or a loop never reached) is `na`, so the loop runs
+          // zero times — never `0 to -1`, which Pine's `for` would count DOWN.
+          col = Float64Array.from(a, (v) => (v >= 1 ? v - 1 : NaN))
+          for (let i = 0; i < n; i += 1) if (first.overflow[i]) mark(i)
+        }
+        for (let i = 0; b && i < n; i += 1) if (!same(a[i], b[i])) mark(i)
+        if (s.kind === 'colour') {
+          // ⛔⛔ A RUNTIME COLOUR IS SERVED OPAQUE ONLY. The run packs a
+          // transparency into one byte (`colours.js::transparencyToByte`,
+          // `round(t × 2.55)`), and TradingView's opacity is `round((100 − t) ×
+          // 2.55)` — measured on max-pain's NET label, `color.new(red, 70)`: alpha
+          // 77 where the run's byte gives 76. The two disagree at every half step,
+          // so a packed alpha is never turned back into an opacity: a colour the
+          // run made transparent is UNKNOWN. `color.new(c, t)` is served by the
+          // object runtime instead, from `c` and `t` (`{c:'new'}`).
+          for (let i = 0; i < n; i += 1) {
+            const v = col[i]
+            if (Number.isFinite(v) && ((v >>> 24) & 0xff) !== 0) mark(i)
+          }
+        }
+        cols.push(col)
+      }
+      unknown.push(mask)
     }
     return { cols, unknown, served: true, reason: null }
   })()

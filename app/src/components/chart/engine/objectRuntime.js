@@ -31,7 +31,10 @@
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, OP_VALUE_FIELDS,
+  withObjectTransparency,
 } from './ast/objectProgram'
+// ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
+import { unpackColor } from './colorInt.js'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -767,8 +770,38 @@ export function beginObjects(program, ctx) {
       if (!isObj(c)) return null
       if (c.c === 'lit') return c.hex
       if (c.c === 'if') return truthy(value(c.cond)) ? colorOf(c.then) : colorOf(c.else)
+      // ⭐⭐ C20 — A COLOUR THE RUNTIME LANE COMPUTED, served OPAQUE only (its
+      // packed alpha is never turned back into an opacity — `runtimeColumns.js`
+      // marks a transparent one unknown, so the op never gets here with one).
+      // ⛔ Anything else answers `null`, and a create/update that asked for this
+      // colour and got `null` is HELD (`unservedColour`), never drawn in a default.
+      if (c.c === 'rt') {
+        const v = value(c.v)
+        if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null
+        const u = unpackColor(v)
+        return u.transparencyByte === 0 ? u.hex : null
+      }
+      // ⭐⭐ C20 — `color.new(c, t)`: `c`'s colour with its transparency SET to
+      // `t`, by the same formula a translate-time colour uses
+      // (`withObjectTransparency`). ⛔ Only a whole transparency in 0..100 — the
+      // vendor captures pin whole ones; a fraction, `na` or out-of-range value is
+      // unmeasured and answers `null` (held).
+      if (c.c === 'new') {
+        const t = value(c.t)
+        if (typeof t !== 'number' || !Number.isInteger(t) || t < 0 || t > 100) return null
+        const base = colorOf(c.of)
+        return base ? withObjectTransparency(base, t) : null
+      }
       return null
     }
+    /** ⭐ C20 — did a colour the program asked the RUNTIME for come back unserved?
+     *  (A `lit`/`if` colour never answers `null`; only `rt`/`new` can.) */
+    const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new'
+      || (c.c === 'if' && (runtimeColourNode(c.then, depth + 1) || runtimeColourNode(c.else, depth + 1))))
+    const unservedColour = (props, resolved) => Object.entries(props || {})
+      .filter(([k, v]) => isObj(v) && v.v === 'color' && runtimeColourNode(v.node)
+        && (resolved[k] === null || resolved[k] === undefined))
+      .map(([k]) => k)
 
     const value = (ref) => {
       if (!isObj(ref)) return undefined
@@ -979,6 +1012,8 @@ export function beginObjects(program, ctx) {
     const colorTainted = (c, depth) => {
       if (!isObj(c) || depth > 48) return false
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
+      if (c.c === 'rt') return tainted(c.v, depth + 1)
+      if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
       return false
     }
     /** Does this value read anything tainted? (Graph columns on the warm-up
@@ -1274,6 +1309,11 @@ export function beginObjects(program, ctx) {
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it.
           taintInst(id, taintedProps(op.props))
+          // ⭐ C20 — a colour asked of the runtime that it could not serve exactly
+          // (transparent, or a transparency this engine has not measured) holds
+          // the object: drawn in a default colour it would be a colour Pine did
+          // not paint.
+          { const unserved = unservedColour(op.props, props); if (unserved.length) taintInst(id, unserved) }
           if (op.into) regTaint.delete(op.into)
           // ⭐ A fill records which lines own it AT CREATE, because that is the
           // only moment both refs are resolved. `linefill.set_color` is the only
@@ -1302,6 +1342,7 @@ export function beginObjects(program, ctx) {
               if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
             }
           }
+          { const unserved = unservedColour(op.props, inst.props); if (unserved.length) taintInst(inst.id, unserved) }
           updated += 1
           if (ctx.trace) events.push({ bar, k: 'update', id: inst.id })
           break

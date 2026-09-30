@@ -244,6 +244,34 @@ export const runtimeAtIndex = (tree) => {
 export const MAX_RUNTIME_SOURCE = 200000
 export const MAX_RUNTIME_VALUES = 512
 
+/** ⭐⭐ C20 — THE KINDS A RUNTIME VALUE MAY BE ASKED FOR (`runtime.at[k].kind`).
+ *  Absent = a number (C18). `text` is a string the run computes (a label chosen
+ *  among literals, a concatenation of strings) — ⛔ never a number the run would
+ *  format: every number a member reads is formatted by the object runtime
+ *  (`{t:'num', fmt}`), the one formatter vendor-measured for object text. `colour`
+ *  is a colour the run computes, served only where the run left it opaque
+ *  (`runtimeColumns.js`; the transparency is `{c:'new'}`'s). */
+export const RUNTIME_VALUE_KINDS = Object.freeze(['text', 'colour'])
+
+/** ⭐ C20 — the counter id of a `while` loop the runtime lane reads per pass,
+ *  from the loop's own position (`runtime.at[k].loop`). One authority: the object
+ *  program's loop op and the reader's per-pass columns both ask this. */
+export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop && loop.column)}`
+
+/** ⭐⭐ C20 — A DRAWING COLOUR WITH ITS TRANSPARENCY SET, as the object lane
+ *  writes it: `#RRGGBB` for an opaque colour, `#RRGGBBAA` otherwise, alpha
+ *  `round((1 − t/100) × 255)`. ONE formula for a colour the program folds at
+ *  translate time (`pine.js::staticObjectColourOf`) and one the object runtime
+ *  sets per bar (`{c:'new'}`), so the two cannot disagree. `color.new` SETS the
+ *  transparency — a base's own alpha is replaced, never stacked. */
+export function withObjectTransparency(hex, t) {
+  const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
+  if (!base) return null
+  if (!(t > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
+}
+
 /** ⭐⭐ HOW FAR BACK A HANDLE'S HISTORY MAY BE READ — `line.delete(l[1])`.
  *
  *  `{r:'reg', id, back: n}` is what register `id` held at the END of the bar
@@ -480,6 +508,15 @@ function assertColorNode(v, where, depth = 0) {
       assertValueRef(v.cond, `${where}.cond`)
       assertColorNode(v.then, `${where}.then`, depth + 1)
       assertColorNode(v.else, `${where}.else`, depth + 1)
+      return
+    // ⭐⭐ C20 — a colour the RUNTIME lane computed (a packed integer, served only
+    // opaque), and `color.new(c, t)` with its transparency set per bar.
+    case 'rt':
+      assertValueRef(v.v, `${where}.v`)
+      return
+    case 'new':
+      assertColorNode(v.of, `${where}.of`, depth + 1)
+      assertValueRef(v.t, `${where}.t`)
       return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
@@ -721,6 +758,17 @@ function assertRuntimeProgram(rt) {
       throw new Error(`objects.runtime.at[${k}]: needs a whole line and column`)
     }
     if (a.node !== null && !isObj(a.node)) throw new Error(`objects.runtime.at[${k}]: node is a parse node or null`)
+    // ⭐ C20 — the kind asked for, the loop read per pass, a loop's pass count.
+    if (a.kind !== undefined && !RUNTIME_VALUE_KINDS.includes(a.kind)) {
+      throw new Error(`objects.runtime.at[${k}]: kind is one of [${RUNTIME_VALUE_KINDS}], got ${JSON.stringify(a.kind)}`)
+    }
+    if (a.loop !== undefined && (!isObj(a.loop) || !Number.isInteger(a.loop.line) || a.loop.line < 1
+        || !Number.isInteger(a.loop.column) || a.loop.column < 0)) {
+      throw new Error(`objects.runtime.at[${k}]: loop names the loop's whole line and column`)
+    }
+    if (a.passes !== undefined && (a.passes !== true || a.node !== null || a.loop !== undefined || a.kind !== undefined)) {
+      throw new Error(`objects.runtime.at[${k}]: a pass count is {line, column, node: null, passes: true}`)
+    }
   })
 }
 
@@ -970,6 +1018,8 @@ export function graphNodesReferenced(program) {
   const walkColor = (c) => {
     if (!isObj(c)) return
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
+    if (c.c === 'rt') walkValue(c.v)
+    if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
   }
   const walkValue = (v) => {
     if (!isObj(v)) return
@@ -1018,6 +1068,8 @@ export function treeRefsOfOp(op) {
   const walkColor = (c) => {
     if (!isObj(c)) return
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
+    if (c.c === 'rt') walkValue(c.v)
+    if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
   }
   function walkValue(v) {
     if (!isObj(v)) return
@@ -1109,6 +1161,8 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     if (c.c === 'if') {
       return { ...c, cond: bindValue(c.cond), then: bindColor(c.then), else: bindColor(c.else) }
     }
+    if (c.c === 'rt') return { ...c, v: bindValue(c.v) }
+    if (c.c === 'new') return { ...c, of: bindColor(c.of), t: bindValue(c.t) }
     return c
   }
   function bindValue(v) {
