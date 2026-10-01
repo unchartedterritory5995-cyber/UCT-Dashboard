@@ -320,7 +320,17 @@ def test_a_members_search_does_not_move_when_another_member_matches(tmp_path, da
     recorded path and on the `note_id` fallback alike. Member A's results and totals are the
     same whether or not member B holds matching notes, and B's notes never appear. (The ORDER
     within A's results is bm25's, whose term weights are corpus-wide over the one shared
-    FTS table -- pre-existing, and not what this pins.)"""
+    FTS table -- pre-existing, and not what this pins.)
+
+    ⛔ Re-review N-2: `alone[0]` (the plain list) used to be the only member pinned to a
+    LITERAL. The other three -- relevance, and the plain/relevance page+total -- were only
+    compared with THEMSELVES before and after member B's notes arrive, via `_answers(c) ==
+    alone`. A filter that drops the searching member's OWN matches from the relevance pass
+    (the reviewer's mutation: `user_id = upper(?2)` in `_RELEVANCE_RANKED_SQL`) answers `[]`
+    for relevance and its page BOTH before and after B's notes -- `[] == []` -- so that
+    comparison alone cannot go red for it. Pinning every member of `alone` to what `alone[0]`
+    already proved closes that: relevance must describe the SAME notes as the plain list, and
+    its page/total must be `(alone[0], len(alone[0]))`, not merely self-consistent."""
     c = _conn(tmp_path / "m.db")
     j2db.ensure_schema(c)
     for i in range(8):
@@ -333,6 +343,11 @@ def test_a_members_search_does_not_move_when_another_member_matches(tmp_path, da
     assert notes_svc._fts_map_ready(c) is recorded
     alone = _answers(c)
     assert alone[0] == ["a1", "a3", "a5", "a7"]
+    # N-2: relevance and its page describe the SAME matches as the plain list -- pinned to a
+    # literal derived from alone[0], not merely compared with itself before/after B's notes.
+    assert alone[1] == alone[0]
+    assert alone[2] == (alone[0], len(alone[0]))
+    assert alone[3] == (alone[0], len(alone[0]))
     for i in range(20):
         _insert(c, f"b{i}", "breakout breakout over the pivot", user="u2", title="breakout")
     c.commit()
