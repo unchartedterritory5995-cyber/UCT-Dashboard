@@ -4119,3 +4119,49 @@ measure every lane on all 328, 27 were recovered from copies already on this mac
 `long_tail__19-session-fibs-falcon-ai` and `long_tail__20-cot-pulse-cloud-trend` — were fetched from
 TradingView's public script endpoint and hash-checked the same way. All 29 live in the session scratchpad only.
 None was written into the repository, and no commit of this lane contains one.
+
+### 10. On wave 11 (merge of `integrate/wave11-2026-10-01` @ `da7142cce3`, 2026-10-01)
+
+Merge commit `0ae347e676`. Two conflicts, both unions: the `parse.js` import line in `pine.js` (wave 11's
+`SERIES_LOOKBACK` beside this lane's `paramIdSource` / `paramIdLegacy` imports) and this file (fix-order rows 54
+then 56; sections C41, C44, then C46). Nothing in wave 11's `pine.js` change touches the mint, and wave 11 did
+not change `param-ids.json`.
+
+Base = the merged tree with wave 11's own `pine.js` and `BuilderSheet.jsx` swapped in (the only production
+files this lane changes that wave 11 also ships; restored by bytes, sha verified, tree clean after). Tip = the
+merged tree. Same commands, same box, one after the other.
+
+| | wave 11 | merged tip |
+|---|---|---|
+| 1. the 47, objects pane on | objects MATCH 29 / 46, overall 26, families 234 / 266, plots 161 / 172 | identical, 0 entries changed |
+| 1. the 47, pane off | 17 / 25, overall 14, families 108 / 119, plots 140 / 151 | identical, 0 entries changed |
+| 2. committed harness dir (117), pane on | objects 65 / 85, overall 47, families 323 / 357, plots 351 / 450 | identical, 0 entries changed |
+| 2. committed harness dir, pane off | 53 / 64, overall 35, families 197 / 210, plots 330 / 429 | identical, 0 entries changed |
+| 3. member-door census 266 × 2 | attach 41 / 64 | 41 / 64, 0 rows changed |
+| 4. translation census 266 × host, manifest, screen | 58 ok / 404 served (host), 58 / 738 (screen) | 0 scripts changed in any lane |
+| 5. notebook first-open | 1,901,893 B | 1,901,893 B (+0, `notebook_perf_budgets` PASS) |
+| 5. `pine` chunk | 387,818 B | 396,432 B (+8,614) |
+| 5. `BuilderSheet` chunk | 363,945 B | 365,945 B (+2,000: the carry and its notice) |
+| 5. total JS | 12,774,385 B | 12,784,999 B (+10,614) |
+| 6. `paramIds.test.js` | — | 4 passed, 1 skipped; no assertion edited, `param-ids.json` untouched |
+
+(The wave-11 object and overall counts are one lower than § 7's wave-10 numbers on both sides: C44's colour
+column joined the verdict.)
+
+Rails on the merged tree, one vitest: the eleven C46 files (`paramIds`, `paramIdSource`, `paramIdLegacy`,
+`paramIdSourceStability`, `savedDocumentRoundTrip`, `pine.c31LoopScope`, `pineProbeReplay`,
+`pine.paramManifest`, `paramCarry`, `BuilderSheet.pineRepaste`, `manifestFormatting`) —
+`Test Files  11 passed (11)`, `Tests  83 passed | 1 skipped (84)`. Scoped pytest
+(`tests/test_param_repaste_c46.py tests/test_param_manifest.py`): `33 passed`.
+
+Full `src/components/chart` suite on the merged tree, once: `Test Files  5 failed | 892 passed | 9 skipped
+(906)`, `Tests  6 failed | 15138 passed | 73 skipped (15217)`. All six are `Test timed out in 15000ms`. Five
+are in files the brief lists as timing out at base (`objectFnInline.vendor` sector-rotation,
+`objectLaneCallSites`, `objectLaneCensus` (2), `objectLaneDrawerCensus.measure`). The sixth,
+`flipCGeometry.test.jsx` "production never calls the test override" (a walk over every source file), passes
+alone in 1.2 s (`Tests  31 passed (31)`).
+
+**Still open for the integrator.** Re-pastes (b) and (c) of § 9 end in a condition-15 refusal with a notice.
+(b) is what base did. (c) saved at base, by position, under the old input's record. Making either save means
+letting an edit introduce a parameter identity — reversing condition 15 and its pinned test — or having the
+door leave the unmatched input out of the roster so the save goes through without it. Neither was done here.
