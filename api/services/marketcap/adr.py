@@ -33,11 +33,11 @@ SH = r"(?:ordinary\s+shares?|common\s+shares?|shares?\s+of\s+common\s+stock|shar
 NUMW = r"(one-half|one half|one-third|one-quarter|one-fourth|one-fifth|one-tenth|one-twentieth|one-fortieth|two-thirds|three-quarters|\d+(?:_\d+)?|one hundred|twenty-five|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|an?)"
 RX = [
     # "American Depositary Shares, each representing one-fifth of one ordinary share" / "each representing 5 ordinary shares"
-    re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{NUMW}\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+    re.compile(rf"{ADS}[^.;]{{0,60}}?(?:each\s+)?(?:representing|represents|represent|evidencing|equal\s+to)\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
     # "each ADS represents 5 ordinary shares"
-    re.compile(rf"each\s+{ADS}\s+(?:represents|representing|evidences)\s+{NUMW}\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
+    re.compile(rf"each\s+{ADS}\s+(?:represents|representing|evidences)\s+{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+(?:of\s+(?:one|an?)\s+)?{SH}", re.I),
     # "5 ordinary shares per ADS"
-    re.compile(rf"{NUMW}\s+{SH}\s+per\s+{ADS}", re.I),
+    re.compile(rf"{NUMW}(?:\s*\(\d+(?:_\d+)?\))?\s+{SH}\s+per\s+{ADS}", re.I),
 ]
 
 

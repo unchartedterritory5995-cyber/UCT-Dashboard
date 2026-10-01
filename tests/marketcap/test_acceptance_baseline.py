@@ -99,3 +99,13 @@ def test_million_shape_refuses_dollar_amounts():
          "value $3,318 million PART I")
     r = T.parse(T.normalize(t), date(1999, 5, 10), "10-Q")
     assert r.status != "OK"
+
+
+def test_preferred_depositary_shares_are_never_a_common_equity_class():
+    """GOOGN: Massive types it CS; it is a depositary share of Series B Mandatory Convertible PREFERRED stock."""
+    from api.services.marketcap.build import NOT_COMMON_EQUITY as N
+    assert N.search("Alphabet Inc. Depositary Shares representing a 1/20th Interest in a Share of Series B "
+                    "Mandatory Convertible Preferred Stock")
+    for name in ("Alphabet Inc. Class C Capital Stock", "Berkshire Hathaway Inc. Class B", "Unity Software Inc.",
+                 "United Rentals Inc", "Seniortronics"):
+        assert not N.search(name), name

@@ -13,6 +13,7 @@ build file.
 from __future__ import annotations
 
 import argparse
+import re
 import hashlib
 import json
 import os
@@ -35,6 +36,11 @@ from .state import ET, Obs, timeline, validate
 from .structure import class_key, resolve, ticker_letter
 
 EQUITY_TYPES = {"CS", "ADRC", "OS", "NYRS", "GDR", "ADRS", None}
+# ⛔ Massive types some PREFERRED / hybrid instruments "CS": GOOGN = "Alphabet Inc. Depositary Shares representing a
+# 1/20th Interest in a Share of Series B Mandatory Convertible Preferred Stock" (listed 2026-06-03) was taken as
+# Alphabet's listed CLASS B -- class B was priced at ~$49 and the company had 82 valued sessions of 5,563.
+NOT_COMMON_EQUITY = re.compile(r"\bpreferred\b|\bpreference\s+shares?\b|\bwarrants?\b|\brights?\b|\bunits?\b"
+                               r"|\bnotes?\b|\bdebentures?\b|\bbonds?\b|\bbaby\s+bonds?\b|\bsenior\b|\bsubordinated\b", re.I)
 FPI_FORMS = ("20-F", "40-F", "20-F/A", "40-F/A", "6-K")
 
 SCHEMA = """
@@ -129,7 +135,7 @@ def load_ref(path: str) -> dict:
         r = Ref(t, int(d["cik"]) if d.get("cik") else None, dd(d.get("list_date")), d.get("active"),
                 dd(d.get("delisted_utc")), d.get("type"), d.get("composite_figi"), d.get("share_class_figi"),
                 [(dd(e.get("date")), e.get("type"), (e.get("ticker_change") or {}).get("ticker")) for e in events or []],
-                d.get("share_class_shares_outstanding"), d.get("weighted_shares_outstanding"))
+                d.get("share_class_shares_outstanding"), d.get("weighted_shares_outstanding"), d.get("name"))
         sp = []
         for ex, frm, to in splits:
             try:
@@ -275,7 +281,7 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
     listings, bars, decisions = {}, {}, {}
     for t in tickers:
         ref, sp = D.ref.get(t, (None, []))
-        if ref is not None and ref.type not in EQUITY_TYPES:
+        if ref is not None and (ref.type not in EQUITY_TYPES or NOT_COMMON_EQUITY.search(ref.name or "")):
             continue
         days, closes = bars_days(D.px, t.replace(".", "-"))
         if not days:

@@ -10,7 +10,7 @@ text  every periodic filing (10-K/10-Q/10-K405/10-KSB/10-QSB/10-KT/20-F/40-F) fi
 ipo   for each (cik, listing start): 424B*/S-1/F-1 (and amendments) filed in [start-120d, start+10d], primary
       document's first 1.5 MB -> ipo.parse
 econ  per cik: every 10-K / 20-F / 40-F primary document (first 8 MB) -> classecon.extract (for multi-class issuers)
-adr   per cik: every 20-F / 40-F primary document's first 150 KB -> adr.parse_ratio (ADS statements)
+adr   per cik: every 20-F / 40-F / F-6 primary document's first 150 KB -> adr.parse_ratio (ADS statements)
 """
 from __future__ import annotations
 
@@ -141,7 +141,9 @@ def run(mode: str, inputs_path: str, out: str, workers: int, arg_path: str | Non
     elif mode == "econ":
         todo, fn, table, n = select_docs(inp, arg, ("10-K", "10-K405", "20-F", "40-F", "10-KT")), econ_one, "econ", 5
     elif mode == "adr":
-        todo, fn, table, n = select_docs(inp, arg, ("20-F", "40-F", "20-F/A")), adr_one, "adr_ratio", 7
+        # F-6 / F-6EF / F-6/A: the DEPOSITARY's registration of the ADSs states the ratio by definition (TSM's 20-Fs
+        # never state it; its 2005 F-6: "each American Depositary Share representing five (5) Common Shares")
+        todo, fn, table, n = select_docs(inp, arg, ("20-F", "40-F", "20-F/A", "F-6", "F-6EF", "F-6/A")), adr_one, "adr_ratio", 7
     else:
         raise SystemExit(f"unknown mode {mode}")
     todo = [x for x in todo if x[1] not in done]
