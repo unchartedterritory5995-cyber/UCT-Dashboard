@@ -1,0 +1,52 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TF_TEXT_V6", overlay = true, max_labels_count = 50)
+
+// --- 2026-10-01 C33 - WHAT TEXT AN `input.timeframe` DEFAULT PRINTS, PINE v6 ---------
+//
+// `INPUT_TIMEFRAME_TEXT_WITNESS` (pine.js) serves `D` under v6 and `W` under v5 only;
+// every other spelling / version is withheld (`input.timeframe:unwitnessed`). This
+// file asks each spelling under v6; its twin asks the other version. One label
+// per spelling on the last bar (the text IS the input's value), and the same answer
+// as numbers: the string's length and whether it equals the short and the long form.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+string tfD   = input.timeframe("D",   "tf D")
+string tfW   = input.timeframe("W",   "tf W")
+string tfM   = input.timeframe("M",   "tf M")
+string tf60  = input.timeframe("60",  "tf 60")
+string tf240 = input.timeframe("240", "tf 240")
+string tf1D  = input.timeframe("1D",  "tf 1D")
+string tfE   = input.timeframe("",    "tf empty (chart)")
+
+plot(bar_index,              "I00_bar_index_CONTROL")
+plot(str.length(tfD),        "I01_len_D")
+plot(tfD == "D" ? 1 : 0,     "I02_D_eq_D")
+plot(tfD == "1D" ? 1 : 0,    "I03_D_eq_1D")
+plot(str.length(tfW),        "I04_len_W")
+plot(tfW == "W" ? 1 : 0,     "I05_W_eq_W")
+plot(tfW == "1W" ? 1 : 0,    "I06_W_eq_1W")
+plot(str.length(tfM),        "I07_len_M")
+plot(tfM == "M" ? 1 : 0,     "I08_M_eq_M")
+plot(tfM == "1M" ? 1 : 0,    "I09_M_eq_1M")
+plot(str.length(tf60),       "I10_len_60")
+plot(tf60 == "60" ? 1 : 0,   "I11_60_eq_60")
+plot(str.length(tf240),      "I12_len_240")
+plot(tf240 == "240" ? 1 : 0, "I13_240_eq_240")
+plot(str.length(tf1D),       "I14_len_1D")
+plot(tf1D == "1D" ? 1 : 0,   "I15_1D_eq_1D")
+plot(tf1D == "D" ? 1 : 0,    "I16_1D_eq_D")
+plot(str.length(tfE),        "I17_len_empty")
+plot(tfE == timeframe.period ? 1 : 0, "I18_empty_eq_timeframe_period")
+
+if barstate.islast
+    label.new(bar_index, high, "L01 D|" + tfD)
+    label.new(bar_index, high, "L02 W|" + tfW)
+    label.new(bar_index, high, "L03 M|" + tfM)
+    label.new(bar_index, high, "L04 60|" + tf60)
+    label.new(bar_index, high, "L05 240|" + tf240)
+    label.new(bar_index, high, "L06 1D|" + tf1D)
+    label.new(bar_index, high, "L07 empty|" + tfE)
+    label.new(bar_index, high, "L08 timeframe.period CONTROL|" + timeframe.period)
+    label.new(bar_index, high, tfD)
+    label.new(bar_index, high, tfW)
