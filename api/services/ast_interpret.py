@@ -83,6 +83,7 @@ from api.services.indicator_compute import (
     compute_avwap_raw,
     bar_close_state,
     compute_cci_raw,
+    CLOCK_PERIOD_SECONDS,
     compute_clock,
     compute_donchian_raw,
     compute_ichimoku_raw,
@@ -3733,10 +3734,210 @@ def interpret(ast: Any, bars: List[dict],
                 if not (a == b or (math.isnan(a) and math.isnan(b))):
                     real[i] = math.nan
         column = real
+    # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
+    # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
+    # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
+    if not probing:
+        anchored = period_anchor_mask(ast, bars, inputs, budget, scalars, opts)
+        if anchored:
+            column = [math.nan if m else v for v, m in zip(column, anchored)]
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+# --------------------------------------------------------------------------- #
+# C30 / C36 -- ``time(<timeframe>)`` on the chart: the period anchor's mask
+# --------------------------------------------------------------------------- #
+#
+# The port of ``interpret.js::periodFirstCondition`` / ``isPeriodAnchor`` /
+# ``chartOwnTimeNode`` / ``isChartOwnTime`` / ``periodAnchorMask``. Read those
+# docstrings for the vendor readings (``vw-time-tf-spy-1d-2026-09-28`` and
+# ``-60-``); this is the same decision, node for node, held equal by
+# ``tests/fixtures/ast/period_anchor_parity.json`` (written by
+# ``periodAnchorParity.test.js``, read by ``tests/test_ast_period_anchor_parity.py``).
+#
+# ⛔ WHY IT IS HERE AT ALL (C36). The member pane saves ONE document and three
+# server consumers evaluate it: a user-series alert (``alert_user_series``), the
+# scan sweep (``scan_evaluator``) and the screen backtest. Until this port the
+# anchor's ``NaN`` -- before the first period boundary, and on EVERY bar wherever
+# the clock is blank (a ``YYYYMMDD`` key, or no ``tf``) -- reached a reader as
+# Pine's ``na``: ``na(time("W")) ? a : b`` answered a confident ``a`` and
+# ``ta.change(time("W")) != 0`` a confident 0 on every bar, where the chart
+# withholds. Withheld here too, on the same bars.
+
+#: The chart timeframes ``time(timeframe.period)`` / ``time("60")`` were measured
+#: on. Mirrors ``interpret.js::OWN_TIME_WITNESSED_TF``.
+OWN_TIME_WITNESSED_TF = ("D", "60")
+
+#: The codes a whole-series withholding is named by -- the keys of
+#: ``interpret.js::CHART_CLOCK_WITHHELD``, which owns the SENTENCES (a member
+#: reads them on the chart pane; a second copy here would be a second authority
+#: over the wording). ``opts["chartClockSink"]`` (a dict) receives each code.
+CHART_CLOCK_WITHHELD_CODES = (
+    "time-anchor:other-bars", "time-anchor:not-daily",
+    "time-anchor:weekend-bars", "time-own:chart-unwitnessed",
+)
+
+
+def period_first_condition(period: str) -> Optional[dict]:
+    """``interpret.js::periodFirstCondition`` -- "this bar opens a new <period>"."""
+    def leaf(name): return {"type": "series", "name": name}
+    def num(value): return {"type": "num", "value": value}
+    def op(name, args): return {"type": "op", "name": name, "args": args}
+    def call(name, args): return {"type": "call", "name": name, "args": args}
+    if period == "W":
+        key = op("-", [call("floor", [op("/", [leaf("dayopentime"), num(86400)])]),
+                       call("mod", [op("+", [leaf("dayofweek"), num(5)]), num(7)])])
+    elif period == "M":
+        key = op("+", [op("*", [leaf("year"), num(12)]), leaf("month")])
+    elif period == "3M":
+        key = op("+", [op("*", [leaf("year"), num(4)]),
+                       call("floor", [op("/", [op("-", [leaf("month"), num(1)]), num(3)])])])
+    elif period == "12M":
+        key = leaf("year")
+    else:
+        return None
+    return op("!=", [key, {"type": "offset", "value": 1, "args": [key]}])
+
+
+def _canonical_shape(n: Any) -> Any:
+    """A node reduced to (type, name, value, args), integral numbers as ints, so
+    a tree read from JSON compares equal to the builder's."""
+    if not isinstance(n, dict):
+        return n
+    out: List[Any] = [n.get("type")]
+    out.append(n.get("name"))
+    v = n.get("value")
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    out.append(v)
+    args = n.get("args")
+    out.append([_canonical_shape(a) for a in args] if isinstance(args, list) else None)
+    return out
+
+
+def _shape_key(n: Any) -> str:
+    import json as _json
+    return _json.dumps(_canonical_shape(n), sort_keys=False)
+
+
+_PERIOD_FIRST_SHAPES = frozenset(_shape_key(period_first_condition(p)) for p in ("W", "M", "3M", "12M"))
+
+
+def is_period_anchor(node: Any) -> bool:
+    """``interpret.js::isPeriodAnchor`` -- ``valuewhenOccurrence(<period first>, time, 0)``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "valuewhenOccurrence":
+        return False
+    a = node.get("args") or []
+    if len(a) != 3 or not isinstance(a[1], dict) or a[1].get("type") != "series" or a[1].get("name") != "time":
+        return False
+    if not isinstance(a[2], dict) or a[2].get("type") != "num" or a[2].get("value") != 0:
+        return False
+    return _shape_key(a[0]) in _PERIOD_FIRST_SHAPES
+
+
+def chart_own_time_node(ms: bool) -> dict:
+    """``interpret.js::chartOwnTimeNode`` -- the gated ``time(timeframe.period)``."""
+    leaf = {"type": "series", "name": "time"}
+    def num(value): return {"type": "num", "value": value}
+    def op(name, args): return {"type": "op", "name": name, "args": args}
+    witnessed = None
+    for tf in OWN_TIME_WITNESSED_TF:
+        on = op("==", [{"type": "series", "name": "periodseconds"}, num(CLOCK_PERIOD_SECONDS[tf])])
+        witnessed = on if witnessed is None else op("||", [witnessed, on])
+    return op("?:", [witnessed, op("*", [leaf, num(1000)]) if ms else leaf,
+                     op("/", [num(0), num(0)])])
+
+
+_OWN_TIME_SHAPES = frozenset(_shape_key(chart_own_time_node(ms)) for ms in (True, False))
+
+
+def is_chart_own_time(node: Any) -> bool:
+    """``interpret.js::isChartOwnTime``."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return False
+    return _shape_key(node) in _OWN_TIME_SHAPES
+
+
+def _has_weekend_bar(bars: List[dict], inputs, budget, scalars, opts) -> bool:
+    """A Saturday or Sunday bar, by the ``dayofweek`` column the week key reads
+    (Pine's: 1 = Sunday, 7 = Saturday)."""
+    col = _interpret_column({"type": "series", "name": "dayofweek"}, bars, inputs, budget, scalars,
+                            dict(opts or {}, chartClockSink=None))
+    return any(v == 1 or v == 7 for v in col)
+
+
+def period_anchor_mask(tree: Any, bars: List[dict],
+                       inputs: Optional[Mapping[str, Any]] = None,
+                       budget: Optional[Mapping[str, Any]] = None,
+                       scalars: Optional[Mapping[str, Any]] = None,
+                       opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::periodAnchorMask`` -- the bars of a tree whose answer reads
+    a period anchor this lane does not hold (1 = withheld), or ``None`` when the
+    tree reads none. Every bar when the chart is not daily, when its daily bars
+    include a weekend, when the read sits under ``tf`` / ``sym``, and for
+    ``time(timeframe.period)`` / ``time("60")`` off the two measured timeframes;
+    otherwise the anchor's own blank bars and every root bar within reach."""
+    n = len(bars)
+    nodes: List[dict] = []
+    nested = False
+    owns = 0
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if is_period_anchor(node):
+            if under:
+                nested = True
+            nodes.append(node)
+            continue
+        if is_chart_own_time(node):
+            if under:
+                nested = True
+            owns += 1
+            continue
+        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not nodes and not owns:
+        return None
+    tf = (opts or {}).get("tf")
+    why: List[str] = []
+    if nested:
+        why.append("time-anchor:other-bars")
+    if nodes and tf != "D":
+        why.append("time-anchor:not-daily")
+    elif nodes and _has_weekend_bar(bars, inputs, budget, scalars, opts):
+        why.append("time-anchor:weekend-bars")
+    if owns and tf not in OWN_TIME_WITNESSED_TF:
+        why.append("time-own:chart-unwitnessed")
+    sink = (opts or {}).get("chartClockSink")
+    if isinstance(sink, dict):
+        for code in why:
+            sink[code] = True
+    if why:
+        return [1] * n
+    if not nodes:
+        return None
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    for a in nodes:
+        reach = max(0, root_reach - max_lookback(a))
+        col = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+        last = -math.inf
+        for i in range(n):
+            if math.isnan(col[i]):
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+    return mask
 
 
 def switched_dependency_mask(tree: Any, bars: List[dict],

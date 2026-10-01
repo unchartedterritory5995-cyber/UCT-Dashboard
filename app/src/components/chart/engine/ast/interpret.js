@@ -85,6 +85,7 @@ import {
   computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
   computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
+  CLOCK_PERIOD_SECONDS,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -3822,6 +3823,81 @@ export function isPeriodAnchor(node) {
   return PERIOD_FIRST_SHAPES.has(JSON.stringify(canonicalShape(a[0])))
 }
 
+/** ⭐⭐ C36 — `time(timeframe.period)` AND `time("60")`: THE BAR'S OWN `time`, ON
+ *  THE CHART TIMEFRAMES A CAPTURE WITNESSED, and nowhere else.
+ *
+ *  THE READING. `vw-time-tf-spy-1d-2026-09-28` rows T05 (`time(timeframe.period)`)
+ *  and T06 (`time("60")`) both equal `time` on all 900 daily bars;
+ *  `vw-time-tf-spy-60-2026-09-28` reads the same two rows equal to `time` on all
+ *  300 hourly bars. So the identity is witnessed on a 1D chart and on a 60-minute
+ *  chart — `OWN_TIME_WITNESSED_TF`, the ONE list — and on no other. The tree
+ *  carries its own gate because the member door translates once, before it knows
+ *  the chart: `(periodseconds == 86400 || periodseconds == 3600) ? time : na`.
+ *  ⛔ The gate's `na` on any other chart is NOT the vendor's answer (nothing
+ *  measured it there), so `periodAnchorMask` withholds the whole tree there and
+ *  names why (`CHART_CLOCK_WITHHELD`). One builder, read by the translator
+ *  (`pine.js::chartOwnTimeOf`) and by the recogniser below, so the shape written
+ *  and the shape recognised cannot drift. `ms` is Pine's unit (a script that
+ *  declares a `//@version`); the versionless form is the engine's seconds, exactly
+ *  as the bare `time` name is reconciled. */
+export const OWN_TIME_WITNESSED_TF = Object.freeze(['D', '60'])
+export function chartOwnTimeNode(ms) {
+  const leaf = { type: 'series', name: 'time' }
+  const num = (value) => ({ type: 'num', value })
+  const op = (name, args) => ({ type: 'op', name, args })
+  const on = (tf) => op('==', [{ type: 'series', name: 'periodseconds' }, num(CLOCK_PERIOD_SECONDS[tf])])
+  const witnessed = OWN_TIME_WITNESSED_TF.map(on).reduce((a, b) => op('||', [a, b]))
+  return op('?:', [witnessed, ms ? op('*', [leaf, num(1000)]) : leaf, op('/', [num(0), num(0)])])
+}
+const OWN_TIME_SHAPES = new Set([true, false].map((ms) => JSON.stringify(chartOwnTimeNode(ms))))
+/** Is this node the gated own-time tree above — node for node, nothing looser? */
+export function isChartOwnTime(node) {
+  if (!node || node.type !== 'op' || node.name !== '?:') return false
+  return OWN_TIME_SHAPES.has(JSON.stringify(canonicalShape(node)))
+}
+
+/** ⭐⭐ C36 — WHY A WHOLE SERIES OF `time(<timeframe>)` IS WITHHELD ON THIS CHART:
+ *  the code, and the sentence a member reads (`nativeRegistry.chartClockReport`,
+ *  the object reader's `chartClock`, the disclosure strip). ONE table; the mask
+ *  below fills every bar exactly when it names one of these, so a withheld chart
+ *  and its sentence cannot disagree. Each sentence ends with the capture that
+ *  would settle it (`docs/pine/capture-queue-2026-09-30-time-anchors.md`). */
+const ANCHOR_SPELLED = '`time("W")`, `time("M")`, `time("3M")` and `time("12M")`'
+const tfSpelled = (tf) => (typeof tf === 'string' && tf ? `\`${tf}\`` : 'not stated')
+export const CHART_CLOCK_WITHHELD = Object.freeze({
+  'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
+    + 'quarter or year — are read here on a DAILY chart only (measured against TradingView on AMEX:SPY 1D, '
+    + `capture \`vw-time-tf-spy-1d-2026-09-28\`). This chart's timeframe is ${tfSpelled(tf)}, where TradingView `
+    + 'follows a different rule that has not been derived, so everything this indicator draws from them is '
+    + 'withheld on this chart rather than drawn wrong. On a 1D chart it draws. What would settle it here: the '
+    + '`vw-time-tf` probe measured on this timeframe.',
+  'time-anchor:weekend-bars': () => `${ANCHOR_SPELLED} were measured on a Monday-to-Friday New York session `
+    + '(AMEX:SPY 1D). This chart\'s daily bars include a Saturday or a Sunday, and on a symbol that trades '
+    + 'weekends neither the day a week opens on nor the daily bar that opens a month has been measured against '
+    + 'TradingView, so everything this indicator draws from them is withheld on this chart rather than drawn '
+    + 'wrong. What would settle it: the `vw-time-tf` probe on a 1D chart of a symbol that trades every day '
+    + '(a crypto pair).',
+  'time-anchor:other-bars': () => `${ANCHOR_SPELLED}, \`time(timeframe.period)\` and \`time("60")\` are read `
+    + 'here on the chart\'s own bars only. This indicator reads one inside a request for another timeframe or '
+    + 'symbol, which no capture has measured, so everything it draws from that read is withheld. What would '
+    + 'settle it: a `request.security(…, time("W"))` row added to the `vw-time-tf` probe.',
+  'time-own:chart-unwitnessed': (tf) => '`time(timeframe.period)` and `time("60")` are read as the bar\'s own '
+    + '`time` on 1D and 60-minute charts only — the two charts TradingView was measured on (captures '
+    + '`vw-time-tf-spy-1d-2026-09-28`, `vw-time-tf-spy-60-2026-09-28`). This chart\'s timeframe is '
+    + `${tfSpelled(tf)}, so everything this indicator draws from them is withheld on this chart rather than `
+    + 'assumed. What would settle it here: the `vw-time-tf` probe measured on this timeframe.',
+})
+
+/** Does this bar series hold a Saturday or Sunday bar, by the SAME `dayofweek`
+ *  column the week key reads (Pine's: 1 = Sunday, 7 = Saturday)? */
+function hasWeekendBar(bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const col = toColumn(interpretOnce({ type: 'series', name: 'dayofweek' }, bars, inputs, budget, scalars,
+    { ...(opts || {}), crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
+  for (let i = 0; i < n; i++) if (col[i] === 1 || col[i] === 7) return true
+  return false
+}
+
 /** ⭐⭐ C30 — THE BARS OF A TREE WHOSE ANSWER READS A PERIOD ANCHOR WE DO NOT
  *  HOLD, as a 0/1 column (1 = withheld), or null when the tree reads no anchor.
  *
@@ -3837,11 +3913,34 @@ export function isPeriodAnchor(node) {
  *  ⛔ ON ANY CHART BUT A DAILY ONE (`opts.tf !== 'D'`, an absent `tf` included)
  *  EVERY BAR IS WITHHELD: the tree's own gate answers `NaN` there, which is not
  *  the vendor's answer either — nothing measured `time("W")` off a daily chart.
- *  An anchor under `tf` / `sym` reads other bars: the whole tree is withheld. */
+ *  An anchor under `tf` / `sym` reads other bars: the whole tree is withheld.
+ *
+ *  ⛔⛔ C36 — AND ON A DAILY CHART WHOSE BARS INCLUDE A SATURDAY OR SUNDAY, ALL
+ *  FOUR PERIODS, EVERY BAR. The capture is AMEX:SPY, a Monday-to-Friday 09:30
+ *  New York session, and it cannot tell a Monday-first week from a Sunday-first
+ *  one: the two keys group Monday..Friday bars identically (C30's mutation M5
+ *  survived for that reason). A weekend bar is where they part, so the WEEK is
+ *  unwitnessed there. The month / quarter / year keys do not read the week
+ *  start, but the rule they were measured under does not carry either: the
+ *  anchor is the `time` of the period's first DAILY BAR, read as 09:30 New York
+ *  with the period decided on New York's calendar, and a symbol that trades
+ *  weekends keeps neither that session open nor (for one on a UTC day) that
+ *  calendar — the bar that opens its month is not measured. Not witnessed, so
+ *  not served: withheld with `time-anchor:weekend-bars`, never drawn.
+ *
+ *  ⭐ C36 — `time(timeframe.period)` / `time("60")` (`isChartOwnTime`) ride the
+ *  same mask: known on every bar of a chart in `OWN_TIME_WITNESSED_TF`, withheld
+ *  on every bar of any other.
+ *
+ *  ⭐ A whole-series withholding is NAMED: `opts.chartClockSink` (a Map the
+ *  caller owns, code → sentence) receives each reason, so the plot lane, the
+ *  object lane and the member's disclosure strip read the decision this function
+ *  made rather than re-deriving it. */
 export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   const n = Array.isArray(bars) ? bars.length : 0
   const nodes = []
   let nested = false
+  let owns = 0
   const stack = [[tree, false]]
   const seen = new Set()
   while (stack.length) {
@@ -3853,18 +3952,32 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
       nodes.push(node)
       continue
     }
+    if (isChartOwnTime(node)) {
+      if (under) nested = true
+      owns += 1
+      continue
+    }
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  if (!nodes.length) return null
+  if (!nodes.length && !owns) return null
+  const tf = opts ? opts.tf : undefined
+  const why = []
+  if (nested) why.push('time-anchor:other-bars')
+  if (nodes.length && tf !== 'D') why.push('time-anchor:not-daily')
+  else if (nodes.length && hasWeekendBar(bars, inputs, budget, scalars, opts)) why.push('time-anchor:weekend-bars')
+  if (owns && !OWN_TIME_WITNESSED_TF.includes(tf)) why.push('time-own:chart-unwitnessed')
+  const sink = opts && opts.chartClockSink
+  if (sink && typeof sink.set === 'function') for (const code of why) sink.set(code, CHART_CLOCK_WITHHELD[code](tf))
   // a Float64Array of 0/1 — the only typed array this pure module uses
   const mask = new Float64Array(n)
-  if (nested || !opts || opts.tf !== 'D') { mask.fill(1); return mask }
+  if (why.length) { mask.fill(1); return mask }
+  if (!nodes.length) return null
   const rootReach = maxLookback(tree)
   for (const a of nodes) {
     const reach = Math.max(0, rootReach - maxLookback(a))
     const col = toColumn(interpretOnce(a, bars, inputs, budget, scalars,
-      { ...(opts || {}), crossMemo: undefined, probeBase: undefined }), n)
+      { ...(opts || {}), crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       if (col[i] !== col[i]) last = i

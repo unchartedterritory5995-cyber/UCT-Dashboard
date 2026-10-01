@@ -1636,6 +1636,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
     // distinct node once). On an inlined document every lookup misses and the
     // cost is one Map probe per self-free node.
     const crossMemo = new Map()
+    // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
+    const clock = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -1681,7 +1683,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}), crossMemo })
+            ...(other ? { symbols: other.symbols } : {}), crossMemo,
+            chartClockSink: (clock[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -1692,7 +1695,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
             message: String((err && err.message) || err) }
       }
     }
-    return withOtherSymbols(withColumnErrors(out, errors), other)
+    return withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -1715,13 +1718,15 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  return withOtherSymbols({
+  const clock = { [keys[0]]: new Map() }
+  return withChartClock(withOtherSymbols({
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
         newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
         ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}) }),
-  }, other)
+        ...(other ? { symbols: other.symbols } : {}),
+        chartClockSink: clock[keys[0]] }),
+  }, other), clock)
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
@@ -1756,6 +1761,40 @@ function withOtherSymbols(out, other) {
  *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
 export function otherSymbolReport(columns) {
   return (columns && columns[OTHER_SYMBOLS]) || null
+}
+
+/** The key a column map carries its `time(<timeframe>)` withholdings under —
+ *  non-enumerable for the reason `__columnErrors` is. */
+const CHART_CLOCK = '__chartClock'
+
+/** `byKey`: plot key → Map(code → sentence), filled by `interpret` through
+ *  `opts.chartClockSink` (`interpret.js::periodAnchorMask` is the ONE place the
+ *  decision is made). Folded to one row per code, naming the plots it covers. */
+function withChartClock(out, byKey) {
+  const rows = new Map()
+  for (const [key, reasons] of Object.entries(byKey || {})) {
+    for (const [code, reason] of reasons) {
+      if (!rows.has(code)) rows.set(code, { code, reason, plots: [] })
+      rows.get(code).plots.push(key)
+    }
+  }
+  if (rows.size) {
+    Object.defineProperty(out, CHART_CLOCK, {
+      value: Object.freeze({ withheld: Object.freeze([...rows.values()]) }), enumerable: false,
+    })
+  }
+  return out
+}
+
+/** ⭐⭐ C36 — WHY EVERY BAR OF A PLOT THAT READS `time(<timeframe>)` IS WITHHELD
+ *  ON THIS CHART: `{withheld: [{code, reason, plots}]}`, or null when nothing is.
+ *  The codes and sentences are `interpret.js::CHART_CLOCK_WITHHELD`'s — a chart
+ *  that is not daily, daily bars that include a weekend, a chart timeframe no
+ *  capture measured. The binder publishes it to the member's disclosure strip
+ *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
+ *  `otherSymbolReport`: the decision rides on the columns it was made for. */
+export function chartClockReport(columns) {
+  return (columns && columns[CHART_CLOCK]) || null
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
