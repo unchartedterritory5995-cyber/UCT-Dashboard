@@ -6658,6 +6658,13 @@ export class Resolver {
     // rather than a column, and it keeps refusing at `pine:block`.
     if (bound.kind === 'switch') {
       const subject = this.stringValueOf(bound.subject)
+      // ⭐⭐ C47 — A SUBJECT THE SYMBOL FIXES (`switch syminfo.root`, or a helper's
+      // parameter bound to it) is fixed per BINDING, which is the same basis the
+      // reduction below stands on: the branch does not move bar to bar.
+      if (subject === null) {
+        const bySymbol = this.symbolSwitch(bound, tok, name)
+        if (bySymbol) return bySymbol
+      }
       if (subject === null) {
         throw new PineRefusal('pine:block',
           `${REFUSALS['pine:block']} — \`switch\`, and this one's subject is not a value the `
@@ -7452,6 +7459,71 @@ export class Resolver {
       try { return this.textEqTree(b.value.node, lit, want, depth + 1) } finally { this.frames.pop(); this.env = callerEnv }
     }
     return null
+  }
+
+  /** ⭐⭐ C47 — A `switch` WHOSE SUBJECT IS THE SYMBOL'S OWN TEXT.
+   *
+   *      ignored_list(sym) =>              // position-size-calc
+   *          bool ignore = switch sym      // called as ignored_list(syminfo.root)
+   *              "VIX" => true
+   *              => false
+   *
+   *  Pine compares the subject with each arm's label in order and takes the
+   *  FIRST equal arm, else the bare `=>` arm — the rule the fixed-subject
+   *  reduction in `resolveBindingInner` already applies. A `syminfo.*` text is
+   *  not known to the translator, but it is known per BINDING, so the same rule
+   *  is written as a chain the bind-time fold settles:
+   *
+   *      eq(subject, "VIX") ? <arm> : <default>
+   *
+   *  each test a `textop` over the `symtext` — the node `syminfo.ticker ==
+   *  "SPY"` has always produced — folded to 1 / 0 once a symbol is chosen.
+   *
+   *  ⭐ WITNESS: `position-size-calc-rddt-1d-2026-09-28`. On NYSE:RDDT the
+   *  subject is not "VIX", the default arm answers `false`, and TradingView
+   *  draws the table under `if barstate.islast and not ignored_list(…)`.
+   *
+   *  ⛔ NARROW, and null (the caller's `pine:block`, unchanged) otherwise:
+   *    · the subject reaches a `syminfo.*` TEXT field this door serves, through
+   *      names and parameters only (`symTextOf`);
+   *    · EVERY arm's label is a string the script fixes;
+   *    · there IS a default arm — with none, a no-match is Pine's `na` (and in
+   *      v6 `false` for a bool), which no capture separates. */
+  symbolSwitch(bound, tok, name) {
+    // read where the fixed-subject reduction reads its own (`stringValueOf` of
+    // the same node, in the environment this binding is being resolved in)
+    const subject = this.symTextOf(bound.subject)
+    if (!subject || !bound.fallback || !bound.arms.length) return null
+    const labels = []
+    for (const arm of bound.arms) {
+      const label = this.stringValueOf(parseWholeExpression(arm.match))
+      if (label === null) return null
+      labels.push(label)
+    }
+    let out = this.resolveBinding(bound.fallback, tok, name)
+    for (let k = bound.arms.length - 1; k >= 0; k -= 1) {
+      const test = { type: 'textop', name: 'eq', args: [subject, { type: 'str', value: labels[k] }] }
+      out = cOp('?:', [test, this.resolveBinding(bound.arms[k].binding, tok, name), out])
+    }
+    return out
+  }
+
+  /** A node as the SYMBOL's text — a `symtext` — reached through names and
+   *  parameters only, else null. `stringValueOf`'s walk, for the one kind of
+   *  text that is settled at bind time rather than here. ⛔ The binding is
+   *  consulted FIRST, as everywhere in this file: a script that assigned
+   *  `syminfo = …` or shadowed a name gets what it said. */
+  symTextOf(node, depth = 0) {
+    if (!node || typeof node !== 'object' || depth > 64) return null
+    if (node.type === 'bound') {
+      return this.throughBinding(node.binding, (b) => this.symTextOf(b.node, depth + 1))
+    }
+    if (node.type !== 'name') return null
+    if (own(this.table.series, node.name)) return null
+    const bound = this.env.get(node.name)
+    if (bound) return this.throughBinding(bound, (b) => this.symTextOf(b.node, depth + 1))
+    return own(BUILTIN_SYMBOL_SCOPED, node.name)
+      ? { type: 'symtext', name: BUILTIN_SYMBOL_SCOPED[node.name] } : null
   }
 
   /** A node as BIND-TIME TEXT: a `string` node for something already known, or a
@@ -10008,6 +10080,12 @@ export class Resolver {
     // live in different namespaces there — and consulting the value binding first
     // made `07-rsi.pine` refuse its own plot with the wrong guard entirely.
     const bound = this.env.get(name)
+    // ⭐ C47 — a function the drawing lane can read and a plot cannot (its body
+    // declares through `name = switch …`): the object pass inlines it, every
+    // other caller keeps the refusal — and with it its saved parameter ids.
+    if (bound && bound.kind === 'opaque' && bound.isFunction && bound.objectLane && this.objectPass) {
+      return this.inlineUserFunction(bound.objectLane, node)
+    }
     if (bound && bound.kind === 'opaque' && bound.isFunction) {
       throw new PineRefusal(bound.guard, bound.message, bound.at)
     }
@@ -15416,6 +15494,51 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         i = folded.next
         continue
       }
+      // ⭐⭐ C47 — `name = switch subject` AS A STATEMENT OF A FUNCTION BODY, the
+      // door the top level has had all along (`ma = switch mode`).
+      // position-size-calc:
+      //
+      //     ignored_list(sym) =>
+      //         bool ignore = switch sym
+      //             "VIX" => true
+      //             => false
+      //
+      // The right-hand side is not an expression — its arms are the statement's
+      // own sub-block — so parsing `switch sym` as one refused the whole helper,
+      // and with it every `table.cell` under
+      // `if barstate.islast and not ignored_list(syminfo.root)`. It becomes the
+      // SAME `kind: 'switch'` binding (`switchBinding`), reduced by the same
+      // resolver arm once the subject can be read; and where it is the body's
+      // LAST statement it is the body's value, exactly as any other trailing
+      // declaration is (measured 2026-09-28, see below).
+      // ⛔⛔ FOR THE DRAWING LANE ONLY, AND THAT IS A HARD RULE, NOT CAUTION. The
+      // refusal the legacy parse gives is KEPT (`trace.legacySwitch`) and the
+      // function stays the refusal it was for every plot: serving a plot through
+      // this helper mints its parameters AHEAD of saved ones. Measured —
+      // atr-god-strategy (`switch_ma(maType, src, len) => float maOut = switch
+      // maType …`): two plots began to translate and `Plot Signals` moved from
+      // `__uct_param_10` to `_12` (`paramIds.test.js`). The definition walk hangs
+      // the readable function beside the refusal (`objectLane`), and only the
+      // object pass's resolver takes it.
+      // ⛔ Only a function body's OWN statement (`declarationIsValue`): a block
+      // inside it, an `if` arm, any other body keeps the refusal it had.
+      // ⛔ `switchBinding` answers null for a shape it cannot take (an arm with
+      // no `=>`), and the statement then meets the refusal it always met.
+      if (declarationIsValue && trace && rhs[0].kind === 'ident' && rhs[0].value === 'switch'
+          && rhs.length > 1 && st.sub && st.sub.length) {
+        let legacy = null
+        try { parseWholeExpression(rhs) } catch (err) { legacy = err }
+        const built = legacy ? switchBinding(rhs.slice(1), st.sub, ctx, env, rhs[0]) : null
+        if (built) {
+          if (!trace.legacySwitch) trace.legacySwitch = legacy
+          consumeMutators(ctx, st.body)
+          env.set(nameTok.value, built)
+          record(st, nameTok.value)
+          if (i === lastStatement) { value = built; fresh = true }
+          i += 1
+          continue
+        }
+      }
       // ⭐⭐ C31 — A CALL IN A BLOCK THAT DOES NOT RUN ON EVERY BAR SEES ONLY
       // THE BARS IT RUNS ON. Every `ta.*` built-in keeps its own history of the
       // values it was CALLED with, so `ta.highest(spread, 50)` inside
@@ -16687,6 +16810,57 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   /** ⭐ C16 — a name whose binding is, through plain name bindings only, an
    *  `input.string(…)` / `input(…)` with a string-literal default → that
    *  default; else null. See the note where `textNodeOf` asks it. */
+  /** ⭐⭐ C47 — AN ENUM WORD THE SCRIPT FIXES THROUGH A `var` OR AN `input.string`.
+   *
+   *      var string tab_pos   = input.string(position.bottom_right, options = […])
+   *      var string text_size = size.small
+   *
+   *  position-size-calc writes both, and both were DROPPED (`enumUnreadable`): a
+   *  table anchored at `top_right`, Pine's default, where TradingView holds it at
+   *  `bottom_right`, and cells at the default size where TradingView's are
+   *  `small` (`position-size-calc-rddt-1d-2026-09-28`: `pos` and all ten `ts`).
+   *  The enum reader already opened a PLAIN binding to an enum constant
+   *  (`s = size.small`); it did not open
+   *    · a `var` — a `state` binding. One that NOTHING reassigns holds its
+   *      initializer on every bar, which is all a `var` of a constant is;
+   *    · an `input.string` whose DEFAULT is the enum constant itself. This
+   *      product gives `input.string` no knob, so the default is the only word
+   *      the drawing can carry (C16's ruling, `inputStringText`).
+   *  ⛔ NARROW: names only, through plain bindings and un-reassigned top-level
+   *  `var`s; the leaf is an enum CONSTANT (`position.*`, `size.*` …), never a
+   *  typed string (`"bottom_right"` — no capture shows that spelling), and never
+   *  a `var` any statement reassigns (its value on a bar is then the previous
+   *  bar's last word, not its initializer). Null otherwise: the slot drops and
+   *  is counted, exactly as before. */
+  const enumWordOf = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    // the leaf: an enum constant, written out
+    const constantWord = (n) => {
+      const word = n && n.type === 'name' ? objectEnumValue(n.name) : undefined
+      return word === undefined ? null : String(word)
+    }
+    if (node.type === 'call' && node.name === 'input.string') {
+      const args = node.args || []
+      const named = args.find((a) => a && a.name === 'defval')
+      const first = args.find((a) => a && !a.name)
+      return constantWord(named ? named.value : first ? first.value : null)
+    }
+    if (node.type !== 'name') return null
+    // the script's own binding first — a name it assigned is what it said
+    const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    if (!b) return constantWord(node)
+    if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
+      return enumWordOf(b.node, b.env || scope, depth + 1)
+    }
+    // a `var` NOTHING reassigns: no reassignment above this read (its update is
+    // still its own past) and none below it (it is the script's last word)
+    if (b.kind === 'state' && b.seed && b.update && b.update.type === 'selfref') {
+      let last = null
+      try { last = makeResolver(scopeEnv).finalBindings.get(node.name) } catch { last = null }
+      return last === b ? enumWordOf(b.seed, b.seedEnv || scope, depth + 1) : null
+    }
+    return null
+  }
   const inputStringText = (node, scope, depth = 0) => {
     if (!node || depth > 8) return null
     if (node.type === 'name') {
@@ -16984,6 +17158,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // literal does not settle — falls through to the readers below.
       const lit = inputStringText(node, scope)
       if (lit !== null) return { t: 'lit', s: lit }
+      // ⭐ C47 — an enum slot's word through a `var` or an `input.string` default.
+      if (enumLeaves) {
+        const word = enumWordOf(node, scope)
+        if (word !== null) return { t: 'lit', s: word }
+      }
       // ⭐⭐ C33 — AN `input.timeframe` DEFAULT IN A TEXT SLOT: the default, where
       // a capture shows TradingView printing exactly that spelling under this
       // Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`); withheld by name otherwise.
@@ -21459,6 +21638,12 @@ function translatePineResult(source, opts = {}) {
             + 'engine can read', locate(toks[arrow]))
         }
         self.value = value
+        // ⭐⭐ C47 — a body read through `name = switch …` is readable by the
+        // DRAWING lane only (see the door in `foldStatements`). Everywhere else
+        // the function is the refusal the legacy parse gave it — the same guard,
+        // sentence and note the `catch` below writes — with the readable function
+        // hung beside it for the object pass's resolver (`objectLane`).
+        if (bodyTrace.legacySwitch) throw Object.assign(bodyTrace.legacySwitch, { c47ObjectLane: self })
         env.set(nameTok.value, self)
       } catch (err) {
         const r = fromError(err)
@@ -21467,6 +21652,11 @@ function translatePineResult(source, opts = {}) {
           `${r.message.replace(/^[^—]*—\s*/, '')}${nameTok ? ` (reached through \`${nameTok.value}\`)` : ''}`,
           true)
         notes.push({ ...r, code: r.guard })
+        // ⭐ C47 — the drawing lane's reading of this function, beside its refusal.
+        const refused = nameTok && env.get(nameTok.value)
+        if (err && err.c47ObjectLane && refused && refused.kind === 'opaque' && refused.isFunction) {
+          refused.objectLane = err.c47ObjectLane
+        }
       }
       continue
     }
