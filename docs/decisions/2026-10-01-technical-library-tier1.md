@@ -112,13 +112,35 @@ stochastic), so every saved instance keeps its meaning and the inspector shows i
   `toggledRow` writer. It stays a canvas overlay.
 - **Live tick.** Only SMA/EMA averages are stepped per tick; other MA types wait for the next
   recompute rather than being stepped with SMA arithmetic.
+- **`legend.sparse` (polish pass).** A plot blank by design on some bars (SuperTrend's up/down
+  halves) gets the binder's per-bar `valueAt`, and the legend omits its valueless chip (one chip
+  per instance always kept). SuperTrend shows one `SuperTrend(10, 3)` chip for the active side.
 
 ## 6. Alerts / server parity
 
 Chart-only, deliberately — like `dollarVolume`, `movingAverage` and `atrBands` before them. No
-Python twin, no `SERIES_FUNCS` row. A separate project. (Pre-existing, not changed: server
-Stochastic alerts read `k_period`/`d_period` while instances store `kPeriod`/`dPeriod`, so a
-stochastic alert has always evaluated 14/3 fast whatever the chart shows.)
+Python twin, no `SERIES_FUNCS` row. A separate project.
+
+**Stochastic alert semantics (traced 2026-10-01, polish pass — DEFERRED to the alert-parity
+backlog).**
+
+- The server's `stoch` / `stoch.d` addresses take exactly `{k_period: 14, d_period: 3}`
+  (`alert_series.SERIES_FUNCS`, `address_inputs`), honour them when present, and compute
+  **fast** %K (no smoothing parameter exists). Proven by calling `alert_series.series_for`.
+- The alert popover seeds an alert's `params` from that **served catalogue** (14/3), never from the
+  chart instance it was armed from; `instance_id` records only which instance it was armed from.
+  So a chart's slow 14/3/3 Stochastic arms a 14/3 **fast** alert unless the member edits it, and a
+  chart RSI(9) arms an RSI(14) alert the same way — this is the alert contract for every indicator,
+  not a Stochastic defect.
+- `applyAlertTemplate` (no product caller) would copy instance inputs verbatim (`kPeriod`…), which
+  the server ignores.
+- Not surgical: parity needs the popover to carry instance settings (a per-indicator name mapping),
+  a `smooth_k` server parameter (changes the served catalogue and existing alerts' labels), the
+  shared JS/Python Stochastic oracle, and an `api/**` deploy. Existing alerts are unaffected.
+- Truthful guards shipped instead (copy only): the popover says *"These alert settings are separate
+  from the chart indicator's settings"* when opened from an instance, and *"Alerts aren't available
+  for this indicator yet"* when opened from a chart-only study's chip (it used to fall silently to
+  the first catalogue indicator).
 
 ## 7. Validation
 

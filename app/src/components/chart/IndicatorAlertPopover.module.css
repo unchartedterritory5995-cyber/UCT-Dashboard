@@ -296,3 +296,11 @@
   accent-color: var(--ut-gold, #dcbb5e);
   cursor: pointer;
 }
+
+/* 2026-10-01 — a short truthful note (chart-only indicator; parameters are the
+   alert's own). Muted, like `.label`, so it informs without competing. */
+.note {
+  color: var(--text-muted, #888);
+  font-size: 11px;
+  line-height: 1.4;
+}

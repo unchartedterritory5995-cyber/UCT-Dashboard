@@ -24,6 +24,7 @@ import { libraryRows } from '../../discoveryCatalog'
 import { BUILT_IN_ROWS, CARVED_OUT_ROWS } from '../../indicatorCatalog'
 import { TECH_CATEGORY_ORDER, orderCategories } from '../../technicalCategories'
 import { matches } from '../../IndicatorLibraryDialog'
+import { disambiguateLabels } from '../readout'
 import { TIER1_IDS } from './tier1Library.fixture'
 
 const insts = (cs) => (Array.isArray(cs.indicatorInstances) ? cs.indicatorInstances : [])
@@ -80,6 +81,20 @@ describe('1 — Stochastic: SLOW for a new instance, FAST for every saved one', 
     expect(dropped).toEqual([])
     expect(kept[0].inputs).toEqual({ kPeriod: 14, dPeriod: 3 })
     expect(registry.resolveInputs(registry.getDefinition('stoch'), kept[0].inputs).smoothK).toBe(1)
+  })
+})
+
+describe('1b — a slow and a legacy fast Stochastic on one chart are told apart truthfully', () => {
+  it('the legend names them by the input that differs — smoothK 3 vs 1 — never by "undefined" colours', () => {
+    const rows = [
+      { defId: 'stoch', plotKey: 'k', instanceId: 'new', label: 'Stochastic Oscillator',
+        inputs: { kPeriod: 14, smoothK: 3, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' } },
+      { defId: 'stoch', plotKey: 'k', instanceId: 'old', label: 'Stochastic Oscillator',
+        inputs: { kPeriod: 14, dPeriod: 3 } },
+    ]
+    const out = disambiguateLabels(rows, (id) => registry.getDefinition(id))
+    expect(out).toEqual(['Stochastic Oscillator (smoothK 3)', 'Stochastic Oscillator (smoothK 1)'])
+    expect(out.join(' ')).not.toMatch(/undefined|Color/)
   })
 })
 

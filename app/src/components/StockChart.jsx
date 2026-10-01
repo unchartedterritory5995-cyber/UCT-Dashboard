@@ -132,7 +132,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -2276,7 +2276,12 @@ function liveInstanceIdsFor(cs, defId) {
  *  `engineChips` reads them (`inst.inputs`), so the two surfaces compare the same
  *  values; an empty list of siblings yields an empty list of suffixes. */
 function instanceMenuSuffixes(cs, instIds) {
-  return siblingSuffixes(instIds.map((instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {}))
+  // ⭐ 2026-10-01 — RESOLVED inputs (declared defaults filled in), the same values
+  // the legend compares — see `readout.resolvedInputsOf`.
+  return siblingSuffixes(instIds.map((instanceId) => {
+    const inst = findInstance(cs, instanceId) || {}
+    return resolvedInputsOf(engineRegistry.getDefinition(inst.defId), inst.inputs)
+  }))
 }
 
 export default function StockChart({

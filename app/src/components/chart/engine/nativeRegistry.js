@@ -1265,8 +1265,14 @@ const RAW_DEFS = [
       colorInput('downColor', 'Down trend', '#df4646'),
     ],
     [
-      { key: 'up', label: 'Up', style: 'line', color: '$upColor', width: 2, role: 'primary', legend: { decimals: 2 } },
-      { key: 'down', label: 'Down', style: 'line', color: '$downColor', width: 2, role: 'secondary', legend: { label: 'Down', decimals: 2 } },
+      // ⭐ 2026-10-01 (polish) — BOTH HALVES ARE `sparse`: each is blank by design
+      // while the other trend holds. The line BREAKS at a flip (one render series
+      // per run — lightweight-charts would otherwise bridge the blank bars with a
+      // diagonal), and the legend shows only the ACTIVE side — one
+      // `SuperTrend(10, 3)` chip in that side's colour — never a bare "Down" or a
+      // stale value. The maths is unchanged.
+      { key: 'up', label: 'Up', style: 'line', color: '$upColor', width: 2, role: 'primary', sparse: true, legend: { decimals: 2 } },
+      { key: 'down', label: 'Down', style: 'line', color: '$downColor', width: 2, role: 'secondary', sparse: true, legend: { decimals: 2 } },
     ]),
 
   nativeDef('aroon', 'aroon',
