@@ -131,10 +131,12 @@ import {
   BAR_COORD_PROPS,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
-  withObjectTransparency,
+  withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
 import { hexToPacked, byteTransparency, gradientChannelTree } from '../runtime/colours.js'
+import { THEME_NAMES } from '../objectTheme.js'
+import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
 // `symbolScope.json` is a fact about the outside world (our symbol store's
@@ -17049,18 +17051,61 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
+    // carried as a REFERENCE (the Pine name itself) and resolved where the
+    // drawing is painted, against the chart it is painted on
+    // (`objectTheme.js`). ⛔ Never a hex chosen here — the translation is one
+    // document and the chart it lands on is not known until it is drawn.
+    // ⛔ A script's own binding of the name wins, as it does for a colour name.
+    if (node.type === 'name' && THEME_NAMES.includes(node.name)
+        && !(scope && typeof scope.get === 'function' && scope.get(node.name))) {
+      return { c: 'lit', hex: node.name }
+    }
     // ⭐ WITH its transparency — see `staticObjectColourOf`. A drawing object
     // has one colour string and no opacity field, so the alpha rides in it.
     const hex = staticObjectColourOf(node, scope)
     if (hex) return { c: 'lit', hex }
+    // ⭐⭐ C37 — A `var` SEEDED WITH A COLOUR AND NEVER REASSIGNED IS THAT COLOUR.
+    // `var color LineColorInput = input.color(…)` (contraction-box, 78 lines in
+    // the renderer's blue where TradingView draws the input's teal) is declared
+    // once and never written again: Pine evaluates the seed on the first bar and
+    // the name holds it from then on. ⛔ ONLY a seed that is ONE colour whatever
+    // the bar (`{c:'lit'}`): a seed that reads the bar (`close > open ? a : b`)
+    // is frozen at bar 0's answer in Pine, which a per-bar node would not be.
+    // ⛔ ONLY a name the script never reassigns, anywhere (`mutableNames`).
+    if (node.type === 'name') {
+      const sb = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      if (sb && sb.kind === 'state' && sb.seed && sb.update && sb.update.type === 'selfref'
+          && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+          && !objectOpts.mutableNames.has(node.name)) {
+        const seeded = colorNodeOf(sb.seed, sb.seedEnv || scope, depth + 1)
+        if (seeded && seeded.c === 'lit') return seeded
+      }
+    }
     if (node.type === 'ternary') {
+      // ⭐⭐ C37 — A TEST ON THE LOOP COUNTER IS DECIDED PER PASS, exactly as a
+      // guard on it is (`liftLive`, C25): `i < 15 ? grad_a : grad_b` inside
+      // `for i = 0 to 29` (heat-map-seasons' gauge). A tree is one value per bar
+      // and cannot say it. ⛔ Only a condition made of the counter, constants and
+      // per-bar trees (`passCondition`) — object state in a colour stays refused.
+      if (hostPasses && loopIds.length && mentionsLoop(node.test)) {
+        const passCond = liftLive(node.test)
+        const thenP = passCond && passCondition(passCond) ? colorNodeOf(node.yes, scope, depth + 1) : null
+        const otherP = thenP ? colorNodeOf(node.no, scope, depth + 1) : null
+        return thenP && otherP ? { c: 'if', cond: passCond, then: thenP, else: otherP } : lateColourOf(node, scope, depth)
+      }
       // ⭐ C10 — a test that is the same on every bar answers with its live
       // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
       const condTree = canonicalOf(node.test)
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
-      if (!then || !other) {
+      // ⭐ C33 × C37 (merged) — C37 reads `na` as a colour everywhere
+      // (`hostColourOf`), so an `na` arm now HAS a node; C33's rule for a DECIDED
+      // test over such an arm (the taken arm alone, never a constant `if`) is
+      // kept by asking it whenever an arm is written `na`, not only when an arm
+      // had no node.
+      if (!then || !other || isNaColourLeaf(node.yes) || isNaColourLeaf(node.no)) {
         // ⭐⭐ C33 — `na` AS ONE ARM OF A COLOUR CHOICE IS NO COLOUR: fully
         // transparent, the plot lane's own answer for an `na` colour branch
         // (`TRANSPARENT_PALETTE_ENTRY`). ⚰️ high-low-open-mid-ranges writes
@@ -17074,7 +17119,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         // resolved before keeps its exact node: this is asked only of an arm that
         // had NO node — which, taken, used to drop the property and paint the
         // renderer's default where Pine paints nothing.
-        const NA_COLOUR = { c: 'lit', hex: '#00000000' }
+        const NA_COLOUR = { c: 'lit', hex: NA_OBJECT_COLOUR }
         const decided = decidedTest(condTree)
         if (decided !== null) {
           const taken = decided !== 0 ? then : other
@@ -17083,14 +17128,115 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!then && isNaColourLeaf(node.yes)) then = NA_COLOUR
         if (!other && isNaColourLeaf(node.no)) other = NA_COLOUR
       }
-      if (!cond || !then || !other) return rtColourOf(node, scope, depth)
+      if (!cond || !then || !other) return lateColourOf(node, scope, depth)
       return { c: 'if', cond, then, else: other }
     }
     const opened = openName(node, scope, depth)
     // ⭐ C20 — a name whose binding cannot be read here is read from the run.
-    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1) || rtColourOf(node, scope, depth)
-    return rtColourOf(node, scope, depth)
+    if (opened) {
+      // ⭐ C37 — a binding that settled on ONE colour is that colour wherever the
+      // name is read: a `{c:'lit'}` depends on the binding and its scope alone
+      // (never on the drawing, the loop or the runtime lane), so it is read once.
+      // A script's theme colour is named by dozens of drawings (artemis: 48
+      // slots), and each read of an eleven-arm chain walks the Resolver eleven
+      // times to the answer it gave the first time.
+      const seen = litByBinding.get(opened.node)
+      if (seen && seen.env === opened.env) return seen.lit
+      const c = colorNodeOf(opened.node, opened.env, depth + 1) || lateColourOf(node, scope, depth)
+      if (c && c.c === 'lit') litByBinding.set(opened.node, { env: opened.env, lit: c })
+      return c
+    }
+    return lateColourOf(node, scope, depth)
   }
+  const litByBinding = new WeakMap()
+
+  /** ⭐ C37 — a per-pass condition a COLOUR may carry: comparisons and boolean
+   *  operators over the loop counter, constants, counter arithmetic and per-bar
+   *  trees. The validator asks the same question (`objectProgram.js::
+   *  isPassCondition`) — this is the translator declining before it builds one. */
+  const passCondition = (v) => isPassCondition(v)
+
+  /** ⭐⭐ C37 — THE COLOURS THE HOST LANE CAN SAY THAT A STATIC READ CANNOT, asked
+   *  only after the runtime lane's own reading (`rtColourOf`) declined — so a
+   *  drawing that lane feeds keeps exactly what it had.
+   *
+   *    · `na` / `color(na)`                Pine's absent colour: fully transparent
+   *                                        (TradingView records `0x00000000`;
+   *                                        zero-lag's `color = color(na)` labels)
+   *    · `color.new(c, t)`, `t` computed   `{c:'new'}` over a PER-BAR TREE — an
+   *                                        input's transparency stays the member's
+   *                                        knob (makuchaku's 51 boxes,
+   *                                        `color.new(color.black, boxTransparency)`)
+   *    · `color.from_gradient(…)`          `{c:'grad'}`: three value references
+   *                                        and two colour nodes, the measured curve
+   *    · a one-expression colour HELPER    its body with the call's arguments in
+   *                                        place (`f_trendClr(bull, bear)`), then
+   *                                        read like any other colour
+   *
+   *  Anything else is `null`: the property is dropped and counted, as before.
+   *
+   *  ⛔ NOT HERE, and measured before it was left out: the plot lane's ruling-1
+   *  fold (a colour whose ternaries are selected by a translation-time constant,
+   *  read to the branch the default takes — `constantColourSelector`). Asked for
+   *  objects it changed ONE corpus script (ict-killzones: two cell fills reached
+   *  through a helper's parameter), and no capture grades those cells — they are
+   *  withheld. An unwitnessed reading is not served; it stays dropped, by name
+   *  (`cell.bgcolor@1050`, `@1052`). */
+  const NA_OBJECT_COLOUR = '#00000000'
+  const hostColourOf = (node, scope, depth) => {
+    if (!node || depth > 12 || rawTrees) return null
+    if (isNaColourLeaf(node)) return { c: 'lit', hex: NA_OBJECT_COLOUR }
+    if (node.type === 'call') {
+      const args = node.args || []
+      const plain = !args.some((a) => !a || a.name)
+      // `color(x)` is Pine's cast: the colour `x` is.
+      if (node.name === 'color' && plain && args.length === 1) return colorNodeOf(args[0].value, scope, depth + 1)
+      if (node.name === 'color.new' && plain && args.length === 2) {
+        const of = colorNodeOf(args[0].value, scope, depth + 1)
+        if (of) {
+          const tn = args[1].value
+          const lit = numberValue(tn)
+          if (lit !== null) {
+            // a literal transparency on a readable base folds to one string where
+            // the base is one (a theme reference keeps being a reference)
+            const folded = of.c === 'lit' ? withObjectTransparency(of.hex, lit) : null
+            return folded ? { c: 'lit', hex: folded } : { c: 'new', of, t: { v: 'const', value: lit } }
+          }
+          const t = loopIds.length && mentionsLoop(tn) ? (hostPasses ? loopArgRef(tn) : null) : internTree(canonicalOf(tn))
+          if (t) return { c: 'new', of, t }
+        }
+      }
+      if (node.name === 'color.from_gradient') {
+        const g = gradientArgsOf(node)
+        const a = g ? colorNodeOf(g[3], scope, depth + 1) : null
+        const b = a ? colorNodeOf(g[4], scope, depth + 1) : null
+        if (b) {
+          const num = (n) => {
+            const lit = numberValue(n)
+            if (lit !== null) return { v: 'const', value: lit }
+            if (loopIds.length && mentionsLoop(n)) return hostPasses ? loopArgRef(n) : null
+            return internTree(canonicalOf(n))
+          }
+          const v = num(g[0])
+          const lo = v ? num(g[1]) : null
+          const hi = lo ? num(g[2]) : null
+          if (hi) return { c: 'grad', v, lo, hi, a, b }
+        }
+      }
+      // a user colour helper whose body is ONE expression: that expression with
+      // the call's arguments substituted for its parameters (`substituteFrame`,
+      // the one substitution this pass has), read in the caller's scope.
+      const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.kind === 'expr' && bound.value.node
+          && Array.isArray(bound.params) && bound.params.length === args.length && plain) {
+        const body = substituteFrame(bound.value.node, { bound, args, callerEnv: scope })
+        const c = body ? colorNodeOf(body, scope, depth + 1) : null
+        if (c) return c
+      }
+    }
+    return null
+  }
+  const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
   /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
    *
@@ -17522,6 +17668,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // tree, fmt}` — the object runtime's `formatNumber` is the ONE authority
       // on Pine's number format, and a short-circuit here would have needed a
       // second copy of it in the runtime lane.
+      // ⭐⭐ C37 — A COLOUR THAT MOVES PER PASS, on the host lane: a colour node
+      // is its own grammar and can say it — a test on the counter
+      // (`{c:'if'}` over a pass condition), a gradient or a transparency whose
+      // number is counter arithmetic (`{c:'grad'}` / `{c:'new'}` over
+      // `loopArgRef`). heat-map-seasons' gauge is the first two together.
+      // ⛔ Only what `colorNodeOf` can read; anything else refuses as before.
+      if (hostPasses && slot && isColourSlot(slot)) {
+        const c = colorNodeOf(node, scopeEnv)
+        if (c) return { v: 'color', node: c }
+      }
       if (!iterTrees) {
         diagnostics.loopValuesUnresolved += 1
         return null
@@ -19142,6 +19298,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ C20 — a runtime colour, and `color.new(c, t)`.
       if (t.c === 'rt') walkV(t.v, d + 1)
       if (t.c === 'new') { walkN(t.of, d + 1); walkV(t.t, d + 1) }
+      // ⭐ C37 — a host-lane gradient: three values, two colours.
+      if (t.c === 'grad') {
+        walkV(t.v, d + 1); walkV(t.lo, d + 1); walkV(t.hi, d + 1)
+        walkN(t.a, d + 1); walkN(t.b, d + 1)
+      }
     }
     walkV(o.when, 0)
     if (o.k === 'setnum') walkV(o.value, 0)
@@ -20215,9 +20376,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const lostCreates = [...lostCreateFamilies].map((f) => (f === null ? '*' : f)).sort()
   if (lostCreates.length) diagnostics.lostCreates = lostCreates
 
+  // ⭐ C37 — the script's version rides on the program ONLY where an uncoloured
+  // object's default depends on it (v4, v5 — `VERSIONS_WITH_OBJECT_DEFAULTS`), so
+  // every other program keeps its bytes.
+  let defaultsVersion = null
+  try {
+    const pv = activePaletteVersion()
+    if (VERSIONS_WITH_OBJECT_DEFAULTS.includes(pv)) defaultsVersion = pv
+  } catch { defaultsVersion = null }
+
   return {
     program: {
       programVersion: OBJECT_PROGRAM_VERSION,
+      ...(defaultsVersion !== null ? { pineVersion: defaultsVersion } : {}),
       regs: regs.filter((r) => usedRegs.has(r.id)),
       colls: colls.filter((c) => usedColls.has(c.id)),
       ...(usedNums.size ? { nums: nums.filter((n) => usedNums.has(n.id)) } : {}),
@@ -23973,6 +24144,92 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   return { test: node.test, up, down, opacity }
 }
 
+/** ⭐⭐ C37 — `color.from_gradient(value, bottom, top, c_bottom, c_top)` AS A
+ *  PLOT'S COLOUR: A POSITION COLUMN AND TWO STATIC ENDPOINTS.
+ *
+ *  ⚰️ MEASURED (C28, re-measured C37 on the committed capture
+ *  `rvol-rddt-1d-2026-09-27`): RVOL's line is
+ *
+ *      grad = color.from_gradient(rvol, 0.5, 2, dnv, upv)
+ *      plot(rvol, color = color.new(grad, 0))
+ *
+ *  and it drew in the pane's gold on 611 of 611 bars where TradingView draws a
+ *  colour per bar. C29 measured the gradient's curve (`runtime/colours.js::
+ *  fromGradient`, `vw-gradient-spy-1d-2026-09-30`) and served it to the lane
+ *  that computes colours as values; the PLOT lane had no rule that could hold
+ *  one — a plot colour is a static, a two-colour test or a palette index, and a
+ *  gradient is none of those. This is that rule (ruling R-G: the colour is
+ *  carried, the plot is never withheld).
+ *
+ *  THE SHAPE: the gradient's POSITION, `(value − bottom) / (top − bottom)`, is an
+ *  ordinary numeric tree — resolved like any series, it becomes one hidden
+ *  column, exactly as a two-colour test or a palette index does — and the two
+ *  endpoint colours ride as static strings (`#RRGGBB`, or `#RRGGBBAA` where one
+ *  is transparent: `staticObjectColourOf`, the object lane's one spelling). The
+ *  renderer hands the column's value to `fromGradient(w, 0, 1, a, b)`, whose
+ *  position is then `w` itself, so the measured curve (clamp to [0, 1], opacity
+ *  bytes blended, channels premultiplied and truncated) has ONE implementation.
+ *
+ *  ⭐ `color.new(<gradient>, t)` with a literal `t` SETS the result's
+ *  transparency (Pine's rule, the same as on a static colour): it rides as
+ *  `transparency` beside the endpoints. RVOL's own line is this form at 0.
+ *
+ *  ⛔ BOTH ENDPOINTS STATIC, or the rule declines (`colorDynamic`, as before):
+ *  a gradient between colours that themselves move bar to bar is two more
+ *  columns of colour, which no plot schema holds.
+ *  ⛔ A bar whose position is not a finite number — `top == bottom`, an `na`
+ *  value or bound — has NO colour here: C29 left that case unmeasured, and the
+ *  renderer draws the series colour there rather than an endpoint it guessed.
+ *  ⛔ `plot` only. A marker, a candle and a fill read their colour through other
+ *  renderers, which hold a pair or a palette; they stay declined, by name.
+ *  New rules never mint (R36): the three trees resolve with the mint withheld. */
+const GRADIENT_PARAMS = Object.freeze(['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color'])
+function gradientArgsOf(node) {
+  const out = [undefined, undefined, undefined, undefined, undefined]
+  let pos = 0
+  for (const a of (node && node.args) || []) {
+    if (!a) return null
+    if (a.name) {
+      const at = GRADIENT_PARAMS.indexOf(a.name)
+      if (at < 0 || out[at] !== undefined) return null
+      out[at] = a.value
+    } else {
+      if (pos >= GRADIENT_PARAMS.length || out[pos] !== undefined) return null
+      out[pos] = a.value
+      pos += 1
+    }
+  }
+  return out.every((v) => v !== undefined) ? out : null
+}
+
+const OBJECT_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
+
+function colourGradientRule(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return bound && bound.kind === 'expr'
+      ? colourGradientRule(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'color.new') {
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const raw = alphaNumberOf(args[1].value, env, ctx)
+    const t = raw === null ? null : wholeTransparency(raw)
+    if (!Number.isInteger(t) || t < 0 || t > 100) return null
+    const inner = colourGradientRule(args[0].value, env, ctx, depth + 1)
+    return inner ? { ...inner, transparency: t } : null
+  }
+  if (node.name !== 'color.from_gradient') return null
+  const a = gradientArgsOf(node)
+  if (!a) return null
+  const from = staticObjectColourOf(a[3], env)
+  const to = staticObjectColourOf(a[4], env)
+  if (!from || !to || !OBJECT_HEX.test(from) || !OBJECT_HEX.test(to)) return null
+  return { value: a[0], bottom: a[1], top: a[2], from, to, transparency: null }
+}
+
 /**
  * `fill(a, b, …)` by HANDLE → by output INDEX.
  *
@@ -24119,7 +24376,7 @@ const POSITIONAL_PRESENTATION = Object.freeze({
  *  that cannot is DECLINED (`colorDynamic`), never drawn undisplaced. */
 function displacedPresentation(pres, shift) {
   if (!(shift > 0) || !pres) return pres
-  for (const k of ['colorCondition', 'colorIndex']) {
+  for (const k of ['colorCondition', 'colorIndex', 'colorGradient']) {
     const rule = pres[k]
     if (!rule || !rule.ast) continue
     try {
@@ -24290,6 +24547,30 @@ function outputPresentation(args, ctx) {
       // payload. What this door still cannot say is recorded as
       // DEMANDED-AND-UNCARRIED rather than dropped, so the import can say so
       // instead of quietly showing one flat colour.
+      // ⭐⭐ C37 — A GRADIENT BETWEEN TWO STATIC COLOURS, on a `plot` — see
+      // `colourGradientRule`. Tried LAST, and only for a colour nothing above
+      // could say, so every colour this door already carried keeps its bytes.
+      if (!carried && kind === 'plot' && ctx && ctx.resolver && ctx.env) {
+        const g = colourGradientRule(c.value, ctx.env, ctx)
+        if (g) {
+          const r = ctx.resolver
+          const minted = r.paramMint
+          r.paramMint = null
+          try {
+            const v = r.resolve(g.value)
+            const lo = r.resolve(g.bottom)
+            const hi = r.resolve(g.top)
+            const ast = cOp('/', [cOp('-', [v, lo]), cOp('-', [hi, lo])])
+            const formula = printFormula(ast)
+            verifyRoundTrip(formula, ast)
+            pres.colorGradient = {
+              ast, formula, from: g.from, to: g.to,
+              ...(g.transparency !== null ? { transparency: g.transparency } : {}),
+            }
+            carried = true
+          } catch { /* falls through to colorDynamic */ } finally { r.paramMint = minted }
+        }
+      }
       if (!carried) pres.colorDynamic = true
     }
   }

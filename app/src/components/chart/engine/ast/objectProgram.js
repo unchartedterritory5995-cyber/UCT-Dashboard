@@ -61,6 +61,7 @@
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
 import { wholeTransparency } from '../colorInt.js'
+import { isThemeColour, themeColourWithTransparency } from '../objectTheme.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -281,6 +282,13 @@ export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop
  *  sets per bar (`{c:'new'}`), so the two cannot disagree. `color.new` SETS the
  *  transparency — a base's own alpha is replaced, never stacked. */
 export function withObjectTransparency(hex, t) {
+  // ⭐ C37 — a THEME reference (`chart.fg_color`) keeps being a reference: the
+  // transparency rides on it and is applied where the chart's own colour is
+  // known (`objectTheme.js::resolveThemeColour`, the same alpha formula).
+  if (isThemeColour(hex)) {
+    const whole = wholeTransparency(t)
+    return themeColourWithTransparency(hex, Number.isFinite(whole) ? Math.min(100, Math.max(0, whole)) : NaN)
+  }
   const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
   if (!base) return null
   // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` is
@@ -567,6 +575,35 @@ function assertTextNode(v, where, depth = 0, live = null) {
  * more often than they colour them statically. A model that carried only a
  * static hex would draw every dashboard in one colour and look like it worked.
  */
+/** ⭐⭐ C37 — A CONDITION ON THE PASS, as a colour may carry it: `cmp` / `bool`
+ *  over the loop counter, constants, counter arithmetic and per-bar trees.
+ *  ⛔ NEVER object state (`get`, `num`, `size`, `latch`) and never a crossing:
+ *  those are read at an op's position (C14/C16), and a colour has none. And it
+ *  must read the COUNTER somewhere — pure per-bar logic belongs in one tree. */
+export function isPassCondition(v) {
+  const leaf = (x, depth) => {
+    if (!isObj(x) || depth > 32) return false
+    if (x.v === 'loop') return typeof x.id === 'string' && !!x.id
+    if (x.v === 'const' || x.v === 'tree' || x.v === 'graph' || x.v === 'param') return true
+    if (x.v === 'op') return Array.isArray(x.args) && x.args.length >= 1 && x.args.length <= 2
+      && (OBJECT_VALUE_OPS.includes(x.op) || OBJECT_VALUE_UNARY.includes(x.op))
+      && x.args.every((a) => leaf(a, depth + 1))
+    return false
+  }
+  const node = (x, depth) => {
+    if (!isObj(x) || depth > 32) return false
+    if (x.v === 'cmp') return LIVE_CMP_OPS.includes(x.op) && Array.isArray(x.args) && x.args.length === 2
+      && x.args.every((a) => leaf(a, depth + 1))
+    if (x.v === 'bool') {
+      const n = x.op === 'not' ? 1 : 2
+      return LIVE_BOOL_OPS.includes(x.op) && Array.isArray(x.args) && x.args.length >= n
+        && (x.op !== 'not' || x.args.length === 1) && x.args.every((a) => node(a, depth + 1))
+    }
+    return false
+  }
+  return node(v, 0) && containsGet(v)
+}
+
 function assertColorNode(v, where, depth = 0) {
   if (depth > 16) throw new Error(`${where}: colour expression nested deeper than 16`)
   if (!isObj(v)) throw new Error(`${where}: expected a colour node`)
@@ -575,7 +612,9 @@ function assertColorNode(v, where, depth = 0) {
       if (typeof v.hex !== 'string') throw new Error(`${where}: a colour literal must be a string`)
       return
     case 'if':
-      assertValueRef(v.cond, `${where}.cond`)
+      // ⭐ C37 — a pass condition (`isPassCondition`) is the one live shape a
+      // colour's test may take; anything else is a plain value reference.
+      if (!isPassCondition(v.cond)) assertValueRef(v.cond, `${where}.cond`)
       assertColorNode(v.then, `${where}.then`, depth + 1)
       assertColorNode(v.else, `${where}.else`, depth + 1)
       return
@@ -587,6 +626,17 @@ function assertColorNode(v, where, depth = 0) {
     case 'new':
       assertColorNode(v.of, `${where}.of`, depth + 1)
       assertValueRef(v.t, `${where}.t`)
+      return
+    // ⭐⭐ C37 — `color.from_gradient(value, bottom, top, a, b)`: three value
+    // references the object runtime evaluates where the drawing stands (per bar,
+    // per pass of a loop) and two colour nodes, blended by the ONE measured
+    // curve (`runtime/colours.js::fromGradient`).
+    case 'grad':
+      assertValueRef(v.v, `${where}.v`)
+      assertValueRef(v.lo, `${where}.lo`)
+      assertValueRef(v.hi, `${where}.hi`)
+      assertColorNode(v.a, `${where}.a`, depth + 1)
+      assertColorNode(v.b, `${where}.b`, depth + 1)
       return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
@@ -893,6 +943,11 @@ export function assertObjectProgram(program) {
   }
   if (program.programVersion !== OBJECT_PROGRAM_VERSION) {
     throw new Error(`objects: programVersion must be ${OBJECT_PROGRAM_VERSION}, got ${JSON.stringify(program.programVersion)}`)
+  }
+  // ⭐ C37 — the script's Pine version, stated only where an uncoloured object's
+  // default depends on it (`objectRenderState.js::objectDefaultsFor`).
+  if (program.pineVersion !== undefined && !(Number.isInteger(program.pineVersion) && program.pineVersion >= 1 && program.pineVersion <= 6)) {
+    throw new Error(`objects: pineVersion must be a whole Pine version 1-6, got ${JSON.stringify(program.pineVersion)}`)
   }
   const regs = new Map()
   for (const r of program.regs || []) {
@@ -1208,6 +1263,7 @@ export function graphNodesReferenced(program) {
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
     if (c.c === 'rt') walkValue(c.v)
     if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
+    if (c.c === 'grad') { walkValue(c.v); walkValue(c.lo); walkValue(c.hi); walkColor(c.a); walkColor(c.b) }
   }
   const walkValue = (v) => {
     if (!isObj(v)) return
@@ -1259,6 +1315,7 @@ export function treeRefsOfOp(op) {
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
     if (c.c === 'rt') walkValue(c.v)
     if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
+    if (c.c === 'grad') { walkValue(c.v); walkValue(c.lo); walkValue(c.hi); walkColor(c.a); walkColor(c.b) }
   }
   function walkValue(v) {
     if (!isObj(v)) return
@@ -1353,6 +1410,9 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     }
     if (c.c === 'rt') return { ...c, v: bindValue(c.v) }
     if (c.c === 'new') return { ...c, of: bindColor(c.of), t: bindValue(c.t) }
+    if (c.c === 'grad') {
+      return { ...c, v: bindValue(c.v), lo: bindValue(c.lo), hi: bindValue(c.hi), a: bindColor(c.a), b: bindColor(c.b) }
+    }
     return c
   }
   function bindValue(v) {

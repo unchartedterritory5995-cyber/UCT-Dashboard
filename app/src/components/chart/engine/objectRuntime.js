@@ -35,6 +35,8 @@ import {
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
 import { unpackColor, wholeTransparency } from './colorInt.js'
+// ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
+import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -930,11 +932,26 @@ export function beginObjects(program, ctx) {
         const base = colorOf(c.of)
         return base ? withObjectTransparency(base, t) : null
       }
+      // ⭐⭐ C37 — `color.from_gradient(value, bottom, top, a, b)` on the HOST
+      // lane: the three numbers are read where the drawing stands (this bar, this
+      // pass) and blended by the vendor's measured curve (`fromGradient`,
+      // `vw-gradient-spy-1d-2026-09-30`). ⛔ What that curve does not pin — an
+      // `na` value or bound, `top == bottom`, an end that is not a plain colour
+      // (a theme reference, an unserved one) — answers `null`: the object is
+      // HELD (`unservedColour`), never painted an end it guessed.
+      if (c.c === 'grad') {
+        const a = objectHexToPacked(colorOf(c.a))
+        const b = objectHexToPacked(colorOf(c.b))
+        if (a === null || b === null) return null
+        const num = (x) => (typeof x === 'number' ? x : NaN)
+        const packed = fromGradient(num(value(c.v)), num(value(c.lo)), num(value(c.hi)), a, b)
+        return packed === null ? null : packedToObjectHex(packed)
+      }
       return null
     }
     /** ⭐ C20 — did a colour the program asked the RUNTIME for come back unserved?
-     *  (A `lit`/`if` colour never answers `null`; only `rt`/`new` can.) */
-    const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new'
+     *  (A `lit`/`if` colour never answers `null`; only `rt`/`new`/`grad` can.) */
+    const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new' || c.c === 'grad'
       || (c.c === 'if' && (runtimeColourNode(c.then, depth + 1) || runtimeColourNode(c.else, depth + 1))))
     const unservedColour = (props, resolved) => Object.entries(props || {})
       .filter(([k, v]) => isObj(v) && v.v === 'color' && runtimeColourNode(v.node)
@@ -1233,6 +1250,10 @@ export function beginObjects(program, ctx) {
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
+      if (c.c === 'grad') {
+        return tainted(c.v, depth + 1) || tainted(c.lo, depth + 1) || tainted(c.hi, depth + 1)
+          || colorTainted(c.a, depth + 1) || colorTainted(c.b, depth + 1)
+      }
       return false
     }
     /** Does this value read anything tainted? (Graph columns on the warm-up
