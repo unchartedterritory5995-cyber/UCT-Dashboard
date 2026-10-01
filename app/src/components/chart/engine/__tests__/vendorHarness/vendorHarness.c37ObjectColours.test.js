@@ -190,8 +190,13 @@ describe('C37 — `color.from_gradient` on the host object lane, per pass of a l
 
 describe('C37 — an uncoloured object wears the default of its script\'s Pine version', () => {
   it('⭐ v4: lines and labels in v4\'s `color.blue`, label text in `color.black` — rsi-swing, fibonacci-pivots', () => {
+    // ⭐ C44 re-pin, 10 → 11 lines: the pairing now reads an `na` coordinate as `na`
+    // on both sides (`objectColours.js::isNa`). rsi-swing's first line (#2) has no
+    // second point yet — `y2` is `na` on TradingView and `NaN` here — so it went
+    // unpaired and its colour was never read. It is paired now and agrees; nothing
+    // about what is drawn changed.
     for (const [id, slot, n, hex] of [
-      ['rsi-swing-indicator-rddt-1d-2026-09-28', 'line.color', 10, '#2196f3ff'],
+      ['rsi-swing-indicator-rddt-1d-2026-09-28', 'line.color', 11, '#2196f3ff'],
       ['rsi-swing-indicator-rddt-1d-2026-09-28', 'label.textcolor', 11, '#363a45ff'],
       ['fibonacci-pivot-points-cc-rddt-1d-2026-09-28', 'label.color', 7, '#2196f3ff'],
     ]) {
@@ -230,7 +235,8 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     expect(ours.objects.pineVersion).toBe(4)
     const stripped = pairObjects(c, { ...ours.objects, pineVersion: undefined })
     const notCarried = stripped.rows.filter((r) => r.state === 'notCarried')
-    expect(notCarried.length).toBe(21) // 10 lines + 11 label texts: what the base drew
+    // ⭐ C44 re-pin, 21 → 22: the eleventh line (an `na` second point) pairs now.
+    expect(notCarried.length).toBe(22) // 11 lines + 11 label texts: what the base drew
     const withVersion = pairObjects(c, ours.objects)
     expect(withVersion.rows.filter((r) => r.state === 'notCarried')).toEqual([])
   }, 60000)

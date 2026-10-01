@@ -364,9 +364,10 @@ function objectsOf(def, bars, ctx) {
       texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
       // ⭐ C37 — the objects themselves (the runtime's LIVE set, and the render
-      // state's tables), for the colour census (`colourCensus.measure.test.js`):
-      // a colour is compared on an object PAIRED by value, which a count cannot
-      // do. ⛔ Never read by `compareObjects` and never written to a verdict file.
+      // state's tables), for the colour column: a colour is compared on an object
+      // PAIRED by value, which a count cannot do. ⭐ C44 — `gradeCapture` pairs
+      // them (`objectColours.js`) and hands the slot rows to the verdict.
+      // ⛔ The objects themselves are never written to a verdict file.
       held: run.live || [],
       tables: state.tables || [],
       pineVersion: reader.program.pineVersion,

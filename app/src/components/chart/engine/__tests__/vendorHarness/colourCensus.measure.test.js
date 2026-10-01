@@ -4,10 +4,10 @@
 //
 // R-G: an uncarried plot colour keeps its line and is fixed by CARRYING the
 // colour — and colour is graded as its own column so the defect stays counted.
-// The harness's verdict already carries the PLOT half (`stats.colorCompared` /
-// `colorMismatches`); it has no OBJECT half at all (`compareObjects` reads counts
-// and texts — "coordinates are NOT compared by v1", and nor are colours). This
-// census is that column, for both:
+// The harness's verdict already carried the PLOT half (`stats.colorCompared` /
+// `colorMismatches`) and, until C44, no OBJECT half at all. ⭐ C44: the object
+// half now JOINS the verdict (`compare.mjs::objectColourRows`, same pairing);
+// this census stays as the per-slot tally behind it, for both:
 //
 //   plots    every plot whose VALUES agree with the vendor: bars whose colour
 //            was compared and bars whose colour differs; and, per script, the
