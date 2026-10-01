@@ -177,6 +177,26 @@ def test_insert_endpoint_404s_for_a_foreign_note(app, client):
     assert r.status_code == 404
 
 
+def test_insert_endpoint_refuses_a_locked_note(app, client):
+    """Ruling 149: a locked note takes no captures. Before the guard, this
+    endpoint had no lock check at all and the fact landed in the body of a
+    note the member had just locked."""
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    fact = client.post(f"/api/j2/notes/{note_id}/facts", json={
+        "ticker": "NVDA", "factType": "price", "value": 1.0,
+    }).json()["fact"]
+    lock = client.patch(f"/api/j2/notes/{note_id}/lock", json={"locked": True})
+    assert lock.status_code == 200 and lock.json()["note"]["locked"] is True
+
+    r = client.post(f"/api/j2/notes/{note_id}/facts/{fact['id']}/insert")
+    assert r.status_code == 423
+    assert "locked" in r.json()["detail"].lower()
+
+    r2 = client.get(f"/api/j2/notes/{note_id}/facts")
+    assert r2.json()["facts"] == []
+
+
 def test_update_caption(app, client):
     _login_as(app, "u1")
     note_id = _create_note(client)

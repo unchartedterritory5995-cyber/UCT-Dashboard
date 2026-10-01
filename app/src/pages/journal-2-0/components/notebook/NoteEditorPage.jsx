@@ -1946,6 +1946,13 @@ export default function NoteEditorPage({
           quotePrefix, quoteSuffix, charStart, charEnd,
         }),
       })
+      // Ruling 149: a locked note takes no captures. The lock banner (with its
+      // own Unlock button) is already on screen for a locked note, so the
+      // member doesn't need a second way THERE -- just the reason nothing saved.
+      if (res.status === 423) {
+        setUploadToast({ message: 'This note is locked. Unlock it to save excerpts.', tone: 'error' })
+        return
+      }
       if (!res.ok) throw new Error('save failed')
       const { excerpt, note: excerptNote } = await res.json()
       // ⛔⛔ `append_document_excerpt` ADVANCED THIS NOTE. The editor is open on

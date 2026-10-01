@@ -117,6 +117,36 @@ class NoteConflictError(Exception):
     maps this to 409; the editor reconciles and retries."""
 
 
+class NoteLockedError(Exception):
+    """Raised when a capture door tries to APPEND to a locked note (ruling
+    149). Mirrors the posture `note_personal_api.append_nodes` already
+    enforces for the personal API's own append door: refuse, body untouched,
+    `updated_at` unchanged. The router maps this to 423."""
+
+
+# The sentence every locked-note refusal shows a member. Identical wording to
+# `note_personal_api.LOCKED_SENTENCE` (the personal API's own copy of this
+# same refusal) -- one phrase, so "why didn't my capture land" reads the same
+# whether it came from a Shortcut, an email, or a widget on screen.
+LOCKED_APPEND_SENTENCE = "This note is locked — unlock it in the Notebook first"
+
+
+def _refuse_if_locked(row: sqlite3.Row) -> None:
+    """The one guard every append-to-an-EXISTING-note door asks (ruling 149):
+    `append_widget_embed`, `append_financial_fact` and `append_document_excerpt`
+    each call this immediately after reading the row inside `BEGIN IMMEDIATE`.
+    The caller's own `except Exception: conn.rollback(); raise` unwinds the
+    transaction -- this function only decides whether to refuse, the same
+    shape `_validate_body_json` raising `NoteValidationError` already relies
+    on further down each of those functions.
+
+    ⛔ One copy of the predicate behind three call sites, not three copies of
+    the predicate (lesson_a_guard_repeated_is_a_guard_unproved) -- a guard
+    duplicated at each site cannot be mutation-proved."""
+    if row["locked"]:
+        raise NoteLockedError(LOCKED_APPEND_SENTENCE)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -3702,13 +3732,14 @@ def append_widget_embed(
         if began:
             conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
-            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
             if began:
                 conn.rollback()
             return None
+        _refuse_if_locked(row)
         try:
             doc = json.loads(row["body_json"] or "{}")
         except (TypeError, ValueError):
@@ -3767,13 +3798,14 @@ def append_financial_fact(
         if began:
             conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
-            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
             if began:
                 conn.rollback()
             return None
+        _refuse_if_locked(row)
         try:
             doc = json.loads(row["body_json"] or "{}")
         except (TypeError, ValueError):
@@ -3833,13 +3865,14 @@ def append_document_excerpt(
         if began:
             conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
-            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
+            "SELECT body_json, locked FROM j2_notes WHERE id = ? AND user_id = ? AND deleted_at IS NULL",
             (note_id, user_id),
         ).fetchone()
         if row is None:
             if began:
                 conn.rollback()
             return None
+        _refuse_if_locked(row)
         try:
             doc = json.loads(row["body_json"] or "{}")
         except (TypeError, ValueError):
