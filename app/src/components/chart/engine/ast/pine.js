@@ -114,7 +114,7 @@ import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
-import { INLINE_SUFFIX, definitionHeader } from './objectFnInline.js'
+import { INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -6217,6 +6217,15 @@ export class Resolver {
     // and refused for being too deep HAS been read, and re-resolving it in the
     // closing pass would report the same exhaustion twice under a worse name.
     if (bound && typeof bound === 'object') bound.read = true
+    // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
+    // that asks (`refuseCondCalls`, the object pass's) refuses it.
+    if (this.refuseCondCalls && bound && bound.condCall) {
+      const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${bound.condCall}`, locate(tok))
+      // ⛔ and the runtime lane may not answer it either (`rtAdmits`): it reads
+      // the argument's every-bar history, the same wrong number.
+      err.noRuntime = true
+      throw err
+    }
     // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
     // frame that still has stack left to build it — a guard that overflows while
     // reporting an overflow reports nothing at all.
@@ -6233,7 +6242,12 @@ export class Resolver {
     }
     this.depth += 1
     if (this.depth > this.peakDepth) this.peakDepth = this.depth
-    try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
+    try { return this.resolveBindingInner(bound, tok, name) } catch (err) {
+      // ⭐ C31 — a refusal reached THROUGH a binding made below a stepped-over
+      // loop says so (`markAfterLoop`); only the object lane's `rtAdmits` reads it.
+      if (bound && bound.afterLoop && err && typeof err === 'object') err.afterLoop = true
+      throw err
+    } finally { this.depth -= 1 }
   }
 
   /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
@@ -12703,7 +12717,23 @@ function recordReassign(ctx, stmt, name, env) {
   if (!ctx || !ctx.bindingByStatement || !stmt || !env.has(name)) return
   let byName = ctx.bindingByStatement.get(stmt)
   if (!byName) { byName = new Map(); ctx.bindingByStatement.set(stmt, byName) }
+  markAfterLoop(ctx, env.get(name))
   byName.set(name, env.get(name))
+}
+
+/** ⭐⭐ C31 — A BINDING MADE BELOW A STEPPED-OVER LOOP SAYS SO (`afterLoop`).
+ *
+ *  Before the step-over such a name was bound by nobody, every read of it was
+ *  `pine:undefined`, and the runtime lane — which runs the loop as written —
+ *  answered it on the last bar (C18). Bound, a read of it can now stop on any
+ *  refusal underneath (`pine:type n_clust.get`, k-clustering), most of which
+ *  the runtime rescue does not admit. The mark lets the object lane keep
+ *  offering exactly those reads to the runtime lane (`rtAdmits`): what the
+ *  columnar reader still cannot say below a loop is the run's to say, as it
+ *  was. `ctx.loopSeen` is one cell shared by every fold of a block harvest. */
+function markAfterLoop(ctx, binding) {
+  if (ctx && ctx.loopSeen && ctx.loopSeen.v && binding && typeof binding === 'object'
+      && binding.kind !== 'param' && binding.kind !== 'fn') binding.afterLoop = true
 }
 
 function foldIfChain(stmts, i, ctx, env) {
@@ -12711,10 +12741,19 @@ function foldIfChain(stmts, i, ctx, env) {
   if (!chain) throw new PineRefusal('pine:block', REFUSALS['pine:block'], locate(stmts[i].header[0]))
   const before = new Map(env)
   const arms = []
+  // ⭐ C31 — under the block harvest (`ctx.condAware`), an arm runs on some bars
+  // only when its condition, or one above it, varies; `foldStatements` then
+  // refuses a call there that would read the bars it did not run on.
+  let armsVary = !!(ctx && ctx.conditional)
   for (const br of chain.branches) {
     const cond = br.condToks ? parseWholeExpression(br.condToks) : null
     const branchEnv = new Map(before)
-    const value = foldStatements(br.sub, ctx, branchEnv)
+    let armCtx = ctx
+    if (ctx && typeof ctx.condAware === 'function') {
+      if (br.condToks) armsVary = armsVary || ctx.condAware(br.condToks)
+      if (armsVary !== !!ctx.conditional) armCtx = { ...ctx, conditional: armsVary }
+    }
+    const value = foldStatements(br.sub, armCtx, branchEnv)
     arms.push({ cond, env: branchEnv, value, tok: br.tok })
   }
   const hasElse = chain.branches[chain.branches.length - 1].condToks === null
@@ -13745,6 +13784,190 @@ function loopFormNote(stmt) {
   return null
 }
 
+/** ⭐⭐ C31 — WHAT A NAME HOLDS AFTER A LOOP THIS WALK DID NOT FOLD.
+ *
+ *  ONE builder, asked by the top-level walk (a `for`/`while` statement) and by
+ *  `foldStatements` (a loop inside a block or a function body), so a loop's
+ *  writes refuse with the same sentence wherever the loop stands.
+ *
+ *  A SCALAR target is opaque `pine:reassign`, with R7's reason when the loop is
+ *  a counted `for` (`accumulatorNote`). ⛔⛔ A VECTOR is replaced outright,
+ *  `pine:collection`, never merely marked: a vector binding left in place still
+ *  folds `array.get(a, k)` to the slot it held BEFORE the loop — the silent-`na`
+ *  hole `vectorSilentNa.test.js` is named for (measured 2026-09-14: a fixture
+ *  whose array is filled by a `for` came back 0 refusals, ok=true). The vector it
+ *  replaced is kept (R8) so a read can settle its size before speaking. */
+function loopWriteRefusal(name, prior, stmt, at) {
+  if (prior && prior.kind === 'vector') {
+    // ⭐ a4 — the sentence names the FORM when the form is why, and falls back
+    // to the general one otherwise (an `if` or a `switch` reaches here too).
+    const why = loopFormNote(stmt)
+    return {
+      kind: 'opaque',
+      guard: 'pine:collection',
+      message: `${REFUSALS['pine:collection']} — `
+        + `\`${name}\` is filled by a block this engine could not read, so`
+        + ' its slots are unknown rather than empty. '
+        // ⛔ R20 — the same promise as `seriesDependentMessage`'s, and it gets
+        // the same limit. Qualifying one branch and not the other would put two
+        // authorities on one sentence, which is the defect this repo names most.
+        // ⛔ R21 — corrected with its sibling: two facts, both measured.
+        + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
+          + ' depends on a series is the IR lane\'s, item (c) — and the IR'
+          + ' lane has no path for it yet, nor does any IR result reach a'
+          + ' pane while ruling D2 stands.'),
+      at,
+      vector: prior,
+    }
+  }
+  // ⭐ R7 — a SCALAR accumulator gets the reason, not just the verdict;
+  // `accumulatorNote` returns null for anything that is not a counted `for`.
+  const accWhy = accumulatorNote(stmt)
+  const extra = accWhy ? `\`${name}\` — ${accWhy}` : name
+  return {
+    kind: 'opaque',
+    guard: 'pine:reassign',
+    isFunction: false,
+    message: `${REFUSALS['pine:reassign']} — ${extra}`,
+    at: at || null,
+    reason: extra,
+  }
+}
+
+/** ⭐⭐ C31 — EVERY NAME AROUND A LOOP THAT THE LOOP'S BODY CAN CHANGE.
+ *
+ *  The fold that steps OVER a loop (`foldStatements`) condemns exactly these and
+ *  keeps every other name's binding, so this set IS the soundness of that step: a
+ *  name it missed would be read after the loop at its pre-loop value.
+ *
+ *  - `mutatorTargets` — every `:=`/`+=`… target and every array write in either
+ *    spelling (`array.push(a, x)`, `a.push(x)`): the set the top-level walk has
+ *    always condemned for a loop it cannot fold.
+ *  - the BASE of a dotted target (`p.x := v` writes `p`): a UDT field write.
+ *  - a MODELLED ARRAY handed to a user function (`f(a)` inside the loop): a Pine
+ *    function cannot assign a variable outside itself, but an array is a reference
+ *    and the function may push into it.
+ *
+ *  ⚠️ Maps and matrices are refused before a binding exists (`pine:collection`),
+ *  and an alias (`b = a`, then `b.push(x)`) is the same hole the top-level walk
+ *  has — neither is widened here. */
+function loopWrites(toks, env) {
+  const out = mutatorTargets(toks)
+  for (const name of [...out]) {
+    const dot = String(name).indexOf('.')
+    if (dot > 0) out.add(String(name).slice(0, dot))
+  }
+  for (let i = 0; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (!tok || tok.kind !== 'ident' || !isPunct(toks[i + 1], '(')) continue
+    const callee = env.get(tok.value)
+    if (!callee || !(callee.kind === 'fn' || (callee.kind === 'opaque' && callee.isFunction))) continue
+    const close = matchBracket(toks, i + 1)
+    for (let k = i + 2; k < (close > 0 ? close : toks.length); k += 1) {
+      const a = toks[k]
+      if (a && a.kind === 'ident' && env.has(a.value) && env.get(a.value).kind === 'vector') out.add(a.value)
+    }
+  }
+  return out
+}
+
+/** How many passes a folded text loop may take. A WORK bound on the walk, not a
+ *  semantic: past it the loop is stepped over and its writes refuse by name, as
+ *  any other unfolded loop's do. The evaluator's own node cap still applies to
+ *  whatever a fold builds. */
+const TEXT_LOOP_MAX_PASSES = 64
+
+/** ⭐⭐ C31 — A COUNTED `for` THAT ONLY APPENDS TO TEXT, FOLDED EXACTLY.
+ *
+ *      string r = ""
+ *      for i = 0 to 9
+ *          r += i < n ? "█" : "░"          (ema-ribbon's `f_strengthBar`)
+ *
+ *  is ten appends, each an ordinary expression in which the counter is a known
+ *  number. So the body is folded once per pass by the walk's own reader
+ *  (`foldStatements`), with the counter bound to that pass's value, and each
+ *  pass's binding of the text becomes the next pass's prior — the value Pine
+ *  holds after the loop, built of nothing but nodes the evaluator already runs.
+ *
+ *  Admitted only when every part of that is exact, else `null` (the loop is then
+ *  stepped over and its writes refuse by name):
+ *  - the header is `for <id> = <int> to <int>` — literal bounds, no `by`, no
+ *    `in`. ⛔ AND ASCENDING: Pine counts a `for` DOWN when `to` is below `from`,
+ *    and no committed capture witnesses a descending loop, so it is not served.
+ *    The ascending, inclusive count is witnessed: ema-ribbon's capture holds ten
+ *    glyphs at the cell `for i = 0 to 9` builds.
+ *  - every body statement is a flat `name := e` / `name += e` whose name holds
+ *    TEXT before the loop (declared from a string literal). ⛔ Numbers are
+ *    excluded on purpose: a running NUMERIC total in a `for` is ruling R7's, and
+ *    this is not a way around it.
+ *  - at most `TEXT_LOOP_MAX_PASSES` passes.
+ *
+ *  ⚠️ The per-pass folds record NOTHING (`bindingByStatement: null`): a record
+ *  on a body statement would pin the LAST pass's value to a read made inside the
+ *  loop. Only the loop statement itself is recorded (by the caller) — what the
+ *  names hold AFTER the loop. */
+function unrollTextLoop(st, ctx, env) {
+  const h = st.header || []
+  if (!h[0] || h[0].value !== 'for') return null
+  let k = 1
+  const counter = h[k]
+  if (!counter || counter.kind !== 'ident') return null
+  k += 1
+  if (!isPunct(h[k], '=')) return null
+  k += 1
+  const readInt = () => {
+    let sign = 1
+    if (isPunct(h[k], '-')) { sign = -1; k += 1 }
+    const t = h[k]
+    if (!t || t.kind !== 'number' || !Number.isInteger(Number(t.value))) return null
+    k += 1
+    return sign * Number(t.value)
+  }
+  const lo = readInt()
+  if (lo === null) return null
+  if (!h[k] || h[k].kind !== 'ident' || h[k].value !== 'to') return null
+  k += 1
+  const hi = readInt()
+  if (hi === null || k !== h.length) return null
+  if (lo < 0 || hi < lo || hi - lo + 1 > TEXT_LOOP_MAX_PASSES) return null
+  const body = (st.sub || []).filter((s) => s && s.header && s.header[0])
+  if (!body.length) return null
+  const targets = new Set()
+  for (const s of body) {
+    if ((s.sub || []).some((x) => x && x.header && x.header[0])) return null
+    const t = s.header
+    if (t[0].kind !== 'ident' || !t[1] || t[1].kind !== 'punct'
+        || (t[1].value !== ':=' && t[1].value !== '+=')) return null
+    const prior = env.get(t[0].value)
+    if (!prior || prior.kind !== 'expr' || !prior.node || prior.node.type !== 'string') {
+      // a later statement of the same body may be appending to a name an earlier
+      // one already admitted; anything else is not text this fold can vouch for
+      if (!targets.has(t[0].value)) return null
+    }
+    targets.add(t[0].value)
+  }
+  const work = new Map(env)
+  const passCtx = { consumed: new Set(), bindingByStatement: null }
+  // ⭐ THE COUNTER IS WRITTEN INTO EACH PASS AS ITS NUMBER — the same structural
+  // substitution `substConst` makes for a vector unroll — rather than bound as a
+  // name: a name would have to be found again by every reader downstream (the
+  // text reader opens a helper's locals, not a loop's), a literal needs no one.
+  const passBody = (v) => body.map((s) => ({
+    ...s,
+    header: s.header.map((t) => (t && t.kind === 'ident' && t.value === counter.value
+      ? { ...t, kind: 'number', value: v, raw: String(v) } : t)),
+  }))
+  try {
+    for (let v = lo; v <= hi; v += 1) {
+      const passEnv = new Map(work)
+      foldStatements(passBody(v), passCtx, passEnv)
+      for (const name of targets) work.set(name, passEnv.get(name))
+    }
+  } catch { return null }
+  for (const name of targets) env.set(name, work.get(name))
+  return targets
+}
+
 function pendingUnrollFrom(stmt, env) {
   const hdr = stmt.header || []
   if (!hdr.length || hdr[0].value !== 'for') return null
@@ -14112,6 +14335,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
     // so the record is a per-statement MAP, not a single binding. R2 step 2.
     let byName = ctx.bindingByStatement.get(st2)
     if (!byName) { byName = new Map(); ctx.bindingByStatement.set(st2, byName) }
+    markAfterLoop(ctx, env.get(name))
     byName.set(name, env.get(name))
   }
   while (i < stmts.length) {
@@ -14176,7 +14400,48 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const built = switchBinding(toks.slice(1), st.sub, ctx, env, first)
       if (built) { value = built; fresh = true; i += 1; continue }
     }
-    if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
+    // ⭐⭐ C31 — A LOOP INSIDE A BLOCK IS STEPPED OVER, NOT A WALL FOR THE WHOLE
+    // BLOCK. This threw, and the throw cost every statement AFTER the loop:
+    // `indxBar = bar_index + offset + 5` (htf-candle-footprint), `string fTxt =
+    // (kf1 > 0.5 ? …)` (artemis) and `row0_price := (row0_low + row0_high) / 2`
+    // (poor-man) read nothing the loop writes, and each came out `pine:undefined`
+    // or `pine:reassign` because a fold two lines above them gave up. A loop's
+    // only effect on the names around it is what its body WRITES, so exactly
+    // those names take the loop's refusal (`loopWriteRefusal` — the sentence the
+    // top-level walk has always given a loop it cannot fold) and the fold goes
+    // on. A name first declared inside the body is the loop's own and is not
+    // visible after it, so it is not carried out. ⛔ `loopWrites` is the whole
+    // effect set: a scalar `:=`/`+=`, an array write in either spelling, a UDT
+    // field's base, a modelled array handed to a user function. Anything it
+    // missed would be read at its pre-loop value — see its header.
+    // ⭐ A counted `for` whose bounds are integer literals and whose body only
+    // appends to TEXT is folded exactly instead (`unrollTextLoop`).
+    if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while')) {
+      const unrolled = first.value === 'for' ? unrollTextLoop(st, ctx, env) : null
+      if (unrolled) {
+        for (const name of unrolled) record(st, name)
+        if (ctx) consumeMutators(ctx, st.body || toks)
+        i += 1
+        continue
+      }
+      // ⛔ THE STEP-OVER IS THE OBJECT LANE'S (`ctx.loopStepOver`, set by the block
+      // harvest alone). The main walk keeps refusing the block at its loop: a
+      // chain it folds reaches inputs a refused one never did, and the parameter
+      // ids a saved script already holds are an address (`paramIds.test.js`).
+      if (!(ctx && ctx.loopStepOver)) {
+        throw new PineRefusal('pine:block',
+          `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
+      }
+      if (ctx.loopSeen) ctx.loopSeen.v = true
+      for (const name of loopWrites(st.body || toks, env)) {
+        if (!env.has(name)) continue
+        env.set(name, loopWriteRefusal(name, env.get(name), st, locate(first)))
+      }
+      if (ctx) consumeMutators(ctx, st.body || toks)
+      i += 1
+      continue
+    }
+    if (first.kind === 'ident' && first.value === 'switch') {
       throw new PineRefusal('pine:block',
         `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
     }
@@ -14310,9 +14575,31 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         i = folded.next
         continue
       }
+      // ⭐⭐ C31 — A CALL IN A BLOCK THAT DOES NOT RUN ON EVERY BAR SEES ONLY
+      // THE BARS IT RUNS ON. Every `ta.*` built-in keeps its own history of the
+      // values it was CALLED with, so `ta.highest(spread, 50)` inside
+      // `if showTable and barstate.islast` runs once and its window holds one
+      // value — witnessed: ema-ribbon's strength bar, where TradingView draws
+      // ten full glyphs (the ratio 1) and the every-bar maximum would draw six.
+      // Binding the local to the every-bar series would draw that six. So under
+      // a varying guard (`ctx.conditional`: `foldIfChain` sets it for an arm whose
+      // condition, or one above it, is not bar-invariant; the block harvest for
+      // a block under one) such a local is MARKED and the object lane refuses it
+      // by name; nothing here serves the call-history value.
+      const taCall = ctx && ctx.conditional
+        ? rhs.find((t, k) => t && t.kind === 'ident' && String(t.value).startsWith('ta.')
+          && rhs[k + 1] && isPunct(rhs[k + 1], '('))
+        : null
       env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
         new Map(env), locate(nameTok)))
+      // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
+      // has (and mints the parameters it always did); the OBJECT lane's Resolver
+      // (`refuseCondCalls`) refuses it by the sentence carried here.
+      if (taCall) {
+        env.get(nameTok.value).condCall = `\`${nameTok.value}\` calls \`${taCall.value}\` inside a block`
+          + ' that does not run on every bar, and that call sees only the bars its block runs on'
+      }
       record(st, nameTok.value)
       // ⭐⭐ 2026-09-28 — A DECLARATION THAT ENDS A FUNCTION BODY IS ITS VALUE.
       // Pine returns the value of a body's LAST statement, and a declaration's
@@ -14558,6 +14845,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const inlineWindows = new Map()
   const makeResolver = (scope) => {
     const r = makeResolverRaw(scope)
+    // ⭐ C31 — a block local bound to a call its block does not run on every bar
+    // (`condCall`, marked by the fold) is refused here, in the object lane only.
+    r.refuseCondCalls = true
     r.windowReadSite = windowReadSite
     r.inlineWindows = inlineWindows
     r.textEqOff = textEqGate.off
@@ -14628,7 +14918,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // drawing stands; a name that is truly undefined refuses there too, and then
   // nothing is read from the runtime lane at all.
   const RT_ADMITS = new Set(['pine:block', 'pine:collection', 'pine:reassign', 'pine:undefined'])
-  const rtAdmits = (err) => !!(err && RT_ADMITS.has(err.guard))
+  const rtAdmits = (err) => !!(err && (RT_ADMITS.has(err.guard) || err.afterLoop) && !err.noRuntime)
   /** `{line, column, node}` per placeholder — the program's `runtime.at`. */
   const rtSpecs = []
   /** The op being converted, when it may be read from the runtime lane. */
@@ -15292,7 +15582,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const openName = (node, scope, depth) => {
     if (!node || node.type !== 'name' || depth > 8) return null
     const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
-    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope }
+    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope, afterLoop: !!bound.afterLoop }
     return null
   }
 
@@ -15751,7 +16041,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         && Array.isArray(bound.params)
         && bound.params.length === (node.args || []).length
         && !(node.args || []).some((a) => a && a.name)) {
-        const inlined = textNodeOf(bound.value.node, scope, depth + 1, {
+        // ⭐⭐ C31 — THE HELPER'S OWN LOCALS ARE VISIBLE INSIDE IT. A body that
+        // builds its text in a local and returns it by name
+        // (`f_strengthBar`: `string r = ""`, a loop of `r += …`, then `r`) was
+        // read in the CALLER's scope, where `r` does not exist, and the cell was
+        // dropped. The locals the body left behind (`fn.locals`, recorded at the
+        // definition) are laid over the caller's scope and nothing else is:
+        // parameters still resolve to the caller's arguments (`inline`), and every
+        // other name still resolves where the call stands.
+        const bodyScope = bound.locals && bound.locals.size ? new Map(scope) : scope
+        if (bodyScope !== scope) for (const [k, b] of bound.locals) bodyScope.set(k, b)
+        const inlined = textNodeOf(bound.value.node, bodyScope, depth + 1, {
           bound, args: node.args, callerEnv: scope,
         })
         if (inlined) return inlined
@@ -15779,8 +16079,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (opened) {
       // ⭐ C20 — a name whose binding the columnar reader cannot build is read as
       // the STRING the run holds for it, where it stands (`rtTextOf`).
-      return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
-        || rtTextOf(node, inline, envAt)
+      const viaBinding = textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+      if (viaBinding) return viaBinding
+      // ⭐ C31 — a text bound below a stepped-over loop that this reader could
+      // not build is the run's to answer, as it was while the name was unbound.
+      if (opened.afterLoop && !(lastCanonRefusal && lastCanonRefusal.noRuntime)) {
+        lastCanonRefusal = { guard: 'pine:block', message: `${REFUSALS['pine:block']} — \`${node.name}\` is bound below a loop this reader steps over`, afterLoop: true }
+      }
+      return rtTextOf(node, inline, envAt)
     }
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here
@@ -18909,7 +19215,14 @@ function translatePineResult(source, opts = {}) {
     if (!byName) { byName = new Map(); bindingByStatement.set(stmt2, byName) }
     byName.set(name, env.get(name))
   }
-  const ctx = { consumed: new Set(), bindingByStatement }
+  /** ⭐ C31 — top-level names fixed for the whole run (`barInvariantNames`, the
+   *  drawing inliner's own reader), so a fold can tell a guard that holds on
+   *  every bar from one that does not (`foldIfChain`, `ctx.condAware`). */
+  let invariantNames = null
+  try { invariantNames = barInvariantNames(stmts, { isPunct, findTop, boundName }) } catch { invariantNames = null }
+  const guardVaries = (condToks) => !invariantNames || !condToks || !condToks.length
+    || !guardIsBarInvariant(condToks, invariantNames)
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -18932,7 +19245,7 @@ function translatePineResult(source, opts = {}) {
    *  already refused and its refusal already reported. What is kept is whatever
    *  was bound before the throw, which is exactly as authoritative as a binding
    *  from a chain that folded: same reader, same constructor. */
-  const harvestBlockLocals = (list, baseEnv) => {
+  const harvestBlockLocals = (list, baseEnv, conditional = true) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
     // ⛔⛔ ITS OWN `consumed` SET, SHARING ONLY THE RECORD. ⚰️ MEASURED: with the
@@ -18953,11 +19266,12 @@ function translatePineResult(source, opts = {}) {
     // So the recursion fills only statements this fold never reached, into its
     // own map, and those records are marked APPROXIMATE (`approxRecords`):
     // `scopeFor` trusts them only for a name the walk did not condemn.
-    const harvestCtx = { consumed: new Set(), bindingByStatement }
+    const loopSeen = { v: false }
+    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
     const nested = new Map()
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested, conditional || subBlockVaries(st2), loopSeen)
     }
     for (const [st2, byName] of nested) {
       let into = bindingByStatement.get(st2)
@@ -18970,14 +19284,22 @@ function translatePineResult(source, opts = {}) {
     }
   }
   /** The recursion's own fold: same reader, its own record map (see above). */
-  const harvestNested = (list, baseEnv, into) => {
+  const harvestNested = (list, baseEnv, into, conditional = true, loopSeen = { v: false }) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
-    const ctx2 = { consumed: new Set(), bindingByStatement: into }
+    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
     try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2), loopSeen)
     }
+  }
+  /** ⭐ C31 — does the body of this statement run on only some bars? An `if`
+   *  whose own condition is bar-invariant does not; an `else` arm, a loop body
+   *  (several passes a bar) and anything unreadable are taken to. */
+  const subBlockVaries = (st2) => {
+    const t = (st2 && st2.header) || []
+    if (t[0] && t[0].kind === 'ident' && t[0].value === 'if') return guardVaries(t.slice(1))
+    return true
   }
   /** name → the refusal the fold hit, so the closing pass can report the REAL
    *  reason instead of the generic one. */
@@ -19364,7 +19686,17 @@ function translatePineResult(source, opts = {}) {
         // ⛔ THE VALUE IS DISCARDED AND `env` IS NEVER TOUCHED: a block local is
         // not visible outside its block, and leaking one here would let a name
         // the member cannot see resolve at the top level.
-        for (let k = si - 1; k < last; k += 1) harvestBlockLocals(stmts[k].sub, env)
+        // ⭐ C31 — and says whether each arm runs on every bar (see `foldStatements`'
+        // conditional-call rule): an arm runs on some bars only when its own
+        // condition, or any condition above it in the chain, varies.
+        let chainVaries = false
+        for (let k = si - 1; k < last; k += 1) {
+          const ht = stmts[k].header || []
+          const isElseIf = ht[0] && ht[0].value === 'else' && ht[1] && ht[1].value === 'if'
+          const cond = ht[0] && ht[0].value === 'if' ? ht.slice(1) : isElseIf ? ht.slice(2) : null
+          if (cond) chainVaries = chainVaries || guardVaries(cond)
+          harvestBlockLocals(stmts[k].sub, env, chainVaries)
+        }
         si = last
       }
       continue
@@ -19422,51 +19754,9 @@ function translatePineResult(source, opts = {}) {
         // `pine:reassign — a name that is reassigned later cannot be folded into one
         // expression — a`, which is true of a scalar and says nothing about an array
         // whose slots are unknown.
-        const prior = env.get(name)
-        // ⭐ R7 — a SCALAR accumulator gets the reason, not just the verdict. A vector
-        // target takes the array sentence a few lines down; this is the other branch,
-        // and `accumulatorNote` returns null for anything that is not a counted `for`,
-        // so an `if`/`switch`/`while` target keeps the plain sentence it had.
-        const accWhy = prior && prior.kind === 'vector' ? null : accumulatorNote(stmt)
-        forceOpaque(name, 'pine:reassign', locate(first),
-          accWhy ? `\`${name}\` — ${accWhy}` : name)
-        // ⛔⛔ AND A VECTOR IS REPLACED OUTRIGHT, NOT MERELY MARKED.
-        //
-        // ⚰️ `forceOpaque` records the refusal for the SCALAR path, and the
-        // vector binding survived it in `env` — so `array.get(a, k)` still
-        // found a vector and still folded slot k to `na`. Measured
-        // 2026-09-14: a fixture whose array is filled by a `for` came back
-        // **0 refusals, ok=true**, with nothing but a `pine:block` note to
-        // connect the empty plot to the loop. That is the silent-`na` hole
-        // `vectorSilentNa.test.js` is named for.
-        //
-        // ⭐ A vector whose writer this walk could not read is not a vector.
-        // It becomes opaque, and every read of it refuses by name.
-        if (prior && prior.kind === 'vector') {
-          // ⭐ a4 — the sentence names the FORM when the form is why, and falls back
-          // to the general one otherwise (an `if` or a `switch` reaches here too).
-          const why = loopFormNote(stmt)
-          env.set(name, {
-            kind: 'opaque',
-            guard: 'pine:collection',
-            message: `${REFUSALS['pine:collection']} — `
-              + `\`${name}\` is filled by a block this engine could not read, so`
-              + ' its slots are unknown rather than empty. '
-              // ⛔ R20 — the same promise as `seriesDependentMessage`'s, and it gets
-              // the same limit. Qualifying one branch and not the other would put two
-              // authorities on one sentence, which is the defect this repo names most.
-              // ⛔ R21 — corrected with its sibling: two facts, both measured.
-              + (why || 'Unrolling a bounded loop is item (a); a loop whose bound'
-                + ' depends on a series is the IR lane\'s, item (c) — and the IR'
-                + ' lane has no path for it yet, nor does any IR result reach a'
-                + ' pane while ruling D2 stands.'),
-            at: locate(first),
-            // ⭐ R8 — THE VECTOR THIS REPLACED IS KEPT, so the read can settle its
-            // size before speaking. A series-dependent size is a fact about the
-            // ARRAY that predates the loop, and it outranks the loop's sentence.
-            vector: prior,
-          })
-        }
+        // ⭐ C31 — the binding a loop leaves behind is built by ONE function,
+        // `loopWriteRefusal`, which a loop inside a block (`foldStatements`) asks too.
+        env.set(name, loopWriteRefusal(name, env.get(name), stmt, locate(first)))
       }
       continue
     }
@@ -19578,7 +19868,16 @@ function translatePineResult(source, opts = {}) {
           }
         }
         for (const [localName, localBound] of fnEnv) {
-          if (beforeFn.get(localName) !== localBound) finalLocals.add(localBound)
+          if (beforeFn.get(localName) !== localBound) {
+            finalLocals.add(localBound)
+            // ⭐ C31 — and by NAME, for the text reader: a helper that builds its
+            // text in a local (`string r = ""` … `r`) returns a NAME, which is
+            // visible only inside the helper (`textNodeOf`'s inline branch).
+            if (localBound && localBound.kind !== 'param' && localBound !== self) {
+              if (!self.locals) self.locals = new Map()
+              self.locals.set(localName, localBound)
+            }
+          }
         }
         if (!value) {
           throw new PineRefusal('pine:function-def',
