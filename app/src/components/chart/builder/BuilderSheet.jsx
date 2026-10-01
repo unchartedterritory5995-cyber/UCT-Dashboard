@@ -107,6 +107,7 @@ import {
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
+import { carryPriorParamIds, savedParamManifest, carryNotice } from './paramCarry'
 import ParamControls from './ParamControls'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
@@ -851,6 +852,8 @@ export default function BuilderSheet({
    *  inventing a separate one. Threaded into `evaluatedDocArgs` so both the
    *  live preview and the real save read the SAME assembly. */
   const [paramManifest, setParamManifest] = useState(null)
+  /** C46 — what a Pine paste into a SAVED formula could not carry (`paramCarry.js`). */
+  const [paramCarryNote, setParamCarryNote] = useState(null)
   /** ⭐⭐ C3B — the imported script's graphical-object program, held beside
    *  the parameter manifest and written onto the document at save. */
   const [objectProgram, setObjectProgram] = useState(null)
@@ -1181,7 +1184,7 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setResult(evaluateFormula('', inputScope)); setObjectProgram(null)
+    setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setParamCarryNote(null); setResult(evaluateFormula('', inputScope)); setObjectProgram(null)
     // ⛔ NO `setAcknowledged` HERE ANY MORE — `resetPlots()` below already puts a
     // fresh `newPlotRow` (acknowledged: false) into `plot0`, which is the row
     // that flag now lives on. A second reset of a value `resetPlots` already
@@ -1337,6 +1340,7 @@ export default function BuilderSheet({
     setParamManifest(
       compute?.paramManifest && typeof compute.paramManifest === 'object' ? compute.paramManifest : null,
     )
+    setParamCarryNote(null)
 
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
     setName(String(def?.meta?.name || ''))
@@ -1367,7 +1371,7 @@ export default function BuilderSheet({
   }, [resetPlots])
 
   const cancelEdit = useCallback(() => {
-    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setObjectProgram(null)
+    setEditing(null); setSource(''); setName(''); setMemberInputs([]); setParamManifest(null); setParamCarryNote(null); setObjectProgram(null)
     setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     // ⛔ NO `setAcknowledged` HERE EITHER — `resetPlots()` below puts a fresh,
     // unacknowledged `plot0` back, which is where the flag lives now.
@@ -2485,7 +2489,17 @@ export default function BuilderSheet({
                   }
                   if (!Object.keys(nextParamManifest).length) nextParamManifest = null
                 }
-                setParamManifest(nextParamManifest)
+                // ⭐⭐ C46 — PASTED INTO A SAVED FORMULA, EACH INPUT IT ALREADY HOLDS
+                // KEEPS ITS SAVED ID. The server keeps the prior record for an id it
+                // has and refuses one it does not (condition 15), and an id is no
+                // longer something the same script re-mints by accident — see
+                // `paramCarry.js` for the rule and its tie-breaks. The prior roster
+                // is the STORED row's, which is what the server will compare against;
+                // a fresh formula has none and its ids are the translation's own.
+                const priorRow = editing ? (rows || []).find((r) => r && r.def_id === editing.defId) : null
+                const carry = carryPriorParamIds(nextParamManifest, savedParamManifest(priorRow && priorRow.definition))
+                setParamManifest(carry.manifest)
+                setParamCarryNote(carryNotice(carry))
                 // ⛔ `picked2` IS NULL FOR THE STRING FORM. `onPick` still
                 // takes a bare string — the widened door did not move it — so
                 // this must be the optional read, not the confident one. The
@@ -2611,6 +2625,9 @@ export default function BuilderSheet({
               `paramManifest` itself. Single-tree only (v1 scope) — `result.ast`
               is the Formula tab's own `compute.ast`; the separate multi-plot
               editor is untouched. */}
+          {paramCarryNote && (
+            <p className={styles.pickerNote} role="status" data-testid="param-carry-note">{paramCarryNote}</p>
+          )}
           {paramManifest && Object.keys(paramManifest).length > 0 && result && result.ast && (
             <ParamControls
               definition={{ compute: { ast: result.ast, paramManifest } }}

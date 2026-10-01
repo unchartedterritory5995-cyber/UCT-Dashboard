@@ -1,0 +1,414 @@
+{
+ "_about": "C46 - the compute each Pine paste SENT, captured from the shipped builder by BuilderSheet.pineRepaste.test.jsx (C46_REPASTE_WRITE=1). same/added/renamed are PUTs over repaste-prior-pre-c46.json; fresh is a POST. tests/test_param_repaste_c46.py feeds these to the real user_definitions.save().",
+ "same": {
+  "kind": "ast",
+  "fn": "sha256:90616a7e029df1d3e3eb042b563d210573a9aa3216d2d75c4eb091ddc75ccda9",
+  "rev": 1,
+  "ast": {
+   "type": "op",
+   "name": "-",
+   "args": [
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 21
+      }
+     ]
+    },
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 9
+      }
+     ]
+    }
+   ]
+  },
+  "source": "ema(close, 21) - ema(close, 9)",
+  "paramManifest": {
+   "__uct_param_2": {
+    "sourceName": "fast",
+    "title": "Fast",
+    "type": "int",
+    "default": 9,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       1,
+       "args",
+       1
+      ]
+     }
+    ]
+   },
+   "__uct_param_1": {
+    "sourceName": "slow",
+    "title": "Slow",
+    "type": "int",
+    "default": 21,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       0,
+       "args",
+       1
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "added": {
+  "kind": "ast",
+  "fn": "sha256:90616a7e029df1d3e3eb042b563d210573a9aa3216d2d75c4eb091ddc75ccda9",
+  "rev": 1,
+  "ast": {
+   "type": "op",
+   "name": "-",
+   "args": [
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 21
+      }
+     ]
+    },
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 9
+      }
+     ]
+    }
+   ]
+  },
+  "source": "ema(close, 21) - ema(close, 9)",
+  "paramManifest": {
+   "__uct_param_1001": {
+    "sourceName": "sig",
+    "title": "Signal",
+    "type": "int",
+    "default": 5,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": "sig",
+      "astPath": [
+       "args",
+       1
+      ]
+     }
+    ]
+   },
+   "__uct_param_2": {
+    "sourceName": "fast",
+    "title": "Fast",
+    "type": "int",
+    "default": 9,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": "value",
+      "astPath": [
+       "args",
+       1,
+       "args",
+       1
+      ]
+     }
+    ]
+   },
+   "__uct_param_1": {
+    "sourceName": "slow",
+    "title": "Slow",
+    "type": "int",
+    "default": 21,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": "value",
+      "astPath": [
+       "args",
+       0,
+       "args",
+       1
+      ]
+     }
+    ]
+   }
+  },
+  "trees": {
+   "value": {
+    "type": "op",
+    "name": "-",
+    "args": [
+     {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 21
+       }
+      ]
+     },
+     {
+      "type": "call",
+      "name": "ema",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 9
+       }
+      ]
+     }
+    ]
+   },
+   "sig": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 5
+     }
+    ]
+   }
+  },
+  "treesHash": "sha256:e970fe61cf152fd5ffb49db0ce4213676a589548e07a8e3bb1cc72777f657e90",
+  "scanPlot": "value",
+  "sources": {
+   "value": "ema(close, 21) - ema(close, 9)",
+   "sig": "sma(close, 5)"
+  }
+ },
+ "renamed": {
+  "kind": "ast",
+  "fn": "sha256:90616a7e029df1d3e3eb042b563d210573a9aa3216d2d75c4eb091ddc75ccda9",
+  "rev": 1,
+  "ast": {
+   "type": "op",
+   "name": "-",
+   "args": [
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 21
+      }
+     ]
+    },
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 9
+      }
+     ]
+    }
+   ]
+  },
+  "source": "ema(close, 21) - ema(close, 9)",
+  "paramManifest": {
+   "__uct_param_1001": {
+    "sourceName": "quick",
+    "title": "Quick",
+    "type": "int",
+    "default": 9,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       1,
+       "args",
+       1
+      ]
+     }
+    ]
+   },
+   "__uct_param_1": {
+    "sourceName": "slow",
+    "title": "Slow",
+    "type": "int",
+    "default": 21,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       0,
+       "args",
+       1
+      ]
+     }
+    ]
+   }
+  }
+ },
+ "fresh": {
+  "kind": "ast",
+  "fn": "sha256:90616a7e029df1d3e3eb042b563d210573a9aa3216d2d75c4eb091ddc75ccda9",
+  "rev": 1,
+  "ast": {
+   "type": "op",
+   "name": "-",
+   "args": [
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 21
+      }
+     ]
+    },
+    {
+     "type": "call",
+     "name": "ema",
+     "args": [
+      {
+       "type": "series",
+       "name": "close"
+      },
+      {
+       "type": "num",
+       "value": 9
+      }
+     ]
+    }
+   ]
+  },
+  "source": "ema(close, 21) - ema(close, 9)",
+  "paramManifest": {
+   "__uct_param_1001": {
+    "sourceName": "fast",
+    "title": "Fast",
+    "type": "int",
+    "default": 9,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       1,
+       "args",
+       1
+      ]
+     }
+    ]
+   },
+   "__uct_param_1002": {
+    "sourceName": "slow",
+    "title": "Slow",
+    "type": "int",
+    "default": 21,
+    "min": null,
+    "max": null,
+    "step": null,
+    "options": null,
+    "locators": [
+     {
+      "treeIndex": null,
+      "astPath": [
+       "args",
+       0,
+       "args",
+       1
+      ]
+     }
+    ]
+   }
+  }
+ }
+}

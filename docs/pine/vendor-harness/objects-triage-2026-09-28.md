@@ -3403,3 +3403,88 @@ the suite); per-test times sit on both sides of the 15 s line at base and at the
 5. `paramIds.test.js`'s header still calls ids positional and names H.11 as owed. Its text is not this lane's
    to edit; the rule it describes is § 3.
 6. No Python mirror moves: ids exist only in the JS translator, and the server treats an id as an opaque key.
+
+### 9. The re-paste door (follow-up, same day) — supersedes § 8 items 1 and 5
+
+Members paste their own Pine; the 328 are ours. § 8 item 1 named the regression and left it: a formula saved
+before this lane from a script outside the frozen table holds counter ids (`_1`, `_2`, …), a fresh translation
+of the same script now produces source ids (`_1001`, …), and the server refuses an edit that introduces an id
+the stored document does not hold (condition 15). C46 does not ship with that, so the migration is built, at
+the one door where a saved roster and a fresh translation meet.
+
+**The rule** (`app/src/components/chart/builder/paramCarry.js`, one pure function, called from the Pine pick in
+`BuilderSheet.jsx` only when a saved formula is being edited):
+
+- an incoming input matches a saved one when its `sourceName` (the Pine variable it is declared as) **and** its
+  kind (`type`) are both equal; a match takes the **saved** id;
+- two inputs declared under one name are matched in order — incoming in source order, saved in id order;
+- a renamed input matches nothing, and neither does one whose kind changed: it is a new input and keeps its
+  source id;
+- a new input never sits on an id the saved document holds for a different input (it would be handed that
+  input's record); it moves to the first free id above every id in play. This only arises for a document saved
+  after C46 whose script gained an input above the others;
+- a saved input the script no longer declares is dropped, as before;
+- a fresh formula has no saved roster, so nothing is carried.
+
+When the paste leaves an input unmatched the builder says so before the member presses Save
+(`data-testid="param-carry-note"`): the named input is not among the settings the formula was saved with, the
+save over it will be refused, save it as a new formula to keep it adjustable.
+
+**Proved through the real door.** `BuilderSheet.pineRepaste.test.jsx` drives the shipped `BuilderSheet`
+(Import tab → Use → Save) over a stateful store that applies condition 15, and pins the `compute` each paste
+sends in `tests/fixtures/pine_param_ids/repaste-requests.json`; `tests/test_param_repaste_c46.py` feeds those
+same bodies to the real `user_definitions.save()`. The prior document
+(`repaste-prior-pre-c46.json`) is what that same builder POSTed with `pine.js` at base `e4e24524ef` for an
+out-of-corpus script: `slow = _1`, `fast = _2` (walk order, not source order).
+
+| case | what the door sends | server |
+|---|---|---|
+| (a) same Pine over the pre-C46 document | `_1` slow, `_2` fast — the saved ids, values 21 / 9 | accepted; roster, values and locators unchanged |
+| control: (a) without the carry | `_1001` fast, `_1002` slow | refused (`__uct_param_1001`) — the regression |
+| (b) one input added above the others | `_1` slow, `_2` fast, `_1001` sig + the notice | **refused** (`__uct_param_1001`), nothing stored |
+| (c) `fast` renamed `quick` | `_1` slow, `_1001` quick + the notice | **refused** (`__uct_param_1001`), nothing stored |
+| (d) fresh paste into a new formula | `_1001` fast, `_1002` slow, no notice | accepted |
+| (e) corpus scripts | — | unchanged: `paramIds`, `paramIdLegacy`, `paramIdSourceStability`, `savedDocumentRoundTrip` green |
+
+**(b) and (c) do not save, and no file under `api/` was changed.** Condition 15 did not need to learn anything
+for (a): a carried id is one the stored document already holds, so the server takes it and keeps its prior
+record. What stops (b) and (c) is the other half of the same condition — an edit may not introduce a parameter
+identity — and that is an owner condition with its own pinned test (`tests/test_param_manifest.py`, test 15).
+Letting an added or renamed input through means reversing it, which is not a minimal change and not this
+lane's to make. What base did with the same two pastes, reconstructed from the same bodies in
+`test_param_repaste_c46.py`:
+
+- (b) **was refused at base too** (the added input minted counter id `_3`). No change.
+- (c) **was accepted at base** — the counter gave `quick` the number `fast` had held, and the server, keeping
+  the prior record for a known id, went on calling it `fast` / "Fast". A match by position presented as the
+  same input. Under the ruled tie-break a renamed input is a new one, so this paste is now refused, with the
+  notice. This is the one member-visible difference from base at this door.
+
+Two things the carry does not change, both true at base: a re-paste resets the values to the script's
+defaults (the controls are rebuilt from the paste), and for a carried id the server keeps the saved record's
+locators verbatim.
+
+**Mutations** (each applied alone, both rails run in one vitest, restored by bytes, sha verified; control run
+green first):
+
+| | mutation | red |
+|---|---|---|
+| K1 | the saved roster is never consulted at the door | door (a), (b), (c) |
+| K2 | match by position instead of by name | door (a), (b), (c) + 6 unit cases |
+| K3 | kind left out of the match | unit: changed kind |
+| K4 | a new input may sit on a saved id of a different input | unit: both collision cases |
+| K5 | same-name saved inputs taken in insertion order, not id order | unit: two inputs under one name |
+| K6 | the notice is never set | door (b), (c) |
+| K7 | a fresh paste carries from the first formula in the list | door (d) |
+
+**Rulings recorded.** The main-walk loop step-over stays out until Q-C46a is captured (§ 5; the trial branch is
+unchanged). A gain above 1000 is an append (§ 8 item 3). `paramIds.test.js`'s assertions are untouched; its
+header comment, which still called ids positional and named H.11 as owed, now describes § 3 (comment lines
+only — § 8 item 5 is closed).
+
+**Licence-held sources — disclosure.** `tests/fixtures/pine_oos` holds 29 sources this rig does not have. To
+measure every lane on all 328, 27 were recovered from copies already on this machine and checked against
+`MANIFEST` (14 byte-exact, 13 after whitespace normalisation). The remaining two —
+`long_tail__19-session-fibs-falcon-ai` and `long_tail__20-cot-pulse-cloud-trend` — were fetched from
+TradingView's public script endpoint and hash-checked the same way. All 29 live in the session scratchpad only.
+None was written into the repository, and no commit of this lane contains one.
