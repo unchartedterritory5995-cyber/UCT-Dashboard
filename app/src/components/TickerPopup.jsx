@@ -40,6 +40,28 @@ const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [
 // ThemeTrackerPage.jsx.
 const SHIFT_F = chordById('SHIFT_F')
 
+// RW-NEW-02 (a11y second review, 2026-10-01): the capture result's life.
+// Success is transient -- the member already sees the chart/header update,
+// so a short beat is enough. A refusal (the locked-note message) or a
+// generic failure is different: the member has to READ it, understand WHY
+// nothing landed, and go act on it (unlock the note, retry) -- the rewalk's
+// own probe lost a race against the old 2500ms on a machine "no slower than
+// an average member's", which is the sighted-reader version of the same
+// problem a screen reader has with zero role/aria-live at all. 8s is chosen
+// as comfortably past that: long enough to read a one-sentence refusal and
+// decide what to do, without becoming a stuck banner that outlives the
+// member's next click. Never role="alert" (below) for either case, and
+// never used for the routine success.
+const CAPTURE_TOAST_SUCCESS_MS = 2500
+const CAPTURE_TOAST_HOLD_MS = 8000
+// Every success line this door produces ends this way (captureFinancialFact.js);
+// every failure/refusal line does not (`captureFinancialFact.test.js` pins both
+// shapes) -- so this is a safe, cheap classifier without a second success/
+// failure flag threaded through the two capture functions.
+function isCaptureSuccessMessage(msg) {
+  return typeof msg === 'string' && /captured to Notebook$/.test(msg)
+}
+
 export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
@@ -206,11 +228,15 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // Clear capture toast after 2.5s (longer than flagToast -- this one names
-  // a destination note, worth a beat longer to read).
+  // RW-NEW-02: success keeps CAPTURE_TOAST_SUCCESS_MS (longer than flagToast's
+  // 1.5s -- this one names a destination note, worth a beat longer to read);
+  // a refusal or failure holds for CAPTURE_TOAST_HOLD_MS. Re-firing a capture
+  // (another action) replaces `captureToast` with a new value, which restarts
+  // this effect and its timer the normal React way.
   useEffect(() => {
     if (!captureToast) return
-    const t = setTimeout(() => setCaptureToast(null), 2500)
+    const ms = isCaptureSuccessMessage(captureToast) ? CAPTURE_TOAST_SUCCESS_MS : CAPTURE_TOAST_HOLD_MS
+    const t = setTimeout(() => setCaptureToast(null), ms)
     return () => clearTimeout(t)
   }, [captureToast])
 
@@ -374,11 +400,34 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                     <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                   </span>
                 )}
-                {captureToast && (
-                  <span className={styles.flagToast}>
-                    <UIcon name="camera" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{captureToast}
-                  </span>
-                )}
+                {/* RW-NEW-02 (a11y second review, 2026-10-01): this span used
+                    to mount ONLY once a message existed, with no role and no
+                    aria-live -- a region inserted together with its text is
+                    often never announced (confirmed live: a page-wide
+                    live-region census at the moment of a refusal found
+                    nothing on the page, even though the toast genuinely
+                    inserted). The region is now ALWAYS mounted, empty,
+                    before any capture -- assistive tech has already
+                    discovered it by the time a message lands. The inner
+                    badge only renders once there is something to show, so a
+                    mouse user still sees no empty pill. role="status" (never
+                    "alert") for both success and a refusal/failure -- a
+                    routine save is not an interruption; see
+                    CAPTURE_TOAST_HOLD_MS above for why a refusal stays up
+                    longer. */}
+                <span
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className={styles.captureStatus}
+                  data-testid="capture-status"
+                >
+                  {captureToast && (
+                    <span className={styles.captureStatusBadge}>
+                      <UIcon name="camera" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{captureToast}
+                    </span>
+                  )}
+                </span>
                 {/* The journal, visible from the app's universal ticker
                     surface: "4 entries" → click through to them. Keyed to
                     activeSym, so searching another ticker in place re-points
