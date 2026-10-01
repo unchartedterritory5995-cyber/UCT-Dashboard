@@ -1,0 +1,1324 @@
+{
+ "tool": "tools/notebook_perf_harness.py",
+ "git_head": "f314076f7f08692ca52c209f9fcb8b71842bdbfc",
+ "base": "http://127.0.0.1:8200",
+ "sizes": [
+  2000
+ ],
+ "opens": 5,
+ "chars": 60,
+ "integrity": {
+  "path": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty3-attr-before.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-01 09:15:26",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-01 09:16:43",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "shutdown",
+    "at": "2026-10-01 09:17:08",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "CLEAN",
+  "clean": true,
+  "why": "",
+  "copy": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty3-attr-before.integrity.md",
+  "moved_from": "C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-ty3\\docs\\plans\\joystick\\sandbox-runs\\2026-10-01T09-15-21.md"
+ },
+ "page_errors": [],
+ "raw": {
+  "open_ms": {
+   "2000": [
+    104.69999998807907,
+    78,
+    77.69999998807907,
+    81.39999997615814,
+    70.30000001192093
+   ]
+  },
+  "typing_ms": {
+   "2000": [
+    20.600000023841858,
+    15.199999988079071,
+    8.100000023841858,
+    7.299999952316284,
+    7,
+    8.699999988079071,
+    13.700000047683716,
+    6.5,
+    6.700000047683716,
+    10.900000035762787,
+    9.700000047683716,
+    12.199999988079071,
+    13.600000023841858,
+    21.600000023841858,
+    17.399999976158142,
+    11.300000011920929,
+    8.5,
+    17.100000023841858,
+    13.400000035762787,
+    16,
+    11,
+    6.699999988079071,
+    10.399999976158142,
+    12.900000035762787,
+    16.30000001192093,
+    6.699999988079071,
+    9.899999976158142,
+    10.699999988079071,
+    10.899999976158142,
+    13.199999988079071,
+    14.900000035762787,
+    12,
+    9.599999964237213,
+    9.699999988079071,
+    11.400000035762787,
+    13.699999988079071,
+    16.600000023841858,
+    19.299999952316284,
+    10.100000023841858,
+    10.300000011920929,
+    13,
+    15.399999976158142,
+    17,
+    10.5,
+    10.5,
+    8.099999964237213,
+    12.700000047683716,
+    16.099999964237213,
+    9.800000011920929,
+    6.600000023841858,
+    6.199999988079071,
+    12.199999988079071,
+    13.599999964237213,
+    17.100000023841858,
+    9.200000047683716,
+    9.5,
+    9.5,
+    12.900000035762787,
+    17.19999998807907,
+    9.899999976158142
+   ]
+  }
+ },
+ "rows": [
+  {
+   "measure": "note_open",
+   "paragraphs": 2000,
+   "samples": 5,
+   "p50_ms": 78,
+   "p95_ms": 104.7,
+   "budget_ms": null
+  },
+  {
+   "measure": "typing_per_char",
+   "paragraphs": 2000,
+   "samples": 60,
+   "p50_ms": 11,
+   "p95_ms": 17.4,
+   "budget_ms": 16.0
+  }
+ ],
+ "breaches": [
+  "typing p95 17.40 ms/char >= 16 ms at 2,000 paragraphs"
+ ],
+ "inconclusive": [],
+ "attribution": {
+  "2000": {
+   "keys": 60,
+   "wrapped": 177,
+   "plugins": [
+    "plugin$1872",
+    "plugin$1873",
+    "plugin$1874",
+    "plugin$1875",
+    "autolink$18",
+    "handleClickLink$18",
+    "handlePasteLink$18",
+    "plugin$1876",
+    "plugin$1877",
+    "plugin$1878",
+    "pasteContainers$18",
+    "plugin$1879",
+    "uctLinkPasteOffer$",
+    "plugin$1880",
+    "askCitationStale$",
+    "plugin$1881",
+    "plugin$1882",
+    "plugin$1883",
+    "plugin$1884",
+    "plugin$1885",
+    "plugin$1886",
+    "plugin$1887",
+    "noteLinkMenu$18",
+    "plugin$1888",
+    "plugin$1889",
+    "noteFind$",
+    "plugin$1890",
+    "uctBlockHandle$",
+    "plugin$1891",
+    "plugin$1892",
+    "plugin$1893",
+    "plugin$1894",
+    "plugin$1895",
+    "plugin$1896",
+    "plugin$1897",
+    "plugin$1898",
+    "emojiMenu$",
+    "plugin$1899",
+    "suggestion$",
+    "plugin$1900",
+    "plugin$1901",
+    "plugin$1902",
+    "plugin$1903",
+    "plugin$1904",
+    "plugin$1905",
+    "plugin$1906",
+    "plugin$1907",
+    "tableColumnResizing$",
+    "selectingCells$",
+    "plugin$1908",
+    "notebookPlaceholder$",
+    "plugin$1909",
+    "uctLinkClickOpen$",
+    "plugin$1910",
+    "plugin$1911",
+    "plugin$1912",
+    "plugin$1913",
+    "plugin$1914",
+    "plugin$1915",
+    "uctColumnsGuard$18",
+    "plugin$1916",
+    "plugin$1917",
+    "plugin$1918",
+    "plugin$1919",
+    "plugin$1920",
+    "plugin$1921",
+    "plugin$1922",
+    "plugin$1923",
+    "plugin$1924",
+    "plugin$1925",
+    "plugin$1926",
+    "plugin$1927",
+    "plugin$1928",
+    "codeBlockVSCodeHandler$18",
+    "notebookCodeHighlight$",
+    "plugin$1929",
+    "trailingNode$18",
+    "plugin$1930",
+    "plugin$1931",
+    "plugin$1932",
+    "plugin$1933",
+    "plugin$1934",
+    "plugin$1935",
+    "plugin$1936",
+    "plugin$1937",
+    "plugin$1938",
+    "plugin$1939",
+    "plugin$1940",
+    "plugin$1941",
+    "plugin$1942",
+    "plugin$1943",
+    "plugin$1944",
+    "plugin$1945",
+    "history$",
+    "plugin$1946",
+    "plugin$1947",
+    "plugin$1948",
+    "plugin$1949",
+    "plugin$1950",
+    "plugin$1951",
+    "plugin$1952",
+    "plugin$1953",
+    "plugin$1954",
+    "plugin$1955",
+    "plugin$1956",
+    "plugin$1957",
+    "plugin$1958",
+    "plugin$1959",
+    "plugin$1960",
+    "plugin$1961",
+    "plugin$1962",
+    "plugin$1963",
+    "plugin$1964",
+    "plugin$1965",
+    "plugin$1966",
+    "textDirection$18",
+    "plugin$1967",
+    "plugin$1968",
+    "tiptapPaste$18",
+    "plugin$1969",
+    "tiptapDrop$18",
+    "plugin$1970",
+    "tabindex$18",
+    "plugin$1971",
+    "clearDocument$18",
+    "plugin$1972",
+    "focusEvents$",
+    "plugin$1973",
+    "plugin$1974",
+    "clipboardTextSerializer$18",
+    "plugin$1975",
+    "editable$18"
+   ],
+   "instrumented_p50_ms": 11,
+   "rows": [
+    {
+     "piece": "dispatch (total)",
+     "ms_per_key": 2.255,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "tiptap emit update",
+     "ms_per_key": 1.2683,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.updateState (DOM, decorations, plugin views)",
+     "ms_per_key": 0.4333,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "React scheduler tasks (render + commit)",
+     "ms_per_key": 0.19,
+     "calls_per_key": 0.23,
+     "react_commits_per_key": 1.18
+    },
+    {
+     "piece": "appendTransaction autolink$18",
+     "ms_per_key": 0.1,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "tiptap emit transaction",
+     "ms_per_key": 0.0483,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply noteLinkMenu$18",
+     "ms_per_key": 0.0317,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction clearDocument$18",
+     "ms_per_key": 0.025,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations notebookPlaceholder$",
+     "ms_per_key": 0.02,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update uctBlockHandle$",
+     "ms_per_key": 0.0183,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply history$",
+     "ms_per_key": 0.015,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction selectingCells$",
+     "ms_per_key": 0.015,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "tiptap emit selectionUpdate",
+     "ms_per_key": 0.01,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1873",
+     "ms_per_key": 0.0067,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply suggestion$",
+     "ms_per_key": 0.0067,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1872",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1919",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1898",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1912",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update noteLinkMenu$18",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update notebookCodeHighlight$",
+     "ms_per_key": 0.005,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1893",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown selectingCells$",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1915",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1928",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1944",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1958",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1962",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1873",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply askCitationStale$",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply emojiMenu$",
+     "ms_per_key": 0.0033,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1881",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1891",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1894",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1895",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1896",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1912",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1917",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1918",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1926",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1927",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1930",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1943",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1948",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1950",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1951",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1957",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1958",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1902",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1921",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1923",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1933",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1936",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1940",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1947",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply doc",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply selection",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply noteFind$",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1898",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1902",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply tableColumnResizing$",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply notebookCodeHighlight$",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1940",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1960",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1875",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1956",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations noteLinkMenu$18",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations plugin$1950",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update suggestion$",
+     "ms_per_key": 0.0017,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1873",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1874",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1876",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1877",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1878",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1879",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown uctLinkPasteOffer$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1880",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1883",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1884",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1885",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1886",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1887",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown noteLinkMenu$18",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1888",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1889",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1890",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1892",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1897",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1898",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown emojiMenu$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1899",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown suggestion$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1900",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1901",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1902",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1903",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1904",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1905",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1906",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1907",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1908",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1909",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1910",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1911",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1913",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1914",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1916",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1920",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1921",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1922",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1923",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1924",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1925",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1928",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1929",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1931",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1932",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1933",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1935",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1936",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1937",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1938",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1939",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1940",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1944",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1945",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1946",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1947",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1949",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1953",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1954",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1955",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1959",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1960",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1961",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1962",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1965",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1966",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1967",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1968",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1969",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1970",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1971",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1972",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1973",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1974",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleKeyDown plugin$1975",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1955",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "handleTextInput plugin$1960",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply storedMarks",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply scrollToSelection",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply uctLinkPasteOffer$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply selectingCells$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1912",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1921",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1923",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1928",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply trailingNode$18",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1933",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1936",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1944",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1947",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1955",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1958",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "state.apply plugin$1962",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction trailingNode$18",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1934",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1941",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1942",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1963",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "appendTransaction plugin$1964",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "tiptap emit beforeTransaction",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations askCitationStale$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations noteFind$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations emojiMenu$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations suggestion$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations tableColumnResizing$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations selectingCells$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "decorations notebookCodeHighlight$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update emojiMenu$",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    },
+    {
+     "piece": "view.update plugin$1952",
+     "ms_per_key": 0.0,
+     "calls_per_key": 1.0
+    }
+   ],
+   "trace": {
+    "threads": 1,
+    "busy_ms_per_key": 12.462,
+    "rows": [
+     {
+      "phase": "FunctionCall",
+      "self_ms_per_key": 5.5461,
+      "count_per_key": 53.22
+     },
+     {
+      "phase": "EventDispatch textInput",
+      "self_ms_per_key": 2.1976,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "ThreadControllerImpl::RunTask",
+      "self_ms_per_key": 0.9414,
+      "count_per_key": 16.88
+     },
+     {
+      "phase": "Layout",
+      "self_ms_per_key": 0.8704,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "PrePaint",
+      "self_ms_per_key": 0.5394,
+      "count_per_key": 1.08
+     },
+     {
+      "phase": "v8.callFunction",
+      "self_ms_per_key": 0.3718,
+      "count_per_key": 53.22
+     },
+     {
+      "phase": "Paint",
+      "self_ms_per_key": 0.3568,
+      "count_per_key": 2.15
+     },
+     {
+      "phase": "Layerize",
+      "self_ms_per_key": 0.337,
+      "count_per_key": 1.08
+     },
+     {
+      "phase": "Commit",
+      "self_ms_per_key": 0.2485,
+      "count_per_key": 1.08
+     },
+     {
+      "phase": "Receive mojo message",
+      "self_ms_per_key": 0.2346,
+      "count_per_key": 1.17
+     },
+     {
+      "phase": "RunTask",
+      "self_ms_per_key": 0.1345,
+      "count_per_key": 16.92
+     },
+     {
+      "phase": "SimpleWatcher::OnHandleReady",
+      "self_ms_per_key": 0.117,
+      "count_per_key": 3.33
+     },
+     {
+      "phase": "EventDispatch keydown",
+      "self_ms_per_key": 0.0649,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "V8.GC_MC_INCREMENTAL",
+      "self_ms_per_key": 0.0515,
+      "count_per_key": 0.9
+     },
+     {
+      "phase": "EventDispatch keyup",
+      "self_ms_per_key": 0.0464,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "V8.GC_MARK_COMPACTOR",
+      "self_ms_per_key": 0.0436,
+      "count_per_key": 0.02
+     },
+     {
+      "phase": "EventDispatch keypress",
+      "self_ms_per_key": 0.0323,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "EventDispatch input",
+      "self_ms_per_key": 0.0277,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "V8.GC_SCAVENGER_SCAVENGE_PARALLEL",
+      "self_ms_per_key": 0.0264,
+      "count_per_key": 0.05
+     },
+     {
+      "phase": "Responsiveness.Renderer.UserInteraction",
+      "self_ms_per_key": 0.0224,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "HitTest",
+      "self_ms_per_key": 0.02,
+      "count_per_key": 0.1
+     },
+     {
+      "phase": "EventDispatch selectionchange",
+      "self_ms_per_key": 0.0185,
+      "count_per_key": 1.0
+     },
+     {
+      "phase": "BlinkScheduler_PerformMicrotaskCheckpoint",
+      "self_ms_per_key": 0.0165,
+      "count_per_key": 12.08
+     },
+     {
+      "phase": "V8.GC_MC_INCREMENTAL_EMBEDDER_TRACING",
+      "self_ms_per_key": 0.0161,
+      "count_per_key": 0.77
+     },
+     {
+      "phase": "UpdateLayoutTree",
+      "self_ms_per_key": 0.0128,
+      "count_per_key": 0.07
+     }
+    ]
+   }
+  }
+ }
+}
