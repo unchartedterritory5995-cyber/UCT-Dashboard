@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "599cd44f1"          # moved from 6f563c158 by lane R1e, 2026-09-30 (L9 #256, L10 #257, L12 #258 live)
+MEASURED_AT = "a680b0d40"          # moved from 599cd44f1 by lane R1f, 2026-09-30 (L13 #259 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,7 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L13", "a680b0d40", "wave 10 L13 #259"),
     ("L12", "599cd44f1", "wave 10 L12 #258"),
     ("L10", "8eb7f008b", "wave 10 L10 #257"),
     ("L9", "89390fb85", "wave 10 L9 #256"),
@@ -208,6 +209,12 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # the Pine-engine merge they wrap is reverted then reapplied -- read side by side, byte-identical
 # except for that one `await`/lazy-load pairing, confirming the two are mirror-image toggles of the
 # SAME external change, not two separate edits. Nothing here is RAISED.
+# Lane R1f, 2026-09-30: one path-only commit in 599cd44f1..a680b0d40 (on top of L13, in CHAIN by
+# subject AND path -- its squash kept the literal word "wave", unlike L10/L12), read via its own
+# diff: 69beea8d1 (Terminal TERM-073, the nightly analyst-revisions "what changed" timeline, dark)
+# touches only api/main.py among shared files (one router mount behind ANALYST_REVISIONS_ENABLED);
+# its own router, service and panel files are all outside the derived Notebook set. Nothing here is
+# RAISED.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
@@ -356,6 +363,10 @@ REVIEWED_NOT_LANDINGS: dict[str, str] = {
         "feat(econ): 10 economic-data source adapters, member API and serving, isolated from stock "
         "bars; touches only api/main.py among shared files (router mounts + lifespan wiring), no "
         "Notebook route touched",
+    "69beea8d10520fac1374bcf20a4e9a54af845c95":
+        "Terminal TERM-073: nightly analyst-revisions 'what changed' timeline, dark; mounts a "
+        "router in api/main.py (shared file) behind ANALYST_REVISIONS_ENABLED, no Notebook route "
+        "touched",
 }
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
