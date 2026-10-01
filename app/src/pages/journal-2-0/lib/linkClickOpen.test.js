@@ -26,10 +26,10 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-function mount(content) {
+function mount(content, opts = {}) {
   const el = document.createElement('div')
   document.body.appendChild(el)
-  editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content } })
+  editor = new Editor({ element: el, extensions: buildExtensions(), content: { type: 'doc', content }, ...opts })
   return editor
 }
 const linkPara = (text, href) => ({
@@ -131,6 +131,44 @@ describe('ruling 165: a TOUCH tap opens the link only when the caret is ALREADY 
     putCaretIn(ed, 'read this')
     tap(linkEl(ed), { pointerType: 'mouse' })
     expect(openSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('controller ruling on FYI 2: a READ-ONLY view opens on a PLAIN click/tap', () => {
+  it('a plain click on a read-only (editable:false) editor opens an http link, safely, in a new tab', () => {
+    const ed = mount([linkPara('read this', 'https://example.com/report')], { editable: false })
+    const notPrevented = tap(linkEl(ed))
+    expect(notPrevented).toBe(false) // defaultPrevented: it opened
+    expect(openSpy).toHaveBeenCalledWith('https://example.com/report', '_blank', 'noopener,noreferrer')
+  })
+
+  it('a plain TAP (no mod key, no prior selection) on a read-only editor opens it too — there is no caret to require', () => {
+    const ed = mount([linkPara('read this', 'https://example.com/report')], { editable: false })
+    tap(linkEl(ed), { pointerType: 'touch' })
+    expect(openSpy).toHaveBeenCalledWith('https://example.com/report', '_blank', 'noopener,noreferrer')
+  })
+
+  it('javascript: and import-link:// still never open on a read-only plain click', () => {
+    const ed = mount([
+      linkPara('bad js', 'javascript:alert(1)'),
+      linkPara('import placeholder', 'import-link://some-target-key'),
+    ], { editable: false })
+    ed.view.dom.querySelectorAll('a[href]').forEach((a) => tap(a))
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL — an EDITABLE editor\'s plain click still does NOT open (only the read-only branch opens on a plain click)', () => {
+    const ed = mount([linkPara('read this', 'https://example.com/report')]) // editable: true (default)
+    const notPrevented = tap(linkEl(ed))
+    expect(notPrevented).toBe(true) // NOT defaultPrevented -- the caret-placing click is untouched
+    expect(openSpy).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL — the hover hint is NOT shown on a read-only view (no second gesture to name)', () => {
+    const ed = mount([linkPara('read this', 'https://example.com/report')], { editable: false })
+    const a = linkEl(ed)
+    fireEvent.mouseOver(a)
+    expect(a.title).toBe('')
   })
 })
 
