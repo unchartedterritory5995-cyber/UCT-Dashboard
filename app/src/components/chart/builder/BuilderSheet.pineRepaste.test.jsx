@@ -59,6 +59,36 @@ quick = input.int(9, "Quick")
 slow = input.int(21, "Slow")
 plot(ta.ema(close, slow) - ta.ema(close, quick), "Spread")
 `
+// (c2) `fast` renamed AND a new input added, read by a second plot
+const RENAMED_ADDED = `//@version=5
+indicator("C46 re-paste")
+sig = input.int(5, "Signal")
+quick = input.int(9, "Quick")
+slow = input.int(21, "Slow")
+plot(ta.ema(close, slow) - ta.ema(close, quick), "Spread")
+plot(ta.sma(close, sig), "Sig")
+`
+// (c3) the two inputs declared the other way round, titles unchanged
+const SWAPPED = `//@version=5
+indicator("C46 re-paste")
+slow = input.int(21, "Slow")
+fast = input.int(9, "Fast")
+plot(ta.ema(close, slow) - ta.ema(close, fast), "Spread")
+`
+// (c4) `fast` renamed AND turned into a float, standing where `fast` stood
+const RENAMED_KIND = `//@version=5
+indicator("C46 re-paste")
+quick = input.float(9, "Quick")
+slow = input.int(21, "Slow")
+plot(ta.ema(close, slow) - ta.ema(close, quick), "Spread")
+`
+// (c5) both inputs renamed, nothing else moved
+const RENAMED_TWO = `//@version=5
+indicator("C46 re-paste")
+quick = input.int(9, "Quick")
+lag = input.int(21, "Lag")
+plot(ta.ema(close, lag) - ta.ema(close, quick), "Spread")
+`
 const DEF_ID = 'u_c46repaste01'
 const CONDITION_15 = (pid) => `paramManifest.${pid}: refused. This logical parameter id does not exist on `
   + 'the saved definition being edited, and an ordinary save may never introduce a new '
@@ -202,7 +232,7 @@ beforeEach(() => { vi.useFakeTimers(); stubStatefulFetch() })
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks() })
 afterAll(() => {
   if (!WRITE) return
-  const about = 'C46 - the compute each Pine paste SENT, captured from the shipped builder by BuilderSheet.pineRepaste.test.jsx (C46_REPASTE_WRITE=1). same/added/renamed are PUTs over repaste-prior-pre-c46.json; fresh is a POST. tests/test_param_repaste_c46.py feeds these to the real user_definitions.save().'
+  const about = 'C46 - the compute each Pine paste SENT, captured from the shipped builder by BuilderSheet.pineRepaste.test.jsx (C46_REPASTE_WRITE=1). every key but fresh is a PUT over repaste-prior-pre-c46.json; fresh is a POST. tests/test_param_repaste_c46.py feeds these to the real user_definitions.save().'
   fs.writeFileSync(REQUESTS_PATH, `${JSON.stringify({ _about: about, ...SENT }, null, 1)}\n`, 'utf8')
 })
 
@@ -239,16 +269,64 @@ describe('C46 — pasting Pine into a saved formula keeps the parameter ids it w
     pin('added', compute)
   })
 
-  it('⛔⛔ (c) one input RENAMED: no match — it is a new input at its source id, and the member is told', async () => {
+  it('⛔⛔ (c) one input RENAMED, nothing else moved: it keeps the saved id, saves, and the member is told', async () => {
     const { compute, noteText } = await repasteIntoSaved(RENAMED)
-    // `slow` keeps `_1`. `quick` is NOT handed `fast`'s `_2`: a different name is a
-    // different input, and `_2`'s saved record (title "Fast") is not its record.
+    // `quick` stands exactly where `fast` stood (the walk's second input, an int),
+    // and `fast` is gone: the same saved setting under a new name. This paste
+    // saved before C46 — the counter gave `quick` the number `fast` had held.
+    expect(ids(compute)).toEqual({ __uct_param_1: 'slow', __uct_param_2: 'quick' })
+    expect(values(compute)).toEqual({ __uct_param_1: 21, __uct_param_2: 9 })
+    expect(noteText).toBe('The input "Fast" is now "Quick". It is the same saved setting under its new name.')
+    expect(screen.queryByTestId('store-error')).toBeNull()
+    expect(H.store.get(DEF_ID).version).toBe(2)
+    expect(values(H.store.get(DEF_ID).definition.compute)).toEqual({ __uct_param_1: 21, __uct_param_2: 9 })
+    pin('renamed', compute)
+  })
+
+  it('⛔⛔ (c2) a rename AND an added input in one paste: the rename still carries, and only the ADDED input is refused', async () => {
+    const { compute, noteText } = await repasteIntoSaved(RENAMED_ADDED)
+    expect(ids(compute)).toEqual({ __uct_param_1: 'slow', __uct_param_2: 'quick', __uct_param_1001: 'sig' })
+    expect(noteText).toMatch(/^The input "Fast" is now "Quick"\. It is the same saved setting under its new name\. /)
+    expect(noteText).toMatch(/`Signal` is not among the adjustable settings this formula was saved with/)
+    expect(noteText).not.toMatch(/`Quick` is not among/)
+    // refused for the added input, as (b) — and for nothing else
+    const refusal = screen.getByTestId('store-error').textContent
+    expect(refusal).toMatch(/__uct_param_1001: refused/)
+    expect(refusal).not.toMatch(/__uct_param_2\b/)
+    expect(H.store.get(DEF_ID).version).toBe(1)
+    pin('renamed_added', compute)
+  })
+
+  it('⛔⛔ (c3) the two inputs SWAPPED in the source, titles unchanged: matched by name, no rename involved', async () => {
+    const { compute, noteText } = await repasteIntoSaved(SWAPPED)
+    expect(ids(compute)).toEqual({ __uct_param_1: 'slow', __uct_param_2: 'fast' })
+    expect(values(compute)).toEqual({ __uct_param_1: 21, __uct_param_2: 9 })
+    expect(noteText).toBeNull()
+    expect(screen.queryByTestId('store-error')).toBeNull()
+    pin('swapped', compute)
+  })
+
+  it('⛔⛔ (c4) a rename AND a change of kind: not a rename — a new input at its source id, refused', async () => {
+    const { compute, noteText } = await repasteIntoSaved(RENAMED_KIND)
+    // same place as `fast`, but a float is not the int that was saved there
     expect(ids(compute)).toEqual({ __uct_param_1: 'slow', __uct_param_1001: 'quick' })
+    expect(compute.paramManifest.__uct_param_1001.type).toBe('float')
     expect(noteText).toMatch(/`Quick` is not among the adjustable settings/)
-    expect(noteText).toMatch(/Save it as a new formula/)
+    expect(noteText).not.toMatch(/is now "Quick"/)
     expect(screen.getByTestId('store-error').textContent).toMatch(/__uct_param_1001: refused/)
     expect(H.store.get(DEF_ID).version).toBe(1)
-    pin('renamed', compute)
+    pin('renamed_kind', compute)
+  })
+
+  it('⛔⛔ (c5) BOTH inputs renamed, each still in its place: both keep their saved ids, and it saves', async () => {
+    const { compute, noteText } = await repasteIntoSaved(RENAMED_TWO)
+    expect(ids(compute)).toEqual({ __uct_param_1: 'lag', __uct_param_2: 'quick' })
+    expect(values(compute)).toEqual({ __uct_param_1: 21, __uct_param_2: 9 })
+    expect(noteText).toMatch(/The input "Fast" is now "Quick"\./)
+    expect(noteText).toMatch(/The input "Slow" is now "Lag"\./)
+    expect(screen.queryByTestId('store-error')).toBeNull()
+    expect(H.store.get(DEF_ID).version).toBe(2)
+    pin('renamed_two', compute)
   })
 
   it('⛔⛔ (d) a FRESH paste into a new formula: source ids, no carry, no notice', async () => {

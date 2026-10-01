@@ -4165,3 +4165,84 @@ alone in 1.2 s (`Tests  31 passed (31)`).
 (b) is what base did. (c) saved at base, by position, under the old input's record. Making either save means
 letting an edit introduce a parameter identity — reversing condition 15 and its pinned test — or having the
 door leave the unmatched input out of the roster so the save goes through without it. Neither was done here.
+
+### 11. A rename keeps its saved id (integrator ruling, same day) — supersedes the (c) row of § 9 and the last paragraph of § 10
+
+Ruling: condition 15 stays exactly as it is; (b) stays refused; **(c), a pure rename, saved at base and must
+keep saving — in the carry, not the server.**
+
+**The rule.** After the name-and-kind match, an input still unmatched takes a saved input's id only when that
+saved input is also unmatched, is the same kind, and stood in the **same place**. A saved id *is* the place it
+was minted at:
+
+- a counter id (`_1`, `_2`, …, below 1000) is the input's **turn in the walk**. The pasted input must be
+  reached at that same turn;
+- a source id (`_1001`, …) is the input's **place in the source**. The pasted input must be that same input
+  call.
+
+One candidate is a rename. None, or two, is not: the input is new, keeps its source id, the notice names it,
+and condition 15 refuses the save as before.
+
+**Why the walk and not the source order for a pre-C46 document.** The ruling describes the saved roster as
+being in source order. For a document saved before C46 it is not, and nothing in it records source order: its
+ids are the counter, i.e. walk order (the committed fixture declares `fast` then `slow` and holds `slow = _1`,
+`fast = _2`). So the comparison is made in the numbering the saved id was minted in. The translator now puts
+each input's turn in the walk on its `inputParams` entry (`walkIndex`, non-enumerable, beside `ordinal`: no
+manifest, hash or saved document gains a key — the translation census is byte-identical to § 10's, 266 scripts
+× 3 lanes). For a counter-id document this is exactly the question base answered by accident: "would the old
+counter have given this input that number?"
+
+**Counts.** The ruling also says "if the counts of unmatched differ … it is not a rename", and asks for (c2) —
+a rename plus an added input, two unmatched pasted inputs against one unmatched saved one — to carry. Both
+cannot hold; (c2) was taken as the intent. The place decides, per input: the added input stands at no saved
+place, so it never takes a saved id, and the renamed one beside it still does.
+
+**The notice.** `The input "Fast" is now "Quick". It is the same saved setting under its new name.` — followed,
+when there is one, by the § 9 sentence for an input the formula does not hold.
+
+**Two things the notice does not say, because they are not true:**
+
+- *The value is not carried.* A re-paste rebuilds the settings from the pasted script, for a name match and a
+  rename alike (§ 9); the saved value survives only when the script's default equals it, as in these fixtures.
+  The ruling's "keeps the saved value (same as a name match)" holds in the second half only.
+- *The stored record keeps the old name.* For a known id the server keeps the prior record verbatim, so after a
+  renamed paste is saved the stored entry still reads `fast` / "Fast" (`test_c_…`). That is what base stored
+  too.
+
+**Through the real door** (same two files as § 9; requests re-pinned by cause — `renamed` changed, four keys
+added):
+
+| case | what the door sends | server |
+|---|---|---|
+| (a) same Pine | `_1` slow, `_2` fast | accepted |
+| (b) one input added | `_1`, `_2`, `_1001` sig + notice | refused (`__uct_param_1001`) — as base |
+| (c) `fast` renamed `quick` | `_1` slow, `_2` quick, values 21 / 9, rename notice | **accepted** — as base |
+| (c2) rename + added input | `_1` slow, `_2` quick, `_1001` sig, both notices | refused for `__uct_param_1001` only |
+| (c3) the two inputs swapped in the source | `_1` slow, `_2` fast, no notice | accepted (name match; the rename rule is not reached) |
+| (c4) rename + `int` → `float` | `_1` slow, `_1001` quick, "not among" notice | refused (`__uct_param_1001`) |
+| (c5) both renamed | `_1` lag, `_2` quick, two rename notices | accepted |
+| (d) fresh paste | `_1001` fast, `_1002` slow | accepted |
+
+**Mutations** (fourteen, each alone, both rails in one vitest, restored by bytes with sha verified, control
+green first — K1–K7 are § 9's, re-run on this code):
+
+| | mutation | red |
+|---|---|---|
+| R1 | the rename fallback is off | door (c), (c2), (c5) + 4 unit |
+| R2 | the fallback ignores the kind | door (c4) + 1 unit |
+| R3 | the fallback ignores the place (pairs whatever is left over) | door (c2), (c5) + 7 unit |
+| R4 | the door does not pass the pasted inputs' places | door (c), (c2), (c5) |
+| R5 | the translator reports the source place as the walk place | door (c), (c5) |
+| R6 | two candidates is still a rename | unit: two saved inputs it could be |
+| R7 | the name match is skipped | door (a), (c), (c3) + 11 unit |
+| K1–K7 | as § 9 | all red (K1 now reds every door case but (d)) |
+
+R3 does not red (b): with nothing saved left unmatched there is nothing for a leftover pairing to take, so (b)
+is refused under that mutation too.
+
+**Measured.** Rails: `paramCarry.test.js` + `BuilderSheet.pineRepaste.test.jsx` `Tests  28 passed (28)`;
+builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (2074)`, both failures
+`EvidenceTab.doors.test.js` 15 s timeouts that pass alone (`Tests  10 passed (10)`). Scoped pytest
+`37 passed`. Translation census byte-identical to § 10's merged tip. Bytes: `pine` chunk 396,432 → 396,522
+(+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
+1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.

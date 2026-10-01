@@ -81,7 +81,13 @@ def test_the_fixtures_are_what_this_file_says_they_are():
     assert _roster({"compute": SENT["same"]}) == {"__uct_param_1": "slow", "__uct_param_2": "fast"}
     assert _roster({"compute": SENT["added"]}) == {
         "__uct_param_1": "slow", "__uct_param_2": "fast", "__uct_param_1001": "sig"}
-    assert _roster({"compute": SENT["renamed"]}) == {"__uct_param_1": "slow", "__uct_param_1001": "quick"}
+    assert _roster({"compute": SENT["renamed"]}) == {"__uct_param_1": "slow", "__uct_param_2": "quick"}
+    assert _roster({"compute": SENT["renamed_added"]}) == {
+        "__uct_param_1": "slow", "__uct_param_2": "quick", "__uct_param_1001": "sig"}
+    assert _roster({"compute": SENT["swapped"]}) == {"__uct_param_1": "slow", "__uct_param_2": "fast"}
+    assert _roster({"compute": SENT["renamed_kind"]}) == {"__uct_param_1": "slow", "__uct_param_1001": "quick"}
+    assert SENT["renamed_kind"]["paramManifest"]["__uct_param_1001"]["type"] == "float"
+    assert _roster({"compute": SENT["renamed_two"]}) == {"__uct_param_1": "lag", "__uct_param_2": "quick"}
     assert _roster({"compute": SENT["fresh"]}) == {"__uct_param_1001": "fast", "__uct_param_1002": "slow"}
 
 
@@ -123,12 +129,53 @@ def test_b_an_input_ADDED_on_an_edit_is_refused_by_condition_15_and_nothing_is_s
     assert _roster(after) == {"__uct_param_1": "slow", "__uct_param_2": "fast"}
 
 
-def test_c_a_RENAMED_input_is_a_new_identity_and_is_refused_by_condition_15(store):
+def test_c_a_RENAMED_input_keeps_its_saved_id_and_SAVES(store):
+    """The door recognised `quick` as the input that stood where `fast` stood and
+    sent it under `fast`'s saved id, so nothing new is introduced and the save goes
+    through — as it did at base. The server keeps the PRIOR record for a known id
+    verbatim (its rule, unchanged), so the stored entry still reads `fast` / "Fast";
+    the tree and the value are the pasted script's."""
+    _save_prior()
+    svc.save(USER, DEF_ID, _doc(SENT["renamed"]))  # accepted: it does not raise
+    _, after = _stored()
+    assert set(after["compute"]["paramManifest"]) == {"__uct_param_1", "__uct_param_2"}
+    assert _values(after) == {"__uct_param_1": (pms.ATTACHED, 21), "__uct_param_2": (pms.ATTACHED, 9)}
+    entry = after["compute"]["paramManifest"]["__uct_param_2"]
+    assert (entry["sourceName"], entry["title"]) == ("fast", "Fast")
+
+
+def test_c2_a_rename_beside_an_ADDED_input_is_refused_for_the_added_one_only(store):
+    _save_prior()
+    with pytest.raises(pms.ParamManifestRejected, match="__uct_param_1001") as exc:
+        svc.save(USER, DEF_ID, _doc(SENT["renamed_added"]))
+    assert "__uct_param_2:" not in str(exc.value)
+    row, after = _stored()
+    assert row["version"] == 1
+    assert _roster(after) == {"__uct_param_1": "slow", "__uct_param_2": "fast"}
+
+
+def test_c3_two_inputs_SWAPPED_in_the_source_save_under_their_own_ids(store):
+    _save_prior()
+    svc.save(USER, DEF_ID, _doc(SENT["swapped"]))  # accepted: it does not raise
+    _, after = _stored()
+    assert _roster(after) == {"__uct_param_1": "slow", "__uct_param_2": "fast"}
+    assert _values(after) == {"__uct_param_1": (pms.ATTACHED, 21), "__uct_param_2": (pms.ATTACHED, 9)}
+
+
+def test_c4_a_rename_with_a_changed_KIND_is_a_new_identity_and_is_refused(store):
     _save_prior()
     with pytest.raises(pms.ParamManifestRejected, match="__uct_param_1001"):
-        svc.save(USER, DEF_ID, _doc(SENT["renamed"]))
+        svc.save(USER, DEF_ID, _doc(SENT["renamed_kind"]))
     row, _ = _stored()
     assert row["version"] == 1
+
+
+def test_c5_two_renames_at_once_save_under_both_saved_ids(store):
+    _save_prior()
+    svc.save(USER, DEF_ID, _doc(SENT["renamed_two"]))  # accepted: it does not raise
+    _, after = _stored()
+    assert set(after["compute"]["paramManifest"]) == {"__uct_param_1", "__uct_param_2"}
+    assert _values(after) == {"__uct_param_1": (pms.ATTACHED, 21), "__uct_param_2": (pms.ATTACHED, 9)}
 
 
 def test_d_a_FRESH_paste_into_a_new_definition_saves_with_source_ids(store):
@@ -160,14 +207,13 @@ def test_base_record_an_ADDED_input_was_refused_at_base_too(store):
         svc.save(USER, DEF_ID, _doc(base_body))
 
 
-def test_base_record_a_RENAMED_input_was_ACCEPTED_at_base_under_the_old_inputs_record(store):
-    """⚠️ The one behaviour that differs from base. The counter gave `quick` the
-    number `fast` used to have, so the server took the save — and, because the
-    prior record wins verbatim, went on calling it `fast` / "Fast". A match by
-    position, presented as the same input. Under C46 a renamed input is a new one."""
+def test_base_record_the_RENAMED_paste_sends_what_base_sent(store):
+    """At base the counter gave `quick` the number `fast` had held, so the renamed
+    paste went out under `_1` / `_2` and was accepted. The carry now sends the same
+    two ids for the same reason stated as a rule (same kind, same place), and the
+    control shows what is refused without it: the source id."""
+    assert set(SENT["renamed"]["paramManifest"]) == {"__uct_param_1", "__uct_param_2"}
     _save_prior()
-    base_body = _rekey(SENT["renamed"], {"__uct_param_1001": "__uct_param_2"})
-    svc.save(USER, DEF_ID, _doc(base_body))  # accepted: it does not raise
-    _, after = _stored()
-    entry = after["compute"]["paramManifest"]["__uct_param_2"]
-    assert (entry["sourceName"], entry["title"]) == ("fast", "Fast")
+    without_the_rename_rule = _rekey(SENT["renamed"], {"__uct_param_2": "__uct_param_1001"})
+    with pytest.raises(pms.ParamManifestRejected, match="__uct_param_1001"):
+        svc.save(USER, DEF_ID, _doc(without_the_rename_rule))

@@ -107,7 +107,7 @@ import {
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
-import { carryPriorParamIds, savedParamManifest, carryNotice } from './paramCarry'
+import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from './paramCarry'
 import ParamControls from './ParamControls'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
@@ -2497,7 +2497,7 @@ export default function BuilderSheet({
                 // is the STORED row's, which is what the server will compare against;
                 // a fresh formula has none and its ids are the translation's own.
                 const priorRow = editing ? (rows || []).find((r) => r && r.def_id === editing.defId) : null
-                const carry = carryPriorParamIds(nextParamManifest, savedParamManifest(priorRow && priorRow.definition))
+                const carry = carryPriorParamIds(nextParamManifest, savedParamManifest(priorRow && priorRow.definition), inputPlaces(pickedInputParams))
                 setParamManifest(carry.manifest)
                 setParamCarryNote(carryNotice(carry))
                 // ⛔ `picked2` IS NULL FOR THE STRING FORM. `onPick` still

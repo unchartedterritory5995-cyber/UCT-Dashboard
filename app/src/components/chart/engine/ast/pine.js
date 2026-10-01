@@ -12529,6 +12529,12 @@ export class Resolver {
         // ⛔ NON-ENUMERABLE: the source ordinal is what the id was read from, kept
         // for the rails; no manifest, hash or saved document may see a new key.
         Object.defineProperty(entry, 'ordinal', { value: ordinal, enumerable: false })
+        // ⭐ C46 — ITS TURN IN THE WALK, kept beside the id it no longer decides. This
+        // is the number the old counter gave the input, so a formula saved under
+        // counter ids can still be asked "is this the input that held `_N`?" when
+        // its Pine is pasted again with an input renamed (`builder/paramCarry.js`).
+        // Non-enumerable for the same reason as `ordinal`.
+        Object.defineProperty(entry, 'walkIndex', { value: this.paramMint.counter, enumerable: false })
         this.paramMint.byOrdinal.set(ordinal, entry)
         this.paramMint.metadata.push(entry)
       }
