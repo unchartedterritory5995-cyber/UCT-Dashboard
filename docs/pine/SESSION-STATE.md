@@ -1,4 +1,185 @@
-# Session state — `feat/indicator-r0r1`
+# Session state — Pine on our charts
+
+## READ THIS FIRST — the program as it stands (written 2026-10-01 by lane C44, on wave 10 `e4e24524ef`)
+
+> Everything under the line **"History through 2026-09-19"** further down is the record of
+> PR #145 (`feat/indicator-r0r1`, merged `e855f62cdb`). It is closed and kept verbatim. It says
+> nothing about the vendor-harness program that has run since 2026-09-27. This block is the
+> current page; when it and anything below disagree, this block is newer.
+>
+> Every number here was measured on `e4e24524ef` by `## C44` of
+> `docs/pine/vendor-harness/objects-triage-2026-09-28.md`, which is the long form of this page.
+> A number is a dated claim: re-measure before acting on one (the commands are at the bottom).
+
+### The goal and how it is graded
+
+Owner goal: every TradingView Pine indicator renders on our charts exactly as on TradingView.
+The owner delegated all Pine design decisions to the integrator.
+
+"Exactly" is graded by the **vendor harness**: a capture taken on a live TradingView chart (the
+study's own plot values, per-bar colours and drawing objects, with the bars it ran on) is replayed
+through the **member door** (`memberPaneDefinition` then `installUserDefinitions`, the same two
+doors a member's paste goes through) and compared. Verdicts are MATCH / DIVERGE / INCONCLUSIVE per
+plot, per object family, and per capture.
+
+- Code: `tools/vendor_harness/` (`compare.mjs`, `schema.mjs`, `tv_capture.js`),
+  `app/src/components/chart/engine/__tests__/vendorHarness/` (`harness.js`, `ourSide.js`,
+  `objectColours.js`, one `vendorHarness.c<lane>*.test.js` rail per mechanism).
+- Captures: the 47 corpus captures of 2026-09-28 live OUTSIDE the repo, in
+  `C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures/` (NYSE:RDDT 1D,
+  632 bars, from the listing). The committed set is `tests/fixtures/vendor/harness/` (117 files:
+  the same scripts plus every probe capture).
+- The triage doc (`docs/pine/vendor-harness/objects-triage-2026-09-28.md`) has one fix-order row
+  and one `## C<n>` section per lane, append-only. Its Rulings section is binding.
+
+### Scoreboard on wave 10 (`e4e24524ef`)
+
+Since C44 an object family grades MATCH only when the colours of its paired objects agree too
+(integrator ruling). Both verdicts come out of every run; a capture whose two verdicts differ
+changed because of colour and nothing else.
+
+| | verdict with colour (current) | verdict without colour (how every earlier number was taken) |
+|---|---|---|
+| 47 captures, objects pane on: objects MATCH / overall MATCH | **28 of 46 / 25 of 47** | 30 / 27 |
+| 47 captures, objects pane off | 17 of 25 / 14 | 18 / 15 |
+| committed harness dir (117), pane on | 64 of 85 / 46 | 66 / 48 |
+| committed harness dir, pane off | 53 of 64 / 35 | 54 / 36 |
+| object families agreeing on count and text (47, on) | 234 of 266 | the same |
+| object colour families agreeing (47, on) | 73 of 75 | not graded |
+| plots MATCH (47, on) | 161 of 172 | the same |
+| member door, 266 corpus scripts: attach, pane off / on | 41 / 64 | |
+| the same with the DARK runtime pane flag set in a test process (a measurement, nothing armed) | 43 / 66 — inside-bar-range and wyckoff-accumulation-distribution, nothing else | |
+
+Moved by colour: `heat-map-seasons` (one cell fill) and `multi-timeframe-supply-demand-zones`
+(8 held boxes). Nothing else.
+
+### What is live, and what is gated
+
+| wave | state | lanes | what it shipped (one line each; the triage section has the rule) |
+|---|---|---|---|
+| 3 and earlier | live | C1–C8, C13, C15, C12, C11 | harness decoding, table replace, `\n`, the object collector (C7), clock columns (C8), the drawing-helper inliner (C13), string forms in object text (C15), block values and the warm-up curtain (C12), arrays / methods in the runtime front end (C11) |
+| 4 | live | C16, C10, C14, C9, C12r, C11b, C12w | a script editing its own drawing list, `request.security` in object text, drawing getters, expression history offsets, one positional read mechanism, collections on the host object lane, the listing seed (R-W) |
+| 5 | live | C17, C11c, C12s | per-property register taint (withheld, never drawn off a guess), window reductions, switched counters |
+| 6 | live | C18, C19, C20, C21 | `while` + last-bar values from the runtime lane, the node budget counting what the evaluator computes, runtime text / colours, dual-view's walls named |
+| 7 | live | C22, C23, C24, C25, C26 | trend-duration + vdubus, the runtime lane can serve a pane (DARK), the comparison probe replayed (no param id moves), loop passes on the host lane, another symbol's `request.security` (exchange-spelled only) |
+| 8 | live | C27, C28 | the lower-timeframe mechanism (nothing served), the first sweep + the stale-snapshot fix |
+| 9 | live | C29–C36 | the 2026-09-30 capture rules (syminfo fields, bar counters, bare tickers, gradient, `timeframe.period`, `na` comparisons, `x[na]`), `time("W"/"M"/"3M"/"12M")`, loop-scoped names, per-pass window reads, object-lane reads, conditional helpers, runtime-lane stops, time follow-ups |
+| 10 | **gated, not on master** (`origin/integrate/wave10-2026-10-01` @ `e4e24524ef`) | C37, C38, C40, C42, C43 | colours carried (gradient plot colour, object colours, version defaults, theme references), per-bar history index in a plot + colour components, `for … in` / `.all` / the cap `while`, a call that runs once, getter arithmetic + a reached `runtime.error` |
+| — | branch only, not in wave 10 | C41 (`pine/c41-lower-tf-serve` @ `d787127855`) | a lower-timeframe `request.security` served on D / W charts behind `VITE_PINE_LOWER_TF_ENABLED` (default off) |
+| 12 | in flight | C44 (`pine/c44-sweep`) | this sweep; object colour joins the harness verdict |
+
+"Live" = an ancestor of `origin/master` (`46f54d80b5` when this was written; checked with
+`git merge-base --is-ancestor`, wave by wave). `web` deploys from `production`; whether master is
+promoted is a separate question this page does not answer.
+
+Flags:
+
+| flag | state | what it gates |
+|---|---|---|
+| `VITE_PINE_OBJECTS_ONLY_PANE_ENABLED` | **armed in production** (`=1`) | a pane for a script that draws objects and has no plot |
+| `VITE_PINE_RUNTIME_PANE_ENABLED` | **dark, stays dark** | the per-bar runtime lane serving a pane (C23, C35) |
+| `VITE_PINE_LOWER_TF_ENABLED` | **dark, stays dark**; the code is on C41's branch only | serving a lower-timeframe read |
+
+### Standing rulings (binding; the triage doc's Rulings section has the reasoning)
+
+1. **Budgets are never raised**: `INSTRUCTIONS_PER_BAR` 200,000 · `WHILE_ITERATIONS` 10,000 · the
+   128-node cap · `MAX_RECURRENCE_STEPS` · `MAX_WINDOW_CAP` · the series cap · the pane's 12-row
+   carry (`CARRY_MAX`). A script that needs more stays refused, by name.
+2. **An unwitnessed spelling or semantic is never served.** If Pine's docs say X and no committed
+   capture shows X: refused by name, with the probe (`tools/visual_conformance/probes/`) and a
+   `docs/pine/capture-queue-*.md` entry that would settle it.
+3. **An object whose text or position is unknown is withheld, never drawn wrong** (C17, C26, C28a).
+   A wrong drawing is the worst outcome; a named refusal is fine.
+4. **R-W**: the warm-up curtain stays (a translated `var` accumulates over a bounded window; reads
+   inside the warm-up are withheld). One exception: a series that provably starts at the symbol's
+   listing seeds from bar 0.
+5. **R-R**: `syminfo.root` is served as the ticker for equities (witnessed 2026-09-30).
+6. **R-G**: a plot whose colour this door cannot carry keeps its line; the fix is to carry the
+   colour, never to withhold the plot.
+7. **Object colour is part of the harness verdict** (C44). Theme references (`chart.fg_color`,
+   `chart.bg_color`) count as agreeing: they are our chart's colours, not TradingView's.
+8. **Saved parameter ids never move**: `engine/ast/paramIds.test.js` stays green with zero edits;
+   `docs/pine/param-ids.json` may only gain ids for a script that had none.
+9. **JS and Python mirrors move together** (tree vocabulary, masks, parity tests).
+
+### What is left on the 47, in one table
+
+22 of the 47 are not MATCH under the current verdict. By what stops each one first:
+
+| class | scripts | what it would take |
+|---|---|---|
+| buildable now, exact rule witnessed | heat-map-seasons, trend-duration-forecast | a name that is also a namespace (`color = …`); a v6 `var x = bool(na)` is `false` on the host lane |
+| buildable, moves families but not the verdict | high-low-open-mid-ranges, position-size-calc, artemis, liquidity-heatmap, volume-profile | a `3M` request; `switch` in a helper; a `switch` over a `simple string` per call site; a default parameter value; a constant-test ternary with a dead arm |
+| budget ruling (never raised) | dual-view, k-clustering, poor-man's-volume-profile | 247,425 / 800,613 / 227,730 instructions on the last bar against 200,000 |
+| row ceiling (12 plots per pane) | candlestick-patterns, madrid-ma-ribbon, ema-ribbon (its 13th plot) | a ruling, not a fix |
+| behind a dark flag | inside-bar-range (runtime pane), ema-ribbon cells (lower-tf, C41) | the flag, by ruling |
+| another symbol the store does not hold | htf-liquidity (futures), smt-divergence (XAUUSD), vold (`USI:*`), mcclellan (`ADVN`/`DECN`) | data, not a capture |
+| lists of user types / the collection grammar | trend-lines, htf-candle-footprint, multi-timeframe-supply-demand (colours) | a design wave (C11's UDT grammar) |
+| correct end state | sector-rotation (`chart.left_visible_bar_time` is viewport state) | nothing; a named refusal is right |
+
+Honest ceiling: with everything buildable built, **27 of 47 overall** (objects 30 of 46) is firm,
+and up to 29 if artemis and one unexplained OHLM line resolve. No graded capture reaches MATCH on
+an owed capture alone; the captures unblock corpus refusals and rails.
+
+### The capture queue (what is still owed from a live TradingView session)
+
+The consolidated table, with the probe file, symbol / timeframe, what each settles and which
+scripts it unblocks, is in `## C44` of the triage doc ("Captures still owed"). In short:
+
+- `vw-forin-collections.pine` (NYSE:RDDT 1D) — queue doc `capture-queue-2026-09-30-forin-collections.md`.
+- `vw-call-site-history.pine` (NYSE:RDDT 1D + AMEX:SPY 1D) — `capture-queue-2026-09-30-call-site-history.md`.
+- `vw-time-tf.pine` + `vw-time-close-tf.pine`: SPY 1D full history (Q-T5), FX:EURUSD 1D (Q-T2),
+  SPY 5 / 15 (Q-T3), SPY 1W / 1M (Q-T4) — `capture-queue-2026-09-30-time-anchors.md`.
+- `request-realtime-alignment.pine` (SPY 5m, market open only) — `OWNER-CAPTURE-PACKET.md` row 3.
+- `vw-mintick.pine` re-run on seven more listing classes — `capture-queue-2026-09-27.md` §9.
+- `vw-lower-tf.pine` rows at `"1"` / `"30"` and on a 1M chart — C41's section.
+- Named but with NO probe file yet: the chart theme under a gradient background (C37), the open
+  gradient cases and colour-component forms (C29 / C38), `max_bars_back(x, n)` and a buffer
+  overrun (C38), a negative getter coordinate (C43), unset v6 box fill / cell text (C37).
+
+Already taken (do not re-run): everything in `OWNER-CAPTURE-PACKET.md` rows 1–2 and its
+2026-09-30 results, `vw-lower-tf` on SPY 1D / 1W and RDDT 1D, `vw-runtime-error` (control and
+reached), `vw-int-array-avg`, `vw-fn-series-history`, the BTCUSD and SPY time-anchor captures.
+
+### How to re-measure (from `app/`, one vitest process at a time, `--maxWorkers=3`)
+
+```sh
+CAP47='C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/ext-2026-09-28/captures'
+T=src/components/chart/engine/__tests__/vendorHarness
+# the 47 (objects pane on; unset the flag for pane off; VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness for the committed dir)
+VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1 VENDOR_HARNESS_DIR="$CAP47" VENDOR_HARNESS_OUT=<out dir> \
+  npx vitest run --maxWorkers=3 $T/vendorHarness.corpus.test.js
+#   -> <out dir>/verdicts.json + summary.md; the table's last three lines are the totals,
+#      the totals without object colour, and every capture colour moved
+#   VENDOR_HARNESS_OBJECT_COLOUR=0 reproduces the verdict as it was before C44
+# member door, 266 scripts, both flag states
+VENDOR_BATCH_CENSUS=1 VENDOR_BATCH_CENSUS_OUT=<file.json> \
+  node node_modules/vitest/vitest.mjs run $T/memberDoorCensus.measure.test.js
+# per-slot colour tallies behind the verdict
+PINE_COLOUR_CENSUS=1 PINE_COLOUR_CENSUS_DIR="$CAP47" PINE_COLOUR_CENSUS_OUT=<file.json> \
+  VITE_PINE_OBJECTS_ONLY_PANE_ENABLED=1 npx vitest run --maxWorkers=3 $T/colourCensus.measure.test.js
+```
+
+Read the totals line of every run from its log; a run with no totals line is not a run. Never
+pipe a runner into `tail` / `head` for its exit code.
+
+Load timeouts that also time out at base under load (15 s default): `objectFnInline.vendor`
+(sector-rotation), `guardProbe.measure`, `objectLaneCallSites` / `Census` / `DrawerCensus.measure`,
+`c26OtherSymbol`, `c29BareSymbol`, `EvidenceTab.doors`. A timeout is not a regression until it
+fails alone and passes alone at base.
+
+### Lane hygiene (2026-10-01 incidents)
+
+- A lane makes its own worktree and **never removes any worktree** (its own included): two lanes
+  cleaning up deleted `.bin` and 13 packages out of the shared `node_modules` through a junction.
+- Doc and JSON files are written through a temp file + `os.replace`, in the line ending git stores.
+- A mutation proof captures bytes + sha256, restores by bytes, verifies the sha. Never `git checkout`.
+
+---
+
+# History through 2026-09-19 — PR #145 (`feat/indicator-r0r1`). Closed. Kept verbatim; not current.
+
+## Session state — `feat/indicator-r0r1` (the original title of this file)
 
 ## ⭐⭐⭐ RESUME POINTER — READ THIS FIRST.
 
