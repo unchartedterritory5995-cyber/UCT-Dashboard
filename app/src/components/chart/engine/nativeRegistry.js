@@ -1744,21 +1744,6 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
         continue
       }
-      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
-      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
-      // the block runs after a bar it skipped the plot is refused by name —
-      // never drawn off the every-bar number. Same budget, same options, same
-      // memo as the plot's own tree (the guard is a subtree of it).
-      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
-        undefined, { tf: ctx && ctx.tf,
-          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-          ...(other ? { symbols: other.symbols } : {}), crossMemo,
-          chartClockSink: new Map() }))
-      if (runsWhy) {
-        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
-        continue
-      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -1777,6 +1762,28 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           ? { guard: err.guard, message: String(err.message) }
           : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
             message: String((err && err.message) || err) }
+        continue
+      }
+      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
+      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
+      // the block runs after a bar it skipped the plot is refused by name —
+      // never drawn off the every-bar number. Same budget, same options, same
+      // memo as the plot's own tree (the guard is a subtree of it).
+      // ⛔ AFTER the plot's own tree, never before it: a plot that cannot be
+      // computed at all keeps ITS reason (`interpret:bind-time-text` on a chart
+      // whose symbol is not resolved, `symbolThread.test.js`) — the guard is a
+      // subtree of that tree, and asked first it failed the same way and the
+      // member was told about blocks instead of about the symbol.
+      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+        undefined, { tf: ctx && ctx.tf,
+          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...(other ? { symbols: other.symbols } : {}), crossMemo,
+          chartClockSink: new Map() }))
+      if (runsWhy) {
+        delete out[key]
+        delete clock[key]
+        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
     return withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock)
@@ -1802,7 +1809,15 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`).
+  const clock = { [keys[0]]: new Map() }
+  const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      chartClockSink: clock[keys[0]] })
+  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
+  // AFTER its tree computed (a tree that cannot keeps its own reason, above).
   const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
     undefined, { tf: ctx && ctx.tf,
       newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
@@ -1810,15 +1825,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
       ...(other ? { symbols: other.symbols } : {}),
       chartClockSink: new Map() }))
   if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  const clock = { [keys[0]]: new Map() }
-  return withChartClock(withOtherSymbols({
-    [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
-      undefined, { tf: ctx && ctx.tf,
-        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}),
-        chartClockSink: clock[keys[0]] }),
-  }, other), clock)
+  return withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock)
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
