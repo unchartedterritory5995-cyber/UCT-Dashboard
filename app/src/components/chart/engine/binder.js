@@ -53,6 +53,7 @@ import {
   seriesOptionsForPlot,
   signColorsForPlot,
   columnColorsForPlot,
+  gradientPointColour,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
@@ -322,6 +323,10 @@ function pointColour(colColors, condColumn, i) {
     if (!Number.isFinite(c)) return null
     return (Number.isInteger(c) && c >= 0 && c < colColors.palette.length) ? colColors.palette[c] : null
   }
+  // ⭐⭐ C37 — A GRADIENT: the column is the bar's position between the two
+  // endpoints, and the colour is the vendor-measured blend at that position.
+  // ⛔ A non-finite position is NO COLOUR (`gradientPointColour`), never an end.
+  if (colColors.gradient) return gradientPointColour(colColors.gradient, c)
   // ⭐⭐ OWNER RULING 2 (2026-09-28) — AN `na` CONDITION TAKES THE ELSE BRANCH,
   // AS PINE'S DOES. `cond ? up : down` with `cond` na is `down` in Pine, on a
   // plot and a fill alike, and TradingView draws it that way.
@@ -1470,7 +1475,8 @@ export function createBinder({ chart, LWC }) {
       const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
-      const palette = cc && cc.palette ? cc.palette.join('|') : null
+      const palette = cc && cc.palette ? cc.palette.join('|')
+        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}` : null)
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would

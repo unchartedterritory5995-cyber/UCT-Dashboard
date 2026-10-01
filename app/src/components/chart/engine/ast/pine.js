@@ -22213,6 +22213,92 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   return { test: node.test, up, down, opacity }
 }
 
+/** ⭐⭐ C37 — `color.from_gradient(value, bottom, top, c_bottom, c_top)` AS A
+ *  PLOT'S COLOUR: A POSITION COLUMN AND TWO STATIC ENDPOINTS.
+ *
+ *  ⚰️ MEASURED (C28, re-measured C37 on the committed capture
+ *  `rvol-rddt-1d-2026-09-27`): RVOL's line is
+ *
+ *      grad = color.from_gradient(rvol, 0.5, 2, dnv, upv)
+ *      plot(rvol, color = color.new(grad, 0))
+ *
+ *  and it drew in the pane's gold on 611 of 611 bars where TradingView draws a
+ *  colour per bar. C29 measured the gradient's curve (`runtime/colours.js::
+ *  fromGradient`, `vw-gradient-spy-1d-2026-09-30`) and served it to the lane
+ *  that computes colours as values; the PLOT lane had no rule that could hold
+ *  one — a plot colour is a static, a two-colour test or a palette index, and a
+ *  gradient is none of those. This is that rule (ruling R-G: the colour is
+ *  carried, the plot is never withheld).
+ *
+ *  THE SHAPE: the gradient's POSITION, `(value − bottom) / (top − bottom)`, is an
+ *  ordinary numeric tree — resolved like any series, it becomes one hidden
+ *  column, exactly as a two-colour test or a palette index does — and the two
+ *  endpoint colours ride as static strings (`#RRGGBB`, or `#RRGGBBAA` where one
+ *  is transparent: `staticObjectColourOf`, the object lane's one spelling). The
+ *  renderer hands the column's value to `fromGradient(w, 0, 1, a, b)`, whose
+ *  position is then `w` itself, so the measured curve (clamp to [0, 1], opacity
+ *  bytes blended, channels premultiplied and truncated) has ONE implementation.
+ *
+ *  ⭐ `color.new(<gradient>, t)` with a literal `t` SETS the result's
+ *  transparency (Pine's rule, the same as on a static colour): it rides as
+ *  `transparency` beside the endpoints. RVOL's own line is this form at 0.
+ *
+ *  ⛔ BOTH ENDPOINTS STATIC, or the rule declines (`colorDynamic`, as before):
+ *  a gradient between colours that themselves move bar to bar is two more
+ *  columns of colour, which no plot schema holds.
+ *  ⛔ A bar whose position is not a finite number — `top == bottom`, an `na`
+ *  value or bound — has NO colour here: C29 left that case unmeasured, and the
+ *  renderer draws the series colour there rather than an endpoint it guessed.
+ *  ⛔ `plot` only. A marker, a candle and a fill read their colour through other
+ *  renderers, which hold a pair or a palette; they stay declined, by name.
+ *  New rules never mint (R36): the three trees resolve with the mint withheld. */
+const GRADIENT_PARAMS = Object.freeze(['value', 'bottom_value', 'top_value', 'bottom_color', 'top_color'])
+function gradientArgsOf(node) {
+  const out = [undefined, undefined, undefined, undefined, undefined]
+  let pos = 0
+  for (const a of (node && node.args) || []) {
+    if (!a) return null
+    if (a.name) {
+      const at = GRADIENT_PARAMS.indexOf(a.name)
+      if (at < 0 || out[at] !== undefined) return null
+      out[at] = a.value
+    } else {
+      if (pos >= GRADIENT_PARAMS.length || out[pos] !== undefined) return null
+      out[pos] = a.value
+      pos += 1
+    }
+  }
+  return out.every((v) => v !== undefined) ? out : null
+}
+
+const OBJECT_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
+
+function colourGradientRule(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return bound && bound.kind === 'expr'
+      ? colourGradientRule(bound.node, bound.env || env, ctx, depth + 1) : null
+  }
+  if (node.type !== 'call') return null
+  if (node.name === 'color.new') {
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const raw = alphaNumberOf(args[1].value, env, ctx)
+    const t = raw === null ? null : wholeTransparency(raw)
+    if (!Number.isInteger(t) || t < 0 || t > 100) return null
+    const inner = colourGradientRule(args[0].value, env, ctx, depth + 1)
+    return inner ? { ...inner, transparency: t } : null
+  }
+  if (node.name !== 'color.from_gradient') return null
+  const a = gradientArgsOf(node)
+  if (!a) return null
+  const from = staticObjectColourOf(a[3], env)
+  const to = staticObjectColourOf(a[4], env)
+  if (!from || !to || !OBJECT_HEX.test(from) || !OBJECT_HEX.test(to)) return null
+  return { value: a[0], bottom: a[1], top: a[2], from, to, transparency: null }
+}
+
 /**
  * `fill(a, b, …)` by HANDLE → by output INDEX.
  *
@@ -22359,7 +22445,7 @@ const POSITIONAL_PRESENTATION = Object.freeze({
  *  that cannot is DECLINED (`colorDynamic`), never drawn undisplaced. */
 function displacedPresentation(pres, shift) {
   if (!(shift > 0) || !pres) return pres
-  for (const k of ['colorCondition', 'colorIndex']) {
+  for (const k of ['colorCondition', 'colorIndex', 'colorGradient']) {
     const rule = pres[k]
     if (!rule || !rule.ast) continue
     try {
@@ -22530,6 +22616,30 @@ function outputPresentation(args, ctx) {
       // payload. What this door still cannot say is recorded as
       // DEMANDED-AND-UNCARRIED rather than dropped, so the import can say so
       // instead of quietly showing one flat colour.
+      // ⭐⭐ C37 — A GRADIENT BETWEEN TWO STATIC COLOURS, on a `plot` — see
+      // `colourGradientRule`. Tried LAST, and only for a colour nothing above
+      // could say, so every colour this door already carried keeps its bytes.
+      if (!carried && kind === 'plot' && ctx && ctx.resolver && ctx.env) {
+        const g = colourGradientRule(c.value, ctx.env, ctx)
+        if (g) {
+          const r = ctx.resolver
+          const minted = r.paramMint
+          r.paramMint = null
+          try {
+            const v = r.resolve(g.value)
+            const lo = r.resolve(g.bottom)
+            const hi = r.resolve(g.top)
+            const ast = cOp('/', [cOp('-', [v, lo]), cOp('-', [hi, lo])])
+            const formula = printFormula(ast)
+            verifyRoundTrip(formula, ast)
+            pres.colorGradient = {
+              ast, formula, from: g.from, to: g.to,
+              ...(g.transparency !== null ? { transparency: g.transparency } : {}),
+            }
+            carried = true
+          } catch { /* falls through to colorDynamic */ } finally { r.paramMint = minted }
+        }
+      }
       if (!carried) pres.colorDynamic = true
     }
   }

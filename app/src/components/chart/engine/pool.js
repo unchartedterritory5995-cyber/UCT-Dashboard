@@ -59,6 +59,9 @@
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
 import { ALPHA, withAlpha } from '../designTokens'
+import { fromGradient, hexToPacked } from './runtime/colours'
+import { packColor, unpackColor } from './colorInt'
+import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
 
@@ -748,7 +751,50 @@ export function columnColorsForPlot(plot) {
   if (two) return { key, up: two.up, down: two.down }
   // ⭐⭐ AN N-WAY PINE COLOUR CHAIN: the named column holds the palette index.
   const palette = paletteOf(plot)
-  return palette ? { key, up: null, down: null, palette } : null
+  if (palette) return { key, up: null, down: null, palette }
+  // ⭐⭐ C37 — A GRADIENT: the named column holds the bar's position.
+  const gradient = gradientOf(plot)
+  return gradient ? { key, up: null, down: null, gradient } : null
+}
+
+/** ⭐⭐ C37 — a plot's `colorGradient` as the renderer reads it: the two
+ *  endpoints PACKED (`0xTTBBGGRR`, the integer `fromGradient` blends) and the
+ *  transparency a `color.new` set on the result, or null. `sig` is the memo key.
+ *  ⛔ Packed through `hexToPacked` / the alpha byte's own complement — never a
+ *  second byte order (`colorInt.js`'s header says why). */
+function gradientOf(plot) {
+  const g = plot && plot.colorGradient
+  if (!g || typeof g !== 'object') return null
+  const pack = (c) => {
+    const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(c || ''))
+    if (!m) return null
+    const base = hexToPacked(`#${m[1]}`)
+    if (!m[2]) return base
+    const u = unpackColor(base)
+    return packColor({ r: u.r, g: u.g, b: u.b, transparencyByte: 255 - parseInt(m[2], 16) })
+  }
+  const a = pack(g.from)
+  const b = pack(g.to)
+  if (a === null || b === null) return null
+  const transparency = Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100
+    ? g.transparency : null
+  return { a, b, transparency, sig: `${a}|${b}|${transparency}` }
+}
+
+/** ⭐⭐ C37 — THE COLOUR OF ONE BAR OF A GRADIENT PLOT, or null where the
+ *  position is not a finite number (unmeasured: `top == bottom`, an `na` value
+ *  or bound — the caller draws the series colour there, never a guessed end).
+ *  The curve is `fromGradient`'s — the position IS `w`, so its bounds are 0 and
+ *  1. A transparency a `color.new` set replaces the blend's, by the object
+ *  lane's one formula; otherwise the blend's own opacity byte is the alpha. */
+export function gradientPointColour(gradient, w) {
+  if (!gradient || typeof w !== 'number' || !Number.isFinite(w)) return null
+  const packed = fromGradient(w, 0, 1, gradient.a, gradient.b)
+  if (packed === null || packed === undefined) return null
+  const u = unpackColor(packed)
+  if (gradient.transparency !== null) return withObjectTransparency(u.hex, gradient.transparency)
+  if (u.transparencyByte === 0) return u.hex
+  return u.hex + (255 - u.transparencyByte).toString(16).padStart(2, '0').toUpperCase()
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────

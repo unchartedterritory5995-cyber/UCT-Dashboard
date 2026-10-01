@@ -106,6 +106,7 @@ function tradingViewDefaultColour(output, version) {
   if (!DEFAULT_COLOURED_KINDS.has(output.kind)) return p
   const saidSomething = p.color !== undefined || p.colorUp !== undefined
     || p.colorDown !== undefined || p.colorPalette !== undefined
+    || p.colorGradient !== undefined
     || p.colorDynamic || p.colorDynamicArity !== undefined
   if (saidSomething) return p
   return {
@@ -301,6 +302,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // entry each bar uses (ATR Trailing Stoploss's green/red/black line).
     const paletteKey = (!condKey && Array.isArray(p.colorPalette) && p.colorPalette.length >= 2)
       ? conditionColumnFor(p.colorIndex) : null
+    // ⭐⭐ C37 — …and a GRADIENT: the column holds the bar's POSITION between two
+    // static colours (`pine.js::colourGradientRule`; RVOL's line, gold on 611
+    // bars before this). Same hidden-column mint as the two rules above.
+    const g = p.colorGradient
+    const gradientKey = (!condKey && !paletteKey && g && typeof g.from === 'string' && typeof g.to === 'string')
+      ? conditionColumnFor(g) : null
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
     // `meta.repaint` is a TRUTH CLAIM a member makes decisions on, and the
     // install door refuses a declaration that disagrees with what it measures —
@@ -337,6 +344,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
+      ...(gradientKey ? {
+        colorMode: `column:${gradientKey}`,
+        colorGradient: {
+          from: g.from, to: g.to,
+          ...(Number.isInteger(g.transparency) ? { transparency: g.transparency } : {}),
+        },
+      } : {}),
     }
   })
 

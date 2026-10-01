@@ -811,7 +811,7 @@ function colourRulesOf(t) {
   const rules = []
   const take = (p) => {
     if (!p) return
-    for (const k of ['colorCondition', 'colorIndex']) {
+    for (const k of ['colorCondition', 'colorIndex', 'colorGradient']) {
       const r = p[k]
       if (r && typeof r.formula === 'string' && r.ast) rules.push(r)
     }

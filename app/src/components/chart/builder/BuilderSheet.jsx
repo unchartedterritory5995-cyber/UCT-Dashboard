@@ -479,6 +479,13 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       ...(r.colorMode && !r.colorUp && Array.isArray(r.colorPalette) && r.colorPalette.length >= 2
         ? { colorMode: r.colorMode, colorPalette: r.colorPalette.slice() }
         : {}),
+      // ⭐⭐ C37 — …or a GRADIENT: the named column holds the bar's position
+      // between two static colours. Mode and endpoints travel together or
+      // neither does, as above.
+      ...(r.colorMode && !r.colorUp && !r.colorPalette && r.colorGradient
+        && typeof r.colorGradient.from === 'string' && typeof r.colorGradient.to === 'string'
+        ? { colorMode: r.colorMode, colorGradient: { ...r.colorGradient } }
+        : {}),
       // ⭐⭐ THE AUTHOR'S OPACITY. `defSchema` validates `plots[].opacity` and
       // `pool` reads it, and the member pane has put it on its rows since
       // 2026-09-12 — but this projection never named it, so it stopped here and

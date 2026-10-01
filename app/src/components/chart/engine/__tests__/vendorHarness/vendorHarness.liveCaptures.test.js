@@ -40,7 +40,10 @@ describe('live TradingView captures — MATCH', () => {
     // ⚰️ 'rvol-rddt-1d-2026-09-27' WAS HERE, and its MATCH was vacuous on colour:
     // the line's colorer has no palette, the harness could not read it, and the
     // plot graded MATCH having compared no colour. Read (0xAABBGGRR), TradingView
-    // drew a GRADIENT our side does not carry — see its own test below.
+    // drew a GRADIENT our side did not carry (gold on 611 bars, C28).
+    // ⭐ C37 — it is carried now, and it is BACK: the same MATCH, this time with
+    // 611 colours compared (its own test below, and `vendorHarness.c37PlotGradient`).
+    'rvol-rddt-1d-2026-09-27',
   ]) {
     it(`⭐ ${id} matches TradingView on every plot, colour and object`, () => {
       expect(fs.existsSync(path.join(DIR, `${id}.json`)), 'capture file missing').toBe(true)
@@ -85,7 +88,7 @@ describe('live TradingView captures — MATCH', () => {
     }, 60000)
   }
 
-  it('⛔ RVOL: every VALUE agrees; the line\'s colour is a gradient our side does not carry — DIVERGE on colour, by name', () => {
+  it('⭐ RVOL: every VALUE agrees, and the line\'s gradient is carried — 611 colours compared, none differ (C37)', () => {
     // `color.new(color.from_gradient(rvol, 0.5, 2, dnv, upv), 0)` — a colour per
     // bar interpolated between two inputs. The packed vendor colours are the
     // inputs' own at the gradient's two ends, which is also the proof the
@@ -99,8 +102,11 @@ describe('live TradingView captures — MATCH', () => {
       expect(p.stats.steady.compared, p.title).toBeGreaterThan(500)
     }
     const line = v.plots.find((p) => p.id === 'plot_0')
-    expect(line.verdict).toBe('DIVERGE')
-    expect(line.stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#909090ff' })
+    // ⚰️ Until C37 this asserted DIVERGE on colour, first at `#909090ff`: the line
+    // wore the pane's gold. ⛔ The MATCH is not vacuous — the colour was compared.
+    expect(line.verdict, line.reason).toBe('MATCH')
+    expect(line.stats.colorCompared).toBe(611)
+    expect(line.stats.colorMismatches).toBe(0)
     const thresh = v.plots.find((p) => p.id === 'plot_2')
     expect(thresh.verdict, thresh.reason).toBe('MATCH')
     expect(thresh.stats.colorCompared).toBeGreaterThan(500)
