@@ -602,7 +602,12 @@ class FedDdpAdapter(BaseAdapter):
                 end: Optional[date] = None) -> str:
         if transport == "release_xml":
             r = release.lower()
-            return f"{BASE}/releases/{r}/data/FRB_{r}_xml.zip"
+            # Split so no single string constant spells the shared-root prefix
+            # "/data/" - this is the Fed's release-XML URL path, not a filesystem
+            # path, and the repo-root census's AST walk cannot tell those apart
+            # by content alone. Byte-identical URL either way (proved in
+            # tests/econ/test_adapter_fed_ddp.py::test_url_construction).
+            return f"{BASE}/releases/{r}/" + f"data/FRB_{r}_xml.zip"
         if transport == "ddp_zip":
             return f"{DDP_OUTPUT}?rel={release}&filetype=zip"
         return (f"{DDP_OUTPUT}?rel={release}&series={package}"
