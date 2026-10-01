@@ -580,8 +580,12 @@ describe('⭐⭐ C40 — the cap `while`: the oldest drawing is deleted until th
     for (const body of [
       ['while array.size(ls) > array.size(ls) - 1', '    line.delete(array.shift(ls))'],
       ['while array.size(ls) > 5', '    line.delete(array.shift(ls))', '    line.delete(array.shift(ls))'],
+      // …nor a loop that never shortens the list it measures
+      ['while array.size(ls) > 5', '    line.delete(array.shift(other))'],
     ]) {
-      const u = tr(['var line[] ls = array.new_line()', 'array.push(ls, line.new(bar_index, high, bar_index + 1, high))', ...body])
+      const u = tr(['var line[] ls = array.new_line()', 'var line[] other = array.new_line()',
+        'array.push(ls, line.new(bar_index, high, bar_index + 1, high))',
+        'array.push(other, line.new(bar_index, low, bar_index + 1, low))', ...body])
       expect(loops(u)).toEqual([])
       expect(diag(u).loopBlockedCalls).toContain('line.delete')
     }

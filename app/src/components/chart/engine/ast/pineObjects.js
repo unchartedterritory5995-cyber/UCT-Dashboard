@@ -785,9 +785,9 @@ export function collectObjectOps(stmts, h) {
         // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
         // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
         // every other shape falls through to the refusal below, unchanged.
-        // ⛔ Not inside a loop this reader does not run (`inLoop` — the C20 runtime
-        // `while` included): its passes are not this program's.
-        if (!head && hostLoops && !inLoop) {
+        // ⛔ Inside a loop this reader does not run, the body is walked with that
+        // loop's `inLoop`, so every op in it is refused there and no loop is left.
+        if (!head && hostLoops) {
           const plan = word === 'for' ? forInPlan(t, st) : capWhileOf(t, st)
           if (plan) {
             hostLoopSeq += 1
@@ -1511,7 +1511,6 @@ export function collectObjectOps(stmts, h) {
     const body = splitCommaStatements(st.sub || [], h)
     if (!body.length) return null
     const shortened = new Set()
-    let mine = 0
     for (const s2 of body) {
       // (a statement with a block of its own — `if …` — is not an expression and fails the parse below)
       let n = null
@@ -1530,11 +1529,10 @@ export function collectObjectOps(stmts, h) {
         arr = endRemovalOf(n)                            // `array.shift(C)` — dropped, not deleted
         if (!arr || (decls.get(arr) && decls.get(arr).kind !== 'coll')) return null
       }
-      if (shortened.has(arr)) return null
+      if (shortened.has(arr)) return null               // one removal of each array per pass
       shortened.add(arr)
-      if (arr === coll) mine += 1
     }
-    if (mine !== 1) return null
+    if (!shortened.has(coll)) return null                // …the measured list among them
     const opAt = h.findTop(t, (x) => h.isPunct(x, node.op))
     if (opAt < 1) return null
     const bound = sizeLeft ? t.slice(opAt + 1) : t.slice(1, opAt)

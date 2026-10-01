@@ -18997,7 +18997,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     for (const o of list || []) {
       if (o.into) usedRegs.add(o.into)
       if (o.reg) usedRegs.add(o.reg)
-      if (o.k === 'loop' && o.elem) usedRegs.add(o.elem)   // C40 — `for … in <family>.all`
       if (o.coll) usedColls.add(o.coll)
       // ⭐ C14 — a handle a getter reads is used, whatever else writes it.
       for (const s of stateReadsOfOp(o)) if (s.v === 'get') usedRegs.add(s.target.id)
