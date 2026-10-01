@@ -1,0 +1,165 @@
+{
+  "label": "s-L10",
+  "mode": "check",
+  "identity": "http://127.0.0.1:8241 proved it is the sandbox that writes C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1e\\t\\s-L10\\docs\\plans\\joystick\\sandbox-runs\\2026-09-30T16-39-44.md (identity 9a5a38e6941f..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\r1e\\data)",
+  "proven": true,
+  "fixtures": {
+    "n0": "5cadfb35233f4be19688b9f97f0ae368",
+    "n1": "f026440755f9454080f8b92b7cc409df",
+    "n2": "a9491944a9d845a8a18180edd80d9123"
+  },
+  "landings": {
+    "L1c_switcher_body_recall": {
+      "status": 200,
+      "text_matches": 1,
+      "rows": 1
+    },
+    "L1b_admin_notebook_slo": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "L1a_unbuildable_body_at_create": {
+      "status": 400
+    },
+    "h203_depth_cap_at_create": {
+      "status": 400
+    },
+    "w9_batch_export_bogus_format": {
+      "status": 422
+    },
+    "w8_share_links": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w8_publish": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "9C_admin_notebook_soak": {
+      "status": 422,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w7_personal_tokens": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w6_note_templates": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json"
+    },
+    "w5_switcher_door": {
+      "status": 200,
+      "json": true,
+      "content_type": "application/json",
+      "has_notes_key": true
+    }
+  },
+  "L7_find_input_floor": {
+    "editor_mounted": true,
+    "find_button_count": 1,
+    "find_input_count": 1,
+    "find_input_height_px": 44,
+    "page_errors": []
+  },
+  "L12_sort_updated_asc": {
+    "create_a_status": 200,
+    "create_b_status": 200,
+    "status": 200,
+    "first_five_ids_newest_created_last_expected": [
+      "b4c2e162ed394ccabf13505851025de5",
+      "8db982725acc49d4ab6e8122775ae09d",
+      "5cadfb35233f4be19688b9f97f0ae368",
+      "f026440755f9454080f8b92b7cc409df",
+      "a9491944a9d845a8a18180edd80d9123"
+    ],
+    "idx_a_older": 1,
+    "idx_b_newer": 0,
+    "older_comes_first": false
+  },
+  "L10_template_gallery": {
+    "templates_button_count_direct": 0,
+    "all_notes_link_count": 1,
+    "templates_button_count": 1,
+    "template_card_count": 11,
+    "page_errors": []
+  },
+  "dom": {
+    "skip_link": {
+      "present": true,
+      "pointerEvents": "none",
+      "opacity": "0"
+    },
+    "pane_heading": {
+      "present": true,
+      "focused": true,
+      "position": "absolute",
+      "pointerEvents": "none"
+    },
+    "page_errors": []
+  },
+  "editor": {
+    "n2": {
+      "note_id": "a9491944a9d845a8a18180edd80d9123",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n1": {
+      "note_id": "f026440755f9454080f8b92b7cc409df",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    },
+    "n0": {
+      "note_id": "5cadfb35233f4be19688b9f97f0ae368",
+      "editor_mounted": true,
+      "notice_strings": [],
+      "editable_before_typing": true,
+      "notice_strings_after": [],
+      "body_puts": [
+        {
+          "schema": "2"
+        }
+      ],
+      "put_statuses": [
+        200
+      ],
+      "read_back_status": 200,
+      "stored_keeps_marker": true,
+      "stored_has_typed": true,
+      "page_errors": []
+    }
+  }
+}

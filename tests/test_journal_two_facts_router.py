@@ -102,11 +102,41 @@ def test_create_and_resolve_a_price_fact(app, client):
     assert facts_out[0]["current"] == 999.99  # from the stubbed resolver
 
 
-def test_creating_an_inactive_fact_type_400s(app, client):
+def test_creating_an_analyst_consensus_fact_is_active_at_the_router(app, client):
+    # G-062 (owner FMP approval 2026-09-25): analyst_price_target_consensus is
+    # ACTIVE -- replaces test_creating_an_inactive_fact_type_400s, which
+    # pinned the pre-approval inactive state at the router level.
     _login_as(app, "u1")
     note_id = _create_note(client)
     r = client.post(f"/api/j2/notes/{note_id}/facts", json={
         "ticker": "NVDA", "factType": "analyst_price_target_consensus", "value": 195.0,
+    })
+    assert r.status_code == 200
+    fact = r.json()["fact"]
+    assert fact["value"] == 195.0
+    assert fact["ticker"] == "NVDA"
+    assert fact["rightsClass"] == "conditional"
+    assert fact["temporalMode"] == "snapshot"
+    assert fact["source"] == "fmp"
+
+
+def test_creating_an_inactive_fact_type_400s_at_the_router(app, client, monkeypatch):
+    # The router-level refusal is a structural property of the gate in
+    # note_facts.create_fact_observation, proved here with a test-local
+    # inactive entry now that no shipped fact type is inactive any more
+    # (G-062 activated the last one).
+    from api.services.journal_two import fact_registry
+    test_inactive = fact_registry.FactTypeDef(
+        key="test_inactive_type", label="Test Inactive Type",
+        value_column="value_number", unit="usd_per_share",
+        temporal_mode="snapshot", source="fmp", rights_class="conditional",
+        active=False,
+    )
+    monkeypatch.setitem(fact_registry.FACT_TYPES, "test_inactive_type", test_inactive)
+    _login_as(app, "u1")
+    note_id = _create_note(client)
+    r = client.post(f"/api/j2/notes/{note_id}/facts", json={
+        "ticker": "NVDA", "factType": "test_inactive_type", "value": 195.0,
     })
     assert r.status_code == 400
 

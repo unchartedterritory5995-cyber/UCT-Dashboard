@@ -509,7 +509,10 @@ def test_calendar_marks_expiring_strategies(db_conn):
     next_month = today.replace(day=1) + timedelta(days=32)
     last_of_month = next_month.replace(day=1) - timedelta(days=1)
     days_left = (last_of_month - today).days
-    exp = (today + timedelta(days=min(7, max(1, days_left)))).isoformat()
+    # days_left is 0 on the last day of a month; a same-day expiration is
+    # legal (create_strategy rejects only strictly-past dates), while
+    # max(1, ...) pushed it into NEXT month and failed on every month-end.
+    exp = (today + timedelta(days=min(7, days_left))).isoformat()
 
     create_strategy("u1", {
         "underlying": "SPY", "strategy_type": "long_call", "direction": "bullish",

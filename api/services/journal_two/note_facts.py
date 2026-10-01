@@ -96,9 +96,12 @@ def create_fact_observation(
     `value=None` for `fact_type='price'` auto-resolves the current live price
     (directive §43/§112's "UCT already knows this" -- a member should never
     have to manually type in the number UCT can already read off the same
-    live-price cache the dashboard already polls). Every OTHER fact type
-    still requires an explicit value -- there is no generic auto-fill,
-    only this one, narrow, already-cached case."""
+    live-price cache the dashboard already polls). `value=None` for
+    `fact_type='analyst_price_target_consensus'` (G-062, active since the
+    owner's 2026-09-25 FMP licensing approval) auto-resolves the current FMP
+    consensus the same way -- a member never types in a number UCT can fetch
+    itself. Every OTHER fact type still requires an explicit value -- there
+    is no generic auto-fill, only these two, narrow, already-sourced cases."""
     ticker = (ticker or "").strip().upper()
     if not ticker:
         raise FactValidationError("Ticker is required")
@@ -117,6 +120,18 @@ def create_fact_observation(
         value = resolved.get("_capture")
         if value is None:
             raise FactValidationError(f"Could not resolve a current price for {ticker}")
+    elif value is None and fact_type == "analyst_price_target_consensus":
+        # G-062: the same "UCT already knows this" auto-fill as price, sourced
+        # from FMP instead of the live-price cache. Honest missing data: a
+        # `None` here (unconfigured key, provider error, or FMP genuinely
+        # carries no consensus for this ticker) becomes a refusal, never a
+        # fabricated number.
+        from api.services.journal_two import fact_current_value
+        value = fact_current_value._resolve_price_target_consensus(ticker)
+        if value is None:
+            raise FactValidationError(
+                f"No analyst price target consensus available for {ticker}"
+            )
     if fdef.value_column == "value_number":
         try:
             value_number = float(value)

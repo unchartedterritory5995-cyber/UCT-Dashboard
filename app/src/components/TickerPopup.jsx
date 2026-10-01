@@ -58,6 +58,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   const [flagToast, setFlagToast] = useState(null)
   const [captureToast, setCaptureToast] = useState(null)
   const [capturing, setCapturing] = useState(false)
+  const [consensusCapturing, setConsensusCapturing] = useState(false)
   const [compareSymbol, setCompareSymbol] = useState('')
 
   // Header symbol search. The popup opens on the caller's `sym`, but the header
@@ -152,6 +153,22 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
       setCaptureToast(msg)
     } finally {
       setCapturing(false)
+    }
+  }
+
+  // G-062 (wave 10, lane G62): "Save analyst consensus to Notebook" -- the
+  // second capture door, mirroring captureCurrentPrice exactly (same shape,
+  // a separate capturing flag so the two buttons never disable each other).
+  // Active since the owner's 2026-09-25 FMP licensing approval.
+  const captureCurrentConsensus = async () => {
+    if (consensusCapturing) return
+    setConsensusCapturing(true)
+    try {
+      const { captureConsensusToNotebook } = await import('../pages/journal-2-0/lib/captureFinancialFact')
+      const msg = await captureConsensusToNotebook(activeSym)
+      setCaptureToast(msg)
+    } finally {
+      setConsensusCapturing(false)
     }
   }
 
@@ -314,6 +331,20 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                   aria-label={`Save ${activeSym}'s current price to Notebook`}
                 >
                   <UIcon name="camera" size={14} />
+                </button>
+                {/* G-062: capture this ticker's analyst price-target CONSENSUS
+                    as an immutable financial fact into the member's Notebook --
+                    same door shape as the price capture above, one entry point
+                    lower. Active since the owner's 2026-09-25 FMP licensing
+                    approval. */}
+                <button
+                  className={styles.actionBtn}
+                  onClick={captureCurrentConsensus}
+                  disabled={consensusCapturing}
+                  title="Save analyst consensus to Notebook"
+                  aria-label={`Save ${activeSym}'s analyst consensus to Notebook`}
+                >
+                  <UIcon name="dollar" size={14} />
                 </button>
                 <span className={styles.compareEntry} data-testid="ticker-popup-compare-entry">
                   <SymbolSearch sym={activeSym} displayLabel="+ Compare" onSymbolChange={goToCompare} />

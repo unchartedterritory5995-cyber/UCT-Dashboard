@@ -49,6 +49,26 @@ dark), touches only api/main.py (a lifespan scheduler-registration block moved t
 -- added to REVIEWED_NOT_LANDINGS. All sixteen pins recorded at 8d08da86f came back
 byte-identical; zero new conflicts anywhere in the chain. `--check --from origin/master` reports
 current.
+
+Lane R1e, 2026-09-30: MEASURED_AT moved a fourth time, from 6f563c158 to 599cd44f1 -- three
+landings: L9 #256 (89390fb85, the rollback-chain tool's own coverage for L6/L7/L8 -- R1d's PR,
+merged after R1d wrote MEASURED_AT=6f563c158 so it could not measure itself), L10 #257
+(8eb7f008b, the 25-template gallery + design-review close-out) and L12 #258 (599cd44f1, silent
+failures, the server-side sort toggle, typing fixes, the quote-in-list disable, scorecard 40/61).
+L9 ships no app/ or api/ file (same shape as L6/L8) -- in CHAIN by path only. L10 and L12 DO ship
+real app/ and api/ Notebook code, but their squash subjects read "Notebook w10 LN: ..." rather
+than "Notebook 10/10 -- wave 10 LN: ...", dropping the literal word "wave" NOTEBOOK_SUBJECT
+requires -- also in CHAIN by path only, a NEW reason for the same declared exception (see the
+tool's own SUBJECT-criterion comment). All three revert with 0 product conflicts; all sixteen
+pins recorded at 8d08da86f came back byte-identical (`--record-pins --through wave5` from the new
+MEASURED_AT). Nine more path-only commits in the window were read and ruled NOT Notebook
+landings -- two econ-harness entries to the shared reachable.test.js rail, an event-loop fix and a
+Terminal-Next router mount each touching only api/main.py, a Terminal-Next flag reader touching
+only api/routers/auth.py, a BRK-01 router+flag mount, a revert/reapply pair of another
+workstream's wave-3 Pine-engine integrate merge (touching vite.config.js and one Notebook-owned
+test file's await/lazy-load pairing only), and a clock/build-budget perf commit sharing the same
+vite.config.js plugin -- all nine added to REVIEWED_NOT_LANDINGS. New mutation record:
+docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1e/mutations-r1e.log.
 """
 from __future__ import annotations
 
@@ -62,18 +82,19 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT 8d08da86f (L6 #253 + L7 #254) by lane R1d, 2026-09-29. The R1c record
-# (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) is the same chain two
-# landings shorter, from 0812b5ec3; it stays as the evidence of that rehearsal. The R1b record
-# (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl) is shorter still, from f4cec49be;
-# the R1 2026-09-28 record (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter
-# still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-29-r1d" / "chain" / "chain-through-wave5.jsonl"
+# Re-recorded at MEASURED_AT 599cd44f1 (L9 #256 + L10 #257 + L12 #258) by lane R1e, 2026-09-30. The
+# R1d record (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl) is the same chain
+# three landings shorter, from 6f563c158; it stays as the evidence of that rehearsal. The R1c
+# record (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) is shorter still, from
+# 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
+# shorter still, from f4cec49be; the R1 2026-09-28 record
+# (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter still, from 38bb9a421.
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-30-r1e" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1d moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1e moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "0812b5ec3"
+PREVIOUS_MEASURED_AT = "6f563c158"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -244,15 +265,22 @@ def test_check_says_stale_and_why_on_an_uncharted_landing(chain, capsys):
     assert (rc, out["check"]) == (2, "stale") and "does not contain MEASURED_AT" in out["stopped"]
 
 
-# L6 (wave 10, PR #253) and L8 (wave 10, PR #255) each ship no `app/` or `api/` file at all --
-# rollback-chain tooling + rehearsal evidence, a restore-drill fix, proof-walk evidence and the
-# parity-scorecard re-score -- so `ships` is false and SUBJECT can never select either, however
-# its subject reads. Both are real wave-10 landings (the tool's own SUBJECT-criterion comment
-# states the exception) and belong in CHAIN anyway, selected by PATH only: L6's one Notebook-owned
-# file is tests/test_notebook_rollback_chain.py, the rollback tool's own test suite; L8's is
-# tests/test_parity_scorecard.py. Declared here, not inferred, so a FUTURE by-path-only CHAIN
-# entry still has to earn its way in by name.
-CHAIN_BY_PATH_ONLY = {"3fb184cdf", "6f563c158"}
+# L6 (wave 10, PR #253), L8 (wave 10, PR #255) and L9 (wave 10, PR #256) each ship no `app/` or
+# `api/` file at all -- rollback-chain tooling + rehearsal evidence, a restore-drill fix,
+# proof-walk evidence, the parity-scorecard re-score and (L9) the rollback tool's own coverage for
+# L6/L7/L8 -- so `ships` is false and SUBJECT can never select any of them, however their subject
+# reads. All three are real wave-10 landings (the tool's own SUBJECT-criterion comment states the
+# exception) and belong in CHAIN anyway, selected by PATH only: L6's and L9's one Notebook-owned
+# file is both tests/test_notebook_rollback_chain.py, the rollback tool's own test suite; L8's is
+# tests/test_parity_scorecard.py.
+#
+# L10 (wave 10, PR #257) and L12 (wave 10, PR #258) are a DIFFERENT reason for the same exception:
+# both DO ship real `app/`/`api/` Notebook code (`ships` is true), but their squash subjects read
+# "Notebook w10 L10: ..." / "Notebook w10 L12: ..." -- a subject-convention drift, lane R1e,
+# 2026-09-30, that drops the literal word "wave" `NOTEBOOK_SUBJECT` requires, so SUBJECT still
+# never selects them. Declared here, not inferred, so a FUTURE by-path-only CHAIN entry -- for
+# either reason -- still has to earn its way in by name.
+CHAIN_BY_PATH_ONLY = {"3fb184cdf", "6f563c158", "89390fb85", "8eb7f008b", "599cd44f1"}
 
 
 def test_the_subject_criterion_selects_every_chain_landing(chain):

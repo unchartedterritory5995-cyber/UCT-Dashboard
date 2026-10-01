@@ -15,7 +15,9 @@ that could not be quoted from the file as it stands today was not written into t
 
 ---
 
-## 0. The ten owner-only clause groups, in one table
+## 0. The nine owner-only clause groups, in one table
+
+⚰️ This heading said "ten" — row 10 (G-062) closed and was removed; see below.
 
 | # | What | Standard(s) / clause(s) it closes | Owner time | Why here |
 |---|---|---|---|---|
@@ -28,14 +30,18 @@ that could not be quoted from the file as it stands today was not written into t
 | 7 | §3.1 — the 5–8 trader study (SUS, first-useful-note timing) | #5 (3 clauses), #16 "first useful note < 2 min" | ~6–8 hrs of session time across 5–8 people, spread over however many days scheduling takes | Biggest single time cost; the kit is fully built, so the cost is calendar and people, not preparation |
 | 8 | §3.6 — the head-to-head speed benchmark sitting | Phase 7 item 1 "head-to-head speed benchmark"; the parity scorecard's "No competitor's speed is stated here" caveat | ~1 full working day (estimate — the protocol states no duration) | Needs one sitting, one machine, a quiet box, and the owner's own Notion/Evernote/Obsidian sign-ins; nothing in the hand-timed cells can be delegated |
 | 9 | §3.7 — the accessibility audit by a second reviewer | Phase 7 item 5 "accessibility audit by a second reviewer" | The NVDA/VoiceOver half is the same sitting as row 5 (run together); the keyboard-walk/WCAG-map half is a separate reviewer's ~2–3 hrs (estimate) | The brief exists specifically so the judge is not one of wave 8's builders — row 5 alone does not close this |
-| 10 | §3.8 — legal sign-off: G-062 (G-080 is already done) | Plan §5 item 3 "Legal sign-off (G-062, G-080)" | An external legal review's turnaround, not owner-hours | The one remaining rights-gated capability (analyst estimates) is blocked on outside counsel, the same shape as row 1 |
+
+⚰️ **Row 10 (§3.8 — legal sign-off: G-062) is CLOSED and removed from this table.** The owner
+approved the FMP licensing directly on 2026-09-25 — this was never the external legal review
+this row described; see §3.8 below for the short record. G-080, the other half of the plan's
+"Legal sign-off (G-062, G-080)" item, closed the same way earlier. Nothing in Plan §5 item 3
+remains open.
 
 Do 1 and 2 **today**, regardless of order between them — both have lead times outside your
 control. Then 3 and 4 (short, complete, no dependency on anything else). Then 5 and 6. Save 7
 for when you have real calendar space; nothing else here blocks on it, and nothing it produces
-blocks anything else in this list. **10** has the same "start the clock" shape as 1 and can start
-today alongside it. **8** and **9** each need their own dedicated sitting — see §4 below for where
-they fit.
+blocks anything else in this list. **8** and **9** each need their own dedicated sitting — see
+§4 below for where they fit.
 
 ---
 
@@ -730,83 +736,55 @@ screen-reader pass" clause past `NOT MEASURED — OWNER` in `parity-scorecard.md
 needs the §4a/§4b reading recorded exactly as §3.2 above describes — but one combined sitting
 closes both at once.
 
-### 3.8 — Legal sign-off: G-062 (analyst estimates) — G-080 is already done
+### 3.8 — Legal sign-off: G-062 (analyst estimates) — CLOSED, both halves of this plan item
 
 **Exact bar** (`docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`:192, §5 "What stays with the owner"): "3.
 Legal sign-off (G-062, G-080) and written vendor data terms (Anthropic, OpenAI)." The vendor-terms
-half is §2 above; this section is the legal-sign-off half, read from the gap ledger
-(`docs/notebook/competitive-gap-ledger.md`) for what each row actually asks.
+half is §2 above. Both G-080 and G-062, the legal-sign-off half, are now closed — this section is
+kept as a short record, not an open action.
 
-**G-080 is already done — there is nothing left to send for it.** The owner's legal sign-off for
-public share links and publish-to-web was recorded 2026-09-25 and the flags were armed the next
-day:
+**G-080 closed first** — the owner's legal sign-off for public share links and publish-to-web was
+recorded 2026-09-25 and the flags were armed the next day (`docs/notebook/competitive-gap-ledger.md`:138,
+`docs/notebook/share-publish-flip-packet.md`:35).
 
-> "Wave 8 (2026-09-26): authorization proven by lane 8B's rails … owner legal sign-off recorded
-> 2026-09-25 (P-7). Activation awaits the owner's confirmation of the public-page wording (final
-> review I-4), then is one variable." … "ARMED 2026-09-26 18:53Z — `J2_SHARE_LINKS_ENABLED=1` on
-> web after wave 8 went live … Owner legal sign-off 2026-09-25 (P-7, L1-L10) and the public-page
-> wording settled 2026-09-26 (option a): `docs/notebook/share-publish-flip-packet.md` §1.3-§1.4"
-> (`docs/notebook/competitive-gap-ledger.md`:138)
+**G-062 closed the same way, not through a separate external legal review.** The owner approved the
+FMP licensing directly:
 
-The recorded answers are in `docs/notebook/share-publish-flip-packet.md`:35, "The owner's answers,
-recorded 2026-09-25 (lane 8B brief, both BINDING)." The parity scorecard already reads this row as
-closed — `G-080 Public share link (read-only) — PARITY / NOT-VERIFIED / PARITY`
-(`docs/notebook/parity-scorecard.md`:677), no longer `BLOCKED`. The plan's §5 line grouping G-062
-and G-080 together pre-dates this closure.
+> "**APPROVED** -- the owner arranged licensing directly with FMP (confirmed 2026-09-25)."
+> (`docs/notebook/VENDOR-TERMS-2026-09-23.md`:11)
+>
+> "L5 | Analyst-consensus storage (G-062): UNBLOCKED -- the FMP approval covers it | the
+> conditional fact type is activated in a later lane" (`docs/notebook/VENDOR-TERMS-2026-09-23.md`:91)
 
-**G-062 is the one still open, and it needs the owner (or the owner's outside counsel), not an
-agent.** Watchlist/scanner capture and price/user-note capture are done and needed no sign-off;
-the remaining piece is analyst estimates/ratings/price-target consensus, and the ledger is
-explicit that it is gated on an external legal review, not an engineering task:
+This row previously described G-062 as waiting on "Patrick's external legal review" of a
+still-inactive registry entry. That was the state before 2026-09-25; the owner's direct approval
+closed it without a separate outside-counsel review ever running, the same way it closed G-080.
 
-> "**Analyst estimates/ratings/price-target CONSENSUS specifically: architected but deliberately
-> INACTIVE** — `analyst_price_target_consensus` exists fully in the fact-type registry and
-> resolver (proving the architecture generalizes) but `rights_class: conditional` blocks any write
-> path until Patrick's external legal review approves persistent FMP-derived value storage (never
-> reopened by this program)." (`docs/notebook/competitive-gap-ledger.md`:118)
+**Activation was built by lane G62** (branch `feat/notebook-w10-g62`), commit `b871bd65a`:
+`analyst_price_target_consensus` is now `active=True` in the fact-type registry
+(`api/services/journal_two/fact_registry.py`:69-75), reached by two doors mirroring the existing
+`price` doors exactly — a `/consensus TICKER` slash command and a TickerPopup "Save analyst
+consensus to Notebook" button — with the same frozen-at-insert semantics and the same honest
+missing-data refusal (never a fabricated number) when FMP has no consensus for a ticker.
+Unit-verified (`api/services/journal_two/test_wave_f_facts.py`,
+`tests/test_journal_two_facts_router.py`); the real-browser walk
+(`tools/notebook_g62_consensus_walk.py`) is written and handed to the controller to run — **pending**
+as of this commit.
 
-The parity scorecard still reads this row `BLOCKED (owner) / BLOCKED (owner) / BLOCKED (owner) —
-owner: legal sign-off` (`docs/notebook/parity-scorecard.md`:676).
+**Where recorded:** G-062's row in `docs/notebook/competitive-gap-ledger.md` and the parity
+scorecard's G-062 row (`tools/parity_scorecard.py`).
 
-**What the review needs to answer:** whether UCT may persistently store (frozen-at-insert, inside
-a member's own note) an analyst price-target consensus figure sourced from FMP — unlike the
-price/user-note capture already shipped, which needed no such review. Nothing here is waiting on
-more building: `analyst_price_target_consensus` is already declared in the fact-type registry,
-inactive —
-
-```
-"analyst_price_target_consensus": FactTypeDef(
-    key="analyst_price_target_consensus", label="Analyst Price Target (Consensus)",
-    value_column="value_number", unit="usd_per_share",
-    temporal_mode="snapshot", source="fmp", rights_class="conditional",
-    active=False,
-),
-```
-(`api/services/journal_two/fact_registry.py`:52-57) — with a resolver already proving the pattern
-generalizes; activating it once approved is, per the ledger, "a frontend-only change"
-(`docs/notebook/competitive-gap-ledger.md`:118).
-
-**Owner time:** this is an external legal review, not owner-hours in the usual sense — the
-owner's part is commissioning the review (or making the call personally) and, if approved,
-authorizing the flip. No duration is estimated because, like the vendor ZDR requests in §2, the
-cost is calendar time waiting on an outside answer, not a task's length.
-
-**Where to record:** once a ruling exists, update G-062's row in
-`docs/notebook/competitive-gap-ledger.md` with the decision and its date — the same pattern
-G-080's P-7 sign-off used — and set `analyst_price_target_consensus`'s `rights_class` /
-`active` accordingly.
-
-**What closes:** the estimates/ratings slice of G-062 stays `PARTIAL` — "P2 (rights-blocked, not
-effort-blocked)" (`docs/notebook/competitive-gap-ledger.md`:118) — until this lands. Nothing else
-in the 10/10 plan is blocked on it.
+**What remains:** nothing owner-facing. The real-browser walk is a controller/agent verification
+step, not an owner action, and closes this row to fully `DONE` once it runs.
 
 ---
 
 ## 4. Ordering — what to do first for the biggest clause gain per owner-minute
 
-Three items have lead times the owner does not control, and all three should start **today**,
-before anything else, because delaying any of them costs calendar time nothing else on this page
-can get back:
+Two items have lead times the owner does not control, and both should start **today**, before
+anything else, because delaying either of them costs calendar time nothing else on this page can
+get back. (A third item, G-062's external legal review, used to belong here — it closed 2026-09-25
+via the owner's direct FMP approval and is gone from this ordering; see §3.8.)
 
 1. **Send both vendor drafts (§2).** ~15–20 minutes to review and send. Nothing else here
    affects four clauses across two standards (#8, #12 ×2, #13) plus two gap-ledger rows for so
@@ -816,41 +794,41 @@ can get back:
    This has the single longest fuse on this page — 30 **calendar** days, not owner-hours — so
    starting it a week late costs the whole product a week, no matter how fast everything else
    here goes.
-3. **Kick off G-062's external legal review (§3.8).** No fixed minutes — the owner's part is
-   commissioning the review or making the call personally — but like 1 and 2, the cost is
-   entirely in waiting for an outside answer, so it should start the same day. (G-080, the other
-   half of this plan item, is already closed — recorded 2026-09-25, nothing further to send.)
+
+⚰️ **The former item 3 (§3.8, G-062's external legal review) is CLOSED and removed from this
+list.** The owner approved the FMP licensing directly on 2026-09-25 — no separate outside-counsel
+review ran, the same way G-080 closed. See §3.8 for the short record.
 
 Then, in order of clause-gain per owner-minute, cheapest and most complete first:
 
-4. **Submit the Chrome Web Store listing (§1).** ~15–20 minutes, fully built, zero blockers
+3. **Submit the Chrome Web Store listing (§1).** ~15–20 minutes, fully built, zero blockers
    found, closes the G-043 half of standard #1 outright.
-5. **Walk the two iOS Shortcuts on a real iPhone (§3.4).** ~20–30 minutes, fully built, closes
+4. **Walk the two iOS Shortcuts on a real iPhone (§3.4).** ~20–30 minutes, fully built, closes
    the one remaining half of standard #10's capture-parity clause outright.
-6. **Run the screen-reader pass, NVDA first (§3.2), under the §3.7 second-review brief's five
+5. **Run the screen-reader pass, NVDA first (§3.2), under the §3.7 second-review brief's five
    additions.** ~60–70 minutes for NVDA alone (this machine, no new hardware needed), plus
    ~15–20 minutes for the five additions §3.7 asks for; add a Mac pass later if VoiceOver access
    opens up. One sitting closes the last remaining clause of standard #9 **and** the §4a/§4b half
    of Phase 7 item 5 at once — do not run this pass twice.
-7. **Run one real-device matrix pass (§3.3).** ~45–60 minutes for one dated row across four
+6. **Run one real-device matrix pass (§3.3).** ~45–60 minutes for one dated row across four
    devices. Does not fully close its clause (the plan asks for "every release"), but is the
    cheapest way to turn a process obligation into something that has actually started.
-8. **Arrange the second reviewer's keyboard-walk / WCAG-map pass (§3.7, §2/§3/§5 of its brief).**
+7. **Arrange the second reviewer's keyboard-walk / WCAG-map pass (§3.7, §2/§3/§5 of its brief).**
    ~2–3 hours (estimate) of a reviewer's time — someone who did not build wave 8 — but the
    owner's own part is only choosing that person and handing them the brief; it can run any time
-   after item 6 and blocks nothing else on this page.
-9. **Schedule the 5–8 trader study (§3.1).** The biggest single time cost among the short items
+   after item 5 and blocks nothing else on this page.
+8. **Schedule the 5–8 trader study (§3.1).** The biggest single time cost among the short items
    (~6–8 hours of session time, plus whatever calendar time it takes to find 5–8 traders), so it
    goes near the end — but it is not gated on anything else here, so it can run in parallel with
    the soak once scheduling allows. It closes four clauses on its own (three in standard #5, one
    in standard #16) when it lands.
-10. **Run the head-to-head speed benchmark sitting (§3.6).** The other biggest single time cost
-    on this page (~1 full working day, estimate) — like the trader study, it is not gated on
-    anything else here, but it does need a quiet box (one sitting, one machine), so schedule it
-    for whenever one is available. The automated UCT sandbox cross-check (§3.6a) is a separate,
-    agent-runnable artifact and needs no owner time at all — it can be produced any time, before
-    or after the sitting, without touching this item's estimate.
+9. **Run the head-to-head speed benchmark sitting (§3.6).** The other biggest single time cost
+   on this page (~1 full working day, estimate) — like the trader study, it is not gated on
+   anything else here, but it does need a quiet box (one sitting, one machine), so schedule it
+   for whenever one is available. The automated UCT sandbox cross-check (§3.6a) is a separate,
+   agent-runnable artifact and needs no owner time at all — it can be produced any time, before
+   or after the sitting, without touching this item's estimate.
 
 Nothing in this document blocks on anything else in it except where stated above (semantic
-search's flags wait on §2's vendor confirmations; G-062's estimates capability waits on item 3's
-outside answer). Items 4–10 can run in any order relative to each other without conflict.
+search's flags wait on §2's vendor confirmations). Items 3–9 can run in any order relative to
+each other without conflict.
