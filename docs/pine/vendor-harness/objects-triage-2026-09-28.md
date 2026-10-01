@@ -3442,3 +3442,61 @@ our bars, so it is not guessed.
 dead `ltf` arm in the tree (withheld where uncovered, and fetched for); collapsing
 it there would move parameter addresses of scripts that newly translate, so it was left. 10. a failed object
 tree with NO `ltf` still reads `NaN` and can pick a text's last arm — pre-existing, every lane's, not changed here.
+
+### C41 gate — serving is OFF until the store is measured (`VITE_PINE_LOWER_TF_ENABLED`, 2026-10-01)
+
+Integrator ruling: the RULE above is witnessed, the DATA is not — every grade here is on TradingView's own intraday
+bars, and the product reads ours. So everything this section serves sits behind one build flag, default OFF, read
+in one place (`engine/lowerTfGate.js::lowerTfServingEnabled`, `=== '1'`, fail closed). `lowerTf.js` asks it LAST in
+`lowerTfRefusal` (the translate door and the bind) and in `lowerTfWindowsOf` (the fetch).
+
+**Off** (what ships): a read that would be served is refused by name — `lower-tf:store-unmeasured`, "our intraday
+bars have not been measured against TradingView's" — exactly where it was refused before C41. No `ltf` node, no
+`meta.lowerTf`, no request, no supply; a document stamped while the gate was on is neither fetched for nor served.
+The two follow-up fixes above (`deadLowerTfRead`, `withholdFailedLowerTf`) are unconditional and are no-ops with
+the gate off: each fires only on a tree holding an `ltf`, and none is emitted. **On**: everything measured above.
+
+**Flag-off against wave 9 `19bcbf278c`** (commit `1368fbebec`, before the wave 10 merge; same commands):
+
+| measure | result |
+|---|---|
+| 47 captures, pane on and off | 0 entries changed |
+| harness directory (117), pane on and off | 3 entries changed, all three `vw-lower-tf` probes, refusal sentence only (still INCONCLUSIVE) |
+| member-door census (266) | attach 41 / 64 → 41 / 64; 1 row per state changed, `mtf-dashboard-pro`, refusal sentence only |
+| translation census (266 × host, manifest, screen) | 0 structural differences (`ok`, output count, refusal guards, first refusal, parameter ids, `lowerTf`); host 58 / 404, screen 58 / 738 unchanged; 15 scripts differ in SENTENCES only |
+| notebook first-open | 1,897,262 → 1,897,262 B (+0; the shared chunk keeps the name `bind`, `vite.config.js`) |
+| extra requests | 0 (`useLowerTfSources.test.jsx`, gate-off case) |
+
+The sentences that differ, all inside notes / refusal messages of scripts refused on both sides: `lower-tf:unwitnessed`
+and `lower-tf:not-served` for 5 / 15 / 60 / 240 → `lower-tf:store-unmeasured` (host lane) or `lower-tf:screen` (screen
+lane); the wording of `lower-tf:lookahead`, `lower-tf:intrabar-array`, `lower-tf:session` and of `lower-tf:unwitnessed`
+for `1` / `30` (each now cites the capture that witnesses it). Corpus-wide pins are back at their wave 9 values —
+`param-ids.json`, `pineProbeReplay`, `corpusMetric`, `oos-measured-baseline.json`, `tools/corpus_metric.json`,
+`tools/lookback_agreement.json` — so integrator items 2 and 3 above no longer apply.
+
+**Flag-on** (same tree, `VITE_PINE_LOWER_TF_ENABLED=1`): the figures in the follow-up above — ema-ribbon's cells,
+`mtf-dashboard-pro` attaching pane-on (41 / 65).
+
+**The measurement that flips it** — `engine/__tests__/storeIntradayAgreement.test.js`: a committed
+`tests/fixtures/store/api-bars-RDDT-tf15.json` (the exact JSON of `GET /api/bars/RDDT?tf=15&bars=60000`) against
+`vw-bar-counters-rddt-15-2026-09-30`, both through `lowerTf.js::intrabarSeries` (regular session, slots from 09:30).
+Per session inside both supplies: bars on both sides / only one, each of O H L C V equal or differing (count, max
+abs, max rel), sessions fully equal, price-equal, last close equal, complete on each side. It SKIPS BY NAME until
+the payload exists; controls on the vendor's own bars prove it can fail (one moved close is one bar and one
+session; a moved last bar moves the value a `"15"` read serves; a missing bar; extended-hours bars ignored).
+**Proposed bar** (`FLIP_CRITERION`; the flip itself is an owner decision): ≥ 99% of the vendor's complete sessions
+complete in the store; ≥ 99% of sessions complete on both sides equal on every bar's O, H, L and C; ≥ 99.5% with the
+same last-bar close; volume reported and not gating — below 99% a child that reads `volume` is not covered. And on
+a second, older symbol (SPY) as well as RDDT: one symbol does not establish a store.
+
+**On wave 10** (`e4e24524ef`, merged as `06eb772f24`; five conflicts, both sides kept): three expectations moved by
+wave 10 itself — ema-ribbon is 48 of 48 cells with the lower rows served and 37 with them withheld (C40 draws the
+strength bar), and its door records no runtime-lane refusal (C43 places its `runtime.error`). Rails, one process:
+`Test Files  2 failed | 51 passed | 1 skipped (54)`, `Tests  4 failed | 683 passed | 4 skipped (691)` — those four,
+re-pinned, then `Test Files  2 passed (2)`, `Tests  42 passed (42)`. Python rails: `455 passed`.
+
+| | mutation | totals | |
+|---|---|---|---|
+| M24 | the gate answers on whatever the variable says | Test Files  2 failed (2); Tests  5 failed | 38 passed (43) | **red** |
+| M25 | the fetch ignores the gate | Test Files  2 failed (2); Tests  2 failed | 41 passed (43) | **red** |
+| M26 | the refusal ignores the gate | Test Files  1 failed | 1 passed (2); Tests  4 failed | 39 passed (43) | **red** |
