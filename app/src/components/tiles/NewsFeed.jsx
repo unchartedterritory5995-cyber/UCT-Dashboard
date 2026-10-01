@@ -83,28 +83,37 @@ export default function NewsFeed({ data: propData }) {
             const badgeClass = BADGE_CLASS[item.category] || styles.badgeGENERAL
             const category = item.category || 'GENERAL'
             return (
-              <a
+              // A2R-05 (a11y second review, 2026-10-01) nesting fix: the card
+              // used to be the <a> itself, so nesting TickerPopup's focusable
+              // trigger inside it would put one focus stop inside another
+              // (invalid — an anchor cannot contain a second interactive
+              // descendant). The anchor now wraps ONLY the headline text; the
+              // ticker chips are SIBLINGS of it, each its own tab stop. The
+              // card is still clickable anywhere for the mouse — the div's
+              // onClick opens the link unless the click originated on the
+              // anchor itself (which already navigates on its own) or on a
+              // ticker chip (`[data-ticker-chip]`, which opens its own popup).
+              <div
                 key={item.url || i}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className={`${styles.item} ${sentimentClass}`}
+                onClick={e => {
+                  if (e.target.closest('a,[data-ticker-chip]')) return
+                  if (item.url) window.open(item.url, '_blank', 'noopener,noreferrer')
+                }}
               >
-                <div className={styles.headline}>{item.headline}</div>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.headline}
+                >
+                  {item.headline}
+                </a>
                 <div className={styles.meta}>
                   <span className={`${styles.badge} ${badgeClass}`}>{category}</span>
-                  {/* A2R-05 (a11y second review, 2026-10-01): `focusable={false}`
-                      on purpose — this whole row is a native <a href target=
-                      _blank>, and nesting a second focusable element inside an
-                      anchor is invalid (not merely redundant): a keyboard user
-                      cannot reach the chip as its own stop without the anchor's
-                      OWN activation already claiming Enter. Left as a reported,
-                      unreachable-by-keyboard exception (see the TickerPopup
-                      A2R-05 report) pending a layout change that moves the
-                      ticker chips out of the anchor's content. */}
                   {tickers.slice(0, 3).map(sym => (
-                    <span key={sym} onClick={e => e.stopPropagation()}>
-                      <TickerPopup sym={sym} focusable={false}>
+                    <span key={sym} data-ticker-chip onClick={e => e.stopPropagation()}>
+                      <TickerPopup sym={sym}>
                         <span className={styles.ticker}>${sym}</span>
                       </TickerPopup>
                     </span>
@@ -114,7 +123,7 @@ export default function NewsFeed({ data: propData }) {
                   {isNew(item.time) && <span className={styles.newDot} title="New" />}
                   <span className={styles.time}>{fmtTime(item.time)}</span>
                 </div>
-              </a>
+              </div>
             )
           })}
         </div>
