@@ -874,7 +874,9 @@ export function beginObjects(program, ctx) {
         case 'at': {
           // ⭐ C29 — `x[na]` is `x` on this bar (measured, `vw-offset-na`).
           const raw = numOf(value(ref.args[1]))
-          const back = Number.isNaN(raw) ? 0 : raw
+          // ⛔ C38 — the SAME `historyBackOf` `atCheck` asks, not a second copy of
+          // the `na` rule: a mutation of the shared one left this read unmoved.
+          const back = historyBackOf(raw)
           const k = bar - back
           if (!Number.isInteger(k) || k < 0) return NaN
           const src = ref.args[0]
@@ -954,11 +956,16 @@ export function beginObjects(program, ctx) {
         // ⭐⭐ C29 — with no `max_bars_back` declared, reach is measured to 399
         // (`AUTO_MAX_BARS_BACK`); past it TradingView's automatic buffer is not
         // measured, so the op is withheld on this bar — never stopped, never read.
-        if (at.auto === true && Number.isInteger(back) && back >= at.limit) {
+        // ⛔ C38 — ONE comparison against the buffer (`historyReadable`), asked
+        // first; what an unreadable count MEANS is this lane's: a whole,
+        // non-negative count past an AUTOMATIC buffer is unmeasured (withheld),
+        // anything else is Pine's runtime error.
+        const readable = historyReadable(back, at.limit)
+        if (!readable && at.auto === true && Number.isInteger(back) && back >= 0) {
           atBeyondAuto += 1
           return 'unknown'
         }
-        if (!historyReadable(back, at.limit)) {
+        if (!readable) {
           runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
               : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
