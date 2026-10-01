@@ -1,0 +1,46 @@
+//@version=6
+indicator("UCTPROBE_VW_TIME_CLOSE_TF", overlay = false)
+
+// --- 2026-09-30 C30 - `time_close(<tf>)` FOR PERIODS ABOVE THE CHART'S ------------
+//
+// `vw-time-tf.pine` asked `time("W"/"M"/"3M"/"12M")` and never `time_close(<tf>)`,
+// so `time_close` of those periods is refused by name (objects-triage C30). A NEW
+// file, so no row id of `vw-time-tf.pine` moves.
+//
+//   Q01-Q04  `(time_close(tf) - time)` in DAYS for W, M, 3M, 12M: is the close the
+//            period's last session close, the next period's open, or a calendar
+//            boundary; and on a forming period, is it the scheduled close;
+//   Q05      `time_close(timeframe.period) - time_close` in days (must be 0);
+//   Q06      `time_close("D") - time_close` in days;
+//   Q07      `(time_close - time)` in days - the chart bar's own span, the control;
+//   Q08-Q11  `(time(tf) - time)` in days for W, M, 3M, 12M - the open anchors,
+//            beside the closes they pair with;
+//   Q12-Q13  `ta.change(time_close("W"/"M")) != 0`;
+//   Q14      `dayofweek`, Q15 `dayofmonth`, Q16 `month`.
+//
+// CAPTURE: AMEX:SPY 1D (>= 800 bars, holiday weeks included) and a 24/7 symbol's
+// 1D chart (BITSTAMP:BTCUSD) for a week that holds weekend bars.
+
+plot(bar_index, "Q00_bar_index_CONTROL")
+
+days(t) => na(t) ? -99999.0 : (t - time) / 86400000.0
+
+plot(days(time_close("W")),   "Q01_timecloseW_minus_time_DAYS")
+plot(days(time_close("M")),   "Q02_timecloseM_minus_time_DAYS")
+plot(days(time_close("3M")),  "Q03_timeclose3M_minus_time_DAYS")
+plot(days(time_close("12M")), "Q04_timeclose12M_minus_time_DAYS")
+plot((time_close(timeframe.period) - time_close) / 86400000.0, "Q05_timecloseSelf_minus_timeclose_MUST_BE_0")
+plot((time_close("D") - time_close) / 86400000.0,              "Q06_timecloseD_minus_timeclose_DAYS")
+plot(days(time_close),        "Q07_timeclose_minus_time_DAYS_CONTROL")
+
+plot(days(time("W")),   "Q08_timeW_minus_time_DAYS")
+plot(days(time("M")),   "Q09_timeM_minus_time_DAYS")
+plot(days(time("3M")),  "Q10_time3M_minus_time_DAYS")
+plot(days(time("12M")), "Q11_time12M_minus_time_DAYS")
+
+plot(ta.change(time_close("W")) != 0 ? 1 : 0, "Q12_newWeekClose")
+plot(ta.change(time_close("M")) != 0 ? 1 : 0, "Q13_newMonthClose")
+
+plot(dayofweek,  "Q14_dayofweek")
+plot(dayofmonth, "Q15_dayofmonth")
+plot(month,      "Q16_month")
