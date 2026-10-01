@@ -2808,7 +2808,7 @@ def build(pages_dir=None):
       {'N': ['N_encrypt'], 'E': 'not verified — evernote.com/security (R14) states encryption in transit and for '
                                 'secrets, not member notes at rest', 'O': ['O_e2e']},
       'Obsidian Sync is end-to-end, a stronger property; E2E is OUT by ruling D11 (plan). PARITY is at-rest encryption as named.')
-    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 193, 'const DRAFT_KEY')],
+    R('G-005', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 195, 'const DRAFT_KEY')],
       {'N': NFN, 'E': ['E_offline'], 'O': NFO},
       'No page fetched today describes a crash-draft safety net; the draft restore itself was not driven. ' + UI_NOT)
     # Search / Retrieval
@@ -2974,7 +2974,7 @@ def build(pages_dir=None):
                      walk9('B16_offline_open_tab')],
       {'N': ['N_offline'], 'E': ['E_offline'], 'O': ['O_offline']},
       'PARITY is editing offline in an open tab (B16). A cold start offline is OUT by D6 and scored under G-163.')
-    R('G-083', 'P', [code(f'{NB}/NoteEditorPage.jsx', 45, 'OFFLINE_VIEWING_BANNER'), walk9('B16_offline_open_tab')],
+    R('G-083', 'P', [code(f'{NB}/NoteEditorPage.jsx', 47, 'OFFLINE_VIEWING_BANNER'), walk9('B16_offline_open_tab')],
       {'N': ['N_offline'], 'E': ['E_offline_plan'], 'O': ['O_offline']},
       'B16: offline, a second note rendered from its saved copy with the banner "Viewing an earlier saved copy".')
     R('G-084', 'NV', [L('G-084', 'DUPLICATE of G-044 — tracked there')], {'N': NFN, 'E': ['E_share_ext'], 'O': ['O_ios']},
@@ -3004,11 +3004,11 @@ def build(pages_dir=None):
     # UX/UI rows (2026-09-06)
     R('G-100', 'NA', [code('app/src/pages/journal-2-0/rawErrorSurface.test.js', 41, 'const IN_SCOPE = [ROOT]'),
                       test_vt('app/src/pages/journal-2-0/rawErrorSurface.test.js')], {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row.')
-    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3472, "Couldn't load this note."), walk9('B17_older_rows')],
+    R('G-101', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 3519, "Couldn't load this note."), walk9('B17_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B17 read the error state for a bogus id.')
     R('G-102', ('P', 'NV', 'P'), [code('app/src/components/CommandPalette.jsx', 7, 'useJ2Favorites'), walk9('B08_quick_switcher')],
       {'N': ['N_switch'], 'E': EB, 'O': ['O_switch']}, 'B08: the app-wide palette opened the oldest note by title.')
-    R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 29, 'import ConfirmModal'), walk9('B20_more_older_rows')],
+    R('G-103', 'NA', [code(f'{NB}/NoteEditorPage.jsx', 31, 'import ConfirmModal'), walk9('B20_more_older_rows')],
       {'N': NA, 'E': NA, 'O': NA}, 'A UCT defect row; B20 read the "Delete this note?" dialog.')
     R('G-104', 'NA', [code('app/src/pages/journal-2-0/a11y/notebookContrast.test.js', 76, 'G-104: zero remain'),
                       test_vt('app/src/pages/journal-2-0/a11y/notebookContrast.test.js')], {'N': NA, 'E': NA, 'O': NA},
@@ -3083,9 +3083,9 @@ def build(pages_dir=None):
       {'N': ['N_align', 'N_caption'], 'E': ['E_caption'], 'O': NFO},
       'B26: an uploaded image centred (data-align center) and captioned (a figcaption with the typed text). Evernote\'s '
       'fetched page evidences captions but not alignment, so no Evernote verdict.')
-    R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 77, "'addRowBefore', 'Row above'"),
+    R('G-134', ('P', 'NV', 'P'), [code(f'{NB}/TableToolbar.jsx', 103, "'addRowBefore', 'Row above'"),
                                  code(f'{LB}/tiptap.js', 125, 'resizable: true'),
-                                 code(f'{NB}/TableToolbar.jsx', 256, 'Sort A→Z'), walk9('B03_table_toolbar'),
+                                 code(f'{NB}/TableToolbar.jsx', 301, 'Sort A→Z'), walk9('B03_table_toolbar'),
                                  walk10('B2_table_sort_resize_reload')],
       {'N': ['N_tables'], 'E': ['E_editmode'], 'O': ['O_tables']},
       'B03 (wave 9): add/delete rows and columns and a header row. Wave 10 (10B) added resize and sort; L1a\'s B2 '
@@ -3114,7 +3114,7 @@ def build(pages_dir=None):
     R('G-143', ('A', 'NV', 'P'), [code(f'{NB}/SlashMenu.jsx', 54, "title: 'Heading 6',"), walk9('B01_slash_menu')],
       {'N': ['N_headings'], 'E': EB, 'O': ['O_headings']},
       'Notion\'s own page documents three heading levels; UCT offers six (B01). Obsidian offers six.')
-    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 215, 'export function canRunHistory(editor, cmd)'),
+    R('G-144', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 217, 'export function canRunHistory(editor, cmd)'),
                       walk10('B1_touch_undo_redo'), walk10('B10_touch_undo_reachable_after_60_lines')],
       {'N': NFN, 'E': EB, 'O': NFO},
       'Built in wave 10 (10B): L1a\'s B1 typed, tapped Undo and Redo at 390 px with touch emulation (not a device); '
@@ -3154,7 +3154,7 @@ def build(pages_dir=None):
       'B27: a Relation property created and linked; the target note shows the source. Obsidian\'s properties page lists '
       'links among property values but does not describe a relation with a backlink, so no Obsidian verdict. Rollups '
       'and formulas are OUT (D12).')
-    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4038, 'Scan a document with the camera'),
+    R('G-159', 'NV', [code(f'{NB}/NoteEditorPage.jsx', 4085, 'Scan a document with the camera'),
                       flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk9('B07_touch_no_undo'),
                       walk7('W14_image_ocr_document')],
       {'N': NFN, 'E': ['E_scan'], 'O': NFO},
@@ -3398,7 +3398,7 @@ def build(pages_dir=None):
         ('typing < 16 ms/char up to the size cap', 'NOT MET',
          [measure(PB, '401-402', '17.6 ms', 'python tools/notebook_perf_harness.py --boot --sizes 1000,2000 --opens 20 --chars 60'),
           record(PB, 644, 'Clause 4d is not closed'), QUIET_SLOT, L('G-035', 'OPEN, DELIBERATELY'),
-          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 351,
+          code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 376,
                'export function toolbarStateReducer(prev, editor)'),
           code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
                'export function stepsIntroduceNodeType(tr, name)')],
