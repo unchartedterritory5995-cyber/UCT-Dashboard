@@ -1,0 +1,8 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\ty2-ab-b3.sandbox.log; log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\ty2-ab-b3.integrity.md
+| measure | paragraphs | samples | p50 | p95 | budget | tree |
+|---|---:|---:|---:|---:|---:|---|
+| note_open | 1,000 | 20 | 148.7 ms | 175.6 ms | < 300 ms | `67da0455e` |
+| note_open | 2,000 | 20 | 202.7 ms | 227.7 ms | n/a | `67da0455e` |
+| typing_per_char | 1,000 | 60 | 14.4 ms | 19.6 ms | < 16 ms | `67da0455e` |
+| typing_per_char | 2,000 | 60 | 17.6 ms | 22.9 ms | < 16 ms | `67da0455e` |
+VERDICT: BUDGET BREACH -- typing p95 19.60 ms/char >= 16 ms at 1,000 paragraphs; typing p95 22.90 ms/char >= 16 ms at 2,000 paragraphs

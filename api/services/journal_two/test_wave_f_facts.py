@@ -411,6 +411,23 @@ def test_append_financial_fact_rejects_an_empty_fact_id(conn):
         append_financial_fact("u1", note["id"], "", conn=conn)
 
 
+def test_append_financial_fact_refuses_a_locked_note(conn):
+    """Ruling 149: a locked note takes no captures. `append_financial_fact` is
+    TickerPopup's "Save price to Notebook" door's server half
+    (captureFinancialFact.js) and, before this, had no lock check at all."""
+    from api.services.journal_two.notes import append_financial_fact, NoteLockedError, get_note, update_note
+    note = _create(conn, "u1")
+    f = facts.create_fact_observation("u1", note["id"], ticker="NVDA", fact_type="price", value=1.0, conn=conn)
+    locked = update_note("u1", note["id"], {"locked": True}, conn=conn)
+    assert locked["locked"] is True
+    with pytest.raises(NoteLockedError):
+        append_financial_fact("u1", note["id"], f["id"], conn=conn)
+    after = get_note("u1", note["id"], conn=conn)
+    assert after["bodyJson"] == locked["bodyJson"]
+    assert after["updatedAt"] == locked["updatedAt"]
+    assert facts.list_note_facts("u1", note["id"], conn=conn) == []
+
+
 # ── Deletion / lifecycle ─────────────────────────────────────────────────────
 
 def test_delete_fact_removes_both_the_row_and_any_sidecar_refs(conn):

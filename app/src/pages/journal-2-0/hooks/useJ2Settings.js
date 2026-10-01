@@ -19,14 +19,21 @@ const fetcher = (url) =>
     return r.json()
   })
 
-export default function useJ2Settings() {
-  const { accountId, account } = useJ2SelectedAccount()
+// `enabled` defaults to true (see useJ2Accounts.js) and is threaded through
+// to useJ2SelectedAccount — every existing caller omits it and is unaffected.
+// Root-mounted callers (every visitor, signed in or not) pass it so neither
+// `/api/j2/accounts/{id}/settings` nor its `/api/j2/settings` fallback fires
+// before a member is actually signed in.
+export default function useJ2Settings(enabled = true) {
+  const { accountId, account } = useJ2SelectedAccount(enabled)
   // When no account selected (initial load) we still want SOMETHING readable;
   // hit the legacy global settings endpoint as a backstop. Once an account
   // is picked, switch to per-account.
-  const url = accountId
-    ? `/api/j2/accounts/${accountId}/settings`
-    : '/api/j2/settings'
+  const url = !enabled
+    ? null
+    : accountId
+      ? `/api/j2/accounts/${accountId}/settings`
+      : '/api/j2/settings'
 
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,

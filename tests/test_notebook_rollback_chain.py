@@ -69,6 +69,17 @@ workstream's wave-3 Pine-engine integrate merge (touching vite.config.js and one
 test file's await/lazy-load pairing only), and a clock/build-budget perf commit sharing the same
 vite.config.js plugin -- all nine added to REVIEWED_NOT_LANDINGS. New mutation record:
 docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1e/mutations-r1e.log.
+
+Lane R1f, 2026-09-30: MEASURED_AT moved a fifth time, from 599cd44f1 to a680b0d40 -- one landing:
+L13 #259 (G-062 analyst-consensus capture, smoke + master-red fixes, rollback chain through L12).
+L13 ships real app/ and api/ Notebook code and its squash subject kept the literal word "wave"
+("Notebook 10/10 wave 10 L13: ..."), so unlike L10/L12 it is selected by SUBJECT AND PATH both --
+no new CHAIN_BY_PATH_ONLY exception needed. It reverts with 0 conflicts (not even a doc-only one);
+all seven pins recorded at 599cd44f1 came back byte-identical (`--record-pins --through wave5`
+from the new MEASURED_AT). One more path-only commit landed alongside it, 69beea8d1 (Terminal
+TERM-073, the nightly analyst-revisions "what changed" timeline, dark), touching only api/main.py
+(one router mount behind ANALYST_REVISIONS_ENABLED) -- added to REVIEWED_NOT_LANDINGS. New
+mutation record: docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1f/mutations-r1f.log.
 """
 from __future__ import annotations
 
@@ -82,19 +93,20 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT 599cd44f1 (L9 #256 + L10 #257 + L12 #258) by lane R1e, 2026-09-30. The
-# R1d record (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl) is the same chain
-# three landings shorter, from 6f563c158; it stays as the evidence of that rehearsal. The R1c
-# record (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) is shorter still, from
-# 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
+# Re-recorded at MEASURED_AT a680b0d40 (L13 #259) by lane R1f, 2026-09-30. The R1e record
+# (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl) is the same chain one
+# landing shorter, from 599cd44f1; it stays as the evidence of that rehearsal. The R1d record
+# (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl) is shorter still, from
+# 6f563c158; the R1c record (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl)
+# shorter still, from 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
 # shorter still, from f4cec49be; the R1 2026-09-28 record
 # (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-30-r1e" / "chain" / "chain-through-wave5.jsonl"
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-30-r1f" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1e moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1f moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "6f563c158"
+PREVIOUS_MEASURED_AT = "599cd44f1"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
