@@ -1,2 +1,23 @@
 == control-1 2026-10-01 ~12:15 local, tree f976a5f6d (L15b app = L14 + the PNG export fix)
   lock: HELD by another session (int-w10 six-shard gate, since 11:59:19) -- the box was BUSY
+
+== TY4 floor runs, 2026-10-01, tree dfa326c33 (lane TY4, --sizes 1,1000,2000 --opens 5 --chars 60)
+Gate lock HELD by the same int-w10 six-shard gate (pid 48216, since 11:59:19) from the start of
+this lane until ~12:43. Waited (never measured while HELD), per `python tools/gate_box_lock.py
+status` re-checked repeatedly. Once FREE, the coordinator asked every lane to stop booting
+sandboxes / running tests while `scratchpad/MEASURING.flag` exists; the flag was written at
+12:44:09 CDT, 60s was waited, then this batch ran with the flag held throughout (deleted after
+busy-3). Status immediately before EACH run, verbatim from `gate_box_lock.py status`:
+
+  ctl-1  12:45:25 CDT  lock: FREE -- load: QUIET -- 0 marked processes outside our own tree
+  ctl-2  12:47:18 CDT  lock: FREE -- load: QUIET -- 0 marked processes outside our own tree
+  ctl-3  12:49:04 CDT  lock: FREE -- load: BUSY  -- 3 marked (vitest x3, worktree pine-c44)
+  busy-1 12:51:10 CDT  lock: FREE -- load: BUSY  -- 6 marked (vitest x6, worktrees pine-c44/c45)
+  busy-2 12:53:23 CDT  lock: FREE -- load: BUSY  -- 5 marked (vitest x5, worktree pine-c45)
+  busy-3 12:55:20 CDT  lock: FREE -- load: BUSY  -- 8 marked (vitest x8, worktrees pine-c44/c45)
+
+Only ctl-1 and ctl-2 started QUIET; ctl-3 and all three busy runs started with the lock FREE but
+the load BUSY (unrelated `pine-c44`/`pine-c45` worktrees' vitest, not the gate -- `gate 0` in
+every one of those lines). The lock itself was never HELD again during this batch. Every one of
+the six runs' own sandbox integrity read CLEAN (pre-boot / post-boot (+15s) / shutdown), recorded
+in `ctl-N.integrity.md` / `busy-N.integrity.md` beside this file.
