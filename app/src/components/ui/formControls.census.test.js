@@ -763,6 +763,7 @@ describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
 // (the census header records that lesson). A file joins the list in the commit
 // that takes its last unnamed control away.
 export const NAMED_SURFACES = [
+  'app/src/components/chart/ChartToolbar.jsx',
   'app/src/pages/Settings.jsx',
   'app/src/pages/charts/PeriodSortConfig.jsx',
 ]
