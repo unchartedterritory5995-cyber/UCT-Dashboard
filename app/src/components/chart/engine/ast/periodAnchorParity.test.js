@@ -79,6 +79,9 @@ const BARSETS = {
   sundays: () => dailyBars([2025, 0, 8], 60, { days: 'sun' }),
   // sessions, with one Monday's bar (2025-01-13) and the year's first session (2025-01-02) missing
   mondayMissing: () => dailyBars([2024, 11, 2], 60, { drop: ['2025-01-13', '2025-01-02'] }),
+  // sessions from Mon 2024-12-02 with ALL of January 2025 missing: the quarter and the year
+  // open on Mon 2025-02-03, which IS February's first session — and is not the quarter's
+  januaryMissing: () => dailyBars([2024, 11, 2], 45, { drop: Array.from({ length: 31 }, (_, k) => `2025-01-${String(k + 1).padStart(2, '0')}`) }),
   // sessions, with one Friday's bar (2025-01-17) missing: that week's last bar is a Thursday
   fridayMissing: () => dailyBars([2025, 0, 8], 40, { drop: ['2025-01-17'] }),
   // the screen's stored key: a YYYYMMDD int, which the clock's unit gate refuses
@@ -122,6 +125,7 @@ const CASES = [
   ...['W', 'M', 'Q'].map((k) => [`${k} · every day, gaps · D`, k, 'everyDayGaps', { tf: 'D' }]),
   // sessions, but a period opens on a day the calendar keeps open and the chart has no bar for
   ...['W', 'M', 'Q', 'Y'].map((k) => [`${k} · a Monday and the year's first session missing · D`, k, 'mondayMissing', { tf: 'D' }]),
+  ...['M', 'Q', 'Y'].map((k) => [`${k} · January missing · D`, k, 'januaryMissing', { tf: 'D' }]),
   // one weekend day but not the other: every bar
   ...['W', 'M', 'na(W)'].flatMap((k) => [[`${k} · saturdays · D`, k, 'saturdays', { tf: 'D' }], [`${k} · sundays · D`, k, 'sundays', { tf: 'D' }]]),
   // time(timeframe.period) / time("60"): the two measured chart timeframes, and one that is not
@@ -299,6 +303,18 @@ describe('C36 · the fixture is not vacuous', () => {
     }
     expect(col(name('M'))[at('2025-02-03')]).toBe(Date.UTC(2025, 1, 3, 14, 30))
     expect(codes(name('W'))).toEqual(['time-anchor:session-open-missing'])
+  })
+
+  it('⛔ a quarter (and a year) whose whole first month is missing opens on a later month’s first session: withheld, where the month itself is served', () => {
+    const bars = PARITY.bars.januaryMissing
+    const feb = bars.findIndex((b) => b.t === '2025-02-03')
+    expect(bars[feb - 1].t).toBe('2024-12-31')
+    expect(col('M · January missing · D')[feb]).toBe(Date.UTC(2025, 1, 3, 14, 30))
+    expect(codes('M · January missing · D')).toEqual([])
+    for (const k of ['Q', 'Y']) {
+      expect(col(`${k} · January missing · D`).slice(feb).every((v) => v === null), k).toBe(true)
+      expect(codes(`${k} · January missing · D`), k).toEqual(['time-anchor:session-open-missing'])
+    }
   })
 
   it('one weekend day but not the other: every bar withheld, and named', () => {
