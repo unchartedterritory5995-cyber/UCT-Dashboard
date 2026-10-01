@@ -170,8 +170,16 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           <span className={`${styles.tag} ${tag.cls}`}>{tag.label}</span>
         </span>
         <span className={styles.tickerCell}>
+          {/* A2R-05 (a11y second review, 2026-10-01): `focusable={false}` on
+              purpose — this chip sits inside the row above, which is already
+              `role="button"` with its own Enter/Space handler (expand/collapse).
+              Making the chip a SECOND tab stop here would nest one focus stop
+              inside another, which is worse than today's mouse-only reachability,
+              not better. Left as a reported, unreachable-by-keyboard exception
+              (see the TickerPopup A2R-05 report) pending a redesign that gives
+              the ticker action its own stop without nesting it in the row's. */}
           <span className={styles.tickerInner} onClick={e => e.stopPropagation()}>
-            <TickerPopup sym={sym} markers={chartMarkers} priceLines={chartPriceLines} stopPrice={posData?.stop_price ?? null}>
+            <TickerPopup sym={sym} focusable={false} markers={chartMarkers} priceLines={chartPriceLines} stopPrice={posData?.stop_price ?? null}>
               <span className={styles.sym}>{sym}</span>
             </TickerPopup>
           </span>

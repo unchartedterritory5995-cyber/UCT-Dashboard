@@ -93,9 +93,18 @@ export default function NewsFeed({ data: propData }) {
                 <div className={styles.headline}>{item.headline}</div>
                 <div className={styles.meta}>
                   <span className={`${styles.badge} ${badgeClass}`}>{category}</span>
+                  {/* A2R-05 (a11y second review, 2026-10-01): `focusable={false}`
+                      on purpose — this whole row is a native <a href target=
+                      _blank>, and nesting a second focusable element inside an
+                      anchor is invalid (not merely redundant): a keyboard user
+                      cannot reach the chip as its own stop without the anchor's
+                      OWN activation already claiming Enter. Left as a reported,
+                      unreachable-by-keyboard exception (see the TickerPopup
+                      A2R-05 report) pending a layout change that moves the
+                      ticker chips out of the anchor's content. */}
                   {tickers.slice(0, 3).map(sym => (
                     <span key={sym} onClick={e => e.stopPropagation()}>
-                      <TickerPopup sym={sym}>
+                      <TickerPopup sym={sym} focusable={false}>
                         <span className={styles.ticker}>${sym}</span>
                       </TickerPopup>
                     </span>
