@@ -148,6 +148,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 41 | C31 loop-scoped names and loop-built text in the OBJECT lane — the block reader (`foldStatements` under the block harvest) steps over a `for`/`while` instead of stopping at it: the names its body can change refuse (`loopWrites` → `loopWriteRefusal`, one builder with the top-level walk), everything below the loop binds; a counted `for` with ascending integer-literal bounds that only appends to text is folded pass by pass (`unrollTextLoop`); a helper's own locals are visible to the text reader; a `ta.*` local under a guard that is not bar-invariant is marked (`condCall`) and refused, also by the runtime rescue; a binding below a stepped-over loop stays the runtime lane's to answer (`afterLoop`). The main walk is unchanged — see § C31 | `136994295`, `319a91668` | 28 / 47 → 28 / 47 (overall 25 → 25) | 222 / 266 → 222 / 266 | no family flips: `artemis-oscillator-pro` cells 14 → **15** / 21 (`fTxt` = `O-  V-  S-`, TradingView's); `htf-candle-footprint` boxes 0 → **3** / 13 (the three body boxes, at TradingView's bars and prices); ema-ribbon 34 / 48 and poor-man 0 / 40 labels unchanged, each with its wall re-named. Committed harness dir (87): the same two entries, objects 49, overall 42 unchanged. Census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (control 0). Translation census 266 × 2: 0 plots, refusals or parameters moved; object programs changed in 4 scripts. Notebook first-open +0 B; pine chunk +3,965 B. `paramIds.test.js` green, no edit |
 | 43 | C33 three object-lane reads, one script each — **(a)** `array.push(list, f(…))` / `list.push(f(…))` is the two statements Pine runs (`pineObjects.js::pushOfDrawCall`), and a helper whose body ends in a lone `if … <ns>.new(…)` returns that object or `na` (`ifOnlyReturn`: the caller's name is emptied under the call's guards, then filled under the create's); **(b)** an `input.timeframe` default printed in a text is served only for a spelling a committed capture prints under that Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`: `D` under v6, `W` under v5) — any other spelling marks the property unknown and is never printed; a request timeframe that is a function PARAMETER is the caller's argument, on the object pass only; `color.new(c, <input default>)` and an `na` arm of a colour choice resolve without minting; **(c)** `<getter>[k]` (k ≤ 5), `str.tostring(<getter>)` and an inlined helper's own getter local are read by the object runtime; an `and` guard with a term nothing reads, gated by an `input.bool`, is carried as a latch over its read terms and one unknown (`guard:partial`); **(d)** `last_bar_time` is the newest bar's time in ms | `e3ebd3a6a`, `0c48cc0a9` | 29 / 47 | 228 / 266 | **average-day-range-adr-pivots DIVERGE → MATCH** (lines 0 → 2 of 2, boxes 0 → 2 of 2, cells 3 → 4 of 4, cell text agrees; ids, coordinates, colours and text equal TradingView's — `vendorHarness.c33ObjectReads`). **high-low-open-mid-ranges** labels 0 → **504 of 504**, label text agrees (text, y, x-rank and text colour of all 504 equal); its 504 lines stay WITHHELD and cells stay 37 of 45. **volume-profile**: `last_bar_time` served, its 3 lines still withheld (next wall `chart.left_visible_bar_time`). Overall MATCH 25 → 26 of 47; plots 161 / 172 unchanged. Committed harness dir (87 graded): objects 49 → 50, overall 42 → 43, families 278 → 284 of 322 — the same two entries and only those; flag-off runs unchanged (18 / 15 and 39 / 32). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 of 532 rows changed** (base-vs-base control 0). Translation census 266: no served output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +8,600 B; total JS +10,368 B. `paramIds.test.js` green, no re-pin |
 | 47 | C36 what C30 left (§ C36). **(1)** an every-day daily chart (BTCUSD capture: the week starts MONDAY, the month on the 1st) is SERVED, less a period whose calendar first day has no bar and a bar across a New York clock change from its anchor — both withheld by name; a chart with one weekend day but not the other stays withheld whole. ⛔ **A wrong value fixed on the way:** on a session chart TradingView anchors to the first session ITS CALENDAR holds, not the first bar — the Hurricane Sandy week read 0 / −1 / −2 where the vendor reads −2 / −3 / −4; a period not opened by the calendar's first session is now withheld (that week, and every holiday-opened period before 2000). **(2)** every withholding carries a named reason out of `periodAnchorMask` to the member's disclosure strip (`chartClockNotice.js`). **(3)** `time(timeframe.period)` / `time("60")` = the bar's own `time` on 1D and 60m charts, as witnessed; nowhere else. **(4)** ⛔ the Python interpreter answered `na(time("W")) ? a : b` with a confident `a` on EVERY bar in all three server consumers that can evaluate a pane's saved tree (alerts, the scan sweep, the screen backtest); `ast_interpret.period_anchor_mask` is now the mask's port, one parity fixture. **(5)** `time_close("W" / "M")` on a session daily chart = `tf_live(<period>, timeclose)`, 4,800 / 4,800 incl. the forming period's scheduled close; withheld by name with weekend bars and off 1D; `"3M"` / `"12M"` refused by name (measured; no quarterly bar) | `a4f56d007` | 30 / 47 (unchanged) | 233 / 266 (unchanged) | none on the 47 or the committed dir (0 graded entries; 5 probe entries' refusal sentence). Through the door once the unrelated row is cut: `vw-time-tf-bitstamp-btcusd-1d` T01–T04 0 wrong, 5,438 / 4,795 / 4,247 / 1,845 bars equal; `vw-time-close-tf-spy-1d` Q01 / Q02 / Q12 / Q13 MATCH 4,800 / 4,800 and Q08 3 wrong → 0; `vw-time-tf-spy-1d` T05 / T06 MATCH 900 / 900. C30's surviving mutation M5 is red — see § C36 |
+| 51 | C41 a lower-timeframe request is SERVED on daily and weekly charts (§ C41). `request.security(syminfo.tickerid, "5" / "15" / "60" / "240", expr)` below the chart's timeframe is a new canonical node, `{type:'ltf', value:'<minutes>', args:[child]}` (formula `ltf(expr, '60')`): the child runs on the chart symbol's own REGULAR-SESSION intraday series and each chart bar reads its LAST intrabar (witnessed: `vw-lower-tf-spy-1d` / `-rddt-1d` / `-spy-1w-2026-09-30`); 60 and 240 are bucketed from 15-minute bars on the 09:30 grid. A chart bar whose sessions are not ALL complete in the supply, or whose child reaches past the front of it, is UNKNOWN and withheld - never `na`. The supply is one hook (`useLowerTfSources`, wired into `StockChart.jsx` beside `useOtherSymbolExchanges`): no request for a chart with no such script, ONE (`/api/bars/SYM?tf=15`) for ema-ribbon's three codes, capped at the route's 60,000 bars. Lookahead, `request.security_lower_tf` arrays, another symbol below the chart, `ticker.modify` sessions, intraday and monthly charts, `"1"` and `"30"`, the screen lane and the runtime lane stay refused by name | `d7009cc06a` (+ merges `3bb52e2523`, `8c790cddeb`, and the docs commit) | 30 / 47 -> 30 / 47 (overall 27 -> 27; base wave 9 `19bcbf278c`, objects pane on; pane off 18 -> 18, overall 15 -> 15) | 233 / 266 -> 233 / 266 (plots 161 -> 161 / 172) | **ema-ribbon-trend-filter** table cells 36 -> **47 / 48**: its 15m / 1H / 4H rows (`2.63%` / `3.8%` / `3.88%`), the bias row (`0B  5S  /  5`) and `▼▼  STRONG BEAR` are TradingView's, text for text (`vendorHarness.c41LowerTfServe`); what is left is the strength bar `██████████`, another wall. No family flips (the cell count and text families stay one short). **artemis-oscillator-pro**: its three lower reads are `ltf` nodes now, graded outputs unchanged (notes only). The same two entries under both flag states and in the committed harness dir (117: objects 62 / 82, overall 46, families 315 / 350, plots 343 / 417, all unchanged), plus the three `vw-lower-tf` probe entries' refusal sentence (still INCONCLUSIVE: the probe script also carries lookahead and array rows, and the door is all-or-nothing - its served rows are graded row by row in the C41 rail). Member-door census 266 x 2: attach 41 / 64 -> 41 / **65** (`mtf-dashboard-pro` attaches with the objects pane on; pane off its sentence changes), 1 row per state, base-vs-base 0 rows. Translation census 266: host lane ok 58 -> 59, served outputs 404 -> 414; screen lane 58 / 738 unchanged, no served screen output moved. Notebook first-open 1,897,262 -> 1,897,271 B (+9: a chunk FILENAME three characters longer in three preload lists, PASS); total JS +15,966 B. `paramIds.test.js` green; `docs/pine/param-ids.json` re-pinned for three scripts that were door-refused at base in both flag states |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -2641,3 +2642,172 @@ the Monday-first key on 5,490 / 5,490 bars and with the Sunday-first key on fewe
 5. **The lookback disagreement** above.
 6. A named refusal at alert arm / `assert_scannable` for a tree the mask withholds whole (the Python sink carries
    the code): today such an alert is admitted and reads "no number" forever, which is honest and quiet.
+
+
+## C41 — a lower-timeframe request is served (2026-10-01, step 51)
+
+Branch `pine/c41-lower-tf-serve`, base wave 9 `19bcbf278c` (C29–C36 + the 2026-09-30 evening captures; merged
+twice on the way, `1ce378b3b3` then `19bcbf278c`). C27 (§ C27) built the mechanism and served nothing. **Every rule
+is stated once, in the header of `app/src/components/chart/engine/lowerTf.js`**; this section records what was
+verified, what is served, and what was measured.
+
+**The capture's claims, re-derived from the committed fixtures before anything was flipped** (an independent script
+over `vw-lower-tf-*-2026-09-30` and the intraday bar captures, `Intl` only, none of the engine's code):
+
+| claim | measured |
+|---|---|
+| L02 `request.security(own, "60", close)` on 1D = the day's LAST regular-session 60m close | SPY 2,951 / 2,951 sessions; RDDT 634 / 634 |
+| L03 that bar's open time is 15:30 ET (12:30 on a half-day TradingView applies) | all sessions |
+| L09 the day holds 7 sixty-minute bars (4 on an applied half-day); L10 the first opens 09:30 | all sessions |
+| L04 the child runs on the intraday series (EMA(9) of the 60m closes, read at the day's last bar) | max difference 4.5e-13 |
+| L07 / L08 `lookahead_on` reads the FIRST intrabar, and `na` on RDDT's listing day | first intrabar on every session; `na` once |
+| L13 a `ticker.modify(…, session.extended)` request equals L02 on 1D | 4,800 / 4,800; L14 differs from L09 once |
+| 60 = the 15m bars bucketed from 09:30; 240 = the 60m bars bucketed (09:30, 13:30) | 4,417 / 4,417; 1,262 / 1,262 |
+| 1W: the week's last 60m close; a week before the intraday depth reads `na` with an empty intrabar set | 612 / 612; 362 `na` weeks |
+
+**What is served.** On a `D` or `W` chart, `request.security(syminfo.tickerid | syminfo.ticker, "5" | "15" | "60" |
+"240", expr)` with lookahead off is the tree node `{type:'ltf', value:'<minutes>', args:[child]}` — the twelfth
+canonical node type (`parse.js::NODE_TYPES`, formula spelling `ltf(expr, '60')`), added TOGETHER with the Python
+mirror (`ast_interpret.py`, `ast_lint.py`, `ast_freshness.py`, `compute_graph.py`, `user_definitions.py`,
+`tools/ast_conformance.py`; `tests/test_node_vocabulary_parity.py` and the corpus derivation are green). The child
+is evaluated on the chart symbol's regular-session intraday series at that code; each chart bar reads the value at
+its LAST intrabar. The interpreter does not fetch and does not bucket: the caller supplies
+`opts.lowerTf[code] = {bars, groups}` per binding (`lowerTf.js::resolveLowerTf`), the plot lane and the object lane
+through the same function. The Python lane holds no intraday bars: there the node is not computable on any bar, and
+`scan_definition.assert_scannable` refuses a screen that carries one, by name.
+
+**The coverage rule (C27's, plus one decision).** A chart bar is KNOWN only whole: every TradingView session of its
+period complete in the supply, no intrabar missing within the child's reach, and — C41 — that reach not running off
+the FRONT of the supply. Anything else is `NaN` plus the withheld mask (`interpret.js::lowerTfMask`), never `na`.
+⛔ **Before our intraday depth the bar is UNKNOWN, even where TradingView itself reads `na`** (before ITS depth, the
+362 weeks above). From our side "TradingView has no intrabars here" and "we hold fewer than TradingView" are the
+same observation, and a `na` we invent would flip a `nz()` or a comparison the vendor evaluates on a real number.
+Withheld is the safe answer in both cases; nothing is drawn wrong, and some bars TradingView draws as `na`-derived
+values are blank here.
+
+**What the child may not contain** (`Resolver.lowerTfChildRefusal`, refused by name at the request): another request
+(`tf`, `tf_live`, `sym`, `ltf`), a running value (`var` / self-reference), a whole-series function (`cum`,
+`valuewhenOccurrence` — their reach is declared 0, so the coverage rule could never see them), and the bar's
+position in the loaded series (`bar_index`, `barstate.*`). Each depends on where the series STARTS, and our supply
+starts later than TradingView's.
+
+**The supply.** `useLowerTfSources` (`engine/useSecondarySources.js`) asks `secondaryBars.js::ensureSecondaryBars`
+for the chart's OWN ticker at `LOWER_TF_SOURCE[code]`, depth from `lowerTfFetchPlan`, never above the route's
+60,000 (`BARS_ROUTE_MAX`, not raised). `StockChart.jsx` gains four touches (+8 / −2): the import, the hook call, the
+hand-off to `binder.sync`, one dependency. Requests, railed in `useLowerTfSources.test.jsx`:
+
+| chart | extra requests |
+|---|---|
+| no indicator, a native indicator, a Pine script with no lower read, a hidden one, no symbol | **0** |
+| a served script on an intraday or monthly chart (refused at the bind) | **0** |
+| ema-ribbon (15 / 60 / 240) on 1D | **1** — `/api/bars/RDDT?tf=15&bars=60000` |
+| a script reading `"5"` and `"60"` | **2** (`tf=5`, `tf=15`) |
+| a second chart on the same symbol, or a re-render that changes nothing | 0 more (the shared cache) |
+
+⛔ **What the grade does and does not say.** Every number below is on VENDOR intraday bars through the harness
+(`ourSide.js::lowerTfSupply`, the committed `vw-bar-counters-rddt-5/15/60/240` and SPY 60m captures). On a member's
+chart the values come from OUR store's intraday bars, and they are right exactly as far as those bars agree with
+TradingView's. That agreement is NOT measured here: no committed fixture holds our store's bars beside the vendor's
+for the same sessions, so there is nothing to measure it with. The capture that would: our `/api/bars/RDDT?tf=15`
+payload committed beside `vw-bar-counters-rddt-15`. Also not withheld: an EMA-like child near the front of OUR
+supply has converged over fewer bars than TradingView's (the chart's own series has the same property).
+
+**Measured** (base `19bcbf278c` → tip; one process at a time; base-vs-base controls identical byte for byte):
+
+| | base | tip |
+|---|---|---|
+| 47 captures, pane on: objects MATCH / overall / families / plots | 30 of 46 / 27 / 233 of 266 / 161 of 172 | the same; 2 entries changed (ema-ribbon cells 36 → **47 / 48**; artemis notes only) |
+| 47 captures, pane off | 18 of 25 / 15 / 107 of 119 / 140 of 151 | the same; the same 2 entries |
+| committed harness dir (117), pane on | 62 of 82 / 46 / 315 of 350 / 343 of 417 | the same; 5 entries (those 2 + the three `vw-lower-tf` probes' refusal sentence) |
+| committed harness dir, pane off | 50 of 61 / 34 / 189 of 203 / 322 of 396 | the same; the same 5 |
+| member-door census 266, pane off / on: attach | 41 / 64 | 41 / **65**; 1 row per state (`mtf-dashboard-pro`), control 0 rows |
+| translation census 266, host lane: ok / served outputs | 58 / 404 | **59 / 414** |
+| translation census 266, screen lane: ok / served outputs | 58 / 738 | 58 / 738 — every moved output is a refused one whose sentence now reads `lower-tf:screen` |
+| notebook first-open | 1,897,262 B | 1,897,271 B (**+9**, PASS) |
+| `pine` chunk / `StockChart` chunk / total JS | 353,925 / 688,747 / 12,686,331 B | 354,109 (+184) / 689,864 (+1,117) / 12,702,297 (**+15,966**) |
+
+*Translation census, host lane, by script.* `lowerTf` is stamped on nine: `mtf-dashboard-pro` (8 outputs now
+served; the one script that newly attaches), `ema-ribbon` and `artemis` (object programs; plot outputs identical),
+`renderingnature-smc` (2), `take-profit-multi-timeframe` (2), `multi-timeframe-rsi` (2 served, 2 still
+`lower-tf:unwitnessed`), `advanced-custom-multi-ma`, `multi-timeframe-trend-indicator`,
+`fibonacci-retracement-statistics` — the last six door-refused before and after on another wall.
+`liquidity-engulfing-displacement` moves 8 refusals `pine:request` → `pine:builtin` (its request resolves; the child
+does not). Eight more change a refusal sentence only. Parameter ids moved in ONE script
+(`multi-timeframe-rsi`, 5 → 7), door-refused before and after.
+
+*The +9 bytes.* The engine's shared chunk — which Rollup had named `bind` — now also holds `lowerTf.js` (shared by
+the chart and the `pine` chunk since the chart reads it) and is named `lowerTf`: 41,329 → 51,333 B. Three chunks in
+the Notebook's first-open closure carry that FILENAME in a preload list, three characters longer each. The chunk
+itself is not in the closure. The 10 KB it grew by loads with the chart engine rather than with the `pine` chunk.
+
+**Pins that moved, each with its reason at the pin.** `pineProbeReplay` artemis (the three children are resolved
+once per request: same 531 Resolvers, +103,890 steps; holds unchanged across both wave-9 merges);
+`docs/pine/param-ids.json` for `mtf-dashboard-pro`, `multi-timeframe-rsi` and the out-of-sample `12-setup-grader`
+— all three door-refused at base in both flag states, so no saved definition holds an id from them, and
+`paramIds.test.js` itself has no edit; `oos-measured-baseline.json` (setup-grader's first refusal);
+`tools/corpus_metric.json` (host 58 → 59) and `tools/lookback_agreement.json` (distinct trees 426 → 440, rows
+identical), both written by their tests; C35's ema-ribbon runtime-lane stop (`lower-tf:unwitnessed` →
+`lower-tf:runtime-lane`, same line). ⚰️ `corpusMetric.test.js` asserted `screenerOk >= hostOk`, a count standing in
+for a set relation; the host lane now serves a script the screen lane cannot, and the test asserts what is true:
+each lane clears a script the other refuses.
+
+**Still refused, by name, and the capture that settles each:**
+
+| code | example | what settles it |
+|---|---|---|
+| `lower-tf:lookahead` | `lookahead = barmerge.lookahead_on` below the chart (liquidity-heatmap's `"5"` pivots) | witnessed as the FIRST intrabar and `na` on a listing day (L07 / L08) — served once that `na` rule is measured on a second symbol; not this lane |
+| `lower-tf:intrabar-array` | `request.security_lower_tf` read directly | an array column; the L-rows witness contents and order on SPY only, and the 13 corpus scripts stop earlier at `pine:collection` |
+| `lower-tf:unwitnessed` | `"1"`, `"30"`; any code on a monthly chart | `vw-lower-tf.pine` with a row at that timeframe / on a 1M chart, beside TradingView's own bars at that timeframe |
+| `lower-tf:other-symbol` | a lower read of another symbol | that symbol's intraday bars beside the capture — not planned |
+| `lower-tf:session` | `ticker.modify(…, session.extended)` / `ticker.new` as the symbol | L13 / L14 show it equals the regular session on 1D except once; one difference is not a rule |
+| `lower-tf:intraday-chart` | `"15"` on a 60m chart | a capture of a lower read on an intraday chart (the time-range mapping) |
+| `lower-tf:expression` | a `var`, `ta.cum`, `bar_index` inside the request | a capture whose intraday depth matches our supply's start, or a supply that starts where TradingView's does |
+| `lower-tf:screen` | any of the above in a screen | nothing — a screen holds daily bars |
+| `lower-tf:runtime-lane` | a served read in the per-bar runtime lane (dark) | an intraday supply for that lane |
+
+**Rails.** `vendorHarness.c41LowerTfServe.test.js` (19: SPY 1D L02 / L03 / L16 on 2,950 sessions — one fewer than the
+capture's 2,951, 2017-11-24, a half-day TradingView's session does not apply — RDDT 633, L06 `"5"` on 258, the weekly
+rows, ema-ribbon's rows 6–8 and bias, a no-supply control that must read WITHHELD, and each refusal);
+`useLowerTfSources.test.jsx` (11); `lowerTf.test.js` (35); `vendorHarness.c27LowerTf.test.js` (11).
+On the merged tree: the lane rails plus the other lanes' (`vendorHarness.c2* c3* c4*`, `paramIds`, `pineProbeReplay`,
+`corpusMetric`, `lookbackAgreement`, `partialDrawing`): `Test Files  29 passed | 1 skipped (30)`,
+`Tests  289 passed | 2 skipped (291)`.
+
+**Mutation proofs** (bytes + sha256 captured, mutated, run, restored by bytes, sha and `git status` verified; each
+red alone; run on the merged tree):
+
+| | mutation | totals | |
+|---|---|---|---|
+| M00 | control: no mutation | Test Files  4 passed (4); Tests  76 passed (76) | green (control) |
+| M01 | `LOWER_TF_WITNESS.requestValue` back to null | Test Files  3 failed | 1 passed (4); Tests  24 failed | 52 passed (76) | **red** |
+| M02 | a chart bar reads its FIRST intrabar, not its last | Test Files  2 failed | 1 passed (3); Tests  13 failed | 52 passed (65) | **red** |
+| M03 | the regular-session filter removed (extended-hours bars bucketed) | Test Files  2 failed | 1 passed (3); Tests  6 failed | 59 passed (65) | **red** |
+| M04 | the leading-edge rule removed (a reach past the front of the supply is served) | Test Files  1 failed | 2 passed (3); Tests  1 failed | 64 passed (65) | **red** |
+| M05 | the withheld mask not applied (an uncovered bar reads as a value / `na`) | Test Files  2 failed | 1 passed (3); Tests  2 failed | 63 passed (65) | **red** |
+| M06 | a whole-series function (`ta.cum`) served inside the child | Test Files  1 failed | 1 passed (2); Tests  1 failed | 29 passed (30) | **red** |
+| M07 | the member door does not stamp `meta.lowerTf` | Test Files  2 failed (2); Tests  16 failed | 14 passed (30) | **red** |
+| M08 | the hook asks for bars for a script with NO lower read | Test Files  1 failed (1); Tests  1 failed | 10 passed (11) | **red** |
+| M09 | 60 and 240 built from the store's clock-aligned `tf=60` | Test Files  3 failed (3); Tests  19 failed | 46 passed (65) | **red** |
+| M10 | the 60,000-bar cap raised to 120,000 | Test Files  2 failed (2); Tests  2 failed | 44 passed (46) | **red** |
+| M11 | `StockChart.jsx` does not hand the supply to the binder | Test Files  1 failed (1); Tests  1 failed | 10 passed (11) | **red** |
+| M12 | bars fetched on a chart period no capture witnesses (intraday, monthly) | Test Files  1 failed (1); Tests  1 failed | 10 passed (11) | **red** |
+| M13 | the screen lane serves the read | Test Files  3 failed (3); Tests  5 failed | 65 passed (70) | **red** |
+| M14 | the registry drops the supply (plot lane) | Test Files  1 failed (1); Tests  9 failed | 10 passed (19) | **red** |
+| M15 | the Python vocabulary without `ltf` | 1 failed, 104 passed, 3604 warnings in 2.63s | **red** |
+| M16 | `"240"` unwitnessed again | Test Files  3 failed (3); Tests  15 failed | 50 passed (65) | **red** |
+| M17 | the runtime lane does not refuse a served read | Test Files  1 failed | 1 passed (2); Tests  1 failed | 29 passed (30) | **red** |
+
+### Left for the integrator
+
+1. **Our store against TradingView's intraday bars is unmeasured.** Every grade here is on vendor bars. Committing
+   one `/api/bars/RDDT?tf=15` payload beside the vendor capture would make it a rail.
+2. **`docs/pine/param-ids.json` was re-pinned for three scripts**, all door-refused at base under both flag states.
+   `paramIds.test.js` has no edit; the artifact does.
+3. **`corpusMetric.test.js`'s invariant changed** (above).
+4. **The first-open closure is +9 B**, a filename. Pinning that chunk's name in `vite.config.js` would make it +0;
+   it is a config change outside this lane.
+5. **`tools/ast_conformance.py --check` is red at base** (2,338 findings; 2,339 here, the one new corpus case) —
+   not re-recorded.
+6. **`tests/test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS…` fails at base and here** (four
+   starter-screen phrasings) — not this lane's.
+7. Lookahead and the intrabar array are witnessed on the probe and deliberately left refused (the table above).
