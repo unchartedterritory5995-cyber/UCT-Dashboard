@@ -5640,7 +5640,7 @@ function logicalAnnihilator(op) {
  *  `na` anywhere in the tree refuses the fold: `na == na` is 0 in JavaScript,
  *  and what Pine answers for a comparison against `na` is not this helper's to
  *  decide. A `num` itself is left to its callers, whose handling is unchanged. */
-function constantTestValue(tree) {
+export function constantTestValue(tree) {
   if (!tree || typeof tree !== 'object' || tree.type === 'num') return null
   // ⭐ A SHAPE CHECK FIRST, WHICH NEVER THROWS: only `op`s over finite `num`s can
   // fold, and asking `foldScalar` about anything else costs an exception per

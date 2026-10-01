@@ -33,6 +33,7 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
+  constantTestValue,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -3449,6 +3450,30 @@ export function buildRuntimeIr(source, opts = {}) {
   // the ONE position where an expression may leave several values on the
   // stack, and it deliberately does NOT propagate into sub-expressions —
   // `plot(f() + 1)` is not a destructuring however deep `f()` sits.
+  /** ⭐⭐ C47 — is this `?:` test ONE finite number before bar 0? `true` / `false`
+   *  = the arm it takes on every bar; `null` = not a constant here.
+   *
+   *  The columnar resolver is the judge, exactly as it is for a pure subtree: a
+   *  literal, constant arithmetic (`constantTestValue`), a numeric / bool input
+   *  at the value in force (`makeResolver` carries the member's `inputs`). ⛔ Never a test that reads a
+   *  slot (a `var`, a parameter, a loop counter — it moves while the bar runs);
+   *  never one that depends on a TEXT input (the columnar lane folds those from
+   *  the author's default and cannot see the member's — `dependsOnTextInput`);
+   *  never inside a request's value (that lane is barred there); and never a
+   *  test that is `na` (what a `?:` answers for `na` is the runtime's to say). */
+  const fixedTestOf = (test, scope) => {
+    if (inRequestValue || readsSlot(test, scope) || dependsOnTextInput(test, scope)) return null
+    let canonical
+    try { canonical = makeResolver().resolve(test) } catch { return null }
+    if (!canonical) return null
+    if (canonical.type === 'num') return Number.isFinite(canonical.value) ? canonical.value !== 0 : null
+    // a constant EXPRESSION (`1 > 2`, `not (900 >= 86400)`) — the columnar lane's
+    // own fold (`pine.js::constantTestValue`, which refuses anything per-bar and
+    // anything holding `na`)
+    const folded = constantTestValue(canonical)
+    return folded === null ? null : folded !== 0
+  }
+
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -3836,6 +3861,30 @@ export function buildRuntimeIr(source, opts = {}) {
         // two-colour condition (`binder.js::pointColour`).
         // ⛔ A COLOUR ternary only — a value ternary keeps the value lane's
         // semantics, which this ruling does not touch.
+        // ⭐⭐ C47 — A TEST THAT IS ONE NUMBER BEFORE BAR 0 TAKES ONE ARM ON EVERY
+        // BAR, AND THE OTHER ARM IS NOT LOWERED AT ALL (`fixedTestOf`).
+        //
+        // Pine evaluates the arm a `?:` takes and no other. Lowering both is a
+        // value-equivalent shortcut only while both CAN be lowered — and
+        // volume-profile's
+        //     var int lookback_bars = vp_use_visible_range
+        //          ? math.round((last_bar_time - chart.left_visible_bar_time) / timeframe_minutes)
+        //          : vp_lookback_depth
+        // has an arm this engine has no answer for (`chart.left_visible_bar_time`,
+        // what is on the member's screen), behind an `input.bool` whose value is
+        // `false`. The script was refused for a line it never runs. The columnar
+        // lane has always skipped that arm (`pine.js`, "a branch a constant test
+        // never takes is not resolved at all"); this is the same rule where the
+        // expression reads a slot and is therefore lowered here.
+        //
+        // ⛔ THE MEMBER'S VALUE DECIDES, NOT THE DEFAULT: the test is folded by the
+        // LIVE resolver (`makeResolver`, which carries `inputs`), so a member who
+        // turns the knob on gets the other arm — and, for this script, its
+        // refusal by name (`pine:builtin`), never the default's answer.
+        {
+          const fixed = fixedTestOf(node.test, scope)
+          if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
+        }
         if (holdsColour(node, scope)) {
           return ternary(binary('!=', lowerExpr(node.test, scope), num(0)),
             lowerExpr(node.yes, scope), lowerExpr(node.no, scope))
