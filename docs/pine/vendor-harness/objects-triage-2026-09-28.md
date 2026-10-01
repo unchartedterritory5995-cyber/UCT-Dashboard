@@ -2398,3 +2398,41 @@ path not armed by the program; a finite getter number printed.
   drives the by-name refusal through the arithmetic form.
 - htf-liquidity's `pineProbeReplay` re-pin (above). Translation time is unchanged: six corpus-wide test files
   alternated base / tip / base / tip at one worker read 107.2 / 107.7 / 97.4 / 100.7 s.
+
+### C33 on wave 9 (merge of `integrate/wave9-2026-09-30` @ `45859e598`, 2026-10-01)
+
+Everything above was measured on wave 8. Merged onto wave 9 (C29, C30, C31, C32, C34, C35), three things changed:
+
+- **One `{t:'val'}` text node.** C32 introduced the same node for a number that moves per pass of a loop. There is
+  one shape and one validator (`assertValueRef` on its source — a state read is legal only in a create / update's own
+  text) and one `case 'val'` in the runtime. C33's rule — a FINITE number read off a drawing is withheld — is kept in
+  `textTainted` and applies only to a state read (a getter, or a scalar a getter feeds); C32's per-pass numbers are
+  served exactly as C32 serves them (mutation M34 reds C32's own rails).
+- **high-low-open-mid-ranges holds both families.** C30 reads `time("W")`, so the divider's guard is fully read and
+  is no longer carried partial: lines **503 of 504** (C30) and labels **504 of 504** (C33) together, nothing
+  withheld. The vendor rail now grades the 503 lines too — both ends' price, bar order of both ends, extension,
+  dash, width, colour, and id order up to one constant; the one line not held is TradingView's oldest (id 2151).
+  The partial guard's vendor witness is now ict-killzones-pivots-tfo (its partial guards carried, never drawn; the
+  table is TradingView's three cells).
+- **`pineProbeReplay`**: artemis (wave 9's pin `[531, 409877, 'f38c24a72a987c60']`) and htf-liquidity (C33's pin
+  `[856, 7174, 'ff55463c3a36e466']`) re-measured on the merged tree — both unchanged.
+
+| measurement | wave 9 (`45859e598`) | wave 9 + C33 |
+|---|---|---|
+| the 47, flag ON — objects MATCH / overall / families / plots | 29 / 26 / 227 of 266 / 161 of 172 | **30 / 27 / 233 of 266** / 161 of 172 |
+| the 47, flag OFF | 18 / 15 / 107 of 119 / 140 of 151 | unchanged |
+| committed harness dir (104 graded), flag ON — objects / overall / families / plots | 57 / 45 / 304 of 343 / 316 of 379 | **58 / 46 / 310 of 343** / 316 of 379 |
+| committed harness dir, flag OFF | 46 / 34 / 184 of 196 / 295 of 358 | unchanged |
+| member-door census 266 × both flags | attach 41 / 64 | 41 / 64, 0 of 532 rows changed |
+| notebook first-open | 1,897,262 B | 1,897,262 B (+0, PASS) |
+| `pine` chunk / total JS | 342,839 B / 12,662,104 B | 351,458 B (+8,619) / 12,672,121 B (+10,017) |
+| `paramIds.test.js` | — | zero edits against wave 9 |
+
+Entries that differ from wave 9's own, in both runs, and only these: average-day-range-adr-pivots (DIVERGE → MATCH:
+lines 2 / 2, boxes 2 / 2, cells 4 / 4) and high-low-open-mid-ranges (labels 0 → 504 of 504, label text agrees; lines
+503 of 504 as on wave 9; cells 37 of 45 — still DIVERGE on the oldest line and the `'M'` / `'3M'` cells).
+
+Mutations re-run on the merged tree: 34 (the 32 above, plus M33 a getter-fed scalar not treated as object state, and
+M34 the finite rule reaching C32's per-pass numbers), over nine rails including `objectFnInline.vendor`,
+`objectWindowLoopReads`, `c32Collections` and `c30TimeAnchor`. Control 98 passed, 1 skipped; all 34 red alone,
+restored by bytes, sha verified, `git status` clean.
