@@ -1,0 +1,226 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10-l13/app
+
+ ✓ src/lib/presentation/presentationSingleFormatter.test.js (12 tests) 2241ms
+     ✓ nothing outside lib/presentation imports formatPercent from S10  2204ms
+ ✓ src/pages/command/keyListenerCensus.test.js (7 tests) 3208ms
+     ✓ NON-VACUITY: it walks the whole tree, parses every file, and finds the registry  3199ms
+stdout | src/components/chart/engine/runtime/__tests__/guardProbe.measure.test.js > PROBE > groups each guard by message shape
+
+================ pine:block — 11 scripts, 3 distinct shapes ================
+
+  [7]  a Pine block spans several statements and this engine stores a single expression — `X` (reached through `X`)
+        [objects] atr-stepped-pdf-ma-loxx__9b90a3f7bb.pine L36
+          for k = 0 to period - 1
+        [objects] kalman-price-filter-backquant__47a601e4bc.pine L36
+          for i = 0 to N-1
+
+  [3]  a Pine block spans several statements and this engine stores a single expression
+        [runtime] bolingger-bands-inside-bar-boxes__3294017d4f.pine L32
+          switch _type
+        [runtime] heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec.pine L120
+          switch type
+
+  [1]  a Pine block spans several statements and this engine stores a single expression — `X`
+        [objects] sessions__2677.pine L41
+          londonLow := if londonSession
+
+ ✓ src/components/chart/engine/runtime/__tests__/guardProbe.measure.test.js (1 test) 6736ms
+     ✓ groups each guard by message shape  6735ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js > ⭐⭐ the drawable ceiling, cross-tabbed against where the drawing dies > ⭐⭐ prints the ceiling and the per-guard drawer count
+
+DRAWABLE CEILING  —  266 scripts, tf=D, clock told
+contain a drawing call : 190  (71.4%)   <- nothing above this can ever draw
+contain none           : 76  (28.6%)
+
+  n  drawers  lane / guard
+ 22       22  runtime/runtime:library
+ 19       19  runtime/runtime:statement
+ 14       14  runtime/pine:input-kind
+ 11       11  runtime/runtime:history-dynamic-offset
+ 11       11  runtime/pine:function
+ 10       10  runtime/runtime:declaration
+  9        9  DREW
+  8        8  runtime/runtime:call-undeclared-builtin-state
+  8        8  runtime/pine:request
+  8        8  runtime/pine:builtin
+  9        7  objects/pine:no-output
+  5        5  runtime/runtime:expression-statement
+  4        4  runtime/pine:window-dependent
+  4        4  runtime/runtime:function
+  4        4  runtime/runtime:object-op
+  3        3  runtime/runtime:function-global-state
+  3        3  runtime/pine:block
+  3        3  runtime/runtime:presentation
+  3        3  runtime/pine:statement
+  3        3  runtime/runtime:input-state
+  3        3  runtime/runtime:request
+ 15        2  objects/pine:declaration-strategy
+  2        2  runtime/runtime:call-text-state
+  2        2  runtime/runtime:loop
+  2        2  runtime/runtime:block-value
+  2        2  runtime/runtime:varip
+  2        2  runtime/pine:offset-literal
+ 20        1  objects/objects:no-objects-in-source
+  7        1  objects/pine:module
+  6        1  objects/pine:state
+  3        1  objects/pine:reassign
+  2        1  objects/pine:builtin
+  1        1  runtime/runtime:call-windowed-state
+  1        1  runtime/runtime:switch
+  1        1  runtime/pine:text-value
+  1        1  runtime/runtime:directive
+  1        1  runtime/runtime:call-conversion-state
+  1        1  runtime/runtime:history-expression
+  1        1  runtime/pine:window
+  1        1  runtime/pine:drawing
+  1        1  threw/this Pine line is not a shape the transl
+  1        1  runtime/runtime:array
+  1        1  runtime/pine:arity
+  8        0  objects/pine:block
+  4        0  objects/pine:request
+  4        0  objects/pine:function-def
+  4        0  objects/pine:collection
+  3        0  objects/pine:function
+  1        0  objects/pine:timeout
+  1        0  objects/pine:arity
+  1        0  objects/pine:tuple
+  1        0  objects/pine:statement
+  1        0  objects/pine:na
+
+⭐ a row whose drawer count is 0 cannot move "draws end to end", however
+   large its n — its scripts have nothing for this lane to draw.
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneDrawerCensus.measure.test.js (3 tests) 6441ms
+     ✓ ⭐⭐ prints the ceiling and the per-guard drawer count  6439ms
+ ❯ src/lib/context/symbolLinkChannels.test.js (8 tests | 1 failed) 1414ms
+     ✓ NON-VACUITY: the sweep sees a real population of sources 21ms
+     ✓ the param names are DERIVED from the authority, not typed here 1ms
+     ✓ POSITIVE CONTROL: the matcher can see a real hand-typed read 279ms
+     ✓ POSITIVE CONTROL: the authority itself routes through the constant, not a literal 285ms
+     × ⛔ no NEW surface reads a symbol/timeframe param by hand 314ms
+     ✓ ⭐ the baseline has not gone stale in the other direction 262ms
+     ✓ records WHICH spellings are in use, so the finding has a measurement 251ms
+     ✓ the ruling it cites is still where the packet says it is 0ms
+ ❯ src/hub/rule12Paths.test.js (28 tests | 1 failed) 2885ms
+     ✓ the named file is inside the named prefix — containment proved, not assumed 1ms
+     ✓ the rail can actually see this branch's changes — the non-vacuity control  562ms
+     ✓ ⛔ the on-base branch is IDENTIFIED, not guessed — the control keeps its teeth 96ms
+     ✓ ⛔ no file under the Notebook workstream's paths is touched, except the one permitted card  1425ms
+     ✓ ⛔ the permitted file may ONLY gain the attribute — the exception is a shape, not a filename  691ms
+     ✓ ⭐ scopes out on notebook-primary-platform 0ms
+     ✓ ⭐ scopes out on feat/notebook-kill-switch 0ms
+     ✓ ⭐ scopes out on hotfix/notebook-ios17-iterator 0ms
+     ✓ ⭐ scopes out on rollback/notebook-offline-default-off 0ms
+     ✓ ⭐ scopes out on notebook-flip 0ms
+     ✓ ⛔ FIRES on fix/d46-d48-closeout 0ms
+     ✓ ⛔ FIRES on docs/d46-d48-sha-fix 0ms
+     ✓ ⛔ FIRES on launch/closure 0ms
+     ✓ ⛔ FIRES on fix/d44-step-semantics 0ms
+     ✓ ⭐ scopes out on fix/master-red-sweep 0ms
+     ✓ ⛔ FIRES on fix/master-red-sweep 0ms
+     ✓ ⛔ FIRES on fix/master-red-sweep 0ms
+     ✓ ⛔ FIRES on docs/scope-reconciliation 0ms
+     ✓ ⛔ FIRES on feat/joystick-hub 0ms
+     ✓ ⭐ scopes out on feat/s7-price-level 0ms
+     ✓ ⭐ scopes out on terminal-research 0ms
+     ✓ ⭐ scopes out on feat/indicator-r0r1 0ms
+     ✓ ⭐ scopes out on fix/github-actions-cache 0ms
+     ✓ ⛔ the table discriminates — it is not quietly one answer for everything 0ms
+     × ⛔ every HUB_OWNED prefix matches real tracked files — a typo matches nothing 43ms
+     ✓ ⛔ the prefixes do not claim the paths they exist to protect 0ms
+     ✓ reads GITHUB_HEAD_REF first, so a pull_request run scopes a Notebook branch out 0ms
+     ✓ falls back to git when the variable is absent or blank — a local or push run is unchanged 63ms
+stdout | src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js > ⭐⭐ the call sites behind one guard > ⭐⭐ prints every script that dies on $GUARD, with its line
+
+CALL SITES — guard=runtime:declaration   (10 scripts)
+
+  72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt.pine  [lane runtime]
+    L5: strategy("72s Strategy: Adaptive Hull Moving Average+ pt.1", shorttitle="72s Strat: Adaptive HMA+ pt.1", overlay=true,
+    why: a script that is not an indicator — `strategy()`
+
+  heikin-ashi-supertrend__2fb7267210.pine  [lane runtime]
+    L11: strategy("Heikin Ashi Supertrend", overlay=true, max_bars_back=5000, default_qty_type=strategy.cash, default_qty_value=1
+    why: a script that is not an indicator — `strategy()`
+
+  linear-regression-channel-breakout-strategy__3a1cf28800.pine  [lane runtime]
+    L5: strategy('Linear Regression Channel Breakout Strategy', overlay=true)
+    why: a script that is not an indicator — `strategy()`
+
+  machine-learning-lorentzian-classification__5c7960db26.pine  [lane runtime]
+    L8: strategy('Machine Learning: Lorentzian Classification', 'Lorentzian Classification Strategy', true, precision=2, initial
+    why: a script that is not an indicator — `strategy()`
+
+  multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine  [lane runtime]
+    L5: strategy("Multi Timeframe RSI Buy Sell Strategy [TradeDots]", overlay=false, initial_capital = 10000, commission_type = 
+    why: a script that is not an indicator — `strategy()`
+
+  rsi-vwap-indicator__pTI5ZVw9n4.pine  [lane runtime]
+    L5: strategy("RSI-VWAP Indicator %", overlay = false, pyramiding = 5, initial_capital = 100000, default_qty_value = 0, commi
+    why: a script that is not an indicator — `strategy()`
+
+  scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471.pine  [lane runtime]
+    L5: strategy("Scalping Strategy with Williams %R, MACD, and SMA (1-Minute Only)", overlay=true)
+    why: a script that is not an indicator — `strategy()`
+
+  take-profit-multi-timeframe__8c16588ae9.pine  [lane runtime]
+    L4: strategy(title = "Take profit Multi timeframe", overlay = true,  pyramiding=0,initial_capital = 10000, default_qty_type=
+    why: a script that is not an indicator — `strategy()`
+
+  tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine  [lane runtime]
+    L5: strategy(title='TradingView Alerts to MT4 MT5 Strategy example', commission_type=strategy.commission.cash_per_order, com
+    why: a script that is not an indicator — `strategy()`
+
+  trailing-take-profit-trailing-stop-loss__41jwaH1ikz.pine  [lane runtime]
+    L53: strategy(title = 'Trailing Take Profit Trailing Stop Loss',
+    why: a script that is not an indicator — `strategy()`
+
+
+ ✓ src/components/chart/engine/runtime/__tests__/objectLaneCallSites.measure.test.js (2 tests) 6413ms
+     ✓ ⭐⭐ prints every script that dies on $GUARD, with its line  6412ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/hub/rule12Paths.test.js > rule 12 — the rail fires on joystick work and nowhere else (B7) > ⛔ every HUB_OWNED prefix matches real tracked files — a typo matches nothing
+Error: spawnSync git ENOBUFS
+ ❯ gitRaw src/hub/rule12Paths.test.js:49:26
+     47| // lines against zero removed lines and passed a real off-shape edit. …
+     48| // what caught it. `-C` removes the whole class.
+     49| const gitRaw = (args) => execFileSync('git', args, { encoding: 'utf8',…
+       |                          ^
+     50| const REPO_ROOT = gitRaw(['rev-parse', '--show-toplevel'])
+     51| const git = (args) => gitRaw(['-C', REPO_ROOT, ...args])
+ ❯ git src/hub/rule12Paths.test.js:51:23
+ ❯ src/hub/rule12Paths.test.js:372:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/lib/context/symbolLinkChannels.test.js > S4 CP2 — the deep-link ruling has a derived rail behind it > ⛔ no NEW surface reads a symbol/timeframe param by hand
+AssertionError: NEW hand-typed deep-link read(s): testing/panes/paneHarness.jsx.
+chartDeepLink.js:13-17 rules that a URL param is a one-shot INSTRUCTION applied through an existing authority and then STRIPPED — never a second source of truth. Route through readChartsLink/chartsLinkPath, or add the file to HAND_TYPED_BASELINE with the reason it is a separate door.: expected [ 'testing/panes/paneHarness.jsx' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "testing/panes/paneHarness.jsx",
++ ]
+
+ ❯ src/lib/context/symbolLinkChannels.test.js:204:7
+    202|             'file to HAND_TYPED_BASELINE with the reason it is a separ…
+    203|         : '',
+    204|     ).toEqual([])
+       |       ^
+    205|   })
+    206| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed | 5 passed (7)
+      Tests  2 failed | 59 passed (61)
+   Start at  20:30:59
+   Duration  18.56s (transform 672ms, setup 913ms, import 1.30s, tests 29.34s, environment 3.29s)
+

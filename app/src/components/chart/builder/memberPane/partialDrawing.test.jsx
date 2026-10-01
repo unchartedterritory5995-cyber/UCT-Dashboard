@@ -197,7 +197,11 @@ const CASES = [
     // ⭐ 7 -> 6 on 2026-09-30 (C32): the KNN memory's length cell converts —
     // `str.tostring(kSize) + " bars"`, a 100-slot window's length read above its
     // writer — and reads `100 bars`, TradingView's (`vendorHarness.c32Collections`).
-    objectsOnly: false, kind: 'partial', text: partial(6, 38) },
+    // ⭐ 7 -> 6 on 2026-10-01 (C31): `fTxt`, a block local declared below the
+    // KNN panel's two `for`s, is bound now and its cell drawn — TradingView's
+    // `O-  V-  S-` (`vendorHarness.c31Loops`).
+    // ⭐ Wave 9 carries both cells, so 7 -> 5 (measured on the merged tree).
+    objectsOnly: false, kind: 'partial', text: partial(5, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the
@@ -242,9 +246,13 @@ const CASES = [
   // not run. Its helpers are inlined into them now (C34), so the loss is named
   // by what the loops hold rather than by the helpers' names. Its program is
   // empty: nothing is drawn, and nothing that is drawn is removed.
+  // ⭐ 2026-10-01 (C40): `f_clearAll`'s `for b in box.all → box.delete(b)` is a
+  // loop the host lane runs now, so `box.delete` — written nowhere else — left
+  // the sentence. `line.delete` / `label.delete` stay: the script also writes
+  // them inside the loops over user-type lists.
   { cls: 'plots + partial the loops never ran', script: 'trend-lines-supports-and-resistances__413ee2ee3b',
     objectsOnly: false, kind: 'partial',
-    text: /^This script uses `box\.delete`, `box\.new`, `label\.delete`, `label\.new`, `line\.delete`, `line\.new`, `line\.set_color`, `line\.set_extend`, `line\.set_style`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    text: /^This script uses `box\.new`, `label\.delete`, `label\.new`, `line\.delete`, `line\.new`, `line\.set_color`, `line\.set_extend`, `line\.set_style`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ⭐ 2026-09-27 — was the `withheld` row (its `line.delete(sup[1])`s were
   // dropped). A drawing variable's history (`{r:'reg', back:1}`) completes it.
   { cls: 'clean plots + objects, completed by `line.delete(sup[1])`', script: 'fibonacci-pivot-points-cc__p8DQ3RIR97',

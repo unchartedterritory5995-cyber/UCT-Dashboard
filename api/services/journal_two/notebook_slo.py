@@ -79,18 +79,47 @@ the stamp of a DELIVERED page only, so a failed delivery still re-pages (I-1).
 The scheduler registration is in `api/main.py` (ids `notebook_slo_check`,
 `notebook_slo_digest`, pinned by `tests/test_notebook_slo.py`);
 `POST /api/admin/notebook-slo/run` forces a run.
+
+⭐ TERM-011 step 4 — the SAME (OPS, critical) second transport `chart_health_alerts`
+pages with (`docs/terminal-research/07-technical-architecture/term-011-routing-decisions.md`).
+This pager's Discord post already goes through `alert_destination.ops_webhook()`
+(TERM-011 step 3); `_email_second_transport` is the mirror for the email leg —
+`alert_destination.ops_email_recipients("critical")` is the ONE reader of
+`OPS_ALERT_EMAIL_TO`, never retyped here, so this pager can never disagree with
+`chart_health_alerts` about who gets paged or at what severity. ⚠️ `"critical"` is a
+LITERAL, matching `chart_health_alerts.py`'s own `severity != "critical"` gate
+(neither module imports `alert_routing.SEVERITY_CRITICAL`, because
+`alert_routing` may have exactly ONE importer under `api/` —
+`alert_destination.py` — pinned by
+`tests/test_alert_destination.py::test_the_RESOLVER_still_has_exactly_ONE_importer_under_api`
+so no producer can retype the routing rule for itself; severity is a free string
+by the resolver's own design, §6 step 4's constant). With `OPS_ALERT_EMAIL_TO`
+unset or blank — every service today — it returns `()` and the email leg never
+starts a thread, never imports `email_service`, never touches the network:
+byte-identical to before this function existed. ⛔ The two legs are fired
+independently in `run_check`'s page loop: an email failure (or no recipients) never
+changes `delivered`/`pages` for the Discord leg, and a Discord failure never stops
+the email leg from being attempted. Rail: `tests/test_notebook_slo.py`.
 """
 from __future__ import annotations
 
 import json
 import logging
 import os
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Optional
 
 from api.services import auth_db
-from api.services.alert_destination import ops_webhook as _ops_webhook
+from api.services.alert_destination import (
+    ops_email_recipients as _ops_email_recipients,
+    ops_webhook as _ops_webhook,
+)
 from api.services.journal_two.notebook_telemetry import ms_of, percentile
+
+#: The (OPS, critical) second transport's severity, as a LITERAL — see the module
+#: header on why this is not imported from `alert_routing.SEVERITY_CRITICAL`.
+_SEVERITY_CRITICAL = "critical"
 
 logger = logging.getLogger(__name__)
 
@@ -359,6 +388,50 @@ def _post_discord(text: str) -> str:
         return "failed"
 
 
+def _email_second_transport(text: str) -> None:
+    """TERM-011 step 4's second transport, for this pager. Fire-and-forget, never
+    raises, never returns a value `run_check` depends on.
+
+    ⭐ THE SHIPPED SHAPE, NOT A NEW ONE — mirrors
+    `chart_health_alerts._email_second_transport`: on its OWN thread (`send_email`
+    blocks on Resend behind a pool and a timeout, and this runs from a scheduler job
+    or an admin "run now"), each recipient tried independently so one bad address
+    cannot silence the rest, and the whole leg wrapped so a mail failure can never
+    reach `run_check` or suppress the Discord page it is fired beside. The import is
+    inside the thread, same reason: `email_service` reaches Resend at import.
+
+    ⛔⛔ THE DECISION IS THE RESOLVER'S, NOT RETYPED HERE.
+    `alert_destination.ops_email_recipients(SEVERITY_CRITICAL)` is the ONE reader of
+    `alert_routing.SECOND_TRANSPORT_ENV_BY_CLASS` / `SECOND_TRANSPORT_MIN_PRIORITY`
+    (TERM-011 step 4) — the SAME (OPS, critical) rule `chart_health_alerts.emit`
+    pages on. With `OPS_ALERT_EMAIL_TO` unset or blank — every service today — this
+    returns `()` and NOTHING below this line runs: no thread, no `email_service`
+    import, no network call. This pager is byte-identical to before this function
+    existed.
+    """
+    recipients = _ops_email_recipients(_SEVERITY_CRITICAL)
+    if not recipients:
+        return
+
+    def _send():
+        try:
+            from api.services import email_service
+            subject = "🔴 UCT ops CRITICAL — Notebook save pager"[:180]
+            html = "<p style='font-size:15px'>" + text[:1900].replace("\n", "<br>") + "</p>"
+            for to in recipients:
+                try:
+                    email_service.send_email(to, subject, html)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    try:
+        threading.Thread(target=_send, daemon=True, name="notebook-slo-ops-email").start()
+    except Exception:
+        pass
+
+
 def _page_text(slo: str, r: dict[str, Any], window_hours: int) -> str:
     if r["state"] == STALL:
         st = r["stall"]
@@ -472,6 +545,11 @@ def run_check(now: Optional[datetime] = None, conn=None, *,
     `delivered='failed'`, `last_paged_at` stays as it was, and a later run pages.
     ⛔ N-2: the committed transaction claims the page (`page_attempt_at`); a run
     that finds a claim younger than PAGE_CLAIM_SECONDS does not page.
+
+    ⭐ TERM-011 step 4: each page also fires `_email_second_transport(text)`,
+    INDEPENDENTLY of `post(text)`'s outcome — neither leg's failure can suppress
+    the other. With `OPS_ALERT_EMAIL_TO` unset or blank (every service today) that
+    call starts no thread and changes nothing observable.
     """
     now = now or datetime.now(timezone.utc)
     post = post or _post_discord
@@ -491,6 +569,15 @@ def run_check(now: Optional[datetime] = None, conn=None, *,
             except Exception as e:  # noqa: BLE001 — a pager fault is a failed delivery, never a crash
                 logger.warning("[notebook-slo] page delivery raised: %s: %s", type(e).__name__, e)
                 delivered = "failed"
+            # ⭐⭐ TERM-011 step 4 — the SAME second transport chart_health_alerts pages
+            # with, fired on the SAME text, independent of the Discord outcome above:
+            # this must never change `delivered` and a raise here must never reach the
+            # Discord recording below.
+            try:
+                _email_second_transport(text)
+            except Exception as e:  # noqa: BLE001 — same discipline as the Discord leg
+                logger.warning("[notebook-slo] email second transport raised: %s: %s",
+                               type(e).__name__, e)
             ok = delivered in DELIVERED
             conn.execute(
                 "INSERT INTO notebook_slo_events (created_at, kind, slo, state, value, objective, n,"

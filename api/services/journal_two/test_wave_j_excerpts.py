@@ -123,6 +123,25 @@ def test_append_document_excerpt_returns_none_for_a_foreign_note(conn):
     assert notes_svc.append_document_excerpt(USER, note["id"], "fake-excerpt-id", conn=conn) is None
 
 
+def test_append_document_excerpt_refuses_a_locked_note(conn):
+    """Ruling 149: a locked note takes no captures. `append_document_excerpt`
+    is the "Save excerpt" door's server half (NoteEditorPage.jsx's
+    handleSaveExcerpt -> POST /notes/{id}/excerpts) and, before this, had no
+    lock check at all -- only note_personal_api.append_nodes refused."""
+    note = _note(conn, title="NVDA Research")
+    doc = _document(conn, USER, note["id"])
+    excerpt = note_excerpts.create_excerpt(
+        USER, note["id"], document_id=doc["id"], page_number=1, captured_text="quote", conn=conn)
+    locked = notes_svc.update_note(USER, note["id"], {"locked": True}, conn=conn)
+    assert locked["locked"] is True
+    with pytest.raises(notes_svc.NoteLockedError):
+        notes_svc.append_document_excerpt(USER, note["id"], excerpt["id"], conn=conn)
+    after = notes_svc.get_note(USER, note["id"], conn=conn)
+    assert after["bodyJson"] == locked["bodyJson"]
+    assert after["updatedAt"] == locked["updatedAt"]
+    assert note_excerpts.list_note_excerpts(USER, note["id"], conn=conn) == []
+
+
 def test_removing_the_node_from_a_notes_body_drops_it_from_the_sidecar_but_not_the_row(conn):
     """Editor-local node removal must NOT delete the underlying excerpt --
     it may still be referenced by a thesis in a different note (checkpoint

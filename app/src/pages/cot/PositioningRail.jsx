@@ -23,6 +23,7 @@ import { composeWeek } from './cotCompose'
 import { useCotNarrative } from './useCotNarrative'
 import { useCotNarrativeArchive } from './useCotNarrativeArchive'
 import { useIsPhone } from '../../hooks/useBreakpoint'
+import Provenance from '../../components/provenance/Provenance'
 import { SERIES_COLORS } from './cotPalette'
 import { fmtDate, fmtNum, fmtSignedCompact, fmtPct } from './cotFormat'
 
@@ -294,6 +295,15 @@ const PositioningRail = forwardRef(function PositioningRail(
           <>
             <div className={styles.narrative}>
               {narrativeText.split(/\n\s*\n/).map((p, i) => <p key={i}>{p.trim()}</p>)}
+            </div>
+            {/* TERM-050: the read names what it was written from, through S8's
+                <Provenance>. No `timestamp` is passed: the report date is the
+                week the positions were held, not an observed-at time. */}
+            <div className={styles.narrativeMeta} data-testid="cot-read-source">
+              <Provenance
+                value="Written from this week's positioning figures"
+                provenance={{ sourceActivity: `CFTC Commitments of Traders · report dated ${fmtDate(snap.date)} · the figures in this rail` }}
+              />
             </div>
             <details className={styles.details}>
               <summary>Group by group</summary>

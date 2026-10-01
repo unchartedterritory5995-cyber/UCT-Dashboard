@@ -430,7 +430,8 @@ def _econ_refusal(ticker: str) -> JSONResponse:
 
 
 def _breadth_etag(body: bytes) -> str:
-    """Strong validator for a Breadth history body: payload hash + the authority token."""
+    """Strong validator for a Breadth (or breadth-derived indicator) history body: payload hash +
+    the authority token."""
     import hashlib as _hl
     try:
         from api.services import breadth_authority as _ba
@@ -464,6 +465,20 @@ def _is_market_indicator(ticker: str) -> bool:
     try:
         from api.services.market_indicators import registry as _mireg
         return _mireg.is_market_indicator(ticker)
+    except Exception:
+        return False
+
+
+def _is_breadth_derived_indicator(ticker: str) -> bool:
+    """A published market indicator whose history is COMPUTED FROM canonical breadth
+    (`SRC_BREADTH_DERIVED`: US:MCO/MCS/AD/ZBT today), so its content follows the breadth
+    authority exactly like a breadth series does. The registry's own source classification
+    answers it; every other market indicator (surveys, Cboe, COT, ...) is untouched.
+    """
+    try:
+        from api.services.market_indicators import registry as _mireg
+        s = _mireg.resolve(ticker)
+        return s is not None and s.source_type == _mireg.SRC_BREADTH_DERIVED
     except Exception:
         return False
 
@@ -1199,7 +1214,11 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
     # authority switches (breadth_authority: V1 → V2 keeps `d`), so a year-long immutable copy
     # would splice pre-switch history under the fresh tail. Breadth series are cached server-side
     # anyway; a short public cache costs one cheap origin read.
-    if _is_breadth_symbol(ticker):
+    # ⛔ BREADTH-DERIVED MARKET INDICATORS TOO (US:MCO/MCS/AD/ZBT): they are recomputed from
+    # `breadth_daily_ohlc` under the same authority, so a US switch changes their history under
+    # an unchanged URL just the same. Left immutable, a browser kept V1 deep history under the
+    # V2 tail with no request at all (prod 2026-10-01, transferSize 0).
+    if _is_breadth_symbol(ticker) or _is_breadth_derived_indicator(ticker):
         # ⭐ REVALIDATE EVERY TIME, 304 ONLY ON AN IDENTICAL REPRESENTATION. `no-cache` lets the
         # browser and the edge keep the body but never reuse it unchecked; the ETag is the hash
         # of the exact payload + the breadth authority token, so V1 ↔ V2 (either direction), a

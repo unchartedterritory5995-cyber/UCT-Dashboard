@@ -575,3 +575,84 @@ def test_ordinary_stock_history_caching_is_unchanged(monkeypatch):
     import inspect
     src = inspect.getsource(br.serve_bars_history)
     assert '"public, max-age=31536000, immutable"' in src and '"public, max-age=3600, stale-while-revalidate=86400"' in src
+
+
+# ── breadth-DERIVED market indicators share the breadth cache policy ─────────────────────────
+_BD = ("US:MCO", "US:MCS", "US:AD", "US:ZBT")
+
+
+def _mi_hist(monkeypatch, value):
+    from api.routers import bars as br
+    from api.services.market_indicators import series as ms
+    bars = [{"t": "2026-09-%02d" % i, "o": value, "h": value, "l": value, "c": value, "v": 0}
+            for i in (21, 22, 23, 24, 25)]
+    monkeypatch.setattr(ms, "build_bars", lambda *a, **k: {"bars": bars})
+    return br
+
+
+def test_breadth_derived_indicators_are_exactly_the_four_us_series():
+    from api.routers import bars as br
+    from api.services.market_indicators import registry as reg
+    derived = {s.id for s in reg.published_rows() if s.source_type == reg.SRC_BREADTH_DERIVED}
+    assert derived == set(_BD)
+    assert all(br._is_breadth_derived_indicator(s) for s in _BD)
+    # other published indicators (surveys, Cboe, COT, ...) and stocks/breadth are NOT
+    others = [s.id for s in reg.published_rows() if s.source_type != reg.SRC_BREADTH_DERIVED]
+    assert others and not any(br._is_breadth_derived_indicator(s) for s in others)
+    assert not any(br._is_breadth_derived_indicator(s) for s in ("AAPL", "SPY", "US:A50", "UCTA50", "UCT:MCO"))
+
+
+def test_breadth_derived_indicator_history_is_no_cache_with_a_validator(monkeypatch):
+    br = _mi_hist(monkeypatch, -46.6)
+    for sym in _BD:
+        r = br.serve_bars_history(sym, "D", 400, "", "2026-09-25")       # d == last sealed
+        assert r.headers["Cache-Control"] == "no-cache", sym
+        assert "immutable" not in r.headers["Cache-Control"] and r.headers["ETag"].startswith('"b-')
+
+
+def test_breadth_derived_validator_changes_with_us_authority_both_ways(monkeypatch):
+    br = _mi_hist(monkeypatch, -46.6)
+    for sym in _BD:
+        monkeypatch.setenv("BREADTH_AUTHORITY_US", "v1")
+        v1 = br.serve_bars_history(sym, "D", 400, "", "2026-09-25")
+        assert br.serve_bars_history(sym, "D", 400, "", "2026-09-25",
+                                     if_none_match=v1.headers["ETag"]).status_code == 304
+        monkeypatch.setenv("BREADTH_AUTHORITY_US", "v2")                  # identical bytes, new authority
+        v2 = br.serve_bars_history(sym, "D", 400, "", "2026-09-25", if_none_match=v1.headers["ETag"])
+        assert v2.status_code == 200 and v2.headers["ETag"] != v1.headers["ETag"]
+        monkeypatch.setenv("BREADTH_AUTHORITY_US", "v1")                  # rollback V2 → V1
+        back = br.serve_bars_history(sym, "D", 400, "", "2026-09-25", if_none_match=v2.headers["ETag"])
+        assert back.status_code == 200 and back.headers["ETag"] == v1.headers["ETag"]
+
+
+def test_breadth_derived_payload_change_invalidates(monkeypatch):
+    import json as _j
+    br = _mi_hist(monkeypatch, 172438.0)                                  # "V1" US:AD
+    v1 = br.serve_bars_history("US:AD", "D", 400, "", "2026-09-25")
+    br = _mi_hist(monkeypatch, -117237.0)                                 # "V2" US:AD
+    after = br.serve_bars_history("US:AD", "D", 400, "", "2026-09-25", if_none_match=v1.headers["ETag"])
+    assert after.status_code == 200 and _j.loads(after.body)["bars"][-1]["c"] == -117237.0
+
+
+def test_unrelated_market_indicators_keep_immutable_history(monkeypatch):
+    from api.services.market_indicators import registry as reg
+    br = _mi_hist(monkeypatch, 20.0)
+    others = [s.id for s in reg.published_rows() if s.source_type != reg.SRC_BREADTH_DERIVED][:5]
+    for sym in others:
+        r = br.serve_bars_history(sym, "D", 400, "", "2026-09-25")
+        assert r.headers["Cache-Control"] == "public, max-age=31536000, immutable", sym
+        assert "ETag" not in r.headers
+        r = br.serve_bars_history(sym, "D", 400, "", "2026-09-01")       # stale d → short cache
+        assert r.headers["Cache-Control"] == "public, max-age=3600, stale-while-revalidate=86400"
+
+
+def test_ordinary_stock_history_headers_are_unchanged(monkeypatch):
+    from api.routers import bars as br
+    rows = [{"t": "2026-09-%02d" % i, "c": 1.0} for i in (21, 22, 23, 24, 25)]
+    monkeypatch.setattr(br._bars_fetch._sqlite, "get_bars", lambda *a, **k: rows)
+    monkeypatch.setattr(br, "_fmt_sqlite_bars",
+                        lambda rows, tf, sym: [{"t": r["t"], "o": 1, "h": 1, "l": 1, "c": 1, "v": 1} for r in rows])
+    r = br.serve_bars_history("AAPL", "D", 400, "", "2026-09-25")
+    assert r.headers["Cache-Control"] == "public, max-age=31536000, immutable" and "ETag" not in r.headers
+    r = br.serve_bars_history("AAPL", "D", 400, "", "")
+    assert r.headers["Cache-Control"] == "public, max-age=3600, stale-while-revalidate=86400"

@@ -49,13 +49,22 @@ async function postPosition(payload) {
 
 export default function GlobalAddPositionProvider() {
   const { user, loading } = useAuth()
-  const { settings } = useJ2Settings()
-  const { accountId, accounts } = useJ2SelectedAccount()
+  // Mounted at the app root for EVERY visitor, signed in or not — the public
+  // /share/n/:token and /p/:slug pages and the marketing/login/signup pages
+  // included. `useJ2Settings`/`useJ2SelectedAccount` (⇒ `/api/j2/settings`,
+  // `/api/j2/accounts`) and `useTagColors` (⇒ `/api/auth/preferences`) are all
+  // authed-only — a signed-out visitor got three 401s before `authReady`
+  // existed. A primitive boolean, never a fresh object/array, so it cannot
+  // feed the navigation-freeze class (CLAUDE.md, 2026-09-10): same identity
+  // whenever `loading`/`user` haven't changed.
+  const authReady = !loading && !!user
+  const { settings } = useJ2Settings(authReady)
+  const { accountId, accounts } = useJ2SelectedAccount(authReady)
   const { mutate } = useSWRConfig()
   const { createAlert } = useWatchlistAlerts()
   const { toggle: toggleFlag, isFlagged } = useFlagged()
   const { getTag, setTag, removeTag } = useTickerTags()
-  const { tagColors } = useTagColors()
+  const { tagColors } = useTagColors(authReady)
   const { data: lists, mutate: mutateLists } = useSWR(
     // ⚡ include_items=0: this provider is mounted APP-WIDE, so this fetch is on the
     // shell path of every page — and it only ever reads `wl.id` + `wl.name` to build

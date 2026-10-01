@@ -106,6 +106,7 @@ function tradingViewDefaultColour(output, version) {
   if (!DEFAULT_COLOURED_KINDS.has(output.kind)) return p
   const saidSomething = p.color !== undefined || p.colorUp !== undefined
     || p.colorDown !== undefined || p.colorPalette !== undefined
+    || p.colorGradient !== undefined
     || p.colorDynamic || p.colorDynamicArity !== undefined
   if (saidSomething) return p
   return {
@@ -133,8 +134,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       // ⭐ C18 — `objectRuntimeCheck`: a drawing value only an imperative run can
       // compute is read from the runtime lane when that lane builds the script
       // (`pine.js::buildObjectProgram`, `rtCheck`).
+      // ⭐ C43 — `guardInputs: true`: an input only a `runtime.error` condition
+      // reads is declared too, so a member's own value can reach the script's
+      // validation as it does on TradingView — `builderInputs.withGuardInputs`.
       t = memberInputTranslation(translatePine, source, {
-        paramManifest: true, strict: true, colourInputs: true, objectRuntimeCheck: probeObjectRuntime,
+        paramManifest: true, strict: true, colourInputs: true, guardInputs: true,
+        objectRuntimeCheck: probeObjectRuntime,
       })
     } catch (err) {
       // ⛔ A THROW IS A REASON, NOT A CRASH ON THE PAINT PATH. `PreviewPane`'s
@@ -301,6 +306,12 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // entry each bar uses (ATR Trailing Stoploss's green/red/black line).
     const paletteKey = (!condKey && Array.isArray(p.colorPalette) && p.colorPalette.length >= 2)
       ? conditionColumnFor(p.colorIndex) : null
+    // ⭐⭐ C37 — …and a GRADIENT: the column holds the bar's POSITION between two
+    // static colours (`pine.js::colourGradientRule`; RVOL's line, gold on 611
+    // bars before this). Same hidden-column mint as the two rules above.
+    const g = p.colorGradient
+    const gradientKey = (!condKey && !paletteKey && g && typeof g.from === 'string' && typeof g.to === 'string')
+      ? conditionColumnFor(g) : null
     // ⛔⛔ THE MODE COMES FROM THE LINTER, NEVER FROM A DEFAULT WRITTEN HERE.
     // `meta.repaint` is a TRUTH CLAIM a member makes decisions on, and the
     // install door refuses a declaration that disagrees with what it measures —
@@ -337,6 +348,13 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
       ...(p.marker && p.marker.shape ? { marker: p.marker } : {}),
       ...(condKey ? { colorMode: `column:${condKey}`, colorUp: p.colorUp, colorDown: p.colorDown } : {}),
       ...(paletteKey ? { colorMode: `column:${paletteKey}`, colorPalette: p.colorPalette.slice() } : {}),
+      ...(gradientKey ? {
+        colorMode: `column:${gradientKey}`,
+        colorGradient: {
+          from: g.from, to: g.to,
+          ...(Number.isInteger(g.transparency) ? { transparency: g.transparency } : {}),
+        },
+      } : {}),
     }
   })
 
@@ -532,7 +550,15 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
   const colourRead = new Set()
   for (const cr of conditionRows) seriesNamesOf(cr.ast, colourRead)
   const colourDeclared = colourSpecs.filter((s) => colourRead.has(s.key))
-  const docInputs = colourDeclared.length ? [...(memberSpecs || []), ...colourDeclared] : memberSpecs
+  // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error` CALLS RIDE ON THE DOCUMENT
+  // (`meta.runtimeErrors`), with the settings their conditions read declared, so
+  // the chart can evaluate them at the member's own values
+  // (`engine/runtimeErrorStop.js`). Appended after every value and colour input:
+  // the inputs a document already declared keep their exact order and index.
+  const runtimeErrors = runtimeErrorsStamp(t)
+  const guardDeclared = guardInputSpecs(t, runtimeErrors, [...(memberSpecs || []), ...colourDeclared])
+  const docInputs = (colourDeclared.length || guardDeclared.length)
+    ? [...(memberSpecs || []), ...colourDeclared, ...guardDeclared] : memberSpecs
   let definition = null
   try {
     definition = buildDefinition({
@@ -662,6 +688,10 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐⭐ C43 — the `runtime.error` calls the translation placed (each with the
+    // conditions it stands under) and the ones it could not (by name). Absent for
+    // every script that writes no `runtime.error`, so no other document changes.
+    ...(runtimeErrors ? { runtimeErrors } : {}),
     // ⭐⭐ C29 — the chart-period values the translation folded (`timeframe.period`
     // text, `.multiplier`, `.in_seconds()`), each at every rung, so a chart whose
     // period differs from the one they were folded at is refused, never drawn off
@@ -936,6 +966,64 @@ function withObjectInputs(specs, t) {
     }
   }
   return byKey.size ? [...byKey.values()] : specs
+}
+
+/** ⭐⭐ C43 — the document's stamp of the script's `runtime.error` calls, from the
+ *  translation's own record (`pine.js`, `runtimeErrors`), or null.
+ *
+ *  Per placed call: the conditions (canonical trees, each with its `negate`
+ *  mark), the message parts, and how each setting the conditions read reaches
+ *  them — `live` (declared: the tree carries the identifier and the chart reads
+ *  the member's value) or `folded` (the tree carries the value the translation
+ *  saw, recorded here so the bind can tell when the member's value has moved
+ *  off it and refuse to guess). `unread` is every call the lane could not place. */
+function runtimeErrorsStamp(t) {
+  const re = t && t.runtimeErrors
+  if (!re || (!(re.stops || []).length && !(re.unread || []).length)) return null
+  const stops = (re.stops || []).map((s) => {
+    const live = []
+    const folded = []
+    for (const e of (s.inputs || [])) {
+      if (!e || typeof e.name !== 'string') continue
+      if (e.declared && !e.windowBound) { if (!live.includes(e.name)) live.push(e.name); continue }
+      const v = Number(e.folded)
+      if (!folded.some((f) => f.name === e.name)) folded.push({ name: e.name, value: Number.isFinite(v) ? v : null })
+    }
+    return {
+      line: s.line,
+      guards: (s.guards || []).map((g) => ({
+        ast: g.ast, negate: g.negate === true, series: g.series || [], barCalls: g.barCalls === true,
+      })),
+      message: Array.isArray(s.message)
+        ? s.message.map((p) => (typeof p.s === 'string' ? { s: p.s } : { n: p.n }))
+        : null,
+      live,
+      folded,
+      period: s.period || null,
+    }
+  })
+  return { stops, unread: (re.unread || []).map((u) => ({ line: u.line ?? null, why: String(u.why || '') })) }
+}
+
+/** ⭐ C43 — the spec rows for the settings a `runtime.error` condition reads LIVE
+ *  and the document does not already declare: the guard-only ones the member door
+ *  added (`t.guardInputs`), and any an output annotates but no drawn row carries
+ *  (the `withObjectInputs` case). ⛔ A spec is never invented: a live name with no
+ *  spec stays undeclared, and the bind then names that call as not evaluable. */
+function guardInputSpecs(t, stamp, existing) {
+  if (!stamp) return []
+  const wanted = new Set(stamp.stops.flatMap((s) => s.live))
+  if (!wanted.size) return []
+  const have = new Set((existing || []).map((s) => s && s.key))
+  const out = []
+  const take = (spec) => {
+    if (!spec || typeof spec.key !== 'string' || !wanted.has(spec.key) || have.has(spec.key)) return
+    have.add(spec.key)
+    out.push(spec)
+  }
+  for (const spec of (t.guardInputs || [])) take(spec)
+  for (const o of (t.outputs || [])) for (const spec of (o.memberInputs || [])) take(spec)
+  return out
 }
 
 function memberInputSpecs(rows) {

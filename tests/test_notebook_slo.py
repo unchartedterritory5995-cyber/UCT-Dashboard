@@ -797,3 +797,131 @@ def test_STALL_three_network_streaks_and_no_saves_in_an_hour_is_a_stall(slo):
     reading = (s["state"], st["streaks"], st["offline_streaks"], st["succeeded"], len(pager.sent))
     assert reading == ("stall", 3, 0, 0, 1), (reading, s)
     assert "STALL" in pager.sent[0]
+
+
+# ── Fix round 4 — TERM-011 step 4: the SAME (OPS, critical) second transport ───
+# `chart_health_alerts` pages with, mirrored here for the Notebook save pager.
+# `docs/terminal-research/07-technical-architecture/term-011-routing-decisions.md`
+# is the decision packet; `tests/test_ops_second_transport.py` is the sibling rail
+# for `chart_health_alerts`' own leg and this file's `_ImmediateThread` shim mirrors
+# its pattern (fire-and-forget threads must be collapsed or a test asserts over an
+# empty recorder and passes on a race, not a fact).
+
+
+class _ImmediateEmailThread:
+    def __init__(self, target=None, daemon=None, name=None, **kwargs):
+        self._target = target
+
+    def start(self):
+        if self._target is not None:
+            self._target()
+
+
+class _EmailThreadingShim:
+    Thread = _ImmediateEmailThread
+
+
+@pytest.fixture
+def notebook_email(monkeypatch, slo):
+    """The second transport's seam fake — `email_service.send_email`, faked exactly
+    as `tests/test_ops_second_transport.py::sent` fakes it for `chart_health_alerts`
+    — plus the synchronous thread shim on `notebook_slo` itself, so a test can read
+    the calls a `run_check` it just made produced, not a race with a daemon thread."""
+    mod, _ = slo
+    from api.services import email_service
+    calls: list = []
+
+    def _send_email(to, subject, html):
+        calls.append({"to": to, "subject": subject, "html": html})
+        return True
+
+    monkeypatch.setattr(email_service, "send_email", _send_email)
+    monkeypatch.setattr(mod, "threading", _EmailThreadingShim)
+    return calls
+
+
+def test_with_OPS_ALERT_EMAIL_TO_unset_no_email_is_attempted(slo, monkeypatch, notebook_email):
+    """⛔ STEP 3'S INVARIANT, RESTATED FOR STEP 4: `OPS_ALERT_EMAIL_TO` is set on no
+    service today, so this pager's email leg must be INERT — no thread, no
+    `email_service` call. (Mutation: drop the `if not recipients: return` guard in
+    `_email_second_transport` -> this reds, because the guard is what stops it.)"""
+    mod, auth_db = slo
+    monkeypatch.delenv("OPS_ALERT_EMAIL_TO", raising=False)
+    _breaching(auth_db)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}]
+    assert notebook_email == [], "no OPS_ALERT_EMAIL_TO -> no email attempted"
+
+
+def test_with_OPS_ALERT_EMAIL_TO_set_both_transports_are_called_once(slo, monkeypatch, notebook_email):
+    """The acceptance shape: one page fires the Discord leg (via `post`) AND the
+    email leg (via `_email_second_transport`), each exactly once, to every
+    recipient `OPS_ALERT_EMAIL_TO` names. (Mutation: delete the
+    `_email_second_transport(text)` call from `run_check`'s page loop ->
+    `notebook_email` stays `[]` -> red.)"""
+    mod, auth_db = slo
+    monkeypatch.setenv("OPS_ALERT_EMAIL_TO", "ops-a@uct-ops.test, ops-b@uct-ops.test")
+    _breaching(auth_db)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}]
+    assert len(pager.sent) == 1, "the Discord leg fired exactly once"
+    assert [c["to"] for c in notebook_email] == ["ops-a@uct-ops.test", "ops-b@uct-ops.test"], (
+        "the email leg fired exactly once, to every OPS_ALERT_EMAIL_TO recipient")
+
+
+def test_an_email_failure_never_suppresses_the_discord_page(slo, monkeypatch, notebook_email):
+    """One leg's failure cannot touch the other's recorded outcome. (Mutation: let a
+    raise from `_email_second_transport`'s call site propagate out of the page loop
+    -> the Discord `delivered` row is never written -> red.)"""
+    mod, auth_db = slo
+
+    def _boom(to, subject, html):
+        raise RuntimeError("Resend is down")
+    from api.services import email_service
+    monkeypatch.setattr(email_service, "send_email", _boom)
+    monkeypatch.setenv("OPS_ALERT_EMAIL_TO", "ops-a@uct-ops.test")
+    _breaching(auth_db)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}], (
+        "an email failure must not change the Discord delivery outcome")
+    assert len(pager.sent) == 1
+
+
+def test_a_raise_AT_the_email_call_site_does_not_abort_the_discord_recording(slo, monkeypatch):
+    """The narrower claim `test_an_email_failure_never_suppresses_the_discord_page`
+    cannot make on its own: `_email_second_transport` catches a `send_email` failure
+    INSIDE its own thread, so that test never exercises `run_check`'s own
+    try/except around the call site. This one raises AT the call site itself (no
+    thread involved) and proves `run_check`'s wrapping `try/except` is what keeps a
+    fault there from aborting the Discord bookkeeping below it. (Mutation: delete
+    the `try/except` around `_email_second_transport(text)` in `run_check` -> the
+    raise propagates -> `run_check` never returns -> this errors instead of
+    passing.)"""
+    mod, auth_db = slo
+    monkeypatch.setattr(mod, "_email_second_transport",
+                        lambda text: (_ for _ in ()).throw(RuntimeError("boom")))
+    _breaching(auth_db)
+    pager = _Pager()
+    out = mod.run_check(NOW, post=pager)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "discord"}]
+    assert len(pager.sent) == 1
+
+
+def test_a_discord_failure_never_suppresses_the_email_leg(slo, monkeypatch, notebook_email):
+    """The mirror: the Discord `post` raising must not stop the email leg from being
+    attempted. (Mutation: move the `_email_second_transport(text)` call inside the
+    `try/except` above it, so a `post` raise short-circuits past it -> this reds on
+    an empty `notebook_email`.)"""
+    mod, auth_db = slo
+    monkeypatch.setenv("OPS_ALERT_EMAIL_TO", "ops-a@uct-ops.test")
+    _breaching(auth_db)
+
+    def _boom(text):
+        raise RuntimeError("discord is down")
+    out = mod.run_check(NOW, post=_boom)
+    assert out["pages"] == [{"slo": "save_success", "delivered": "failed"}]
+    assert [c["to"] for c in notebook_email] == ["ops-a@uct-ops.test"], (
+        "the email leg must still fire when the Discord leg raises")

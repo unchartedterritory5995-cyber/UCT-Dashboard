@@ -1,0 +1,104 @@
+=== drop_L13_from_CHAIN ===
+node: tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+pytest rc: 1 -> RED (killed)
+---tail---
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed ___
+
+chain = <module 'nb_rollback_chain' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-r1f\\tools\\notebook_rollback_chain.py'>
+
+    def test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed(chain):
+        """Lane R1b moved MEASURED_AT from 38bb9a421 to f4cec49be. Everything the census selects in
+        between was ruled on: a landing is in CHAIN, anything else in REVIEWED_NOT_LANDINGS. Derived
+        from the tool's census, never from a typed list of what was expected."""
+        rows = chain.notebook_landings(f"{PREVIOUS_MEASURED_AT}..{chain.MEASURED_AT}")
+        assert len(rows) >= 2, "non-vacuity: the census found nothing in the window it was asked about"
+        named = {full(s) for _k, s, _w in chain.CHAIN}
+>       assert full(chain.MEASURED_AT) in named          # the newest landing is the measured tip
+E       AssertionError: assert 'a680b0d40ef17adea2c6095c088499abfbb33d58' in {'0812b5ec3617ece9432b79b29a33498669b2b117', '1c4b0bf741b1f3ed788cf5be8cd3e45eea58d22d', '271a078b6023ede05cfa157de8e2...fcfaac6dfaaf490a8aae6ef7', '2c3ed30930141d4682718e9bc73a8d8b76878a2f', '2e0598bfa514303fe542c4473bd2f89470d04ec2', ...}
+E        +  where 'a680b0d40ef17adea2c6095c088499abfbb33d58' = full('a680b0d40')
+E        +    where 'a680b0d40' = <module 'nb_rollback_chain' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-r1f\\tools\\notebook_rollback_chain.py'>.MEASURED_AT
+
+tests\test_notebook_rollback_chain.py:344: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1350 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 25 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+1 failed, 1376 warnings in 7.78s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+restore verified against git cat-file blob HEAD:tools/notebook_rollback_chain.py: OK
+
+=== remove_69beea8d1_reviewed_ruling ===
+node: tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+pytest rc: 1 -> RED (killed)
+---tail---
+F                                                                        [100%]
+================================== FAILURES ===================================
+__ test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed ___
+
+chain = <module 'nb_rollback_chain' from 'C:\\Users\\Patrick\\uct-worktrees\\notebook-w10-r1f\\tools\\notebook_rollback_chain.py'>
+
+    def test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed(chain):
+        """Lane R1b moved MEASURED_AT from 38bb9a421 to f4cec49be. Everything the census selects in
+        between was ruled on: a landing is in CHAIN, anything else in REVIEWED_NOT_LANDINGS. Derived
+        from the tool's census, never from a typed list of what was expected."""
+        rows = chain.notebook_landings(f"{PREVIOUS_MEASURED_AT}..{chain.MEASURED_AT}")
+        assert len(rows) >= 2, "non-vacuity: the census found nothing in the window it was asked about"
+        named = {full(s) for _k, s, _w in chain.CHAIN}
+        assert full(chain.MEASURED_AT) in named          # the newest landing is the measured tip
+        unruled = [f"{c['sha'][:9]} {c['subject'][:60]}" for c in rows
+                   if c["sha"] not in named and c["sha"] not in chain.REVIEWED_NOT_LANDINGS]
+>       assert not unruled, f"selected by the census, ruled on by nobody: {unruled}"
+E       AssertionError: selected by the census, ruled on by nobody: ['69beea8d1 feat(research): TERM-073 - what changed in the nightly analy']
+E       assert not ['69beea8d1 feat(research): TERM-073 - what changed in the nightly analy']
+
+tests\test_notebook_rollback_chain.py:347: AssertionError
+---------------------------- Captured stdout setup ----------------------------
+[notebook-migration] migrated=0 skipped=0 errored=0
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 1350 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 25 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed
+1 failed, 1376 warnings in 14.50s
+C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+
+
+restore verified against git cat-file blob HEAD:tools/notebook_rollback_chain.py: OK
+
+SUMMARY: {'drop_L13_from_CHAIN': True, 'remove_69beea8d1_reviewed_ruling': True}
+ALL KILLED: True

@@ -155,6 +155,9 @@ const OFFSET_ONE = {
   change: 'v - v[1]',
   crossOver: 'crossing — a,b against a[1],b[1]',
   crossUnder: 'crossing — a,b against a[1],b[1]',
+  // ⭐ (2026-09-30, C38) the same read at a PER-BAR count: `v[k]`, which the
+  // runtime lane already executes (`vm.js` `READ_*_DYN`, C29).
+  barsAgo: 'v[k] — an earlier bar of its argument, the count a column',
 }
 
 /** Reads a bar that has not happened. `forward:` is declared in the table, so

@@ -322,7 +322,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # halves of `timeframe.change`, measured against the vendor (objects triage
     # C8). Four clock columns on the existing `series` leaf; the scalar half is
     # untouched at 137.
-    assert len(ast_table.bar_names()) == 129, len(ast_table.bar_names())
+    # (2026-09-30, C38) 129 -> 130: `barsAgo`, Pine's history operator with a per-bar
+    # index (`x[e]`), bounded by its literal third argument (`lookback: "arg2"`).
+    # No new node type, argument kind or lookback form. The scalar half is untouched.
+    assert len(ast_table.bar_names()) == 130, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -371,7 +374,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # the scalar half is untouched.
     # 260 -> 266 (2026-09-28): the four C8 clock columns. The bar half moved
     # 123 -> 129, the scalar half is untouched at 137; this is their sum.
-    assert len(declared) == 266, f"the table declares {len(declared)} names, not 266"
+    # 266 -> 267 (2026-09-30, C38): `barsAgo`. The bar half moved 129 -> 130,
+    # the scalar half is untouched at 137; this is their sum.
+    assert len(declared) == 267, f"the table declares {len(declared)} names, not 267"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

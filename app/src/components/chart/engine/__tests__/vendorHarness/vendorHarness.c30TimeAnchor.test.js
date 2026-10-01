@@ -12,11 +12,15 @@
 // answers an open from bars before our window; those bars (and the bar that reads
 // one back through `ta.change`) are WITHHELD — `na` on our side, never a value.
 //
-// ⚠️ THE PROBE ITSELF STAYS REFUSED AT THE DOOR: T05 (`time(timeframe.period)`), T06
-// (`time("60")`) and T16 (`input.time`) refuse by their own rules, which refuses the
-// whole script. The replay grades a DERIVED capture — those three rows cut from the
-// source, their columns dropped, re-sealed — only after the PARENT capture's own
-// receipt and source sha verify. Every number compared is the vendor's.
+// ⚠️ THE PROBE ITSELF STAYS REFUSED AT THE DOOR, on ONE row: T16 (`input.time`,
+// `pine:input-kind` — a ruled wall that is not a clock question). So the replay
+// grades a DERIVED capture — that one row cut from the source, its column dropped,
+// re-sealed — only after the PARENT capture's own receipt and source sha verify.
+// Every number compared is the vendor's.
+// ⭐ C36 — T05 (`time(timeframe.period)`) and T06 (`time("60")`) were cut here too
+// until they were served; they are now graded with the rest, 0 mismatches on all
+// 900 bars (`vendorHarness.c36TimeFollowups.test.js` holds their rule and the 60m
+// reading). The derived capture cannot be dropped for the original while T16 refuses.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,7 +35,7 @@ import { evaluateObjects } from '../../objectRuntime'
 const REPO = path.resolve(process.cwd(), '..')
 const FILE = path.join(REPO, 'tests/fixtures/vendor/harness/vw-time-tf-spy-1d-2026-09-28.json')
 const CAPTURE = JSON.parse(fs.readFileSync(FILE, 'utf8'))
-const OUT_OF_SCOPE = ['T05_timeSelf_minus_time_MUST_BE_0', 'T06_time60_minus_time_DAYS', 'T16_input_time_default_DAYS']
+const OUT_OF_SCOPE = ['T16_input_time_default_DAYS']
 
 /** The capture with the out-of-scope rows cut, re-sealed. `mutateVendor(title, rows)`
  *  lets a CONTROL corrupt one vendor column. */
@@ -100,8 +104,8 @@ describe('C30 — the parent capture, and the door on the probe as captured', ()
   it('the probe as captured still refuses at the door — on a row OUTSIDE this lane, by name', () => {
     const { verdict } = gradeCapture(CAPTURE)
     expect(verdict.verdict).toBe('INCONCLUSIVE')
-    expect(verdict.reason).toMatch(/member door refused \(pine:function\)/)
-    // the refusal is time(timeframe.period) / time("60"), never one of the four served periods
+    expect(verdict.reason).toMatch(/member door refused \(pine:input-kind\)/)
+    // the refusal is `input.time` alone — never a `time(<timeframe>)` row (C36 serves T05 / T06)
     const t = translatePine(CAPTURE.source.text, { strict: true, basePeriod: 'D' })
     const refusedTitles = t.outputs.map((o, i) => (o.refusal ? CAPTURE.study.plots[i].title : null)).filter(Boolean)
     expect(refusedTitles).toEqual(OUT_OF_SCOPE)
@@ -143,6 +147,16 @@ describe('C30 — date for date against TradingView (derived capture, the real m
   it('the counts above are not vacuous: 1 / 3 / 26 / 214 first-period bars', () => {
     expect(Object.values(PERIODS).map(firstPeriodBars)).toEqual([1, 3, 26, 214])
   })
+
+  // ⭐ C36 — the two rows that were cut until they were served: the bar's own `time`.
+  for (const title of ['T05_timeSelf_minus_time_MUST_BE_0', 'T06_time60_minus_time_DAYS']) {
+    it(`${title}: equal to TradingView on all 900 bars, nothing withheld`, () => {
+      const p = byTitle.get(title)
+      expect(p, title).toBeTruthy()
+      expect(p.verdict).toBe('MATCH')
+      expect(p.stats).toMatchObject({ matching: 900, valueMismatches: 0, naMismatches: 0 })
+    })
+  }
 })
 
 describe('C30 — holiday Mondays: the week opens on its first TRADING day', () => {
@@ -326,7 +340,8 @@ describe('C30 — an intraday chart: the vendor answers a DIFFERENT rule there, 
 describe('C30 — refused by name, everything the capture does not witness', () => {
   const S = (body, opts) => translatePine(`//@version=6\nindicator("t")\n${body}\n`, opts)
   it('any other period, on a daily chart', () => {
-    for (const tf of ['"6M"', '"2W"', '"1Y"', '"60"', '"240"']) {
+    // `"60"` left this list with C36: the probe asked it (T06) and it is served.
+    for (const tf of ['"6M"', '"2W"', '"1Y"', '"240"', '"15"', '"1H"']) {
       const t = S(`plot(time(${tf}))`, { strict: true, basePeriod: 'D' })
       expect(t.ok, tf).toBe(false)
       expect(t.refusal.guard, tf).toBe('pine:function')
@@ -343,10 +358,14 @@ describe('C30 — refused by name, everything the capture does not witness', () 
     expect(screen.ok).toBe(false)
     expect(screen.refusal.message).toMatch(/only on a chart\s+pane/)
   })
-  it('`time_close("W")` stays refused — the probe did not ask it', () => {
-    const t = S('plot(time_close("W"))', { strict: true, basePeriod: 'D' })
+  it('`time_close("3M")` stays refused — measured since (C36), and there is no quarterly bar to read it from', () => {
+    // ⚰️ This said `time_close("W")` "stays refused — the probe did not ask it". A new
+    // probe asked (`vw-time-close-tf`), and "W" / "M" are served on a daily chart:
+    // `vendorHarness.c36TimeFollowups.test.js`.
+    expect(S('plot(time_close("W"))', { strict: true, basePeriod: 'D' }).ok).toBe(true)
+    const t = S('plot(time_close("3M"))', { strict: true, basePeriod: 'D' })
     expect(t.ok).toBe(false)
-    expect(t.refusal.message).toMatch(/only "D"/)
+    expect(t.refusal.message).toMatch(/resamples only weeks and months/)
   })
   it('a daily-translated tree drawn on a non-daily chart reads nothing (the member door translates once)', () => {
     const t = S('plot(time("W"))', { strict: true })

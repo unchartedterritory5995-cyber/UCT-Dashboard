@@ -286,6 +286,63 @@ export function factItems(query) {
   }]
 }
 
+// ── G-062 (wave 10, lane G62): /consensus captures the note's own ticker's
+// analyst price-target CONSENSUS -- the exact same shape as /price above
+// (mirrored deliberately, not unified, so each command's own tests stay
+// independent): a single-token prefix completes to the bare command; a
+// trailing symbol produces the real capture item; the command handler is
+// async for the same "a fact capture is a real API call" reason (checkpoint
+// decision 30). Active since the owner's 2026-09-25 FMP licensing approval
+// (docs/notebook/VENDOR-TERMS-2026-09-23.md §5 L5/L2) --
+// `fact_registry.FACT_TYPES['analyst_price_target_consensus'].active`. ──────
+export function consensusFactItems(query) {
+  const raw = String(query || '')
+  const tokens = raw.trim().split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
+  if (singleToken ? !'consensus'.startsWith(first) : first !== 'consensus') return []
+  const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
+  if (!rest) {
+    return [{
+      title: 'Analyst Consensus',
+      description: 'Type a symbol — e.g. /consensus NVDA',
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).insertContent('/consensus ').run()
+      },
+    }]
+  }
+  const symTokens = rest.split(/\s+/).filter(Boolean)
+  if (symTokens.length !== 1 || !FACT_SYMBOL_RE.test(symTokens[0])) return []
+  const symbol = symTokens[0].toUpperCase()
+  return [{
+    title: `Analyst Consensus — ${symbol}`,
+    description: 'Capture the analyst price-target consensus as a financial fact',
+    command: async ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run()
+      const noteId = editor?.storage?.uctJournalWidgets?.noteId
+      if (!noteId) return
+      try {
+        const res = await fetch(`/api/j2/notes/${noteId}/facts`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: symbol, factType: 'analyst_price_target_consensus' }),
+        })
+        // Honest missing data: a 400 here is most likely
+        // note_facts.create_fact_observation's "No analyst price target
+        // consensus available" refusal (FMP unconfigured, or no consensus
+        // for this ticker) -- never fabricate a number, just insert nothing,
+        // same as /price's own failed-capture behaviour.
+        if (!res.ok) return
+        const { fact } = await res.json()
+        editor.chain().focus().insertContent({ type: 'financialFact', attrs: { factId: fact.id } }).run()
+      } catch {
+        // A failed capture must not corrupt the note (directive §48) --
+        // nothing was inserted; the member sees nothing changed and can retry.
+      }
+    },
+  }]
+}
+
 // ── Widget embeds (Journal Widgets) ─────────────────────────────────────────
 // Registry-driven: every menus.journal type appears here automatically. The
 // query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
@@ -482,14 +539,15 @@ export const SlashMenuExtension = Extension.create({
           const q = (query || '').toLowerCase()
           const widgets = widgetItems(query)
           const factCaptures = factItems(query)
+          const consensusCaptures = consensusFactItems(query)
           // Wave 6: an item may say where it is NOT offered (`available`) —
           // today only columns, never inside a column (they do not nest). A
           // table of contents is an ordinary block and is offered anywhere.
           const here = blockItemsAvailable(editor)
-          if (!q) return [...here, ...widgets, ...factCaptures]
+          if (!q) return [...here, ...widgets, ...factCaptures, ...consensusCaptures]
           // Widget/fact items match on their own tokenized rules (args after
           // the type name would defeat a plain substring filter).
-          return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures]
+          return [...here.filter((it) => blockItemMatches(it, q)), ...widgets, ...factCaptures, ...consensusCaptures]
         },
         render: () => {
           // One renderer object serves EVERY suggestion session, so all of

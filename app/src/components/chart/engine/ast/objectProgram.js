@@ -61,6 +61,7 @@
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
 import { wholeTransparency } from '../colorInt.js'
+import { isThemeColour, themeColourWithTransparency } from '../objectTheme.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -281,6 +282,13 @@ export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop
  *  sets per bar (`{c:'new'}`), so the two cannot disagree. `color.new` SETS the
  *  transparency — a base's own alpha is replaced, never stacked. */
 export function withObjectTransparency(hex, t) {
+  // ⭐ C37 — a THEME reference (`chart.fg_color`) keeps being a reference: the
+  // transparency rides on it and is applied where the chart's own colour is
+  // known (`objectTheme.js::resolveThemeColour`, the same alpha formula).
+  if (isThemeColour(hex)) {
+    const whole = wholeTransparency(t)
+    return themeColourWithTransparency(hex, Number.isFinite(whole) ? Math.min(100, Math.max(0, whole)) : NaN)
+  }
   const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
   if (!base) return null
   // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` is
@@ -312,8 +320,13 @@ export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*', '/'])
 /** ⭐ C25 — the one-argument address forms: a counter's MIDPOINT
  *  (`math.round((left + right) / 2)`, the bar a drawn candle's wick stands on)
  *  is `/` then `round`. Both are the tree lane's own arithmetic
- *  (`interpret.js::BINARY` / `POINTWISE`), read by the runtime, never restated. */
-export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round'])
+ *  (`interpret.js::BINARY` / `POINTWISE`), read by the runtime, never restated.
+ *  ⭐ C43 — `trunc`: a float handed to an `int` bar coordinate, and `int(x)` —
+ *  Pine drops the fraction (measured non-negative, `vw-int-array-avg`). */
+export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round', 'trunc'])
+/** ⭐ C43 — the BAR coordinates: the only properties whose value may be a getter
+ *  in arithmetic (`pine.js::stateArith`). A price, a text, a colour may not. */
+export const BAR_COORD_PROPS = Object.freeze(['x', 'x1', 'x2', 'left', 'right'])
 
 /**
  * ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())`.
@@ -356,7 +369,20 @@ export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round'])
  *   · a collection index — `array.pop(bs)` is slot `array.size(bs) - 1`.
  * ⛔ Still never a coordinate, a caption, a screener column or a tree.
  */
-export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross'])
+export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross', 'unknown'])
+/** ⭐⭐ C33 — `{v:'unknown'}`: A CONJUNCT OF A GUARD THIS READER COULD NOT READ.
+ *  `if i_mr1 and dayofweek(time, tz) == d and h[1] != h` (high-low-open-mid-ranges):
+ *  the middle term has no reading here, but the `and` is still KNOWN FALSE on every
+ *  bar a readable term is false — Pine did not run the block either — and unknown
+ *  everywhere else. So it rides as an operand the object runtime answers "unknown"
+ *  for (`objectRuntime.js`: its `and` is known false beside a known-false operand,
+ *  C11c; otherwise the latch is unknown and every op reading it is withheld and
+ *  marks what it would have written, C17). ⛔ Legal only under a `bool` `and`. */
+/** ⭐⭐ C33 — how far back a getter's own history may be read (`{v:'get', back}`):
+ *  `line.get_y1(l)[1]` is the number that getter answered at this place on the
+ *  previous bar. The runtime answers it only where a capture shows the answer
+ *  (an empty handle — `na`); a number read back is unmeasured and held. */
+export const MAX_GETTER_BACK = 5
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
 /** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
  *  `BINARY` table, like the four orderings. */
@@ -412,7 +438,9 @@ export const AUTO_MAX_BARS_BACK = 400
  *                                            a WHOLE coordinate, a text `if` operand
  *
  * ⛔ A bare `get`/`num` is legal as a whole create/update coordinate and in a
- * text `if` condition too — never inside arithmetic, a colour, a cell or a loop.
+ * text `if` condition too — never a colour, a cell or a loop. ⭐ C43: and under
+ * the value operators (`{v:'op'}`) in a create/update coordinate — a getter in
+ * arithmetic, `pine.js::stateArith`, a bar coordinate only.
  * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
  */
 /** The value-reference kinds whose `args` are value references too. */
@@ -509,8 +537,13 @@ function assertTextNode(v, where, depth = 0, live = null) {
         throw new Error(`${where}: a symbol text must name a syminfo field`)
       }
       return
-    // ⭐⭐ C32 — a number that moves per PASS of a loop (a value reference, not a
-    // tree: a tree is one value per bar), formatted by `str.tostring`'s rules.
+    // ⭐⭐ C32 / C33 — ONE NODE, ONE VALIDATOR. A number formatted by
+    // `str.tostring`'s rules whose source is a VALUE REFERENCE, not a tree: a
+    // number that moves per PASS of a loop (C32: counter arithmetic, a window
+    // pick) or one read off a DRAWING (C33: a getter, its history, a getter-fed
+    // scalar). `assertValueRef` holds both to their own rules — a state read
+    // (`get`/`num`) is legal only where object state may be read at all (`live`:
+    // a create/update's own text), never a table cell's.
     case 'val':
       assertValueRef(v.v, `${where}.v`, live)
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
@@ -542,6 +575,35 @@ function assertTextNode(v, where, depth = 0, live = null) {
  * more often than they colour them statically. A model that carried only a
  * static hex would draw every dashboard in one colour and look like it worked.
  */
+/** ⭐⭐ C37 — A CONDITION ON THE PASS, as a colour may carry it: `cmp` / `bool`
+ *  over the loop counter, constants, counter arithmetic and per-bar trees.
+ *  ⛔ NEVER object state (`get`, `num`, `size`, `latch`) and never a crossing:
+ *  those are read at an op's position (C14/C16), and a colour has none. And it
+ *  must read the COUNTER somewhere — pure per-bar logic belongs in one tree. */
+export function isPassCondition(v) {
+  const leaf = (x, depth) => {
+    if (!isObj(x) || depth > 32) return false
+    if (x.v === 'loop') return typeof x.id === 'string' && !!x.id
+    if (x.v === 'const' || x.v === 'tree' || x.v === 'graph' || x.v === 'param') return true
+    if (x.v === 'op') return Array.isArray(x.args) && x.args.length >= 1 && x.args.length <= 2
+      && (OBJECT_VALUE_OPS.includes(x.op) || OBJECT_VALUE_UNARY.includes(x.op))
+      && x.args.every((a) => leaf(a, depth + 1))
+    return false
+  }
+  const node = (x, depth) => {
+    if (!isObj(x) || depth > 32) return false
+    if (x.v === 'cmp') return LIVE_CMP_OPS.includes(x.op) && Array.isArray(x.args) && x.args.length === 2
+      && x.args.every((a) => leaf(a, depth + 1))
+    if (x.v === 'bool') {
+      const n = x.op === 'not' ? 1 : 2
+      return LIVE_BOOL_OPS.includes(x.op) && Array.isArray(x.args) && x.args.length >= n
+        && (x.op !== 'not' || x.args.length === 1) && x.args.every((a) => node(a, depth + 1))
+    }
+    return false
+  }
+  return node(v, 0) && containsGet(v)
+}
+
 function assertColorNode(v, where, depth = 0) {
   if (depth > 16) throw new Error(`${where}: colour expression nested deeper than 16`)
   if (!isObj(v)) throw new Error(`${where}: expected a colour node`)
@@ -550,7 +612,9 @@ function assertColorNode(v, where, depth = 0) {
       if (typeof v.hex !== 'string') throw new Error(`${where}: a colour literal must be a string`)
       return
     case 'if':
-      assertValueRef(v.cond, `${where}.cond`)
+      // ⭐ C37 — a pass condition (`isPassCondition`) is the one live shape a
+      // colour's test may take; anything else is a plain value reference.
+      if (!isPassCondition(v.cond)) assertValueRef(v.cond, `${where}.cond`)
       assertColorNode(v.then, `${where}.then`, depth + 1)
       assertColorNode(v.else, `${where}.else`, depth + 1)
       return
@@ -563,9 +627,29 @@ function assertColorNode(v, where, depth = 0) {
       assertColorNode(v.of, `${where}.of`, depth + 1)
       assertValueRef(v.t, `${where}.t`)
       return
+    // ⭐⭐ C37 — `color.from_gradient(value, bottom, top, a, b)`: three value
+    // references the object runtime evaluates where the drawing stands (per bar,
+    // per pass of a loop) and two colour nodes, blended by the ONE measured
+    // curve (`runtime/colours.js::fromGradient`).
+    case 'grad':
+      assertValueRef(v.v, `${where}.v`)
+      assertValueRef(v.lo, `${where}.lo`)
+      assertValueRef(v.hi, `${where}.hi`)
+      assertColorNode(v.a, `${where}.a`, depth + 1)
+      assertColorNode(v.b, `${where}.b`, depth + 1)
+      return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
   }
+}
+
+/** ⭐ C43 — is this a value operator with a getter (or a C14 scalar) beneath it?
+ *  ONE predicate: this validator admits such a value only as a bar coordinate,
+ *  and the object runtime asks the same function which coordinates to mark when
+ *  the arithmetic has no answer (`objectRuntime.js::unsaidProps`). */
+export function opReadsState(v, depth = 0) {
+  if (!isObj(v) || v.v !== 'op' || depth > 32 || !Array.isArray(v.args)) return false
+  return v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || opReadsState(a, depth + 1)))
 }
 
 /** Does this value reference read object state anywhere beneath it? */
@@ -573,7 +657,7 @@ function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
   // ⭐ C25 — and the LOOP COUNTER: a condition on the pass (`i == 0`) is not a
   // tree either — a tree is one value per bar — so it lives here too.
-  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch' || v.v === 'loop') return true
+  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch' || v.v === 'loop' || v.v === 'unknown') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
@@ -591,7 +675,17 @@ function assertLiveRef(v, where, live) {
   // ⛔ A CROSSING IS OBSERVED ONCE PER BAR, AT THE OP'S POSITION; a loop body
   // runs several times a bar, so "the previous pair" has no single answer there.
   if (v.v === 'cross' && live.inLoop) throw new Error(`${where}: a cross in a loop body`)
+  // ⭐ C33 — an unread conjunct: only as an operand of an `and` (`live.underAnd`).
+  if (v.v === 'unknown') {
+    if (!live.underAnd) throw new Error(`${where}: an unknown operand is legal only under an \`and\``)
+    return
+  }
   if (v.v === 'get') {
+    // ⭐ C33 — the getter's own history, a whole number of bars back.
+    if (v.back !== undefined && !(Number.isInteger(v.back) && v.back >= 1 && v.back <= MAX_GETTER_BACK)) {
+      throw new Error(`${where}: a getter's history is read 1..${MAX_GETTER_BACK} bars back, got ${JSON.stringify(v.back)}`)
+    }
+    if (v.back !== undefined && live.inLoop) throw new Error(`${where}: a getter's history in a loop body`)
     const t = v.target
     if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
       throw new Error(`${where}: a getter reads a register as it stands now — \`{r:'reg', id}\``)
@@ -620,7 +714,8 @@ function assertLiveRef(v, where, live) {
   if (!Array.isArray(v.args) || v.args.length < arity[0] || v.args.length > arity[1]) {
     throw new Error(`${where}: ${v.v} ${v.op || v.dir} takes ${arity[0]}${arity[1] > arity[0] ? '+' : ''} argument(s)`)
   }
-  v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+  const inner = v.v === 'bool' && v.op === 'and' ? { ...live, underAnd: true } : (live.underAnd ? { ...live, underAnd: false } : live)
+  v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, inner))
   // ⛔ PURE LOGIC NEVER LIVES HERE — it is one tree. A live node with no getter
   // under it is a second boolean algebra for the graph's own job.
   if (!containsGet(v)) throw new Error(`${where}: a ${v.v} guard node that reads no object state belongs in a tree`)
@@ -849,6 +944,11 @@ export function assertObjectProgram(program) {
   if (program.programVersion !== OBJECT_PROGRAM_VERSION) {
     throw new Error(`objects: programVersion must be ${OBJECT_PROGRAM_VERSION}, got ${JSON.stringify(program.programVersion)}`)
   }
+  // ⭐ C37 — the script's Pine version, stated only where an uncoloured object's
+  // default depends on it (`objectRenderState.js::objectDefaultsFor`).
+  if (program.pineVersion !== undefined && !(Number.isInteger(program.pineVersion) && program.pineVersion >= 1 && program.pineVersion <= 6)) {
+    throw new Error(`objects: pineVersion must be a whole Pine version 1-6, got ${JSON.stringify(program.pineVersion)}`)
+  }
   const regs = new Map()
   for (const r of program.regs || []) {
     if (!isObj(r) || !ID_RE.test(String(r.id))) throw new Error(`objects: a register needs an id matching ${ID_RE}`)
@@ -944,11 +1044,57 @@ export function assertObjectProgram(program) {
       if (!ID_RE.test(String(op.id))) {
         throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
-      assertValueRef(op.from, `${where}.from`, live)
-      assertValueRef(op.to, `${where}.to`, live)
-      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`, live)
       if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
       if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
+      // ⭐⭐ C40 — A LOOP IS ONE OF THREE THINGS, AND SAYS WHICH BY ITS FIELDS:
+      //   counted   `from` / `to` [/ `step`] — Pine's `for i = a to b`; `asc: true`
+      //             is a `for … in` over a list (`0 to size − 1`), which never
+      //             counts down: an empty list runs no pass;
+      //   a cap     `cond` — `while array.size(a) > N`, the condition re-read before
+      //             every pass. ⛔ NOT A GENERAL `while`: the condition is one
+      //             comparison that measures a list, and the body must take an
+      //             element off a list it measures, so the loop ends;
+      //   a walk    `over: {all: <family>}` + `elem` — `for … in line.all`: every
+      //             object of the family, oldest first, handed to the register.
+      const forms = (op.cond !== undefined ? 1 : 0) + (op.over !== undefined ? 1 : 0)
+        + (op.from !== undefined || op.to !== undefined ? 1 : 0)
+      if (forms !== 1) {
+        throw new Error(`${where}: a loop is counted (from/to), a cap (cond) or a walk (over) — exactly one`)
+      }
+      if (op.asc !== undefined && (op.asc !== true || op.from === undefined)) {
+        throw new Error(`${where}: asc is a flag on a counted loop — it is either absent or true`)
+      }
+      if (op.cond !== undefined) {
+        assertValueRef(op.cond, `${where}.cond`, live)
+        const measured = []
+        const sizes = (v, depth = 0) => {
+          if (!isObj(v) || depth > 32) return
+          if (v.v === 'size') measured.push(v.coll)
+          if (Array.isArray(v.args)) v.args.forEach((a) => sizes(a, depth + 1))
+        }
+        sizes(op.cond)
+        if (op.cond.v !== 'cmp' || !measured.length) {
+          throw new Error(`${where}: a cap loop's condition is one comparison that reads a list's length`)
+        }
+        if (!op.body.some((b) => isObj(b) && b.k === 'collremove' && measured.includes(b.coll))) {
+          throw new Error(`${where}: a cap loop's body must remove an element of a list its condition measures`)
+        }
+        if (op.step !== undefined || op.elem !== undefined) throw new Error(`${where}: a cap loop has no step and no element`)
+      } else if (op.over !== undefined) {
+        if (!isObj(op.over) || !['line', 'label', 'box'].includes(op.over.all)) {
+          throw new Error(`${where}: a walk is over {all: 'line' | 'label' | 'box'}, got ${JSON.stringify(op.over)}`)
+        }
+        const reg = regs.get(op.elem)
+        if (!reg || reg.family !== op.over.all) {
+          throw new Error(`${where}: a walk over every ${op.over.all} hands each to a declared ${op.over.all} register, got ${JSON.stringify(op.elem)}`)
+        }
+        if (op.step !== undefined) throw new Error(`${where}: a walk has no step`)
+      } else {
+        assertValueRef(op.from, `${where}.from`, live)
+        assertValueRef(op.to, `${where}.to`, live)
+        if (op.step !== undefined) assertValueRef(op.step, `${where}.step`, live)
+        if (op.elem !== undefined) throw new Error(`${where}: a counted loop has no element register`)
+      }
     } else if (op.k === 'create') {
       if (!OBJECT_FAMILIES.includes(op.family)) {
         throw new Error(`${where}: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
@@ -1082,7 +1228,10 @@ function assertProps(op, where, family, regs, colls, siteFamily, live = null) {
     }
     // ⭐ C14 — a WHOLE coordinate may read object state; a text `if` may test it.
     if (live && v.v === 'text') assertTextNode(v.node, where, 0, live)
-    else assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num') ? live : null)
+    else {
+      assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num'
+        || (BAR_COORD_PROPS.includes(k) && opReadsState(v))) ? live : null)
+    }
   }
 }
 
@@ -1114,6 +1263,7 @@ export function graphNodesReferenced(program) {
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
     if (c.c === 'rt') walkValue(c.v)
     if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
+    if (c.c === 'grad') { walkValue(c.v); walkValue(c.lo); walkValue(c.hi); walkColor(c.a); walkColor(c.b) }
   }
   const walkValue = (v) => {
     if (!isObj(v)) return
@@ -1165,6 +1315,7 @@ export function treeRefsOfOp(op) {
     if (c.c === 'if') { walkValue(c.cond); walkColor(c.then); walkColor(c.else) }
     if (c.c === 'rt') walkValue(c.v)
     if (c.c === 'new') { walkColor(c.of); walkValue(c.t) }
+    if (c.c === 'grad') { walkValue(c.v); walkValue(c.lo); walkValue(c.hi); walkColor(c.a); walkColor(c.b) }
   }
   function walkValue(v) {
     if (!isObj(v)) return
@@ -1259,6 +1410,9 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     }
     if (c.c === 'rt') return { ...c, v: bindValue(c.v) }
     if (c.c === 'new') return { ...c, of: bindColor(c.of), t: bindValue(c.t) }
+    if (c.c === 'grad') {
+      return { ...c, v: bindValue(c.v), lo: bindValue(c.lo), hi: bindValue(c.hi), a: bindColor(c.a), b: bindColor(c.b) }
+    }
     return c
   }
   function bindValue(v) {
@@ -1285,6 +1439,7 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     // `v: 'tree'` as an unknown kind and answer `undefined` for every cell in
     // the loop, which draws an empty table rather than failing.
     if (op.k === 'loop' && Array.isArray(op.body)) {
+      // (⭐ C40 — a cap or a walk has no bounds; its `cond` binds with the list below.)
       out.from = bindValue(op.from)
       out.to = bindValue(op.to)
       out.body = bindOps(op.body)

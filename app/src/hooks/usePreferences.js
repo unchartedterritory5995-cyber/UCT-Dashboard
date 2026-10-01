@@ -121,8 +121,12 @@ export async function refreshPreferences() {
   return { ...DEFAULTS, ...data }
 }
 
-export default function usePreferences() {
-  const { data, mutate, isLoading } = useSWR(PREFS_URL, fetcher, {
+// `enabled` defaults to true, so every existing caller (all ~79 of them) is
+// unaffected — it exists for a root-mounted caller that renders for EVERY
+// visitor, signed in or not, so it can hold off this authed-only GET until a
+// member is actually signed in. `null` is SWR's own "don't fetch" key.
+export default function usePreferences(enabled = true) {
+  const { data, mutate, isLoading } = useSWR(enabled ? PREFS_URL : null, fetcher, {
     dedupingInterval: 300000, // 5 min
     revalidateOnFocus: false,
   })

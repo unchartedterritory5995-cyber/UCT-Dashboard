@@ -34,6 +34,10 @@ import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
 import styles from './Settings.module.css'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
+import Checkbox from '../components/ui/Checkbox'
+import Textarea from '../components/ui/Textarea'
 
 // Memoized {__html} object — the TOTP screen re-renders on every keystroke of
 // the 6-digit code, and React 19 diffs dangerouslySetInnerHTML by OBJECT
@@ -139,9 +143,10 @@ function AvatarUpload({ user }) {
         )}
       </div>
       <div className={styles.avatarActions}>
-        <input
+        <Input
           ref={fileRef}
           type="file"
+          aria-label="Upload a profile photo"
           accept="image/jpeg,image/png,image/webp"
           style={{ display: 'none' }}
           onChange={handleUpload}
@@ -267,6 +272,7 @@ function CompassVoicePicker({ value, onChange, enabled }) {
             <input
               type="radio"
               name="compass-voice"
+              aria-label={v.label}
               checked={selected}
               onChange={() => enabled && onChange(v.id)}
               disabled={!enabled}
@@ -413,8 +419,9 @@ function VoicePanel() {
 
       <div className={styles.voiceRow}>
         <span className={styles.voiceLabel}>Speed</span>
-        <input
+        <Input
           type="range"
+          aria-label="Speech speed"
           min="0.5"
           max="2.0"
           step="0.05"
@@ -614,18 +621,20 @@ function ChartSettingsSection({ prefs, setPref }) {
           {averageSlotView(cs).map((ov, i) => ov && (
             <div key={i} className={styles.overlayRow}>
               <label className={styles.chartToggle}>
-                <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
+                <Checkbox aria-label={`Show moving average ${i + 1}`} checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
               </label>
-              <select
+              <Select
+                aria-label={`Moving average ${i + 1} type`}
                 className={styles.overlaySelect}
                 value={ov.type}
                 onChange={e => updateOverlay(i, 'type', e.target.value)}
               >
                 <option value="SMA">SMA</option>
                 <option value="EMA">EMA</option>
-              </select>
-              <input
+              </Select>
+              <Input
                 type="number"
+                aria-label={`Moving average ${i + 1} period`}
                 className={styles.overlayPeriod}
                 value={ov.period}
                 min={1}
@@ -667,7 +676,8 @@ function ChartSettingsSection({ prefs, setPref }) {
             <ColorPicker label="Color" value={cs.crosshair.color} onChange={v => update('crosshair.color', v)} />
             <div className={styles.chartRow} style={{ gap: 6 }}>
               <span className={styles.chartMiniLabel}>Style</span>
-              <select
+              <Select
+                aria-label="Crosshair style"
                 className={styles.overlaySelect}
                 value={cs.crosshair.style}
                 onChange={e => update('crosshair.style', parseInt(e.target.value))}
@@ -675,7 +685,7 @@ function ChartSettingsSection({ prefs, setPref }) {
                 {CROSSHAIR_STYLES.map(s => (
                   <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
         </div>
@@ -716,8 +726,9 @@ function ChartSettingsSection({ prefs, setPref }) {
           </div>
           <div className={styles.chartRow} style={{ marginTop: 8, alignItems: 'center' }}>
             <span className={styles.chartMiniLabel}>Opacity</span>
-            <input
+            <Input
               type="range"
+              aria-label="Watermark opacity"
               className={styles.opacitySlider}
               min={0}
               max={0.3}
@@ -729,8 +740,9 @@ function ChartSettingsSection({ prefs, setPref }) {
           </div>
           <div className={styles.chartRow} style={{ marginTop: 8, alignItems: 'center' }}>
             <span className={styles.chartMiniLabel}>Size</span>
-            <input
+            <Input
               type="range"
+              aria-label="Watermark size"
               className={styles.opacitySlider}
               min={0.5}
               max={2}
@@ -865,8 +877,9 @@ export function ReferralSection() {
           Have a referral code? Enter it here.
         </p>
         <div className={styles.referralLinkBox}>
-          <input
+          <Input
             type="text"
+            aria-label="Referral code"
             value={applyCode}
             onChange={e => setApplyCode(e.target.value.toUpperCase())}
             placeholder="ENTER CODE"
@@ -1118,8 +1131,9 @@ function TwoFactorPanel() {
           <span className={styles.totpSecret}>{setup.secret}</span>
         </p>
         <form onSubmit={confirm} className={styles.pwForm}>
-          <input
+          <Input
             type="text"
+            aria-label="6-digit authenticator code"
             inputMode="numeric"
             autoComplete="one-time-code"
             placeholder="6-digit code"
@@ -1170,8 +1184,9 @@ function TwoFactorPanel() {
               This replaces every unused backup code. Enter a current
               authenticator code to confirm.
             </p>
-            <input
+            <Input
               type="text"
+              aria-label="Current authenticator code"
               inputMode="numeric"
               autoComplete="one-time-code"
               placeholder="6-digit code"
@@ -1195,8 +1210,9 @@ function TwoFactorPanel() {
               Turning this off needs your password and a current code (or a
               backup code).
             </p>
-            <input
+            <Input
               type="password"
+              aria-label="Password"
               placeholder="Password"
               value={disableForm.password}
               onChange={e => setDisableForm(f => ({ ...f, password: e.target.value }))}
@@ -1204,8 +1220,9 @@ function TwoFactorPanel() {
               required
               autoComplete="current-password"
             />
-            <input
+            <Input
               type="text"
+              aria-label="Authenticator or backup code"
               placeholder="Authenticator or backup code"
               maxLength={12}
               value={disableForm.code}
@@ -1312,8 +1329,9 @@ function DangerZonePanel() {
         </button>
       ) : (
         <form onSubmit={submit} className={styles.pwForm}>
-          <label className={styles.formCheckLabel}>Reason (optional)</label>
-          <textarea
+          <label className={styles.formCheckLabel} htmlFor="danger-reason">Reason (optional)</label>
+          <Textarea
+            id="danger-reason"
             className={styles.input}
             value={reason}
             onChange={e => setReason(e.target.value)}
@@ -1321,8 +1339,9 @@ function DangerZonePanel() {
             rows={3}
             maxLength={2000}
           />
-          <label className={styles.formCheckLabel}>Password</label>
-          <input
+          <label className={styles.formCheckLabel} htmlFor="danger-password">Password</label>
+          <Input
+            id="danger-password"
             type="password"
             className={styles.input}
             value={password}
@@ -1330,10 +1349,11 @@ function DangerZonePanel() {
             required
             autoComplete="current-password"
           />
-          <label className={styles.formCheckLabel}>
+          <label className={styles.formCheckLabel} htmlFor="danger-confirm">
             Type <code>delete my account</code> to confirm
           </label>
-          <input
+          <Input
+            id="danger-confirm"
             type="text"
             className={styles.input}
             value={confirmation}
@@ -1870,8 +1890,9 @@ export default function Settings() {
                 </span>
               ) : (
                 <span className={styles.rowValue}>
-                  <input
+                  <Input
                     type="text"
+                    aria-label="Full name"
                     value={newFullName}
                     onChange={e => setNewFullName(e.target.value)}
                     className={styles.inlineInput}
@@ -1898,8 +1919,9 @@ export default function Settings() {
                 </span>
               ) : (
                 <span className={styles.rowValue}>
-                  <input
+                  <Input
                     type="text"
+                    aria-label="Display name"
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     className={styles.inlineInput}
@@ -2032,16 +2054,18 @@ export default function Settings() {
               </button>
             ) : (
               <form onSubmit={handleChangePassword} className={styles.pwForm}>
-                <input
+                <Input
                   type="password"
+                  aria-label="Current password"
                   placeholder="Current password"
                   value={pwForm.current}
                   onChange={e => setPwForm(f => ({ ...f, current: e.target.value }))}
                   className={styles.input}
                   required
                 />
-                <input
+                <Input
                   type="password"
+                  aria-label="New password"
                   placeholder="New password (min 8 chars)"
                   value={pwForm.newPw}
                   onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))}
@@ -2049,8 +2073,9 @@ export default function Settings() {
                   required
                   minLength={8}
                 />
-                <input
+                <Input
                   type="password"
+                  aria-label="Confirm new password"
                   placeholder="Confirm new password"
                   value={pwForm.confirm}
                   onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value }))}
@@ -2077,7 +2102,8 @@ export default function Settings() {
                 <span className={styles.prefLabel}>Default Chart Timeframe</span>
                 <span className={styles.prefDesc}>Opens charts in this view by default</span>
               </div>
-              <select
+              <Select
+                aria-label="Default chart timeframe"
                 className={styles.prefSelect}
                 value={prefs.default_chart_tf}
                 onChange={e => setPref('default_chart_tf', e.target.value)}
@@ -2085,7 +2111,7 @@ export default function Settings() {
                 {TF_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
-              </select>
+              </Select>
             </div>
             <div className={styles.prefRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
               <div className={styles.prefLabelGroup}>
@@ -2106,14 +2132,15 @@ export default function Settings() {
                 <span className={styles.prefLabel}>Alert Sound</span>
                 <span className={styles.prefDesc}>Play a sound when new price alerts trigger</span>
               </div>
-              <select
+              <Select
+                aria-label="Alert sound"
                 className={styles.select}
                 value={prefs.alert_sound || 'on'}
                 onChange={e => setPref('alert_sound', e.target.value)}
               >
                 <option value="on">On</option>
                 <option value="off">Off</option>
-              </select>
+              </Select>
             </div>
             {prefs.alert_sound !== 'off' && (
               <div className={styles.prefRow}>
@@ -2122,7 +2149,8 @@ export default function Settings() {
                   <span className={styles.prefDesc}>Choose your alert tone</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <select
+                  <Select
+                    aria-label="Alert sound type"
                     className={styles.select}
                     value={prefs.alert_sound_type || 'chime'}
                     onChange={e => setPref('alert_sound_type', e.target.value)}
@@ -2130,7 +2158,7 @@ export default function Settings() {
                     {ALERT_SOUNDS.map(s => (
                       <option key={s.key} value={s.key}>{s.label}</option>
                     ))}
-                  </select>
+                  </Select>
                   <button
                     className={styles.btn}
                     onClick={() => previewSound(prefs.alert_sound_type || 'chime')}
@@ -2191,7 +2219,8 @@ export default function Settings() {
                 <span className={styles.prefLabel}>Email Digest</span>
                 <span className={styles.prefDesc}>Receive a performance summary of your watchlists</span>
               </div>
-              <select
+              <Select
+                aria-label="Watchlist email digest"
                 className={styles.select}
                 value={prefs.watchlist_digest ? JSON.parse(prefs.watchlist_digest || '{}').frequency || 'off' : 'off'}
                 onChange={e => {
@@ -2207,7 +2236,7 @@ export default function Settings() {
                 <option value="off">Off</option>
                 <option value="daily">Daily (5 PM ET)</option>
                 <option value="weekly">Weekly (Fri 5 PM ET)</option>
-              </select>
+              </Select>
             </div>
           </div>
         </TileCard>
@@ -2222,7 +2251,8 @@ export default function Settings() {
             {tagColors.map(tc => (
               <div key={tc.key} className={styles.prefRow}>
                 <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: tc.hex, marginRight: 10, flexShrink: 0 }} />
-                <input
+                <Input
+                  aria-label={`Label for the ${tc.key} tag`}
                   className={styles.tagLabelInput}
                   defaultValue={tc.label}
                   placeholder={tc.label}

@@ -324,7 +324,7 @@ function objectsOf(def, bars, ctx) {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
       readUnknown: reader.readUnknown,
     })
-    const state = toRenderState(run.live, { bars, tf: ctx.tf })
+    const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
     // runtime's LIVE set at the last bar — because that is what the capture's
@@ -363,6 +363,15 @@ function objectsOf(def, bars, ctx) {
       // labels and cells) — the zero-lag rail pins it against the records.
       texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
+      // ⭐ C37 — the objects themselves (the runtime's LIVE set, and the render
+      // state's tables), for the colour census (`colourCensus.measure.test.js`):
+      // a colour is compared on an object PAIRED by value, which a count cannot
+      // do. ⛔ Never read by `compareObjects` and never written to a verdict file.
+      held: run.live || [],
+      tables: state.tables || [],
+      pineVersion: reader.program.pineVersion,
+      // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
+      chartClock: reader.chartClock || [],
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
@@ -440,6 +449,11 @@ export function runOurSide(capture) {
       for (const t of otherReport.served) notes.push(`other symbol ${t}: served`)
       for (const r of otherReport.refused) notes.push(`other symbol ${r.ticker}: refused (${r.code}) — ${r.reason}`)
     }
+    // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart, by name.
+    const clockReport = registry.chartClockReport(cols)
+    if (clockReport) {
+      for (const r of clockReport.withheld) notes.push(`time(<timeframe>) withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+    }
 
     let colours
     try {
@@ -492,6 +506,9 @@ export function runOurSide(capture) {
       })
     }
     const objects = objectsOf(def, bars, ctx)
+    for (const r of (objects && objects.chartClock) || []) {
+      notes.push(`time(<timeframe>) withheld (${r.code}) in the object lane — ${r.reason}`)
+    }
     if (objects && objects.ok && objects.drawn) {
       for (const f of ['lines', 'labels', 'boxes']) {
         const gap = objects.counts[f] - objects.drawn[f]

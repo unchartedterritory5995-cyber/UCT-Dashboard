@@ -289,6 +289,26 @@ def _bullets(levels):
     return {"type": "doc", "content": [node]}
 
 
+def test_a_locked_note_refuses_the_excerpt_with_a_423_and_leaves_no_orphan(app, client):
+    """Ruling 149: a locked note takes no captures. Mirrors the H14 depth-cap
+    refusal shape above (named refusal, excerpt row cleaned up) -- before this
+    guard, `append_document_excerpt` had no lock check at all and the excerpt
+    landed in the body of a note the member had just locked."""
+    _login_as(app, "u1")
+    note_id = _create_note(client, "Locked while researching")
+    doc_id = _upload_pdf(client, note_id, text="Management expects gross margins to normalize lower")
+    lock = client.patch(f"/api/j2/notes/{note_id}/lock", json={"locked": True})
+    assert lock.status_code == 200 and lock.json()["note"]["locked"] is True
+
+    r = client.post(f"/api/j2/notes/{note_id}/excerpts", json={
+        "documentId": doc_id, "pageNumber": 1,
+        "capturedText": "gross margins to normalize lower",
+    })
+    assert r.status_code == 423, (r.status_code, r.text[:300])
+    assert "locked" in r.json()["detail"].lower()
+    assert _excerpt_rows(note_id) == 0, "a refused excerpt must not be left behind unplaced"
+
+
 def test_a_note_stored_too_deep_refuses_the_excerpt_with_a_400_and_leaves_no_orphan(app):
     """Wave 10 10D fix round 1 (review M-10). A note stored past the H14 depth cap
     BEFORE the cap existed (seeded here by SQL, past the write guard) cannot take

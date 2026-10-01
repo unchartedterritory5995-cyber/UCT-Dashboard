@@ -813,7 +813,10 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # ⭐ 123 -> 129 (2026-09-28, C8): `timeclose`, `dayclosetime`, `weekfirst`,
     # `monthfirst`. New bar-corpus cases: `clock_timeclose`, `clock_dayclosetime`,
     # `clock_weekfirst`, `clock_monthfirst`. The scalar half is untouched at 137.
-    assert len(parts["bar"]) == 129 and len(parts["scalar"]) == 137
+    # ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
+    # New bar-corpus case: `bars_ago_a_per_bar_count_na_and_past_the_buffer`.
+    # The scalar half is untouched at 137 -- it names no per-symbol column.
+    assert len(parts["bar"]) == 130 and len(parts["scalar"]) == 137
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

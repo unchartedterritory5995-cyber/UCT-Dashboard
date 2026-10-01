@@ -84,3 +84,13 @@ export function periodReadsObjectRefusal(def, tf) {
 
 /** The guard name a refused column carries. */
 export const PERIOD_READS_GUARD = 'bind:period-reads'
+
+/** ⭐ C43 — does a period record of the stamp's own shape (`{base, reads, byTf}`)
+ *  take a different value on `tf` than at its base, or name a rung it does not
+ *  hold? `false` with no timeframe (nothing is bound). Asked for one
+ *  `runtime.error` condition's own reads (`runtimeErrorStop.js`), by the same
+ *  comparison every plot is refused with. */
+export function periodValuesDiffer(pr, tf) {
+  if (!pr || !Array.isArray(pr.reads) || !pr.reads.length || !pr.byTf || noChart(tf)) return false
+  return !!differingOn(pr, tf, null)
+}
