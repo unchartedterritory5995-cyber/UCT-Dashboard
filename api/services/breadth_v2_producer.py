@@ -41,10 +41,16 @@ from api.services import breadth_authority as ba
 ROOT = os.environ.get("BV2_PRODUCER_ROOT", "/data/breadth_v2_producer")
 REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 TOOLS = os.path.join(REPO, "tools", "breadth_v2")
-FROZEN_ON_RUNNER = "/data/_audit/v2cc/final/" + ba.FROZEN_NAME
-SEED_LEDGER = "/data/_audit/v2cc/inputs_v20260924f/pit_uct_ledger.json"
-SEED_GROUPED = "/data/grouped_closes_v20260924f"
-PINNED_UCT = "/data/_audit/validation/pinned_uct_universe.json"
+# Each default is the literal this module has always resolved on the
+# breadth-v2-runner service -- an env override whose default IS that
+# literal, so production resolves byte-identically with nothing set, and
+# the repo-root census (conftest.py) can pin it for the test suite.
+FROZEN_ON_RUNNER = os.environ.get("BV2_FROZEN_FINAL_DIR", "/data/_audit/v2cc/final/") + ba.FROZEN_NAME
+SEED_LEDGER = os.environ.get(
+    "BV2_SEED_LEDGER_PATH", "/data/_audit/v2cc/inputs_v20260924f/pit_uct_ledger.json")
+SEED_GROUPED = os.environ.get("BV2_SEED_GROUPED_DIR", "/data/grouped_closes_v20260924f")
+PINNED_UCT = os.environ.get(
+    "BV2_PINNED_UCT_SEED_PATH", "/data/_audit/validation/pinned_uct_universe.json")
 UNIVERSES = ("uct", "uct_backtest", "us", "nasdaq", "nyse")
 PCT = {m for m in ba.V2_METRICS if m.startswith("pct_above_")}
 KEEP_VINTAGES = 3
