@@ -6129,7 +6129,12 @@ export class Resolver {
     }
     this.depth += 1
     if (this.depth > this.peakDepth) this.peakDepth = this.depth
-    try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
+    try { return this.resolveBindingInner(bound, tok, name) } catch (err) {
+      // ⭐ C31 — a refusal reached THROUGH a binding made below a stepped-over
+      // loop says so (`markAfterLoop`); only the object lane's `rtAdmits` reads it.
+      if (bound && bound.afterLoop && err && typeof err === 'object') err.afterLoop = true
+      throw err
+    } finally { this.depth -= 1 }
   }
 
   /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
@@ -12454,7 +12459,23 @@ function recordReassign(ctx, stmt, name, env) {
   if (!ctx || !ctx.bindingByStatement || !stmt || !env.has(name)) return
   let byName = ctx.bindingByStatement.get(stmt)
   if (!byName) { byName = new Map(); ctx.bindingByStatement.set(stmt, byName) }
+  markAfterLoop(ctx, env.get(name))
   byName.set(name, env.get(name))
+}
+
+/** ⭐⭐ C31 — A BINDING MADE BELOW A STEPPED-OVER LOOP SAYS SO (`afterLoop`).
+ *
+ *  Before the step-over such a name was bound by nobody, every read of it was
+ *  `pine:undefined`, and the runtime lane — which runs the loop as written —
+ *  answered it on the last bar (C18). Bound, a read of it can now stop on any
+ *  refusal underneath (`pine:type n_clust.get`, k-clustering), most of which
+ *  the runtime rescue does not admit. The mark lets the object lane keep
+ *  offering exactly those reads to the runtime lane (`rtAdmits`): what the
+ *  columnar reader still cannot say below a loop is the run's to say, as it
+ *  was. `ctx.loopSeen` is one cell shared by every fold of a block harvest. */
+function markAfterLoop(ctx, binding) {
+  if (ctx && ctx.loopSeen && ctx.loopSeen.v && binding && typeof binding === 'object'
+      && binding.kind !== 'param' && binding.kind !== 'fn') binding.afterLoop = true
 }
 
 function foldIfChain(stmts, i, ctx, env) {
@@ -14056,6 +14077,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
     // so the record is a per-statement MAP, not a single binding. R2 step 2.
     let byName = ctx.bindingByStatement.get(st2)
     if (!byName) { byName = new Map(); ctx.bindingByStatement.set(st2, byName) }
+    markAfterLoop(ctx, env.get(name))
     byName.set(name, env.get(name))
   }
   while (i < stmts.length) {
@@ -14152,6 +14174,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:block',
           `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
       }
+      if (ctx.loopSeen) ctx.loopSeen.v = true
       for (const name of loopWrites(st.body || toks, env)) {
         if (!env.has(name)) continue
         env.set(name, loopWriteRefusal(name, env.get(name), st, locate(first)))
@@ -14631,7 +14654,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // drawing stands; a name that is truly undefined refuses there too, and then
   // nothing is read from the runtime lane at all.
   const RT_ADMITS = new Set(['pine:block', 'pine:collection', 'pine:reassign', 'pine:undefined'])
-  const rtAdmits = (err) => !!(err && RT_ADMITS.has(err.guard) && !err.noRuntime)
+  const rtAdmits = (err) => !!(err && (RT_ADMITS.has(err.guard) || err.afterLoop) && !err.noRuntime)
   /** `{line, column, node}` per placeholder — the program's `runtime.at`. */
   const rtSpecs = []
   /** The op being converted, when it may be read from the runtime lane. */
@@ -15294,7 +15317,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const openName = (node, scope, depth) => {
     if (!node || node.type !== 'name' || depth > 8) return null
     const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
-    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope }
+    if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope, afterLoop: !!bound.afterLoop }
     return null
   }
 
@@ -15829,8 +15852,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (opened) {
       // ⭐ C20 — a name whose binding the columnar reader cannot build is read as
       // the STRING the run holds for it, where it stands (`rtTextOf`).
-      return textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
-        || rtTextOf(node, inline, envAt)
+      const viaBinding = textNodeOf(opened.node, opened.env, depth + 1, inline, opened.env || envAt)
+      if (viaBinding) return viaBinding
+      // ⭐ C31 — a text bound below a stepped-over loop that this reader could
+      // not build is the run's to answer, as it was while the name was unbound.
+      if (opened.afterLoop && !(lastCanonRefusal && lastCanonRefusal.noRuntime)) {
+        lastCanonRefusal = { guard: 'pine:block', message: `${REFUSALS['pine:block']} — \`${node.name}\` is bound below a loop this reader steps over`, afterLoop: true }
+      }
+      return rtTextOf(node, inline, envAt)
     }
     // ⭐⭐ A PER-ROW VALUE IN A TEXT SLOT IS A STRING, and is carried as one.
     // Pine's text slot requires a string, so an expression that reaches here
@@ -18883,11 +18912,12 @@ function translatePineResult(source, opts = {}) {
     // So the recursion fills only statements this fold never reached, into its
     // own map, and those records are marked APPROXIMATE (`approxRecords`):
     // `scopeFor` trusts them only for a name the walk did not condemn.
-    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, conditional, loopStepOver: true }
+    const loopSeen = { v: false }
+    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
     const nested = new Map()
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested, conditional || subBlockVaries(st2))
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested, conditional || subBlockVaries(st2), loopSeen)
     }
     for (const [st2, byName] of nested) {
       let into = bindingByStatement.get(st2)
@@ -18900,13 +18930,13 @@ function translatePineResult(source, opts = {}) {
     }
   }
   /** The recursion's own fold: same reader, its own record map (see above). */
-  const harvestNested = (list, baseEnv, into, conditional = true) => {
+  const harvestNested = (list, baseEnv, into, conditional = true, loopSeen = { v: false }) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
-    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, conditional, loopStepOver: true }
+    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
     try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2))
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2), loopSeen)
     }
   }
   /** ⭐ C31 — does the body of this statement run on only some bars? An `if`

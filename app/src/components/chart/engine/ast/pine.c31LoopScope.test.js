@@ -19,9 +19,20 @@ const HEAD = ['//@version=6', 'indicator("t", overlay=true)', 'plot(close, "real
 const src = (...lines) => [...HEAD, ...lines].join('\n')
 const refusalNames = (t) => (t.refusals || []).map((r) => `${r.guard}|${r.message}`)
 const refusesName = (t, name) => refusalNames(t).some((s) => s.includes(`\`${name}\``) || s.includes(`— ${name}`))
-const outputOk = (t, title) => (t.outputs || []).some((o) => o.title === title && !o.refusal && o.tree)
+const outputOk = (t, title) => (t.outputs || []).some((o) => o.title === title && !o.refusal && !!o.ast)
 
 describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', () => {
+  it('⭐ CONTROL — the probe can see a served output, so a `false` below is a refusal', () => {
+    const t = translatePine(src(
+      'float m = 0.0',
+      'if close > open',
+      '    m := high - low',
+      'plot(m, "m")',
+    ))
+    expect(outputOk(t, 'real')).toBe(true)
+    expect(outputOk(t, 'm')).toBe(true)
+  })
+
   it('⛔ a scalar the loop writes refuses when read after it', () => {
     const t = translatePine(src(
       'int n = 0',

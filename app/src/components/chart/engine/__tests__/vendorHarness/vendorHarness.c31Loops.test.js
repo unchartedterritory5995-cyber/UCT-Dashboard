@@ -208,6 +208,24 @@ describe('C31 — the step-over, in the object lane: what the loop writes refuse
     expect(cells.get('top_right|1|0')).not.toBe('0')
   })
 
+  it('⛔⛔ a local DERIVED below the loop from a name it writes never reads that name’s seed', () => {
+    // The stale-snapshot shape (C28a), one block down: `half`'s binding carries
+    // the env as it stood where it was written. If the step-over left `acc`
+    // bound to its declaration there, `half` would read 0 on every bar.
+    const { bars, cells } = run(cap(EMA), block(
+      'float acc = 0.0',
+      'for i = 0 to 4',
+      '    acc += close[i]',
+      'float half = acc / 2',
+      'table.cell(t, 0, 0, str.tostring(half))',
+      'table.cell(t, 1, 0, "ctl")',
+    ))
+    const half = bars.slice(-5).reduce((a, b) => a + b.c, 0) / 2
+    if (cells.has('top_right|0|0')) expect(Number(cells.get('top_right|0|0'))).toBeCloseTo(half, 2)
+    expect(cells.get('top_right|0|0')).not.toBe('0')
+    expect(cells.get('top_right|1|0')).toBe('ctl')
+  })
+
   it('⛔ a name the loop writes in a nested `if` of its body is never read at its seed either', () => {
     const { bars, cells } = run(cap(EMA), block(
       'float best = 0.0',
