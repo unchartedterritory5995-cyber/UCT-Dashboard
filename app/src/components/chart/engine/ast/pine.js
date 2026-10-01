@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -6625,8 +6625,19 @@ export class Resolver {
         }
         staleLastWord()
         const args = []
-        args[spec.recurrence.seed] = switchedState
-          ? switchedVarSeed(varSeedOf(seed, reads))
+        // ⭐⭐ C47 — A v6 `var x = bool(na)` LATCH: seeded `false`, and a test that
+        // is `na` is not taken (`v6BoolNaLatch`). Null for every other shape.
+        const boolLatch = v6BoolNaLatch(bound.seed, update, this)
+        // ⭐⭐ C47 — A SWITCHED `var` READ ONLY BARE SAYS SO (`'update'`, C29's
+        // mark): bar 0 runs the update from the initializer, the one reading a
+        // `var` whose update never reads `x[k]` or `nz(x)` can have. Unmarked,
+        // the listing pass also kept "bar 0 IS the seed" (the self-reference
+        // spelling's reading, which this arm never writes) and so withheld the
+        // count until its first reset — trend-duration's `TrendCount` on the bar
+        // of its first flip, pushed into the window every later text reads.
+        const bareOnly = reads.history === 0 && reads.guarded === 0 && reads.bare > 0
+        args[spec.recurrence.seed] = boolLatch ? boolLatch.seed : switchedState
+          ? switchedVarSeed(bareOnly ? readingSeed(varSeedOf(seed, reads), 'update') : varSeedOf(seed, reads))
           : barCounter && containsSelfSeries(update, this.table)
             && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
             ? switchedVarSeed(readingSeed(varSeedOf(seed, reads), 'update'))
@@ -8821,6 +8832,10 @@ export class Resolver {
           }
           throw err
         }
+        // ⭐ C47 — `na(X) ? 0 : X` OVER AN `X` THAT IS NEVER `na` IS `X`
+        // (`naGuardIsIdentity`): the guard this lane writes round every `if`
+        // condition, dropped where it guards nothing.
+        if (naGuardIsIdentity(test, yes, no)) return no
         return cOp('?:', [test, yes, no])
       }
       case 'offset': {
@@ -13102,6 +13117,133 @@ const PINE_STATE_WARMUP = 250
  *  initializer, which the `na` seed does not carry. When the initializer is
  *  itself `na` (`var float x = na`, the usual spelling) the two agree and plain
  *  `0 / 0` stays — so only scripts with such a `var` see their tree move. */
+/** ⭐ C47 — CAN THIS TREE NEVER BE `na`? Decided on the operators alone, from
+ *  what `interpret.js` pins for both lanes: a comparison against `NaN` is `0`,
+ *  never `NaN` (`cmp`); `na(…)` is `0` or `1`; `!` / `&&` / `||` / `?:` are `NaN`
+ *  only when an operand is. Anything else — a series, a call, arithmetic —
+ *  answers no. */
+const CMP_OPS = new Set(['>', '<', '>=', '<=', '==', '!='])
+const neverNaTree = (n, depth = 0) => {
+  if (!n || typeof n !== 'object' || depth > 64) return false
+  if (n.type === 'num') return Number.isFinite(n.value)
+  if (n.type === 'call') return n.name === 'na' && Array.isArray(n.args) && n.args.length === 1
+  if (n.type !== 'op' || !Array.isArray(n.args)) return false
+  if (CMP_OPS.has(n.name)) return n.args.length === 2
+  // `na(Z) ? c : Z` — the guard itself: `c` where `Z` is `na`, else `Z`, which is
+  // then not `na`.
+  if (n.name === '?:' && n.args.length === 3 && isNaCallOf(n.args[0], n.args[2])) {
+    return neverNaTree(n.args[1], depth + 1)
+  }
+  if (n.name === '!' || n.name === '&&' || n.name === '||' || n.name === '?:') {
+    return n.args.every((a) => neverNaTree(a, depth + 1))
+  }
+  return false
+}
+function isNaCallOf(test, x) {
+  return !!test && test.type === 'call' && test.name === 'na'
+    && Array.isArray(test.args) && test.args.length === 1 && sameTree(test.args[0], x)
+}
+function sameTree(a, b, depth = 0) {
+  if (a === b) return true
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object' || depth > 256) return false
+  if (a.type !== b.type || a.name !== b.name || a.value !== b.value) return false
+  const x = Array.isArray(a.args) ? a.args : null
+  const y = Array.isArray(b.args) ? b.args : null
+  if (!x || !y) return x === y
+  if (x.length !== y.length) return false
+  for (let i = 0; i < x.length; i += 1) if (!sameTree(x[i], y[i], depth + 1)) return false
+  return true
+}
+/** ⭐⭐ C47 — `na(X) ? 0 : X` IS `X` WHEN `X` IS NEVER `na` — an identity, on every
+ *  bar, in both lanes and under every probe (`X` is `0` or `1` whatever it read).
+ *
+ *  The object lane writes that guard round every `if` condition it turns into
+ *  an event (`pine.js` `condOf`, `arrayWindows.js::negatedGuard`,
+ *  `pineObjects.js` `foldChain`) because Pine's `if` reads `na` as false and this
+ *  engine's `?:` carries it. Round a comparison (`trend != trend[1]`) it guards
+ *  nothing, and costs two evaluation units each time. trend-duration's window
+ *  average measures exactly the 128-unit cap (C22 / C43); the units the v6
+ *  `bool` seed marks add (C47) are paid for here — the cap is where it was.
+ *  ⛔ Only the exact shape: test `na(X)`, the taken arm the literal `0`, the
+ *  other arm the SAME tree `X`. */
+const naGuardIsIdentity = (test, yes, no) => !!yes && yes.type === 'num' && yes.value === 0
+  && neverNaTree(no) && isNaCallOf(test, no)
+
+/** ⭐⭐ C47 — A PINE v6 `var x = bool(na)` LATCH IS `false` UNTIL IT IS SET.
+ *
+ *  In v6 a `bool` is never `na` (TradingView's v6 migration guide: *"`bool`
+ *  values can no longer be `na`"*; `bool(na)` is `false`), and an `if` whose
+ *  test is `na` does not run. The runtime lane has answered that way since C23
+ *  (`lowerIr.js`: a NaN bool operand reads false; `vm.js` `JUMP_IF_FALSE`).
+ *  This door did neither: the cast folds to `(0 / 0) != 0` at every version,
+ *  and `if c` → `c ? v : self` PROPAGATES a `na` test (`interpret.js`, the
+ *  `{0, 1, NaN}` domain), so a latch whose tests warm up (`ta.rising(hma, n)`)
+ *  read `na` until its first assignment, and the FIRST `x != x[1]` after it
+ *  compared against `na` and was not seen.
+ *
+ *  ⭐ THE WITNESS: `trend-duration-forecast-chartprime-rddt-1d-2026-09-28`
+ *  (v6, from the listing). `var trend = bool(na)`, then `if ta.rising(hma, 3)
+ *  → trend := true` / `if ta.falling(hma, 3) → trend := false`. `trend := true`
+ *  first runs on bar 58 and TradingView draws a label there (its id 2, the
+ *  text `6` over `Trend ↑`) under `if trend != trend[1]` — a flip FROM `false`.
+ *  Read `na`, there is no flip; that label was the one object this door
+ *  withheld (`vendorHarness.c22TrendDuration`, `vendorHarness.c47BoolNaLatch`).
+ *
+ *  THE RULE is the SEED, and only the seed: `false`, written as a SWITCHED
+ *  seed carrying the `'held'` reading (`interpret.js::heldFalseSeed`). The
+ *  update's tree is untouched — no node is added, the 128 cap is where it was.
+ *    from the listing   the pass reads the real `0` (our bar 0 is Pine's), runs
+ *                       the update from it on bar 0, holds the state through a
+ *                       `na` test (an `if` that did not run), and answers
+ *                       `x[k]` before bar 0 with `false` too — a v6 `bool`'s
+ *                       history is never `na`;
+ *    behind the curtain a bounded window starts UNKNOWN and publishes a bar
+ *                       only once an assignment inside it has run. ⛔ Never a
+ *                       guessed `false`: there the latch may have been set
+ *                       before the fetch.
+ *
+ *  ⛔ EXACTLY THE WITNESSED SHAPE, AND NOTHING WIDER — anything else returns
+ *  null and keeps the fold it had:
+ *    · a `//@version=6` source (v4 / v5 keep `na`: `vw-bool-cast-*` are their
+ *      captures, and a v5 `bool(na)` IS `na`);
+ *    · the `var`'s WHOLE initializer is the call `bool(na)` — one unnamed
+ *      argument, the bare word `na` — and neither name is the script's own;
+ *    · the update is a chain of ternaries whose every arm is a LITERAL or the
+ *      held value — `x := true` / `x := false` under `if`s. That one shape
+ *      check is also what keeps out an update reading `x[k]` or `nz(x)` (neither
+ *      is a literal or the held value). An arm that is an expression
+ *      (`x := close > open`) is a `bool` that may itself be `na`, which no
+ *      committed capture shows on this door;
+ *    · no test reads the latch itself.
+ *  `bool(na)` anywhere else (a ternary arm, a plain `x = bool(na)`) is
+ *  untouched.
+ *
+ *  @returns {{seed:object}|null} */
+const v6BoolNaLatch = (seedNode, update, resolver) => {
+  if (!(Number.isFinite(resolver.pineVersion) && resolver.pineVersion >= 6)) return null
+  if (!seedNode || seedNode.type !== 'call' || seedNode.name !== 'bool') return null
+  const callArgs = seedNode.args
+  if (!Array.isArray(callArgs) || callArgs.length !== 1 || callArgs[0].name) return null
+  const arg = callArgs[0].value
+  if (!arg || arg.type !== 'name' || arg.name !== 'na') return null
+  if (resolver.shadowedByDefinition('bool') || resolver.shadowedByDefinition('na')) return null
+  const table = resolver.table
+  const bind = table.functions.accum.recurrence.binds
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
+  const isLatch = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (isSelf(n)) return true
+    if (n.type === 'num') return n.value === 0 || n.value === 1
+    if (n.type !== 'op' || n.name !== '?:' || !Array.isArray(n.args) || n.args.length !== 3) return false
+    const [test, yes, no] = n.args
+    return !containsSelfSeries(test, table) && isLatch(yes) && isLatch(no)
+  }
+  // ⛔ a bare `self` (a `var` nobody reassigns) is not a latch: it keeps the
+  // "seeded `na`, nothing updates" refusal it always had.
+  if (isSelf(update) || !isLatch(update)) return null
+  return { seed: switchedVarSeed(heldFalseSeed()) }
+}
+
 const historySeed = () => cOp('/', [cNum(0), cNum(0)])
 const varSeedOf = (seed, reads) => {
   if (!reads) return seed

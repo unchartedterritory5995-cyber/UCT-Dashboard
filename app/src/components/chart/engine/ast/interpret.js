@@ -705,13 +705,40 @@ export const switchedVarSeed = (seed) => ({
  *  the reading, so a counter is exact from the listing and — being switched and
  *  never forgetting — withheld everywhere else (the curtain default). */
 const ONE = () => ({ type: 'num', value: 1 })
-export const readingSeed = (seed, reading) => (reading === 'update'
-  ? { type: 'op', name: '*', args: [ONE(), { type: 'op', name: '*', args: [ONE(), seed] }] }
-  : { type: 'op', name: '*', args: [ONE(), seed] })
+const oneTimes = (x) => ({ type: 'op', name: '*', args: [ONE(), x] })
+export const readingSeed = (seed, reading) => (reading === 'update' ? oneTimes(oneTimes(seed)) : oneTimes(seed))
+/** ⭐⭐ C47 — a THIRD reading, `'held'`, for ONE seed: `false`. Written
+ *  `0 != (0 / 0)`. The state ENTERS bar 0 holding `false` whichever way it is
+ *  read — bare, or through `x[k]` — and bar 0 runs the update from it. That is a
+ *  Pine v6 `bool` latch (`pine.js::v6BoolNaLatch`): a v6 `bool` is never `na`,
+ *  so a history read that reaches before bar 0 is `false`, the same `false`
+ *  `var x = bool(na)` starts with. So, FROM THE LISTING ONLY: the pass reads
+ *  the real seed `false`; a `?:` in the update whose test is `na` holds the
+ *  state (an `if` that did not run) instead of carrying the `na` into it; and
+ *  `x[k]` on the bars it reaches before bar 0 answers `false` — KNOWN,
+ *  where a `var` of any other type is unknown there (`enteringStateUnknown`:
+ *  initializer or `na`).
+ *  ⛔ VALUE-SAFE like the other two: a comparison against `NaN` is `0` in both
+ *  lanes (`cmp`), so every reader that does not know the shape reads `0` — and
+ *  it only ever rides inside a switched mark, `NaN` to those readers.
+ *  ⛔ NOT the cast's own fold: `bool(x)` is `x != 0`, the literal on the RIGHT
+ *  (`pine.js`), so no translated `bool(na)` of any version is this shape.
+ *  ⚠️ The `!= 0` is also why this shape and not another: `probeValuesOf` probes
+ *  a tree at every literal an `==` / `!=` compares against, and the object
+ *  lane's probe memo for `0` is shared across a pass's trees. */
+export const heldFalseSeed = () => ({
+  type: 'op',
+  name: '!=',
+  args: [{ type: 'num', value: 0 }, { type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }],
+})
+const isHeldFalseSeed = (n) => !!n && n.type === 'op' && n.name === '!=' && Array.isArray(n.args)
+  && n.args.length === 2 && !!n.args[0] && n.args[0].type === 'num' && n.args[0].value === 0
+  && isZeroOverZero(n.args[1])
 const isOneTimes = (n) => !!n && n.type === 'op' && n.name === '*' && Array.isArray(n.args)
   && n.args.length === 2 && n.args[0] && n.args[0].type === 'num' && n.args[0].value === 1
-/** `{reading: 'seed' | 'update', seed}` for a reading mark, else null. */
+/** `{reading: 'seed' | 'update' | 'held', seed}` for a reading mark, else null. */
 export const readingOf = (n) => {
+  if (isHeldFalseSeed(n)) return { reading: 'held', seed: { type: 'num', value: 0 } }
   if (!isOneTimes(n)) return null
   const inner = n.args[1]
   return isOneTimes(inner) ? { reading: 'update', seed: inner.args[1] } : { reading: 'seed', seed: inner }
@@ -815,6 +842,10 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
   // itself, or the update run from it (a history read on bar 0 is Pine's `na`).
   const starts = reading === 'seed' ? [s0]
     : reading === 'update' ? [stepT(0, beforeBar0(), (lag) => (lag > 0 ? NaN : s0))]
+      // ⭐ C47 — a `'held'` latch (`heldFalseSeed`) takes this ordinary pair, and
+      // needs no start of its own: its arms are literals or the held value, so
+      // the two candidates differ only on a bar where an arm FIRES — and there
+      // the switched window answers the literal whatever the state was.
       : [s0, stepT(0, beforeBar0(), firstRead)]
   if (!reading && twoWay && guardedReads > 0) {
     if (guardedReads > LISTING_MAX_GUARDED_READS) {
@@ -4865,7 +4896,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // is UNKNOWN (the probe, so `unknownMask` withholds what reads it) unless
         // both readings are `na` — an unmarked seed whose bar-0 value is `na`.
         // Without a probe it is `NaN` either way, so no plotted value moves.
-        if (opts && opts.historyFromListing === true && typeof opts.prefixProbe === 'number'
+        // ⭐⭐ C47 — …AND A `'held'` STATE (`heldFalseSeed`: a Pine v6 `bool`) IS
+        // KNOWN THERE: every read before bar 0 answers the seed, so from the
+        // listing `x[k]` is the seed on each of the first `k` bars — a value, not
+        // a probe. Behind the curtain nothing changes (`NaN`, as above).
+        const held = opts && opts.historyFromListing === true && back >= 1 ? heldEnteringSeed(n.args[0]) : null
+        if (held !== null) {
+          for (let i = 0; i < Math.min(back, length); i++) out[i] = held
+        } else if (opts && opts.historyFromListing === true && typeof opts.prefixProbe === 'number'
             && back >= 1 && back <= length && enteringStateUnknown(n.args[0])) {
           out[back - 1] = opts.prefixProbe
         }
@@ -5117,6 +5155,15 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     const seedNode = switchedSeedOf(child.args[rec.seed]) || child.args[rec.seed]
     if (isAmbiguousVarSeed(seedNode)) return true
     return !Number.isNaN(toColumn(evalNode(seedNode), length)[0])
+  }
+
+  /** ⭐ C47 — the value a `'held'` recurrence (`heldFalseSeed`) enters bar 0
+   *  with — `false` — or null when `child` is not one. See the `offset` arm. */
+  const heldEnteringSeed = (child) => {
+    if (!child || child.type !== 'call' || !own(RECURRENCES, child.name)) return null
+    const real = switchedSeedOf(child.args[fnSpec(child.name).recurrence.seed])
+    const spelled = real ? readingOf(real) : null
+    return spelled && spelled.reading === 'held' ? spelled.seed.value : null
   }
 
   const evalNode = (n) => {
@@ -5451,6 +5498,8 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
      *  memo is keyed by node AND guard context, and lives for one call — a shared
      *  node is one Pine value at one point in the bar, so answering it once is
      *  exact; the same node reached inside and outside an `nz` asks both ways. */
+    /** C47 — set below, once the seed's mark is read: is this a `'held'` latch? */
+    let heldLatch = false
     const stepListing = (x, j, history, read, strict = false) => {
       const memo = new Map()
       // ⛔ C19 — BY SHAPE only where every read is `history`: then two nodes of
@@ -5479,8 +5528,16 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
             // `strict` (C12s): a condition that is not computable (`NaN`) picks no
             // arm the member can rely on, so the switched window reads it as
             // unknown rather than as the `NaN` the column would carry.
+            // ⭐⭐ C47 — and in a `'held'` recurrence (`heldFalseSeed`: a Pine v6
+            // `bool` latch) the listing pass reads a `na` test as NOT TAKEN: the
+            // state holds. `if c` → `c ? v : self` otherwise carries the `na` into
+            // the state (`TERNARY`), and a v6 `bool` is never `na`. Only here: from
+            // the listing a `na` test is Pine's own `na` (a warm-up), where behind
+            // the curtain it is a value this engine does not have (`strict`, above).
             v = values[0] === LISTING_UNKNOWN || (strict && Number.isNaN(values[0]))
-              ? LISTING_UNKNOWN : TERNARY(values[0], values[1], values[2])
+              ? LISTING_UNKNOWN
+              : heldLatch && Number.isNaN(values[0]) ? values[2]
+                : TERNARY(values[0], values[1], values[2])
           } else if (values.some((u) => u === LISTING_UNKNOWN)) {
             v = LISTING_UNKNOWN
           } else {
@@ -5499,6 +5556,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // ⭐ C29 — a spelled bar-0 reading rides inside the switched mark (`readingSeed`).
     const spelled = switchedReal ? readingOf(switchedReal) : null
     const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
+    heldLatch = !!spelled && spelled.reading === 'held'
     const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
