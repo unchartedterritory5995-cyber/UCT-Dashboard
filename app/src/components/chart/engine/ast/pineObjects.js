@@ -616,7 +616,7 @@ export function collectObjectOps(stmts, h) {
       if (!inLoop && loopIds.length === 0 && (taCallIn(t) || historyCallIn(t, historyFns))
           && !definitionHeader(t, h)
           && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
-        t = oneExecutionTokens(t, h, { flagRest: true, historyFns }).toks
+        t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries }).toks
         noteOnceLines(st)
       }
       const first = t[0]
@@ -2478,7 +2478,7 @@ export function collectObjectOps(stmts, h) {
       // whatever the one-run body still reads that the capture does not show.
       if (why && !inLoop && loopIds.length === 0
           && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
-        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned)
+        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned, chartSeries)
         if (once.body) {
           const candidate = { ...def, body: once.body }
           why = historyReason(candidate, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)

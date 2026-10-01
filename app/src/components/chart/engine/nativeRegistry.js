@@ -103,6 +103,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
+import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -1743,6 +1744,21 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
         errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
         continue
       }
+      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
+      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
+      // the block runs after a bar it skipped the plot is refused by name —
+      // never drawn off the every-bar number. Same budget, same options, same
+      // memo as the plot's own tree (the guard is a subtree of it).
+      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+        undefined, { tf: ctx && ctx.tf,
+          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...(other ? { symbols: other.symbols } : {}), crossMemo,
+          chartClockSink: new Map() }))
+      if (runsWhy) {
+        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -1786,6 +1802,14 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
+  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`).
+  const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      chartClockSink: new Map() }))
+  if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
   const clock = { [keys[0]]: new Map() }
   return withChartClock(withOtherSymbols({
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,

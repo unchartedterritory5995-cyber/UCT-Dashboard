@@ -117,7 +117,7 @@ import {
 import {
   INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
   guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions,
-  readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor,
+  readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
 } from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
@@ -6029,6 +6029,16 @@ export class Resolver {
      *  .md` §1 corrects. See `resolveInput`'s own comment for why it is keyed
      *  on the ORIGINAL CALL NODE'S IDENTITY rather than on `boundName`. */
     this.paramMint = opts.paramMint || null
+    /** ⭐ C48 — above 0 while an every-bar read runs only to mint what it always
+     *  minted (`mintOnlyRead`); the conditional-call rules stand aside in it. */
+    this.mintOnly = 0
+    /** ⭐ C48 — set by the host lane's output loop alone (`resolveBinding`): a
+     *  read of a conditional call is served the every-bar way and its block's
+     *  guard recorded in `blockRuns` for the bind to check; one with no guard
+     *  to carry is kept in `condRefusal` and refuses the row. */
+    this.condGate = false
+    this.blockRuns = []
+    this.condRefusal = null
     /** ⭐ 2026-09-28 (owner ruling 1) — A RECORDER, `null` for every walk but one.
      *  `constantColourSelector` sets a Set here while it asks whether a colour
      *  conditional's selector is a translation-time constant, and `resolveInput`
@@ -6385,15 +6395,47 @@ export class Resolver {
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
     // call answers on that run (`oneExecution`); the object pass reads THAT.
+    // ⭐⭐ C48 — AND A CHART'S PLOT HONOURS THE SAME MARK. ⚰️ The plot lane read
+    // the binding "as it always has": `if close > open` / `c_sma := ta.sma(close,
+    // 3)` / `plot(c_sma)` drew the EVERY-BAR average on the bars the block runs.
+    // TradingView's window there counts EXECUTIONS — capture
+    // `vw-call-site-history-rddt-1d-2026-10-01`, rows C01–C04 and H01–H05: our
+    // column disagreed on 163–307 of 634 bars per row (`vendorHarness.c48CallSite`).
+    //
+    // ⭐ THE EVERY-BAR READ IS EXACT EXACTLY WHEN THE BLOCK HAS RUN ON EVERY BAR:
+    // its executions are then the bars. Whether it has is a fact about the DATA
+    // — `if not skipAll and isDaily` (uncharted-volume-v2) runs on every bar of a
+    // daily chart and on none of a weekly one, and both read the every-bar way
+    // exactly. So an OUTPUT's resolver (`condGate`, the host lane's output loop)
+    // reads the binding as before and records the block's own guard
+    // (`execGuard`, the fold's); the document carries that guard beside the plot
+    // and the BIND refuses the plot, by name, on a chart where the block runs
+    // after a bar it skipped (`engine/blockRuns.js`). Nothing is refused here
+    // for it, so the parameters this read mints are the ones it always minted
+    // (`paramIds.test.js`).
+    //   · a one-run binding (`barstate.islast`): the every-bar read runs first,
+    //     for its mint alone (`mintOnlyRead`), then the one-run binding is read;
+    //   · the object pass (`refuseCondCalls`) refuses at the read, as C31 did;
+    //   · a mark with no guard to carry is refused once the output has resolved
+    //     (`condRefusal`), never served;
+    //   · every other resolver — the screener lane's among them, where nothing
+    //     binds a chart — reads as it always has.
+    if (!this.refuseCondCalls && this.condGate && this.mintOnly === 0 && bound && bound.oneExecution) {
+      this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
+      const minted = this.paramMint
+      this.paramMint = null
+      try { return this.resolveBinding(bound.oneExecution, tok, name) } finally { this.paramMint = minted }
+    }
     if (this.refuseCondCalls && bound && bound.oneExecution) {
       return this.resolveBinding(bound.oneExecution, tok, name)
     }
-    if (this.refuseCondCalls && bound && bound.condCall) {
+    if (bound && bound.condCall && this.mintOnly === 0 && (this.refuseCondCalls || this.condGate)) {
       const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${bound.condCall}`, locate(tok))
       // ⛔ and the runtime lane may not answer it either (`rtAdmits`): it reads
       // the argument's every-bar history, the same wrong number.
       err.noRuntime = true
-      throw err
+      if (this.refuseCondCalls) throw err
+      this.noteBlockRun(bound, bound.condCall, err)
     }
     // ⛔⛔ THE DEPTH BOUND. Checked BEFORE descending, so the refusal is built in a
     // frame that still has stack left to build it — a guard that overflows while
@@ -8908,6 +8950,8 @@ export class Resolver {
           const base = cSeries(spec.recurrence.binds)
           return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
         }
+        const blockRead = this.blockLocalHistory(node)
+        if (blockRead !== null) return blockRead
         const plain = this.plainRecurrence(node, node.tok)
         if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
@@ -9100,6 +9144,82 @@ export class Resolver {
     const column = this.resolveBinding(final, tok, name)
     if (!this.recurrenceColumns.has(name)) return null
     return { type: 'offset', value: node.n, args: [column] }
+  }
+
+  /** ⭐ C48 — an output read a binding whose block does not provably run on
+   *  every bar: keep the block's guard for the bind (`engine/blockRuns.js`), or
+   *  — where the fold recorded none — the refusal itself. */
+  noteBlockRun(bound, why, err) {
+    const chain = Array.isArray(bound.execGuard) && bound.execGuard.length ? bound.execGuard : null
+    if (!chain) { this.condRefusal = this.condRefusal || err; return }
+    if (!this.blockRuns.some((g) => g.chain === chain)) this.blockRuns.push({ chain, why, err })
+  }
+
+  /** ⭐⭐ C48 — RUN A READ THE WAY IT ALWAYS RAN, FOR ITS PARAMETER MINT ALONE.
+   *
+   *  A parameter id is positional and saved documents hold them, so a read this
+   *  lane stops serving must still mint what it minted, in the same order. `fn`
+   *  resolves with the conditional-call rules standing aside (`mintOnly`); its
+   *  tree — the every-bar number — and its refusal are dropped.
+   *  ⛔ AND IT LEAVES NO MEMO BEHIND. Every `Map` / `Set` this resolver holds
+   *  (the shared `var`-read memo among them) is put back as it stood: a tree
+   *  cached in here holds the every-bar value, and a later read that hit the
+   *  cache would serve it past the rule. `paramMint` is not one of them. */
+  mintOnlyRead(fn) {
+    const held = []
+    for (const v of Object.values(this)) {
+      if (v instanceof Map) held.push([v, new Map(v)])
+      else if (v instanceof Set) held.push([v, new Set(v)])
+    }
+    this.mintOnly += 1
+    try { fn() } catch { /* the read's own refusal is not what is asked here */ } finally {
+      this.mintOnly -= 1
+      for (const [live, was] of held) {
+        live.clear()
+        if (live instanceof Map) for (const [k, v] of was) live.set(k, v)
+        else for (const k of was) live.add(k)
+      }
+    }
+  }
+
+  /** ⭐⭐ C48 — `x[k]` WHERE `x` IS A LOCAL OF A BLOCK THAT DOES NOT RUN ON EVERY
+   *  BAR. Pine keeps a block local's history per EXECUTION of its block, so
+   *  `x[1]` there is the value at the block's previous run — not the previous
+   *  bar's. Capture `vw-call-site-history-{rddt,spy}-1d-2026-10-01`:
+   *
+   *    A12  `if barstate.islast` / `bx = close * 2` / `bx[1]`      → NaN
+   *    C05  `if close > open` / `cx = close * 2` / `cx[1]`         → `cx` at the
+   *         previous EXECUTION (280 / 280, 941 / 941), D03 likewise on even bars
+   *
+   *  ⚰️ Both were read as the previous BAR's: A12 printed 284.88 in a label where
+   *  TradingView prints NaN, and C05's plot disagreed on 163 of 634 bars.
+   *  So: in a block that runs exactly once the read is `na` (k ≥ 1); under any
+   *  other varying guard it is REFUSED by name — the previous execution's value
+   *  needs a history indexed by execution, which neither lane keeps.
+   *  ⛔ Only a name DECLARED in such a block (`blockLocal`, set by the fold). A
+   *  top-level variable read from inside the block keeps its per-bar history
+   *  (`vw-getter-history`, G03: `ya[1]` in the last-bar block is `close[1]`), and
+   *  so do the chart's own series (A13 / A14, C06).
+   *  ⛔ Minting, and which resolver asks, as `resolveBinding` says. null → not
+   *  such a read (or one a chart's plot reads on, for the bind to decide). */
+  blockLocalHistory(node) {
+    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
+    const bound = this.env.get(node.arg.name)
+    if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
+    if (!this.refuseCondCalls && !this.condGate) return null
+    if (bound.blockLocal === 'once') {
+      if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
+      return cOp('/', [cNum(0), cNum(0)])
+    }
+    const why = `\`${node.arg.name}[${node.n}]\` reads the history of a name declared `
+      + 'inside a block that does not run on every bar: TradingView answers the value at the block\'s previous '
+      + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
+    const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
+    err.noRuntime = true
+    if (this.refuseCondCalls) throw err
+    // a chart's plot reads on, and the bind decides (`resolveBinding`)
+    this.noteBlockRun(bound, why, err)
+    return null
   }
 
   guardOffsetOfMutable(node) {
@@ -9611,7 +9731,7 @@ export class Resolver {
       const err = new PineRefusal('pine:block',
         `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
         + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
-        + 'witnessed (probe `vw-call-site-history`)', locate(node.tok))
+        + 'a row of capture `vw-call-site-history`', locate(node.tok))
       err.noRuntime = true
       throw err
     }
@@ -13364,11 +13484,12 @@ function condCallMark(ctx, rhsToks, name) {
   const sentence = (call) => `\`${name}\` calls \`${call}\` inside a block`
     + ' that does not run on every bar, and that call sees only the bars its block runs on'
   if (!ctx.oneExecution) return { refuse: sentence(taCall.value) }
-  const once = oneExecutionTokens(rhsToks, { isPunct })
+  const once = oneExecutionTokens(rhsToks, { isPunct },
+    { chart: typeof ctx.chartSeries === 'function' ? ctx.chartSeries() : undefined })
   if (once.why || once.left) {
     return {
       refuse: `${sentence((once.left || taCall).value)} — the block runs once, and what the call answers `
-        + 'on its first run is witnessed only for `ta.highest(source, length)` and `ta.sma(source, length)`',
+        + 'on its first run is witnessed only for the forms `ONE_EXECUTION_TA` lists (capture `vw-call-site-history`)',
     }
   }
   try { return { node: parseWholeExpression(once.toks) } } catch { return { refuse: sentence(taCall.value) } }
@@ -13388,6 +13509,10 @@ function foldIfChain(stmts, i, ctx, env) {
   // only when its condition, or one above it, varies; `foldStatements` then
   // refuses a call there that would read the bars it did not run on.
   let armsVary = !!(ctx && ctx.conditional)
+  // ⭐ C48 — the conditions of the arms above this one, as the arm's own guard
+  // reads them (each in the scope the chain stands in): an arm runs where its
+  // condition holds and none above it did (`execGuard`, `engine/blockRuns.js`).
+  const above = []
   for (const br of chain.branches) {
     const cond = br.condToks ? parseWholeExpression(br.condToks) : null
     const branchEnv = new Map(before)
@@ -13398,9 +13523,11 @@ function foldIfChain(stmts, i, ctx, env) {
       // `barstate.islast` (or the block it stands in already is): never an
       // `else`, whose bars are every bar the arms above did not take.
       const once = !!ctx.oneExecution || (!!br.condToks && guardIsLastBarOnly(br.condToks))
-      if (armsVary !== !!ctx.conditional || once !== !!ctx.oneExecution) {
-        armCtx = { ...ctx, conditional: armsVary, oneExecution: once }
-      }
+      const here = cond ? boundNode(exprBinding(cond, before, locate(br.tok)), '(guard)', br.tok) : null
+      const execGuard = [...(ctx.execGuard || []), ...above.map((node) => ({ node, negate: true })),
+        ...(here ? [{ node: here, negate: false }] : [])]
+      if (here) above.push(here)
+      armCtx = { ...ctx, conditional: armsVary, oneExecution: once, execGuard }
     }
     const value = foldStatements(br.sub, armCtx, branchEnv)
     arms.push({ cond, env: branchEnv, value, tok: br.tok })
@@ -13452,7 +13579,8 @@ function foldIfChain(stmts, i, ctx, env) {
         wasState.seed, wasState.seedEnv, update, new Map(before), wasState.at))
       // ⭐ C42 — the chain's fold is a NEW binding: it keeps an arm's mark.
       const marked = [...arms.map((a) => a.env.get(name)), wasState].find((b) => b && b.condCall)
-      if (marked) env.get(name).condCall = marked.condCall
+      if (marked) { env.get(name).condCall = marked.condCall; env.get(name).execGuard = marked.execGuard }
+      if (wasState.blockLocal) { env.get(name).blockLocal = wasState.blockLocal; env.get(name).execGuard = wasState.execGuard }
       recordReassign(ctx, stmts[i], name, env)
       continue
     }
@@ -13465,6 +13593,11 @@ function foldIfChain(stmts, i, ctx, env) {
       node = { type: 'ternary', test: arms[k].cond, yes: armBinding(arms[k]), no: node, tok: arms[k].tok }
     }
     env.set(name, exprBinding(node, before, locate(chain.branches[0].tok)))
+    // ⭐ C48 — a block local a nested chain rewrites is still that block's local.
+    if (before.get(name) && before.get(name).blockLocal) {
+      env.get(name).blockLocal = before.get(name).blockLocal
+      env.get(name).execGuard = before.get(name).execGuard
+    }
     recordReassign(ctx, stmts[i], name, env)
   }
 
@@ -15040,6 +15173,13 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const seedNode = parseWholeExpression(toks.slice(eqAt + 1))
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
+      // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
+      // its history per run of that block too; no row reads one, so `[k]` of it
+      // refuses whatever the block (`Resolver.blockLocalHistory`).
+      if (ctx && ctx.conditional) {
+        env.get(varName.value).blockLocal = 'many'
+        env.get(varName.value).execGuard = ctx.execGuard || null
+      }
       i += 1
       continue
     }
@@ -15146,6 +15286,25 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const d = destructureBindings(toks, env, first)
       if (d && d.bindings) {
         d.names.forEach((n, k) => env.set(n.value, d.bindings[k]))
+        // ⭐⭐ C48 — `[a, b] = f(…)` IN A BLOCK THAT DOES NOT RUN ON EVERY BAR is
+        // the same conditional call a single name's declaration is (below), and
+        // was not marked: `if close > open` / `[s, x, m] = f_many(close)` read the
+        // helper's `src[1]`, `x[1]`, `ta.sma` and `bar_index[1]` the every-bar way
+        // (capture `vw-call-site-history`, rows H01–H05: 163–242 of 634 bars
+        // wrong). No one-run tuple is built, so each part refuses by name.
+        if (ctx && ctx.conditional) {
+          const eqAt = findTop(toks, (t) => isPunct(t, '='))
+          const mark = condCallMark({ ...ctx, oneExecution: false }, toks.slice(eqAt + 1), d.names.map((n) => n.value).join(', '))
+          for (const n of d.names) {
+            const b = env.get(n.value)
+            if (!b || typeof b !== 'object') continue
+            // ⛔ a COPY per name: a tuple part may be an object the callee's own
+            // fold shares with every other call site.
+            const own = { ...b, blockLocal: ctx.oneExecution ? 'once' : 'many', execGuard: ctx.execGuard || null }
+            if (mark && mark.refuse) own.condCall = mark.refuse
+            env.set(n.value, own)
+          }
+        }
         // ⭐ R2 STEP 2 — and the record keeps BOTH names, so the object pass can
         // read a destructured local the same way it reads any other.
         d.names.forEach((n) => record(st, n.value))
@@ -15220,7 +15379,14 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
           ? (stateMark.refuse || `\`${nameTok.value}\` is written from a \`ta.*\` call inside a block that runs once, `
             + 'and a running variable is not read on that one run here')
           : prior.condCall
-        if (carried && env.get(nameTok.value) !== prior) env.get(nameTok.value).condCall = carried
+        if (carried && env.get(nameTok.value) !== prior) {
+          env.get(nameTok.value).condCall = carried
+          env.get(nameTok.value).execGuard = stateMark ? (ctx.execGuard || null) : prior.execGuard
+        }
+        if (prior.blockLocal && env.get(nameTok.value) !== prior) {
+          env.get(nameTok.value).blockLocal = prior.blockLocal
+          if (!env.get(nameTok.value).execGuard) env.get(nameTok.value).execGuard = prior.execGuard
+        }
         ctx.consumed.add(toks[mut].index)
         // ⭐ C11b — the state path records too; the expression path below always did.
         record(st, nameTok.value)
@@ -15246,7 +15412,11 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const priorEnv = new Map(env)
       env.set(nameTok.value, exprBinding(node, priorEnv, locate(nameTok)))
       if (mark && mark.node) env.get(nameTok.value).oneExecution = exprBinding(asWrite(mark.node), priorEnv, locate(nameTok))
-      else if (mark) env.get(nameTok.value).condCall = mark.refuse
+      else if (mark) { env.get(nameTok.value).condCall = mark.refuse; env.get(nameTok.value).execGuard = ctx.execGuard || null }
+      if (prior.blockLocal) {
+        env.get(nameTok.value).blockLocal = prior.blockLocal
+        if (!env.get(nameTok.value).execGuard) env.get(nameTok.value).execGuard = prior.execGuard
+      }
       record(st, nameTok.value)
       ctx.consumed.add(toks[mut].index)
       i += 1
@@ -15301,6 +15471,15 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       // the one-execution binding beside it.
       if (mark && mark.node) env.get(nameTok.value).oneExecution = exprBinding(mark.node, declEnv, locate(nameTok))
       else if (mark) env.get(nameTok.value).condCall = mark.refuse
+      // ⭐ C48 — a name declared in a block that does not run on every bar keeps
+      // its history per RUN of that block (`Resolver.blockLocalHistory`), and
+      // carries the block's guard for the bind (`engine/blockRuns.js`).
+      if (ctx && ctx.conditional) {
+        const kind = ctx.oneExecution ? 'once' : 'many'
+        env.get(nameTok.value).blockLocal = kind
+        env.get(nameTok.value).execGuard = ctx.execGuard || null
+        if (env.get(nameTok.value).oneExecution) env.get(nameTok.value).oneExecution.blockLocal = kind
+      }
       record(st, nameTok.value)
       // ⭐⭐ 2026-09-28 — A DECLARATION THAT ENDS A FUNCTION BODY IS ITS VALUE.
       // Pine returns the value of a body's LAST statement, and a declaration's
@@ -16645,7 +16824,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const err = new PineRefusal('pine:block',
         `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
         + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
-        + 'witnessed (probe `vw-call-site-history`)', locate(node.tok))
+        + 'a row of capture `vw-call-site-history`', locate(node.tok))
       err.noRuntime = true
       lastCanonRefusal = err
       return null
@@ -20483,6 +20662,14 @@ export function translatePine(source, opts = {}) {
       outputs: (t.outputs || []).flatMap((o, i) => (o && o._periodRead ? [{ index: i, names: o._periodRead }] : [])),
     }
   }
+  // ⭐⭐ C48 — THE PLOTS THAT READ A CALL IN A BLOCK THAT MAY NOT RUN ON EVERY
+  // BAR, each with that block's guard as a tree (`engine/blockRuns.js` refuses
+  // the plot on a chart where the block runs after a bar it skipped). Present
+  // only when a plot reads one, so every other result is byte-identical.
+  {
+    const outputs = (t.outputs || []).flatMap((o, i) => (o && o._blockRuns ? [{ index: i, gates: o._blockRuns }] : []))
+    if (outputs.length) t.blockRuns = { outputs }
+  }
   // ⭐⭐ C26 — WHICH OTHER SYMBOLS THE TREES READ, AND HOW EACH WAS SPELLED.
   // Present only when a `sym` node was emitted, so every other result is
   // byte-identical to before. Sorted, so one script is one array.
@@ -20631,7 +20818,16 @@ function translatePineResult(source, opts = {}) {
     }
     return historyFnsMemo
   }
-  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf }
+  /** ⭐ C48 — the chart series no script name shadows (`chartSeriesFor`), for the
+   *  one-argument `ta.highest(len)` on a block's one run. Unreadable → none. */
+  let chartSeriesMemo
+  const chartSeriesOf = () => {
+    if (chartSeriesMemo === undefined) {
+      try { chartSeriesMemo = chartSeriesFor(stmts, { isPunct, findTop, boundName }) } catch { chartSeriesMemo = new Set() }
+    }
+    return chartSeriesMemo
+  }
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -20676,7 +20872,7 @@ function translatePineResult(source, opts = {}) {
     // own map, and those records are marked APPROXIMATE (`approxRecords`):
     // `scopeFor` trusts them only for a name the walk did not condemn.
     const loopSeen = { v: false }
-    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, conditional, oneExecution, loopStepOver: true, loopSeen }
+    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf, conditional, oneExecution, loopStepOver: true, loopSeen }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
     const nested = new Map()
     for (const st2 of list) {
@@ -20696,7 +20892,7 @@ function translatePineResult(source, opts = {}) {
   const harvestNested = (list, baseEnv, into, conditional = true, loopSeen = { v: false }, oneExecution = false) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
-    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, historyFns: historyFnsOf, conditional, oneExecution, loopStepOver: true, loopSeen }
+    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf, conditional, oneExecution, loopStepOver: true, loopSeen }
     try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
     for (const st2 of list) {
       if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2), loopSeen, subBlockOnce(st2, oneExecution))
@@ -21966,6 +22162,10 @@ function translatePineResult(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
+    // ⭐ C48 — see `Resolver.resolveBinding`: a CHART's plot reads a conditional
+    // call through and carries its block's guard for the bind. ⛔ The host lane
+    // only: the screener lane binds no chart, and reads as it always has.
+    resolver.condGate = isHostLane(opts)
     // ⭐ C29 — the chart-period reads made while THIS output resolves (`recordPeriodRead`).
     const periodReadsBefore = PERIOD_READ_SINK ? PERIOD_READ_SINK.count : 0
     if (PERIOD_READ_SINK) { PERIOD_READ_SINK.inOutput = true; PERIOD_READ_SINK.current = new Set() }
@@ -22211,6 +22411,40 @@ function translatePineResult(source, opts = {}) {
         .filter(([k]) => !valueInputKeys.has(k))
         .map(([, e]) => (e.name && resolver.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
       if (colourInputs.length) Object.defineProperty(row, '_colourInputs', { value: colourInputs, enumerable: false })
+      // ⛔⛔ C48 — THE OUTPUT READ A CALL IN A BLOCK THAT MAY NOT RUN ON EVERY
+      // BAR (`Resolver.resolveBinding`). Every tree above holds that call's
+      // every-bar number, which is TradingView's only on a chart where the block
+      // has run on every bar. So the row carries each such block's guard, as a
+      // tree, for the bind to check on the chart's own bars
+      // (`engine/blockRuns.js`); a guard this engine cannot read, or a mark with
+      // none, refuses the row here — after the whole output, value and
+      // presentation, minted what it always minted.
+      if (resolver.condRefusal) throw resolver.condRefusal
+      if (resolver.blockRuns.length) {
+        const gates = []
+        const minted = resolver.paramMint
+        const observer = resolver.onCondition
+        resolver.paramMint = null
+        resolver.onCondition = null
+        resolver.mintOnly += 1
+        try {
+          for (const g of resolver.blockRuns) {
+            let node = null
+            for (const part of g.chain) {
+              const one = part.negate ? { type: 'unary', op: 'not', arg: part.node, tok: part.node.tok } : part.node
+              node = node ? { type: 'binary', op: 'and', left: node, right: one, tok: part.node.tok } : one
+            }
+            let guard
+            try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
+            gates.push({ why: g.why, guard })
+          }
+        } finally {
+          resolver.mintOnly -= 1
+          resolver.paramMint = minted
+          resolver.onCondition = observer
+        }
+        Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
+      }
     } catch (err) {
       row = {
         kind: out.kind,
@@ -22358,6 +22592,9 @@ function translatePineResult(source, opts = {}) {
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
       probe.env = (bound.kind === 'state' ? bound.seedEnv : bound.env) || env
+      // ⭐ C48 — this pass asks whether a line no output reads is READABLE; a
+      // conditional call is, and its value is nobody's (`Resolver.mintOnly`).
+      probe.mintOnly = 1
       try {
         probe.resolve(node)
       } catch (err) {
