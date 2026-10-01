@@ -184,6 +184,36 @@ describe('NotebookTab — graph view wiring', () => {
     expect(screen.getByTestId('note-graph')).toBeInTheDocument()
   })
 
+  // A2R-03 (a11y second review, 2026-10-01): a direct full-page navigation to
+  // `?view=graph` never actually switched viewMode — the tab's own `viewAll`/
+  // `isHome` computation recognised only `all` and `tasks`, so a graph/table/
+  // board/calendar/timeline deep link fell through to `isHome=true` and
+  // rendered Research Home instead. The 70-Tab keyboard walk that reported the
+  // graph canvas unreachable was tabbing through RESEARCH HOME's chrome the
+  // whole time — the canvas never existed on that page at all. These assert
+  // the deep link now lands in the view it names, the same way clicking the
+  // switcher already did (proven by the "offers a graph view" tests above).
+  describe('A2R-03: ?view=<mode> deep-links directly into that mode', () => {
+    it('?view=graph renders the graph, never Research Home', async () => {
+      renderTab('/journal?view=graph')
+      await screen.findByTestId('note-graph')
+      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+      expect(graphBtn()).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('?view=table renders the table view directly (not just graph)', () => {
+      renderTab('/journal?view=table')
+      expect(screen.getByTestId('notes-table')).toBeInTheDocument()
+      expect(screen.queryByTestId('research-home')).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /table view/i })).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    it('a bare /journal (no view param) still renders Research Home — the fix does not widen isHome', () => {
+      renderTab('/journal')
+      expect(screen.getByTestId('research-home')).toBeInTheDocument()
+    })
+  })
+
   // ⚰️ REMOVED 2026-09-22, second-authority cleanup. This test asserted Save
   // view IS OFFERED in graph mode -- correct at ITS OWN "at the time" (the
   // server's SAVEABLE_VIEW_TYPES had widened to accept "graph", so the old
