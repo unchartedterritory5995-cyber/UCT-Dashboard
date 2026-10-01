@@ -6,6 +6,11 @@ import * as engineRegistry from '../nativeRegistry'
 import { computeStochastic, computeATR } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── THE FLIP-A CONTRACT FOR STOCHASTIC AND ATR (B5 Task 5) ─────────────────
 //
@@ -247,7 +252,7 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
     expect(scaleCalls).toHaveLength(1)
     for (const call of scaleCalls) {
       expect(call.args[0]).toEqual(
-        legacyBandScale(STOCH_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+        legacyBandScale(STOCH_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
     }
   })
 
@@ -273,7 +278,7 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
       paneIndex: 0, scaleId: 'stoch', autoscale: 'default',
       scaleOptions: {
         borderVisible: false, scaleMargins: ctx.paneMargins.stoch,
-        autoScale: false, minimum: 0, maximum: 100,
+        autoScale: true, minimum: 0, maximum: 100,
       },
       // ⭐ 2026-10-01 — the declared range, which `pool` now really pins.
       autoscaleRange: { min: 0, max: 100 },

@@ -8,6 +8,11 @@ import { REGISTRY_SIZES } from '../registrySizes'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── THE FLIP-A CONTRACT FOR ADX, OBV AND DONCHIAN (B5 Task 8) ──────────────
 //
@@ -310,7 +315,7 @@ describe('adx — three lines, one scale, one guide', () => {
     expect(resolvePlacement({ defId: 'adx' }, engineRegistry.getDefinition('adx'), ctx).scaleOptions)
       .toEqual({
         borderVisible: false, scaleMargins: ctx.paneMargins.adx,
-        autoScale: false, minimum: 0, maximum: 100,
+        autoScale: true, minimum: 0, maximum: 100,
       })
   })
 
@@ -328,7 +333,7 @@ describe('adx — three lines, one scale, one guide', () => {
     // …and it reaches the RENDERER, not just the resolver.
     const { F } = sync(ADX_INSTANCE, ADX_CS, { adx: ADX_BAND })
     expect(F.callsOf('priceScale.applyOptions')[0].args[0])
-      .toEqual(legacyBandScale(ADX_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+      .toEqual(legacyBandScale(ADX_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
   })
 
   it('creates THREE LineSeries in pane 0 with the shipped option objects, key for key', () => {
@@ -372,7 +377,7 @@ describe('adx — three lines, one scale, one guide', () => {
       + 'the repeat is what froze its range on the ADX line alone').toHaveLength(1)
     for (const call of scaleCalls) {
       expect(call.args[0]).toEqual(
-        legacyBandScale(ADX_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+        legacyBandScale(ADX_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
     }
     // …and they really are one scale, which is what makes the repeat inert.
     expect(new Set(F.callsOf('addSeries').map(c => c.args[1].priceScaleId)).size).toBe(1)
@@ -845,7 +850,7 @@ describe('the last three together', () => {
     // leaking from one to the next is the pooled-scale hazard, and it is
     // invisible on any case that turns on one oscillator at a time.
     expect(F.callsOf('priceScale.applyOptions').map(c => c.args[0])).toEqual([
-      legacyBandScale(paneMargins.adx, { autoScale: false, minimum: 0, maximum: 100 }),
+      legacyBandScale(paneMargins.adx, { autoScale: true, minimum: 0, maximum: 100 }),
       legacyBandScale(paneMargins.obv, { autoScale: true }),
     ])
     // One guide across the three, and it is ADX's.

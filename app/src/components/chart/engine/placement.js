@@ -593,21 +593,24 @@ export function resolvePlacement(instance, def, ctx) {
 
   const scale = def.placement && def.placement.scale
   // ⭐⭐ A DECLARED RANGE IS NOW A REAL PIN (2026-10-01), AND IT IS PINNED WHERE
-  // THE LIBRARY READS IT. The scale options are UNCHANGED — `{autoScale:false,
-  // minimum, maximum}`, byte-for-byte what every flip-parity gate pins — and
-  // their first half was always the half that worked: `autoScale:false` freezes
-  // the range the scale first computes. What was missing is that `minimum` /
-  // `maximum` are not lightweight-charts 5.2 options, so that first computation
-  // came from the column (RSI framed ~30..70). The range now ALSO travels as
-  // `autoscaleRange`, which `pool` turns into the series' `autoscaleInfoProvider`
-  // — the one input that computation does read — so the frozen range is the
-  // declared 0..100. `__tests__/autoscaleOnARealScale.test.js` measures it on a
-  // real chart. The provider widens rather than clips.
+  // THE LIBRARY READS IT. `minimum`/`maximum` are not lightweight-charts 5.2
+  // price-scale options (RSI used to frame at its column's own extent, ~30..70),
+  // so the range now travels as `autoscaleRange` and `pool` turns it into the
+  // series' `autoscaleInfoProvider` — the one input the autoscale walk does read.
+  //
+  // ⛔⛔ AND THE SCALE AUTOSCALES (`autoScale: true`), NOT `false`. `false` froze
+  // the FIRST range the scale computed, and panes are positional and pooled: when
+  // a pane was inserted above, a re-tenanted pane kept its previous occupant's
+  // frozen range — MEASURED in the pane harness, a Stochastic RSI pane framed
+  // −100..103 after a CMO was added beside it. Autoscaling through the provider
+  // recomputes the declared range on every bind, the same live behaviour every
+  // auto-ranged pane (MACD's) already has. `minimum`/`maximum` stay in the bag as
+  // inert metadata. The provider widens rather than clips.
   const fixed = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max) && scale.max > scale.min)
     ? { min: scale.min, max: scale.max }
     : null
   const range = fixed
-    ? { autoScale: false, minimum: scale.min, maximum: scale.max }
+    ? { autoScale: true, minimum: scale.min, maximum: scale.max }
     : { autoScale: true }
 
   // ── FLIP C: its own REAL PANE ───────────────────────────────────────────────

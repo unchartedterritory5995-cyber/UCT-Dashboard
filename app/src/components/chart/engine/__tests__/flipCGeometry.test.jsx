@@ -42,6 +42,11 @@ import {
   paneHeightMismatch, SEPARATOR_PX,
 } from '../paneLayout'
 import { makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 const CHART_H = 400
 const bars = makeBars()
@@ -273,7 +278,7 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
       // The pre-Flip-C body, transcribed: band from `computePaneMargins`, fixed
       // range from the definition, pane 0, the definition's own scale id.
       const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
-        ? { autoScale: false, minimum: scale.min, maximum: scale.max }
+        ? { autoScale: true, minimum: scale.min, maximum: scale.max }
         : { autoScale: true }
       const before = {
         paneIndex: 0,
@@ -602,7 +607,7 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
     expect(resolvePlacement(inst('rsi'), def, { paneLayout: layout })).toEqual({
       paneIndex: 1,
       scaleId: 'right',
-      scaleOptions: { borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 },
+      scaleOptions: { borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: true, minimum: 0, maximum: 100 },
       autoscale: 'default',
       lastValue: true,
       // ⭐ 2026-10-01 — the fourth key this case exists to notice: RSI's declared

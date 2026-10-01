@@ -6,6 +6,11 @@ import * as engineRegistry from '../nativeRegistry'
 import { computeRSI } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── THE FLIP-A CONTRACT FOR RSI, AS A UNIT TEST (Task 8) ───────────────────
 //
@@ -108,7 +113,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
 const legacyScaleOptions = (band) => ({
   borderVisible: false,
   scaleMargins: band,
-  autoScale: false,
+  autoScale: true,
   minimum: 0,
   maximum: 100,
 })

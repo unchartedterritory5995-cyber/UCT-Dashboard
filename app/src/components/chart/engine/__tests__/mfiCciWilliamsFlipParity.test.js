@@ -6,6 +6,11 @@ import * as engineRegistry from '../nativeRegistry'
 import { computeMFI, computeCCI, computeWilliamsR } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── THE FLIP-A CONTRACT FOR MFI, CCI AND WILLIAMS %R (B5 Task 7) ────────────
 //
@@ -296,7 +301,7 @@ describe('the three single-line oscillators, transcribed', () => {
     expect(resolvePlacement({ defId: 'mfi' }, engineRegistry.getDefinition('mfi'), ctx).scaleOptions)
       .toEqual({
         borderVisible: false, scaleMargins: ctx.paneMargins.mfi,
-        autoScale: false, minimum: 0, maximum: 100,
+        autoScale: true, minimum: 0, maximum: 100,
       })
   })
 
@@ -347,7 +352,7 @@ describe('the three single-line oscillators, transcribed', () => {
     expect(resolvePlacement({ defId: 'williamsR' }, engineRegistry.getDefinition('williamsR'), ctx).scaleOptions)
       .toEqual({
         borderVisible: false, scaleMargins: ctx.paneMargins.williamsR,
-        autoScale: false, minimum: -100, maximum: 0,
+        autoScale: true, minimum: -100, maximum: 0,
       })
     expect(guidesFor('williamsR')).toEqual(LEGACY_WILLIAMS_GUIDES)
   })
@@ -372,7 +377,7 @@ describe('the three single-line oscillators, transcribed', () => {
     // …and it reaches the RENDERER, not just the resolver.
     const { F } = sync(WILLIAMS_INSTANCE, WILLIAMS_CS, WILLIAMS_BAND)
     expect(F.callsOf('priceScale.applyOptions')[0].args[0])
-      .toEqual(legacyBandScale(WILLIAMS_BAND, { autoScale: false, minimum: -100, maximum: 0 }))
+      .toEqual(legacyBandScale(WILLIAMS_BAND, { autoScale: true, minimum: -100, maximum: 0 }))
   })
 
   it('and each of the three declares EXACTLY ONE chip, at `rsi`\'s precision', () => {
@@ -431,7 +436,7 @@ describe('mfi transcription — what the shipped block hands the renderer', () =
     const scaleCalls = F.callsOf('priceScale.applyOptions')
     expect(scaleCalls).toHaveLength(1)
     expect(scaleCalls[0].args[0]).toEqual(
-      legacyBandScale(MFI_BAND, { autoScale: false, minimum: 0, maximum: 100 }))
+      legacyBandScale(MFI_BAND, { autoScale: true, minimum: 0, maximum: 100 }))
   })
 
   it('the two guides land on the MFI line itself, with EVERY key stated', () => {
@@ -636,7 +641,7 @@ describe('williamsR transcription — the NEGATIVE scale and the snake_case key'
     const scaleCalls = F.callsOf('priceScale.applyOptions')
     expect(scaleCalls).toHaveLength(1)
     expect(scaleCalls[0].args[0]).toEqual(
-      legacyBandScale(WILLIAMS_BAND, { autoScale: false, minimum: -100, maximum: 0 }))
+      legacyBandScale(WILLIAMS_BAND, { autoScale: true, minimum: -100, maximum: 0 }))
     expect(scaleCalls[0].args[0].minimum, 'the range is NEGATIVE, not mfi\'s 0..100').toBe(-100)
     expect(scaleCalls[0].args[0].maximum).toBe(0)
   })
@@ -794,9 +799,9 @@ describe('three adjacent bands, three different scales', () => {
     // range leaking from one to the next is the pooled-scale hazard, and it is
     // invisible on any case that turns on one oscillator at a time.
     expect(F.callsOf('priceScale.applyOptions').map(c => c.args[0])).toEqual([
-      legacyBandScale(paneMargins.mfi, { autoScale: false, minimum: 0, maximum: 100 }),
+      legacyBandScale(paneMargins.mfi, { autoScale: true, minimum: 0, maximum: 100 }),
       legacyBandScale(paneMargins.cci, { autoScale: true }),
-      legacyBandScale(paneMargins.williamsR, { autoScale: false, minimum: -100, maximum: 0 }),
+      legacyBandScale(paneMargins.williamsR, { autoScale: true, minimum: -100, maximum: 0 }),
     ])
     // Seven guides in total — 2 + 3 + 2 — each on its own definition's line.
     expect(F.count('createPriceLine')).toBe(7)

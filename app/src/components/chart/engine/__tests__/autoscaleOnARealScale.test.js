@@ -58,6 +58,11 @@ import { resolvePlacement } from '../placement'
 import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, fixedRangeProvider } from '../pool'
 import { __setPaneModeForTest } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── jsdom needs a 2D context and a non-zero layout ──────────────────────────
 //
@@ -161,14 +166,14 @@ describe('autoscaleInfoProvider on a REAL fixed-range price scale (B3 carry #1, 
     // The scale options are unchanged and lightweight-charts still ignores the two
     // unknown keys: with the provider REMOVED, RSI frames at its column's extent.
     const { placement, options } = engineRsi()
-    expect(placement.scaleOptions).toMatchObject({ autoScale: false, minimum: 0, maximum: 100 })
+    expect(placement.scaleOptions).toMatchObject({ autoScale: true, minimum: 0, maximum: 100 })
     const bare = { ...options }
     delete bare.autoscaleInfoProvider
     const series = productionOrder(bare, placement.scaleOptions)
     const live = series.priceScale().options()
     expect(live.minimum, 'merge() copied the unknown key in').toBe(0)
     expect(live.maximum).toBe(100)
-    expect(live.autoScale).toBe(false)
+    expect(live.autoScale).toBe(true)
     const { from, to } = series.priceScale().getVisibleRange()
     expect(from).toBeGreaterThan(29); expect(from).toBeLessThan(31)
     expect(to).toBeGreaterThan(69); expect(to).toBeLessThan(71)

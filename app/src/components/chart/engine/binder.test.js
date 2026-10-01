@@ -7,6 +7,11 @@ import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLay
 import * as registry from './nativeRegistry'
 import { macdV2Doc } from './__tests__/macdV2'
 import { interpret } from './ast/interpret'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── The contract under test ─────────────────────────────────────────────────
 //
@@ -35,7 +40,7 @@ const inst = (defId, extra = {}) => ({
 const RSI_SCALE = Object.freeze({
   borderVisible: false,
   scaleMargins: { top: 0.82, bottom: 0 },
-  autoScale: false,
+  autoScale: true,
   minimum: 0,
   maximum: 100,
 })
