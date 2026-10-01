@@ -40,6 +40,7 @@
 // chart uses — so the LITERALS in these cases (`{top: 0.85, bottom: 0}` for RSI,
 // MACD stacked below it) are what pin the values independently, and they are
 // transcriptions of the retired table.
+import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup } from '@testing-library/react'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
@@ -309,7 +310,10 @@ describe('the blob shapes themselves — without these the cases below prove not
       // The set grew again with no flip and nothing to migrate.
       ['adx', 'atr', 'atrBands', 'avwap', 'bb', 'cci', 'dataSeries', 'dollarVolume',
         'donchian', 'ichimoku', 'macd', 'mfi', 'movingAverage', 'obv', 'rsLine',
-        'rsi', 'sar', 'stoch', 'vwap', 'williamsR'])
+        'rsi', 'sar', 'stoch', 'vwap', 'williamsR',
+        // ⭐ FIFTY-THREE AT 2026-10-01: the Technical library's Tier 1 — registry-
+        // native, no block, no section, no toggle; the set grew with no flip.
+        ...TIER1_IDS].sort())
   })
 })
 

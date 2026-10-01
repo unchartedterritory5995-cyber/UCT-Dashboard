@@ -1569,6 +1569,16 @@ const CATEGORY_FAMILY = Object.freeze({
   volatility: 'band',
   volume: 'volume',
   data: 'security',
+  // ⭐ 2026-10-01 — the seven Technical headings (`technicalCategories.js`). Each
+  // keeps the mark its rows wore under the old one-word category: VWAP and Anchored
+  // VWAP were `Volume`, the RS Line was `Momentum`. Statistics draw a plain series.
+  'trend & moving averages': 'trend',
+  'momentum & oscillators': 'oscillator',
+  'volatility & bands': 'band',
+  'volume & money flow': 'volume',
+  vwap: 'volume',
+  'relative strength': 'oscillator',
+  'levels & statistics': 'series',
 })
 
 /**

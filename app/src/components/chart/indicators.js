@@ -358,6 +358,52 @@ export function computeVWAP(bars) {
   return result
 }
 
+/**
+ * The session VWAP's volume-weighted STANDARD DEVIATION (2026-10-01), for the
+ * Session VWAP's optional σ bands.
+ *
+ * ⭐ THE SAME SESSION, THE SAME PRICE, THE SAME WEIGHTS as `computeVWAP` — the
+ * ET-calendar-day bucket, the typical price (h+l+c)/3, and the bar volume — so a
+ * band is `vwap ± k·σ` around exactly the line the study already draws. σ is the
+ * POPULATION volume-weighted deviation: √(Σv·tp²/Σv − vwap²), floored at 0 against
+ * rounding. Same unit gate as `computeVWAP`: a series whose times are not real
+ * instants answers all NaN. Returns plain numbers (NaN = no value).
+ */
+export function computeVWAPDeviation(bars) {
+  const n = bars ? bars.length : 0
+  const out = new Array(n).fill(NA)
+  if (!n) return out
+  for (let i = 0; i < n; i++) {
+    const t = bars[i].t
+    if (!Number.isFinite(t) || t < VWAP_MIN_INSTANT) return out
+  }
+  let cumPV = 0, cumPV2 = 0, cumVol = 0, currentDay = null
+  let memoHour = null, memoKey = null
+  for (let i = 0; i < n; i++) {
+    const bar = bars[i]
+    const hour = Math.floor(bar.t / 3600)
+    let dayKey
+    if (hour === memoHour) {
+      dayKey = memoKey
+    } else {
+      dayKey = etDayKey(bar.t * 1000)
+      memoHour = hour; memoKey = dayKey
+    }
+    if (dayKey !== currentDay) { cumPV = 0; cumPV2 = 0; cumVol = 0; currentDay = dayKey }
+    const tp = (bar.h + bar.l + bar.c) / 3
+    cumPV += tp * bar.v
+    cumPV2 += tp * tp * bar.v
+    cumVol += bar.v
+    if (cumVol > 0) {
+      const mean = cumPV / cumVol
+      const variance = cumPV2 / cumVol - mean * mean
+      const sd = Math.sqrt(variance > 0 ? variance : 0)
+      if (Number.isFinite(sd)) out[i] = sd
+    }
+  }
+  return out
+}
+
 export function computeStochastic(bars, kPeriod = 14, dPeriod = 3) {
   if (!bars || bars.length < kPeriod) return { k: [], d: [] }
   // Fast %K

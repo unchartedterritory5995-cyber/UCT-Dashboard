@@ -592,7 +592,21 @@ export function resolvePlacement(instance, def, ctx) {
   }
 
   const scale = def.placement && def.placement.scale
-  const range = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max))
+  // ⭐⭐ A DECLARED RANGE IS NOW A REAL PIN (2026-10-01), AND IT IS PINNED WHERE
+  // THE LIBRARY READS IT. The scale options are UNCHANGED — `{autoScale:false,
+  // minimum, maximum}`, byte-for-byte what every flip-parity gate pins — and
+  // their first half was always the half that worked: `autoScale:false` freezes
+  // the range the scale first computes. What was missing is that `minimum` /
+  // `maximum` are not lightweight-charts 5.2 options, so that first computation
+  // came from the column (RSI framed ~30..70). The range now ALSO travels as
+  // `autoscaleRange`, which `pool` turns into the series' `autoscaleInfoProvider`
+  // — the one input that computation does read — so the frozen range is the
+  // declared 0..100. `__tests__/autoscaleOnARealScale.test.js` measures it on a
+  // real chart. The provider widens rather than clips.
+  const fixed = (scale && Number.isFinite(scale.min) && Number.isFinite(scale.max) && scale.max > scale.min)
+    ? { min: scale.min, max: scale.max }
+    : null
+  const range = fixed
     ? { autoScale: false, minimum: scale.min, maximum: scale.max }
     : { autoScale: true }
 
@@ -645,6 +659,7 @@ export function resolvePlacement(instance, def, ctx) {
       // every later resolve.
       scaleOptions: { borderVisible: false, scaleMargins: { ...PANE_BAND }, ...range },
       autoscale: 'default',
+      ...(fixed ? { autoscaleRange: fixed } : {}),
       // ⭐ THE PANE'S OWN AXIS CARRIES THE INDICATOR'S LAST VALUE, in a tag, in the
       // plot's colour — the thing the volume pane has always had and every
       // oscillator pane went without. Sub-choice 2.2 already bought the axis and
@@ -669,6 +684,7 @@ export function resolvePlacement(instance, def, ctx) {
     paneIndex: priceIndexOf(c),
     scaleId: key,
     scaleOptions: { borderVisible: false, scaleMargins: { ...band }, ...range },
+    ...(fixed ? { autoscaleRange: fixed } : {}),
     // Its own band, its own scale: it is the only thing on that axis, so it has
     // to be what sizes it.
     //

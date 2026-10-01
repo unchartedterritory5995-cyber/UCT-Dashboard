@@ -39,7 +39,24 @@
  * of them and must not re-create it.
  */
 
+import { MA_TYPES } from './movingAverages.js'
+
 export const MA_DEF_ID = 'movingAverage'
+
+/** The legacy editors' spelling of an instance's `maType` (`hma` → `HMA`).
+ *  ⭐ 2026-10-01: an adopted average can carry any of the nine kit types, and the
+ *  toolbar/Settings/phone editors must SHOW the type it really is — reporting an
+ *  HMA as `SMA` would invite a member to "change" it to what it already says. */
+export function maTypeLabel(maType) {
+  const hit = MA_TYPES.find(([id]) => id === maType)
+  return hit ? hit[1] : 'SMA'
+}
+
+/** A legacy editor's `type` value → the instance's `maType` id. */
+export function maTypeId(value) {
+  const v = String(value || '').toLowerCase()
+  return MA_TYPES.some(([id]) => id === v) ? v : 'sma'
+}
 
 /** The instance id a slot is adopted as. Stable per SLOT, so a slot is always the
  *  same average across reads, templates and grid cells. */
@@ -232,7 +249,7 @@ export function averageSlotView(cs) {
       index,
       instanceId: inst.instanceId,
       enabled: inst.hidden !== true,
-      type: inputs.maType === 'ema' ? 'EMA' : 'SMA',
+      type: maTypeLabel(inputs.maType || 'sma'),
       period: Number(inputs.period) || slot.period,
       color: inputs.color || slot.color,
       lineWidth: Number(pres.lineWidth) || 1,
@@ -270,7 +287,7 @@ export function writeAverageSlot(cs, index, field, value) {
     let hidden = inst.hidden
     switch (field) {
       case 'enabled': hidden = value === false; break
-      case 'type': inputs.maType = String(value).toUpperCase() === 'EMA' ? 'ema' : 'sma'; break
+      case 'type': inputs.maType = maTypeId(value); break
       case 'period': {
         const p = Math.floor(Number(value))
         if (!Number.isFinite(p) || p < MA_PERIOD_MIN) return inst

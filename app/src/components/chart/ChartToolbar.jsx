@@ -58,6 +58,7 @@ import { catalogRows, labelFor, oscillatorIds } from './indicatorCatalog'
 // and must not be listed; `averageSlotView` answers null for it (and for an
 // adopted average whose instance was deleted). See `maAdoption.js`.
 import { averageSlotView, writeAverageSlot } from './maAdoption'
+import { MA_TYPES } from './movingAverages'
 import { chordForTool } from './keyboardShortcuts'
 import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
@@ -452,8 +453,11 @@ function ChartSettingsPanel({
           <div key={i} className={styles.sOverlayRow}>
             <Checkbox aria-label={`Show moving average ${i + 1}`} checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
             <Select aria-label={`Moving average ${i + 1} type`} className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
-              <option value="SMA">SMA</option>
-              <option value="EMA">EMA</option>
+              {/* ⭐ An ADOPTED average is an engine instance and can be any kit type;
+                  an unadopted slot is still drawn by the legacy SMA/EMA renderer. */}
+              {(ov.instanceId ? MA_TYPES.map(([, label]) => label) : ['SMA', 'EMA']).map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </Select>
             <Input
               type="number"

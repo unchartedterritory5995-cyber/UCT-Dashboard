@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { orderCategories } from './technicalCategories'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -69,7 +70,9 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // heading; there is no group array to forget to edit — the exact defect the
     // settings modal's hardcoded section list was (B3 Task 12 retired it).
     const headings = screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)
-    expect(headings).toEqual([...new Set(OFFERED().map((r) => r.category))])
+    // ⭐ 2026-10-01 — in the FIXED Technical order (`technicalCategories.js`),
+    // not first-appearance order.
+    expect(headings).toEqual(orderCategories([...new Set(OFFERED().map((r) => r.category))]))
     expect(screen.getAllByRole('option')).toHaveLength(OFFERED().length)
     // …and the carved-out section is one of them. A list built from definitions
     // alone drops it — the regression B3 Task 11 refused.
@@ -121,18 +124,24 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     const box = screen.getByRole('searchbox')
     expect(document.activeElement).toBe(box)
     fireEvent.change(box, { target: { value: 'bollinger' } })
-    expect(optionIds()).toEqual(['bb'])
+    expect(optionIds()).toEqual(['bb', 'bbPercentB', 'bbWidth', 'squeeze']) // ⭐ 2026-10-01: %B, BandWidth (id) and Squeeze (tag `bb kc`) match `bb` too
     fireEvent.change(box, { target: { value: 'BB' } })
-    expect(optionIds()).toEqual(['bb'])
+    expect(optionIds()).toEqual(['bb', 'bbPercentB', 'bbWidth', 'squeeze'])
     // ⚠️ A TAG, AND THE ORDER IS THE GROUPED ORDER, NOT CATALOG ORDER. The brief
     // expected `['rsi','macd','stoch','mfi','cci','williamsR']` — catalog order —
     // while also requiring category headings. Both cannot hold: `mfi`'s category
     // is Volume and the other five are Momentum, so a grouped render puts it
     // last. Measured, and asserted as it RENDERS.
     fireEvent.change(box, { target: { value: 'oscillator' } })
-    expect(optionIds()).toEqual(['rsi', 'macd', 'stoch', 'cci', 'williamsR', 'mfi'])
+    // ⭐ 2026-10-01 — "oscillator" now also matches the CATEGORY name
+    // `Momentum & Oscillators` (every row in it) and Chaikin Oscillator's name, so
+    // the grouped render is the whole momentum group, then MFI and Chaikin Osc.
+    expect(optionIds()).toEqual(['rsi', 'macd', 'stoch', 'cci', 'williamsR',
+      'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate',
+      'balanceOfPower', 'bullBearPower',
+      'mfi', 'chaikinOscillator'])
     expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent))
-      .toEqual(['Momentum', 'Volume'])
+      .toEqual(['Momentum & Oscillators', 'Volume & Money Flow'])
   })
 
   it('a query that matches nothing says so instead of rendering an empty dialog', () => {
@@ -175,7 +184,7 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     const { rerender } = render(<IndicatorLibraryDialog open {...props} />)
 
     type('bollinger')
-    expect(optionIds()).toEqual(['bb'])
+    expect(optionIds()).toEqual(['bb', 'bbPercentB', 'bbWidth', 'squeeze'])
 
     rerender(<IndicatorLibraryDialog open={false} {...props} />)
     rerender(<IndicatorLibraryDialog open {...props} />)

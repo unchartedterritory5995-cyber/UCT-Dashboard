@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
-import { AUTOSCALE_DEFAULT } from '../pool'
+import { AUTOSCALE_DEFAULT, fixedRangeProvider } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeMFI, computeCCI, computeWilliamsR } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
@@ -423,7 +423,7 @@ describe('mfi transcription — what the shipped block hands the renderer', () =
     // B5 geometry arriving early, and it would move every other series.
     expect(created[0].args[2]).toBe(0)
     expect(opts(F)).toMatchObject(LEGACY_MFI)
-    expect(opts(F)).toEqual({ ...LEGACY_MFI, ...LWC_LINE_DEFAULTS_RESTATED })
+    expect(opts(F)).toEqual({ ...LEGACY_MFI, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) })
   })
 
   it('asserts the FULL price-scale set — the band AND the 0-100 fixed range', () => {
@@ -611,7 +611,7 @@ describe('williamsR transcription — the NEGATIVE scale and the snake_case key'
     expect(created[0].args[0]).toBe(F.LWC.LineSeries)
     expect(created[0].args[2]).toBe(0)
     expect(opts(F)).toMatchObject(LEGACY_WILLIAMS)
-    expect(opts(F)).toEqual({ ...LEGACY_WILLIAMS, ...LWC_LINE_DEFAULTS_RESTATED })
+    expect(opts(F)).toEqual({ ...LEGACY_WILLIAMS, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(-100, 0) })
     // ⭐ THE SCALE ID IS THE SETTINGS KEY, `williamsR` — camelCase — while the
     // PLOT key is `williams_r`. The scale is named after the DEFINITION id, the
     // column after the compute's output key, and the two are deliberately

@@ -46,6 +46,7 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
+import { orderCategories } from './technicalCategories'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys,
@@ -1044,7 +1045,10 @@ export default function ChartSettingsIndicators({
   // `Symbols`…), NOT the tabs. A tab is what the member chose to look at; a
   // heading is how that tab's contents sort themselves inside it.
   const groups = useMemo(() => {
-    const order = [...new Set(tabResults.map((r) => r.category))]
+    // ⭐ 2026-10-01 — THE TECHNICAL HEADINGS IN THEIR FIXED ORDER
+    // (`technicalCategories.js`), never in whatever order the catalogue happened
+    // to list its rows; any other heading keeps its first-appearance place after.
+    const order = orderCategories([...new Set(tabResults.map((r) => r.category))])
     const mine = new Set(tabResults.filter((r) => r.userDefined).map((r) => r.category))
     const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
     // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (owner §9). A member who types `QQQ`
@@ -1159,7 +1163,13 @@ export default function ChartSettingsIndicators({
       return
     }
     const revivable = !row.builtIn && !!findInstance(settings, legacyInstanceId(row.id))
-    const next = (row.builtIn || revivable)
+    // ⛔ A CARVED-OUT ROW (Volume Profile) HAS NO DEFINITION TO INSTANTIATE.
+    // `addInstance` refuses such an id by returning `settings` unchanged, so this
+    // door used to swallow the click whole (reproduced 2026-10-01,
+    // `__tests__/volumeProfileAdd.test.jsx`). Its own writer is `toggledRow`,
+    // which flips the settings slice that IS its existence — the canvas overlay
+    // keeps its architecture and simply gets turned on.
+    const next = (row.builtIn || revivable || row.carvedOut)
       ? toggledRow(row, settings, registry)
       : addInstance(settings, row.id, registry)
     // Identity, not deep equality: a REFUSED write returns `settings` itself, and

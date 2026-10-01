@@ -111,10 +111,10 @@ adding one.
 
 ```
 LINTER-MEASUREMENT-V1
-definitions 20
-plots 45
+definitions 53
+plots 125
 decided 1
-undecidable-hand-written 44
+undecidable-hand-written 124
 verdict ichimoku.chikou preview-repaints forward=26
 disagreement ichimoku.chikou shipped=non-repainting measured=preview-repaints
 ```
@@ -128,6 +128,14 @@ stays 1, the one verdict is the same verdict, and the one disagreement is the
 same disagreement. The counts are re-measured here rather than the badge being
 edited — editing `meta.repaint` to quiet a rail is the one response §2/§5.7
 forbids.
+
+⭐ **2026-10-01 — the counts moved by thirty-three definitions and eighty plots,
+and the FINDING did not move at all.** The Technical library's Tier 1 registered
+thirty-three hand-written native studies (SuperTrend through Standard Deviation)
+and gave Session VWAP six optional σ-band plots. Every one of them is hand-written
+JS, so all eighty plots land in `undecidable-hand-written`: `decided` stays 1, the
+one verdict and the one disagreement are unchanged. Re-measured here, never edited
+into agreement — the same response as the `dollarVolume` note above.
 
 **Read `decided 1` before reading anything else.** Every shipped definition today
 is hand-written JS or Python, and spec §11 explicitly forbids static analysis of

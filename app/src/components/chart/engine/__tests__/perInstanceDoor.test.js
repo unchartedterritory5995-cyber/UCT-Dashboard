@@ -384,6 +384,27 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
       // `IndicatorLibraryDialog.toggledRow` never calls that door for it. No other
       // definition's enable/input/disable blob changed beyond carrying the averages.
       // (Prior value: a2d35dcafd3067f47fb03804ece00dd727c1eba27e2204cdbeb02132a93a4a4d)
-      .toBe('4ca66180df6f662a4b874a7e42770c6a9115695bd10a6091aed73a3d3a990474')
+      // 2026-10-01: re-pinned for SLOW STOCHASTIC — `stoch` gained `smoothK`
+      // (declared default 1 = the shipped FAST stochastic, so an absent key keeps
+      // every saved instance's meaning) and `meta.createInputs: { smoothK: 3 }`,
+      // which the add doors write onto a NEW instance.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED. The corpus rebuilt on this
+      // tree with ONLY `createInputs` switched off (the new input still declared)
+      // digests to `4ca66180df6f662a4b874a7e42770c6a9115695bd10a6091aed73a3d3a990474`
+      // — the previous pin, byte for byte. So the one moving part is the `stoch`
+      // enable door writing `smoothK: 3` onto the instance it creates, and no
+      // other door moved.
+      // (Prior value: 4ca66180df6f662a4b874a7e42770c6a9115695bd10a6091aed73a3d3a990474)
+      // 2026-10-01 (second move, same branch): re-pinned for the Technical
+      // library's thirty-three Tier 1 definitions — a REGISTRY ADDITION, not a door
+      // change, exactly like `dataSeries`/`movingAverage`/`dollarVolume` above.
+      // ⛔ INVESTIGATED BY MEASUREMENT, NOT REGENERATED: the corpus rebuilt with
+      // the thirty-three SKIPPED (filtered by `tier1Library.fixture.TIER1_IDS`)
+      // digests to `c731ccbbfb1024c2b9520ce5746545c514817409e159cca5fe925bb622778611`
+      // — the previous pin, byte for byte — so every pre-existing definition's
+      // enable/input/disable blobs are untouched, Session VWAP's new `bands` enum
+      // included (an enum is not the `int` this corpus exercises).
+      // (Prior value: c731ccbbfb1024c2b9520ce5746545c514817409e159cca5fe925bb622778611)
+      .toBe('8469f829356dab8ef6448a35ecac1ad59eb8c69686c0a7ec686652d13b2ddbd5')
   })
 })

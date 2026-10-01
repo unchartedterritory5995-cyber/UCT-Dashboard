@@ -5662,6 +5662,11 @@ export default function StockChart({
       // symbol search — the same reason it is subtracted from the library list.
       submenu: catalogRows()
         .filter((row) => !LIBRARY_HIDDEN_IDS.includes(row.id))
+        // ⭐ 2026-10-01 — A QUICK MENU, NOT THE LIBRARY. A definition declaring
+        // `meta.quickMenu: false` (the Technical library's Tier 1 studies) is listed
+        // here only while it is ON, so it can be switched off where it is seen;
+        // adding one is the Add Indicator library's job, by category and search.
+        .filter((row) => engineRegistry.getDefinition(row.id)?.meta?.quickMenu !== false || indEnabled(row.id))
         .map((row) => ({
           id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
           onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
@@ -7929,8 +7934,14 @@ export default function StockChart({
       if (src !== 'close' || b.frame) continue
       const period = Math.floor(Number(inputs.period))
       if (!(period > 0)) continue
+      // ⛔ ONLY SMA AND EMA HAVE A ONE-TICK STEP HERE (2026-10-01). The other
+      // kit types (WMA, HMA, VWMA, …) are not an SMA, and stepping them with the
+      // SMA arithmetic below would overwrite a correct value with a wrong one on
+      // every tick; they hold until the next poll recomputes them.
+      const mt = inputs.maType || 'sma'
+      if (mt !== 'sma' && mt !== 'ema') continue
       let val = null
-      if (inputs.maType === 'ema') {
+      if (mt === 'ema') {
         const prior = sameBucket ? b.prevValue : b.lastValue
         if (Number.isFinite(prior)) {
           const k = 2 / (period + 1)

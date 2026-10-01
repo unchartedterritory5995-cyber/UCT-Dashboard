@@ -443,7 +443,10 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
       // ⭐ `movingAverage` DECLARES `onPrice` TOO. `MA(Close)` belongs on the
       // candles — it is what a moving average has always been — and like every
       // other price overlay it reserves no vertical space of its own.
-      'movingAverage'])
+      'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
     for (const d of priceDefs) {
       // ⚠️ THE SAME INSTANCE THE LAYOUT WAS BUILT FROM. This passed a
       // DIFFERENT id (`i:<def>`) than the `inst(d.id)` above, and got away with it

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { TIER1_IDS } from './engine/__tests__/tier1Library.fixture'
 import fs from 'node:fs'
 import path from 'node:path'
 import {
@@ -251,10 +252,15 @@ describe('the catalog covers every settings section, and nothing else', () => {
     // `dataSeries`, in registration order. Its own pane is arithmetic, not taste:
     // `volume × close` is two orders of magnitude above share volume, so sharing
     // volume's ladder would flatten the bars it sits over. See its definition.
-    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'dollarVolume', 'rsLine'])
+    // ⭐ 2026-10-01 — the Technical library's thirty own-pane Tier 1 studies follow
+    // `dollarVolume` in registration order, ahead of the server lane's `rsLine`.
+    expect(oscillatorIds()).toEqual(['rsi', 'macd', 'stoch', 'atr', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'dataSeries', 'dollarVolume',
+      ...TIER1_IDS.filter((id) => !['superTrend', 'keltner', 'envelope'].includes(id)), 'rsLine'])
     expect(priceOverlayIds()).toEqual(['bb', 'vwap', 'sar', 'ichimoku', 'donchian', 'avwap',
       // ⭐ `movingAverage` declares `onPrice` and lands last, in registration order.
-      'atrBands', 'movingAverage'])
+      'atrBands', 'movingAverage',
+      // ⭐ 2026-10-01 — the Technical library's three price overlays.
+      'superTrend', 'keltner', 'envelope'])
     // ⭐ `rsLine` (Phase C Task 13) is a PANE definition and lands at the END of
     // the oscillator list, because `listDefinitions()` is now `natives ++ server`
     // and order is z-order. It is asserted in the equality above rather than
@@ -507,7 +513,8 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
 
   it('leaves VWAP\'s four inputs LIVE — the control that proves the predicate is not over-wide', () => {
     const def = engineRegistry.getDefinition('vwap')
-    expect(def.inputs.map(i => i.key)).toEqual(['color', 'opacity', 'lineStyle', 'lineWidth'])
+    // ⭐ 2026-10-01 — plus `bands` (the optional σ bands), which is just as live.
+    expect(def.inputs.map(i => i.key)).toEqual(['color', 'opacity', 'lineStyle', 'lineWidth', 'bands'])
     expect([...unwiredKeys(def, ENGINE_OWNED)]).toEqual([])
     // ⭐ AND FOR THE STRONG REASON, not the short-circuit — which is now the ONLY
     // reason available, and that is itself the claim. B5 Task 9 deleted every
@@ -684,6 +691,13 @@ describe('the library needs a sentence per indicator, and the schema already all
       avwap: 'non-repainting',
       atrBands: 'non-repainting',
       rsLine: 'non-repainting',
+      // ⭐ 2026-10-01 — JUDGED, NOT DEFAULTED: the Technical library's Tier 1. Each was
+      // read for forward data: none indexes past its own bar (no centred DPO, no
+      // forward-displaced plot), the recursions (SuperTrend, the EMAs) advance on
+      // completed values, and the cumulative lines (A/D, PVT) only append. So each is
+      // `non-repainting` in the same sense RSI is — the forming bar moves, history does
+      // not. VWAP's σ bands are the same session accumulation as the line.
+      ...Object.fromEntries(TIER1_IDS.map((id) => [id, 'non-repainting'])),
     }
 
     // ⛔ THE RECORD'S OWN MEASUREMENT BLOCK, READ OUT OF THE REPO. `.superpowers/`

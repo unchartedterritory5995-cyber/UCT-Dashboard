@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
 import { render, cleanup, act, fireEvent, screen, within } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -1341,6 +1342,9 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         // …and the ten that already shipped, untouched by it.
         'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
         'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+        // ⭐ 2026-10-01 — the Technical library's Tier 1: forty-two chips, decided
+        // and written down (`tier1Library.fixture.js`), not grown by accident.
+        ...TIER1_CHIPS,
       ].sort())
     // …and the control: the shipped nine are still in it, character for character,
     // read off the SHIPPED ARTIFACT rather than re-typed above.

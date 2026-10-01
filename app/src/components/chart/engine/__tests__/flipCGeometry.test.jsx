@@ -280,6 +280,10 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
         scaleId: id,
         scaleOptions: { borderVisible: false, scaleMargins: { ...bands[id] }, ...range },
         autoscale: 'default',
+        // ⭐ 2026-10-01 — the ONE key added since Flip C: the declared range, which
+        // `pool` turns into the series' fixed-range autoscale provider.
+        ...(scale && Number.isFinite(scale.min) && Number.isFinite(scale.max)
+          ? { autoscaleRange: { min: scale.min, max: scale.max } } : {}),
       }
       const ctx = { paneMargins: bands, volOverlaySet: new Set(), volSeparatePane: false }
       expect(resolvePlacement(inst(id), def, { ...ctx, paneLayout }), id).toEqual(before)
@@ -306,8 +310,12 @@ describe('PANE_MODE bands — the geometry the flip reverses TO', () => {
     // never shipped a band, because before this it was not a pane at all but a
     // number printed into the volume pane's label. The loop stays a transcription
     // check for the nine that did ship.
-    expect(checked).toBe(12)
-    expect(ids).toHaveLength(12)
+    // ⭐ FORTY-TWO AT 2026-10-01: thirty of the Technical library's Tier 1 studies
+    // draw in their own pane (SuperTrend, Keltner and the MA Envelope are price
+    // overlays). Each has a DERIVED `before`, like `dataSeries`: none ever shipped
+    // a band, so the loop is a self-consistency check for them.
+    expect(checked).toBe(42)
+    expect(ids).toHaveLength(42)
   })
 
   it('and the chart really has ONE pane, with three oscillators on it', async () => {
@@ -597,6 +605,9 @@ describe('PANE_MODE panes — the cutover, exercised', () => {
       scaleOptions: { borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 },
       autoscale: 'default',
       lastValue: true,
+      // ⭐ 2026-10-01 — the fourth key this case exists to notice: RSI's declared
+      // range, pinned by `pool`'s fixed-range provider.
+      autoscaleRange: { min: 0, max: 100 },
     })
   })
 

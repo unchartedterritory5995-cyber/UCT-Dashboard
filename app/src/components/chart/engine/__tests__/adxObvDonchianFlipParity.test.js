@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
-import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
+import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot, fixedRangeProvider } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { ENGINE_OWNED } from '../flipState'
 import { REGISTRY_SIZES } from '../registrySizes'
@@ -344,9 +344,9 @@ describe('adx — three lines, one scale, one guide', () => {
       expect(c.args[2]).toBe(0)
     }
     expect(created.map(c => c.args[1])).toEqual([
-      { ...LEGACY_ADX, ...LWC_LINE_DEFAULTS_RESTATED },
-      { ...LEGACY_PLUS_DI, ...LWC_LINE_DEFAULTS_RESTATED },
-      { ...LEGACY_MINUS_DI, ...LWC_LINE_DEFAULTS_RESTATED },
+      { ...LEGACY_ADX, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
+      { ...LEGACY_PLUS_DI, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
+      { ...LEGACY_MINUS_DI, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) },
     ])
     expect(opts(F, 0)).toMatchObject(LEGACY_ADX)
   })
@@ -760,7 +760,10 @@ describe('donchian — a band plot with edges, and the LAST price overlay', () =
         // and it lands LAST because `listDefinitions()` is registration order and
         // this order IS z-order. `MA(Close)` belongs on the candles, which is what
         // a moving average has always been.
-        'movingAverage'])
+        'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
     // …and the binder really does insert in the order it is handed, which is why
     // the instance list's order is the thing that has to be registry order.
     const overlays = ['bb', 'vwap', 'sar', 'ichimoku', 'donchian'].map(id => ({

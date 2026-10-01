@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { createBinder } from '../binder'
 import { resolvePlacement } from '../placement'
-import { AUTOSCALE_DEFAULT } from '../pool'
+import { AUTOSCALE_DEFAULT, fixedRangeProvider } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { computeStochastic, computeATR } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
@@ -216,7 +216,7 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
   it('%K: the engine builds the shipped option object, key for key', () => {
     const { F } = sync(STOCH_INSTANCE, STOCH_CS, STOCH_BAND)
     expect(opts(F, 0)).toMatchObject(LEGACY_STOCH_K)
-    expect(opts(F, 0)).toEqual({ ...LEGACY_STOCH_K, ...LWC_LINE_DEFAULTS_RESTATED })
+    expect(opts(F, 0)).toEqual({ ...LEGACY_STOCH_K, ...LWC_LINE_DEFAULTS_RESTATED, autoscaleInfoProvider: fixedRangeProvider(0, 100) })
   })
 
   it('%D: including lineStyle 2, which is the only thing that distinguishes it', () => {
@@ -225,7 +225,7 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
     // ⚠️ The spread order matters: `LEGACY_STOCH_D` must WIN over the restated
     // `lineStyle: 0`, or this case would assert %D is solid and pass on a
     // definition that had dropped its dash.
-    expect(opts(F, 1)).toEqual({ ...LWC_LINE_DEFAULTS_RESTATED, ...LEGACY_STOCH_D })
+    expect(opts(F, 1)).toEqual({ ...LWC_LINE_DEFAULTS_RESTATED, ...LEGACY_STOCH_D, autoscaleInfoProvider: fixedRangeProvider(0, 100) })
     expect(opts(F, 1).lineStyle, '%D lost its dash — the only thing that distinguishes it').toBe(2)
     expect(opts(F, 0).lineStyle, '%K is not dashed and never was').toBe(0)
   })
@@ -275,6 +275,8 @@ describe('stoch transcription — what the shipped block hands the renderer', ()
         borderVisible: false, scaleMargins: ctx.paneMargins.stoch,
         autoScale: false, minimum: 0, maximum: 100,
       },
+      // ⭐ 2026-10-01 — the declared range, which `pool` now really pins.
+      autoscaleRange: { min: 0, max: 100 },
     })
   })
 

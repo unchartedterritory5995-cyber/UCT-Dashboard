@@ -77,6 +77,18 @@ export const SHIPPED_DEF_IDS = Object.freeze({
     // means a member chooses it — and can colour it, move it and delete it like
     // everything else. Last, in REGISTRATION order.
     'dollarVolume',
+    // ⭐ 2026-10-01 — THE TECHNICAL LIBRARY, TIER 1: thirty-three studies, in
+    // registration order (grouped by category in `nativeRegistry.js`). Each is an
+    // ordinary native over `../technicalStudies.js`; none changes any id above.
+    'superTrend', 'aroon', 'vortex', 'choppiness',
+    'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate',
+    'balanceOfPower', 'bullBearPower',
+    'keltner', 'envelope', 'bbPercentB', 'bbWidth', 'atrPercent', 'adrPercent',
+    'historicalVolatility', 'squeeze',
+    'relativeVolume', 'accumDist', 'chaikinMoneyFlow', 'chaikinOscillator', 'forceIndex',
+    'pvt', 'upDownVolume',
+    'percentFromMa', 'fiftyTwoWeek',
+    'standardDeviation',
   ]),
   server: Object.freeze(['rsLine']),
   ast: Object.freeze([]),

@@ -42,6 +42,7 @@
 // right-click submenu and the on-count keep reading the shipped list they have
 // always read — none of them can resolve another member's `u_…` id anyway.
 
+import { TECH_CATEGORY } from './technicalCategories'
 import * as defaultRegistry from './engine/nativeRegistry'
 import { CHART_DEFAULTS } from './chartDefaults'
 import { definitionRollUp, repaintNotices } from './engine/repaintVerdict'
@@ -66,7 +67,7 @@ export const CARVED_OUT_ROWS = Object.freeze([
     id: 'volumeProfile',
     name: 'Volume Profile',
     shortName: 'Vol Profile',
-    category: 'Volume',
+    category: TECH_CATEGORY.VOLUME,
     target: 'canvas',
     carvedOut: true,
     engineOwned: false,
@@ -131,7 +132,7 @@ export const BUILT_IN_ROWS = Object.freeze([
     builtIn: 'overlay',
     name: 'Moving Average',
     shortName: 'MA',
-    category: 'Trend',
+    category: TECH_CATEGORY.TREND,
     target: 'price',
     carvedOut: false,
     engineOwned: false,
@@ -156,7 +157,7 @@ export const BUILT_IN_ROWS = Object.freeze([
     builtIn: 'volume',
     name: 'Volume',
     shortName: 'Vol',
-    category: 'Volume',
+    category: TECH_CATEGORY.VOLUME,
     target: 'pane',
     carvedOut: false,
     engineOwned: false,
