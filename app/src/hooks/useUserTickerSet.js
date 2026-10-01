@@ -24,9 +24,15 @@ import { useFlagged } from './useFlagged'
 
 const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
 
-export default function useUserTickerSet() {
+// `enabled` defaults to true, so every existing caller (CatalystTable,
+// catalystsSection, ArticleReader) is unaffected — it exists for LogoPrewarm,
+// which mounts at the app root for EVERY visitor, signed in or not, so it can
+// hold off this authed-only GET until a member is actually signed in.
+// `useFlagged()` already self-gates on `user` internally (null key / early
+// `if (!user) return`), so it needs no change here.
+export default function useUserTickerSet(enabled = true) {
   const { flagged } = useFlagged()
-  const { data: watchlists } = useSWR('/api/watchlists?include_prebuilt=0', fetcher, {
+  const { data: watchlists } = useSWR(enabled ? '/api/watchlists?include_prebuilt=0' : null, fetcher, {
     refreshInterval: 60000,
     revalidateOnFocus: false,
   })

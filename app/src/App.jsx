@@ -208,8 +208,29 @@ const GlobalVoiceLayer = lazy(() => import('./components/voice/GlobalVoiceLayer'
 
 /** Paid-only gate for the voice layer. The dynamic import (and thus the
  *  voice/wasm chunk) only fires for paid users — free users never download
- *  any of it. Returns null until auth resolves and the user is paid. */
+ *  any of it. Returns null until auth resolves and the user is paid.
+ *
+ *  ⛔ Mounted at the app root for EVERY visitor, signed in or not — the public
+ *  /share/n/:token and /p/:slug pages and the marketing/login/signup pages
+ *  included. `useHubActive()` unconditionally calls `useHubSettings()`, which
+ *  reads `/api/auth/preferences` (authed-only, 401 for a stranger) via
+ *  `usePreferences()` with no gate of its own. `app/src/hub/**` is not
+ *  touched — `useHubActive`/`useHubSettings` are explicitly designed to stay
+ *  callable with no signed-in user (they read `AuthContext` directly and
+ *  resolve to "not admin, disabled" rather than throwing), so the only safe
+ *  place to defer the CALL is here, by not mounting the component that makes
+ *  it until a member is actually signed in. */
 function GlobalVoiceGate() {
+  const { loading, user } = useAuth()
+  if (loading || !user) return null
+  return <GlobalVoiceGateForUser />
+}
+
+/** The actual gate, split out so `useHubActive()` (and the preferences fetch
+ *  it carries) is never called before `GlobalVoiceGate` above confirms a
+ *  signed-in user — see its comment. Behaviour for a signed-in member is
+ *  unchanged: same checks, same order, just not evaluated while logged out. */
+function GlobalVoiceGateForUser() {
   const { isPaid } = useAuth()
   const hubActive = useHubActive()
 

@@ -12,9 +12,15 @@ const fetcher = (url) =>
     return r.json()
   })
 
-export default function useJ2Accounts() {
+// `enabled` defaults to true so every existing caller (all ~30 of them, every
+// one inside <AuthGuard/> where `user` is already resolved by the time they
+// mount) is unaffected. It exists for root-mounted callers — components that
+// render for EVERY visitor, signed in or not — so they can hold off this
+// fetch until a member is actually signed in. `null` is SWR's own "don't
+// fetch" key; a `false` here costs nothing but the key swap.
+export default function useJ2Accounts(enabled = true) {
   const { data, error, isLoading, mutate } = useMobileSWR(
-    '/api/j2/accounts',
+    enabled ? '/api/j2/accounts' : null,
     fetcher,
     {
       refreshInterval: 30_000,
