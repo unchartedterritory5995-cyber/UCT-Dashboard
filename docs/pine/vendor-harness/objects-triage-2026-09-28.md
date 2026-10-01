@@ -155,6 +155,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 51 | C41 a lower-timeframe request is SERVED on daily and weekly charts (§ C41). `request.security(syminfo.tickerid, "5" / "15" / "60" / "240", expr)` below the chart's timeframe is a new canonical node, `{type:'ltf', value:'<minutes>', args:[child]}` (formula `ltf(expr, '60')`): the child runs on the chart symbol's own REGULAR-SESSION intraday series and each chart bar reads its LAST intrabar (witnessed: `vw-lower-tf-spy-1d` / `-rddt-1d` / `-spy-1w-2026-09-30`); 60 and 240 are bucketed from 15-minute bars on the 09:30 grid. A chart bar whose sessions are not ALL complete in the supply, or whose child reaches past the front of it, is UNKNOWN and withheld - never `na`. The supply is one hook (`useLowerTfSources`, wired into `StockChart.jsx` beside `useOtherSymbolExchanges`): no request for a chart with no such script, ONE (`/api/bars/SYM?tf=15`) for ema-ribbon's three codes, capped at the route's 60,000 bars. Lookahead, `request.security_lower_tf` arrays, another symbol below the chart, `ticker.modify` sessions, intraday and monthly charts, `"1"` and `"30"`, the screen lane and the runtime lane stay refused by name | `d7009cc06a` (+ merges `3bb52e2523`, `8c790cddeb`, and the docs commit) | 30 / 47 -> 30 / 47 (overall 27 -> 27; base wave 9 `19bcbf278c`, objects pane on; pane off 18 -> 18, overall 15 -> 15) | 233 / 266 -> 233 / 266 (plots 161 -> 161 / 172) | **ema-ribbon-trend-filter** table cells 36 -> **47 / 48**: its 15m / 1H / 4H rows (`2.63%` / `3.8%` / `3.88%`), the bias row (`0B  5S  /  5`) and `▼▼  STRONG BEAR` are TradingView's, text for text (`vendorHarness.c41LowerTfServe`); what is left is the strength bar `██████████`, another wall. No family flips (the cell count and text families stay one short). **artemis-oscillator-pro**: its three lower reads are `ltf` nodes now, graded outputs unchanged (notes only). The same two entries under both flag states and in the committed harness dir (117: objects 62 / 82, overall 46, families 315 / 350, plots 343 / 417, all unchanged), plus the three `vw-lower-tf` probe entries' refusal sentence (still INCONCLUSIVE: the probe script also carries lookahead and array rows, and the door is all-or-nothing - its served rows are graded row by row in the C41 rail). Member-door census 266 x 2: attach 41 / 64 -> 41 / **65** (`mtf-dashboard-pro` attaches with the objects pane on; pane off its sentence changes), 1 row per state, base-vs-base 0 rows. Translation census 266: host lane ok 58 -> 59, served outputs 404 -> 414; screen lane 58 / 738 unchanged, no served screen output moved. Notebook first-open 1,897,262 -> 1,897,271 B (+9: a chunk FILENAME three characters longer in three preload lists, PASS); total JS +15,966 B. `paramIds.test.js` green; `docs/pine/param-ids.json` re-pinned for three scripts that were door-refused at base in both flag states |
 
 | 52 | C42 a call that runs exactly ONCE reads what TradingView reads (section C42). The witness is `vw-fn-series-history-rddt-1d-2026-09-30` and the C04 arm of ema-ribbon: under a guard that is PROVABLY `barstate.islast` (`guardIsLastBarOnly`, alone or as a top-level `and` conjunct), in no loop, (i) `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` are the chart's values `k` bars back and move to `CHART_SERIES_WITNESSED`; (ii) `bar_index[k]` is the call's own history (`na` on its one run) and moves to `CALL_OWNED_SERIES`; (iii) `ta.highest(src, len)` reads its source and `ta.sma(src, len ≥ 2 literal)` reads `na`. Everything else keeps a named refusal: every other `ta.*`, every other guard, a loop, a non-literal offset or length, `time_close[k]` / `hlcc4[k]`, `bar_index[k]` under any other guard. On the way: a bare `input(<literal>, …)` is a simple input (its guard is bar-invariant); the clock functions `time(…)` / `time_close(…)` and the calendar readers answer from the bar's own timestamp, so a conditional call that reads them has no history to starve (`fn:conditional-history` 540 → 383 across the 266, no object program moved). ema-ribbon's cell (2,3) is TradingView's ██████████.
+| 54 | C44 a measured sweep on the wave-10 tree and ONE verdict change (§ C44). **Sweep:** the 47 and the committed harness dir re-graded at `e4e24524ef` and at wave 9 (`46f54d80b5`), every entry that moved named; each of the 22 non-MATCH captures traced to its first wall with code@line and classed (buildable / capture-pending / budget / dark flag / correct end state / data / grammar); buildable walls ranked; the owed captures in one table; the member-door and translation censuses re-run. **Verdict:** object COLOUR joins the harness verdict (integrator ruling on C37's question) — `compare.mjs::objectColourRows`, theme-relative slots agree, an object NEITHER side draws (an `na` coordinate on both) is counted and not graded, fail-closed on an unknown state; every verdict also carries `verdictWithoutColour`, so both numbers come from one run. Found on the way: the pairing never paired an object at an `na` price (`NaN` here, `null` in the capture), so 504 + 51 + 48 objects had no colour read; fixed (`objectColours.js::isNa`). No engine semantics | `122521b211` | 30 / 47 without colour, as every row above was taken → **29 / 47 with colour** | 234 / 266 (count and text, unchanged); colour families 72 / 73 | wave 9 → wave 10 moved no graded verdict on the 47 (trend-duration line 0 → 1, labels 26 → 27; ema-ribbon cells 36 → 37). Colour moves ONE: `heat-map-seasons` (one cell fill, a variable named `color`). `multi-timeframe-supply-demand-zones` holds 8 boxes in the wrong colour that neither platform draws: counted (16 undrawn slots differ), not a verdict. Overall 27 → 26; harness dir 66 → 65 objects, 48 → 47 overall. 29 mutations, each red alone |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -3500,3 +3501,329 @@ re-pinned, then `Test Files  2 passed (2)`, `Tests  42 passed (42)`. Python rail
 | M24 | the gate answers on whatever the variable says | Test Files  2 failed (2); Tests  5 failed | 38 passed (43) | **red** |
 | M25 | the fetch ignores the gate | Test Files  2 failed (2); Tests  2 failed | 41 passed (43) | **red** |
 | M26 | the refusal ignores the gate | Test Files  1 failed | 1 passed (2); Tests  4 failed | 39 passed (43) | **red** |
+## C44 — the sweep on the wave-10 tree, and object colour joins the verdict (2026-10-01, step 54)
+
+Branch `pine/c44-sweep`, base `e4e24524ef` (wave 10: master with waves 7–9 live, plus C37, C38, C40, C42,
+C43). No engine semantics in this lane: a measurement (Part A), the harness verdict (Part B), and docs.
+`docs/pine/SESSION-STATE.md` now opens with the current state of the program.
+
+### Part B first, because every number below is stated under BOTH verdicts
+
+**The ruling** (integrator, on the question C37 left): object COLOUR joins the harness verdict. An object
+family grades MATCH only when the colours of its paired objects agree too. The rule is stated once,
+`tools/vendor_harness/compare.mjs::objectColourRows`:
+
+| slot state (from the pairing, `vendorHarness/objectColours.js`) | in the verdict |
+|---|---|
+| `agree`, `agreeByDefault` | agrees |
+| `themeRelative` (`chart.fg_color` / `chart.bg_color`, carried as a reference) | agrees — our chart's colour, never TradingView's (§ C37) |
+| `carriedDiffers`, `notCarried` | DIFFERS |
+| `vendorUndecodable` | not graded (the capture's encoding); 0 slots in either set |
+| `undrawn` — the object is held at an `na` coordinate on BOTH sides, so neither platform draws it | not graded (ruling below) — COUNTED: `undrawn` and `undrawnDiffering` in the row, the first differing one named, and said in the reason |
+| anything else, or an unknown object kind | throws — never read as agreeing |
+
+- One row per object family that paired at least one slot (`objects.colours`), beside the count and text
+  rows, which are computed exactly as before. Only PAIRED objects are graded; an object our side holds that
+  no vendor record matches by value is `unpaired`, reported in `objects.colourUnpaired`.
+- **Both numbers come out of ONE run.** Every graded verdict carries `verdictWithoutColour` at the object
+  level and at the capture level, and the summary table prints the old totals and names every capture
+  colour moved. A capture whose two verdicts differ changed because of colour and nothing else.
+- It is on by default. `gradeCapture(c, {objectColour: false})` or `VENDOR_HARNESS_OBJECT_COLOUR=0`
+  reproduces the old verdict and the old sentence byte for byte. Not a large mechanical change, so it is the
+  verdict itself; the option exists for reproduction, not as a gate.
+- The pairing moved, unchanged, from `colourColumn.js` to `objectColours.js` so `harness.js` can ask it
+  without the two files importing each other. `colourColumn.js` keeps the per-slot census and re-exports.
+
+⚰️ **An instrument error found before the verdict was believed.** The pairing compared an `na` coordinate
+with a finite test. The capture writes `na` as `null`; our runtime holds `NaN`. So every object both sides
+hold at an `na` price went unpaired and its colours were never read: all 504 boxes of
+multi-timeframe-supply-demand-zones, 51 lines of ultimate-pivot-points, 48 boxes of contraction-box. An
+`na` now pairs with an `na`, and with nothing else (`objectColours.js::isNa`). After it, no capture graded
+objects-MATCH on the 47 has an unpaired object.
+
+**Ruling (integrator, 2026-10-01, on decision 1 of this lane's first report): COLOUR IS GRADED ONLY ON
+OBJECTS THAT ARE DRAWN.** The verdict measures what a member sees. An object held at an `na` coordinate on
+BOTH sides is drawn by neither platform and does not contribute to the colour verdict. Implemented as one
+condition in the pairing (`objectColours.js::pairUndrawn`):
+
+- per family, on each side's own record: a line with any of x1 / y1 / x2 / y2 `na`; a box with any edge
+  `na`; a label with `na` x, or `na` y while it is placed by price (a label at `yloc.abovebar` / `belowbar`
+  needs no y). A table and its cells are always drawn.
+- ⛔ BOTH sides must be undrawable. An object EITHER side draws is graded as before — otherwise a line we
+  fail to place would excuse its own wrong colour.
+- The slots are never dropped: each is filed `undrawn` with the state it would have had (`wouldBe`) and
+  both colours; the verdict row carries `undrawn` and `undrawnDiffering` and names the first differing one;
+  the reason says how many there are, MATCH or not.
+
+Slots on the 47 (pane on): **3,411 graded + 1,176 undrawn** (multi-timeframe-supply-demand 1,008,
+contraction-box 96, ultimate-pivot-points 51, OHLM 16, htf-liquidity 4, rsi-swing 1). Of the undrawn, **16
+hold a colour that differs** — all in multi-timeframe-supply-demand-zones. Harness dir: 4,653 graded + 1,454
+undrawn, the same 16.
+
+**Old verdict → new verdict, measured on `e4e24524ef`:**
+
+| | objects MATCH (old → new) | overall MATCH (old → new) | colour families agreeing | entries moved by colour |
+|---|---|---|---|---|
+| 47 captures, objects pane on | 30 → **29** of 46 | 27 → **26** of 47 | 72 of 73 | heat-map-seasons |
+| 47 captures, pane off | 18 → **17** of 25 | 15 → **14** | 29 of 30 | heat-map-seasons |
+| committed harness dir (117), pane on | 66 → **65** of 85 | 48 → **47** | 98 of 99 | heat-map-seasons |
+| committed harness dir, pane off | 54 → **53** of 64 | 36 → **35** | 55 of 56 | heat-map-seasons |
+
+Control: in the new run, `verdictWithoutColour`, every count row, every text row and every plot verdict
+equal the base run for all 47 and all 117 entries, in both pane states (0 entries differ). The score
+change is colour and nothing else.
+
+(Before the ruling, with held-but-undrawn objects graded, the same four rows read 28 / 25, 17 / 14,
+64 / 46, 53 / 35: multi-timeframe-supply-demand-zones was the second entry, pane on.)
+
+| capture | what differs | why |
+|---|---|---|
+| heat-map-seasons | 1 of 35 cell colour slots: cell (13,1) fill, vendor `#f3e841`, ours `#dde44f` | `bgcolor = color`, a variable NAMED `color` (`pine:statement`; `cell.bgcolor@70` dropped, the cell keeps the gauge's fill). C37 listed it as "still not carried" |
+
+**Counted, not a verdict — multi-timeframe-supply-demand-zones (MATCH under both verdicts).** 504 boxes,
+all at `na` coordinates on BOTH sides on this chart: nothing is drawn by either platform. On 8 of them
+TradingView ran `box.set_bgcolor` / `box.set_border_color` (lines 382–394, inside a helper's loop over
+arrays of boxes); our program drops those updates (`pine:collection`), so the 8 hold the default where
+TradingView holds the script's `TF_*_Demand/Supply_Color`. The row reads `undrawn 1008, undrawnDiffering
+16`, first `box.border_color` of box #1, vendor `#c6f89561`. ⛔ The day a zone gets coordinates (another
+symbol, another date) these are drawn objects and the dropped updates are a real DIVERGE; the defect is
+the collection grammar for updates through a held array in a loop.
+
+**Re-pins.** No pinned verdict count moves. `vendorHarness.c37ObjectColours`' rsi-swing pins stay at
+their values (line.color 10, control 21): the script's first line has an `na` second point, pairs now, and
+is `undrawn`; the control gained an assertion that it is filed with its would-be state. The whole
+`vendorHarness` directory with the final verdict: `Test Files  46 passed | 2 skipped (48)`, `Tests  447 passed | 2 skipped (449)` (the directory plus `strFormat.vendor`).
+
+**Rail:** `vendorHarness.c44ColourVerdict.test.js` (25 tests): the rule state by state and fail-closed;
+an undrawn slot not graded and still counted; liquidity-pools and vw-object-gc-b MATCH with every slot
+graded; one line of liquidity-pools moved to another colour of the capture's own palette → DIVERGE with
+`verdictWithoutColour` MATCH; TradingView's colour on all 16 theme slots of market-structure moved → still
+MATCH, and the same move on a slot the script colours → DIVERGE; the option; heat-map-seasons by name and
+slot; multi-timeframe-supply-demand MATCH with 1,008 undrawn slots and 16 differing counted; the pairing —
+`na` is `na`, an object neither side draws is `undrawn`, and **an object drawn on EITHER side is still
+graded** (ours undrawable + theirs drawn, and the reverse, both → `carriedDiffers`).
+
+**Mutation proofs** (29, each alone, bytes + sha256 captured, restored by bytes, sha verified, the working
+tree's own uncommitted change set unchanged after; rails `c44ColourVerdict` + `c37ObjectColours` + `c37Theme`, one vitest process; every row
+re-run on the final tree):
+
+| | mutation | totals (files; tests) | |
+|---|---|---|---|
+| M00 | control: no mutation | Test Files  3 passed (3); Tests  56 passed (56) | green |
+| M01 | the object verdict ignores a colour that differs | 1 failed, 2 passed (3); 4 failed, 52 passed (56) | **red** |
+| M02 | a theme-relative slot is graded as differing | 1 failed, 2 passed (3); 5 failed, 51 passed (56) | **red** |
+| M03 | notCarried (the default drawn is not the vendor's) counts as agreeing | 1 failed, 2 passed (3); 4 failed, 52 passed (56) | **red** |
+| M04 | an undecodable vendor colour is graded as differing | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M05 | fail OPEN: an unknown slot state is read as agreeing | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M06 | the option defaults OFF | 1 failed, 2 passed (3); 9 failed, 47 passed (56) | **red** |
+| M07 | gradeCapture never pairs (the verdict is handed no colours) | 1 failed, 2 passed (3); 8 failed, 48 passed (56) | **red** |
+| M08 | compareCapture drops the colours on the way to compareObjects | 1 failed, 2 passed (3); 8 failed, 48 passed (56) | **red** |
+| M09 | verdictWithoutColour mirrors the NEW verdict (the two numbers are one) | 1 failed, 2 passed (3); 4 failed, 52 passed (56) | **red** |
+| M10 | the pairing: NaN is not na again (an object at an na price goes unpaired) | 2 failed, 1 passed (3); 5 failed, 51 passed (56) | **red** |
+| M11 | the pairing: na pairs with a price | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M12 | the pairing: a theme reference is compared with the capture's colour | 2 failed, 1 passed (3); 6 failed, 50 passed (56) | **red** |
+| M13 | ENGINE: the v5 label-text default moves (color.black -> color.blue) | 2 failed, 1 passed (3); 4 failed, 52 passed (56) | **red** |
+| M14 | the CAPTURE verdict is computed from the verdict without colour | 1 failed, 2 passed (3); 2 failed, 54 passed (56) | **red** |
+| M15 | a family with nothing graded reads as agreeing instead of ungraded | 1 failed, 2 passed (3); 3 failed, 53 passed (56) | **red** |
+| M16 | an explicit option is ignored (the environment always wins) | 1 failed, 2 passed (3); 2 failed, 54 passed (56) | **red** |
+| M17 | fail OPEN: an unknown object kind is skipped silently | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M18 | the capture carries no verdictWithoutColour | 1 failed, 2 passed (3); 3 failed, 53 passed (56) | **red** |
+| M19 | ENGINE: the v5 box-fill default moves (color.blue -> color.black) | 2 failed, 1 passed (3); 4 failed, 52 passed (56) | **red** |
+| M20 | undrawn when only OUR side cannot draw it (a line we fail to place excuses its colour) | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M21 | undrawn when only the VENDOR side cannot draw it | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M22 | the exemption is gone (an object nobody draws is graded) | 2 failed, 1 passed (3); 5 failed, 51 passed (56) | **red** |
+| M23 | an undrawn slot is dropped from the books (not counted) | 1 failed, 2 passed (3); 3 failed, 53 passed (56) | **red** |
+| M24 | an undrawn slot that differs is not counted as differing | 1 failed, 2 passed (3); 3 failed, 53 passed (56) | **red** |
+| M25 | an undrawn slot decides the verdict (counted as differing) | 1 failed, 2 passed (3); 3 failed, 53 passed (56) | **red** |
+| M26 | the undrawn row forgets the state it would have had | 2 failed, 1 passed (3); 3 failed, 53 passed (56) | **red** |
+| M27 | a label placed off the bar is undrawn for want of a y | 1 failed, 2 passed (3); 1 failed, 55 passed (56) | **red** |
+| M28 | the reason stops saying undrawn slots exist | 1 failed, 2 passed (3); 2 failed, 54 passed (56) | **red** |
+| M29 | a line is undrawable only by its y (an na x still counts as drawn) | 1 failed, 2 passed (3); 2 failed, 54 passed (56) | **red** |
+
+None survived. M13 / M19: a moved colour on OUR side turns MATCH into DIVERGE. M02 / M12: a
+theme-relative slot must not. M20 / M21: an object drawn on either side is still graded. M23 / M24 / M26:
+an undrawn slot stays on the books.
+
+### Part A — wave 9 → wave 10, and every entry that moved
+
+Wave 9 was re-measured in this lane at `46f54d80b5` (wave 9 as it landed on master) rather than quoted;
+it reproduces C37's numbers. Old verdict throughout this table, so the two waves are comparable.
+
+| | wave 9 `46f54d80b5` | wave 10 `e4e24524ef` | entries that moved |
+|---|---|---|---|
+| 47, pane on: objects / overall / families / plots | 30 of 46 / 27 / 233 of 266 / 161 of 172 | 30 / 27 / **234** / 161 | no verdict moved. trend-duration-forecast: line 0 → 1 of 1, labels 26 → 27 of 28 (C43). ema-ribbon: cells 36 → 37 of 48 (C42, the strength-bar cell) |
+| 47, pane off | 18 of 25 / 15 / 107 of 119 / 140 of 151 | 18 / 15 / **108** / 140 | the same two |
+| harness dir (117), pane on: objects / overall / families / plots | 62 of 82 / 46 / 315 of 350 / 343 of 417 | **66 of 85 / 48 / 323 of 357 / 351 of 450** | 7 entries. `rvol` DIVERGE → MATCH (C37, the gradient plot colour, 611 bars); `vw-fn-series-history-rddt-1d` DIVERGE → MATCH (C42); `vw-gradient`, `vw-mbb-auto`, `vw-offset-na` INCONCLUSIVE (refused) → graded DIVERGE, objects MATCH (C38: they attach now; what diverges is `bar_index`, the window's own index); ema-ribbon and trend-duration as on the 47 |
+| harness dir, pane off | 50 of 61 / 34 / 189 of 203 / 322 of 396 | **54 of 64 / 36 / 197 of 210 / 330 of 429** | the same seven |
+| member door, 266 × 2: attach off / on | 41 / 64 | 41 / 64 | 2 rows per state: `rvol` plots 2 → 3 (C37's position column); `smarter-snr` refusal `pine:window` → `pine:builtin` `str.length` (C38). Wave-10 vs itself: 0 rows |
+| translation census (266, member door, pane on) | door ok 67, served outputs 733, `colorDynamic` 99, dropped colour props 287 sites | 67 / 733 / **98** / **103** | values identical in all 266; 1 output's presentation (`rvol`: `colorDynamic` → `colorGradient`); 1 refusal sentence (`smarter-snr`); object programs changed beyond colour in 9 scripts (C40 / C42 / C43) |
+
+So wave 10 moved no graded verdict on the 47. It moved two harness-dir entries to MATCH, made three probes
+gradable, and carried colours.
+
+### Part A — every entry that is not MATCH (new verdict), 21 of the 47
+
+The first wall behind each family is read off a per-drop census (a throwaway hook at `pine.js::dropped`
+reading `lastCanonRefusal`, restored by bytes, sha verified against the capture and `git status` clean).
+`@n` is a line of the script. Classes: **(i)** buildable now, the exact rule is witnessed · **(ii)**
+capture pending · **(iii)** budget ruling · **(iv)** behind a dark flag · **(v)** correct end state ·
+**(d)** data the store does not hold · **(g)** grammar the lane does not model (a design wave, not a rule).
+
+| script | differs (vendor / ours) | first wall (code @ line) | class | what settles it |
+|---|---|---|---|---|
+| artemis-oscillator-pro | cells 21 / 16; texts `22 ▼ STRONG BEAR`, `80%`, `↓-17`, `████████░░` only vendor | `pine:reassign knnVal`@577/578/610/612 — the fold stops at the `for`@459 (a k-nearest-neighbour vote over four pushed arrays); `bar_str`@619 (its loop bound is `knnConf`); `pine:collection knnF1`@620 (`array.size` of a pushed, capped `var` array). Runtime lane: `pine:block`@233, `smooth`'s `switch m` over a `simple string` | (i) | the call-site rule C35 built for a `simple int`, for a text argument: the arm a fixed string selects is fixed per call site. C35 measured the oscillator exact on 632 / 632 bars with the arm substituted. Whether the KNN loop then fits `INSTRUCTIONS_PER_BAR` is NOT measured |
+| candlestick-patterns-identified | 3 of 15 plots INCONCLUSIVE; objects MATCH | the pane's row ceiling, `memberPaneDefinition.js::CARRY_MAX` 12 | (iii) | a ruling; not raised |
+| dual-view-htf-candlestick-patterns | no drawing program (vendor holds 436 objects) | `loop:bounds`@743 `pine:collection htf_close`@616; `pine:state htf_o`@487 (a `var` in a loop of `update_drawings`); runtime lane 247,425 instructions on the last bar against 200,000 (`vendorHarness.c21DualView`) | (iii) | budget, not raised |
+| ema-ribbon-trend-filter | cells 48 / 37; plot `Squeeze Release ◆` INCONCLUSIVE | 11 cell texts@316–342: 8 × `pine:request` `"15"` / `"60"` / `"240"` (`lower-tf:unwitnessed` on this tree) and 3 × `str.tostring` of those values; the 13th plot is past `CARRY_MAX` | (iv) + (iii) | C41 (`pine/c41-lower-tf-serve`, dark behind `VITE_PINE_LOWER_TF_ENABLED`) measures cells 47 / 48 on vendor intraday bars. The capture cannot reach overall MATCH while the 13th plot is uncarried |
+| heat-map-seasons | 1 cell fill (colour) | `pine:statement`: `color = …`, a variable named `color`; `cell.bgcolor@70` dropped | (i) | the statement reader binding a name that is also a namespace. → MATCH |
+| high-low-open-mid-ranges | cells 45 / 37 (8 texts only vendor); lines 504 / 503 | `pine:request`@198 — the helper `ts('3M', …)`: `request.security(tickerid, '3M', …, lookahead_on)`. The `D` / `W` / `M` rows agree. One line: vendor id 2151 (bars 23–25, y 82.21, dotted, width 2) has no counterpart; not traced | (i) for the cells | a quarter request beside the weekly and monthly ones (`tf` gains `3M`, both lanes): the 8 cells are this capture's own witness, and C30 witnessed the quarter boundary. The line needs a trace before anything is claimed |
+| htf-candle-footprint | lines 6 / 0, labels 6 / 0, boxes 13 / 3 | `pine:type HL.size`@120–170 — `HL` is a local array filled by `HL.push(high[i])` in a counted `for`@66 and reduced (`HL.max()`); `loop:bounds`@138; lists of user types (`for p in ProfileDraws`@74). Runtime lane: `runtime:loop` `for … in`@74 | (g) | ruling R7 (numeric accumulators belong to the runtime lane) + `for … in` and user types there |
+| htf-liquidity-dashboard | cells 30 / 3 | `pine:request s0c_h`@149/155 — `input.symbol("ES1!")` … continuous futures and FX; `pine:collection s5d_rh`@149 | (d) | the store holds no futures or FX bars; `other-symbol:bare` is the right refusal. Not a capture |
+| inside-bar-range | door refusal | `pine:state`@44/45 — two `var bool` latches, each reset by the other's condition | (iv) | the runtime lane runs it. **Measured with `VITE_PINE_RUNTIME_PANE_ENABLED=1` (a test process, nothing armed): MATCH — 2 plots, 632 / 632 bars each, objects MATCH** |
+| k-clustering | lines 9 / 0, cells 8 / 5 | `pine:type n_clust.get`@185–207; runtime lane 800,613 instructions against 200,000 (`vendorHarness.c18KClustering`) | (iii) | budget, not raised |
+| liquidity-heatmap | labels 27 / 0 | `pine:function-def`@261–309 via `resolutionInMinutes(tf = "")`@130 — a parameter with a DEFAULT value; behind it `request.security(tickerid, "3", chartTf)` with `timeframe.*` read inside the request | (i) then (ii) | default parameter values are buildable; the request is not (`"3"` is not a served code and a `timeframe.*` read inside a request is unwitnessed) |
+| madrid-moving-average-ribbon | 6 of 18 plots INCONCLUSIVE | `CARRY_MAX` 12 | (iii) | a ruling |
+| mcclellan-indicators | plot `Osc` DIVERGE (594 bars, ours `na`) | `request.security("ADVN" / "DECN")`@13/14 — bare breadth symbols | (d) | the store holds no exchange breadth series |
+| poor-man's-volume-profile | labels 40 / 0 (withheld) | `pine:reassign row0_price`@748 — the fold stops at the `for`@276; runtime lane 227,730 instructions against 200,000 (C35) | (iii) | budget, not raised |
+| position-size-calc | cells 10 / 0 | `pine:block`@57–70 via `ignored_list(syminfo.root)`@55 — a `switch` expression in a helper body; `lots`@70 reads `request.security(unitcurr + curr, '3', open, ignore_invalid_symbol = 1)`@12 | (i) then (ii) | a `switch` over a string in a one-expression helper is buildable (9 cells; two of them print `NaN` after a division by zero, which this capture witnesses). The tenth needs what a request for a symbol that does not exist answers — no capture |
+| sector-rotation | lines 50 / 0, boxes 504 / 0 | `pine:builtin chart.left_visible_bar_time`@112–197 | (v) | viewport state; a named refusal is right |
+| smt-divergence-ict-01 | lines 500 / 0, labels 500 / 0 | `input.symbol('XAUUSD')`@7 → `request.security`@15; every op is withheld (`withheldUnknown` 5,056) | (d) | no gold spot series in the store |
+| trend-duration-forecast | labels 28 / 27 (`\n6\nTrend ↑`, vendor id 2, bar 58) | `var trend = bool(na)`@33 (v6): our `trend` reads `na` until the HMA exists, so the first flip is not seen | (i) | in v6 a `bool` is never `na`: the seed is `false`, and the first `true` is a flip. C23 serves that rule in the runtime lane; this capture's label id 2 is the host-lane witness. → MATCH |
+| trend-lines-supports-and-resistances | no drawing program (vendor holds 14) | every create sits in `for [i, v] in <list of user types>`@297–345 or a `while`@327; runtime lane `pine:builtin alert.freq_once_per_bar`@79 | (g) | user-type lists (C11). `alert(…)` as a statement that draws nothing is exact and buildable, and is the runtime lane's first stop here |
+| vold-market-breadth | cells 2 / 0 | `pine:text-value`@38/39 — `request.security("USI:UVOL" …)`@23–26 | (d) | no `USI:*` series in the store |
+| volume-profile | lines 203 / 200, and **none of our 200 is at TradingView's position** | `pine:builtin chart.left_visible_bar_time`@146 in the arm of `vp_use_visible_range ? … : vp_lookback_depth` the default never takes; `update:target`@203–205 (`bars.get(i)` in a loop); `loop:bounds`@215 `pine:state va_up` | (i) then unmeasured | folding a ternary whose test is an input at its default (refusing by name when the member turns it on). Behind it `calculate_vp()` runs `lookback_bars × vp_num_bars` = 200 × 200 inner passes on the last bar — likely over `INSTRUCTIONS_PER_BAR`, NOT measured because the run does not start |
+
+⚠️ **A served wrong position, found by the pairing (volume-profile).** Our 200 lines are held at their
+creation coordinates (`x1 = x2 = bar 0`, `y = 50.44`, the first bar's close): the per-bar moves in `draw()`
+are dropped, the creates are not. The count agrees (203 / 200 is the only family row that says anything)
+and the harness compares no coordinate, so a count alone would have called 200 of them right. On a chart
+each is a zero-length line at bar 0 — nothing visible — but it is an object whose POSITION is unknown and
+is held rather than withheld. Not changed here; **handed to lane C45 as a withhold** (integrator).
+
+**The committed harness dir beyond the 47** (70 further entries, 49 of them not MATCH, all probes or pre-09-28
+captures; each rule is graded by its own rail, the door grade below is what the whole probe does):
+
+| group | entries | why the door grade is not MATCH |
+|---|---|---|
+| `bar_index` is the loaded window's index | vw-gradient, vw-mbb-auto, vw-offset-na, vw-ne-na, vw-tf-period ×3, w4-cross-round, vw-runtime-error | the probe plots `bar_index` as its control; on a capture that does not start at the listing it is 8,175 on TradingView and 0 here (C38, "left for the integrator" 1). The rails join the listing history in front |
+| a `pine:state` running total | adx-and-di, fvg-trend, pivot-point-supertrend, qqe-signals, vw-deadband-ticks ×3, vw-var-seed | (iv): the runtime front end compiles all eight; the pane is dark |
+| a probe row the door refuses | syminfo-roster ×5 (`syminfo.type`), vw-time-tf ×3 (`input.time`), vw-time-close-tf ×2 (`time_close("3M")`), vw-time-session ×3, vw-clock-close-tfchange ×2 (`hour(x, tz)`), vw-clock-vwap (`ta.vwap(src, anchor)`), vw-lower-tf ×3, vw-object-gc-d ×2 (`label.all` as a value), vw-int-array-avg (`i1.avg`) | one row of the probe is a spelling still refused by name; the rest of the probe is served through its rail |
+| colour unresolvable on a hidden constant | vw-bar-counters 1d / 15 / 60 / 240 (`C05_ta_cum_1`) | values agree; our pane hides a constant where TradingView draws a line (C37, note 2) |
+| other | vw-bar-counters-rddt-5 (20,052 bars: the counter is behind the curtain off the listing), vw-other-symbol (bare `BRK.B` on 334 bars), vw-object-gc-a/b/c 1W (`barstate.isconfirmed` on the forming week), cc-yata (`pine:timeout`, a 400-level nest) | named in their own sections |
+
+### Buildable walls, ranked by scripts moved
+
+Graded 47 first (new verdict), then the corpus. Corpus columns are a COUNT OF SCRIPTS THAT SPELL THE
+CONSTRUCT (a regex over `corpus/committed`, 266 scripts) and how many of those attach at the member door
+today — an upper bound on reach, not a forecast of attaches.
+
+| rank | wall | graded 47 | corpus: spell it / attach today | exact rule and its witness |
+|---|---|---|---|---|
+| 1 | a v6 `var x = bool(na)` seed is `false` (host lane) | trend-duration → **MATCH** | 5 / 2 | C23 (runtime lane); host witness: trend-duration label id 2 at bar 58 |
+| 2 | a variable named like a namespace (`color = …`) | heat-map-seasons → **MATCH** | not counted (a regex cannot tell it from a named argument on a continuation line) | the capture's cell (13,1) |
+| 3 | `request.security(…, "3M", …)` beside `W` / `M` | OHLM cells 37 → 45 of 45; verdict waits on one line | 6 / 2 (adr-pivots, OHLM) | OHLM's 8 quarter cells; C30's quarter boundary |
+| 4 | a `switch` over a `simple string`, fixed per call site (runtime lane) | artemis: up to 5 cells; **may** reach MATCH | 72 scripts use `switch` at all / 13 attach | C35 measured the oscillator exact with the arm substituted |
+| 5 | a `switch` expression in a one-expression helper (host lane) | position-size-calc cells 0 → 9 of 10 | same 72 / 13 | the capture's nine cells |
+| 6 | `alert(…)` is a statement that draws nothing | 0 on its own (first runtime stop of trend-lines; `dwm_hl` in ict-killzones; htf-liquidity@147) | 38 / 10 | TradingView draws nothing for `alert`; every capture of a script that calls it |
+| 7 | a default parameter value in a user function | 0 (liquidity-heatmap stops next on its request) | 10 / 2 | Pine's reference; the call with the argument omitted |
+| 8 | a ternary whose test is an input at its default, dead arm unserved | 0 (volume-profile; then unmeasured budget) | 11 scripts read `chart.*_visible_bar_time` / 3 attach | exact at the default; the toggled case stays refused |
+
+**How many of the 47 can reach MATCH.** New verdict, overall: 26 today.
+- Firm, with ranks 1 and 2 built: **28** (objects 31 of 46).
+- Possible, not established: **30** — artemis if the KNN vote fits the instruction budget (not measured), and
+  OHLM if its one unexplained line is traced to something buildable.
+- With the owed captures: **no further graded capture.** The captures in the queue below settle corpus
+  refusals and probe rows; on the 47 the lower-timeframe capture is already taken and built (C41, dark), and
+  ema-ribbon still cannot reach overall MATCH past its 13th plot.
+- With the dark runtime pane on (measured, not proposed): inside-bar-range is MATCH, so 29 firm.
+- The other 16 are not rules: 3 budget (dual-view, k-clustering, poor-man), 3 row ceiling (candlestick,
+  madrid, ema-ribbon), 4 another symbol's data (htf-liquidity, smt, vold, mcclellan), 2 grammar
+  (trend-lines, htf-candle), 1 correct end state (sector-rotation), 2 an unwitnessed request
+  (position-size-calc's tenth cell, liquidity-heatmap), 1 unmeasured budget behind a withhold (volume-profile).
+
+### One scoreboard
+
+| | off | on |
+|---|---|---|
+| member door census, 266 scripts: attach (objects-only pane flag) | **41 / 266** | **64 / 266** |
+| the same with the DARK runtime pane flag set in the test process | 43 | 66 (+ inside-bar-range, wyckoff-accumulation-distribution; nothing else) |
+| translation census (member door, pane on): door ok / served outputs / `colorDynamic` / dropped colour props | | 67 / 733 / 98 / 103 sites |
+
+The 202 that do not attach with the pane on, by the door's first refusal: `pine:no-output` 31,
+`pine:module` 30 (imports), `pine:declaration-strategy` 25, `pine:state` 16, `pine:reassign` 15,
+`pine:request` 15, `pine:block` 10, `pine:collection` 9, `pine:function` 7, `pine:tuple` 6,
+`pine:object-removal-lost` 6, `pine:function-def` 4, `pine:type` 4, 3 each `pine:statement` /
+`pine:builtin` / install-door, 2 each `pine:na` / `pine:timeout` / `pine:input-kind` / `pine:text-value` /
+`pine:window` / "declares nothing a chart can draw", 1 each `pine:arity` / `pine:cycle` / a translator
+throw. 86 of them (imports, strategies, no output) are not this program's to attach. The runtime pane
+would take 2 of the 16 `pine:state` refusals.
+
+### Captures still owed — one table
+
+"Probe" is a file under `tools/visual_conformance/probes/`. Rows marked **no probe** are named in a
+section as the capture that would settle a refusal, and have no probe file: writing one is the first step.
+
+| # | probe | symbol / timeframe | settles | unblocks | queue doc |
+|---|---|---|---|---|---|
+| 1 | `vw-forin-collections.pine` | NYSE:RDDT 1D, from the listing | a body that changes the list it walks (F03–F05); `for b in box.all → box.delete(b)` over two or more (A02, A04, A05); a position in `<family>.all` (A06); a drawing list created with slots (Z01–Z03) | market-structure-break-order-block, stop-loss-clustering, trendline-pivots-quantvue; trend-lines' `f_clearAll` once its creates convert | `capture-queue-2026-09-30-forin-collections.md` |
+| 2 | `vw-call-site-history.pine` | NYSE:RDDT 1D from the listing; AMEX:SPY 1D as a second witness | every other `ta.*` on its first run; `bar_index[k]`, `time_close[k]`, `hlcc4[k]`; an offset of 0; MANY executions under `close > open` (block and helper) | candlestick-patterns-on-backtest (287 refusals), mgi-levels-suite (79), ict-institutional-order-flow, smart-money-concepts-by-welotrades, smt-divergence-ict-killzones | `capture-queue-2026-09-30-call-site-history.md` |
+| 3 | `vw-time-tf.pine` + `vw-time-close-tf.pine` | AMEX:SPY 1D, FULL history (Q-T5) | a period whose calendar first / last session has no daily bar (holidays before 2000, 2001-09-11..14) | lifts `time-anchor:session-open-missing` / `time-close:period-end-missing` | `capture-queue-2026-09-30-time-anchors.md` |
+| 4 | the same two | FX:EURUSD 1D (Q-T2) | which weekend bars exist and which bar opens the week | `time-anchor:weekend-bars` | same |
+| 5 | `vw-time-tf.pine` | AMEX:SPY 5 and 15 (Q-T3) | `time(timeframe.period)` and `time("60")` below 60m | `time-own:chart-unwitnessed` on intraday charts | same |
+| 6 | the same two | AMEX:SPY 1W and 1M (Q-T4) | the anchors on a chart above daily | `time-anchor:not-daily`, `time-close:not-daily` | same |
+| 7 | `request-realtime-alignment.pine` | AMEX:SPY 5m, market OPEN, newest bar forming | `lookahead` at a timeframe above the chart's on a forming bar | the realtime half of every higher-timeframe request | `OWNER-CAPTURE-PACKET.md` row 3 |
+| 8 | `vw-mintick.pine` (re-run) | 1D on AMEX:IMO, CBOE:ARKK, NASDAQ:QQQ, AMEX:XLK, a NASDAQ warrant, a unit, a NYSE preferred | `syminfo.mintick` for the listing classes the table does not serve — and whether the NASDAQ / NYSE rows are too broad | every exchange `mintick` refuses on today | `capture-queue-2026-09-27.md` §9 |
+| 9 | `vw-lower-tf.pine` with rows at `"1"` and `"30"`, and on a 1M chart | AMEX:SPY 1D / 1M | the codes and chart C41 leaves `lower-tf:unwitnessed`; `lookahead_on` on a second symbol | the rest of the lower-timeframe requests in the corpus (13 scripts use `request.security_lower_tf`; none attaches) | `capture-queue-2026-09-30-lower-tf.md` + C41's section |
+| 10 | **no probe** — the chart theme (C37 calls it `vw-chart-theme.pine`) | any symbol, under a solid light, a solid dark and a gradient background | what `chart.bg_color` is under a gradient | `theme:gradient-background` | none yet |
+| 11 | **no probe** — gradient and colour-component rows | AMEX:SPY 1D | `top == bottom`, an `na` bound, a gradient between gradients; `color.r/g/b/t` of an eight-digit literal, an `input.color`, a per-bar transparency | `pine:colour-value` forms; the held gradient cases (C29, C37, C38) | none yet |
+| 12 | **no probe** — `max_bars_back(x, n)`, a declared buffer overrun, an index that moves only with `barstate.*` on a forming bar | AMEX:SPY 1D | three `pine:offset-literal` refusals (C38) | high_engagement__20-ehlers-fisher-transform and the per-series buffer | none yet |
+| 13 | **no probe** — a negative getter coordinate (`x1 + avg + 1 < 0`) | any | whether `truncNegative` is the right wall (C43) | getter arithmetic in a bar coordinate | none yet |
+| 14 | **no probe** — a script leaving a v6 box fill / cell text and a v4 box border unset; one drawing ict-killzones' two cell fills | NYSE:RDDT 1D | the version defaults C37 could not read | C37's "still not carried" rows | none yet |
+| 15 | **no probe** — a request for a symbol that does not exist with `ignore_invalid_symbol` | any equity | position-size-calc's tenth cell | that script | none yet |
+| 16 | not a TradingView capture: our `/api/bars/RDDT?tf=15` payload beside `vw-bar-counters-rddt-15` | — | whether OUR intraday bars agree with TradingView's | a precondition C41 names for arming its flag | C41's section |
+
+Not owed (taken): `OWNER-CAPTURE-PACKET.md` rows 1–2 and every probe in its 2026-09-30 results;
+`vw-lower-tf` on SPY 1D / 1W and RDDT 1D; RDDT 5 / 15 / 60 / 240 bars (in `vw-bar-counters-rddt-*`);
+`vw-runtime-error` control and reached; `vw-int-array-avg`; `vw-fn-series-history`; the BTCUSD and SPY
+time-anchor and time-close captures; `vw-bool-cast` (v4, v5), `vw-var-seed`, `vw-deadband-ticks` ×3.
+
+### Measured (base `e4e24524ef` → tip, protocol items 1–6)
+
+| | base | tip |
+|---|---|---|
+| 1. 47, pane on: objects / overall / families / plots | 30 of 46 / 27 / 234 of 266 / 161 of 172 | old verdict unchanged, 0 entries; **new verdict 29 / 26**, colour families 72 of 73 |
+| 1. 47, pane off | 18 of 25 / 15 / 108 of 119 / 140 of 151 | old unchanged; **new 17 / 14** |
+| 2. harness dir (117), on | 66 of 85 / 48 / 323 of 357 / 351 of 450 | old unchanged; **new 65 / 47**, colour families 98 of 99 |
+| 2. harness dir, off | 54 of 64 / 36 / 197 of 210 / 330 of 429 | old unchanged; **new 53 / 35** |
+| 3. member-door census 266 × 2 | 41 / 64 | 41 / 64, 0 rows; base-vs-base control 0 rows |
+| 4. translation census 266 | ok 67, served 733 | identical, 0 scripts in every column |
+| 5. bytes | notebook first-open 1,901,893 B (`notebook_perf_budgets` PASS); `pine` chunk 387,103 B; total JS 12,757,155 B (357 files) | +0 / +0 / +0 — ONE build, at the tip: no file a build includes differs between base and tip (`git diff --name-only e4e24524ef`: `tools/vendor_harness/compare.mjs`, files under `__tests__/vendorHarness/`, docs; no non-test file under `app/src` imports `vendor_harness`) |
+| 6. `paramIds.test.js` | green | `Tests  4 passed | 1 skipped (5)`, no edit |
+
+### Decisions — ruled, handed on, and left
+
+1. **RULED:** colour is graded only on objects that are drawn (above). multi-timeframe-supply-demand-zones
+   is back to MATCH with its 16 differing held slots counted.
+2. **HANDED TO C45:** volume-profile's 200 lines held at their creation coordinates — a withhold.
+3. **PROPOSAL, not built — promote "unpaired" to a position check.** The pairing matches each of our
+   objects to a TradingView record BY VALUE (a line's two prices, a box's two prices, a label's text and
+   price, a cell's table / address / text). An object we hold that pairs with nothing sits at a value
+   TradingView does not hold; `objects.colourUnpaired = {ours, vendor}` already carries the counts.
+   - *The rule it would add:* an object family whose COUNT agrees but which has an unpaired object of ours
+     DIVERGES — "the same number of objects" stops meaning "the same objects".
+   - *What it would move today (measured on this tree, pane on):* **nothing on the 47.** The only captures
+     with an unpaired object of ours are volume-profile (200) and position-size-calc (1), both already
+     DIVERGE on a count. In the committed harness dir, **keltner-center-of-gravity-channel-2026-09-30**
+     (objects MATCH, 1 of ours / 1 of theirs unpaired among 2 tables and 3 cells) would go to DIVERGE, and
+     must be traced first: it may be a table paired by position against a different `position` spelling
+     rather than a wrong drawing. `vw-runtime-error` (54 / 50) already DIVERGES.
+   - *What it would catch that nothing does now:* the volume-profile shape — creates that convert, moves
+     that are dropped, a count that happens to agree; and any future capture where counts agree and
+     positions do not.
+   - *Its limits, to state with it:* it is a PRICE (y) check and a text check; a capture stores x as a
+     dense rank, so x is not compared. It needs the same `undrawn` exemption (an object neither side draws
+     has no position), and it needs unpaired reported per family rather than per capture.
+4. **Six owed captures have no probe file** (rows 10–15). The rule says a refusal is queued with its probe;
+   these were named in prose only.
+5. **`bar_index` at the door** still keeps nine probes from MATCH as captured (C38's note, unchanged).
+6. **C41 is not in wave 10.** Everything here that says "(iv) lower-tf" refers to a branch.
