@@ -37,6 +37,8 @@ import { assessObjectLoss, objectLossNote } from '../../ast/objectLoss'
 
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterAll(() => { vi.unstubAllEnvs() })
+// each test runs the real member door (a 25k-line translator) on a real script
+vi.setConfig({ testTimeout: 60000 })
 
 const CORPUS = path.resolve(process.cwd(), '..', 'corpus', 'committed')
 const sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0)
@@ -241,6 +243,21 @@ describe('C45 — the rule\'s edges', () => {
     expect(r.d.dropReasons).toEqual({ 'update:target': 1, 'geometry:lost': 2 })
   })
 
+  it('…and the same when its CONDITION cannot be read either (no guard to mark by, no handle to mark)', () => {
+    const r = through(L(...HEAD,
+      'var line a = line.new(bar_index, close, bar_index, close)',
+      'var line b = line.new(bar_index, open, bar_index, open)',
+      'var label keep = label.new(bar_index, high, "kept")',
+      PICK,
+      'if weird_unreadable_fn(close)',
+      '    line.set_xy2(pick(close - open), bar_index, close)',
+      'plot(close)'), bars())
+    expect(r.d.unaddressedUpdates).toEqual(['guard:update@8 line.x2,y2 → every line moved'])
+    expect(r.d.dropReasons).toEqual({ 'guard:update': 1, 'geometry:lost': 2 })
+    expect(r.count('line')).toBe(0)
+    expect(r.count('label')).toBe(1)
+  })
+
   it('⛔ a lost STYLE setter withholds nothing: a colour Pine defaults is still Pine\'s', () => {
     const r = through(L(...HEAD,
       'var line a = line.new(bar_index, close, bar_index, close)',
@@ -274,6 +291,92 @@ describe('C45 — the rule\'s edges', () => {
       'line.set_xloc(l, time, time + 1, xloc.bar_time)',
       'plot(close)'), bars())
     expect(r.d.unaddressedUpdates).toEqual(['reader:unsupported@? line.set_xloc → every line moved'])
+    expect(r.count('line')).toBe(0)
+    expect(r.count('label')).toBe(1)
+  })
+
+  it('a move lost with its LOOP, on an object the script names, withholds that object and no other', () => {
+    // the loop sits under a condition this chart cannot read, so its body is never
+    // converted (`guard:loop`): the setter in it is lost, and the line it would
+    // have moved is not left where it was made
+    const r = through(L(...HEAD,
+      'var line l = line.new(bar_index, close, bar_index, close)',
+      'var label keep = label.new(bar_index, high, "kept")',
+      'if weird_unreadable_fn(close)',
+      '    for i = 0 to 2',
+      '        line.set_xy2(l, bar_index, close + i)',
+      'plot(close)'), bars())
+    expect(r.d.dropReasons).toEqual({ 'guard:loop': 1, 'geometry:lost': 1 })
+    expect(r.d.geometryWithheld).toMatchObject({ regs: 1 })
+    expect(r.d.unaddressedUpdates).toBeUndefined()               // its target IS named: withheld by handle
+    expect(r.count('line')).toBe(0)
+    expect(r.count('label')).toBe(1)
+  })
+
+  it('⛔ …and a STYLE setter lost with its loop withholds nothing', () => {
+    const r = through(L(...HEAD,
+      'var line l = line.new(bar_index, close, bar_index + 2, close)',
+      'if weird_unreadable_fn(close)',
+      '    for i = 0 to 2',
+      '        line.set_color(l, color.red)',
+      'plot(close)'), bars())
+    expect(r.d.dropReasons).toEqual({ 'guard:loop': 1 })
+    expect(r.count('line')).toBe(1)
+    expect(r.live[0].props.x2 - r.live[0].props.x1).toBe(2)
+  })
+
+  it('a move inside a helper the chart REFUSED is lost with its body: every line it could reach is withheld', () => {
+    // `mv()` reads `ta.sma` and is called under a condition: its history is the
+    // call's own, so the call is refused (`fn:conditional-history`) and its body —
+    // the setter — never becomes a step
+    const r = through(L(...HEAD,
+      'var line l = line.new(bar_index, close, bar_index, close)',
+      'var label keep = label.new(bar_index, high, "kept")',
+      'mv() =>',
+      '    m = ta.sma(close, 5)',
+      '    line.set_xy2(l, bar_index, m)',
+      'if close > open',
+      '    mv()',
+      'plot(close)'), bars())
+    expect(r.d.unaddressedUpdates).toEqual(['fn:conditional-history@9 line.set_xy2 → every line moved'])
+    expect(r.d.dropReasons).toEqual({ 'fn:conditional-history': 1, 'geometry:lost': 1 })
+    expect(r.count('line')).toBe(0)
+    expect(r.count('label')).toBe(1)
+  })
+
+  it('a move dropped because it reads a drawing\'s LOST state is marked on its object (C22\'s mark): held, not drawn', () => {
+    // `a`'s y1 is written under a condition this chart cannot read, so
+    // `line.get_y1(a)` is not carried — and the setter of `b` that reads it is
+    // dropped (`state:lost`). `b` used to stay where it was made.
+    const r = through(L(...HEAD,
+      'var line a = line.new(bar_index, close, bar_index + 1, close)',
+      'var line b = line.new(bar_index, open, bar_index + 1, open)',
+      'var label keep = label.new(bar_index, high, "kept")',
+      'if weird_unreadable_fn(close)',
+      '    line.set_y1(a, high)',
+      'line.set_xy2(b, bar_index, line.get_y1(a))',
+      'plot(close)'), bars())
+    expect(r.d.dropReasons).toEqual({ 'guard:update': 1, 'state:lost': 1 })
+    // neither line is drawn: `a` by C22 (its own lost setter), `b` by this rule
+    expect(r.count('line')).toBe(0)
+    expect(r.count('label')).toBe(1)
+  })
+
+  it('a move dropped because it reads a list that DIVERGED withholds that list', () => {
+    // the second push sits under a condition this chart cannot read, so `rows` is
+    // no longer TradingView's list and the setter through its slot is dropped
+    // (`coll:diverged`): the line the first push made is not left where it was made
+    const r = through(L(...HEAD,
+      'var line[] rows = array.new_line()',
+      'if barstate.isfirst',
+      '    array.push(rows, line.new(bar_index, low, bar_index, low))',
+      'if weird_unreadable_fn(close)',
+      '    array.push(rows, line.new(bar_index, close, bar_index, close))',
+      'var label keep = label.new(bar_index, high, "kept")',
+      'line.set_xy2(array.get(rows, 0), bar_index, close)',
+      'plot(close)'), bars())
+    expect(r.d.dropReasons['coll:diverged']).toBe(1)
+    expect(r.d.dropReasons['geometry:lost']).toBe(1)
     expect(r.count('line')).toBe(0)
     expect(r.count('label')).toBe(1)
   })

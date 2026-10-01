@@ -20057,10 +20057,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (src.k === 'delete' || src.k === 'clear') { lostRemoval(`guard:${src.k}`, src); stateLostBy(src, o.target) }
         if (src.k.startsWith('coll_')) lostColl(src.coll, `guard:${src.k}@${src.line === undefined ? '?' : src.line}`)
         dropped(`guard:${src.k}`)
-        // ⭐ C45 — the same C22 mark the first guard pass leaves: a setter dropped
-        // HERE (its guard read a value before the step that writes it) moved its
-        // object too.
-        if (src.k === 'update') { const m = lostGeometryOp(src, o.target, undefined); if (m) out.push(m) }
       }
       return out
     }

@@ -36,6 +36,9 @@ import { CHART_CLOCK_WITHHELD } from '../../ast/interpret'
 
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterAll(() => { vi.unstubAllEnvs() })
+// every test grades real captures through the real door; the default 15 s is a
+// load timeout waiting to happen (one was measured during the mutation run)
+vi.setConfig({ testTimeout: 60000 })
 
 /** [capture id, title of its `plot(bar_index)` row] — the five the brief names. */
 const PROBES = [
