@@ -6,6 +6,7 @@ import { render, fireEvent, cleanup } from '@testing-library/react'
 import Input from './Input'
 import Select from './Select'
 import Checkbox from './Checkbox'
+import Textarea from './Textarea'
 import FieldError, { errorIdFor, fieldAria } from './FieldError'
 
 afterEach(cleanup)
@@ -40,6 +41,22 @@ describe('with no error, each primitive is the element a caller would have writt
   it('Checkbox', () => {
     expect(html(<Checkbox checked onChange={() => {}} />))
       .toBe(html(<input type="checkbox" checked onChange={() => {}} />))
+  })
+
+  it('Textarea', () => {
+    expect(html(<Textarea className="c" rows={3} value="x" onChange={() => {}} />))
+      .toBe(html(<textarea className="c" rows={3} value="x" onChange={() => {}} />))
+  })
+})
+
+describe('Textarea', () => {
+  it('carries the error link like the others, and aria-invalid cannot be set by hand', () => {
+    const el = one(<Textarea id="why" error="Too short" aria-describedby="hint" onChange={() => {}} />)
+    expect(el.tagName).toBe('TEXTAREA')
+    expect(el.getAttribute('aria-invalid')).toBe('true')
+    expect(el.getAttribute('aria-describedby')).toBe('hint why-error')
+    cleanup()
+    expect(one(<Textarea aria-invalid="true" />).hasAttribute('aria-invalid')).toBe(false)
   })
 })
 

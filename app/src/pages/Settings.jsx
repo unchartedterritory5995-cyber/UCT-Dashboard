@@ -37,6 +37,7 @@ import styles from './Settings.module.css'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Checkbox from '../components/ui/Checkbox'
+import Textarea from '../components/ui/Textarea'
 
 // Memoized {__html} object — the TOTP screen re-renders on every keystroke of
 // the 6-digit code, and React 19 diffs dangerouslySetInnerHTML by OBJECT
@@ -1329,7 +1330,7 @@ function DangerZonePanel() {
       ) : (
         <form onSubmit={submit} className={styles.pwForm}>
           <label className={styles.formCheckLabel} htmlFor="danger-reason">Reason (optional)</label>
-          <textarea
+          <Textarea
             id="danger-reason"
             className={styles.input}
             value={reason}
