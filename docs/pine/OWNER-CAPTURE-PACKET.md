@@ -511,3 +511,32 @@ that splits the candidates, is in its own header. Two notes for whoever runs the
 
 **What the next visit needs first:** the Claude extension connected in the Chrome that is
 signed in as `TSDR_TRADING`, with that window on screen.
+
+### Second attempt, 15:49–15:51 ET — signed in, but the tab was HIDDEN
+
+The extension was connected (one browser, "Browser 1") and the rig layout opened signed
+in. Four reads of the tab this session drove, over about 30 seconds:
+
+```
+window.user.username   "TSDR_TRADING"      layout  NYSE:F · 1D · 0 studies
+visibilityState        "hidden"            document.hasFocus()  false
+screenX / screenY      -1944 / -1080       outer  1934 x 1039   (0 x 0 on the first read)
+canvases               300x150, 300x150, 300x150   <- the HTML default: never painted
+html class             theme-dark          (the 2026-09-27..30 captures recorded the LIGHT theme)
+```
+
+The window's geometry is on the display; the tab is `hidden` and its chart canvases
+were never sized, i.e. the chart LOADED hidden (a background tab in that window, or the
+window covered). The pre-write gate says hidden = STOP, never click, so nothing was
+written, added or saved; the temporary file input was removed and the tab closed.
+The same table of owed captures stands. Packet #3's window (regular hours, to 16:00 ET)
+closed nine minutes later.
+
+⚠️ For C37 Q-T1: the chart is now on the **dark** theme, so a capture of
+`vw-theme-colours.pine` "under the current theme" would be the first DARK witness — the
+light values (`#0f0f0f` on `#ffffff`) are the ones already on disk.
+
+**What the next visit needs:** the tab the extension opens must be the FOREGROUND tab of
+an unobscured Chrome window (the evening session of 2026-09-30 read `visible` and ran
+end to end). The fix is on the owner's side — the procedure records that nothing inside
+the page can raise a tab or a window.
