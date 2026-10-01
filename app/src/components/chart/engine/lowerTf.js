@@ -99,6 +99,7 @@
 import { etClockAt } from '../indicators.js'
 import { tradingViewCloseMinute, SESSION_OPEN_MINUTE } from '../../../lib/marketClock/tradingViewSession.js'
 import { interpret, isoDay, maxLookback, tfBucket } from './ast/interpret.js'
+import { lowerTfServingEnabled } from './lowerTfGate.js'
 
 /** Why a lower-timeframe request is not served — one code per sentence, so a
  *  rail and a surface can name the reason without matching prose. */
@@ -113,6 +114,9 @@ export const LOWER_TF_REFUSAL = Object.freeze({
   EXPRESSION: 'lower-tf:expression',
   SCREEN: 'lower-tf:screen',
   RUNTIME_LANE: 'lower-tf:runtime-lane',
+  // ⭐ the rule is witnessed and the DATA is not (`lowerTfGate.js`): every read
+  // that would otherwise be served is refused under this name while the gate is off.
+  STORE_UNMEASURED: 'lower-tf:store-unmeasured',
   // decided per BINDING (`resolveLowerTf`), never at the translate door:
   FRAMED: 'lower-tf:framed',
   NO_BARS: 'lower-tf:no-bars',
@@ -237,6 +241,18 @@ export function lowerTfRefusal({ code, base, lookahead = false, other = null, ar
       why: `${LOWER_TF_REFUSAL.UNWITNESSED}: ${shown} below a ${String(base)} chart reads intraday bars, `
         + 'and no committed capture shows TradingView answering that timeframe on that chart '
         + `period — ${LOWER_TF_SETTLING_CAPTURE}` }
+  }
+  // ⭐⭐ THE LAST QUESTION, AND THE ONLY ONE ABOUT DATA. Everything above is a rule
+  // a capture settles; this one is whether OUR intraday bars are TradingView's.
+  // Asked last, so every other refusal keeps its own name whatever the gate says.
+  if (!lowerTfServingEnabled()) {
+    return { code: LOWER_TF_REFUSAL.STORE_UNMEASURED,
+      why: `${LOWER_TF_REFUSAL.STORE_UNMEASURED}: ${shown} is below this chart's timeframe, so it reads `
+        + 'intraday bars — and our intraday bars have not been measured against TradingView\'s. '
+        + 'TradingView\'s answer is known (the day\'s last regular-session bar, '
+        + '`vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored '
+        + '`/api/bars/<ticker>?tf=15` payload has been compared with TradingView\'s 15-minute '
+        + 'bars for the same sessions (`storeIntradayAgreement`)' }
   }
   return null
 }
@@ -475,6 +491,8 @@ const sessionsPerChartBar = (chartTf) => (chartTf === 'W' ? 5 : 1)
 export const LOWER_TF_REACH_ALLOWANCE = 500
 export function lowerTfWindowsOf(def, chartTf, chartBarCount) {
   const tf = String(chartTf)
+  // ⛔ nothing is fetched for a read the gate does not serve (`lowerTfGate.js`)
+  if (!lowerTfServingEnabled()) return []
   if (!own(LOWER_TF_CHART_WITNESS, tf) || !LOWER_TF_CHART_WITNESS[tf]) return []
   const best = new Map()
   for (const code of lowerTfCodesOf(def)) {

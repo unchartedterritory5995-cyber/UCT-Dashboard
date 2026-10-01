@@ -14,7 +14,12 @@
 // never above the route's 60,000-bar cap, deduped through the same cache a `sym:`
 // source uses.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+// ⭐ C41 — a read below the chart is served only behind `VITE_PINE_LOWER_TF_ENABLED`
+// (`lowerTfGate.js`, default OFF). Everything here is about the SERVED read, so the
+// gate is on for the file; the flag-off behaviour has its own cases.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+afterAll(() => { vi.unstubAllEnvs() })
 import { renderHook, act, waitFor } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -76,6 +81,19 @@ describe('C41 — a chart with no lower-timeframe read fetches NOTHING', () => {
     hidden.hook.unmount()
     const noSym = mount([{ instanceId: 'a', defId: 'ribbon' }], { sym: '' })
     expect(noSym.fetcher).not.toHaveBeenCalled()
+  })
+
+  it('⛔ with the gate OFF (the shipped default) NOTHING is fetched — even for a document stamped with lower reads', () => {
+    vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '')
+    try {
+      for (const list of [[{ instanceId: 'a', defId: 'ribbon' }], [{ instanceId: 'a', defId: 'mixed' }, { instanceId: 'b', defId: 'ribbon' }]]) {
+        const { fetcher, hook } = mount(list)
+        expect(fetcher).not.toHaveBeenCalled()
+        expect(inflightCount()).toBe(0)
+        expect(hook.result.current).toBe(null)
+        hook.unmount()
+      }
+    } finally { vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1') }
   })
 
   it('control: the SAME chart with the indicator added does fetch (the rail can see a request)', async () => {

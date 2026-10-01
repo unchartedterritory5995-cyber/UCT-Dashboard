@@ -25,7 +25,12 @@
 //   4. THE DOOR: a read below the chart is an `ltf` node on a chart; a screen and
 //      every unwitnessed shape still name their refusal.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
+// ⭐ C41 — a read below the chart is served only behind `VITE_PINE_LOWER_TF_ENABLED`
+// (`lowerTfGate.js`, default OFF). Everything here is about the SERVED read, so the
+// gate is on for the file; the flag-off behaviour has its own cases.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+afterAll(() => { vi.unstubAllEnvs() })
 import fs from 'node:fs'
 import path from 'node:path'
 import { toProductBars } from './ourSide'

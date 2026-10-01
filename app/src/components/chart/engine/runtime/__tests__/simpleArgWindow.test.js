@@ -16,7 +16,7 @@
 //     TradingView stops the script; unreached it changes nothing.
 // (4) A request below the chart's own timeframe is refused by the host's own C27
 //     code (`lower-tf:unwitnessed`) before the state check, which is moot for it.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 
 import { buildRuntimeIr, paramQualifiers } from '../../ast/pineRuntimeFrontend.js'
 import { lexPine } from '../../ast/pine.js'
@@ -154,9 +154,15 @@ describe('(4) a request below the chart\'s timeframe is the host\'s C27 refusal,
     // the read now (an `ltf` node off the symbol's intraday bars); the per-bar
     // runtime lane holds no intraday bars, so the same request stops it under its
     // own name (`LOWER_TF_REFUSAL.RUNTIME_LANE`) — still asked before the state check.
-    const r = refusalOf(src('15'))
-    expect(r.guard).toBe('lower-tf:runtime-lane')
-    expect(r.message).toContain('intraday bars')
+    // ⭐ …with the host's read SERVED (`VITE_PINE_LOWER_TF_ENABLED`). It ships OFF,
+    // and then the host's own refusal is the one asked first.
+    expect(refusalOf(src('15')).guard).toBe('lower-tf:store-unmeasured')
+    vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+    try {
+      const r = refusalOf(src('15'))
+      expect(r.guard).toBe('lower-tf:runtime-lane')
+      expect(r.message).toContain('intraday bars')
+    } finally { vi.unstubAllEnvs() }
   })
   it('⛔ a code no capture shows read below a chart (`"30"`) keeps `lower-tf:unwitnessed`', () => {
     expect(refusalOf(src('30')).guard).toBe('lower-tf:unwitnessed')

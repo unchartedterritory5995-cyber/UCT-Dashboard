@@ -115,17 +115,9 @@ describe('the committed corpus, both lanes', () => {
     // everything, would be an instrument reporting a property of itself.
     expect(hostOk).toBeLessThan(rows.length)
     expect(screenerOk).toBeLessThan(rows.length)
-    // …and the lanes are not the same question.
-    // ⚰️ THIS ASSERTED `screenerOk >= hostOk` — "the screener is the looser one, so
-    // it must clear at least as many as the host". It was a count standing in for
-    // a set relation that had already stopped holding: the host lane serves things
-    // a screen cannot (bar counters, per-symbol numbers), and C41 (2026-09-30)
-    // added a read BELOW the chart's timeframe, which needs a symbol's intraday
-    // bars — a chart supplies them, a screen holds daily bars only and refuses by
-    // name (`lower-tf:screen`). `mtf-dashboard-pro` took the host to 59 against
-    // the screener's 58. What stays true, and is asserted: each lane clears a
-    // script the other refuses, so neither is a subset wearing the other's name.
-    expect(rows.some((r) => r.screener && !r.host)).toBe(true)
-    expect(rows.some((r) => r.host && !r.screener)).toBe(true)
+    // …and the lanes are not the same question: the screener is the looser one, so
+    // it must clear at least as many as the host. If this ever inverts, one of the
+    // two lanes is not what its name says.
+    expect(screenerOk).toBeGreaterThanOrEqual(hostOk)
   })
 })

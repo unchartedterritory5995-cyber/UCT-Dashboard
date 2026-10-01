@@ -6,7 +6,12 @@
 // case built to break exactly it. The vendor replay (TradingView's own bars) is
 // `__tests__/vendorHarness/vendorHarness.c27LowerTf.test.js`.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
+// ⭐ C41 — a read below the chart is served only behind `VITE_PINE_LOWER_TF_ENABLED`
+// (`lowerTfGate.js`, default OFF). Everything here is about the SERVED read, so the
+// gate is on for the file; the flag-off behaviour has its own cases.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+afterAll(() => { vi.unstubAllEnvs() })
 import {
   LOWER_TF_REFUSAL as R, LOWER_TF_WITNESS, LOWER_TF_CODE_WITNESS, LOWER_TF_CHART_WITNESS, LOWER_TF_SOURCE,
   lowerTfWitnessed, lowerTfRefusal,

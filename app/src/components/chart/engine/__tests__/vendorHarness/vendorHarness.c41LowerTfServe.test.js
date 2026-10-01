@@ -47,6 +47,14 @@ const on = (cap, lines) => runOurSide({ ...cap, source: { ...cap.source, text: p
 // the objects-only pane door as production runs it (armed 2026-09-27)
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterAll(() => { vi.unstubAllEnvs() })
+// ⭐ …and the gate on serving itself (`lowerTfGate.js`, default OFF): this file is
+// the grade of the SERVED read. The flag-off behaviour is the last block.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+/** Run `fn` with the gate OFF (the default every build ships with), then put it back. */
+const gateOff = (fn) => {
+  vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '')
+  try { return fn() } finally { vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1') }
+}
 // the first run builds the harness's capture index (every committed capture)
 vi.setConfig({ testTimeout: 300000 })
 
@@ -446,5 +454,81 @@ describe('C41 — a dead arm that reads below the chart, and a tree that could n
     const r2 = objectReaderFor(def(PLAIN_TREE), bars, { tf: 'D' })
     expect(r2.failed).toEqual([0])
     expect(everyBar(r2, 0).some((u) => u === true)).toBe(false)
+  })
+})
+
+// ─── ⛔⛔ THE GATE: OFF IS THE DEFAULT, AND OFF IS THE BEHAVIOUR BEFORE C41 ───────
+//
+// The rule above is witnessed; OUR intraday bars are not measured against
+// TradingView's (`lowerTfGate.js`, `storeIntradayAgreement.test.js`). So off, the
+// read is refused BY NAME where it used to be refused, and nothing downstream of
+// that — a node, a stamp, a fetch, a supply — exists.
+describe('C41 — `VITE_PINE_LOWER_TF_ENABLED` off: refused by name, nothing served', () => {
+  const HOST = { strict: true }
+  const READ = 'plot(request.security(syminfo.tickerid, "60", close))'
+
+  it('⛔ every code that is served with the gate on is `lower-tf:store-unmeasured` with it off', () => {
+    for (const code of ['5', '15', '60', '240']) {
+      const line = `plot(request.security(syminfo.tickerid, "${code}", close))`
+      expect(translatePine(pine([line]), HOST).ok).toBe(true)
+      const t = gateOff(() => translatePine(pine([line]), HOST))
+      expect(t.ok).toBe(false)
+      expect(t.refusal.message).toContain(R.STORE_UNMEASURED)
+      expect(t.refusal.message).toContain('have not been measured against TradingView')
+      expect(t.lowerTf).toBeUndefined()
+      expect(JSON.stringify(t.outputs)).not.toContain('"ltf"')
+    }
+  })
+
+  it('⛔ unset, empty, "0" and "true" are all OFF; only "1" serves', () => {
+    for (const v of [undefined, '', '0', 'true']) {
+      if (v === undefined) vi.unstubAllEnvs(); else vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', v)
+      try {
+        expect(translatePine(pine([READ]), HOST).ok, `value ${String(v)}`).toBe(false)
+      } finally {
+        vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+        vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+      }
+    }
+    expect(translatePine(pine([READ]), HOST).ok).toBe(true)
+  })
+
+  it('⛔ every OTHER refusal keeps its own name with the gate off (it is asked last)', () => {
+    gateOff(() => {
+      const refusal = (line, opts = HOST) => translatePine(pine([line]), opts).refusal.message
+      expect(refusal('plot(request.security(syminfo.tickerid, "60", close, lookahead = barmerge.lookahead_on))')).toContain(R.LOOKAHEAD)
+      expect(refusal('plot(request.security_lower_tf(syminfo.tickerid, "60", close))')).toContain(R.INTRABAR_ARRAY)
+      expect(refusal('plot(request.security("AMEX:SPY", "60", close))')).toContain(R.OTHER_SYMBOL)
+      expect(refusal('plot(request.security(syminfo.tickerid, "30", close))')).toContain(R.UNWITNESSED)
+      expect(refusal('plot(request.security(syminfo.tickerid, "15", close))', { strict: true, basePeriod: '60' }))
+        .toContain(R.INTRADAY_CHART)
+      expect(refusal(READ, {})).toContain(R.SCREEN)
+      // a HIGHER timeframe is not this gate's business
+      expect(translatePine(pine(['plot(request.security(syminfo.tickerid, "W", close))']), HOST).ok).toBe(true)
+    })
+  })
+
+  it('⛔ through the member door: ema-ribbon draws what it drew before C41 — its lower rows withheld', () => {
+    const cap = load('ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json')
+    const off = gateOff(() => runOurSide(cap))
+    expect(off.objects.counts.tableCells).toBe(36)
+    expect(off.notes.some((n) => n.startsWith('lower timeframe'))).toBe(false)
+    for (const text of ['2.63%', '3.8%', '3.88%', '▼▼  STRONG BEAR']) expect(off.objects.texts.tableCells).not.toContain(text)
+  })
+
+  it('⛔ a document stamped while the gate was on is neither fetched for nor supplied once it is off', async () => {
+    const { lowerTfWindowsOf, resolveLowerTf } = await import('../../lowerTf.js')
+    const def = { meta: { lowerTf: ['15', '60'] } }
+    const bars = toProductBars(load('vw-bar-counters-rddt-15-2026-09-30.json'))
+    const have = new Map([['15', { bars, status: 'ready' }]])
+    expect(lowerTfWindowsOf(def, 'D', 600).length).toBe(1)
+    expect(resolveLowerTf(def, { tf: 'D', lowerTf: have }).served).toEqual(['15', '60'])
+    gateOff(() => {
+      expect(lowerTfWindowsOf(def, 'D', 600)).toEqual([])
+      const r = resolveLowerTf(def, { tf: 'D', lowerTf: have })
+      expect(r.served).toEqual([])
+      expect(r.supply).toEqual({})
+      expect(r.refused.map((x) => x.refusal)).toEqual([R.STORE_UNMEASURED, R.STORE_UNMEASURED])
+    })
   })
 })

@@ -568,22 +568,20 @@
     "__uct_param_1": "Show MA"
   },
   "corpus/committed/mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine": {
-    "__uct_param_1": "RSI Period",
-    "__uct_param_2": "S/R & Golden Zone Lookback (Bars)",
-    "__uct_param_3": "Volume SMA Period",
-    "__uct_param_4": "Minimum Conditions for Signal"
+    "__uct_param_1": "Minimum Conditions for Signal",
+    "__uct_param_2": "RSI Period",
+    "__uct_param_3": "S/R & Golden Zone Lookback (Bars)",
+    "__uct_param_4": "Volume SMA Period"
   },
   "corpus/committed/mtf-key-levels-support-and-resistance__29f470a089.pine": {},
   "corpus/committed/mtf-watchlist-charts-anan__3453680ea1.pine": {},
   "corpus/committed/multi-timeframe-fvg-tfo__adbed9f590.pine": {},
   "corpus/committed/multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640.pine": {
     "__uct_param_1": "",
-    "__uct_param_2": "RSI 1 Length",
+    "__uct_param_2": "",
     "__uct_param_3": "",
-    "__uct_param_4": "RSI 2 Length",
-    "__uct_param_5": "",
-    "__uct_param_6": "Sell Threshold",
-    "__uct_param_7": "Buy Threshold"
+    "__uct_param_4": "Sell Threshold",
+    "__uct_param_5": "Buy Threshold"
   },
   "corpus/committed/multi-timeframe-supply-demand-zones__a98a2ab367.pine": {},
   "corpus/committed/multi-timeframe-trend-indicator__fa4022ecf5.pine": {
@@ -1186,19 +1184,8 @@
     "__uct_param_2": "Enable Trend check",
     "__uct_param_3": "Trend EMA length",
     "__uct_param_4": "Enable Higher-TF check",
-    "__uct_param_5": "HTF EMA length",
-    "__uct_param_6": "Enable Momentum check",
-    "__uct_param_7": "RSI length",
-    "__uct_param_8": "Bull RSI floor (long check)",
-    "__uct_param_9": "Enable Pullback check",
-    "__uct_param_10": "Pullback EMA length",
-    "__uct_param_11": "ATR multiple from EMA",
-    "__uct_param_12": "ATR length",
-    "__uct_param_13": "Enable Volume check",
-    "__uct_param_14": "Volume SMA length",
-    "__uct_param_15": "Bear RSI ceiling (short check)",
-    "__uct_param_16": "HIGH threshold (points)",
-    "__uct_param_17": "Also show MED-grade markers (dimmer)"
+    "__uct_param_5": "HIGH threshold (points)",
+    "__uct_param_6": "Also show MED-grade markers (dimmer)"
   },
   "tests/fixtures/pine_oos/long_tail__13-volatility-of-returns.pine": {
     "__uct_param_1": "Volatility Lookback (bars)",
