@@ -60,6 +60,7 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
+import { barIndexVerdict, thresholdUnknown } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
 // THAN RE-DERIVED. `assertArgRoles` below needs it for the manifest's
@@ -1261,6 +1262,15 @@ function valueWhenOccurrence(cond, src, occurrence) {
  *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
 export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
 export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
+/** ⭐⭐ C45 — A READ THAT LANDS BEFORE THE FIRST BAR HELD: is its answer one this
+ *  series can give? Only when the series provably starts at the symbol's first
+ *  bar (ruling R-W) — there is no earlier bar and the read is Pine's `na`.
+ *  Anywhere else TradingView holds bars this window does not and answers a
+ *  VALUE (`vw-mbb-auto-spy-1d-2026-09-30`: 225 of 300 reads land before the
+ *  capture's window and none is `na`), so the read is UNKNOWN, never `na`.
+ *  ONE rule, asked by `historyReadMask` (the plot lane) and by the object reader
+ *  (`objectColumns.js`, which the object runtime's `atCheck` asks). */
+export const historyBeforeFirstKnown = (fromListing) => fromListing === true
 
 /** ⭐⭐ C38 — `barsAgo(src, back, limit)`: Pine's `src[back]` with a PER-BAR
  *  `back`. The rule is the one above (measured, C29 rule 7): an `na` count
@@ -4096,10 +4106,25 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + '2000 it keeps every holiday open), and which of the two TradingView answers there has not been '
     + 'measured, so what this indicator draws from them is withheld across that period; the rest is drawn. '
     + 'What would settle it: the `vw-time-close-tf` probe on AMEX:SPY 1D with history before 2000.',
+  // ⭐⭐ C45 — `bar_index` (see `barIndexMask`).
+  'bar-index:window': () => '`bar_index` counts bars from the first bar of the symbol\'s history on '
+    + 'TradingView. This chart\'s loaded bars start later, so its count is lower by a number of bars it '
+    + 'cannot know (measured: capture `vw-offset-na-spy-1d-2026-09-30` reads 8175 on the bar a 300-bar window '
+    + 'calls 0). A value that depends on the count itself — a plotted `bar_index`, `bar_index % n`, a test '
+    + 'against one exact bar — would not be TradingView\'s, so everything this indicator draws from such a '
+    + 'value is withheld on this chart rather than drawn wrong. What only measures a distance between bars '
+    + '(`bar_index - bar_index[5]`) or places a drawing on a bar is drawn. On a daily chart whose bars start '
+    + 'at the symbol\'s listing it draws. What would settle it: nothing to capture — bars reaching the listing.',
+  'bar-index:early-bars': () => 'A test of `bar_index` against a fixed number (`bar_index > 100`) is answered '
+    + 'here only where TradingView\'s longer history cannot change the answer. This chart\'s count is lower '
+    + 'than TradingView\'s by an unknown number of bars: where the test is already true here it is true '
+    + 'there, and where it is false here it may not be. What this indicator draws from such a test is '
+    + 'withheld on those early bars of the loaded history (and as far forward as the script reads back to '
+    + 'them); the rest is drawn. What would settle it: nothing to capture — bars reaching the listing.',
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars'])
+  'time-close:weekend-bars', 'bar-index:window'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, a count of
  *  own-time nodes, and whether any sits under `tf` / `tf_live` / `sym`. */
@@ -4379,7 +4404,7 @@ export function historyReadMask(tree, bars, inputs, budget, scalars, opts) {
     let last = -Infinity
     for (let i = 0; i < n; i++) {
       const k = historyBackOf(back[i])
-      if (!historyReadable(k, limit) || (!fromListing && i - k < 0)) {
+      if (!historyReadable(k, limit) || (i - k < 0 && !historyBeforeFirstKnown(fromListing))) {
         last = unbounded && last !== -Infinity ? last : i
       }
       if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
@@ -4403,14 +4428,96 @@ function readsRecurrenceBinding(tree) {
   return false
 }
 
+/** ⭐⭐ C45 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON WHERE THE SERIES STARTS,
+ *  as a 0/1 column (1 = withheld), or null when no bar is.
+ *
+ *  Pine's `bar_index` counts from the first bar of the symbol's history; the
+ *  `barindex` leaf counts from the first bar HANDED to this engine. They differ
+ *  by an unknown `D ≥ 0` unless the series starts at the listing (ruling R-W —
+ *  the same fact that lets a `var` seed from bar 0). `barIndexShift.js` proves,
+ *  from the tree alone, how the value moves with `D`:
+ *
+ *    'inv'   it does not — served; TradingView's number;
+ *    'pos'   it IS a bar index — withheld as a VALUE, served as a drawing's
+ *            x-coordinate (`opts.barIndexUse === 'position'`: the object lane,
+ *            whose runtime decides per property which of the two it is);
+ *    'dep'   anything else — withheld, every bar.
+ *
+ *  An ordering test against the index (`bar_index > 100`) is the one per-bar
+ *  case: withheld on the bars where a larger `D` could change this chart's
+ *  answer (`thresholdUnknown`) and — `maxLookback` being a tree sum, C30 / C38's
+ *  argument — on every root bar within reach of one; from the first such bar on
+ *  under a function whose memory is unbounded (`lookback: "series"`); the whole
+ *  tree under `tf` / `sym`.
+ *  ⚠️ A recurrence is NOT unbounded here, and that is the one point this mask
+ *  differs from `historyReadMask` on: it applies only OFF the listing, where
+ *  `accum` is the bounded window — its value on bar i reads the last `W` bars and
+ *  nothing older, and `maxLookback` already counts `W`.
+ *
+ *  ⛔ Asked ONLY of a document that declares Pine's meaning
+ *  (`opts.barIndexAbsolute === true`, `nativeRegistry.barIndexAbsoluteFor`). The
+ *  formula language's own `barindex` is "the bar's position in the series" by its
+ *  declared sentence and claims no other platform's number. */
+export function barIndexMask(tree, bars, inputs, budget, scalars, opts) {
+  if (!opts || opts.barIndexAbsolute !== true || opts.historyFromListing === true) return null
+  const verdict = barIndexVerdict(tree)
+  const n = Array.isArray(bars) ? bars.length : 0
+  const whole = () => {
+    nameChartClock(opts, ['bar-index:window'], opts.tf)
+    return new Float64Array(n).fill(1)
+  }
+  if (verdict.cls === 'dep' || (verdict.cls === 'pos' && opts.barIndexUse !== 'position')) return whole()
+  if (!verdict.thresholds.length) return null
+  const wanted = new Map(verdict.thresholds.map((t) => [t.node, t]))
+  const found = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (wanted.has(node)) found.push({ t: wanted.get(node), nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && spec.lookback === SERIES_LOOKBACK)
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  // a threshold the walk did not meet is not one this mask can vouch for
+  if (found.length !== wanted.size) return whole()
+  const mask = new Float64Array(n)
+  let any = false
+  const rootReach = maxLookback(tree)
+  for (const { t, nested, unbounded } of found) {
+    if (nested || readsRecurrenceBinding(t.node)) return whole()
+    // ⛔ No `try`: a gap this pass cannot compute refuses the tree, by its own
+    // guard — it is the comparison's two sides, which the tree's own run computed.
+    const gap = toColumn(interpretOnce({ type: 'op', name: '-', args: [t.node.args[0], t.node.args[1]] },
+      bars, inputs, budget, scalars,
+      { ...opts, crossMemo: undefined, probeBase: undefined, chartClockSink: undefined }), n)
+    const reach = Math.max(0, rootReach - maxLookback(t.node))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (thresholdUnknown(t.node.name, t.sign, gap[i])) last = unbounded && last !== -Infinity ? last : i
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  if (!any) return null
+  nameChartClock(opts, ['bar-index:early-bars'], opts.tf)
+  return mask
+}
+
 /** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
- *  `periodAnchorMask` (C30) or `historyReadMask` (C38), one channel. */
+ *  `periodAnchorMask` (C30), `historyReadMask` (C38) or `barIndexMask` (C45), one
+ *  channel. */
 export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
-  const a = periodAnchorMask(tree, bars, inputs, budget, scalars, opts)
-  const h = historyReadMask(tree, bars, inputs, budget, scalars, opts)
-  if (!a || !h) return a || h
-  const out = new Float64Array(Math.max(a.length, h.length))
-  for (let i = 0; i < out.length; i++) out[i] = (a[i] || h[i]) ? 1 : 0
+  const masks = [
+    periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
+    historyReadMask(tree, bars, inputs, budget, scalars, opts),
+    barIndexMask(tree, bars, inputs, budget, scalars, opts),
+  ].filter(Boolean)
+  if (masks.length <= 1) return masks[0] || null
+  const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
+  for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
   return out
 }
 

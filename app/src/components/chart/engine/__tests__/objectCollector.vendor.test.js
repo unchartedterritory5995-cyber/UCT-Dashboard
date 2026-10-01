@@ -28,7 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { HARNESS_DIR } from './vendorHarness/harness'
-import { enterMemberDoor, toProductBars, tfCodeOf, HARNESS_DEF_ID } from './vendorHarness/ourSide'
+import { enterMemberDoor, toProductBars, tfCodeOf, HARNESS_DEF_ID, barIndexStartsAtZero } from './vendorHarness/ourSide'
 import * as registry from '../nativeRegistry'
 import { objectReaderFor } from '../objectColumns'
 import { evaluateObjects, OBJECT_STATUS } from '../objectRuntime'
@@ -50,6 +50,15 @@ function ourIds(capture) {
     const bars = toProductBars(capture)
     const reader = objectReaderFor(door.def, bars, {
       inputs: undefined, tf: tfCodeOf(capture.timeframe), newestBarIsForming: capture.newestBarIsForming ?? null,
+      // ⭐ C45 — the probes key what they create on `bar_index` (`bar_index % 5`,
+      // a text that prints it), a value that is TradingView's only where the
+      // series starts at the vendor's bar 0. The daily captures assert the listing
+      // (`history.startsAtBar0`); the weekly ones assert nothing about a listing,
+      // and prove the one fact `bar_index` needs themselves — the vendor's own
+      // control row reads 0, 1, 2 … on their bars (`ourSide.barIndexStartsAtZero`,
+      // the harness's own reading, not a second one).
+      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      barIndexFromFirstBar: barIndexStartsAtZero(capture),
     })
     const run = evaluateObjects(reader.program, {
       barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,

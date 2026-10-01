@@ -199,6 +199,8 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐ C45 — of those, ops held because a bar index reached them as a value. */
+  let withheldBarIndex = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
   let propsUnmeasured = 0
   /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
@@ -1123,7 +1125,12 @@ export function beginObjects(program, ctx) {
         }
         const k = bar - back
         const src = at.args[0]
-        if (k >= 0 && src.v === 'graph' && readUnknown && readUnknown(src.node, k)) return 'unknown'
+        // ⭐⭐ C45 — a read BEFORE the first bar held is asked too (`k < 0`, and
+        // `bar_index[e]` as well as a column): the reader answers by the plot
+        // lane's rule (`objectColumns.js::makeReadUnknown`) — unknown unless the
+        // series starts at the listing, where it is Pine's `na` and the read
+        // below answers `NaN`. ⚰️ It was `na` on every chart.
+        if (readUnknown && (k < 0 || src.v === 'graph') && readUnknown(src.v === 'graph' ? src.node : -1, k)) return 'unknown'
       }
       return 'ok'
     }
@@ -1408,7 +1415,8 @@ export function beginObjects(program, ctx) {
       // unknowable condition (the warm-up curtain) is remembered as unknown, and
       // every op reading it is withheld and counted below, never run off a guess.
       if (op.k === 'latch') {
-        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) ? LATCH_UNKNOWN : truthy(value(op.cond))
+        // ⭐ C45 — a condition that reads a bar index as a VALUE is unknown (`indexHeld`).
+        const latched = unknownAt(op, bar) || withheldAt(op) || tainted(op.cond) || op.indexHeld ? LATCH_UNKNOWN : truthy(value(op.cond))
         if (latched === LATCH_UNKNOWN) taintSeen = true
         latches.set(op.id, latched)
         continue
@@ -1434,10 +1442,15 @@ export function beginObjects(program, ctx) {
         || (op.requiresEmpty && regTaint.has(op.requiresEmpty))
       if (!handleUnknown && op.requiresLive && regs.get(op.requiresLive) === null) continue
       if (!handleUnknown && op.requiresEmpty && regs.get(op.requiresEmpty) !== null) continue
-      if (unknownAt(op, bar) || readsUnknownLatch(op.when)) {
+      // ⭐⭐ C45 — AN OP A BAR INDEX REACHES AS A VALUE (`op.indexHeld`, marked by
+      // the reader off the listing — `objectProgram.js::withBarIndexHeld`): this
+      // chart's count is not TradingView's, so the op is withheld on every bar.
+      if (unknownAt(op, bar) || readsUnknownLatch(op.when) || op.indexHeld) {
         // ⭐ C17 — a guard that is itself KNOWN and false is a certain skip:
         // Pine did not run the op either, so nothing it would write is unknown.
-        if (op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
+        // (⛔ not when the GUARD is what reads the index: its falseness is unknown.)
+        if (op.indexHeld !== 'guard' && op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
+        if (op.indexHeld) withheldBarIndex += 1
         withheldUnknown += 1
         noteUnknownCreate(op)
         taintOutputs(op)
@@ -2074,6 +2087,7 @@ export function beginObjects(program, ctx) {
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(withheldBarIndex ? { withheldBarIndex } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),
       ...(truncNegative ? { truncNegative } : {}),

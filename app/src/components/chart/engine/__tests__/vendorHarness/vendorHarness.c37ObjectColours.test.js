@@ -154,8 +154,11 @@ describe('C37 — `color.from_gradient` on the host object lane, per pass of a l
     const o = tallyOf(ID)
     const cells = o.rows.filter((r) => r.kind === 'cell' && r.slot === 'bgcolor' && r.where.includes(',1) '))
     // 30 loop passes at (i, 1); (0,1) and (29,1) are then overwritten by the
-    // static ❆ / ☀︎ cells and (13,1) by the gauge point (the last test here)
-    expect(cells.length).toBe(30)
+    // static ❆ / ☀︎ cells and (13,1) by the gauge point (the last test here).
+    // ⭐ C45 RE-PIN (was 30 cells, 29 agreeing): the gauge point's cell is HELD
+    // now — its colour is not one this lane can serve exactly — so it is not
+    // among the cells drawn; every one that is drawn agrees.
+    expect(cells.length).toBe(29)
     const agreeing = cells.filter((r) => r.state === 'agree')
     expect(agreeing.length).toBe(29)
     // ⛔ NON-VACUITY: a gradient — 27 distinct blends between the two static ends
@@ -175,16 +178,20 @@ describe('C37 — `color.from_gradient` on the host object lane, per pass of a l
     expect(n.else).toMatchObject({ c: 'grad', lo: { v: 'const', value: 15 }, hi: { v: 'const', value: 30 } })
   }, 60000)
 
-  it('⛔ STILL NOT TradingView\'s, by name: the gauge POINT\'s fill (`bgcolor = color`, a variable named `color`)', () => {
-    // The statement `color = color_level > 0 ? … : …` binds a name this translator
-    // does not read as a variable (`pine:statement`), so the cell's `bgcolor` is
-    // dropped and the cell keeps the fill its address was given earlier in the
-    // bar (the gauge's). One slot; the capture is the witness when it is served.
+  it('⛔ the gauge POINT\'s fill (`bgcolor = color`, a variable named `color`) is HELD by name, never drawn wrong', () => {
+    // ⭐ C45 RE-PIN. This pinned ONE `carriedDiffers` slot and a dropped
+    // `cell.bgcolor@70`: the statement `color = …` was refused (`pine:statement`),
+    // the prop was dropped, and the cell kept the strip fill underneath it
+    // (`#dde44f` where TradingView draws `#f3e841`) — a wrong colour, drawn.
+    // C45 binds the name and measured what TradingView draws: each arm's `ta.*`
+    // sees only the bars that arm ran on (`vendorHarness.c45GaugeColour`), which no
+    // tree can say, so the colour is HELD and named instead. No slot differs.
     const o = tallyOf(ID)
     const bad = o.rows.filter((r) => r.state === 'carriedDiffers' || r.state === 'notCarried')
-    expect(bad.map((r) => `${r.kind}.${r.slot} ${r.where}`)).toEqual(['cell.bgcolor cell (13,1) "𖦹"'])
+    expect(bad.map((r) => `${r.kind}.${r.slot} ${r.where}`)).toEqual([])
     const d = memberPaneDefinition({ source: load(ID).source.text, id: 'u_member-pane-c37heat2', name: 'h' })
-    expect(d.translation.objectDiagnostics.droppedPropNames).toEqual(['cell.bgcolor@70'])
+    expect(d.translation.objectDiagnostics.droppedPropNames).toBeUndefined()
+    expect(d.translation.objectDiagnostics.heldColours).toEqual(['fn:conditional-history `ta.highest`@43'])
   }, 60000)
 })
 

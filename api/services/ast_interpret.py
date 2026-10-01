@@ -3784,6 +3784,12 @@ def interpret(ast: Any, bars: List[dict],
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
             column = [math.nan if held[i] else v for i, v in enumerate(column)]
+        # C45 -- ...and its ``bar_index`` half (``interpret.js::barIndexMask``): off the
+        # listing, in a document that means Pine's ``bar_index``, a value that
+        # depends on where the series starts is withheld.
+        indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
+        if indexed is not None:
+            column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -3876,6 +3882,136 @@ def _reads_recurrence_binding(tree: Any) -> bool:
         if isinstance(args, list):
             stack.extend(args)
     return False
+# C45 -- the bar-index shift analysis lives in its own module (it catches its own
+# "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
+from api.services.ast_bar_index_shift import (  # noqa: E402,F401
+    BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+)
+
+
+
+def bar_index_mask(tree: Any, bars: List[dict],
+                   inputs: Optional[Mapping[str, Any]] = None,
+                   budget: Optional[Mapping[str, Any]] = None,
+                   scalars: Optional[Mapping[str, Any]] = None,
+                   opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::barIndexMask`` -- the bars of a tree whose answer depends on
+    where the series starts (1 = withheld), or ``None`` when no bar is.
+
+    Asked only of a document that declares Pine's meaning
+    (``opts["barIndexAbsolute"] is True``) and only off the listing
+    (``opts["historyFromListing"] is not True``). This lane holds no drawings, so
+    an index (``'pos'``) is withheld like any other dependence unless the caller
+    says the value is a position (``opts["barIndexUse"] == "position"``)."""
+    o = opts or {}
+    if o.get("barIndexAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    verdict = bar_index_verdict(tree)
+    n = len(bars)
+
+    def whole() -> List[int]:
+        _name_chart_clock(opts, ["bar-index:window"])
+        return [1] * n
+    if verdict["cls"] == "dep" or (verdict["cls"] == "pos" and o.get("barIndexUse") != "position"):
+        return whole()
+    if not verdict["thresholds"]:
+        return None
+    wanted = {id(node): (node, sign) for node, sign in verdict["thresholds"]}
+    found: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if id(node) in wanted:
+            found.append((wanted[id(node)], nested, unbounded))
+        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        name = node.get("name")
+        spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
+        opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if len(found) != len(wanted):
+        return whole()
+    mask = [0] * n
+    held = False
+    root_reach = max_lookback(tree)
+    inner = dict(o, chartClockSink=None)
+    for (node, sign), nested, unbounded in found:
+        if nested or _reads_recurrence_binding(node):
+            return whole()
+        gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
+                                bars, inputs, budget, scalars, inner)
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if threshold_unknown(node["name"], sign, gap[i]):
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, ["bar-index:early-bars"])
+    return mask
+
+
+#: What a document declares when its trees are Pine translations
+#: (``nativeRegistry.js::PINE_RECURRENCE_ORIGIN``; the member door stamps it).
+PINE_RECURRENCE_ORIGIN = "pine"
+
+
+def bar_index_absolute_for(definition: Any) -> bool:
+    """``nativeRegistry.js::barIndexAbsoluteFor`` -- does this DOCUMENT's
+    ``barindex`` mean Pine's ``bar_index``? Read off the same declaration
+    (``meta.recurrenceOrigin``); a document that says nothing is left as it was.
+    No server lane can state where its bars start, so there is no second fact."""
+    meta = definition.get("meta") if isinstance(definition, Mapping) else None
+    return isinstance(meta, Mapping) and meta.get("recurrenceOrigin") == PINE_RECURRENCE_ORIGIN
+
+
+def lane_opts_for(definition: Any) -> dict:
+    """The ``interpret`` opts a SERVER lane adds for this document -- one function,
+    so the door that admits a tree and the lane that evaluates it cannot be handed
+    different ones. Empty for every document that is not a Pine translation."""
+    return {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
+
+
+#: Daily bars keyed by their session DATE (``YYYYMMDD``, no time of day): the
+#: shape the scan sweep evaluates on (``scan_evaluator``; the C36 parity
+#: fixture's "date ints . D (the scan sweep)" cases). A door that must decide
+#: "is this tree withheld on every bar there" before a real bar exists asks on
+#: these. Five consecutive NYSE sessions; the prices are never read.
+DATE_KEYED_PROBE_BARS = tuple(
+    {"t": ymd, "o": 1.0, "h": 1.0, "l": 1.0, "c": 1.0, "v": 1.0}
+    for ymd in (20240102, 20240103, 20240104, 20240105, 20240108))
+
+
+def whole_series_withheld(tree: Any, bars: Sequence[dict],
+                          inputs: Optional[Mapping[str, Any]] = None,
+                          budget: Optional[Mapping[str, Any]] = None,
+                          scalars: Optional[Mapping[str, Any]] = None,
+                          opts: Optional[Mapping[str, Any]] = None) -> tuple:
+    """C45 (C36's decision 6) -- the codes by which ``tree`` is withheld on EVERY
+    bar of ``bars`` under ``opts``, in ``CHART_CLOCK_WHOLE``'s order; ``()`` when
+    it is not.
+
+    The SAME two decisions ``interpret`` makes (``_chart_clock_whole`` and
+    ``bar_index_mask``), asked without evaluating the tree -- so a door can refuse
+    by name a formula its lane would answer "no number" for on every bar, forever,
+    instead of admitting it to go quiet. A tree withheld on SOME bars is not this.
+    """
+    sink: dict = {}
+    asked = dict(opts or {}, chartClockSink=sink)
+    rows = list(bars)
+    _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
+    bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
 # --------------------------------------------------------------------------- #
@@ -3916,10 +4052,13 @@ CHART_CLOCK_WHOLE = (
     "time-anchor:other-bars", "time-clock:unreadable", "time-anchor:not-daily",
     "time-anchor:weekend-bars", "time-own:chart-unwitnessed", "time-close:not-daily",
     "time-close:weekend-bars",
+    # C45 -- a value that depends on where the series starts (``bar_index_mask``)
+    "bar-index:window",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:session-open-missing",
     "time-anchor:utc-day-clock", "time-close:period-end-missing",
+    "bar-index:early-bars",
 )
 
 
