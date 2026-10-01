@@ -45,11 +45,13 @@ function run(program, bars) {
 }
 
 // One label per bar that converts, one whose text this door cannot read (an
-// object getter in the text — refused by name at the value door).
+// object getter inside ARITHMETIC in the text — refused by name at the value
+// door. ⚰️ It was a bare `str.tostring(line.get_y1(ln))` until C33 served that:
+// a whole getter is a number the object runtime holds and formats.)
 const LOSES_A_LABEL = src('indicator("t", overlay=true, max_labels_count=5)',
   'var line ln = line.new(0, 1, 1, 1)',
   'label.new(bar_index, high, "kept")',
-  'label.new(bar_index, low, str.tostring(line.get_y1(ln)))')
+  'label.new(bar_index, low, str.tostring(line.get_y1(ln) + 1))')
 const CLEAN = src('indicator("t", overlay=true, max_labels_count=5)',
   'var line ln = line.new(0, 1, 1, 1)',
   'label.new(bar_index, high, "kept")')
