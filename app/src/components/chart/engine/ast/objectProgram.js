@@ -944,11 +944,57 @@ export function assertObjectProgram(program) {
       if (!ID_RE.test(String(op.id))) {
         throw new Error(`${where}: a loop needs a counter id matching ${ID_RE}`)
       }
-      assertValueRef(op.from, `${where}.from`, live)
-      assertValueRef(op.to, `${where}.to`, live)
-      if (op.step !== undefined) assertValueRef(op.step, `${where}.step`, live)
       if (!Array.isArray(op.body)) throw new Error(`${where}: a loop needs a body array`)
       if (!op.body.length) throw new Error(`${where}: a loop with an empty body draws nothing`)
+      // ⭐⭐ C40 — A LOOP IS ONE OF THREE THINGS, AND SAYS WHICH BY ITS FIELDS:
+      //   counted   `from` / `to` [/ `step`] — Pine's `for i = a to b`; `asc: true`
+      //             is a `for … in` over a list (`0 to size − 1`), which never
+      //             counts down: an empty list runs no pass;
+      //   a cap     `cond` — `while array.size(a) > N`, the condition re-read before
+      //             every pass. ⛔ NOT A GENERAL `while`: the condition is one
+      //             comparison that measures a list, and the body must take an
+      //             element off a list it measures, so the loop ends;
+      //   a walk    `over: {all: <family>}` + `elem` — `for … in line.all`: every
+      //             object of the family, oldest first, handed to the register.
+      const forms = (op.cond !== undefined ? 1 : 0) + (op.over !== undefined ? 1 : 0)
+        + (op.from !== undefined || op.to !== undefined ? 1 : 0)
+      if (forms !== 1) {
+        throw new Error(`${where}: a loop is counted (from/to), a cap (cond) or a walk (over) — exactly one`)
+      }
+      if (op.asc !== undefined && (op.asc !== true || op.from === undefined)) {
+        throw new Error(`${where}: asc is a flag on a counted loop — it is either absent or true`)
+      }
+      if (op.cond !== undefined) {
+        assertValueRef(op.cond, `${where}.cond`, live)
+        const measured = []
+        const sizes = (v, depth = 0) => {
+          if (!isObj(v) || depth > 32) return
+          if (v.v === 'size') measured.push(v.coll)
+          if (Array.isArray(v.args)) v.args.forEach((a) => sizes(a, depth + 1))
+        }
+        sizes(op.cond)
+        if (op.cond.v !== 'cmp' || !measured.length) {
+          throw new Error(`${where}: a cap loop's condition is one comparison that reads a list's length`)
+        }
+        if (!op.body.some((b) => isObj(b) && b.k === 'collremove' && measured.includes(b.coll))) {
+          throw new Error(`${where}: a cap loop's body must remove an element of a list its condition measures`)
+        }
+        if (op.step !== undefined || op.elem !== undefined) throw new Error(`${where}: a cap loop has no step and no element`)
+      } else if (op.over !== undefined) {
+        if (!isObj(op.over) || !['line', 'label', 'box'].includes(op.over.all)) {
+          throw new Error(`${where}: a walk is over {all: 'line' | 'label' | 'box'}, got ${JSON.stringify(op.over)}`)
+        }
+        const reg = regs.get(op.elem)
+        if (!reg || reg.family !== op.over.all) {
+          throw new Error(`${where}: a walk over every ${op.over.all} hands each to a declared ${op.over.all} register, got ${JSON.stringify(op.elem)}`)
+        }
+        if (op.step !== undefined) throw new Error(`${where}: a walk has no step`)
+      } else {
+        assertValueRef(op.from, `${where}.from`, live)
+        assertValueRef(op.to, `${where}.to`, live)
+        if (op.step !== undefined) assertValueRef(op.step, `${where}.step`, live)
+        if (op.elem !== undefined) throw new Error(`${where}: a counted loop has no element register`)
+      }
     } else if (op.k === 'create') {
       if (!OBJECT_FAMILIES.includes(op.family)) {
         throw new Error(`${where}: create names family ${JSON.stringify(op.family)}, which is not one of [${OBJECT_FAMILIES}]`)
@@ -1285,8 +1331,9 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     // `v: 'tree'` as an unknown kind and answer `undefined` for every cell in
     // the loop, which draws an empty table rather than failing.
     if (op.k === 'loop' && Array.isArray(op.body)) {
-      out.from = bindValue(op.from)
-      out.to = bindValue(op.to)
+      // ⭐ C40 — a cap or a walk has no bounds (its `cond` binds with the list below).
+      if (op.from !== undefined) out.from = bindValue(op.from)
+      if (op.to !== undefined) out.to = bindValue(op.to)
       out.body = bindOps(op.body)
     }
     if (op.target) out.target = bindRef(op.target)

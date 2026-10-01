@@ -13797,6 +13797,20 @@ function loopFormNote(stmt) {
  *  hole `vectorSilentNa.test.js` is named for (measured 2026-09-14: a fixture
  *  whose array is filled by a `for` came back 0 refusals, ok=true). The vector it
  *  replaced is kept (R8) so a read can settle its size before speaking. */
+/** ⭐⭐ C40 — A BOUNDED WINDOW WHOSE MODEL ALREADY HOLDS A LOOP'S WRITES.
+ *
+ *  `arrayWindows.js` builds a window model only when EVERY statement that writes
+ *  the array is one it reads, and the one loop it reads is the cap written as a
+ *  `while` (`while a.size() > K` → `a.shift()`): any other write inside a loop
+ *  refuses the model outright. So a vector that carries a model has had this
+ *  loop's writes accounted for, and condemning it here would throw the model
+ *  away. ⛔ Nothing is served by this alone: the plot lane still refuses every
+ *  read of the array (its writers are not modelled there — `resolveVectorRead`'s
+ *  `unmodelled`), and only the object pass reads the window. */
+function loopWritesModelled(prior) {
+  return !!(prior && prior.kind === 'vector' && prior.window)
+}
+
 function loopWriteRefusal(name, prior, stmt, at) {
   if (prior && prior.kind === 'vector') {
     // ⭐ a4 — the sentence names the FORM when the form is why, and falls back
@@ -14435,6 +14449,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (ctx.loopSeen) ctx.loopSeen.v = true
       for (const name of loopWrites(st.body || toks, env)) {
         if (!env.has(name)) continue
+        // ⭐ C40 — a window whose model already holds this loop's writes keeps it.
+        if (loopWritesModelled(env.get(name))) continue
         env.set(name, loopWriteRefusal(name, env.get(name), st, locate(first)))
       }
       if (ctx) consumeMutators(ctx, st.body || toks)
@@ -15094,6 +15110,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts, {
     isPunct, findTop, parseArguments, Cursor, boundName, parseWholeExpression,
+    // ⭐ C40 — `for … in` and the cap `while` are loops the HOST object runtime
+    // runs (`pineObjects.js`, C40). A top-level bounded numeric window (C11b /
+    // C32, `arrayWindows.js`) is a list it can walk: its elements are per-bar
+    // slots the runtime picks per pass (`wget`).
+    hostLoops: hostPasses,
+    forInWindow: (name) => {
+      const b = env.get(name)
+      return !!(b && b.kind === 'vector' && b.window)
+    },
     // ⭐ C20 — `while` loops the runtime lane reads per pass; the SAME last-bar
     // test the converter lifts (`splitLastBarNode`), never a second one.
     ...(rtC20 ? {
@@ -15213,6 +15238,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     getters: [...new Set(collected.diagnostics.getters)].sort(),
     unsupported: [...new Set(collected.diagnostics.unsupported)].sort(),
     outOfScope: [...new Set(collected.diagnostics.outOfScope)].sort(),
+    // ⭐ C40 — a `for … in` over a list this lane holds that it still refused, why.
+    ...((collected.diagnostics.forInRefused || []).length
+      ? { forInRefused: [...new Set(collected.diagnostics.forInRefused)].sort() } : {}),
     unresolvedValues: 0,
     loopValuesUnresolved: 0,
     droppedOps: 0,
@@ -18043,6 +18071,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     walkV(o.when, 0)
     if (o.k === 'setnum') walkV(o.value, 0)
     for (const f of ['col', 'row', 'index', 'col2', 'row2', 'from', 'to', 'step']) walkV(o[f], 0)
+    // ⭐ C40 — a cap loop's condition (a latch's is judged through its readers).
+    if (o.k === 'loop') walkV(o.cond, 0)
     for (const v of Object.values(o.props || {})) walkV(v, 0)
     return { reads, trees }
   }
@@ -18136,6 +18166,51 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⭐⭐ A COUNTED LOOP. Its BOUNDS are resolved in the OUTER scope (the
     // reader stamps this op with the counters open around it, not its own), and
     // its BODY converts into a sink of its own so the ops nest.
+    // ⭐⭐ C40 — THE CAP `while` (`pineObjects.js::capWhileOf`): the loop runs
+    // while its condition holds, and the condition is the list's own length
+    // against a per-bar bound — object state, read by the runtime before every
+    // pass (`liftLive`, the comparison a latch carries). ⛔ A bound this reader
+    // cannot compute drops the loop by name with everything its body would have
+    // done. (That the condition measures the list its body shortens is the
+    // reader's shape test and the program door's rule — `assertObjectProgram`.)
+    if (op.k === 'loop' && op.whileToks) {
+      lastCanonRefusal = null
+      let node = null
+      try { node = parseWholeExpression(op.whileToks) } catch { node = null }
+      const cond = node ? liftLive(node) : null
+      if (!cond) {
+        noteLoopBounds(op, `a \`while\` over the length of \`${op.capColl}\`: ${shortWhy(lastCanonRefusal)}`)
+        unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
+      }
+      const outer = ops
+      const body = []
+      ops = body
+      convertList(op.body || [])
+      ops = outer
+      scopeEnv = scopeFor(op.locals, op)
+      loopIds = op.loopIds || []
+      if (!body.some((b) => b.k !== 'latch')) { dropped('loop:empty'); continue }
+      ops.push({ k: 'loop', id: op.id, cond, body, when, ...lastBarOnly })
+      continue
+    }
+    // ⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`: every object of the
+    // family on the chart, oldest first (`vw-object-gc-d`), each handed to the
+    // loop variable's register in turn. The runtime walks what it holds when the
+    // loop starts and refuses, by name, the one case with two readings.
+    if (op.k === 'loop' && op.forIn && op.forIn.all) {
+      const elem = regId.get(op.forIn.elem)
+      if (!elem) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
+      const outer = ops
+      const body = []
+      ops = body
+      convertList(op.body || [])
+      ops = outer
+      scopeEnv = scopeFor(op.locals, op)
+      loopIds = op.loopIds || []
+      if (!body.some((b) => b.k !== 'latch')) { dropped('loop:empty'); continue }
+      ops.push({ k: 'loop', id: op.id, over: { all: op.forIn.all }, elem, body, when, ...lastBarOnly })
+      continue
+    }
     if (op.k === 'loop') {
       // ⭐ C16 — a bound may read a drawing collection's length
       // (`for i = array.size(bs) - 1 to 0`), evaluated when the loop starts.
@@ -18167,7 +18242,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `for i = array.size(bs) - 1 to 0` with an `array.remove` in its body is
       // carried and `for i = 0 to array.size(bs) - 1` with one would not be.
       if (liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
-        noteLoopBounds(op, 'an end bound that reads a list length its body changes')
+        noteLoopBounds(op, op.forIn ? 'a `for … in` whose body changes the length of the list it walks'
+          : 'an end bound that reads a list length its body changes')
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
       const outer = ops
@@ -18189,6 +18265,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // program carries no parse nodes.
       ops.push({
         k: 'loop', id: op.id, from, to, ...(step ? { step } : {}), body, when, ...lastBarOnly,
+        // ⭐ C40 — a `for … in` never counts down: an empty list runs no pass.
+        ...(op.asc ? { asc: true } : {}),
         ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
       })
       continue
@@ -18921,6 +18999,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     for (const o of list || []) {
       if (o.into) usedRegs.add(o.into)
       if (o.reg) usedRegs.add(o.reg)
+      if (o.k === 'loop' && o.elem) usedRegs.add(o.elem)   // C40 — `for … in <family>.all`
       if (o.coll) usedColls.add(o.coll)
       // ⭐ C14 — a handle a getter reads is used, whatever else writes it.
       for (const s of stateReadsOfOp(o)) if (s.v === 'get') usedRegs.add(s.target.id)
@@ -19756,6 +19835,8 @@ function translatePineResult(source, opts = {}) {
         // whose slots are unknown.
         // ⭐ C31 — the binding a loop leaves behind is built by ONE function,
         // `loopWriteRefusal`, which a loop inside a block (`foldStatements`) asks too.
+        // ⭐ C40 — a window whose model already holds this loop's writes keeps it.
+        if (loopWritesModelled(env.get(name))) continue
         env.set(name, loopWriteRefusal(name, env.get(name), stmt, locate(first)))
       }
       continue
