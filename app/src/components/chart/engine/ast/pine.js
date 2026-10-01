@@ -2391,6 +2391,26 @@ export const PINE_INEXPRESSIBLE = Object.freeze({
   // hole. `isfirst` names the OLDEST DELIVERED BAR, which moves every time the
   // fetch depth changes — so on a screen it is the `cum` defect exactly: a
   // finite, plausible number that is different tomorrow.
+  // ⭐⭐ C45 — the table's `valuewhenOccurrence`, tagged `occurrence_dependent`
+  // in the manifest (`_requirement_tags`): accepted by the pane, refused by the
+  // five comparability consumers. This sentence is the refusal a screen gets when
+  // a script spells the TABLE name itself — the pair `pineCumHostMode.test.js`
+  // holds for every host-admissible name.
+  // ⚠️ PINE'S OWN SPELLING, `ta.valuewhen(condition, source, occurrence)`, STILL
+  // TRANSLATES FOR A SCREEN (PR #166's capability, 14 rails and the door-coverage
+  // ratchet stand on it), and is contained one door later: the saved definition
+  // is stamped with the tag and every comparability consumer refuses it by name
+  // (`user_definitions.consumer_refusal`). Refusing it here too is the
+  // integrator's call (§ C45, decision 12).
+  // ⛔ NOT the period anchor `time("W" | "M" | "3M" | "12M")` translates to: that
+  // tree is bounded by its period and masked exactly by both interpreters.
+  valuewhenOccurrence: 'the value at the n-th most recent time a condition was '
+    + 'true, counted back over whatever history was loaded. Where that lies before '
+    + 'the first bar loaded there is no value, and on a screen the first comparison '
+    + 'above it would read the missing value as "no match" — so it would answer '
+    + 'differently for the same stock on the same day. A pane may draw '
+    + '`ta.valuewhen(condition, source, occurrence)`; the bar-window '
+    + '`valuewhen(condition, source, bars)` translates for a screen.',
   isfirst: 'the OLDEST bar the fetch delivered, which moves whenever the request '
     + 'reaches further back — so on a screen it would answer differently for the '
     + 'same stock on the same day. `barstate.islast` is the other end and IS '
@@ -11671,7 +11691,21 @@ export class Resolver {
     // cannot compute), and the manifest-derived set (the ruling covers THIS
     // name). Drop any one and the exemption stops being the ruling and starts
     // being a hole.
-    const hostOnly = hostAdmissible(this.table).has(bare)
+    // ⭐ C45 — THE NAME IS LOOKED UP UNDER THE TABLE'S OWN SPELLING TOO. `bare` is
+    // lower-cased, and until `valuewhenOccurrence` every name in both sets was
+    // lower-case already, so the two lookups below could not miss. A camel-case
+    // table name did: its `PINE_INEXPRESSIBLE` sentence and its host-admissible
+    // tag were both invisible here, and the directly written name fell through to
+    // `pine:role-order` — a sentence about argument order for a function whose
+    // real reason is the loaded history.
+    // ⛔ ONLY WHEN THE SCRIPT WROTE THE TABLE'S NAME. `ta.valuewhen` reaches the
+    // same `key` through the redirect above and is NOT refused here: its `bare`
+    // is `valuewhen`, which is neither set's member.
+    const wroteTableName = key && normaliseName(key) === bare ? key : null
+    const inexKey = own(PINE_INEXPRESSIBLE, bare) ? bare
+      : (wroteTableName && own(PINE_INEXPRESSIBLE, wroteTableName) ? wroteTableName : null)
+    const admissible = hostAdmissible(this.table)
+    const hostOnly = admissible.has(bare) || (wroteTableName !== null && admissible.has(wroteTableName))
     const hostServes = this.strict && key && hostOnly
     // ⚠️ C29 — `ta.cum(1)` IS LEFT THE HOST'S `cum` ON PURPOSE. From the listing it
     // is already TradingView's bar_index + 1 (measured, `vw-bar-counters-rddt-1d-
@@ -11694,7 +11728,7 @@ export class Resolver {
     // `_functions_cumulative` names BY PATH as the level that "must stay refused"
     // — started translating for a SCREEN. Caught by the corpus snapshot, not by
     // review.
-    if (own(PINE_INEXPRESSIBLE, bare) && !hostServes
+    if (inexKey !== null && !hostServes
         && ((pineName !== base || !key) || hostOnly)) {
       // ⚰️⚰️ `time` HAS TWO OVERLOADS AND ONE SENTENCE COVERED BOTH. Pine spells
       // them `time(timeframe)` — the opening TIMESTAMP of the enclosing period —
@@ -11775,7 +11809,7 @@ export class Resolver {
       throw new PineRefusal('pine:function',
         anchorForm
           ? timeAnchorSentence(pineName)
-          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
+          : `\`${pineName}\` is ${PINE_INEXPRESSIBLE[inexKey]}`, locate(tok))
     }
     if (!key) {
       // ⭐⭐ A NAME THIS TABLE HAS ALREADY RULED ON GETS ITS RULING, not a list of

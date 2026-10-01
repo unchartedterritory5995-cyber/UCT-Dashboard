@@ -245,8 +245,15 @@ describe('the fail-closed default', () => {
     // SPECIFIC `PINE_INEXPRESSIBLE` reason) has no current witness now that
     // `valuewhen` moved on; the branch that reads it above is still real code,
     // covered the day a future entry needs it, not dead code kept for show.
-    expect(multi.every((k) => !Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
-      'a multi-series name unexpectedly carries a PINE_INEXPRESSIBLE reason -- update this comment').toBe(true)
+    // ⭐ C45 (2026-10-01) — THAT DAY CAME, AND THE WITNESS IS NAMED. The manifest
+    // tagged `valuewhenOccurrence` `occurrence_dependent` (accepted by the pane,
+    // refused by the comparability consumers), so it carries a
+    // `PINE_INEXPRESSIBLE` sentence and its literal spelling now refuses
+    // `pine:function` with that sentence rather than `pine:role-order`. Pinned
+    // as the exact roster, so a second such name is a deliberate edit here.
+    expect(multi.filter((k) => Object.prototype.hasOwnProperty.call(PINE_INEXPRESSIBLE, k)),
+      'the multi-series names carrying a PINE_INEXPRESSIBLE reason changed -- update this roster')
+      .toEqual(['valuewhenOccurrence'])
   })
 
   it('a shape that no longer fits the manifest refuses instead of filling what it can', () => {
