@@ -971,3 +971,14 @@ owed, and the work is at 2,000 paragraphs: busy p50 grows from 5.0 ms at one par
 ⚠️ The harness's own budget check still reads `typing_per_char` (`summarize()` was not changed
 by TY4). Until it is moved to the busy row, its typing verdict line is the wall-clock one and is
 not the clause's reading.
+
+**Update, 2026-10-01 (lane TY6):** the line above is superseded. `summarize()` now reads the
+typing budget off `typing_busy_per_char` p95 (`summarize_busy`'s rows, which since this lane
+carry the budget up to 2,000 paragraphs the same way `note_open`'s rows carry theirs), exactly
+per ruling D24. `typing_per_char` is still produced and written on every run, with
+`budget_ms: None` ("n/a" in the markdown table) and a note that it is not the budget's reading.
+A run with no `--busy` pass, or one where `--busy` shared a context with `--attribute` (an
+unclean, wrapper-loaded trace -- `run_live`'s own caveat), now reports the typing budget
+INCONCLUSIVE, never a silent pass and never a breach read off the wall-clock row. See
+`tools/notebook_perf_harness.py`'s `summarize()`/`summarize_busy()` and
+`tests/test_notebook_perf_harness.py`'s D24 cases.

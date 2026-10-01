@@ -29,12 +29,24 @@ busy time inside that window (`keystroke_busy_ms`) is reported as a new row,
 sample is bounded below by the ~16.7 ms display-frame interval (the control reading,
 docs/notebook/perf-runs/ty-floor/README.md), so near the 16 ms budget line it can no longer
 tell a fast editor from a slow one; `typing_busy_per_char` is the main-thread work alone, with
-no frame wait in it. It is REPORTED, never a verdict: `typing_per_char` is unchanged by this,
-and which row (if either) the 16 ms line binds is the controller's ruling, not this harness's.
+no frame wait in it.
+
+⭐ Ruling D24 (docs/notebook/NOTEBOOK-10-OF-10-PLAN.md, decisions table; controller,
+owner-delegated 2026-10-01) settled which row the 16 ms line binds: `typing_busy_per_char` p95,
+for sizes up to the budget's paragraph limit, is now the typing budget's VERDICT -- a breach
+there is a breach, exactly like `note_open`'s p95 against its own line. `typing_per_char`
+(wall-clock) is still produced on every run and still written to the JSON and the markdown, but
+with `budget_ms: None` ("n/a") and a note that it is not the budget's reading. Without a `--busy`
+pass, or with one run alongside `--attribute` (whose wrappers load in the same context and make
+the trace unclean -- `run_live`'s own caveat in `errors`), the typing budget has NO reading at
+all: that is INCONCLUSIVE, with a message to rerun with `--busy` alone -- never a silent pass,
+and never a breach decided on the wall-clock row.
 
 Budgets: read from docs/notebook/perf-budgets.json, key "editor" (never retyped here):
   * note open p95 < 300 ms for notes up to 1,000 paragraphs
-  * typing < 16 ms per character up to 2,000 paragraphs
+  * typing < 16 ms per character up to 2,000 paragraphs -- read on the `--busy` pass's
+    `typing_busy_per_char` p95 (ruling D24); with no clean `--busy` pass the typing budget is
+    INCONCLUSIVE, never decided on `typing_per_char`
     (G-035's 71 ms/char at the SIZE CAP stays as the owner ruled; the budget stops at 2,000)
 
 What is measured, exactly:
@@ -109,9 +121,10 @@ notes through POST /api/j2/notes. Nothing is written except through the app's ow
     python tools/notebook_perf_harness.py --dry-run            # no browser, no sandbox
 
 Exit: 0 = within budget; 1 = a budget breached; 2 = INCONCLUSIVE (nothing trustworthy was
-measured, including every run whose sandbox integrity did not close CLEAN); 3 = refused
-or not run (bad args, a data dir in the shared root, a busy port, or the measurement could not
-start: sign-in, comp or seeding failed).
+measured, including every run whose sandbox integrity did not close CLEAN, AND every run whose
+typing reading has no verdict -- no `--busy` pass, or one run alongside `--attribute`, ruling
+D24); 3 = refused or not run (bad args, a data dir in the shared root, a busy port, or the
+measurement could not start: sign-in, comp or seeding failed).
 """
 from __future__ import annotations
 
@@ -513,17 +526,21 @@ def keystroke_busy_ms(trace) -> list[float]:
 
 
 def summarize_busy(busy_ms: dict[int, list[float]]) -> list[dict]:
-    """Pure: per-size keystroke-busy samples -> REPORTED rows (`typing_busy_per_char`). No
-    budget, no breach, no INCONCLUSIVE entry -- this reading is reported, never gated, and the
-    verdict logic in `summarize()` above is untouched by it. Which row (if any) the 16 ms line
-    binds is the controller's ruling, not this harness's (TY4 brief)."""
+    """Pure: per-size keystroke-busy samples -> REPORTED rows (`typing_busy_per_char`), carrying
+    the typing budget (ruling D24, docs/notebook/NOTEBOOK-10-OF-10-PLAN.md decisions table: the
+    16 ms line binds THIS row's p95, for sizes up to the budget's paragraph limit) exactly the
+    way `note_open`'s rows carry theirs. This function does not itself raise a breach or an
+    INCONCLUSIVE entry -- it is the per-size reading; `summarize()` is what turns these numbers
+    (re-derived from the same raw samples, so a caller of `summarize()` alone needs no separate
+    call here) into breaches, gated on whether a clean `--busy` pass ran at all."""
     rows = []
     for n, samples in sorted(busy_ms.items()):
         if not samples:
             continue
         rows.append({"measure": "typing_busy_per_char", "paragraphs": n, "samples": len(samples),
                      "p50_ms": round(percentile(samples, 50), 2),
-                     "p95_ms": round(percentile(samples, 95), 2), "budget_ms": None})
+                     "p95_ms": round(percentile(samples, 95), 2),
+                     "budget_ms": TYPING_BUDGET_MS if n <= TYPING_UP_TO else None})
     return rows
 
 
@@ -570,8 +587,24 @@ def port_busy(port: int) -> bool:
 
 
 def summarize(open_ms: dict[int, list[float]], typing_ms: dict[int, list[float]],
-              typed_chars: dict[int, int]) -> dict:
-    """Pure: raw samples -> the verdict rows. Kept separate so --dry-run can exercise it."""
+              typed_chars: dict[int, int], busy_ms: dict[int, list[float]] | None = None, *,
+              busy_requested: bool = False, trace_clean: bool = True) -> dict:
+    """Pure: raw samples -> the verdict rows. Kept separate so --dry-run can exercise it.
+
+    Note open: unchanged -- the 300 ms line is read on `note_open`'s wall-clock p95, up to the
+    budget's paragraph limit, exactly as before.
+
+    Typing (ruling D24, docs/notebook/NOTEBOOK-10-OF-10-PLAN.md decisions table): the 16 ms line
+    is read on `typing_busy_per_char` p95 -- `busy_ms`, from a TRACE-ONLY `--busy` pass, with no
+    attribution wrappers loaded in the same browser context (`trace_clean`; `run_live` cannot
+    keep a reading clean once `--attribute` shares its context, and says so in `errors`). The
+    wall-clock `typing_per_char` rows (from `typing_ms`) are still produced here on every call,
+    with `budget_ms: None` and a `note` saying they are not the budget's reading -- they are
+    REPORTED, never a verdict. When no `--busy` pass ran (`busy_requested` False), or one ran but
+    was not clean, the typing budget has NO reading at all: that is INCONCLUSIVE, with a message
+    telling the caller to rerun with `--busy` -- never a silent pass, and never a breach decided
+    on the wall-clock row.
+    """
     rows = []
     breaches, inconclusive = [], []
     for n, samples in sorted(open_ms.items()):
@@ -587,14 +620,32 @@ def summarize(open_ms: dict[int, list[float]], typing_ms: dict[int, list[float]]
     for n, samples in sorted(typing_ms.items()):
         sent = typed_chars.get(n, 0)
         if len(samples) < sent:
-            inconclusive.append(f"typing at {n:,} paragraphs: {len(samples)} samples for {sent} keys sent")
+            inconclusive.append(f"typing (wall-clock) at {n:,} paragraphs: {len(samples)} samples "
+                                f"for {sent} keys sent")
             continue
         p95 = percentile(samples, 95)
         rows.append({"measure": "typing_per_char", "paragraphs": n, "samples": len(samples),
                      "p50_ms": round(percentile(samples, 50), 2), "p95_ms": round(p95, 2),
-                     "budget_ms": TYPING_BUDGET_MS if n <= TYPING_UP_TO else None})
-        if n <= TYPING_UP_TO and p95 >= TYPING_BUDGET_MS:
-            breaches.append(f"typing p95 {p95:.2f} ms/char >= {TYPING_BUDGET_MS:.0f} ms at {n:,} paragraphs")
+                     "budget_ms": None,
+                     "note": "wall-clock; not the budget's reading (ruling D24) -- see "
+                             "typing_busy_per_char"})
+    # The typing budget's actual reading (D24) -- never the loop above.
+    if not busy_requested:
+        inconclusive.append("typing budget: no reading -- rerun with --busy (ruling D24: the "
+                             "16 ms line binds typing_busy_per_char, never the wall-clock "
+                             "typing_per_char row)")
+    elif not trace_clean:
+        inconclusive.append("typing budget: the --busy pass was not a clean no-wrapper trace (it "
+                             "ran alongside --attribute) -- no reading; rerun with --busy alone")
+    else:
+        for n, samples in sorted((busy_ms or {}).items()):
+            if not samples:
+                inconclusive.append(f"typing budget at {n:,} paragraphs: no busy windows were captured")
+                continue
+            p95 = percentile(samples, 95)
+            if n <= TYPING_UP_TO and p95 >= TYPING_BUDGET_MS:
+                breaches.append(f"typing (busy) p95 {p95:.2f} ms/char >= {TYPING_BUDGET_MS:.0f} ms "
+                                f"at {n:,} paragraphs")
     return {"rows": rows, "breaches": breaches, "inconclusive": inconclusive}
 
 
@@ -602,8 +653,11 @@ def markdown_rows(summary: dict, sha: str | None) -> str:
     lines = ["| measure | paragraphs | samples | p50 | p95 | budget | tree |", "|---|---:|---:|---:|---:|---:|---|"]
     for r in summary["rows"]:
         b = f"< {r['budget_ms']:g} ms" if r["budget_ms"] else "n/a"
+        tree = f"`{(sha or '?')[:9]}`"
+        if r.get("note"):
+            tree += f" ({r['note']})"
         lines.append(f"| {r['measure']} | {r['paragraphs']:,} | {r['samples']} | {r['p50_ms']} ms | "
-                     f"{r['p95_ms']} ms | {b} | `{(sha or '?')[:9]}` |")
+                     f"{r['p95_ms']} ms | {b} | {tree} |")
     for i in summary["inconclusive"]:
         lines.append(f"| INCONCLUSIVE | | | | | | {i} |")
     return "\n".join(lines)
@@ -1016,17 +1070,56 @@ def dry_run() -> int:
          "args": {"data": {"type": "keydown"}}}]}) == [], "one keydown closes no window"
     busy_rows = summarize_busy({1000: busy, 2000: []})
     assert len(busy_rows) == 1 and busy_rows[0]["measure"] == "typing_busy_per_char", busy_rows
-    assert busy_rows[0]["paragraphs"] == 1000 and busy_rows[0]["budget_ms"] is None, busy_rows
+    # ruling D24: a busy row up to the budget's paragraph limit now CARRIES the typing budget --
+    # it is the budget's reading, same as note_open's rows carry theirs.
+    assert busy_rows[0]["paragraphs"] == 1000 and busy_rows[0]["budget_ms"] == TYPING_BUDGET_MS, busy_rows
     assert busy_rows[0]["p50_ms"] == 5.1 and busy_rows[0]["p95_ms"] == 6.0, busy_rows
+    above_cap_busy_rows = summarize_busy({3000: [999.0, 999.0]})
+    assert above_cap_busy_rows[0]["budget_ms"] is None, above_cap_busy_rows
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
+    # a clean, --busy-backed run: nothing breaches, nothing is inconclusive.
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
-                   {1000: 60, 2000: 60})
+                   {1000: 60, 2000: 60}, busy_ms={1000: [5.0] * 20, 2000: [10.0] * 20},
+                   busy_requested=True, trace_clean=True)
     assert ok["breaches"] == [] and ok["inconclusive"] == [], ok
+    # no --busy at all: the note-open breach still fires, but typing raises no breach off the
+    # wall-clock row -- only an INCONCLUSIVE telling the caller to rerun with --busy.
     bad = summarize({1000: [350.0] * 20}, {2000: [20.0] * 60}, {2000: 60})
-    assert len(bad["breaches"]) == 2, bad
+    assert len(bad["breaches"]) == 1 and "note open" in bad["breaches"][0], bad
+    assert any("rerun with --busy" in m for m in bad["inconclusive"]), bad
     short = summarize({1000: []}, {1000: [1.0] * 10}, {1000: 60})
-    assert len(short["inconclusive"]) == 2 and not short["rows"], short
+    assert not short["rows"], short
+    # note-open shortfall, typing wall-clock shortfall, AND the no-busy typing-budget entry: 3.
+    assert len(short["inconclusive"]) == 3, short
+    # ── ruling D24, lane TY6: the typing verdict's rules, pinned here as pure-function cases ──
+    # 1) busy p95 over budget at 2,000 paragraphs is a breach.
+    d24_breach = summarize({}, {}, {}, busy_ms={1000: [5.0] * 20, 2000: [20.0] * 20},
+                           busy_requested=True, trace_clean=True)
+    assert len(d24_breach["breaches"]) == 1 and "2,000" in d24_breach["breaches"][0], d24_breach
+    # 2) the D24 case itself: busy UNDER budget while wall-clock is OVER it -> NO breach, and the
+    #    wall-clock row is still present, with no budget of its own and a note naming why.
+    d24_case = summarize({}, {1000: [20.0] * 60}, {1000: 60}, busy_ms={1000: [9.0] * 20},
+                         busy_requested=True, trace_clean=True)
+    assert d24_case["breaches"] == [] and d24_case["inconclusive"] == [], d24_case
+    wc_row = d24_case["rows"][0]
+    assert wc_row["measure"] == "typing_per_char" and wc_row["budget_ms"] is None, wc_row
+    assert "D24" in wc_row["note"] and "typing_busy_per_char" in wc_row["note"], wc_row
+    # 3) no --busy pass at all -> typing is INCONCLUSIVE with the rerun message, never a pass and
+    #    never a breach, whatever the wall-clock row says.
+    d24_no_busy = summarize({}, {1000: [1.0] * 60}, {1000: 60})
+    assert d24_no_busy["breaches"] == [], d24_no_busy
+    assert any("rerun with --busy" in m for m in d24_no_busy["inconclusive"]), d24_no_busy
+    # 4) --busy ran but alongside --attribute (an unclean, wrapper-sharing trace) -> INCONCLUSIVE,
+    #    never a pass, even though the busy sample itself is wildly over budget.
+    d24_unclean = summarize({}, {}, {}, busy_ms={1000: [999.0] * 20}, busy_requested=True,
+                            trace_clean=False)
+    assert d24_unclean["breaches"] == [], d24_unclean
+    assert any("not a clean" in m for m in d24_unclean["inconclusive"]), d24_unclean
+    # 5) a size above the budget's paragraph limit never breaches, however bad its p95.
+    d24_above_cap = summarize({}, {}, {}, busy_ms={3000: [999.0] * 20}, busy_requested=True,
+                              trace_clean=True)
+    assert d24_above_cap["breaches"] == [] and d24_above_cap["inconclusive"] == [], d24_above_cap
     # In THIS platform's spelling: `C:\data` is a relative name on POSIX, which is not the root
     # this box would write to there (PR #196 CI ran the dry run on ubuntu and it failed here).
     home = r"C:\data" if os.name == "nt" else "/data"
@@ -1049,6 +1142,8 @@ def dry_run() -> int:
     assert read_integrity(None, [PRE_BOOT])["status"] == "MISSING"
     print(markdown_rows(ok, "dryrun"))
     print("DRY RUN: page scripts parse, the verdict logic breaches and goes INCONCLUSIVE when it must, "
+          "the typing verdict follows ruling D24 (busy p95 decides, wall-clock never does, no "
+          "--busy or an unclean trace is INCONCLUSIVE, the paragraph cap is honoured), "
           "the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart, and "
           "keystroke-busy windows sum top-level task time with idle gaps excluded and a "
           "boundary-straddling task split correctly")
@@ -1126,8 +1221,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--busy", action="store_true",
                     help="a TRACE-ONLY pass (no wrappers) typing the same characters again; reports "
                          "typing_busy_per_char, the renderer main thread's busy time per keystroke "
-                         "(keydown-dispatch to next keydown-dispatch, from the trace itself) -- for a "
-                         "clean reading do not combine with --attribute (TY4 brief)")
+                         "(keydown-dispatch to next keydown-dispatch, from the trace itself) -- "
+                         "ruling D24 makes this the typing budget's VERDICT (its p95 against the "
+                         "16 ms line, up to 2,000 paragraphs); without --busy the typing budget is "
+                         "INCONCLUSIVE. For a clean reading do not combine with --attribute -- "
+                         "combined, the trace is not clean and the typing verdict is also "
+                         "INCONCLUSIVE (TY4 brief; D24)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
@@ -1238,11 +1337,16 @@ def main(argv: list[str] | None = None) -> int:
         print(f"VERDICT: INCONCLUSIVE -- timings withheld: {why}")
         return 2
     open_ms, typing_ms, typed, errors = live
-    summary = summarize(open_ms, typing_ms, typed)
-    # `busy_rows` is REPORTED only -- it is never folded into `summary` itself, so every check
-    # below (`summary["breaches"]`, `summary["inconclusive"]`, `summary["rows"]`) reads exactly
-    # what it would have read without --busy. Which line (if any) binds typing_busy_per_char is
-    # the controller's ruling, not this harness's.
+    # Ruling D24: the typing budget's reading is the busy pass's p95, never the wall-clock row.
+    # `busy_requested` is whether `--busy` ran at all; `trace_clean` is false exactly when
+    # `--attribute` shared the same browser context (the same condition `run_live` itself checks
+    # before appending its caveat to `errors`), which makes the trace not a clean no-wrapper one.
+    busy_requested = busy is not None
+    trace_clean = not (busy is not None and attr is not None)
+    summary = summarize(open_ms, typing_ms, typed, busy, busy_requested=busy_requested,
+                        trace_clean=trace_clean)
+    # `busy_rows` are the REPORTED typing_busy_per_char rows (display only) -- `summary` above
+    # already read the same raw `busy` samples for the verdict, so the two can never disagree.
     busy_rows = summarize_busy(busy) if busy is not None else []
     raw = {"open_ms": open_ms, "typing_ms": typing_ms}
     if busy is not None:
