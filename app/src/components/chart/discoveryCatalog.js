@@ -188,7 +188,7 @@ const str = (v, fallback = '') => (typeof v === 'string' && v ? v : fallback)
  * follows when it says something new — and only the breadth adapter overrides it.
  * `SourceField` renders `lead` / `sub` and learns nothing about breadth.
  */
-function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create, metricShort, universeLabel }) {
+function result({ id, kind, name, shortName, lead, sub, category, description, tags, capability, capabilityReason, create, metricShort, universeLabel, tab }) {
   const _lead = str(lead, str(shortName, id))
   return {
     key: `${kind}:${id}`,
@@ -211,6 +211,8 @@ function result({ id, kind, name, shortName, lead, sub, category, description, t
     // Absent on every non-breadth result, which is what makes them optional.
     ...(metricShort ? { metricShort } : {}),
     ...(universeLabel ? { universeLabel } : {}),
+    // Discovery HOME only — see `discoveryTabOf`. Absent on almost every result.
+    ...(tab ? { tab } : {}),
   }
 }
 
@@ -393,9 +395,11 @@ export function breadthResults(rows, { tf, bars } = {}) {
       // ⛔ A UNIVERSE IS NOT AN INDICATOR NAME; see `semanticNamesFor`.
       metricShort: str(row.short_name || row.shortName, ''),
       universeLabel,
-      category: str(row.group_label || row.groupLabel || row.group, 'Breadth'),
+      category: discoveryTabOf(row) === 'positioning'
+        ? POSITIONING_HEADING : str(row.group_label || row.groupLabel || row.group, 'Breadth'),
       description: name,
       tags: ['breadth'],
+      tab: discoveryTabOf(row),
       ...knownCapabilityOf(sym, tf, bars),
       // ⛔ PRESENTATION COMES FROM THE CATALOGUE, NEVER FROM THE TICKER. The
       // registry says Net New High-Low is a SIGNED COUNT drawn as a HISTOGRAM; the
@@ -463,8 +467,10 @@ export function productResult(row, { tf, bars } = {}) {
     sub: str(row.family_label || row.familyLabel, ''),
     metricShort: str(row.short_name || row.shortName || row.short, ''),
     universeLabel: '',
-    category: str(row.family_label || row.familyLabel, 'Market Indicators'),
+    category: (kind === 'positioning' || discoveryTabOf(row) === 'positioning')
+      ? POSITIONING_HEADING : str(row.family_label || row.familyLabel, 'Market Indicators'),
     description: str(row.description, name),
+    tab: discoveryTabOf(row),
     // ⭐ THE COMPONENTS' NAMES ARE SEARCH WORDS FOR THE PRODUCT, as they are on the
     // server (`Product.tokens`): "Commercials" finds the COT dataset that has one,
     // and the component rows themselves are never listed.
@@ -507,6 +513,29 @@ const PRODUCT_KIND_BY_FAMILY = Object.freeze({ positioning: 'positioning' })
 function productKindOf(row) {
   const fam = str(row && row.family, '')
   return ownKey(PRODUCT_KIND_BY_FAMILY, fam) ? PRODUCT_KIND_BY_FAMILY[fam] : 'breadth'
+}
+
+/**
+ * Which TAB a market-indicator row is DISCOVERED under, when it is not its kind's.
+ *
+ * ⭐ ORGANISATION ONLY (owner, 2026-09-30): the `sentiment` family — NAAIM Exposure
+ * and the AAII Sentiment Survey — is browsed under Positioning, beside COT. Its
+ * `kind` stays `breadth`, so creation, naming, presentation and data are untouched;
+ * only `tabOf` reads this.
+ * ⚠️ A SEARCHED series row carries no `family`, only its label (`group_label` =
+ * the family label), so the label answers too — the same row, both doors.
+ */
+const DISCOVERY_TAB_BY_FAMILY = Object.freeze({ sentiment: 'positioning' })
+/** The ONE heading the Positioning tab reads under — COT, NAAIM and AAII together. */
+export const POSITIONING_HEADING = 'Positioning & Sentiment'
+const DISCOVERY_TAB_BY_FAMILY_LABEL = Object.freeze({ 'Sentiment & Positioning': 'positioning' })
+
+function discoveryTabOf(row) {
+  if (!row) return undefined
+  const fam = str(row.family, '')
+  if (ownKey(DISCOVERY_TAB_BY_FAMILY, fam)) return DISCOVERY_TAB_BY_FAMILY[fam]
+  const label = str(row.family_label || row.familyLabel || row.group_label || row.groupLabel, '')
+  return ownKey(DISCOVERY_TAB_BY_FAMILY_LABEL, label) ? DISCOVERY_TAB_BY_FAMILY_LABEL[label] : undefined
 }
 
 // Column geometry + default height for a grouped histogram pane — a leaf module so the
@@ -1470,7 +1499,7 @@ export function economicResults(list) {
 export function tabOf(res) {
   if (!res) return null
   if (res.userDefined === true || res.kind === 'formula') return 'formulas'
-  if (res.kind === 'breadth') return 'breadth'
+  if (res.kind === 'breadth') return res.tab === 'positioning' ? 'positioning' : 'breadth'
   if (res.kind === 'positioning') return 'positioning'
   if (res.kind === 'fundamental') return 'fundamentals'
   if (res.kind === 'economic') return 'economic'
@@ -1569,7 +1598,7 @@ export function glyphFamilyOf(res) {
   if (tab === 'breadth') return 'breadth'
   // ⭐ THE MARK MACD WEARS — "a histogram about zero" — which is exactly what a COT
   // net position draws.
-  if (tab === 'positioning') return 'momentum'
+  if (tab === 'positioning') return res.kind === 'breadth' ? 'breadth' : 'momentum'
   if (tab === 'fundamentals') return 'fundamental'
   if (tab === 'economic') return 'economic'
   if (tab === 'formulas') return 'formula'
@@ -1646,13 +1675,14 @@ export function symbolLibraryRow(res) {
     // The server's own classification, upper-cased for the chip; breadth says so.
     shortName: res.kind === 'positioning' ? (res.shortName || 'COT')
       : isBreadth ? 'Breadth' : String(res.category || 'symbol').toUpperCase(),
-    category: res.kind === 'positioning' ? (res.category || 'Positioning')
+    category: (res.kind === 'positioning' || res.tab === 'positioning') ? (res.category || POSITIONING_HEADING)
       : isBreadth ? BREADTH_CATEGORY : SYMBOL_CATEGORY,
     // The universe qualifies, and the address stays available without dominating.
     description: isBreadth ? [res.shortName, res.id].filter(Boolean)
       .filter((v, i, a) => a.indexOf(v) === i).join(' · ') : long,
     longName: long,
     tags: res.tags,
+    ...(res.tab ? { tab: res.tab } : {}),
     capability: res.capability,
     capabilityReason: res.capabilityReason,
     create: res.create,
@@ -1692,8 +1722,14 @@ export function symbolLibraryRow(res) {
 export function marketIndicatorResults(rows, { tf, bars } = {}) {
   const vol = []
   const internals = []
+  // ⭐ COT LEADS the Positioning tab, ahead of the sentiment rows filed beside it.
+  const lead = []
   for (const row of (Array.isArray(rows) ? rows : [])) {
     if (!row || !row.symbol) continue
+    if (row.kind === 'product' && productKindOf(row) === 'positioning') {
+      lead.push(row)
+      continue
+    }
     // ⚰️ MEASURED IN A BROWSER: the product reached `breadthResults` with its
     // `kind`, `components` and `component_rows` STRIPPED by the projection below,
     // so the product branch never fired and the row fell through as an ordinary
@@ -1721,11 +1757,13 @@ export function marketIndicatorResults(rows, { tf, bars } = {}) {
       // the naming rules produced, so a second "US" chip beside it is noise. A breadth
       // library row differs — its name is the metric alone.
       legacy: true,
+      family: row.family,
       group_label: row.family_label,
       presentation: row.presentation,
       domain: row.domain,
     })
   }
-  return [...breadthResults(internals, { tf, bars }),
+  return [...breadthResults(lead, { tf, bars }),
+          ...breadthResults(internals, { tf, bars }),
           ...securityResults(vol, { tf, bars })]
 }

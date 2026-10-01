@@ -89,6 +89,10 @@ describe('catalogue 200 — the sixth tab', () => {
     // each economic row carries its agency · frequency · units line
     const ff = econRows().find((o) => o.dataset.resultKey === 'economic:USFEDFUNDSU')
     expect(ff.querySelector('[data-testid="econ-row-sub"]').textContent).toBe('NY Fed · Daily · Percent')
+    // ⭐ TWO LEVELS: the name alone on line one, `SYMBOL · agency · frequency · units`
+    // beneath it — and no inline symbol chip competing with the name.
+    expect(ff.querySelector('[data-testid="econ-row-meta"]').textContent).toBe('USFEDFUNDSU · NY Fed · Daily · Percent')
+    expect(ff.querySelector('[class*="resShort"]')).toBeNull()
     const before = live(fresh()).length
     fireEvent.click(ff)
     await waitFor(() => expect(seen.cs).toBeTruthy())

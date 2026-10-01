@@ -20,7 +20,7 @@ import { describe, it, expect } from 'vitest'
 import {
   marketIndicatorResults, createFromResult, tabOf, resultsForTab, LIBRARY_TABS,
   FAMILY_DEFAULT_PLOT_STYLE, productResult, glyphFamilyOf, symbolLibraryRow,
-  CREATE_VIA, sideBySideBars, GROUP_BARS_SPAN, GROUP_PANE_HEIGHT,
+  CREATE_VIA, sideBySideBars, GROUP_BARS_SPAN, GROUP_PANE_HEIGHT, securityResults,
 } from '../discoveryCatalog'
 import { paneMap } from '../chartDataMap'
 import {
@@ -99,16 +99,35 @@ describe('discovery — the Positioning category', () => {
     expect(res.key).toBe('positioning:COT:NQ')
     expect(tabOf(res)).toBe('positioning')
     expect(res.name).toBe('Nasdaq-100 E-Mini COT')
-    expect(res.category).toBe('Positioning')
+    expect(res.category).toBe('Positioning & Sentiment')
     expect(res.create.via).toBe(CREATE_VIA.PRODUCT)
     expect(res.create.layout).toBeUndefined()
     expect(res.create.group).toEqual({ name: 'Nasdaq-100 E-Mini · COT', note: 'Net Contracts' })
   })
 
-  it('every COT dataset lands in Positioning and nowhere else', () => {
-    const all = marketIndicatorResults([NQ, ES, AAII])
-    expect(resultsForTab(all, 'positioning').map((r) => r.id)).toEqual(['COT:NQ', 'COT:ES'])
-    expect(resultsForTab(all, 'breadth').map((r) => r.id)).toEqual(['AAII:SURVEY'])
+  it('every COT dataset lands in Positioning and nowhere else — COT first, then sentiment', () => {
+    // ⭐ 2026-09-30: the sentiment family (AAII, NAAIM) is DISCOVERED under
+    // Positioning too, after COT, and no longer under Breadth.
+    const all = marketIndicatorResults([AAII, NQ, ES])
+    expect(resultsForTab(all, 'positioning').map((r) => r.id)).toEqual(['COT:NQ', 'COT:ES', 'AAII:SURVEY'])
+    expect(resultsForTab(all, 'breadth').map((r) => r.id)).toEqual([])
+  })
+
+  it('NAAIM moves to Positioning by DISCOVERY only — kind, heading, glyph, creation unchanged otherwise', () => {
+    const naaim = { symbol: 'NAAIM', display: 'NAAIM Exposure Index', short: 'NAAIM',
+      family: 'sentiment', family_label: 'Sentiment & Positioning', presentation: 'line' }
+    const [res] = marketIndicatorResults([naaim])
+    expect(res.kind).toBe('breadth')
+    expect(res.key).toBe('breadth:NAAIM')
+    expect(tabOf(res)).toBe('positioning')
+    expect(res.category).toBe('Positioning & Sentiment')
+    expect(glyphFamilyOf(res)).toBe('breadth')
+    expect(res.create.source).toBe('sym:NAAIM:close')
+    // ⚠️ a SEARCHED series row carries only its family LABEL — the same home.
+    const [searched] = securityResults([{ ticker: 'NAAIM', name: 'NAAIM Exposure Index', type: 'breadth',
+      breadth: true, group_label: 'Sentiment & Positioning' }])
+    expect(tabOf(searched)).toBe('positioning')
+    expect(tabOf(symbolLibraryRow(searched))).toBe('positioning')
   })
 
   it('draws the histogram-about-zero mark and leads with its name, not its address', () => {
@@ -117,7 +136,7 @@ describe('discovery — the Positioning category', () => {
     const row = symbolLibraryRow(res)
     expect(row.name).toBe('Nasdaq-100 E-Mini COT')
     expect(row.name).not.toMatch(/COT:/)
-    expect(row.category).toBe('Positioning')
+    expect(row.category).toBe('Positioning & Sentiment')
   })
 
   it.each(['COT', 'Nasdaq', 'Nasdaq-100', 'E-mini', 'Commercials', 'Positioning',
@@ -375,6 +394,7 @@ describe('AAII is untouched', () => {
   it('still one shared pane with independent, ungrouped components', () => {
     const res = productResult(AAII)
     expect(res.kind).toBe('breadth')
+    expect(tabOf(res)).toBe('positioning')     // discovered beside COT; still a breadth kind
     expect(res.create.layout).toBeUndefined()
     expect(res.create.group).toBeUndefined()
     const cs = createFromResult({ indicatorInstances: [] }, res, registry)

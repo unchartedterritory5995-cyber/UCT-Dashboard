@@ -2154,7 +2154,11 @@
 }
 .insTabs {
   display: flex;
-  gap: 4px;
+  /* ⭐ SIX TABS, ONE LINE (2026-09-30). `Economic` made the six labels ~330px of a
+     ~393px strip, so the gap is 3px and each tab GROWS from a 4px floor: at the
+     desktop measure the strip ends flush with the search field (~5px per side), and
+     only a genuinely narrower panel falls back to the scroll + fade below. */
+  gap: 3px;
   overflow-x: auto;
   scrollbar-width: none;
   /* ⚰️ EIGHT CATEGORIES DO NOT FIT A 325px COLUMN AT A READABLE SIZE — measured:
@@ -2176,22 +2180,19 @@
 }
 .insTabs::-webkit-scrollbar { display: none; }
 .insTab {
-  flex: 0 0 auto;
+  flex: 1 0 auto;
   height: 24px;
-  /* ⚰️ THE NOTE HERE USED TO EXPLAIN WHY THE STRIP HAD TO SCROLL: eight
-     categories needed 509px against 386. Three of them came off the strip (see
-     `LIBRARY_TABS`), so five need about 340 and there is nothing left to scroll.
-     ⚠️ 9px, NOT 7 — the padding goes UP now that there is room, because a 24px
-     tab with 7px of side padding was sized for a problem that no longer exists.
-     The scroll behaviour stays in place for a narrower panel; it simply never
-     fires at the desktop measure. */
-  padding: 0 9px;
+  /* ⚠️ 4px IS A FLOOR, NOT THE LOOK. Five tabs had room for 9px; six (with
+     `Economic`) do not, so the tab grows (`flex: 1 0 auto`) into whatever the strip
+     has left. Measured at the desktop measure: 10.5px labels, ~5px per side, flush
+     with the search field. The scroll stays for a narrower panel. */
+  padding: 0 4px;
   box-sizing: border-box;
   border: 1px solid var(--menu-border, #2b2b2d);
   border-radius: 5px;
   background: var(--menu-input-bg, #08080a);
   font-family: inherit;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   color: var(--menu-text-dim, #93939a);
   cursor: pointer;
@@ -3054,6 +3055,20 @@
    is gone (it is the row's tooltip now), so the column has one child and becomes
    the line itself. */
 .insAdd .resMain { flex-direction: row; align-items: center; gap: 0; }
+/* ⭐ …EXCEPT AN ECONOMIC ROW, which is two levels (2026-09-30): the name gets the
+   whole first line and `SYMBOL · agency · frequency · units` sits beneath it. */
+.insAdd .resMainStacked { flex-direction: column; align-items: stretch; gap: 2px; }
+.resMeta {
+  display: block;
+  min-width: 0;
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: var(--menu-text-dim, #8a8a8f);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.resMetaSym { font-weight: 600; letter-spacing: 0.3px; color: var(--menu-text-dim, #9a9aa2); }
 .resMain { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .resTitleRow { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
 /* ⛔ AND IT DOES NOT WRAP IN THE ADD SURFACE. A wrapped badge would silently put

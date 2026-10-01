@@ -1473,7 +1473,7 @@ describe('THE ADD INDICATOR LIBRARY — one door, five categories, and no fictio
       .not.toMatch(/^\.insAddLede\s*\{/m)
     // …and what it promised is still promised, where it is actually useful.
     expect(document.body.querySelector('[role="searchbox"]').getAttribute('placeholder'))
-      .toMatch(/indicators, symbols, positioning or formulas/i)
+      .toMatch(/indicators, symbols, or formulas/i)
   })
 
   it('⚰️ DISCOVERY NAMES ARE MEDIUM, AND THE LEFT COLUMN IS UNTOUCHED', () => {
