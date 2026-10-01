@@ -69,14 +69,19 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     expect(extra, `a cell TradingView does not show: ${JSON.stringify(extra)}`).toBeNull()
   })
 
-  it('⛔ its lines and labels are WITHHELD — the collector cut families that lost creates', () => {
+  it('⛔ its labels are WITHHELD — the collector cut a family that lost creates; its lines are held (C30)', () => {
     vi.stubEnv(FLAG, '1')
     const cap = load('high-low-open-mid-ranges')
     const ours = runOurSide(cap)
-    expect(ours.objects.counts.lines).toBe(0)
+    // ⚰️ LINES WERE 0 UNTIL 2026-09-30: the `vline` divider's guard reads
+    // `time(higherTF)` ("W"), which refused, so the line family lost a create and
+    // the collector cut it whole. C30 serves `time("W")` on a daily chart, and the
+    // family is held: 503 of TradingView's 504, each one a vendor line
+    // (`vendorHarness.c30TimeAnchor.test.js` holds them to the records).
+    expect(ours.objects.counts.lines).toBe(503)
     expect(ours.objects.counts.labels).toBe(0)
     // ⭐ the evidence the count alone hid: TradingView holds FIVE lines a week
-    // (four ranges + the `vline` divider this chart cannot guard), 101 weeks.
+    // (four ranges + the `vline` divider), 101 weeks.
     const perX = new Map()
     for (const r of cap.objects.records.lines) perX.set(r.x1, (perX.get(r.x1) || 0) + 1)
     const fives = [...perX.values()].filter((n) => n === 5).length

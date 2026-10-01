@@ -143,6 +143,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 42 | C32 arrays in the object lane, three general Pine semantics on the HOST lane (§ C32): **(a)** a text that moves per PASS of a counted loop — `str.tostring(<counter arithmetic>)` and `str.tostring(w.get(i))` of a bounded window, through a body local — is `{t:'val'}` over a value reference the object runtime evaluates on each pass; the window read is `{v:'wget'}` (per-bar slot trees, the length, Pine's index mapped per pass; an index outside the elements is Pine's `array.get` runtime error — the run stops and draws nothing); **(b)** a window's LENGTH read ABOVE its first writer is last bar's length (`sizePrev`), withheld on the first bar; **(c)** a window wider than `MAX_WINDOW_CAP` (64, unchanged) is read for its length only (`sizeOnly`: `cap` once the cap-th most recent add exists, withheld before; every other read refused by name), and a cap declared with a type word (`int knnLen = input.int(…)`) is the cap, not a stray read of it | `3d8813fbe` (+ the docs commit: two artemis pins, `pineProbeReplay` budget steps and `partialDrawing` 7 → 6 of 38) | 28 / 47 → 28 / 47 (overall 25 → 25; base `e0eb227ee`, objects pane on) | 222 / 266 → **224 / 266** (plots 161 / 172 unchanged) | **trend-duration** table cells 4 → **34 / 34** (address, text, tooltip — `vendorHarness.c32Collections`); its labels stay 26 / 28 and its line 0 / 1 (getter arithmetic over an `array<int>` average whose integer rounding no capture witnesses — § C32). **artemis-oscillator-pro** cells 14 → **15 / 21**: `100 bars` at (1, 2), TradingView's. Exactly those 2 entries changed in the 47 and in the committed harness dir (87), under both objects-flag states (47 flag off: 105 → 107 / 119; dir on 278 → 280 / 322, off 161 → 163 / 175; objects MATCH 49 / 39 and overall 42 / 32 unchanged). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 rows changed**. Translation census 266: the same 2 scripts' object programs, no plot output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk 330,629 → 334,233 B (+3,604), total JS +4,625 B. `paramIds.test.js` green, no edit |
 | 44 | C34 a conditional helper's history, read precisely: `fn:conditional-history` refuses only what the CALL owns (its locals, parameters, `ta.*` state). The chart's own `open`/`high`/`low`/`close` at an offset are the chart's, witnessed on the trend-lines capture (a last-bar-only helper reads 40 to 257 bars back and TradingView draws the chart's values); a keyword before `[`, a built-in method on a chained value, `map.*`/`matrix.*` and a pure user method are no longer read as history. A call in a loop the host reader does not run (`for ... in`, `while`) is inlined into that loop instead of refused as `fn:loop` - its ops meet the loop's own refusal and its body's removals stay counted - see § C34 | `2902087c3` | 28 / 47 -> 28 / 47 (overall 25 -> 25, objects pane on; flag off 18 -> 18) | 222 / 266 -> 222 / 266 (plots 161 -> 161 / 172) | no graded entry changed (the 47 and the committed harness dir, both flag states: 0 entries). Translation census 266: `fn:loop` 27 -> **0** (5 scripts, all past it), `fn:conditional-history` 579 -> 540 (7 scripts fewer, 4 fully past); no served output changed; object programs changed in 2 (ict-killzones: same 7 ops, still MATCH; fx-market-sessions 225 -> 273 ops, door-refused `pine:module` before and after). Member-door census 266 x 2: attach 41 / 64 unchanged, 0 rows; base-vs-base control 0 rows. `paramIds.test.js` green, no edit |
 | 45 | C35 the RUNTIME lane's next stops (dark flag `VITE_PINE_RUNTIME_PANE_ENABLED`, unset): **(a)** a `simple` argument is fixed for its CALL SITE, so a window a function sizes from a parameter is constant per call site — each argument of a parameter not declared `series` is folded in the caller's context as a length is folded, and the body is compiled once per distinct set of values (`pineRuntimeFrontend.js::simpleSpecialisation`, `frameConsts`); an argument only known while the bar runs is refused by name; **(b)** ⛔ a WRONG VALUE in the runtime lane fixed on the way: a length inside a function body was folded by the top-level resolver, so a parameter sharing its name with a top-level binding ran the top-level value's window whatever the call passed; **(c)** `runtime.error(msg)` is a statement that STOPS the run by name where it is reached (`runtime:runtime.error`) and nothing where it is not; **(d)** a request below the chart's timeframe is refused by the host's own C27 code (`Resolver.lowerTfDeclineOf`) before the state check — see § C35 | `pine/c35-runtime` | 28 / 47 → 28 / 47 (overall 25 → 25; base `e0eb227ee`, objects pane on; runtime pane on 29 → 29, overall 26 → 26) | 222 / 266 → 222 / 266 (runtime pane on 229 / 273 → 229 / 273) | **none moved, measured — and every graded output is BYTE-IDENTICAL**: the six `verdicts.json` files (47 and the committed harness dir × objects pane on / off / on + runtime pane on) compare equal byte for byte against the base. Member-door census 266 × both objects flags × both runtime-pane states: 0 rows changed (attach 41 / 64; 43 / 66). Translation census 266: 0 changed. What moved is the runtime lane's own first wall, on 18 of 266 scripts (`probeObjectRuntime` / `probeRuntimeProgram`, builds 28 → 29 / 29 → 30): **artemis** `runtime:history-dynamic-offset`@245 → `pine:block`@233 (`smooth`'s `switch` over its `simple string` method); **ema-ribbon** `runtime:expression-statement`@53 → `lower-tf:unwitnessed`@156 (Q-L1); `trend-targets-algoalpha` builds (`ta.atr(atrPeriod)` in `pine_supertrend`; the door still refuses it `pine:state`, no route). Vendor proof: artemis' own `drmEngine`, verbatim, equals TradingView's `DRM Oscillator` on all 632 bars (`vendorHarness.c35SimpleArg`). **poor-man unchanged, and named:** opening C20's `timeframe.period` gate for its request-argument use converts all 246 ops and asks the run for 160 values, but the run's last bar needs **227,730** VM instructions against `INSTRUCTIONS_PER_BAR` 200,000 (not raised) — measured, reverted by bytes, not landed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk 330,629 B at both; total JS +4,397 B. `paramIds.test.js` green (4 passed, 1 skipped), no edit |
+| 40 | C30 `time("W" / "M" / "3M" / "12M")` on a DAILY chart — the `time` of the first daily bar of the bar's New York ISO week / month / quarter / year (the session open, never the calendar boundary; a holiday-Monday week anchors to its Tuesday), read off `vw-time-tf-spy-1d-2026-09-28`. The first partial period, every bar within the tree's reach of it, and every bar of a non-daily chart are WITHHELD in both lanes (`interpret.js::periodAnchorMask`); every other period, a non-daily chart the translation is told about, a screen and `time_close(<tf>)` refuse by name | `a5243497a` | 28 / 47 (unchanged) | 222 / 266 (unchanged) | no graded family flips. `high-low-open-mid-ranges` lines 504/0 → 504/503: every line we hold is one TradingView holds, all 100 weekly dividers among them (the one missing is the vendor's oldest, the collector's edge). Corpus: `mtf-key-levels` translates (install door: `budget:series` 10 > 8), `vwap-fibo` 0 → 5 outputs, `chart-champions` 21 → 23 — see § C30 |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -2118,3 +2119,101 @@ bar-varying argument not named → 5 red.
 all: a script whose validation fires — at a member's own input values, the door serves member inputs —
 is drawn here while TradingView shows an error. No graded capture reaches one; Q-E1 is the witness
 either lane would need.
+## C30 — `time("W" / "M" / "3M" / "12M")` on a daily chart (2026-09-30, step 40)
+
+Branch `pine/c30-time-anchors`, base `e0eb227ee` (wave 8). The rule is stated once, in
+`pine.js::periodAnchorOf`; the withholding in `interpret.js::periodAnchorMask`.
+
+**What the capture shows** (`vw-time-tf-spy-1d-2026-09-28`, AMEX:SPY 1D, 900 bars
+2023-02-24 → 2026-09-25; rows T01–T04 plot `(time(tf) - time)` in days, T07–T09
+`ta.change(time(tf)) != 0`):
+
+| question | answer, measured |
+|---|---|
+| which timestamp | the `time` of the FIRST DAILY BAR of the period — 09:30 New York in that day's own DST (differences across a DST change are fractional days, e.g. −11.9583), never midnight and never the calendar boundary |
+| week | New York ISO week, Monday-first; 17 weeks in the window open on a Tuesday (holiday Monday) and anchor to the Tuesday bar: 0 mismatches |
+| month / quarter / year | calendar month, quarter (Jan / Apr / Jul / Oct), year; a period whose first calendar day is a weekend or holiday anchors to its first trading day: 0 mismatches |
+| first partial period | the vendor answers the REAL open (bar 0, Fri 2023-02-24, reads −3 days: Tue 2023-02-21, a bar before the window; −23 / −52 / −52 for M / 3M / 12M). Our series does not hold those bars: **withheld** — 1 / 3 / 26 / 214 bars for W / M / 3M / 12M |
+| second witness | `vw-clock-close-tfchange-spy-1d` K14 / K15 (`ta.change(time("W"/"M")) != 0`), 8,473 sessions 1993 → 2026: 0 wrong, bars 0 and 1 withheld |
+| intraday | `vw-time-tf-spy-60-2026-09-28`: the Tuesday 09:30 bar reads −1.0417 days for `time("W")` — NOT the week's first RTH bar. A different rule, not derived here; nothing is served on a non-daily chart |
+
+**The tree.** `periodseconds == 86400 ? valuewhenOccurrence(key != key[1], time, 0) * 1000 : na`,
+where `key` is the period's own number over clock leaves that read only this bar
+(`interpret.js::periodFirstCondition`: W `floor(dayopentime / 86400) - mod(dayofweek + 5, 7)`,
+M `year * 12 + month`, 3M `year * 4 + floor((month - 1) / 3)`, 12M `year`). No new node, no
+new clock column, no manifest entry: the tree is built from vocabulary both lanes already hold.
+⚠️ Not the `weekfirst` / `monthfirst` columns: a clock leaf that declares a one-bar window is
+counted 1 by `lint.js::maxLookback` and 0 by `interpret.js::maxLookback`
+(`lookbackAgreement.test.js` went red on 8 trees with the column form); a `[1]` offset is one
+bar in both. That disagreement is latent at base for any tree reading `sessionfirst` /
+`weekfirst` / `monthfirst` and is NOT fixed here (it needs both readers in both lanes).
+
+**Withheld, never drawn off a `NaN`.** Before the first boundary the anchor is `NaN`, which
+downstream is Pine's `na` — and the vendor's value there is not `na` (the probe's own
+`na(t) ? -99999 : …` turned it into a confident −99999; `ta.change(...) != 0` read FALSE on
+the first boundary where the vendor reads TRUE). So `periodAnchorMask` (the C26 / C12s
+argument: `maxLookback` is a tree sum) withholds every root bar within
+`maxLookback(root) − maxLookback(anchor)` bars of an unknown anchor bar, in the plot lane
+(`interpret`) and the object lane (merged into the unknown mask, C17 withholds), and every
+bar when the chart is not daily (the tree's own gate answers `NaN` there, which is not the
+vendor's answer either). The anchor is recognised node for node against the builder that
+writes it; a member's own `valuewhenOccurrence` keeps its meaning. ⚠️ The mask is in the JS
+lanes only (as C26's is): the Python interpreter evaluates the same tree and reads the first
+partial period as a hole, not as withheld — not mirrored there, and stated rather than assumed safe.
+
+**Refused by name:** any other period (`"6M"`, `"2W"`, `"1Y"`, every intraday code), the four
+periods when the translation is told the chart is not daily or is a screen, `time_close(<tf>)`
+for these periods (the probe did not ask it), a timeframe that does not fold to a literal.
+The capture that settles each: the same probe on that chart (60m exists and shows another
+rule — it needs its own derivation), `time_close("W")` rows added to `vw-time-tf.pine`.
+`time(timeframe.period)` and `time("60")` on 1D ARE witnessed by this capture (both equal
+`time`, T05 / T06 = 0 on 900 bars) and were left refused — outside this lane's scope.
+
+**The rail** (`vendorHarness.c30TimeAnchor.test.js`, 25 tests). The probe itself still refuses
+at the member door (T05, T06, T16 refuse by their own rules), so the replay grades a DERIVED
+capture — those three rows cut, re-sealed — after the parent's receipt and source sha verify:
+T01–T04 0 value mismatches and exactly 1 / 3 / 26 / 214 withheld; T07–T09 the same plus the
+boundary bar. Controls: the 17 Tuesday weeks read 0 on the Tuesday; a vendor column moved to
+the calendar Monday is caught; a first-bar label over a known clock IS drawn. Object lane:
+a last-bar label prints the vendor's own offset; a first-bar label and a 60m label are
+withheld; high-low-open-mid-ranges' lines are held to TradingView's records.
+
+**The seven scripts** (C28 counted seven refusing on `time(<tf>)`; base → tip, objects pane on):
+
+| script | asks for | base | tip | next wall |
+|---|---|---|---|---|
+| high-low-open-mid-ranges | `time(higherTF)` = `"W"` @168, in `vline` | attaches; lines 504 / 0 | attaches; lines 504 / **503**, every one TradingView's, the 100 dividers included | lines: the vendor's oldest (id 2151) is not held — the collector's edge; labels 504 / 0 (`pine:input-kind input.timeframe` in a text @143, `line.get_y1` history) and cells 45 / 37 (`'M'` / `'3M'` requests) — unchanged |
+| mtf-key-levels-support-and-resistance | `time("W")` @627, `change(time('M'))` @658 | builder: `pine:function` | **translates** (1 → 4 outputs) | install door: `budget:series` — W-VWAP reads 10 distinct series, cap 8 (not raised; the column form would read 9) |
+| vwap-fibo-dev-extensions-strategy | `time(reso)`, default `"W"` @21 | 0 outputs | **5 outputs** serve | `pine:declaration-strategy` (a strategy; unchanged) |
+| chart-champions-part-1-npoc-levels-vwaps | `time('W')` @97, `change(time('M'))` @121, `time(res)` @84 | 21 outputs | **23 outputs** | `time(res)` @84 (a function's formal parameter does not fold) and seven `time(timeframe.period, <session>)` |
+| 3-level-zigzag-semafor | `'15'`, `'30'` | refused | refused, unchanged | `pine:reassign _direction` first; the periods are intraday |
+| zigzag-ma-pattern-recognition | `'15'` | refused | refused, unchanged | intraday period |
+| smart-money-concepts-by-welotrades | `time(res)`, a formal parameter | refused | refused, unchanged | the parameter fold, then `pine:collection` |
+
+**Measured** (base `e0eb227ee` → tip, same commands, same box):
+
+| | base | tip |
+|---|---|---|
+| 47 captures, pane on: objects MATCH / overall / families / plots | 28 / 25 / 222 of 266 / 161 of 172 | unchanged; 1 entry's detail moved (OHLM lines 0 → 503) |
+| 47 captures, pane off | 18 / 15 / 105 of 119 / 140 of 151 | unchanged, 0 entries |
+| committed harness dir (87 files), on: objects / overall | 49 / 42 | unchanged; changed entries: OHLM (lines), `vw-time-tf-spy-1d` and `-60` (INCONCLUSIVE both, refusal sentence reworded) |
+| committed harness dir, off | 39 / 32 | unchanged; the two `vw-time-tf` sentences only |
+| member-door census 266 × both flags | attach 41 / 64 | 41 / 64; 4 rows per flag: mtf-key-levels builder → install (`budget:series`), three refusal sentences reworded |
+| translation census 266 (strict) | ok 57, served outputs 817 | ok 58, served 827 (mtf +3, vwap-fibo +5, chart-champions +2) |
+| notebook first-open | 1,897,262 B PASS | 1,897,262 B PASS (+0) |
+| pine chunk / total JS | 330,629 B / 12,633,180 B | 331,812 B (+1,183) / 12,636,618 B (+3,438) |
+| `paramIds.test.js` | 4 passed, 1 skipped | 4 passed, 1 skipped — ⚠️ with ONE append-only re-pin: vwap-fibo mints `__uct_param_1` / `_2` where it minted none (its inputs sat behind the refusal); no existing id moved; the door refuses the script (a strategy), so nothing is saved against it |
+
+**Mutations** (11 run; 10 red alone, restored by bytes with the sha verified): the plot-lane
+withholding, the reach, the non-daily mask, the object-lane merge, a Tuesday-start week, the
+quarter length, the tree's daily gate, the translation's non-daily refusal, the anchor
+recognition, the year key. ⚠️ One SURVIVES and is recorded rather than hidden: a Sunday-start
+week — no capture holds a weekend bar, so Sunday-first and Monday-first are the same function
+on every bar measured.
+
+**Left for the integrator.** (1) The re-pin above — the brief says zero edits for saveable
+scripts; this script is not saveable (the door refuses it), and the alternative is to keep
+`time(<input default "W">)` refused for it. (2) On a non-daily chart the member pane
+withholds every bar silently; a NAMED bind-time reason needs a report like C26's
+`otherSymbolReport`. (3) The clock-leaf lookback disagreement between the two readers.
+(4) `time(timeframe.period)` and `time("60")` on 1D are witnessed and unserved.

@@ -50,10 +50,14 @@ const col = (titles, k) => 1 + titles.findIndex((t) => t.startsWith(`${k}_`))
 const TITLES = D1.study.plots.map((p) => p.title)
 
 /** The rows the door serves, and the ones it still refuses by a SEPARATE,
- *  named rule: `hour(<a computed timestamp>)` (K09–K11) and `time("W"/"M")`
- *  (K14/K15, the controls). Those five are checked off the columns directly. */
+ *  named rule: `hour(<a computed timestamp>)` (K09–K11), checked off the
+ *  columns directly. ⭐ C30 (2026-09-30): K14/K15 (`time("W"/"M")`, the
+ *  controls) are served on the DAILY chart now and graded there
+ *  (`DAILY_ONLY`); on the weekly and 60m charts they refuse by name. */
 const SERVED = ['K00', 'K01', 'K02', 'K03', 'K04', 'K05', 'K06', 'K07', 'K08', 'K12', 'K13', 'K16', 'K17']
-const REFUSED = { K09: 'pine:builtin', K10: 'pine:builtin', K11: 'pine:builtin', K14: 'pine:function', K15: 'pine:function' }
+const REFUSED = { K09: 'pine:builtin', K10: 'pine:builtin', K11: 'pine:builtin' }
+/** Served on 1D only (C30): `time("W"/"M")` is measured on a daily chart. */
+const DAILY_ONLY = ['K14', 'K15']
 /** Rows that read the PREVIOUS bar — ungraded on a window's first bar when the
  *  window does not start at the capture's bar 0. */
 const READS_PREVIOUS = new Set(['K04', 'K05', 'K06', 'K07', 'K12', 'K16'])
@@ -150,6 +154,26 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
       expect(bad, k).toEqual([])
     }
     expect(early.map((i) => etClockAt(cols.timeclose[i]).h)).toEqual(early.map(() => 13))
+  })
+
+  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 and the first boundary withheld', () => {
+    // `time("W"/"M")` before the first period boundary the series shows is an open
+    // from bars before the window (`interpret.js::periodAnchorMask`): bar 0 (the
+    // listing, 1993-01-29) and the boundary bar that reads it one back through
+    // `ta.change` are withheld (`NaN`), never a confident 0. Every other bar agrees.
+    for (const k of DAILY_ONLY) {
+      expect(rows[k].values, `${k}: ${rows[k].refusal && rows[k].refusal.message}`).toBeTruthy()
+      const c = col(TITLES, k)
+      const withheld = []
+      const wrong = []
+      V.forEach((r, i) => {
+        const got = rows[k].values[i]
+        if (Number.isNaN(got)) withheld.push(i)
+        else if (got !== r[c]) wrong.push(i)
+      })
+      expect(wrong, k).toEqual([])
+      expect(withheld, k).toEqual([0, 1])
+    }
   })
 
   it('K14/K15 (the controls `ta.change(time("W"/"M")) != 0`) equal our week / month columns', () => {
