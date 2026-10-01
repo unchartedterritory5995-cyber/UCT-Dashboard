@@ -111,8 +111,20 @@ AST_KIND = "ast"
 #: mean the same thing across two symbols or across two runs, and no check in this
 #: file can see that. The name is declared HERE because this tuple is what a
 #: surface branches on, and a gate a surface cannot enumerate is prose.
+#: ⚠️ `withheld` JOINED THEM IN C45 (C36's decision 6). The sweep computes the
+#: tree and answers "no number" for every symbol, every night: `time("W")` reads
+#: a clock the sweep's date-keyed daily bars do not carry, and a Pine document's
+#: `bar_index % 3` reads a count no window of bars can know. Each row was filed
+#: `not_computable` — honest, quiet, and forever. It is its own gate rather than
+#: `cadence` because the reason is a different one to tell a member: `cadence` is
+#: "this accumulates inside a session", this is "the sweep cannot answer it at all".
 GATES = ("kind", "tree", "hash", "yields", "symbol", "cadence", "budget",
-         "requirements")
+         "requirements", "withheld")
+
+#: The timeframe the sweep evaluates (`scan_evaluator.DEFAULT_TF`, pinned to it by
+#: `test_c45_withheld_doors.py` — that module imports this one, so the constant
+#: cannot be read from there).
+SWEEP_TF = "D"
 
 
 class ScanRefused(Exception):
@@ -440,6 +452,9 @@ def assert_scannable(definition: Any) -> dict:
                 refuses these; this door did not, so the server stamped
                 ``scannable: true`` on a definition it would then refuse every
                 night.
+    ``withheld`` the sweep would answer "no number" on EVERY bar: the tree reads
+                a clock the sweep's date-keyed daily bars do not carry, or (a Pine
+                document) a value that depends on the absolute ``bar_index``.
     """
     compute = _compute_of(definition)
     if compute.get("kind") != AST_KIND:
@@ -570,6 +585,36 @@ def assert_scannable(definition: Any) -> dict:
             "sweep runs on daily bars — one daily bar has no session inside it, "
             "so this column is empty for every symbol. It still works on an "
             "intraday chart.",
+        )
+
+    # ⭐⭐ C45 (C36's decision 6) — A TREE THE SWEEP WITHHOLDS ON EVERY BAR.
+    # Measured before this gate: `ta.change(time("W")) != 0` passed every gate
+    # above, was stamped `scannable: true`, and the sweep then answered
+    # `not_computable` for every symbol — `time-clock:unreadable`, the sweep's
+    # daily bars being keyed by DATE. The decision is `interpret`'s own
+    # (`ast_interpret.whole_series_withheld`: the same two functions it runs),
+    # asked on bars of the sweep's shape with the opts the sweep evaluates with.
+    # ⛔ ONLY A WHOLE-SERIES WITHHOLDING. A tree withheld on SOME bars (the early
+    # bars of `bar_index > 100`) still answers the last one and is admitted.
+    # ⛔ `bar_index_absolute_for(definition)` IS THE SAME CALL THE SWEEP'S OWN
+    # `interpret` MAKES (`scan_evaluator.evaluate_one`, railed by AST), so the
+    # tree is admitted under the declaration it will be evaluated with.
+    withheld = ast_interpret.whole_series_withheld(
+        tree, ast_interpret.DATE_KEYED_PROBE_BARS,
+        opts={"tf": SWEEP_TF,
+              "barIndexAbsolute": ast_interpret.bar_index_absolute_for(definition)})
+    if withheld:
+        index = any(code.startswith("bar-index:") for code in withheld)
+        raise ScanRefused(
+            "withheld",
+            "the sweep cannot answer this on any bar (%s): %s. Every symbol would "
+            "come back not computable, every night. It still draws on a chart "
+            "that can answer it."
+            % (", ".join(withheld),
+               "it depends on the count of bars since the symbol's first, which a "
+               "window of bars cannot know" if index else
+               "it reads a period's time, and the sweep's daily bars carry a date "
+               "and no clock"),
         )
 
     return {
