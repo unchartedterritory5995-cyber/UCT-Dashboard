@@ -93,7 +93,13 @@ const PURE_NAMESPACES = new Set(['math', 'str', 'color', 'array', 'line', 'label
  *  last non-na value forward, which is history. */
 const PURE_BARE = new Set(['na', 'nz', 'int', 'float', 'bool', 'string', 'tostring',
   'abs', 'max', 'min', 'round', 'floor', 'ceil', 'sqrt', 'pow', 'log', 'log10', 'exp',
-  'sign', 'avg', 'iff', 'timestamp', 'color', 'rgb'])
+  'sign', 'avg', 'iff', 'timestamp', 'color', 'rgb',
+  // ⭐ C42 — the CLOCK functions: `time(tf, session, …)`, `time_close(…)` and the
+  // calendar readers answer from the bar's own timestamp and their arguments;
+  // none keeps a history a conditional call could starve. (`time[k]` — the
+  // SERIES at an offset — is a different read, judged by `historyIn`'s `[`.)
+  'time', 'time_close', 'year', 'month', 'weekofyear', 'dayofmonth', 'dayofweek',
+  'hour', 'minute', 'second'])
 
 /** Object-method spellings that WRITE a drawing — the method form's half of
  *  "does this body draw". ⛔ `get_*` is a read, not a write, and is excluded: a

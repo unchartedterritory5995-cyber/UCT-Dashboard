@@ -314,7 +314,8 @@ describe('C42 — a HELPER called once: what stays refused, by name', () => {
 
   it('⛔ any other guard, and a loop, refuse the same call (`fn:conditional-history`) and draw nothing', () => {
     const cap = capture()
-    for (const guard of ['close > open', 'not barstate.islast', 'barstate.islast or close > open']) {
+    for (const guard of ['close > open', 'not barstate.islast', 'barstate.islast or close > open',
+      'barstate.islast and close > open or close < open']) {
       const { labels, diag } = run(cap, helper(F, ['f(3, high)'], guard))
       expect(diag.dropReasons['fn:conditional-history'], guard).toBe(1)
       expect(labels, guard).toHaveLength(0)

@@ -470,6 +470,8 @@ describe('⭐⭐ C42 — a guard that is provably `barstate.islast`', () => {
   it('⛔ fails closed: `not`, `or`, a ternary, brackets, another `barstate.*`, nothing', () => {
     expect(g('not barstate.islast')).toBe(false)
     expect(g('barstate.islast or close > open')).toBe(false)
+    // `and` binds tighter than `or`: (islast and a) or b runs whenever b holds
+    expect(g('barstate.islast and close > open or close < open')).toBe(false)
     expect(g('showTable and not barstate.islast')).toBe(false)
     expect(g('showTable ? barstate.islast : true')).toBe(false)
     expect(g('(barstate.islast)')).toBe(false)
@@ -549,5 +551,23 @@ describe('⭐⭐ C42 — a bare `input(<literal>, …)` is a simple input, and i
       const t = host(src(decl, ...body, 'if s > 0', '    f()'))
       expect(diag(t).dropReasons['fn:conditional-history'], decl).toBe(1)
     }
+  })
+})
+
+describe('⭐⭐ C42 — the clock functions keep no history a conditional call could starve', () => {
+  const under = (...body) => host(src('f(int k) =>', ...body, 'if close > open', '    f(5)'))
+  const refused = (t) => diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']
+
+  it('⭐ `time(tf, session)`, `time_close(tf)` and the calendar readers inline under a guard that varies', () => {
+    const t = under(
+      '    inSession = not na(time(timeframe.period, "0930-1600"))',
+      '    label.new(bar_index, low, str.tostring(time_close("D")) + str.tostring(dayofweek(time)) + str.tostring(hour(time)))')
+    expect(refused(t)).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+  })
+
+  it('⛔ CONTROL — a `ta.*` over the clock is still the call\'s own state', () => {
+    expect(refused(under('    label.new(bar_index, low, str.tostring(ta.change(time("D"))))'))).toBe(1)
+    expect(refused(under('    label.new(bar_index, low, str.tostring(fixnan(close)))'))).toBe(1)
   })
 })
