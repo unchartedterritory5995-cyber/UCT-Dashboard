@@ -1,0 +1,6 @@
+== curve-d22-1 start 13:19:11 tree 07c64750a8
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 2 marked process(es) (gate 0, vitest 2, pytest 0); largest pid 46680 node.exe "C:\Program Files\nodejs\node.exe" "C:\Program Files\nodejs/node_modules/npm/bin/npx-cli.j
+== end 13:22:13 exit 0
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 4 marked process(es) (gate 0, vitest 4, pytest 0); largest pid 25916 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment
