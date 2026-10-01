@@ -737,7 +737,7 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     expect(Array.from(interpret(native, bars, {}, undefined, undefined, { tf: '5' })).some((v) => !Number.isNaN(v))).toBe(true)
   })
 
-  it('the tree: the request under the gate of the base it was translated for — on a chart pane only, own symbol only, and exact', () => {
+  it('the tree: the request under the gate of the base it was translated for — on a chart pane only, and exact', () => {
     const S = (body, opts) => translatePine(`//@version=6\nindicator("t")\n${body}\n`, opts)
     const f = (body, opts = { strict: true }) => { const t = S(body, opts); return t.ok ? t.outputs[t.selected].formula : `${t.refusal.guard}` }
     expect(f('plot(request.security(syminfo.tickerid, "D", close))')).toBe('86400 != periodseconds ? 0 / 0 : close')
@@ -749,6 +749,10 @@ describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AM
     // a screen evaluates stored daily bars: the bare tree, as before
     expect(f('plot(request.security(syminfo.tickerid, "D", close))', {})).toBe('close')
     expect(f('plot(request.security(syminfo.tickerid, "W", close))', {})).toBe("tf(close, 'W')")
+    // ANOTHER symbol at a literal timeframe: the same gate, OUTSIDE its `sym` (which hands that
+    // listing's bars at the chart's own timeframe); at the chart's own timeframe, none
+    expect(f('plot(request.security("AMEX:SPY", "D", close))')).toBe("86400 != periodseconds ? 0 / 0 : sym('SPY', close)")
+    expect(f('plot(request.security("AMEX:SPY", timeframe.period, close))')).toBe("sym('SPY', close)")
     // told the chart is intraday, a daily request still refuses (ruling 3.5's own guard), as before
     expect(f('plot(request.security(syminfo.tickerid, "D", close))', { strict: true, basePeriod: '5' })).toBe('pine:request')
     const gated = requestBaseNode('D', { type: 'series', name: 'close' })
