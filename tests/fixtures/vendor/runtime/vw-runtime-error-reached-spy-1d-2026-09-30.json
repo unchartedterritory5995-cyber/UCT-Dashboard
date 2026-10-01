@@ -1,0 +1,83 @@
+{
+ "schema": "uct.vendor-reading/runtime-error-reached/v1",
+ "id": "vw-runtime-error-reached-spy-1d-2026-09-30",
+ "capturedAtUTC": "2026-10-01T03:19:34.722Z",
+ "_invocation": "tools/visual_conformance/probes/vw-runtime-error.pine written into the TradingView editor through the Monaco handle (sha256 checked), saved as the private script UCTPROBE_VW_RUNTIME_ERROR, added to the rig layout 01f1AcIj; control captured at defaults (tests/fixtures/vendor/harness/vw-runtime-error-spy-1d-2026-09-30.json); then input in_0 (Stop at bar) set to 100 with setInputValues and the study re-read from the chart model per docs/pine/capture-procedure.md",
+ "page": {
+  "url": "https://www.tradingview.com/chart/01f1AcIj/",
+  "visibilityState": "visible"
+ },
+ "symbol": "AMEX:SPY",
+ "timeframe": "1D",
+ "chartBarsLoaded": 4800,
+ "firstBarTime": 1188567000,
+ "source": {
+  "file": "tools/visual_conformance/probes/vw-runtime-error.pine",
+  "sha256": "d7bd75378ea62e94ef95198bed5cc72f9b87574dba6cadd3602e671c3ba78832",
+  "chars": 1555
+ },
+ "study": {
+  "title": "UCTPROBE_VW_RUNTIME_ERROR",
+  "scriptIdPart": "USER;ab959255d7c34046a643ce6ea0c8d8ba",
+  "inputs": [
+   {
+    "id": "in_0",
+    "value": 100
+   }
+  ],
+  "status": {
+   "type": 3,
+   "errorDescription": {
+    "ctx": {
+     "bar_index": 100,
+     "code": "RE10142"
+    },
+    "error": "Error on bar {bar_index}: UCTPROBE stop at bar 100",
+    "is_user_defined": true,
+    "stack_trace": [
+     {
+      "n": "#main",
+      "p": 33
+     }
+    ],
+    "title": "User-defined error",
+    "showReportItButton": false,
+    "studyAccessBlocked": false
+   }
+  },
+  "isFailed": true,
+  "dataLength": 0,
+  "dataRowsRead": 0,
+  "graphics": {
+   "lines": 0,
+   "labels": 0,
+   "boxes": 0
+  },
+  "declaredPlots": 2
+ },
+ "memberVisible": {
+  "legendRows": [
+   "",
+   "0UCTPROBE_VW_RUNTIME_ERROR∅∅"
+  ],
+  "errorButtonLabels": [
+   "Undo insert UCTPROBE_VW_RUNTIME_ERROR",
+   "Undo insert UCTPROBE_VW_RUNTIME_ERROR",
+   "Undo insert UCTPROBE_VW_RUNTIME_ERROR",
+   "User-defined error: RE10142 · Opened in Pine Editor"
+  ],
+  "paneDrawsAnything": false,
+  "paneNote": "screenshot of the pane: empty, no plot line and no label; the legend row shows the title with empty (∅) values and a red error button"
+ },
+ "control": {
+  "capture": "vw-runtime-error-spy-1d-2026-09-30",
+  "dataRows": 4800,
+  "labels": 50
+ },
+ "receipt": {
+  "algo": "fnv1a32-utf16",
+  "over": "JSON.stringify(reading without its receipt key)",
+  "chars": 2024,
+  "fnv1a": 1758493607
+ }
+}

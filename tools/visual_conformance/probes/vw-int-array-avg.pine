@@ -1,0 +1,99 @@
+//@version=6
+indicator("UCTPROBE_VW_INT_ARRAY_AVG", overlay = false, max_labels_count = 100, max_lines_count = 50)
+
+// --- 2026-09-30 C32 (Q-C32-1) - WHAT `array.avg` OF AN `array<int>` IS ------------
+//
+// trend-duration-forecast holds `var bullishCount = array.new<int>()` and writes
+// `LengthLine.set_x2(LengthLine.get_x1() + bullishCount.avg() + 1)` - an `int`
+// argument - and `str.tostring(bullishCount.avg(), "##")`. Its capture's two means
+// (22.6 -> "23", 18.5 -> "19", both through "##") cannot tell a float formatted by
+// "##" from an int mean rounded half-up or by ceiling, and x is stored as a rank.
+//
+//   A01-A07  `a.avg()` of an array<int> as a PLOT value: means 1.5, 1.33.., 1.67..,
+//            2.5, -1.5, -1.33.., -1.67.. (1.5 vs 2.5 splits half-up from half-even,
+//            the negatives split half-away from floor / ceiling / truncation);
+//   B01-B03  the same values in an array<float> - the CONTROL (must be the mean);
+//   D01-D03  the int mean times 2 (3 if the mean is 1.5, 4 if it was rounded to 2,
+//            2 if truncated to 1);
+//   P01-P03  a `var` array<int> filled with `push`, trend-duration's own spelling;
+//   labels   R* `str.tostring(a.avg())` with NO format and with "##", ints and the
+//            float control; X* the line: `l.set_x2(l.get_x1() + a.avg() + 1)` then
+//            `l.get_x2() - l.get_x1()` (mean + 1 after whatever Pine does to it).
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (there are none). Every plot row is
+// constant; every label is made on the last bar only.
+
+array<int> i1 = array.from(1, 2)
+array<int> i2 = array.from(1, 1, 2)
+array<int> i3 = array.from(1, 2, 2)
+array<int> i4 = array.from(2, 3)
+array<int> i5 = array.from(-1, -2)
+array<int> i6 = array.from(-1, -1, -2)
+array<int> i7 = array.from(-1, -2, -2)
+
+array<float> f1 = array.from(1.0, 2.0)
+array<float> f2 = array.from(1.0, 1.0, 2.0)
+array<float> f3 = array.from(1.0, 2.0, 2.0)
+
+var p1 = array.new<int>()
+var p2 = array.new<int>()
+var p3 = array.new<int>()
+if barstate.isfirst
+    p1.push(1)
+    p1.push(2)
+    p2.push(1)
+    p2.push(1)
+    p2.push(2)
+    p3.push(2)
+    p3.push(2)
+    p3.push(1)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(i1.avg(), "A01_int_avg_1_2")
+plot(i2.avg(), "A02_int_avg_1_1_2")
+plot(i3.avg(), "A03_int_avg_1_2_2")
+plot(i4.avg(), "A04_int_avg_2_3")
+plot(i5.avg(), "A05_int_avg_n1_n2")
+plot(i6.avg(), "A06_int_avg_n1_n1_n2")
+plot(i7.avg(), "A07_int_avg_n1_n2_n2")
+plot(f1.avg(), "B01_float_avg_1_2_CONTROL")
+plot(f2.avg(), "B02_float_avg_1_1_2_CONTROL")
+plot(f3.avg(), "B03_float_avg_1_2_2_CONTROL")
+plot(i1.avg() * 2, "D01_int_avg_1_2_times_2")
+plot(i2.avg() * 3, "D02_int_avg_1_1_2_times_3")
+plot(i3.avg() * 3, "D03_int_avg_1_2_2_times_3")
+plot(p1.avg(), "P01_var_push_avg_1_2")
+plot(p2.avg(), "P02_var_push_avg_1_1_2")
+plot(p3.avg(), "P03_var_push_avg_2_2_1")
+
+f_dx(array<int> a) =>
+    l = line.new(bar_index - 20, close, bar_index - 10, close)
+    l.set_x2(l.get_x1() + a.avg() + 1)
+    l.get_x2() - l.get_x1()
+
+if barstate.islast
+    label.new(bar_index, 0, "R01 int[1,2] tostring|" + str.tostring(i1.avg()))
+    label.new(bar_index, 0, "R02 int[1,1,2] tostring|" + str.tostring(i2.avg()))
+    label.new(bar_index, 0, "R03 int[1,2,2] tostring|" + str.tostring(i3.avg()))
+    label.new(bar_index, 0, "R04 int[2,3] tostring|" + str.tostring(i4.avg()))
+    label.new(bar_index, 0, "R05 int[-1,-2] tostring|" + str.tostring(i5.avg()))
+    label.new(bar_index, 0, "R06 int[1,2] ##|" + str.tostring(i1.avg(), "##"))
+    label.new(bar_index, 0, "R07 int[1,1,2] ##|" + str.tostring(i2.avg(), "##"))
+    label.new(bar_index, 0, "R08 int[1,2,2] ##|" + str.tostring(i3.avg(), "##"))
+    label.new(bar_index, 0, "R09 int[2,3] ##|" + str.tostring(i4.avg(), "##"))
+    label.new(bar_index, 0, "R10 int[-1,-2] ##|" + str.tostring(i5.avg(), "##"))
+    label.new(bar_index, 0, "R11 float[1,2] tostring CONTROL|" + str.tostring(f1.avg()))
+    label.new(bar_index, 0, "R12 float[1,1,2] tostring CONTROL|" + str.tostring(f2.avg()))
+    label.new(bar_index, 0, "R13 float[1,2,2] tostring CONTROL|" + str.tostring(f3.avg()))
+    label.new(bar_index, 0, "R14 float[1,2] ## CONTROL|" + str.tostring(f1.avg(), "##"))
+    label.new(bar_index, 0, "R15 float[1,1,2] ## CONTROL|" + str.tostring(f2.avg(), "##"))
+    label.new(bar_index, 0, "R16 float[1,2,2] ## CONTROL|" + str.tostring(f3.avg(), "##"))
+    label.new(bar_index, 0, "R17 float 2.5 ## CONTROL|" + str.tostring(2.5, "##"))
+    label.new(bar_index, 0, "R18 var push int[1,2] tostring|" + str.tostring(p1.avg()))
+    label.new(bar_index, 0, "R19 var push int[1,2] ##|" + str.tostring(p1.avg(), "##"))
+    label.new(bar_index, 0, "X01 dx int[1,2]|" + str.tostring(f_dx(i1)))
+    label.new(bar_index, 0, "X02 dx int[1,1,2]|" + str.tostring(f_dx(i2)))
+    label.new(bar_index, 0, "X03 dx int[1,2,2]|" + str.tostring(f_dx(i3)))
+    label.new(bar_index, 0, "X04 dx int[2,3]|" + str.tostring(f_dx(i4)))
+    label.new(bar_index, 0, "X05 dx var push int[1,2]|" + str.tostring(f_dx(p1)))
+    label.new(bar_index, 0, "X06 dx var push int[2,2,1]|" + str.tostring(f_dx(p3)))
