@@ -50,6 +50,32 @@ export function tableAtSelection(state) {
 }
 
 /**
+ * Wave 10 (lane TY7): the bump-reducer's SIGNAL is whether the caret is inside
+ * a table, never the table/button state itself -- the component re-reads
+ * `tableAtSelection(editor.state)` (and every `can()`/`sortable`/`width` read)
+ * fresh in its own render body regardless, exactly as it did before this fix.
+ * This only decides whether a transaction is worth a NEW reference.
+ *
+ * - Outside a table, two transactions IN A ROW (prev was already `null`) bail
+ *   to the SAME `null` reference -- the common case for every note with no
+ *   table in it, which used to re-render this (always-null-rendering) bar on
+ *   every keystroke of every note, table or not.
+ * - Entering or leaving a table is always a NEW reference (`null` <-> `{}`),
+ *   so the bar's mount/unmount keeps following the caret exactly as before.
+ * - WHILE inside a table, every transaction returns a FRESH `{}` -- never
+ *   bails -- so a row/column edit (which never touches `tableAtSelection`'s
+ *   own answer, only the TABLE's shape) still re-renders this bar with no
+ *   external driver, the property `TableToolbar.test.jsx`'s "owns its own
+ *   freshness" describe block pins directly.
+ */
+export function tableBumpReducer(prev, editor) {
+  if (!editor || editor.isDestroyed) return prev
+  const inTable = Boolean(editor.isEditable && tableAtSelection(editor.state))
+  if (!inTable) return prev === null ? prev : null
+  return {}
+}
+
+/**
  * ⛔ prosemirror-tables' `deleteRow` / `deleteColumn` answer `can()` with TRUE
  * even when the rows (or columns) in play are ALL of them — they refuse only
  * once asked to dispatch, and the click then does nothing at all. Deleting
@@ -94,15 +120,34 @@ export default function TableToolbar({ editor }) {
   // bailout -- table edits (Add a row, Delete column, …) are themselves
   // transactions that don't touch a mark/block/font field, so a table-only
   // session would otherwise never re-render this bar's DISABLED states after
-  // the first edit. Re-rendering ONE small floating bar on every keystroke
-  // costs nothing the typing budget measures; NoteEditorPage.jsx's own
-  // audit table (readToolbarFormatState) names this file precisely so nobody
-  // re-adds `inTable` there believing it is still needed.
-  const [, bump] = useReducer((x) => x + 1, 0)
+  // the first edit. NoteEditorPage.jsx's own audit table (readToolbarFormatState)
+  // names this file precisely so nobody re-adds `inTable` there believing it is
+  // still needed.
+  //
+  // ⛔⛔ Wave 10 (lane TY7, "whose caller" perf pass): "costs nothing the typing
+  // budget measures" was WRONG, measured -- this line used to bump a BARE
+  // counter (`(x) => x + 1`) on every transaction, unconditionally, in every
+  // note, table or not. React's own `commitBeforeMutationEffects` runs a
+  // selection-offset DOM walk over the ENTIRE focused contenteditable on every
+  // commit (`vendor-react …js:6690` -- confirmed by reading the compiled,
+  // unminified React source, not assumed): it does not care whether THIS
+  // component's commit did anything, only that a commit happened while the
+  // editor (a contentEditable) has focus. A CPU-profile caller-tree walk
+  // (docs/notebook/perf-runs/ty7/) traced the bulk of that cost to exactly
+  // this always-new counter forcing a commit on a note with NO table at all --
+  // disabling it alone cut commitBeforeMutationEffects from 0.736 to 0.047
+  // ms/key at 2,000 paragraphs (a diagnostic revert, not this fix).
+  // `tableBumpReducer` keeps the stated goal (a table edit always re-renders
+  // this bar, with NO external re-render driver -- TableToolbar.test.jsx's
+  // "owns its own freshness" describe block) but stops bumping when the caret
+  // stays OUTSIDE a table across consecutive transactions, which is every
+  // keystroke in a note that has no table in it at all.
+  const [, bump] = useReducer(tableBumpReducer, null)
   useEffect(() => {
     if (!editor || editor.isDestroyed) return undefined
-    editor.on('transaction', bump)
-    return () => { editor.off('transaction', bump) }
+    const update = () => bump(editor)
+    editor.on('transaction', update)
+    return () => { editor.off('transaction', update) }
   }, [editor])
 
   const table = editor && !editor.isDestroyed && editor.isEditable ? tableAtSelection(editor.state) : null
