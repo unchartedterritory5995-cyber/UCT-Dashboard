@@ -1,4 +1,5 @@
-"""C36 -- ``time(<timeframe>)`` in the Python lane, held to the JS lane's own output.
+"""C36 -- ``time(<timeframe>)`` / ``time_close(<timeframe>)`` in the Python lane, held
+to the JS lane's own output.
 
 C30 served ``time("W" | "M" | "3M" | "12M")`` on a daily chart and withheld the
 first partial period -- in the JS lanes only. This interpreter evaluated the same
@@ -24,6 +25,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import pathlib
 
 import pytest
@@ -65,9 +67,21 @@ def test_the_fixture_is_not_vacuous():
     assert sum(1 for v in served if v is not None) == 298
     event = cases["change(W) · weekdays · D"]["expected"]
     assert {0, 1} <= set(v for v in event if v is not None) and None in event
-    assert cases["W · every day · D"]["codes"] == ["time-anchor:weekend-bars"]
+    # every day of the week is SERVED (BITSTAMP:BTCUSD 1D), less the bars across a
+    # New York clock change from their anchor
+    every = cases["W · every day · D"]
+    assert sum(1 for v in every["expected"] if v is not None) > 130
+    assert every["codes"] == ["time-anchor:utc-day-clock"]
+    assert cases["W · saturdays · D"]["codes"] == ["time-anchor:weekend-bars"]
     assert cases["own · hourly · 5 (unmeasured)"]["codes"] == ["time-own:chart-unwitnessed"]
-    assert {code for c in cases.values() for code in c["codes"]} <= set(ai.CHART_CLOCK_WITHHELD_CODES)
+    # time_close("W"): every session bar served; a weekend-bar chart withheld whole
+    assert all(v is not None for v in cases["closeW · weekdays · D"]["expected"])
+    assert cases["closeW · every day · D"]["codes"] == ["time-close:weekend-bars"]
+    assert cases["closeW · a Friday missing · D"]["codes"] == ["time-close:period-end-missing"]
+    named = {code for c in cases.values() for code in c["codes"]}
+    assert named <= set(ai.CHART_CLOCK_WITHHELD_CODES)
+    # every code but the nested one (a tree the translator will not write) is exercised
+    assert set(ai.CHART_CLOCK_WITHHELD_CODES) - named == {"time-anchor:other-bars"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():
@@ -91,9 +105,15 @@ def test_the_builders_are_the_fixtures_own_trees():
         found = anchors(cases[f"{key} · weekdays · D"]["ast"])
         assert len(found) == 1, key
         assert found[0]["args"][0] == ai.period_first_condition(period), key
+        assert ai.period_anchor_period(found[0]) == period, key
     assert ai.is_chart_own_time(cases["own · weekdays · D"]["ast"])
     assert cases["own · weekdays · D"]["ast"] == ai.chart_own_time_node(True)
-    assert ai.period_first_condition("2W") is None
+    assert ai.period_first_condition("2W") is None and ai.period_calendar_first("2W") is None
+    for key, code in (("closeW", "W"), ("closeM", "M")):
+        tree = cases[f"{key} · weekdays · D"]["ast"]
+        assert ai.is_period_close(tree), key
+        assert tree == ai.period_close_node(code, True), key
+    assert ai.PERIOD_CLOSE_CODES == ("W", "M")
 
 
 # --------------------------------------------------------------------------- #
@@ -112,7 +132,7 @@ CONSUMER_CONTEXTS = {
 
 
 @pytest.mark.parametrize("consumer", sorted(CONSUMER_CONTEXTS))
-@pytest.mark.parametrize("reader", ["na(W)", "change(W)"])
+@pytest.mark.parametrize("reader", ["na(W)", "change(W)", "na(closeW)", "change(closeW)"])
 def test_no_server_consumer_reads_the_anchor_as_na(consumer, reader):
     doc = _doc()
     bars_key, opts = CONSUMER_CONTEXTS[consumer]
@@ -155,7 +175,7 @@ def test_a_read_of_other_bars_is_withheld_whole_and_named():
     bars = _doc()["bars"]["weekdays"]
     anchor = {"type": "call", "name": "valuewhenOccurrence", "args": [
         ai.period_first_condition("M"), {"type": "series", "name": "time"}, {"type": "num", "value": 0}]}
-    for inner in (anchor, ai.chart_own_time_node(True)):
+    for inner in (anchor, ai.chart_own_time_node(True), ai.period_close_node("W", True)):
         for kind, value in (("tf", "W"), ("sym", "QQQ")):
             sink: dict = {}
             mask = ai.period_anchor_mask({"type": kind, "value": value, "args": [inner]}, bars, {},
@@ -184,3 +204,22 @@ def test_one_weekend_bar_is_enough(weekend_day):
     assert sorted(sink) == ["time-anchor:weekend-bars"]
     # CONTROL -- without the weekend bar the same series is served
     assert any(v is not None for v in ai.interpret(tree, bars[:-1], {}, opts={"tf": "D"}))
+
+
+def test_bars_with_no_readable_clock_are_withheld_whole_and_named():
+    """A date NUMBER carries no clock, so whether the symbol trades weekends cannot
+    be told -- and ``tf_live`` resamples such bars by their date all the same.
+    Without the rule the sweep read ``time_close("W")`` on its newest bar."""
+    doc = _doc()
+    bars = doc["bars"]["dateInts"]
+    for reader in ("na(W)", "na(closeW)"):
+        tree = next(c["ast"] for c in doc["cases"] if c["pine"] == reader)
+        sink: dict = {}
+        got = ai.interpret(tree, bars, {}, opts={"tf": "D", "chartClockSink": sink})
+        assert all(v is None for v in got), reader
+        assert sorted(sink) == ["time-clock:unreadable"], reader
+    # CONTROL -- the unmasked period close IS computable on those bars (the resample
+    # reads their dates), which is exactly why it has to be withheld by rule
+    close = next(c["ast"] for c in doc["cases"] if c["pine"] == "closeW")
+    raw = ai._interpret_column(close, bars, {}, None, None, {"tf": "D"})
+    assert any(not math.isnan(v) for v in raw)

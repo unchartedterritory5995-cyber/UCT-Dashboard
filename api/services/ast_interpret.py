@@ -3715,9 +3715,17 @@ def interpret(ast: Any, bars: List[dict],
     bar whose answer moves is withheld. Every other tree takes one pass,
     unchanged. See the JS docstring; the two lanes are held equal by
     ``tests/fixtures/ast/switched_counter_parity.json``."""
-    column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     probe = (opts or {}).get("prefixProbe")
     probing = isinstance(probe, (int, float)) and not isinstance(probe, bool)
+    # C36 -- a tree whose ``time(<tf>)`` / ``time_close(<tf>)`` cannot be answered
+    # on THESE bars at all is withheld whole, and named, before it is evaluated
+    # (``interpret.js::interpret``): ``time_close("W")`` is a ``tf_live`` read, which
+    # the evaluator refuses on a weekly base where the answer is "not measured".
+    if not probing:
+        whole = _chart_clock_whole(ast, bars, inputs, budget, scalars, opts)
+        if whole is not None and whole["why"]:
+            return [None] * len(bars)
+    column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
             and reads_switched_state(ast)):
         real = list(column)
@@ -3771,119 +3779,192 @@ def interpret(ast: Any, bars: List[dict],
 #: on. Mirrors ``interpret.js::OWN_TIME_WITNESSED_TF``.
 OWN_TIME_WITNESSED_TF = ("D", "60")
 
-#: The codes a whole-series withholding is named by -- the keys of
+#: The periods ``time_close(<tf>)`` is served for. Mirrors
+#: ``interpret.js::PERIOD_CLOSE_CODES``.
+PERIOD_CLOSE_CODES = ("W", "M")
+
+#: The codes a withholding is named by -- the keys of
 #: ``interpret.js::CHART_CLOCK_WITHHELD``, which owns the SENTENCES (a member
 #: reads them on the chart pane; a second copy here would be a second authority
 #: over the wording). ``opts["chartClockSink"]`` (a dict) receives each code.
-CHART_CLOCK_WITHHELD_CODES = (
-    "time-anchor:other-bars", "time-anchor:not-daily",
-    "time-anchor:weekend-bars", "time-own:chart-unwitnessed",
+#: ``CHART_CLOCK_WHOLE`` withholds every bar (``interpret.js::CHART_CLOCK_WHOLE``);
+#: the rest withhold the bars they describe.
+CHART_CLOCK_WHOLE = (
+    "time-anchor:other-bars", "time-clock:unreadable", "time-anchor:not-daily",
+    "time-anchor:weekend-bars", "time-own:chart-unwitnessed", "time-close:not-daily",
+    "time-close:weekend-bars",
 )
+CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
+    "time-anchor:period-open-missing", "time-anchor:session-open-missing",
+    "time-anchor:utc-day-clock", "time-close:period-end-missing",
+)
+
+
+def _cc_leaf(name): return {"type": "series", "name": name}
+def _cc_num(value): return {"type": "num", "value": value}
+def _cc_op(name, args): return {"type": "op", "name": name, "args": args}
+def _cc_call(name, args): return {"type": "call", "name": name, "args": args}
+
+
+def _week_offset() -> dict:
+    """Days since the bar's ISO-week Monday (0 on Monday .. 6 on Sunday) -- read by
+    the week key AND by ``period_calendar_first``, one authority for the week start."""
+    return _cc_call("mod", [_cc_op("+", [_cc_leaf("dayofweek"), _cc_num(5)]), _cc_num(7)])
 
 
 def period_first_condition(period: str) -> Optional[dict]:
     """``interpret.js::periodFirstCondition`` -- "this bar opens a new <period>"."""
-    def leaf(name): return {"type": "series", "name": name}
-    def num(value): return {"type": "num", "value": value}
-    def op(name, args): return {"type": "op", "name": name, "args": args}
-    def call(name, args): return {"type": "call", "name": name, "args": args}
     if period == "W":
-        key = op("-", [call("floor", [op("/", [leaf("dayopentime"), num(86400)])]),
-                       call("mod", [op("+", [leaf("dayofweek"), num(5)]), num(7)])])
+        key = _cc_op("-", [_cc_call("floor", [_cc_op("/", [_cc_leaf("dayopentime"), _cc_num(86400)])]),
+                           _week_offset()])
     elif period == "M":
-        key = op("+", [op("*", [leaf("year"), num(12)]), leaf("month")])
+        key = _cc_op("+", [_cc_op("*", [_cc_leaf("year"), _cc_num(12)]), _cc_leaf("month")])
     elif period == "3M":
-        key = op("+", [op("*", [leaf("year"), num(4)]),
-                       call("floor", [op("/", [op("-", [leaf("month"), num(1)]), num(3)])])])
+        key = _cc_op("+", [_cc_op("*", [_cc_leaf("year"), _cc_num(4)]),
+                           _cc_call("floor", [_cc_op("/", [_cc_op("-", [_cc_leaf("month"), _cc_num(1)]),
+                                                           _cc_num(3)])])])
     elif period == "12M":
-        key = leaf("year")
+        key = _cc_leaf("year")
     else:
         return None
-    return op("!=", [key, {"type": "offset", "value": 1, "args": [key]}])
+    return _cc_op("!=", [key, {"type": "offset", "value": 1, "args": [key]}])
 
 
-def _canonical_shape(n: Any) -> Any:
-    """A node reduced to (type, name, value, args), integral numbers as ints, so
-    a tree read from JSON compares equal to the builder's."""
-    if not isinstance(n, dict):
-        return n
-    out: List[Any] = [n.get("type")]
-    out.append(n.get("name"))
-    v = n.get("value")
-    if isinstance(v, float) and v.is_integer():
-        v = int(v)
-    out.append(v)
-    args = n.get("args")
-    out.append([_canonical_shape(a) for a in args] if isinstance(args, list) else None)
-    return out
+def period_calendar_first(period: str) -> Optional[dict]:
+    """``interpret.js::periodCalendarFirst`` -- "this bar is its period's CALENDAR
+    first day": a Monday; the 1st; the 1st of Jan / Apr / Jul / Oct; January 1st."""
+    if period == "W":
+        return _cc_op("==", [_week_offset(), _cc_num(0)])
+    first = _cc_op("==", [_cc_leaf("dayofmonth"), _cc_num(1)])
+    if period == "M":
+        return first
+    month = _period_first_month(period)
+    return _cc_op("&&", [first, month]) if month else None
 
 
-def _shape_key(n: Any) -> str:
-    import json as _json
-    return _json.dumps(_canonical_shape(n), sort_keys=False)
+def _period_first_month(period: str) -> Optional[dict]:
+    """``interpret.js::periodFirstMonth`` -- "this bar's month is the first of its
+    quarter / year", or ``None``."""
+    if period == "3M":
+        return _cc_op("==", [_cc_call("mod", [_cc_op("-", [_cc_leaf("month"), _cc_num(1)]), _cc_num(3)]),
+                             _cc_num(0)])
+    if period == "12M":
+        return _cc_op("==", [_cc_leaf("month"), _cc_num(1)])
+    return None
 
 
-_PERIOD_FIRST_SHAPES = frozenset(_shape_key(period_first_condition(p)) for p in ("W", "M", "3M", "12M"))
+def _period_session_open(period: str) -> dict:
+    """``interpret.js::periodSessionOpen`` -- the open of the first session of the
+    bar's week / month as the vendor's calendar has it: ``tf_live(<W|M>, time)``."""
+    return {"type": "tf_live", "value": "W" if period == "W" else "M", "args": [_cc_leaf("time")]}
+
+
+def _matches_shape(node: Any, shape: Any) -> bool:
+    """``interpret.js::matchesShape`` -- node for node (type, name, value, args),
+    early exit on the first difference. A number compares by value, so a tree
+    read from JSON (``86400``) equals the builder's whether int or float."""
+    if not isinstance(node, dict) or not isinstance(shape, dict):
+        return False
+    if node.get("type") != shape.get("type") or node.get("name") != shape.get("name"):
+        return False
+    nv, sv = node.get("value"), shape.get("value")
+    if nv != sv or isinstance(nv, bool) != isinstance(sv, bool):
+        return False
+    na, sa = node.get("args"), shape.get("args")
+    if not isinstance(na, list) or not isinstance(sa, list):
+        return not isinstance(na, list) and not isinstance(sa, list)
+    if len(na) != len(sa):
+        return False
+    return all(_matches_shape(x, y) for x, y in zip(na, sa))
+
+
+_PERIOD_FIRST_SHAPES = tuple((p, period_first_condition(p)) for p in ("W", "M", "3M", "12M"))
+
+
+def period_anchor_period(node: Any) -> Optional[str]:
+    """``interpret.js::periodAnchorPeriod`` -- the period of
+    ``valuewhenOccurrence(<period first>, time, 0)``, or ``None``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "valuewhenOccurrence":
+        return None
+    a = node.get("args") or []
+    if len(a) != 3 or not isinstance(a[1], dict) or a[1].get("type") != "series" or a[1].get("name") != "time":
+        return None
+    if not isinstance(a[2], dict) or a[2].get("type") != "num" or a[2].get("value") != 0:
+        return None
+    for period, shape in _PERIOD_FIRST_SHAPES:
+        if _matches_shape(a[0], shape):
+            return period
+    return None
 
 
 def is_period_anchor(node: Any) -> bool:
-    """``interpret.js::isPeriodAnchor`` -- ``valuewhenOccurrence(<period first>, time, 0)``."""
-    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") != "valuewhenOccurrence":
-        return False
-    a = node.get("args") or []
-    if len(a) != 3 or not isinstance(a[1], dict) or a[1].get("type") != "series" or a[1].get("name") != "time":
-        return False
-    if not isinstance(a[2], dict) or a[2].get("type") != "num" or a[2].get("value") != 0:
-        return False
-    return _shape_key(a[0]) in _PERIOD_FIRST_SHAPES
+    """``interpret.js::isPeriodAnchor``."""
+    return period_anchor_period(node) is not None
 
 
 def chart_own_time_node(ms: bool) -> dict:
     """``interpret.js::chartOwnTimeNode`` -- the gated ``time(timeframe.period)``."""
-    leaf = {"type": "series", "name": "time"}
-    def num(value): return {"type": "num", "value": value}
-    def op(name, args): return {"type": "op", "name": name, "args": args}
     witnessed = None
     for tf in OWN_TIME_WITNESSED_TF:
-        on = op("==", [{"type": "series", "name": "periodseconds"}, num(CLOCK_PERIOD_SECONDS[tf])])
-        witnessed = on if witnessed is None else op("||", [witnessed, on])
-    return op("?:", [witnessed, op("*", [leaf, num(1000)]) if ms else leaf,
-                     op("/", [num(0), num(0)])])
+        on = _cc_op("==", [_cc_leaf("periodseconds"), _cc_num(CLOCK_PERIOD_SECONDS[tf])])
+        witnessed = on if witnessed is None else _cc_op("||", [witnessed, on])
+    return _cc_op("?:", [witnessed,
+                         _cc_op("*", [_cc_leaf("time"), _cc_num(1000)]) if ms else _cc_leaf("time"),
+                         _cc_op("/", [_cc_num(0), _cc_num(0)])])
 
 
-_OWN_TIME_SHAPES = frozenset(_shape_key(chart_own_time_node(ms)) for ms in (True, False))
+_OWN_TIME_SHAPES = tuple(chart_own_time_node(ms) for ms in (True, False))
 
 
 def is_chart_own_time(node: Any) -> bool:
     """``interpret.js::isChartOwnTime``."""
     if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
         return False
-    return _shape_key(node) in _OWN_TIME_SHAPES
+    return any(_matches_shape(node, shape) for shape in _OWN_TIME_SHAPES)
 
 
-def _has_weekend_bar(bars: List[dict], inputs, budget, scalars, opts) -> bool:
-    """A Saturday or Sunday bar, by the ``dayofweek`` column the week key reads
-    (Pine's: 1 = Sunday, 7 = Saturday)."""
-    col = _interpret_column({"type": "series", "name": "dayofweek"}, bars, inputs, budget, scalars,
-                            dict(opts or {}, chartClockSink=None))
-    return any(v == 1 or v == 7 for v in col)
+def period_close_node(code: str, ms: bool) -> dict:
+    """``interpret.js::periodCloseNode`` -- the gated ``time_close("W" | "M")``:
+    ``tf_live(<code>, timeclose)``, the period bar's own close off the calendar."""
+    inner = {"type": "tf_live", "value": code, "args": [_cc_leaf("timeclose")]}
+    on_daily = _cc_op("==", [_cc_leaf("periodseconds"), _cc_num(CLOCK_PERIOD_SECONDS["D"])])
+    return _cc_op("?:", [on_daily, _cc_op("*", [inner, _cc_num(1000)]) if ms else inner,
+                         _cc_op("/", [_cc_num(0), _cc_num(0)])])
 
 
-def period_anchor_mask(tree: Any, bars: List[dict],
-                       inputs: Optional[Mapping[str, Any]] = None,
-                       budget: Optional[Mapping[str, Any]] = None,
-                       scalars: Optional[Mapping[str, Any]] = None,
-                       opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
-    """``interpret.js::periodAnchorMask`` -- the bars of a tree whose answer reads
-    a period anchor this lane does not hold (1 = withheld), or ``None`` when the
-    tree reads none. Every bar when the chart is not daily, when its daily bars
-    include a weekend, when the read sits under ``tf`` / ``sym``, and for
-    ``time(timeframe.period)`` / ``time("60")`` off the two measured timeframes;
-    otherwise the anchor's own blank bars and every root bar within reach."""
-    n = len(bars)
-    nodes: List[dict] = []
-    nested = False
+_PERIOD_CLOSE_SHAPES = tuple(period_close_node(code, ms) for code in PERIOD_CLOSE_CODES for ms in (True, False))
+
+
+def is_period_close(node: Any) -> bool:
+    """``interpret.js::isPeriodClose``."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return False
+    return any(_matches_shape(node, shape) for shape in _PERIOD_CLOSE_SHAPES)
+
+
+def _period_close_inner(node: dict) -> dict:
+    value = node["args"][1]
+    return value if value.get("type") == "tf_live" else value["args"][0]
+
+
+def _clock_column(node: Any, bars: List[dict], inputs, budget, scalars, opts) -> List[float]:
+    """One clock leaf (or small clock tree) over the chart's own bars."""
+    return _interpret_column(node, bars, inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+
+
+def _weekend_days(bars: List[dict], inputs, budget, scalars, opts):
+    """(a Saturday bar, a Sunday bar, a bar with no readable clock) by the
+    ``dayofweek`` column the week key reads (Pine's: 1 = Sunday, 7 = Saturday).
+    A BLANK clock is not "no weekend bars" -- see ``interpret.js::weekendDays``."""
+    col = _clock_column(_cc_leaf("dayofweek"), bars, inputs, budget, scalars, opts)
+    return any(v == 7 for v in col), any(v == 1 for v in col), any(math.isnan(v) for v in col)
+
+
+def _scan_chart_clock(tree: Any):
+    anchors: List[dict] = []
+    closes: List[dict] = []
     owns = 0
+    nested = False
     stack = [(tree, False)]
     seen = set()
     while stack:
@@ -3892,51 +3973,162 @@ def period_anchor_mask(tree: Any, bars: List[dict],
             continue
         seen.add(id(node))
         if is_period_anchor(node):
-            if under:
-                nested = True
-            nodes.append(node)
+            nested = nested or under
+            anchors.append(node)
             continue
         if is_chart_own_time(node):
-            if under:
-                nested = True
+            nested = nested or under
             owns += 1
+            continue
+        if is_period_close(node):
+            nested = nested or under
+            closes.append(node)
             continue
         into = under or node.get("type") in ("tf", "tf_live", "sym")
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    if not nodes and not owns:
+    return anchors, closes, owns, nested
+
+
+def _name_chart_clock(opts, codes) -> None:
+    sink = (opts or {}).get("chartClockSink")
+    if isinstance(sink, dict):
+        for code in codes:
+            sink[code] = True
+
+
+def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
+    """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
+    anything is evaluated: ``None`` when the tree holds no chart-clock node."""
+    anchors, closes, owns, nested = _scan_chart_clock(tree)
+    if not anchors and not closes and not owns:
         return None
     tf = (opts or {}).get("tf")
     why: List[str] = []
     if nested:
         why.append("time-anchor:other-bars")
-    if nodes and tf != "D":
-        why.append("time-anchor:not-daily")
-    elif nodes and _has_weekend_bar(bars, inputs, budget, scalars, opts):
-        why.append("time-anchor:weekend-bars")
+    sat = sun = blank = False
+    daily = (bool(anchors) or bool(closes)) and tf == "D"
+    if daily:
+        sat, sun, blank = _weekend_days(bars, inputs, budget, scalars, opts)
+    if blank:
+        why.append("time-clock:unreadable")
+    if anchors:
+        if tf != "D":
+            why.append("time-anchor:not-daily")
+        elif not blank and sat != sun:
+            why.append("time-anchor:weekend-bars")
     if owns and tf not in OWN_TIME_WITNESSED_TF:
         why.append("time-own:chart-unwitnessed")
-    sink = (opts or {}).get("chartClockSink")
-    if isinstance(sink, dict):
-        for code in why:
-            sink[code] = True
-    if why:
-        return [1] * n
-    if not nodes:
+    if closes:
+        if tf != "D":
+            why.append("time-close:not-daily")
+        elif not blank and (sat or sun):
+            why.append("time-close:weekend-bars")
+    _name_chart_clock(opts, why)
+    return {"anchors": anchors, "closes": closes, "why": why,
+            "every_day": daily and not blank and sat and sun}
+
+
+def period_anchor_mask(tree: Any, bars: List[dict],
+                       inputs: Optional[Mapping[str, Any]] = None,
+                       budget: Optional[Mapping[str, Any]] = None,
+                       scalars: Optional[Mapping[str, Any]] = None,
+                       opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::periodAnchorMask`` -- the bars of a tree whose answer reads a
+    ``time(<tf>)`` / ``time_close(<tf>)`` this lane cannot answer (1 = withheld), or
+    ``None`` when the tree reads none. Read that docstring for every rule and the
+    captures behind it; this is the same decision, bar for bar."""
+    n = len(bars)
+    whole = _chart_clock_whole(tree, bars, inputs, budget, scalars, opts)
+    if whole is None:
         return None
+    if whole["why"]:
+        return [1] * n
+    anchors, closes = whole["anchors"], whole["closes"]
+    if not anchors and not closes:
+        return None
+    partial: List[str] = []
     root_reach = max_lookback(tree)
     mask = [0] * n
-    for a in nodes:
-        reach = max(0, root_reach - max_lookback(a))
-        col = _interpret_column(a, bars, inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+
+    def spread(unknown: List[int], node: dict) -> None:
+        reach = max(0, root_reach - max_lookback(node))
         last = -math.inf
         for i in range(n):
-            if math.isnan(col[i]):
+            if unknown[i]:
                 last = i
             if i - last <= reach:
                 mask[i] = 1
+
+    def name(code: str) -> None:
+        if code not in partial:
+            partial.append(code)
+
+    time_col = _clock_column(_cc_leaf("time"), bars, inputs, budget, scalars, opts) if anchors else None
+    for a in anchors:
+        col = _clock_column(a, bars, inputs, budget, scalars, opts)
+        period = period_anchor_period(a)
+        unknown = [1 if math.isnan(v) else 0 for v in col]
+        opens = _clock_column(a["args"][0], bars, inputs, budget, scalars, opts)
+        if not whole["every_day"]:
+            # a Monday-to-Friday session: the opening bar must be the calendar's first session
+            session = _clock_column(_period_session_open(period), bars, inputs, budget, scalars, opts)
+            first_month = _period_first_month(period)
+            month = (_clock_column(first_month, bars, inputs, budget, scalars, opts)
+                     if first_month else None)
+            session_open = True
+            for i in range(n):
+                if opens[i] == 1:
+                    session_open = time_col[i] == session[i] and (month is None or month[i] == 1)
+                if unknown[i]:
+                    continue
+                if not session_open:
+                    unknown[i] = 1
+                    name("time-anchor:session-open-missing")
+        else:
+            # every day of the week: the period's CALENDAR first day, and one clock regime
+            first = _clock_column(period_calendar_first(period), bars, inputs,
+                                  budget, scalars, opts)
+            calendar_open = True
+            for i in range(n):
+                if opens[i] == 1:
+                    calendar_open = first[i] == 1
+                if unknown[i]:
+                    continue
+                if not calendar_open:
+                    unknown[i] = 1
+                    name("time-anchor:period-open-missing")
+                elif (time_col[i] - col[i]) % 86400 != 0:
+                    unknown[i] = 1
+                    name("time-anchor:utc-day-clock")
+        spread(unknown, a)
+    bar_close = _clock_column(_cc_leaf("timeclose"), bars, inputs, budget, scalars, opts) if closes else None
+    for c in closes:
+        col = _clock_column(_period_close_inner(c), bars, inputs, budget, scalars, opts)
+        unknown = [0] * n
+        start = 0
+        for i in range(n + 1):
+            same = i < n and (i == 0 or col[i] == col[i - 1]
+                              or (math.isnan(col[i]) and math.isnan(col[i - 1])))
+            if same:
+                continue
+            # bars [start, i) share one period close. A blank close is unknown; so
+            # is a COMPLETED period (another follows) whose last bar does not close
+            # on it -- the calendar keeps a day open the chart holds no bar for.
+            if start < n:
+                blank = math.isnan(col[start])
+                elsewhere = i < n and not blank and bar_close[i - 1] != col[start]
+                if blank or elsewhere:
+                    for k in range(start, i):
+                        unknown[k] = 1
+                    if elsewhere:
+                        name("time-close:period-end-missing")
+            start = i
+        spread(unknown, c)
+    _name_chart_clock(opts, partial)
     return mask
 
 

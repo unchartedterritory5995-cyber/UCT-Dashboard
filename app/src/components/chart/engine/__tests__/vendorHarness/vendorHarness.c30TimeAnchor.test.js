@@ -358,10 +358,14 @@ describe('C30 — refused by name, everything the capture does not witness', () 
     expect(screen.ok).toBe(false)
     expect(screen.refusal.message).toMatch(/only on a chart\s+pane/)
   })
-  it('`time_close("W")` stays refused — the probe did not ask it', () => {
-    const t = S('plot(time_close("W"))', { strict: true, basePeriod: 'D' })
+  it('`time_close("3M")` stays refused — measured since (C36), and there is no quarterly bar to read it from', () => {
+    // ⚰️ This said `time_close("W")` "stays refused — the probe did not ask it". A new
+    // probe asked (`vw-time-close-tf`), and "W" / "M" are served on a daily chart:
+    // `vendorHarness.c36TimeFollowups.test.js`.
+    expect(S('plot(time_close("W"))', { strict: true, basePeriod: 'D' }).ok).toBe(true)
+    const t = S('plot(time_close("3M"))', { strict: true, basePeriod: 'D' })
     expect(t.ok).toBe(false)
-    expect(t.refusal.message).toMatch(/only "D"/)
+    expect(t.refusal.message).toMatch(/resamples only weeks and months/)
   })
   it('a daily-translated tree drawn on a non-daily chart reads nothing (the member door translates once)', () => {
     const t = S('plot(time("W"))', { strict: true })
