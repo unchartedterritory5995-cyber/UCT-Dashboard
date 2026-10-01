@@ -33,6 +33,7 @@ import { parent, joinedFromListing, vendorColumn } from './c38Joined'
 import { translatePine } from '../../ast/pine'
 import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
+import { assertObjectProgram } from '../../ast/objectProgram'
 
 const PROBE = 'vw-getter-history-spy-1d-2026-10-01'
 const CONTROL = 'H00_bar_index_CONTROL'
@@ -177,6 +178,28 @@ describe('C48 — our object lane on TradingView\'s bars: the same texts', () =>
     }, 240000)
   }
 
+  it('⭐⭐ H10 — `line.get_y1(c[1])`, a getter on the PREVIOUS handle: `NaN` where the line was replaced, its y elsewhere', () => {
+    const { t, run } = runScript(['label.new(bar_index, high, "v|" + str.tostring(line.get_y1(c[1])))'])
+    expect(t.objectDiagnostics.droppedOps, JSON.stringify(t.objectDiagnostics.dropReasons)).toBe(0)
+    expect(run.stats.objectsTainted || 0).toBe(0)
+    const texts = labelTexts(run).slice(-N)
+    expect(texts).toHaveLength(N)
+    const want = col('H10_get_y1_of_previous_handle')
+    const ours = texts.map((s) => { const v = s.split('|')[1]; return v === 'NaN' ? null : Number(v) })
+    expect(ours.map((v, i) => (near(v, want[i]) ? null : [i, v, want[i]])).filter(Boolean).slice(0, 3)).toEqual([])
+    // non-vacuity: the deleted-handle bars are in the comparison, and print NaN
+    expect(texts.filter((s) => s === 'v|NaN').length).toBe(want.filter((v) => v === null).length)
+    expect(want.filter((v) => v === null).length).toBeGreaterThanOrEqual(60)
+  }, 240000)
+
+  it('⛔ the program door: the target of a getter is a register, or the handle it held 1..50 bars ago, never in a loop', () => {
+    const t = translatePine([...HEAD, 'label.new(bar_index, high, "v|" + str.tostring(line.get_y1(c[1])))', 'plot(close)', ''].join(LF), { strict: true })
+    expect(JSON.stringify(t.objects)).toContain('"back":1')
+    const swap = (back) => JSON.parse(JSON.stringify(t.objects), (k, v) => (v && v.r === 'reg' && v.back === 1 ? { ...v, back } : v))
+    expect(() => assertObjectProgram(swap(1))).not.toThrow()
+    for (const back of [0, 51, 1.5]) expect(() => assertObjectProgram(swap(back)), String(back)).toThrow(/a getter reads a register/)
+  })
+
   it('⛔ what stays held: a number read back from TWO bars ago is never drawn', () => {
     const { run } = runScript(['label.new(bar_index, high, "v|" + str.tostring(line.get_y1(a)[2]))'])
     // every bar past the second reads a number from two bars back — unmeasured
@@ -205,6 +228,21 @@ describe('C48 — our object lane on TradingView\'s bars: the same texts', () =>
     const t = translatePine([...HEAD, 'label.new(bar_index, high, "v|" + str.tostring(ya[2]))', 'plot(close)', ''].join(LF), { strict: true })
     const made = t.objects ? t.objects.ops.filter((o) => o.k === 'create' && o.family === 'label').length : 0
     expect(made).toBe(0)
+  })
+
+  it('⛔ a scalar declared in a block that runs on SOME bars: its `[1]` is the previous RUN\'s, and is never drawn off the previous bar', () => {
+    const { run } = runScript(['if close > open', '    float yb = line.get_y1(a)',
+      '    label.new(bar_index, high, "v|" + str.tostring(yb[1]))'])
+    // nothing but an honest `NaN` may be printed: the previous BAR's value is the wrong number
+    expect(labelTexts(run).filter((s) => s !== 'v|NaN')).toEqual([])
+  }, 240000)
+
+  it('⛔ the program door: a scalar\'s history is one bar back, never more, never a loop\'s', () => {
+    const t = translatePine([...HEAD, 'label.new(bar_index, high, "v|" + str.tostring(ya[1]))', 'plot(close)', ''].join(LF), { strict: true })
+    const swap = (edit) => JSON.parse(JSON.stringify(t.objects), (k, v) => (v && v.v === 'num' && v.back === 1 ? edit(v) : v))
+    expect(JSON.stringify(t.objects)).toContain('"back":1')
+    expect(() => assertObjectProgram(swap((v) => v))).not.toThrow()
+    expect(() => assertObjectProgram(swap((v) => ({ ...v, back: 2 })))).toThrow(/exactly one bar back/)
   })
 
   it('⭐ a scalar declared INSIDE the last-bar block has the block\'s history: its `[1]` is NaN (as G02, and A12 of `vw-call-site-history`)', () => {

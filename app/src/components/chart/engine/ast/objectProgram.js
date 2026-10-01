@@ -688,8 +688,11 @@ function assertLiveRef(v, where, live) {
     }
     if (v.back !== undefined && live.inLoop) throw new Error(`${where}: a getter's history in a loop body`)
     const t = v.target
-    if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
-      throw new Error(`${where}: a getter reads a register as it stands now — \`{r:'reg', id}\``)
+    // ⭐ C48 — `back` on the TARGET: the handle the register held that many bars
+    // ago (`line.get_y1(c[1])`, capture `vw-getter-history` H10), outside loops.
+    if (!isObj(t) || t.r !== 'reg'
+        || (t.back !== undefined && !(Number.isInteger(t.back) && t.back >= 1 && t.back <= MAX_HANDLE_BACK && !live.inLoop))) {
+      throw new Error(`${where}: a getter reads a register — \`{r:'reg', id}\`, or the handle it held 1..${MAX_HANDLE_BACK} bars ago outside a loop`)
     }
     const reg = live.regs.get(t.id)
     if (!reg) throw new Error(`${where}: register ${JSON.stringify(t.id)} is not declared`)

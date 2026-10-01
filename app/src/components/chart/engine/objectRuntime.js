@@ -2133,16 +2133,15 @@ export function evaluateObjects(program, ctx) {
  *  object-valued props included), 0 when none. */
 function deepestBack(ops) {
   let deepest = 0
-  const see = (r) => {
-    if (r && typeof r === 'object' && r.r === 'reg' && Number.isInteger(r.back) && r.back > deepest) {
-      deepest = r.back
-    }
+  // ⭐ C48 — EVERY register reference, wherever it stands: a getter's target is a
+  // reference inside a value (`line.get_y1(c[1])` in a text, a guard, a
+  // coordinate), and a ring sized off the ops' own targets alone had no slot for it.
+  const see = (x, depth) => {
+    if (!x || typeof x !== 'object' || depth > 64) return
+    if (x.r === 'reg' && Number.isInteger(x.back) && x.back > deepest) deepest = x.back
+    for (const v of Array.isArray(x) ? x : Object.values(x)) see(v, depth + 1)
   }
-  for (const o of ops || []) {
-    see(o.target); see(o.value)
-    for (const v of Object.values(o.props || {})) see(v)
-    if (o.k === 'loop') deepest = Math.max(deepest, deepestBack(o.body))
-  }
+  see(ops || [], 0)
   return deepest
 }
 

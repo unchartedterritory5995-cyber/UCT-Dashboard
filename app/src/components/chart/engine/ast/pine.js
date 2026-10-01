@@ -18395,18 +18395,33 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const method = name.slice(dot + 1)
     const args = node.args || []
     let regName = null
+    let handleBack = 0
     if (OBJECT_NS.has(head)) {
       if (args.length !== 1 || args[0].name) return null
       const a = args[0].value
-      if (!a || a.type !== 'name' || regFamily(a.name) !== head) return null
-      regName = a.name
+      // ⭐⭐ C48 — `line.get_y1(c[1])`: A GETTER ON THE HANDLE THE VARIABLE HELD n
+      // BARS AGO (the register's own ring, `MAX_HANDLE_BACK`). Capture
+      // `vw-getter-history-spy-1d-2026-10-01`, H10: on a bar that replaced the
+      // line the previous handle is deleted and the getter reads `na` (60 / 60);
+      // on every other bar it is the line's y (239 / 239).
+      // ⛔ A whole literal offset, outside loops — the forms `targetRef` reads.
+      if (a && a.type === 'offset' && a.arg && a.arg.type === 'name' && regFamily(a.arg.name) === head
+          && Number.isInteger(a.n) && a.n >= 1 && a.n <= MAX_HANDLE_BACK && !loopIds.length) {
+        regName = a.arg.name
+        handleBack = a.n
+      } else {
+        if (!a || a.type !== 'name' || regFamily(a.name) !== head) return null
+        regName = a.name
+      }
     } else {
       if (args.length !== 0) return null
       regName = head
     }
     const fam = regFamily(regName)
     const prop = fam && regId.has(regName) ? (OBJECT_GETTER_PROPS[fam] || {})[method] : null
-    return prop ? { v: 'get', target: { r: 'reg', id: regId.get(regName) }, prop } : null
+    return prop
+      ? { v: 'get', target: { r: 'reg', id: regId.get(regName), ...(handleBack ? { back: handleBack } : {}) }, prop }
+      : null
   }
   // ─── ⭐⭐ C14 — A GETTER'S NUMBER WHERE PINE READS IT ───────────────────────
   //
