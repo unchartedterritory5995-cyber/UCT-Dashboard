@@ -8,9 +8,56 @@ importing `api.` and **77** of those failing the ordering check, deliberately le
 "because deciding which should be sandboxed is each tool owner's call, not this rail's." This
 is that decision, made file by file, by READING each tool rather than guessing from its name.
 
-Re-derived fresh against THIS tree (409 `tools/*.py`, 103 importing `api.*`): 76 already carry
-a correctly-ordered module-level `import conftest` (17 pre-existing + 59 pinned by this lane),
-leaving exactly the 27 named in `EXEMPT_TOOLS`.
+Re-derived fresh against THIS tree (409 `tools/*.py`, 103 importing `api.*`): 67 already carry
+a correctly-ordered module-level `import conftest` (17 pre-existing + 50 pinned by this lane),
+leaving exactly the 36 named in `EXEMPT_TOOLS`.
+
+⛔⛔ **CONTROLLER REVIEW, ROUND 2 (not a hypothetical -- each one measured):** the first pass of
+this lane pinned 59 tools under "when in doubt, PIN" and that default was WRONG for three
+classes, moving 9 of the 59 to EXEMPT:
+
+  1. **Runs on the production pod** (`railway ssh`/`railway run`/"on Railway via shell"/the
+     pod's own `/data`), where `import conftest` would redirect every shared-root path to a
+     throwaway sandbox the moment the tool runs there -- `seed_twitter_accounts.py` ("Run once
+     locally (or on Railway via shell)") and `snaptrade_trade_detection.py` ("Runs ON the web
+     pod ... needs ... auth.db", its own usage lines are `/opt/venv/bin/python
+     /app/tools/snaptrade_trade_detection.py`, the exact nixpacks.toml venv path).
+  2. **Operates on the live store by design, through an in-tool override the census would
+     silently defeat.** `bars_integrity_repair.py` and `bars_split_repair_sweep.py` both read
+     `--db` and set `os.environ["DATA_DIR"] = args.db` -- AFTER the module's own `api.*` imports
+     have already captured their census-pinned defaults, so a pin leaves `--db` pointing
+     somewhere the already-resolved store path never reads. `store_restore.py` already has its
+     OWN hand-built guard for exactly this (`if not args.restore: import conftest` -- it
+     deliberately skips the census during a REAL `--restore --to PATH`, "the one mode that
+     writes a store", so `--to` reaches its real target); a blind top-level pin ran that import
+     UNCONDITIONALLY and defeated the tool's own, already-correct design.
+  3. **`conftest.py:87` overwrites `AUTH_DB_PATH` UNCONDITIONALLY** (`os.environ["AUTH_DB_PATH"]
+     = ISOLATED_AUTH_DB`, no "is it already pointed somewhere safe" check, unlike the general
+     census redirect at lines 501-512 for every other pin). `seed_sweep_admin.py` already wrote
+     "Local-only: writes to ./data/auth.db (never the Railway volume)" via
+     `os.environ.setdefault("AUTH_DB_PATH", ...)` -- a pin's unconditional overwrite runs FIRST,
+     so `setdefault` never fires and the tool silently seeds a throwaway temp file instead of
+     the deterministic repo-local path a companion local server is meant to read.
+     `wave4_search_correctness_matrix.py` calls `notebook_sandbox_guard.require_sandboxed_env()`
+     (default `needs_auth_db=True`) at module level, which REQUIRES `AUTH_DB_PATH` to resolve
+     INSIDE the same sandbox root as `DATA_DIR` -- but conftest mints `ISOLATED_AUTH_DB` and
+     `SANDBOX_DATA_ROOT` as two SEPARATE `tempfile.mkdtemp()` directories, so a pin here means
+     every bare run raises `SystemExit` even when the operator followed the tool's own
+     documented safe usage (`DATA_DIR=... AUTH_DB_PATH=.../auth.db python tools/...`) to the
+     letter, because the unconditional overwrite clobbers their explicit `AUTH_DB_PATH` choice.
+  4. **`pre_push_guard.py` runs on every `git push`.** Measured (subprocess, this box, `python -c
+     "import conftest"` from the repo root): a COLD run cost **119.8 s**, a WARM run **40.8 s**,
+     against a bare `python -c "pass"` baseline of **0.27 s** -- `import conftest` runs an AST
+     census over all of `api/**`, `scripts/`, `tools/` on every import, and this guard already
+     deliberately defers its one `api.*`-touching import (`_freshness()`, read `discord_render`)
+     to stay cheap for `--audit` and the unit tests. Adding 40-120 seconds to every push is not
+     a tradeoff this lane gets to make unilaterally.
+
+Each of the 9 was reverted to the byte-identical pre-pin state (verified: `git diff --stat`
+against the prior commit shows exactly the six inserted lines removed, nothing else touched --
+the strongest available proof that `authdb_restore_drill.py` in particular, a weekly scheduled
+production task (`UCT-AuthDB-Restore-Drill`) another program clause depends on, behaves
+IDENTICALLY before and after this lane: it is, byte for byte, the same file it always was).
 
 TWO TREATMENTS, chosen by reading the tool's own purpose, never its filename:
 
@@ -221,6 +268,54 @@ EXEMPT_TOOLS: dict[str, str] = {
         "Docstring: 'ONE controlled document, in production... THE ONLY SCRIPT IN THE WAVE "
         "THAT TOUCHES PRODUCTION MEMBER-SERVING.' No CLI override; touching real production is "
         "its explicit, sole, approved purpose, not an accident a pin should prevent."),
+
+    # ── Round 2 (controller review): moved OUT of PINNED, each for a measured reason ──
+    "seed_twitter_accounts.py": (
+        "Docstring: 'Run once locally (or on Railway via shell) after the schema exists.' A "
+        "pin would redirect TWEET_DB_PATH to a throwaway sandbox the moment it runs on the "
+        "pod, silently seeding nothing real while the operator believes the accounts landed."),
+    "snaptrade_trade_detection.py": (
+        "Docstring: 'Runs ON the web pod (needs SNAPTRADE_* + BROKER_ENCRYPTION_KEY + "
+        "auth.db)', usage lines are literally `/opt/venv/bin/python /app/tools/...` -- the "
+        "nixpacks.toml venv path. A pin would make `add`/`cancel` silently operate on an "
+        "empty sandboxed auth.db instead of the real member/account rows it must resolve."),
+    "store_restore.py": (
+        "Already carries its OWN conditional census guard (`if not args.restore: import "
+        "conftest`) that deliberately SKIPS the sandbox during a REAL `--restore --to PATH` "
+        "-- 'the one mode that writes a store' per its own docstring -- so `--to` reaches its "
+        "real target. A blind top-level pin ran unconditionally and defeated that existing, "
+        "already-correct design; reverted to let the tool's own guard do its job."),
+    "bars_integrity_repair.py": (
+        "`--db` sets `os.environ['DATA_DIR'] = args.db` INSIDE main(), after the module's own "
+        "api.* imports already captured their census-pinned defaults -- so pinning leaves "
+        "`--db` pointing nowhere the already-resolved bars-store path reads: a SILENT NO-OP "
+        "that is worse than the hazard it would guard against. Controller-reviewed, exempt."),
+    "bars_split_repair_sweep.py": (
+        "Same `--db` / `os.environ['DATA_DIR']`-after-import shape as "
+        "bars_integrity_repair.py, its sibling; a pin would make `--db` a silent no-op "
+        "instead of reaching the sandbox (or real) store the operator named."),
+    "authdb_restore_drill.py": (
+        "A weekly SCHEDULED production task (Task Scheduler job `UCT-AuthDB-Restore-Drill`) "
+        "that a program clause depends on; reverted to its byte-identical pre-pin state "
+        "rather than risk ANY behavior drift in a safety-net drill nothing else backs up."),
+    "seed_sweep_admin.py": (
+        "Docstring: 'Local-only: writes to ./data/auth.db (never the Railway volume)' via "
+        "`os.environ.setdefault('AUTH_DB_PATH', ...)`. conftest.py:87 overwrites AUTH_DB_PATH "
+        "UNCONDITIONALLY (no 'already safe' check, unlike every other pin), which runs BEFORE "
+        "this setdefault and makes it a no-op -- the tool would silently seed a throwaway temp "
+        "file instead of the deterministic repo-local path a companion local server reads."),
+    "wave4_search_correctness_matrix.py": (
+        "Calls `notebook_sandbox_guard.require_sandboxed_env()` (needs_auth_db=True, the "
+        "default) at module level, which REQUIRES AUTH_DB_PATH to resolve INSIDE the same "
+        "sandbox root as DATA_DIR -- but conftest mints them as two SEPARATE mkdtemp() "
+        "directories, so a pin makes every bare run raise SystemExit even when the operator "
+        "follows the tool's own documented safe usage to the letter."),
+    "pre_push_guard.py": (
+        "Runs on EVERY git push. Measured: `import conftest` alone costs 119.8s cold / 40.8s "
+        "warm in a subprocess on this box, against a 0.27s bare-python baseline (it runs an "
+        "AST census over api/**, scripts/, tools/ on every import) -- an unacceptable tax on "
+        "every push, and the guard already deliberately defers its one api.*-touching import "
+        "to stay cheap for --audit and the unit tests. It only talks to Railway's CLI/API."),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three

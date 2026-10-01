@@ -60,12 +60,6 @@ The key layout and the client come from the backup job itself
 from what is actually being written.
 """
 from __future__ import annotations
-import os as _uct_os  # noqa: E402
-import sys as _uct_sys  # noqa: E402
-_uct_repo_root = _uct_os.path.dirname(_uct_os.path.dirname(_uct_os.path.abspath(__file__)))
-if _uct_repo_root not in _uct_sys.path:
-    _uct_sys.path.insert(0, _uct_repo_root)
-import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 
 import argparse
 import datetime as dt
