@@ -46,6 +46,12 @@ words in chat; the scheduled-task readings were taken on this machine on 2026-10
   enough real members are using the Notebook.
 - **Row 1 (the two zero-retention letters): deferred by the owner.** On 2026-09-26 the owner
   chose to send them shortly after the live launch. The drafts in §2 are unchanged and ready.
+- **Row 7's caveat is closed.** The screener now asks the weekly question (question 6 in
+  `docs/notebook/user-study/screener.md` §2), and the kit says how to read the answers
+  (`docs/notebook/user-study-kit.md` §9), both added on 2026-10-01. So the trader study can
+  also settle standard #1's third clause, "the list is what Notion/Evernote/Obsidian users
+  actually reach for weekly". With rows 1, 2 and 7 all done, #1 Features would read 3 of 3, and
+  the totals below become 55 of 61 clauses and 11 of 16 standards, not 54 and 10.
 - **The weekly restore drill (standard #7): next unattended run is Sunday 2026-10-04 at 09:00.**
   The folder the task runs from, `C:\Users\Patrick\uct-worktrees\notebook-soak-ref`, was
   missing on 2026-10-01 and was re-created that day, so the run can start. The last scheduled run
