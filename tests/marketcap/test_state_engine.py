@@ -129,3 +129,14 @@ def test_primary_listing_reason_precedes_unresolved_structure():
     lst = {"ARM": Listing("ARM", date(2023, 9, 14), prior_other_issuer=True)}
     out = company_cap([date(2010, 1, 4), date(2024, 1, 2)], Structure("UNRESOLVED", reason=R.ADR_RATIO), {}, {}, lst, "ARM")
     assert [c.reason for c in out] == [R.TICKER_REUSE, R.ADR_RATIO]
+
+
+def test_one_filing_with_several_values_for_one_as_of_refuses_all_never_picks_the_smallest():
+    """AEP 2011: a combined filing's cover listed the parent and six subsidiaries for the same date."""
+    from datetime import datetime, timezone
+    from api.services.marketcap import state as ST
+    t = datetime(2011, 8, 5, 20, tzinfo=timezone.utc)
+    obs = [ST.Obs(date(2011, 7, 29), t, v, R.COVER_XBRL, "0000004904-11-000110", "10-Q")
+           for v in (482_273_829, 1_400_000, 13_499_500)]
+    out = ST.validate(obs, ST.Ledger())
+    assert all(c.status == R.REJ_CONFLICT for c in out) and not any(c.usable for c in out)

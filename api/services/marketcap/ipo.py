@@ -17,11 +17,17 @@ from dataclasses import dataclass, field
 from .textcover import for_matching
 
 NUM = r"(\d{1,3}(?:,\d{3})+|\d{5,})"
-AFTER = (r"to be outstanding\s+(?:after|upon (?:the )?completion of|immediately (?:after|following)|following)\s+"
-         r"(?:this|the|our)\s+(?:initial\s+public\s+|global\s+|public\s+)?offering[s]?")
+# "to be outstanding after this offering" (canonical) and the summary-table spellings measured on the 2026-10-01
+# miss sample: "Common stock outstanding after this offering 19,246,097 shares", dot leaders ("..........."),
+# "issued and outstanding after the offering (1): 6,139,973 shares".
+AFTER = (r"(?:to be\s+)?(?:issued\s+and\s+)?outstanding\s+(?:after|upon (?:the )?completion of|immediately (?:after|following)|following)\s+"
+         r"(?:the\s+completion\s+of\s+)?(?:this|the|our)\s+(?:initial\s+public\s+|global\s+|public\s+)?offering[s]?")
+LEAD = r"(?:\s*\(\d\)){0,3}\s*[:\-]?[\s._]*"
 LINE = re.compile(
     rf"(total\s+[^.;]{{0,120}}?|(?:class\s+([a-z])\s+)?[a-z\- ]{{0,40}}?(?:common stock|ordinary shares|common shares|shares))\s+{AFTER}"
-    rf"\s*[:\-]?\s*{NUM}\s*(?:shares|ordinary shares|common shares)?", re.I)
+    rf"{LEAD}{NUM}\s*(?:shares|ordinary shares|common shares)?", re.I)
+# a count stated ASSUMING the over-allotment / additional-share option is exercised is not the post-offering count
+ASSUMES_OPTION = re.compile(r"^[^.;]{0,40}?assuming\s+(?:the\s+)?(?:full\s+)?exercise|^[^.;]{0,60}?over-?allotment option is exercised in full", re.I)
 ADS_ONLY = re.compile(r"\b(?:ADSs?|American depositary shares?)\b", re.I)
 
 
@@ -39,6 +45,9 @@ def parse(text: str) -> IpoResult:
     snips = []
     for m in LINE.finditer(t):
         lab_text, n = m.group(1), m.group(3)
+        if ASSUMES_OPTION.search(t[m.end(): m.end() + 160]):
+            found.setdefault("_OPTION_ASSUMED", set()).add(float(n.replace(",", "")))
+            continue
         lab_text = re.split(r"\d[\d,]*(?:\s*shares)?", lab_text)[-1]      # the label starts after any prior line
         if ADS_ONLY.search(lab_text) and not re.search(r"ordinary|common", lab_text, re.I):
             continue
@@ -51,6 +60,8 @@ def parse(text: str) -> IpoResult:
             key = "COMMON"
         found.setdefault(key, set()).add(float(n.replace(",", "")))
         snips.append((key, m.start(), t[m.start():m.end()][:300]))
+    if "_OPTION_ASSUMED" in found:
+        return IpoResult("AMBIGUOUS", {k: sorted(v) for k, v in found.items()}, snips, "count assumes the option is exercised")
     if not found:
         return IpoResult("NOT_FOUND")
     if any(len(v) > 1 for v in found.values()):

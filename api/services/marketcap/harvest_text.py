@@ -66,15 +66,17 @@ def text_one(cik, accn, form, fd, rd):
 
 
 def select_ipo(inp, ipo_list: list) -> list[tuple]:
-    """Final prospectuses (424B*) within 10 days of the listing start, plus the LAST registration statement
-    amendment filed before it (the PIT evidence on the first trading day when the 424B lands after that close)."""
+    """Final prospectuses (424B*) within 10 days of the listing start, plus the last THREE registration statements
+    filed before it (the PIT evidence on the first trading day when the 424B lands after that close). ⛔ Three, not
+    one: a final amendment is often EXHIBITS-ONLY (ARM 0001193125-23-230681, 54 KB) while the previous one is the full
+    prospectus that states the post-offering capitalization; the builder uses the latest PUBLIC one that states it."""
     out = []
     for cik, start in ipo_list:
         s = date.fromisoformat(start)
         rows = inp.execute("SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE cik=? AND filing_date BETWEEN ? AND ? "
                            "AND form LIKE '424B%'", (cik, (s - timedelta(days=10)).isoformat(), (s + timedelta(days=10)).isoformat())).fetchall()
         reg = inp.execute("SELECT cik, accn, form, filing_date, primary_doc FROM filing WHERE cik=? AND filing_date BETWEEN ? AND ? "
-                          "AND form IN ('S-1','S-1/A','F-1','F-1/A','S-11','S-11/A','F-10','F-10/A') ORDER BY filing_date DESC LIMIT 1",
+                          "AND form IN ('S-1','S-1/A','F-1','F-1/A','S-11','S-11/A','F-10','F-10/A') ORDER BY filing_date DESC LIMIT 3",
                           (cik, (s - timedelta(days=180)).isoformat(), s.isoformat())).fetchall()
         out += [r + (start,) for r in rows + reg]
     return out

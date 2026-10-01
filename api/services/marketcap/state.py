@@ -104,6 +104,23 @@ def validate(obs: list[Obs], ledger: Ledger, conflict_tol: float = 0.10, dup_tol
         b = o.value * ledger.factor_after(o.public_at.astimezone(ET).date())
         return {"AS_OF": a} if abs(a / b - 1) < 1e-9 else {"AS_OF": a, "PUBLIC": b}
 
+    # ⛔ ONE FILING, ONE AS-OF, SEVERAL DIFFERENT VALUES (a combined filing's entities, an unlabelled class split):
+    # the filing itself does not say which is this security's count -> every one is refused. Never resolved by
+    # sort order (it used to pick the SMALLEST: AEP 2011 took a subsidiary's 1,400,000 over the parent's 482M).
+    for gk in list(groups):
+        grp = groups[gk]
+        by_accn: dict[str, set] = {}
+        for o in grp:
+            by_accn.setdefault(o.accn, set()).add(round(o.value))
+        bad = {a for a, vs in by_accn.items() if len(vs) > 1 and max(vs) / max(1, min(vs)) - 1 > dup_tol}
+        if bad:
+            for o in grp:
+                if o.accn in bad:
+                    out.append(Checked(o, R.REJ_CONFLICT, note=f"one filing states {sorted(by_accn[o.accn])} for {o.as_of}"))
+            groups[gk] = [o for o in grp if o.accn not in bad]
+            if not groups[gk]:
+                del groups[gk]
+
     # primaries (one chain entry per (as_of, source), amendments may replace the value later)
     prim: list[tuple[Obs, list[Obs]]] = []
     for (_d, _s), grp in sorted(groups.items(), key=lambda kv: (kv[0][0], R.RANK[kv[0][1]])):

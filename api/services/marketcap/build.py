@@ -79,6 +79,11 @@ def _late(d: str) -> datetime:
     return datetime.combine(date.fromisoformat(d), datetime.max.time().replace(microsecond=0), tzinfo=ET).astimezone(timezone.utc)
 
 
+# Dimensional cover axes that name ANOTHER ENTITY (combined filings: AEP's utility subsidiaries since 2019 tag their
+# counts on dei:LegalEntityAxis). Their rows are other registrants' capitalization, never a share class of this one.
+ENTITY_AXES = frozenset({"dei_LegalEntity", "srt_ConsolidatedEntities"})
+
+
 def _authority(D):
     if D.acc is None:
         from .acceptance import Authority
@@ -155,9 +160,29 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict]:
     # 1. per-class and non-dimensional rendered covers
     if D.cov is not None:
         byacc = defaultdict(list)
-        for accn, mem, lab, concept, as_of, text, scale in D.cov.execute(
-                "SELECT accn, member, label, concept, as_of, text, share_scale FROM cover_fact WHERE cik=? AND "
-                "concept='dei:EntityCommonStockSharesOutstanding'", (cik,)):
+        # ⛔ COMBINED FILINGS (AEP + six utility subsidiaries, one cover): the cover is a sequence of ENTITY BLOCKS,
+        # each opening with dei:EntityCentralIndexKey. A share row belongs to the block it sits in; only the
+        # FILER's own block is this issuer's capitalization (AEP 2011-07-29: parent 482,273,829, subsidiaries
+        # 1,400,000 ... 27,952,473 -- a subsidiary was selected before this rule).
+        cur_cik: dict[tuple, int | None] = {}
+        has_cik_rows: dict[tuple, bool] = {}
+        rows_all = D.cov.execute(
+            "SELECT accn, file, member, label, concept, as_of, text, share_scale FROM cover_fact WHERE cik=? AND "
+            "concept IN ('dei:EntityCommonStockSharesOutstanding','dei:EntityCentralIndexKey') ORDER BY rowid", (cik,)).fetchall()
+        for accn, fil, mem, lab, concept, as_of, text, scale in rows_all:
+            if concept == "dei:EntityCentralIndexKey":
+                has_cik_rows[(accn, fil)] = True
+        for accn, fil, mem, lab, concept, as_of, text, scale in rows_all:
+            if concept == "dei:EntityCentralIndexKey":
+                try:
+                    cur_cik[(accn, fil)] = int(str(text).strip().lstrip("0") or 0)
+                except ValueError:
+                    cur_cik[(accn, fil)] = None
+                continue
+            if has_cik_rows.get((accn, fil)) and cur_cik.get((accn, fil)) != cik:
+                continue                                    # another registrant's block in a combined filing
+            if mem and "=" in mem and mem.split("=")[0] in ENTITY_AXES:
+                continue                                    # another ENTITY (LegalEntityAxis), never a share class
             byacc[accn].append((mem, lab, as_of, text, scale))
         for accn, rows in byacc.items():
             f = filings.get(accn)
