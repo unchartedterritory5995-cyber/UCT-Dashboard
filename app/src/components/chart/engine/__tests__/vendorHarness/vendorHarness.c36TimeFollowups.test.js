@@ -722,7 +722,9 @@ describe('C36 · 5 — `time_close("W" | "M")` everywhere it was NOT measured: w
     const ours = on(TC_BTC, pine(['plot(time_close("W"), "w")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
     expect(noteCodes(ours)).toEqual(['time-close:weekend-bars'])
     expect(ours.objects.counts.labels).toBe(0)
-  })
+    // ⚠️ C49 — an explicit ceiling: three member-door runs over 5,491 bars in one test. Alone it
+    // takes 7–10 s; inside the full chart suite on a loaded box it crossed the 15 s default.
+  }, 60000)
 
   it('an hourly chart: the plot is withheld and named — not an `interpret:timeframe` refusal of the `tf_live` read', () => {
     const ours = on(H60, pine(['plot(time_close("W"), "w")', 'plot(time_close("M"), "m")', 'if barstate.islast', '    label.new(bar_index, high, na(time_close("W")) ? "na" : "known")']))
