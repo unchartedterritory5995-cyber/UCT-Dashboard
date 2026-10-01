@@ -4244,7 +4244,7 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   for (const a of anchors) {
     const col = clockColumn(a, bars, inputs, budget, scalars, opts)
     const period = periodAnchorPeriod(a)
-    const unknown = new Uint8Array(n)
+    const unknown = new Float64Array(n)
     for (let i = 0; i < n; i++) if (col[i] !== col[i]) unknown[i] = 1
     const opens = clockColumn(a.args[0], bars, inputs, budget, scalars, opts)
     if (whole.everyDay) {
@@ -4274,7 +4274,7 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   const barClose = closes.length ? clockColumn(ccLeaf('timeclose'), bars, inputs, budget, scalars, opts) : null
   for (const c of closes) {
     const col = clockColumn(periodCloseInner(c), bars, inputs, budget, scalars, opts)
-    const unknown = new Uint8Array(n)
+    const unknown = new Float64Array(n)
     let from = 0
     for (let i = 0; i <= n; i++) {
       if (i < n && (i === 0 || col[i] === col[i - 1])) continue
