@@ -1,0 +1,53 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; launcher output: <scratchpad>\ty3-attr-after.sandbox.log; log: <scratchpad>\ty3-attr-after.integrity.md
+attribution at 2,000 paragraphs: 60 keys, instrumented p50 12.4 ms/key, 177 pieces wrapped
+     2.212 ms/key    1.00 calls/key  dispatch (total)
+     1.253 ms/key    1.00 calls/key  tiptap emit update
+     0.447 ms/key    1.00 calls/key  view.updateState (DOM, decorations, plugin views)
+     0.180 ms/key    0.23 calls/key  React scheduler tasks (render + commit)  (1.18 React commits/key)
+     0.073 ms/key    1.00 calls/key  appendTransaction autolink$18
+     0.053 ms/key    1.00 calls/key  tiptap emit transaction
+     0.047 ms/key    1.00 calls/key  state.apply noteLinkMenu$18
+     0.028 ms/key    1.00 calls/key  decorations notebookPlaceholder$
+     0.025 ms/key    1.00 calls/key  appendTransaction selectingCells$
+     0.020 ms/key    1.00 calls/key  view.update uctBlockHandle$
+     0.018 ms/key    1.00 calls/key  state.apply history$
+     0.018 ms/key    1.00 calls/key  appendTransaction clearDocument$18
+     0.010 ms/key    1.00 calls/key  handleTextInput plugin$1873
+     0.008 ms/key    1.00 calls/key  view.update noteLinkMenu$18
+     0.007 ms/key    1.00 calls/key  state.apply emojiMenu$
+     0.007 ms/key    1.00 calls/key  state.apply trailingNode$18
+     0.005 ms/key    1.00 calls/key  handleTextInput plugin$1921
+     0.005 ms/key    1.00 calls/key  appendTransaction trailingNode$18
+  renderer main thread, traced: 13.929 ms/key busy (1 thread(s)); self time by phase:
+     5.463 ms/key   53.15 /key  FunctionCall
+     2.732 ms/key    2.77 /key  IntersectionObserverController::computeIntersections
+     1.110 ms/key    1.02 /key  Layout
+     0.874 ms/key   16.92 /key  ThreadControllerImpl::RunTask
+     0.861 ms/key    1.00 /key  EventDispatch textInput
+     0.564 ms/key    1.40 /key  PrePaint
+     0.462 ms/key    1.37 /key  Layerize
+     0.350 ms/key    2.80 /key  Paint
+     0.330 ms/key   53.15 /key  v8.callFunction
+     0.253 ms/key    1.37 /key  Commit
+     0.232 ms/key    1.17 /key  Receive mojo message
+     0.155 ms/key    3.32 /key  SimpleWatcher::OnHandleReady
+     0.154 ms/key   17.02 /key  RunTask
+     0.075 ms/key    1.00 /key  EventDispatch keydown
+     0.059 ms/key    1.00 /key  EventDispatch keyup
+     0.040 ms/key    1.00 /key  EventDispatch keypress
+     0.034 ms/key    1.00 /key  EventDispatch input
+     0.026 ms/key    0.07 /key  V8.GC_SCAVENGER_SCAVENGE_PARALLEL
+| measure | paragraphs | samples | p50 | p95 | budget | tree |
+|---|---:|---:|---:|---:|---:|---|
+| note_open | 2,000 | 5 | 82.2 ms | 115.7 ms | n/a | `29b6f29c6` |
+| typing_per_char | 2,000 | 60 | 9.6 ms | 18.4 ms | < 16 ms | `29b6f29c6` |
+VERDICT: BUDGET BREACH -- typing p95 18.40 ms/char >= 16 ms at 2,000 paragraphs
+
+Command: PYTHONIOENCODING=utf-8 python tools/notebook_perf_harness.py --boot
+  --data-dir <scratchpad>/ty3-attr-after-data --port 8240 --sizes 2000 --opens 5 --chars 60
+  --attribute --json <scratchpad>/ty3-attr-after.json --md -
+Box at start: lock FREE; load BUSY -- 2 marked process(es) (pytest 2, an unrelated
+  tests/test_dockerfile_vite_build_args.py + tests/test_feature_flag_ledger.py run in another
+  session). Not quiet; run anyway and said so, per the brief. Tree: `29b6f29c6` (HEAD at the
+  time, i.e. the full B state: the lever, the real-browser-check tool, and this file's own
+  predecessor commits).
