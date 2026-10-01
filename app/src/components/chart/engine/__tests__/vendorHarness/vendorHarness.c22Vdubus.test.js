@@ -124,7 +124,11 @@ describe('⭐ C22 — vdubus-pattern-gen draws TradingView\'s zigzag structures'
   it('⛔ what stays refused is named, not drawn', () => {
     const { d, reader } = runVd(true)
     const diag = d.translation.objectDiagnostics
-    expect(diag.dropReasons).toEqual({ 'create:label': 4, 'cell:text': 1 })
+    // ⭐ C31 — the four `label.new(xD, yD, patName, …)` creates of `f_drawStruct`
+    // convert now: `patName` is `f_getHarmonicName`'s LOCAL (`name`, an `if`
+    // chain over literals), and a helper's own locals are visible to the text
+    // reader. The capture's five labels are unchanged (the test above).
+    expect(diag.dropReasons).toEqual({ 'cell:text': 1 })
     expect(reader.failed.length).toBeLessThanOrEqual(1)
   })
 })
