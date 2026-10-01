@@ -92,7 +92,19 @@ finally:
     return p
 
 
-def _canned_live(base, sizes, opens, chars):
+def _canned_live(base, sizes, opens, chars, attribution=None, busy=None):
+    """Matches `h.run_live`'s own signature (`attribution=None, busy=None`) so a test that passes
+    --busy or --attribute through `h.main()` doesn't TypeError on this stand-in. When the caller
+    asked for a busy pass, this fills it with samples safely under the typing budget (ruling D24)
+    so the lifecycle tests below -- which are about the sandbox, not the typing verdict -- can
+    still reach a clean PASS."""
+    if busy is not None:
+        for n in sizes:
+            busy[n] = [5.0] * 20
+    if attribution is not None:
+        for n in sizes:
+            attribution[n] = {"keys": chars, "wrapped": 0, "plugins": [], "instrumented_p50_ms": None,
+                              "rows": [], "trace": {"threads": 0, "busy_ms_per_key": None, "rows": []}}
     return ({n: [100.0] * 20 for n in sizes}, {n: [3.0] * 60 for n in sizes},
             {n: 60 for n in sizes}, [])
 
@@ -103,6 +115,85 @@ def test_dry_run_passes(capsys):
     assert h.main(["--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "DRY RUN:" in out and "| note_open |" in out
+
+
+# ── ruling D24 (docs/notebook/NOTEBOOK-10-OF-10-PLAN.md decisions table; lane TY6): the typing
+# verdict is read on the busy pass's p95, never the wall-clock row ──────────────────────────────
+
+def test_busy_p95_over_budget_at_2000_paragraphs_is_a_breach():
+    got = h.summarize({}, {}, {}, busy_ms={1000: [5.0] * 20, 2000: [20.0] * 20},
+                      busy_requested=True, trace_clean=True)
+    assert len(got["breaches"]) == 1, got
+    assert "2,000" in got["breaches"][0] and "busy" in got["breaches"][0], got
+
+
+def test_busy_under_budget_while_wallclock_is_over_gives_no_breach_D24():
+    """The case ruling D24 exists for: a wall-clock row sitting over 16 ms (bounded below by the
+    ~16.7 ms frame interval) must NOT breach once a clean busy pass says the main thread itself
+    is under budget. The wall-clock row stays in the output -- reported, with no budget of its
+    own and a note saying so -- it just never decides anything."""
+    got = h.summarize({}, {1000: [20.0] * 60}, {1000: 60}, busy_ms={1000: [9.0] * 20},
+                      busy_requested=True, trace_clean=True)
+    assert got["breaches"] == [] and got["inconclusive"] == [], got
+    assert len(got["rows"]) == 1
+    row = got["rows"][0]
+    assert row["measure"] == "typing_per_char" and row["p95_ms"] == 20.0
+    assert row["budget_ms"] is None, row
+    assert "D24" in row["note"] and "typing_busy_per_char" in row["note"], row
+
+
+def test_no_busy_pass_gives_typing_INCONCLUSIVE_with_the_rerun_message():
+    got = h.summarize({}, {1000: [1.0] * 60}, {1000: 60})  # busy_requested defaults False
+    assert got["breaches"] == [], got
+    assert any("--busy" in m and "rerun" in m for m in got["inconclusive"]), got["inconclusive"]
+    # never a silent pass: PASS requires zero breaches AND zero inconclusive entries
+    assert got["inconclusive"] != [], "a run with no busy pass must not read as a clean pass"
+
+
+def test_an_unclean_busy_trace_gives_INCONCLUSIVE_not_a_pass():
+    """--busy run alongside --attribute: run_live's own caveat makes the trace not clean. Even a
+    wildly over-budget busy sample must not become a breach, and a clean one must not become a
+    silent pass -- both directions are INCONCLUSIVE."""
+    over = h.summarize({}, {}, {}, busy_ms={1000: [999.0] * 20}, busy_requested=True, trace_clean=False)
+    assert over["breaches"] == [], over
+    assert any("not a clean" in m for m in over["inconclusive"]), over
+    under = h.summarize({}, {}, {}, busy_ms={1000: [1.0] * 20}, busy_requested=True, trace_clean=False)
+    assert under["breaches"] == [] and under["inconclusive"] != [], under
+
+
+def test_a_size_above_the_budgets_paragraph_limit_never_breaches():
+    got = h.summarize({}, {}, {}, busy_ms={3000: [999.0] * 20}, busy_requested=True, trace_clean=True)
+    assert got["breaches"] == [] and got["inconclusive"] == [], got
+
+
+def test_the_wallclock_rows_are_still_present_in_the_output():
+    """Whatever the busy verdict does, typing_per_char keeps being produced and written -- the
+    file's own promise that it is REPORTED, never dropped, just no longer decisive."""
+    for kwargs in ({}, {"busy_ms": {1000: [5.0] * 20}, "busy_requested": True, "trace_clean": True},
+                   {"busy_ms": {1000: [999.0] * 20}, "busy_requested": True, "trace_clean": False}):
+        got = h.summarize({}, {1000: [7.0] * 60}, {1000: 60}, **kwargs)
+        measures = [r["measure"] for r in got["rows"]]
+        assert "typing_per_char" in measures, (kwargs, got)
+
+
+def test_summarize_busy_carries_the_budget_up_to_the_cap_D24():
+    """`summarize_busy`'s rows are what a human/markdown reader sees; since D24 they must carry
+    the live budget up to the paragraph cap, and none beyond it -- same shape as note_open."""
+    rows = h.summarize_busy({1000: [5.0] * 20, 2000: [5.0] * 20, 3000: [5.0] * 20})
+    by_n = {r["paragraphs"]: r for r in rows}
+    assert by_n[1000]["budget_ms"] == h.TYPING_BUDGET_MS
+    assert by_n[2000]["budget_ms"] == h.TYPING_BUDGET_MS
+    assert by_n[3000]["budget_ms"] is None
+
+
+def test_the_note_open_budget_logic_is_unchanged_by_D24():
+    """D24 is about the typing clause only -- note_open keeps deciding its own breach off its own
+    wall-clock p95, with or without a busy pass in the same run."""
+    no_busy = h.summarize({1000: [350.0] * 20}, {}, {})
+    assert len(no_busy["breaches"]) == 1 and "note open" in no_busy["breaches"][0], no_busy
+    with_busy = h.summarize({1000: [350.0] * 20}, {}, {}, busy_ms={1000: [5.0] * 20},
+                            busy_requested=True, trace_clean=True)
+    assert len(with_busy["breaches"]) == 1 and "note open" in with_busy["breaches"][0], with_busy
 
 
 def test_the_checkpoint_labels_are_the_launchers_own_literals():
@@ -161,8 +252,10 @@ def test_the_harness_prints_the_integrity_verdict_first_and_leaves_no_stray_file
     cwd = tmp_path / "cwd"
     cwd.mkdir()
     monkeypatch.chdir(cwd)
+    # --busy so the typing verdict has a reading (ruling D24) and this lifecycle test -- about
+    # the sandbox, never about the typing budget -- can still reach a clean PASS (rc 0).
     rc = h.main(["--boot", "--data-dir", str(tmp_path / "data"), "--port", str(_free_port()),
-                 "--sizes", "1000", "--md", "-"])
+                 "--sizes", "1000", "--busy", "--md", "-"])
     lines = capsys.readouterr().out.splitlines()
     assert lines[0].startswith("SANDBOX INTEGRITY: CLEAN"), lines
     assert "shutdown CLEAN" in lines[0] and "stop: graceful" in lines[0], lines[0]
@@ -185,8 +278,10 @@ def test_a_boot_run_leaves_no_file_in_the_repos_sandbox_runs(tmp_path, monkeypat
     monkeypatch.setattr(h, "run_live", _canned_live)
     monkeypatch.setenv("FAKE_LAUNCHER_REPO", str(fake_repo))
     out_json = tmp_path / "run" / "editor.json"
+    # --busy so the typing verdict has a reading (ruling D24) and this lifecycle test -- about
+    # where the integrity log lands, never about the typing budget -- can still reach rc 0.
     rc = h.main(["--boot", "--data-dir", str(tmp_path / "data"), "--port", str(_free_port()),
-                 "--sizes", "1000", "--json", str(out_json), "--md", "-"])
+                 "--sizes", "1000", "--busy", "--json", str(out_json), "--md", "-"])
     lines = capsys.readouterr().out.splitlines()
     assert rc == 0 and lines[0].startswith("SANDBOX INTEGRITY: CLEAN"), lines
     kept = (tmp_path / "run" / "editor.integrity.md").resolve()
@@ -343,8 +438,11 @@ def test_base_mode_waits_for_the_shutdown_checkpoint_then_reports(tmp_path, monk
     timer.start()
     try:
         with _fake_base(nonce) as base:
+            # --busy so the typing verdict has a reading (ruling D24) and this lifecycle test --
+            # about the wait-for-shutdown behaviour, never the typing budget -- reaches rc 0.
             rc = h.main(["--base", base, "--integrity-log", log, "--shutdown-wait", "30",
-                         "--sizes", "1000", "--json", str(tmp_path / "run" / "editor.json"), "--md", "-"])
+                         "--sizes", "1000", "--busy", "--json", str(tmp_path / "run" / "editor.json"),
+                         "--md", "-"])
     finally:
         timer.cancel()
     captured = capsys.readouterr()
