@@ -143,24 +143,38 @@ describe('C33 (2) — an `input.timeframe` default in a text', () => {
     return c && c.props.text
   }
 
-  it('the witness table names the capture behind each spelling', () => {
-    expect(Object.keys(INPUT_TIMEFRAME_TEXT_WITNESS).sort()).toEqual(['D', 'W'])
-    expect(inputTimeframeTextWitnessed('D', 6)).toBe(true)
-    expect(inputTimeframeTextWitnessed('W', 5)).toBe(true)
-    expect(inputTimeframeTextWitnessed('D', 5)).toBe(false)
-    expect(inputTimeframeTextWitnessed('M', 6)).toBe(false)
+  // ⭐ C48 re-pin — the table was `{D: v6, W: v5}`, one corpus capture each. The
+  // probes `vw-input-tf-text-v5` / `-v6` (2026-10-01) print EVERY default verbatim
+  // under both versions, so the witness is now the version, and the rule the
+  // default itself (`vendorHarness.c33ObjectReads` grades it on the two fixtures).
+  it('the witness names the capture behind each Pine VERSION', () => {
+    expect(Object.keys(INPUT_TIMEFRAME_TEXT_WITNESS)).toEqual(['5', '6'])
+    for (const s of ['D', 'W', 'M', '60', '240', '1D', '']) {
+      expect(inputTimeframeTextWitnessed(s, 5), s).toBe(true)
+      expect(inputTimeframeTextWitnessed(s, 6), s).toBe(true)
+      expect(inputTimeframeTextWitnessed(s, 4), s).toBe(false)
+    }
+    expect(inputTimeframeTextWitnessed('D', null)).toBe(false)
+    expect(inputTimeframeTextWitnessed(null, 6)).toBe(false)
   })
 
-  it('⭐ a witnessed spelling prints as the default', () => {
-    const t = tfLabel(6, 'D')
-    const r = run(t)
-    expect(r.live.filter((o) => o.family === 'label').every((l) => l.props.text === '(D)')).toBe(true)
-    expect(textOf(t).unwitnessed).toBeUndefined()
-    expect(opsOf(t).find((o) => o.k === 'create').propWithhold).toBeUndefined()
+  it('⭐ every default prints verbatim, under v5 and v6', () => {
+    for (const v of [5, 6]) {
+      for (const def of ['D', 'W', 'M', '60', '240', '1D', '']) {
+        const t = tfLabel(v, def)
+        const r = run(t)
+        const labels = r.live.filter((o) => o.family === 'label')
+        expect(labels.length, `${def} v${v}`).toBeGreaterThan(0)
+        expect(labels.every((l) => l.props.text === `(${def})`), `${def} v${v}`).toBe(true)
+        expect(textOf(t).unwitnessed, `${def} v${v}`).toBeUndefined()
+        expect(opsOf(t).find((o) => o.k === 'create').propWithhold, `${def} v${v}`).toBeUndefined()
+        expect(diag(t).textFormatRefusals, `${def} v${v}`).toBeUndefined()
+      }
+    }
   })
 
-  it('⛔ an unwitnessed spelling (or a witnessed one under another version) is never printed', () => {
-    for (const [v, def] of [[6, 'M'], [6, 'W'], [5, 'D'], [5, '60']]) {
+  it('⛔ a default under a version no capture prints one for is never printed', () => {
+    for (const [v, def] of [[4, 'M'], [4, 'D']]) {
       const t = tfLabel(v, def)
       const c = opsOf(t).find((o) => o.k === 'create')
       // the op RUNS (ids stay Pine's) and its text is marked unknown on every bar …
@@ -175,7 +189,7 @@ describe('C33 (2) — an `input.timeframe` default in a text', () => {
   })
 
   it('⭐ a clean `set_text` later in the bar clears the mark (the C17 rule it rides on)', () => {
-    const t = host(src(6, 'tf = input.timeframe("M", "TF")',
+    const t = host(src(4, 'tf = input.timeframe("M", "TF")',
       'l = label.new(bar_index, high, tf)', 'label.set_text(l, "ok")'))
     const r = run(t)
     const labels = r.live.filter((o) => o.family === 'label')

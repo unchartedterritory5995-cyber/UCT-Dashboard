@@ -129,11 +129,14 @@ describe('C33 — average-day-range-adr-pivots: a helper\'s drawing pushed onto 
     expect(cells.find((c) => c.col === 0 && c.row === 0).text).toBe('Range Width:')
   })
 
-  it('⛔ the weekly and monthly boxes (texts `(W)` / `(M)`, unwitnessed under v6) are never drawn', () => {
+  // ⭐ C48 re-pin — this pinned two refusals (`'M' v6`, `'W' v6`): the weekly and
+  // monthly boxes' texts were unwitnessed under v6. `vw-input-tf-text-v6` prints
+  // both verbatim, so nothing is refused for them now — and the picture is the
+  // one it was: TradingView deletes each of those boxes the bar it makes it.
+  it('⭐ the weekly and monthly boxes (texts `(W)` / `(M)`) are read, and deleted the bar they are made', () => {
     const cap = capOf(ADR)
     const { run, diag } = runObjects(cap)
-    expect(Object.keys(diag.textFormatRefusals || {}).sort())
-      .toEqual(['input.timeframe:unwitnessed \'M\' v6', 'input.timeframe:unwitnessed \'W\' v6'])
+    expect(Object.keys(diag.textFormatRefusals || {})).toEqual([])
     // TradingView deletes each the bar it makes it (`showlast` 1), and so does this
     // run — so none is held, and nothing unwitnessed can reach the chart.
     expect(run.live.filter((o) => o.family === 'box').map((b) => b.props.text).filter((t) => !/\(D\)$/.test(String(t)))).toEqual([])
@@ -273,8 +276,60 @@ describe('C33 — a guard with a term nothing reads, on a capture (ict-killzones
   })
 })
 
-describe('C33 — `input.timeframe` text: each served spelling is printed by its capture', () => {
-  for (const [spelling, w] of Object.entries(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+// ⭐⭐ C48 — THE RULE'S OWN WITNESS: `vw-input-tf-text-v5` / `-v6` (AMEX:SPY 1D,
+// 2026-10-01), one label per default under each Pine version.
+describe('C48 — `input.timeframe` text: every default is printed VERBATIM, under v5 and v6', () => {
+  for (const [version, id] of Object.entries(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+    it(`⭐⭐ v${version} — ${id}: our ten labels are TradingView's, text for text`, () => {
+      const cap = capOf(id)
+      expect(Number((/\/\/@version=(\d+)/.exec(cap.source.text) || [])[1])).toBe(Number(version))
+      // what TradingView printed: each default as written, the empty one empty
+      const texts = cap.objects.records.labels.map((l) => String(l.t ?? ''))
+      expect(texts).toEqual(expect.arrayContaining(['L01 D|D', 'L02 W|W', 'L03 M|M', 'L04 60|60', 'L05 240|240', 'L06 1D|1D', 'L07 empty|', 'D', 'W']))
+      // …and the one thing the version changes: `timeframe.period` itself
+      expect(texts).toContain(`L08 timeframe.period CONTROL|${version === '6' ? '1D' : 'D'}`)
+      expect(texts).toHaveLength(10)
+      // our object lane, on the probe's own source and the capture's bars
+      vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+      const bars = toProductBars(cap)
+      const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c48tf', name: 'c48tf' })
+      expect(d.ok, d.reason).toBe(true)
+      expect((d.translation.objectDiagnostics || {}).textFormatRefusals).toBeUndefined()
+      const reader = objectReaderFor(d.definition, bars, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'AMEX' }, newestBarIsForming: cap.newestBarIsForming ?? null })
+      const run = evaluateObjects(reader.program, {
+        barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
+      })
+      const ours = run.live.filter((o) => o.family === 'label').map((o) => String(o.props.text ?? ''))
+      expect(run.withheld || {}).toEqual({})
+      expect([...ours].sort()).toEqual([...texts].sort())
+    })
+  }
+
+  it('⭐ the plots agree too: `"D" == "1D"` is false both ways, and an empty default is not the chart\'s period', () => {
+    for (const id of Object.values(INPUT_TIMEFRAME_TEXT_WITNESS)) {
+      const cap = capOf(id)
+      const col = (title) => {
+        const p = cap.study.plots.find((x) => x.title === title)
+        const k = cap.plotValues.fields.indexOf(p.id)
+        return [...new Set(cap.plotValues.rows.map((r) => r[k]))]
+      }
+      expect(col('I02_D_eq_D')).toEqual([1])
+      expect(col('I03_D_eq_1D')).toEqual([0])
+      expect(col('I16_1D_eq_D')).toEqual([0])
+      expect(col('I14_len_1D')).toEqual([2])
+      expect(col('I17_len_empty')).toEqual([0])
+      expect(col('I18_empty_eq_timeframe_period')).toEqual([0])
+    }
+  })
+})
+
+// The two corpus captures C33 served from, before the probes: still printed.
+const CORPUS_TF_TEXT = Object.freeze({
+  D: Object.freeze({ versions: Object.freeze([6]), capture: ADR }),
+  W: Object.freeze({ versions: Object.freeze([5]), capture: OHLM }),
+})
+describe('C33 — `input.timeframe` text: the two corpus captures that print a default', () => {
+  for (const [spelling, w] of Object.entries(CORPUS_TF_TEXT)) {
     it(`⭐ \`${spelling}\` under v${w.versions.join('/v')} — ${w.capture}`, () => {
       const cap = capOf(w.capture)
       const version = Number((/\/\/@version=(\d+)/.exec(cap.source.text) || [])[1])

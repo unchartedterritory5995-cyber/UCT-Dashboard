@@ -31,12 +31,15 @@
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
-  withObjectTransparency, opReadsState,
+  withObjectTransparency, opReadsState, BAR_COORD_PROPS,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
 import { unpackColor, wholeTransparency } from './colorInt.js'
 // ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
+
+/** ⭐ C48 — the properties that are a bar coordinate (`resolveProps`). */
+const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -203,14 +206,12 @@ export function beginObjects(program, ctx) {
   let propsUnmeasured = 0
   /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
    *  stateArith`: `l.set_x2(l.get_x1() + w.avg() + 1)`). The fraction Pine drops
-   *  from a float handed to an `int` coordinate is measured for NON-NEGATIVE
-   *  values only (`vw-int-array-avg`: truncation and floor agree there), so a
-   *  negative one is counted (`truncNegative`) and not written; a getter of an
-   *  empty register or an `na` operand has no number either. The op still runs —
+   *  from a float handed to an `int` coordinate is dropped TOWARD ZERO
+   *  (`vw-int-array-avg`, and `vw-int-array-avg-neg` for a negative sum — C48).
+   *  A getter of an empty register or an `na` operand has no number. The op still runs —
    *  Pine ran it — and the coordinate is MARKED unknown (C17's per-property
    *  taint), never left at the value before: a later clean write clears it, an
    *  object still marked at the end is held, not drawn. */
-  let truncNegative = 0
   let propsUnsaid = 0
   const stateArithKeys = new WeakMap()
   const unsaidProps = (op, resolved) => {
@@ -991,12 +992,16 @@ export function beginObjects(program, ctx) {
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
           // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
           // from zero), never `Math.round`, which sends -2.5 to -2.
-          // ⭐ C43 — `trunc`: the fraction dropped, served non-negative only
-          // (see `truncNegative`); a negative one answers `undefined`.
-          if (ref.args.length === 1 && ref.op === 'trunc') {
-            if (a < 0) { truncNegative += 1; return undefined }
-            return Math.trunc(a)
-          }
+          // ⭐ C43 — `trunc`: the fraction dropped.
+          // ⭐⭐ C48 — TOWARD ZERO, for a negative value too. Capture
+          // `vw-int-array-avg-neg-spy-1d-2026-10-01`: `x1 + mean + 1` of −0.5,
+          // −1.5, −2.5 reads 0, −1, −2 (rows Z01 / Z02 / Z04; floor would read
+          // −1, −2, −3) and `l.set_x2(a.avg())` of −1.5 / −2.5 / −0.5 reads −1,
+          // −2, 0 (Y01–Y03). ⚰️ A negative one was held (`truncNegative`): the
+          // 2026-09-30 capture's sums were all positive. `+ 0` keeps −0.5 from
+          // reading −0. A line anchored at a negative bar index is no error on
+          // TradingView either (the same capture: no runtime error, 11 lines).
+          if (ref.args.length === 1 && ref.op === 'trunc') return Math.trunc(a) + 0
           if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
@@ -1203,7 +1208,16 @@ export function beginObjects(program, ctx) {
           const inst = resolveRef(v)
           out[k] = inst === null ? null : { __ref: inst }
         } else {
-          out[k] = value(v)
+          const x = value(v)
+          // ⭐⭐ C48 — A BAR COORDINATE IS A WHOLE NUMBER: a float handed to an
+          // `int` x has its fraction dropped, toward zero. Capture
+          // `vw-int-array-avg-neg-spy-1d-2026-10-01`, rows Y01–Y03:
+          // `l.set_x2(a.avg())` with means −1.5 / −2.5 / −0.5 reads −1, −2, 0.
+          // ⚰️ Only a getter in arithmetic was truncated (C43's `trunc`); a
+          // plain per-bar float was written as it stood, and that line ended at
+          // bar −1.5. One rule, at the one place a property takes its value.
+          out[k] = BAR_COORDS.has(k) && typeof x === 'number' && Number.isFinite(x) && !Number.isInteger(x)
+            ? Math.trunc(x) + 0 : x
         }
       }
       return out
@@ -2076,7 +2090,6 @@ export function beginObjects(program, ctx) {
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),
-      ...(truncNegative ? { truncNegative } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),

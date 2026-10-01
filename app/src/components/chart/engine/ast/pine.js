@@ -740,7 +740,8 @@ export const basePeriodOf = (opts) =>
  *  1m}-2026-09-30.json`): on a `//@version=6` chart TradingView's
  *  `timeframe.period` is `"1D"`, `"1W"`, `"1M"` — label text `[1D]`, length 2,
  *  and `== "D"` / `"W"` / `"M"` all FALSE. Below v6 the engine keeps its bare
- *  code (`"D"`), the spelling earlier Pine documents and no capture contradicts.
+ *  code (`"D"`) — ⭐ C48: WITNESSED for v5 (`vw-input-tf-text-v5-spy-1d-2026-10-01`,
+ *  label L08: a v5 daily chart prints `D`, where the v6 twin prints `1D`).
  *  An intraday code is its minute count in every version (`"60"`).
  *
  *  ⛔ It is TEXT, not a code: every reader that turns it back into a timeframe
@@ -792,38 +793,35 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
-/** ⭐⭐ C33 — THE TEXT AN `input.timeframe` DEFAULT PRINTS, WHERE A CAPTURE SHOWS IT.
+/** ⭐⭐ C33 / C48 — THE TEXT AN `input.timeframe` DEFAULT PRINTS: THE DEFAULT, VERBATIM.
  *
  *  `input.timeframe` has no knob in this product (it is not a numeric kind, so
  *  `resolveInput` never mints one), so its DEFAULT is the only string the script
  *  can ever read. In a text slot the question is how TradingView SPELLS that
  *  string: Pine v6 re-spells `timeframe.period` (a v6 1D chart reads `"1D"`, not
  *  `"D"` — ema-ribbon, C15), so "the default, verbatim" is a claim about the
- *  vendor, not a given. It is served only for a spelling a committed capture
- *  PRINTS, under the Pine version that printed it:
+ *  vendor, not a given.
  *
- *    · `D` on v6 — average-day-range-adr-pivots-rddt-1d-2026-09-28: the box text
- *      `str.tostring(top, '#.##') + ' (' + tf + ')'` with `tf = input.timeframe('D')`
- *      reads `"152.43 (D)"` / `"145.57 (D)"` (not `"(1D)"`), and the cell
- *      `res_to_str(tf)` reads `"4.6 % (D)"`.
- *    · `W` on v5 — high-low-open-mid-ranges-rddt-1d-2026-09-28: `higherTF + b +
- *      str.tostring(a)` with `higherTF = input.timeframe("W")` reads `"W | Open | 149"`.
+ *  ⭐ THE RULE, MEASURED 2026-10-01 under BOTH versions
+ *  (`vw-input-tf-text-v5-spy-1d-2026-10-01`, `vw-input-tf-text-v6-…`): the label
+ *  prints the default exactly as written — `D`, `W`, `M`, `60`, `240`, `1D`, and
+ *  an EMPTY string for `""` (length 0: it is not replaced by the chart's period,
+ *  and `tfE == timeframe.period` is false). `"D" == "1D"` is false both ways. The
+ *  one thing the version changes is `timeframe.period` itself (`periodTextOf`).
+ *  ⚰️ C33 served two entries — `D` on v6, `W` on v5, each from a corpus capture —
+ *  and withheld every other spelling by name; the two fixtures replace that table.
  *
- *  ⛔ Anything else — `M`, `W` on v6, `D` on v5, `60`, `3M` — is withheld by name
- *  (`textFormatRefusals['input.timeframe:unwitnessed …']`), and what settles it is a
- *  capture that prints that default under that version (a one-line
- *  `label.new(bar_index, high, input.timeframe("M"))` probe per spelling). */
+ *  ⛔ ONLY v5 AND v6: no capture prints an `input.timeframe` (v4's `input(…,
+ *  type = input.resolution)`) default under another version, so one is still
+ *  withheld by name (`textFormatRefusals['input.timeframe:unwitnessed …']`). */
 export const INPUT_TIMEFRAME_TEXT_WITNESS = Object.freeze({
-  D: Object.freeze({ versions: Object.freeze([6]), capture: 'average-day-range-adr-pivots-rddt-1d-2026-09-28' }),
-  W: Object.freeze({ versions: Object.freeze([5]), capture: 'high-low-open-mid-ranges-rddt-1d-2026-09-28' }),
+  5: 'vw-input-tf-text-v5-spy-1d-2026-10-01',
+  6: 'vw-input-tf-text-v6-spy-1d-2026-10-01',
 })
 
-/** Is `spelling` a witnessed `input.timeframe` text under Pine `version`? */
-export const inputTimeframeTextWitnessed = (spelling, version) => {
-  const w = Object.prototype.hasOwnProperty.call(INPUT_TIMEFRAME_TEXT_WITNESS, spelling)
-    ? INPUT_TIMEFRAME_TEXT_WITNESS[spelling] : null
-  return !!w && w.versions.includes(version)
-}
+/** Is an `input.timeframe` default printed verbatim under Pine `version`? */
+export const inputTimeframeTextWitnessed = (spelling, version) => typeof spelling === 'string'
+  && Object.prototype.hasOwnProperty.call(INPUT_TIMEFRAME_TEXT_WITNESS, String(version))
 
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
@@ -17021,9 +17019,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // literal does not settle — falls through to the readers below.
       const lit = inputStringText(node, scope)
       if (lit !== null) return { t: 'lit', s: lit }
-      // ⭐⭐ C33 — AN `input.timeframe` DEFAULT IN A TEXT SLOT: the default, where
-      // a capture shows TradingView printing exactly that spelling under this
-      // Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`); withheld by name otherwise.
+      // ⭐⭐ C33 / C48 — AN `input.timeframe` DEFAULT IN A TEXT SLOT: the default,
+      // verbatim, under the Pine versions a capture prints it for
+      // (`INPUT_TIMEFRAME_TEXT_WITNESS`); withheld by name under any other.
       const tfDefault = inputTimeframeDefault(node, scope)
       if (tfDefault !== null) {
         let version = null
@@ -18512,9 +18510,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  1.33 / 1.67 give `get_x2() - get_x1()` 2, 2, 2 and 2.5 gives 3. So every
    *  value built here is wrapped in `trunc` (`OBJECT_VALUE_UNARY`), as an
    *  explicit `int(…)` is (truncation toward zero, `vw-int-cast`).
-   *  ⛔ Only a NON-NEGATIVE result: every measured sum is positive, so truncation
-   *  and floor are not told apart — the runtime holds the coordinate instead of
-   *  writing a negative one (`truncNegative`).
+   *  ⭐ C48 — a NEGATIVE result too: `vw-int-array-avg-neg-spy-1d-2026-10-01`
+   *  reads sums of −0.5 / −1.5 / −2.5 as 0 / −1 / −2 (floor would read −1 / −2 /
+   *  −3), so the runtime no longer holds one (`objectRuntime.js`, `trunc`).
    *
    *  ⛔ EXACTLY: `+` / `-` over whole getters (`stateOperand`), C14 scalars and
    *  getter-free values; `int(x)`; `math.avg(a, b)` of two such. Only for a bar
