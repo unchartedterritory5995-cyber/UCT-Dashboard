@@ -154,6 +154,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 48 | C37 colours this door did not carry (ruling R-G), and colour graded as its own column (§ C37): **(a)** `color.from_gradient` as a PLOT colour — the position `(value − bottom) / (top − bottom)` is a hidden column, the two ends static strings, drawn by the one measured curve (`pine.js::colourGradientRule`, `pool.js::gradientPointColour`); **(b)** object colours on the host lane — `color.new(c, <computed t>)`, a `var` colour never reassigned, a one-expression colour helper, `na` / `color(na)`, `color.from_gradient` (`{c:'grad'}`), a colour test on the loop counter; **(c)** the default colours that depend on the script's Pine version (`objectDefaults.js`, v4 / v5, each read off a capture); **(d)** `chart.fg_color` / `chart.bg_color` carried as a reference and resolved against OUR chart's own colours where the object is drawn (`objectTheme.js`), graded theme-relative | `pine/c37-colours` | 30 / 47 → 30 / 47 (overall 27 → 27; base `19bcbf278c`, objects pane on) | 233 / 266 → 233 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves — the harness verdict does not grade an object's colour. Committed harness dir: **rvol DIVERGE → MATCH** (611 of 611 coloured bars were the pane's gold), the only entry, both flag states. **The colour column** (`vendorHarness/colourColumn.js`, new): plots 611 → **0** differing bars of 971,741; paired object colour slots not carried **349 → 0** of 3,406 over the 47 (887 → 0 of 4,598 over the harness dir), 42 (55) theme-relative, 1 carried and different (heat-map-seasons' gauge point, named). Member-door census 266 × 2: attach 41 / 64 unchanged, 1 row (rvol plots 2 → 3); base-vs-base control 0 rows. Translation census 266: every output's value byte-identical, 1 presentation moved (rvol), dropped colour props 287 → 103 sites, programs with colours factored out 0 changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +4,341 B; total JS +10,459 B. `paramIds.test.js` green, no edit |
 
 | 52 | C42 a call that runs exactly ONCE reads what TradingView reads (section C42). The witness is `vw-fn-series-history-rddt-1d-2026-09-30` and the C04 arm of ema-ribbon: under a guard that is PROVABLY `barstate.islast` (`guardIsLastBarOnly`, alone or as a top-level `and` conjunct), in no loop, (i) `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` are the chart's values `k` bars back and move to `CHART_SERIES_WITNESSED`; (ii) `bar_index[k]` is the call's own history (`na` on its one run) and moves to `CALL_OWNED_SERIES`; (iii) `ta.highest(src, len)` reads its source and `ta.sma(src, len ≥ 2 literal)` reads `na`. Everything else keeps a named refusal: every other `ta.*`, every other guard, a loop, a non-literal offset or length, `time_close[k]` / `hlcc4[k]`, `bar_index[k]` under any other guard. On the way: a bare `input(<literal>, …)` is a simple input (its guard is bar-invariant); the clock functions `time(…)` / `time_close(…)` and the calendar readers answer from the bar's own timestamp, so a conditional call that reads them has no history to starve (`fn:conditional-history` 540 → 383 across the 266, no object program moved). ema-ribbon's cell (2,3) is TradingView's ██████████.
+| 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -3196,3 +3197,146 @@ join the harness verdict (it would move objects MATCH counts for every lane) is 
 "unresolvable" plots in the harness dir are constants our pane hides (`hidden (constant)`) where the vendor
 draws a line — not a colour defect, not touched. (3) 13 door-attached corpus scripts draw colours they did not
 before; each mechanism is witnessed on a capture, the individual scripts are not.
+
+## C49 — the captured clock: period anchors, `time_close`, other chart timeframes, a request off its own timeframe (2026-10-01, step 59)
+
+Branch `pine/c49-captured-clock`, on wave 10 at `e4e24524ef` with `origin/pine/captures-2026-09-30b`
+(`97dea45492`, capture round 3: 21 sealed fixtures dated 2026-10-01) merged first (`654d99bd31`). Every rule
+below was read off a fixture bar for bar with a calendar model written apart from the engine
+(`scratchpad/c49/an_t5.mjs`, `an_tf.mjs`, `an_fx.mjs`) before it was served.
+
+**PRIORITY 0 — nothing C30 / C36 served contradicts the full-history fixtures.** The base rule, through the
+member door, on `vw-time-tf-spy-1d-full-2026-10-01` and `vw-time-close-tf-spy-1d-full-2026-10-01` (8,476
+bars, 1993-01-29 on): **0 bars served wrong.** It withheld — T01 124 bars, T02 165, T03 414, T04 1,497; Q01
+53, Q02 40 — and every one of those bars is now served or withheld by a named reason (table below).
+
+**The rule, as implemented (one authority, both lanes).** For `P` in `W` / `M` / `3M` / `12M`:
+
+- `time(P)` = 09:30 New York on the FIRST session the vendor's calendar holds in the period that contains the
+  day the bar OPENED;
+- `time_close(P)` = the close of the LAST such session (13:00 on a half-day the calendar applies).
+
+The vendor's calendar is `tradingViewSession.js`: weekdays; the NYSE closures from
+`TRADINGVIEW_CLOSURES_FROM` (2000-01-01) less the six days the vendor's own daily bars exist for
+(2001-09-11..14, 2012-10-29 / 30); half-days from 2019 less 2020-11-27 and 2020-12-24.
+`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar` answer it per bar;
+`interpret.js::chartClockValue` ⇄ `ast_interpret.py::_chart_clock_value` substitute the answer for the
+recognised anchor / gate / period-close nodes of the saved tree when the chart's clock is a regular session
+(`chartClockRegime` kind `session`). The saved tree itself is unchanged in meaning on an every-day chart
+(C36's rule, BTCUSD) — the calendar is not consulted there.
+
+| what the fixtures show | read off |
+|---|---|
+| the model reproduces every bar, opens and closes, `W` / `M` / `3M` / `12M` | 1D full 8,476 / 8,476; 1W 1,758; 1M 406; 15m 3,300; 5m 3,300; 60m (2026-09-28) 300 |
+| before 2000 a holiday-opened period answers the CALENDAR day (a Monday holiday week opens Monday 09:30; no bar has that time) | 1D full, 1993–1999 |
+| from 2000 it answers the first SESSION (the week opens Tuesday) | 1D full, 2000 on |
+| the boundary is bracketed, not assumed: the last calendar-answered week closes Fri 1999-12-24; the first bars-answered holiday week opens Tue 2000-01-18 | 1D full; the constant 2000-01-01 sits inside the bracket |
+| the period is keyed on the day the bar OPENED, not on the week's Monday: the weekly bars opening 2004-06-01, 2010-06-01, 2021-06-01 read June's open | 1W |
+| C30's "a 60-minute chart follows a different rule" was bar 0's first partial week; the 60m fixture agrees with the calendar on all 300 bars | `vw-time-tf-spy-60-2026-09-28` |
+| `time("60")` on a 5 / 15-minute chart is the 60-minute bucket counted from 09:30 | 5m, 15m (T06) |
+
+⚰️ The assignment's wording "the month containing the week's Monday" is not what the weekly fixture shows;
+the three June bars above settle it. A rail pins them (mutation C49-7).
+
+**Served, and what stays withheld.**
+
+| case | served | withheld, by name |
+|---|---|---|
+| `time(P)`, daily session chart | every bar, pre-2000 included | a period from 2000 on whose first session has no bar (`time-anchor:session-open-missing`): the Hurricane Sandy week, 3 bars |
+| `time_close(P)`, daily session chart | every bar | a completed period from 2000 on whose last session has no bar (`time-close:period-end-missing`): the week of 2001-09-10, 1 bar |
+| `time(P)` on 5 / 15 / 60 / W / M | regular-session bars | 1 / 30 / 240 and anything else (`time-anchor:not-daily`, Q-C3); a chart with bars outside the regular session (`time-clock:outside-session`, Q-C1) |
+| `time_close(P)` on W / M | yes | below a daily chart (`time-close:not-daily`, Q-C2) |
+| `time(timeframe.period)` | 5 / 15 / 60 / D / W / M | other chart timeframes (`time-own:chart-unwitnessed`) |
+| `time("60")` | 5 / 15 (bucket from 09:30), 60 | others; off-session bars |
+| FX / one weekend day | — | `time-anchor:weekend-bars`, `time-close:weekend-bars` (below) |
+| bar 0 of a `ta.change(time(P))` row | — | the bar before the series is unknown; one bar |
+
+The two exceptions from 2000 on are reproduced by the calendar and are still withheld, as instructed: each
+is the one witness of its kind (SPY's history holds no other).
+
+**FX (Q-T2) — not served, and why.** `vw-time-tf-fx-eurusd-1d-2026-10-01`: the vendor's daily bar opens 17:00
+New York the evening before its date (Sunday to Thursday); the week opens on the calendar's Sunday 17:00.
+This chart stamps a date-keyed daily bar at 09:30 New York on its date — 16.5 hours from the vendor's open —
+and the store holds no FX bars at all. Serving a period anchor on that clock would be a right rule on a
+wrong bar time, so it stays `time-anchor:weekend-bars`. What settles it is engine work (a daily bar stamped
+at its own session's open), not a capture.
+
+**⛔ A wrong value in production, found under item 4 and fixed.** The member door translates once, at base
+period `D`, and the saved tree is bound on every chart. `request.security(syminfo.tickerid, "D", x)` folded
+to `x`, so on a 5-minute chart the plot drew the 5-minute `x` as the daily one. On
+`request-realtime-alignment-spy-5-2026-10-01` that was wrong on **299 of 300 bars** for look-ahead ON and for
+OFF (max error 6.61 / 7.42), and R7 (`close[1]` off) with it; a `W` / `M` request was resampled from the
+chart's intraday bars (a 60-minute-derived weekly close 761.64 against the daily 761.69). Ruling 3.5
+(`tests/fixtures/vendor/divergences.json`) already said this case is refused rather than folded; the fold
+escaped it because the refusal is taken at translation and the tree travels.
+
+The fix: the translator writes the base timeframe into the tree — `requestBaseNode(base, child)` =
+`<base seconds> != periodseconds ? na : child` — on the fold and on a `tf` / `tf_live` request, for the
+chart's own symbol and for another symbol's (outside its `sym`). A chart that STATES another timeframe
+withholds the column whole with `request:other-timeframe` (plots and objects, JS and Python); a caller that
+states no timeframe evaluates the child as before. On the 5-minute fixture: 0 wrong, every request row
+withheld. Daily values are unchanged (translation census: the trees gained the gate, no daily output moved).
+
+What the witness says and is NOT served: on historical bars look-ahead ON reads the day's own close on every
+bar; OFF reads the previous day's close except on the day's last bar; on the forming bar both read the
+forming daily bar's current close. That needs the daily bars beside the intraday ones and a forming-bar arm,
+neither of which the chart pane holds today. The caveat (the daily request and the 5-minute bar differ by a
+tick: 762.63 against 762.46) means the daily value cannot be rebuilt from intraday bars either.
+
+**Measured** (base `654d99bd31` = wave 10 + the captures; tip `9968cbf397`; the commits after it change a test ceiling and docs only).
+
+| | base | tip |
+|---|---|---|
+| 47 captures, objects pane on: objects MATCH / overall / families / plots | 30 / 27 / 234 of 266 / 161 of 172 | 30 / 27 / **235** of 266 / 161 of 172 — 1 entry (high-low-open-mid-ranges lines 503 → 504, vendor 504) |
+| 47, pane off | 18 / 15 / 108 of 119 / 140 of 151 | unchanged, 0 entries |
+| harness dir (138 graded), on | 68 / 48 / 343 of 385 / 358 of 546 | 68 / 48 / 344 of 385 / 358 of 546 — 3 entries (the one above; the two `request-realtime-alignment` captures: R1 / R2 / R3 / R7 from a wrong value to withheld) |
+| harness dir, off | 56 / 36 / 217 of 238 / 337 of 525 | unchanged counts — 2 entries (the two request captures) |
+| member-door census 266 × 2 | attach 41 / 64 | 41 / 64; 3 rows per flag, the refusal sentence only; same-tree control 0 rows |
+| translation census 266 | ok 44 / 67 | 44 / 67; 15 (off) / 19 (on) scripts' hashes move: 3 a sentence, the rest gained the request gate or the calendar nodes |
+| notebook first-open | 1,901,893 B | 1,901,893 B (+0), `notebook_perf_budgets` PASS |
+| `pine` chunk / total JS | 387,103 / 12,757,155 B | 387,405 (+302) / 12,764,535 (+7,380) |
+| `paramIds.test.js` | 4 passed, 1 skipped | the same, no edit |
+
+Through the door at the tip, on the fixtures: 1D full T02–T04 MATCH 8,476, T01 withheld 3; T07 withheld 5,
+T08 / T09 1; Q01 withheld 1, Q12 2; 5m / 15m / 60m / 1W / 1M every row MATCH (bar 0 of an event row
+withheld); BTCUSD unchanged; the request rows on 5m 0 wrong, all withheld.
+
+**Pins re-measured, with the reason at each.** `vendorHarness.c30TimeAnchor`, `vendorHarness.c36TimeFollowups`,
+`ast/clockCloseTfChange.vendor` (K14 withheld = 1993-01-29, 2012-10-31..11-05; K15 = 1993-01-29),
+`chartClockNotice` (the unmeasured chart is 30 minutes now), `ast/periodAnchorParity` (+6 bar sets: 1999
+holidays, 15m RTH / extended, 60m, weekly, monthly), `objectFnInline.vendor` and
+`vendorHarness.c33ObjectReads` (OHLM lines 503 → 504), `runtimeWallsC23` (the gated formula),
+`tools/lookback_agreement.json` regenerated by its own test (426 → 458 trees).
+
+**Mutation proofs** — 111 mutations, each alone, bytes and sha256 captured, restored by bytes, sha verified,
+never while a suite ran: C30's set 15, C36's 40, C49's 25, the Python lane 31. **110 RED, 1 survives:**
+`C30-M5b` (the calendar's week starts Sunday instead of Monday) — no NYSE session falls on a weekend, so on a
+session chart the two weeks hold the same sessions; the every-day chart does not consult the calendar and its
+own Monday rule (`C30-M5a`, the tree) is RED on BTCUSD. Reported as an equivalent mutation on today's
+reachable inputs, not as a proof.
+
+**Stays refused, and the capture that settles it** (`docs/pine/capture-queue-2026-10-01-c49-clock.md`, probe
+`tools/visual_conformance/probes/vw-request-htf-alignment.pine`):
+
+| refused | settles it |
+|---|---|
+| a `request.security` at another timeframe, on a chart that is not the tree's base (`request:other-timeframe`) | Q-R3 (5 / 60-minute, W / M / 60 requests) plus daily bars beside the chart's own |
+| periods and `time("60")` on a chart with extended-hours bars — the product's intraday default | Q-C1 |
+| `time_close(P)` below a daily chart | Q-C2 |
+| 1 / 30 / 240-minute charts | Q-C3 |
+| FX / one-weekend-day symbols | engine work: a daily bar stamped at its session's open |
+| the Sandy week, the week of 2001-09-10 | a ruling, or a second witness |
+| `time_close("3M" / "12M")`, `time_close(timeframe.period)` | witnessed on the 1D-full / tf fixtures; refused at translation still — not built in this lane |
+
+**For the integrator.** (1) The two exceptions from 2000 on are reproduced by the calendar; serving them is
+one line in `periodAnchorMask` and your ruling. (2) ⚠️ `tf` (look-ahead off) on a DAILY chart reads the last
+CLOSED week / month on every bar; packet #3 measured, one timeframe down, that the bar which completes the
+period reads that period's own close and the forming bar reads the forming one. If that holds for W / M on D,
+every look-ahead-off weekly / monthly request is wrong on 1 daily bar in 5 / 1 in 21 and on the forming bar.
+Not witnessed, not changed; Q-R1 / Q-R2 queued first. (3) `_folds.baseTimeframeFolds.memberNote` and the 3.5
+divergence row still describe the fold as differing "by one bar" intraday; the text is stale, left for the
+owner of that ledger. (4) The dark runtime lane (`VITE_PINE_RUNTIME_PANE_ENABLED`) folds the same identity
+and is not gated here. (5) `time("D")` on an intraday chart, and bare `time` / `time_close` on a chart whose
+clock is unreadable, are untouched. (6) A 1W / 1M chart is always read as a session chart: it cannot show
+whether its symbol trades every day, so an every-day symbol's weekly chart is answered from the session
+calendar on the New York stamp C36 already recorded as not the vendor's. Stated in `chartClockRegime`.
