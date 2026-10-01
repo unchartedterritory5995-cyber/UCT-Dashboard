@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "a680b0d40"          # moved from 599cd44f1 by lane R1f, 2026-09-30 (L13 #259 live)
+MEASURED_AT = "c75bf6ea0"          # moved from a680b0d40 by lane R1g, 2026-10-01 (L14 #260 + hotfix #261 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,7 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L14", "0e7d0561a", "wave 10 L14 #260"),
     ("L13", "a680b0d40", "wave 10 L13 #259"),
     ("L12", "599cd44f1", "wave 10 L12 #258"),
     ("L10", "8eb7f008b", "wave 10 L10 #257"),
@@ -215,6 +216,25 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # touches only api/main.py among shared files (one router mount behind ANALYST_REVISIONS_ENABLED);
 # its own router, service and panel files are all outside the derived Notebook set. Nothing here is
 # RAISED.
+# Lane R1g, 2026-10-01: five path-only commits in a680b0d40..c75bf6ea0 (on top of L14, in CHAIN by
+# SUBJECT AND PATH both -- its squash kept the literal word "wave", same shape as L13), read via
+# their own diffs and messages. Four are a Terminal accessible-name initiative (TERM-067), each
+# touching exactly one shared file already in the derived Notebook set: f771f3d0b (Admin page +
+# the Desk team form) touches only app/src/pages/desk/TeamSection.jsx; 9601fe2c2 (a Textarea UI
+# primitive + the Model Book pass) touches app/src/pages/Settings.jsx only to move the
+# account-deletion reason box onto the new primitive; 3735184f7 (every control on the Settings
+# page) touches app/src/pages/Settings.jsx wholesale; 79e16f694 (Input/Select/Checkbox/FieldError
+# primitives + control-density tokens) touches app/src/styles/tokens.css only to add density
+# steps, migrated onto the chart Custom-Period Sort popover. None edits a Notebook route or file.
+# The fifth, c75bf6ea0 (hotfix(tools) #261), is a direct sequel to L14's own tools-census-pin work:
+# it un-pins tools/record_clock_parity.py (KEEP_PATHS, excluded from the census regardless -- a CI
+# job without pytest runs it and the promotion that pinning it broke was refused) and adds a test
+# to tests/test_tools_pin_the_root.py, which the census now sees ONLY because L14 itself created
+# that file; no app/ or api/ Notebook code is touched. Nothing here is RAISED. MEASURED_AT moves
+# all the way to c75bf6ea0 (not L14's own sha) because a REVIEWED_NOT_LANDINGS entry must fall
+# inside the measured window the rail checks (`WAVE5^..MEASURED_AT`); and because the hotfix's
+# own edit to tests/test_tools_pin_the_root.py is a REAL conflict with L14's revert (both touch
+# that file; it is not a KEEP_PATH), that conflict now has its own rule -- see RULES["0e7d0561a"].
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
@@ -367,6 +387,29 @@ REVIEWED_NOT_LANDINGS: dict[str, str] = {
         "Terminal TERM-073: nightly analyst-revisions 'what changed' timeline, dark; mounts a "
         "router in api/main.py (shared file) behind ANALYST_REVISIONS_ENABLED, no Notebook route "
         "touched",
+    "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15":
+        "Terminal TERM-067: accessible-name pass over the Admin page and the Desk team form; "
+        "touches app/src/pages/desk/TeamSection.jsx only to add aria-labels to its ten "
+        "member-form controls (shared file), no Notebook route touched",
+    "9601fe2c2dda9127f3842cc9402c3215f2810540":
+        "Terminal TERM-067: a Textarea UI primitive + the Model Book accessible-name pass; "
+        "touches app/src/pages/Settings.jsx only to move the account-deletion reason box onto "
+        "the new Textarea primitive (shared file), not a Notebook card",
+    "3735184f77df338a1a0dfcf1617b6d2b4c370aa8":
+        "Terminal TERM-067: every control on the Settings page gets an accessible name (26 "
+        "controls); touches app/src/pages/Settings.jsx wholesale (shared file) and the "
+        "form-control census rail, no Notebook route touched",
+    "79e16f694e6f86e5a53f8fef8981dc84fb02a2c4":
+        "Terminal TERM-067: Input/Select/Checkbox/FieldError UI primitives + control-density "
+        "tokens; touches app/src/styles/tokens.css only to add compact/comfortable density "
+        "steps (shared file), migrated onto the chart Custom-Period Sort popover, no Notebook "
+        "route touched",
+    "c75bf6ea0accaaf0465d69813c40331657466e78":
+        "hotfix(tools) #261: un-pins tools/record_clock_parity.py (KEEP_PATHS, excluded from "
+        "the census regardless -- a CI job without pytest runs it and the promotion that "
+        "pinning it broke was refused) and adds a test to tests/test_tools_pin_the_root.py, "
+        "which the census sees only because L14 itself created that file; no app/ or api/ "
+        "Notebook code touched",
 }
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in
@@ -379,6 +422,15 @@ _NOTEBOOK_FILES: dict[str, frozenset] = {}
 #       replacement, or ["ours_drop", <substring>...] = ours minus the lines holding them
 #       (each substring must drop exactly one line); "all-ours" for every hunk.
 RULES: dict[str, dict] = {
+    # Lane R1g, measured at c75bf6ea0: modify/delete, same shape as wave 7's daily_counters.py
+    # below. L14 ADDED tests/test_tools_pin_the_root.py (the tools-census-pin rail); the hotfix
+    # c75bf6ea0 (REVIEWED_NOT_LANDINGS, #261) is a direct continuation of that SAME repo-hygiene
+    # work -- it un-pins tools/record_clock_parity.py (a CI job without pytest runs it) and adds
+    # a test to this file for that EXEMPT_TOOLS move. The rail covers 50 pinned + 36 exempt
+    # tools/*.py files, none of it Notebook-owned in a product sense; deleting the file on L14's
+    # revert would also delete the hotfix's own, independent, already-landed test coverage. Kept
+    # ("ours"): the newer work stays, same reasoning as daily_counters.py.
+    "0e7d0561a": {"tests/test_tools_pin_the_root.py": "ours"},
     # Lane R1b, measured at f4cec49be: TERM-078 (948af2c17) put one population-gate call inside
     # L1a's property-autofill route. The route is L1a's own and goes whole ("theirs" = the
     # pre-L1a side, which has no route); the `_population_gate` helper it calls stays, because
@@ -493,7 +545,13 @@ RULES: dict[str, dict] = {
 # Re-recorded at 8d08da86f (lane R1d, 2026-09-29, L6 #253 + L7 #254 live): all fifteen pins
 # above came back byte-identical from the new tip. The one new pin is 2c3ed3093's (wave 5)
 # app/src/components/CommandPalette.jsx, the conflict TERM-038 (8393002716) introduced.
+# Re-recorded at c75bf6ea0 (lane R1g, 2026-10-01, L14 #260 + hotfix #261 live): all seven pins
+# above came back byte-identical from the new tip (a680b0d40). The one new pin is 0e7d0561a's
+# (L14) tests/test_tools_pin_the_root.py, the modify/delete conflict hotfix #261 introduced.
 PINS: dict[str, dict[str, str]] = {
+    "0e7d0561a": {
+        "tests/test_tools_pin_the_root.py": "a3d3d3476ceba493",
+    },
     "271a078b6": {
         "api/main.py": "64a4d181d834d6cc",
         "api/services/client_errors.py": "660c00227b8c0bc3",

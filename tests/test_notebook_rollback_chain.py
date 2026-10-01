@@ -80,6 +80,25 @@ from the new MEASURED_AT). One more path-only commit landed alongside it, 69beea
 TERM-073, the nightly analyst-revisions "what changed" timeline, dark), touching only api/main.py
 (one router mount behind ANALYST_REVISIONS_ENABLED) -- added to REVIEWED_NOT_LANDINGS. New
 mutation record: docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1f/mutations-r1f.log.
+
+Lane R1g, 2026-10-01: MEASURED_AT moved a sixth time, from a680b0d40 to c75bf6ea0 -- one landing:
+L14 #260 (public links skip the intro, locked notes refuse captures, links open, tools kept off
+live data). L14 ships real app/ and api/ Notebook code and its squash subject kept the literal
+word "wave" ("Notebook 10/10 wave 10 L14: ..."), so like L13 it is selected by SUBJECT AND PATH
+both -- no new CHAIN_BY_PATH_ONLY exception needed. Five more path-only commits landed in the
+window (a680b0d40..c75bf6ea0, the same push that carried hotfix #261 one commit above L14): four
+are a Terminal TERM-067 accessible-name pass, each touching exactly one shared file already in
+the derived Notebook set (desk/TeamSection.jsx, Settings.jsx twice, styles/tokens.css); the
+fifth, c75bf6ea0 (hotfix(tools) #261), un-pins tools/record_clock_parity.py (KEEP_PATHS, excluded
+regardless) and adds a test to tests/test_tools_pin_the_root.py -- selected ONLY because L14
+itself created that file. All five added to REVIEWED_NOT_LANDINGS; MEASURED_AT is moved past the
+hotfix, not left at L14's own sha, because a REVIEWED_NOT_LANDINGS entry must fall inside the
+measured window this rail checks. Reverting L14 onto the new tip (which carries the hotfix's own
+edit to tests/test_tools_pin_the_root.py) is NOT conflict-free this time: a real modify/delete
+conflict on that one file, resolved "ours" (keep the hotfix's newer, non-Notebook test-rail work,
+same shape as wave 7's daily_counters.py rule) -- RULES["0e7d0561a"], one new pin. All seven pins
+recorded at a680b0d40 for steps below L14 came back byte-identical. New mutation record:
+docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1g/mutations-r1g.log.
 """
 from __future__ import annotations
 
@@ -93,20 +112,22 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOL = ROOT / "tools" / "notebook_rollback_chain.py"
-# Re-recorded at MEASURED_AT a680b0d40 (L13 #259) by lane R1f, 2026-09-30. The R1e record
-# (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl) is the same chain one
-# landing shorter, from 599cd44f1; it stays as the evidence of that rehearsal. The R1d record
-# (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl) is shorter still, from
-# 6f563c158; the R1c record (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl)
-# shorter still, from 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
+# Re-recorded at MEASURED_AT 0e7d0561a (L14 #260) by lane R1g, 2026-10-01. The R1f record
+# (rollback-rehearsal-2026-09-30-r1f/chain/chain-through-wave5.jsonl) is the same chain one
+# landing shorter, from a680b0d40; it stays as the evidence of that rehearsal. The R1e record
+# (rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl) is shorter still, from
+# 599cd44f1; the R1d record (rollback-rehearsal-2026-09-29-r1d/chain/chain-through-wave5.jsonl)
+# shorter still, from 6f563c158; the R1c record
+# (rollback-rehearsal-2026-09-29-r1c/chain/chain-through-wave5.jsonl) shorter still, from
+# 0812b5ec3; the R1b record (rollback-rehearsal-2026-09-29/chain/chain-through-wave5.jsonl)
 # shorter still, from f4cec49be; the R1 2026-09-28 record
 # (rollback-rehearsal-2026-09-28/chain/chain-primary-r2.jsonl) shorter still, from 38bb9a421.
-RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-09-30-r1f" / "chain" / "chain-through-wave5.jsonl"
+RECORD = ROOT / "docs" / "notebook" / "evidence" / "rollback-rehearsal-2026-10-01-r1g" / "chain" / "chain-through-wave5.jsonl"
 WAVE5 = "2c3ed3093"
-# The tip the chain was measured at BEFORE lane R1f moved MEASURED_AT. Every commit between it and
+# The tip the chain was measured at BEFORE lane R1g moved MEASURED_AT. Every commit between it and
 # MEASURED_AT that the census selects was read by a person: a landing is in CHAIN, anything else
 # is in REVIEWED_NOT_LANDINGS.
-PREVIOUS_MEASURED_AT = "599cd44f1"
+PREVIOUS_MEASURED_AT = "a680b0d40"
 # The census is the TOOL's (`notebook_landings`: a subject criterion and a path criterion). This
 # file never restates it; it proves the two criteria agree where they were measured and that the
 # tool refuses a base whose census it has not measured.
@@ -337,11 +358,24 @@ def test_the_subject_criterion_refuses_a_subject_that_only_mentions_the_notebook
 def test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed(chain):
     """Lane R1b moved MEASURED_AT from 38bb9a421 to f4cec49be. Everything the census selects in
     between was ruled on: a landing is in CHAIN, anything else in REVIEWED_NOT_LANDINGS. Derived
-    from the tool's census, never from a typed list of what was expected."""
+    from the tool's census, never from a typed list of what was expected.
+
+    ⚰️ Until lane R1g this asserted `full(MEASURED_AT) in named` -- "the newest landing is the
+    measured tip", true by coincidence in every prior lane because the newest commit the census
+    had selected was always itself a landing. Lane R1g's own window (a680b0d40..c75bf6ea0) ends
+    on a REVIEWED, non-landing commit one past L14 (hotfix #261, which the census selects only
+    because L14's own squash created the file it touches) -- MEASURED_AT must cover it (a
+    REVIEWED_NOT_LANDINGS entry has to fall inside the window this test itself walks), so it is
+    no longer always a CHAIN member. The real invariant, generalised: the newest CHAIN landing is
+    an ancestor of (or equal to) MEASURED_AT -- nothing in CHAIN is ever newer than the tip the
+    chain was measured at."""
     rows = chain.notebook_landings(f"{PREVIOUS_MEASURED_AT}..{chain.MEASURED_AT}")
     assert len(rows) >= 2, "non-vacuity: the census found nothing in the window it was asked about"
     named = {full(s) for _k, s, _w in chain.CHAIN}
-    assert full(chain.MEASURED_AT) in named          # the newest landing is the measured tip
+    newest_landing = full(chain.CHAIN[0][1])
+    assert subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor",
+                           newest_landing, full(chain.MEASURED_AT)], capture_output=True).returncode == 0, (
+        f"the newest CHAIN landing {newest_landing[:9]} is not an ancestor of MEASURED_AT")
     unruled = [f"{c['sha'][:9]} {c['subject'][:60]}" for c in rows
                if c["sha"] not in named and c["sha"] not in chain.REVIEWED_NOT_LANDINGS]
     assert not unruled, f"selected by the census, ruled on by nobody: {unruled}"
