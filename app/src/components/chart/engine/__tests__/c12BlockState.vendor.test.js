@@ -57,9 +57,42 @@ afterAll(() => registry.uninstallUserDefinition(HARNESS_DEF_ID))
 
 describe('C12 — `x = if cond` with no `else` (atr-support-and-resistance)', () => {
   const capture = load('atr-support-and-resistance')
+  /** ⭐ C45 RE-PIN. The script EXTENDS each zone every bar (`activeBox.set_right(
+   *  bar_index)`, in loops over its lists) and this chart cannot run those loops.
+   *  Until C45 the zones were drawn anyway — zero-width, where TradingView's are
+   *  all extended — and this rail compared their ids. An object one of whose
+   *  moves was lost is withheld now (`vendorHarness.c45LostUpdates`), so the
+   *  script as written holds none.
+   *  What C12 is about is which bars CREATE a zone, and that is unchanged: the
+   *  rail reads it off the script with its eight list loops cut (they create and
+   *  delete nothing — `array.remove` forgets a handle, it does not delete the
+   *  object), which is the creation logic and nothing else. */
+  const creationOnly = (text) => {
+    const out = []
+    let cutting = false
+    for (const line of text.split('\n')) {
+      if (/^if \(array\.size\(/.test(line)) { cutting = true; continue }
+      if (cutting && (/^\s/.test(line) || line.trim() === '')) continue
+      cutting = false
+      out.push(line)
+    }
+    return out.join('\n')
+  }
+
+  it('the script as written holds no zone: the loops that extend them are lost, and C45 withholds what they move', () => {
+    const run = ourRun(capture)
+    expect(idsOf(run, 'line')).toEqual([])
+    expect(idsOf(run, 'box')).toEqual([])
+  })
 
   it('⭐ every line and box TradingView holds, id for id (20 + 20, one interleaved counter)', () => {
-    const run = ourRun(capture)
+    const source = creationOnly(capture.source.text)
+    // ⛔ non-vacuity of the cut: eight loops gone, every create still there
+    expect((capture.source.text.match(/^if \(array\.size\(/gm) || []).length).toBe(8)
+    expect((source.match(/^if \(array\.size\(/gm) || []).length).toBe(0)
+    expect((source.match(/box\.new\(/g) || []).length).toBe((capture.source.text.match(/box\.new\(/g) || []).length)
+    expect((source.match(/line\.new\(/g) || []).length).toBe((capture.source.text.match(/line\.new\(/g) || []).length)
+    const run = ourRun(capture, source)
     for (const fam of ['line', 'box']) {
       expect(vendorIds(capture, fam).length, fam).toBe(20)
       expect(idsOf(run, fam), fam).toEqual(vendorIds(capture, fam))
@@ -72,10 +105,10 @@ describe('C12 — `x = if cond` with no `else` (atr-support-and-resistance)', ()
     // the test is false on a non-impulse bar (TradingView's 20 boxes); with 0 it
     // is TRUE there, so a box is pushed on nearly every bar. Writing the `else`
     // out makes the alternative reading a script of its own.
-    const zeroed = capture.source.text
+    const zeroed = creationOnly(capture.source.text)
       .replace('impDownWick = if impDown\n    high - open\n', 'impDownWick = if impDown\n    high - open\nelse\n    0\n')
       .replace('impUpWick = if impUp\n    open - low\n', 'impUpWick = if impUp\n    open - low\nelse\n    0\n')
-    expect(zeroed).not.toBe(capture.source.text)
+    expect(zeroed).not.toBe(creationOnly(capture.source.text))
     const run = ourRun(capture, zeroed)
     expect(idsOf(run, 'box').length).toBeGreaterThan(vendorIds(capture, 'box').length)
   })
