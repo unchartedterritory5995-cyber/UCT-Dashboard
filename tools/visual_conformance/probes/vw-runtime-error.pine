@@ -1,0 +1,33 @@
+//@version=6
+indicator("UCTPROBE_VW_RUNTIME_ERROR", overlay = false, max_labels_count = 50)
+
+// ─── 2026-09-30 C35 — WHAT A REACHED `runtime.error` LEAVES ON THE CHART ───────────
+//
+// The runtime lane now lowers `runtime.error(msg)` as a STOP BY NAME where it is
+// reached (`runtime:runtime.error` — nothing is read from the run) and as nothing
+// where it is not. The unreached half is witnessed (ema-ribbon's capture: its
+// first-bar validation does not fire at default inputs and the script draws). The
+// REACHED half is Pine's documentation, not a measurement:
+//
+//   (i)  does TradingView keep the plot rows and drawings made on the bars BEFORE
+//        the error, or does the study hold nothing at all?
+//   (ii) what the study reports (status / error text) — so a member's sentence can
+//        quote it.
+//
+// ⛔ CAPTURE: AMEX:SPY 1D, as much history as loads, TWICE:
+//   A. inputs at defaults (`Stop at bar` = 0: never reached) — E00/E01 on every bar,
+//      one label per 50 bars. The control.
+//   B. `Stop at bar` = 100 — the error is reached on bar 100. Record: the plot rows
+//      the study holds (count, and whether bars 0..99 carry E00/E01), the label
+//      count, and the study's `status` object verbatim.
+
+int stopAt = input.int(0, "Stop at bar", minval = 0)
+
+plot(bar_index, "E00_bar_index_CONTROL")
+plot(close,     "E01_close_CONTROL")
+
+if bar_index % 50 == 0
+    label.new(bar_index, close, str.tostring(bar_index))
+
+if stopAt > 0 and bar_index == stopAt
+    runtime.error("UCTPROBE stop at bar " + str.tostring(stopAt))
