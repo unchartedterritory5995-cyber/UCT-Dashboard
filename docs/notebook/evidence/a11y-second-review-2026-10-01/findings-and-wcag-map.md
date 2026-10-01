@@ -405,3 +405,242 @@ overlay race, twice-fixed as described above; a 60-Tab budget that didn't accoun
 Positions' default card/list view) and each fix is explained in the corrected script's own
 comments. Only the corrected, final runs' raw output is committed, per the same disclosure
 practice the original review used.
+
+---
+
+## Re-walk 2 -- against `origin/feat/notebook-w10-l15b` (tip `78a0f2ebff`), 2026-10-01
+
+Controller ruling: the two new findings from the first Re-walk (RW-NEW-01, RW-NEW-02) went to a
+fix lane; the two deliberate A2R-05 exceptions (UCT20 rows, news feed chips) were fixed by another
+lane. Same independent reviewer, same rules. Branch `review/notebook-a11y-rewalk2`.
+
+### What went wrong in the first attempt at this re-walk, and what changed
+
+The first attempt at Re-walk 2 crashed and is **not evidence** (its script is preserved, not as
+evidence, at the reviewer's own scratchpad as `a11y2-rewalk2-failed-script.py`, per the controller's
+post-mortem instruction). Root cause: its one seeding step for a controlled-mode TickerPopup check
+(a throwaway Desk article) called `api.services.desk_store` **directly, in this driver's own
+process**, via `sys.path.insert(str(REPO)); from api.services import desk_store`. `desk_store.py`'s
+`_DB_PATH = os.environ.get("DESK_DB_PATH", "/data/desk.db")` is captured at **import time**, and
+`DESK_DB_PATH` was never set in this process (only the sandboxed SERVER subprocess had the correct
+sandbox env pins) -- so the default resolved to the real, shared `C:\data\desk.db` on this Windows
+box, not the sandbox's isolated copy. The sandbox's own integrity rail caught it: `desk.db` changed
+between the post-boot and post-prewarm checkpoints (same byte size, different sha256 -- consistent
+with one small row written). The run was stopped, nothing under `C:\data` was read, queried, backed
+up or modified by this reviewer (a direct query attempt was itself blocked by the harness's own
+permission system, and that denial was not worked around), and the question of that file was handed
+to the owner.
+
+**This script is different in one structural way, per the controller's hard rules:** it never
+imports `api.*` in this driver process, under any name, for any reason. Every fixture (the one open
+position, the two notes) goes through the sandboxed server over HTTP
+(`ctx.request.post(base + "/api/...")`) exactly as the first Re-walk's script already did for its
+own seeds -- the controlled-mode seeding step that broke the rule is simply gone, and the
+controlled-mode check is recorded NOT RUN instead (below), with no seeding path invented to replace
+it. A guard function (`assert_no_api_import`) runs immediately after this script's own imports and
+again at the very end of every run, asserting no module named `api` or `api.*` is in `sys.modules`;
+it never fired, on any of the five sandbox boots this pass used.
+
+**What ran** (`review/notebook-a11y-rewalk2/docs/notebook/evidence/.../rewalk2/`):
+
+| artifact | what | steps | findings | sandbox integrity |
+|---|---|---|---|---|
+| `walk_rewalk2.py` -> `focus-log-rewalk2.json` | RW-NEW-01 (dashboard + Open Positions, Enter/Space/mouse, forward+backward wrap, Escape restore), controlled-mode (NOT RUN, cited), RW-NEW-02 (locked-note refusal + successful capture, status-region probe), A2R-05's two former exceptions, two regression checks | 719 | 8 | **CLEAN** at pre-boot/+15s/+120s/shutdown (`integrity-rewalk2.md`) |
+| `walk_rewalk2_wrapbudget.py` -> `wrapbudget-result.json` | addendum: measures the TRUE number of focusable controls inside the open chart modal (the main run's 60-Tab forward-wrap budget turned out to be too small) and re-runs the forward-wrap at a correctly-sized budget | n/a (single targeted probe) | n/a (corrects 4 of the 8 above, see below) | CLEAN at pre-boot/+15s/shutdown; the run finished before +120s and that checkpoint was never reached (not a failure -- the run is short and single-purpose) |
+| `walk_rewalk2_addendum2.py` -> `addendum2-result.json` | addendum: re-probes the capture-status region's pre-existence at the CORRECT moment (dialog open, before any capture press -- the main run checked on `/dashboard` before the dialog even existed) and re-probes the Switch-ticker hotkey regression (the main run's 10-Tab seek walked past the box, which already has focus on open) | n/a | n/a (corrects 2 of the 8 above, see below) | same as above; run twice, the second after fixing a role-name bug in the probe itself (disclosed below), only the second (corrected) run's artifacts are kept |
+
+**A second harness self-correction, disclosed the same way as the first Re-walk's two:** the
+wrap-budget addendum's own first probe used a simplified `FOCUS_JS` that dropped the main script's
+INPUT-type role mapping, so it read the Switch-ticker `<input>`'s role as `"input"` instead of
+`"textbox"` and a strict `role == "textbox"` gate skipped the hotkey check entirely even though the
+`name` field proved focus was already on the right element. Fixed by loosening the gate to the
+`name` match alone (the thing actually being tested); only the corrected run's `addendum2-result.json`
+is on disk.
+
+### Finding-by-finding
+
+| id | new status | evidence |
+|---|---|---|
+| RW-NEW-01 (focus moves into the dialog) | **CLOSED, both doors, both pages, both ways reached** | see below |
+| RW-NEW-01 (Tab/Shift+Tab stay inside, wrap correctly) | **CLOSED** (the main run's own 60-Tab budget was too small; the wrap-budget addendum measured the true size and confirmed the wrap) | see below |
+| RW-NEW-01 (controlled-mode popup) | **NOT RUN**, all seven sites cited with reasons | `focus-log-rewalk2.json` steps around RW2-005 (controlled-mode citation block) |
+| RW-NEW-02 (status region + timing) | **CLOSED** | see below |
+| A2R-05, UCT20 chip | **CLOSED** | see below |
+| A2R-05, UCT20 caret | **CLOSED** | see below |
+| A2R-05, news feed chips | **NOT RUN** (default build strips the component; re-confirmed) | `focus-log-rewalk2.json`, `R2-newsfeed` step |
+| Regression: hover does not steal focus | **CLOSED, weakly evidenced** (see caveat below) | `focus-log-rewalk2.json`, `R2-regress-hover` steps |
+| Regression: Switch-ticker typing does not fire a hotkey | **CLOSED** | `addendum2-result.json` (corrected run) |
+
+### RW-NEW-01 -- focus moves into the dialog on open, Tab/Shift+Tab stay inside and wrap correctly
+
+**On `/dashboard`:** Enter on `"View chart for QQQ"` moves focus immediately inside the dialog
+(`inDialog: true` on the very next focus read, both Enter and Space doors -- `focus-log-rewalk2.json`,
+the `R2-dash-enter-open`/`R2-dash-space-open` steps). The one allowed mouse click (on a fresh trigger,
+scoped to exactly this check) also lands focus inside the dialog (`R2-dash-mouse-mouseclick` step,
+`mouse_opened_in_dialog: true`). Escape restores focus to the trigger in every case (`restored: true`).
+
+**On Open Positions** (`/journal/trades?seg=open`, Table view activated via its own reachable button
+first, same pattern the first Re-walk used): identical shape, both Enter and Space doors, both
+`landed_in_dialog: true` and `restored: true`.
+
+**Tab-wrap:** the main run's forward-wrap probe (budget 60 Tabs) never completed a lap on either
+door/page and was auto-flagged as four `major` findings (RW2-001 through RW2-004). **These four are
+corrected, not confirmed, by the wrap-budget addendum:** none of the four reported the trap actually
+being LEFT (`escaped_forward` was false every time -- Tab never reached background page content in
+60 presses, it just didn't finish one full lap). The addendum queried the dialog's own focusable-
+element count directly (`[role="dialog"] querySelectorAll(...)` over the real focusable selector
+list, visibility-filtered): **56 controls** -- `Switch ticker`, Compare, Open full research, Ask AI,
+the two Save buttons, the ticker-search button, Add to flagged list, Close chart, four tab buttons,
+two session toggles, eight timeframe buttons + "More timeframes", and **eighteen drawing-tool
+buttons** (Trendline through "Hide toolbar") plus a handful of settings toggles -- a genuinely large,
+legitimate control set for a full charting toolbar. Re-run at a sized budget (`56 + 20 = 76`), the
+forward-wrap **completed at Tab 56 exactly**, landing back on `"Switch ticker..."`, and Escape
+afterward still correctly restored focus to `"View chart for QQQ"`. **Closed**: the trap holds and
+wraps correctly; RW2-001 through RW2-004 are an instrument-budget artifact, not a WCAG 2.1.2 defect,
+and are superseded by `wrapbudget-result.json`'s measurement (own integrity log committed:
+`integrity-rewalk2-wrapbudget.md`, CLEAN at every checkpoint it reached). Backward-wrap
+(Shift+Tab from the first control reaches a different, still-in-dialog control, and one more Tab
+bounces back) was asserted in the main script's own logic for the case where the forward probe
+completes its lap; since the forward probe did not complete within the main run's own 60-Tab budget,
+that specific assertion did not fire this pass -- recorded as **not independently re-verified at a
+properly sized budget this session** (a gap, not a finding against the product; the forward-wrap
+result plus the documented React-hook-order of the dialog's control list make a correct backward
+wrap highly likely, but "likely" is not "measured").
+
+### RW-NEW-02 -- the locked-note refusal message + the successful-capture message, status region
+
+Locked a note by keyboard (`More note actions` -> `Lock`), made the UNLOCKED note last-active for
+the success half, same product-native "last active note" mechanism the first Re-walk used.
+
+**The status region exists before any message, confirmed at the correct moment.** The main run's own
+pre-check queried the region on `/dashboard` BEFORE the dialog was ever opened and (correctly) found
+it absent -- the span lives inside the dialog, so of course it isn't in the DOM before the dialog
+mounts (filed as finding RW2-006, `major`). **This is a check-design error in the harness, not a
+product defect**, corrected by `addendum2-result.json`: probed again immediately after the dialog
+opens but BEFORE the capture button is pressed --
+`{"present": true, "role": "status", "ariaLive": "polite", "ariaAtomic": "true", "text": ""}`. The
+region is mounted, empty, the moment the dialog renders, exactly as `TickerPopup.jsx`'s own comment
+at the span describes. **RW2-006 is superseded and closed by this measurement.**
+
+**The refusal:** `role="status"`, `aria-live="polite"`, `aria-atomic="true"` (all three correct on
+the very first read, t~0.2s). Text present and identical at t~0.2s, t~3s and t~7s
+(`"QQQ price not saved — that note is locked. Unlock it in the Notebook first."`), **gone** by t~9s
+-- consistent with the component's own `CAPTURE_TOAST_HOLD_MS=8000`.
+
+**The successful capture (unlocked note):** same region, same attributes, text present at t~0.2s and
+t~1.4s, **gone** by t~3.6s -- consistent with `CAPTURE_TOAST_SUCCESS_MS=2500`, and shorter than the
+refusal's hold as the component's own comment says it should be.
+
+**Judgment: 8 seconds is adequate, and nothing else here fails 4.1.3 or 2.2.1.** The message is
+exposed via `role="status"`/`aria-live="polite"` (so a screen reader is told without needing focus
+to move -- satisfies 4.1.3 outright, correcting the FAIL the first Re-walk found before this fix
+landed). `aria-live="polite"` means it waits for current speech to finish rather than interrupting,
+which is the right register for a routine save confirmation or a routine refusal, not an emergency.
+An 8-second hold for a refusal (vs. 2.5s for a plain success) gives a member actively listening
+meaningfully longer to register an unusual outcome, and nothing about the capture flow puts the
+member on a clock to complete a required action before the message disappears -- SC 2.2.1 governs
+time limits on completing a task, and there is no task here that expires with the toast; the member
+can simply unlock the note and capture again. **No 2.2.1 issue; CLOSED.**
+
+### A2R-05's two former exceptions -- re-confirmed live, plus one correction to this reviewer's own check
+
+**UCT20 ticker chip:** reached by Tab as its own stop (`nestedInInteractive: null` -- not nested
+inside the row's `role="button"` ancestor, confirming the fix lane's change: the row itself no
+longer carries `role="button"`). Enter opens the TickerPopup dialog (`modal_open: true`).
+
+The main run's own comparison of `document.querySelectorAll('button[aria-expanded]')` before and
+after reported a change (4 values before, 5 after, auto-flagged as RW2-007, `major`) --
+**but every one of the four ORIGINAL values stayed `"false"` → `"false"`, unchanged**; the fifth
+entry only appears because the now-open TickerPopup dialog itself introduces its OWN
+`aria-expanded` control (almost certainly a toolbar dropdown inside the chart, not a UCT20 row) into
+that page-wide, unscoped query. **RW2-007 is a check-design artifact** -- comparing an unscoped
+document-wide count rather than the one caret's own before/after value -- **not a product defect**:
+the row's expand state is unaffected by opening its chip's popup, which is exactly the
+controller's ask. **Closed.**
+
+**UCT20 caret button:** reached separately by Tab; Enter toggles `aria-expanded` `false -> true`,
+Space toggles it back `true -> false`, and `modal_open: false` on both presses -- the caret never
+opens the popup. **Closed, both keys.**
+
+**News feed chips:** re-confirmed by grep against the actual built bundle this run used
+(`app/dist/assets/*.js`, searching for `data-ticker-chip`, NewsFeed's unique DOM signal that cannot
+appear in TapeFeed) -- zero hits, consistent with Vite dead-code elimination stripping the component
+entirely under the default `VITE_TWITTER_UI_ENABLED` fold. A second build with the flag forced to
+`'0'`, and a second sandbox walk against it, would be the only way to exercise this live; that
+second build/walk cycle was judged out of scope for this restart given the controller's hard rules
+focus on correctness, and is recorded here as a deliberate scope decision, not a silent skip.
+**NOT RUN**, same reason as the first Re-walk, re-verified rather than merely repeated.
+
+### Regression checks
+
+**Hover never steals focus:** before- and after-hover active element were both `document.body` (no
+Tab had been pressed first on this pass), so the comparison trivially holds (`before == after`).
+**Closed, but weakly evidenced** -- this proves hovering does not SET focus away from nothing; it
+does not prove hovering cannot steal focus away from an EXISTING focused control, which is the
+stronger and more realistic claim a keyboard user would care about. A follow-up that Tabs to an
+unrelated control first, then hovers a ticker trigger, then re-reads `document.activeElement`, would
+close this more convincingly; not run this pass, recorded rather than overstated.
+
+**Switch-ticker typing never fires a page hotkey:** the main run's own check walked past the
+Switch-ticker box with an unnecessary Tab-seek loop (the box already holds focus the instant the
+dialog opens -- confirmed by the wrap-budget addendum's `first_control` and this check's own
+`focus_right_after_open`, both naming it) and so timed out ("not reached within 10 Tabs") without
+testing anything. Corrected by `addendum2-result.json`: typing `"j"` with focus already on the box
+inserted the literal character (`text_inserted: true`) and produced **no navigation**
+(`url_before == url_after`). **Closed** -- 2.1.4 holds.
+
+### Updated WCAG 2.2 AA rows (supersedes the Re-walk 1 table above for these SCs only)
+
+| SC | Re-walk 1 verdict | Re-walk 2 verdict | evidence |
+|---|---|---|---|
+| 2.1.1 Keyboard | PASS (dashboard/Open Positions TickerPopup); FAIL remains (UCT20, news feed) | **PASS, UCT20 now closes too** (chip own tab stop, Enter opens popup, caret toggles via Enter+Space without opening the popup); **FAIL remains, news feed only** (not live-verified, build-flag reason) | A2R-05 subsection above |
+| 2.1.2 No keyboard trap | PASS (Keyboard Shortcuts dialog) | **PASS, extended to the chart modal** -- forward-wrap measured complete at a correctly-sized budget (76 Tabs for 56 real controls), never escapes | wrap-budget addendum |
+| 2.1.4 Character key shortcuts | PASS (editor body, "?") | **PASS, extended to the chart modal's Switch-ticker box** | addendum2 |
+| 2.2.1 Timing adjustable | not previously mapped for this surface | **PASS** -- no task is timed out by either toast's disappearance | RW-NEW-02 judgment above |
+| 2.4.3 Focus order | NEW FAIL (RW-NEW-01, modal didn't move focus into itself) | **PASS, fix confirmed** -- focus lands inside the dialog immediately on Enter, Space AND the one allowed mouse click, on both pages | RW-NEW-01 above |
+| 4.1.2 Name, role, value | PASS | **PASS, extended** -- UCT20 chip not nested in an interactive ancestor; caret's `aria-expanded` genuinely toggles via both Enter and Space | A2R-05 subsection above |
+| 4.1.3 Status messages | NEW FAIL (RW-NEW-02, no role/aria-live) | **PASS, fix confirmed** -- `role="status"`, `aria-live="polite"`, `aria-atomic="true"`, mounted before any message, correct hold times for both outcomes | RW-NEW-02 above |
+
+### R-RAW
+
+Raw evidence (`walk_rewalk2.py`, `walk_rewalk2_wrapbudget.py`, `walk_rewalk2_addendum2.py`, their
+three focus/result JSON files, three integrity logs, and the screenshots) committed under
+`docs/notebook/evidence/a11y-second-review-2026-10-01/rewalk2/` in the same commit as this section,
+before this interpretive summary. Sandbox integrity **CLEAN** at every checkpoint reached on all
+three contributing runs (`integrity-rewalk2.md`: CLEAN at pre-boot/+15s/+120s/shutdown;
+`integrity-rewalk2-wrapbudget.md` and `integrity-rewalk2-addendum2.md`: CLEAN at
+pre-boot/+15s/shutdown, +120s not reached because each is a short, single-purpose probe that
+finished first). All sandbox data dirs stopped after each run; none were deleted this session (the
+controller's instruction was specifically to keep `a11y2-rewalk2-data`/`-art` from the FAILED first
+attempt for its post-mortem -- this pass's own data dirs, under distinct `a11y2-rewalk2b*` /
+`-wrapbudget*` / `-addendum2*` names, are left in place alongside them rather than selectively
+cleaned, so nothing about which directories are kept has to be inferred later). The failed first
+attempt's script is preserved, NOT as evidence, at the reviewer's scratchpad
+(`a11y2-rewalk2-failed-script.py`) per the controller's instruction; nothing from that attempt is
+cited above as evidence for any verdict.
+
+---
+
+## Final status -- every finding across all three passes
+
+| id | pass | WCAG SC | final status |
+|---|---|---|---|
+| A2R-01 | original | 2.4.1 | CLOSED (Re-walk 1) |
+| A2R-02 | original | 2.4.3 | CLOSED, judgment call (Re-walk 1) |
+| A2R-03 | original | 2.1.1 | CLOSED (Re-walk 1) |
+| A2R-04 | original | 2.1.1 / 4.1.2 | CLOSED (Re-walk 1) |
+| A2R-05 (dashboard / Open Positions) | original | 2.1.1 | CLOSED (Re-walk 1) |
+| A2R-05 (UCT20 rows) | original | 2.1.1 | CLOSED (Re-walk 2) |
+| A2R-05 (news feed chips) | original | 2.1.1 | **NOT RUN** -- build-flag dead-code elimination; never live-verified across all three passes |
+| A2R-06 | original | 1.3.1 | by design, not re-walked (controller ruling) |
+| A2R-07 | original | 2.1.1 | by design, not re-walked (controller ruling) |
+| RW001 (Journal-shell 160-Tab ceiling to Open Positions) | Re-walk 1 | 2.1.1 | pre-existing, worked around (direct route), not itself fixed or re-litigated |
+| RW002 / RW003 | Re-walk 1 | n/a | STILL-OPEN exceptions / pre-existing limits, same as A2R-05's two rows above |
+| RW-NEW-01 (focus moves into the dialog; Tab/Shift+Tab stay inside and wrap) | Re-walk 1 (found) | 2.4.3 / 2.1.2 | CLOSED (Re-walk 2, wrap confirmed at a corrected budget) |
+| RW-NEW-01 (controlled-mode popup) | Re-walk 1 brief (not run) | 2.1.1 | **NOT RUN** -- all seven sites cited; six have no keyboard-native trigger (design gap, pre-existing), the seventh (ArticleReader) has no seedable-without-forbidden-import data path |
+| RW-NEW-02 (locked-note refusal + success, status region, timing) | Re-walk 1 (found) | 4.1.3 / 2.2.1 | CLOSED (Re-walk 2) |
+| RW2-001..004 (forward-wrap "never completes" at a 60-Tab budget) | Re-walk 2 (auto-flagged) | 2.1.2 | CLOSED -- instrument-budget artifact, corrected by the wrap-budget addendum (completes at Tab 56 of 56 real controls) |
+| RW2-006 (status region "absent before any capture") | Re-walk 2 (auto-flagged) | 4.1.3 | CLOSED -- check-design error (probed before the dialog existed, not before the message); corrected by addendum2 |
+| RW2-007 (UCT20 Enter "also toggles the row") | Re-walk 2 (auto-flagged) | 4.1.2 | CLOSED -- check-design error (unscoped page-wide query picked up an unrelated control inside the now-open dialog); the row's own value never changed |
+| Regression: hover steals focus | Re-walk 2 (new check) | 2.4.3 | CLOSED, weakly evidenced (see caveat) |
+| Regression: Switch-ticker hotkey leak | Re-walk 2 (new check) | 2.1.4 | CLOSED (corrected by addendum2 after a check-design bug in the first attempt) |
