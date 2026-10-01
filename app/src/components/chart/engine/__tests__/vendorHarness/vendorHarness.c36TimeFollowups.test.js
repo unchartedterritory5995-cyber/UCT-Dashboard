@@ -36,6 +36,8 @@ import {
   interpret, periodFirstCondition, periodAnchorMask, isPeriodAnchor, isChartOwnTime,
   chartOwnTimeNode, OWN_TIME_WITNESSED_TF, CHART_CLOCK_WITHHELD,
 } from '../../ast/interpret.js'
+import { buildGraph } from '../../ast/graph.js'
+import { computeObjectColumns } from '../../objectColumns'
 
 const REPO = path.resolve(process.cwd(), '..')
 const load = (name) => JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/harness', name), 'utf8'))
@@ -52,19 +54,21 @@ const noteCodes = (ours) => ours.notes.map((n) => (/withheld \(([a-z:-]+)\)/.exe
 
 /** The daily SPY capture with a Saturday and a Sunday bar after every Friday — a
  *  symbol that trades every day. SYNTHETIC: it proves a withholding, not a value. */
-function withWeekends(capture, keep = 160) {
+function withWeekends(capture, keep = 160, { sat = true, sun = true } = {}) {
   const rows = []
   for (const r of capture.bars.rows.slice(-keep)) {
     rows.push(r)
     const dow = new Date(r[0] * 1000).getUTCDay()
     if (dow === 5) {
-      rows.push([r[0] + 86400, ...r.slice(1)])
-      rows.push([r[0] + 2 * 86400, ...r.slice(1)])
+      if (sat) rows.push([r[0] + 86400, ...r.slice(1)])
+      if (sun) rows.push([r[0] + 2 * 86400, ...r.slice(1)])
     }
   }
   return { ...capture, bars: { ...capture.bars, rows } }
 }
 const WEEKEND = withWeekends(D1)
+const SATURDAYS = withWeekends(D1, 160, { sun: false })
+const SUNDAYS = withWeekends(D1, 160, { sat: false })
 const WEEKDAYS = { ...D1, bars: { ...D1.bars, rows: D1.bars.rows.slice(-160) } }
 
 /** A capture with `input.time` (T16 — refused by its own rule) cut, re-sealed. */
@@ -105,6 +109,15 @@ describe('C36 · 1 — a daily chart whose bars include a weekend: all four anch
       expect(ours.notes.join('\n')).toMatch(/`vw-time-tf` probe on a 1D chart of a symbol that trades every day/)
     })
   }
+
+  it('a Saturday alone is enough, and so is a Sunday alone (an FX week opens on one)', () => {
+    for (const [cap, days] of [[SATURDAYS, [2, 3, 4, 5, 6, 7]], [SUNDAYS, [1, 2, 3, 4, 5, 6]]]) {
+      const ours = on(cap, pine(['plot(time("W"), "w")', 'plot(dayofweek, "d")']))
+      expect([...new Set(column(ours, 1))].sort()).toEqual(days)
+      expect(allNaN(column(ours, 0))).toBe(true)
+      expect(noteCodes(ours)).toEqual(['time-anchor:weekend-bars'])
+    }
+  })
 
   it('⛔ a reader of the anchor is withheld too — never `na(time("W"))` answering a confident true', () => {
     const ours = on(WEEKEND, pine(['plot(na(time("W")) ? 111 : 222, "r")', 'plot(ta.change(time("M")) != 0 ? 1 : 0, "e")']))
@@ -223,6 +236,42 @@ describe('C36 · 2 — a chart that is not daily: withheld as before, and now it
     }
     expect(CHART_CLOCK_WITHHELD['time-anchor:not-daily']('W')).toMatch(/timeframe is `W`/)
     expect(CHART_CLOCK_WITHHELD['time-own:chart-unwitnessed'](undefined)).toMatch(/timeframe is not stated/)
+  })
+})
+
+describe('C36 · 2 — the mask itself: a read of OTHER bars, and the graph-form object lane', () => {
+  const anchor = { type: 'call', name: 'valuewhenOccurrence', args: [periodFirstCondition('M'), { type: 'series', name: 'time' }, { type: 'num', value: 0 }] }
+  const bars = toProductBars(D1)
+
+  it('an anchor (or the own-time node) under a `tf` / `sym` node reads other bars: every bar, named', () => {
+    for (const inner of [anchor, chartOwnTimeNode(true)]) {
+      for (const type of ['tf', 'sym']) {
+        const sink = new Map()
+        const mask = periodAnchorMask({ type, value: type === 'tf' ? 'W' : 'QQQ', args: [inner] }, bars, {}, undefined, undefined, { tf: 'D', chartClockSink: sink })
+        expect(Array.from(mask).every((m) => m === 1), type).toBe(true)
+        expect([...sink.keys()], type).toEqual(['time-anchor:other-bars'])
+      }
+    }
+  })
+
+  it('CONTROL — the same anchor on the chart\'s own bars is known after its first partial period, and names nothing', () => {
+    const sink = new Map()
+    const mask = Array.from(periodAnchorMask(anchor, bars, {}, undefined, undefined, { tf: 'D', chartClockSink: sink }))
+    expect(mask.filter((m) => m === 1).length).toBe(3)
+    expect(sink.size).toBe(0)
+    expect(periodAnchorMask({ type: 'series', name: 'close' }, bars, {}, undefined, undefined, { tf: 'D', chartClockSink: sink })).toBeNull()
+  })
+
+  it('the GRAPH-form object lane (a document over the byte budget) names the reason too', () => {
+    const tree = { type: 'call', name: 'na', args: [anchor] }
+    const graph = buildGraph({ a: tree })
+    const program = { ops: [{ props: { y: { v: 'graph', node: graph.outputRoots.a } } }] }
+    const sixty = computeObjectColumns(graph, program, toProductBars(H60), { tf: '60', inputs: {} })
+    expect(sixty.chartClock).toEqual([{ code: 'time-anchor:not-daily', reason: CHART_CLOCK_WITHHELD['time-anchor:not-daily']('60') }])
+    expect(sixty.readUnknown(graph.outputRoots.a, 0)).toBe(true)
+    const daily = computeObjectColumns(graph, program, bars, { tf: 'D', inputs: {} })
+    expect(daily.chartClock).toEqual([])
+    expect(daily.readUnknown(graph.outputRoots.a, bars.length - 1)).toBe(false)
   })
 })
 

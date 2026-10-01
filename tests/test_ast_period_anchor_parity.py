@@ -147,3 +147,40 @@ def test_a_tree_with_no_anchor_is_untouched():
     assert not ai.is_period_anchor(own)
     assert ai.period_anchor_mask(own, bars, {}, None, None, {"tf": "D"}) is None
     assert ai.period_anchor_mask({"type": "series", "name": "close"}, bars) is None
+
+
+def test_a_read_of_other_bars_is_withheld_whole_and_named():
+    """An anchor (or the own-time node) under ``tf`` / ``sym`` reads other bars --
+    the JS rail's twin (``vendorHarness.c36TimeFollowups``)."""
+    bars = _doc()["bars"]["weekdays"]
+    anchor = {"type": "call", "name": "valuewhenOccurrence", "args": [
+        ai.period_first_condition("M"), {"type": "series", "name": "time"}, {"type": "num", "value": 0}]}
+    for inner in (anchor, ai.chart_own_time_node(True)):
+        for kind, value in (("tf", "W"), ("sym", "QQQ")):
+            sink: dict = {}
+            mask = ai.period_anchor_mask({"type": kind, "value": value, "args": [inner]}, bars, {},
+                                         None, None, {"tf": "D", "chartClockSink": sink})
+            assert mask == [1] * len(bars), kind
+            assert sorted(sink) == ["time-anchor:other-bars"], kind
+    # CONTROL -- the same anchor on the chart's own bars: 16 weekdays to November, nothing named
+    sink = {}
+    mask = ai.period_anchor_mask(anchor, bars, {}, None, None, {"tf": "D", "chartClockSink": sink})
+    assert sum(mask) == 16 and not sink
+
+
+@pytest.mark.parametrize("weekend_day", [5, 6], ids=["a Saturday alone", "a Sunday alone"])
+def test_one_weekend_bar_is_enough(weekend_day):
+    """``dayofweek`` 7 (Saturday) or 1 (Sunday) on ANY bar withholds the series."""
+    import datetime
+    bars = [dict(b) for b in _doc()["bars"]["weekdays"][:40]]
+    d = datetime.date.fromisoformat(bars[-1]["t"])
+    while d.weekday() != weekend_day:
+        d += datetime.timedelta(days=1)
+    bars.append(dict(bars[-1], t=d.isoformat()))
+    tree = next(c["ast"] for c in _doc()["cases"] if c["pine"] == "W")
+    sink: dict = {}
+    got = ai.interpret(tree, bars, {}, opts={"tf": "D", "chartClockSink": sink})
+    assert all(v is None for v in got)
+    assert sorted(sink) == ["time-anchor:weekend-bars"]
+    # CONTROL -- without the weekend bar the same series is served
+    assert any(v is not None for v in ai.interpret(tree, bars[:-1], {}, opts={"tf": "D"}))
