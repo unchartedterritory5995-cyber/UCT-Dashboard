@@ -2811,3 +2811,80 @@ red alone; run on the merged tree):
 6. **`tests/test_definition_concierge.py::test_the_CORPUS_of_FIRM_PHRASINGS…` fails at base and here** (four
    starter-screen phrasings) — not this lane's.
 7. Lookahead and the intrabar array are witnessed on the probe and deliberately left refused (the table above).
+
+### C41 follow-up — what the full chart suite found on the first tip (`246f4f6805`, 2026-10-01)
+
+The section above was written before the one full run of `src/components/chart`. That run (tip `b7887a8f91`) read
+`Test Files  4 failed | 868 passed | 8 skipped (880)`, `Tests  5 failed | 14787 passed | 69 skipped (14861)`, and
+two of the five were this lane's regressions — so the sentences above that say artemis moved only in its notes
+were true of the harness grade and not of the product. Both are fixed in `246f4f6805`.
+
+**1. A dead arm that reads below the chart withheld cells TradingView draws.** artemis-oscillator-pro requests its
+oscillator at `"15"`, `"60"` and `"240"` and guards each with a validity that is false on every bar of a daily
+chart (`timeframe.in_seconds("15") >= chartSec`); TradingView draws those rows `— n/a` and the header `◮ MIXED`.
+Before C41 the request refused and C10's rescue took the live arm. Once the request resolved to an `ltf` tree, the
+dead side stayed in the tree, `lowerTfMask` (a rule about the tree's nodes) withheld the four cells on a chart with
+no intraday supply, and the chart fetched 15-minute bars nothing reads.
+*Rule:* in the object pass, a test that is the same on every bar answers with its live arm when the dead one holds
+an `ltf` (the resolver's `ternary` case), and an `and`/`or` the left side has decided drops a right side that holds
+one (`pine.js::deadLowerTfRead`) — the tree this produced before C41. `translatePine` stamps only the codes a tree
+still holds (`lowerTfCodesHeld`), so a script whose only lower reads are dead fetches nothing. The plot pass is
+unchanged: there a dead `ltf` arm stays in the tree and is withheld where uncovered (never wrong; it refused
+before C41).
+
+**2. A tree that reads below the chart and could not be computed was drawn from `NaN`.** With artemis' validity
+made per-bar (C10's own control), the header's condition measured 130 nodes against the 128 cap, failed, had no
+column, read `NaN` — and a `NaN` condition is false, so the text's last arm (`◮ MIXED`) was drawn off a 15-minute
+read nobody made. *Rule:* a failed tree that holds an `ltf` is unknown on every bar, in both object-column forms
+(`objectColumns.js::withholdFailedLowerTf`). A failed tree that reads no lower timeframe reads as it always has
+(that is every other lane's behaviour and is not changed here).
+
+**The other three of the five.** `runtime/__tests__/simpleArgWindow.test.js` (4) pinned `lower-tf:unwitnessed` for
+`"15"` in the runtime lane; it is `lower-tf:runtime-lane` now (the same re-pin `c35RuntimeError` got), and `"30"`
+keeps `lower-tf:unwitnessed`. `memberPaneGate.test.js` and `objectFnInline.vendor.test.js` were 15 s timeouts.
+
+**Measured again on `246f4f6805`** (base = wave 9 `19bcbf278c`, same commands; base results are the saved run):
+the 47 captures, the committed harness directory and the member-door census are number-for-number the table
+above, and artemis is now byte-identical to base in all four harness runs (it no longer appears among the changed
+entries: 1 on the 47, 4 on the directory). Translation census: host `ok` 58 → 59, served outputs 404 → 414, 16
+scripts changed (was 17 — artemis left), `lowerTf` stamped on 7 scripts (was 9); screen lane 58 / 738 unchanged.
+Bytes: notebook first-open 1,897,262 → 1,897,271 B (+9, PASS); `pine` chunk 353,925 → 354,643 (+718);
+`StockChart` 688,747 → 690,016 (+1,269); total JS 12,686,331 → 12,702,992 (+16,661). `pineProbeReplay`'s artemis
+pin moved back toward base: 513,767 → 439,973 steps (base 409,877), the same 531 Resolvers.
+
+**Rails.** `vendorHarness.c41LowerTfServe.test.js` gained 7 cases (26): each rescue with its per-bar control, the
+member door on a chart with no intraday bars (dead read: label drawn, no note; per-bar: withheld), and the failed
+tree in both forms with a no-`ltf` control. The lane's and the other lanes' rails, 39 files, one process:
+`Test Files  1 failed | 37 passed | 1 skipped (39)`, `Tests  1 failed | 507 passed | 2 skipped (510)` — the one
+red was the artemis step pin above, re-pinned and green alone (`Test Files  1 passed (1)`, `Tests  6 passed (6)`).
+The full chart suite on `246f4f6805`: `Test Files  1 failed | 871 passed | 8 skipped (880)`,
+`Tests  1 failed | 14799 passed | 69 skipped (14869)`.
+
+⚠️ **The one red is `objectFnInline.vendor.test.js` › sector-rotation, a 15 s timeout, and it is not banked as
+load.** Measured alone, alternating base and tip, one process at a time, five each: base 10.3 / 14.1 / 12.1 /
+11.2 / **16.7** s, tip 13.2 / 14.8 / 9.9 / 10.9 / 13.5 s. The test runs within a second or two of its ceiling on
+wave 9 itself and crossed it there once in five; this lane does not move it. It needs a per-test timeout or a
+cheaper fixture — the integrator's call, since the file is C33's.
+
+**Mutation proofs** (same harness; clean tree before, bytes restored, sha and `git status` verified; each alone;
+rails = this file + `c10SecurityObjects.vendor.test.js`):
+
+| | mutation | totals | |
+|---|---|---|---|
+| M18 | the ternary's dead `ltf` arm kept in the tree | Test Files  1 failed | 1 passed (2); Tests  2 failed | 29 passed (31) | **red** |
+| M19 | a decided `and`/`or` keeps its `ltf` side | Test Files  2 failed (2); Tests  3 failed | 28 passed (31) | **red** |
+| M20 | every emitted code stamped, held or not | Test Files  1 failed | 1 passed (2); Tests  3 failed | 28 passed (31) | **red** |
+| M21 | graph form: a failed `ltf` tree reads `NaN` | Test Files  1 failed | 1 passed (2); Tests  1 failed | 30 passed (31) | **red** |
+| M22 | trees form: a failed `ltf` tree reads `NaN` | Test Files  1 failed | 1 passed (2); Tests  1 failed | 30 passed (31) | **red** |
+| M23 | every failed tree withheld, `ltf` or not | Test Files  1 failed | 1 passed (2); Tests  2 failed | 29 passed (31) | **red** |
+
+**Stated plainly, for a live chart.** The newest daily bar's session is incomplete in our store until the close,
+so during market hours every value that depends on a lower-timeframe read is withheld ON THAT BAR — ema-ribbon's
+15m / 1H / 4H rows and its bias cells among them, since a last-bar table reads the newest bar. They draw once the
+session's intraday bars are whole. TradingView shows a developing value there; no capture says what it is against
+our bars, so it is not guessed.
+
+**Added for the integrator.** 8. the sector-rotation timeout above. 9. the PLOT pass keeps a
+dead `ltf` arm in the tree (withheld where uncovered, and fetched for); collapsing
+it there would move parameter addresses of scripts that newly translate, so it was left. 10. a failed object
+tree with NO `ltf` still reads `NaN` and can pick a text's last arm — pre-existing, every lane's, not changed here.
