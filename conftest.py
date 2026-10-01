@@ -21,6 +21,8 @@ store: two isolated stores in one session would split the six import-time
 capturers from the seven journal_two modules that re-read per call.
 """
 import ast
+import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -161,7 +163,10 @@ class SharedDataRootWrite(RuntimeError):
 
 
 def _api_source_files():
-    api_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api")
+    # Shares its root with `_census_fingerprint_files` below (same formula,
+    # one function) so a test can redirect both the fingerprint walk and the
+    # real derivation at once by patching `_census_candidate_root` alone.
+    api_root = _census_candidate_root()
     for dirpath, dirnames, filenames in os.walk(api_root):
         dirnames[:] = [d for d in dirnames
                        if d not in ("__pycache__", "node_modules")]
@@ -263,7 +268,224 @@ def _names_agree(var: str, literal: str) -> bool:
     return bool(_words(var) & _words(base))
 
 
-def shared_data_root_census():
+# ─────────────────────────────────────────────────────────────────────────────
+#  THE CENSUS CACHE — a memo of the four AST derivations below
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Measured 2026-09-30 on a loaded box: `python -c "import conftest"` cost
+# 40-120s against a 0.27s baseline (quiet-box figure: ~6.5s). cProfile on this
+# tree pins the cost on exactly the four functions this section wraps —
+# `shared_data_root_census` (20.8s cumulative), `unguarded_literal_sites`
+# (12.5s), `env_derived_module_globals` (5.3s), `auth_db_path_capturers` — out
+# of a 39.4s total. Every one re-walks `api/**` and re-`ast.parse`s every
+# matching file, on EVERY import. Every pytest session, every
+# `tools/*_bridge.py` spawn, and the 50 tools now pinned to `import conftest`
+# before any `api.*` import all pay this, every process — and some tools call
+# `shared_data_root_census()` a SECOND time after import, paying it again
+# (`docs/discord-render/instruments/oi44_cold_paths.py` measured ~34s there,
+# on top of the ~25s import).
+#
+# The fix is a memo, not a faster walk. All four derivations are a pure
+# function of (a) this file's own bytes and (b) the (path, size, mtime_ns) of
+# every file they would parse under `api/` — neither changes between most
+# imports, so most imports can skip straight to a cached answer.
+#
+# ⭐ CORRECTNESS OUTRANKS SPEED, because this file is the tripwire that keeps a
+# test off `C:\data`: a stale or wrong cache here is a MISSING PIN, which is a
+# write to live data. So every failure mode below resolves to "recompute from
+# scratch" — a missing cache, a corrupt one, a schema mismatch, an unreadable
+# file while fingerprinting — never "use what's there anyway".
+
+#: Bump when the SHAPE of the cached payload changes (a renamed section, a
+#: changed derivation) so a cache written by an older conftest reads as a
+#: fingerprint mismatch, never a KeyError.
+_CENSUS_CACHE_SCHEMA = 1
+
+#: Sections whose cached values are lists of TUPLES in the live derivation —
+#: JSON has no tuple, so these round-trip as lists of lists and need
+#: converting back on read, or a cached read would return a subtly different
+#: shape (list-of-list, not list-of-tuple) than an uncached call.
+_CENSUS_TUPLE_LIST_SECTIONS = ("unguarded_sites", "auth_capturers",
+                               "env_derived_globals")
+
+#: In-process memo, populated by the first derivation call in this
+#: interpreter — a module import always makes one. This is what stops a
+#: SECOND call to e.g. `shared_data_root_census()` later in the same process
+#: (several tools do this) from paying the walk, or even a disk read, again.
+_CENSUS_MEMO = None
+
+
+def _census_cache_enabled() -> bool:
+    """`UCT_CENSUS_CACHE=0` (or false/no/off) is the kill switch.
+
+    Forces every derivation below to compute fresh on EVERY call — no disk
+    read, no disk write, and no in-process memo either — so the uncached path
+    stays exactly as expensive, and exactly as correct, as it always was.
+    This is the real read site; nothing else in this file consults the name.
+    """
+    return os.environ.get("UCT_CENSUS_CACHE", "1").strip().lower() not in (
+        "0", "false", "no", "off", "")
+
+
+def _census_candidate_root() -> str:
+    return os.path.join(os.path.dirname(os.path.abspath(__file__)), "api")
+
+
+def _census_fingerprint_files():
+    """`[[relpath, size, mtime_ns], ...]`, sorted, for the EXACT file set the
+    four derivations below parse: every `.py` file under `api/`, skipping
+    `__pycache__`/`node_modules` directories and `test_*.py`/`*_test.py`
+    files — the identical filter `_api_source_files`, `_derive_auth_db_path_capturers`
+    and `_derive_env_derived_module_globals` each apply independently, so a
+    file that could change any derivation's output is always in this set.
+
+    STAT-ONLY: every entry comes from `os.scandir`; nothing here opens or
+    reads a file's contents, so the fingerprint walk itself can never become
+    the next thing to profile.
+    """
+    root = _census_candidate_root()
+    out = []
+
+    def _walk(dirpath):
+        try:
+            entries = list(os.scandir(dirpath))
+        except OSError:
+            return
+        for entry in entries:
+            if entry.is_dir(follow_symlinks=False):
+                if entry.name in ("__pycache__", "node_modules"):
+                    continue
+                _walk(entry.path)
+                continue
+            name = entry.name
+            if not name.endswith(".py"):
+                continue
+            if name.startswith("test_") or name.endswith("_test.py"):
+                continue
+            try:
+                st = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            rel = os.path.relpath(entry.path, root).replace(os.sep, "/")
+            out.append([rel, st.st_size, st.st_mtime_ns])
+
+    _walk(root)
+    out.sort()
+    return out
+
+
+def _census_fingerprint():
+    """`{schema, conftest_sha256, files}` — any difference means recompute.
+
+    Covers a file added, removed or touched under `api/` (`files`) and this
+    file itself being edited (`conftest_sha256`): the four derivations are a
+    pure function of exactly those two things, so nothing else needs to be in
+    the key.
+    """
+    with open(os.path.abspath(__file__), "rb") as fh:
+        own_bytes = fh.read()
+    return {
+        "schema": _CENSUS_CACHE_SCHEMA,
+        "conftest_sha256": hashlib.sha256(own_bytes).hexdigest(),
+        "files": _census_fingerprint_files(),
+    }
+
+
+def _census_cache_path() -> str:
+    """OUTSIDE the repo tree and outside the shared data root, on purpose: a
+    tracked OR untracked file in the tree would dirty `git status` and void
+    every gate that checks it, and the file guarding `C:\\data` must never
+    itself become a reason to write under it. Keyed by the repo root's own
+    path, so every worktree on this box gets its own memo and nothing
+    collides.
+    """
+    repo_root = os.path.dirname(os.path.abspath(__file__))
+    key = hashlib.sha256(repo_root.encode("utf-8")).hexdigest()[:16]
+    return os.path.join(tempfile.gettempdir(), "uct_census_cache", f"{key}.json")
+
+
+def _census_cache_read(fingerprint):
+    """The cached sections dict if it matches `fingerprint` exactly, else
+    `None` — possibly a PARTIAL dict (not every section computed yet by
+    whichever process last wrote it), which the caller handles.
+
+    ⛔ ANY error — a missing file, truncated or corrupt JSON, a schema this
+    version does not recognise, a field that is not the shape expected — is a
+    cache MISS here, never a crash and never a stale read.
+    """
+    try:
+        with open(_census_cache_path(), "r", encoding="utf-8") as fh:
+            blob = json.load(fh)
+        if blob["fingerprint"] != fingerprint:
+            return None
+        out = {}
+        for name, value in blob["sections"].items():
+            if name in _CENSUS_TUPLE_LIST_SECTIONS:
+                out[name] = [tuple(x) for x in value]
+            else:
+                out[name] = value
+        return out
+    except Exception:  # noqa: BLE001 — any failure here means "recompute"
+        return None
+
+
+def _census_cache_write(fingerprint, sections) -> None:
+    """Atomic: a temp file in the SAME directory, then `os.replace`.
+
+    Best-effort — a cache WRITE must never be able to fail a process that
+    would otherwise have worked fine without this cache existing at all.
+    """
+    try:
+        path = _census_cache_path()
+        cache_dir = os.path.dirname(path)
+        os.makedirs(cache_dir, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(
+            dir=cache_dir, prefix=".census-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump({"fingerprint": fingerprint, "sections": sections}, fh)
+            os.replace(tmp_path, path)
+        except BaseException:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
+            raise
+    except Exception:  # noqa: BLE001 — caching is an optimisation, not a duty
+        pass
+
+
+def _census_cached(section, compute_fn):
+    """The one entry point every public derivation function below reads.
+
+    Order: in-process memo -> on-disk cache (fingerprint-validated) -> fresh
+    computation (written back for next time, merged with whatever other
+    sections are already in the memo so the four derivations — which are
+    defined and first called at different points as this module executes
+    top-to-bottom — never need each other to exist yet). The fingerprint
+    itself is computed ONCE per process and reused, since the tree this
+    process is reading from is not expected to change under it.
+
+    `UCT_CENSUS_CACHE=0` bypasses all three memo layers and always computes
+    fresh — which is also how the cached and uncached paths get compared for
+    correctness (`tests/test_census_cache.py`).
+    """
+    global _CENSUS_MEMO
+    if not _census_cache_enabled():
+        return compute_fn()
+    if _CENSUS_MEMO is None:
+        fingerprint = _census_fingerprint()
+        disk = _census_cache_read(fingerprint)
+        _CENSUS_MEMO = {"fingerprint": fingerprint, "sections": dict(disk or {})}
+    fingerprint = _CENSUS_MEMO["fingerprint"]
+    sections = _CENSUS_MEMO["sections"]
+    if section not in sections:
+        sections[section] = compute_fn()
+        _census_cache_write(fingerprint, sections)
+    return sections[section]
+
+
+def _derive_shared_data_root_census():
     """`(literals, env_pins, unpinnable)` for `api/**`. AST, never grep.
 
     * `literals`   — `{"/data/x.db": ["rel/path.py:12", …]}`, every constant
@@ -331,6 +553,20 @@ def shared_data_root_census():
     pinned_literals = set(pins.values())
     unpinnable = sorted(set(literals) - pinned_literals)
     return literals, dict(sorted(pins.items())), unpinnable
+
+
+def shared_data_root_census():
+    """Cached facade over `_derive_shared_data_root_census` — see its
+    docstring for the derivation rules this returns. Routes through the
+    on-disk census memo (`UCT_CENSUS_CACHE=0` to bypass); returns fresh
+    copies every call so a caller mutating its result (e.g. the
+    `SHARED_DATA_ENV_PINS.setdefault` merge below) can never corrupt the
+    memo for the next call, cached or not.
+    """
+    literals, pins, unpinnable = _census_cached(
+        "census", _derive_shared_data_root_census)
+    return ({k: list(v) for k, v in literals.items()}, dict(pins),
+            list(unpinnable))
 
 
 #: ⛔ PAIRINGS THE CENSUS IS *CORRECT* TO MISS, DECLARED BY HAND.
@@ -403,7 +639,7 @@ UNPINNABLE_SHARED_LITERALS = sorted(
     set(UNPINNABLE_SHARED_LITERALS) - set(SHARED_DATA_ENV_PINS.values()))
 
 
-def unguarded_literal_sites():
+def _derive_unguarded_literal_sites():
     """`[(file, line, funcname, literal), …]` a pin can NEVER reach.
 
     🔴 THIS EXISTS BECAUSE THE PIN MAP LIED BY OMISSION, AND THE SUITE CAUGHT IT.
@@ -454,6 +690,15 @@ def unguarded_literal_sites():
             for value, lineno in literals:
                 found.append((rel, lineno, fn.name, value))
     return sorted(set(found))
+
+
+def unguarded_literal_sites():
+    """Cached facade over `_derive_unguarded_literal_sites` — see its
+    docstring. Routes through the on-disk census memo (`UCT_CENSUS_CACHE=0`
+    to bypass).
+    """
+    return list(_census_cached(
+        "unguarded_sites", _derive_unguarded_literal_sites))
 
 
 UNGUARDED_SHARED_LITERAL_SITES = unguarded_literal_sites()
@@ -857,7 +1102,7 @@ def pytest_sessionfinish(session, exitstatus):
 _REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
-def auth_db_path_capturers():
+def _derive_auth_db_path_capturers():
     """Every `api/**` module that binds a module-level global from AUTH_DB_PATH.
 
     Returns `[(dotted_module_name, attribute_name), ...]`, read off the AST of
@@ -914,6 +1159,15 @@ def _reads_auth_db_path(value: ast.AST) -> bool:
             if isinstance(sub.slice, ast.Constant) and sub.slice.value == "AUTH_DB_PATH":
                 return True
     return False
+
+
+def auth_db_path_capturers():
+    """Cached facade over `_derive_auth_db_path_capturers` — see its
+    docstring. Routes through the on-disk census memo (`UCT_CENSUS_CACHE=0`
+    to bypass).
+    """
+    return list(_census_cached(
+        "auth_capturers", _derive_auth_db_path_capturers))
 
 
 AUTH_DB_PATH_CAPTURERS = auth_db_path_capturers()
@@ -984,7 +1238,7 @@ def _auth_db_capturers_agree_with_the_env_var():
 # separator), never from a typed list of names.
 
 
-def env_derived_module_globals():
+def _derive_env_derived_module_globals():
     """`[(dotted_module, attr), …]` for every `api/**` module-level global whose
     value is computed from `os.environ` at import. AST, never grep."""
     found = []
@@ -1025,6 +1279,15 @@ def env_derived_module_globals():
                     if isinstance(target, ast.Name):
                         found.append((dotted, target.id))
     return sorted(set(found))
+
+
+def env_derived_module_globals():
+    """Cached facade over `_derive_env_derived_module_globals` — see its
+    docstring. Routes through the on-disk census memo (`UCT_CENSUS_CACHE=0`
+    to bypass).
+    """
+    return list(_census_cached(
+        "env_derived_globals", _derive_env_derived_module_globals))
 
 
 ENV_DERIVED_MODULE_GLOBALS = env_derived_module_globals()
