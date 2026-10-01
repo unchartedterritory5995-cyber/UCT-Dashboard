@@ -122,8 +122,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // (translation census). Pre-C28b: artemis [521, 405316, '0ed727028fb37e4b']
       // / [521, 405324, '4fd1716a833c1b5d'], htf-liquidity [691, 5704,
       // '83d96de74e5b2d0d'] both.
+      // ⭐ C32 moved artemis: its KNN memory (`knnF1`, 100 slots, read above its
+      // writer) is a window now, so `str.tostring(kSize)` resolves — four more
+      // Resolvers, 122 more steps; plot outputs byte-identical (translation
+      // census), one more cell served (`vendorHarness.c32Collections`). Pre-C32:
+      // plain [521, 405996, '65582febd0bccf56'] / manifest [521, 406004,
+      // '41fd10acf67ccfb8'].
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [521, 405996, '65582febd0bccf56'], manifest: [521, 406004, '41fd10acf67ccfb8'] },
+        plain: [525, 406118, '81b662ae781896a1'], manifest: [525, 406126, '600f194c24160688'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

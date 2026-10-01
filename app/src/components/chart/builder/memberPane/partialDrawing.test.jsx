@@ -189,7 +189,10 @@ const CASES = [
     // at a `for` — and drew `◈ NEUTRAL`, `0%`, `29 ▼ BEAR`, `↓-3` where
     // TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR`, `↓-17`. They are
     // withheld now (`vendorHarness.c28StaleSnapshot`): more not drawn, none wrong.
-    objectsOnly: false, kind: 'partial', text: partial(7, 38) },
+    // ⭐ 7 -> 6 on 2026-09-30 (C32): the KNN memory's length cell converts —
+    // `str.tostring(kSize) + " bars"`, a 100-slot window's length read above its
+    // writer — and reads `100 bars`, TradingView's (`vendorHarness.c32Collections`).
+    objectsOnly: false, kind: 'partial', text: partial(6, 38) },
   // ⚰️ 2026-09-28 — momentum-volatility-scanner WAS this row: `table.merge_cells`
   // was a name the reader never carried. It is carried now (and the script
   // matches TradingView on every object family), so it is a CLEAN row, and the
