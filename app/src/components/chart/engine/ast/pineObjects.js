@@ -265,6 +265,8 @@ export function collectObjectOps(stmts, h) {
    *  `{refused, fn, line}`. See the walk's declaration and `:=` arms. */
   const loopScalars = new Map()
   let inlineSeq = 0
+  // ⭐ C33 — names the `<tmp>` of each `array.push(C, f(…))` rewrite (`pushOfDrawCall`).
+  let pushTmpSeq = 0
   let inlineDepth = 0
   /** How many loops (of any kind) the walk is inside right now. */
   let loopNest = 0
@@ -636,6 +638,19 @@ export function collectObjectOps(stmts, h) {
             inlineAt(rh, rhs, 1, into, guards, inLoop, st, localScope)
             continue
           }
+          // ⭐⭐ C33 — `array.push(list, f(…))` / `list.push(f(…))`: A HELPER'S
+          // DRAWING PUSHED STRAIGHT ONTO A LIST (average-day-range-adr-pivots,
+          // `array.push(adr_1_r_bx_arr, draw_box(true, …))`). Pine evaluates the
+          // argument before the push, so the statement IS `tmp = f(…)` followed by
+          // `array.push(list, tmp)` — walked as exactly those two, so the call is
+          // inlined by the one inliner and the push emitted by the one collection
+          // reader. ⛔ Only when the value is the WHOLE argument and the list is a
+          // declared drawing list; any other place inside an expression refuses.
+          const pushed = pushOfDrawCall(t, headOf)
+          if (pushed) {
+            walk(pushed, guards, inLoop, localScope)
+            continue
+          }
         }
         refuseCall('in-expression', drawMethod || drawCall, st)
       }
@@ -901,6 +916,24 @@ export function collectObjectOps(stmts, h) {
         // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
         // else about the statement changes (it still joins the block scope).
         if (scalars.has(String(name)) && !inLoop && isBareGetterAt(rhs, 0, h)) {
+          ops.push({
+            k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
+        } else if (st.synthetic && !inLoop && !loopIds.length && assign === 1 && h.isPunct(t[assign], '=')
+            && !scalars.has(String(name)) && !decls.has(String(name))
+            && !(st.synthetic.mutable && st.synthetic.mutable.has(String(name)))
+            && !(st.synthetic.carried && st.synthetic.carried.has(String(name)))
+            && (isBareGetterAt(rhs, 0, h) || isBareGetterHistoryAt(rhs, h))) {
+          // ⭐⭐ C33 — A HELPER'S OWN LOCAL BOUND TO A GETTER: `b1 = line.get_y1(h1)`
+          // and `a1 = line.get_y1(h1)[1]` in high-low-open-mid-ranges' `f_line3`.
+          // `getterScalars` rules function bodies out because a body's name is not
+          // ONE variable; an INLINED body's is — the rename made it this call
+          // site's own, declared once, and a local the body never reassigns
+          // (`synthetic.mutable`) has exactly this one write. So it is the same
+          // scalar C14 serves at the top level: written HERE, in op order, under
+          // this block's guards, read whole (a coordinate, a text's number).
+          scalars.set(String(name), { init: null, persist: false })
           ops.push({
             k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
             at: t[0], line: st.header[0].line,
@@ -1900,6 +1933,29 @@ export function collectObjectOps(stmts, h) {
   /** ⭐ C14 — `if c … else …` as a body's LAST statements, each arm ending in a
    *  bare `ns.new(…)` of one family → `{family, creates}` (the two create ops,
    *  found by their arm's line), else null. */
+  /** ⭐ C33 — a body whose LAST statement is an `if` with no `else` and whose arm
+   *  ends in a bare `ns.new(…)` → `{family, create}` (the create op, found by its
+   *  line), else null. ⛔ An `if` followed by `else` is `ifElseReturn`'s. */
+  function ifOnlyReturn(stmts, sink, before) {
+    const n = stmts.length
+    if (!n) return null
+    const last = stmts[n - 1]
+    const it = (last && last.header) || []
+    if (!it.length || it[0].kind !== 'ident' || it[0].value !== 'if') return null
+    const sub = last.sub || []
+    const tail = sub[sub.length - 1]
+    const lt = (tail && tail.header) || []
+    if (!lt.length || lt[0].kind !== 'ident') return null
+    const ns = nsOf(String(lt[0].value))
+    if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(String(lt[0].value)) !== 'new') return null
+    if (!h.isPunct(lt[1], '(') || closeOf(lt, 1) !== lt.length - 1) return null
+    for (let k = sink.length - 1; k >= before; k -= 1) {
+      const o = sink[k]
+      if (o.k === 'create' && !o.into && o.family === ns && o.line === lt[0].line) return { family: ns, create: o }
+    }
+    return null
+  }
+
   function ifElseReturn(stmts, sink, before) {
     const n = stmts.length
     if (n < 2) return null
@@ -1927,6 +1983,59 @@ export function collectObjectOps(stmts, h) {
     const b = armCreate(e)
     if (!a || !b || a === b || a.family !== b.family) return null
     return { family: a.family, creates: [a, b] }
+  }
+
+  /** ⭐ C33 — `<bare getter>[k]`, `k` a whole literal: the getter's own history. */
+  const isBareGetterHistoryAt = (rhs, hh) => {
+    const n = rhs.length
+    return n >= 6 && hh.isPunct(rhs[n - 1], ']') && hh.isPunct(rhs[n - 3], '[')
+      && rhs[n - 2].kind === 'number' && /^\d+$/.test(String(rhs[n - 2].value))
+      && isBareGetterAt(rhs.slice(0, n - 3), 0, hh)
+  }
+
+  /** ⭐⭐ C33 — `array.push(C, f(…))`, `array.unshift(C, f(…))`, `C.push(f(…))`
+   *  or `C.unshift(f(…))` as a whole statement, where `C` is a declared DRAWING
+   *  list and `f(…)` — a function or method that draws — is the whole value
+   *  argument → the two statements Pine runs, `<tmp> = f(…)` then
+   *  `array.<m>(C, <tmp>)`, on the original tokens' positions; else null.
+   *  `<tmp>` is a name no Pine author writes (`INLINE_SUFFIX` + `ret` + a count). */
+  function pushOfDrawCall(t, headOf) {
+    if (!t.length || t[0].kind !== 'ident' || !h.isPunct(t[1], '(') || closeOf(t, 1) !== t.length - 1) return null
+    const word = String(t[0].value)
+    let coll = null
+    let method = null
+    let valueToks = null
+    const parts = splitArgs(t, 1, h.isPunct)
+    if (!parts || parts.some((a) => a.name)) return null
+    if (word === 'array.push' || word === 'array.unshift') {
+      if (parts.length !== 2 || parts[0].toks.length !== 1 || parts[0].toks[0].kind !== 'ident') return null
+      coll = String(parts[0].toks[0].value)
+      method = methodOf(word)
+      valueToks = parts[1].toks
+    } else {
+      const split = splitMethodName(word)
+      if (!split || (split.method !== 'push' && split.method !== 'unshift') || isDefined(split.method)) return null
+      if (parts.length !== 1) return null
+      coll = split.recv
+      method = split.method
+      valueToks = parts[0].toks
+    }
+    const d = decls.get(coll)
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return null
+    if (!valueToks || valueToks.length < 3 || !headOf(valueToks[0]) || !h.isPunct(valueToks[1], '(')
+        || closeOf(valueToks, 1) !== valueToks.length - 1) return null
+    pushTmpSeq += 1
+    const at = t[0]
+    const tok = (kind, value, from = at) => ({ kind, value, line: from.line, column: from.column, index: from.index })
+    const tmp = `${INLINE_SUFFIX}ret${pushTmpSeq}`
+    const assign = { header: [tok('ident', tmp, valueToks[0]), tok('punct', '=', valueToks[0]), ...valueToks], sub: [] }
+    const push = {
+      header: [tok('ident', `array.${method}`), t[1], tok('ident', coll, parts[0] && parts[0].toks[0] ? parts[0].toks[0] : at),
+        tok('punct', ','), tok('ident', tmp, valueToks[0]), t[t.length - 1]],
+      sub: [],
+    }
+    diagnostics.pushedDrawCalls = (diagnostics.pushedDrawCalls || 0) + 1
+    return [assign, push]
   }
 
   /** ⭐ C34 — a body inlined into a loop this reader does not run: what it
@@ -2118,6 +2227,29 @@ export function collectObjectOps(stmts, h) {
     // guards, so the caller's variable holds exactly the object Pine returned.
     // ⛔ Only a plain `if … else` pair whose two arms each END in a bare create
     // of ONE family; any other shape reads as before.
+    // ⭐⭐ C33 — THE HANDLE A LONE `if` RETURNS. `draw_box(display, …) => if
+    // display … box.new(…)` returns the box its arm made, and `na` on a call
+    // where the arm did not run (Pine's value of an `if` with no `else`). The
+    // caller's name is emptied under the CALL's guards, then filled from the
+    // create under the create's own guards — so it holds exactly what Pine
+    // returned on every bar the call ran.
+    const lone = !family ? ifOnlyReturn(rw.stmts, sink, before) : null
+    if (lone && !Array.isArray(into)) {
+      const existingLone = decls.get(into)
+      if (existingLone && (existingLone.kind === 'coll' || existingLone.family !== lone.family)) {
+        return refuseCall('return-type', fnName, st)
+      }
+      if (!existingLone) decls.set(into, { family: lone.family, kind: 'local' })
+      ops.push({
+        k: 'reset', into, guards, locals: scope, loopIds: [...loopIds],
+        at: st.header[0], line: st.header[0].line,
+      })
+      ops.push({
+        k: 'copy', into, from: null, fromSite: lone.create.site, guards: lone.create.guards, locals: scope,
+        loopIds: [...loopIds], at: st.header[0], line: st.header[0].line, inlined: !!lone.create.inlined,
+      })
+      return true
+    }
     const arms = !family ? ifElseReturn(rw.stmts, sink, before) : null
     if (arms) {
       const existingArm = decls.get(into)

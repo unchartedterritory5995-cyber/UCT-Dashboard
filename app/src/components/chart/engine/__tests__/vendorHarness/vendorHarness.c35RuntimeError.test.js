@@ -86,12 +86,17 @@ describe('C35 — ema-ribbon\'s `runtime.error` (RDDT 1D)', () => {
     expect(err.message).toBe('Periods must be ascending: Fast < Mid < Slow')
   }, 60000)
 
-  it('⛔ the script as written now stops on its next wall, named by the host\'s C27 code', () => {
+  it('⛔ the script as written now stops on its next wall, named by the host\'s lower-timeframe code', () => {
+    // ⚰️ C41 (2026-09-30): this read `lower-tf:unwitnessed` with the Q-L1 capture
+    // named as what would settle it. Q-L1 was captured and the HOST lane serves
+    // the read now (an `ltf` node off the symbol's intraday bars); the per-bar
+    // runtime lane holds no intraday bars, so the same line stops it under a
+    // different name (`pineRuntimeFrontend.js`, `LOWER_TF_REFUSAL.RUNTIME_LANE`).
     const cap = load()
     const built = buildRuntimeIr(cap.source.text, { bars: [], inputs: {}, pane: true, basePeriod: 'D', tf: 'D' })
     expect(built.ok).toBe(false)
-    expect(built.refusal.guard).toBe('lower-tf:unwitnessed')
+    expect(built.refusal.guard).toBe('lower-tf:runtime-lane')
     expect(built.refusal.line).toBe(156)
-    expect(built.refusal.message).toContain('Q-L1')
+    expect(built.refusal.message).toContain('intraday bars')
   }, 60000)
 })
