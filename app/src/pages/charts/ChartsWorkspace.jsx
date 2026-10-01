@@ -2190,7 +2190,13 @@ export default function ChartsWorkspace() {
     // chart settings is new, and starts on the WHOLE UCT Default -- the frozen look as well as
     // the arrangement -- through the same apply the Open Layout menu runs, so the two cannot
     // drift. A member who already has chart settings keeps them; a DB "chart" template wins.
-    if (!d.fromTemplate && !prefs?.chart_settings) {
+    // ⛔ STATE-2: "no board" here means NOTHING STORED. A stored board that cannot be read
+    // also fails parseLayout above, and applyUctDefault WRITES the board directly (it is a
+    // deliberate-action writer, so the autosave guard does not cover it). Treating that
+    // member as new replaced their unreadable board on mount, with nobody having asked
+    // (live 2026-09-29 to 09-30). They get the default on screen and no write, below.
+    const storedUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
+    if (!d.fromTemplate && !prefs?.chart_settings && !storedUnreadable) {
       applyUctDefault({ quiet: true })
       return
     }
