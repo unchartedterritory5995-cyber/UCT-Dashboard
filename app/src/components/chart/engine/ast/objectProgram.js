@@ -402,7 +402,7 @@ export const MAX_BARS_BACK_CAP = 5000
  * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
  */
 /** The value-reference kinds whose `args` are value references too. */
-const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at'])
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at', 'wget'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -448,6 +448,9 @@ export function isNaRef(v) {
  *            | {t:'str', tree}                a tree whose VALUE IS TEXT
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
+ *            | {t:'val', v, fmt?}             str.tostring(<a per-PASS value>) — C32:
+ *                                             a loop counter's arithmetic or a
+ *                                             window element picked by it (`wget`)
  */
 function assertTextNode(v, where, depth = 0, live = null) {
   if (depth > 16) throw new Error(`${where}: text expression nested deeper than 16`)
@@ -490,6 +493,14 @@ function assertTextNode(v, where, depth = 0, live = null) {
     case 'sym':
       if (typeof v.name !== 'string' || !/^syminfo\.[a-z]+$/.test(v.name)) {
         throw new Error(`${where}: a symbol text must name a syminfo field`)
+      }
+      return
+    // ⭐⭐ C32 — a number that moves per PASS of a loop (a value reference, not a
+    // tree: a tree is one value per bar), formatted by `str.tostring`'s rules.
+    case 'val':
+      assertValueRef(v.v, `${where}.v`, live)
+      if (v.fmt !== undefined && typeof v.fmt !== 'string') {
+        throw new Error(`${where}: a number format must be a string`)
       }
       return
     case 'cat':
@@ -700,6 +711,19 @@ function assertValueRef(v, where, live = null) {
         throw new Error(`${where}: a loop reference needs an id matching ${ID_RE}`)
       }
       return
+    // ⭐⭐ C32 — `w.get(i)` of a bounded window by a LOOP COUNTER: `args` is
+    // `[index, size, slot 0 … slot cap−1]` (slots newest first, per-bar columns);
+    // the runtime maps the pass's Pine index onto a slot by the window's order.
+    case 'wget': {
+      if (v.order !== 'push' && v.order !== 'unshift') {
+        throw new Error(`${where}: a window read's order is 'push' or 'unshift', got ${JSON.stringify(v.order)}`)
+      }
+      if (!Array.isArray(v.args) || v.args.length < 3) {
+        throw new Error(`${where}: a window read takes an index, a length and at least one slot`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+      return
+    }
     default:
       throw new Error(`${where}: unknown value reference kind ${JSON.stringify(v.v)}`)
   }
@@ -1064,6 +1088,7 @@ export function graphNodesReferenced(program) {
   const walkText = (t) => {
     if (!isObj(t)) return
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.node)) seen.add(t.node)
+    if (t.t === 'val') walkValue(t.v)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -1114,6 +1139,7 @@ export function treeRefsOfOp(op) {
   const walkText = (t) => {
     if (!isObj(t)) return
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) seen.add(t.tree)
+    if (t.t === 'val') walkValue(t.v)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -1202,6 +1228,7 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }
     }
+    if (t.t === 'val') return { ...t, v: bindValue(t.v) }
     if (t.t === 'cat') return { ...t, args: t.args.map(bindText) }
     if (t.t === 'if') {
       return { ...t, cond: bindValue(t.cond), then: bindText(t.then), else: bindText(t.else) }
