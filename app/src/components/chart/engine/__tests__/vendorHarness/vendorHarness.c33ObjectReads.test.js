@@ -165,9 +165,11 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     const oLabels = byId(run.live.filter((o) => o.family === 'label'))
     expect(vLabels.length).toBe(504)
     expect(oLabels.length).toBe(504)
-    // ⚠️ ids are NOT compared: TradingView's counter also numbers the 632 session
-    // dividers this run cannot decide (below), so the two sequences are offset.
-    // Creation ORDER is compared, which is what the id sort is.
+    // ⚠️ ids are compared up to ONE constant: TradingView's counter also numbers
+    // the objects of the first partial week, which this run withholds (C30 — the
+    // bars before the window are not held). Creation ORDER is the id sort.
+    const idDelta = new Set(oLabels.map((l, i) => vLabels[i].id - l.id))
+    expect(idDelta.size).toBe(1)
     expect(oLabels.map((l) => (l.props.text == null ? '' : String(l.props.text)))).toEqual(vLabels.map((l) => l.t))
     expect(oLabels.map((l) => (Number.isFinite(l.props.y) ? l.props.y : null))).toEqual(vLabels.map((l) => l.y))
     expect(denseRank(oLabels.map((l) => l.props.x))).toEqual(denseRank(vLabels.map((l) => l.x)))
@@ -193,16 +195,48 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     expect(vLabels.filter((l) => l.tci === null).length).toBe(4)
   })
 
-  it('⛔ the lines are withheld whole while the divider\'s guard has a term nobody reads', () => {
+  it('⭐ on wave 9 the divider\'s guard is READ (C30 `time("W")`): 503 of TradingView\'s 504 lines, beside the 504 labels', () => {
     const cap = capOf(OHLM)
     const { run, diag, d } = runObjects(cap)
-    // `if ta.change(time(higherTF)) and i_v1` — `time(<timeframe>)` is lane C30's.
-    expect(diag.guardPartial).toEqual(['create@169: pine:function'])
-    const divider = d.definition.objects.ops.find((o) => o.k === 'create' && o.unknownGuard)
-    expect(divider && divider.family).toBe('line')
-    expect(run.live.filter((o) => o.family === 'line')).toEqual([])
-    expect(run.withheld.line).toBeGreaterThan(0)
-    expect(run.withheld.label).toBeUndefined()
+    // ⚰️ Before C30 merged, `if ta.change(time(higherTF)) and i_v1` had a term
+    // nobody read: the guard was carried PARTIAL (`guardPartial`
+    // ['create@169: pine:function']) and the line family withheld whole. C30
+    // serves `time("W")` on a daily chart, so nothing here is partial any more —
+    // the partial guard's vendor witness is ict-killzones (below).
+    expect(diag.guardPartial).toBeUndefined()
+    expect(JSON.stringify(d.definition.objects.ops)).not.toContain('"v":"unknown"')
+    expect(run.withheld).toBeUndefined()
+    const vAll = byId(cap.objects.records.lines)
+    const oLines = byId(run.live.filter((o) => o.family === 'line'))
+    expect(vAll.length).toBe(504)
+    expect(oLines.length).toBe(503)
+    // the ONE line not held is TradingView's oldest (id 2151): the collector's edge
+    const vLines = vAll.slice(1)
+    expect(vAll[0].id).toBe(2151)
+    expect(new Set(oLines.map((l, i) => vLines[i].id - l.id)).size).toBe(1)
+    // position: both ends' price, and the bar order of both ends
+    expect(oLines.map((l) => [l.props.y1, l.props.y2])).toEqual(vLines.map((l) => [l.y1, l.y2]))
+    expect(denseRank(oLines.flatMap((l) => [l.props.x1, l.props.x2])))
+      .toEqual(denseRank(vLines.flatMap((l) => [l.x1, l.x2])))
+    // style: extension, dash, width, colour (through the capture's own palette)
+    const palette = cap.study.palettes.palette_common.colors
+    const rgba = (s) => {
+      const m = /^rgba\((\d+),(\d+),(\d+),([\d.]+)\)$/.exec(String(s).replace(/\s+/g, ''))
+      if (!m) return hexOf(s)
+      const h = (n) => Number(n).toString(16).padStart(2, '0')
+      return hexOf(`#${h(m[1])}${h(m[2])}${h(m[3])}${h(Math.round(Number(m[4]) * 255))}`)
+    }
+    const EX = { n: 'none', b: 'both', r: 'right', l: 'left' }
+    const ST = { dot: 'dotted', dsh: 'dashed', sol: 'solid' }
+    oLines.forEach((l, i) => {
+      const v = vLines[i]
+      expect([l.props.extend, l.props.style, l.props.width, hexOf(l.props.color)], `line ${i} (vendor id ${v.id})`)
+        .toEqual([EX[v.ex], ST[v.st], v.w, rgba(palette[String(v.ci)].color)])
+    })
+    // CONTROL: all three kinds of line are in the comparison
+    expect(vLines.filter((l) => l.ex === 'b').length).toBe(100)   // the weekly dividers
+    expect(vLines.filter((l) => l.ex === 'r').length).toBe(4)
+    expect(vLines.filter((l) => l.ex === 'n').length).toBe(399)
   })
 
   it('⛔ a getter\'s history on a LIVE handle is unmeasured: the label that reads it is held, not drawn', () => {
@@ -215,6 +249,27 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     const texts = run.live.filter((o) => o.family === 'label').map((l) => String(l.props.text))
     expect(texts.filter((t) => /^LW \| /.test(t))).toEqual([])
     expect(run.withheld.label).toBeGreaterThan(0)
+  })
+})
+
+describe('C33 — a guard with a term nothing reads, on a capture (ict-killzones-pivots-tfo)', () => {
+  it('⭐ the steps under its partial guards are carried and never drawn: the table is TradingView\'s three cells', () => {
+    const cap = capOf('ict-killzones-pivots-tfo-rddt-1d-2026-09-28')
+    const { run, diag, d, bars } = runObjects(cap)
+    expect((diag.guardPartial || []).length).toBeGreaterThan(0)
+    const ops = d.definition.objects.ops
+    expect(ops.some((o) => o.k === 'latch' && JSON.stringify(o.cond).includes('"v":"unknown"'))).toBe(true)
+    expect(ops.filter((o) => o.unknownGuard === true).length).toBeGreaterThan(0)
+    // every family equals the capture's count …
+    const live = (fam) => run.live.filter((o) => o.family === fam)
+    for (const [key, fam] of [['lines', 'line'], ['labels', 'label'], ['boxes', 'box'], ['tables', 'table']]) {
+      expect(live(fam).length, fam).toBe(cap.objects.counts[key])
+    }
+    // … and the table holds exactly the cells TradingView shows, text for text.
+    const state = toRenderState(run.live, { bars, tf: 'D' })
+    const cells = (state.tables || []).flatMap((t) => (t.cells || []).map((c) => String(c.text ?? '')))
+    expect(cells.sort()).toEqual([...cap.objects.texts.tableCells].map(String).sort())
+    expect(cap.objects.texts.tableCells.length).toBe(3)
   })
 })
 

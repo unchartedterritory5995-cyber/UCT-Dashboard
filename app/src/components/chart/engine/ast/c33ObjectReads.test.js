@@ -440,7 +440,7 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     const cell = { ...base, regs: [...base.regs, { id: 'r1', family: 'table' }], ops: [{ ...table, into: 'r1' },
       { k: 'cell', target: { r: 'reg', id: 'r1' }, col: { v: 'const', value: 0 }, row: { v: 'const', value: 0 }, when: null,
         props: { text: { v: 'text', node: { t: 'val', v: get } } } }] }
-    expect(() => assertObjectProgram(cell)).toThrow(/legal only in a create or update/)
+    expect(() => assertObjectProgram(cell)).toThrow(/reads object state and is legal only/)
     const tooFar = { ...base, ops: [label({ props: { x: { v: 'bar' }, y: { ...get, back: 9 }, text: { v: 'text', node: { t: 'lit', s: 'a' } } } })] }
     expect(() => assertObjectProgram(tooFar)).toThrow(/history is read 1\.\./)
   })

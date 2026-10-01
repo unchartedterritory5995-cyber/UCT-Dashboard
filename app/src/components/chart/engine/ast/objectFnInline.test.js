@@ -324,3 +324,101 @@ describe('⭐⭐ a conditional call under a BAR-INVARIANT guard inlines', () => 
     expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
   })
 })
+
+// ⭐⭐ C34 (2026-09-30) — WHOSE HISTORY A CONDITIONAL CALL READS, and a call in a
+// loop this reader does not run. The vendor witness for the chart-series rule is
+// `vendorHarness.c34ChartSeries` (trend-lines, NYSE:RDDT 1D); these rails pin the
+// detector's precision and the loop inlining, each beside the control that keeps
+// the refusal it exists for.
+describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s history', () => {
+  const underLast = (...body) => host(src('f(int k) =>', ...body, 'if barstate.islast', '    f(5)'))
+  const refused = (t) => diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']
+
+  it('⭐ the chart\'s `low[k]` / `open[k]` / `close[k]` / `high[k]` inline under a guard that varies', () => {
+    const t = underLast('    label.new(bar_index, math.min(open[k], close[k]) + low[k] - high[k], "x")')
+    expect(refused(t)).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+  })
+
+  it('⛔ CONTROL — `ta.*` in the same body is the call\'s own state, still refused', () => {
+    expect(refused(underLast('    label.new(bar_index, low[k] + ta.sma(close, 3), "x")'))).toBe(1)
+  })
+
+  it('⭐ `for [i, v] in line.all` is a destructure, not a history read on `for` (TSR `f_clearAll`)', () => {
+    const t = underLast('    for [i, v] in line.all', '        line.delete(v)')
+    expect(refused(t)).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+    // …and its body meets the loop's own refusal, named
+    expect(diag(t).loopBlockedCalls).toContain('line.delete')
+  })
+
+  it('⭐ a built-in method on a CHAINED value (`arr.pop().delete()`) reads no history', () => {
+    const t = host(src('var ls = array.new_line()', 'f() =>', '    ls.pop().delete()',
+      'if close > open', '    f()'))
+    expect(refused(t)).toBeUndefined()
+  })
+
+  it('⛔ CONTROL — a chained call naming the script\'s own history-reading METHOD still refuses', () => {
+    const t = host(src('var ls = array.new_line()', 'method hist(line l) => ta.sma(close, 3)',
+      'f() =>', '    x = ls.get(0).hist()', '    ls.pop().delete()', 'if close > open', '    f()'))
+    expect(refused(t)).toBe(1)
+  })
+
+  it('⭐ a user METHOD whose body reads only the current bar is pure', () => {
+    const t = host(src('method twice(float x) => x * 2', 'f() =>',
+      '    label.new(bar_index, close.twice(), "x")', 'if close > open', '    f()'))
+    expect(refused(t)).toBeUndefined()
+  })
+
+  it('⭐ `map.*` / `matrix.*` read the collection this bar holds, as `array.*` does', () => {
+    const t = host(src('f() =>', '    m = map.new<string, float>()', '    label.new(bar_index, close, "x")',
+      'if close > open', '    f()'))
+    expect(refused(t)).toBeUndefined()
+  })
+
+  it('⛔ an unwitnessed chart series (`bar_index[k]`) is refused BY NAME, with the capture that settles it', () => {
+    const t = underLast('    label.new(bar_index[k], low, "x")')
+    expect(refused(t)).toBe(1)
+    expect(diag(t).refusedCalls[0]).toContain('vw-fn-series-history')
+  })
+})
+
+describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINED into it', () => {
+  it('⭐ `for … in` over a list: no `fn:loop`, the body\'s ops are blocked with the loop, named', () => {
+    const t = host(src('var pts = array.new_float()', 'f(float p) =>',
+      '    label.new(bar_index, p, "x")', 'for p in pts', '    f(p)'))
+    expect(diag(t).dropReasons && diag(t).dropReasons['fn:loop']).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+    expect(diag(t).loopBlockedCalls).toContain('label.new')
+    // nothing escapes the loop as an every-bar op
+    expect(creates(t)).toHaveLength(0)
+  })
+
+  it('⭐ a removal the walk cannot name stays LOUD (`object.delete`) — the refused call\'s accounting', () => {
+    const t = host(src('var pts = array.new_float()', 'f(line l) =>', '    l.delete()',
+      'for p in pts', '    f(na)'))
+    expect(diag(t).loopBlockedCalls).toContain('object.delete')
+  })
+
+  it('⭐ a `while` the reader walks as opaque: inlined, blocked', () => {
+    const t = host(src('f() =>', '    label.new(bar_index, close, "x")', 'i = 0', 'while i < 3',
+      '    f()', '    i += 1'))
+    expect(diag(t).dropReasons && diag(t).dropReasons['fn:loop']).toBeUndefined()
+    expect(diag(t).loopBlockedCalls).toContain('label.new')
+    expect(creates(t)).toHaveLength(0)
+  })
+
+  it('⛔ a handle RETURNED inside such a loop is not copied onto every bar', () => {
+    const t = host(src('var line keep = na', 'var pts = array.new_float()',
+      'f(float p) =>', '    ret = line.new(bar_index, p, bar_index + 1, p)',
+      'for p in pts', '    keep := f(p)'))
+    expect(opsOf(t).filter((o) => o.k === 'copy')).toHaveLength(0)
+    expect(diag(t).loopBlockedCalls).toContain('object copy')
+  })
+
+  it('⛔ a body reading the call\'s own history in such a loop is refused as conditional-history', () => {
+    const t = host(src('var pts = array.new_float()', 'f(float p) =>',
+      '    label.new(bar_index, ta.sma(close, 3), "x")', 'for p in pts', '    f(p)'))
+    expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
+  })
+})

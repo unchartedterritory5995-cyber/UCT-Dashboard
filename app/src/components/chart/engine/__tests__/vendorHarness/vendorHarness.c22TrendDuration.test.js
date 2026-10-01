@@ -25,10 +25,11 @@
 //   * `LabelProbLen` (id 82): its x is `int(math.avg(get_x1(), get_x2()))` (a
 //     getter in arithmetic) and its text reads a window between its add and its
 //     removal, where it may hold one element more than its cap;
-//   * 30 of 34 cells (`cell:text`): their text is per-iteration — the index
+//   * (served since C32) the 30 cells whose text is per-iteration — the index
 //     column `str.tostring(i + 1)` and `bullishCount.get(i)` read by the loop
-//     counter. ⭐ With C25 (a loop counter's condition, `{v:'loop'}`) the two
-//     headers under `if i == 0` are served: TradingView's address, text, colour.
+//     counter — are pinned in `vendorHarness.c32Collections`. ⭐ With C25 (a loop
+//     counter's condition, `{v:'loop'}`) the two headers under `if i == 0` are
+//     served: TradingView's address, text, colour.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
@@ -107,7 +108,8 @@ describe("⭐ C22 — trend-duration-forecast draws TradingView's labels and ave
       expect(p.text).toBe(v.t)
       expect(p.text_color.toUpperCase()).toBe(hexOf(v.tc))
     }
-    expect(cells).toHaveLength(4)
+    // ⭐ C32 — and the 30 cells read by the loop counter (`vendorHarness.c32Collections`)
+    expect(cells).toHaveLength(34)
     // every cell we draw is one of TradingView's
     const vend = new Set(cap.objects.records.tableCells.map((c) => `${c.col},${c.row},${c.t}`))
     for (const c of cells) expect(vend.has(`${c.col},${c.row},${c.props.text}`), `${c.col},${c.row}`).toBe(true)

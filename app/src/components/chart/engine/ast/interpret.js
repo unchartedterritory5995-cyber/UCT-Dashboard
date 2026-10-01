@@ -692,6 +692,30 @@ export const switchedVarSeed = (seed) => ({
   name: '*',
   args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }, seed],
 })
+/** ⭐⭐ C29 (C12w's named issue) — WHICH BAR-0 READING A SWITCHED RECURRENCE'S
+ *  SPELLING MEANS. `var n = 0; n := n + 1` and `n = na(n[1]) ? 0 : n[1] + 1` both
+ *  become `accum(0, self + 1)`, and they are a fixed 1 apart (measured on
+ *  `vw-bar-counters-rddt-1d-2026-09-30`: bar_index + 1 and bar_index). The
+ *  translator KNOWS which it wrote, so it says so inside the switched mark's real
+ *  seed: `1 * S` is the self-reference spelling (bar 0 IS the seed), `1 * (1 * S)`
+ *  a `var` (bar 0 runs the update from the seed; a history read there is `na`).
+ *  ⛔ VALUE-SAFE: both shapes evaluate to `S` for every reader that does not know
+ *  them (Python lane, probes, the bounded window). Only the listing pass reads
+ *  the reading, so a counter is exact from the listing and — being switched and
+ *  never forgetting — withheld everywhere else (the curtain default). */
+const ONE = () => ({ type: 'num', value: 1 })
+export const readingSeed = (seed, reading) => (reading === 'update'
+  ? { type: 'op', name: '*', args: [ONE(), { type: 'op', name: '*', args: [ONE(), seed] }] }
+  : { type: 'op', name: '*', args: [ONE(), seed] })
+const isOneTimes = (n) => !!n && n.type === 'op' && n.name === '*' && Array.isArray(n.args)
+  && n.args.length === 2 && n.args[0] && n.args[0].type === 'num' && n.args[0].value === 1
+/** `{reading: 'seed' | 'update', seed}` for a reading mark, else null. */
+export const readingOf = (n) => {
+  if (!isOneTimes(n)) return null
+  const inner = n.args[1]
+  return isOneTimes(inner) ? { reading: 'update', seed: inner.args[1] } : { reading: 'seed', seed: inner }
+}
+
 /** The real seed a switched mark carries, or null when `n` is not one. */
 export const switchedSeedOf = (n) => (!!n && n.type === 'op' && n.name === '*'
   && Array.isArray(n.args) && n.args.length === 2 && isZeroOverZero(n.args[0]) && n.args[1]
@@ -770,7 +794,7 @@ const listingKey = (v) => {
 
 /** The listing pass. Returns the column, or `null` when it is not taken (over
  *  the step ceiling), in which case the caller runs the bounded window. */
-function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup }) {
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup, reading = null }) {
   const s0 = seed[0]
   // A guarded read has two candidates only when the seed is a number; with an
   // `na` seed both readings are `na`.
@@ -786,8 +810,12 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
     if (guarded && twoWay) guardedReads += 1
     return s0
   }
-  const starts = [s0, stepT(0, beforeBar0(), firstRead)]
-  if (twoWay && guardedReads > 0) {
+  // ⭐ C29 — a SPELLED reading (`readingSeed`) is the only start: the seed
+  // itself, or the update run from it (a history read on bar 0 is Pine's `na`).
+  const starts = reading === 'seed' ? [s0]
+    : reading === 'update' ? [stepT(0, beforeBar0(), (lag) => (lag > 0 ? NaN : s0))]
+      : [s0, stepT(0, beforeBar0(), firstRead)]
+  if (!reading && twoWay && guardedReads > 0) {
     if (guardedReads > LISTING_MAX_GUARDED_READS) {
       starts.push(stepT(0, beforeBar0(), (lag, guarded) => (lag > 0 || guarded ? LISTING_UNKNOWN : s0)))
     } else {
@@ -3750,7 +3778,139 @@ function readsClock(ast, table) {
  *  existing column moves. The returned column is a COPY: the real run's column
  *  may be the memoised one another plot shares. */
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
-  return withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
+  const out = withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
+  return withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts)
+}
+
+/** ⭐⭐ C30 — "THIS BAR OPENS A NEW <period>" for `time("W"|"M"|"3M"|"12M")`, the
+ *  ONE builder both the translator (`pine.js::periodAnchorOf`) and the anchor
+ *  test below read, so the shape written and the shape recognised cannot drift.
+ *
+ *  A period KEY compared with the previous bar's (`key != key[1]`), over clock
+ *  leaves that read only this bar (`dayopentime`, `dayofweek`, `month`, `year`):
+ *    W   the New York day number of the bar's ISO-week Monday,
+ *        `floor(dayopentime / 86400) - mod(dayofweek + 5, 7)` — `dayopentime` is
+ *        New York midnight, 04:00/05:00 UTC, so its UTC day number IS the New York
+ *        date's; `mod(dayofweek + 5, 7)` is 0 on Monday … 6 on Sunday (Pine's
+ *        `dayofweek` is 1 on Sunday). The same key `computeClock`'s `weekfirst`
+ *        compares, so the event is `weekfirst`'s bar for bar;
+ *    M   `year * 12 + month`;  3M  `year * 4 + floor((month - 1) / 3)`;  12M `year`.
+ *  ⛔ NOT the `weekfirst` / `monthfirst` columns themselves: those declare a
+ *  one-bar window the two lookback readers count differently (`lint.js` reads the
+ *  clock declaration, `interpret.js::maxLookback` counts every leaf 0 —
+ *  `lookbackAgreement.test.js`), and a `[1]` offset is one bar in both. On bar 0
+ *  the `[1]` read is `na` and the comparison is false: no boundary is seen before
+ *  the first one the series SHOWS, exactly as the columns' blank bar 0. */
+export function periodFirstCondition(period) {
+  const leaf = (name) => ({ type: 'series', name })
+  const num = (value) => ({ type: 'num', value })
+  const op = (name, args) => ({ type: 'op', name, args })
+  const call = (name, args) => ({ type: 'call', name, args })
+  let key
+  if (period === 'W') {
+    key = op('-', [call('floor', [op('/', [leaf('dayopentime'), num(86400)])]),
+      call('mod', [op('+', [leaf('dayofweek'), num(5)]), num(7)])])
+  } else if (period === 'M') {
+    key = op('+', [op('*', [leaf('year'), num(12)]), leaf('month')])
+  } else if (period === '3M') {
+    key = op('+', [op('*', [leaf('year'), num(4)]),
+      call('floor', [op('/', [op('-', [leaf('month'), num(1)]), num(3)])])])
+  } else if (period === '12M') {
+    key = leaf('year')
+  } else {
+    return null
+  }
+  return op('!=', [key, { type: 'offset', value: 1, args: [key] }])
+}
+const PERIOD_FIRST_SHAPES = new Set(['W', 'M', '3M', '12M'].map((p) => JSON.stringify(periodFirstCondition(p))))
+/** A canonical node, keys in canonical order, for comparing against the builder. */
+function canonicalShape(n) {
+  if (!n || typeof n !== 'object') return n
+  const out = { type: n.type }
+  if (n.name !== undefined) out.name = n.name
+  if (n.value !== undefined) out.value = n.value
+  if (Array.isArray(n.args)) out.args = n.args.map(canonicalShape)
+  return out
+}
+
+/** ⭐⭐ C30 — IS THIS NODE `time("W"|"M"|"3M"|"12M")`'S PERIOD ANCHOR?
+ *
+ *  `pine.js::periodAnchorOf` writes the opening time of a higher-timeframe period
+ *  as `valuewhenOccurrence(periodFirstCondition(p), time, 0)`. That shape — and only
+ *  it, compared node for node against the builder — is what `periodAnchorMask`
+ *  treats as an anchor: its `NaN` before the first period boundary the series shows
+ *  is NOT Pine's `na` (the vendor answers the real open there, from bars before our
+ *  window), so it must be withheld, never read as `na`. A member's own
+ *  `valuewhenOccurrence` over any other condition or source keeps its meaning. */
+export function isPeriodAnchor(node) {
+  if (!node || node.type !== 'call' || node.name !== 'valuewhenOccurrence') return false
+  const a = node.args || []
+  if (a.length !== 3 || !a[1] || a[1].type !== 'series' || a[1].name !== 'time') return false
+  if (!a[2] || a[2].type !== 'num' || a[2].value !== 0) return false
+  return PERIOD_FIRST_SHAPES.has(JSON.stringify(canonicalShape(a[0])))
+}
+
+/** ⭐⭐ C30 — THE BARS OF A TREE WHOSE ANSWER READS A PERIOD ANCHOR WE DO NOT
+ *  HOLD, as a 0/1 column (1 = withheld), or null when the tree reads no anchor.
+ *
+ *  Measured on `vw-time-tf-spy-1d-2026-09-28` (the rule is `pine.js::periodAnchorOf`'s):
+ *  the anchor equals the vendor on every bar from the first period boundary the
+ *  series shows; before it the vendor answers an open from bars our window does
+ *  not hold. So each anchor node is UNKNOWN on the bars where its own column is
+ *  `NaN`, and — the C12s / C26 argument, `maxLookback` being a tree sum — so is
+ *  every root bar within `maxLookback(root) − maxLookback(anchor)` bars of one
+ *  (`ta.change(time("W")) != 0` reaches one bar back, and would otherwise read a
+ *  confident FALSE on the first boundary, where the vendor reads TRUE).
+ *
+ *  ⛔ ON ANY CHART BUT A DAILY ONE (`opts.tf !== 'D'`, an absent `tf` included)
+ *  EVERY BAR IS WITHHELD: the tree's own gate answers `NaN` there, which is not
+ *  the vendor's answer either — nothing measured `time("W")` off a daily chart.
+ *  An anchor under `tf` / `sym` reads other bars: the whole tree is withheld. */
+export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const nodes = []
+  let nested = false
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (isPeriodAnchor(node)) {
+      if (under) nested = true
+      nodes.push(node)
+      continue
+    }
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1 — the only typed array this pure module uses
+  const mask = new Float64Array(n)
+  if (nested || !opts || opts.tf !== 'D') { mask.fill(1); return mask }
+  const rootReach = maxLookback(tree)
+  for (const a of nodes) {
+    const reach = Math.max(0, rootReach - maxLookback(a))
+    const col = toColumn(interpretOnce(a, bars, inputs, budget, scalars,
+      { ...(opts || {}), crossMemo: undefined, probeBase: undefined }), n)
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (col[i] !== col[i]) last = i
+      if (i - last <= reach) mask[i] = 1
+    }
+  }
+  return mask
+}
+
+/** Withhold (`NaN`) the bars `periodAnchorMask` names. A COPY. */
+function withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts) {
+  if (opts && typeof opts.prefixProbe === 'number') return out
+  if (!isColumn(out)) return out
+  const mask = periodAnchorMask(ast, bars, inputs, budget, scalars, opts)
+  if (!mask) return out
+  const copy = Float64Array.from(out)
+  for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
+  return copy
 }
 
 /** ⭐⭐ C26 — DOES THIS TREE READ ANOTHER SYMBOL? Iterative, like every walk here. */
@@ -4824,7 +4984,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // ⭐ C12s — a switched mark carries the REAL seed for the listing pass; the
     // bounded window never reads it (its window starts from an unknown state).
     const switchedReal = switchedSeedOf(node.args[rec.seed])
-    const seedNode = switchedReal || node.args[rec.seed]
+    // ⭐ C29 — a spelled bar-0 reading rides inside the switched mark (`readingSeed`).
+    const spelled = switchedReal ? readingOf(switchedReal) : null
+    const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
     const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
@@ -4900,6 +5062,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
+        ...(spelled ? { reading: spelled.reading } : {}),
       })
       if (listed) return listed
     }

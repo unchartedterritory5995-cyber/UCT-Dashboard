@@ -199,12 +199,18 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     // `timeframe.period` as a NAME, and the two-argument session form.
     const arms = [
       ['time(timeframe.period)', 'plot(time(timeframe.period) - time)'],
-      ['time("W")', `plot(time(${Q}W${Q}))`],
     ]
     for (const [label, src] of arms) {
       expect(runtimeGuard(src), `${label} — runtime lane no longer refuses`).toBe('pine:function')
       expect(hostGuard(src), `${label} — host lane no longer refuses`).toBe('pine:function')
     }
+    // ⚰️ 2026-09-30 (C30): `time("W")` LEFT THE LIST — the rail's third time.
+    // `vw-time-tf-spy-1d-2026-09-28` measured it (and "M", "3M", "12M") on a daily
+    // chart, and the HOST lane serves it there
+    // (`vendorHarness.c30TimeAnchor.test.js`). The RUNTIME lane still refuses it.
+    const weekly = `plot(time(${Q}W${Q}))`
+    expect(hostGuard(weekly)).toBe('ok')
+    expect(runtimeGuard(weekly)).toBe('pine:function')
     // ⚰️ 2026-09-28: THE TWO-ARGUMENT SESSION FORM LEFT THE LIST — this rail
     // doing its job a second time. `vw-time-session` (1D + 60m) measured it and
     // the HOST lane serves it now (`sessionClockOf`, held bar by bar in

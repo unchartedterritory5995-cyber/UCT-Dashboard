@@ -331,8 +331,12 @@ describe('a value that survives the bar is a RECURRENCE now, and it is emitted a
     // ⭐ THE UNBLOCKER IS NAMED, not implied: a TRUE running total needs an
     // unbounded accumulator this engine does not have yet — the same limit `cum`
     // is refused for, reached from the other side.
-    const r = refusalOf(`${HEAD}var count = 0
-count := count + 1
+    // ⚰️ C29: a +1 COUNTER is served now — as a switched recurrence, exact from
+    // the listing and withheld elsewhere (never the 250-bar window this warned of);
+    // `vw-bar-counters-rddt-1d-2026-09-30`. The accumulator that is NOT a counter
+    // (a running sum of a series) still refuses, which is this test's point.
+    const r = refusalOf(`${HEAD}var count = 0.0
+count := count + volume
 plot(count)
 `)
     expect(r.guard).toBe('pine:state')

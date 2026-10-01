@@ -60,6 +60,7 @@
 
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
+import { wholeTransparency } from '../colorInt.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -282,8 +283,11 @@ export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop
 export function withObjectTransparency(hex, t) {
   const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
   if (!base) return null
-  if (!(t > 0)) return base[0]
-  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` is
+  // 70; measured on `vw-gradient-spy-1d-2026-09-30`).
+  const tw = wholeTransparency(t)
+  if (!(tw > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, tw) / 100) * 255)
   return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
 
@@ -401,6 +405,16 @@ export const GETTER_PROPS = Object.freeze({
  */
 export const MAX_BARS_BACK_CAP = 5000
 
+/** ⭐⭐ C29 (C9, measured 2026-09-30) — the history TradingView's AUTOMATIC buffer
+ *  was measured to cover when a script declares NO `max_bars_back`: dynamic
+ *  offsets 0..399 ran with no error and read the vendor's own bars
+ *  (`vw-mbb-auto-spy-1d-2026-09-30.json`). A read built without a declared
+ *  buffer carries `limit: AUTO_MAX_BARS_BACK, auto: true`; an offset at or past
+ *  it is UNMEASURED and the op is withheld on that bar (never a runtime error,
+ *  never a guess). And an `na` offset reads the CURRENT bar (`x[na]` is `x`,
+ *  measured on `vw-offset-na-spy-1d-2026-09-30.json`: all 100 na-offset bars). */
+export const AUTO_MAX_BARS_BACK = 400
+
 /**
  * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
  * holds what the program last set on an object, so it answers:
@@ -415,7 +429,7 @@ export const MAX_BARS_BACK_CAP = 5000
  * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
  */
 /** The value-reference kinds whose `args` are value references too. */
-const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at'])
+const NESTED_KINDS = new Set(['op', 'bool', 'cmp', 'cross', 'at', 'wget'])
 
 const ID_RE = /^[a-z][a-z0-9_]*$/
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -461,6 +475,9 @@ export function isNaRef(v) {
  *            | {t:'str', tree}                a tree whose VALUE IS TEXT
  *            | {t:'cat', args:[…]}            "a" + b + "c"
  *            | {t:'if', cond, then, else}     cond ? "a" : "b"
+ *            | {t:'val', v, fmt?}             str.tostring(<a per-PASS value>) — C32:
+ *                                             a loop counter's arithmetic or a
+ *                                             window element picked by it (`wget`)
  */
 function assertTextNode(v, where, depth = 0, live = null) {
   if (depth > 16) throw new Error(`${where}: text expression nested deeper than 16`)
@@ -505,17 +522,15 @@ function assertTextNode(v, where, depth = 0, live = null) {
         throw new Error(`${where}: a symbol text must name a syminfo field`)
       }
       return
-    // ⭐⭐ C33 — A NUMBER READ OFF A DRAWING, FORMATTED: `str.tostring(line.get_y1(l))`,
-    // or of a getter-fed scalar. The number is object state, so it is the object
-    // runtime's to read where the op stands (C14) and never a graph node; the
-    // format is `{t:'num'}`'s own. ⛔ Only where object state may be read at all
-    // (`live`: a create/update's own text, outside loops) — never a table cell.
+    // ⭐⭐ C32 / C33 — ONE NODE, ONE VALIDATOR. A number formatted by
+    // `str.tostring`'s rules whose source is a VALUE REFERENCE, not a tree: a
+    // number that moves per PASS of a loop (C32: counter arithmetic, a window
+    // pick) or one read off a DRAWING (C33: a getter, its history, a getter-fed
+    // scalar). `assertValueRef` holds both to their own rules — a state read
+    // (`get`/`num`) is legal only where object state may be read at all (`live`:
+    // a create/update's own text), never a table cell's.
     case 'val':
-      if (!live) throw new Error(`${where}: a text that reads object state is legal only in a create or update's own text`)
-      if (!isObj(v.v) || (v.v.v !== 'get' && v.v.v !== 'num')) {
-        throw new Error(`${where}: a formatted state value reads a getter or a getter-fed scalar`)
-      }
-      assertLiveRef(v.v, `${where}.v`, live)
+      assertValueRef(v.v, `${where}.v`, live)
       if (v.fmt !== undefined && typeof v.fmt !== 'string') {
         throw new Error(`${where}: a number format must be a string`)
       }
@@ -723,6 +738,9 @@ function assertValueRef(v, where, live = null) {
       if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
         throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
       }
+      if (v.auto !== undefined && (v.auto !== true || v.limit !== AUTO_MAX_BARS_BACK)) {
+        throw new Error(`${where}: an automatic-buffer history read is bounded by AUTO_MAX_BARS_BACK (${AUTO_MAX_BARS_BACK})`)
+      }
       v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
       return
     }
@@ -739,6 +757,19 @@ function assertValueRef(v, where, live = null) {
         throw new Error(`${where}: a loop reference needs an id matching ${ID_RE}`)
       }
       return
+    // ⭐⭐ C32 — `w.get(i)` of a bounded window by a LOOP COUNTER: `args` is
+    // `[index, size, slot 0 … slot cap−1]` (slots newest first, per-bar columns);
+    // the runtime maps the pass's Pine index onto a slot by the window's order.
+    case 'wget': {
+      if (v.order !== 'push' && v.order !== 'unshift') {
+        throw new Error(`${where}: a window read's order is 'push' or 'unshift', got ${JSON.stringify(v.order)}`)
+      }
+      if (!Array.isArray(v.args) || v.args.length < 3) {
+        throw new Error(`${where}: a window read takes an index, a length and at least one slot`)
+      }
+      v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+      return
+    }
     default:
       throw new Error(`${where}: unknown value reference kind ${JSON.stringify(v.v)}`)
   }
@@ -1103,6 +1134,7 @@ export function graphNodesReferenced(program) {
   const walkText = (t) => {
     if (!isObj(t)) return
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.node)) seen.add(t.node)
+    if (t.t === 'val') walkValue(t.v)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -1153,6 +1185,7 @@ export function treeRefsOfOp(op) {
   const walkText = (t) => {
     if (!isObj(t)) return
     if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) seen.add(t.tree)
+    if (t.t === 'val') walkValue(t.v)
     if (t.t === 'cat') (t.args || []).forEach(walkText)
     if (t.t === 'if') { walkValue(t.cond); walkText(t.then); walkText(t.else) }
   }
@@ -1241,6 +1274,7 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
       const { tree, ...rest } = t
       return { ...rest, node: nodeOf(tree) }
     }
+    if (t.t === 'val') return { ...t, v: bindValue(t.v) }
     if (t.t === 'cat') return { ...t, args: t.args.map(bindText) }
     if (t.t === 'if') {
       return { ...t, cond: bindValue(t.cond), then: bindText(t.then), else: bindText(t.else) }

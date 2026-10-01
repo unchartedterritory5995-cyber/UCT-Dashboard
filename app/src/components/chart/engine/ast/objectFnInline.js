@@ -85,7 +85,9 @@ const PURE_NAMESPACES = new Set(['math', 'str', 'color', 'array', 'line', 'label
   'table', 'linefill', 'polyline', 'chart', 'syminfo', 'timeframe', 'barstate',
   // `log.info(…)` writes to Pine's own log pane and returns nothing — no value,
   // no history.
-  'log'])
+  'log',
+  // ⭐ C34 — a map or a matrix is a collection this bar holds, as an array is.
+  'map', 'matrix'])
 /** Bare (un-namespaced) calls that read only the current bar — Pine v4's math
  *  spellings and the type casts. `fixnan` is deliberately ABSENT: it carries the
  *  last non-na value forward, which is history. */
@@ -455,10 +457,68 @@ export function bodyEffects(def, defs, objColls) {
 const NOT_A_CALL = new Set(['if', 'for', 'while', 'switch', 'and', 'or', 'not', 'else',
   'to', 'by', 'in', 'var', 'varip', 'return'])
 
+// ─── ⭐⭐ C34 — WHOSE HISTORY A CONDITIONAL CALL READS (2026-09-30) ──────────
+//
+// Pine keeps ONE history per call site for what the FUNCTION owns — its locals,
+// its parameters, the state inside a `ta.*` call it makes — and that history
+// advances only on the bars the call runs. That is what `conditional-history`
+// refuses, and it still does. But the detector below also refused reads that
+// are not the call's history at all:
+//
+//  • ⭐ THE CHART'S OWN SERIES. `low[k]` inside a body is the chart's low `k`
+//    bars ago whether or not the call ran on the bars between: the series is
+//    the chart's, kept by the chart on every bar. ⚰️ WITNESSED, not assumed —
+//    `trend-lines-supports-and-resistances` (NYSE:RDDT 1D, committed capture
+//    `trend-lines-supports-and-resistances-rddt-1d-2026-09-28`) calls
+//    `f_drawSupport` / `f_drawResistance` ONLY on the last bar (under
+//    `barstate.islast`, inside a `while`), and each reads
+//    `low[historyReference]`, `high[…]`, `open[…]`, `close[…]` 40 to 257 bars
+//    back. Had those reads been the CALL's history (one execution, none before
+//    it) every one would be `na`. TradingView drew four boxes whose edges are
+//    exactly the chart's values at the pivot bars — `119.27 / 122.5` (low /
+//    min(open, close), bar 506), `135.2223 / 140.67` (bar 591), `263.4999 /
+//    257.67` (high / max(open, close), bar 452), `282.95 / 271.99` (bar 374) —
+//    and printed them in four label texts. `vendorHarness.c34ChartSeries` replays
+//    it. ⛔ ONLY `open`, `high`, `low`, `close` are witnessed, so only they pass;
+//    `volume`, `time`, `bar_index`, `hl2`… still refuse by name
+//    (`CHART_SERIES_UNWITNESSED`) until a capture reads one of them the same way.
+//    ⛔ And only when the name IS the built-in: a parameter, a body local, or any
+//    script name spelled `low` is the script's own series and refuses as before.
+//  • ⭐ A KEYWORD BEFORE `[` IS NOT A SERIES. `for [i, v] in line.all` is a
+//    destructure and `for x in [a, b]` an array literal; both were read as a
+//    history offset on the keyword (`f_clearAll`, the same script, line 258).
+//  • ⭐ A BUILT-IN METHOD ON A CHAINED VALUE. `arr.pop().delete()`,
+//    `lns.get(0).set_x2(t)`, `hl.lbl.get(0).get_y()` act on the value this bar
+//    holds, exactly as the un-chained `l.get_x2()` does (already admitted); the
+//    chained segment lexes as a MEMBER token and fell to "reads more than the
+//    current bar" (`ict-killzones-pivots-tfo`, 16 calls). A user METHOD named in
+//    the chain is still judged as one.
+//  • ⭐ `map.*` AND `matrix.*` read and write the collection this bar holds, as
+//    `array.*` does — a collection has no series history of its own.
+//  • ⭐ A USER METHOD whose body reads only the current bar is pure, by the same
+//    fixpoint as a function (an OVERLOADED method never is — its body is not
+//    decidable from the tokens). A method that DRAWS is judged where it is
+//    inlined, under the same guards, as a drawing function already is.
+
+/** ⭐ C34 — the chart series a conditional call's body may read at an offset.
+ *  Each one WITNESSED (see the section above). */
+export const CHART_SERIES_WITNESSED = new Set(['open', 'high', 'low', 'close'])
+/** ⛔ C34 — chart series Pine keeps the same way, per its reference, but no
+ *  committed capture reads one at an offset from inside a conditional call.
+ *  Refused BY NAME with the capture that would settle it. */
+export const CHART_SERIES_UNWITNESSED = new Set(['volume', 'time', 'time_close', 'bar_index',
+  'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+
 /** The first history read in these tokens, or null. `pureFns` are user
- *  functions already proven history-free; `methods` are user METHOD names (a
- *  method's body is not inlined, so it is assumed to read history). */
-function historyIn(toks, drawFns, userFns, pureFns, methods) {
+ *  functions (and methods) already proven history-free; `methods` are user
+ *  METHOD names; `chart` the witnessed chart series this body may read at an
+ *  offset (empty unless the caller proved no script name shadows them);
+ *  `drawMethods` user methods that DRAW — judged where they are inlined. */
+function historyIn(toks, drawFns, userFns, pureFns, methods, chart = EMPTY_SET, drawMethods = EMPTY_SET) {
+  const methodVerdict = (m, line) => {
+    if (pureFns.has(m) || drawMethods.has(m)) return null
+    return `a call to the method \`${m}\`, which may read history, at line ${line}`
+  }
   for (let i = 0; i < toks.length; i += 1) {
     const tk = toks[i]
     if (tk.kind === 'punct' && tk.value === '[') {
@@ -467,6 +527,13 @@ function historyIn(toks, drawFns, userFns, pureFns, methods) {
       // `line[]` is a TYPE, and a statement-initial `[a, b] =` is a destructure.
       if (next && next.kind === 'punct' && next.value === ']') continue
       if (!prev || prev.line !== tk.line) continue
+      // ⭐ C34 — `for [i, v] in …`, `in [a, b]`: a keyword holds no series.
+      if (prev.kind === 'ident' && !prev.member && NOT_A_CALL.has(String(prev.value))) continue
+      // ⭐ C34 — the chart's own series, witnessed (see the section above).
+      if (prev.kind === 'ident' && !prev.member && chart.has(String(prev.value))) continue
+      if (prev.kind === 'ident' && !prev.member && CHART_SERIES_UNWITNESSED.has(String(prev.value))) {
+        return `a history read \`${prev.value}[…]\` at line ${tk.line} — the chart's \`${prev.value}\` is not yet witnessed read from inside a conditional call (capture \`vw-fn-series-history\`)`
+      }
       if (prev.kind === 'ident' || prev.kind === 'number'
         || (prev.kind === 'punct' && (prev.value === ')' || prev.value === ']'))) {
         return `a history read \`[…]\` at line ${tk.line}`
@@ -477,6 +544,15 @@ function historyIn(toks, drawFns, userFns, pureFns, methods) {
     const next = toks[i + 1]
     if (!next || next.kind !== 'punct' || next.value !== '(') continue
     const v = String(tk.value)
+    // ⭐ C34 — a chained segment (`….delete(`, `….get_y(`): a built-in method
+    // on the value this bar holds, unless the script defines a method so named.
+    if (tk.member) {
+      if (methods.has(v)) {
+        const why = methodVerdict(v, tk.line)
+        if (why) return why
+      }
+      continue
+    }
     if (NOT_A_CALL.has(v)) continue
     if (drawFns.has(v)) continue
     const ns = nsOf(v)
@@ -484,32 +560,81 @@ function historyIn(toks, drawFns, userFns, pureFns, methods) {
     if (ns && !KNOWN_NAMESPACES.has(ns)) {
       // `pivot.new(…)` builds a user type; `arr.size()`, `l.get_x2()` read the
       // current state of a value this bar holds. None of them is history. A
-      // USER METHOD is the exception — its body is not inlined, so it is
-      // treated like any function this reader cannot see into.
+      // USER METHOD is the exception — judged by its own body (C34).
       const m = methodOf(v)
-      if (methods.has(m)) return `a call to the method \`${m}\`, which may read history, at line ${tk.line}`
+      if (methods.has(m)) {
+        const why = methodVerdict(m, tk.line)
+        if (why) return why
+      }
       continue
     }
     if (!ns && PURE_BARE.has(v)) continue
     if (!ns && pureFns.has(v)) continue
+    if (!ns && methods.has(v)) {
+      const why = methodVerdict(v, tk.line)
+      if (why) return why
+      continue
+    }
     if (!ns && userFns.has(v)) return `a call to the user function \`${v}\`, which reads history, at line ${tk.line}`
     return `\`${v}\` at line ${tk.line}, which reads more than the current bar`
   }
   return null
 }
 
-/** User functions whose bodies read only the current bar — a fixpoint, since
- *  one may call another. */
-export function pureFunctions(defs, drawFns) {
+const EMPTY_SET = new Set()
+
+/** ⭐ C34 — every name the script binds anywhere: a declaration or `:=` target,
+ *  a destructured part, a loop variable, a function's parameter. A witnessed
+ *  chart series spelled like one of them is the SCRIPT's name, not the chart's. */
+export function scriptBoundNames(stmts, h) {
+  const out = new Set()
+  const scan = (list) => {
+    for (const st of list || []) {
+      const t = st.header || []
+      const def = t.length ? definitionHeader(t, h) : null
+      if (def) {
+        for (const tk of t.slice(def.open + 1, def.arrow)) if (tk.kind === 'ident') out.add(String(tk.value))
+      }
+      for (let i = 1; i < t.length; i += 1) {
+        if (t[i].kind === 'punct' && (t[i].value === '=' || isMutator(t[i])) && t[i - 1].kind === 'ident') {
+          out.add(String(t[i - 1].value))
+        }
+      }
+      const lead = t.length && t[0].kind === 'ident' && t[0].value === 'for' ? 1 : 0
+      if (t[lead] && h.isPunct(t[lead], '[')) {
+        for (let i = lead + 1; i < t.length && !h.isPunct(t[i], ']'); i += 1) {
+          if (t[i].kind === 'ident') out.add(String(t[i].value))
+        }
+      } else if (lead && t[1] && t[1].kind === 'ident') out.add(String(t[1].value))
+      if (st.sub && st.sub.length) scan(st.sub)
+    }
+  }
+  scan(stmts)
+  return out
+}
+
+/** ⭐ C34 — the witnessed chart series this script's bodies may read at an
+ *  offset: all of them, minus any the script binds. `null` context → none. */
+export function chartSeriesFor(stmts, h) {
+  if (!stmts || !h) return EMPTY_SET
+  const bound = scriptBoundNames(stmts, h)
+  return new Set([...CHART_SERIES_WITNESSED].filter((n) => !bound.has(n)))
+}
+
+/** User functions AND methods whose bodies read only the current bar — a
+ *  fixpoint, since one may call another. ⛔ An overloaded method never
+ *  qualifies. `chart` / `drawMethods` as in `historyIn`. */
+export function pureFunctions(defs, drawFns, chart = EMPTY_SET, drawMethods = EMPTY_SET) {
   const userFns = new Set([...defs.keys()].filter((n) => !defs.get(n).isMethod))
   const methods = new Set([...defs.keys()].filter((n) => defs.get(n).isMethod))
   const pure = new Set()
   let grew = true
   while (grew) {
     grew = false
-    for (const n of userFns) {
-      if (pure.has(n)) continue
-      if (!historyIn(allTokens(defs.get(n).body), drawFns, userFns, pure, methods)) {
+    for (const n of defs.keys()) {
+      const d = defs.get(n)
+      if (pure.has(n) || (d.isMethod && d.overloaded)) continue
+      if (!historyIn(allTokens(d.body), drawFns, userFns, pure, methods, chart, drawMethods)) {
         pure.add(n); grew = true
       }
     }
@@ -783,8 +908,9 @@ export function getterScalars(stmts, h) {
 /** Why this body cannot be inlined under a CONDITIONAL call, or null.
  *  See the header: a body that reads history measures a different set of bars
  *  when its call is conditional. */
-export function historyReason(def, drawFns, userFns, pureFns = new Set(), methods = new Set()) {
-  return historyIn(allTokens(def.body), drawFns, userFns, pureFns, methods)
+export function historyReason(def, drawFns, userFns, pureFns = new Set(), methods = new Set(),
+  chart = EMPTY_SET, drawMethods = EMPTY_SET) {
+  return historyIn(allTokens(def.body), drawFns, userFns, pureFns, methods, chart, drawMethods)
 }
 
 /** Names a body DECLARES or ASSIGNS (all become per-call-site locals), and the

@@ -3,6 +3,8 @@ import { SHARED_SCREEN_PARAM, sharedScreenReadUrl } from '../screenShareLink'
 import { SPEC_PARAM, DEFAULT_SORT, DEFAULT_VIEW, encodeSpec, decodeSpec } from './specUrl'
 
 export const PAGE_SIZE = 100
+//: The address-space door for a member's own saved screen (`S:<id>` resolves here).
+export const SAVED_SCREEN_PARAM = 'savedScreen'
 export const REQUIRED_COLS = ['ticker', 'company', 'price', 'chg_pct_1d']
 
 const specToFilters = spec =>
@@ -37,6 +39,32 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── saved-screen arrival (build D, 2026-09-30): the door the command
+  // palette's `S:<id>` address resolves to. Loads the member's OWN saved screen
+  // by id and applies it, once, only when no working spec is in the URL. A
+  // missing or unreadable screen leaves the page as it is and says so in the
+  // console -- never a silent swallow.
+  useEffect(() => {
+    if (fromUrl) return undefined
+    const want = new URLSearchParams(window.location.search).get(SAVED_SCREEN_PARAM)
+    if (!want) return undefined
+    let alive = true
+    ;(async () => {
+      try {
+        const r = await fetch('/api/screener/saved-screens', { credentials: 'include' })
+        if (!r.ok) throw new Error(`saved screens ${r.status}`)
+        const body = await r.json()
+        const rec = (body?.saved || []).find(x => String(x.id) === String(want))
+        if (!rec) throw new Error(`saved screen ${want} not found`)
+        if (alive && rec.spec) applySpec(rec.spec)
+      } catch (err) {
+        console.warn('[screener] savedScreen door:', err?.message || err)
+      }
+    })()
+    return () => { alive = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ── URL write: debounced replaceState; local edits strip `screen=` ───────
   const writeTimer = useRef()
   const skipNextWrite = useRef(false)
@@ -49,6 +77,7 @@ export default function useScreenSpec({ viewColumnsFor } = {}) {
       if (enc) url.searchParams.set(SPEC_PARAM, enc)
       else url.searchParams.delete(SPEC_PARAM)
       url.searchParams.delete(SHARED_SCREEN_PARAM)
+      url.searchParams.delete(SAVED_SCREEN_PARAM)
       window.history.replaceState(null, '', url)
     }, 400)
     return () => clearTimeout(writeTimer.current)

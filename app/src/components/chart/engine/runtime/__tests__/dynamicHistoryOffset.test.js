@@ -41,10 +41,12 @@
 // head: **a walk that cannot see part of a node routes the whole expression to
 // the wrong lane, which then refuses with a sentence about something else.**
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import {
-  makeIrProgram, SLOT, histDyn, column, series, read, num, emit as irEmit, assign,
+  makeIrProgram, SLOT, histDyn, column, series, read, num, naValue, emit as irEmit, assign,
 } from '../ir.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
@@ -163,6 +165,47 @@ describe('⭐⭐ a history offset that is only known while the bar is running', 
     for (let b = 0; b < N; b += 1) {
       if (b < 2) expect(Number.isNaN(out[b]), `bar ${b}`).toBe(true)
       else expect(out[b], `bar ${b}`).toBeCloseTo(BARS[b - 1].c + BARS[b - 2].c, 9)
+    }
+  })
+})
+
+// ─── ⭐⭐ C29 — AN `na` OFFSET READS THE CURRENT BAR (measured 2026-09-30) ──────
+//
+// `vw-offset-na-spy-1d-2026-09-30.json` (probe UCTPROBE_OFFSET_NA): `e` is `na`
+// on every third bar and TradingView's `close[e]` is that bar's own close there
+// (`E05_close_at_e_eq_close` is 1, `E03_close_at_e_is_na` is 0) — no error.
+describe('⭐⭐ C29 — `x[na]` reads the current bar, as TradingView measured', () => {
+  const cap = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), '..',
+    'tests/fixtures/vendor/harness/vw-offset-na-spy-1d-2026-09-30.json'), 'utf8'))
+  const titleOf = new Map(cap.study.plots.map((p) => [p.id, p.title]))
+  const col = (title) => {
+    const i = cap.plotValues.fields.findIndex((f) => titleOf.get(f) === title)
+    return cap.plotValues.rows.map((r) => r[i])
+  }
+
+  it('the capture: on every na-offset bar the read is the bar\'s own close, never na', () => {
+    const isNa = col('E01_e_is_na'), eq = col('E05_close_at_e_eq_close'), readNa = col('E03_close_at_e_is_na')
+    const naBars = isNa.map((v, k) => (v === 1 ? k : -1)).filter((k) => k >= 0)
+    expect(naBars.length).toBeGreaterThan(50)
+    expect(naBars.length).toBeLessThan(isNa.length)
+    for (const k of naBars) { expect(eq[k], `bar ${k}`).toBe(1); expect(readNa[k], `bar ${k}`).toBe(0) }
+  })
+
+  it('the VM answers the same on both materialised targets: an na offset is the bar itself', () => {
+    // ⚠️ Built as IR: the Pine front end still refuses a SERIES-valued offset
+    // outside a loop (`pine:offset-literal`), so the opcode is exercised directly.
+    for (const of of [series('close'), column(0)]) {
+      const program = lowerIrProgram(makeIrProgram({
+        slots: [],
+        columns: [{ name: 'c', formula: 'close' }],
+        statements: [irEmit(0, histDyn(of, naValue()))],
+        outputs: [{ call: 'plot', title: 't' }],
+      }))
+      const r = execute(program, {
+        bars: N, series: SERIES, columns: [Float64Array.from(BARS.map((b) => b.c))], confirmed: true,
+        barTimes: BARS.map((b) => b.t),
+      })
+      expect(Array.from(r.outputs[0])).toEqual(BARS.map((b) => b.c))
     }
   })
 })

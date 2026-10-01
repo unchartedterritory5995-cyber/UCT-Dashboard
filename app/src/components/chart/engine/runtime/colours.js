@@ -34,7 +34,7 @@
 // not been observed on a chart. It is a difference of 1/255 in alpha, invisible
 // to a member and visible to a byte-for-byte vendor comparison, so it is
 // recorded rather than presented as measured.
-import { packColor, TRANSPARENCY_MAX, BYTE_MAX } from '../colorInt.js'
+import { packColor, unpackColor, wholeTransparency, TRANSPARENCY_MAX, BYTE_MAX } from '../colorInt.js'
 
 /** Thrown for a colour a member could have written differently. */
 export class ColourError extends Error {
@@ -49,7 +49,65 @@ export function transparencyToByte(t) {
   const n = Number(t)
   if (!Number.isFinite(n)) return 0
   const clamped = Math.min(Math.max(n, 0), TRANSPARENCY_MAX)
-  return Math.round((clamped / TRANSPARENCY_MAX) * BYTE_MAX)
+  // ⭐⭐ C29 — THE BYTE IS THE COMPLEMENT OF TRADINGVIEW'S OPACITY BYTE, not a
+  // rounding of its own. The vendor's packed colour is 0xAABBGGRR with opacity
+  // `round((1 − t/100) × 255)` (measured: `color.new(c, 70)` → 0x4D = 77); this
+  // lane's word keeps TRANSPARENCY in that byte (`colorInt.js`), so it stores
+  // `255 − opacity` and every reader recovers the vendor's opacity EXACTLY
+  // (`255 − byte`). ⚰️ It was `round(t × 2.55)` — 179 for t = 70, whose
+  // complement 76 is not the vendor's 77 (C20's "served opaque only").
+  return BYTE_MAX - Math.round((1 - clamped / TRANSPARENCY_MAX) * BYTE_MAX)
+}
+
+/** ⭐⭐ C29 (C20, measured 2026-09-30, `vw-gradient-spy-1d-2026-09-30.json`) —
+ *  THE TRANSPARENCY A PINE COLOUR HOLDS IS A WHOLE NUMBER, TRUNCATED:
+ *  `color.t(color.new(c, 70.5))` reads 70, and so does 70.4. So a fractional
+ *  transparency is truncated BEFORE it is packed, which also keeps every byte
+ *  this lane packs an exact image of a whole transparency (`byteTransparency`
+ *  inverts it). `na` / non-finite stays as `transparencyToByte` reads it. */
+export function pineTransparency(t) {
+  const n = Number(t)
+  return wholeTransparency(n)
+}
+
+/** The whole transparency a packed byte of THIS lane holds (the inverse of
+ *  `transparencyToByte` over whole numbers). */
+export function byteTransparency(byte) {
+  return Math.round((Number(byte) / BYTE_MAX) * TRANSPARENCY_MAX)
+}
+
+/** ⭐⭐ C29 — `color.from_gradient(value, bottom, top, a, b)`, as MEASURED on the
+ *  vendor (`vw-gradient-spy-1d-2026-09-30.json`): the position `w = (value −
+ *  bottom) / (top − bottom)` CLAMPED to [0, 1] (w < 0 is endpoint `a`, w > 1 is
+ *  `b`), then red, green, blue AND transparency each interpolated LINEARLY and
+ *  TRUNCATED to a whole number (v = 0.5: 127.5 → 127; v = 0.01: 2.55 → 2,
+ *  99.5 → 99, 198.5 → 198; transparency 0 → 100 reads 100·v). Answers null for
+ *  what no capture pins (an `na` value or bound, `top == bottom`). */
+export function fromGradient(value, bottom, top, a, b) {
+  const v = Number(value), lo = Number(bottom), hi = Number(top)
+  if (![v, lo, hi].every(Number.isFinite) || hi === lo) return null
+  const w = Math.min(1, Math.max(0, (v - lo) / (hi - lo)))
+  const A = unpackColor(Number(a) >>> 0)
+  const B = unpackColor(Number(b) >>> 0)
+  // ⭐⭐ THE OPACITY BYTES BLEND, AND THE CHANNELS BLEND PREMULTIPLIED BY THEM,
+  // then divide by the blended opacity; the result's opacity byte is that blend
+  // TRUNCATED. The ONE model (of the dozens tried, each scored bar for bar) that
+  // reproduces all 300 bars of every gradient the probe asks — the float cases
+  // (`v = 0.04`: b 193, not 194), the packed colorer (`0x4C…` where both ends are
+  // `0x4D`: 77 × (1 − w) + 77 × w is 76.99…), a transparency sweep (`t` 29 at
+  // v = 0.29), and a fully transparent end (`g4`: r 40 at v = 0.95, 0 at v = 1,
+  // where the blended opacity is zero).
+  const opA = BYTE_MAX - A.transparencyByte
+  const opB = BYTE_MAX - B.transparencyByte
+  const opO = opA * (1 - w) + opB * w
+  const aA = opA / BYTE_MAX
+  const aB = opB / BYTE_MAX
+  const aO = opO / BYTE_MAX
+  const ch = (x, y) => (aO === 0 ? 0 : Math.trunc((x * aA * (1 - w) + y * aB * w) / aO))
+  return packColor({
+    r: ch(A.r, B.r), g: ch(A.g, B.g), b: ch(A.b, B.b),
+    transparencyByte: BYTE_MAX - Math.trunc(opO),
+  })
 }
 
 /** `#RRGGBB` (or `#RGB`) + a Pine transparency → the colorer integer. */
@@ -63,7 +121,7 @@ export function hexToPacked(hex, transparency = 0) {
     r: parseInt(full.slice(0, 2), 16),
     g: parseInt(full.slice(2, 4), 16),
     b: parseInt(full.slice(4, 6), 16),
-    transparencyByte: transparencyToByte(transparency),
+    transparencyByte: transparencyToByte(pineTransparency(transparency)),
   })
 }
 
@@ -74,7 +132,7 @@ export function hexToPacked(hex, transparency = 0) {
  *  through a hex string is three more chances to reorder them. */
 function withTransparency(packed, transparency) {
   const v = Number(packed) >>> 0
-  const byte = transparencyToByte(transparency)
+  const byte = transparencyToByte(pineTransparency(transparency))
   return (((byte << 24) >>> 0) + (v & 0x00ffffff)) >>> 0
 }
 
@@ -123,7 +181,7 @@ export const COLOUR_FNS = Object.freeze({
     minArgs: 3,
     maxArgs: 4,
     fn: (a) => packColor({
-      r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(a.length > 3 ? a[3] : 0),
+      r: a[0], g: a[1], b: a[2], transparencyByte: transparencyToByte(pineTransparency(a.length > 3 ? a[3] : 0)),
     }),
   },
   // ⭐⭐ C18 — `color.from_gradient(value, bottom, top, bottomColour, topColour)`
@@ -140,11 +198,16 @@ export const COLOUR_FNS = Object.freeze({
     returns: 'colour',
     minArgs: 5,
     maxArgs: 5,
+    // ⭐⭐ C29 — COMPUTED, the vendor's curve (`fromGradient`). Only what no
+    // capture pins — an `na` value or bound, an empty range — keeps the old
+    // unmeasured path: the probe colour where the caller probes, else a stop by name.
     fn: (a, budget) => {
+      const c = fromGradient(a[0], a[1], a[2], a[3], a[4])
+      if (c !== null) return c
       const u = budget && budget.unmeasured
       if (!u) {
-        throw new ColourError('`color.from_gradient` — this engine does not compute it: the '
-          + 'vendor\'s interpolation curve has not been measured, and a colour is never invented')
+        throw new ColourError('`color.from_gradient` with an `na` value or an empty range — '
+          + 'unmeasured, and a colour is never invented')
       }
       u.hits.push('color.from_gradient')
       return u.colourProbe

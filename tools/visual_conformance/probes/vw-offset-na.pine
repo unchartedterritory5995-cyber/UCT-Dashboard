@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_OFFSET_NA", overlay = false, max_bars_back = 500)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C9: "`e` is `na` ... extrapolated evaluates `n[na]` on every bar before its second
+// pivot and TradingView still draws - so it is not a runtime error; what it READS is not
+// measured". This probe reads it.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. Alone in its file: if x[na] stops the run, the
+// compile/runtime error is the reading.
+
+int e = bar_index % 3 == 0 ? na : 1
+
+plot(bar_index,                    "E00_bar_index_CONTROL")
+plot(na(e) ? 1 : 0,                "E01_e_is_na")
+plot(close[e],                     "E02_close_at_e")
+plot(na(close[e]) ? 1 : 0,         "E03_close_at_e_is_na")
+plot(close[1],                     "E04_close_1_CONTROL")
+plot(close[e] == close ? 1 : 0,    "E05_close_at_e_eq_close")

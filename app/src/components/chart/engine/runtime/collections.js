@@ -31,6 +31,23 @@ export class CollectionError extends Error {
   constructor(message) { super(message); this.name = 'CollectionError' }
 }
 
+/** ⭐ C35 — THE SCRIPT'S OWN `runtime.error(message)`, REACHED.
+ *
+ *  TradingView stops the script where it is reached and shows the member the
+ *  error instead of the indicator: nothing is plotted, nothing is drawn. So this
+ *  stops the run BY NAME — `name` is Pine's own spelling, so a caller reading
+ *  `runtime:${err.name}` (`runtimeColumns.js`) reports `runtime:runtime.error` —
+ *  and carries the script's message. Never reached, it costs nothing and changes
+ *  no value: a guard like `if barstate.isfirst and not (a < b)` that the member's
+ *  inputs never satisfy is an ordinary, finished run. */
+export class PineRuntimeError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'runtime.error'
+    this.guard = 'runtime:runtime.error'
+  }
+}
+
 /** What kind is this runtime value? The VM checks declared operand kinds
  *  against this, so 'array' is a real kind rather than `typeof v === 'object'`
  *  spread across nine call sites.
@@ -543,6 +560,14 @@ export const ARRAY_FNS = Object.freeze({
   },
   'array.median': unmeasuredReduction('array.median'),
   'array.stdev': unmeasuredReduction('array.stdev'),
+  // ⭐ C35 — not a collection member: a void call the VM dispatches through this
+  // table like `array.push`, and the one entry whose only effect is to STOP the
+  // run (`PineRuntimeError`). Kept here rather than in a second table so the
+  // front end's one statement path (`arrayStmt`) and the VM's one opcode serve it.
+  'runtime.error': {
+    args: ['string'], returns: 'void',
+    fn: (a) => { throw new PineRuntimeError(a[0]) },
+  },
 })
 
 export const ARRAY_NAMES = Object.freeze(Object.keys(ARRAY_FNS))

@@ -181,8 +181,11 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     expect(Number.isNaN(cols.sessionfirst[0])).toBe(true)
   })
 
+  // ⚰️ "W" and "M" left this list on 2026-09-30 (C30): the vendor capture
+  // `vw-time-tf-spy-1d-2026-09-28` settled them on a DAILY chart, and
+  // `vendorHarness.c30TimeAnchor.test.js` grades them bar for bar.
   it('⛔ any OTHER period still refuses, with an updated message confirming "D" now works', () => {
-    for (const tf of ['"W"', '"M"', '"60"']) {
+    for (const tf of ['"60"', '"6M"', '"2W"', '"1Y"']) {
       const t = translatePine(S(`ta.change(time(${tf})) != 0 ? 1 : 0`), { strict: true })
       expect(t.ok, tf).toBe(false)
       expect(t.refusal.guard, tf).toBe('pine:function')

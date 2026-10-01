@@ -69,21 +69,25 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     expect(extra, `a cell TradingView does not show: ${JSON.stringify(extra)}`).toBeNull()
   })
 
-  // ⚰️ This read "its lines and labels are WITHHELD". C33 (2026-09-30) carried
-  // every label create (an `input.timeframe` text, a getter and its history in a
-  // text, an `na` text-colour arm), so the label family lost nothing and holds
-  // TradingView's 504 — text, price and order pinned in
-  // `vendorHarness.c33ObjectReads`. The LINES are still withheld: the `vline`
-  // divider's guard has a term this lane does not read (`time(<timeframe>)`).
-  it('⛔ its lines are WITHHELD (TradingView may have collected them differently); its labels are the 504', () => {
+  it('⭐ its lines are held (C30: 503 of 504) and its labels are the 504 (C33)', () => {
     vi.stubEnv(FLAG, '1')
     const cap = load('high-low-open-mid-ranges')
     const ours = runOurSide(cap)
-    expect(ours.objects.counts.lines).toBe(0)
+    // ⚰️ LINES WERE 0 UNTIL 2026-09-30: the `vline` divider's guard reads
+    // `time(higherTF)` ("W"), which refused, so the line family lost a create and
+    // the collector cut it whole. C30 serves `time("W")` on a daily chart, and the
+    // family is held: 503 of TradingView's 504, each one a vendor line
+    // (`vendorHarness.c30TimeAnchor.test.js` holds them to the records).
+    expect(ours.objects.counts.lines).toBe(503)
+    // ⚰️ LABELS WERE 0 TOO: every label create was lost (an `input.timeframe`
+    // text, a getter and its history in a text, an `na` text-colour arm). C33
+    // carries them, so the family lost nothing and holds TradingView's 504 —
+    // text, price, order and colour pinned in `vendorHarness.c33ObjectReads`.
+    // Measured on the wave 9 + C33 tree: both families at once, neither withheld.
     expect(ours.objects.counts.labels).toBe(cap.objects.counts.labels)
     expect(cap.objects.counts.labels).toBe(504)
     // ⭐ the evidence the count alone hid: TradingView holds FIVE lines a week
-    // (four ranges + the `vline` divider this chart cannot guard), 101 weeks.
+    // (four ranges + the `vline` divider), 101 weeks.
     const perX = new Map()
     for (const r of cap.objects.records.lines) perX.set(r.x1, (perX.get(r.x1) || 0) + 1)
     const fives = [...perX.values()].filter((n) => n === 5).length

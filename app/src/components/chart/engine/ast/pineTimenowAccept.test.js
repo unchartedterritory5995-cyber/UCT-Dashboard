@@ -180,7 +180,7 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     expect(computedMsg).toMatch(/TO UNBLOCK/)
   })
 
-  it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker (measured, not overclaimed)', () => {
+  it('⛔⛔ every real corpus script that names timenow still refuses on an unrelated blocker, or translates whole (measured, not overclaimed)', () => {
     const cases = [
       // ⚰️ WAS pine:builtin /syminfo.mintick/. 2026-09-28: `syminfo.mintick` is
       // served on the chart pane for a witnessed exchange (symbolScope.json::
@@ -209,9 +209,14 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // ⚰️ …AND AGAIN at integration (2026-09-28): `syminfo.mintick` is served
       // (#238), so the script meets the wall after that one — a
       // `time(<timeframe>)` anchor for a period other than "D".
-      ['mtf-key-levels-support-and-resistance__29f470a089.pine', 'pine:function', /OPENING TIMESTAMP/],
+      // ⚰️ …AND LEFT THIS LIST 2026-09-30 (C30): `time("12M")` on a daily chart is
+      // served (vw-time-tf-spy-1d), and the script now TRANSLATES — asserted
+      // below, by name, rather than dropped.
       ['swing-points-and-liquidity-by-leviathan__919c1fd9c6.pine', 'pine:request', /request/],
     ]
+    const mtf = translatePine(fs.readFileSync(path.join(CORPUS,
+      'mtf-key-levels-support-and-resistance__29f470a089.pine'), 'utf8'), { strict: true })
+    expect(mtf.ok, JSON.stringify(mtf.refusal)).toBe(true)
     for (const [file, guard, messagePattern] of cases) {
       const src = fs.readFileSync(path.join(CORPUS, file), 'utf8')
       const t = translatePine(src, { strict: true })

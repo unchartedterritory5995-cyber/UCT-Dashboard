@@ -34,7 +34,7 @@ import {
   withObjectTransparency,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
-import { unpackColor } from './colorInt.js'
+import { unpackColor, wholeTransparency } from './colorInt.js'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -267,6 +267,19 @@ export function beginObjects(program, ctx) {
   /** ⭐⭐ C33 — a getter's history: per reference, the number it answered on each
    *  bar its op ran (`value` records it; `[back]` reads it back). */
   const getHistory = new WeakMap()
+  /** ⭐⭐ C33 — the scalars a GETTER feeds (`setnum` whose value is a `get`), found
+   *  once from the program: a text that prints one prints object state. */
+  const getterFedNums = new Set()
+  {
+    const scan = (list) => {
+      for (const o of list || []) {
+        if (o && o.k === 'loop') scan(o.body)
+        else if (o && o.k === 'setnum' && isObj(o.value) && o.value.v === 'get') getterFedNums.add(o.num)
+      }
+    }
+    scan(program.ops)
+  }
+  const printsObjectState = (v) => isObj(v) && (v.v === 'get' || (v.v === 'num' && getterFedNums.has(v.id)))
   /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
    *  `unknownGuard` create withheld on a bar), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
@@ -378,6 +391,8 @@ export function beginObjects(program, ctx) {
    *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
    *  text is then `null` and the render state does not draw it. */
   let textsWithheld = 0
+  // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
+  let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -772,9 +787,6 @@ export function beginObjects(program, ctx) {
           const v = readNode(t.node, bar, loopVars)
           return typeof v === 'string' ? v : ''
         }
-        // ⭐ C33 — a number read off a drawing (a getter, a getter-fed scalar),
-        // through the one number format.
-        case 'val': return formatNumber(numOf(value(t.v)), t.fmt)
         // ⭐ A SYMBOL'S TEXT the binding could not settle (`bindObjectProgram`
         // replaces a settled one with a literal before it gets here) — withheld,
         // because the only honest spellings are the ones the binding holds.
@@ -788,6 +800,16 @@ export function beginObjects(program, ctx) {
           return parts.some((p) => p === null) ? null : parts.join('')
         }
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
+        // ⭐⭐ C32 — a number that moves per PASS (a loop counter's arithmetic, a
+        // window element it picks), by the same `str.tostring` rules as `num`.
+        // ⛔ A value this pass cannot say withholds the text, never an empty one.
+        // ⭐ C33 — the SAME node carries a number read off a drawing (a getter, a
+        // getter-fed scalar); `textTainted` decides when that one is known.
+        case 'val': {
+          const n = value(t.v)
+          if (typeof n !== 'number') { textsWithheld += 1; return null }
+          return formatNumber(n, t.fmt)
+        }
         default: return ''
       }
     }
@@ -796,21 +818,24 @@ export function beginObjects(program, ctx) {
       if (!isObj(c)) return null
       if (c.c === 'lit') return c.hex
       if (c.c === 'if') return truthy(value(c.cond)) ? colorOf(c.then) : colorOf(c.else)
-      // ⭐⭐ C20 — A COLOUR THE RUNTIME LANE COMPUTED, served OPAQUE only.
-      // ⛔⛔ The run packs a transparency into one byte (`colours.js::
-      // transparencyToByte`, `round(t × 2.55)`) and TradingView's opacity is
-      // `round((100 − t) × 2.55)` — measured on max-pain's NET label,
-      // `color.new(red, 70)`: alpha 77 where the run's byte gives 76. The two
-      // disagree at every half step, so a packed alpha is NEVER turned back into
-      // an opacity: `color.new(c, t)` is `{c:'new'}` (from `c` and `t`), and any
-      // other colour the run made transparent answers `null`.
+      // ⭐⭐ C20/C29 — A COLOUR THE RUNTIME LANE COMPUTED. ⚰️ C20 served it OPAQUE
+      // only: the run's byte was `round(t × 2.55)` and TradingView's opacity is
+      // `round((1 − t/100) × 255)` (`color.new(red, 70)`: 77 vs the byte's 76).
+      // C29 made the byte the opacity's complement, so it is read exactly below.
       // ⛔ A create/update that asked for this colour and got `null` is HELD
       // (`unservedColour`), never drawn in a default.
       if (c.c === 'rt') {
         const v = value(c.v)
         if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null
         const u = unpackColor(v)
-        return u.transparencyByte === 0 ? u.hex : null
+        if (u.transparencyByte === 0) return u.hex
+        // ⭐⭐ C29 — THE RUN'S BYTE IS NOW THE COMPLEMENT OF TRADINGVIEW'S OPACITY
+        // (`colours.js::transparencyToByte`, measured: `color.new(red, 70)` →
+        // 0x4D = 77), so the vendor's `#RRGGBBAA` is read straight off it — a
+        // gradient's truncated blend (0x4C) included, which no transparency
+        // round trip could carry.
+        const alpha = 255 - u.transparencyByte
+        return u.hex + alpha.toString(16).padStart(2, '0').toUpperCase()
       }
       // ⭐⭐ C20 — `color.new(c, t)`: `c`'s colour with its transparency SET to
       // `t`, by the same formula a translate-time colour uses
@@ -818,8 +843,12 @@ export function beginObjects(program, ctx) {
       // vendor captures pin whole ones; a fraction, `na` or out-of-range value is
       // unmeasured and answers `null` (held).
       if (c.c === 'new') {
-        const t = value(c.t)
-        if (typeof t !== 'number' || !Number.isInteger(t) || t < 0 || t > 100) return null
+        // ⭐⭐ C29 — a FRACTIONAL transparency is Pine's truncated whole number
+        // (`color.t(color.new(c, 70.5))` = 70, and 70.4 → 70, measured on
+        // `vw-gradient-spy-1d-2026-09-30`); `na` or out of range is still held.
+        const raw = value(c.t)
+        const t = typeof raw === 'number' && Number.isFinite(raw) ? wholeTransparency(raw) : NaN
+        if (!Number.isInteger(t) || t < 0 || t > 100) return null
         const base = colorOf(c.of)
         return base ? withObjectTransparency(base, t) : null
       }
@@ -879,7 +908,9 @@ export function beginObjects(program, ctx) {
         // checked before its values were read (`atCheck`), so here `e` is a
         // whole number in [0, limit); a bar before the first is `na`.
         case 'at': {
-          const back = numOf(value(ref.args[1]))
+          // ⭐ C29 — `x[na]` is `x` on this bar (measured, `vw-offset-na`).
+          const raw = numOf(value(ref.args[1]))
+          const back = Number.isNaN(raw) ? 0 : raw
           const k = bar - back
           if (!Number.isInteger(k) || k < 0) return NaN
           const src = ref.args[0]
@@ -935,6 +966,23 @@ export function beginObjects(program, ctx) {
         }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
         case 'num': return nums.get(ref.id) ?? NaN
+        // ⭐⭐ C32 — `w.get(i)` of a bounded window by the loop counter: Pine index
+        // `k` of `size` elements is newest-first slot `k` (unshift) or
+        // `size − 1 − k` (push — index 0 is the oldest). ⛔ An index outside the
+        // elements is where Pine STOPS the script (`array.get` out of bounds): a
+        // runtime error, never an `na` cell.
+        case 'wget': {
+          const k = value(ref.args[0])
+          const size = numOf(value(ref.args[1]))
+          if (typeof k !== 'number' || !Number.isInteger(k) || !Number.isInteger(size)) return undefined
+          if (k < 0 || k >= size) {
+            runtimeError(`\`array.get\` index ${k} is out of bounds of an array of ${size} on bar ${bar} — TradingView stops the script there`)
+            return undefined
+          }
+          const j = ref.order === 'unshift' ? k : size - 1 - k
+          if (j < 0 || j >= ref.args.length - 2) return undefined
+          return numOf(value(ref.args[2 + j]))
+        }
         default: return undefined
       }
     }
@@ -945,8 +993,18 @@ export function beginObjects(program, ctx) {
      *  'ok' · 'unknown' (withhold the op on this bar) · 'error' (Pine stops). */
     const atCheck = (op) => {
       for (const at of atNodesOf(op)) {
-        const back = numOf(value(at.args[1]))
-        if (Number.isNaN(back)) return 'unknown'
+        // ⭐⭐ C29 (C9, measured 2026-09-30) — an `na` offset reads the CURRENT
+        // bar: TradingView ran `close[na]` with no error and read the bar's own
+        // close on all 100 na-offset bars (`vw-offset-na-spy-1d-2026-09-30`).
+        const raw = numOf(value(at.args[1]))
+        const back = Number.isNaN(raw) ? 0 : raw
+        // ⭐⭐ C29 — with no `max_bars_back` declared, reach is measured to 399
+        // (`AUTO_MAX_BARS_BACK`); past it TradingView's automatic buffer is not
+        // measured, so the op is withheld on this bar — never stopped, never read.
+        if (at.auto === true && Number.isInteger(back) && back >= at.limit) {
+          atBeyondAuto += 1
+          return 'unknown'
+        }
         if (!Number.isInteger(back) || back < 0 || back >= at.limit) {
           runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
@@ -1066,13 +1124,17 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
-      // ⭐ C33 — a number read off a drawing, printed. ⛔ SERVED ONLY WHERE THE
-      // READ IS `na`: TradingView prints that as "NaN" (eight labels of
-      // high-low-open-mid-ranges, `vendorHarness.c33ObjectReads`). No capture
-      // prints a FINITE getter value through `str.tostring`, so a finite one is
-      // unknown text — the op is withheld, never drawn off this chart's own
-      // formatting of a number TradingView was never seen to print.
-      if (t.t === 'val') return tainted(t.v, depth + 1) || !Number.isNaN(numOf(value(t.v)))
+      // ⭐⭐ ONE `val` NODE (C32 / C33). A per-pass number (C32) is as known as
+      // its read. A number read off a DRAWING (C33 — a getter, a getter-fed
+      // scalar) is ⛔ SERVED ONLY WHERE THE READ IS `na`: TradingView prints that
+      // as "NaN" (eight labels of high-low-open-mid-ranges,
+      // `vendorHarness.c33ObjectReads`). No capture prints a FINITE getter value
+      // through `str.tostring`, so a finite one is unknown text — the op is
+      // withheld, never drawn off this chart's own formatting of a number
+      // TradingView was never seen to print.
+      if (t.t === 'val') {
+        return tainted(t.v, depth + 1) || (printsObjectState(t.v) && !Number.isNaN(numOf(value(t.v))))
+      }
       return false
     }
     const colorTainted = (c, depth) => {
@@ -1807,6 +1869,7 @@ export function beginObjects(program, ctx) {
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
+      ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
