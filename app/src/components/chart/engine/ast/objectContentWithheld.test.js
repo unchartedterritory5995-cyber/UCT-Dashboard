@@ -28,10 +28,14 @@ const program = (source) => {
 const all = (ops) => ops.flatMap((o) => (o.k === 'loop' ? [o, ...all(o.body)] : [o]))
 const creates = (ops) => all(ops).filter((o) => o.k === 'create')
 
+// ⚰️ C31 — THIS LOOP WAS `for i = 0 to 3` AND C31 SPENT IT: a counted loop with
+// literal bounds that only appends to text is now folded exactly (`####`). The
+// fixture moves to the frontier — a bound the fold cannot settle — and the
+// assertions do not move.
 const LOOP_TEXT = [
   'if barstate.islast',
   '    t = ""',
-  '    for i = 0 to 3',
+  '    for i = 0 to bar_index % 4',
   '        t := t + "#"',
   '    label.set_text(lb, t)',
 ]
@@ -88,7 +92,7 @@ describe('rule 2 — the reassignment overrule holds in a block scope', () => {
     const { ops, diag } = program(src(
       'if barstate.islast',
       '    t = ""',
-      '    for i = 0 to 3',
+      '    for i = 0 to bar_index % 4',
       '        t := t + "#"',
       '    label.new(bar_index, close, t)',
     ))

@@ -123,7 +123,10 @@ describe('⭐ C21 — dual-view-htf-candlestick-patterns', () => {
     const creates = []
     const scan = (list) => list.forEach((o) => { if (o.k === 'create') creates.push(o.family); if (o.k === 'loop') scan(o.body) })
     scan(t.objects.ops)
-    expect(creates).toEqual(['line', 'line'])
+    // ⭐ C31 — and the centre label's create converts: `label_y_below` is a block
+    // local declared below the `for` that finds the range, bound now (its value
+    // is the run's, C18). The door still draws nothing (the test above).
+    expect(creates).toEqual(['line', 'line', 'label'])
     expect(od.dropReasons['geometry:lost']).toBe(3)
     const state = od.guardRefusals.filter((e) => /pine:state/.test(e))
     expect(state.length).toBe(29)

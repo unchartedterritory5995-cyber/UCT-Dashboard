@@ -100,16 +100,16 @@ describe('⭐⭐ a block local reaches an object coordinate through the WALK', (
     // genuinely gives up on, or this file would be asserting a counter that can
     // only ever read zero.
     //
-    // A `for` loop is that construct: `foldStatements` throws `pine:block` on it
-    // by ruling, so every local declared AFTER it in the same block is unbound.
+    // ⚰️ A `for` loop WAS that construct until C31, which steps over a loop in the
+    // object lane (its writes refuse, the locals below it bind). `varip` is one
+    // now: `foldStatements` refuses it outright (intrabar state), so every local
+    // declared AFTER it in the same block is unbound.
     const src = `//@version=5
 indicator("unbindable", overlay = true)
 var line ln = na
 if barstate.islast
-    total = 0.0
-    for i = 0 to 3
-        total := total + close[i]
-    lo = total / 4
+    varip int ticks = 0
+    lo = close * 0.5
     ln := line.new(bar_index - 10, lo, bar_index, lo)
 plot(close)
 `
