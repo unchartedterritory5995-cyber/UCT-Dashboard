@@ -469,6 +469,24 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(starts.cols.out3[300]).toBeCloseTo(sma3(300), 9)
   })
 
+  it('⭐ a script with ONE plot is gated the same way (the single-tree document)', () => {
+    const cap = capture(RDDT)
+    const B = rowsOf(cap)
+    const one = (guardDecl) => ['//@version=6', 'indicator("c48 one")', guardDecl, 'float v = na',
+      'if g', '    v := ta.sma(close, 3)', 'plot(v, "v")'].join('\n')
+    const starts = bind(cap, one('g = bar_index >= 100'))
+    expect(starts.door.def, starts.door.refusal || '').toBeTruthy()
+    expect(Object.keys(starts.door.def.compute.trees || { value: 1 })).toEqual(['value'])
+    expect(Object.keys(starts.errors)).toEqual(['value'])
+    expect(starts.errors.value.guard).toBe(BLOCK_RUNS_GUARD)
+    expect(starts.errors.value.message).toContain('skips bar 0 and runs again on bar 100')
+    expect(starts.cols.value).toBeUndefined()
+    // CONTROL — the same script under a guard that holds on every bar is computed
+    const all = bind(cap, one('g = volume >= 0'))
+    expect(all.errors).toEqual({})
+    expect(all.cols.value[300]).toBeCloseTo((B[300].c + B[299].c + B[298].c) / 3, 9)
+  })
+
   it('⭐⭐ uncharted-volume-v2 keeps every plot: its `if not skipAll and isDaily` block runs on every bar', () => {
     const cap = capture(RDDT)
     const source = fs.readFileSync(path.resolve(process.cwd(), '..', 'tests/fixtures/member/uncharted-volume-v2.pine'), 'utf8')
