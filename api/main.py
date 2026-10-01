@@ -9243,46 +9243,98 @@ async def _massive_diagnose():
 #              modify data. WAL checkpoint truncates the WAL file back
 #              into the main DB (fixes bloat). ANALYZE rebuilds sqlite_stat1
 #              (fixes stale planner stats). Idempotent; safe to re-run.
+# ⛔ `_flow_plan`/`_flow_optimize`'s DB work is a MODULE-LEVEL function, not a
+# nested one, on purpose: it is the identical closure-free body W3 already
+# wrapped in run_in_threadpool (no local var of the route function is read),
+# just not NESTED inside the route handler. A nested `def _sync():` makes the
+# repo-root census's AST walk count the same hardcoded "/data/flow.db" literal
+# TWICE for one call site -- once for the inner scope, once again because the
+# outer async function's own walk descends into it -- which is how this file
+# went from the two historically-accepted unguarded sites
+# (tests/test_shared_data_root_guard.py
+# ::test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var) to
+# four. The literal itself is unchanged and still deliberately unguarded (this
+# admin diagnostic inspects the real production flow DB by design); only the
+# double-counting is fixed.
+def _flow_plan_sync():
+    import sqlite3, time
+    out = {}
+    try:
+        t0 = time.time()
+        with sqlite3.connect("/data/flow.db", timeout=30) as conn:
+            cur = conn.execute("SELECT COUNT(*) FROM flow")
+            out["total_rows"] = cur.fetchone()[0]
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                "AND Color IN ('MAGENTA','YELLOW')"
+            )
+            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+            )
+            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+            cur = conn.execute(
+                "SELECT name, sql FROM sqlite_master "
+                "WHERE type='index' AND tbl_name='flow'"
+            )
+            out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
+            cur = conn.execute("PRAGMA journal_mode")
+            out["journal_mode"] = cur.fetchone()[0]
+            cur = conn.execute("PRAGMA page_size")
+            out["page_size"] = cur.fetchone()[0]
+            cur = conn.execute("PRAGMA page_count")
+            out["page_count"] = cur.fetchone()[0]
+            out["db_size_mb"] = round(out["page_size"] * out["page_count"] / (1024*1024), 1)
+        out["elapsed_sec"] = round(time.time() - t0, 2)
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
 @app.get("/api/admin/flow/plan")
 async def _flow_plan():
     """Read-only. Inspect DB size, query plan, and indexes on the flow table."""
     from fastapi.concurrency import run_in_threadpool
-    def _sync():
-        import sqlite3, time
-        out = {}
-        try:
+    return await run_in_threadpool(_flow_plan_sync)
+
+
+def _flow_optimize_sync():
+    import sqlite3, time
+    out = {}
+    try:
+        with sqlite3.connect("/data/flow.db", timeout=120) as conn:
             t0 = time.time()
-            with sqlite3.connect("/data/flow.db", timeout=30) as conn:
-                cur = conn.execute("SELECT COUNT(*) FROM flow")
-                out["total_rows"] = cur.fetchone()[0]
-                cur = conn.execute(
-                    "EXPLAIN QUERY PLAN SELECT * FROM flow "
-                    "WHERE source='stocks' AND CreatedDate='6/30/2026' "
-                    "AND Color IN ('MAGENTA','YELLOW')"
-                )
-                out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
-                cur = conn.execute(
-                    "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
-                    "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
-                )
-                out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
-                cur = conn.execute(
-                    "SELECT name, sql FROM sqlite_master "
-                    "WHERE type='index' AND tbl_name='flow'"
-                )
-                out["indexes"] = [{"name": r[0], "sql": r[1]} for r in cur.fetchall()]
-                cur = conn.execute("PRAGMA journal_mode")
-                out["journal_mode"] = cur.fetchone()[0]
-                cur = conn.execute("PRAGMA page_size")
-                out["page_size"] = cur.fetchone()[0]
-                cur = conn.execute("PRAGMA page_count")
-                out["page_count"] = cur.fetchone()[0]
-                out["db_size_mb"] = round(out["page_size"] * out["page_count"] / (1024*1024), 1)
-            out["elapsed_sec"] = round(time.time() - t0, 2)
-        except Exception as e:
-            out["error"] = str(e)
-        return out
-    return await run_in_threadpool(_sync)
+            cur = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            out["checkpoint_result"] = list(cur.fetchone() or [])
+            out["checkpoint_sec"] = round(time.time() - t0, 2)
+
+            t1 = time.time()
+            conn.execute("ANALYZE")
+            out["analyze_sec"] = round(time.time() - t1, 2)
+
+            cur = conn.execute("SELECT COUNT(*) FROM flow")
+            out["total_rows"] = cur.fetchone()[0]
+
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT * FROM flow "
+                "WHERE source='stocks' AND CreatedDate='6/30/2026' "
+                "AND Color IN ('MAGENTA','YELLOW')"
+            )
+            out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
+
+            cur = conn.execute(
+                "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
+                "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
+            )
+            out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
+
+            cur = conn.execute("PRAGMA page_count")
+            out["page_count_post"] = cur.fetchone()[0]
+    except Exception as e:
+        out["error"] = str(e)
+    return out
 
 
 @app.post("/api/admin/flow/optimize")
@@ -9294,42 +9346,7 @@ async def _flow_optimize():
     verify at a glance whether the planner now uses idx_flow_source_date.
     """
     from fastapi.concurrency import run_in_threadpool
-    def _sync():
-        import sqlite3, time
-        out = {}
-        try:
-            with sqlite3.connect("/data/flow.db", timeout=120) as conn:
-                t0 = time.time()
-                cur = conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                out["checkpoint_result"] = list(cur.fetchone() or [])
-                out["checkpoint_sec"] = round(time.time() - t0, 2)
-
-                t1 = time.time()
-                conn.execute("ANALYZE")
-                out["analyze_sec"] = round(time.time() - t1, 2)
-
-                cur = conn.execute("SELECT COUNT(*) FROM flow")
-                out["total_rows"] = cur.fetchone()[0]
-
-                cur = conn.execute(
-                    "EXPLAIN QUERY PLAN SELECT * FROM flow "
-                    "WHERE source='stocks' AND CreatedDate='6/30/2026' "
-                    "AND Color IN ('MAGENTA','YELLOW')"
-                )
-                out["plan_recent_style"] = [list(r) for r in cur.fetchall()]
-
-                cur = conn.execute(
-                    "EXPLAIN QUERY PLAN SELECT id, CreatedDate, CreatedTime "
-                    "FROM flow WHERE source='stocks' ORDER BY id DESC LIMIT 1"
-                )
-                out["plan_worker_status"] = [list(r) for r in cur.fetchall()]
-
-                cur = conn.execute("PRAGMA page_count")
-                out["page_count_post"] = cur.fetchone()[0]
-        except Exception as e:
-            out["error"] = str(e)
-        return out
-    return await run_in_threadpool(_sync)
+    return await run_in_threadpool(_flow_optimize_sync)
 
 
 @app.post("/api/admin/massive/backfill-ticktest")
