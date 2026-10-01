@@ -102,7 +102,12 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
   const key = `${def && def.id}|${compute.fn}|${tf}|${forming}|${symbolKey(symbol)}`
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
-  if (perBars.has(key)) return perBars.get(key)
+  if (perBars.has(key)) {
+    const hit = perBars.get(key)
+    // ⭐ C43 — a run the script stopped is remembered as that stop, not re-run
+    if (hit && hit.stoppedBy) throw hit.stoppedBy
+    return hit
+  }
 
   const clock = runtimeClockOpts(forming, tf ? { tf } : {})
   const built = buildRuntimeIr(String(compute.source || ''), {
@@ -124,15 +129,30 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
   }
   const program = lowerIrProgram(built.ir)
   const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(rows.map((b) => b[k])))
-  const res = execute(program, {
-    bars: rows.length,
-    series,
-    columns: program.columns,
-    // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
-    // way `interpret` does for the four realtime clock columns.
-    confirmed: forming === false,
-    barTimes: rows.map((b) => b.t),
-  })
+  // ⭐⭐ C43 — the script's own `runtime.error` (C35's `PineRuntimeError`) stops
+  // the run on the bar it is reached; TradingView's study then holds nothing and
+  // names that bar (`vw-runtime-error-reached`). The bar is the one after the last
+  // the run finished, stamped on the error for the member's sentence
+  // (`nativeRegistry.runtimeColumnsOrReasons`).
+  let finished = -1
+  let res
+  try {
+    res = execute(program, {
+      bars: rows.length,
+      series,
+      columns: program.columns,
+      // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
+      // way `interpret` does for the four realtime clock columns.
+      confirmed: forming === false,
+      barTimes: rows.map((b) => b.t),
+    }, undefined, { onBar: (bar) => { finished = bar } })
+  } catch (err) {
+    if (err && err.name === 'runtime.error') {
+      err.bar = finished + 1
+      perBars.set(key, { stoppedBy: err })
+    }
+    throw err
+  }
   const out = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
     const col = res.outputs[index]

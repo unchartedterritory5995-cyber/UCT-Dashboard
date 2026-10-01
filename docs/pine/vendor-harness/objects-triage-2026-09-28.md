@@ -149,6 +149,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 43 | C33 three object-lane reads, one script each — **(a)** `array.push(list, f(…))` / `list.push(f(…))` is the two statements Pine runs (`pineObjects.js::pushOfDrawCall`), and a helper whose body ends in a lone `if … <ns>.new(…)` returns that object or `na` (`ifOnlyReturn`: the caller's name is emptied under the call's guards, then filled under the create's); **(b)** an `input.timeframe` default printed in a text is served only for a spelling a committed capture prints under that Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`: `D` under v6, `W` under v5) — any other spelling marks the property unknown and is never printed; a request timeframe that is a function PARAMETER is the caller's argument, on the object pass only; `color.new(c, <input default>)` and an `na` arm of a colour choice resolve without minting; **(c)** `<getter>[k]` (k ≤ 5), `str.tostring(<getter>)` and an inlined helper's own getter local are read by the object runtime; an `and` guard with a term nothing reads, gated by an `input.bool`, is carried as a latch over its read terms and one unknown (`guard:partial`); **(d)** `last_bar_time` is the newest bar's time in ms | `e3ebd3a6a`, `0c48cc0a9` | 29 / 47 | 228 / 266 | **average-day-range-adr-pivots DIVERGE → MATCH** (lines 0 → 2 of 2, boxes 0 → 2 of 2, cells 3 → 4 of 4, cell text agrees; ids, coordinates, colours and text equal TradingView's — `vendorHarness.c33ObjectReads`). **high-low-open-mid-ranges** labels 0 → **504 of 504**, label text agrees (text, y, x-rank and text colour of all 504 equal); its 504 lines stay WITHHELD and cells stay 37 of 45. **volume-profile**: `last_bar_time` served, its 3 lines still withheld (next wall `chart.left_visible_bar_time`). Overall MATCH 25 → 26 of 47; plots 161 / 172 unchanged. Committed harness dir (87 graded): objects 49 → 50, overall 42 → 43, families 278 → 284 of 322 — the same two entries and only those; flag-off runs unchanged (18 / 15 and 39 / 32). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 of 532 rows changed** (base-vs-base control 0). Translation census 266: no served output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +8,600 B; total JS +10,368 B. `paramIds.test.js` green, no re-pin |
 | 47 | C36 what C30 left (§ C36). **(1)** an every-day daily chart (BTCUSD capture: the week starts MONDAY, the month on the 1st) is SERVED, less a period whose calendar first day has no bar and a bar across a New York clock change from its anchor — both withheld by name; a chart with one weekend day but not the other stays withheld whole. ⛔ **A wrong value fixed on the way:** on a session chart TradingView anchors to the first session ITS CALENDAR holds, not the first bar — the Hurricane Sandy week read 0 / −1 / −2 where the vendor reads −2 / −3 / −4; a period not opened by the calendar's first session is now withheld (that week, and every holiday-opened period before 2000). **(2)** every withholding carries a named reason out of `periodAnchorMask` to the member's disclosure strip (`chartClockNotice.js`). **(3)** `time(timeframe.period)` / `time("60")` = the bar's own `time` on 1D and 60m charts, as witnessed; nowhere else. **(4)** ⛔ the Python interpreter answered `na(time("W")) ? a : b` with a confident `a` on EVERY bar in all three server consumers that can evaluate a pane's saved tree (alerts, the scan sweep, the screen backtest); `ast_interpret.period_anchor_mask` is now the mask's port, one parity fixture. **(5)** `time_close("W" / "M")` on a session daily chart = `tf_live(<period>, timeclose)`, 4,800 / 4,800 incl. the forming period's scheduled close; withheld by name with weekend bars and off 1D; `"3M"` / `"12M"` refused by name (measured; no quarterly bar) | `a4f56d007` | 30 / 47 (unchanged) | 233 / 266 (unchanged) | none on the 47 or the committed dir (0 graded entries; 5 probe entries' refusal sentence). Through the door once the unrelated row is cut: `vw-time-tf-bitstamp-btcusd-1d` T01–T04 0 wrong, 5,438 / 4,795 / 4,247 / 1,845 bars equal; `vw-time-close-tf-spy-1d` Q01 / Q02 / Q12 / Q13 MATCH 4,800 / 4,800 and Q08 3 wrong → 0; `vw-time-tf-spy-1d` T05 / T06 MATCH 900 / 900. C30's surviving mutation M5 is red — see § C36 |
 | 49 | C38 the plot lane answers what the object lane and the VM already did (C29's "main gap against one authority"): **(a)** `x[e]` with a PER-BAR `e` in a plot is `barsAgo(x, e, buffer)` — one new table function, no new node type; the rule (an `na` count reads the current bar; a whole count below the buffer reads that many bars back) is stated once in `interpret.js` and asked by `objectRuntime.atCheck` too; the buffer is `max_bars_back` or `AUTO_MAX_BARS_BACK`, never more than the index can take, and a buffer past the lookback budget refuses `budget:lookback`; the root is WITHHELD within reach of a count that cannot be read and of a read before the first bar held (both lanes, JS and Python); **(b)** `color.r/g/b/t` of a colour `vw-gradient` witnesses is a number — a fixed colour folds, a gradient is `fromGradient` written as a canonical tree; **(c)** found on the way: `x[-expr]` lost its minus at parse — see § C38 | `621209921`, `306db6c30` | 29 / 47 (unchanged; overall 26; base `45859e598`, objects pane on; 0 entries changed either flag) | 227 / 266 (unchanged) | none of the 47. Committed harness dir (117): objects MATCH 57 → **60**, overall 45 → 45, plots MATCH 316 / 379 → **323 / 412** — the three probes leave INCONCLUSIVE-refused: `vw-offset-na` 5 of 6 rows MATCH, `vw-mbb-auto` and `vw-gradient` graded; every row still short is `bar_index` on a 300-bar window, the pane's 12-row ceiling or its hidden-constant rule. On TradingView's whole SPY history (the committed from-listing capture joined in front, checked against the vendor's own `bar_index`) the probes' unedited source grades **MATCH**: 6 / 6, 4 / 4 (offsets to 399), and the 19 colour-component rows. Member-door census attach 41 / 64 → 41 / 64, 1 row (smarter-snr's sentence). Translation census ok 58 → 58, served 827 → 827. |
+| 53 | C43 two rules the 2026-09-30 evening captures settled, each in its own authority and both lanes renew their rails: **(a)** a getter in bar-coordinate arithmetic -- `l.set_x2(l.get_x1() + a.avg() + 1)` -- is carried on the OBJECT program as `{v:'op', op:'trunc', args:[...]}` over `+`/`-`, `int(x)` and `math.avg(a,b)` (half of their sum), truncation served for a non-negative result only (a negative one marks `truncNegative` and the coordinate is tainted via C17's property mask through the SHARED `opReadsState` predicate the validator already pinned the shape of -- one predicate, two callers); a bounded-window read placed between an add and the removal is `<an add ran this bar> ? na : <the read>`, its ambiguity registered as the add's own tree; the no-format `str.tostring` is TEN decimals, trailing zeros trimmed (`defaultNumberText`). **(b)** a reached `runtime.error` draws nothing (`vw-runtime-error-reached-spy-1d`): the translator stamps `meta.runtimeErrors` on the document -- the conditions each call stands under as trees, the message's text parts, the inputs it reads live, the values it reads folded, and any period read; a new engine module (`runtimeErrorStop.js`) evaluates them over the chart's bars with the member's own inputs, three-valued per bar with `unknownMask`/`periodAnchorMask` and an off-listing warm-up; a hit returns `{reached, bar, barKnown, message, title, tradingViewText, sentence}` and `nativeRegistry.astColumnsFor` returns no column + `objectColumns.objectReaderFor` returns null; the runtime lane's `PineRuntimeError` ends in the same result through `runtimeErrorText.js`'s one wording; the binder publishes per instance to `runtimeErrorNotice`, the disclosure strip renders `${name} -- ${sentence}` and leaves on hide/release; a setting only a validation reads is a guard-only input (`guardInputs:true`), declared without minting a param-id. NEVER GUESSED: an unread condition / an unknown period / a folded setting the member moved / a bar before the listing warm-up stays `unknown`, named, drawn as today -- proved by base-vs-base controls | `323d5cd32`, `481f60666`, `4e759cf1e`, `538aa038b`, `e80129c6a` (wave 9 merge 1ce378b3b), `f6acac4a9` (wave 9 merge 19bcbf278) | 29 / 47 -> **30 / 47** (overall 26 -> **27**; `average-day-range-adr-pivots` DIVERGE -> MATCH is C33's, pulled in by the wave-9 merge) | 227 / 266 -> **234 / 266** (C33 and C36 wave-9 lifts, plus **trend-duration-forecast** lines 0 -> **1 / 1**, labels 26 -> **27 / 28** -- a C43 Part-A gain) | **trend-duration-forecast** line and label-82 served (x2 = x1 + trunc(mean + 1) = 23, label x = x1 + 11, text 'Probable Length\n23' between window add and removal; label id 2 withheld by construction and ONE other label text still refused by name -- see section C43). Member-door census 266 x both flags (pre-merge, 481f60666 vs base 36f3c47d5): attach 41 / 64 -> 41 / 64, 0 rows changed (base-vs-base control 0). Translation census 266 x both flags (pre-merge): 0 served outputs changed. **vendorHarness.c43RuntimeError.test.js** (16 tests) and **runtimeErrorNotice.test.jsx** (10 tests) both green; the three new isolation rails inside c43RuntimeError (no param minted for a validation-only input, a validation period read is isolated from the plots' record, a shared knob is live in both) pass on the merged tree. Notebook first-open **1,897,262 B** at base and merged tip (+0, PASS); `pine` chunk +18,833 B; total JS +5,117 B across 353 files. `paramIds.test.js` green with ZERO edits. **Mutation proofs: 42 mutations, 34 RED (each a rail only this fix turns red), 8 GREEN(!) -- recorded as unproven in section C43 rather than silenced** |
 
 | 52 | C42 a call that runs exactly ONCE reads what TradingView reads (section C42). The witness is `vw-fn-series-history-rddt-1d-2026-09-30` and the C04 arm of ema-ribbon: under a guard that is PROVABLY `barstate.islast` (`guardIsLastBarOnly`, alone or as a top-level `and` conjunct), in no loop, (i) `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` are the chart's values `k` bars back and move to `CHART_SERIES_WITNESSED`; (ii) `bar_index[k]` is the call's own history (`na` on its one run) and moves to `CALL_OWNED_SERIES`; (iii) `ta.highest(src, len)` reads its source and `ta.sma(src, len ≥ 2 literal)` reads `na`. Everything else keeps a named refusal: every other `ta.*`, every other guard, a loop, a non-literal offset or length, `time_close[k]` / `hlcc4[k]`, `bar_index[k]` under any other guard. On the way: a bare `input(<literal>, …)` is a simple input (its guard is bar-invariant); the clock functions `time(…)` / `time_close(…)` and the calendar readers answer from the bar's own timestamp, so a conditional call that reads them has no history to starve (`fn:conditional-history` 540 → 383 across the 266, no object program moved). ema-ribbon's cell (2,3) is TradingView's ██████████.
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
@@ -2817,3 +2818,162 @@ Rows changed: ema-ribbon (+1 nops, strength-bar cell now served), ict-institutio
 **Rails and proofs:** `vendorHarness.c42OneExecution` (16 behavioural + 3 reach), `vendorHarness.c42DefaultDecimals` (3), `objectFnInline.test.js` (+21: `guardIsLastBarOnly` fail-closed cases, `oneExecutionTokens` reads, `taCallIn`, bare `input(...)` invariance, clock purity), `vendorHarness.c31Loops` and `vendorHarness.c34ChartSeries` re-pinned under the new rule. 29 mutations, each red alone, restored by bytes with the sha verified against the committed blob.
 
 **Left for the integrator:** `advanced-custom-multi-ma-signals-emasmavwmavwap`'s `+1 cell:text` is a cell already refused by another rail (translation census: no served output moved); verified it does not come from `oneExecutionTokens`' rewrite. The next session should name the one cell and decide whether to admit it or leave it withheld.
+## C43 -- a getter in arithmetic, a between-read, and a reached `runtime.error` draws nothing (2026-09-30, step 53)
+
+### Fixtures that settle this
+
+- `tests/fixtures/vendor/vw-int-array-avg-spy-1d-2026-09-30.json` -- the exact-float `array<int>.avg()`,
+  no-format `str.tostring(avg)` prints `1.5` / `1.3333333333` / `1.6666666667` (ten decimals, trailing
+  zeros trimmed), `"##"` rounds half AWAY from zero, `l.set_x2(l.get_x1() + a.avg() + 1)` drops the
+  fraction (truncation, non-negative only).
+- `tests/fixtures/vendor/vw-fn-series-history-spy-1d-2026-09-30.json` -- confirms the no-format text
+  in prose at ten decimals (`151.5633333333`).
+- `tests/fixtures/vendor/runtime/vw-runtime-error-spy-1d-2026-09-30.json` (control, not reached:
+  ordinary 4,800-row study, 50 labels) and `vw-runtime-error-reached-spy-1d-2026-09-30.json`
+  (reached: 0 data rows, 0 labels, status `User-defined error: Error on bar 100: UCTPROBE stop at
+  bar 100`).
+- `tests/fixtures/vendor/trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json` and
+  `.../average-day-range-adr-pivots-rddt-1d-2026-09-28.json` (the two 47-corpus entries this step
+  moves -- ADR+pivots is C33's, pulled in through the wave-9 merge).
+
+### Part A -- the getter-in-arithmetic and the between-read
+
+- `pine.js::stateArith(node)` walks a getter-reading expression into a value reference the object
+  program carries: `+`/`-` over two state operands, `int(x)` as `{v:'op',op:'trunc',args:[x]}`,
+  `math.avg(a,b)` as half of their sum. Only emitted in `BAR_COORD_PROPS` properties
+  (`x`/`x1`/`x2`/`left`/`right`) and always wrapped in a `trunc` at the property boundary -- a
+  coordinate is a whole bar on Pine's x axis.
+- `objectProgram.js` adds `OBJECT_VALUE_UNARY = ['-', 'round', 'trunc']` and exports
+  `BAR_COORD_PROPS`; the live-text validator asks the shared `opReadsState` predicate that lives in
+  `objectProgram.js` and is read by `objectRuntime.js::unsaidProps` -- one predicate, two callers,
+  so the validator cannot admit arithmetic the runtime does not know how to mark. (The predicate
+  was committed as a refactor: `538aa038b`.)
+- `objectRuntime.js` serves `trunc` for a non-negative result (`Math.trunc`), returns undefined for
+  a negative one and bumps `truncNegative`; the coordinate is then tainted through C17's
+  per-property mask and the object is held, not drawn.
+- `defaultNumberText(n)` prints ten decimals (`toFixed(10)`) with trailing zeros trimmed; this is
+  the no-format `str.tostring` text throughout the two lanes.
+- `windowReadBetween(m, stmts, writerStmts)` is the position predicate: past every writer and past
+  every add-span. `resolveWindowReadBetween` returns `cOp('?:', [ran, 0/0, base])` and registers
+  the `ran` tree as the ambiguity -- "an add ran this bar". `BETWEEN_READ_MEMBERS` =
+  `{size, first, last, max, min, sum, avg}`; `BETWEEN_LITERAL_MEMBERS` = `{get, sizeAtLeast,
+  sizeBelow}` for a literal argument only.
+
+### Part B -- a reached `runtime.error` draws nothing
+
+- `pine.js::runtimeErrorSitesOf(stmts)` enumerates every bare `runtime.error(...)` statement with
+  the conditions each stands under as token lists and a `negate` flag; a call inside a function
+  body, a switch arm, a loop body, a larger expression, or a condition whose block-set reads a
+  name becomes an `unread` entry with its own `why`. The resolver resolves the conditions with
+  `paramMint = null`, a no-op `noteSink`, no `onCondition`, and private `OTHER_SYMBOL_SINK` /
+  `PERIOD_READ_SINK` so the translation's own records are left alone (reading the conditions
+  **moves nothing else in the translation** -- three isolation rails below).
+- Positive conjunctions flatten into factors (each tree stands on its own); a negative conjunction
+  stays whole (the negation of a conjunction is not a conjunction).
+- `runtimeErrorMessageOf(node, resolver)` captures the message as text and number parts;
+  `defaultNumberText` prints the numbers at the stop bar.
+- `runtimeErrorStop.js::runtimeErrorStopFor(def, bars, inputs, ctx)` is the host evaluator:
+  invariant factor false -> not reached exactly; all-invariant-true + bare `isfirst` -> bar 0
+  known; per-bar three-valued state over `unknownMask` + `periodAnchorMask`, with an off-listing
+  warm-up of `maxLookback` (or every bar when a factor reads `bar_index` / `isfirst`); `barKnown`
+  only on the listing with no unknown bars before.
+- `nativeRegistry.astColumnsFor` returns no columns + `columnErrors[key] = {guard:
+  'pine:runtime.error', message: stop.sentence}` for every plot; `objectColumns.objectReaderFor`
+  returns null; the per-instance notice is published via `binder.js::noteRuntimeErrorStop` and
+  cleared when the instance is removed, hidden or the binder is released; the strip under the
+  chart reads it (`AttachedPineDisclosures.jsx::attachedRuntimeErrors`), the row leads the strip.
+- `runtime/runtimeColumns.js` catches `err.name === 'runtime.error'`, stamps `err.bar = finished +
+  1` and memoises the stop per bars array; `nativeRegistry.runtimeColumnsOrReasons` returns the
+  same result through `runtimeErrorWords`'s one wording.
+- `memberPaneDefinition.js` passes `guardInputs: true` to `builderInputs`;
+  `builderInputs.js::withGuardInputs` returns a spec row for every setting a validation reads live
+  that no drawn row carries, so the member sees it on their panel without the translation minting
+  an id for it.
+
+### Rails that pin this fix
+
+- `vendorHarness.c43IntAvg.test.js` (9 tests) -- the exact-mean texts, `##` round-half-away, the
+  truncated x arithmetic.
+- `vendorHarness.c22TrendDuration.test.js` (4 tests) -- line and label-82 served; label id 2
+  withheld by construction.
+- `vendorHarness.c43RuntimeError.test.js` (16 tests, including three new isolation rails inside
+  "reading the conditions moves NOTHING else in the translation": a validation-only input mints no
+  parameter id; a period read by the validation is the validation's own and the plots' period
+  record is untouched; a setting shared by a plot and the validation is one knob the member's
+  value reaches both).
+- `runtimeErrorNotice.test.jsx` (10 tests, including the runtime-lane control over the same
+  wording).
+- `objectWindowPositions.test.js`, `objectLostGeometry.test.js`, `objectSeriesWindows.test.js` --
+  the between-read ambiguity (`addRan`) and the lost-geometry re-points.
+- `vendorHarness.c18KClustering.test.js` -- uses `defaultNumberText` as the single text authority.
+
+### Mutation proofs (42 mutations, each applied, run under a single vitest, restored by bytes)
+
+**34 RED** -- each turns a rail only this fix guards:
+
+- Part A (12 red of 13): A1 trunc->round; A2 negative-trunc served; A3 unsaid props not marked;
+  A4 getter arithmetic not truncated to a whole bar; A5 between-read ambiguity dropped; A7
+  validator admits state arithmetic in any property; A8 translator serves getter arithmetic as a
+  price too; A9 ten decimals -> nine; A10 math.avg not halved; A11 between-read predicate always
+  false; A13 the shared `opReadsState` answers no.
+- Part B (22 red of 29): B1 plot lane ignores the stop; B2 object lane ignores it; B3 negated
+  else-branch condition inverted; B4 `bar_index` off the listing trusted; B6 the known-false
+  bar-free factor no longer settles; B7 the `isfirst` validation idiom not recognised; B8
+  conjunction kept whole; B9 block-set-reading condition placed; B10 guard resolver mints params;
+  B11 guard period read lands in the translation record; B12 guard-only inputs not declared; B13
+  stamp dropped; B14 binder does not publish; B15 strip does not render; B16 runtime lane does
+  not stamp the bar; B17 released binder leaves sentences behind; B18 bar number said when not
+  known; B19 runtime-lane `PineRuntimeError` not an engine stop; B20 stopped runtime-lane
+  document still draws its objects; B21 period read trusted on another timeframe; B25 bare
+  non-statement call placed; B28 `barKnown` set unconditionally off the listing; B29 message not
+  carried.
+
+**8 GREEN(!)** -- unproven, recorded here rather than silenced:
+
+- **A6**, **A12**, **B5** fire on a path that no fixture in this lane exercises today: A6 keeps
+  the base in both arms of the ternary (the between-read is unused by the three published c43
+  isolation rails and the trend-duration capture does not drop its `w.push` on a bar the window
+  still holds); A12 leaves `int()` over a getter untruncated (the two live uses -- `+ 1` and
+  `math.avg` -- route through other paths); B5 reads a folded setting at the default when the
+  member has moved it (the three rails use defaults).
+- **B22**, **B23**, **B24** fire in failure-only branches not reached by the current rails: the
+  "not reached on held bars" named reason off the listing, the "no setting" refusal for a live
+  guard the document does not carry, and the per-bar warm-up read as known.
+- **B26**, **B27** fire on a path the fixtures cannot reach today: the "another symbol /
+  timeframe" branch of the resolver (every captured runtime.error script already refuses on-door
+  for a different reason, so the condition cannot be read) and the `islast` anchor outside the
+  `isfirst` idiom (no corpus `runtime.error` call anchors on `islast`).
+
+Each is a candidate for a dedicated rail; the fix is not pulled.
+
+### Measurements (base `36f3c47d5` -> merged tip `f6acac4a9`, 47 captures, pane on)
+
+| | base | merged tip |
+|---|---|---|
+| objects MATCH | 29 / 47 | **30 / 47** |
+| overall MATCH | 26 / 47 | **27 / 47** |
+| families | 227 / 266 | **234 / 266** |
+| plots | 161 / 172 | 161 / 172 |
+
+The two moved entries are C33's (ADR+pivots DIVERGE -> MATCH, high-low-open-mid-ranges labels
+0 -> 504 of 504), plus Part A's own trend-duration-forecast lines 0 -> 1 of 1 and labels
+26 -> 27 of 28 (label id 2 and one label text still refused by name).
+
+Bytes: Notebook first-open **1,897,262 B** at base and merged tip (+0, PASS,
+`notebook_perf_budgets`); `pine` chunk +18,833 B; total JS +5,117 B across 353 files.
+`paramIds.test.js`: green with ZERO edits.
+
+### Decisions left for the integrator
+
+- `runtimeErrorStopOf(cols).unknown` and `meta.runtimeErrors.unread` carry per-call reasons for
+  everything that could not be decided here -- but they are not surfaced on the member
+  disclosure strip today (only reached stops are). An integrator may choose to render them,
+  taking the strip's "pane is empty for one reason" idiom into account.
+- Getter arithmetic in a `y` / `y1` / `y2` property stays refused by name -- truncation to a
+  whole bar is a wrong value on the y axis. A future lane may serve a floating `y` from state.
+- A negative `x1 + avg + 1` capture would settle whether `truncNegative` is the right wall:
+  queued, not fabricated.
+- Off-listing scripts whose `runtime.error` conditions read `bar_index` or `barstate.isfirst` as
+  a value stay drawn as today and are NAMED unknown.
+- The runtime-lane `runtimeObjectValues` stop withholds the computed VALUES only; the object
+  program's static drawings still render.

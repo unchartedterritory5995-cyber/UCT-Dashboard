@@ -167,21 +167,73 @@ describe('⛔ C22 — a read anywhere else is refused WHERE IT STANDS, never the
     expect(labels(r, 'AFTER')).toEqual(want)
   })
 
-  it('a read BETWEEN the add and the removal — refused; the read after it served (was: the whole window refused)', () => {
+  // ⭐⭐ C43 — BETWEEN THE ADD AND THE REMOVAL the array is exactly what last bar
+  // left on every bar no add ran (nothing grew, so no removal fires): the model.
+  // On a bar the add ran it may hold one element more than its cap, which the
+  // model does not say — the read is served with "an add ran this bar" as its
+  // ambiguity (`Resolver.resolveWindowReadBetween`), so the step is withheld
+  // there and Pine's on every other bar. ⚰️ Was: refused on every bar.
+  const BETWEEN = [
+    'var float[] w = array.new_float()',
+    'if close > open',
+    '    w.push(high)',
+    'if w.size() > 0',
+    '    label.new(bar_index, w.avg(), "BETWEEN")',
+    'if w.size() > 3',
+    '    w.shift()',
+    'if w.size() > 0',
+    '    label.new(bar_index, w.avg(), "AFTER")',
+  ]
+  it('⭐ C43 — a read BETWEEN the add and the removal: Pine\'s on every bar no add ran, withheld on the bars one did', () => {
+    const t = tr(BETWEEN)
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const r = run(t)
+    const w = []
+    const between = []      // what Pine draws there, bar by bar
+    const addBars = []
+    const after = []
+    for (let i = 0; i < N; i += 1) {
+      if (up(i)) { w.push(BARS[i].h); addBars.push(i) }
+      if (w.length > 0) between.push([i, avg(w)])
+      if (w.length > 3) w.shift()
+      if (w.length > 0) after.push([i, avg(w)])
+    }
+    const want = between.filter(([i]) => !addBars.includes(i))
+    expect(want.length).toBeGreaterThan(20)
+    expect(addBars.length).toBeGreaterThan(20)
+    expect(labels(r, 'BETWEEN')).toEqual(want)
+    // ⛔ NON-VACUITY: on an add bar Pine's value there is NOT the model's (the
+    // window holds a fourth element until the removal), so serving the model on
+    // those bars would have drawn a different number
+    const model = new Map(after)
+    const differ = between.filter(([i, v]) => addBars.includes(i) && model.get(i) !== v)
+    expect(differ.length).toBeGreaterThan(10)
+    // and the read after the removal is untouched: served on every bar
+    expect(labels(r, 'AFTER')).toEqual(after)
+  })
+
+  it('⛔ C43 — an add that runs on EVERY bar leaves no bar the between-read is exact on: nothing is drawn from it', () => {
     const t = tr([
       'var float[] w = array.new_float()',
-      'if close > open',
+      'if true',
       '    w.push(high)',
-      'if w.size() > 0',
-      '    label.new(bar_index, w.avg(), "BETWEEN")',
+      'label.new(bar_index, w.avg(), "BETWEEN")',
       'if w.size() > 3',
       '    w.shift()',
-      'if w.size() > 0',
-      '    label.new(bar_index, w.avg(), "AFTER")',
+      'label.new(bar_index, w.avg(), "AFTER")',
     ])
     const r = run(t)
+    // withheld on every bar (the ambiguity holds on all of them) — never the model's value
     expect(labels(r, 'BETWEEN')).toEqual([])
-    expect(labels(r, 'AFTER').length).toBeGreaterThan(10)
+    expect(labels(r, 'AFTER').length).toBeGreaterThan(100)
+  })
+
+  it('⛔ C43 — a search or a series index between the add and the removal keeps the positional refusal', () => {
+    for (const read of ['w.indexof(high)', 'w.get(bar_index % 2)']) {
+      const t = tr(BETWEEN.map((l) => l.replace('w.avg(), "BETWEEN"', `${read}, "BETWEEN"`)))
+      expect(labels(run(t), 'BETWEEN'), read).toEqual([])
+      expect(t.objectDiagnostics.droppedOps, read).toBeGreaterThan(0)
+    }
   })
 
   it('a nested condition that reads a name its own statement changed above it — the window is refused', () => {

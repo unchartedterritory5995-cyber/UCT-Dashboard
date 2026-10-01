@@ -29,8 +29,14 @@ import {
   symAlignmentMask, withheldReadMask,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
+import {
+  resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, computeFor, runtimeErrorStopOf,
+} from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
+// ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
+// use each other only inside functions, and importing it here is what registers
+// the stop into the plot lane for every pane the binder draws.
+import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -450,6 +456,30 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
   // another chart period draws NOTHING here rather than the other period's text.
   if (periodReadsObjectRefusal(definition, opts.tf)) return null
+  // ⭐⭐ C43 — the script's own `runtime.error`, reached on these bars at these
+  // settings: TradingView's study holds no drawing at all (measured), so nothing
+  // is read here — the same decision the plot lane takes (`runtimeErrorStop.js`,
+  // one evaluation for both).
+  if (definition.meta && definition.meta.runtimeErrors) {
+    const stop = runtimeErrorStopFor(definition, bars, opts.inputs, {
+      tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
+      historyFromListing: opts.historyFromListing === true,
+    })
+    if (stop && stop.reached) return null
+  }
+  // ⭐ C43 — and a RUNTIME-lane document (dark pane) whose own run the script
+  // stopped: the run is the authority there, and it is memoised per bars array.
+  if (definition.compute && definition.compute.kind === 'runtime') {
+    let cols = null
+    try {
+      cols = computeFor(definition, bars, opts.inputs, {
+        tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+      })
+    } catch { cols = null }
+    const stop = runtimeErrorStopOf(cols)
+    if (stop && stop.reached) return null
+  }
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
   const inputs = resolveInputs(definition, opts.inputs)

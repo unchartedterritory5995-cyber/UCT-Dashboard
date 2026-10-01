@@ -67,6 +67,12 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 import { evaluateObjects } from './objectRuntime'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
+// ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
+// binder is where that is known per INSTANCE, so it publishes the sentence for
+// the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
+// publishes a scaled table (`paneFitNotice.js`).
+import { runtimeErrorStopOf } from './nativeRegistry'
+import { setRuntimeErrorNotice } from './runtimeErrorNotice'
 
 import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
@@ -901,6 +907,18 @@ export function createBinder({ chart, LWC }) {
     } catch { /* older API — the axis stays as it was, which is today's behaviour */ }
   }
 
+  /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
+   *  so a removed, hidden or released instance takes its sentence with it. */
+  const stoppedIds = new Set()
+  const noteRuntimeErrorStop = (instanceId, cols) => {
+    const stop = cols ? runtimeErrorStopOf(cols) : null
+    const sentence = stop && stop.reached ? stop.sentence : null
+    if (sentence) stoppedIds.add(instanceId)
+    else if (!stoppedIds.has(instanceId)) return
+    else stoppedIds.delete(instanceId)
+    setRuntimeErrorNotice(instanceId, sentence)
+  }
+
   function releaseAll() {
     for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
@@ -912,6 +930,8 @@ export function createBinder({ chart, LWC }) {
     pruneClock('plots', null)
     pruneClock('objects', null)
     held = []
+    for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+    stoppedIds.clear()
     computeMemo = new Map()
     pointMemo = new Map()
     pendingLayout = null
@@ -1291,7 +1311,7 @@ export function createBinder({ chart, LWC }) {
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
             // frame's timeframe, the secondary's are the chart's).
             secondary, exchangeOf: ctx.exchangeOf, framed: !!frame }))
-        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
+        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
         // one column, so this can only be the server lane answering "the fetch
@@ -1304,6 +1324,8 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      // ⭐ C43 — reached on this chart at these settings, or no longer reached
+      noteRuntimeErrorStop(inst.instanceId, cols)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
       // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
       // columns the decision was made for; a registry without the report (a test
@@ -1369,6 +1391,7 @@ export function createBinder({ chart, LWC }) {
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
+    for (const id of [...stoppedIds]) if (!computedIds.has(id)) noteRuntimeErrorStop(id, null)
     pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
