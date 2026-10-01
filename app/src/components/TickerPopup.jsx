@@ -39,7 +39,7 @@ const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [
 // ThemeTrackerPage.jsx.
 const SHIFT_F = chordById('SHIFT_F')
 
-export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose }) {
+export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -48,6 +48,28 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   const controlled = openProp !== undefined
   const modalOpen = controlled ? openProp : modalOpenState
   const closeModal = () => { if (controlled) onClose?.(); else setModalOpen(false) }
+  // A2R-05 (a11y second review, 2026-10-01): the trigger below used to render
+  // as `<Tag role="button">` with no tabIndex and no key handler — reachable
+  // by mouse only, on every call site that did not pass `as="button"` (26 of
+  // 37). `triggerRef` is what lets Escape (and every other close path —
+  // backdrop click, the X, a research/compare navigation) hand focus BACK to
+  // the trigger, the way a dialog is supposed to leave the control that
+  // opened it. `focusable` is an explicit opt-out for the rare call site that
+  // already sits inside its OWN focusable ancestor (a `role="button"` row, a
+  // native `<a>`) — nesting a second focus stop there would be the thing this
+  // fix exists to avoid, not a fix for it. See UCT20.jsx and NewsFeed.jsx.
+  const triggerRef = useRef(null)
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    if (modalOpen) { wasOpenRef.current = true; return }
+    if (!wasOpenRef.current || controlled) return
+    wasOpenRef.current = false
+    const active = document.activeElement
+    const lost = !active || active === document.body
+    if (lost && triggerRef.current && typeof triggerRef.current.focus === 'function') {
+      triggerRef.current.focus()
+    }
+  }, [modalOpen, controlled])
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
   // Anchored+reveal (Desk recordings): open positioned at the session date; the
@@ -216,12 +238,27 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     <>
       {!controlled && (
       <Tag
+        ref={triggerRef}
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => {
           // On touch, a tap opens the universal Ticker Hub sheet; desktop keeps
           // the full chart modal.
           if (isTouch) { openTicker(sym); return }
           setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
+        }}
+        onKeyDown={!focusable ? undefined : (e) => {
+          // Enter AND Space activate it, same as a native <button> — this
+          // trigger is a <span> by default (`as` defaults to 'span'), which
+          // carries neither behavior on its own. preventDefault on Space stops
+          // the page from scrolling; on Enter it is a no-op but keeps both
+          // branches symmetric. `focusable=false` call sites skip this prop
+          // entirely rather than attach a handler that can never fire (no
+          // tabIndex means it is never the active element on a keydown).
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault()
+            if (isTouch) { openTicker(sym); return }
+            setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
+          }
         }}
         onMouseEnter={() => {
           prefetchBar(sym, 'D')
@@ -233,6 +270,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
           import('./chart/pane/ChartPane')
         }}
         {...tickerActions.longPressProps(sym)}
+        {...(focusable ? { tabIndex: 0 } : null)}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
