@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, chartOwnTimeNode, OWN_TIME_WITNESSED_TF } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -124,10 +124,11 @@ import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
-  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP,
+  GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency,
 } from './objectProgram.js'
+import { wholeTransparency } from '../colorInt.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
 // `symbolScope.json` is a fact about the outside world (our symbol store's
@@ -721,6 +722,47 @@ export function timeframeSeconds(code) {
  *  handed. */
 export const basePeriodOf = (opts) =>
   (opts && typeof opts.basePeriod === 'string' ? opts.basePeriod : BASE_TF)
+
+/** ⭐⭐ C29 (C15a) — THE TEXT `timeframe.period` READS, for a timeframe CODE and
+ *  a Pine version. ONE authority, asked by the columnar resolver
+ *  (`stringValueOf`), the runtime lane (`pineRuntimeFrontend`'s lowering) and so
+ *  the object text lane, which reads through the resolver.
+ *
+ *  MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/vw-tf-period-spy-{1d,1w,
+ *  1m}-2026-09-30.json`): on a `//@version=6` chart TradingView's
+ *  `timeframe.period` is `"1D"`, `"1W"`, `"1M"` — label text `[1D]`, length 2,
+ *  and `== "D"` / `"W"` / `"M"` all FALSE. Below v6 the engine keeps its bare
+ *  code (`"D"`), the spelling earlier Pine documents and no capture contradicts.
+ *  An intraday code is its minute count in every version (`"60"`).
+ *
+ *  ⛔ It is TEXT, not a code: every reader that turns it back into a timeframe
+ *  goes through `PINE_TF_SPELLING`, which maps `1D`/`1W`/`1M` to `D`/`W`/`M`. */
+export const periodTextOf = (code, version) =>
+  (Number.isFinite(version) && version >= 6 && (code === 'D' || code === 'W' || code === 'M')
+    ? `1${code}` : code)
+
+/** C29 — the value one folded chart-period read takes on a chart of `code`. */
+function periodReadValue(name, version, code) {
+  if (name === 'timeframe.period') return periodTextOf(code, version)
+  if (name === 'timeframe.in_seconds') return timeframeSeconds(code)
+  if (own(BUILTIN_TIMEFRAME_SCALAR, name)) return BUILTIN_TIMEFRAME_SCALAR[name](code)
+  return null
+}
+
+/** C29 — `{base, reads: [{name, version}], byTf: {code: [value per read]}}` over
+ *  every rung of the chart ladder (`TF_LADDER`). The bind compares the rung it
+ *  is on with `base`: equal, the folded constants are this chart's; different
+ *  (or a rung the ladder does not hold), the translation does not answer here. */
+export function periodReadsOf(sink, base) {
+  const reads = [...sink.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([name, version]) => ({ name, version: Number.isFinite(version) ? version : null }))
+  const byTf = {}
+  for (const code of TF_LADDER) byTf[code] = reads.map((r) => periodReadValue(r.name, r.version, code))
+  return { base, reads, byTf }
+}
+
+/** C29 — the runtime lane's own period reads join the same record. */
+export function notePeriodRead(name, version) { recordPeriodRead(name, version) }
 
 /** The spellings that mean “THIS chart's symbol”, across Pine versions.
  *
@@ -1572,6 +1614,14 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.ticker': 'ticker',
   'syminfo.tickerid': 'tickerid',
   'syminfo.prefix': 'prefix',
+  // ⭐ C29 (2026-09-30) — the listing fields TradingView answered on every US
+  // witness (`symbolScope.json::listing_fields`). Same gate as `prefix`: they
+  // settle per BINDING, only for a witnessed exchange, and refuse by name else.
+  'syminfo.root': 'root',
+  'syminfo.basecurrency': 'basecurrency',
+  'syminfo.currency': 'currency',
+  'syminfo.timezone': 'timezone',
+  'syminfo.session': 'session',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -1601,6 +1651,8 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
  *  symbols whose rows carry no exchange, so nothing there could settle it. */
 export const BUILTIN_SYMBOL_NUMERIC = Object.freeze({
   'syminfo.mintick': 'mintick',
+  // ⭐ C29 — 1 on every US listing captured 2026-09-30, per witnessed exchange.
+  'syminfo.pointvalue': 'pointvalue',
 })
 
 /** Why a numeric symbol field refuses on a SCREEN — read off the manifest. */
@@ -3538,6 +3590,25 @@ function monotoneFoldOffer(update, table) {
   return null
 }
 
+/** ⭐⭐ C29 (C12w's bar counters, measured 2026-09-30 on
+ *  `vw-bar-counters-rddt-1d-2026-09-30`) — IS THIS UPDATE A BAR COUNTER? Exactly
+ *  two shapes, each a constant step `K`: `self + K` (either order), and
+ *  `na(self) ? S : self + K` with `S` a number. Such a recurrence never forgets
+ *  its seed, so the bounded window cannot answer it; it is admitted as SWITCHED
+ *  (withheld everywhere but the listing, where it is exact) with its spelling's
+ *  bar-0 reading written into the mark (`interpret.js::readingSeed`). */
+function isBarCounterUpdate(u) {
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === 'self'
+  const isNum = (n) => !!n && n.type === 'num' && typeof n.value === 'number' && Number.isFinite(n.value)
+  const plusK = (n) => !!n && n.type === 'op' && n.name === '+' && Array.isArray(n.args) && n.args.length === 2
+    && ((isSelf(n.args[0]) && isNum(n.args[1])) || (isNum(n.args[0]) && isSelf(n.args[1])))
+  if (plusK(u)) return true
+  return !!u && u.type === 'op' && u.name === '?:' && Array.isArray(u.args) && u.args.length === 3
+    && u.args[0] && u.args[0].type === 'call' && u.args[0].name === 'na'
+    && Array.isArray(u.args[0].args) && u.args[0].args.length === 1 && isSelf(u.args[0].args[0])
+    && isNum(u.args[1]) && plusK(u.args[2])
+}
+
 function containsSelfSeries(node, table) {
   const spec = table.functions.accum
   if (!spec) return false
@@ -4204,6 +4275,27 @@ function tickerCallPrefixOf(call) {
  *  by `securityAsNode` exactly where it emits a `sym` node — so every sym node in
  *  every tree of the result, plot or object pass, has its spelling here. */
 let OTHER_SYMBOL_SINK = null
+
+/** ⭐⭐ C29 — THE CHART-PERIOD VALUES A TRANSLATION FOLDED. The door translates
+ *  once, at `basePeriodOf` (`D`), and folds `timeframe.period` text,
+ *  `timeframe.multiplier` and `timeframe.in_seconds()` to that period's values.
+ *  On a chart of another timeframe those constants are the WRONG period's, so
+ *  the translation records every such read (name → the script's Pine version)
+ *  and `translatePine` stamps `periodReads` — each read's value at every rung of
+ *  the ladder — for the bind to compare (`engine/periodReads.js`). A read that
+ *  only turns the period back into a timeframe CODE (a request, `in_seconds(tf)`)
+ *  is not recorded: the code is the chart's own on any timeframe. */
+let PERIOD_READ_SINK = null
+const recordPeriodRead = (name, version) => {
+  if (!PERIOD_READ_SINK) return
+  if (!PERIOD_READ_SINK.names.has(name)) PERIOD_READ_SINK.names.set(name, version)
+  // ⭐ WHO READ IT: an output (counted, so its row can be marked — only the plots
+  // that read the period are refused on another chart) or anything else (the
+  // object pass, a pre-pass), which marks the drawings.
+  PERIOD_READ_SINK.count += 1
+  if (!PERIOD_READ_SINK.inOutput) PERIOD_READ_SINK.outside = true
+  else PERIOD_READ_SINK.current.add(name)
+}
 
 /** The NAME inside `not na(<name>)`, or null. */
 function naGuardedName(node) {
@@ -6325,9 +6417,13 @@ export class Resolver {
         // ⭐ C12s — a body the window refuses may still forget on a RESET; it is
         // then admitted as a SWITCHED recurrence (`forgetsOnReset`).
         let switchedState = false
+        // ⭐ C29 — a bar counter (`var n = 0; n := n + 1`, `n += 1`, `var n = na;
+        // n := na(n) ? 0 : n + 1`) runs its update on bar 0: `readingSeed(…, 'update')`.
+        // ⛔ Never on a SCREEN: a screen has no listing, so every row would be blank.
+        const barCounter = !this.screen && reads.history === 0 && isBarCounterUpdate(update)
         if (containsSelfSeries(update, this.table)
             && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
-            && !(switchedState = forgetsOnReset(update, this.table))) {
+            && !(switchedState = forgetsOnReset(update, this.table)) && !barCounter) {
           throw new PineRefusal('pine:state',
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
@@ -6349,7 +6445,10 @@ export class Resolver {
         const args = []
         args[spec.recurrence.seed] = switchedState
           ? switchedVarSeed(varSeedOf(seed, reads))
-          : varSeedOf(seed, reads)
+          : barCounter && containsSelfSeries(update, this.table)
+            && !forgetsItsSeed(update, this.table, PINE_STATE_WARMUP)
+            ? switchedVarSeed(readingSeed(varSeedOf(seed, reads), 'update'))
+            : varSeedOf(seed, reads)
         args[spec.recurrence.body] = update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         return cCall('accum', args)
@@ -6543,7 +6642,11 @@ export class Resolver {
         // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`; a switched body is
         // admitted by `forgetsOnReset` (C12s).
         const switchedState = !forgetsItsSeed(body, this.table, PINE_STATE_WARMUP)
-        if (switchedState && !forgetsOnReset(body, this.table)) {
+        // ⭐ C29 — `x = 0` + `x := na(x[1]) ? 0 : x[1] + 1`: a bar counter whose
+        // bar 0 runs the update (`x[1]` is `na` there).
+        const plainCounter = !this.screen && switchedState && !forgetsOnReset(body, this.table)
+          && isBarCounterUpdate(body)
+        if (switchedState && !forgetsOnReset(body, this.table) && !plainCounter) {
           // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
           // this — the refusal corpus and "refuses for a DECLARED reason" — and
           // both exist because a hand-written message drifts from the guard it
@@ -6570,7 +6673,8 @@ export class Resolver {
         this.resolveBinding(seedBinding, tok, name)
         const seed = historySeed()
         const args = []
-        args[spec.recurrence.seed] = switchedState ? switchedVarSeed(seed) : seed
+        args[spec.recurrence.seed] = plainCounter ? switchedVarSeed(readingSeed(seed, 'update'))
+          : switchedState ? switchedVarSeed(seed) : seed
         args[spec.recurrence.body] = body
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -6599,7 +6703,10 @@ export class Resolver {
         // fixed number of bars back, so an update that does not forget where it
         // started becomes a ROLLING WINDOW rather than a running total.
         const switchedState = !forgetsItsSeed(parts.update, this.table, PINE_STATE_WARMUP)
-        if (switchedState && !forgetsOnReset(parts.update, this.table)) {
+        // ⭐ C29 — `x = na(x[1]) ? S : x[1] + K`: a bar counter whose bar 0 IS `S`.
+        const selfCounter = !this.screen && switchedState && !forgetsOnReset(parts.update, this.table)
+          && isBarCounterUpdate(parts.update)
+        if (switchedState && !forgetsOnReset(parts.update, this.table) && !selfCounter) {
           throw new PineRefusal('pine:state',
             REFUSALS['pine:state'] + ' — `' + name + '` builds on its own previous '
             + 'bar and this engine cannot tell that it ever forgets where it '
@@ -6609,7 +6716,8 @@ export class Resolver {
         }
         const spec = this.table.functions.accum
         const args = []
-        args[spec.recurrence.seed] = switchedState ? switchedVarSeed(parts.seed) : parts.seed
+        args[spec.recurrence.seed] = selfCounter ? switchedVarSeed(readingSeed(parts.seed, 'seed'))
+          : switchedState ? switchedVarSeed(parts.seed) : parts.seed
         args[spec.recurrence.body] = parts.update
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
@@ -7095,7 +7203,12 @@ export class Resolver {
       // ⛔ AND THE MAP IS THE SAME ONE `ownTimeframeOf` ASKS. A second roster of
       // "which spellings mean the chart's own timeframe" would let this door and
       // `securityAsNode` disagree about one script.
-      if (OWN_TF_NAMES.has(node.name)) return this.periodInForce(node.name, node.tok)
+      // ⭐ C29 — as TEXT, in the script's own Pine version (`periodTextOf`).
+      if (OWN_TF_NAMES.has(node.name)) {
+        const text = periodTextOf(this.periodInForce(node.name, node.tok), this.pineVersion)
+        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', this.pineVersion)
+        return text
+      }
       return null
     }
     if (node.type === 'call' && (node.name === 'input' || node.name.startsWith('input.'))) {
@@ -7176,7 +7289,7 @@ export class Resolver {
     // not compile in Pine either; name the FIELD, not the `str.*` call around it.
     if (node.type === 'name' && own(BUILTIN_SYMBOL_NUMERIC, node.name)) {
       throw new PineRefusal('pine:text-value',
-        `\`${node.name}\` is a NUMBER (the symbol's tick size), not text — a text `
+        `\`${node.name}\` is a NUMBER (a per-symbol quantity), not text — a text `
         + 'question cannot be asked of it',
         locate(node.tok))
     }
@@ -8900,7 +9013,10 @@ export class Resolver {
       // nobody has classified.
       if (own(BUILTIN_TIMEFRAME_SCALAR, name)) {
         const v = BUILTIN_TIMEFRAME_SCALAR[name](this.periodInForce(name, node && node.tok))
-        if (v !== null) return cNum(v)
+        if (v !== null) {
+          recordPeriodRead(name, this.pineVersion)
+          return cNum(v)
+        }
       }
       // ⚰️ A SECOND `BUILTIN_TIMEFRAME_RULED` THROW STOOD HERE AND COULD NOT BE
       // PROVED. Every name in that map is a CALL (`timeframe.change(tf)`), so it
@@ -9664,9 +9780,14 @@ export class Resolver {
     let code = null
     if (given === null) {
       code = this.periodInForce(name, node && node.tok)
+      recordPeriodRead('timeframe.in_seconds', this.pineVersion)
     } else {
       const raw = given.value !== undefined ? given.value : given
-      const lit = this.stringValueOf(raw)
+      // ⭐ C29 — read as a timeframe CODE, so a `timeframe.period` argument is
+      // the chart's own on any timeframe and is not a folded period VALUE.
+      this.periodCodeRead = (this.periodCodeRead || 0) + 1
+      let lit
+      try { lit = this.stringValueOf(raw) } finally { this.periodCodeRead -= 1 }
       // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
@@ -11118,6 +11239,14 @@ export class Resolver {
     // being a hole.
     const hostOnly = hostAdmissible(this.table).has(bare)
     const hostServes = this.strict && key && hostOnly
+    // ⚠️ C29 — `ta.cum(1)` IS LEFT THE HOST'S `cum` ON PURPOSE. From the listing it
+    // is already TradingView's bar_index + 1 (measured, `vw-bar-counters-rddt-1d-
+    // 2026-09-30` row C05, MATCH through this very path). Moving it behind the
+    // curtain as a switched counter was built and MEASURED: `atr-trailing-stoploss`
+    // (`cum_1 < 16 ? close : …`) would then be withheld on EVERY bar of a chart
+    // that does not start at the listing, where today it matches TradingView after
+    // its first 15 bars. That is a pre-existing host rule (`cum` sums the loaded
+    // bars), named here rather than changed by this lane.
     // ⛔⛔ `|| hostOnly` IS LOAD-BEARING AND A CORPUS SCRIPT PROVED IT. The
     // `pineName !== base || !key` test is a SPELLING carve-out: it lets a member
     // write a DECLARED table name directly without meeting the refusal aimed at
@@ -14537,12 +14666,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     ? objectOpts.runtimeCheck : null
   // ⭐⭐ C20 — TEXT, COLOURS AND `while` DRAWINGS READ FROM THE RUNTIME LANE
   // (`rtTextOf`, `rtColourOf`, `pineObjects.js::rtLoopTry`), gated once here.
-  // ⛔ NOT IN A SCRIPT THAT READS `timeframe.period`: the run spells a daily
-  // chart's period `D`, and on a v6 chart TradingView does not (objects-triage
-  // C15 — measured on ema-ribbon). A text, a colour or a statement REACHED under
-  // a test of that spelling would be drawn off the wrong branch; the runtime lane
-  // is not asked for any of the three there.
-  const rtC20 = !!rtCheck && !/\btimeframe\.period\b/.test(strippedForScan(String(source || '')))
+  // ⚰️ It was NOT asked in a script that reads `timeframe.period` (the run spelled
+  // a v6 daily chart's period `D`, TradingView `1D` — objects-triage C15). C29 lifted the `timeframe.period` exclusion: the runtime lane now spells
+  // the period as TradingView does (`periodTextOf`), so a branch on it is read.
+  const rtC20 = !!rtCheck
   // `pine:reassign` — a name a loop or block reassigns, which the fold cannot
   // settle; `pine:undefined` — a block local the value walk never bound because
   // the block holds a statement it does not fold (max-pain's heatmap locals sit
@@ -15331,59 +15458,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     return parts.length === 1 ? parts[0] : { t: 'cat', args: parts }
   }
 
-  /**
-   * ⛔⛔ C15 — A TEXT WHOSE BRANCH HANGS ON HOW `timeframe.period` IS SPELLED, in a
-   * `//@version=6` script, is WITHHELD rather than drawn.
-   *
-   * MEASURED on `ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28` (v6, 1D):
-   * `f_mtfMark("D")` is `timeframe.period == "D" ? "► " : "   "` and TradingView
-   * drew `"   1D"` — so on a v6 daily chart the period is NOT `"D"` — and
-   * `f_tfLabel()`'s default arm (`=> timeframe.period`) drew `"1D"`. This engine
-   * answers `"D"` for every version (`basePeriodOf`), so it drew `"► 1D"`: a
-   * text the vendor does not show. The spelling is one value read by the columnar
-   * resolver, the runtime lane and the request router alike, so changing it is not
-   * an object-text change and is not made here (objects-triage step 13 names it).
-   * What IS made here: a text whose choice FLIPS between the two spellings
-   * (`== "D"`, `!= "1W"`, …) is refused, so the wrong branch is never drawn. A
-   * comparison both spellings answer alike (`== "15"`) is untouched.
-   */
-  const V6_PERIOD_SPELLINGS = new Set(['D', '1D', 'W', '1W', 'M', '1M'])
-  const periodSpellingDecides = (test, inline, env) => {
-    if (!test) return false
-    let version = null
-    try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
-    if (!(version >= 6)) return false
-    const framed = inline ? substituteFrame(test, inline) : test
-    const textOf = (n) => {
-      for (let hop = 0; n && n.type === 'name' && hop < 8; hop += 1) {
-        const opened = openName(n, env || scopeEnv, 0)
-        if (!opened) return null
-        n = opened.node
-      }
-      return n && n.type === 'string' ? String(n.value) : null
-    }
-    const isPeriod = (n) => n && n.type === 'name' && OWN_TF_NAMES.has(n.name)
-      && !(env && typeof env.get === 'function' && env.get(n.name))
-    const walk = (n, d) => {
-      if (!n || typeof n !== 'object' || d > 24) return false
-      if (n.type === 'binary' && (n.op === '==' || n.op === '!=')) {
-        if (isPeriod(n.left) && V6_PERIOD_SPELLINGS.has(textOf(n.right))) return true
-        if (isPeriod(n.right) && V6_PERIOD_SPELLINGS.has(textOf(n.left))) return true
-      }
-      for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value']) {
-        if (walk(n[k], d + 1)) return true
-      }
-      if (Array.isArray(n.args)) {
-        for (const a of n.args) if (walk(a && a.value !== undefined ? a.value : a, d + 1)) return true
-      }
-      return false
-    }
-    if (!walk(framed, 0)) return false
-    diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
-    diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] =
-      (diagnostics.textFormatRefusals['timeframe.period:v6-spelling'] || 0) + 1
-    return true
-  }
+  // ⚰️ C15's `periodSpellingDecides` WITHHOLD STOOD HERE until C29 (2026-09-30). A v6
+  // text whose branch flipped on how `timeframe.period` is spelled was refused,
+  // because the engine answered `"D"` where TradingView answers `"1D"`. The
+  // spelling is now the vendor's (`periodTextOf`, measured on
+  // `vw-tf-period-spy-{1d,1w,1m}-2026-09-30.json`), so the branch is read, not
+  // withheld.
 
   /** The string options an `input.string(…, options = [...])` offers, when the
    *  subject opens to one — else null. */
@@ -15448,7 +15528,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     for (let k = arms.length - 1; k >= 0 && tail; k -= 1) {
       const test = { type: 'binary', op: '==', left: sw.subject, right: arms[k].label, tok: sw.subject.tok }
-      if (periodSpellingDecides(test, inline, env)) return null
       const cond = inline ? resolveTree(test, inline) : resolveTree(test, null, env)
       const then = armText(arms[k].binding)
       if (!cond || !then) return null
@@ -15557,7 +15636,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return { t: 'cat', args: [a, b] }
     }
     if (node.type === 'ternary') {
-      if (periodSpellingDecides(node.test, inline, scope)) return null
       // ⭐ C10 — A TEST THAT IS THE SAME ON EVERY BAR ANSWERS WITH ITS LIVE ARM
       // WHEN THE DEAD ONE CANNOT BE READ, as the resolver's own `ternary` case
       // does. artemis-oscillator-pro's `not valid ? "— n/a" : d > 0 ? …` with
@@ -15595,6 +15673,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // uses; a field the binding cannot settle is withheld, never printed.
       if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ C29 — `timeframe.period` IN A TEXT SLOT IS THE PERIOD'S TEXT, in the
+      // script's Pine version: the resolver's own `stringValueOf` (`periodTextOf`),
+      // which also records the read so a chart of another period refuses the
+      // document (`periodReads.js`). MEASURED: `"[" + timeframe.period + "]"`
+      // prints `[1D]` on a v6 daily chart (`vw-tf-period-spy-1d-2026-09-30`).
+      if (!enumLeaves && !bound && OWN_TF_NAMES.has(node.name)
+        && !(inline && inline.bound && Array.isArray(inline.bound.params) && inline.bound.params.includes(node.name))) {
+        let s = null
+        try { s = makeResolver(scopeEnv).stringValueOf(node) } catch { s = null }
+        if (typeof s === 'string') return { t: 'lit', s }
+      }
       // ⭐⭐ R2 STEP 2 — A PARAMETER, READ FROM THE FRAME THE READER IS INSIDE.
       // The Resolver reads one out of `this.frames`; this reader has the same
       // information in `inline` and answers from the caller's own argument node,
@@ -16371,13 +16460,21 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (!arg || arg.type !== 'name') return historyRefused('source')
     if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
     if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
-    if (!declaredMaxBarsBack.limit) return historyRefused('no-max-bars-back')
+    // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30.json`): with
+    // NO `max_bars_back` declared TradingView ran dynamic offsets up to 399 with no
+    // error, `close[k]` equal to its own bar every time — its automatic sizing
+    // covers at least `AUTO_MAX_BARS_BACK` (400). So an undeclared read is served
+    // up to that measured bound, `auto` marking that past it is UNMEASURED: the
+    // runtime withholds (never errors, never guesses) an offset at or beyond it.
+    const autoBuffer = !declaredMaxBarsBack.limit
     const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
     if (!src) return historyRefused('unreadable')
     const back = internTree(idx)
     if (!back) return historyRefused('unreadable')
     diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
-    return { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+    return autoBuffer
+      ? { v: 'at', args: [src, back], limit: AUTO_MAX_BARS_BACK, auto: true }
+      : { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
   }
   const historyRefused = (why) => {
     if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}
@@ -18724,15 +18821,31 @@ function isHostLane(opts) {
  */
 export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
+  const outerPeriodSink = PERIOD_READ_SINK
   const sink = new Map()
+  const periodSink = { names: new Map(), count: 0, inOutput: false, outside: false, current: new Set() }
   OTHER_SYMBOL_SINK = sink
+  PERIOD_READ_SINK = periodSink
   let t
   try {
     t = translatePineResult(source, opts)
   } finally {
     OTHER_SYMBOL_SINK = outerSink
+    PERIOD_READ_SINK = outerPeriodSink
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ C29 — THE CHART-PERIOD VALUES THIS TRANSLATION FOLDED, with each one's
+  // value at every rung, so the bind can refuse a chart whose period differs
+  // (`engine/periodReads.js`). Present only when a read was folded, so every
+  // other result is byte-identical to before.
+  if (periodSink.names.size) {
+    t.periodReads = {
+      ...periodReadsOf(periodSink.names, basePeriodOf(opts)),
+      objects: periodSink.outside,
+      // the indices (in `t.outputs`) of the plots that folded a period value
+      outputs: (t.outputs || []).flatMap((o, i) => (o && o._periodRead ? [{ index: i, names: o._periodRead }] : [])),
+    }
+  }
   // ⭐⭐ C26 — WHICH OTHER SYMBOLS THE TREES READ, AND HOW EACH WAS SPELLED.
   // Present only when a `sym` node was emitted, so every other result is
   // byte-identical to before. Sorted, so one script is one array.
@@ -20071,6 +20184,9 @@ function translatePineResult(source, opts = {}) {
   const resolved = []
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
+    // ⭐ C29 — the chart-period reads made while THIS output resolves (`recordPeriodRead`).
+    const periodReadsBefore = PERIOD_READ_SINK ? PERIOD_READ_SINK.count : 0
+    if (PERIOD_READ_SINK) { PERIOD_READ_SINK.inOutput = true; PERIOD_READ_SINK.current = new Set() }
     let row
     try {
       // ⛔ THE CALL IS BOUNDED HERE, NOT JUST EACH RESOLVER. One output that ate
@@ -20280,6 +20396,11 @@ function translatePineResult(source, opts = {}) {
         refusal: null,
       }
       Object.defineProperty(row, '_bareRole', { value: bareRole, enumerable: false })
+      // ⭐ C29 — this plot folded a chart-period value (`periodReads.js` refuses
+      // it, and only it, on a chart of another period). A hand-off, non-enumerable.
+      if (PERIOD_READ_SINK && PERIOD_READ_SINK.count > periodReadsBefore) {
+        Object.defineProperty(row, '_periodRead', { value: [...PERIOD_READ_SINK.current].sort(), enumerable: false })
+      }
       // ⭐ 2026-09-28 — A RIGHTWARD DISPLACEMENT'S SIZE, for a reader that must
       // tell `plot(x, offset = N)` from `plot(x[N])`: the tree is identical, and
       // TradingView exports the first UNSHIFTED (the vendor harness, `leadBy`).
@@ -20361,6 +20482,7 @@ function translatePineResult(source, opts = {}) {
     } catch { /* a message this grammar cannot read is the resolver's to refuse */ }
     resolved.push(row)
   }
+  if (PERIOD_READ_SINK) PERIOD_READ_SINK.inOutput = false
 
   // ─── ⭐⭐ THE CLOSING PASS OVER `env` ─────────────────────────────────────
   //
@@ -21595,7 +21717,10 @@ function colourHelperAlpha(node, env, ctx, depth = 0) {
   if (helper) return colourHelperAlpha(helper.node, helper.env, { ...ctx, inline: helper.inline }, depth + 1)
   const arity = node.name === 'color.new' ? 1 : (node.name === 'color.rgb' ? 3 : null)
   if (arity === null) return null
-  const t = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
+  const raw = alphaNumberOf(((node.args || [])[arity] || {}).value, env, ctx)
+  // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` →
+  // 70; measured on `vw-gradient-spy-1d-2026-09-30`), in the plot lane too.
+  const t = raw === null ? null : wholeTransparency(raw)
   return t === null ? null : Math.max(0, Math.min(1, 1 - t / 100))
 }
 

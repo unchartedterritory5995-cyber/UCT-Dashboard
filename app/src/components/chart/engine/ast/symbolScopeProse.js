@@ -30,6 +30,7 @@
 /** The top-level keys the running product reads. The rail re-derives this. */
 export const KEEP = Object.freeze([
   'confirmed',
+  'listing_fields',
   'pending_measurement',
   'tick_size',
   'unserved',

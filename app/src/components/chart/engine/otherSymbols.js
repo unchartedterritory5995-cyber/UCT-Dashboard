@@ -30,8 +30,19 @@
 // name. The refusal names the spelling that WOULD be served when our store's
 // listing is confirmed (`AMEX:SPY`), so the member's fix is one edit.
 //
-// ⛔ A CLASS SHARE (`BRK.B`) IS REFUSED: TradingView writes the dot, the store's
-// bars route keys the hyphen, and no capture pins that the two are one series.
+// ⚰️⚰️ C29 (2026-09-30) — BOTH OF THE TWO PARAGRAPHS ABOVE ARE SETTLED BY CAPTURE.
+// `vw-other-symbol-rddt-1d-2026-09-30.json`: on all 634 bars bare `"SPY"` read the
+// SAME series as `"AMEX:SPY"`, and bare `"BRK.B"` the same as `"NYSE:BRK.B"`. So:
+//
+//   * a BARE ticker is served when our store holds exactly one listing of it (the
+//     store is keyed by ticker: one listing) on an exchange with a WITNESSED Pine
+//     spelling — the listing its confirmed-exchange spelling would read. A bare
+//     ticker our store does not hold on a witnessed exchange (`"XAUUSD"`, `"ADVN"`,
+//     `"EURUSD"`) is still refused BY NAME (`other-symbol:bare`).
+//   * a CLASS SHARE written with TradingView's dot (`BRK.B`) is our store's hyphen
+//     listing (`BRK-B`, the bars route's key — `storeTickerOf`); the alignment
+//     and the exchange rule are the ordinary ones. Any other punctuated spelling
+//     keeps its refusal (`other-symbol:class-share`).
 
 import { SYMBOL_EXCHANGE_CONFIRMED } from './ast/bind'
 
@@ -56,6 +67,30 @@ export const OTHER_SYMBOL_REFUSAL = Object.freeze({
 })
 
 const CONFIRMED_PINE = new Set(Object.values(SYMBOL_EXCHANGE_CONFIRMED))
+
+/** ⭐ C29 — TradingView's class-share spelling (`BRK.B`) → our store's key
+ *  (`BRK-B`); every other ticker is its own key. ONE authority: the fetch list,
+ *  the exchange lookup and the bind all ask this. */
+const CLASS_SHARE = /^([A-Z]{1,5})\.([A-Z])$/
+export function storeTickerOf(ticker) {
+  const t = String(ticker || '').trim().toUpperCase()
+  const m = CLASS_SHARE.exec(t)
+  return m ? `${m[1]}-${m[2]}` : t
+}
+/** ⛔ C29 — BARE SPELLINGS THAT ALSO NAME A TRADINGVIEW INDEX OR COMMODITY. The
+ *  capture pinned bare `SPY` and `BRK.B` — spellings nothing else claims. A bare
+ *  ticker our store happens to hold as an equity but which TradingView also lists
+ *  as a market index or commodity (the corpus's own bare reads: NYSE breadth
+ *  `ADVN`/`DECN`/`UVOL`/`DVOL`/`TICK`/`TRIN`, `VIX`, and `GOLD`/`SILVER`/`DXY`)
+ *  may resolve to THAT instrument, which is unmeasured — so it keeps the bare
+ *  refusal and the member is told to write the exchange. */
+export const BARE_AMBIGUOUS = Object.freeze(new Set([
+  'ADVN', 'DECN', 'UVOL', 'DVOL', 'TICK', 'TRIN', 'ADD', 'VIX', 'VXN', 'VVIX',
+  'GOLD', 'SILVER', 'DXY', 'USOIL', 'UKOIL', 'NDX', 'SPX', 'RUT', 'DJI',
+]))
+
+/** A ticker no store listing can be (punctuation other than a class share's dot). */
+const unservableSpelling = (ticker) => /[.\-]/.test(ticker) && !CLASS_SHARE.test(ticker)
 
 /** Every ticker a document's trees read through a `sym` node — plots, object
  *  trees and graph nodes alike. Iterative (a deep tree must not overflow). */
@@ -104,10 +139,17 @@ export function fetchableOtherSymbols(def) {
   if (!def || !def.meta || !Array.isArray(def.meta.otherSymbols)) return []
   const out = []
   for (const { ticker, spellings } of otherSymbolRequestsOf(def)) {
-    if (!spellings.length || /[.\-]/.test(ticker)) continue
-    if (spellings.every((v) => v === CHART_PREFIX_VENUE || CONFIRMED_PINE.has(v))) out.push(ticker)
+    if (!spellings.length || unservableSpelling(ticker)) continue
+    // ⭐ C29 — a bare spelling (`''`) may be served too (when the store holds the
+    // ticker on a witnessed exchange), so it is worth fetching; the bind decides.
+    // A bare spelling is fetched only in a US listing's shape (1-5 letters, or a
+    // class share) — `EURUSD`, `XAUUSD` and the like are never asked for.
+    const bareOk = /^[A-Z]{1,5}(\.[A-Z])?$/.test(ticker) && !BARE_AMBIGUOUS.has(ticker)
+    if (spellings.every((v) => (v === '' && bareOk) || v === CHART_PREFIX_VENUE || CONFIRMED_PINE.has(v))) {
+      out.push(storeTickerOf(ticker))
+    }
   }
-  return out
+  return [...new Set(out)]
 }
 
 /** The Pine prefix a STORE exchange spelling answers to, or null. */
@@ -153,20 +195,26 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
         + 'was not recorded (the indicator was saved before it was) — re-open the script to record it')
       continue
     }
-    if (/[.\-]/.test(ticker)) {
-      no(ticker, OTHER_SYMBOL_REFUSAL.CLASS_SHARE, `\`${ticker}\` is a class share, and which of our `
-        + 'listings TradingView’s spelling of it names is unmeasured')
+    if (unservableSpelling(ticker)) {
+      no(ticker, OTHER_SYMBOL_REFUSAL.CLASS_SHARE, `\`${ticker}\` is spelled with punctuation that `
+        + 'names no listing our store holds (a class share is written with TradingView\'s dot, `BRK.B`)')
       continue
     }
-    const entry = secondary ? secondary.get(ticker) : null
-    const stored = (entry && typeof entry.exchange === 'string' && entry.exchange) || exchangeOf(ticker)
+    const key = storeTickerOf(ticker)
+    const entry = secondary ? secondary.get(key) : null
+    const stored = (entry && typeof entry.exchange === 'string' && entry.exchange) || exchangeOf(key)
     const pine = pineOf(stored, confirmed)
     let why = null
     for (const venue of spellings) {
+      // ⭐⭐ C29 — A BARE TICKER IS THE LISTING ITS WITNESSED EXCHANGE SPELLING READS
+      // (measured: bare "SPY" == "AMEX:SPY", bare "BRK.B" == "NYSE:BRK.B", all 634
+      // bars) — served when our store holds it on a witnessed exchange; refused by
+      // name otherwise, since then there is no witnessed listing it could be.
       if (venue === '') {
-        why = [OTHER_SYMBOL_REFUSAL.BARE, `\`"${ticker}"\` names no exchange, and which listing `
-          + 'TradingView resolves an unprefixed ticker to inside `request.security` is unmeasured'
-          + (pine ? ` — write \`"${pine}:${ticker}"\`, the listing this chart would read` : '')]
+        if (stored && pine && !BARE_AMBIGUOUS.has(ticker)) continue
+        why = [OTHER_SYMBOL_REFUSAL.BARE, `\`"${ticker}"\` names no exchange, and our store holds no `
+          + 'listing of it on an exchange whose Pine spelling is witnessed, so which instrument '
+          + 'TradingView resolves it to is not one this chart can read']
         break
       }
       if (venue === '?') {
@@ -219,7 +267,7 @@ export function otherSymbolsSignature(def, secondary) {
   const tickers = symTickersOf(def)
   if (!tickers.length) return ''
   return tickers.map((t) => {
-    const e = secondary && typeof secondary.get === 'function' ? secondary.get(t) : null
+    const e = secondary && typeof secondary.get === 'function' ? secondary.get(storeTickerOf(t)) : null
     const bars = e && Array.isArray(e.bars) ? e.bars : null
     const last = bars && bars.length ? bars[bars.length - 1] : null
     return `${t}:${e ? e.status || '' : '-'}:${bars ? bars.length : 0}:${last ? `${last.t}/${last.c}` : ''}`

@@ -81,7 +81,11 @@ const BINARY = {
   '>=': (a, b) => Number(a >= b),
   '<=': (a, b) => Number(a <= b),
   '==': (a, b) => Number(a === b),
-  '!=': (a, b) => Number(a !== b),
+  // ⭐ C29 (C14, measured 2026-09-30, `vw-ne-na-spy-1d-2026-09-30.json`): every
+  // comparison with an `na` operand is FALSE in Pine, `!=` included — and
+  // JavaScript's `NaN !== 1` is true. The interpreter's `cmp` already answers 0;
+  // the fold now agrees with it.
+  '!=': (a, b) => Number(!Number.isNaN(a) && !Number.isNaN(b) && a !== b),
   '&&': (a, b) => Number(Boolean(a) && Boolean(b)),
   '||': (a, b) => Number(Boolean(a) || Boolean(b)),
 }
@@ -172,6 +176,21 @@ export const SYMBOL_EXCHANGE_CONFIRMED = Object.freeze(Object.fromEntries(
     .map(([k, v]) => [k, String(v.pine)]),
 ))
 
+/** The listing fields a US listing answers (`syminfo.root`, `basecurrency`,
+ *  `currency`, `timezone`, `session`, `pointvalue`), per our store's exchange,
+ *  ONLY for an exchange whose `symbolScope.json::listing_fields` entry names
+ *  witnesses (2026-09-30 captures, lane C29). `root` is `=ticker` in the data:
+ *  it folds to the ticker text. Mirrors `ast_bind.py::SYMBOL_LISTING_FIELDS`;
+ *  `symbolScopeListing.test.js` re-reads every witness capture. */
+export const LISTING_FIELD_NAMES = Object.freeze(['root', 'basecurrency', 'currency', 'timezone', 'session', 'pointvalue'])
+export const SYMBOL_LISTING_FIELDS = Object.freeze(Object.fromEntries(
+  Object.entries((SYMBOL_SCOPE && SYMBOL_SCOPE.listing_fields) || {})
+    .filter(([k, v]) => !k.startsWith('_') && v && typeof v === 'object'
+      && Array.isArray(v.witnesses) && v.witnesses.length > 0
+      && v.fields && typeof v.fields === 'object')
+    .map(([k, v]) => [k, Object.freeze({ ...v.fields })]),
+))
+
 /** The reason the fold quotes when a symbol-scoped field cannot be resolved for
  *  THIS binding — read off the manifest so the sentence has one owner. */
 const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement) || {})
@@ -191,7 +210,7 @@ const PENDING = Object.freeze((SYMBOL_SCOPE && SYMBOL_SCOPE.pending_measurement)
  *
  *  ⚠️ `tickerid` IS ASSEMBLED, NOT STORED: Pine's is `EXCHANGE:SYMBOL`, so it is
  *  exactly as measured as the exchange half and is gated on the same witness. */
-export function symbolConstantsWith(confirmed, symbol, ticks = null) {
+export function symbolConstantsWith(confirmed, symbol, ticks = null, listing = null) {
   const out = {}
   if (!symbol || typeof symbol !== 'object') return out
   const ticker = typeof symbol.ticker === 'string' ? symbol.ticker.trim() : ''
@@ -211,6 +230,26 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null) {
   if (stored && ticks && Object.prototype.hasOwnProperty.call(ticks, stored)) {
     out['syminfo.mintick'] = ticks[stored]
   }
+  // ⭐ C29 (2026-09-30) — THE LISTING FIELDS, ON THEIR OWN WITNESS TABLE. Same
+  // key, independent evidence (a measured prefix or tick is not a measured
+  // timezone). Text stays text (`basecurrency` is the EMPTY string for a US
+  // listing, measured — `foldText` serves a present empty string), `pointvalue`
+  // is decimal text the `tonumber` fold reads, like `mintick`; `root` is the
+  // ticker (R-R). An exchange absent from `listing` settles none of them.
+  if (stored && listing && Object.prototype.hasOwnProperty.call(listing, stored)) {
+    const row = listing[stored] || {}
+    for (const name of LISTING_FIELD_NAMES) {
+      if (!Object.prototype.hasOwnProperty.call(row, name)) continue
+      const v = row[name]
+      if (name === 'root') {
+        if (v === '=ticker') out['syminfo.root'] = ticker
+      } else if (name === 'pointvalue') {
+        if (typeof v === 'number' && Number.isFinite(v)) out['syminfo.pointvalue'] = String(v)
+      } else if (typeof v === 'string') {
+        out[`syminfo.${name}`] = v
+      }
+    }
+  }
   return out
 }
 
@@ -222,7 +261,7 @@ export function symbolConstantsWith(confirmed, symbol, ticks = null) {
  *  fields refuse" is a statement about the DATA rather than about a code path
  *  nobody has ever seen run (`lesson_built_tested_green_and_unreachable`). */
 export const symbolConstants = (symbol) =>
-  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE)
+  symbolConstantsWith(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE, SYMBOL_LISTING_FIELDS)
 
 /** Thrown carrying the OPERAND that stopped the fold, never a generic message. */
 export class NotFoldable extends Error {
@@ -281,7 +320,10 @@ export function foldText(node, consts) {
   if (node.type === 'symtext') {
     const key = `syminfo.${node.name}`
     const have = Object.prototype.hasOwnProperty.call(consts, key) ? consts[key] : undefined
-    if (typeof have === 'string' && have !== '') return have
+    // ⭐ C29 — a PRESENT empty string is an answer (`syminfo.basecurrency` of a
+    // US listing is "", measured); only an ABSENT field is unsettled. Every
+    // other field the producer writes is non-empty by construction.
+    if (typeof have === 'string') return have
     const why = PENDING[node.name]
     throw new NotFoldable(why ? `${key} — ${why}` : key)
   }

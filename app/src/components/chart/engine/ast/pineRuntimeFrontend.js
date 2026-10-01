@@ -32,7 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
+  OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -3639,7 +3639,10 @@ export function buildRuntimeIr(source, opts = {}) {
         // above and in `ownTimeframeOf`: a script may write `period = "60"`.
         if (OWN_TF_NAMES.has(node.name)
             && scope.lookup(node.name) === null && !env.has(node.name)) {
-          return str(lanePeriod)
+          // ⭐ C29 — the TEXT Pine reads, in this script's version: the one
+          // `periodTextOf` the columnar resolver asks (v6 daily is `"1D"`).
+          notePeriodRead('timeframe.period', pineVersion)
+          return str(periodTextOf(lanePeriod, pineVersion))
         }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)

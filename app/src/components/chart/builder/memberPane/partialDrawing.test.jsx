@@ -61,8 +61,13 @@ const CASES = [
   // which the object pass had been reading as its initial `""` past the
   // reassignment overrule — is refused like the other 39. What is drawn is the
   // two block lines; everything else is counted, never shown blank.
+  // ⚰️ C29 (2026-09-30): 240 of 246 until the runtime lane was allowed to answer a
+  // script that reads `timeframe.period` (its spelling is now TradingView's,
+  // `periodTextOf`). The 40 labels' text is the RUN's now (C20), so they are no
+  // longer counted as lost — and, as for every C18/C20 read, they are served only
+  // from the listing (R-W): drawn nothing elsewhere, graded unchanged on the 47.
   { cls: 'partial objects-only (the owner\'s example)', script: 'poor-man039s-volume-profile__ZnFTCYyvGJ',
-    objectsOnly: true, kind: 'partial', text: partial(240, 246), also: '`line.set_xloc`' },
+    objectsOnly: true, kind: 'partial', text: /^This script uses `line\.set_xloc`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // 138 of 152 since the call-site inliner: `chart_pivot`'s drawing now runs at
   // each call site, and most of it sits behind guards this chart cannot read
   // (7 of 21 when the helper's body was walked once as top-level code). Its lost

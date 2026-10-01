@@ -62,14 +62,16 @@ describe('the runtime reads `x` on bar `bar - e`', () => {
     expect(Number.isNaN(r.live[0].props.y)).toBe(true)
   })
 
-  it('⛔ an `na` offset WITHHOLDS the op on that bar (what TradingView reads there is not measured)', () => {
+  // ⚰️ C29 (C9, measured 2026-09-30, `vw-offset-na-spy-1d-2026-09-30`): an `na`
+  // offset used to WITHHOLD the op; TradingView reads the CURRENT bar there.
+  it('⭐ an `na` offset reads the CURRENT bar (TradingView: `close[na]` is `close`)', () => {
     const prog = labelAt(G(0), G(2))
     const back = Array(10).fill(NaN)
     back[6] = 1
     const r = evaluateObjects(prog, ctxOf(10, { 0: on(10, [3, 6]), 1: SRC, 2: back }))
     expect(r.status).toBe(OBJECT_STATUS.OK)
-    expect(r.live.map((o) => o.props.y)).toEqual([105])
-    expect(r.stats.withheldUnknown).toBe(1)
+    expect(r.live.map((o) => o.props.y)).toEqual([SRC[3], SRC[5]])
+    expect(r.stats.withheldUnknown || 0).toBe(0)
   })
 
   it('⛔⛔ a NEGATIVE offset is a Pine runtime error — nothing is held, not even earlier objects', () => {
@@ -145,15 +147,20 @@ describe('the translator emits the read, or names why not', () => {
     expect(diag.historyReads).toBe(1)
   })
 
-  it('⛔ without `max_bars_back` it refuses BY NAME — TradingView sizes that buffer itself', () => {
+  // ⚰️ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30`): this
+  // REFUSED `no-max-bars-back`. TradingView's automatic buffer was measured to
+  // reach 399, so the read is served bounded by `AUTO_MAX_BARS_BACK`, `auto`.
+  it('⭐ without `max_bars_back` the read is served on the measured automatic buffer (400, `auto`)', () => {
     const { ops, diag } = translate(script('', ...BODY))
-    expect(ops.filter((o) => o.k === 'create')).toEqual([])
-    expect(diag.historyReadRefusals).toEqual({ 'no-max-bars-back': 1 })
+    expect(ops.filter((o) => o.k === 'create').length).toBeGreaterThan(0)
+    expect(diag.historyReadRefusals || {}).toEqual({})
+    expect(JSON.stringify(ops)).toContain('"limit":400,"auto":true')
   })
 
-  it('⛔ a `max_bars_back = N` in a COMMENT is prose, not a declaration', () => {
-    const { diag } = translate(script('', '// max_bars_back = 5000', ...BODY))
-    expect(diag.historyReadRefusals).toEqual({ 'no-max-bars-back': 1 })
+  it('⛔ a `max_bars_back = N` in a COMMENT is prose, not a declaration (the automatic buffer applies)', () => {
+    const { ops } = translate(script('', '// max_bars_back = 5000', ...BODY))
+    expect(JSON.stringify(ops)).toContain('"limit":400,"auto":true')
+    expect(JSON.stringify(ops)).not.toContain('"limit":5000')
   })
 
   it('⛔ the per-series `max_bars_back(x, n)` form refuses by name', () => {

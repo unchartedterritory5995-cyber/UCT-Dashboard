@@ -30,6 +30,7 @@ import {
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
+import { periodReadsObjectRefusal } from './periodReads'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -444,6 +445,9 @@ function chartClockRows(map) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
+  // another chart period draws NOTHING here rather than the other period's text.
+  if (periodReadsObjectRefusal(definition, opts.tf)) return null
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
   const inputs = resolveInputs(definition, opts.inputs)

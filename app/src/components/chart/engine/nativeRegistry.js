@@ -102,6 +102,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
+import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
 // moved to `ast/bind.js`, beside `bindingConstants` and `symbolConstantsWith`,
@@ -1584,6 +1585,19 @@ export function columnErrors(columns) {
 function astColumnsFor(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
+  // ⭐⭐ C29 — a document folded at another chart period does not answer here
+  // (`periodReads.js`): every column is refused by name, none drawn off the
+  // other period's constants.
+  const periodWhy = new Map()
+  for (const k of keys) {
+    const why = periodReadsRefusalFor(def, k, ctx && ctx.tf)
+    if (why) periodWhy.set(k, why)
+  }
+  if (periodWhy.size && (!trees || periodWhy.size === keys.length)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) || [...periodWhy.values()][0] }
+    return withColumnErrors({}, errors)
+  }
   // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
   // into the integers THIS binding needs. `Uncharted Volume` line 233's
   // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
@@ -1675,6 +1689,11 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // needs no new handling anywhere; a 5,000-long NaN array per failed column
       // would allocate for nothing and read as a column that computed.
       // The REASON is preserved instead — see `columnErrors`.
+      // ⭐ C29 — only the plots that folded the other period's value are refused.
+      if (periodWhy.has(key)) {
+        errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed

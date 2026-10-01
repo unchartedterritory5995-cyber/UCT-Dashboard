@@ -115,7 +115,9 @@ _BINARY = {
     ">=": lambda a, b: float(a >= b),
     "<=": lambda a, b: float(a <= b),
     "==": lambda a, b: float(a == b),
-    "!=": lambda a, b: float(a != b),
+    # C29 (C14, measured 2026-09-30): a comparison with an na operand is FALSE in
+    # Pine, `!=` included; Python's `nan != 1` is True. bind.js twin.
+    "!=": lambda a, b: float(not (math.isnan(a) or math.isnan(b)) and a != b),
     "&&": lambda a, b: float(bool(a) and bool(b)),
     "||": lambda a, b: float(bool(a) or bool(b)),
 }
@@ -221,6 +223,19 @@ SYMBOL_TICK_SIZE = {
 }
 
 
+#: The six listing fields a US listing answers, ONLY for an exchange whose
+#: ``symbolScope.json::listing_fields`` entry names witnesses (C29, 2026-09-30).
+#: Mirrors ``bind.js::SYMBOL_LISTING_FIELDS``.
+LISTING_FIELD_NAMES = ("root", "basecurrency", "currency", "timezone", "session", "pointvalue")
+SYMBOL_LISTING_FIELDS = {
+    k: dict(v.get("fields") or {})
+    for k, v in (_SYMBOL_SCOPE.get("listing_fields") or {}).items()
+    if not k.startswith("_") and isinstance(v, Mapping)
+    and isinstance(v.get("witnesses"), list) and len(v.get("witnesses")) > 0
+    and isinstance(v.get("fields"), Mapping)
+}
+
+
 def symbol_constants(symbol=None) -> dict:
     """What ONE symbol makes constant: ``syminfo.*``, and nothing else.
 
@@ -239,10 +254,11 @@ def symbol_constants(symbol=None) -> dict:
     so it is exactly as measured as its exchange half and is gated on the same
     witness.
     """
-    return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE)
+    return symbol_constants_with(SYMBOL_EXCHANGE_CONFIRMED, symbol, SYMBOL_TICK_SIZE,
+                                 SYMBOL_LISTING_FIELDS)
 
 
-def symbol_constants_with(confirmed, symbol=None, ticks=None) -> dict:
+def symbol_constants_with(confirmed, symbol=None, ticks=None, listing=None) -> dict:
     """``symbol_constants`` with the witness map handed in.
 
     ⭐⭐ THE PRODUCTION CALL IS THE ONE-LINE SPECIALISATION ABOVE. ``confirmed``
@@ -272,6 +288,21 @@ def symbol_constants_with(confirmed, symbol=None, ticks=None) -> dict:
     # ``syminfo.mintick`` unsettled -- refused by name, never defaulted.
     if stored and ticks and stored in ticks:
         out["syminfo.mintick"] = ticks[stored]
+    # C29 -- the listing fields, on their own witness table (bind.js twin).
+    if stored and listing and stored in listing:
+        row = listing[stored] or {}
+        for name in LISTING_FIELD_NAMES:
+            if name not in row:
+                continue
+            v = row[name]
+            if name == "root":
+                if v == "=ticker":
+                    out["syminfo.root"] = ticker
+            elif name == "pointvalue":
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+                    out["syminfo.pointvalue"] = str(int(v)) if float(v).is_integer() else repr(float(v))
+            elif isinstance(v, str):
+                out["syminfo." + name] = v
     return out
 
 
@@ -339,7 +370,9 @@ def fold_text(node, consts) -> str:
         field = str(node.get("name"))
         key = "syminfo." + field
         have = consts.get(key)
-        if isinstance(have, str) and have:
+        # C29 -- a PRESENT empty string is an answer (basecurrency of a US
+        # listing is "", measured 2026-09-30); only an ABSENT field is unsettled.
+        if isinstance(have, str):
             return have
         why = _PENDING.get(field)
         raise NotFoldable(key + " \u2014 " + why if why else key)
