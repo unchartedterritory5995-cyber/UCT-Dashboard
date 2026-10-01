@@ -1,0 +1,1953 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "surface": "P2-OpenPositions",
+      "keys": "(navigate)",
+      "note": "*Open Positions, direct URL (j2tabRedirect.js's own map for j2tab=positions), Enter-door pass",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/p2-0001-P2-OpenPositions-nav.png"
+    },
+    {
+      "n": 2,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content"
+      }
+    },
+    {
+      "n": 3,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page"
+      }
+    },
+    {
+      "n": 4,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K"
+      }
+    },
+    {
+      "n": 5,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal"
+      }
+    },
+    {
+      "n": 6,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts"
+      }
+    },
+    {
+      "n": 7,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire"
+      }
+    },
+    {
+      "n": 8,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard"
+      }
+    },
+    {
+      "n": 9,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search"
+      }
+    },
+    {
+      "n": 10,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20"
+      }
+    },
+    {
+      "n": 11,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth"
+      }
+    },
+    {
+      "n": 12,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener"
+      }
+    },
+    {
+      "n": 13,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow"
+      }
+    },
+    {
+      "n": 14,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record"
+      }
+    },
+    {
+      "n": 15,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow"
+      }
+    },
+    {
+      "n": 16,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History"
+      }
+    },
+    {
+      "n": 17,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book"
+      }
+    },
+    {
+      "n": 18,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference"
+      }
+    },
+    {
+      "n": 19,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk"
+      }
+    },
+    {
+      "n": 20,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal"
+      }
+    },
+    {
+      "n": 21,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk"
+      }
+    },
+    {
+      "n": 22,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: RW Page2, Pro"
+      }
+    },
+    {
+      "n": 23,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings"
+      }
+    },
+    {
+      "n": 24,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support"
+      }
+    },
+    {
+      "n": 25,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website"
+      }
+    },
+    {
+      "n": 26,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 25",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Got it"
+      }
+    },
+    {
+      "n": 27,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 26",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Today"
+      }
+    },
+    {
+      "n": 28,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 27",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Trades"
+      }
+    },
+    {
+      "n": 29,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 28",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Calendar"
+      }
+    },
+    {
+      "n": 30,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 29",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Notebook"
+      }
+    },
+    {
+      "n": 31,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 30",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Insights"
+      }
+    },
+    {
+      "n": 32,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 31",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Compass"
+      }
+    },
+    {
+      "n": 33,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 32",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Log Trade"
+      }
+    },
+    {
+      "n": 34,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 33",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Show keyboard shortcuts"
+      }
+    },
+    {
+      "n": 35,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 34",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Default$100,000.00\u25be"
+      }
+    },
+    {
+      "n": 36,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 35",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Generate report"
+      }
+    },
+    {
+      "n": 37,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 36",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open Portfolio Settings"
+      }
+    },
+    {
+      "n": 38,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 37",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "More"
+      }
+    },
+    {
+      "n": 39,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 38",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Open Positions"
+      }
+    },
+    {
+      "n": 40,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 39",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Closed Trades"
+      }
+    },
+    {
+      "n": 41,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 40",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "All"
+      }
+    },
+    {
+      "n": 42,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 41",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "List"
+      }
+    },
+    {
+      "n": 43,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 42",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Table"
+      }
+    },
+    {
+      "n": 44,
+      "surface": "P2-reach",
+      "keys": "Enter",
+      "note": "*switch to Table view",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Table"
+      },
+      "screenshot": "screenshots/p2-0044-P2-reach.png"
+    },
+    {
+      "n": 45,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 43",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "\u25a6 Columns"
+      }
+    },
+    {
+      "n": 46,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 44",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "+ Add Position"
+      }
+    },
+    {
+      "n": 47,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 45",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "+ Option Strategy"
+      }
+    },
+    {
+      "n": 48,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 46",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Symbol\u25b2"
+      }
+    },
+    {
+      "n": 49,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 47",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Side"
+      }
+    },
+    {
+      "n": 50,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 48",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Date"
+      }
+    },
+    {
+      "n": 51,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 49",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Shares"
+      }
+    },
+    {
+      "n": 52,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 50",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Entry"
+      }
+    },
+    {
+      "n": 53,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 51",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Current"
+      }
+    },
+    {
+      "n": 54,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 52",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Stop"
+      }
+    },
+    {
+      "n": 55,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 53",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "P&L $"
+      }
+    },
+    {
+      "n": 56,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 54",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "P&L %"
+      }
+    },
+    {
+      "n": 57,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 55",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "% of Acct"
+      }
+    },
+    {
+      "n": 58,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 56",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Stop Dist"
+      }
+    },
+    {
+      "n": 59,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 57",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Risk $"
+      }
+    },
+    {
+      "n": 60,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 58",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Risk/Acct"
+      }
+    },
+    {
+      "n": 61,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 59",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "B/E Sell"
+      }
+    },
+    {
+      "n": 62,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 60",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Heat"
+      }
+    },
+    {
+      "n": 63,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 61",
+      "focus": {
+        "present": true,
+        "tag": "tr",
+        "role": "tr",
+        "name": "QQQLONG09/14/2610$450.00$742.03$440.00+$2,920.30+64.90%7.4%40.7%$100.000.10%0 (0"
+      }
+    },
+    {
+      "n": 64,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 62",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      }
+    },
+    {
+      "n": 65,
+      "surface": "P2-open",
+      "keys": "Enter",
+      "note": "*Enter opens 'View chart for QQQ'",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      },
+      "screenshot": "screenshots/p2-0065-P2-open.png"
+    },
+    {
+      "n": 66,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Edit QQQ"
+      }
+    },
+    {
+      "n": 67,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Close QQQ"
+      }
+    },
+    {
+      "n": 68,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Delete QQQ"
+      }
+    },
+    {
+      "n": 69,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 4",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "?"
+      }
+    },
+    {
+      "n": 70,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 5",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Tap to start a conversation"
+      }
+    },
+    {
+      "n": 71,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 6",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Train Me \u2014 teach the assistant a preference"
+      }
+    },
+    {
+      "n": 72,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 7",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Attach a chart screenshot for vision analysis (or paste from clipboard)"
+      }
+    },
+    {
+      "n": 73,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 8",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Choose a specialist agent"
+      }
+    },
+    {
+      "n": 74,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 9",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Switch ticker \u2014 type a symbol to open its chart"
+      }
+    },
+    {
+      "n": 75,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 10",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open full research for QQQ"
+      }
+    },
+    {
+      "n": 76,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 11",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask AI about QQQ"
+      }
+    },
+    {
+      "n": 77,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 12",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's current price to Notebook"
+      }
+    },
+    {
+      "n": 78,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 13",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's analyst consensus to Notebook"
+      }
+    },
+    {
+      "n": 79,
+      "surface": "P2-summary",
+      "keys": "(note)",
+      "note": "Enter door: price_btn_seen=True consensus_btn_seen=True tabs_inside=13",
+      "focus": {}
+    },
+    {
+      "n": 80,
+      "surface": "P2-close",
+      "keys": "Escape",
+      "note": "*Escape closes -- focus should return to trigger",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      },
+      "screenshot": "screenshots/p2-0080-P2-close.png"
+    },
+    {
+      "n": 81,
+      "surface": "P2-close",
+      "keys": "(compare)",
+      "note": "trigger='View chart for QQQ' after_escape='View chart for QQQ' restored=True",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      }
+    },
+    {
+      "n": 82,
+      "surface": "P2-OpenPositions",
+      "keys": "(navigate)",
+      "note": "*Open Positions, direct URL (j2tabRedirect.js's own map for j2tab=positions), Space-door pass",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/p2-0082-P2-OpenPositions-nav.png"
+    },
+    {
+      "n": 83,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content"
+      }
+    },
+    {
+      "n": 84,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page"
+      }
+    },
+    {
+      "n": 85,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K"
+      }
+    },
+    {
+      "n": 86,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal"
+      }
+    },
+    {
+      "n": 87,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts"
+      }
+    },
+    {
+      "n": 88,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire"
+      }
+    },
+    {
+      "n": 89,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard"
+      }
+    },
+    {
+      "n": 90,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search"
+      }
+    },
+    {
+      "n": 91,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20"
+      }
+    },
+    {
+      "n": 92,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth"
+      }
+    },
+    {
+      "n": 93,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener"
+      }
+    },
+    {
+      "n": 94,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow"
+      }
+    },
+    {
+      "n": 95,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record"
+      }
+    },
+    {
+      "n": 96,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow"
+      }
+    },
+    {
+      "n": 97,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History"
+      }
+    },
+    {
+      "n": 98,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book"
+      }
+    },
+    {
+      "n": 99,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference"
+      }
+    },
+    {
+      "n": 100,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk"
+      }
+    },
+    {
+      "n": 101,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal"
+      }
+    },
+    {
+      "n": 102,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk"
+      }
+    },
+    {
+      "n": 103,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: RW Page2, Pro"
+      }
+    },
+    {
+      "n": 104,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings"
+      }
+    },
+    {
+      "n": 105,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support"
+      }
+    },
+    {
+      "n": 106,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website"
+      }
+    },
+    {
+      "n": 107,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 25",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Got it"
+      }
+    },
+    {
+      "n": 108,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 26",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Today"
+      }
+    },
+    {
+      "n": 109,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 27",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Trades"
+      }
+    },
+    {
+      "n": 110,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 28",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Calendar"
+      }
+    },
+    {
+      "n": 111,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 29",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Notebook"
+      }
+    },
+    {
+      "n": 112,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 30",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Insights"
+      }
+    },
+    {
+      "n": 113,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 31",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Compass"
+      }
+    },
+    {
+      "n": 114,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 32",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Log Trade"
+      }
+    },
+    {
+      "n": 115,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 33",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Show keyboard shortcuts"
+      }
+    },
+    {
+      "n": 116,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 34",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Default$100,000.00\u25be"
+      }
+    },
+    {
+      "n": 117,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 35",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Generate report"
+      }
+    },
+    {
+      "n": 118,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 36",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open Portfolio Settings"
+      }
+    },
+    {
+      "n": 119,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 37",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "More"
+      }
+    },
+    {
+      "n": 120,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 38",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Open Positions"
+      }
+    },
+    {
+      "n": 121,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 39",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Closed Trades"
+      }
+    },
+    {
+      "n": 122,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 40",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "All"
+      }
+    },
+    {
+      "n": 123,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 41",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "QQQNothing notableRating 64"
+      }
+    },
+    {
+      "n": 124,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 42",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "List"
+      }
+    },
+    {
+      "n": 125,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 43",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Table"
+      }
+    },
+    {
+      "n": 126,
+      "surface": "P2-reach",
+      "keys": "Enter",
+      "note": "*switch to Table view",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Table"
+      },
+      "screenshot": "screenshots/p2-0126-P2-reach.png"
+    },
+    {
+      "n": 127,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 44",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "\u25a6 Columns"
+      }
+    },
+    {
+      "n": 128,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 45",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "+ Add Position"
+      }
+    },
+    {
+      "n": 129,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 46",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "+ Option Strategy"
+      }
+    },
+    {
+      "n": 130,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 47",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Symbol\u25b2"
+      }
+    },
+    {
+      "n": 131,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 48",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Side"
+      }
+    },
+    {
+      "n": 132,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 49",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Date"
+      }
+    },
+    {
+      "n": 133,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 50",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Shares"
+      }
+    },
+    {
+      "n": 134,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 51",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Entry"
+      }
+    },
+    {
+      "n": 135,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 52",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Current"
+      }
+    },
+    {
+      "n": 136,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 53",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Stop"
+      }
+    },
+    {
+      "n": 137,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 54",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "P&L $"
+      }
+    },
+    {
+      "n": 138,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 55",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "P&L %"
+      }
+    },
+    {
+      "n": 139,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 56",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "% of Acct"
+      }
+    },
+    {
+      "n": 140,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 57",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Stop Dist"
+      }
+    },
+    {
+      "n": 141,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 58",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Risk $"
+      }
+    },
+    {
+      "n": 142,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 59",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Risk/Acct"
+      }
+    },
+    {
+      "n": 143,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 60",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "B/E Sell"
+      }
+    },
+    {
+      "n": 144,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 61",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Heat"
+      }
+    },
+    {
+      "n": 145,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 62",
+      "focus": {
+        "present": true,
+        "tag": "tr",
+        "role": "tr",
+        "name": "QQQLONG09/14/2610$450.00$742.03$440.00+$2,920.30+64.90%7.4%40.7%$100.000.10%0 (0"
+      }
+    },
+    {
+      "n": 146,
+      "surface": "P2-reach",
+      "keys": "Tab",
+      "note": "seek a ticker chip 63",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      }
+    },
+    {
+      "n": 147,
+      "surface": "P2-open",
+      "keys": "Space",
+      "note": "*Space opens 'View chart for QQQ'",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      },
+      "screenshot": "screenshots/p2-0147-P2-open.png"
+    },
+    {
+      "n": 148,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Edit QQQ"
+      }
+    },
+    {
+      "n": 149,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Close QQQ"
+      }
+    },
+    {
+      "n": 150,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Delete QQQ"
+      }
+    },
+    {
+      "n": 151,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 4",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "?"
+      }
+    },
+    {
+      "n": 152,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 5",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Tap to start a conversation"
+      }
+    },
+    {
+      "n": 153,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 6",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Train Me \u2014 teach the assistant a preference"
+      }
+    },
+    {
+      "n": 154,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 7",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Attach a chart screenshot for vision analysis (or paste from clipboard)"
+      }
+    },
+    {
+      "n": 155,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 8",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Choose a specialist agent"
+      }
+    },
+    {
+      "n": 156,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 9",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Switch ticker \u2014 type a symbol to open its chart"
+      }
+    },
+    {
+      "n": 157,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 10",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open full research for QQQ"
+      }
+    },
+    {
+      "n": 158,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 11",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask AI about QQQ"
+      }
+    },
+    {
+      "n": 159,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 12",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's current price to Notebook"
+      }
+    },
+    {
+      "n": 160,
+      "surface": "P2-inside",
+      "keys": "Tab",
+      "note": "tab inside popup 13",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's analyst consensus to Notebook"
+      }
+    },
+    {
+      "n": 161,
+      "surface": "P2-summary",
+      "keys": "(note)",
+      "note": "Space door: price_btn_seen=True consensus_btn_seen=True tabs_inside=13",
+      "focus": {}
+    },
+    {
+      "n": 162,
+      "surface": "P2-close",
+      "keys": "Escape",
+      "note": "*Escape closes -- focus should return to trigger",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      },
+      "screenshot": "screenshots/p2-0162-P2-close.png"
+    },
+    {
+      "n": 163,
+      "surface": "P2-close",
+      "keys": "(compare)",
+      "note": "trigger='View chart for QQQ' after_escape='View chart for QQQ' restored=True",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "View chart for QQQ"
+      }
+    }
+  ],
+  "findings": []
+}
