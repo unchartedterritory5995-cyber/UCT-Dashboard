@@ -9,6 +9,7 @@ import {
   ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
 } from '../../lib/tiptap'
 import { createMemoDocJSON } from '../../lib/memoDocJSON'
+import { createMemoStringify, stringifyDraftPayload } from '../../lib/memoStringifyBody'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -1176,6 +1177,15 @@ export default function NoteEditorPage({
   const draftJSONRef = useRef(null)
   if (!draftJSONRef.current) draftJSONRef.current = createMemoDocJSON()
 
+  // Wave 10 (lane TY5): the memoized `JSON.stringify()` layered over
+  // `draftJSONRef` above -- same convention, same lifetime (one instance for
+  // the component's whole lifetime, a WeakMap keyed on the JSON objects
+  // `draftJSONRef` already reuses by reference for an untouched subtree).
+  // See `lib/memoStringifyBody.js`'s header for why this is safe to cache
+  // and `memoStringifyBody.test.js` for the byte-identical-output proof.
+  const draftStringifyRef = useRef(null)
+  if (!draftStringifyRef.current) draftStringifyRef.current = createMemoStringify()
+
   // Wave Q1: ONE snapshot per keystroke, shared by both local layers.
   // ⛔ Taken once on purpose: `getJSON()` walks the whole document, and the
   // draft and the durable copy must describe the SAME instant — two reads
@@ -1221,9 +1231,22 @@ export default function NoteEditorPage({
     const snap = state || captureLocalState()
     if (!snap) return
     try {
-      localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
+      // Wave 10 (lane TY5): `bodyJson` is stringified through
+      // `draftStringifyRef` rather than letting the outer `JSON.stringify`
+      // below re-walk it -- an untouched paragraph's JSON object is the SAME
+      // object `draftJSONRef` handed back last keystroke, and the memoized
+      // stringify reuses its already-computed STRING the same way. This is
+      // where this path's cost scaled with document size (perf-budgets.md,
+      // `docs/notebook/perf-runs/ty5/`): `saveDraftLocally` alone, not the
+      // localStorage write itself, which still writes the same bytes every
+      // keystroke as the Wave Q1 "ONE snapshot per keystroke" guarantee
+      // requires. `stringifyDraftPayload` then reconstructs the REST of this
+      // object's JSON form by hand (see memoStringifyBody.js for why that is
+      // safe) with the memoized body spliced in, never re-walked.
+      const bodyJsonStr = draftStringifyRef.current(snap.bodyJson)
+      localStorage.setItem(DRAFT_KEY(noteId), stringifyDraftPayload({
         title: snap.title, subtitle: snap.subtitle,
-        bodyJson: snap.bodyJson, savedAt: Date.now(),
+        bodyJsonStr, savedAt: Date.now(),
         // Wave Q1: which tab-session wrote it. On reopen that separates "the
         // durable copy from THIS session" (where the draft is written first and
         // can only be equal-or-newer — an exact structural answer) from one
