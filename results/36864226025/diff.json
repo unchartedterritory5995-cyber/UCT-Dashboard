@@ -1,0 +1,72 @@
+{
+  "verdict": "NO_NEW_FAILURES",
+  "counts": {
+    "new": 0,
+    "fixed": 3,
+    "unchanged": 170,
+    "missing": 0,
+    "baseline": 173,
+    "current": 171,
+    "current_ran": 35422,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0,
+    "new_ours": 0,
+    "new_others": 0,
+    "new_unattributed": 0
+  },
+  "arithmetic": "baseline 173 = unchanged 170 + fixed 3 + missing 0  |  current 171 = unchanged 170 + new 0 + new-but-flaky 1",
+  "invalid_because": [],
+  "baseline_run_id": "36808995740",
+  "current_run_id": "36864226025",
+  "baseline_sha": "4ee0ca6f8c720540f1f7a063109e6579a3ecea57",
+  "current_sha": "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15",
+  "commit_range": "4ee0ca6f8c720540f1f7a063109e6579a3ecea57..f771f3d0b8c9a1baa63668ddc7c98758b56f9f15",
+  "first_run": false,
+  "new": [],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows",
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {
+    "pytest|tests.test_bars_server_timing|test_layer_sqlite_on_fresh_stored_rows": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4ee0ca6f8..f771f3d0b touched tests/test_bars_server_timing.py or anything it imports"
+    },
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4ee0ca6f8..f771f3d0b touched tests/test_discord_close_note.py or anything it imports"
+    },
+    "pytest|tests.test_term018_every_guard_can_fire|test_the_pytest_collection_probe_can_answer_NO": {
+      "class": "UNATTRIBUTED",
+      "commits": [],
+      "workstreams": [],
+      "reason": "no commit in 4ee0ca6f8..f771f3d0b touched tests/test_term018_every_guard_can_fire.py or anything it imports"
+    }
+  }
+}
