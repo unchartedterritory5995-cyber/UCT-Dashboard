@@ -335,6 +335,22 @@ def test_the_relint_pass_never_SHORTENS_a_stamp_and_leaves_an_untagged_definitio
     assert _stored(other)["requirements"] == [TAG]
 
 
+def test_a_heal_ADDS_the_missing_tag_and_KEEPS_one_the_manifest_no_longer_derives(store):
+    """A stamp that is BOTH short and long: it lacks today's tag and carries one
+    today's derivation does not produce. The heal writes the UNION. Replacing the
+    stamp with today's derivation would un-refuse the definition for the stored
+    tag, which is a ruling this pass does not make (mutation O11 survived until
+    this case existed)."""
+    ud.save(USER, DEF_ID, doc(GENERAL_SCAN))
+    _stamp(DEF_ID, ["window_dependent"])
+    finding = rl.requirements_drift(_stored())
+    assert finding["missing"] == [TAG]
+    assert finding["current"] == sorted([TAG, "window_dependent"])
+    report = rl.relint()
+    assert [f["def_id"] for f in report["requirements_healed"]] == [DEF_ID]
+    assert _stored()["requirements"] == sorted([TAG, "window_dependent"])
+
+
 def test_the_heal_SKIPS_a_stamp_that_moved_under_the_decision(store):
     ud.save(USER, DEF_ID, doc(GENERAL_SCAN))
     _stamp(DEF_ID, [])
