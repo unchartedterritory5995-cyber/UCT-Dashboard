@@ -16,7 +16,7 @@ Evidence: `docs/notebook/gate-runs/wave10-L13-final/` (manifest, shard logs, `cl
 
 | 6 | `app/src/hooks/pollingSites.rail.test.js` (full-suite-only rail) | `pages/research/tabs/OptionsChainTab.jsx: 1 (listed 0)`: a bare `useSWR` poll with no census entry, added by `017f40d938` (BRK-01 option chain). | Terminal / research | lane PF's run on `ad7efc93a` + its change (file untouched by the lane) |
 
-| 7 | `tests/test_admin_oi_routes_off_the_loop.py` | Its smoke of `/api/admin/flow/plan` and `/api/admin/flow/optimize` opens the hardcoded `/data/flow.db`, which on this box is the live `C:\datalow.db`; `optimize` would run `wal_checkpoint(TRUNCATE)` and `ANALYZE` on it. The repo-root tripwire refuses the open and fails the session at its end, while every test in the file reports passed. Added by `9c430e2d4` (W3 / OI-44). | W3 loop-blockers | lane DR, on `49e8a124b`; `C:\datalow.db` mtime still 2026-09-08, no sidecars, so nothing was written |
+| 7 | `tests/test_admin_oi_routes_off_the_loop.py` | Its smoke of `/api/admin/flow/plan` and `/api/admin/flow/optimize` opens the hardcoded `/data/flow.db`, which on this box is the live `C:\data\flow.db`; `optimize` would run `wal_checkpoint(TRUNCATE)` and `ANALYZE` on it. The repo-root tripwire refuses the open and fails the session at its end, while every test in the file reports passed. Added by `9c430e2d4` (W3 / OI-44). | W3 loop-blockers | lane DR, on `49e8a124b`; `C:\data\flow.db` mtime still 2026-09-08, no sidecars, so nothing was written |
 
 What each one costs until fixed:
 
