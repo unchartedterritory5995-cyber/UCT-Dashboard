@@ -1,0 +1,2 @@
+== control-1 2026-10-01 ~12:15 local, tree f976a5f6d (L15b app = L14 + the PNG export fix)
+  lock: HELD by another session (int-w10 six-shard gate, since 11:59:19) -- the box was BUSY
