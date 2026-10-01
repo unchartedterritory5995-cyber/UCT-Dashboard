@@ -1,0 +1,43 @@
+/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 38%]
+...........................................................F............ [ 77%]
+.........................................                                [100%]
+=================================== FAILURES ===================================
+____________ test_methodology_is_byte_identical_to_the_frozen_base _____________
+
+    def test_methodology_is_byte_identical_to_the_frozen_base():
+>       assert VP.methodology_drift() == {}
+E       AssertionError: assert {'incremental...4959fd7cdcc1'} == {}
+E         
+E         Left contains 1 more item:
+E         {'incremental.py': 'c5486031b1458d9368acb7324e7644b3863720c30ebacc3e905d4959fd7cdcc1'}
+E         
+E         Full diff:
+E         - {}
+E         + {
+E         +     'incremental.py': 'c5486031b1458d9368acb7324e7644b3863720c30ebacc3e905d4959fd7cdcc1',
+E         + }
+
+tests/fundamentals_pit/test_v5_cutover.py:115: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/fundamentals_pit/test_v5_cutover.py::test_methodology_is_byte_identical_to_the_frozen_base - AssertionError: assert {'incremental...4959fd7cdcc1'} == {}
+  
+  Left contains 1 more item:
+  {'incremental.py': 'c5486031b1458d9368acb7324e7644b3863720c30ebacc3e905d4959fd7cdcc1'}
+  
+  Full diff:
+  - {}
+  + {
+  +     'incremental.py': 'c5486031b1458d9368acb7324e7644b3863720c30ebacc3e905d4959fd7cdcc1',
+  + }
+1 failed, 184 passed, 1 warning in 135.89s (0:02:15)

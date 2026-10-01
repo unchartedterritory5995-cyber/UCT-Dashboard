@@ -1,0 +1,62 @@
+{
+  "verdict": "INVALID",
+  "counts": {
+    "new": 3,
+    "fixed": 9,
+    "unchanged": 162,
+    "missing": 0,
+    "baseline": 171,
+    "current": 166,
+    "current_ran": 35558,
+    "new_flaky": 1,
+    "flaky_size": 8,
+    "flaky_new": 2,
+    "flaky_fixed": 0,
+    "file_level_resolved": 0,
+    "coverage_lost": 0
+  },
+  "arithmetic": "baseline 171 = unchanged 162 + fixed 9 + missing 0  |  current 166 = unchanged 162 + new 3 + new-but-flaky 1",
+  "invalid_because": [
+    "current: shards_success 18 of 19"
+  ],
+  "baseline_run_id": "36864226025",
+  "current_run_id": "36913123358",
+  "baseline_sha": "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15",
+  "current_sha": "e4e24524efd16a9cb4f28ad9b57a6635b76a2aae",
+  "commit_range": "f771f3d0b8c9a1baa63668ddc7c98758b56f9f15..e4e24524efd16a9cb4f28ad9b57a6635b76a2aae",
+  "first_run": false,
+  "new": [
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_document_excerpt]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_financial_fact]",
+    "pytest|tests.test_notes_cas_is_atomic|test_a_second_writer_in_the_window_never_loses_acknowledged_words[append_widget_embed]"
+  ],
+  "missing": [],
+  "fixed": [
+    "pytest|tests.test_audit_sandbox_env|test_NO_variable_points_at_the_shared_data_root",
+    "pytest|tests.test_audit_sandbox_env|test_it_REDIRECTS_EVERY_pin_the_census_derives",
+    "pytest|tests.test_audit_sandbox_env|test_the_BARE_ROOT_pins_are_redirected_too",
+    "pytest|tests.test_audit_sandbox_env|test_the_quiet_flags_blank_a_webhook_rather_than_removing_it",
+    "pytest|tests.test_bars_server_include_today|test_todays_daily_bar_stamps_today_and_caches",
+    "pytest|tests.test_e2e_sandbox_guard|test_build_environment_produces_a_usable_env_for_a_real_sandbox_root",
+    "pytest|tests.test_parity_scorecard|test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous",
+    "pytest|tests.test_shared_data_root_guard|test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var",
+    "pytest|tests.test_shared_data_root_guard|test_the_literals_no_env_var_can_move_are_named_not_forgotten"
+  ],
+  "new_flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts"
+  ],
+  "flaky": [
+    "pytest|tests.test_discord_close_note|test_a_note_that_cannot_be_written_still_posts_the_charts",
+    "pytest|tests.test_mutation_check.TestRestoreGuarantee|test_the_file_is_byte_identical_after_a_detected_mutation",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_a_detected_mutation_passes_the_check",
+    "pytest|tests.test_mutation_check.TestVerdicts|test_expect_red_naming_the_right_test_passes",
+    "pytest|tests.test_stream_charge_first_delta|test_a_CHARGE_while_auth_db_is_write_locked_never_stalls_the_loop[ask]",
+    "pytest|tests.test_stream_charge_first_delta|test_a_REFUND_while_auth_db_is_write_locked_never_stalls_the_loop[writing_help]",
+    "vitest|src/components/voice/VoiceHallucinationsPanel.test.jsx|VoiceHallucinationsPanel (Packet AD CP2) > populates the session dropdown and fires a POST re-audit for the selected session, then refreshes the flag list",
+    "vitest|src/pages/journal-2-0/tabs/NotebookTab.daily.test.jsx|Today > a daily template that no longer exists is said in words; the day still opens"
+  ],
+  "file_level_resolved": [],
+  "coverage_lost": [],
+  "missing_buckets": {},
+  "attribution": {}
+}
