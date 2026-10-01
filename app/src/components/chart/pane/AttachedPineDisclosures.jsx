@@ -52,6 +52,7 @@
 // decides whether an attached one discloses.
 import { useEffect, useMemo, useState } from 'react'
 import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
+import { chartClockNotesFor, onChartClockChange } from '../engine/chartClockNotice'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
@@ -79,6 +80,15 @@ function drawnMeta(settings, registry) {
     if (def && def.meta) out.push(def.meta)
   }
   return out
+}
+
+/** The instance ids this chart is drawing (a hidden instance draws nothing). */
+export function attachedInstanceIds(settings) {
+  const instances = (settings && Array.isArray(settings.indicatorInstances))
+    ? settings.indicatorInstances : []
+  return instances
+    .filter((inst) => inst && typeof inst === 'object' && !inst.hidden && typeof inst.instanceId === 'string')
+    .map((inst) => inst.instanceId)
 }
 
 /**
@@ -160,11 +170,31 @@ export default function AttachedPineDisclosures({
     return onPaneScaleChange(() => setScaled(anyPaneScaled()))
   }, [])
 
+  // ⭐⭐ C36 — THE OTHER DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT: an
+  // attached indicator whose `time(<timeframe>)` is withheld on THIS chart (it is
+  // not daily; its daily bars include a weekend; no capture measured its
+  // timeframe). The binder publishes what `interpret.js::periodAnchorMask`
+  // decided; the sentence is `CHART_CLOCK_WITHHELD`'s, never written here.
+  // ⛔ ONLY THIS PANE'S INSTANCES, and only the ones it draws (`hidden` is off).
+  const drawnIds = useMemo(() => attachedInstanceIds(settings), [settings])
+  const [clockNotes, setClockNotes] = useState(() => chartClockNotesFor(drawnIds))
+  useEffect(() => {
+    const read = () => setClockNotes((prev) => {
+      const next = chartClockNotesFor(drawnIds)
+      return prev.length === next.length && prev.every((p, i) => p.code === next[i].code && p.reason === next[i].reason)
+        ? prev : next
+    })
+    read()
+    return onChartClockChange(read)
+  }, [drawnIds])
+
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
-  const all = scaled && TABLES_FIT.memberNote
-    ? [...rows, { name: 'Tables', note: TABLES_FIT.memberNote }]
-    : rows
+  const all = [
+    ...rows,
+    ...clockNotes.map((n) => ({ name: `Time (${n.code})`, note: n.reason })),
+    ...(scaled && TABLES_FIT.memberNote ? [{ name: 'Tables', note: TABLES_FIT.memberNote }] : []),
+  ]
   if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>
