@@ -122,8 +122,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // (translation census). Pre-C28b: artemis [521, 405316, '0ed727028fb37e4b']
       // / [521, 405324, '4fd1716a833c1b5d'], htf-liquidity [691, 5704,
       // '83d96de74e5b2d0d'] both.
+      // ⭐ C31 moved artemis: its KNN panel's `fTxt` cell — a block local declared
+      // below an unfoldable `for` — is bound and read now (TradingView's
+      // `O-  V-  S-`, `vendorHarness.c31Loops`), so six more Resolvers are built
+      // for the three comparisons it reads. Plots byte-identical (translation
+      // census). Pre-C31: [521, 405996, '65582febd0bccf56'] / [521, 406004,
+      // '41fd10acf67ccfb8'].
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [521, 405996, '65582febd0bccf56'], manifest: [521, 406004, '41fd10acf67ccfb8'] },
+        plain: [527, 409755, '811eadca1967841a'], manifest: [527, 409763, 'b6093667c393ee30'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
