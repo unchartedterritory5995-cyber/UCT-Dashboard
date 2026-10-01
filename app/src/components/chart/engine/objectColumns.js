@@ -335,6 +335,26 @@ function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
   return out
 }
 
+/** ⭐⭐ C45 — A TREE THAT COULD NOT BE COMPUTED IS UNKNOWN ON EVERY BAR.
+ *
+ *  A node whose `interpret` throws (most often `budget:nodes`: a condition a few
+ *  nodes over the 128-node cap) has no column, so `readNode` answers `NaN` for it
+ *  — and downstream a `NaN` is Pine's `na`. A `NaN` CONDITION is false, which
+ *  selects a conditional text's or colour's LAST arm, and the object was DRAWN
+ *  with it: a label reading "DOWN" on a bar where the script's own condition is
+ *  true and TradingView writes "UP". The engine did not evaluate `na`; it
+ *  declined to evaluate at all, and those are different facts (C12's rule for a
+ *  warm-up `NaN`, C30's for a withheld clock, C41's for a lower-timeframe read).
+ *
+ *  So a failed node is marked unknown on every bar, in BOTH document forms, and
+ *  the runtime's own rule does the rest (C17): an op that reads it does not run,
+ *  and what it would have written is unknown too. The refusal stays recorded
+ *  with its guard and sentence (`refusals`), so the gap has a name.
+ *  ⛔ NO BUDGET MOVES: the tree is still refused; only what is drawn off it changes. */
+function withholdFailed(unknown, node, barCount) {
+  unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
+}
+
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
@@ -378,6 +398,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
+      withholdFailed(unknown, node, Array.isArray(bars) ? bars.length : 0)
       // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
       // node index cannot tell a member that their dashboard is blank because
       // the engine declined to spend the steps. Every refusal is kept with its
@@ -607,6 +628,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
+      withholdFailed(unknown, i, barCount)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
       // and a member on a V1 document is owed the same reason as one on a V2.
       refusals.push({
