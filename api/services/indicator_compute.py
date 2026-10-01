@@ -52,6 +52,9 @@ from typing import Dict, List, Optional, Tuple, Union
 #: The ONE calendar, read for the C8 close columns as TradingView applies it
 #: (2026-09-28). Stdlib plus the ``nyse_calendar`` leaf, so this pulls no service in.
 from api.services.tradingview_session import tradingview_close_minute as _tv_close_minute
+from api.services.tradingview_session import (
+    TRADINGVIEW_CLOSURES_FROM_YYYYMMDD as _TV_CLOSURES_FROM_YYYYMMDD,
+)
 
 Number = float
 MaybeNum = Optional[float]
@@ -1848,6 +1851,94 @@ def bar_open_instant(t, tf: Optional[str] = None) -> Optional[float]:
         return None
     instant = _et_wall_instant(day, DAILY_SESSION_OPEN_ET_MINUTE)
     return instant if instant >= VWAP_MIN_INSTANT else None
+
+
+def _last_vendor_session(end: date, span: int) -> Optional[date]:
+    """The last day at or before ``end``, within ``span`` days, the vendor trades."""
+    for k in range(span):
+        d = end - timedelta(days=k)
+        if _tv_close_minute(d.year * 10000 + d.month * 100 + d.day) is not None:
+            return d
+    return None
+
+
+#: C49 -- the periods ``compute_period_calendar`` answers. Mirrors
+#: ``indicators.js::PERIOD_CALENDAR_CODES``.
+PERIOD_CALENDAR_CODES = ("W", "M", "3M", "12M")
+
+#: The first ``YYYYMMDD`` whose NYSE closures the vendor's calendar applies -- the
+#: ONE boundary (``tradingview_session.TRADINGVIEW_CLOSURES_FROM_YYYYMMDD``), read,
+#: never restated. Mirrors ``indicators.js::PERIOD_CALENDAR_CLOSURES_FROM``.
+PERIOD_CALENDAR_CLOSURES_FROM = _TV_CLOSURES_FROM_YYYYMMDD
+
+
+def compute_period_calendar(bars: List[dict], tf: Optional[str] = None) -> Optional[dict]:
+    """C49 -- the open and the close of the week / month / quarter / year a bar
+    OPENS in, as TradingView's session calendar has them. The port of
+    ``indicators.js::computePeriodCalendar``; read that docstring for the captures
+    and the counts (AMEX:SPY on 5 / 15 / 60 minutes, 1D, 1W and 1M: every bar).
+
+    ``time(<period>)`` is 09:30 New York on the FIRST session the vendor's
+    calendar holds in the period containing the bar's opening day;
+    ``time_close(<period>)`` the close of the LAST one. Returns ``None`` when a
+    bar's instant is unreadable, else ``{"day": [...], "open": {code: [...]},
+    "close": {...}, "first_day": {...}, "last_day": {...}}`` -- instants in unix
+    seconds, days as ``YYYYMMDD``.
+    """
+    n = len(bars or [])
+    nan = float("nan")
+    out = {"day": [nan] * n, "open": {}, "close": {}, "first_day": {}, "last_day": {}}
+    for code in PERIOD_CALENDAR_CODES:
+        for part in ("open", "close", "first_day", "last_day"):
+            out[part][code] = [nan] * n
+    if not n:
+        return out
+    zone = _et_zone()
+    memo: Dict[tuple, tuple] = {}
+
+    def bounds(code: str, start: date, end: date, span: int) -> tuple:
+        key = (code, start)
+        hit = memo.get(key)
+        if hit is None:
+            first = _first_vendor_session(start, span)
+            last = _last_vendor_session(end, span)
+            last_minute = (None if last is None
+                           else _tv_close_minute(last.year * 10000 + last.month * 100 + last.day))
+            hit = (
+                nan if first is None else float(first.year * 10000 + first.month * 100 + first.day),
+                nan if last is None else float(last.year * 10000 + last.month * 100 + last.day),
+                nan if first is None else _et_wall_instant(first, DAILY_SESSION_OPEN_ET_MINUTE),
+                nan if last is None or last_minute is None else _et_wall_instant(last, last_minute),
+            )
+            memo[key] = hit
+        return hit
+
+    for i, bar in enumerate(bars):
+        t = bar_open_instant((bar or {}).get("t") if isinstance(bar, dict) else None, tf)
+        if t is None:
+            return None
+        day = datetime.fromtimestamp(t, zone).date()
+        out["day"][i] = float(day.year * 10000 + day.month * 100 + day.day)
+        monday = day - timedelta(days=day.weekday())
+        quarter_month = day.month - ((day.month - 1) % 3)
+
+        def month_end(y: int, m: int) -> date:
+            return (date(y + 1, 1, 1) if m == 12 else date(y, m + 1, 1)) - timedelta(days=1)
+
+        spans = {
+            "W": (monday, monday + timedelta(days=6), 7),
+            "M": (day.replace(day=1), month_end(day.year, day.month), 31),
+            "3M": (date(day.year, quarter_month, 1), month_end(day.year, quarter_month + 2), 31),
+            "12M": (date(day.year, 1, 1), date(day.year, 12, 31), 31),
+        }
+        for code in PERIOD_CALENDAR_CODES:
+            start, end, span = spans[code]
+            first, last, opened, closed = bounds(code, start, end, span)
+            out["first_day"][code][i] = first
+            out["last_day"][code][i] = last
+            out["open"][code][i] = opened
+            out["close"][code][i] = closed
+    return out
 
 
 def compute_clock(bars: List[dict], tf: Optional[str] = None,

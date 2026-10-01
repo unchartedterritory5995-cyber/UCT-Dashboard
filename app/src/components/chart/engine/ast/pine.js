@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -587,9 +587,10 @@ const PINE_TF_SPELLING = Object.freeze({
 const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OPENING TIMESTAMP of the enclosing `
   + 'period — the anchor Pine scripts compare with `>` to detect a new day '
   + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
-  + 'translates, and so do `"W"`, `"M"`, `"3M"` and `"12M"` on a daily chart '
-  + '(vendor capture `vw-time-tf-spy-1d-2026-09-28`); `time(timeframe.period)` and `time("60")` are the '
-  + 'bar\'s own `time` on 1D and 60-minute charts (the same probe on both). Any OTHER period this engine does not have a node for: '
+  + 'translates, and so do `"W"`, `"M"`, `"3M"` and `"12M"` on 5-minute, 15-minute, 60-minute, 1D, 1W and '
+  + '1M charts (vendor captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`); '
+  + '`time(timeframe.period)` is the bar\'s own `time` on those charts, and `time("60")` the open of its '
+  + '60-minute bar (the same probe). Any OTHER period this engine does not have a node for: '
   + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
   + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
   + 'an anchor comparison is usually asking'
@@ -10303,9 +10304,9 @@ export class Resolver {
       throw no(`it is read inside a \`request.security\` at \`${this.requestPeriod}\`, and the capture `
         + 'measured it on the chart\'s own bars only')
     }
-    if (this.basePeriod !== 'D') {
-      throw no('it is measured on a DAILY chart only (vendor capture '
-        + '`vw-time-close-tf-spy-1d-2026-09-30`), and this chart is '
+    if (!PERIOD_CLOSE_WITNESSED_TF.includes(this.basePeriod)) {
+      throw no('it is measured on 1D, 1W and 1M charts only (vendor captures '
+        + '`vw-time-close-tf-spy-{1d-full,1w,1m}-2026-10-01`), and this chart is '
         + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe `
         + 'on this timeframe')
     }
@@ -10352,19 +10353,16 @@ export class Resolver {
       throw no('the opening time of a higher-timeframe period is read here only on a chart '
         + 'pane; a screen evaluates stored daily bars that carry no clock')
     }
-    if (this.basePeriod !== 'D') {
-      throw no('it is measured on a DAILY chart only (vendor capture '
-        + '`vw-time-tf-spy-1d-2026-09-28`), and this chart is '
-        + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe `
-        + 'on this timeframe')
+    if (!PERIOD_ANCHOR_WITNESSED_TF.includes(this.basePeriod)) {
+      throw no('it is measured on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts only (vendor '
+        + 'captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01` and `vw-time-tf-spy-60-2026-09-28`), '
+        + `and this chart is \`${this.basePeriod}\`. The capture that would settle it here is the same `
+        + 'probe on this timeframe')
     }
-    // The boolean that opens a period — one builder, shared with the anchor test
-    // (`interpret.js::periodFirstCondition`, where the keys are stated).
-    const first = periodFirstCondition(period)
-    const secs = cCall('valuewhenOccurrence', [first, cSeries('time'), cNum(0)])
-    const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
-    const onDaily = cOp('==', [clockLeaf('periodseconds'), cNum(timeframeSeconds('D'))])
-    return cOp('?:', [onDaily, value, cOp('/', [cNum(0), cNum(0)])])
+    // ⭐⭐ C49 — ONE BUILDER, shared with the recogniser and the evaluator
+    // (`interpret.js::periodAnchorNode`, where what the shape MEANS is stated):
+    // node for node the tree C30 wrote here, so a saved document reads the same.
+    return periodAnchorNode(period, this.pineVersion !== null)
   }
 
   /** ⭐⭐ C36 — `time(timeframe.period)` AND `time("60")`: THE BAR'S OWN `time`,
@@ -10400,12 +10398,20 @@ export class Resolver {
         + 'measured it on the chart\'s own bars only. What would settle it: a '
         + `\`request.security(…, ${pineName}(${spelled}))\` row added to the \`vw-time-tf\` probe`)
     }
-    if (!OWN_TIME_WITNESSED_TF.includes(this.basePeriod)) {
-      throw no('it is measured equal to the bar\'s own `time` on 1D and 60-minute charts only (vendor '
-        + 'captures `vw-time-tf-spy-1d-2026-09-28` and `vw-time-tf-spy-60-2026-09-28`), and this chart is '
-        + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe on this timeframe`)
+    // ⭐⭐ C49 — THE TWO SPELLINGS PART COMPANY BELOW 60 MINUTES. Both equal `time`
+    // on a 60-minute, 1D, 1W and 1M chart; on a 5- and a 15-minute chart
+    // `time(timeframe.period)` still does (3,300 / 3,300 each) and `time("60")` is
+    // the open of the bar's 60-MINUTE bucket from 09:30
+    // (`interpret.js::chartSixtyTimeNode`). So each spelling writes its own tree.
+    const sixty = spelled === '"60"'
+    const witnessed = sixty ? SIXTY_WITNESSED_TF : OWN_TIME_WITNESSED_TF
+    if (!witnessed.includes(this.basePeriod)) {
+      throw no('it is measured on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts only (vendor '
+        + 'captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01` and `vw-time-tf-spy-60-2026-09-28`), '
+        + `and this chart is \`${this.basePeriod}\`. The capture that would settle it here is the same `
+        + 'probe on this timeframe')
     }
-    return chartOwnTimeNode(this.pineVersion !== null)
+    return sixty ? chartSixtyTimeNode(this.pineVersion !== null) : chartOwnTimeNode(this.pineVersion !== null)
   }
 
   /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR

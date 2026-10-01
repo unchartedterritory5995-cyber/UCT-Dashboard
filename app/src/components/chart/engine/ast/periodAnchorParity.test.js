@@ -28,7 +28,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { translatePine } from './pine.js'
-import { interpret, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE } from './interpret.js'
+import { interpret, CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE, chartOwnTimeNode, OWN_TIME_WITNESSED_TF_C36 } from './interpret.js'
 import { tradingViewCloseMinute } from '../../../../lib/marketClock/tradingViewSession.js'
 
 const FIXTURE = '../tests/fixtures/ast/period_anchor_parity.json'
@@ -65,6 +65,36 @@ function hourlyBars(n) {
   })
 }
 
+/** Regular-session intraday bars (unix seconds): every `step` minutes from 09:30 to
+ *  16:00 New York on each of `sessions` vendor sessions from a UTC date. Winter
+ *  dates only (New York is UTC-5: 09:30 is 14:30 UTC), and no half-day among them.
+ *  `extra`: bars prepended to a session — `[[sessionIndex, minutesBefore0930], …]`. */
+function sessionBars(start, sessions, step, extra = []) {
+  const out = []
+  const d = new Date(Date.UTC(...start))
+  for (let s = 0; s < sessions; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (tradingViewCloseMinute(Number(iso(d).replace(/-/g, ''))) === null) continue
+    const open = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 14, 30) / 1000
+    const at = (t) => { const i = out.length; const c = 80 + Math.sin(i / 9) * 3; out.push({ t, o: c, h: c + 0.3, l: c - 0.3, c, v: 100 + i }) }
+    for (const [, before] of extra.filter(([k]) => k === s)) at(open - before * 60)
+    for (let m = 0; m < 390; m += step) at(open + m * 60)
+    s += 1
+  }
+  return out
+}
+/** `n` weekly bars keyed the way `/api/bars` keys them — the FRIDAY of the ISO week
+ *  — or `n` monthly bars keyed by the 1st. */
+function periodBars(start, n, code) {
+  const d = new Date(Date.UTC(...start))
+  return Array.from({ length: n }, (_, i) => {
+    const c = 200 + Math.cos(i / 4) * 9 + i * 0.3
+    const bar = { t: iso(d), o: c - 1, h: c + 2, l: c - 2, c, v: 5000 + i }
+    if (code === 'W') d.setUTCDate(d.getUTCDate() + 7)
+    else d.setUTCMonth(d.getUTCMonth() + 1)
+    return bar
+  })
+}
+
 const BARSETS = {
   // 300 vendor sessions from Thu 2024-10-10: crosses a month, a quarter and a year,
   // holiday weeks and half-days included
@@ -87,6 +117,21 @@ const BARSETS = {
   // the screen's stored key: a YYYYMMDD int, which the clock's unit gate refuses
   dateInts: () => dailyBars([2025, 0, 8], 30, { ints: true }),
   hourly: () => hourlyBars(40),
+  // ⭐ C49 — 80 weekdays from Mon 1998-12-21 less the five NYSE holidays among them. Before
+  // 2000 the vendor's calendar applies no closure, so each is a session it holds and the
+  // chart has no bar for: Christmas (Fri 12-25), New Year (Fri 01-01), MLK (Mon 01-18),
+  // Presidents' Day (Mon 02-15) and Good Friday (Fri 04-02)
+  holidays1999: () => dailyBars([1998, 11, 21], 80, { drop: ['1998-12-25', '1999-01-01', '1999-01-18', '1999-02-15', '1999-04-02'] }),
+  // 15-minute regular-session bars over 16 vendor sessions from Thu 2025-01-02 (the Carter
+  // closure of Thu 01-09 and MLK Monday 01-20 among the days skipped), and the same with
+  // one pre-market bar (08:00) on the third session
+  rth15: () => sessionBars([2025, 0, 2], 16, 15),
+  ext15: () => sessionBars([2025, 0, 2], 16, 15, [[2, 90]]),
+  // 60-minute regular-session bars on the vendor's own grid (09:30, 10:30 … 15:30)
+  rth60: () => sessionBars([2025, 0, 2], 16, 60),
+  // weekly bars keyed by the Friday of the ISO week; monthly bars keyed by the 1st
+  weekly: () => periodBars([2024, 9, 11], 60, 'W'),
+  monthly: () => periodBars([2023, 0, 1], 30, 'M'),
 }
 
 const PINE = {
@@ -105,7 +150,13 @@ const PINE = {
   'na(closeW)': 'plot(na(time_close("W")) ? 111 : 222)',
   'change(closeW)': 'plot(ta.change(time_close("W")) != 0 ? 1 : 0)',
 }
+/** Trees no translation writes TODAY but a saved document still carries. */
+const BUILT = {
+  // C36's `time(timeframe.period)` / `time("60")` tree: 1D and 60 minutes only
+  'own (C36 tree)': () => chartOwnTimeNode(true, OWN_TIME_WITNESSED_TF_C36),
+}
 const treeOf = (key) => {
+  if (BUILT[key]) return BUILT[key]()
   const t = translatePine(`//@version=6\nindicator("p")\n${PINE[key]}\n`, { strict: true })
   if (!t.ok) throw new Error(`${key}: ${t.refusal && t.refusal.message}`)
   return t.outputs[t.selected].ast
@@ -119,6 +170,7 @@ const CASES = [
   ['na(W) · date ints · D (the scan sweep)', 'na(W)', 'dateInts', { tf: 'D' }],
   ['na(W) · date ints · no tf (a user-series alert)', 'na(W)', 'dateInts', null],
   ['change(W) · date ints · D (the scan sweep)', 'change(W)', 'dateInts', { tf: 'D' }],
+  // 40 hourly bars in a row run past 16:00: an intraday chart with bars outside the session
   ['change(W) · hourly · 60', 'change(W)', 'hourly', { tf: '60' }],
   // every day of the week: served, with the two named withholdings
   ...['W', 'M', 'Q', 'Y', 'na(W)', 'change(W)'].map((k) => [`${k} · every day · D`, k, 'everyDay', { tf: 'D' }]),
@@ -133,8 +185,8 @@ const CASES = [
   ['sixty · weekdays · D', 'sixty', 'weekdays', { tf: 'D' }],
   ['own · hourly · 60', 'own', 'hourly', { tf: '60' }],
   ['own · every day · D', 'own', 'everyDay', { tf: 'D' }],
-  ['own · hourly · 5 (unmeasured)', 'own', 'hourly', { tf: '5' }],
-  ['na(own) · hourly · 5 (unmeasured)', 'na(own)', 'hourly', { tf: '5' }],
+  ['own · hourly · 30 (unmeasured)', 'own', 'hourly', { tf: '30' }],
+  ['na(own) · hourly · 30 (unmeasured)', 'na(own)', 'hourly', { tf: '30' }],
   ['na(own) · weekdays · no tf', 'na(own)', 'weekdays', null],
   // time_close("W" | "M"): the period's last session close
   ...['closeW', 'closeM', 'na(closeW)', 'change(closeW)'].map((k) => [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }]),
@@ -142,9 +194,24 @@ const CASES = [
   ['closeW · every day · D', 'closeW', 'everyDay', { tf: 'D' }],
   ['closeW · saturdays · D', 'closeW', 'saturdays', { tf: 'D' }],
   ['closeW · hourly · 60', 'closeW', 'hourly', { tf: '60' }],
-  ['closeW · weekdays · W (a weekly chart)', 'closeW', 'weekdays', { tf: 'W' }],
+  ['closeW · rth 15m · 15', 'closeW', 'rth15', { tf: '15' }],
   ['na(closeW) · weekdays · no tf', 'na(closeW)', 'weekdays', null],
   ['na(closeW) · date ints · D (the scan sweep)', 'na(closeW)', 'dateInts', { tf: 'D' }],
+  // ⭐⭐ C49 — the vendor's calendar. Before 2000 it applies no closure: a holiday is a
+  // session it holds, and the period that opens (or ends) on it is served from it
+  ...['W', 'M', 'Q', 'Y', 'change(W)', 'closeW', 'closeM'].map((k) => [`${k} · 1999 holidays · D`, k, 'holidays1999', { tf: 'D' }]),
+  // the charts below and above daily that the captures cover
+  ...['W', 'M', 'Q', 'Y', 'change(W)', 'own', 'sixty'].map((k) => [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }]),
+  ...['W', 'sixty', 'own'].map((k) => [`${k} · 15m with a pre-market bar · 15`, k, 'ext15', { tf: '15' }]),
+  ...['W', 'M', 'sixty'].map((k) => [`${k} · rth 60m · 60`, k, 'rth60', { tf: '60' }]),
+  ...['W', 'M', 'Q', 'change(M)', 'own', 'sixty', 'closeW', 'closeM'].map((k) => [`${k} · weekly · W`, k, 'weekly', { tf: 'W' }]),
+  ...['W', 'M', 'Y', 'closeW', 'closeM'].map((k) => [`${k} · monthly · M`, k, 'monthly', { tf: 'M' }]),
+  // an unmeasured chart timeframe: every bar, by name
+  ['W · rth 15m · 30 (unmeasured)', 'W', 'rth15', { tf: '30' }],
+  ['sixty · rth 15m · 30 (unmeasured)', 'sixty', 'rth15', { tf: '30' }],
+  // the tree a document saved before C49 carries: still 1D and 60 minutes only
+  ['own (C36 tree) · weekdays · D', 'own (C36 tree)', 'weekdays', { tf: 'D' }],
+  ['own (C36 tree) · rth 15m · 15', 'own (C36 tree)', 'rth15', { tf: '15' }],
 ]
 
 function evaluate(ast, bars, opts) {
@@ -157,12 +224,13 @@ function evaluate(ast, bars, opts) {
 if (WRITE) {
   const bars = Object.fromEntries(Object.entries(BARSETS).map(([k, f]) => [k, f()]))
   const doc = {
-    _: 'C36 — time(<timeframe>) / time_close(<timeframe>) withheld the same way in both lanes. Written by '
+    _: 'C36 / C49 — time(<timeframe>) / time_close(<timeframe>) answered and withheld the same way in both lanes. Written by '
       + 'app/src/components/chart/engine/ast/periodAnchorParity.test.js (PERIOD_ANCHOR_PARITY_WRITE=1); '
       + 'read by that file and by tests/test_ast_period_anchor_parity.py. `expected` is the JS lane\'s own '
       + 'output (null = withheld / not computable); `codes` are the withholding codes '
       + '(interpret.js::CHART_CLOCK_WITHHELD) the mask named.',
     pine: PINE,
+    built: Object.keys(BUILT),
     bars,
     cases: CASES.map(([name, key, set, opts]) => ({
       name, pine: key, bars: set, ...(opts ? { opts } : {}), ast: treeOf(key), ...evaluate(treeOf(key), bars[set], opts),
@@ -178,6 +246,7 @@ describe('C36 · the fixture is the member door\'s own trees over the bars this 
   it('every case tree is what the translator writes today for its line of Pine', () => {
     expect(PARITY.cases.map((c) => c.name)).toEqual(CASES.map((c) => c[0]))
     for (const c of PARITY.cases) expect(c.ast, c.name).toEqual(treeOf(c.pine))
+    expect(PARITY.built).toEqual(Object.keys(BUILT))
   })
   it('every barset is the one this file builds', () => {
     for (const [k, f] of Object.entries(BARSETS)) expect(PARITY.bars[k], k).toEqual(f())
@@ -207,19 +276,21 @@ describe('C36 · the fixture is not vacuous', () => {
   const nulls = (name) => col(name).filter((v) => v === null).length
   const dateAt = (set, i) => PARITY.bars[set][i].t
 
-  it('on session bars the four periods are SERVED after their first partial period: 2 / 16 / 57 / 57 withheld', () => {
-    // Thu 2024-10-10 → the first Monday (10-14); 16 sessions to November; 57 to 2025
-    // (59 weekdays less Thanksgiving and Christmas)
-    expect(['W', 'M', 'Q', 'Y'].map((k) => nulls(`${k} · weekdays · D`))).toEqual([2, 16, 57, 57])
+  it('⭐ C49 — on session bars the four periods are SERVED on every bar, the first partial period included: the calendar\'s open', () => {
+    expect(['W', 'M', 'Q', 'Y'].map((k) => nulls(`${k} · weekdays · D`))).toEqual([0, 0, 0, 0])
     for (const k of ['W', 'M', 'Q', 'Y']) expect(codes(`${k} · weekdays · D`)).toEqual([])
-    // and the value is a real opening instant: Monday 2024-10-14 09:30 New York, in ms
+    // Thu 2024-10-10 opens in the week of Mon 10-07, the month and quarter of Tue 10-01,
+    // and the year of Tue 2024-01-02 — none of them a bar this series holds
+    expect(col('W · weekdays · D')[0]).toBe(Date.UTC(2024, 9, 7, 13, 30))
+    expect(col('M · weekdays · D')[0]).toBe(Date.UTC(2024, 9, 1, 13, 30))
+    expect(col('Q · weekdays · D')[0]).toBe(Date.UTC(2024, 9, 1, 13, 30))
+    expect(col('Y · weekdays · D')[0]).toBe(Date.UTC(2024, 0, 2, 14, 30))
+    // and from the first boundary the series shows it is the bar C30 answered
     expect(col('W · weekdays · D')[2]).toBe(Date.UTC(2024, 9, 14, 13, 30))
   })
 
-  it('`na(time("W"))` reads a KNOWN false where the anchor is known, and nothing where it is not', () => {
-    const c = col('na(W) · weekdays · D')
-    expect(c.slice(0, 2)).toEqual([null, null])
-    expect(new Set(c.slice(2))).toEqual(new Set([222]))
+  it('`na(time("W"))` reads a KNOWN false on every bar of a session chart', () => {
+    expect(new Set(col('na(W) · weekdays · D'))).toEqual(new Set([222]))
   })
 
   it('⛔ the three server contexts answer NOTHING — never the confident 111 / 0 they answered before the port', () => {
@@ -230,11 +301,10 @@ describe('C36 · the fixture is not vacuous', () => {
     }
   })
 
-  it('the new-week event holds both answers, and withholds the boundary bar that reads the partial week', () => {
+  it('the new-week event holds both answers, and withholds bar 0 — it reads the anchor of a bar before the series', () => {
     const c = col('change(W) · weekdays · D')
-    expect(c.slice(0, 3)).toEqual([null, null, null])
-    expect(c.slice(3)).toContain(1)
-    expect(c.slice(3)).toContain(0)
+    expect(c.slice(0, 3)).toEqual([null, 0, 1])               // Thu 10-10 (withheld), Fri 10-11, Mon 10-14
+    expect(c.slice(1).every((v) => v === 0 || v === 1)).toBe(true)
   })
 
   it('⭐ every day of the week: SERVED — Monday opens the week, and a Sunday bar reads the Monday six days back', () => {
@@ -327,15 +397,117 @@ describe('C36 · the fixture is not vacuous', () => {
     }
   })
 
-  it('`time(timeframe.period)` / `time("60")` are the bar\'s own time on 1D and 60m, withheld and named on 5m', () => {
+  it('`time(timeframe.period)` / `time("60")` are the bar\'s own time on 1D and 60m, withheld and named on a 30m chart', () => {
     expect(col('own · weekdays · D')[0]).toBe(Date.UTC(2024, 9, 10, 13, 30))
     expect(col('sixty · weekdays · D')).toEqual(col('own · weekdays · D'))
     expect(col('own · hourly · 60')[0]).toBe(Date.UTC(2025, 0, 8, 14, 30))
     expect(nulls('own · weekdays · D') + nulls('own · hourly · 60') + nulls('own · every day · D')).toBe(0)
-    for (const name of ['own · hourly · 5 (unmeasured)', 'na(own) · hourly · 5 (unmeasured)', 'na(own) · weekdays · no tf']) {
+    for (const name of ['own · hourly · 30 (unmeasured)', 'na(own) · hourly · 30 (unmeasured)', 'na(own) · weekdays · no tf',
+      'sixty · rth 15m · 30 (unmeasured)']) {
       expect(col(name).every((v) => v === null), name).toBe(true)
       expect(codes(name), name).toEqual(['time-own:chart-unwitnessed'])
     }
+  })
+
+  it('⭐ C49 — before 2000 a holiday is a session the calendar holds: the period that opens on it is SERVED from it', () => {
+    const bars = PARITY.bars.holidays1999
+    const at = (date) => bars.findIndex((b) => b.t === date)
+    const name = (k) => `${k} · 1999 holidays · D`
+    for (const gone of ['1998-12-25', '1999-01-01', '1999-01-18', '1999-02-15', '1999-04-02']) expect(at(gone)).toBe(-1)
+    for (const k of ['W', 'M', 'Q', 'Y', 'closeW', 'closeM']) {
+      expect(nulls(name(k)), k).toBe(0)
+      expect(codes(name(k)), k).toEqual([])
+    }
+    // Tue 1999-01-19 (MLK Monday has no bar) reads MONDAY 01-18 09:30 New York
+    expect(col(name('W'))[at('1999-01-19')]).toBe(Date.UTC(1999, 0, 18, 14, 30))
+    // Mon 1999-01-04 opens January, the quarter and the year on the chart; the calendar says Fri 01-01
+    for (const k of ['M', 'Q', 'Y']) expect(col(name(k))[at('1999-01-04')], k).toBe(Date.UTC(1999, 0, 1, 14, 30))
+    // the week of Mon 1998-12-21 ends on Christmas Friday 16:00, a day with no bar; Good Friday likewise
+    expect(col(name('closeW'))[at('1998-12-24')]).toBe(Date.UTC(1998, 11, 25, 21, 0))
+    expect(col(name('closeW'))[at('1999-04-01')]).toBe(Date.UTC(1999, 3, 2, 21, 0))
+    // CONTROL — the same shape from 2000 on (the bars of `mondayMissing`, `fridayMissing`) is withheld
+    expect(codes("W · a Monday and the year's first session missing · D")).toEqual(['time-anchor:session-open-missing'])
+    expect(codes('closeW · a Friday missing · D')).toEqual(['time-close:period-end-missing'])
+  })
+
+  it('⭐ C49 — a 15-minute regular-session chart: the period opens at 09:30 of the calendar\'s first session, and `time("60")` is the 60-minute bucket', () => {
+    const bars = PARITY.bars.rth15
+    const at = (ms) => bars.findIndex((b) => b.t === ms / 1000)
+    expect(bars.length).toBe(16 * 26)
+    for (const k of ['W', 'M', 'Q', 'Y', 'own', 'sixty']) {
+      expect(nulls(`${k} · rth 15m · 15`), k).toBe(0)
+      expect(codes(`${k} · rth 15m · 15`), k).toEqual([])
+    }
+    // bar 0 is Thu 2025-01-02 09:30: the week opened Mon 2024-12-30, the month, quarter and year on it
+    expect(col('W · rth 15m · 15')[0]).toBe(Date.UTC(2024, 11, 30, 14, 30))
+    for (const k of ['M', 'Q', 'Y']) expect(col(`${k} · rth 15m · 15`)[0], k).toBe(Date.UTC(2025, 0, 2, 14, 30))
+    // MLK Monday 2025-01-20 is a closure the calendar applies: that week opens Tuesday 01-21 09:30
+    expect(col('W · rth 15m · 15')[at(Date.UTC(2025, 0, 22, 16, 0))]).toBe(Date.UTC(2025, 0, 21, 14, 30))
+    // time("60"): 09:30 for 09:30..10:15, 10:30 for 10:30..11:15 … 15:30 for 15:30..15:45
+    const sixty = col('sixty · rth 15m · 15')
+    expect(sixty.slice(0, 5)).toEqual([0, 0, 0, 0, 1].map((h) => Date.UTC(2025, 0, 2, 14 + h, 30)))
+    expect(sixty[25]).toBe(Date.UTC(2025, 0, 2, 20, 30))
+    expect(col('own · rth 15m · 15')[1]).toBe(Date.UTC(2025, 0, 2, 14, 45))
+    // the new-week event fires on the 09:30 bar of the week's first session, and bar 0 is withheld
+    const event = col('change(W) · rth 15m · 15')
+    expect(event[0]).toBeNull()
+    expect(event.map((v, i) => (v === 1 ? new Date(bars[i].t * 1000).toISOString().slice(0, 16) : null)).filter(Boolean))
+      .toEqual(['2025-01-06T14:30', '2025-01-13T14:30', '2025-01-21T14:30', '2025-01-27T14:30'])
+  })
+
+  it('⛔ C49 — one pre-market bar and the 15-minute chart is withheld whole for the periods and `time("60")`, by name; `time(timeframe.period)` is not', () => {
+    for (const k of ['W', 'sixty']) {
+      const c = byName.get(`${k} · 15m with a pre-market bar · 15`)
+      expect(c.expected.every((v) => v === null), k).toBe(true)
+      expect(c.codes, k).toEqual(['time-clock:outside-session'])
+    }
+    expect(nulls('own · 15m with a pre-market bar · 15')).toBe(0)
+    expect(codes('change(W) · hourly · 60')).toEqual(['time-clock:outside-session'])
+    expect(col('change(W) · hourly · 60').every((v) => v === null)).toBe(true)
+  })
+
+  it('⭐ C49 — a 60-minute, a weekly and a monthly chart: every bar, keyed on the day the bar OPENS', () => {
+    for (const name of ['W · rth 60m · 60', 'M · rth 60m · 60', 'sixty · rth 60m · 60', 'W · weekly · W', 'M · weekly · W',
+      'Q · weekly · W', 'own · weekly · W', 'sixty · weekly · W', 'closeW · weekly · W', 'closeM · weekly · W',
+      'W · monthly · M', 'M · monthly · M', 'Y · monthly · M', 'closeW · monthly · M', 'closeM · monthly · M']) {
+      expect(nulls(name), name).toBe(0)
+      expect(codes(name), name).toEqual([])
+    }
+    const weekly = PARITY.bars.weekly
+    const at = (date) => weekly.findIndex((b) => b.t === date)
+    // a weekly bar is its own week: time("W") is its `time`, time_close("W") its `time_close`
+    expect(col('W · weekly · W')).toEqual(col('own · weekly · W'))
+    expect(col('sixty · weekly · W')).toEqual(col('own · weekly · W'))
+    // the week keyed Fri 2025-01-03 opens Mon 2024-12-30 — DECEMBER's month, whose first
+    // session is Mon 12-02 and whose last is Tue 12-31
+    expect(col('W · weekly · W')[at('2025-01-03')]).toBe(Date.UTC(2024, 11, 30, 14, 30))
+    expect(col('M · weekly · W')[at('2025-01-03')]).toBe(Date.UTC(2024, 11, 2, 14, 30))
+    expect(col('closeM · weekly · W')[at('2025-01-03')]).toBe(Date.UTC(2024, 11, 31, 21, 0))
+    expect(col('closeW · weekly · W')[at('2025-01-03')]).toBe(Date.UTC(2025, 0, 3, 21, 0))
+    // on a weekly chart the new-month event is a bar-to-bar change; bar 0 is withheld
+    expect(col('change(M) · weekly · W')[0]).toBeNull()
+    // a monthly bar keyed 2023-07-01 opens Mon 07-03: its week opened that Monday and closes Fri 07-07
+    const monthly = PARITY.bars.monthly
+    const m = monthly.findIndex((b) => b.t === '2023-07-01')
+    expect(col('M · monthly · M')[m]).toBe(Date.UTC(2023, 6, 3, 13, 30))
+    expect(col('W · monthly · M')[m]).toBe(Date.UTC(2023, 6, 3, 13, 30))
+    expect(col('closeW · monthly · M')[m]).toBe(Date.UTC(2023, 6, 7, 20, 0))
+    expect(col('Y · monthly · M')[m]).toBe(Date.UTC(2023, 0, 3, 14, 30))
+  })
+
+  it('⛔ C49 — a chart timeframe no capture measured is withheld whole, and named', () => {
+    expect(col('W · rth 15m · 30 (unmeasured)').every((v) => v === null)).toBe(true)
+    expect(codes('W · rth 15m · 30 (unmeasured)')).toEqual(['time-anchor:not-daily'])
+    expect(col('closeW · rth 15m · 15').every((v) => v === null)).toBe(true)
+    expect(codes('closeW · rth 15m · 15')).toEqual(['time-close:not-daily'])
+  })
+
+  it('⛔ C49 — the tree a document saved before this lane carries keeps C36\'s two charts: it cannot say which spelling wrote it', () => {
+    expect(nulls('own (C36 tree) · weekdays · D')).toBe(0)
+    expect(col('own (C36 tree) · rth 15m · 15').every((v) => v === null)).toBe(true)
+    expect(codes('own (C36 tree) · rth 15m · 15')).toEqual(['time-own:chart-unwitnessed'])
+    // CONTROL — today's tree for `time(timeframe.period)` IS served there
+    expect(nulls('own · rth 15m · 15')).toBe(0)
   })
 
   it('⭐ `time_close("W")` on session bars: Friday 16:00, Thursday when Friday is a closure, 13:00 on a half-day — every bar served', () => {
@@ -375,7 +547,7 @@ describe('C36 · the fixture is not vacuous', () => {
 
   it('`time_close("W")` is withheld whole, and named, off a session-only daily chart', () => {
     for (const [name, code] of [['closeW · every day · D', 'time-close:weekend-bars'], ['closeW · saturdays · D', 'time-close:weekend-bars'],
-      ['closeW · hourly · 60', 'time-close:not-daily'], ['closeW · weekdays · W (a weekly chart)', 'time-close:not-daily'],
+      ['closeW · hourly · 60', 'time-close:not-daily'], ['closeW · rth 15m · 15', 'time-close:not-daily'],
       ['na(closeW) · weekdays · no tf', 'time-close:not-daily']]) {
       expect(col(name).every((v) => v === null), name).toBe(true)
       expect(codes(name), name).toEqual([code])
