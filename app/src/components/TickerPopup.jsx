@@ -16,6 +16,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
+import useFocusTrap, { focusableWithin } from './mobile/useFocusTrap'
 import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerPopup.module.css'
 import { chordById, matchesChord } from '../pages/command/chords.js'
@@ -51,25 +52,74 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   // A2R-05 (a11y second review, 2026-10-01): the trigger below used to render
   // as `<Tag role="button">` with no tabIndex and no key handler — reachable
   // by mouse only, on every call site that did not pass `as="button"` (26 of
-  // 37). `triggerRef` is what lets Escape (and every other close path —
-  // backdrop click, the X, a research/compare navigation) hand focus BACK to
-  // the trigger, the way a dialog is supposed to leave the control that
-  // opened it. `focusable` is an explicit opt-out for the rare call site that
-  // already sits inside its OWN focusable ancestor (a `role="button"` row, a
-  // native `<a>`) — nesting a second focus stop there would be the thing this
-  // fix exists to avoid, not a fix for it. See UCT20.jsx and NewsFeed.jsx.
+  // 37). `triggerRef` is assigned to the trigger element itself; the actual
+  // close-time restore (RW-NEW-01, below) captures `document.activeElement`
+  // generically via `invokerRef` so the SAME mechanism covers both this
+  // trigger (uncontrolled mode) and the seven controlled-mode call sites that
+  // render no trigger at all. `focusable` is an explicit opt-out for the rare
+  // call site that already sits inside its OWN focusable ancestor (a
+  // `role="button"` row, a native `<a>`) — nesting a second focus stop there
+  // would be the thing this fix exists to avoid, not a fix for it. See
+  // UCT20.jsx and NewsFeed.jsx.
   const triggerRef = useRef(null)
-  const wasOpenRef = useRef(false)
+  // RW-NEW-01 (a11y second review, 2026-10-01): Enter/click on the trigger
+  // opened the modal but never moved focus into it -- Tab then walked
+  // through 26 stops of BACKGROUND page content (every other ticker chip,
+  // the nav rail, the Compass orb) on /dashboard before ever reaching the
+  // dialog's own controls. The old restore-only effect below also skipped
+  // controlled mode outright (`|| controlled`), so the seven call sites that
+  // render this with `open`/`onClose` and no trigger never got focus back
+  // either. This single effect now handles BOTH shapes identically:
+  //  · uncontrolled -- this component stays mounted, `modalOpen` toggles;
+  //  · controlled -- the caller mounts this fresh with `open` already true
+  //    and unmounts it (not just flips the prop) to close.
+  // A dependency change (open -> false) and an unmount both run the same
+  // returned cleanup, so one effect covers both lifecycles without a
+  // `wasOpenRef` guard -- the exact shape ShortcutCheatSheet's own A2R-04 fix
+  // uses for the identical always-mounted-vs-mount-while-shown split.
+  const modalRef = useRef(null)
+  const invokerRef = useRef(null)
   useEffect(() => {
-    if (modalOpen) { wasOpenRef.current = true; return }
-    if (!wasOpenRef.current || controlled) return
-    wasOpenRef.current = false
-    const active = document.activeElement
-    const lost = !active || active === document.body
-    if (lost && triggerRef.current && typeof triggerRef.current.focus === 'function') {
-      triggerRef.current.focus()
+    if (!modalOpen) return undefined
+    // Capture whatever had focus before the dialog opened (the trigger, in
+    // uncontrolled mode; whatever the controlled caller's own trigger was,
+    // in controlled mode -- there is no `triggerRef` to fall back on there).
+    invokerRef.current = document.activeElement
+    // Move focus into the dialog, onto its FIRST focusable control -- never
+    // the Close button specifically. The header packs the "Switch ticker"
+    // field plus six action buttons (Research/Ask AI/Save price/Save
+    // consensus/Compare/Flag) BEFORE Close, so landing on Close would put
+    // "Save ... price to Notebook" multiple dialog-widths of Tabs away
+    // (through the whole mode row and the chart pane's own controls before
+    // wrapping) -- exactly the kind of long detour this fix exists to kill.
+    // `focusableWithin` reads the REAL DOM (the same helper the trap below
+    // uses), so this adapts automatically if the header's control order
+    // ever changes, and is never behind the lazy ChartPane chunk -- it fires
+    // the instant the dialog's OWN header chrome mounts, before the Suspense
+    // fallback even has a chance to resolve. Because this runs once per open
+    // transition (not on every render), a later Suspense->chart swap never
+    // re-steals focus away from wherever the member has since tabbed to.
+    focusableWithin(modalRef.current)[0]?.focus()
+    return () => {
+      // By now the dialog's nodes are gone (portal content un-rendered):
+      // focus that was inside it has already fallen to <body>.
+      const active = document.activeElement
+      const lost = !active || active === document.body
+      if (!lost) return
+      const invoker = invokerRef.current
+      if (invoker && invoker !== document.body && invoker.isConnected
+          && typeof invoker.focus === 'function') {
+        invoker.focus()
+      }
     }
-  }, [modalOpen, controlled])
+  }, [modalOpen])
+  // Tab/Shift+Tab stay inside the dialog while it is open -- the ONE shared
+  // trap (ConfirmModal, ShortcutCheatSheet and the intro animation all
+  // consume the same hook; see its own file header for why a fifth
+  // hand-written copy is exactly the defect it was extracted to end).
+  // Background content, including this popup's own trigger, is never
+  // removed from the DOM -- this is what actually stops Tab from reaching it.
+  useFocusTrap(modalOpen, modalRef)
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
   // Anchored+reveal (Desk recordings): open positioned at the session date; the
@@ -288,6 +338,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
           data-testid="chart-modal"
         >
           <div
+            ref={modalRef}
             className={styles.modal}
             onClick={e => e.stopPropagation()}
             role="dialog"
