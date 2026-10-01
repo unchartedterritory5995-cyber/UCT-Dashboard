@@ -237,3 +237,54 @@ equity. Serving `type` needs a per-instrument-class answer, not a constant.
 | `UCTPROBE_MBB_AUTO` | not read |
 
 They are the owner's to delete.
+
+---
+
+## Results — capture session 2026-09-30 (evening)
+
+⛔ **NO CAPTURE WAS TAKEN. TradingView was signed out in the connected Chrome.**
+
+Read from the tab this session drove, on its first navigation to the rig layout
+`https://www.tradingview.com/chart/01f1AcIj/`:
+
+```
+document.title          "Chart Not Found — TradingView"   (page: "Can't open this chart layout … sign in")
+window.user.username    "Guest"        window.user.id  null
+visibilityState         "hidden"       outer 0 x 0     (the window was not on screen either)
+connected browsers      1 ("Browser 1", this computer)
+```
+
+The standing rule is to stop there: no sign-in was attempted, no profile or browser
+was switched, nothing was written to the account, and the tab the session opened was
+closed. Every row below is still owed.
+
+| # | capture | status |
+|---|---|---|
+| 1 | Q-L1 `vw-lower-tf.pine`, AMEX:SPY 1D and 1W | ⏳ not taken |
+| 2 | Q-L2 NYSE:RDDT bars 15 / 60 / 240 (extended OFF); Q-L3 RDDT 5 | ⏳ not taken |
+| 3 | `vw-fn-series-history.pine`, NYSE:RDDT 1D | ⏳ not taken |
+| 4 | Q-E1 `vw-runtime-error.pine`, AMEX:SPY 1D, defaults and `Stop at bar` = 100 | ⏳ not taken |
+| 5 | Q-C32-1 `vw-int-array-avg.pine`, AMEX:SPY 1D | ⏳ not taken — probe written this session |
+| 6 | `vw-time-tf.pine` on BITSTAMP:BTCUSD 1D; `vw-time-close-tf.pine` on BTCUSD 1D and AMEX:SPY 1D | ⏳ not taken — `vw-time-close-tf.pine` written this session |
+
+⚠️ **The two new probes have NEVER been compiled by TradingView.** They are committed
+so the next visit is a capture and not an authoring session, and they are not saved in
+the account:
+
+- `tools/visual_conformance/probes/vw-int-array-avg.pine` — `array<int>` means 1.5,
+  1.33.., 1.67.., 2.5 and the negatives as plot values (A01–A07), an `array<float>`
+  control (B01–B03), the mean times 2 / 3 (D01–D03), a `var` array filled by `push`
+  (P01–P03), and last-bar labels: `str.tostring(a.avg())` with no format and with
+  `"##"` (R01–R19), and `l.get_x2() - l.get_x1()` after
+  `l.set_x2(l.get_x1() + a.avg() + 1)` (X01–X06). ⚠️ If `set_x2` refuses the argument
+  the whole file fails to compile; the compile error is then the reading for the X rows,
+  and the R / A rows need the `f_dx` helper and the X labels cut into a file of their own.
+- `tools/visual_conformance/probes/vw-time-close-tf.pine` — `time_close("W"/"M"/"3M"/"12M")`
+  minus `time` in days (Q01–Q04), the self / `"D"` / own-span controls (Q05–Q07), the
+  `time(tf)` anchors beside them (Q08–Q11), the new-period idiom on `time_close`
+  (Q12–Q13), `dayofweek` / `dayofmonth` / `month` (Q14–Q16). A new file: no row id of
+  `vw-time-tf.pine` moved.
+
+**What the next visit needs first:** the owner signed in to TradingView (account
+`TSDR_TRADING`) in the Chrome the extension is attached to, and that window on screen —
+an add on a hidden tab inserts nothing (`capture-procedure.md`, top of file).
