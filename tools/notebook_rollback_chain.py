@@ -62,7 +62,7 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MEASURED_AT = "6f563c158"          # moved from 0812b5ec3 by lane R1d, 2026-09-29 (L6 #253, L7 #254, L8 #255 live)
+MEASURED_AT = "a680b0d40"          # moved from 599cd44f1 by lane R1f, 2026-09-30 (L13 #259 live)
 SCHEMA_FILES = ("app/src/pages/journal-2-0/lib/notebookSchema.js",
                 "api/services/journal_two/notebook_schema.py")
 # The two rails that test those tables stay with them: a table kept at the tip checked by a rail
@@ -77,6 +77,10 @@ KEEP_PATHS = ("docs", "CLAUDE.md", "tools", "scripts")
 # Every Notebook landing on master from wave 5 to MEASURED_AT, newest first: (key, squash, what).
 # A key is what --through takes. Verified one-parent squashes, each an ancestor of the next.
 CHAIN = [
+    ("L13", "a680b0d40", "wave 10 L13 #259"),
+    ("L12", "599cd44f1", "wave 10 L12 #258"),
+    ("L10", "8eb7f008b", "wave 10 L10 #257"),
+    ("L9", "89390fb85", "wave 10 L9 #256"),
     ("L8", "6f563c158", "wave 10 L8 #255"),
     ("L7", "8d08da86f", "wave 10 L7 #254"),
     ("L6", "3fb184cdf", "wave 10 L6 #253"),
@@ -107,17 +111,30 @@ GUARD_PICKS = ("8167f7aa0", "fd87271fd")
 # one-parent commit EITHER one selects stops the tool unless CHAIN or REVIEWED_NOT_LANDINGS names it.
 #   * SUBJECT: it changes shipped code (`app/`, `api/`) and its subject takes one of the forms a
 #     Notebook LANDING's squash subject takes (`NOTEBOOK_SUBJECT`). Over wave5^..MEASURED_AT this
-#     selects every CHAIN entry except two: L6 (`3fb184cdf`) and L8 (`6f563c158`, both lane R1d,
-#     2026-09-29) are real wave 10 landings -- rollback-chain tooling + rehearsal evidence, a
-#     restore-drill fix, proof-walk evidence and the parity-scorecard re-score -- that ship NO
-#     `app/` or `api/` file at all, so `ships` is false and SUBJECT never selects either however
-#     its subject reads. Both are in CHAIN anyway (the wave's own numbering names them, and the
-#     operator needs `--through L6`/`--through L8` to mean what they say), selected by PATH ONLY
-#     (L6's one Notebook-owned file is `tests/test_notebook_rollback_chain.py`, the rollback
-#     tool's own test suite; L8's is `tests/test_parity_scorecard.py` -- neither is shipped code,
-#     but neither is a KEEP_PATH either). Reverting either is a no-op for members and, measured,
-#     conflict-free (nothing else in this window touches either file).
-#     `test_the_subject_criterion_selects_every_chain_landing` states this exception rather
+#     selects every CHAIN entry except five, for two DIFFERENT reasons:
+#       - `ships` is false: L6 (`3fb184cdf`), L8 (`6f563c158`) and L9 (`89390fb85`, all lane R1d
+#         then R1e, 2026-09-29/30) are real wave 10 landings -- rollback-chain tooling + rehearsal
+#         evidence, a restore-drill fix, proof-walk evidence, the parity-scorecard re-score, and
+#         (L9) the tool coverage for L6/L7/L8 itself -- that ship NO `app/` or `api/` file at all,
+#         so `ships` is false and SUBJECT never selects them however their subject reads.
+#       - the subject lost the literal word "wave": L10 (`8eb7f008b`) and L12 (`599cd44f1`, lane
+#         R1e, 2026-09-30) DO ship real `app/`/`api/` Notebook code (`ships` is true), but their
+#         squash subjects read "Notebook w10 L10: ..." / "Notebook w10 L12: ...", a convention
+#         shift from "Notebook 10/10 -- wave 10 LN: ..." that drops "wave", so `NOTEBOOK_SUBJECT`
+#         does not match. Left as a declared exception rather than a regex change: widening the
+#         pattern to catch "w10" is exactly the kind of loosening that once made this regex select
+#         a build-perf commit (see the R1b fix note below) -- PATH already catches both, and a
+#         future subject convention drift gets the same treatment, not a new regex clause per drift.
+#     All five are in CHAIN anyway (the wave's own numbering names them, and the operator needs
+#     `--through L6`/`--through L8`/`--through L9`/`--through L10`/`--through L12` to mean what
+#     they say), selected by PATH ONLY (L6's one Notebook-owned file is
+#     `tests/test_notebook_rollback_chain.py`, the rollback tool's own test suite; L8's is
+#     `tests/test_parity_scorecard.py`; L9's is also `tests/test_notebook_rollback_chain.py`;
+#     L10's and L12's are the many `app/src/pages/journal-2-0/**` files they ship, which SUBJECT
+#     would have selected too had the word "wave" survived). Reverting any of the three
+#     `ships`-false ones is a no-op for members and, measured, conflict-free (nothing else in this
+#     window touches their files); L10 and L12 revert real product code, measured conflict-free
+#     below. `test_the_subject_criterion_selects_every_chain_landing` states this exception rather
 #     than silently tolerating it.
 #   * PATHS: it touches a file in `notebook_files()` -- DERIVED, never typed: the union of the
 #     files every CHAIN landing's own squash changed, minus KEEP_PATHS (never reverted, so a
@@ -174,6 +191,30 @@ NOTEBOOK_SUBJECT = re.compile(r"(?i)^(?:notebook\b.*\bwave\b|(?:hot)?fix\(notebo
 # published) touches only api/main.py, removing the web-pod's own lifespan registration of the
 # fundamentals_pit scheduler (moved to the worker pod, a comment left in its place); no Notebook
 # route touched.
+# Lane R1e, 2026-09-30: the nine path-only commits in 6f563c158..599cd44f1 (on top of L9/L10/L12,
+# all three in CHAIN by path -- see the SUBJECT-criterion comment above), read one by one via their
+# own diffs. Two were handed down already ruled by the controller and reverified here by reading
+# them: df82f7a1e (a revert of another workstream's wave-3 Pine-engine integrate merge, a3afa840d
+# -- a 2-parent merge commit itself, so the census never selects it directly) and da7d23f49 (a
+# clock/build-budget perf commit). NONE of the nine edits Notebook-owned code: two touch only the
+# shared AWAITING_A_DECISION rail (app/src/components/screener/reachable.test.js, an econ-harness
+# entry each); two touch only api/main.py (an event-loop fix, a Terminal-Next router mount); one
+# touches only api/routers/auth.py (a Terminal-Next flag reader); one touches api/main.py AND
+# api/routers/auth.py (a BRK-01 router mount + flag reader); and three -- da7d23f49, and the
+# revert/reapply pair df82f7a1e/ae60a34b3 -- touch app/vite.config.js (the same shared
+# manifest-stripping build plugin 20bbfd05d and 3e5153f1d used) and
+# app/src/pages/journal-2-0/lib/widgetEmbed{,Core}.test.jsx: da7d23f49 only widens that test file's
+# purity-scan assertion to match its own calendarCompact.js change (no Notebook behaviour edited);
+# df82f7a1e/ae60a34b3 toggle one async/await sequencing test for `stampChartSettings` on and off as
+# the Pine-engine merge they wrap is reverted then reapplied -- read side by side, byte-identical
+# except for that one `await`/lazy-load pairing, confirming the two are mirror-image toggles of the
+# SAME external change, not two separate edits. Nothing here is RAISED.
+# Lane R1f, 2026-09-30: one path-only commit in 599cd44f1..a680b0d40 (on top of L13, in CHAIN by
+# subject AND path -- its squash kept the literal word "wave", unlike L10/L12), read via its own
+# diff: 69beea8d1 (Terminal TERM-073, the nightly analyst-revisions "what changed" timeline, dark)
+# touches only api/main.py among shared files (one router mount behind ANALYST_REVISIONS_ENABLED);
+# its own router, service and panel files are all outside the derived Notebook set. Nothing here is
+# RAISED.
 REVIEWED_NOT_LANDINGS: dict[str, str] = {
     "1be4b9a2b8a6d916e8f4750f0bd4cc495137341e":
         "Revert of an accidental merge from the Pine vendor-harness branch (wave 2); its "
@@ -283,6 +324,49 @@ REVIEWED_NOT_LANDINGS: dict[str, str] = {
         "Fundamentals V5 cutover foundation, dark (no flag set, no V5 object published); touches "
         "only api/main.py, removing the web pod's own lifespan registration of the "
         "fundamentals_pit scheduler (moved to the worker pod), no Notebook route touched",
+    "71035621d27bbb282b03cf4924a8d55cac5aba88":
+        "test(econ): records the dev-only Economic UI acceptance harness in the shared "
+        "reachable.test.js AWAITING_A_DECISION ledger and symbolLinkChannels.test.js (shared "
+        "rails), no Notebook route or file touched",
+    "422bad42c1fa658fcb49a07e095206b2666f5f8c":
+        "fix(web): the etf-index-symbols route runs off the event loop (a production-stall fix); "
+        "touches only api/main.py (shared file), no Notebook route touched",
+    "706f89b83086220ef8eea2d72a92c22efb5996dd":
+        "feat(tnext): Terminal-Next MVP trial withdrawal switch (Rung 0 kill); touches only "
+        "api/routers/auth.py among shared files (a flag reader), the rest is breadth-drill UI and "
+        "Terminal-Next tests, no Notebook route touched",
+    "017f40d9388160b1b659e8b7679c31dcdd15d468":
+        "feat(research): BRK-01 increment 1, the member-facing option chain, dark; mounts a router "
+        "in api/main.py and adds a flag reader + payload key in api/routers/auth.py (shared "
+        "files), no Notebook route touched",
+    "ae60a34b3f6e7ab70b8ed61b446962ab2b1781e3":
+        "Reapplies the wave-3 Pine-engine integrate merge a3afa840d after df82f7a1e's revert (same "
+        "workstream toggling itself); its widgetEmbed.test.jsx hunk only restores the "
+        "await/lazy-load pairing for stampChartSettings that the revert removed, no new Notebook "
+        "behaviour",
+    "df82f7a1e97d6a00a25a5a7f5ca0ff638618ac4c":
+        "Revert of another workstream's wave-3 Pine-engine integrate merge a3afa840d (a 2-parent "
+        "merge commit, never itself selected by the census); its widgetEmbed.test.jsx/"
+        "widgetEmbedCore.js hunk removes a lazy-load-the-Pine-engine optimisation for "
+        "stampChartSettings, reverting to synchronous settings resolution -- a Pine-engine byte-"
+        "budget change to a Notebook-owned file, not a Notebook feature or fix",
+    "da7d23f493a64b2aed276545ffce9fb803c07611":
+        "perf(clock): market calendar dates as base-36 day gaps (wave-3 byte budget, same "
+        "shared manifest-stripping vite.config.js plugin as 20bbfd05d/3e5153f1d); its only "
+        "journal-2-0 touch is none -- the notebook_first_open byte-budget line it moves is a "
+        "shared build gate, not a Notebook code change",
+    "711b95c038b52bbbfd0b3ff928cafaef97accb50":
+        "feat(econ): frontend currentness mapping and the real-data econ harness; its only shared-"
+        "rail touch is app/src/components/screener/reachable.test.js (an econ AWAITING_A_DECISION "
+        "entry), no Notebook route touched",
+    "326d070c0d21b1bb575d121c9a342bcf6318f2fd":
+        "feat(econ): 10 economic-data source adapters, member API and serving, isolated from stock "
+        "bars; touches only api/main.py among shared files (router mounts + lifespan wiring), no "
+        "Notebook route touched",
+    "69beea8d10520fac1374bcf20a4e9a54af845c95":
+        "Terminal TERM-073: nightly analyst-revisions 'what changed' timeline, dark; mounts a "
+        "router in api/main.py (shared file) behind ANALYST_REVISIONS_ENABLED, no Notebook route "
+        "touched",
 }
 _NOTEBOOK_FILES: dict[str, frozenset] = {}
 # `ours_drop` on `api/main.py` takes out only the wave's own router lines, so everything else in

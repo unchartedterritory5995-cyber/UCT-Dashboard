@@ -1553,6 +1553,23 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       errors.push(`${path}.colorPalette: a palette is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
     }
   }
+  // ⭐⭐ C37 — A GRADIENT: two static endpoint colours, and the named column
+  // holds each bar's position between them (Pine's `color.from_gradient`, drawn
+  // by `pool.columnColorsForPlot` + `binder.pointColour` through the one measured
+  // curve, `runtime/colours.js::fromGradient`). `transparency` is the whole
+  // number a `color.new(<gradient>, t)` SET on the result.
+  if (plot.colorGradient !== undefined) {
+    const g = plot.colorGradient
+    const hex = (v) => typeof v === 'string' && /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(v)
+    if (!isPlainObject(g) || !hex(g.from) || !hex(g.to)) {
+      errors.push(`${path}.colorGradient: expected {from, to} as "#RRGGBB" or "#RRGGBBAA" colours, got ${fmt(g)}`)
+    } else if (g.transparency !== undefined
+      && !(Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100)) {
+      errors.push(`${path}.colorGradient.transparency: expected a whole number 0-100, got ${fmt(g.transparency)}`)
+    } else if (typeof plot.colorMode !== 'string' || !plot.colorMode.startsWith('column:')) {
+      errors.push(`${path}.colorGradient: a gradient is read through a column, so colorMode must be "column:<key>", got ${fmt(plot.colorMode)}`)
+    }
+  }
   for (const field of ['colorUp', 'colorDown']) {
     if (plot[field] === undefined) continue
     if (!isNonEmptyString(plot[field])) {
@@ -1785,13 +1802,25 @@ function validateColorModes(plots, columnKeys, errors) {
       if (plot.colorUp !== undefined || plot.colorDown !== undefined) {
         errors.push(`${path}: declare colorPalette OR colorUp/colorDown for ${fmt(mode)}, not both`)
       }
+      if (plot.colorGradient !== undefined) {
+        errors.push(`${path}: declare colorPalette OR colorGradient for ${fmt(mode)}, not both`)
+      }
+      return
+    }
+    // ⭐⭐ C37 — OR A GRADIENT: the column then holds the bar's position between
+    // the two endpoints. A third way to say "what the column picks from", and
+    // again a plot says exactly one.
+    if (plot.colorGradient !== undefined) {
+      if (plot.colorUp !== undefined || plot.colorDown !== undefined) {
+        errors.push(`${path}: declare colorGradient OR colorUp/colorDown for ${fmt(mode)}, not both`)
+      }
       return
     }
     const missing = ['colorUp', 'colorDown'].filter((f) => !isNonEmptyString(plot[f]))
     if (missing.length) {
       errors.push(
         `${path}: colour mode ${fmt(mode)} colours each point by whether column ${fmt(col)} is ` +
-        `non-zero, so the plot must declare both colorUp and colorDown (or a colorPalette) — ` +
+        `non-zero, so the plot must declare both colorUp and colorDown (or a colorPalette, or a colorGradient) — ` +
         `missing ${list(missing)}`,
       )
     }

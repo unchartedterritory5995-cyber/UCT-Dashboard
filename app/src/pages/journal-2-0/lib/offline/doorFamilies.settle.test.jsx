@@ -103,6 +103,44 @@ describe('append_financial_fact — a price saved from outside the editor', () =
   })
 })
 
+describe('append_financial_fact — an analyst consensus saved from outside the editor (G-062)', () => {
+  it('the insert lands the revision, and the member is told it worked', async () => {
+    const { captureConsensusToNotebook } = await import('../captureFinancialFact')
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now() }))
+    answering({ fact: { id: 'f1' }, note: NOTE })
+
+    const msg = await captureConsensusToNotebook('NVDA')
+    expect(msg).toBe('NVDA analyst consensus captured to Notebook')
+    expect(landed()).toEqual([T2])
+  })
+
+  it('⛔ CONTROL — a refused insert lands nothing', async () => {
+    const { captureConsensusToNotebook } = await import('../captureFinancialFact')
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now() }))
+    const fetchMock = vi.fn(async (url) => (String(url).includes('/insert')
+      ? { ok: false, status: 500, json: async () => ({}) }
+      : { ok: true, status: 200, json: async () => ({ fact: { id: 'f1' } }) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await captureConsensusToNotebook('NVDA')).toBe('Capture failed — try again')
+    expect(landed()).toEqual([])
+  })
+
+  it('⛔ CONTROL — honest missing data (FMP has no consensus) lands nothing, not a fabricated number', async () => {
+    const { captureConsensusToNotebook } = await import('../captureFinancialFact')
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'n1', ts: Date.now() }))
+    // The capture POST itself refuses (note_facts.create_fact_observation's
+    // "No analyst price target consensus available" 400) -- never reaches /insert.
+    const fetchMock = vi.fn(async (url) => (String(url).includes('/facts') && !String(url).includes('/insert')
+      ? { ok: false, status: 400, json: async () => ({ detail: 'No analyst price target consensus available for ZZZNODATA' }) }
+      : { ok: true, status: 200, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await captureConsensusToNotebook('ZZZNODATA')).toBe('Capture failed — try again')
+    expect(landed()).toEqual([])
+  })
+})
+
 describe('update_note — the enrichment doors', () => {
   it('addChartEmbed lands the revision of every note it enriches', async () => {
     const { addChartEmbed } = await import('../importer/enrichment')

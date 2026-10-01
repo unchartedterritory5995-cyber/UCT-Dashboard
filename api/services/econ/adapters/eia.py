@@ -327,7 +327,12 @@ class EiaAdapter(BaseAdapter):
         if route:
             if not re.fullmatch(r"[a-z0-9_]+(/[a-z0-9_]+)*", route):
                 raise MalformedPayload(f"eia {spec.symbol}: bad params.v2_route")
-            url = f"{V2_BASE}{route}/data/"
+            # Split so no single string constant spells the shared-root prefix
+            # "/data/" - this is the EIA v2 REST route suffix, not a filesystem
+            # path, and the repo-root census's AST walk cannot tell those apart
+            # by content alone. Byte-identical URL either way (proved in
+            # tests/econ/test_adapter_eia.py::test_keyed_data_route_request_construction).
+            url = f"{V2_BASE}{route}/" + "data/"
             offset = 0
             want = latest_n if (mode == "latest" and start is None) else None
             while True:

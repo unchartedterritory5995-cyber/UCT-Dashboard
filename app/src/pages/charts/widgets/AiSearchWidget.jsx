@@ -14,6 +14,7 @@ import NewsSettingsPanel from './NewsSettingsPanel'
 import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
 import { resolveGlobalPrefSettings, tagAppTheme } from '../../../components/chart/chartThemes'
 import styles from './AiSearchWidget.module.css'
+import Provenance from '../../../components/provenance/Provenance'
 
 // TERM-087: the editable-object card (and, behind it, the builder) load only when
 // an answer actually carries a `scan_object`.
@@ -487,10 +488,23 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
               if (!url) return null
               let host = url
               try { host = new URL(url).hostname.replace(/^www\./, '') } catch { /* keep raw */ }
+              // TERM-050 (build A, owner 2026-09-30): each source is S8's
+              // <Provenance>, the same affordance as the Research Ask-AI tab's
+              // Sources block. The footnote number stays local and 1:1 with the
+              // answer's inline marks, and the link is unchanged inside it. No
+              // `timestamp` is passed: a web result carries no observed-at time,
+              // and inventing one would be a fabricated citation.
               return (
-                <a key={i} className={styles.cit} href={url} target="_blank" rel="noreferrer" title={url}>
-                  <span className={styles.citNum}>{i + 1}</span>{host}
-                </a>
+                <span key={i} className={styles.citRow} data-testid="ai-search-source">
+                  <Provenance
+                    value={(
+                      <a className={styles.cit} href={url} target="_blank" rel="noreferrer" title={url}>
+                        <span className={styles.citNum}>{i + 1}</span>{host}
+                      </a>
+                    )}
+                    provenance={{ sourceActivity: `web search result · ${host}` }}
+                  />
+                </span>
               )
             })}
           </div>

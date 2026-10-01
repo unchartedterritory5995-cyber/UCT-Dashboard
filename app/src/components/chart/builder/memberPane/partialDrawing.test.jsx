@@ -246,9 +246,13 @@ const CASES = [
   // not run. Its helpers are inlined into them now (C34), so the loss is named
   // by what the loops hold rather than by the helpers' names. Its program is
   // empty: nothing is drawn, and nothing that is drawn is removed.
+  // ⭐ 2026-10-01 (C40): `f_clearAll`'s `for b in box.all → box.delete(b)` is a
+  // loop the host lane runs now, so `box.delete` — written nowhere else — left
+  // the sentence. `line.delete` / `label.delete` stay: the script also writes
+  // them inside the loops over user-type lists.
   { cls: 'plots + partial the loops never ran', script: 'trend-lines-supports-and-resistances__413ee2ee3b',
     objectsOnly: false, kind: 'partial',
-    text: /^This script uses `box\.delete`, `box\.new`, `label\.delete`, `label\.new`, `line\.delete`, `line\.new`, `line\.set_color`, `line\.set_extend`, `line\.set_style`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
+    text: /^This script uses `box\.new`, `label\.delete`, `label\.new`, `line\.delete`, `line\.new`, `line\.set_color`, `line\.set_extend`, `line\.set_style`, which this chart doesn't draw yet, so what it draws is incomplete\.$/ },
   // ⭐ 2026-09-27 — was the `withheld` row (its `line.delete(sup[1])`s were
   // dropped). A drawing variable's history (`{r:'reg', back:1}`) completes it.
   { cls: 'clean plots + objects, completed by `line.delete(sup[1])`', script: 'fibonacci-pivot-points-cc__p8DQ3RIR97',

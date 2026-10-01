@@ -328,6 +328,27 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
         continue
       }
       if (word === 'else') return refuse('an `else` with no `if` this reader followed')
+      // ⭐⭐ C40 — THE CAP WRITTEN AS A `while`: `while a.size() > K` whose body
+      // ONLY evicts. It is the eviction guard above, repeated until the length
+      // fits — and this model adds at most one element on a bar it serves (a
+      // bar two adds may run on is the ambiguous `doubles` bar, withheld), so
+      // the loop runs at most one pass there: the same window, the same cap.
+      // Each eviction is then held to the `if` form's own rules below (its
+      // guard must measure the array it shortens; one eviction per add).
+      // ⛔ Anything else inside a `while` keeps the refusal below.
+      if (word === 'while') {
+        const cond = t.slice(1)
+        const sg = sizeGuardOf(cond, h)
+        const evictBody = splitCommaStatements(st.sub || [], h)
+        const evs = evictBody.map((s2) => ((s2.sub || []).length ? null : evictOf(s2.header || [])))
+        if (sg && evs.length && evs.every(Boolean)) {
+          if (sg.refused) return refuse(sg.refused)
+          for (const e of evs) {
+            ops.push({ kind: 'evict', arr: e.arr, member: e.member, guards, size: sg, seq: seq++, ord: ord++, callGuarded, path })
+          }
+          continue
+        }
+      }
       if (word === 'for' || word === 'while' || word === 'switch') {
         if (touches) return refuse(`\`${name}\` is written inside \`${word}\``)
         continue

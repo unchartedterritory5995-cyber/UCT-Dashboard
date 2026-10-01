@@ -23,7 +23,12 @@ from __future__ import annotations
 import os
 import threading
 
-FLAG = "FUNDAMENTALS_PIT_V5_PIPELINE"
+# Declared as a mode table so the flag ledger can see it (feature_flag_index.mode_flags):
+# the name carries no ENABLED/DISABLE marker, so the gate index cannot, and an entry for it
+# in docs/feature_flags.json read as "a gate the code does not read". FLAG is taken FROM
+# the table, so there is one spelling of the name. (default, allowed values).
+FUNDAMENTALS_PIT_MODE_FLAGS = {"FUNDAMENTALS_PIT_V5_PIPELINE": ("0", ("0", "1"))}
+(FLAG,) = FUNDAMENTALS_PIT_MODE_FLAGS
 JOB_IDS = ("fundamentals_v5_cycle", "fundamentals_v5_daily", "fundamentals_v5_sweep")
 
 _RUN_LOCK = threading.Lock()

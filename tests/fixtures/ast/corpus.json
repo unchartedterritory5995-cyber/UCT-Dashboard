@@ -2643,6 +2643,146 @@
       }
     },
     {
+      "id": "bars_ago_a_per_bar_count_na_and_past_the_buffer",
+      "source": "barsAgo(close, close > open ? 0 / 0 : mod(barindex + 2, 4), 3)",
+      "why": "(2026-09-30, C38) Pine's history operator with a PER-BAR index, `x[e]`, and one case that walks every arm of its rule (`interpret.js::historyReadable`, measured on TradingView -- `vw-offset-na-spy-1d-2026-09-30`, `vw-mbb-auto-spy-1d-2026-09-30`): on an up bar the count is `na` and the read is the CURRENT bar's close; on the others it is 0, 1 or 2 bars back; and a count of 3 is AT the buffer (the literal third argument), which is not a read this engine answers -- not computable, in both lanes. And where bar 0 is a down bar its count of 2 names a bar before the series begins, which is withheld, never answered. The count is a column and the buffer a literal, so the lookback is still a tree sum. Pinned to the vendor separately by `vendorHarness.c38HistoryRead.test.js`.",
+      "ast": {
+        "type": "call",
+        "name": "barsAgo",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "/",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 0
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "mod",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "barindex"
+                      },
+                      {
+                        "type": "num",
+                        "value": 2
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 4
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "bars_ago_under_na_is_withheld_not_answered",
+      "source": "na(barsAgo(close, mod(barindex + 2, 4), 3)) ? 1 : 0",
+      "why": "(2026-09-30, C38) THE WITHHOLDING, AND WHY IT IS NOT LEFT TO `NaN`. `barsAgo` is not computable on a bar whose count is at the buffer (3 here, every fourth bar) or names a bar before the series begins (bar 0, count 2). Downstream a not-computable value is Pine's `na`, so `na(...) ? 1 : 0` would answer a confident 1 on exactly the bars where TradingView -- which holds a deeper buffer and earlier bars -- answers a value and therefore 0. Both lanes withhold the ROOT on those bars (`interpret.js::historyReadMask`, `ast_interpret.history_read_mask`): not computable, never 1. Every other bar is 0.",
+      "ast": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "call",
+            "name": "na",
+            "args": [
+              {
+                "type": "call",
+                "name": "barsAgo",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "call",
+                    "name": "mod",
+                    "args": [
+                      {
+                        "type": "op",
+                        "name": "+",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "barindex"
+                          },
+                          {
+                            "type": "num",
+                            "value": 2
+                          }
+                        ]
+                      },
+                      {
+                        "type": "num",
+                        "value": 4
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 3
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 1
+          },
+          {
+            "type": "num",
+            "value": 0
+          }
+        ]
+      }
+    },
+    {
       "id": "highestbars_the_offset_back_to_the_high",
       "source": "highestbars(high, 5)",
       "why": "⛔⛔ THE ROW THAT SPENDS THE CORPUS'S TIES. Measured on these very bars: 56 of the 5-bar `high` windows hold their maximum TWICE, and on every one of them 'the most recent bar wins' and 'the oldest bar wins' name a DIFFERENT bar -- so this digest moves if the tie-break declared in `closedTable.json::_functions_arg_extreme` is flipped in either lane. ⭐ THAT IS WHY THE WINDOW IS 5 AND NOT 20: the ruling is only pinned here for the window this case uses, and a smaller one spends more of the series' ties per bar. The CONSTRUCTED tie in `tests/test_ast_bounded_state.py` covers what a real series cannot -- a TOTAL tie, and the declared number asserted per lane rather than the two lanes agreeing with each other.",

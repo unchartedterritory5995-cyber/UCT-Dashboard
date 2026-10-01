@@ -145,6 +145,14 @@ export default function FinancialFactView({ node, editor, deleteNode }) {
         </div>
         <div className={styles.footer}>
           <span className={styles.captured}>Captured {formatObservedAt(fact.observedAt)}</span>
+          {/* G-062 / fact_registry.py's RightsClass note: a `conditional`
+              fact is genuinely new vendor-value persistence, and showing it
+              carries a display obligation the registry documents -- name the
+              vendor. `independent` facts (UCT's own bars, the member's own
+              text) need no such credit and render nothing here. */}
+          {fact.rightsClass === 'conditional' && (
+            <span className={styles.source}>Source: {(fact.source || '').toUpperCase()}</span>
+          )}
           {fact.caption && <span className={styles.caption}>{fact.caption}</span>}
         </div>
       </div>

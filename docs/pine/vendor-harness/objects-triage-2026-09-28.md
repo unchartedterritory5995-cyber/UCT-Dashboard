@@ -148,8 +148,13 @@ without it; each row below is a full re-grade of the 47 captures.
 | 41 | C31 loop-scoped names and loop-built text in the OBJECT lane — the block reader (`foldStatements` under the block harvest) steps over a `for`/`while` instead of stopping at it: the names its body can change refuse (`loopWrites` → `loopWriteRefusal`, one builder with the top-level walk), everything below the loop binds; a counted `for` with ascending integer-literal bounds that only appends to text is folded pass by pass (`unrollTextLoop`); a helper's own locals are visible to the text reader; a `ta.*` local under a guard that is not bar-invariant is marked (`condCall`) and refused, also by the runtime rescue; a binding below a stepped-over loop stays the runtime lane's to answer (`afterLoop`). The main walk is unchanged — see § C31 | `136994295`, `319a91668` | 28 / 47 → 28 / 47 (overall 25 → 25) | 222 / 266 → 222 / 266 | no family flips: `artemis-oscillator-pro` cells 14 → **15** / 21 (`fTxt` = `O-  V-  S-`, TradingView's); `htf-candle-footprint` boxes 0 → **3** / 13 (the three body boxes, at TradingView's bars and prices); ema-ribbon 34 / 48 and poor-man 0 / 40 labels unchanged, each with its wall re-named. Committed harness dir (87): the same two entries, objects 49, overall 42 unchanged. Census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (control 0). Translation census 266 × 2: 0 plots, refusals or parameters moved; object programs changed in 4 scripts. Notebook first-open +0 B; pine chunk +3,965 B. `paramIds.test.js` green, no edit |
 | 43 | C33 three object-lane reads, one script each — **(a)** `array.push(list, f(…))` / `list.push(f(…))` is the two statements Pine runs (`pineObjects.js::pushOfDrawCall`), and a helper whose body ends in a lone `if … <ns>.new(…)` returns that object or `na` (`ifOnlyReturn`: the caller's name is emptied under the call's guards, then filled under the create's); **(b)** an `input.timeframe` default printed in a text is served only for a spelling a committed capture prints under that Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`: `D` under v6, `W` under v5) — any other spelling marks the property unknown and is never printed; a request timeframe that is a function PARAMETER is the caller's argument, on the object pass only; `color.new(c, <input default>)` and an `na` arm of a colour choice resolve without minting; **(c)** `<getter>[k]` (k ≤ 5), `str.tostring(<getter>)` and an inlined helper's own getter local are read by the object runtime; an `and` guard with a term nothing reads, gated by an `input.bool`, is carried as a latch over its read terms and one unknown (`guard:partial`); **(d)** `last_bar_time` is the newest bar's time in ms | `e3ebd3a6a`, `0c48cc0a9` | 29 / 47 | 228 / 266 | **average-day-range-adr-pivots DIVERGE → MATCH** (lines 0 → 2 of 2, boxes 0 → 2 of 2, cells 3 → 4 of 4, cell text agrees; ids, coordinates, colours and text equal TradingView's — `vendorHarness.c33ObjectReads`). **high-low-open-mid-ranges** labels 0 → **504 of 504**, label text agrees (text, y, x-rank and text colour of all 504 equal); its 504 lines stay WITHHELD and cells stay 37 of 45. **volume-profile**: `last_bar_time` served, its 3 lines still withheld (next wall `chart.left_visible_bar_time`). Overall MATCH 25 → 26 of 47; plots 161 / 172 unchanged. Committed harness dir (87 graded): objects 49 → 50, overall 42 → 43, families 278 → 284 of 322 — the same two entries and only those; flag-off runs unchanged (18 / 15 and 39 / 32). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 of 532 rows changed** (base-vs-base control 0). Translation census 266: no served output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +8,600 B; total JS +10,368 B. `paramIds.test.js` green, no re-pin |
 | 47 | C36 what C30 left (§ C36). **(1)** an every-day daily chart (BTCUSD capture: the week starts MONDAY, the month on the 1st) is SERVED, less a period whose calendar first day has no bar and a bar across a New York clock change from its anchor — both withheld by name; a chart with one weekend day but not the other stays withheld whole. ⛔ **A wrong value fixed on the way:** on a session chart TradingView anchors to the first session ITS CALENDAR holds, not the first bar — the Hurricane Sandy week read 0 / −1 / −2 where the vendor reads −2 / −3 / −4; a period not opened by the calendar's first session is now withheld (that week, and every holiday-opened period before 2000). **(2)** every withholding carries a named reason out of `periodAnchorMask` to the member's disclosure strip (`chartClockNotice.js`). **(3)** `time(timeframe.period)` / `time("60")` = the bar's own `time` on 1D and 60m charts, as witnessed; nowhere else. **(4)** ⛔ the Python interpreter answered `na(time("W")) ? a : b` with a confident `a` on EVERY bar in all three server consumers that can evaluate a pane's saved tree (alerts, the scan sweep, the screen backtest); `ast_interpret.period_anchor_mask` is now the mask's port, one parity fixture. **(5)** `time_close("W" / "M")` on a session daily chart = `tf_live(<period>, timeclose)`, 4,800 / 4,800 incl. the forming period's scheduled close; withheld by name with weekend bars and off 1D; `"3M"` / `"12M"` refused by name (measured; no quarterly bar) | `a4f56d007` | 30 / 47 (unchanged) | 233 / 266 (unchanged) | none on the 47 or the committed dir (0 graded entries; 5 probe entries' refusal sentence). Through the door once the unrelated row is cut: `vw-time-tf-bitstamp-btcusd-1d` T01–T04 0 wrong, 5,438 / 4,795 / 4,247 / 1,845 bars equal; `vw-time-close-tf-spy-1d` Q01 / Q02 / Q12 / Q13 MATCH 4,800 / 4,800 and Q08 3 wrong → 0; `vw-time-tf-spy-1d` T05 / T06 MATCH 900 / 900. C30's surviving mutation M5 is red — see § C36 |
+| 49 | C38 the plot lane answers what the object lane and the VM already did (C29's "main gap against one authority"): **(a)** `x[e]` with a PER-BAR `e` in a plot is `barsAgo(x, e, buffer)` — one new table function, no new node type; the rule (an `na` count reads the current bar; a whole count below the buffer reads that many bars back) is stated once in `interpret.js` and asked by `objectRuntime.atCheck` too; the buffer is `max_bars_back` or `AUTO_MAX_BARS_BACK`, never more than the index can take, and a buffer past the lookback budget refuses `budget:lookback`; the root is WITHHELD within reach of a count that cannot be read and of a read before the first bar held (both lanes, JS and Python); **(b)** `color.r/g/b/t` of a colour `vw-gradient` witnesses is a number — a fixed colour folds, a gradient is `fromGradient` written as a canonical tree; **(c)** found on the way: `x[-expr]` lost its minus at parse — see § C38 | `621209921`, `306db6c30` | 29 / 47 (unchanged; overall 26; base `45859e598`, objects pane on; 0 entries changed either flag) | 227 / 266 (unchanged) | none of the 47. Committed harness dir (117): objects MATCH 57 → **60**, overall 45 → 45, plots MATCH 316 / 379 → **323 / 412** — the three probes leave INCONCLUSIVE-refused: `vw-offset-na` 5 of 6 rows MATCH, `vw-mbb-auto` and `vw-gradient` graded; every row still short is `bar_index` on a 300-bar window, the pane's 12-row ceiling or its hidden-constant rule. On TradingView's whole SPY history (the committed from-listing capture joined in front, checked against the vendor's own `bar_index`) the probes' unedited source grades **MATCH**: 6 / 6, 4 / 4 (offsets to 399), and the 19 colour-component rows. Member-door census attach 41 / 64 → 41 / 64, 1 row (smarter-snr's sentence). Translation census ok 58 → 58, served 827 → 827. |
+| 53 | C43 two rules the 2026-09-30 evening captures settled, each in its own authority and both lanes renew their rails: **(a)** a getter in bar-coordinate arithmetic -- `l.set_x2(l.get_x1() + a.avg() + 1)` -- is carried on the OBJECT program as `{v:'op', op:'trunc', args:[...]}` over `+`/`-`, `int(x)` and `math.avg(a,b)` (half of their sum), truncation served for a non-negative result only (a negative one marks `truncNegative` and the coordinate is tainted via C17's property mask through the SHARED `opReadsState` predicate the validator already pinned the shape of -- one predicate, two callers); a bounded-window read placed between an add and the removal is `<an add ran this bar> ? na : <the read>`, its ambiguity registered as the add's own tree; the no-format `str.tostring` is TEN decimals, trailing zeros trimmed (`defaultNumberText`). **(b)** a reached `runtime.error` draws nothing (`vw-runtime-error-reached-spy-1d`): the translator stamps `meta.runtimeErrors` on the document -- the conditions each call stands under as trees, the message's text parts, the inputs it reads live, the values it reads folded, and any period read; a new engine module (`runtimeErrorStop.js`) evaluates them over the chart's bars with the member's own inputs, three-valued per bar with `unknownMask`/`periodAnchorMask` and an off-listing warm-up; a hit returns `{reached, bar, barKnown, message, title, tradingViewText, sentence}` and `nativeRegistry.astColumnsFor` returns no column + `objectColumns.objectReaderFor` returns null; the runtime lane's `PineRuntimeError` ends in the same result through `runtimeErrorText.js`'s one wording; the binder publishes per instance to `runtimeErrorNotice`, the disclosure strip renders `${name} -- ${sentence}` and leaves on hide/release; a setting only a validation reads is a guard-only input (`guardInputs:true`), declared without minting a param-id. NEVER GUESSED: an unread condition / an unknown period / a folded setting the member moved / a bar before the listing warm-up stays `unknown`, named, drawn as today -- proved by base-vs-base controls | `323d5cd32`, `481f60666`, `4e759cf1e`, `538aa038b`, `e80129c6a` (wave 9 merge 1ce378b3b), `f6acac4a9` (wave 9 merge 19bcbf278) | 29 / 47 -> **30 / 47** (overall 26 -> **27**; `average-day-range-adr-pivots` DIVERGE -> MATCH is C33's, pulled in by the wave-9 merge) | 227 / 266 -> **234 / 266** (C33 and C36 wave-9 lifts, plus **trend-duration-forecast** lines 0 -> **1 / 1**, labels 26 -> **27 / 28** -- a C43 Part-A gain) | **trend-duration-forecast** line and label-82 served (x2 = x1 + trunc(mean + 1) = 23, label x = x1 + 11, text 'Probable Length\n23' between window add and removal; label id 2 withheld by construction and ONE other label text still refused by name -- see section C43). Member-door census 266 x both flags (pre-merge, 481f60666 vs base 36f3c47d5): attach 41 / 64 -> 41 / 64, 0 rows changed (base-vs-base control 0). Translation census 266 x both flags (pre-merge): 0 served outputs changed. **vendorHarness.c43RuntimeError.test.js** (16 tests) and **runtimeErrorNotice.test.jsx** (10 tests) both green; the three new isolation rails inside c43RuntimeError (no param minted for a validation-only input, a validation period read is isolated from the plots' record, a shared knob is live in both) pass on the merged tree. Notebook first-open **1,897,262 B** at base and merged tip (+0, PASS); `pine` chunk +18,833 B; total JS +5,117 B across 353 files. `paramIds.test.js` green with ZERO edits. **Mutation proofs: 42 mutations, 34 RED (each a rail only this fix turns red), 8 GREEN(!) -- recorded as unproven in section C43 rather than silenced** |
+| 50 | C40 the HOST object lane runs two more loop shapes, as loop ops the object runtime executes (§ C40): **(a)** `for x in <list>` / `for [i, x] in <list>` over a drawing list the lane holds (a counted loop `0 to size − 1` that never counts down, the element copied from its slot as each pass starts), over a bounded numeric window (C32's per-pass `wget`), and over `line.all` / `box.all` / `label.all` (the family's live objects, oldest first, taken when the loop starts); **(b)** the cap `while array.size(a) > N` whose body only removes from an end of the list (`array.shift(a)`, `line.delete(array.shift(a))`, `(array.shift(a)).delete()`, `pop`), the condition re-read before every pass; the numeric-window `while` cap is the window's own cap (`arrayWindows.js`). Refused by name, each with the probe row that settles it (`vw-forin-collections`): a body that changes the list it walks, a position in `<family>.all`, a `.all` walk over two or more objects whose body deletes or creates that family (`OBJECT_UNWITNESSED`, nothing drawn), a loop variable that is another statement's name. **H14, found on the way and fixed:** a drawing list created WITH SLOTS (`array.new_box(3)`) was modelled empty, so its `array.set` was a no-op and its deletes never ran (180 boxes for Pine's 3, clean ledger) — it is now diverged at its creation (`coll:sized`); and a statement that starts with `(` (`(array.shift(a)).delete()`) was dropped uncounted. No budget moved | `066b314de9`, `0a5906f283`, `f5b692b322`, `e7a1336646`, `feb79ba3c1`, `f479e6baef` | 30 / 47 → 30 / 47 (overall 27 → 27) | 233 / 266 → 233 / 266 | no family flips and no harness entry changed in either flag state (47 and the committed dir, 104 graded: objects 57, overall 45, families 304 / 343, plots 316 / 379, unchanged; pane off 18 / 15 / 107 of 119 / 140 of 151 and 46 / 34 / 184 of 196 / 295 of 358, unchanged). `ict-killzones` stays MATCH. `trend-lines`: `f_clearAll`'s three `.all` walks are carried, the program is still empty (its creates sit in loops over lists of user types and in a `while`). Census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (control 0). Translation census 266 × 2: 0 plots, refusals or parameters moved; object programs or their diagnostics changed in 9 scripts, none of which attaches. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk 342,839 → 350,030 B (+7,191), total JS +10,467 B (base = merged wave 9 `19bcbf278c`). `paramIds.test.js` green, no edit |
+| 48 | C37 colours this door did not carry (ruling R-G), and colour graded as its own column (§ C37): **(a)** `color.from_gradient` as a PLOT colour — the position `(value − bottom) / (top − bottom)` is a hidden column, the two ends static strings, drawn by the one measured curve (`pine.js::colourGradientRule`, `pool.js::gradientPointColour`); **(b)** object colours on the host lane — `color.new(c, <computed t>)`, a `var` colour never reassigned, a one-expression colour helper, `na` / `color(na)`, `color.from_gradient` (`{c:'grad'}`), a colour test on the loop counter; **(c)** the default colours that depend on the script's Pine version (`objectDefaults.js`, v4 / v5, each read off a capture); **(d)** `chart.fg_color` / `chart.bg_color` carried as a reference and resolved against OUR chart's own colours where the object is drawn (`objectTheme.js`), graded theme-relative | `pine/c37-colours` | 30 / 47 → 30 / 47 (overall 27 → 27; base `19bcbf278c`, objects pane on) | 233 / 266 → 233 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves — the harness verdict does not grade an object's colour. Committed harness dir: **rvol DIVERGE → MATCH** (611 of 611 coloured bars were the pane's gold), the only entry, both flag states. **The colour column** (`vendorHarness/colourColumn.js`, new): plots 611 → **0** differing bars of 971,741; paired object colour slots not carried **349 → 0** of 3,406 over the 47 (887 → 0 of 4,598 over the harness dir), 42 (55) theme-relative, 1 carried and different (heat-map-seasons' gauge point, named). Member-door census 266 × 2: attach 41 / 64 unchanged, 1 row (rvol plots 2 → 3); base-vs-base control 0 rows. Translation census 266: every output's value byte-identical, 1 presentation moved (rvol), dropped colour props 287 → 103 sites, programs with colours factored out 0 changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +4,341 B; total JS +10,459 B. `paramIds.test.js` green, no edit |
 | 51 | C41 a lower-timeframe request is SERVED on daily and weekly charts (§ C41). `request.security(syminfo.tickerid, "5" / "15" / "60" / "240", expr)` below the chart's timeframe is a new canonical node, `{type:'ltf', value:'<minutes>', args:[child]}` (formula `ltf(expr, '60')`): the child runs on the chart symbol's own REGULAR-SESSION intraday series and each chart bar reads its LAST intrabar (witnessed: `vw-lower-tf-spy-1d` / `-rddt-1d` / `-spy-1w-2026-09-30`); 60 and 240 are bucketed from 15-minute bars on the 09:30 grid. A chart bar whose sessions are not ALL complete in the supply, or whose child reaches past the front of it, is UNKNOWN and withheld - never `na`. The supply is one hook (`useLowerTfSources`, wired into `StockChart.jsx` beside `useOtherSymbolExchanges`): no request for a chart with no such script, ONE (`/api/bars/SYM?tf=15`) for ema-ribbon's three codes, capped at the route's 60,000 bars. Lookahead, `request.security_lower_tf` arrays, another symbol below the chart, `ticker.modify` sessions, intraday and monthly charts, `"1"` and `"30"`, the screen lane and the runtime lane stay refused by name | `d7009cc06a` (+ merges `3bb52e2523`, `8c790cddeb`, and the docs commit) | 30 / 47 -> 30 / 47 (overall 27 -> 27; base wave 9 `19bcbf278c`, objects pane on; pane off 18 -> 18, overall 15 -> 15) | 233 / 266 -> 233 / 266 (plots 161 -> 161 / 172) | **ema-ribbon-trend-filter** table cells 36 -> **47 / 48**: its 15m / 1H / 4H rows (`2.63%` / `3.8%` / `3.88%`), the bias row (`0B  5S  /  5`) and `▼▼  STRONG BEAR` are TradingView's, text for text (`vendorHarness.c41LowerTfServe`); what is left is the strength bar `██████████`, another wall. No family flips (the cell count and text families stay one short). **artemis-oscillator-pro**: its three lower reads are `ltf` nodes now, graded outputs unchanged (notes only). The same two entries under both flag states and in the committed harness dir (117: objects 62 / 82, overall 46, families 315 / 350, plots 343 / 417, all unchanged), plus the three `vw-lower-tf` probe entries' refusal sentence (still INCONCLUSIVE: the probe script also carries lookahead and array rows, and the door is all-or-nothing - its served rows are graded row by row in the C41 rail). Member-door census 266 x 2: attach 41 / 64 -> 41 / **65** (`mtf-dashboard-pro` attaches with the objects pane on; pane off its sentence changes), 1 row per state, base-vs-base 0 rows. Translation census 266: host lane ok 58 -> 59, served outputs 404 -> 414; screen lane 58 / 738 unchanged, no served screen output moved. Notebook first-open 1,897,262 -> 1,897,271 B (+9: a chunk FILENAME three characters longer in three preload lists, PASS); total JS +15,966 B. `paramIds.test.js` green; `docs/pine/param-ids.json` re-pinned for three scripts that were door-refused at base in both flag states |
 
+| 52 | C42 a call that runs exactly ONCE reads what TradingView reads (section C42). The witness is `vw-fn-series-history-rddt-1d-2026-09-30` and the C04 arm of ema-ribbon: under a guard that is PROVABLY `barstate.islast` (`guardIsLastBarOnly`, alone or as a top-level `and` conjunct), in no loop, (i) `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` are the chart's values `k` bars back and move to `CHART_SERIES_WITNESSED`; (ii) `bar_index[k]` is the call's own history (`na` on its one run) and moves to `CALL_OWNED_SERIES`; (iii) `ta.highest(src, len)` reads its source and `ta.sma(src, len ≥ 2 literal)` reads `na`. Everything else keeps a named refusal: every other `ta.*`, every other guard, a loop, a non-literal offset or length, `time_close[k]` / `hlcc4[k]`, `bar_index[k]` under any other guard. On the way: a bare `input(<literal>, …)` is a simple input (its guard is bar-invariant); the clock functions `time(…)` / `time_close(…)` and the calendar readers answer from the bar's own timestamp, so a conditional call that reads them has no history to starve (`fn:conditional-history` 540 → 383 across the 266, no object program moved). ema-ribbon's cell (2,3) is TradingView's ██████████.
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -2643,6 +2648,555 @@ the Monday-first key on 5,490 / 5,490 bars and with the Sunday-first key on fewe
 6. A named refusal at alert arm / `assert_scannable` for a tree the mask withholds whole (the Python sink carries
    the code): today such an alert is admitted and reads "no number" forever, which is honest and quiet.
 
+## C38 — a per-bar history index in a plot, and a colour's components as values (2026-09-30, step 49)
+
+Branch `pine/c38-plot-offsets`, merged with wave 9 at `19bcbf278` through two merges (`acac0a2b2`: C29-C33; `b263db477`: + C36) (C29 + C30 + C31 + C32 + C34 + C35).
+C29 named it: the object lane and the VM answered `x[e]` with a per-bar `e`, the plot lane refused
+`pine:offset-literal`, so the two probes that witness the rule were INCONCLUSIVE at the door. The same
+for `color.r(c)` in a plot (`pine:colour-value`) and `vw-gradient`.
+
+**(a) The read.** `closedTable.json::barsAgo(source, offset, period)`: the count is a column, the buffer a
+LITERAL third argument, and the declared lookback is that argument — `maxLookback` is still a tree sum and
+the `offset` node stays the only spelling of a constant offset. The rule is C29's rule 7 and is stated once,
+`interpret.js::historyBackOf` / `historyReadable`; `objectRuntime.js` asks the same two functions in both
+of its reads (the mutation proof found it holding a second copy of the `na` rule — fixed, `306db6c30`).
+`pine.js::Resolver.historyReadOf` writes it:
+
+| question | answer |
+|---|---|
+| the buffer | the script's `max_bars_back`, else `AUTO_MAX_BARS_BACK` — the existing constant, through `declaredMaxBarsBackOf`, the one reader both lanes use (it was a closure inside the object builder) |
+| …tightened | never more than the index can take: an interval walk over the canonical tree (`historyBackRange`) — a literal, `na`, `barindex`, negation, `+` / `-`, `?:`, `mod`, `min` / `max` / `nz`, and this table's own `highestbars` / `lowestbars` / `barssince`. `close[cond ? na : 1]` asks for 2 bars, `bar_index[-ta.lowestbars(low, 100)]` for 100 under a declared 5,000 |
+| past the caps | a buffer above the lookback budget (960) refuses `budget:lookback` at the member door; nothing is served short |
+| a count that cannot be read (negative, fractional, at or past the buffer) | not computable on that bar, and the ROOT is withheld on every bar within `maxLookback(root) − maxLookback(read)` of it (`interpret.js::historyReadMask`; from the first such bar on under `cum` / a recurrence; the whole tree under `tf` / `sym`). `na(x[e]) ? 1 : 0` would otherwise answer a confident 1 |
+| a read before the first bar held | withheld the same way — TradingView holds earlier bars and answers a value (`vw-mbb-auto`: 225 of 300 reads land before the capture's window). Only when the series starts at the listing is it Pine's `na` |
+| the object lane | `withheldReadMask` (C30's anchor mask and this one, one channel) is merged into `unknownMask`, so an object reading such a tree is withheld, never drawn off a `NaN` |
+| Python | `ast_interpret._fn_bars_ago` and `history_read_mask`, applied at `interpret`'s root like C12s's mask. Two corpus cases (`bars_ago_*`) agree with the JS lane on every bar, the withheld ones included |
+
+⚠️ **Found on the way, a wrong bar waiting to happen:** `parseOffsetIndex` consumed a leading `-` and dropped
+it for any non-literal index, so `bar_index[-FL]` parsed as `bar_index[FL]`. Harmless while every such index
+refused or folded; with a per-bar index served, every count of the commonest idiom (`x[-ta.lowestbars(…)]`,
+fib-retracement line 74) would have been negative. The sign now stays with the expression; a CONSTANT
+negative index refuses `pine:offset-negative` (`n = 3` / `close[-n]` used to read `close[3]`, an offset Pine
+itself rejects — no corpus script does it).
+
+**(b) The colour.** `Resolver.colourComponentOf` → `witnessedColourOf`: a Pine colour name, a six-digit
+literal, `color.rgb` of literals, `color.new(<fixed>, <literal>)` fold to the number (`hexToPacked` packs,
+`unpackColor` reads, `byteTransparency` is `color.t`); `color.from_gradient(value, lo, hi, A, B)` between two
+fixed colours over literal bounds is `runtime/colours.js::gradientChannelTree` — `fromGradient` written as a
+canonical tree, node for node in the same order, beside the function; `color.new(<that gradient>, t)`
+replaces the transparency only. The formula therefore exists twice, and `colourComponents.test.js` holds
+the two together: 2,001 points × 4 ranges × 5 endpoint pairs × 4 components, exact equality, clamps included.
+A colour itself is still not a column.
+
+**The probes, graded by the harness itself** (`gradeCapture`: the real member door, the real comparator;
+`vendorHarness.c38HistoryRead`, `vendorHarness.c38ColourValue`):
+
+| probe | as captured (300 bars) | on TradingView's whole history |
+|---|---|---|
+| `vw-offset-na` | 5 of 6 rows MATCH; `E00` is `bar_index` itself (vendor 8175, this window 0) | **MATCH**, 6 / 6, 300 / 300 bars each, no warm-up excuse |
+| `vw-mbb-auto` | `M00`, `M01` diverge on `bar_index`; `M02`, `M03` INCONCLUSIVE (a 400-bar reach on 300 bars) | **MATCH**, 4 / 4 — offsets 0 … 399, 225 of them onto bars before the probe's window |
+| `vw-gradient` | graded (was refused): every row is keyed on `bar_index` | unedited: the 12 rows the pane carries MATCH, the rest are its row ceiling (5) and hidden-constant rule (6). Cut in two halves, the six constant rows carried with `+ close * 0`: all **19 component rows MATCH** on 300 bars |
+
+"TradingView's whole history" is not synthesised: `vw-bool-cast-spy-1d-2026-09-28` holds all 8,473 daily SPY
+bars from the 1993 listing (`history.startsAtBar0`), and `c38Joined.js` joins the 8,175 that precede the
+probe's window in front of it. The join proves itself — it throws unless the probe's first bar lands at the
+index the vendor's own `bar_index` column prints — and with it `bar_index` is the vendor's, the series is
+from the listing, and the probe's source needs no edit. `G22` (`plot(v, color = g1)`) is the one row not
+MATCH there: its values agree and its colour is the pane's own — a gradient as a plot COLOUR is not carried
+(R-G keeps the line); named in the rail, not this lane's.
+
+**Corpus (translation census, 266, strict).** `pine:offset-literal`: 2 scripts → 1. **smarter-snr** moves
+past it (`time[x2Bar_]`, line 199); its next wall is `pine:builtin` `str.length` (line 17), then the
+`pine:window` on `ta.highest` (line 76) it already had. **smart-money-concepts-by-welotrades** stays:
+`high[length]` with `length` a function parameter is a window that did not fold, not a per-bar read (its
+first wall is `pine:function`, line 250). `pine:colour-value`: 0 scripts before and after — the five corpus
+scripts that spell `color.r/g/b/t` use them inside colour arithmetic for a drawing colour, which the colour
+readers already fold or the object lane owns. **fib-retracement**: its object program keeps 16 line creates
+it dropped (`create:line`, the `bar_index[-FL]` anchor); it is still refused at the door
+(`pine:object-removal-lost`), so nothing new is drawn.
+
+**Measured** (base `45859e598` → tip, same commands, same box, after-measurements on the merged tree):
+
+| | base | tip |
+|---|---|---|
+| 47 captures, pane on: objects MATCH / overall / families / plots | 30 / 27 / 233 of 266 / 161 of 172 | unchanged, 0 entries |
+| 47 captures, pane off | 18 / 15 / 107 of 119 / 140 of 151 | unchanged, 0 entries |
+| committed harness dir (117 files), on: objects / overall / plots | 62 / 46 / 343 of 417 | **65** / 46 / **350 of 450**; changed entries: the three probes (INCONCLUSIVE-refused → graded) |
+| committed harness dir, off | 50 / 34 / 322 of 396 | **53** / 34 / **329 of 429**; the same three |
+| member-door census 266 × both flags | attach 41 / 64 | 41 / 64; 1 row per flag (smarter-snr's refusal sentence); base-vs-base control 0 rows |
+| translation census 266 (strict) | ok 58, served outputs 827 | ok 58, served 827; 5 rows: smarter-snr (above), fib-retracement (object program), three whose `pine:function` sentence lists the table's names (`barsAgo` joined the list) |
+| notebook first-open | 1,897,262 B PASS | 1,897,262 B PASS (+0) |
+| pine chunk / total JS | 353,925 B / 12,686,331 B | 362,069 B (+8,144) / 12,694,339 B (+8,008) |
+| `paramIds.test.js` | 4 passed, 1 skipped | 4 passed, 1 skipped — no edit |
+
+**Refused by name, and what settles each:**
+
+| what | guard | settles it |
+|---|---|---|
+| a per-bar index on the screener lane | `pine:offset-literal` | a ruling, not a capture: the mask is at both interpreters' roots, but a saved scan is compared across symbols and a withheld bar reads as "no match" |
+| an index that moves only with `barstate.*` (`x[barstate.isrealtime ? 1 : 0]`) | `pine:offset-literal` | the rule was measured on closed bars; a capture of this probe on a FORMING bar. ⚠️ Serving it also carries `high_engagement__20-ehlers-fisher-transform` one wall on (to `pine:state`), which mints its `Length` input — an append to `docs/pine/param-ids.json`, an owner-ruled act. One arm in `historyReadOf` to delete once ruled |
+| `max_bars_back(x, n)` (the per-series call) | `pine:offset-literal` | a probe of that call (no capture measures a per-series buffer) |
+| a source the script reassigns | `pine:state` | the end-of-bar value of the name, which the column lane does not hold at a read site |
+| an index over inputs only that the window fold cannot reduce (`x[rep ? 0 : 1]` at the member door) | `pine:offset-literal` | the window fold learning a constant-test ternary (C9's), not this read |
+| a buffer above the lookback budget (an unbounded index under `max_bars_back = 5000`) | `budget:lookback` | budget ruling (not raised) |
+| a declared buffer OVERRUN (count ≥ `max_bars_back`) | — | Pine stops the script; the object lane stops its run, the plot lane withholds the bars within reach and draws the rest. A probe that overruns a declared buffer would say what TradingView shows |
+| `color.r/g/b/t` of an eight-digit literal, an `input.color`, a per-bar transparency, a ternary of colours, a gradient over per-bar or empty bounds, a gradient between gradients, a user colour helper | `pine:colour-value` | a `vw-gradient` row for each (the probe asks none of them) |
+
+**Mutations** (29 run, each red on its own, each restored by bytes with the sha and `HEAD` blob verified,
+`git status` clean after): the `na` rule, the buffer comparison, the read itself, the mask, the pre-window
+withholding, the reach, a typed bound in place of the constant, the declared buffer, each of the five
+named refusals, the bound tightening, the swallowed sign, the negation's interval, the constant-negative
+name; the tree's truncation, its transparency blend, its clamp, `fromGradient` moved without the tree,
+an eight-digit literal, `color.new` over a gradient, an empty range, the whole-number transparency; and
+the four Python twins. ⚠️ Two SURVIVED on the object-lane rail on the first run (`c29NaReads` stayed green
+with the shared `na` rule and the shared buffer comparison moved) — that is what found the second copy in
+`objectRuntime.js`; both are red there now.
+
+**Left for the integrator.** (1) `bar_index` at the door is the loaded window's own index: on any chart
+that does not start at the listing it is not TradingView's, and it is what keeps all three probes (and
+`vw-ne-na`, `w4-cross-round`) from MATCH as captured. It is a served wrong value, not a refusal, and was
+there at base. (2) The `barstate.*` arm above (a parameter-map append). (3) The object lane's `{v:'at'}`
+still answers `na` for a read before the first bar held; the plot lane withholds it unless the series
+starts at the listing. Same rule for which bar is read, a different answer for a bar we do not hold —
+aligning the object lane moves C29's `vw-mbb-auto` rail (its labels at `na`), so it was not done here.
+(4) `G22`: a gradient as a plot COLOUR in the columnar lane (300 bars gold where TradingView draws the
+gradient); `gradientChannelTree` is the arithmetic it would need.
+## C42 — a call that runs exactly ONCE reads what TradingView reads (2026-10-01, step 52)
+
+Branch `pine/c42-conditional-calls`, base `19bcbf278c` (wave 9 after C33 + C29–C36). The capture `vw-fn-series-history-rddt-1d-2026-09-30` was taken for C34's refusals and verified row by row against its own bars before anything was served (`vendorHarness.c42OneExecution`), plus ema-ribbon's cell (2,3) — `maxSpread = ta.highest(spread, 50)` under `if showTable and barstate.islast` — whose glyphs are TradingView's.
+
+**The rule, in the object lane only** (`objectFnInline.js` + `pineObjects.js` + `pine.js`). Under a guard that is PROVABLY `barstate.islast` (alone or as a top-level `and` conjunct) and in no loop:
+
+| row | witnessed answer | moves to |
+|---|---|---|
+| S01, S03–S06 `volume` / `time` / `hl2` / `hlc3` / `ohlc4` `[k]` (k = 5, 40, 200) | the chart's own value k bars back (15 / 15) | `CHART_SERIES_WITNESSED` |
+| S02 `bar_index[k]` | `na` at all three offsets | `CALL_OWNED_SERIES` |
+| C01 a body local `x[1]` (`x = close * 2`) | `na` (every-bar: 290.72) | still refused — `na`, witnessed |
+| C02 a parameter `src[1]` (`f_call(close)`) | `na` (every-bar: 145.36) | still refused — `na`, witnessed |
+| C03 `ta.sma(close, 3)` | `na` (every-bar: 143.6267) | `ONE_EXECUTION_IS_NA` (length ≥ 2 literal) |
+| C04 `ta.highest(high, 10)` | 151.8899 — the last bar's own high (every-bar: 161.67) | `ONE_EXECUTION_WINDOW_IS_SOURCE` |
+
+Mechanism: `guardIsLastBarOnly` is the all-of-four fail-closed test (`or` / ternary / `not` / brackets refuse). `oneExecutionTokens` rewrites the three witnessed shapes and leaves everything else; a `ta.*` left standing is marked `onceUnwitnessed` and refuses by name where the value is read (`Resolver.resolveCall` + `textNodeOf` guard). A helper called once is inlined through `oneExecutionBody` with the SAME rewrite. In a block that runs once, a `:=` to a `ta.*`, a `var` written from one, and a block local bound to a VALUE function that reads its own history (`callHistoryFunctions`) all carry the mark on the chain's `foldIfChain` + state-reassign paths; the runtime lane never answers a value that reads a condCall (`rtCondTainted`) or a statement read as its one run (`onceLines`). ⛔ Every other varying guard keeps C31's refusal, and C34's refusals stay named for an unwitnessed series.
+
+**What is REFUSED, with the capture that would settle it:** every other `ta.*` on its first run (`ta.lowest`, `ta.ema`, `ta.rsi`, `ta.atr`, `ta.change`, `ta.stdev`, `ta.cum`, the one-argument `ta.highest(length)`, `ta.sma(close, 1)`); `bar_index[k]` under any guard that is not provably `barstate.islast`; `time_close[k]` and `hlcc4[k]` (not in the probe); an offset of 0, a non-literal offset or length. Probe queued: `tools/visual_conformance/probes/vw-call-site-history.pine` + `docs/pine/capture-queue-2026-09-30-call-site-history.md` — the other `ta.*` on their first run, `bar_index[k]` beside `bar_index - k`, `time_close[k]` / `hlcc4[k]`, an offset of 0, and MANY executions (a block and a helper under `close > open`, a block on every other bar) plotted beside the every-bar values. The runtime-lane probe fully supersedes C34's `vw-fn-series-history` queue.
+
+**Found on the way, fixed here:**
+
+- The C31 `invariantNames = barInvariantNames(stmts, ...)` read ran above `let stmts` (temporal dead zone), its `catch` answered `null`, and every guard was taken to vary — so a `ta.*` local under an `input.bool` guard was refused where it should have inlined. Read on first use now.
+- A bare `input(<literal>, ...)` whose default is a number, a string or `true` / `false` written into the call is a simple input (fixes a block in `smart-money-concepts-by-welotrades` whose `show_equal_highlow = input(true, ...)` guards four EQH / EQL drawings).
+- A `var` written from `ta.*` under a varying guard is NOT marked; the mark exists only in a block that runs once (same script, whose second write under `barstate.isconfirmed and ...` was being lost).
+- The clock functions `time(tf, session, ...)` / `time_close(tf)` and the calendar readers (`year` / `month` / `weekofyear` / `dayofmonth` / `dayofweek` / `hour` / `minute` / `second`) answer from the bar's own timestamp and are NOT the call's history (`PURE_BARE`): fn:conditional-history 540 → 383 across the 266 (mgi-levels 227 → 79, multi-timeframe-supply-demand 4 → 0, stop-loss clustering 2 → 0, power-of-3 3 → 0); no object program moved, each call stops on its real wall, named.
+
+**Separately** — a `str.tostring(x)` with no format prints ten DECIMALS, not ten significant digits (`objectRuntime.js::formatNumber`): the two captures of 2026-09-30 print `151.5633333333` and `1.3333333333`. One-line change, its own commit (`8431f6533b`) so it is revertable alone; rail `vendorHarness.c42DefaultDecimals`.
+
+**Corpus (translation census, 266, base = wave9 at 19bcbf278c + the evening captures, tip = merged branch):**
+
+| | base | tip |
+|---|---|---|
+| `fn:conditional-history` refusals | 540 (11 scripts) | 383 (8 scripts) |
+| served plot outputs changed | — | 0 |
+
+Rows changed: ema-ribbon (+1 nops, strength-bar cell now served), ict-institutional-order-flow / smt-divergence-ict-killzones / ict-killzones-pivots-tfo refusal sentences (first-call pointer moved; same count), mgi-levels / multi-timeframe-supply-demand / power-of-3 / stop-loss-clustering helpers inline now and their drawings refuse on `guard:*` (unchanged picture), advanced-custom-multi-ma-signals `+1 cell:text` on a cell already refused by another rail (translation census: no served output moved).
+
+**Next walls for the top refused scripts (translation census, tip):**
+
+| script | fn:cond-hist | first wall now |
+|---|---|---|
+| candlestick-patterns-on-backtest | 287 | `backtest()` reads `upRng1 = ta.highest(cand)` and `dnRng1 = ta.lowest(cand)` — its own call's state; called inside `if rw01c` / ... on every bar from `run()` and under scoreboard rows the capture did not probe. Needs a `ta.*` reading from the call's own state under many executions — the queued probe. |
+| mgi-levels-suite | 79 | `addValueLine` / `updateLines` / `updateIntraDayLine` still read a BOX history via member-chain reads; a loop body also runs them per pass. The clock reads were the big win; the remaining 79 are the method-form `.set_x(time(...))` under a window-managed loop. |
+| ict-institutional-order-flow-fadi | 7 | `FindImbalance` / `render` read `time[1]` / `high[1]` / `low[1]` as the call's history under `if IS.settings.show` — a METHOD guard the invariant-names walk does not resolve (`IS` is a user type parameter). The runtime lane admits none. |
+| ict-killzones-pivots-tfo | 4 | `dwm_hl` calls `alert(...)` and the detector refuses the whole body on it; one `draw_open_price` call still reads `time`. |
+| smart-money-concepts-by-welotrades | 2 | `check_fvg_func:ta.highest@1227` — the `and` block that calls it has `_supportRetestDetected :=` under a `pine:reassign` guard the walk cannot fold. |
+| smt-divergence-ict-killzones | 2 | `f_draw_future` reads `ta.lowest(low, 500)` inside a function whose caller is `if show_kz` (a `bool` guard that varies at every pass of the surrounding loop). |
+
+**Measured** (base `19bcbf278c` + captures vs tip, protocol items 1–6):
+
+- 47 captures objects pane ON: objects MATCH 30 → 30, overall 27 → 27, families 233/266, plots 161/172. OFF: 18 → 18 / 15 → 15 / 107/119 / 140/151. No row changed.
+- Committed harness dir (117) ON: objects MATCH **62 → 63**, overall **46 → 47**, families **315/350 → 322/357**, plots 343/417. OFF: **50 → 51**, overall **34 → 35**, families **189/203 → 196/210**. The one entry that flipped is `vw-fn-series-history-rddt-1d-2026-09-30`.
+- Member-door census 266 × 2: 41 / 64 → 41 / 64, 0 rows changed; base-vs-base control 0 rows.
+- Translation census (266 × 2, base-vs-base 0 rows): 9 rows changed, 0 served outputs changed.
+- Notebook first-open 1,897,262 B at base and tip (+0, `notebook_perf_budgets` PASS); `pine` chunk 342,839 → 351,526 B (+8,687); total JS 12,662,104 → 12,670,787 B (+8,683).
+- `paramIds.test.js` green, no edit.
+
+**Rails and proofs:** `vendorHarness.c42OneExecution` (16 behavioural + 3 reach), `vendorHarness.c42DefaultDecimals` (3), `objectFnInline.test.js` (+21: `guardIsLastBarOnly` fail-closed cases, `oneExecutionTokens` reads, `taCallIn`, bare `input(...)` invariance, clock purity), `vendorHarness.c31Loops` and `vendorHarness.c34ChartSeries` re-pinned under the new rule. 29 mutations, each red alone, restored by bytes with the sha verified against the committed blob.
+
+**Left for the integrator:** `advanced-custom-multi-ma-signals-emasmavwmavwap`'s `+1 cell:text` is a cell already refused by another rail (translation census: no served output moved); verified it does not come from `oneExecutionTokens`' rewrite. The next session should name the one cell and decide whether to admit it or leave it withheld.
+## C43 -- a getter in arithmetic, a between-read, and a reached `runtime.error` draws nothing (2026-09-30, step 53)
+
+### Fixtures that settle this
+
+- `tests/fixtures/vendor/vw-int-array-avg-spy-1d-2026-09-30.json` -- the exact-float `array<int>.avg()`,
+  no-format `str.tostring(avg)` prints `1.5` / `1.3333333333` / `1.6666666667` (ten decimals, trailing
+  zeros trimmed), `"##"` rounds half AWAY from zero, `l.set_x2(l.get_x1() + a.avg() + 1)` drops the
+  fraction (truncation, non-negative only).
+- `tests/fixtures/vendor/vw-fn-series-history-spy-1d-2026-09-30.json` -- confirms the no-format text
+  in prose at ten decimals (`151.5633333333`).
+- `tests/fixtures/vendor/runtime/vw-runtime-error-spy-1d-2026-09-30.json` (control, not reached:
+  ordinary 4,800-row study, 50 labels) and `vw-runtime-error-reached-spy-1d-2026-09-30.json`
+  (reached: 0 data rows, 0 labels, status `User-defined error: Error on bar 100: UCTPROBE stop at
+  bar 100`).
+- `tests/fixtures/vendor/trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json` and
+  `.../average-day-range-adr-pivots-rddt-1d-2026-09-28.json` (the two 47-corpus entries this step
+  moves -- ADR+pivots is C33's, pulled in through the wave-9 merge).
+
+### Part A -- the getter-in-arithmetic and the between-read
+
+- `pine.js::stateArith(node)` walks a getter-reading expression into a value reference the object
+  program carries: `+`/`-` over two state operands, `int(x)` as `{v:'op',op:'trunc',args:[x]}`,
+  `math.avg(a,b)` as half of their sum. Only emitted in `BAR_COORD_PROPS` properties
+  (`x`/`x1`/`x2`/`left`/`right`) and always wrapped in a `trunc` at the property boundary -- a
+  coordinate is a whole bar on Pine's x axis.
+- `objectProgram.js` adds `OBJECT_VALUE_UNARY = ['-', 'round', 'trunc']` and exports
+  `BAR_COORD_PROPS`; the live-text validator asks the shared `opReadsState` predicate that lives in
+  `objectProgram.js` and is read by `objectRuntime.js::unsaidProps` -- one predicate, two callers,
+  so the validator cannot admit arithmetic the runtime does not know how to mark. (The predicate
+  was committed as a refactor: `538aa038b`.)
+- `objectRuntime.js` serves `trunc` for a non-negative result (`Math.trunc`), returns undefined for
+  a negative one and bumps `truncNegative`; the coordinate is then tainted through C17's
+  per-property mask and the object is held, not drawn.
+- `defaultNumberText(n)` prints ten decimals (`toFixed(10)`) with trailing zeros trimmed; this is
+  the no-format `str.tostring` text throughout the two lanes.
+- `windowReadBetween(m, stmts, writerStmts)` is the position predicate: past every writer and past
+  every add-span. `resolveWindowReadBetween` returns `cOp('?:', [ran, 0/0, base])` and registers
+  the `ran` tree as the ambiguity -- "an add ran this bar". `BETWEEN_READ_MEMBERS` =
+  `{size, first, last, max, min, sum, avg}`; `BETWEEN_LITERAL_MEMBERS` = `{get, sizeAtLeast,
+  sizeBelow}` for a literal argument only.
+
+### Part B -- a reached `runtime.error` draws nothing
+
+- `pine.js::runtimeErrorSitesOf(stmts)` enumerates every bare `runtime.error(...)` statement with
+  the conditions each stands under as token lists and a `negate` flag; a call inside a function
+  body, a switch arm, a loop body, a larger expression, or a condition whose block-set reads a
+  name becomes an `unread` entry with its own `why`. The resolver resolves the conditions with
+  `paramMint = null`, a no-op `noteSink`, no `onCondition`, and private `OTHER_SYMBOL_SINK` /
+  `PERIOD_READ_SINK` so the translation's own records are left alone (reading the conditions
+  **moves nothing else in the translation** -- three isolation rails below).
+- Positive conjunctions flatten into factors (each tree stands on its own); a negative conjunction
+  stays whole (the negation of a conjunction is not a conjunction).
+- `runtimeErrorMessageOf(node, resolver)` captures the message as text and number parts;
+  `defaultNumberText` prints the numbers at the stop bar.
+- `runtimeErrorStop.js::runtimeErrorStopFor(def, bars, inputs, ctx)` is the host evaluator:
+  invariant factor false -> not reached exactly; all-invariant-true + bare `isfirst` -> bar 0
+  known; per-bar three-valued state over `unknownMask` + `periodAnchorMask`, with an off-listing
+  warm-up of `maxLookback` (or every bar when a factor reads `bar_index` / `isfirst`); `barKnown`
+  only on the listing with no unknown bars before.
+- `nativeRegistry.astColumnsFor` returns no columns + `columnErrors[key] = {guard:
+  'pine:runtime.error', message: stop.sentence}` for every plot; `objectColumns.objectReaderFor`
+  returns null; the per-instance notice is published via `binder.js::noteRuntimeErrorStop` and
+  cleared when the instance is removed, hidden or the binder is released; the strip under the
+  chart reads it (`AttachedPineDisclosures.jsx::attachedRuntimeErrors`), the row leads the strip.
+- `runtime/runtimeColumns.js` catches `err.name === 'runtime.error'`, stamps `err.bar = finished +
+  1` and memoises the stop per bars array; `nativeRegistry.runtimeColumnsOrReasons` returns the
+  same result through `runtimeErrorWords`'s one wording.
+- `memberPaneDefinition.js` passes `guardInputs: true` to `builderInputs`;
+  `builderInputs.js::withGuardInputs` returns a spec row for every setting a validation reads live
+  that no drawn row carries, so the member sees it on their panel without the translation minting
+  an id for it.
+
+### Rails that pin this fix
+
+- `vendorHarness.c43IntAvg.test.js` (9 tests) -- the exact-mean texts, `##` round-half-away, the
+  truncated x arithmetic.
+- `vendorHarness.c22TrendDuration.test.js` (4 tests) -- line and label-82 served; label id 2
+  withheld by construction.
+- `vendorHarness.c43RuntimeError.test.js` (16 tests, including three new isolation rails inside
+  "reading the conditions moves NOTHING else in the translation": a validation-only input mints no
+  parameter id; a period read by the validation is the validation's own and the plots' period
+  record is untouched; a setting shared by a plot and the validation is one knob the member's
+  value reaches both).
+- `runtimeErrorNotice.test.jsx` (10 tests, including the runtime-lane control over the same
+  wording).
+- `objectWindowPositions.test.js`, `objectLostGeometry.test.js`, `objectSeriesWindows.test.js` --
+  the between-read ambiguity (`addRan`) and the lost-geometry re-points.
+- `vendorHarness.c18KClustering.test.js` -- uses `defaultNumberText` as the single text authority.
+
+### Mutation proofs (42 mutations, each applied, run under a single vitest, restored by bytes)
+
+**34 RED** -- each turns a rail only this fix guards:
+
+- Part A (12 red of 13): A1 trunc->round; A2 negative-trunc served; A3 unsaid props not marked;
+  A4 getter arithmetic not truncated to a whole bar; A5 between-read ambiguity dropped; A7
+  validator admits state arithmetic in any property; A8 translator serves getter arithmetic as a
+  price too; A9 ten decimals -> nine; A10 math.avg not halved; A11 between-read predicate always
+  false; A13 the shared `opReadsState` answers no.
+- Part B (22 red of 29): B1 plot lane ignores the stop; B2 object lane ignores it; B3 negated
+  else-branch condition inverted; B4 `bar_index` off the listing trusted; B6 the known-false
+  bar-free factor no longer settles; B7 the `isfirst` validation idiom not recognised; B8
+  conjunction kept whole; B9 block-set-reading condition placed; B10 guard resolver mints params;
+  B11 guard period read lands in the translation record; B12 guard-only inputs not declared; B13
+  stamp dropped; B14 binder does not publish; B15 strip does not render; B16 runtime lane does
+  not stamp the bar; B17 released binder leaves sentences behind; B18 bar number said when not
+  known; B19 runtime-lane `PineRuntimeError` not an engine stop; B20 stopped runtime-lane
+  document still draws its objects; B21 period read trusted on another timeframe; B25 bare
+  non-statement call placed; B28 `barKnown` set unconditionally off the listing; B29 message not
+  carried.
+
+**8 GREEN(!)** -- unproven, recorded here rather than silenced:
+
+- **A6**, **A12**, **B5** fire on a path that no fixture in this lane exercises today: A6 keeps
+  the base in both arms of the ternary (the between-read is unused by the three published c43
+  isolation rails and the trend-duration capture does not drop its `w.push` on a bar the window
+  still holds); A12 leaves `int()` over a getter untruncated (the two live uses -- `+ 1` and
+  `math.avg` -- route through other paths); B5 reads a folded setting at the default when the
+  member has moved it (the three rails use defaults).
+- **B22**, **B23**, **B24** fire in failure-only branches not reached by the current rails: the
+  "not reached on held bars" named reason off the listing, the "no setting" refusal for a live
+  guard the document does not carry, and the per-bar warm-up read as known.
+- **B26**, **B27** fire on a path the fixtures cannot reach today: the "another symbol /
+  timeframe" branch of the resolver (every captured runtime.error script already refuses on-door
+  for a different reason, so the condition cannot be read) and the `islast` anchor outside the
+  `isfirst` idiom (no corpus `runtime.error` call anchors on `islast`).
+
+Each is a candidate for a dedicated rail; the fix is not pulled.
+
+### Measurements (base `36f3c47d5` -> merged tip `f6acac4a9`, 47 captures, pane on)
+
+| | base | merged tip |
+|---|---|---|
+| objects MATCH | 29 / 47 | **30 / 47** |
+| overall MATCH | 26 / 47 | **27 / 47** |
+| families | 227 / 266 | **234 / 266** |
+| plots | 161 / 172 | 161 / 172 |
+
+The two moved entries are C33's (ADR+pivots DIVERGE -> MATCH, high-low-open-mid-ranges labels
+0 -> 504 of 504), plus Part A's own trend-duration-forecast lines 0 -> 1 of 1 and labels
+26 -> 27 of 28 (label id 2 and one label text still refused by name).
+
+Bytes: Notebook first-open **1,897,262 B** at base and merged tip (+0, PASS,
+`notebook_perf_budgets`); `pine` chunk +18,833 B; total JS +5,117 B across 353 files.
+`paramIds.test.js`: green with ZERO edits.
+
+### Decisions left for the integrator
+
+- `runtimeErrorStopOf(cols).unknown` and `meta.runtimeErrors.unread` carry per-call reasons for
+  everything that could not be decided here -- but they are not surfaced on the member
+  disclosure strip today (only reached stops are). An integrator may choose to render them,
+  taking the strip's "pane is empty for one reason" idiom into account.
+- Getter arithmetic in a `y` / `y1` / `y2` property stays refused by name -- truncation to a
+  whole bar is a wrong value on the y axis. A future lane may serve a floating `y` from state.
+- A negative `x1 + avg + 1` capture would settle whether `truncNegative` is the right wall:
+  queued, not fabricated.
+- Off-listing scripts whose `runtime.error` conditions read `bar_index` or `barstate.isfirst` as
+  a value stay drawn as today and are NAMED unknown.
+- The runtime-lane `runtimeObjectValues` stop withholds the computed VALUES only; the object
+  program's static drawings still render.
+## C40 — `for … in` over a held list, `<family>.all`, and the cap `while` on the host object lane (2026-10-01, step 50)
+
+Branch `pine/c40-forin-collections`, base `45859e5983` (wave 9). The host object lane refused every `for … in`
+and every `while` ("the loop is not executed"), so each delete-all helper, each per-element restyle and each
+FIFO cap was a counted loss (`loopBlocked`) and the list behind it was diverged. Both shapes are loops the
+object runtime can run pass by pass over lists it already holds. They are carried on the host passes only
+(`hostLoops = !rawTrees && !iterTrees`); the runtime lane's own object pass keeps the program it had.
+
+| what | rule (where it lives) | proof | refused, by name |
+|---|---|---|---|
+| `for x in <list>` / `for [i, x] in <list>` over a declared drawing list | reader `forInPlan` (`pineObjects.js`) → a counted loop `0 to array.size(list) − 1` marked `asc` (an empty list is `0 to −1`, which a counted `for` would run twice: the runtime runs none), whose first body op copies the slot into the loop variable's register as the pass starts (C16's `copy`); body ops in Pine's order; the op budget per bar is the existing one | `vendorHarness.c40ForIn`: on the committed trend-lines capture TradingView walked BOTH elements of `downtrends` and read the body's `if` per element of `uptrends`; our lane, walking the same lists, ends with TradingView's objects id for id; the control without the walks fails. `objectForInLoops` (delete-all, element + position, per-element condition, empty list, inside a helper) | a body that changes the list it walks — `array.*` write, the method spelling, a reassignment, the list handed to a helper (`forInRefused: the body changes \`x\`, the list it walks`); a loop variable that is another statement's name or another family's (top level; inside an inlined helper it is renamed per loop); a list of user types (not this lane's — the legacy refusal) |
+| `for x in <window>` over a bounded numeric window (C32) | the element is bound as `array.get(w, <counter>)`, the per-pass read C32 serves (`wget`); `forInWindow` (`pine.js`) offers only a `vector` with a `.window` | `objectForInLoops`: one row per element in Pine's index order, push and unshift windows, against a hand replay of Pine's array | a body that writes the window |
+| `for x in line.all` / `box.all` / `label.all` | program op `{k:'loop', over:{all}, elem}`; the runtime takes the family's live objects, oldest first (`vw-object-gc-d`), when the loop starts and hands them to the register one at a time; a family whose create was withheld is unknown (`famUnknown`) and the walk is withheld with everything it would write | `objectForInLoops`: a body that only moves them reaches every object; a body that never names the element runs once per object; trend-lines `f_clearAll` with none or one object | a position in `<family>.all` (`for [i, v] in …` reading `i`); a walk over TWO OR MORE objects whose body deletes or creates that family — the run stops, `OBJECT_UNWITNESSED`, nothing drawn (walking the entry list deletes all, walking the live list deletes every other one; no capture says which) |
+| the cap: `while array.size(a) > N` → remove from an end | reader `capWhileOf`: the body is only end removals (`array.shift` / `pop`, bare, inside `<family>.delete(…)`, or `(array.shift(a)).delete()`), one removal of each array per pass, the measured list among them, the bound reading no length; program op `{k:'loop', cond, body}`; the runtime re-reads the condition before every pass and stops the run by name on a pass that did not shorten the list | `objectForInLoops`: three spellings; a burst of four in one bar is trimmed in that bar (an `if` removes one); `pop`, an expression bound, a second list kept in step; C17 — a cap over an unknown length, or with an unknown bound, deletes nothing and marks the list | a body with anything else (a nested `if`: smart-money-volume-activity); a bound this reader cannot compute (`loop:bounds`, the removal counted in `lostRemovals`) |
+| the numeric window's cap written as a `while` | `arrayWindows.js`: a `while <size guard>` whose body only evicts is the `if` guard's eviction (the model adds at most one element on a bar it serves); each eviction is held to the `if` form's own rules | `objectWindowWhileCap` (5): push and unshift windows equal the `if` form element for element; two arrays in step | a body that does anything but evict; a `while` that does not shorten what it measures or shortens it twice (the eviction rules); the plot lane still refuses every read |
+
+**H14 — two things that were wrong at base, found while reading the corpus's loops, fixed here:**
+
+- A drawing list created WITH SLOTS (`array.new_box(3)`, `array.new<line>(5)`) was modelled as an EMPTY list.
+  `array.set(a, i, box.new(…))` was then a no-op and `box.delete(array.get(a, i))` never deleted: a three-slot
+  replace-in-place idiom drew 180 boxes over 60 bars where Pine holds 3, with a clean ledger. The list is now
+  diverged at its creation (`collsDivergedWhy: coll:sized@<line>`), every read of it withheld and counted.
+  `array.new_box()` and `array.new_box(0)` are empty in Pine too and are modelled as before (controls). No
+  corpus script with a sized drawing list attaches at the member door, so no member chart changes.
+- A statement that begins with `(` — `(array.shift(a)).delete()` — produced no op and no count. It is read as
+  the postfix call it is.
+
+**Per script (RDDT 1D where a capture exists):**
+
+| script | capture | before | after | next wall |
+|---|---|---|---|---|
+| trend-lines-supports-and-resistances | yes | program empty; `box.delete` … `line.set_style` in `loopBlocked` (9) | `f_clearAll`'s three `.all` walks carried (6 ops attempted, 0 dropped); `box.delete` leaves `loopBlocked`; program still empty, verdict unchanged | every create sits in `for … in` over lists of user types (`uptrends` / `downtrends`, their `points`) or in a `while`: UDT lists are not this lane's. When the creates convert, `f_clearAll` over two or more objects is the unwitnessed row A04 |
+| ict-killzones-pivots-tfo | yes | MATCH | MATCH, 0 entries changed | `for l in levels` is a list of user types — not walked |
+| support-and-resistance-logistic-regression | no | unchanged | unchanged | `for curSR in allPivots`: a list of user types |
+| renderingnature-smc-reversal-engine | no | no cap carried | `while array.size(historicalTrendlines) > maxTrendlines` carried (`loop:cap` 1, with its `delete` + `collremove`); the `eventLabels` / `zzLines` caps are read and sit behind their blocks' guards (`guard:loop` 2 → 13) | `guard:create` 33 (`pine:request htfPL`, `pine:text-value`, `pine:reassign`); the `f_delete*` helpers in loops |
+| market-structure-break-order-block | no | lists diverged at `loop:box.delete` | four `forInRefused` (`for bull_ob in bu_ob_boxes` shifts the list it walks — F03) on lists created with five slots (`coll:sized` — Z01) | `pine:collection low_points_arr` on every create |
+| htf-candle-footprint | yes | boxes 3 / 13 | unchanged | `HL` is a reduction over a loop-filled array (`HL.max()` after `HL.push(high[i])` in a counted `for`) — not this mechanism; R7 / the runtime lane |
+| smt-divergence-ict-killzones | no | 28 ops read | 40: `for b in fut_boxes → box.delete(b)` ×2 and the `smt_lines` / `smt_labels` caps are read | `fut_boxes` diverges at `fn:conditional-history`@188; the caps sit behind `pine:collection` guards |
+| elliot-wave-detector-pro | no | 60 ops read | 66: `for ln in fibLines` / `for lbl in fibLabels` in `drawFibLevels` | `pine:reassign primaryPivots` on the loops' guards |
+| smart-money-breakout-channels-algoalpha | no | 17 | 20: `for ln in gaugeLines → ln.delete()` | `pine:type boxes.size` |
+| volume-footprint-measuring-classical-indicators | no | 76 | 82: `for ln in profImbLns` / `for mlb in profMrgLbs` | the pushes sit behind `pine:reassign profLo` and in a counted loop |
+| smart-money-concepts-by-welotrades | no | 1019 | 1031: `display_limit_boxes`' cap | the lists are pushed under unknown guards |
+| trendline-pivots-quantvue | no | 6 | 34: `for l in utlArray` / `dtlArray`; `tempUtl` … are sized lists (`coll:sized`) | `pine:reassign utlY1`, `pine:undefined src` |
+| stop-loss-clustering-breakouts | no | 47 | 51: `for data in gradXRAY` — a sized list (`coll:sized`) | `fn:conditional-history`, `fn:return-type` |
+| auto-trendline, dual-view, smart-money-volume-activity, renko | — | unchanged | unchanged | a list alias; a cap that is a reassigned block local; a nested `if` in the cap body; `pine:collection` |
+
+Scripts with no capture are ungraded. They are queued, with the probe, in
+`docs/pine/capture-queue-2026-09-30-forin-collections.md`.
+
+**Refused, and what would settle each** (probe `tools/visual_conformance/probes/vw-forin-collections.pine`,
+NYSE:RDDT 1D):
+
+| what | rows | would settle it |
+|---|---|---|
+| a body that changes the list it walks (shift / push / set) | F03, F04, F05 | 5 passes and nothing left ⇒ the walk is over the list as it stood at entry; 3 passes ⇒ over the live list. Either can then be built from `bodyMayWriteList` |
+| `for b in box.all → box.delete(b)` over two or more | A02, A04, A05 | 4 passes and 0 left ⇒ delete the `items.length >= 2` stop (one line, `objectRuntime.js`); 2 passes ⇒ serve the live reading |
+| a position in `<family>.all` | A06 | texts `0, 1, 2` oldest first ⇒ serve the counter where no create of the family was lost |
+| a drawing list created with slots | Z01–Z03 | size 3 on every bar and three labels held ⇒ model the creation size as that many `na` slots and lift `coll:sized` (a literal size first) |
+| controls for what is served | F01, F02, W01 | must read 5 / 0 / 2 or the capture is not read |
+| a list of user types (`for p in points`) | — | not a capture question: user-type fields are not modelled on the host lane |
+| numeric accumulators, `HL` | — | ruling R7; the runtime lane |
+
+**Measured (base `45859e5983` → tip, each on the same machine, the same day):** the 47, objects pane on:
+objects MATCH 29 → 29, overall 26 → 26, families 227 / 266 → 227 / 266, plots 161 / 172 → 161 / 172; pane off:
+18 / 15 / 107 of 119 / 140 of 151, unchanged; 0 entries changed in either state. Committed harness dir (104
+graded): on 57 / 45 / 304 of 343 / 316 of 379, off 46 / 34 / 184 of 196 / 295 of 358, unchanged, 0 entries.
+Member-door census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (base-vs-base 0 rows). Translation census
+(266 × 2, base-vs-base 0 scripts): no plot tree, formula, refusal or parameter map moved; object programs or
+their diagnostics changed in 9 scripts (the table above), none of which attaches at the member door. One
+member-facing sentence moved: trend-lines' partial-drawing notice no longer lists `box.delete`
+(`partialDrawing.test.jsx`, re-pinned with the reason). Notebook first-open 1,897,262 B at base and tip (+0,
+`notebook_perf_budgets` PASS); `pine` chunk 342,839 → 350,030 B (+7,191), `StockChart` +1,862 (the runtime),
+`bind` +1,414 (the program door): total JS +10,467 B. `paramIds.test.js` green with no edit.
+
+**A side effect in the main walk, sentences only:** a numeric window the lane models (`vector` with a
+`.window`) is no longer condemned by a loop that writes it through the cap (`loopWritesModelled`, `pine.js`).
+It changes which refusal a plot-lane read of such an array names; the plot lane still refuses the read, and
+the translation census shows no plot, refusal class or parameter id moved.
+
+**Rails and proofs:** `objectForInLoops.test.js`, `objectWindowWhileCap.test.js`,
+`vendorHarness.c40ForIn.test.js` — 58 tests. Forty-four mutations, each red alone against those three files,
+each restored by bytes with the sha-256 verified and `git status` clean after every batch: the list walk off;
+`asc` dropped in the reader, the converter and the runtime (three); the element copy off; each of the four
+ways a body can change its list unseen; the loop-variable take-over; the per-loop rename; the `.all` position
+read; a loop under an unrun loop; an empty body kept; the window element unbound / not offered; the
+unwitnessed stop off, a delete not counted as a change, the stop still drawing; `famUnknown` not set, not
+read, marking nothing; the cap unrecognised, two removals of one array, a cap that never shortens its list, a
+bound that reads a length, an unreadable bound kept, a non-shortening pass running on, a cap over a tainted
+length, the cap condition unread for ambiguity; the six program-door checks; sized lists (three); the
+`(`-leading statement; the window `while`; the main-walk exemption; the runtime lane's own pass handed the
+loops. Guards the first pass of mutations could NOT turn red were removed or restated rather than kept
+(a nested-block check the parse already makes, a duplicate `!rtLoop`, an unreachable missing-register branch, a
+register line `scanUse` already covers, `!inLoop` on the loop arm, a second count in the cap reader, two
+checks the eviction rules already make — commits `0a5906f283`, `f5b692b322`, `e7a1336646`).
+Re-pins: `objectFnInline.test.js` (C34's pin that `.all` deletes were `loopBlocked`, now carried; a user-type
+list control added) and `partialDrawing.test.jsx` (above).
+## C37 — colours this door did not carry, and colour graded as its own column (2026-10-01, step 48)
+
+Branch `pine/c37-colours`, measured on wave 9 at `19bcbf278c` (C29–C36) merged into the lane. Ruling R-G:
+an uncarried plot colour keeps its line; the fix is to CARRY the colour, and colour is graded as its own
+column so the defect stays counted.
+
+**The column (new instrument).** The harness verdict already carried the plot half (`stats.colorCompared` /
+`colorMismatches`). It had no object half: `compareObjects` reads counts and texts, so a drawing in the wrong
+colour graded MATCH. `vendorHarness/colourColumn.js` pairs every live object with the capture's own record by
+value (a line's two prices, a label's text and price, a box's two prices, a cell's table / address / text) and
+reads each colour slot as `agree`, `agreeByDefault` (the script names no colour and our default is the
+vendor's), `notCarried` (the script names one, we carry none, the default standing in is not the vendor's),
+`carriedDiffers`, or `themeRelative`. `colourCensus.measure.test.js` runs it over a directory (opt-in,
+`PINE_COLOUR_CENSUS=1`, asserts no count).
+
+⚰️ Two instrument errors found before anything was believed: a vendor object colour is a palette INDEX into
+`palette_common` wherever the compiler could enumerate the study's colours (22 of the 47 captures) and a
+packed `0xAABBGGRR` otherwise — read as packed, the first run reported 1,316 manufactured mismatches; and the
+plot census's "uncarried" flag keyed on a title that is `null` for an untitled plot, so RVOL's line read as
+carried.
+
+**Measured at base (`19bcbf278c`, objects pane on), ranked.** Plots, 47 graded: 40,278 bars compared, **0**
+differ — no graded plot's colour was uncarried. Committed harness dir: 971,741 compared, **611** differ, all
+RVOL's line. Objects, 47 graded: 3,406 paired slots, **349 not carried**; harness dir: 4,598 slots, **887**.
+
+| capture | slots | what the script writes | mechanism |
+|---|---|---|---|
+| vw-object-gc-b / -a / -c | 162 / 73 / 24 | nothing — label text, box fill, box text unset (v5) | the version's default |
+| makuchaku FVG | 102 | `color.new(color.black, boxTransparency)`, an input | `color.new` with a computed transparency |
+| contraction-box | 78 | `var color LineColorInput = input.color(…)` | a `var` never reassigned |
+| artemis | 49 | `color.new(thOb, 100 - divRegAlpha)`, `color.new(thOb, isLight ? 55 : 45)`, tint helpers | the same, through names and a helper |
+| heat-map-seasons | 28 | `i < 15 ? color.from_gradient(i, 0, 15, …) : color.from_gradient(i, 15, 30, …)` in a `for` | a gradient per pass |
+| rsi-swing, fibonacci-pivots | 21, 7 | nothing — line colour, label colour and text unset (v4) | the version's default |
+| zero-lag | 21 | `color = color(na)`; `text_color = chart.fg_color` | `na`; the theme |
+| trend-duration, market-structure, ict-killzones | 20, 16, 6 | `chart.fg_color` / `chart.bg_color` | the theme |
+| ema-ribbon | 9 | `text_color = f_trendClr(bull, bear)` | a one-expression colour helper |
+| htf-candle-footprint, position-size-calculator, htf-liquidity, keltner-cog, vdubus | 5, 4, 3, 1, 1 | `border_color = color(na)`; `na` through a helper; unset cell / label text (v5) | `na`; the version's default |
+| **rvol (plot)** | **611 bars** | `plot(rvol, color = color.new(color.from_gradient(rvol, 0.5, 2, dnv, upv), 0))` | a gradient as a plot colour |
+
+**Why RVOL was still gold after C29.** C29 served `color.from_gradient` to the lanes that compute a colour as a
+VALUE (`runtime/colours.js::fromGradient`, the runtime VM). A plot's colour is not a value there: the plot
+lane holds a static colour, a two-colour test or a palette index, and a gradient is none of them, so the rule
+was never asked. Not a wiring slip — a missing shape.
+
+**What is carried now.**
+
+1. **A gradient as a plot colour** (`pine.js::colourGradientRule`). The position `(value − bottom) / (top −
+   bottom)` is one numeric tree, resolved like any series and carried as a hidden column exactly as a
+   two-colour test or a palette index is; the two ends ride as static strings (`colorGradient: {from, to,
+   transparency?}`, validated by `defSchema`). The renderer hands the column to `fromGradient(w, 0, 1, a, b)`,
+   so the measured curve has one implementation. `color.new(<gradient>, t)` with a literal `t` sets the
+   transparency. The rule resolves with the parameter mint withheld (R36).
+2. **Object colours, on the host lane** — `color.new(c, t)` with a computed `t` (`{c:'new'}` over a per-bar
+   tree: an input stays the member's knob); a `var` seeded with one colour and never reassigned anywhere in the
+   script; a one-expression colour helper read with the call's arguments in place; `na` / `color(na)` as the
+   absent colour (`#00000000`, TradingView's own record); `color.from_gradient` as `{c:'grad'}` (three value
+   references, two colour nodes); and a colour `if` whose test is on the loop counter (`{c:'if'}` over a pass
+   condition — `objectProgram.js::isPassCondition`: comparisons and boolean operators over the counter,
+   constants and per-bar trees, never object state).
+3. **The defaults that depend on the Pine version** (`objectDefaults.js`), each read off a capture whose script
+   leaves that colour unset: v4 `color.blue` (`#2196F3`) for a line and a label, `color.black` label text; v5
+   `color.black` label text, an OPAQUE `color.blue` box fill, `color.black` box and cell text. A program states
+   `pineVersion` only for v4 / v5, so every other program keeps its bytes.
+
+**`chart.fg_color` / `chart.bg_color` — the rule.** They are the colours of the chart the script runs on, so
+neither can be folded when a script is translated. `objectTheme.js`: the translator carries the Pine name as a
+REFERENCE (with the transparency a `color.new` set on it); it is resolved where the object is drawn, against
+that chart's own settings — foreground = the chart's text colour, background = its solid background — and the
+objects repaint when either changes. ⛔ TradingView's theme colours are never hard-coded: the captures record
+its light theme (`#0f0f0f` on `#ffffff`), and the same script is correct here in OUR chart's colours.
+
+**Grading: theme-relative, not a mismatch.** A slot carried as a theme reference is counted `themeRelative`
+and is not compared with the capture's colour. What the capture still grades, and `vendorHarness.c37Theme`
+asserts: WHICH slots are the theme's and which of the two — every foreground reference sits where TradingView
+drew its foreground, every background reference where it drew its background — and that the slots beside
+them still agree colour for colour.
+
+**Measured** (wave 9 `19bcbf278c` → merged tip; one vitest process at a time).
+
+| | base | tip |
+|---|---|---|
+| 1. 47 captures, objects pane on: objects MATCH / overall / families / plots | 30 / 27 / 233 of 266 / 161 of 172 | unchanged, 0 entries moved |
+| 1. flag off | 18 / 15 / 107 of 119 / 140 of 151 | unchanged, 0 entries |
+| 2. committed harness dir (on): objects / overall / plots | 62 / 46 / 343 of 417 | 62 / **47** / **344** — `rvol` DIVERGE → MATCH, the only entry (both flag states; off: overall 34 → 35) |
+| colour column, plots (harness dir) | 611 of 971,741 bars differ | **0** |
+| colour column, objects, 47 | 349 not carried of 3,406 slots | **0** not carried · 42 theme-relative · 1 carried and different |
+| colour column, objects, harness dir | 887 of 4,598 | **0** · 55 theme-relative · 1 |
+| 3. member-door census 266 × 2 | attach 41 / 64 | 41 / 64; **1 row**: `rvol` plots 2 → 3 (its position column). Base-vs-base control: 0 rows |
+| 4. translation census 266 | served outputs 733; `colorDynamic` 99; dropped colour props 287 sites | 733, values byte-identical in all 266; 1 output's presentation moved (rvol: `colorDynamic` → `colorGradient`); 98; **103** sites (32 scripts, 13 of them door-attached). Programs with colours and the version stamp factored out: **0** changed |
+| 5. bytes | notebook first-open 1,897,262 B; `pine` chunk 353,925 B; total JS 12,686,331 B | +0 (`notebook_perf_budgets` PASS); +4,341 B; +10,459 B |
+| 6. `paramIds.test.js` | green | green, no edit |
+
+`pineProbeReplay`'s artemis pin moves (the Resolver is asked for the transparencies and colour tests it now
+reads): on the merged tree `[729, 429977]` plain / `[729, 429985]` manifest, measured there rather than
+summed with C31's and C32's.
+
+**Still not carried, by name, and what settles each.**
+
+| what | where | settles it |
+|---|---|---|
+| heat-map-seasons' gauge point — `bgcolor = color`, a variable NAMED `color` (`pine:statement`) | 1 slot, the only `carriedDiffers` | the statement reader binding a name that is also a namespace |
+| a theme colour as a PLOT colour (`plot(x, color = chart.fg_color)`) — `colorDynamic`, the line keeps drawing | no graded capture | a decision: a plot colour is a member-editable input with a concrete default |
+| `chart.bg_color` under a GRADIENT chart background (`theme:gradient-background`) | — | capture **Q-T1**: a probe under a solid light, a solid dark and a gradient background |
+| a gradient with `top == bottom` or an `na` bound; a gradient end that is a theme reference; a transparency outside 0–100 — the object is HELD, a plot bar draws the series colour | — | C29's open gradient capture |
+| a gradient on a marker, a candle or a fill; a gradient between two moving colours | — | a schema that holds it |
+| the plot lane's constant-selector fold asked for OBJECTS — built, measured, removed: it changed one corpus script (ict-killzones, two cell fills) and its capture withholds those cells | `cell.bgcolor@1050`, `@1052` | a capture that draws them |
+| `input.color(title = …, defval = …)` — the default read as the FIRST argument, not the named one | atr-bands, 48 sites (door-attached, no capture) | exact and small; not done in this lane (it is the plot lane's reader too) |
+| a colour in a UDT field (`theme.frame`) | multicator-table, 19 sites | C11's UDT grammar |
+| v6 unset box fill / cell text, v4 box border | the base default stands | a capture whose script leaves them unset |
+
+**Mutation proofs** — 57 mutations on the merged tree (16 plot gradient, 35 object colours / version defaults / theme, 6 added after the first pass), each RED on its own, controls 117 / 117 green before and after every batch. Each mutation alone, bytes and sha256 captured,
+restored by bytes, sha verified against the capture and against `HEAD`; a control run brackets each batch.
+The first pass found four changes no rail could see (the gradient's mint, the version reaching what is drawn
+through the render state and through the binding, a theme change repainting) and one mechanism no capture
+exercises (the fold above). The rails were tightened until each went red; the fold was removed.
+
+**For the integrator.** (1) `colourColumn.js` is a census, not a verdict: whether an object's colour should
+join the harness verdict (it would move objects MATCH counts for every lane) is yours. (2) The 21–31
+"unresolvable" plots in the harness dir are constants our pane hides (`hidden (constant)`) where the vendor
+draws a line — not a colour defect, not touched. (3) 13 door-attached corpus scripts draw colours they did not
+before; each mechanism is witnessed on a capture, the individual scripts are not.
 
 ## C41 — a lower-timeframe request is served (2026-10-01, step 51)
 

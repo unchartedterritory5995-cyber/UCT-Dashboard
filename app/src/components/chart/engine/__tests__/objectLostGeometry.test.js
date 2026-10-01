@@ -44,10 +44,22 @@ const HEAD = [
 ]
 
 describe('⛔⛔ C22 — a lost geometry setter withholds the object; a lost style setter does not', () => {
-  it('a `set_x2` this chart cannot carry (a getter in arithmetic): the line is withheld, counted', () => {
-    const t = tr([...HEAD, 'l.set_x2(l.get_x1() + 3)'])
+  // ⭐ C43 — `get_x1() + 3` is SERVED now (a getter in `+`/`-` arithmetic is a bar
+  // coordinate, `pine.js::stateArith`); the lost-setter rule is railed on a form
+  // that is still refused — a getter under `*`.
+  it('a `set_x2` this chart cannot carry (a getter under `*`): the line is withheld, counted', () => {
+    const t = tr([...HEAD, 'l.set_x2(l.get_x1() * 2)'])
     expect(lines(t)).toEqual([])
     expect(t.objectDiagnostics.dropReasons['update:props']).toBe(1)
+  })
+
+  it('⭐ C43 — `l.set_x2(l.get_x1() + 3)` is carried: every line ends three bars right of its own start', () => {
+    const t = tr([...HEAD, 'l.set_x2(l.get_x1() + 3)'])
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const got = lines(t).sort((a, b) => a.id - b.id)
+    expect(creates).toBeGreaterThan(1)
+    expect(got.length).toBe(creates)
+    for (const o of got) expect(o.props.x2).toBe(o.props.x1 + 3)
   })
 
   it('a lost `set_y1` withholds it too — every coordinate the create requires', () => {
@@ -63,7 +75,7 @@ describe('⛔⛔ C22 — a lost geometry setter withholds the object; a lost sty
       'if close > open and close[1] <= open[1]',
       '    l.set_x2(bar_index)',
       '    l := line.new(bar_index - 1, close, bar_index, close)',
-      'l.set_x2(l.get_x1() + 3)',
+      'l.set_x2(l.get_x1() * 2)',
     ])
     const got = lines(t).sort((a, b) => a.id - b.id)
     expect(got.length).toBe(creates - 1)
@@ -82,7 +94,10 @@ describe('⛔⛔ C22 — a lost geometry setter withholds the object; a lost sty
   })
 
   it('⛔ CONTROL — a lost STYLE setter leaves the line drawn (a style Pine defaults is still Pine\'s)', () => {
-    const t = tr([...HEAD, 'l.set_color(chart.fg_color)'])
+    // ⚰️ This used `l.set_color(chart.fg_color)` as its uncarried colour; C37
+    // carries that one (a theme reference), so the control now sets a colour
+    // whose CHANNELS move bar to bar — still nothing this lane can say.
+    const t = tr([...HEAD, 'l.set_color(color.rgb(close % 255, 0, 0))'])
     expect(t.objectDiagnostics.dropReasons['update:props']).toBeGreaterThan(0)
     expect(lines(t).length).toBe(creates)
   })
@@ -114,7 +129,7 @@ describe('⛔ C22 — a marking op is not a step: pruning one is not counted as 
       'if close > open and close[1] <= open[1]',
       `    lb := label.new(bar_index, close, ${Q}x${Q})`,
       'lb.set_text(str.tostring(lb.get_x() + 1))',
-      'lb.set_x(lb.get_x() + 1)',
+      'lb.set_x(lb.get_x() * 2)',
     ])
     const d = t.objectDiagnostics
     const total = Object.values(d.dropReasons).reduce((a, b) => a + b, 0)

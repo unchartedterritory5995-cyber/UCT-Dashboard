@@ -39,10 +39,15 @@ def _no_real_entity_master(monkeypatch):
 
 # ── Registry ─────────────────────────────────────────────────────────────────
 
-def test_registry_has_two_active_and_one_architected_inactive_fact_type():
+def test_registry_has_three_active_fact_types():
+    # G-062, wave 10 lane G62: analyst_price_target_consensus is ACTIVE since
+    # the owner's 2026-09-25 FMP licensing approval (VENDOR-TERMS-2026-09-23.md
+    # §5 L5/L2). This pin replaces test_registry_has_two_active_and_one_
+    # architected_inactive_fact_type, which asserted the OLD (pre-approval)
+    # inactive state -- deliberately rewritten, not left alongside it.
     assert fact_registry.is_active("price") is True
     assert fact_registry.is_active("user_note") is True
-    assert fact_registry.is_active("analyst_price_target_consensus") is False
+    assert fact_registry.is_active("analyst_price_target_consensus") is True
 
 
 def test_unknown_fact_type_is_not_in_registry():
@@ -118,16 +123,129 @@ def test_omitting_value_for_a_non_price_fact_type_still_requires_one(conn):
         facts.create_fact_observation("u1", note["id"], ticker="NVDA", fact_type="user_note", value=None, conn=conn)
 
 
-def test_create_fact_rejects_an_inactive_fact_type_even_though_it_is_registered(conn):
-    # analyst_price_target_consensus exists in the registry (proves the
-    # architecture generalizes) but has NO active capture path -- creating one
-    # must be rejected, not silently allowed because the type is "known."
+def test_create_fact_rejects_an_inactive_fact_type_generically(conn, monkeypatch):
+    # G-062 activated analyst_price_target_consensus, so it can no longer
+    # stand in as "the one inactive type" -- this proves the REFUSAL itself
+    # is a structural property of note_facts.py (reads fdef.active off
+    # whatever the registry says), not a special case wired to one key, with
+    # a test-local inactive entry monkeypatched into the registry.
+    test_inactive = fact_registry.FactTypeDef(
+        key="test_inactive_type", label="Test Inactive Type",
+        value_column="value_number", unit="usd_per_share",
+        temporal_mode="snapshot", source="fmp", rights_class="conditional",
+        active=False,
+    )
+    monkeypatch.setitem(fact_registry.FACT_TYPES, "test_inactive_type", test_inactive)
+    assert fact_registry.is_active("test_inactive_type") is False
     note = _create(conn, "u1")
     with pytest.raises(facts.FactValidationError, match="not yet enabled"):
         facts.create_fact_observation(
-            "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+            "u1", note["id"], ticker="NVDA", fact_type="test_inactive_type",
             value=195.0, conn=conn,
         )
+
+
+# ── Analyst price-target consensus (G-062, active 2026-09-25 FMP approval) ──
+
+def test_create_analyst_consensus_fact_with_an_explicit_value_stores_it(conn):
+    note = _create(conn, "u1")
+    f = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=195.0, conn=conn,
+    )
+    assert f["value"] == 195.0
+    assert f["ticker"] == "NVDA"
+    assert f["unit"] == "usd_per_share"
+    assert f["temporalMode"] == "snapshot"
+    assert f["source"] == "fmp"
+    assert f["rightsClass"] == "conditional"
+
+
+def test_omitting_value_for_analyst_consensus_auto_resolves_from_fmp(conn, monkeypatch):
+    monkeypatch.setattr(fact_current_value, "_resolve_price_target_consensus", lambda ticker: 195.0)
+    note = _create(conn, "u1")
+    f = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=None, conn=conn,
+    )
+    assert f["value"] == 195.0
+
+
+def test_omitting_value_for_analyst_consensus_raises_an_honest_sentence_when_fmp_has_no_data(conn, monkeypatch):
+    # Honest missing data: FMP unconfigured / no consensus for this ticker
+    # must never fabricate a number -- it refuses the capture instead.
+    monkeypatch.setattr(fact_current_value, "_resolve_price_target_consensus", lambda ticker: None)
+    note = _create(conn, "u1")
+    with pytest.raises(facts.FactValidationError, match="No analyst price target consensus available"):
+        facts.create_fact_observation(
+            "u1", note["id"], ticker="ZZZNODATA", fact_type="analyst_price_target_consensus",
+            value=None, conn=conn,
+        )
+    # ...and nothing was created.
+    count = conn.execute(
+        "SELECT COUNT(*) c FROM j2_fact_observations WHERE ticker = ?", ("ZZZNODATA",)
+    ).fetchone()["c"]
+    assert count == 0
+
+
+def test_two_analyst_consensus_observations_are_two_rows_not_an_overwrite(conn):
+    # Frozen-at-insert, mirroring price's own
+    # test_two_observations_of_the_same_series_are_two_rows_not_an_overwrite:
+    # a SECOND capture (simulating a changed FMP consensus) never touches the
+    # first captured row.
+    note = _create(conn, "u1")
+    f1 = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=190.0, conn=conn,
+    )
+    f2 = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=230.0, conn=conn,
+    )
+    assert f1["id"] != f2["id"]
+    assert facts.get_fact_observation("u1", f1["id"], conn=conn)["value"] == 190.0
+    assert facts.get_fact_observation("u1", f2["id"], conn=conn)["value"] == 230.0
+
+
+def test_analyst_consensus_then_stays_then_even_as_the_fmp_consensus_changes(conn, monkeypatch):
+    """The frozen-at-insert proof for a SNAPSHOT-only fact type: unlike
+    `price` (live_and_snapshot), there is no read-time re-derivation to prove
+    wrong -- the proof here is that a second AUTO-RESOLVED capture, reading a
+    CHANGED FMP consensus, creates a new row and never touches the first.
+    Mirrors test_then_stays_then_when_current_value_changes's price proof."""
+    monkeypatch.setattr(fact_current_value, "_resolve_price_target_consensus", lambda ticker: 195.0)
+    note = _create(conn, "u1")
+    f1 = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=None, conn=conn,
+    )
+    assert f1["value"] == 195.0
+
+    monkeypatch.setattr(fact_current_value, "_resolve_price_target_consensus", lambda ticker: 230.0)
+    f2 = facts.create_fact_observation(
+        "u1", note["id"], ticker="NVDA", fact_type="analyst_price_target_consensus",
+        value=None, conn=conn,
+    )
+    assert f2["value"] == 230.0
+    # THEN stays THEN...
+    assert facts.get_fact_observation("u1", f1["id"], conn=conn)["value"] == 195.0
+    # ...even though a later capture read a different NOW.
+    assert facts.get_fact_observation("u1", f2["id"], conn=conn)["value"] == 230.0
+
+
+def test_current_value_resolver_never_resolves_an_analyst_consensus_snapshot_fact(monkeypatch):
+    # An analyst-consensus fact is `snapshot`, never `live_and_snapshot`
+    # (fact_registry.py) -- resolve_current_values must never call the FMP
+    # resolver for it, and the fact must be absent from the result entirely
+    # (nothing to compare, by design -- same contract user_note already has).
+    monkeypatch.setattr(fact_current_value, "_resolve_price_target_consensus",
+                         lambda ticker: (_ for _ in ()).throw(AssertionError("must never be called")))
+    facts_list = [{
+        "id": "f1", "factType": "analyst_price_target_consensus",
+        "temporalMode": "snapshot", "ticker": "NVDA",
+    }]
+    result = fact_current_value.resolve_current_values(facts_list)
+    assert result == {}
 
 
 # ── Entity resolution never blocks capture ──────────────────────────────────
@@ -291,6 +409,23 @@ def test_append_financial_fact_rejects_an_empty_fact_id(conn):
     note = _create(conn, "u1")
     with pytest.raises(NoteValidationError):
         append_financial_fact("u1", note["id"], "", conn=conn)
+
+
+def test_append_financial_fact_refuses_a_locked_note(conn):
+    """Ruling 149: a locked note takes no captures. `append_financial_fact` is
+    TickerPopup's "Save price to Notebook" door's server half
+    (captureFinancialFact.js) and, before this, had no lock check at all."""
+    from api.services.journal_two.notes import append_financial_fact, NoteLockedError, get_note, update_note
+    note = _create(conn, "u1")
+    f = facts.create_fact_observation("u1", note["id"], ticker="NVDA", fact_type="price", value=1.0, conn=conn)
+    locked = update_note("u1", note["id"], {"locked": True}, conn=conn)
+    assert locked["locked"] is True
+    with pytest.raises(NoteLockedError):
+        append_financial_fact("u1", note["id"], f["id"], conn=conn)
+    after = get_note("u1", note["id"], conn=conn)
+    assert after["bodyJson"] == locked["bodyJson"]
+    assert after["updatedAt"] == locked["updatedAt"]
+    assert facts.list_note_facts("u1", note["id"], conn=conn) == []
 
 
 # ── Deletion / lifecycle ─────────────────────────────────────────────────────

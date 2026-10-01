@@ -134,10 +134,23 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // for the three comparisons it reads. Plots byte-identical (translation
       // census). Pre-C31: [521, 405996, '65582febd0bccf56'] / [521, 406004,
       // '41fd10acf67ccfb8'].
+      // ⭐ C37 moved artemis: 48 colour slots the object lane dropped are read now
+      // — `color.new(thOb, 100 - divRegAlpha)`, `color.new(thOb, isLight ? 55 :
+      // 45)` and its tint helper's conditions, each a transparency or a colour
+      // test the Resolver is asked for. Plot outputs byte-identical (translation
+      // census); every one of the 48 slots is TradingView's colour
+      // (`vendorHarness.c37ObjectColours`). On the wave-8 + C29/C30/C32/C34/C35
+      // base alone C37 read plain [722, 426212, '55e872139c194b7f'] / manifest
+      // [722, 426220, 'c489c4af4d0b625d'] against [525, 406118] / [525, 406126]:
+      // 197 more Resolvers, 20,094 more steps.
       'artemis-oscillator-pro__ea1097ca9e': {
         // ⭐ Wave 9 carries BOTH (C32 +4 Resolvers / +122 steps, C31 +6 / +3,759): the
-        // measured sum, exactly additive — 521 + 4 + 6, 405,996 + 122 + 3,759.
-        plain: [531, 409877, 'f38c24a72a987c60'], manifest: [531, 409885, '61f060f7ebfeaf71'] },
+        // measured sum, exactly additive — 521 + 4 + 6, 405,996 + 122 + 3,759 —
+        // was plain [531, 409877, 'f38c24a72a987c60'] / manifest [531, 409885,
+        // '61f060f7ebfeaf71'] before C37 merged. With C37 on top, MEASURED on the
+        // merged tree (C31's cell and C37's colours read some of the same names,
+        // so this is the measurement, not a sum):
+        plain: [729, 429977, '60011f510b56bd70'], manifest: [729, 429985, 'bde49be716751a27'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
@@ -155,8 +168,13 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
         plain: [38, 20104, '1c4c4d2d8bb41941'], manifest: [38, 20110, '751365c865ed51f9'] },
+      // ⭐ C43 moved 72s-strategy: `label.set_x(pvtLabel, label.get_x(pvtLabel) +
+      // ((time-time[1]) * 21))` — a getter in `+` arithmetic as a bar coordinate —
+      // is read now (`pine.js::stateArith`), so one more Resolver is built for the
+      // getter-free operand, 6 more steps. Plots byte-identical (translation
+      // census). Pre-C43: [101, 931, 'b03efcd81da53a58'] both.
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [101, 931, 'b03efcd81da53a58'], manifest: [101, 931, 'b03efcd81da53a58'] },
+        plain: [102, 937, '6aa396f1a09699d5'], manifest: [102, 937, '6aa396f1a09699d5'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {

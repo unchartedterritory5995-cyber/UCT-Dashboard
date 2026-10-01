@@ -10,6 +10,8 @@ import { useAuth } from '../../context/AuthContext'
 import Sheet from '../../components/mobile/Sheet'
 import { TeamIcon, PlusIcon } from '../education/icons'
 import styles from './Desk.module.css'
+import Input from '../../components/ui/Input'
+import Textarea from '../../components/ui/Textarea'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -267,45 +269,45 @@ function MemberForm({ member, onClose, onSaved }) {
       <div className={styles.form}>
         <div className={styles.field}>
           <span className={styles.label}>Name</span>
-          <input className={styles.input} value={form.name} onChange={set('name')} />
+          <Input aria-label="Name" className={styles.input} value={form.name} onChange={set('name')} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Role / title</span>
-          <input className={styles.input} value={form.role} onChange={set('role')}
+          <Input aria-label="Role or title" className={styles.input} value={form.role} onChange={set('role')}
                  placeholder="Founder · Momentum Swing Trader" />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Time trading</span>
-          <input className={styles.input} value={form.years_trading} onChange={set('years_trading')}
+          <Input aria-label="Time trading" className={styles.input} value={form.years_trading} onChange={set('years_trading')}
                  placeholder="6 Years" />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Bio</span>
-          <textarea className={styles.textarea} value={form.bio} onChange={set('bio')} rows={4} />
+          <Textarea aria-label="Bio" className={styles.textarea} value={form.bio} onChange={set('bio')} rows={4} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Trading style <span className={styles.hint}>(one point per line)</span></span>
-          <textarea className={styles.textarea} value={form.trading_style} onChange={set('trading_style')} rows={5} />
+          <Textarea aria-label="Trading style, one point per line" className={styles.textarea} value={form.trading_style} onChange={set('trading_style')} rows={5} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Teaching focus <span className={styles.hint}>(one point per line)</span></span>
-          <textarea className={styles.textarea} value={form.teaching_focus} onChange={set('teaching_focus')} rows={5} />
+          <Textarea aria-label="Teaching focus, one point per line" className={styles.textarea} value={form.teaching_focus} onChange={set('teaching_focus')} rows={5} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Photo</span>
-          <input ref={fileRef} className={styles.input} type="file" accept="image/*" />
+          <Input ref={fileRef} aria-label="Photo" className={styles.input} type="file" accept="image/*" />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>X / Twitter URL (optional)</span>
-          <input className={styles.input} value={form.twitter_url} onChange={set('twitter_url')} />
+          <Input aria-label="X or Twitter URL" className={styles.input} value={form.twitter_url} onChange={set('twitter_url')} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Substack URL (optional)</span>
-          <input className={styles.input} value={form.substack_url} onChange={set('substack_url')} />
+          <Input aria-label="Substack URL" className={styles.input} value={form.substack_url} onChange={set('substack_url')} />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>Email (optional)</span>
-          <input className={styles.input} value={form.email} onChange={set('email')} />
+          <Input aria-label="Email" className={styles.input} value={form.email} onChange={set('email')} />
         </div>
         {err && <div className={styles.formErr}>{err}</div>}
         <div className={styles.formActions}>

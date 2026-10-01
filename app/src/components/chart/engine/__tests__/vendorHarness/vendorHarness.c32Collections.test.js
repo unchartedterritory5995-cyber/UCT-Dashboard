@@ -79,11 +79,13 @@ describe("⭐ C32 — trend-duration-forecast's per-pass table cells are Trading
       const p = ours.get(`${v.col},${v.row}`)
       expect(p, `cell ${v.col},${v.row}`).toBeTruthy()
       expect(p.text, `text ${v.col},${v.row}`).toBe(v.t)
-      // ⛔ `chart.fg_color` (the data columns) is the viewer's THEME, which this
-      // door does not carry: the cell has no colour of its own and the renderer
-      // draws its default — named here, not asserted as TradingView's.
+      // ⭐ C37 — `chart.fg_color` (the data columns) is the CHART'S OWN colour:
+      // carried as a theme reference and resolved where it is drawn, against the
+      // member's chart (`objectTheme.js`). ⛔ Never asserted as TradingView's —
+      // the capture records TradingView's theme (`#0f0f0f` on white), ours is a
+      // different chart (`vendorHarness.c37Theme` grades it theme-relative).
       const fg = v.col >= 1 && v.row >= 1 && v.row <= 10
-      if (fg) expect(p.text_color, `text colour ${v.col},${v.row}`).toBeUndefined()
+      if (fg) expect(p.text_color, `text colour ${v.col},${v.row}`).toBe('chart.fg_color')
       else expect(String(p.text_color).toUpperCase(), `text colour ${v.col},${v.row}`).toBe(hexOf(v.tc))
       expect(p.tooltip, `tooltip ${v.col},${v.row}`).toBe(v.tt)
     }

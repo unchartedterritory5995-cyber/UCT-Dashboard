@@ -166,7 +166,12 @@ describe('⭐ ta.valuewhen is a declared, occurrence-indexed, namespace-routed f
       // ⚰️ 2026-09-28: `int(x)` on a fraction was MEASURED (truncation, the
       // vw-int-cast capture) and now reads `idiv(x, 1)`, so this script moved one
       // wall deeper — to the `pine:window` the capture queue predicted.
-      ['smarter-snr__ac98ab25d5.pine', 'pine:window', /ta\.highest/],
+      // ⚰️ 2026-09-30 (C38): its two alert conditions read `time[x2Bar_]`, a
+      // per-bar history index, which is a read now (`barsAgo`) rather than
+      // `pine:offset-literal` — so they reach line 17's `str.length`, and that
+      // earlier line is what the script reports first. The `pine:window` on
+      // `ta.highest` (line 76) is still there behind it.
+      ['smarter-snr__ac98ab25d5.pine', 'pine:builtin', /str\.length/],
       ['support-and-resistance__1505.pine', 'pine:na', /fixnan/],
     ]
     for (const [file, guard, messagePattern] of stillBlocked) {

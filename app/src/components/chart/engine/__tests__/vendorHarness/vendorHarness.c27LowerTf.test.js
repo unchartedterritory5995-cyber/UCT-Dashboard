@@ -261,8 +261,9 @@ describe('C27 / C41 the door — a read below the chart is served on a chart, re
     expect(door.def.meta.lowerTf).toEqual(['15', '60', '240'])
     for (const code of ['15', '60', '240']) expect(text).toContain(`{"type":"ltf","value":"${code}"`)
     expect(text).not.toContain(R.UNWITNESSED)
-    // the one lower-tf code left is the dark runtime lane's own: it holds no
-    // intraday bars, so its rescue run refuses the script by name
-    expect([...new Set(text.match(/lower-tf:[a-z-]+/g) || [])]).toEqual([R.RUNTIME_LANE])
+    // ⚰️ one lower-tf code used to be left — the dark runtime lane's own, from the
+    // rescue run this script's `runtime.error` sent it on. Wave 10's C43 places that
+    // call in the columnar lane, so no rescue is attempted and no refusal is recorded.
+    expect([...new Set(text.match(/lower-tf:[a-z-]+/g) || [])]).toEqual([])
   })
 })

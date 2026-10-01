@@ -152,6 +152,37 @@ describe('FinancialFactView', () => {
     expect(screen.getByText('ahead of earnings')).toBeTruthy()
   })
 
+  it('G-062: a conditional-rights fact (analyst consensus) shows a Source attribution line', () => {
+    hookResult = {
+      facts: [{
+        id: 'f1', ticker: 'NVDA', factType: 'analyst_price_target_consensus',
+        factLabel: 'Analyst Price Target (Consensus)', value: 195.0,
+        unit: 'usd_per_share', temporalMode: 'snapshot', source: 'fmp',
+        rightsClass: 'conditional', observedAt: '2026-09-30T14:00:00Z', caption: null,
+      }],
+      isLoading: false, refresh: vi.fn(),
+    }
+    render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
+    expect(screen.getByText('$195.00')).toBeTruthy()
+    expect(screen.getByText('Source: FMP')).toBeTruthy()
+    // snapshot, never live_and_snapshot -- no Current row for a consensus fact.
+    expect(screen.queryByText('Current')).toBeNull()
+  })
+
+  it('⛔ CONTROL — an independent-rights fact (price) shows no Source attribution line', () => {
+    hookResult = {
+      facts: [{
+        id: 'f1', ticker: 'NVDA', factType: 'price', factLabel: 'Price',
+        value: 142.83, unit: 'usd_per_share', temporalMode: 'live_and_snapshot',
+        source: 'massive', rightsClass: 'independent',
+        observedAt: '2026-09-06T14:00:00Z', caption: null,
+      }],
+      isLoading: false, refresh: vi.fn(),
+    }
+    render(<FinancialFactView node={nodeFor('f1')} editor={editorWith('n1')} deleteNode={vi.fn()} />)
+    expect(screen.queryByText(/^Source:/)).toBeNull()
+  })
+
   it('the remove button calls deleteNode', () => {
     const deleteNode = vi.fn()
     hookResult = {

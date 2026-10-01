@@ -18,6 +18,12 @@ Longeveron/Long Table Growth, Bitcoin Infrastructure Acquisition, Apple
 Hospitality, both Alphabet classes...). tests/test_ssetf_fixture.py rebuilds
 its stock set from these rows, so the fixture must stay self-contained.
 """
+import os as _uct_os  # noqa: E402
+import sys as _uct_sys  # noqa: E402
+_uct_repo_root = _uct_os.path.dirname(_uct_os.path.dirname(_uct_os.path.abspath(__file__)))
+if _uct_repo_root not in _uct_sys.path:
+    _uct_sys.path.insert(0, _uct_repo_root)
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 import argparse, collections, csv, os, re, sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

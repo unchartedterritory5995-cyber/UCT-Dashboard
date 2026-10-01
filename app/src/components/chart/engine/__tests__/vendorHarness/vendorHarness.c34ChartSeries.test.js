@@ -23,8 +23,12 @@
 //      `barstate.islast` guard on the vendor's bars, draws those four boxes and
 //      four label texts, value for value;
 //   3. REFUSED BY NAME, with the capture that would settle each: a chart series
-//      no capture witnesses (`volume[k]`), and a body-local series read at an
-//      offset — the call's own history, still refused as before;
+//      no capture witnesses (`time_close[k]`), and a body-local series read at an
+//      offset under a guard that varies — the call's own history. ⭐ C42: the
+//      capture this section named was taken (`vw-fn-series-history-rddt-1d-
+//      2026-09-30`); `volume` / `time` / `hl2` / `hlc3` / `ohlc4` are witnessed
+//      the chart's, and a call that runs ONCE reads its own history as `na`
+//      (`vendorHarness.c42OneExecution`);
 //   4. CONTROL: the same probe's boxes are ABSENT when the helper is called under
 //      a guard that also reads a `ta.*` — so rail 2 cannot pass by drawing boxes
 //      whatever the body reads.
@@ -155,11 +159,12 @@ describe('C34 — a chart series read from inside a last-bar helper is the chart
     expect(ours).toEqual(theirs)
   })
 
-  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.sma`) is refused, and draws nothing", () => {
+  it("🔴 CONTROL: a helper that ALSO reads the call's own history (`ta.ema`) is refused, and draws nothing", () => {
     const cap = capture()
     const levels = vendorLevels(cap)
+    // ⭐ C42 — `ta.ema`: what `ta.sma` answers on a call's one run is witnessed now
     const src = probe(levels).replace(/ {4}historyReference = bar_index - index/g,
-      '    historyReference = bar_index - index + int(ta.sma(close, 3) * 0)')
+      '    historyReference = bar_index - index + int(ta.ema(close, 3) * 0)')
     const { d, lines } = ourObjects(cap, src)
     expect(d.translation.objectDiagnostics.dropReasons['fn:conditional-history']).toBe(4)
     expect(lines).toHaveLength(0)
@@ -167,29 +172,29 @@ describe('C34 — a chart series read from inside a last-bar helper is the chart
 })
 
 describe('C34 — what stays refused, by name', () => {
-  const refusalsOf = (body) => {
+  const refusalsOf = (body, guard = 'barstate.islast') => {
     const src = [
       '//@version=5',
       'indicator("C34 refusal", overlay = true)',
       'f(int k) =>',
       ...body,
-      'if barstate.islast',
+      `if ${guard}`,
       '    f(5)',
     ].join('\n')
     const t = translatePine(src, {})
     return (t.objectDiagnostics && t.objectDiagnostics.refusedCalls) || []
   }
 
-  it('⛔ a chart series no capture witnesses (`volume[k]`) names the capture that would settle it', () => {
-    const r = refusalsOf(['    label.new(bar_index, volume[k], "v")'])
+  it('⛔ a chart series no capture witnesses (`time_close[k]`) names the capture that would settle it', () => {
+    const r = refusalsOf(['    label.new(bar_index, low, str.tostring(time_close[k]))'])
     expect(r).toHaveLength(1)
     expect(r[0]).toMatch(/^f:conditional-history@/)
-    expect(r[0]).toContain('`volume[…]`')
-    expect(r[0]).toContain('vw-fn-series-history')
+    expect(r[0]).toContain('`time_close[…]`')
+    expect(r[0]).toContain('vw-call-site-history')
   })
 
-  it('⛔ the call\'s OWN history — a body local read at an offset — is still refused', () => {
-    const r = refusalsOf(['    x = close * 2', '    label.new(bar_index, x[1], "v")'])
+  it('⛔ the call\'s OWN history — a body local read at an offset — is still refused under a guard that varies', () => {
+    const r = refusalsOf(['    x = close * 2', '    label.new(bar_index, x[1], "v")'], 'close > open')
     expect(r).toHaveLength(1)
     expect(r[0]).toMatch(/^f:conditional-history@.*history read `\[…\]`/)
   })
@@ -200,7 +205,7 @@ describe('C34 — what stays refused, by name', () => {
       'indicator("C34 param", overlay = true)',
       'f(float src) =>',
       '    label.new(bar_index, src[1], "v")',
-      'if barstate.islast',
+      'if close > open',
       '    f(close)',
     ].join('\n')
     const r = translatePine(src, {}).objectDiagnostics.refusedCalls || []

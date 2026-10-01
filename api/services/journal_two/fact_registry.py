@@ -18,6 +18,15 @@ from typing import Literal, Optional
 ValueColumn = Literal["value_number", "value_text"]
 TemporalMode = Literal["live", "snapshot", "live_and_snapshot", "reference_only"]
 Source = Literal["user", "uct_derived", "massive", "fmp"]
+# `conditional` carries a DISPLAY obligation once a type is activated, not
+# just a write gate: it is genuinely new vendor-value persistence with no
+# prior precedent in this codebase, and the owner's external legal clearance
+# for it (VENDOR-TERMS-2026-09-23.md §5, L5/L2 -- FMP licensing approved
+# directly 2026-09-25) covers SHOWING the vendor's data to members, not
+# hiding whose it is. `FinancialFactView.jsx` reads `rightsClass` off the
+# resolved fact and renders a "Source: {SOURCE}" attribution line for
+# exactly this class -- never for `independent` (UCT's own bars, or the
+# member's own text, need no vendor credit).
 RightsClass = Literal["independent", "conditional", "blocked"]
 
 
@@ -45,15 +54,23 @@ FACT_TYPES: dict[str, FactTypeDef] = {
         temporal_mode="snapshot", source="user", rights_class="independent",
         active=True,
     ),
-    # Architected, INACTIVE (checkpoint decision 23/28): no frontend capture
-    # path reaches this. Proves the registry/resolver/storage generalize to a
-    # genuinely rights-conditional, vendor-derived fact type without silently
-    # turning on persistent vendor-value storage.
+    # ACTIVE since G-062 (owner ruling 2026-09-25: FMP licensing approved
+    # directly -- docs/notebook/VENDOR-TERMS-2026-09-23.md §5 L5/L2). Was
+    # "architected, INACTIVE" through checkpoint decision 23/28, proving the
+    # registry/resolver/storage generalized to a genuinely rights-conditional,
+    # vendor-derived fact type before persistent vendor-value storage was
+    # legally cleared -- that clearance is now in hand, not waived, so the
+    # gate in `note_facts.create_fact_observation` opens for this key.
+    # `rights_class="conditional"` still applies and still means something:
+    # see the DISPLAY note on `RightsClass` above. `snapshot` (never
+    # `live_and_snapshot`) is deliberate -- a consensus has no historical
+    # re-query source, so it is captured once and never re-derived (G-061's
+    # own finding; financial-temporal-semantics.md's Rights section).
     "analyst_price_target_consensus": FactTypeDef(
         key="analyst_price_target_consensus", label="Analyst Price Target (Consensus)",
         value_column="value_number", unit="usd_per_share",
         temporal_mode="snapshot", source="fmp", rights_class="conditional",
-        active=False,
+        active=True,
     ),
 }
 

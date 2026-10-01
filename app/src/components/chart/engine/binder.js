@@ -53,6 +53,7 @@ import {
   seriesOptionsForPlot,
   signColorsForPlot,
   columnColorsForPlot,
+  gradientPointColour,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
@@ -67,6 +68,13 @@ import { markersFor, createMarkerLayer } from './markerPrimitive'
 import { evaluateObjects } from './objectRuntime'
 import { objectReaderFor } from './objectColumns'
 import { toRenderState } from './objectRenderState'
+// ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
+// binder is where that is known per INSTANCE, so it publishes the sentence for
+// the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
+// publishes a scaled table (`paneFitNotice.js`).
+import { runtimeErrorStopOf } from './nativeRegistry'
+import { setRuntimeErrorNotice } from './runtimeErrorNotice'
+import { chartThemeOf } from './objectTheme'
 
 import {
   sourceInputsOf, parseSource, barFieldSeries, orderByDependency,
@@ -324,6 +332,10 @@ function pointColour(colColors, condColumn, i) {
     if (!Number.isFinite(c)) return null
     return (Number.isInteger(c) && c >= 0 && c < colColors.palette.length) ? colColors.palette[c] : null
   }
+  // ⭐⭐ C37 — A GRADIENT: the column is the bar's position between the two
+  // endpoints, and the colour is the vendor-measured blend at that position.
+  // ⛔ A non-finite position is NO COLOUR (`gradientPointColour`), never an end.
+  if (colColors.gradient) return gradientPointColour(colColors.gradient, c)
   // ⭐⭐ OWNER RULING 2 (2026-09-28) — AN `na` CONDITION TAKES THE ELSE BRANCH,
   // AS PINE'S DOES. `cond ? up : down` with `cond` na is `down` in Pine, on a
   // plot and a fill alike, and TradingView draws it that way.
@@ -666,6 +678,7 @@ export function createBinder({ chart, LWC }) {
   const syncObjects = (ctx, instances, bars) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
+    const theme = chartThemeOf(ctx.cs)
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
@@ -722,7 +735,10 @@ export function createBinder({ chart, LWC }) {
           run,
           // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
           // object on the bar whose opening instant it names.
-          state: toRenderState(run.live, { bars, tf: ctx.tf }),
+          // ⭐ C37 — and THIS chart's own colours, so `chart.fg_color` /
+          // `chart.bg_color` draw as the chart they are on (`objectTheme.js`).
+          // ⭐ C37 — and the program's Pine version, for the defaults that depend on it.
+          state: toRenderState(run.live, { bars, tf: ctx.tf, theme, pineVersion: reader.program.pineVersion }),
           form: reader.form,
           // ⛔⛔ THE NODES THE OBJECT LANE COULD NOT EVALUATE, CARRIED OUT OF THE
           // ATTEMPT INSTEAD OF DISCARDED. `objectReaderFor` has always answered
@@ -765,7 +781,9 @@ export function createBinder({ chart, LWC }) {
       // nothing — the memo discipline the column path above already keeps.
       // ⭐ C12w — and whether the series was read from its listing bar: the same
       // bars can draw a different picture once that statement arrives.
-      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}`
+      // ⭐ C37 — and the chart's own colours: a theme change repaints the objects
+      // that wear them, with the bars and the program unchanged.
+      const sig = `${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${built.value.run.stats.nextId}${ctx.historyFromListing === true ? ':listing' : ''}:${theme.fg || ''}/${theme.bg || ''}`
       // ⭐ THE LIFECYCLE FACTS TRAVEL WITH THE PICTURE. `liveIds` is the identity
       // evidence a live run can read off the DOM: ids are a creation counter, so
       // an engine that re-created rather than updated would show them climbing.
@@ -904,6 +922,18 @@ export function createBinder({ chart, LWC }) {
     } catch { /* older API — the axis stays as it was, which is today's behaviour */ }
   }
 
+  /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
+   *  so a removed, hidden or released instance takes its sentence with it. */
+  const stoppedIds = new Set()
+  const noteRuntimeErrorStop = (instanceId, cols) => {
+    const stop = cols ? runtimeErrorStopOf(cols) : null
+    const sentence = stop && stop.reached ? stop.sentence : null
+    if (sentence) stoppedIds.add(instanceId)
+    else if (!stoppedIds.has(instanceId)) return
+    else stoppedIds.delete(instanceId)
+    setRuntimeErrorNotice(instanceId, sentence)
+  }
+
   function releaseAll() {
     for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
@@ -915,6 +945,8 @@ export function createBinder({ chart, LWC }) {
     pruneClock('plots', null)
     pruneClock('objects', null)
     held = []
+    for (const id of stoppedIds) setRuntimeErrorNotice(id, null)
+    stoppedIds.clear()
     computeMemo = new Map()
     pointMemo = new Map()
     pendingLayout = null
@@ -1304,7 +1336,7 @@ export function createBinder({ chart, LWC }) {
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
             lowerTf }))
-        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); continue }
+        if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
         // one column, so this can only be the server lane answering "the fetch
@@ -1317,6 +1349,8 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      // ⭐ C43 — reached on this chart at these settings, or no longer reached
+      noteRuntimeErrorStop(inst.instanceId, cols)
       // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
       // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
       // columns the decision was made for; a registry without the report (a test
@@ -1382,6 +1416,7 @@ export function createBinder({ chart, LWC }) {
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
+    for (const id of [...stoppedIds]) if (!computedIds.has(id)) noteRuntimeErrorStop(id, null)
     pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
@@ -1521,7 +1556,8 @@ export function createBinder({ chart, LWC }) {
       const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
-      const palette = cc && cc.palette ? cc.palette.join('|') : null
+      const palette = cc && cc.palette ? cc.palette.join('|')
+        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}` : null)
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would

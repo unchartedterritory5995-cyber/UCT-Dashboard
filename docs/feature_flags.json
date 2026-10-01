@@ -952,12 +952,18 @@
       ],
       "note": "Historical point-in-time fundamentals (Indicators -> Fundamentals, `fund:` chart source). Unset/0: /api/fundamentals/pit/* returns 404 and the Fundamentals tab shows a neutral notice; stored chart settings holding `fund:` instances are untouched and draw nothing. Dark until the production store, backfill and R2 publication are validated (docs/fundamentals-pit/MORNING-PLAN.md). Rollback = unset. Ledger corrected 2026-09-24: this entry said dark while the variable was SET ON web (value 1), read 2026-09-24 by tools/flag_ledger_audit.py + `railway variables --service web --kv`. The flip itself was made by the owning programme and is recorded here as MEASURED, not decided; if the intent differs, the owning programme corrects this note."
     },
-    "FUNDAMENTALS_PIT_INCREMENTAL_ENABLED": {
-      "status": "dark",
+    "FUNDAMENTALS_PIT_V5_PIPELINE": {
+      "status": "armed",
       "where": [
         "worker"
       ],
-      "note": "Worker-only. 1 = register the fundamentals jobs (fundamentals_pit/schedule.py): EDGAR latest-filings tick every 10 min 06:00-22:59 ET weekdays, daily Beta 18:40 ET, weekly bulk reconcile Sun 06:10 ET. Registers nothing unless the store exists. Dark until the production backfill and R2 publication are validated. Rollback = unset (store and published artifacts are left as they are)."
+      "exposure": "internal",
+      "default": "0",
+      "values": [
+        "0",
+        "1"
+      ],
+      "note": "Worker-only. 1 = start the fundamentals V5 pipeline scheduler (fundamentals_pit/schedule.py, called from api/worker_main.py only); it registers nothing unless the V5 live store exists, never writes V4, and publishes only immutable V5 versions. Stop without a deploy: create <root>/HOLD. Rollback = unset. It REPLACED FUNDAMENTALS_PIT_INCREMENTAL_ENABLED at the 2026-09-29 cutover (cd9ecc8333): no code reads the old name, and its entry stood here until 2026-09-30. MEASURED, not decided: `railway variables --service worker --kv` read FUNDAMENTALS_PIT_V5_PIPELINE=1 on 2026-09-30 (the value in the running process was not read); if the intent differs, the owning programme corrects this note."
     },
     "FUNDAMENTALS_PIT_PUBLISH_R2": {
       "status": "dark",

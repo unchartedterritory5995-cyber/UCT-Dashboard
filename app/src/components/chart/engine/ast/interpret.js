@@ -1281,6 +1281,38 @@ function valueWhenOccurrence(cond, src, occurrence) {
   return out
 }
 
+/** ⭐⭐ `x[e]` WITH A PER-BAR `e` — THE ONE RULE EVERY LANE READS (C29 rule 7,
+ *  measured on TradingView 2026-09-30). Stated ONCE, here, and read by the
+ *  object lane (`objectRuntime.js::atCheck`), by `barsAgo` and `historyReadMask`
+ *  below, and — through the buffer it writes — by `pine.js`:
+ *
+ *    · an `na` offset reads the CURRENT bar: `close[na]` is `close`
+ *      (`vw-offset-na-spy-1d-2026-09-30`, all 100 na-offset bars);
+ *    · a read is one this engine can answer only when its offset is a whole
+ *      number of bars, not negative (a future bar), and below the buffer — the
+ *      script's `max_bars_back`, or `objectProgram.js::AUTO_MAX_BARS_BACK`, the
+ *      reach TradingView's automatic buffer was measured to cover
+ *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
+export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
+export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
+
+/** ⭐⭐ C38 — `barsAgo(src, back, limit)`: Pine's `src[back]` with a PER-BAR
+ *  `back`. The rule is the one above (measured, C29 rule 7): an `na` count
+ *  reads the current bar; a readable count reads that many bars back, `NaN`
+ *  before the first bar held; a count that cannot be read is `NaN` too. Both
+ *  `NaN`s are WITHHELD at the root by `historyReadMask` (the second always, the
+ *  first unless the series starts at the listing), because downstream a `NaN`
+ *  is Pine's `na` and these are not. */
+function barsAgo(src, back, limit) {
+  const out = nan(src.length)
+  for (let i = 0; i < src.length; i++) {
+    const k = historyBackOf(back[i])
+    if (!historyReadable(k, limit)) continue
+    if (i - k >= 0) out[i] = src[i - k]
+  }
+  return out
+}
+
 /** Pine's `ta.dev`: the MEAN ABSOLUTE deviation about the window's simple average.
  *
  *  ⛔ NOT `windowStdev`, WHICH IS THE ROOT-MEAN-SQUARE ONE. They differ on every
@@ -2271,6 +2303,7 @@ export const FN = Object.freeze({
   barssince: (cond, n) => barsSince(cond, n),
   valuewhen: (cond, src, n) => valueWhen(cond, src, n),
   valuewhenOccurrence: (cond, src, occurrence) => valueWhenOccurrence(cond, src, occurrence),
+  barsAgo: (src, back, limit) => barsAgo(src, back, limit),
   // ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
   // STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
   // both bars of a tie. See `closedTable.json::_functions_pivots`.
@@ -3835,7 +3868,7 @@ export function interpret(ast, bars, inputs, budget, scalars, opts) {
     if (whole && whole.why.length) return nan(Array.isArray(bars) ? bars.length : 0)
   }
   const out = withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
-  return withLowerTfWithheld(ast, bars, withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts), opts)
+  return withLowerTfWithheld(ast, bars, withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts), opts)
 }
 
 /** The supply for one lower-timeframe code, or null when the caller gave none:
@@ -4425,11 +4458,98 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   return mask
 }
 
-/** Withhold (`NaN`) the bars `periodAnchorMask` names. A COPY. */
-function withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts) {
+/** ⭐⭐ C38 — THE BARS OF A TREE WHOSE ANSWER READS A `barsAgo` COUNT THAT CANNOT
+ *  BE READ, as a 0/1 column (1 = withheld), or null when the tree has no such read.
+ *
+ *  `barsAgo` answers `NaN` for a count `historyReadable` refuses
+ *  (negative, fractional, at or past the buffer — past TradingView's automatic
+ *  buffer the vendor's answer is unmeasured; past a declared one Pine stops the
+ *  script). Downstream that `NaN` is Pine's `na`, and `na(x[e]) ? 1 : 0` would
+ *  draw a confident 1 — so, by the C30 / C26 argument (`maxLookback` is a tree
+ *  sum), every root bar within `maxLookback(root) − maxLookback(read)` bars of
+ *  such a bar is withheld. A read under a function whose memory is unbounded
+ *  (`lookback: "series"` — `cum`, `valuewhenOccurrence`) or under a recurrence
+ *  withholds every bar from the first unreadable one on; a read under `tf` /
+ *  `sym` reads other bars, and the whole tree is withheld (C30's rule for an anchor).
+ *
+ *  ⭐ AND A READ BEFORE THE FIRST BAR HELD is withheld the same way, unless the
+ *  series provably starts at the symbol's first bar (`opts.historyFromListing`,
+ *  ruling R-W): TradingView holds bars this window does not and answers a value
+ *  there (`vw-mbb-auto`: 225 bars read up to 399 back, past the capture's first
+ *  bar), so `NaN` is not its answer. From the listing there IS no earlier bar,
+ *  the read is Pine's `na`, and nothing is withheld for it. */
+export function historyReadMask(tree, bars, inputs, budget, scalars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const reads = []
+  const stack = [[tree, false, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, nested, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'call' && node.name === 'barsAgo') reads.push({ node, nested, unbounded })
+    const into = nested || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || own(RECURRENCES, node.name)))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into, open])
+  }
+  if (!reads.length) return null
+  const mask = new Float64Array(n)
+  let any = false
+  const rootReach = maxLookback(tree)
+  const fromListing = !!opts && opts.historyFromListing === true
+  for (const { node, nested, unbounded } of reads) {
+    const limit = windowLiteral(node, 2)
+    const reach = Math.max(0, rootReach - maxLookback(node))
+    // a count read under `tf` / `sym`, or one this pass cannot evaluate on its
+    // own (a recurrence's `self`), is not a count this mask can vouch for
+    if (nested) { mask.fill(1); return mask }
+    if (readsRecurrenceBinding(node.args[1])) { mask.fill(1); return mask }
+    const back = toColumn(interpretOnce(node.args[1], bars, inputs, budget, scalars,
+      { ...(opts || {}), crossMemo: undefined, probeBase: undefined }), n)
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const k = historyBackOf(back[i])
+      if (!historyReadable(k, limit) || (!fromListing && i - k < 0)) {
+        last = unbounded && last !== -Infinity ? last : i
+      }
+      if (last !== -Infinity && (unbounded || i - last <= reach)) { mask[i] = 1; any = true }
+    }
+  }
+  return any ? mask : null
+}
+
+/** Does this subtree read a recurrence's own binding (`self`)? Such a tree has
+ *  no column outside the recurrence that runs it. Iterative, like every walk here. */
+function readsRecurrenceBinding(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'series' && RECURRENCE_BINDINGS.includes(node.name)) return true
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return false
+}
+
+/** The bars a tree's answer is WITHHELD on for a read this engine does not hold:
+ *  `periodAnchorMask` (C30) or `historyReadMask` (C38), one channel. */
+export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
+  const a = periodAnchorMask(tree, bars, inputs, budget, scalars, opts)
+  const h = historyReadMask(tree, bars, inputs, budget, scalars, opts)
+  if (!a || !h) return a || h
+  const out = new Float64Array(Math.max(a.length, h.length))
+  for (let i = 0; i < out.length; i++) out[i] = (a[i] || h[i]) ? 1 : 0
+  return out
+}
+
+/** Withhold (`NaN`) the bars `withheldReadMask` names. A COPY. */
+function withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts) {
   if (opts && typeof opts.prefixProbe === 'number') return out
   if (!isColumn(out)) return out
-  const mask = periodAnchorMask(ast, bars, inputs, budget, scalars, opts)
+  const mask = withheldReadMask(ast, bars, inputs, budget, scalars, opts)
   if (!mask) return out
   const copy = Float64Array.from(out)
   for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN

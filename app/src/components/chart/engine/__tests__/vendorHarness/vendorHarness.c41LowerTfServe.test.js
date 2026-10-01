@@ -272,11 +272,13 @@ describe('C41 — ema-ribbon (NYSE:RDDT 1D, the graded capture): rows 6–8 and 
     expect(moved).toEqual(['▼ BEARISH', '2.63%', 'STRONG', '▼ BEARISH', '3.8%', 'STRONG',
       '▼ BEARISH', '3.88%', 'STRONG', '▼▼  STRONG BEAR', '0B  5S  /  5'])
     for (const text of new Set(moved)) expect(mine.get(text), text).toBe(theirs.get(text))
-    // one cell is still not ours — the strength bar, a `for` loop in a helper (not this lane)
-    expect(ours.objects.counts.tableCells).toBe(47)
+    // ⚰️ this read 47: the strength bar (a `for` loop in a helper) was not ours. Wave 10
+    // carries C40's loop ops, so with the lower rows served every cell is drawn: 48 of 48.
+    expect(ours.objects.counts.tableCells).toBe(48)
     const onlyVendor = [...theirs].filter(([k, n]) => (mine.get(k) || 0) < n).map(([k]) => k)
     const onlyOurs = [...mine].filter(([k, n]) => (theirs.get(k) || 0) < n).map(([k]) => k)
-    expect(onlyVendor).toEqual(['██████████'])
+    // …text for text: nothing TradingView draws is missing, nothing of ours is extra
+    expect(onlyVendor).toEqual([])
     expect(onlyOurs).toEqual([])
   })
 
@@ -289,8 +291,9 @@ describe('C41 — ema-ribbon (NYSE:RDDT 1D, the graded capture): rows 6–8 and 
     const texts = ours.objects.texts.tableCells
     for (const text of ['2.63%', '3.8%', '3.88%', '▼▼  STRONG BEAR', '0B  5S  /  5']) expect(texts).not.toContain(text)
     expect(texts.some((t) => /NaN/.test(t))).toBe(false)
-    // nine MTF cells and the two bias cells are held back: 47 − 11
-    expect(ours.objects.counts.tableCells).toBe(36)
+    // nine MTF cells and the two bias cells are held back: 48 − 11 (36 before wave 10's
+    // C40 drew the strength bar)
+    expect(ours.objects.counts.tableCells).toBe(37)
   })
 })
 
@@ -511,7 +514,8 @@ describe('C41 — `VITE_PINE_LOWER_TF_ENABLED` off: refused by name, nothing ser
   it('⛔ through the member door: ema-ribbon draws what it drew before C41 — its lower rows withheld', () => {
     const cap = load('ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json')
     const off = gateOff(() => runOurSide(cap))
-    expect(off.objects.counts.tableCells).toBe(36)
+    // 37 of TradingView's 48 — wave 10's own count for this capture (36 on wave 9)
+    expect(off.objects.counts.tableCells).toBe(37)
     expect(off.notes.some((n) => n.startsWith('lower timeframe'))).toBe(false)
     for (const text of ['2.63%', '3.8%', '3.88%', '▼▼  STRONG BEAR']) expect(off.objects.texts.tableCells).not.toContain(text)
   })

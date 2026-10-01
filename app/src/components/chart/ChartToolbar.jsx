@@ -63,6 +63,9 @@ import { useIsPaid } from '../../context/AuthContext'
 import { formatETDate } from '../../utils/timeAgo'
 import { toolbarFor } from '../../utils/dividerColor'
 import styles from './ChartToolbar.module.css'
+import Input from '../ui/Input'
+import Select from '../ui/Select'
+import Checkbox from '../ui/Checkbox'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
 const I = (children) => (
@@ -420,13 +423,13 @@ function ChartSettingsPanel({
         </div>
         <div className={styles.sRow} style={{ marginTop: 6, alignItems: 'center' }}>
           <span>Opacity</span>
-          <input type="range" min={0} max={0.3} step={0.01} value={cs.watermark.opacity}
+          <Input type="range" aria-label="Watermark opacity" min={0} max={0.3} step={0.01} value={cs.watermark.opacity}
             onChange={e => update('watermark.opacity', parseFloat(e.target.value))} />
           <span>{Math.round(cs.watermark.opacity * 100)}%</span>
         </div>
         <div className={styles.sRow} style={{ marginTop: 6, alignItems: 'center' }}>
           <span>Size</span>
-          <input type="range" min={0.5} max={2} step={0.1} value={cs.watermark.sizeScale}
+          <Input type="range" aria-label="Watermark size" min={0.5} max={2} step={0.1} value={cs.watermark.sizeScale}
             onChange={e => update('watermark.sizeScale', parseFloat(e.target.value))} />
           <span>{cs.watermark.sizeScale.toFixed(1)}×</span>
         </div>
@@ -447,13 +450,14 @@ function ChartSettingsPanel({
             send an edit to the wrong moving average. */}
         {averageSlotView(cs).map((ov, i) => [ov, i]).filter(([ov]) => !!ov).map(([ov, i]) => (
           <div key={i} className={styles.sOverlayRow}>
-            <input type="checkbox" checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
-            <select className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
+            <Checkbox aria-label={`Show moving average ${i + 1}`} checked={ov.enabled} onChange={e => updateOverlay(i, 'enabled', e.target.checked)} />
+            <Select aria-label={`Moving average ${i + 1} type`} className={styles.sMiniSelect} value={ov.type} onChange={e => updateOverlay(i, 'type', e.target.value)}>
               <option value="SMA">SMA</option>
               <option value="EMA">EMA</option>
-            </select>
-            <input
+            </Select>
+            <Input
               type="number"
+              aria-label={`Moving average ${i + 1} period`}
               className={styles.sPeriodInput}
               value={ov.period}
               min={1} max={500}
@@ -734,14 +738,14 @@ function ChartSettingsPanel({
               </label>
               {c.enabled && (<>
                 <ColorPicker value={c.color || def} onChange={v => setPdl({ color: v })} />
-                <select className={styles.sMiniSelect} value={c.style || 'dashed'} onChange={e => setPdl({ style: e.target.value })}>
+                <Select aria-label={`${label} line style`} className={styles.sMiniSelect} value={c.style || 'dashed'} onChange={e => setPdl({ style: e.target.value })}>
                   <option value="solid">Solid</option>
                   <option value="dashed">Dashed</option>
                   <option value="dotted">Dotted</option>
-                </select>
-                <select className={styles.sMiniSelect} value={c.width || 1} onChange={e => setPdl({ width: Number(e.target.value) })}>
+                </Select>
+                <Select aria-label={`${label} line width`} className={styles.sMiniSelect} value={c.width || 1} onChange={e => setPdl({ width: Number(e.target.value) })}>
                   {[1, 2, 3, 4].map(w => <option key={w} value={w}>{w}px</option>)}
-                </select>
+                </Select>
               </>)}
             </div>
           )
@@ -753,9 +757,9 @@ function ChartSettingsPanel({
         <span className={styles.sLabel}>Crosshair</span>
         <div className={styles.sRow}>
           <ColorPicker value={cs.crosshair.color} onChange={v => update('crosshair.color', v)} />
-          <select className={styles.sMiniSelect} value={cs.crosshair.style} onChange={e => update('crosshair.style', parseInt(e.target.value))}>
+          <Select aria-label="Crosshair style" className={styles.sMiniSelect} value={cs.crosshair.style} onChange={e => update('crosshair.style', parseInt(e.target.value))}>
             {CROSSHAIR_STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
+          </Select>
           <label className={styles.sCheck} title="Snap the crosshair to OHLC values">
             <input type="checkbox" checked={!!cs.crosshair.magnet} onChange={e => update('crosshair.magnet', e.target.checked)} />
             Magnet
@@ -791,7 +795,7 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
         overflowY: 'auto', zIndex: 1000, background: 'var(--menu-bg,#14171c)',
         border: '1px solid var(--menu-border,#232932)', borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
         padding: 6, fontFamily: "'Instrument Sans', sans-serif" }}>
-      <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search tools…"
+      <Input aria-label="Search drawing tools" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search tools…"
         style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', marginBottom: 4,
           background: 'var(--menu-bg-2,#1b1f26)', border: '1px solid var(--menu-border,#232932)', borderRadius: 6,
           color: 'var(--menu-text,#e8eaed)', fontSize: 13, outline: 'none' }} />
@@ -1439,8 +1443,9 @@ function ChartToolbar({
         {/* ── Compare symbol input ── */}
         {!hideCompare && onCompareChange && (
           <div className={styles.compareWrap}>
-            <input
+            <Input
               type="text"
+              aria-label="Compare with another symbol"
               className={styles.compareInput}
               placeholder="+ Compare"
               value={compareSymbol || ''}
