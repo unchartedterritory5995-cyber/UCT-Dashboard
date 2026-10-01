@@ -114,7 +114,11 @@ import {
   collectObjectOps, CREATE_POSITIONAL, CELL_POSITIONAL, CLEAR_POSITIONAL,
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES,
 } from './pineObjects.js'
-import { INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant } from './objectFnInline.js'
+import {
+  INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
+  guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions,
+  readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor,
+} from './objectFnInline.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -6219,6 +6223,11 @@ export class Resolver {
     if (bound && typeof bound === 'object') bound.read = true
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
+    // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
+    // call answers on that run (`oneExecution`); the object pass reads THAT.
+    if (this.refuseCondCalls && bound && bound.oneExecution) {
+      return this.resolveBinding(bound.oneExecution, tok, name)
+    }
     if (this.refuseCondCalls && bound && bound.condCall) {
       const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${bound.condCall}`, locate(tok))
       // ⛔ and the runtime lane may not answer it either (`rtAdmits`): it reads
@@ -9274,6 +9283,18 @@ export class Resolver {
   }
 
   resolveCall(node) {
+    // ⛔⛔ C42 — a `ta.*` call the object reader found in a block that runs ONCE
+    // and that no capture reads on its first run (`pineObjects.js::walk` marks
+    // the token). The every-bar value is not Pine's there, and neither lane has
+    // the right one.
+    if (node.tok && node.tok.onceUnwitnessed) {
+      const err = new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
+        + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
+        + 'witnessed (probe `vw-call-site-history`)', locate(node.tok))
+      err.noRuntime = true
+      throw err
+    }
     const offer = this.mintickGuardOffer(node)
     if (offer) throw offer
     const name = node.name
@@ -12731,6 +12752,38 @@ function recordReassign(ctx, stmt, name, env) {
  *  offering exactly those reads to the runtime lane (`rtAdmits`): what the
  *  columnar reader still cannot say below a loop is the run's to say, as it
  *  was. `ctx.loopSeen` is one cell shared by every fold of a block harvest. */
+/** ⭐⭐ C42 — what a right-hand side that calls `ta.*` in a block that does not
+ *  run on every bar is to the OBJECT lane: `{node}` — the same expression as it
+ *  reads on the block's one execution (only under `ctx.oneExecution`, and only
+ *  when every `ta.*` in it is one the capture shows) — or `{refuse}`, C31's
+ *  sentence. null when the block runs on every bar or calls no `ta.*`. */
+function condCallMark(ctx, rhsToks, name) {
+  if (!ctx || !ctx.conditional) return null
+  const taCall = taCallIn(rhsToks)
+  // ⭐ a user function that reads its OWN history (a `ta.*` call, a local or a
+  // parameter at an offset) is the same call seen one frame down: called from a
+  // block that does not run on every bar, that history holds only those bars.
+  const fnCall = typeof ctx.historyFns === 'function' ? historyCallIn(rhsToks, ctx.historyFns()) : null
+  if (fnCall) {
+    return {
+      refuse: `\`${name}\` calls \`${fnCall.value}\`, a function that reads its own history, inside a block`
+        + ' that does not run on every bar, and that call sees only the bars its block runs on',
+    }
+  }
+  if (!taCall) return null
+  const sentence = (call) => `\`${name}\` calls \`${call}\` inside a block`
+    + ' that does not run on every bar, and that call sees only the bars its block runs on'
+  if (!ctx.oneExecution) return { refuse: sentence(taCall.value) }
+  const once = oneExecutionTokens(rhsToks, { isPunct })
+  if (once.why || once.left) {
+    return {
+      refuse: `${sentence((once.left || taCall).value)} — the block runs once, and what the call answers `
+        + 'on its first run is witnessed only for `ta.highest(source, length)` and `ta.sma(source, length)`',
+    }
+  }
+  try { return { node: parseWholeExpression(once.toks) } } catch { return { refuse: sentence(taCall.value) } }
+}
+
 function markAfterLoop(ctx, binding) {
   if (ctx && ctx.loopSeen && ctx.loopSeen.v && binding && typeof binding === 'object'
       && binding.kind !== 'param' && binding.kind !== 'fn') binding.afterLoop = true
@@ -12751,7 +12804,13 @@ function foldIfChain(stmts, i, ctx, env) {
     let armCtx = ctx
     if (ctx && typeof ctx.condAware === 'function') {
       if (br.condToks) armsVary = armsVary || ctx.condAware(br.condToks)
-      if (armsVary !== !!ctx.conditional) armCtx = { ...ctx, conditional: armsVary }
+      // ⭐ C42 — an arm runs exactly ONCE when its own condition is provably
+      // `barstate.islast` (or the block it stands in already is): never an
+      // `else`, whose bars are every bar the arms above did not take.
+      const once = !!ctx.oneExecution || (!!br.condToks && guardIsLastBarOnly(br.condToks))
+      if (armsVary !== !!ctx.conditional || once !== !!ctx.oneExecution) {
+        armCtx = { ...ctx, conditional: armsVary, oneExecution: once }
+      }
     }
     const value = foldStatements(br.sub, armCtx, branchEnv)
     arms.push({ cond, env: branchEnv, value, tok: br.tok })
@@ -12801,6 +12860,9 @@ function foldIfChain(stmts, i, ctx, env) {
       }
       env.set(name, stateBinding(
         wasState.seed, wasState.seedEnv, update, new Map(before), wasState.at))
+      // ⭐ C42 — the chain's fold is a NEW binding: it keeps an arm's mark.
+      const marked = [...arms.map((a) => a.env.get(name)), wasState].find((b) => b && b.condCall)
+      if (marked) env.get(name).condCall = marked.condCall
       recordReassign(ctx, stmts[i], name, env)
       continue
     }
@@ -14529,6 +14591,16 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       }
       if (prior.kind === 'state') {
         env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
+        // ⭐ C42 — a `var` written from a `ta.*` call in a block that does not run
+        // on every bar holds that call's answer from then on; no one-execution
+        // binding is built for a running variable, so the object lane refuses it
+        // by name (and a later write keeps the mark: the value is still in it).
+        const stateMark = condCallMark(ctx, toks.slice(mut + 1), nameTok.value)
+        const carried = stateMark
+          ? (stateMark.refuse || `\`${nameTok.value}\` is written from a \`ta.*\` call inside a block that runs once, `
+            + 'and a running variable is not read on that one run here')
+          : prior.condCall
+        if (carried && env.get(nameTok.value) !== prior) env.get(nameTok.value).condCall = carried
         ctx.consumed.add(toks[mut].index)
         // ⭐ C11b — the state path records too; the expression path below always did.
         record(st, nameTok.value)
@@ -14538,16 +14610,23 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       const rhs = parseWholeExpression(toks.slice(mut + 1))
       // `x += e` is `x := x + e`, and the `x` on the right is the binding that
       // was in scope a moment ago — which `boundNode` freezes.
-      const node = op === ':='
-        ? rhs
+      const asWrite = (value) => (op === ':='
+        ? value
         : {
           type: 'binary',
           op: op[0],
           left: boundNode(prior, nameTok.value, nameTok),
-          right: rhs,
+          right: value,
           tok: toks[mut],
-        }
-      env.set(nameTok.value, exprBinding(node, new Map(env), locate(nameTok)))
+        })
+      const node = asWrite(rhs)
+      // ⭐ C42 — a reassignment to a `ta.*` call is the same call in the same
+      // block as a declaration of one (below): marked the same way.
+      const mark = condCallMark(ctx, toks.slice(mut + 1), nameTok.value)
+      const priorEnv = new Map(env)
+      env.set(nameTok.value, exprBinding(node, priorEnv, locate(nameTok)))
+      if (mark && mark.node) env.get(nameTok.value).oneExecution = exprBinding(asWrite(mark.node), priorEnv, locate(nameTok))
+      else if (mark) env.get(nameTok.value).condCall = mark.refuse
       record(st, nameTok.value)
       ctx.consumed.add(toks[mut].index)
       i += 1
@@ -14586,20 +14665,22 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       // condition, or one above it, is not bar-invariant; the block harvest for
       // a block under one) such a local is MARKED and the object lane refuses it
       // by name; nothing here serves the call-history value.
-      const taCall = ctx && ctx.conditional
-        ? rhs.find((t, k) => t && t.kind === 'ident' && String(t.value).startsWith('ta.')
-          && rhs[k + 1] && isPunct(rhs[k + 1], '('))
-        : null
+      // ⭐⭐ C42 — AND WHERE THE BLOCK RUNS EXACTLY ONCE (`ctx.oneExecution`: an
+      // arm whose condition is provably `barstate.islast`) THE CALL'S ANSWER IS
+      // WITNESSED for `ta.highest` (its source) and `ta.sma` (`na`): the mark
+      // then carries a second binding — the right-hand side as it reads on that
+      // one run (`oneExecutionTokens`) — and the object lane reads it instead.
+      const mark = condCallMark(ctx, rhs, nameTok.value)
+      const declEnv = new Map(env)
       env.set(nameTok.value, exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
-        new Map(env), locate(nameTok)))
+        declEnv, locate(nameTok)))
       // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
       // has (and mints the parameters it always did); the OBJECT lane's Resolver
-      // (`refuseCondCalls`) refuses it by the sentence carried here.
-      if (taCall) {
-        env.get(nameTok.value).condCall = `\`${nameTok.value}\` calls \`${taCall.value}\` inside a block`
-          + ' that does not run on every bar, and that call sees only the bars its block runs on'
-      }
+      // (`refuseCondCalls`) refuses it by the sentence carried here, or reads
+      // the one-execution binding beside it.
+      if (mark && mark.node) env.get(nameTok.value).oneExecution = exprBinding(mark.node, declEnv, locate(nameTok))
+      else if (mark) env.get(nameTok.value).condCall = mark.refuse
       record(st, nameTok.value)
       // ⭐⭐ 2026-09-28 — A DECLARATION THAT ENDS A FUNCTION BODY IS ITS VALUE.
       // Pine returns the value of a body's LAST statement, and a declaration's
@@ -14923,6 +15004,30 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const rtSpecs = []
   /** The op being converted, when it may be read from the runtime lane. */
   let rtOp = null
+  /** ⭐ C42 — lines of the statements the object reader read on their block's one
+   *  execution (`collectObjectOps`, set once it has run). */
+  let onceLines = null
+  /** ⛔⛔ C42 — does this value read a name bound to a `ta.*` call in a block that
+   *  does not run on every bar (`condCall` / `oneExecution`, through any chain of
+   *  bindings)? The runtime lane would answer it with the every-bar number. */
+  const rtCondTainted = (node, scope, depth = 0, seen = new Set()) => {
+    if (!node || typeof node !== 'object' || depth > 48) return false
+    if (Array.isArray(node)) return node.some((x) => rtCondTainted(x, scope, depth + 1, seen))
+    if (node.type === 'name' && typeof node.name === 'string') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      if (b && (b.condCall || b.oneExecution)) return true
+      if (b && b.kind === 'expr' && b.node && !seen.has(b)) {
+        seen.add(b)
+        return rtCondTainted(b.node, b.env || scope, depth + 1, seen)
+      }
+      return false
+    }
+    for (const [k, v] of Object.entries(node)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      if (rtCondTainted(v, scope, depth + 1, seen)) return true
+    }
+    return false
+  }
   /** Every node inside that op's own argument trees (identity). */
   let rtArgNodes = null
   /** ⛔ A DRAWING THE RUNTIME LANE FEEDS IS DRAWN WHOLE OR NOT AT ALL. The
@@ -14967,6 +15072,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const rtKnownKind = objectOpts.runtimeKinds instanceof Map ? objectOpts.runtimeKinds : null
   const rtPlaceholder = (node, want = 'num') => {
     if (rtSpecs.length >= MAX_RUNTIME_VALUES) return null
+    if (node && rtCondTainted(node, scopeEnv)) return null
     const key = rtKeyOf(node)
     // ⛔ A value the runtime lane named as not a number stays refused (see
     // `translatePine`'s runtime rounds).
@@ -15052,6 +15158,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     && (op.k === 'create' || op.k === 'cell' || op.k === 'update' || op.k === 'delete')
     && !op.inlined && !(op.loopIds && op.loopIds.length) && !op.once
     && op.at && Number.isInteger(op.at.line) && Number.isInteger(op.at.column)
+    // ⛔ C42 — a statement read as it answers on its block's one run: the
+    // runtime lane runs it as written, its `ta.*` over every bar.
+    && !(onceLines && onceLines.has(op.at.line))
     && rtLastBarOnly(op)
   const rtCollectArgNodes = (op) => {
     const set = new WeakSet()
@@ -15103,6 +15212,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       },
     } : {}),
   })
+  onceLines = collected.onceLines || null
   // ⭐⭐ C22 — A `var` ARRAY DECLARED INSIDE A DRAWING FUNCTION IS ITS CALL
   // SITE'S OWN WINDOW. Pine gives every call site its own `var` storage (the
   // inliner renames the body's locals per site), so vdubus-pattern-gen's
@@ -15321,6 +15431,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   if (refusedCalls.length) {
     diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
       + (rc.detail ? ` (${rc.detail})` : ''))
+  }
+  // ⭐ C42 — calls inlined as they read on their ONE execution (`inlineCall`).
+  if (collected.diagnostics && collected.diagnostics.oneExecutionCalls) {
+    diagnostics.oneExecutionCalls = collected.diagnostics.oneExecutionCalls
   }
   if (collected.diagnostics && collected.diagnostics.inlinedCalls) {
     diagnostics.inlinedCalls = collected.diagnostics.inlinedCalls
@@ -15582,6 +15696,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const openName = (node, scope, depth) => {
     if (!node || node.type !== 'name' || depth > 8) return null
     const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    // ⭐ C42 — a name bound to a conditional `ta.*` call opens to what the call
+    // answers on its block's one run, and does not open at all where that is
+    // not known: the Resolver then refuses it by name (`condCall`).
+    if (bound && bound.kind === 'expr' && bound.oneExecution) {
+      return { node: bound.oneExecution.node, env: bound.oneExecution.env || scope, afterLoop: !!bound.afterLoop }
+    }
+    if (bound && bound.kind === 'expr' && bound.condCall) return null
     if (bound && bound.kind === 'expr') return { node: bound.node, env: bound.env || scope, afterLoop: !!bound.afterLoop }
     return null
   }
@@ -15801,6 +15922,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
+    // ⛔ C42 — a call the object reader marked in a block that runs once (see
+    // `Resolver.resolveCall`): this reader steps into a helper's body itself,
+    // so it is refused here too, by the same sentence.
+    if (node.type === 'call' && node.tok && node.tok.onceUnwitnessed) {
+      const err = new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — \`${node.name}\` is called inside a block that runs once `
+        + '(`barstate.islast`), where its history holds only that one run; what it answers there is not '
+        + 'witnessed (probe `vw-call-site-history`)', locate(node.tok))
+      err.noRuntime = true
+      lastCanonRefusal = err
+      return null
+    }
     // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
     if (depth === 0 && !inline) textWork = { steps: 0, over: false }
     if (textWork.over) return null
@@ -19218,11 +19351,40 @@ function translatePineResult(source, opts = {}) {
   /** ⭐ C31 — top-level names fixed for the whole run (`barInvariantNames`, the
    *  drawing inliner's own reader), so a fold can tell a guard that holds on
    *  every bar from one that does not (`foldIfChain`, `ctx.condAware`). */
-  let invariantNames = null
-  try { invariantNames = barInvariantNames(stmts, { isPunct, findTop, boundName }) } catch { invariantNames = null }
-  const guardVaries = (condToks) => !invariantNames || !condToks || !condToks.length
-    || !guardIsBarInvariant(condToks, invariantNames)
-  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries }
+  // ⛔⛔ C42 — READ ON FIRST USE, NOT HERE. ⚰️ This line ran `barInvariantNames(
+  // stmts, …)` where it stands — above `let stmts`, so the read threw
+  // (temporal dead zone), the `catch` answered null, and EVERY guard was taken
+  // to vary: `if showTable` over an `input.bool` refused a `ta.*` local that
+  // runs on every bar (measured: `show = input.bool(true)` / `if show` /
+  // `float v = ta.highest(high, 10)` lost its label, `create:label`). The walk
+  // asks only after the statements exist.
+  let invariantNames
+  const invariantNamesOf = () => {
+    if (invariantNames === undefined) {
+      try { invariantNames = barInvariantNames(stmts, { isPunct, findTop, boundName }) } catch { invariantNames = null }
+    }
+    return invariantNames
+  }
+  const guardVaries = (condToks) => !invariantNamesOf() || !condToks || !condToks.length
+    || !guardIsBarInvariant(condToks, invariantNamesOf())
+  /** ⭐ C42 — the script's value functions that read their own history
+   *  (`callHistoryFunctions`), read on first use; a drawing function is judged
+   *  where the object reader inlines it. Unreadable → none (the fold then marks
+   *  what it always did). */
+  let historyFnsMemo
+  const historyFnsOf = () => {
+    if (historyFnsMemo === undefined) {
+      try {
+        const H = { isPunct, findTop, boundName }
+        const defs = readFunctionDefs(stmts, H)
+        const drawing = drawingFunctions(defs, objectCollections(stmts, H))
+        historyFnsMemo = new Set([...callHistoryFunctions(defs, H, callOwnedSeriesFor(stmts, H))]
+          .filter((n) => !drawing.has(n)))
+      } catch { historyFnsMemo = new Set() }
+    }
+    return historyFnsMemo
+  }
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -19245,7 +19407,7 @@ function translatePineResult(source, opts = {}) {
    *  already refused and its refusal already reported. What is kept is whatever
    *  was bound before the throw, which is exactly as authoritative as a binding
    *  from a chain that folded: same reader, same constructor. */
-  const harvestBlockLocals = (list, baseEnv, conditional = true) => {
+  const harvestBlockLocals = (list, baseEnv, conditional = true, oneExecution = false) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
     // ⛔⛔ ITS OWN `consumed` SET, SHARING ONLY THE RECORD. ⚰️ MEASURED: with the
@@ -19267,11 +19429,11 @@ function translatePineResult(source, opts = {}) {
     // own map, and those records are marked APPROXIMATE (`approxRecords`):
     // `scopeFor` trusts them only for a name the walk did not condemn.
     const loopSeen = { v: false }
-    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
+    const harvestCtx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, conditional, oneExecution, loopStepOver: true, loopSeen }
     try { foldStatements(list, harvestCtx, scope) } catch { /* recorded up to the throw */ }
     const nested = new Map()
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested, conditional || subBlockVaries(st2), loopSeen)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, nested, conditional || subBlockVaries(st2), loopSeen, subBlockOnce(st2, oneExecution))
     }
     for (const [st2, byName] of nested) {
       let into = bindingByStatement.get(st2)
@@ -19284,14 +19446,26 @@ function translatePineResult(source, opts = {}) {
     }
   }
   /** The recursion's own fold: same reader, its own record map (see above). */
-  const harvestNested = (list, baseEnv, into, conditional = true, loopSeen = { v: false }) => {
+  const harvestNested = (list, baseEnv, into, conditional = true, loopSeen = { v: false }, oneExecution = false) => {
     if (!list || !list.length) return
     const scope = new Map(baseEnv)
-    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, conditional, loopStepOver: true, loopSeen }
+    const ctx2 = { consumed: new Set(), bindingByStatement: into, condAware: guardVaries, historyFns: historyFnsOf, conditional, oneExecution, loopStepOver: true, loopSeen }
     try { foldStatements(list, ctx2, scope) } catch { /* recorded up to the throw */ }
     for (const st2 of list) {
-      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2), loopSeen)
+      if (st2 && st2.sub && st2.sub.length) harvestNested(st2.sub, scope, into, conditional || subBlockVaries(st2), loopSeen, subBlockOnce(st2, oneExecution))
     }
+  }
+  /** ⭐ C42 — does the body of this statement run exactly ONCE? An `if` / `else
+   *  if` whose own condition is provably `barstate.islast`, or any block inside
+   *  one that already does — except a loop's body (several passes) and a bare
+   *  `else` reached from a block that does not. */
+  const subBlockOnce = (st2, parentOnce) => {
+    const t = (st2 && st2.header) || []
+    const w = t[0] && t[0].kind === 'ident' ? t[0].value : null
+    if (w === 'for' || w === 'while') return false
+    if (w === 'if') return parentOnce || guardIsLastBarOnly(t.slice(1))
+    if (w === 'else' && t[1] && t[1].kind === 'ident' && t[1].value === 'if') return parentOnce || guardIsLastBarOnly(t.slice(2))
+    return parentOnce
   }
   /** ⭐ C31 — does the body of this statement run on only some bars? An `if`
    *  whose own condition is bar-invariant does not; an `else` arm, a loop body
@@ -19695,7 +19869,7 @@ function translatePineResult(source, opts = {}) {
           const isElseIf = ht[0] && ht[0].value === 'else' && ht[1] && ht[1].value === 'if'
           const cond = ht[0] && ht[0].value === 'if' ? ht.slice(1) : isElseIf ? ht.slice(2) : null
           if (cond) chainVaries = chainVaries || guardVaries(cond)
-          harvestBlockLocals(stmts[k].sub, env, chainVaries)
+          harvestBlockLocals(stmts[k].sub, env, chainVaries, !!cond && guardIsLastBarOnly(cond))
         }
         si = last
       }

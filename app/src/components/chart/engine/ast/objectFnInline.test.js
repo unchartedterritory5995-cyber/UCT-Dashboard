@@ -7,9 +7,9 @@
 // end-to-end cases also run `evaluateObjects`, because an op that is emitted and
 // then never fires is the failure this wave exists to stop.
 import { describe, it, expect } from 'vitest'
-import { translatePine } from './pine'
+import { translatePine, lexPine } from './pine'
 import { evaluateObjects } from '../objectRuntime'
-import { guardIsBarInvariant } from './objectFnInline'
+import { guardIsBarInvariant, guardIsLastBarOnly, oneExecutionTokens, taCallIn } from './objectFnInline'
 
 const LF = String.fromCharCode(10)
 const src = (...lines) => ['//@version=5', 'indicator("t", overlay=true)', ...lines].join(LF)
@@ -308,9 +308,20 @@ describe('⭐⭐ a conditional call under a BAR-INVARIANT guard inlines', () => 
     expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
   })
 
-  it('⛔ `barstate.islast` varies — the TSR `f_clearAll` shape still refuses', () => {
+  // ⭐ C42 — `barstate.islast` still VARIES (the call does not run on every bar),
+  // but it runs exactly ONCE, and what `ta.highest(high, 10)` answers on that
+  // one run is witnessed (`vendorHarness.c42OneExecution`): its source.
+  it('⭐ `barstate.islast` varies, and runs once — `ta.highest(src, len)` inlines as its source', () => {
     const t = host(src(...body, 'if barstate.islast', '    f()'))
+    expect(diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history']).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+    expect(diag(t).oneExecutionCalls).toBe(1)
+  })
+
+  it('⛔ CONTROL — under `barstate.islast` a `ta.*` no capture shows on its first run still refuses', () => {
+    const t = host(src('f() =>', '    label.new(bar_index, ta.lowest(low, 10), "x")', 'if barstate.islast', '    f()'))
     expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
+    expect(diag(t).oneExecutionCalls).toBeUndefined()
   })
 
   it('⛔ an EMPTY guard — the unreadable marker the walk leaves — is never invariant', () => {
@@ -341,7 +352,11 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
   })
 
   it('⛔ CONTROL — `ta.*` in the same body is the call\'s own state, still refused', () => {
-    expect(refused(underLast('    label.new(bar_index, low[k] + ta.sma(close, 3), "x")'))).toBe(1)
+    // ⭐ C42 — `ta.ema`: the one-run answer of `ta.sma` / `ta.highest` is witnessed now
+    expect(refused(underLast('    label.new(bar_index, low[k] + ta.ema(close, 3), "x")'))).toBe(1)
+    const varies = host(src('f(int k) =>', '    label.new(bar_index, low[k] + ta.sma(close, 3), "x")',
+      'if close > open', '    f(5)'))
+    expect(refused(varies)).toBe(1)
   })
 
   it('⭐ `for [i, v] in line.all` is a destructure, not a history read on `for` (TSR `f_clearAll`)', () => {
@@ -376,9 +391,25 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
     expect(refused(t)).toBeUndefined()
   })
 
-  it('⛔ an unwitnessed chart series (`bar_index[k]`) is refused BY NAME, with the capture that settles it', () => {
-    const t = underLast('    label.new(bar_index[k], low, "x")')
+  it('⛔ an unwitnessed chart series (`time_close[k]`) is refused BY NAME, with the capture that settles it', () => {
+    const t = underLast('    label.new(bar_index, low, str.tostring(time_close[k]))')
     expect(refused(t)).toBe(1)
+    expect(diag(t).refusedCalls[0]).toContain('vw-call-site-history')
+  })
+
+  // ⭐ C42 — capture `vw-fn-series-history-rddt-1d-2026-09-30`
+  it('⭐ `volume[k]` / `time[k]` / `hl2[k]` / `hlc3[k]` / `ohlc4[k]` are witnessed the chart\'s, under any guard', () => {
+    const t = host(src('f(int k) =>',
+      '    label.new(bar_index, hl2[k] + hlc3[k] + ohlc4[k], str.tostring(volume[k]) + str.tostring(time[k]))',
+      'if close > open', '    f(5)'))
+    expect(refused(t)).toBeUndefined()
+    expect(diag(t).inlinedCalls).toBe(1)
+  })
+
+  it('⛔ `bar_index[k]` is witnessed NOT the chart\'s: refused by name under a guard that varies', () => {
+    const t = host(src('f(int k) =>', '    label.new(bar_index[k], low, "x")', 'if close > open', '    f(5)'))
+    expect(refused(t)).toBe(1)
+    expect(diag(t).refusedCalls[0]).toContain('`bar_index[…]`')
     expect(diag(t).refusedCalls[0]).toContain('vw-fn-series-history')
   })
 })
@@ -420,5 +451,83 @@ describe('⭐⭐ C34 — a call inside a loop this reader does not run is INLINE
     const t = host(src('var pts = array.new_float()', 'f(float p) =>',
       '    label.new(bar_index, ta.sma(close, 3), "x")', 'for p in pts', '    f(p)'))
     expect(diag(t).dropReasons['fn:conditional-history']).toBe(1)
+  })
+})
+
+// ⭐⭐ C42 (2026-09-30) — A CALL THAT RUNS EXACTLY ONCE. The vendor witness is
+// `vendorHarness.c42OneExecution` (`vw-fn-series-history-rddt-1d-2026-09-30`);
+// these rails pin the two readers it is built from, each beside what it must
+// leave alone.
+describe('⭐⭐ C42 — a guard that is provably `barstate.islast`', () => {
+  const g = (text) => guardIsLastBarOnly(lexPine(text).tokens)
+
+  it('⭐ alone, or as a top-level `and` conjunct', () => {
+    expect(g('barstate.islast')).toBe(true)
+    expect(g('showTable and barstate.islast')).toBe(true)
+    expect(g('barstate.islast and close > open and showTable')).toBe(true)
+  })
+
+  it('⛔ fails closed: `not`, `or`, a ternary, brackets, another `barstate.*`, nothing', () => {
+    expect(g('not barstate.islast')).toBe(false)
+    expect(g('barstate.islast or close > open')).toBe(false)
+    expect(g('showTable and not barstate.islast')).toBe(false)
+    expect(g('showTable ? barstate.islast : true')).toBe(false)
+    expect(g('(barstate.islast)')).toBe(false)
+    expect(g('barstate.islastconfirmedhistory')).toBe(false)
+    expect(g('barstate.isconfirmed')).toBe(false)
+    expect(g('close > open')).toBe(false)
+    expect(guardIsLastBarOnly([])).toBe(false)
+    expect(guardIsLastBarOnly(null)).toBe(false)
+  })
+})
+
+describe('⭐⭐ C42 — tokens as they read on ONE execution', () => {
+  const H = { isPunct: (tk, v) => !!tk && tk.kind === 'punct' && tk.value === v }
+  const toks = (text) => lexPine(text).tokens
+  const show = (list) => list.map((tk) => String(tk.value)).join(' ')
+  const once = (text, opts) => oneExecutionTokens(toks(text), H, opts)
+
+  it('⭐ `ta.highest(src, len)` → its source; `ta.sma(src, len ≥ 2)` → na; nested calls too', () => {
+    expect(show(once('x = ta.highest(high, 10)').toks)).toBe('x = ( high )')
+    expect(show(once('x = ta.sma(close, 3) + 1').toks)).toBe('x = na + 1')
+    expect(show(once('x = ta.highest(ta.highest(high, 3) - ta.sma(close, 2), n)').toks)).toBe('x = ( ( high ) - na )')
+    expect(once('x = ta.highest(high, 10)').why).toBeNull()
+    expect(once('x = ta.highest(high, 10)').left).toBeNull()
+  })
+
+  it('⛔ a form the capture does not show is named, and left standing', () => {
+    expect(once('x = ta.highest(10)').why).toMatch(/only `ta\.highest\(source, length\)` is witnessed/)
+    expect(once('x = ta.sma(close, len)').why).toMatch(/whose length is not a whole number above 1/)
+    expect(once('x = ta.sma(close, 1)').why).toMatch(/whose length is not a whole number above 1/)
+    expect(once('x = ta.highest(source = high, length = 10)').why).toMatch(/only `ta\.highest/)
+    const r = once('x = ta.lowest(low, 10) + ta.highest(high, 10)')
+    expect(r.why).toBeNull()
+    expect(String(r.left.value)).toBe('ta.lowest')
+    expect(show(r.toks)).toBe('x = ta.lowest ( low , 10 ) + ( high )')
+  })
+
+  it('⭐ `flagRest` marks every `ta.*` call left standing — and nothing else', () => {
+    const r = once('x = ta.lowest(low, 10) + ta.highest(high, 10) + math.max(a, b)', { flagRest: true })
+    expect(r.toks.filter((tk) => tk.onceUnwitnessed).map((tk) => tk.value)).toEqual(['ta.lowest'])
+    expect(once('x = ta.highest(high, 10)', { flagRest: true }).toks.some((tk) => tk.onceUnwitnessed)).toBe(false)
+  })
+
+  it('⭐ call-owned history: a literal offset above 0 → na; anything else is named', () => {
+    const owned = new Set(['x', 'src', 'bar_index'])
+    expect(show(once('y = x[1] + src[2] + bar_index[5] + close[1]', { owned }).toks)).toBe('y = na + na + na + close [ 1 ]')
+    expect(once('y = x[0]', { owned }).why).toMatch(/`x\[…\]`.*whole number above 0/)
+    expect(once('y = x[n]', { owned }).why).toMatch(/`x\[…\]`/)
+    // a parameter bound to a literal is that literal; bound to anything else it is not
+    const bind = new Map([['k', toks('5')], ['j', toks('bar_index - 3')]])
+    expect(show(once('y = x[k]', { owned, bind }).toks)).toBe('y = na')
+    expect(once('y = x[j]', { owned, bind }).why).toMatch(/`x\[…\]`/)
+    // `float[] x` is a type, not a read
+    expect(show(once('float[] x = array.new_float()', { owned: new Set(['float']) }).toks)).toBe('float [ ] x = array.new_float ( )')
+  })
+
+  it('⭐ `taCallIn` finds a `ta.*` CALL, never a name or a member', () => {
+    expect(String(taCallIn(toks('x = 1 + ta.rsi(close, 14)')).value)).toBe('ta.rsi')
+    expect(taCallIn(toks('x = ta_len + data.ta'))).toBeNull()
+    expect(taCallIn(toks('x = math.max(a, b)'))).toBeNull()
   })
 })
