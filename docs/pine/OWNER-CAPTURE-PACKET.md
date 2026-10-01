@@ -466,3 +466,48 @@ saved again. They are the owner's to delete.
 | why `ticker.modify(…, session.extended)` reads regular-session intrabars on a 1D chart, and 71 a week on 1W | not asked by any probe |
 | `bar_index[k]` in a conditional call reading `na` | measured, surprising; a second probe (e.g. `bar_index[k]` beside `bar_index - k`, and `time_close[k]` / `hlcc4[k]`) would bound it |
 | a negative `x1 + avg + 1` | truncation and floor not told apart |
+
+---
+
+## Results — capture session 2026-10-01
+
+⛔ **NO CAPTURE WAS TAKEN. The Chrome extension was not connected.**
+
+Read at 17:46–17:55 UTC (13:46–13:55 ET, a Thursday, the US market open):
+
+```
+tabs_context_mcp          "Browser extension is not connected"   (3 calls, 3 identical answers)
+list_connected_browsers   []                                      (the evening session listed 1)
+```
+
+No browser was reachable, so the sign-in check could not even be asked. The lane stopped
+after the third consecutive failure, as its limits say; nothing was opened, typed or saved
+anywhere. Every row below is still owed.
+
+| # | capture | status |
+|---|---|---|
+| 1 | Q-T5 `vw-time-tf.pine` + `vw-time-close-tf.pine`, AMEX:SPY 1D, FULL history | ⏳ not taken |
+| 2 | `vw-call-site-history.pine` (C42), NYSE:RDDT 1D from the listing, AMEX:SPY 1D second witness | ⏳ not taken — never compiled |
+| 3 | `vw-forin-collections.pine` (C40), NYSE:RDDT 1D | ⏳ not taken — never compiled |
+| 4 | Q-T2 both time probes on FX:EURUSD 1D · Q-T4 both on SPY 1W and 1M · Q-T3 `vw-time-tf.pine` on SPY 5 and 15 | ⏳ not taken |
+| 5a | C33 `vw-input-tf-text-v5.pine`, `vw-input-tf-text-v6.pine`, `vw-getter-history.pine`, AMEX:SPY 1D | ⏳ not taken — written this session |
+| 5b | C43 `vw-int-array-avg-neg.pine`, AMEX:SPY 1D | ⏳ not taken — written this session |
+| 5c | C37 Q-T1 `vw-theme-colours.pine`, AMEX:SPY 1D, the chart's current theme only | ⏳ not taken — written this session |
+| 5d | C38 `vw-colour-components.pine`, AMEX:SPY 1D | ⏳ not taken — written this session |
+| 6 | packet #3 `request-realtime-alignment.pine`, SPY 5m, RTH, newest bar forming | ⏳ not taken — the market WAS open; the browser was the only thing missing |
+
+⚠️ **The six probes written this session have NEVER been compiled by TradingView** (nor
+have `vw-call-site-history.pine` and `vw-forin-collections.pine`). They are committed so
+the next visit is a capture, not an authoring session. What each asks, and the reading
+that splits the candidates, is in its own header. Two notes for whoever runs them:
+
+- `vw-int-array-avg-neg.pine`: a positive sum cannot tell truncation from floor (that is
+  why the 2026-09-30 capture could not), so its Z / Y lines are anchored at **bar 0**,
+  where `get_x1() + avg + 1` is itself negative. A line at a negative bar index may be a
+  runtime error — then the error text is the reading, and the N / P / A rows need the
+  Z / Y helpers cut out.
+- `vw-theme-colours.pine`: capture under the chart's current theme and write down which
+  one it is; the owner's theme and background settings are not to be changed.
+
+**What the next visit needs first:** the Claude extension connected in the Chrome that is
+signed in as `TSDR_TRADING`, with that window on screen.

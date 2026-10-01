@@ -1,0 +1,94 @@
+//@version=6
+indicator("UCTPROBE_VW_COLOUR_COMPONENTS", overlay = false)
+
+// --- 2026-10-01 C38 - `color.r/g/b/t` OF THE FORMS NO CAPTURE ASKS -------------------
+//
+// `vw-gradient-spy-1d-2026-09-30` settled a gradient between two fixed colours over
+// literal bounds, and `color.new` of a literal. Refused as `pine:colour-value`, each
+// for want of a row: an eight-digit literal, an `input.color`, a per-bar
+// transparency, a ternary of two colours, a gradient over per-bar bounds, a gradient
+// whose top equals its bottom, a gradient with an `na` bound, a gradient between two
+// gradients, a user colour helper. One group of rows per form, as numbers.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. `v` sweeps 0 -> 1 every 101 bars.
+
+v = (bar_index % 101) / 100.0
+
+// K: an eight-digit literal (alpha 0x4D, 0x80)
+k1 = #0064C84D
+k2 = #FF323280
+// I: input.color, with and without a transparency
+i1 = input.color(#FF3232, "plain")
+i2 = input.color(color.new(#0064C8, 35), "with transparency")
+// N: a per-bar transparency
+n1 = color.new(color.red, bar_index % 101)
+n2 = color.new(#0064C84D, v * 100)
+// Q: a ternary of two colours (different in every component)
+q1 = close > open ? color.rgb(10, 200, 30, 20) : color.rgb(250, 40, 90, 60)
+q2 = close > open ? #0064C84D : color.red
+// B: a gradient over PER-BAR bounds
+cA = color.rgb(0, 100, 200, 70)
+cB = color.rgb(255, 50, 50, 10)
+b1 = color.from_gradient(close, low, high, cA, cB)
+// E: top == bottom; and reversed bounds
+e1 = color.from_gradient(v, 0.5, 0.5, cA, cB)
+e2 = color.from_gradient(v, 1, 0, cA, cB)
+// X: an na bound, an na value
+x1 = color.from_gradient(v, na, 1, cA, cB)
+x2 = color.from_gradient(na, 0, 1, cA, cB)
+// G: a gradient between two gradients
+g1 = color.from_gradient(v, 0, 1, color.rgb(0, 0, 0, 0), color.rgb(200, 100, 50, 80))
+g2 = color.from_gradient(v, 0, 1, color.rgb(255, 255, 255, 100), color.rgb(20, 40, 60, 0))
+gg = color.from_gradient(v, 0, 1, g1, g2)
+// U: a user colour helper
+f_fade(color c, float t) => color.new(c, t)
+u1 = f_fade(color.rgb(12, 34, 56), 25)
+
+plot(bar_index,   "K00_bar_index_CONTROL")
+plot(v,           "K01_v")
+plot(color.r(k1), "K02_lit8_0064C84D_r")
+plot(color.g(k1), "K03_lit8_0064C84D_g")
+plot(color.b(k1), "K04_lit8_0064C84D_b")
+plot(color.t(k1), "K05_lit8_0064C84D_t")
+plot(color.t(k2), "K06_lit8_FF323280_t")
+plot(color.r(k2), "K07_lit8_FF323280_r")
+plot(color.r(i1), "I01_input_plain_r")
+plot(color.g(i1), "I02_input_plain_g")
+plot(color.t(i1), "I03_input_plain_t")
+plot(color.b(i2), "I04_input_transp35_b")
+plot(color.t(i2), "I05_input_transp35_t")
+plot(color.t(n1), "N01_new_red_perbar_t")
+plot(color.r(n1), "N02_new_red_perbar_r")
+plot(color.t(n2), "N03_new_lit8_perbar_t")
+plot(color.b(n2), "N04_new_lit8_perbar_b")
+plot(close > open ? 1 : 0, "Q00_up_bar")
+plot(color.r(q1), "Q01_ternary_r")
+plot(color.g(q1), "Q02_ternary_g")
+plot(color.b(q1), "Q03_ternary_b")
+plot(color.t(q1), "Q04_ternary_t")
+plot(color.t(q2), "Q05_ternary_lit8_vs_name_t")
+plot(color.r(q2), "Q06_ternary_lit8_vs_name_r")
+plot(high == low ? na : (close - low) / (high - low), "B00_position_in_range")
+plot(color.r(b1), "B01_grad_perbar_r")
+plot(color.g(b1), "B02_grad_perbar_g")
+plot(color.b(b1), "B03_grad_perbar_b")
+plot(color.t(b1), "B04_grad_perbar_t")
+plot(color.r(e1), "E01_grad_top_eq_bottom_r")
+plot(color.b(e1), "E02_grad_top_eq_bottom_b")
+plot(color.t(e1), "E03_grad_top_eq_bottom_t")
+plot(color.r(e2), "E04_grad_reversed_bounds_r")
+plot(color.t(e2), "E05_grad_reversed_bounds_t")
+plot(color.r(x1), "X01_grad_na_bound_r")
+plot(color.t(x1), "X02_grad_na_bound_t")
+plot(color.r(x2), "X03_grad_na_value_r")
+plot(color.t(x2), "X04_grad_na_value_t")
+plot(color.r(gg), "G01_grad_of_grads_r")
+plot(color.g(gg), "G02_grad_of_grads_g")
+plot(color.b(gg), "G03_grad_of_grads_b")
+plot(color.t(gg), "G04_grad_of_grads_t")
+plot(color.r(g1), "G05_inner1_r")
+plot(color.t(g1), "G06_inner1_t")
+plot(color.r(g2), "G07_inner2_r")
+plot(color.t(g2), "G08_inner2_t")
+plot(color.r(u1), "U01_helper_r")
+plot(color.t(u1), "U02_helper_t")
