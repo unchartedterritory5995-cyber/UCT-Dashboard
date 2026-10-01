@@ -59,6 +59,10 @@ export const OBJECT_STATUS = Object.freeze({
   // negative / fractional offset). TradingView stops the script and draws
   // nothing, so `finish` holds nothing — never the objects made before it.
   RUNTIME_ERROR: 'OBJECT_RUNTIME_ERROR',
+  // ⭐ C40 — the run reached a step whose meaning on TradingView no committed
+  // capture settles (two readings that draw differently). Nothing is drawn: a
+  // guess is the one answer this lane never gives. `reason` names the capture.
+  UNWITNESSED: 'OBJECT_UNWITNESSED',
 })
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
@@ -442,6 +446,37 @@ export function beginObjects(program, ctx) {
   const runtimeError = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
   }
+  const unwitnessed = (why) => {
+    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.UNWITNESSED; reason = why }
+  }
+  // ⭐⭐ C40 — `for … in <family>.all`: DOES THE BODY CHANGE WHICH OBJECTS OF THE
+  // FAMILY EXIST? A delete of one, or a create (which can also wake the
+  // collector). Read off the program once per loop, never a flag it carries.
+  const familyOfRef = (() => {
+    const regFam = new Map((program.regs || []).map((r) => [r.id, r.family]))
+    const collFam = new Map((program.colls || []).map((c) => [c.id, c.family]))
+    const siteFam = new Map()
+    const scan = (list) => {
+      for (const o of list || []) {
+        if (o.k === 'create') siteFam.set(o.site, o.family)
+        if (o.k === 'loop') scan(o.body)
+      }
+    }
+    scan(program.ops)
+    return (r) => (!isObj(r) ? null : r.r === 'reg' ? regFam.get(r.id) : r.r === 'coll' ? collFam.get(r.id)
+      : r.r === 'site' ? siteFam.get(r.id) : null) || null
+  })()
+  const changesFamily = (list, fam) => (list || []).some((b) => (b.k === 'create' && b.family === fam)
+    || (b.k === 'delete' && (familyOfRef(b.target) === fam || familyOfRef(b.target) === null))
+    || (b.k === 'loop' && changesFamily(b.body, fam)))
+  const walkChanges = new Map()
+  const walkChangesFamily = (op) => {
+    if (!walkChanges.has(op)) walkChanges.set(op, changesFamily(op.body, op.over.all))
+    return walkChanges.get(op)
+  }
+  /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
+   *  hold an object of it this run does not, so `<family>.all` is unknown. */
+  const famUnknown = new Set()
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -1285,6 +1320,7 @@ export function beginObjects(program, ctx) {
           if (op.into) regTaint.add(op.into)
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
+          famUnknown.add(op.family)
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1314,7 +1350,14 @@ export function beginObjects(program, ctx) {
         case 'collclear':
           collLenTaint.add(op.coll)
           break
-        case 'loop': for (const b of op.body || []) taintOutputs(b); break
+        case 'loop':
+          // ⭐ C40 — a walk over every object of a family may act on any of them.
+          if (op.over) {
+            for (const inst of live.values()) if (inst.family === op.over.all) taintInst(inst.id, '*')
+            regTaint.add(op.elem)
+          }
+          for (const b of op.body || []) taintOutputs(b)
+          break
         case 'latch': latches.set(op.id, LATCH_UNKNOWN); break
         default: break
       }
@@ -1401,6 +1444,72 @@ export function beginObjects(program, ctx) {
         // rather than assumed — `for i = n to 0` is a real and common idiom and
         // an ascending-only reader draws nothing for it, silently.
         case 'loop': {
+          // ⭐⭐ C40 — THE CAP: `while array.size(a) > N`, the condition re-read
+          // before every pass (the list's length is this runtime's). ⛔ A pass
+          // that leaves every measured list as long as it was would never end:
+          // the run stops, by name — Pine's own `while` has no such pass here
+          // (the program door requires the removal; an out-of-range one is this).
+          if (op.cond !== undefined) {
+            if (taintSeen && tainted(op.cond)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            const measured = []
+            const sizes = (v, depth = 0) => {
+              if (!isObj(v) || depth > 32) return
+              if (v.v === 'size') measured.push(v.coll)
+              if (Array.isArray(v.args)) v.args.forEach((a) => sizes(a, depth + 1))
+            }
+            sizes(op.cond)
+            const lengthOf = () => measured.reduce((n, c) => n + ((colls.get(c) || []).length), 0)
+            const had = loopVars.has(op.id)
+            const prev = loopVars.get(op.id)
+            let ok = true
+            for (let n = 0; truthy(value(op.cond)); n += 1) {
+              const before = lengthOf()
+              loopVars.set(op.id, n)
+              if (!runOps(op.body)) { ok = false; break }
+              if (lengthOf() >= before) {
+                fail(`a \`while\` over a list's length ran a pass that did not shorten the list (bar ${bar})`)
+                ok = false
+                break
+              }
+            }
+            if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+            if (!ok) return false
+            break
+          }
+          // ⭐⭐ C40 — THE WALK: `for … in line.all` / `box.all` / `label.all`. The
+          // family's live objects, oldest first (what `<family>.all` holds —
+          // `vw-object-gc-d`), taken when the loop starts and handed to the loop
+          // variable's register one at a time.
+          // ⛔ UNWITNESSED, AND NOT RUN: two or more objects AND a body that
+          // deletes or creates objects of the family. Walking what the loop
+          // started with deletes all of them; walking the list as it shrinks
+          // deletes every other one. No committed capture says which, so the run
+          // stops and draws nothing (capture `vw-forin-collections`). With one
+          // object or none, or a body that only moves them, both readings agree.
+          if (op.over !== undefined) {
+            const fam = op.over.all
+            if (famUnknown.has(fam)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            const items = []
+            for (const inst of live.values()) if (inst.family === fam) items.push(inst.id)
+            if (items.length >= 2 && walkChangesFamily(op)) {
+              unwitnessed(`\`for … in ${fam}.all\` over ${items.length} ${fam} objects with a body that deletes or creates `
+                + `${fam} objects (bar ${bar}) — whether TradingView walks the list it started with or the list as it `
+                + 'changes is not captured (capture `vw-forin-collections`)')
+              return false
+            }
+            const had = loopVars.has(op.id)
+            const prev = loopVars.get(op.id)
+            let ok = true
+            for (let n = 0; n < items.length; n += 1) {
+              loopVars.set(op.id, n)
+              regs.set(op.elem, items[n])
+              regTaint.delete(op.elem)
+              if (!runOps(op.body)) { ok = false; break }
+            }
+            if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+            if (!ok) return false
+            break
+          }
           const from = Number(value(op.from))
           const to = Number(value(op.to))
           // ⛔ A BOUND THAT IS NOT A NUMBER RUNS ZERO TIMES, NEVER "from 0".
@@ -1408,6 +1517,9 @@ export function beginObjects(program, ctx) {
           // and treating that as 0 would draw a row of blanks that looks like
           // data. Drawing nothing is the honest answer for a list that is empty.
           if (!Number.isFinite(from) || !Number.isFinite(to)) break
+          // ⭐ C40 — a `for … in` (`0 to size − 1`) never counts down: an empty
+          // list is `0 to −1`, which Pine's counted `for` would run twice.
+          if (op.asc === true && to < from) break
           // ⭐ `by <step>`: Pine steps by the step's SIZE in the direction
           // `from → to` takes. ⛔ A step that is not a positive finite number
           // runs ZERO times — `by 0` would never end, and a guessed 1 would
@@ -1903,7 +2015,9 @@ export function beginObjects(program, ctx) {
   // ⭐ C9 — a Pine runtime error draws NOTHING on TradingView, so nothing is
   // held here: the objects made before the error are not a smaller picture of
   // the script, they are a picture TradingView never shows.
-  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR
+  // ⭐ C40 — and a run stopped on an unwitnessed step holds nothing either: what
+  // it drew before that step is not known to be what TradingView shows after it.
+  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR || status === OBJECT_STATUS.UNWITNESSED
   if (stopped) for (const fam of Object.keys(heldCounts)) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a

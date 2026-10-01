@@ -363,8 +363,15 @@ describe('⭐⭐ C34 — the conditional-history detector reads only the CALL\'s
     const t = underLast('    for [i, v] in line.all', '        line.delete(v)')
     expect(refused(t)).toBeUndefined()
     expect(diag(t).inlinedCalls).toBe(1)
-    // …and its body meets the loop's own refusal, named
-    expect(diag(t).loopBlockedCalls).toContain('line.delete')
+    // ⭐ C40 — and the walk over `line.all` is now a loop the host lane runs, so
+    // its delete is no longer blocked (`objectForInLoops.test.js`).
+    expect(diag(t).loopBlockedCalls).not.toContain('line.delete')
+    // ⛔ …while a `for … in` this lane does not walk (a list of user types) still
+    // hands its body the loop's own refusal, named — C34's rule, unchanged.
+    const u = host(src('type P', '    line l', 'var ps = array.new<P>()', 'f(int k) =>',
+      '    for [i, v] in ps', '        line.delete(v.l)', 'if barstate.islast', '    f(5)'))
+    expect(refused(u)).toBeUndefined()
+    expect(diag(u).loopBlockedCalls).toContain('line.delete')
   })
 
   it('⭐ a built-in method on a CHAINED value (`arr.pop().delete()`) reads no history', () => {

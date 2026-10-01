@@ -186,6 +186,9 @@ export function collectObjectOps(stmts, h) {
     lostColls: [],
     // ⭐ C21 — beside each lost collection, WHY (`<what>@<line>`), same index.
     lostCollsWhy: [],
+    // ⭐ C40 — every `for … in` this pass could have walked and did not, with
+    // why (`<what>@<line>`): the loop then keeps the legacy refusal (`loopBlocked`).
+    forInRefused: [],
   }
   const loseColl = (name, why, tok) => {
     diagnostics.lostColls.push(name)
@@ -287,6 +290,14 @@ export function collectObjectOps(stmts, h) {
   let loopNest = 0
   /** ⭐ C20 — the `while` whose body is being read for the runtime lane, or null. */
   let rtLoop = null
+  /** ⭐ C40 — counters minted for `for … in` and cap-`while` loops (see `walk`),
+   *  and the element names those loops declared (a loop variable is the loop's
+   *  own: a name another statement declared is never taken over). */
+  let hostLoopSeq = 0
+  const forInElems = new Set()
+  /** ⭐ C40 — only the HOST lane runs these loops (`pine.js` `hostPasses`); the
+   *  runtime lane's own object pass keeps the program it had. */
+  const hostLoops = h.hostLoops === true
 
   /**
    * ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS.
@@ -821,6 +832,69 @@ export function collectObjectOps(stmts, h) {
         // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
+        // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
+        // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
+        // every other shape falls through to the refusal below, unchanged.
+        // ⛔ Inside a loop this reader does not run, the body is walked with that
+        // loop's `inLoop`, so every op in it is refused there and no loop is left.
+        if (!head && hostLoops) {
+          const plan = word === 'for' ? forInPlan(t, st) : capWhileOf(t, st)
+          if (plan) {
+            hostLoopSeq += 1
+            const tok0 = t[0]
+            const line = st.header[0].line
+            const T = (kind, value) => ({ kind, value, line: tok0.line, column: tok0.column, index: tok0.index })
+            const counter = plan.idx || `uct_loop_${hostLoopSeq}`
+            let scopeIn = bodyScope
+            const outer = ops
+            const body = []
+            ops = body
+            loopIds.push(counter)
+            loopNest += 1
+            try {
+              if (plan.kind === 'coll') {
+                // The element is a COPY of the slot taken as the pass starts
+                // (C16's eager `copy` → `setreg`): Pine's loop variable.
+                ops.push({
+                  k: 'copy', into: plan.elem, fromColl: plan.src, index: h.parseWholeExpression([T('ident', counter)]),
+                  guards, locals: bodyScope, loopIds: [...loopIds], at: tok0, line,
+                })
+              } else if (plan.kind === 'window') {
+                // The element of a bounded numeric window is `array.get(w, i)` —
+                // the read C32 already serves per pass (`wget`).
+                scopeIn = [...bodyScope, {
+                  name: plan.elem,
+                  toks: [T('ident', 'array.get'), T('punct', '('), T('ident', plan.src), T('punct', ','), T('ident', counter), T('punct', ')')],
+                  st: { header: t, sub: [], synthetic: { fn: 'for … in', mutable: new Set(), carried: new Set() } },
+                }]
+              }
+              walk(st.sub || [], guards, inLoop, scopeIn)
+            } finally {
+              loopNest -= 1
+              loopIds.pop()
+              ops = outer
+            }
+            if (loopRe.length) localScope = [...localScope, ...loopRe]
+            // ⛔ Nothing carried (an element copy alone draws nothing) → no loop op.
+            if (!body.some((b) => !(b.k === 'copy' && b.fromColl === plan.src && b.into === plan.elem))) continue
+            const common = { k: 'loop', id: counter, body, guards, locals: localScope, loopIds: [...loopIds], at: tok0, line }
+            if (plan.kind === 'cap') {
+              ops.push({ ...common, whileToks: t.slice(1), capColl: plan.coll })
+            } else if (plan.kind === 'all') {
+              ops.push({ ...common, forIn: { all: plan.family, elem: plan.elem } })
+            } else {
+              // `0 to size − 1`, never counted down: an empty list runs no pass.
+              ops.push({
+                ...common,
+                from: { value: h.parseWholeExpression([T('number', 0)]) },
+                to: { value: h.parseWholeExpression([T('ident', 'array.size'), T('punct', '('), T('ident', plan.src), T('punct', ')'), T('punct', '-'), T('number', 1)]) },
+                asc: true,
+                forIn: { src: plan.src, elem: plan.kind === 'coll' ? plan.elem : null },
+              })
+            }
+            continue
+          }
+        }
         if (!head) {
           // ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS. See `rtLoopTry`.
           if (word === 'while' && rtLoopTry(st, t, guards, inLoop, bodyScope)) {
@@ -1054,7 +1128,10 @@ export function collectObjectOps(stmts, h) {
           }
           if (rhs[0].value.startsWith('array.new_')) {
             const fam = rhs[0].value.slice('array.new_'.length)
-            if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
+            if (OBJECT_NAMESPACES.includes(fam)) {
+              decls.set(name, { family: fam, kind: 'coll' })
+              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+            }
             continue
           }
           // ⭐⭐ THE GENERIC SPELLING IS THE SAME DECLARATION — `array.new<label>()`.
@@ -1073,7 +1150,10 @@ export function collectObjectOps(stmts, h) {
           // type argument ends.
           if (rhs[0].value === 'array.new' && Array.isArray(rhs[0].typeArgs)) {
             const fam = String(rhs[0].typeArgs[0] || '')
-            if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
+            if (OBJECT_NAMESPACES.includes(fam)) {
+              decls.set(name, { family: fam, kind: 'coll' })
+              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+            }
             continue
           }
         }
@@ -1137,6 +1217,13 @@ export function collectObjectOps(stmts, h) {
       // miss, so a postfix this cannot lower is dropped and COUNTED by
       // `argsOf`'s span guard rather than half-read.
       if (word && h.isPunct(t[1], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
+      // ⭐ C40 — the same statement with its receiver in parentheses:
+      // `(array.shift(ls)).delete()`. ⚰️ It opens with `(`, so no branch here
+      // read it — the delete and the shift vanished with no count. The parser
+      // already folds the parentheses away; `emitPostfix` reads what is left.
+      if (!word && h.isPunct(t[0], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
         continue
       }
 
@@ -1311,6 +1398,220 @@ export function collectObjectOps(stmts, h) {
     }
   }
 
+  // ─── ⭐⭐ C40 — `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while` ──
+  //
+  // C34 showed the helper call was never the wall: the drawing steps sit in
+  // `for x in <list>` and `while array.size(a) > N` loops this reader did not
+  // run. Two of those shapes ARE loops the object runtime can run exactly:
+  //
+  //   for b in fut_boxes            for [i, v] in line.all       for [i, u] in ups
+  //       box.delete(b)                 line.delete(v)               tbl.cell(0, i, str.tostring(u))
+  //   (a declared drawing list)     (every line on the chart)    (a bounded numeric window, C32)
+  //
+  //   while array.size(lbs) > N                 ← the FIFO cap: the oldest goes
+  //       label.delete(array.shift(lbs))
+  //
+  // ⭐ WITNESS (committed capture `trend-lines-supports-and-resistances-rddt-1d-
+  // 2026-09-28`): TradingView walked `for [i, v] in downtrends` over TWO elements
+  // and applied the body to both — lines 8 and 11 are dotted with no colour, and
+  // their extension lines (7, 10) and labels (9, 12) are gone.
+  //
+  // ⛔ SERVED ONLY WHERE THE LOOP HAS ONE READING. A body that changes the list
+  // it walks (`push`/`shift`/`remove`/`set`/`clear`, or a helper handed the list)
+  // is unwitnessed — whether Pine walks a snapshot or the live list is not in any
+  // capture — and keeps the legacy refusal, named (`forInRefused`). A loop
+  // variable that takes over a name another statement declared refuses too.
+  const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
+  const refuseForIn = (why, t) => {
+    diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
+    return null
+  }
+  /** Does this statement list (at any depth, and through any user function it
+   *  calls) change the list `name` — a mutating member, a reassignment, or a
+   *  user function that is handed it or names it? */
+  const bodyMayWriteList = (list, name) => {
+    const seenFns = new Set()
+    let scan = null
+    const scanToks = (toks) => {
+      for (let i = 0; i < toks.length; i += 1) {
+        const tk = toks[i]
+        if (!tk || tk.kind !== 'ident') continue
+        const v = String(tk.value)
+        const nx = toks[i + 1]
+        if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
+        if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
+            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) return true
+        const m = splitMethodName(v)
+        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) return true
+        const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
+        if (!fn || !h.isPunct(nx, '(')) continue
+        const close = closeOf(toks, i + 1)
+        const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
+        if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
+        if (!seenFns.has(fn)) {
+          seenFns.add(fn)
+          if (scan(fnDefs.get(fn).body)) return true
+        }
+      }
+      return false
+    }
+    scan = (items) => (items || []).some((s2) => scanToks(s2.header || []) || scan(s2.sub))
+    return scan(list)
+  }
+  const mentionsName = (list, name) => (list || []).some((s2) => (s2.header || [])
+    .some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name) || mentionsName(s2.sub, name))
+  /** `for x in SRC` / `for [i, x] in SRC` → `{kind, idx, elem, src, family}` for
+   *  a SRC this lane walks, else null (the caller keeps the legacy refusal). */
+  const forInPlan = (t, st) => {
+    let k = 1
+    let idx = null
+    if (h.isPunct(t[1], '[')) {
+      if (!(t[2] && t[2].kind === 'ident' && h.isPunct(t[3], ',') && t[4] && t[4].kind === 'ident'
+          && h.isPunct(t[5], ']'))) return null
+      idx = String(t[2].value)
+      k = 4
+    }
+    const elemTok = t[k]
+    const inAt = idx === null ? 2 : 6
+    const inTok = t[inAt]
+    if (!elemTok || elemTok.kind !== 'ident' || !inTok || inTok.kind !== 'ident' || inTok.value !== 'in') return null
+    if (t.length !== inAt + 2 || t[inAt + 1].kind !== 'ident') return null
+    const elem = String(elemTok.value)
+    const src = String(t[inAt + 1].value)
+    if (elem.includes('.') || (idx !== null && (idx.includes('.') || !/^[a-z][a-z0-9_]*$/.test(idx)))) return null
+    const d = decls.get(src)
+    const family = ALL_FAMILIES[src] || (d && d.kind === 'coll' && OBJECT_NAMESPACES.includes(d.family) ? d.family : null)
+    const isWindow = !family && !d && !src.includes('.') && typeof h.forInWindow === 'function' && h.forInWindow(src)
+    if (!family && !isWindow) return null
+    // ⛔ THE LOOP VARIABLE IS THE LOOP'S OWN. A name some other statement holds
+    // is not taken over (Pine's would shadow it; one register cannot).
+    // ⭐ In an INLINED helper body the statements are this call site's own copy
+    // (`rewriteBody`), so the variable is given a name of its own for this loop —
+    // trend-lines' `f_clearAll` walks `line.all`, `box.all` and `label.all` with
+    // one `v`. At the top level the statements are the value walk's too, and the
+    // loop is refused by name instead.
+    const taken = decls.has(elem) && (!forInElems.has(elem) || (family && decls.get(elem).family !== family))
+    let elemName = elem
+    if (taken) {
+      if (!st.synthetic || !family) {
+        return refuseForIn(!forInElems.has(elem) ? `loop variable \`${elem}\` is also declared outside the loop`
+          : `loop variable \`${elem}\` already holds a ${decls.get(elem).family}`, t)
+      }
+      elemName = `${elem}__uctfi${hostLoopSeq + 1}`
+    }
+    // ⛔ An object's POSITION in `line.all` depends on every create TradingView
+    // made, including any this program lost — never read.
+    if (ALL_FAMILIES[src] && idx !== null && mentionsName(st.sub, idx)) return refuseForIn(`a position in \`${src}\` is read`, t)
+    if (!ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
+    if (isWindow) return { kind: 'window', idx, elem, src, family: null }
+    if (elemName !== elem) {
+      // …renamed only once the loop is taken, in this call site's own tokens.
+      const rename = (toks) => {
+        for (const x of toks || []) {
+          if (x.kind !== 'ident') continue
+          const v = String(x.value)
+          if (v === elem) x.value = elemName
+          else if (v.startsWith(`${elem}.`)) x.value = elemName + v.slice(elem.length)
+        }
+      }
+      const renameAll = (items) => { for (const s2 of items || []) { rename(s2.header); renameAll(s2.sub) } }
+      rename([elemTok])
+      renameAll(st.sub)
+    }
+    decls.set(elemName, { family, kind: 'local' })
+    forInElems.add(elemName)
+    return { kind: ALL_FAMILIES[src] ? 'all' : 'coll', idx, elem: elemName, src, family }
+  }
+
+  /** `array.size(C)` / `C.size()` → C when C is a declared drawing list. */
+  const sizedList = (node) => {
+    if (!node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    let c = null
+    if (name === 'array.size') {
+      const a = args.length === 1 ? args[0].value : null
+      if (a && a.type === 'name') c = a.name
+    } else {
+      const m = splitMethodName(name)
+      if (m && m.method === 'size' && !args.length && !isDefined('size')) c = m.recv
+    }
+    const d = c ? decls.get(c) : null
+    return d && d.kind === 'coll' && OBJECT_NAMESPACES.includes(d.family) ? c : null
+  }
+  /** A VALUE that takes one element off the front or the back of an array —
+   *  `array.shift(X)` / `X.shift()` / `array.pop(X)` / `X.pop()` → X, else null. */
+  const endRemovalOf = (v) => {
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const args = v.args || []
+    if (args.some((a) => a && a.name)) return null
+    if (name === 'array.shift' || name === 'array.pop') {
+      const a = args.length === 1 ? args[0].value : null
+      return a && a.type === 'name' ? String(a.name) : null
+    }
+    const m = splitMethodName(name)
+    return m && (m.method === 'shift' || m.method === 'pop') && !args.length && !isDefined(m.method) ? m.recv : null
+  }
+  /**
+   * ⭐⭐ THE CAP `while` — `while array.size(C) > N` whose every pass takes ONE
+   * element off `C` (and deletes it, or not), and does nothing else but the same
+   * to other arrays kept in step:
+   *
+   *     while array.size(zzLines) > maxZigzagSwings        renderingnature
+   *         line.delete(array.shift(zzLines))
+   *
+   * That is a loop the object runtime runs as written: the condition is the
+   * list's own length (the runtime's), re-read before every pass, and each pass
+   * shortens the list, so it ends. ⛔ EXACTLY THAT SHAPE: one removal of `C` per
+   * pass, flat statements only, a bound that reads no length and no array a
+   * pass shortens. Anything else returns null and keeps the `while` refusal.
+   * @returns {{kind: 'cap', coll: string, idx: null}|null}
+   */
+  const capWhileOf = (t, st) => {
+    let node = null
+    try { node = h.parseWholeExpression(t.slice(1)) } catch { return null }
+    if (!node || node.type !== 'binary' || !['>', '>=', '<', '<='].includes(node.op)) return null
+    const sizeLeft = node.op === '>' || node.op === '>='
+    const coll = sizedList(sizeLeft ? node.left : node.right)
+    if (!coll) return null
+    const body = splitCommaStatements(st.sub || [], h)
+    if (!body.length) return null
+    const shortened = new Set()
+    for (const s2 of body) {
+      // (a statement with a block of its own — `if …` — is not an expression and fails the parse below)
+      let n = null
+      try { n = h.parseWholeExpression(s2.header || []) } catch { return null }
+      if (!n) return null
+      let arr = null
+      if (n.type === 'method' && n.name === 'delete' && !(n.args || []).length) {
+        arr = endRemovalOf(n.recv)                       // `array.shift(C).delete()`
+        if (!arr || !decls.get(arr) || decls.get(arr).kind !== 'coll') return null
+      } else if (n.type === 'call' && /^[a-z]+\.delete$/.test(String(n.name || ''))
+          && OBJECT_NAMESPACES.includes(nsOf(String(n.name)))) {
+        const a = (n.args || []).length === 1 && !n.args[0].name ? n.args[0].value : null
+        arr = endRemovalOf(a)                            // `label.delete(array.shift(C))`
+        if (!arr || !decls.get(arr) || decls.get(arr).kind !== 'coll') return null
+      } else {
+        arr = endRemovalOf(n)                            // `array.shift(C)` — dropped, not deleted
+        if (!arr || (decls.get(arr) && decls.get(arr).kind !== 'coll')) return null
+      }
+      if (shortened.has(arr)) return null               // one removal of each array per pass
+      shortened.add(arr)
+    }
+    if (!shortened.has(coll)) return null                // …the measured list among them
+    const opAt = h.findTop(t, (x) => h.isPunct(x, node.op))
+    if (opAt < 1) return null
+    const bound = sizeLeft ? t.slice(opAt + 1) : t.slice(1, opAt)
+    for (const x of bound) {
+      if (x.kind !== 'ident') continue
+      const v = String(x.value)
+      if (v === 'array.size' || v.endsWith('.size') || shortened.has(v.split('.')[0]) || shortened.has(v)) return null
+    }
+    return { kind: 'cap', coll, idx: null }
+  }
+
   /**
    * `for <id> = <from> to <to>` — the ONE loop shape this reader carries.
    *
@@ -1350,6 +1651,23 @@ export function collectObjectOps(stmts, h) {
       }
       return head
     } catch { return null }
+  }
+
+  /** ⭐⭐ C40 (H14) — `array.new_line(3)` / `array.new<box>(n)` / `array.new_box(n, na)`:
+   *  A DRAWING LIST CREATED WITH SLOTS. The object runtime starts every list
+   *  EMPTY, so `array.set(a, i, line.new(…))` on such a list wrote nothing and
+   *  `line.delete(array.get(a, i))` deleted nothing — the corpus's "replace my
+   *  three lines every bar" idiom drew a new set every bar and removed none,
+   *  with a clean ledger (measured at the wave-9 base: 180 boxes where Pine
+   *  holds 3). No capture witnesses a sized drawing list, so it is not modelled:
+   *  the list is DIVERGED from its creation (`coll:sized`), and every read of it
+   *  is withheld and counted (C16's `coll:diverged`), never run against an empty
+   *  one. ⛔ `array.new_line()` and `array.new_line(0)` are empty in Pine too and
+   *  stay as they were. Capture `vw-forin-collections` (rows Z01–Z03) settles it. */
+  const createdWithSlots = (rhs) => {
+    if (!h.isPunct(rhs[1], '(')) return false
+    if (h.isPunct(rhs[2], ')')) return false
+    return !(rhs[2] && rhs[2].kind === 'number' && Number(rhs[2].value) === 0 && h.isPunct(rhs[3], ')'))
   }
 
   /** `box(na)` / `line(na)` / … — Pine's typed empty handle — → its family,
