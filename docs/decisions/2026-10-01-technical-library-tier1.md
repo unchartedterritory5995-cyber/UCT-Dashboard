@@ -93,9 +93,13 @@ stochastic), so every saved instance keeps its meaning and the inspector shows i
 ## 5. Architecture notes (no redesign)
 
 - **Fixed scale made real.** `placement.scale` now also travels as `autoscaleRange`; `pool` turns
-  it into a memoised `fixedRangeProvider(min, max)` autoscale provider (widens, never clips).
-  Scale options are unchanged, so the frozen first range is now the declared range: RSI frames
-  0–100 (measured on a real lightweight-charts instance in `autoscaleOnARealScale.test.js`).
+  it into a memoised `fixedRangeProvider(min, max)` autoscale provider (widens, never clips), and
+  a fixed-range pane now **autoscales** (`autoScale: true`) through it. The old `autoScale: false`
+  froze the first range a scale computed, and pooled panes kept a previous tenant's frozen range —
+  measured in the pane harness (a Stochastic RSI pane framed −100..103 after a CMO was added).
+  RSI frames 0–100 on a real lightweight-charts instance (`autoscaleOnARealScale.test.js`) and in
+  the browser. A manual drag of such a pane's scale is reset on the next bind, the same behaviour
+  MACD's auto-ranged pane already has.
 - **Source ⇒ pane only when the units are preserved.** `sourceRef.derivedTargetFor` now requires
   `domainBehavior: 'inherit'` (Moving Average, Data Series, MA Envelope). ROC(close) stays in its
   own pane instead of landing on the candles' $ axis.
