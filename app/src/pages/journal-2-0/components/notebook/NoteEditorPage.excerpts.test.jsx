@@ -152,6 +152,48 @@ describe('NoteEditorPage — Wave J excerpt capture + click-to-source', () => {
     expect(JSON.stringify(captures)).not.toMatch(/margins|report|doc1/)
   })
 
+  // Ruling 149: a locked note takes no captures. Before this guard,
+  // `append_document_excerpt` had no lock check at all and the excerpt landed
+  // silently in a note the member had just locked.
+  it('a locked note refuses the excerpt save (423), and the toast names the lock', async () => {
+    fetchMock.mockImplementation((url, opts) => {
+      if (String(url).endsWith('/documents')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            documents: [{ id: 'doc1', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/abc.pdf', name: 'report.pdf', status: 'ready', pageCount: 3 }],
+          }),
+        })
+      }
+      if (String(url) === '/api/j2/notes/n1/excerpts' && opts?.method === 'POST') {
+        return Promise.resolve({
+          ok: false, status: 423,
+          json: () => Promise.resolve({ detail: 'This note is locked — unlock it in the Notebook first' }),
+        })
+      }
+      if (String(url).endsWith('/excerpts')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ excerpts: [] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
+    })
+    await renderEditor()
+    const chip = await screen.findByText('report.pdf')
+    fireEvent.click(chip)
+    await waitFor(() => expect(lastViewerProps?.href).toBeTruthy())
+
+    await act(async () => {
+      await lastViewerProps.onSaveExcerpt({
+        pageNumber: 1, capturedText: 'Management expects gross margins to normalize lower',
+        quotePrefix: null, quoteSuffix: null, charStart: 0, charEnd: 10,
+      })
+    })
+
+    // Rendered DOM text, not state: the member must actually SEE why nothing saved.
+    expect(await screen.findByText('This note is locked. Unlock it to save excerpts.')).toBeInTheDocument()
+    // And the excerpt must never have been placed into the note.
+    expect(document.querySelector('[data-document-excerpt]')).toBeNull()
+  })
+
   // ⚰️ WAVE P5 — SAVING A PASSAGE HAS TO REACH THE PICKER THAT OFFERS IT.
   //
   // Found by driving the journey on a phone in ONE sitting: save an excerpt

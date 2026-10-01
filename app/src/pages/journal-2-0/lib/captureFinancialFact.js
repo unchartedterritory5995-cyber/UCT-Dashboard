@@ -30,6 +30,25 @@ async function resolveDestinationNoteId(label) {
   return note?.id || null
 }
 
+// Ruling 149: a locked note takes no captures. `append_financial_fact`'s
+// server half refuses with 423 (`notes_service.NoteLockedError`); this names
+// that outcome to the two capture functions below rather than letting it
+// read as the generic 'Capture failed' every OTHER failure uses — the member
+// needs to know WHY nothing landed, and that the fact row still exists
+// un-placed (it is not retried or deleted here; it simply never got a node).
+async function insertFactNode(noteId, factId) {
+  const res = await fetch(`/api/j2/notes/${noteId}/facts/${factId}/insert`, {
+    method: 'POST', credentials: 'include',
+  })
+  if (res.status === 423) return 'locked'
+  if (!res.ok) return false
+  // ⛔⛔ `append_financial_fact` advanced this note's revision. Unlanded, it
+  // reads to the offline queue as a stranger's write and forks the member's
+  // note against their own saved price.
+  await settleNoteWrite(noteId, res)
+  return true
+}
+
 /** Captures the current price for `ticker` into the member's last-active
  * note (or a fresh one), returning a toast line — never throws. */
 export async function capturePriceToNotebook(ticker) {
@@ -43,14 +62,11 @@ export async function capturePriceToNotebook(ticker) {
     })
     if (!factRes.ok) return 'Capture failed — try again'
     const { fact } = await factRes.json()
-    const insertRes = await fetch(`/api/j2/notes/${noteId}/facts/${fact.id}/insert`, {
-      method: 'POST', credentials: 'include',
-    })
-    if (!insertRes.ok) return 'Capture failed — try again'
-    // ⛔⛔ `append_financial_fact` advanced this note's revision. Unlanded, it
-    // reads to the offline queue as a stranger's write and forks the member's
-    // note against their own saved price.
-    await settleNoteWrite(noteId, insertRes)
+    const outcome = await insertFactNode(noteId, fact.id)
+    if (outcome === 'locked') {
+      return `${ticker} price not saved — that note is locked. Unlock it in the Notebook first.`
+    }
+    if (!outcome) return 'Capture failed — try again'
     return `${ticker} price captured to Notebook`
   } catch {
     return 'Capture failed — try again'
@@ -77,11 +93,11 @@ export async function captureConsensusToNotebook(ticker) {
     // failure line is the same one every other capture failure uses.
     if (!factRes.ok) return 'Capture failed — try again'
     const { fact } = await factRes.json()
-    const insertRes = await fetch(`/api/j2/notes/${noteId}/facts/${fact.id}/insert`, {
-      method: 'POST', credentials: 'include',
-    })
-    if (!insertRes.ok) return 'Capture failed — try again'
-    await settleNoteWrite(noteId, insertRes)
+    const outcome = await insertFactNode(noteId, fact.id)
+    if (outcome === 'locked') {
+      return `${ticker} analyst consensus not saved — that note is locked. Unlock it in the Notebook first.`
+    }
+    if (!outcome) return 'Capture failed — try again'
     return `${ticker} analyst consensus captured to Notebook`
   } catch {
     return 'Capture failed — try again'

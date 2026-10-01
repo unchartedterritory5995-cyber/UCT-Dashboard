@@ -1697,7 +1697,7 @@ def get_current_regime_route(
 
 # ── Notebook (replaces Playbook 2026-05-26) ─────────────────────────────────
 from api.services.journal_two import notes as notes_service
-from api.services.journal_two.notes import NoteValidationError
+from api.services.journal_two.notes import NoteValidationError, NoteLockedError
 from api.services.journal_two import note_properties
 
 
@@ -2490,12 +2490,17 @@ def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """'Send to Journal': append one widgetEmbed node (client-built attrs)
-    to a note's body, atomically, server-side."""
+    to a note's body, atomically, server-side.
+
+    ⛔ Ruling 149: a locked note refuses the append (423) rather than taking
+    it silently -- see `notes_service.NoteLockedError`."""
     attrs = payload.get("attrs")
     try:
         note = notes_service.append_widget_embed(user["id"], note_id, attrs)
     except notes_service.NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except notes_service.NoteLockedError as e:
+        raise HTTPException(status_code=423, detail=str(e))
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
     return {"note": _servable_note(note)}
@@ -2816,11 +2821,16 @@ def insert_note_fact_endpoint(
     """The server half of a capture from OUTSIDE the note editor (e.g.
     TickerPopup's "Save to Notebook" door): place an already-created fact's
     financialFact node into a note's body. The fact must already exist
-    against this same note_id (checkpoint decision 30)."""
+    against this same note_id (checkpoint decision 30).
+
+    ⛔ Ruling 149: a locked note refuses the append (423) rather than taking
+    it silently -- see `notes_service.NoteLockedError`."""
     try:
         note = notes_service.append_financial_fact(user["id"], note_id, fact_id)
     except notes_service.NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except notes_service.NoteLockedError as e:
+        raise HTTPException(status_code=423, detail=str(e))
     if note is None:
         raise HTTPException(status_code=404, detail="note not found")
     return {"note": _servable_note(note)}
@@ -4030,11 +4040,16 @@ def create_excerpt_endpoint(
     # answers 400 with the sentence (like the embed and fact doors) and removes
     # the row this request made, so a refused save leaves no unplaced excerpt
     # behind; a note gone since (None) is cleaned up the same way.
+    # ⛔ Ruling 149: a LOCKED note is the same shape of refusal (423, excerpt row
+    # removed) -- see `notes_service.NoteLockedError`.
     try:
         note = notes_service.append_document_excerpt(user["id"], note_id, excerpt["id"])
     except NoteValidationError as e:
         note_excerpts.delete_excerpt(user["id"], excerpt["id"])
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except NoteLockedError as e:
+        note_excerpts.delete_excerpt(user["id"], excerpt["id"])
+        raise HTTPException(status_code=423, detail=str(e)) from e
     if note is None:
         note_excerpts.delete_excerpt(user["id"], excerpt["id"])
         raise HTTPException(status_code=404, detail="Note not found")
