@@ -242,16 +242,32 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     expect(vLines.filter((l) => l.ex === 'n').length).toBe(399)
   })
 
-  it('⛔ a getter\'s history on a LIVE handle is unmeasured: the label that reads it is held, not drawn', () => {
+  // ⭐ C48 re-pin — this read "a getter's history on a LIVE handle is unmeasured:
+  // the label that reads it is held". `vw-getter-history-spy-1d-2026-10-01` measures
+  // it: `line.get_y1(l)[1]` is the number the getter answered one bar ago (H04,
+  // 299 / 299 — `vendorHarness.c48GetterHistory`). `f_line2` runs on every bar, so
+  // the four `LW | …` labels are now drawn, each printing the y its line held one
+  // bar ago. The capture's last bar opens a week, so the line was replaced on it:
+  // the label STANDS at the new line's y and PRINTS the old one's — the y of the
+  // line `f_line2` made the week before, which is still on the chart.
+  it('⭐ C48 — a getter\'s history on a LIVE handle is the number one bar ago: the four `LW | …` labels are drawn', () => {
     const cap = capOf(OHLM)
     // "Extend Last Range" on: `hline` in `f_line2` now holds a line, so
-    // `line.get_y1(hline)[1]` reads a NUMBER back — which no capture shows.
+    // `line.get_y1(hline)[1]` reads a NUMBER back.
     const on = cap.source.text.replace('bool3       =   input.bool        (   false,', 'bool3       =   input.bool        (   true,')
     expect(on).not.toBe(cap.source.text)
     const { run } = runObjects(cap, on)
-    const texts = run.live.filter((o) => o.family === 'label').map((l) => String(l.props.text))
-    expect(texts.filter((t) => /^LW \| /.test(t))).toEqual([])
-    expect(run.withheld.label).toBeGreaterThan(0)
+    const lw = run.live.filter((o) => o.family === 'label' && /^LW \| /.test(String(o.props.text)))
+    expect(lw.map((l) => String(l.props.text).split(' | ')[1]).sort()).toEqual(['High', 'Low', 'Mid', 'Open'])
+    for (const l of lw) {
+      const n = Number(String(l.props.text).split(' | ')[2])
+      expect(Number.isFinite(n), l.props.text).toBe(true)
+      // one bar ago is NOT the current read here (the line was just replaced) …
+      expect(Math.abs(n - l.props.y), l.props.text).toBeGreaterThan(0.01)
+      // … it is the y of a line that is on the chart: the one replaced on this bar
+      const lines = run.live.filter((o) => o.family === 'line')
+      expect(lines.some((x) => Math.abs(x.props.y1 - n) < 0.006), l.props.text).toBe(true)
+    }
   })
 })
 

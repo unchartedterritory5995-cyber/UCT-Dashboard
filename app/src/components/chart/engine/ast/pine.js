@@ -18378,7 +18378,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⭐⭐ C33 — `line.get_y1(l)[1]`: THE GETTER'S OWN HISTORY, a whole literal
     // number of bars back (`MAX_GETTER_BACK`). The object runtime keeps what the
     // getter answered at this place on each bar and reads it back; it SERVES only
-    // the answer a capture shows (an empty handle, `na`) and holds a number.
+    // the answers a capture shows — an empty handle (`na`), and (C48,
+    // `vw-getter-history`) the number itself one bar back, `NaN` in a block that
+    // runs once — and holds every other number.
     if (node && node.type === 'offset' && typeof node.n === 'number' && Number.isInteger(node.n)
         && node.n >= 1 && node.n <= MAX_GETTER_BACK && !loopIds.length) {
       const inner = getterRef(node.arg)
@@ -18433,10 +18435,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   scanGetnum(collected.ops)
   const numId = new Map()
   const nums = []
+  /** ⭐ C48 — scalars declared at the top level: their `[1]` is a per-BAR history. */
+  const numTop = new Set()
   for (const [name, d] of scalarDecls) {
     if (!hasGetnum.has(name)) continue
     const id = `n${nums.length}`
     numId.set(name, id)
+    if (d.top) numTop.add(name)
     nums.push({ id, init: d.init })
   }
   // ⭐⭐ C25 — A HELPER'S `var` CARRIED IN A LOOP (`pineObjects.js`, `loopScalars`):
@@ -18491,6 +18496,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (g) {
       if (stateOp && stateOp.inlined && !String(regNameOf.get(g.target.id) || '').includes(INLINE_SUFFIX)) return null
       return g
+    }
+    // ⭐⭐ C48 — `ya[1]` WHERE `ya` IS A TOP-LEVEL VARIABLE HOLDING A GETTER: the
+    // value it held at the end of the previous BAR — `vw-getter-history-spy-1d-
+    // 2026-10-01`, G03 (read inside the last-bar block: `close[1]`, not `NaN`)
+    // and H03 (299 / 299). A top-level variable's history is the chart's, read
+    // from anywhere; a block's own scalar keeps its history per run of the
+    // block and is not read here. ⛔ One bar back, outside loops and helpers.
+    if (node && node.type === 'offset' && node.n === 1 && node.arg && node.arg.type === 'name'
+        && numTop.has(node.arg.name) && !loopIds.length && !inline && !(stateOp && stateOp.inlined)) {
+      const s = scalarRef(node.arg, inline)
+      if (s) return { ...s, back: 1 }
     }
     return scalarRef(node, inline)
   }

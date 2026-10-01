@@ -39,7 +39,11 @@ describe('C37 — a gradient between two static colours is carried on a plot', (
 
   it('bounds may be series, and a transparent end keeps its own alpha byte', () => {
     const p = tr('plot(close, color = color.from_gradient(close, ta.lowest(close, 20), ta.highest(close, 20), color.new(color.red, 40), #00FF0080))').outputs[0].presentation
-    expect(p.colorGradient.formula).toBe('(close - lowest(close, 20)) / (highest(close, 20) - lowest(close, 20))')
+    // ⭐ C48 re-pin — the bare quotient: per-bar bounds can be equal or reversed,
+    // and `vw-colour-components` measures both (equal → no blend; reversed → the
+    // bottom colour between them). The quotient stands where top > bottom.
+    expect(p.colorGradient.formula).toContain('(close - lowest(close, 20)) / (highest(close, 20) - lowest(close, 20))')
+    expect(p.colorGradient.formula.startsWith('highest(close, 20) >= lowest(close, 20) ?')).toBe(true)
     expect(p.colorGradient).toMatchObject({ from: '#F2364599', to: '#00FF0080' })
   })
 

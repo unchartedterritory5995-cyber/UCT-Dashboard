@@ -380,8 +380,9 @@ export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', '
  *  marks what it would have written, C17). ⛔ Legal only under a `bool` `and`. */
 /** ⭐⭐ C33 — how far back a getter's own history may be read (`{v:'get', back}`):
  *  `line.get_y1(l)[1]` is the number that getter answered at this place on the
- *  previous bar. The runtime answers it only where a capture shows the answer
- *  (an empty handle — `na`); a number read back is unmeasured and held. */
+ *  previous bar. The runtime answers it only where a capture shows the answer:
+ *  an empty handle (`na`), and — C48, `vw-getter-history` — the number itself ONE
+ *  bar back; a number from further back is unmeasured and held. */
 export const MAX_GETTER_BACK = 5
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
 /** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
@@ -702,6 +703,10 @@ function assertLiveRef(v, where, live) {
     // ⭐ C25 — a loop scalar is read in a loop body, a C14 scalar outside one.
     if (!live.nums || !live.nums.has(v.id) || (live.inLoop !== !!(live.loopNums && live.loopNums.has(v.id)))) {
       throw new Error(`${where}: an undeclared scalar, or one read in a loop body`)
+    }
+    // ⭐ C48 — a scalar's history: ONE bar back, never a loop's scalar.
+    if (v.back !== undefined && (v.back !== 1 || live.inLoop || (live.loopNums && live.loopNums.has(v.id)))) {
+      throw new Error(`${where}: a scalar's history is read exactly one bar back, outside a loop, got ${JSON.stringify(v.back)}`)
     }
     return
   }

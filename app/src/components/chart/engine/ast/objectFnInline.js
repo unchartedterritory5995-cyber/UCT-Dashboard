@@ -875,7 +875,7 @@ export function literalInit(t, from, h) {
  * ALSO computes some other way — is not a scalar this runtime can hold, and
  * stays refused wherever it is read.
  *
- * @returns {Map<string, {init: number|null, persist: boolean}>}
+ * @returns {Map<string, {init: number|null, persist: boolean, top: boolean}>}
  */
 export function getterScalars(stmts, h) {
   const info = new Map()
@@ -923,10 +923,12 @@ export function getterScalars(stmts, h) {
           const lit = w === 'var' ? literalInit(t, eq + 1, h) : null
           if (ctx.inFn || ctx.inLoop || w === 'varip') d.bad = true
           else if (w === 'var') {
-            if (ctx.top && lit) d.decls.push({ init: lit.init, persist: true })
+            if (ctx.top && lit) d.decls.push({ init: lit.init, persist: true, top: true })
             else d.bad = true
           } else if (isBareGetterAt(t, eq + 1, h)) {
-            d.decls.push({ init: null, persist: false })
+            // ⭐ C48 — `top`: declared at the top level, so its `[1]` is the value
+            // it held at the end of the previous BAR (`vw-getter-history`, G03).
+            d.decls.push({ init: null, persist: false, top: !!ctx.top })
             d.getterWrites += 1
           } else d.bad = true
         }

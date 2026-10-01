@@ -256,17 +256,20 @@ describe('C33 (4) — a request timeframe that is a parameter, on the object pas
 describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s own getter local', () => {
   const textOf = (t, k = 0) => opsOf(t).filter((o) => o.k === 'create' && o.family === 'label')[k].props.text.node
 
-  it('⛔ `str.tostring(line.get_y1(l))` is carried as the runtime\'s read — and a FINITE number is held', () => {
-    // no capture prints a finite getter value through `str.tostring`: the label
-    // is withheld, never drawn off this chart's own formatting of that number.
+  // ⭐ C48 re-pin — this read "… and a FINITE number is held" (12 labels withheld):
+  // no capture printed one. `vw-getter-history-spy-1d-2026-10-01` does (G01 / G06 /
+  // G07 / G08 — `vendorHarness.c48GetterHistory`), so the number is printed.
+  it('⭐ `str.tostring(line.get_y1(l))` is carried as the runtime\'s read — and a FINITE number prints (C48)', () => {
     const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
       'label.new(bar_index, high, "y=" + str.tostring(line.get_y1(ln)))',
       'label.new(bar_index, low, "control")'))
     expect(diag(t).dropReasons['create:label']).toBeUndefined()
     expect(textOf(t)).toEqual({ t: 'cat', args: [{ t: 'lit', s: 'y=' }, { t: 'val', v: { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y1' } }] })
     const r = run(t)
-    expect(r.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(12).fill('control'))
-    expect(r.withheld.label).toBe(12)
+    const texts = r.live.filter((o) => o.family === 'label').map((l) => l.props.text)
+    expect(texts.filter((x) => x === 'y=7.5')).toHaveLength(12)
+    expect(texts.filter((x) => x === 'control')).toHaveLength(12)
+    expect(r.withheld).toBeUndefined()
   })
 
   it('⭐ on an EMPTY handle a getter — and its history — read `na`: "NaN", TradingView\'s own text', () => {
@@ -279,7 +282,10 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(r.withheld).toBeUndefined()
   })
 
-  it('⛔ a getter\'s history on a LIVE handle reads a number back — unmeasured, so what stands on it is held', () => {
+  // ⭐ C48 re-pin — this read "… unmeasured, so what stands on it is held" (11 held).
+  // `vw-getter-history` H04: one bar back on a live handle is the number the getter
+  // answered a bar ago, 299 / 299. TWO bars back stays held (the control below).
+  it('⭐ a getter\'s history ONE bar back on a LIVE handle is the number it answered then (C48); two bars back is held', () => {
     // in a GUARD, where no text rule can be what holds it
     const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
       'if line.get_y1(ln)[1] > 5', '    label.new(bar_index, high, "g")',
@@ -287,9 +293,17 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(diag(t).dropReasons['guard:create']).toBeUndefined()
     const r = run(t)
     const texts = r.live.filter((o) => o.family === 'label').map((l) => l.props.text)
-    // bar 0 has no previous bar: `na > 5` is a KNOWN false. Every later bar is held.
-    expect(texts).toEqual(Array(12).fill('control'))
-    expect(r.stats.withheldUnknown).toBe(11)
+    // bar 0 has no previous bar: `na > 5` is a KNOWN false. Every later bar reads 7.5.
+    expect(texts.filter((x) => x === 'g')).toHaveLength(11)
+    expect(texts.filter((x) => x === 'control')).toHaveLength(12)
+    expect(r.stats.withheldUnknown).toBeUndefined()
+    // CONTROL — two bars back: a number from there is unmeasured, and held
+    const t2 = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
+      'if line.get_y1(ln)[2] > 5', '    label.new(bar_index, high, "g")',
+      'label.new(bar_index, low, "control")'))
+    const r2 = run(t2)
+    expect(r2.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(12).fill('control'))
+    expect(r2.stats.withheldUnknown).toBe(10)
   })
 
   it('⭐ a helper\'s own local bound to a getter is a scalar written where it stands', () => {
@@ -300,15 +314,18 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(run(t).live.filter((o) => o.family === 'label').every((l) => l.props.text === 'b=NaN')).toBe(true)
   })
 
-  it('⛔ a getter-FED scalar that holds a finite number is held too — the same rule through the scalar', () => {
+  // ⭐ C48 re-pin — "… is held too": the same capture prints it (`ya`, H02 300 / 300).
+  it('⭐ a getter-FED scalar that holds a finite number prints it — the same rule through the scalar (C48)', () => {
     const t = host(src(5, 'f(a) =>', '    var line h1 = line.new(0, 7.5, 1, 7.5)', '    b1 = line.get_y1(h1)',
       '    label.new(bar_index, a, "b=" + str.tostring(b1))', 'f(high)',
       'label.new(bar_index, low, "control")'))
     expect(diag(t).dropReasons['create:label']).toBeUndefined()
     expect(diag(t).getterScalars.served.length).toBe(1)
     const r = run(t)
-    expect(r.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(12).fill('control'))
-    expect(r.withheld.label).toBe(12)
+    const texts = r.live.filter((o) => o.family === 'label').map((l) => l.props.text)
+    expect(texts.filter((x) => x === 'b=7.5')).toHaveLength(12)
+    expect(texts.filter((x) => x === 'control')).toHaveLength(12)
+    expect(r.withheld).toBeUndefined()
   })
 
   it('⛔ a format the one formatter does not understand whole keeps its refusal', () => {

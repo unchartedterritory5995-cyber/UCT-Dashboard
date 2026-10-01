@@ -310,17 +310,9 @@ export function beginObjects(program, ctx) {
   const getHistory = new WeakMap()
   /** ⭐⭐ C33 — the scalars a GETTER feeds (`setnum` whose value is a `get`), found
    *  once from the program: a text that prints one prints object state. */
-  const getterFedNums = new Set()
-  {
-    const scan = (list) => {
-      for (const o of list || []) {
-        if (o && o.k === 'loop') scan(o.body)
-        else if (o && o.k === 'setnum' && isObj(o.value) && o.value.v === 'get') getterFedNums.add(o.num)
-      }
-    }
-    scan(program.ops)
-  }
-  const printsObjectState = (v) => isObj(v) && (v.v === 'get' || (v.v === 'num' && getterFedNums.has(v.id)))
+  /** ⭐ C48 — true while the op being run stands in a block that runs ONCE
+   *  (`lastBarOnly`): a getter's history read there has no earlier run. */
+  let onceNow = false
   /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
    *  `unknownGuard` create withheld on a bar), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
@@ -754,7 +746,13 @@ export function beginObjects(program, ctx) {
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
   // byte-for-byte what the `for` body was; the only change is who advances it.
+  /** ⭐⭐ C48 — WHAT EACH SCALAR HELD AT THE END OF THE PREVIOUS BAR, and whether
+   *  that was known (`{v:'num', back: 1}`). Before the first bar a scalar's
+   *  history is `na`, whatever it was initialised to. */
+  let numsPrev = new Map()
+  let numTaintPrev = new Set()
   const stepBar = (bar) => {
+    if (bar > 0) { numsPrev = new Map(nums); numTaintPrev = new Set(numTaint) }
     /** site id → instanceId created on THIS bar. ⭐ Cleared every bar, which is
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
@@ -1077,7 +1075,8 @@ export function beginObjects(program, ctx) {
           return x === true ? 1 : x === false ? 0 : NaN
         }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
-        case 'num': return nums.get(ref.id) ?? NaN
+        // ⭐ C48 — `back: 1`: what the scalar held at the END of the previous bar.
+        case 'num': return ref.back ? (numsPrev.get(ref.id) ?? NaN) : (nums.get(ref.id) ?? NaN)
         // ⭐⭐ C32 — `w.get(i)` of a bounded window by the loop counter: Pine index
         // `k` of `size` elements is newest-first slot `k` (unshift) or
         // `size − 1 − k` (push — index 0 is the oldest). ⛔ An index outside the
@@ -1250,17 +1249,15 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
-      // ⭐⭐ ONE `val` NODE (C32 / C33). A per-pass number (C32) is as known as
-      // its read. A number read off a DRAWING (C33 — a getter, a getter-fed
-      // scalar) is ⛔ SERVED ONLY WHERE THE READ IS `na`: TradingView prints that
-      // as "NaN" (eight labels of high-low-open-mid-ranges,
-      // `vendorHarness.c33ObjectReads`). No capture prints a FINITE getter value
-      // through `str.tostring`, so a finite one is unknown text — the op is
-      // withheld, never drawn off this chart's own formatting of a number
-      // TradingView was never seen to print.
-      if (t.t === 'val') {
-        return tainted(t.v, depth + 1) || (printsObjectState(t.v) && !Number.isNaN(numOf(value(t.v))))
-      }
+      // ⭐⭐ ONE `val` NODE (C32 / C33). A number is as known as its read — a
+      // per-pass number (C32), and a number read off a DRAWING (C33: a getter, a
+      // getter-fed scalar).
+      // ⭐ C48 — a FINITE getter number prints like any other. ⚰️ It was held
+      // ("no capture prints one"): `vw-getter-history-spy-1d-2026-10-01` does —
+      // `str.tostring(line.get_y1(a))` is `763.99` (G01), the same through
+      // `"#.00"` (G08), `43.938` for a line never moved (G06), and `get_x1` the
+      // bar index (G07). An `na` read still prints TradingView's `NaN`.
+      if (t.t === 'val') return tainted(t.v, depth + 1)
       return false
     }
     const colorTainted = (c, depth) => {
@@ -1280,7 +1277,7 @@ export function beginObjects(program, ctx) {
       if (!taintSeen || !isObj(v) || depth > 48) return false
       if (v.r) return refTainted(v, depth)
       switch (v.v) {
-        case 'num': return numTaint.has(v.id)
+        case 'num': return v.back ? numTaintPrev.has(v.id) : numTaint.has(v.id)
         case 'size': return collLenTaint.has(v.coll)
         case 'latch': return latches.get(v.id) === LATCH_UNKNOWN
         case 'cross': return (crossTaintUntil.get(v) ?? -1) >= bar
@@ -1295,12 +1292,22 @@ export function beginObjects(program, ctx) {
           // ⭐⭐ C33 — A GETTER'S HISTORY IS SERVED ONLY WHERE A CAPTURE SHOWS IT:
           // an empty handle `back` bars ago, which reads `na` (high-low-open-mid-
           // ranges, `"LW | Open | NaN"`), and a bar before the series began.
-          // ⛔ A NUMBER read back, or a bar this place did not run on, is
-          // unmeasured — unknown, so the op that reads it marks what it writes.
+          // ⭐⭐ C48 — `vw-getter-history-spy-1d-2026-10-01` shows two more:
+          //   · ONE bar back on a LIVE handle is the number the getter answered
+          //     one bar ago — `line.get_y1(a)[1]` is `close[1]` on 299 / 299 bars
+          //     for a line moved every bar (H04; H07 / H09 / H12 likewise). ⚰️ A
+          //     number read back was held as unmeasured.
+          //   · in a block that runs ONCE (`if barstate.islast`) the read is
+          //     `NaN` (G02): the place has no earlier run — its history is the
+          //     block's own, as a block local's is (`vw-call-site-history`, A12).
+          // ⛔ STILL UNKNOWN: a number read back from TWO or more bars ago (no
+          // row), and a bar this place did not run on under any other guard —
+          // TradingView answers the previous RUN there, which is not kept.
           if (bar - v.back < 0) return false
           const h = getHistory.get(v)
           const then = h ? h.get(bar - v.back) : undefined
-          return then === undefined || !Number.isNaN(then)
+          if (then === undefined) return !onceNow
+          return v.back > 1 && !Number.isNaN(then)
         }
         case 'unknown': return true
         case 'text': return textTainted(v.node, depth + 1)
@@ -1434,6 +1441,8 @@ export function beginObjects(program, ctx) {
       // never leak into a tree, a hash or a screener column, where "the last
       // bar" would depend on how many bars the caller asked for.
       if (op.lastBarOnly && bar !== barCount - 1) continue
+      // ⭐ C48 — is this op in a block that runs once? (`tainted`'s getter history)
+      onceNow = op.lastBarOnly === true
       // ⭐⭐ `var x = <expr>` RUNS ONCE. Without this a `var table t =
       // table.new(…)` mints a new table on every bar — 300 bars, 300 tables,
       // the envelope exceeded, the whole indicator refused. It is the
