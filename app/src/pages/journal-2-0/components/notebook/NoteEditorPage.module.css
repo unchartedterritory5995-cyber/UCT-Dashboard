@@ -303,6 +303,37 @@
 /* The first block sits flush under the subtitle — so a divider (or heading)
    inserted at the top doesn't leave a big gap above it. */
 .proseEditor > :first-child { margin-top: 0; }
+/* ── Wave 10 TY3 — CSS containment for the typing budget (clause 4d) ─────────
+   Each top-level block (what `.proseEditor > *` selects — the direct
+   children of the ProseMirror root: paragraphs, headings, tables, lists,
+   code blocks, widget embeds and everything else a note's body can hold)
+   skips style, layout and paint while it is off-screen. `content-visibility:
+   auto` only skips RENDERING, never the DOM: ProseMirror's own transaction
+   and decoration work is unaffected, and Chromium still answers
+   scrollIntoView, find-in-page, fragment navigation, focus and
+   selection/copy correctly against a skipped block by un-skipping it first
+   (verified in a real browser — docs/notebook/perf-runs/ty3/README.md has
+   the check table). `contain-intrinsic-size: auto <h>` gives a block its
+   real, remembered size once it has rendered once; `1.7em` (ONE line at
+   this editor's own 17px/1.7 line-height -- the same `.proseEditor`
+   declaration above) is only ever the GUESS used before that, for a block
+   that turns out to BE one line, which a plain paragraph in this editor
+   measures at (verified: a rendered paragraph's own border-box is 28.9px,
+   1.7em of 17px exactly). A block that is actually taller snaps to its
+   real height the first time it is scrolled near, same as it would with no
+   containment at all -- `1.7em` only has to be close enough that the
+   scrollbar does not visibly swing while that correction happens, and a
+   measured guess beats a round one (1.9em -- the first guess here --
+   overstated a 2,000-paragraph note's total height by ~6,700px before a
+   single block had rendered, because it was taller than any real
+   paragraph; 1.7em does not). Scoped to THIS surface alone: SharedNotePage,
+   the version preview and the Charts notebook widget import
+   noteContent.css directly and never load this module, so they are
+   untouched. */
+.proseEditor > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 1.7em;
+}
 /* Wave B find-in-note: ProseMirror decorations set a RAW (unhashed) class
    name directly in the DOM — same reason the widget-embed guard above uses
    `:global()`, a bare `.uct-find-match` here would hash to something the
@@ -810,7 +841,17 @@
     width: 100%;
   }
   :global(body.uct-print-note) [data-export-exclude] { display: none; }
+  /* Wave 10 TY3: Chromium already treats content-visibility:auto content as
+     relevant while printing (the whole document must paginate), but this
+     makes it explicit rather than resting on that alone. */
+  :global(body.uct-print-note) .proseEditor > * { content-visibility: visible; }
 }
+/* The OTHER live-DOM export path (exportNoteAsPng -> modern-screenshot's
+   domToBlob, in exportNote.js) is not a print at all, so it gets none of the
+   browser's own print exemption -- a skipped block would rasterize blank.
+   exportNoteAsPng adds this class around the capture for exactly that
+   reason; it is never applied any other time. */
+:global(body.uct-exporting-note) .proseEditor > * { content-visibility: visible; }
 
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
    These selectors are declared finger targets by the PHONE block(s)

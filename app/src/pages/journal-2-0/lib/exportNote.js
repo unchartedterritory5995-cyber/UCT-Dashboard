@@ -15,17 +15,41 @@ export function safeFileName(title, ext) {
 }
 
 /** Rasterize `el` (the note column) to a PNG download. Returns true when a
- *  file was handed to the browser. */
+ *  file was handed to the browser.
+ *
+ * Wave 10 TY3: the editor's top-level blocks carry `content-visibility: auto`
+ * (NoteEditorPage.module.css) so an off-screen block skips its own layout and
+ * paint. `domToBlob` reads the live, rendered DOM directly -- it is not a
+ * browser print, so it gets none of Chromium's own "treat as visible while
+ * printing" handling -- and a skipped block would rasterize blank. The
+ * `uct-exporting-note` body class (matched by that same stylesheet) forces
+ * every block back to `content-visibility: visible` for the span of the
+ * capture, the same way `printNote()` already scopes its own print CSS with
+ * `uct-print-note`.
+ *
+ * ⚠️ Verified against the BASE build (no content-visibility at all) too: a
+ * very long note (2,000 ¶, ~82,000px tall) already rasterizes to a ~54-byte,
+ * essentially blank PNG with NO changes from this lane -- the note's render
+ * height exceeds the browser's own maximum canvas size, a pre-existing
+ * `modern-screenshot` limit this lane did not introduce and is not fixing
+ * here. The class above is a correctness guarantee for whatever domToBlob
+ * CAN capture, not a claim that every note's PNG export already works. */
 export async function exportNoteAsPng(el, title) {
   if (!el) return false
-  const blob = await domToBlob(el, {
-    type: 'image/png',
-    scale: 2,
-    backgroundColor: '#0c0d10',
-    // Chrome that isn't the document: formatting toolbar, inbox tray, empty
-    // hero picker. filter=false EXCLUDES the node.
-    filter: (node) => !(node instanceof Element && node.hasAttribute('data-export-exclude')),
-  })
+  document.body.classList.add('uct-exporting-note')
+  let blob
+  try {
+    blob = await domToBlob(el, {
+      type: 'image/png',
+      scale: 2,
+      backgroundColor: '#0c0d10',
+      // Chrome that isn't the document: formatting toolbar, inbox tray, empty
+      // hero picker. filter=false EXCLUDES the node.
+      filter: (node) => !(node instanceof Element && node.hasAttribute('data-export-exclude')),
+    })
+  } finally {
+    document.body.classList.remove('uct-exporting-note')
+  }
   if (!blob) return false
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
