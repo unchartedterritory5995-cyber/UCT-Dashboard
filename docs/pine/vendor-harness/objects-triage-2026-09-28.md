@@ -140,6 +140,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 37 | C26 `request.security` of ANOTHER symbol, both lanes, at the member door — served only when the script SPELLED an exchange, our store's listing of that ticker answers to that exact Pine spelling (`symbolScope.json::confirmed`), and the listing's bars for the chart's timeframe are in hand; aligned on the bar's own `t`, exact match, never forward-filled, and a bar whose counterpart is missing after the other history began is UNKNOWN (and every root bar within reach of it); everything else refused by name — see § C26 | `667801efe` | 28 / 47 → 28 / 47 (overall 24 → 24; base `ad696e660`, objects pane on) | 219 / 266 → 219 / 266 | **none moved, measured — no graded capture reads a symbol we hold.** Every other-symbol read in the 47 is spelled BARE and names a non-US instrument (`XAUUSD`, `ADVN`/`DECN`, `EURUSD`/`GBPUSD`/`USDJPY`/`AUDUSD`, twelve NSE indices); each is now refused by name (`other-symbol:bare`) in the verdict notes of smt-divergence, mcclellan, htf-liquidity and sector-rotation — the only 4 entries that changed, notes only, every value and family identical. On the way it closed two wrong answers live on the member door: a label reading an unsupplied symbol printed `NaN` (now withheld) and `nz(request.security("AMEX:SPY", …))` plotted 0 on every bar (now not computable unless served). Served case pinned on vendor bars (`vendorHarness.c26OtherSymbol`): `"AMEX:SPY"` on NYSE:RDDT 1D reads SPY's close from the committed SPY capture on all 632 dates, in the plot, the binder and a label. Committed harness dir (87): the same 4 entries, notes only; objects MATCH 49, overall 41, families 275 / 322 unchanged; inventory identical. Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 rows changed**. Census alternated: base 31.96 / 34.26 s, tip 31.27 / 36.66 s. Notebook first-open 1,890,726 B at base and tip (+0, PASS); total JS +8,508 B. `paramIds.test.js` green, no re-pin |
 | 38 | C27 `request.security` / `request.security_lower_tf` at a timeframe BELOW the chart's own — the mechanism (`engine/lowerTf.js`, every rule stated once in its header): the store's intraday bars kept to TradingView's regular session for the day (`tradingViewCloseMinute`), bucketed from 09:30 in the code's minutes (60 built from the store's 15, whose own 60 is clock-aligned), a bucket complete only when every source slot is present; each chart bar reads its LAST intrabar (`request.security`) or all of them in order (`security_lower_tf`), the expression evaluated on the intraday series through the real `interpret`; a chart bar is UNKNOWN (never `na`) unless every session of its period is complete and no intrabar is missing within the expression's reach. Served NOWHERE: two rules (which intrabar, which session) are documented, not captured, so every lower read is refused BY NAME at the door (`lower-tf:unwitnessed` / `lookahead` / `other-symbol` / `not-served` / `intraday-chart` / `intrabar-array`) with the capture that settles it — see § C27 | `pine/c27-lower-tf` | 28 / 47 → 28 / 47 (overall 24 → 24; base `476383d32`, objects pane on; off: 18 → 18, overall 14 → 14) | 222 / 266 → 222 / 266 | **none moved, measured — no graded capture reads a lower timeframe off committed intraday bars.** Replayed on TradingView's own SPY bars (`vendorHarness.c27LowerTf`): the 60m regular-session bars ARE the 5m bars bucketed from 09:30 (12 / 12 complete buckets equal OHLCV); the daily close equals the last 60m close on only 190 of 2,951 sessions; `request.security("60", ema(close, 9))` equals an independent EMA over the 60m closes at each day's last bar on every known day. Committed harness dir (120 captures, both flag states): **0 entries changed**; inventory identical. Member-door census 266 × both flags: attach 41 / 64 → 41 / 64; 1 row × 2 states changed, refusal text only (`mtf-dashboard-pro-rsi-fib-sr-volume-strixedge`, ungraded: its `r1` tuple element now names `lower-tf:unwitnessed`). `paramIds.test.js` green, no re-pin |
 | 39 | C28 a measured sweep (re-grade of the 47 and the committed harness dir on the wave-7 tip, every non-MATCH traced to its first named wall — § C28), and the two fixes it ranked first: **(a)** a name bound BELOW a reassignment the walk could not fold no longer reads that name's older binding out of its own env snapshot (`Resolver.staleSnapshotRead`; the closing pass condemns only the FINAL env) — a WRONG VALUE, live on the objects pane and the plot lane; **(b)** `request.security(sym, "", x)` (a `""` literal or an `input.timeframe('')`) is the chart's own timeframe, per Pine's reference, and a plot colour written as a request is the inner rule with its deciding tree moved inside the same request (`securityColourRule`) | `30d99259f`, `0cfefd0d8`, `bd7c756b6` | 28 / 47 → 28 / 47 (overall **24 → 25**; base `476383d32`, objects pane on) | 222 / 266 → 222 / 266 (plots MATCH 160 → 161 / 172) | **donchian-channels DIVERGE → MATCH**: its Basis wore the pane's gold on 533 bars where TradingView draws blue, red or nothing; now value and colour agree on all 632 (`vendorHarness.c28Donchian`). **artemis-oscillator-pro** cells 18 → 14 of 21, texts `onlyOurs` 4 → **0**: `◈ NEUTRAL`, `0%`, `29 ▼ BEAR`, `↓-3` (read off `float knnVal = 50.0`) where TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR`, `↓-17` — withheld now, every cell still drawn is TradingView's at its address (`vendorHarness.c28StaleSnapshot`). Same two entries, and only those, in the committed harness dir (82) under both objects-flag states and in the 47 with the flag off. Member-door census 266 × 2 (and × 2 with the dark runtime-pane flag on): attach 41 / 64 (43 / 66) unchanged; 7 rows — donchian's colour column (13 → 14 plots), and five door-refused scripts whose first refusal moved to a write read past (every one refused before and after). Translation census 266: no served output changed; `smarter-snr` serves 2 more cells (its `''` row, the identity). Census alternated base / tip / base / tip: 35.4 / 37.0 / 43.8 / 45.7 s. Notebook first-open 1,891,971 B at base and tip (+0, PASS); `pine` chunk +1,353 B. `paramIds.test.js` green, no re-pin |
+| 45 | C35 the RUNTIME lane's next stops (dark flag `VITE_PINE_RUNTIME_PANE_ENABLED`, unset): **(a)** a `simple` argument is fixed for its CALL SITE, so a window a function sizes from a parameter is constant per call site — each argument of a parameter not declared `series` is folded in the caller's context as a length is folded, and the body is compiled once per distinct set of values (`pineRuntimeFrontend.js::simpleSpecialisation`, `frameConsts`); an argument only known while the bar runs is refused by name; **(b)** ⛔ a WRONG VALUE in the runtime lane fixed on the way: a length inside a function body was folded by the top-level resolver, so a parameter sharing its name with a top-level binding ran the top-level value's window whatever the call passed; **(c)** `runtime.error(msg)` is a statement that STOPS the run by name where it is reached (`runtime:runtime.error`) and nothing where it is not; **(d)** a request below the chart's timeframe is refused by the host's own C27 code (`Resolver.lowerTfDeclineOf`) before the state check — see § C35 | `pine/c35-runtime` | 28 / 47 → 28 / 47 (overall 25 → 25; base `e0eb227ee`, objects pane on; runtime pane on 29 → 29, overall 26 → 26) | 222 / 266 → 222 / 266 (runtime pane on 229 / 273 → 229 / 273) | **none moved, measured — and every graded output is BYTE-IDENTICAL**: the six `verdicts.json` files (47 and the committed harness dir × objects pane on / off / on + runtime pane on) compare equal byte for byte against the base. Member-door census 266 × both objects flags × both runtime-pane states: 0 rows changed (attach 41 / 64; 43 / 66). Translation census 266: 0 changed. What moved is the runtime lane's own first wall, on 18 of 266 scripts (`probeObjectRuntime` / `probeRuntimeProgram`, builds 28 → 29 / 29 → 30): **artemis** `runtime:history-dynamic-offset`@245 → `pine:block`@233 (`smooth`'s `switch` over its `simple string` method); **ema-ribbon** `runtime:expression-statement`@53 → `lower-tf:unwitnessed`@156 (Q-L1); `trend-targets-algoalpha` builds (`ta.atr(atrPeriod)` in `pine_supertrend`; the door still refuses it `pine:state`, no route). Vendor proof: artemis' own `drmEngine`, verbatim, equals TradingView's `DRM Oscillator` on all 632 bars (`vendorHarness.c35SimpleArg`). **poor-man unchanged, and named:** opening C20's `timeframe.period` gate for its request-argument use converts all 246 ops and asks the run for 160 values, but the run's last bar needs **227,730** VM instructions against `INSTRUCTIONS_PER_BAR` 200,000 (not raised) — measured, reverted by bytes, not landed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk 330,629 B at both; total JS +4,397 B. `paramIds.test.js` green (4 passed, 1 skipped), no edit |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -1879,3 +1880,96 @@ product decision across many scripts, so it is left to the integrator.
   which the 2026-09-30 captures settled - the C29 lane), and grade colour as its own column so the defect stays counted.
 - This does NOT relax the object rule: an object whose TEXT or POSITION is unknown is still withheld (C26, C28a),
   because there the wrong thing is the content itself.
+
+## C35 — the runtime lane's next stops: a `simple` argument, `runtime.error`, a lower request (2026-09-30, step 45)
+
+Branch `pine/c35-runtime`, base `e0eb227ee` (wave 8). Everything here is the RUNTIME lane
+(`engine/ast/pineRuntimeFrontend.js`, `engine/runtime/`); the pane it would serve stays dark
+(`VITE_PINE_RUNTIME_PANE_ENABLED` unset). `pine.js` is untouched.
+
+**(a) A `simple` argument is fixed for its call site.** Pine: a parameter qualified `simple` (or
+`const`) takes a value known before bar 0 that never changes at that call; an unqualified parameter
+takes its argument's qualifier. So `drmEngine(series float src, simple int len, …) => ta.highest(src, len)`
+called as `drmEngine(drmSrc, drmLen, drmMethod)` runs a `drmLen`-bar window at that call. The lane
+compiles ONE body per function and runs it at every call site, so a frame slot had no length before
+bar 0 (`runtime:history-dynamic-offset` — the first runtime wall of 19 of the 266 corpus scripts at base, artemis@245 among them; 12 after). The rule as
+implemented (`simpleSpecialisation`):
+
+- at a call to a definition held on `runtime:history-dynamic-offset` for one of its PARAMETERS, each
+  argument of a parameter not declared `series` is folded in the CALLER's context exactly as a length
+  is folded (a literal, an input at its default — the frozen resolver `foldConstNode` already uses);
+- the body is compiled once per distinct set of folded values, with those parameters answered as
+  constants wherever a length or an offset reads them (`frameConsts`, keyed by SLOT); state stays per
+  call site, as for any function. Every other read of the parameter is still the value the call passes;
+- a parameter handed on to another function is fixed at that call site in turn;
+- ⛔ refused by name: an argument only known while the bar runs (``…`len` is declared `simple` in
+  `drmEngine`, and this call passes a value that is only known while the bar is running (Pine does
+  not compile that)``); a parameter declared `series` (a series length, which this lane does not
+  size); a call inside a request's value (unchanged: `carriesColumn`).
+- ⚠️ NOT folded, and still named: constant ARITHMETIC over a fixed parameter (`wper = n * 2 - 1`,
+  range-filter / twin-range-filter) — the frozen resolver folds a literal and an input, not `2 * 2`;
+  that is the lane's existing length rule, unchanged.
+
+**(b) ⛔ A wrong value, found and fixed on the way.** `foldConstNode` asks the frozen resolver, which
+reads the TOP-LEVEL environment. Inside a function body a parameter (or local) that shares its name
+with a top-level binding was answered by that binding: `len = 3` beside `f(src, len) => ta.sma(src, len)`
+called as `f(close, 5)` ran a **3-bar** window (measured: the column equals `ta.sma(close, 3)`). A name
+the frame holds is now answered by the frame — its call-site constant, or the by-name refusal — and
+never by `env`. Runtime lane only (the dark pane, and C18/C20's object values); no corpus script the
+lane builds carried the collision (the six harness/47 verdict files are byte-identical).
+
+**(c) `runtime.error(msg)`.** A statement, lowered through the lane's one effect-statement path. Where it
+is reached the run STOPS by name (`PineRuntimeError`, name `runtime.error` → `runtime:runtime.error` in
+`runtimeObjectValues`; the pane's `execute` throws) carrying the script's message — TradingView stops
+the script and shows the error instead of the indicator. Where it is not reached it is nothing.
+ema-ribbon's validation (`if barstate.isfirst and not (fastLen < midLen and midLen < slowLen)`) is not
+reached at the captured inputs, and the capture shows the script drawn — the unreached half is
+witnessed (`vendorHarness.c35RuntimeError`). The REACHED half is documentation: no capture shows what
+the study holds after the error, so nothing is drawn from such a run.
+
+**(d) A request below the chart's timeframe.** ema-ribbon's next stop read
+`runtime:request-with-state`@156 — "a data request whose argument is a mutable value". The request is
+`"15"` on a daily chart, which C27 refuses in the plot lane by name; the state check is moot for a read
+no lane serves. The lane now asks the host's own reader (`Resolver.lowerTfDeclineOf` →
+`lowerTf.js::lowerTfRefusal`) BEFORE the state check and refuses with the same code and sentence
+(`lower-tf:unwitnessed`, Q-L1). A request at a HIGHER timeframe still meets the state check (control in
+`simpleArgWindow.test.js`).
+
+**Measured** — see the fix-order row. Runtime first walls that moved (18 of 266): 9 off
+`history-dynamic-offset` onto their next wall (artemis, machine-learning-moving-average, macd-with-filter,
+advanced-custom-multi-ma, momentum-based-zigzag, neural-network, trend-targets → builds, range-filter and
+twin-range-filter → the `wper` arithmetic one line down); 6 off `runtime.error` (ema-ribbon,
+black-scholes, htf-fair-value-gap, ict-turtle-soup, session-highs-and-lows, smt-divergence-ict-killzones);
+4 onto a `lower-tf:*` code (ema-ribbon, liquidity-engulfing, mtf-dashboard-pro, multi-timeframe-fvg).
+
+**poor-man039s-volume-profile — measured, not changed.** Its 40 label texts are `content:withheld`
+because C20 asks the run for no text / colour in a script that reads `timeframe.period`, and it reads it
+only as a request's TIMEFRAME ARGUMENT (`security(volume_source_symbol, timeframe.period, volume)`),
+where the spelling reaches no value. With the gate opened for exactly that shape (an experiment, restored
+by bytes): 246 of 246 ops convert, 0 drops, 160 runtime values asked (y, colour, text colour, text × 40)
+— and the run is withheld whole, `runtime:INSTRUCTIONS_PER_BAR`: its last bar needs **227,730** VM
+instructions (the 40-row × `block_size` scan) against 200,000. The budget is not raised, so the gate
+change would move accounting and draw nothing; it is not landed. Behind the budget a second wall
+waits: each row's colour is `cond ? color.new(orange, 50) : color.new(gray, 50)` through a block local,
+which C20 serves OPAQUE only (`{c:'rt'}`).
+
+**Mutation proofs** (bytes + sha256 captured, restored by bytes, sha verified; each alone; control green
+30 / 30): the frame constant not answered → 9 red; a frame name falling through to `env` → 13 red (the
+wrong-value rail among them); one copy shared by every call site → 2 red; a `series` parameter folded →
+1 red; `runtime.error` not stopping → 2 red; the lower-timeframe decline not asked → 2 red; a
+bar-varying argument not named → 5 red.
+
+**Still refused, and what would settle each:**
+
+| what | would settle it |
+|---|---|
+| artemis in the runtime lane — `pine:block`@233, `smooth`'s `switch m` over a `simple string` | the same call-site rule for a TEXT argument: the arm a fixed string selects is fixed per call site. With that arm substituted (`"RMA" => ta.rma`), `drmEngine` is TradingView's oscillator on 632 / 632 bars — so the remaining work is the switch, not the window |
+| a reached `runtime.error` (what the study holds) | **Q-E1**: `tools/visual_conformance/probes/vw-runtime-error.pine` on AMEX:SPY 1D, defaults (control) and `Stop at bar` = 100 — plot rows and labels kept before the error, and the status text |
+| ema-ribbon's `"15"` / `"60"` / `"240"` requests | Q-L1 (C27). Behind it (measured by replacing the three with `"W"`): `runtime:request-with-state`@156 — `fastEMA` reads `src`, a `switch`-bound NON-`var` binding; serving it means re-lowering a non-persistent binding chain inside the request's region, a capability, not a fix |
+| constant arithmetic over a fixed parameter (`n * 2 - 1`) | a constant folder for the lane's length rule (both the top level and a frame); two corpus scripts |
+| poor-man's 40 labels | `INSTRUCTIONS_PER_BAR` (ruled: not raised), then a colour chosen between two transparent literals by a condition only the run computes |
+
+**For the integrator (not this lane's to change).** The HOST lane has no reading of `runtime.error` at
+all: a script whose validation fires — at a member's own input values, the door serves member inputs —
+is drawn here while TradingView shows an error. No graded capture reaches one; Q-E1 is the witness
+either lane would need.
