@@ -147,6 +147,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 46 | C29 the rules the 2026-09-30 capture session settled, each served through ONE authority and proved by a rail that reads the new fixture: (1) `syminfo.root`/`basecurrency`/`currency`/`timezone`/`session`/`pointvalue` from `symbolScope.json::listing_fields` (`type` still refused by name); (2) C12w bar counters under the listing exception only, the two spellings told apart by the reading written into the switched mark (`interpret.js::readingSeed`); (3) a bare ticker resolves to its confirmed-exchange listing (ambiguous names refused), `BRK.B` is the store's `BRK-B` (`otherSymbols.js::storeTickerOf`); (4) `color.from_gradient` as captured — opacity bytes blend, channels premultiplied and truncated, fractional transparency truncated (`colorInt.js::wholeTransparency`), 0xAABBGGRR; (5) v6 `timeframe.period` is `1D`/`1W`/`1M` (`pine.js::periodTextOf`), the C15 withhold and the C20 gate lifted, and a document folded at one period refuses, per plot and for the drawings, only what differs on another (`periodReads.js`); (6) a comparison with an `na` operand is false, `!=` included (bind fold + Python twin); (7) `x[na]` reads the current bar; with no `max_bars_back` a dynamic offset is served to 399 and withheld beyond — see § C29 | `e43be85fa`, `b9c0e6004` | 28 / 47 → **29 / 47** (overall 24 → **25**; base `bcac5dd34`, objects pane on): max-pain DIVERGE → **MATCH** | 222 / 266 → **225 / 266** | **max-pain** boxes 1 → **13 / 13**, labels 6 → **8 / 8** (the 12 heatmap boxes and 2 legend labels C20 withheld). **ema-ribbon** cells 34 → 36 / 48 (the `1D` rows). htf-liquidity, mcclellan, sector-rotation, smt: notes only (the bare-symbol sentence). Committed harness dir (99): objects MATCH 49 → **54**, overall 40 → **41**, families 269 / 315 → 281 / 322, plots MATCH 267 / 322 → 283 / 346, inventory identical — vw-bar-counters 7 / 7 counter rows MATCH on 634 bars (`ta.cum(1)` values agree; its row is a constant-hidden colour INCONCLUSIVE), vw-other-symbol SPY rows + label MATCH (BRK.B agrees on the 300 bars the committed BRK.B capture holds), vw-tf-period 1D label `[1D]` MATCH and every value agrees (1W/1M: `T01`–`T07` refused by name, `T08`–`T11` agree), w4-cross-round now graded (16 of 17 agree; `X00` is `bar_index` on a window that does not start at the listing). 0 regressions. Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, 1 row — `poor-man039s-volume-profile` flag off moves from `pine:objects-only` to the clean-objects-only sentence (its program no longer drops an op; flag on unchanged). Census build alternated (box under load): base 100.8 / 80.8 / 36.8 s, tip 97.0 / 43.9 s (first tip run 129.2 s beside another lane's gate). Notebook first-open 1,891,971 B at base and tip (+0, PASS); total JS +8,696 B (`pine` chunk 325,890 → 327,347 B). `paramIds.test.js` green, no re-pin |
 | 41 | C31 loop-scoped names and loop-built text in the OBJECT lane — the block reader (`foldStatements` under the block harvest) steps over a `for`/`while` instead of stopping at it: the names its body can change refuse (`loopWrites` → `loopWriteRefusal`, one builder with the top-level walk), everything below the loop binds; a counted `for` with ascending integer-literal bounds that only appends to text is folded pass by pass (`unrollTextLoop`); a helper's own locals are visible to the text reader; a `ta.*` local under a guard that is not bar-invariant is marked (`condCall`) and refused, also by the runtime rescue; a binding below a stepped-over loop stays the runtime lane's to answer (`afterLoop`). The main walk is unchanged — see § C31 | `136994295`, `319a91668` | 28 / 47 → 28 / 47 (overall 25 → 25) | 222 / 266 → 222 / 266 | no family flips: `artemis-oscillator-pro` cells 14 → **15** / 21 (`fTxt` = `O-  V-  S-`, TradingView's); `htf-candle-footprint` boxes 0 → **3** / 13 (the three body boxes, at TradingView's bars and prices); ema-ribbon 34 / 48 and poor-man 0 / 40 labels unchanged, each with its wall re-named. Committed harness dir (87): the same two entries, objects 49, overall 42 unchanged. Census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (control 0). Translation census 266 × 2: 0 plots, refusals or parameters moved; object programs changed in 4 scripts. Notebook first-open +0 B; pine chunk +3,965 B. `paramIds.test.js` green, no edit |
 | 43 | C33 three object-lane reads, one script each — **(a)** `array.push(list, f(…))` / `list.push(f(…))` is the two statements Pine runs (`pineObjects.js::pushOfDrawCall`), and a helper whose body ends in a lone `if … <ns>.new(…)` returns that object or `na` (`ifOnlyReturn`: the caller's name is emptied under the call's guards, then filled under the create's); **(b)** an `input.timeframe` default printed in a text is served only for a spelling a committed capture prints under that Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`: `D` under v6, `W` under v5) — any other spelling marks the property unknown and is never printed; a request timeframe that is a function PARAMETER is the caller's argument, on the object pass only; `color.new(c, <input default>)` and an `na` arm of a colour choice resolve without minting; **(c)** `<getter>[k]` (k ≤ 5), `str.tostring(<getter>)` and an inlined helper's own getter local are read by the object runtime; an `and` guard with a term nothing reads, gated by an `input.bool`, is carried as a latch over its read terms and one unknown (`guard:partial`); **(d)** `last_bar_time` is the newest bar's time in ms | `e3ebd3a6a`, `0c48cc0a9` | 29 / 47 | 228 / 266 | **average-day-range-adr-pivots DIVERGE → MATCH** (lines 0 → 2 of 2, boxes 0 → 2 of 2, cells 3 → 4 of 4, cell text agrees; ids, coordinates, colours and text equal TradingView's — `vendorHarness.c33ObjectReads`). **high-low-open-mid-ranges** labels 0 → **504 of 504**, label text agrees (text, y, x-rank and text colour of all 504 equal); its 504 lines stay WITHHELD and cells stay 37 of 45. **volume-profile**: `last_bar_time` served, its 3 lines still withheld (next wall `chart.left_visible_bar_time`). Overall MATCH 25 → 26 of 47; plots 161 / 172 unchanged. Committed harness dir (87 graded): objects 49 → 50, overall 42 → 43, families 278 → 284 of 322 — the same two entries and only those; flag-off runs unchanged (18 / 15 and 39 / 32). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 of 532 rows changed** (base-vs-base control 0). Translation census 266: no served output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +8,600 B; total JS +10,368 B. `paramIds.test.js` green, no re-pin |
+| 47 | C36 what C30 left (§ C36). **(1)** an every-day daily chart (BTCUSD capture: the week starts MONDAY, the month on the 1st) is SERVED, less a period whose calendar first day has no bar and a bar across a New York clock change from its anchor — both withheld by name; a chart with one weekend day but not the other stays withheld whole. ⛔ **A wrong value fixed on the way:** on a session chart TradingView anchors to the first session ITS CALENDAR holds, not the first bar — the Hurricane Sandy week read 0 / −1 / −2 where the vendor reads −2 / −3 / −4; a period not opened by the calendar's first session is now withheld (that week, and every holiday-opened period before 2000). **(2)** every withholding carries a named reason out of `periodAnchorMask` to the member's disclosure strip (`chartClockNotice.js`). **(3)** `time(timeframe.period)` / `time("60")` = the bar's own `time` on 1D and 60m charts, as witnessed; nowhere else. **(4)** ⛔ the Python interpreter answered `na(time("W")) ? a : b` with a confident `a` on EVERY bar in all three server consumers that can evaluate a pane's saved tree (alerts, the scan sweep, the screen backtest); `ast_interpret.period_anchor_mask` is now the mask's port, one parity fixture. **(5)** `time_close("W" / "M")` on a session daily chart = `tf_live(<period>, timeclose)`, 4,800 / 4,800 incl. the forming period's scheduled close; withheld by name with weekend bars and off 1D; `"3M"` / `"12M"` refused by name (measured; no quarterly bar) | `a4f56d007` | 30 / 47 (unchanged) | 233 / 266 (unchanged) | none on the 47 or the committed dir (0 graded entries; 5 probe entries' refusal sentence). Through the door once the unrelated row is cut: `vw-time-tf-bitstamp-btcusd-1d` T01–T04 0 wrong, 5,438 / 4,795 / 4,247 / 1,845 bars equal; `vw-time-close-tf-spy-1d` Q01 / Q02 / Q12 / Q13 MATCH 4,800 / 4,800 and Q08 3 wrong → 0; `vw-time-tf-spy-1d` T05 / T06 MATCH 900 / 900. C30's surviving mutation M5 is red — see § C36 |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -2436,3 +2437,207 @@ Mutations re-run on the merged tree: 34 (the 32 above, plus M33 a getter-fed sca
 M34 the finite rule reaching C32's per-pass numbers), over nine rails including `objectFnInline.vendor`,
 `objectWindowLoopReads`, `c32Collections` and `c30TimeAnchor`. Control 98 passed, 1 skipped; all 34 red alone,
 restored by bytes, sha verified, `git status` clean.
+
+## C36 — what C30 left: weekend bars, a named reason, two witnessed spellings, the Python lane, `time_close(<tf>)` (2026-09-30, step 47)
+
+Branch `pine/c36-time-followups`. Base: wave 9 at `1ce378b3b` (C31 and C33 merged) plus the evening captures
+(`pine/captures-2026-09-30b`, `28eb8f258`), both merged in. The rules are stated once, in
+`interpret.js::periodAnchorMask` and the builders above it; the sentences a member reads in
+`interpret.js::CHART_CLOCK_WITHHELD`. What is still owed a capture: `docs/pine/capture-queue-2026-09-30-time-anchors.md`.
+
+The lane began as four follow-ups under a ruling to WITHHOLD the weekly anchor on a weekend-bar chart. The
+evening captures then witnessed that item and added `time_close(<tf>)`; the integrator re-ruled "serve what
+reproduces". Each finding was checked against its fixture before anything was served, and two did not hold as
+summarised — both are written out below because they changed what is served.
+
+### 1 — weekend bars (`vw-time-tf-bitstamp-btcusd-1d-2026-09-30`: BITSTAMP:BTCUSD 1D, 5,491 bars, every day of the week)
+
+| question | answer, measured |
+|---|---|
+| which day opens the week | **Monday**. `time("W") − time` is 0 on a Monday bar and −6 on a Sunday bar. C30's surviving mutation M5 (Sunday-first) is dead: see Mutations |
+| month / quarter / year | the 1st; the 1st of Jan / Apr / Jul / Oct; Jan 1 |
+| ⚠️ is the anchor "the first daily BAR of the period" | **No — it is the period's CALENDAR open, bar or no bar.** The capture has 19 day-gaps. A week whose Monday bar is missing reads −1 on its Tuesday (19 bars); a month whose first bars are missing reads −2 on the 3rd (22 bars; 75 for the quarter). The first-bar tree answers 0 there |
+| ⚠️ is this chart's `time` the vendor's on such a symbol | **No.** The chart stamps a date-keyed daily bar at 09:30 New York (`indicators.js::barOpenInstant`, an equities reading); the vendor stamps this symbol's at 00:00 UTC. They are 13.5 h apart on 3,596 bars and 14.5 h on 1,895 — every bar. Inside one New York clock regime `time(tf) − time` is still the vendor's whole number of days; across a change it is an hour off: 30 / 666 / 1,138 / 3,540 bars for W / M / 3M / 12M |
+
+**Served:** a daily chart whose bars include BOTH a Saturday and a Sunday (detected off the `dayofweek` column the
+week key reads) gets the four anchors by the same keys as equities. **Withheld there, by name:** a period whose
+opening bar is not its calendar first day (`periodCalendarFirst` — `time-anchor:period-open-missing`), and a bar
+across a New York clock change from its anchor (`time-anchor:utc-day-clock`). Through the real member door on the
+capture (T16, `input.time`, cut): **T01–T04 0 value mismatches; 5,438 / 4,795 / 4,247 / 1,845 bars equal to
+TradingView; 53 / 696 / 1,244 / 3,646 withheld** — exactly the bars the capture's own dates say (first partial
+4 / 8 / 31 / 106 + opening day missing 19 / 22 / 75 / 0 + clock change 30 / 666 / 1,138 / 3,540), computed in the
+rail from the capture alone and compared index for index. T07–T09 (the new-period event): 0 mismatches.
+
+⚠️ **Stated plainly, not hidden:** the anchor's ABSOLUTE instant on such a chart is this chart's `time` of that bar,
+so it carries the 13.5 / 14.5 h offset that bare `time` already carries there. That is the clock's, pre-existing,
+and wider than this lane (see "Left for the integrator"). `time("12M")` is withheld on 66 % of the capture's bars
+for the same reason. Both go away with an every-day clock, not with a capture.
+
+**Still withheld whole:** a daily chart with a Saturday OR a Sunday bar but not both (`time-anchor:weekend-bars`) —
+an FX week opening on a Sunday evening is neither capture's shape. And bars with no readable clock — a daily bar
+keyed by a `YYYYMMDD` number — are withheld whole (`time-clock:unreadable`): a blank clock is not "no weekend bars".
+
+### 1b — found on the way: C30's anchor was WRONG on a session chart (3 bars), and is unmeasured before 2000
+
+`vw-time-close-tf-spy-1d-2026-09-30` (AMEX:SPY 1D, 4,800 bars from 2007-08-31) carries `time(tf) − time` beside
+its closes (Q08–Q11). On the Hurricane Sandy week of 2012 — no bar Mon 10-29 or Tue 10-30 — the vendor reads
+**−2 / −3 / −4** on Wed..Fri where C30's first-bar tree reads **0 / −1 / −2**. The vendor anchors to the first
+session ITS CALENDAR holds, and its session view does not close those two days (`tradingViewSession.js`). C30's
+900-bar capture (2023 → 2026) has no such week, and its 8,473-bar second witness plots the EVENT, which is right
+either way. Same class as M5: the capture could not tell the two rules apart.
+
+**Fix, by withholding:** on a session chart a period is known only if its opening bar's `time` equals
+`tf_live(<W|M>, time)` — the period bar's own open off the vendor calendar — and, for a quarter or year, the bar's
+month is the period's first (`time-anchor:session-open-missing`). That withholds the Sandy week (Q08: 3 value
+mismatches → 0) and every holiday-opened period before 2000, where the vendor's calendar applies no closure and no
+daily chart was measured: on SPY's 8,473 sessions 121 / 165 / 414 / 1,497 bars of W / M / 3M / 12M, all dated
+before 2000, plus Sandy's 3. `clockCloseTfChange.vendor.test.js` K14 / K15 moved from `withheld = [0, 1]` to 154 /
+174 bars, every one explained in the test (before 2000-01-04, or 2012-10-31..11-05), 0 wrong.
+
+⭐ **Measured, not yet used:** `tf_live("W", time)` equals the vendor's `time("W")` on **4,800 / 4,800** bars of that
+capture and **900 / 900** of C30's — the Sandy week and the first partial week included; `tf_live("M", time)`
+likewise. A calendar-read anchor for W and M on a session chart would serve every bar C30 and this lane withhold.
+It would also change a tree C30 shipped and carry `tf_live`'s `preview-repaints` label — left for a ruling.
+
+### 2 — a named reason, where a member reads it
+
+`periodAnchorMask` writes each withholding (code → sentence) into `opts.chartClockSink` as it decides. Plots:
+`nativeRegistry.chartClockReport(columns)` (modelled on C26's `otherSymbolReport`, non-enumerable on the column
+map). Drawings: the object reader's `chartClock` (both document forms). ⚠️ C26's report has no member surface — its
+only reader is the vendor harness — so the surface was built: the binder publishes both lanes per instance to
+`engine/chartClockNotice.js` (a store, like `paneFitNotice.js`: the fact is bind-time, not a document property)
+and takes it down when the instance leaves, is hidden, the engine goes off or the binder releases;
+`AttachedPineDisclosures` renders the sentence for the instances its own pane draws. Wording and plumbing only.
+
+| code | bars | when |
+|---|---|---|
+| `time-anchor:not-daily` · `time-close:not-daily` | all | the chart is not 1D |
+| `time-anchor:weekend-bars` · `time-close:weekend-bars` | all | daily bars with one weekend day but not the other · with any weekend bar |
+| `time-anchor:other-bars` | all | the read sits under a request for another timeframe or symbol |
+| `time-own:chart-unwitnessed` | all | `time(timeframe.period)` / `time("60")` off 1D and 60m |
+| `time-clock:unreadable` | all | daily bars keyed by a date number: no clock to place anything by |
+| `time-anchor:period-open-missing` · `time-anchor:session-open-missing` | that period | its calendar first day / first session has no bar |
+| `time-anchor:utc-day-clock` | those bars | every-day chart, bar across a New York clock change from its anchor |
+| `time-close:period-end-missing` | that period | a completed week / month whose last session has no bar |
+
+An anchor's first partial period stays withheld with no sentence, as C30 left it: every chart has one.
+A whole-series withholding is now decided BEFORE the tree is evaluated (`interpret.js::chartClockWhole`), so a
+`tf_live` read on a weekly chart is "not measured here", never an `interpret:timeframe` refusal.
+
+### 3 — `time(timeframe.period)` and `time("60")`
+
+Both equal `time` on 900 daily bars (`vw-time-tf-spy-1d` T05 / T06), on 300 hourly bars (`vw-time-tf-spy-60`) and on
+5,491 every-day daily bars (the BTCUSD capture). Served as the bar's own `time` on a 1D and a 60m chart
+(`interpret.js::chartOwnTimeNode`: `(periodseconds == 86400 || periodseconds == 3600) ? time : na`, one builder,
+recognised node for node); withheld and named on any other chart; refused by name for any other literal (`"15"`,
+`"240"`, `"1H"` — the probe spelled `"60"`), on a screen, inside a request, and when the translation is told
+another chart. The probe itself still refuses at the door on T16 (`input.time`, `pine:input-kind`), so the C30
+rail keeps a derived capture — now with that ONE row cut — and grades T05 / T06: MATCH on 900 / 900.
+
+### 4 — the Python lane: three consumers could reach the tree, and read a confident wrong value
+
+A member pane saves ONE document. Its trees are evaluated server-side by `alert_user_series` (bars keyed
+`YYYYMMDD`, no `tf`), `screener/scan_evaluator` (`YYYYMMDD`, `tf = D`) and `screener/backtest` (ISO dates, no
+`tf`) — and nothing at the save door or in `assert_scannable` looks at clock leaves. In all three the clock the
+anchor reads is blank, so the anchor was `NaN` on EVERY bar: measured before the fix, `na(time("W")) ? 111 : 222`
+answered **111 on every bar** and `ta.change(time("W")) != 0` **0 on every bar**, in each context
+(`test_control_the_unmasked_column_is_the_confident_wrong_answer`). `ast_interpret.period_anchor_mask` is now the
+port of `periodAnchorMask` — every rule above, bar for bar. One fixture, both lanes
+(`tests/fixtures/ast/period_anchor_parity.json`, written and re-checked by `ast/periodAnchorParity.test.js`, read
+by `tests/test_ast_period_anchor_parity.py`): 52 cases over the member door's own trees. Each consumer already
+treats `None` as "no number" (the sweep's `not_computable`, the backtest's honest hole, the alert's "no number
+yet"), so a withheld bar lands in the right bucket. Python keeps the CODES; the sentences have one owner (JS).
+
+### 5 — `time_close("W")` and `time_close("M")` (`vw-time-close-tf-spy-1d-2026-09-30`, probe `vw-time-close-tf.pine`)
+
+The close of the period's LAST SESSION — Friday 16:00, Thursday 16:00 when Friday is a closure, 13:00 on a
+half-day — and the forming period reads the SCHEDULED close. The tree is vocabulary both lanes already hold:
+`periodseconds == 86400 ? tf_live(<W|M>, timeclose) * 1000 : na` — the bars resampled to the period, and that
+period bar's own `timeclose`, which the clock answers from the vendor's session calendar. Through the member door
+(Q03 / Q04 / Q05 cut): **Q01 and Q02 MATCH on 4,800 / 4,800, nothing withheld** — the first partial period and the
+forming one included (Wed 2026-09-30 → Fri 2026-10-02 16:00) — and Q12 / Q13 (`ta.change(time_close(tf)) != 0`)
+MATCH on 4,800.
+
+| not served | why |
+|---|---|
+| a daily chart with weekend bars | on BTCUSD the vendor answers the NEXT period's open (next Monday 00:00 UTC, `vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30`); this chart's daily clock holds no such instant. All 5,491 bars of Q01 / Q02 / Q12 / Q13 withheld, 0 wrong (`time-close:weekend-bars`) |
+| a chart that is not 1D | not measured (`time-close:not-daily`) |
+| a completed period whose last session has no bar | the calendar keeps open a day the chart has no bar for: every such week / month is before 2000, plus the week of 2001-09-10 — 53 / 40 bars on SPY's 8,473 sessions (`time-close:period-end-missing`). The capture starts in 2007, where calendar and bars agree, so which the vendor answers is unmeasured |
+| `time_close("3M")` / `("12M")` | **measured** (Q03 / Q04: the close of the quarter's / year's last session) and refused by name: the engine resamples only weeks and months (`TF_RESAMPLABLE`). An engine gap, not a capture gap |
+| `time_close(timeframe.period)` | witnessed equal to `time_close` on both captures (Q05); not in this lane's ruling, left refused |
+
+⚠️ `tf_live` makes the linter label the tree `preview-repaints` (forward reach 4 / 20 bars). That is conservative,
+not true of this value — a period's close is the calendar's and does not move as the period fills. A
+`non-repainting` label needs a clock column for the period close.
+
+### The clock-leaf lookback disagreement (measured, not fixed)
+
+`{type:'series', name:'sessionfirst'}` (and `weekfirst`, `monthfirst`): `interpret.js::maxLookback` → **0**,
+`lint.js::maxLookback` → **1**; Python the same split (`ast_interpret.max_lookback` 0, `ast_lint.max_lookback` 1).
+The manifest declares `lookback: 1` for all three, so the linter reads the declaration and the interpreter counts
+every leaf 0. Reproducer through the door: `plot(timeframe.change("D") ? 1 : 0)` → `(isfirst ? 0 : sessionfirst) ? 1 : 0`,
+readers `[0, 1]`; under `ta.sma(…, 5)` `[5, 6]`. `lookbackAgreement.test.js` is blind to it by population: of 1,663
+trees over `corpus/committed` + `tests/fixtures/member`, both lanes, **0** read any of the three leaves. Not fixed:
+it needs both readers in both lanes and the oracle file; no mask here reads a path through those leaves.
+
+### Measured (base = wave 9 `1ce378b3b` + captures `28eb8f258`; tip = this branch; same commands, same box)
+
+| | base | tip |
+|---|---|---|
+| 47 captures, pane on: objects MATCH / overall / families / plots | 30 / 27 / 233 of 266 / 161 of 172 | unchanged, 0 entries |
+| 47 captures, pane off | 18 / 15 / 107 of 119 / 140 of 151 | unchanged, 0 entries |
+| committed harness dir (117 graded), on: objects / overall / families / plots | 62 / 46 / 315 of 350 / 343 of 417 | unchanged; 5 entries' refusal sentence moved, all INCONCLUSIVE both sides: `vw-time-tf-spy-1d`, `-spy-60`, `-bitstamp-btcusd-1d` now stop at `input.time` (`pine:input-kind`) instead of `time(<timeframe>)`; `vw-time-close-tf-spy-1d`, `-bitstamp-btcusd-1d` now stop at `time_close("3M")` |
+| committed harness dir, off | 50 / 34 / 189 of 203 / 322 of 396 | unchanged; the same 5 sentences |
+| member-door census 266 × both flags | attach 41 / 64 | 41 / 64; 3 rows per flag, each a refusal SENTENCE only (chart-champions, smart-money-concepts-by-welotrades, zigzag-ma-pattern-recognition: `timeAnchorSentence` now names the two served spellings). Base-vs-base control 0 rows |
+| translation census 266 (strict) | ok 58, served outputs 827 | ok 58, served 827; **0 served outputs changed**; 5 scripts' refusal text only. Base-vs-base control 0 rows |
+| notebook first-open | 1,897,262 B PASS | 1,897,262 B PASS (+0) |
+| pine chunk / total JS | 351,458 B / 12,672,121 B | 353,925 B (+2,467) / 12,686,327 B (+14,206) |
+| `paramIds.test.js` | 4 passed, 1 skipped | 4 passed, 1 skipped — **no edit** |
+
+No corpus script moves: the only committed script that spells `time(timeframe.period)` in the one-argument form
+(`mtf-watchlist-charts-anan`) refuses earlier on other walls, and none spells `time_close(<W|M>)`. What this lane
+moved is what a member's own script reads, and what the three probes grade once their unrelated row is cut.
+
+### Rails and mutations
+
+`vendorHarness.c36TimeFollowups.test.js` (61 — the three new captures and the two C30 ones through the real member
+door; the BTCUSD withholdings compared index for index against the capture's own dates), `ast/periodAnchorParity.test.js`
+(70) with `tests/test_ast_period_anchor_parity.py` (74) over one fixture of 52 cases, `engine/__tests__/chartClockNotice.test.jsx`
+(14 — the real binder over the recording chart, the real strip, asserted as rendered text),
+`vendorHarness.c30TimeAnchor.test.js` (27, re-pointed: one row cut instead of three, T05 / T06 graded),
+`clockCloseTfChange.vendor.test.js` (K14 / K15 re-pinned with the reason in the test).
+
+**63 mutations, each run alone, each RED, each restored by bytes with the sha verified and `git status` clean for the
+file** (run on `98ef9af9f`, before the last wave-9 merge, which did not touch the mutated lines):
+
+| group | mutations |
+|---|---|
+| weekend / every-day / session (JS, 9) | one-weekend-day charts served; an every-day period answered from its first bar; a bar across a clock change served; a session period not opened by the calendar's first session served; the first-month condition dropped; **the week starts Sunday (C30's M5: 24 tests red, the BTCUSD rows among them)**; a blank clock read as "no weekend bars"; a four-month quarter; an every-day chart treated as a session chart |
+| the named reason (JS, 17) | the mask names nothing; non-daily not withheld; a read of other bars not withheld; the early whole-series return removed; the plot lane, the column map, the trees-form and the graph-form object lane each dropping the reason; the binder not publishing plots / drawings; a departed instance, the disabled engine and a release each keeping the sentence; the store answering for every instance / emitting nothing; the strip not rendering / disclosing a hidden instance |
+| `time(timeframe.period)` / `time("60")` (JS, 8) | a third timeframe admitted; an unmeasured chart not withheld; never recognised; `"1H"` served as `"60"`; the told-chart, screen and request refusals removed; the gate removed |
+| `time_close` (JS, 10) | served with weekend bars; served off a daily chart; a period with no last-session bar served; the forming period withheld too; `"3M"` handed to the resampler; the gate removed; never recognised; the CLOSED period read (`tf` for `tf_live`); the screen and told-chart refusals removed |
+| the Python mirror (19) | the mask not applied; the early return removed; each arm removed in turn (one weekend day, non-daily, own-time, nested, calendar-first, clock change, session open, first month, period end, `time_close` weekend / non-daily, blank clock); reach forced to 0; the week key drifting from JS; a third timeframe; Saturday not a weekend day; nothing named |
+
+**M5, specifically.** At C30 a Sunday-first week survived because SPY's Monday..Friday bars group identically under
+both keys. The rail now holds that as a stated fact (the two keys open a week on exactly the same bars over 900 and
+8,473 sessions) AND kills the mutation on TradingView's numbers: on BTCUSD the vendor's new-week event agrees with
+the Monday-first key on 5,490 / 5,490 bars and with the Sunday-first key on fewer than 3,990.
+
+### Left for the integrator
+
+1. **An every-day clock.** On a 24×7 symbol's daily chart this engine's `time` is 13.5 / 14.5 h off the vendor's on
+   every bar, bare `time_close` is wrong on every weekday bar and blank on every weekend bar (Q07 on the BTCUSD
+   capture: 3,786 value mismatches, 1,705 blank — at base, not this lane's), and `hour` / `minute` read 9 / 30.
+   Stamping such a bar at 00:00 UTC, with calendar fields from the date key, would lift `time-anchor:utc-day-clock`
+   and `time-close:weekend-bars` and correct bare `time` / `time_close` there. It touches `barOpenInstant`'s four
+   JS call sites, `compute_clock`, and the clock parity fixture — its own lane.
+2. **A calendar-read anchor for W / M on a session chart** (`tf_live(<W|M>, time)`, 4,800 / 4,800 and 900 / 900):
+   serves the first partial period and the Sandy week; changes C30's tree and its repaint label.
+3. **`timeframe.change("W")`** (C8's `weekfirst` column) marks a new week on the Monday bar of a weekend-bar chart.
+   That is now the witnessed week start; the column itself was not re-measured on BTCUSD (`vw-time-tf` plots
+   `ta.change(time("W")) != 0`, not `timeframe.change`) and is unchanged.
+4. **A quarter / year resample** would serve `time_close("3M" / "12M")` — and `time_close(timeframe.period)` is
+   witnessed and unserved.
+5. **The lookback disagreement** above.
+6. A named refusal at alert arm / `assert_scannable` for a tree the mask withholds whole (the Python sink carries
+   the code): today such an alert is admitted and reads "no number" forever, which is honest and quiet.

@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -582,7 +582,8 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
   + 'period — the anchor Pine scripts compare with `>` to detect a new day '
   + 'or week. `time("D")` (or a timeframe argument that folds to `"D"`) '
   + 'translates, and so do `"W"`, `"M"`, `"3M"` and `"12M"` on a daily chart '
-  + '(vendor capture `vw-time-tf-spy-1d-2026-09-28`). Any OTHER period this engine does not have a node for: '
+  + '(vendor capture `vw-time-tf-spy-1d-2026-09-28`); `time(timeframe.period)` and `time("60")` are the '
+  + 'bar\'s own `time` on 1D and 60-minute charts (the same probe on both). Any OTHER period this engine does not have a node for: '
   + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
   + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
   + 'an anchor comparison is usually asking'
@@ -9929,14 +9930,69 @@ export class Resolver {
       // the first bar LOADED, whether or not it opened a period. A pane accepts it.
       return cOp('?:', [clockLeaf('isfirst'), cNum(0), clockLeaf(col)])
     }
+    // ⭐⭐ C36 — `time_close("W" | "M" | "3M" | "12M")`, asked by the same spellings
+    // `time(<tf>)` reads (`timeAnchorPeriodOf`).
+    const period = lit === null ? null : timeAnchorPeriodOf(lit)
+    if (period !== null) return this.periodCloseOf(period, node.tok)
     if (code !== 'D') {
       throw no(lit === null
         ? 'its timeframe does not fold to a literal this translation can read'
-        : `only "D" (or "1D") is measured, and this asks for ${JSON.stringify(lit)}. `
-          + 'The bare `time_close` — this bar’s own close — does translate')
+        : `only "D" (or "1D"), and "W" and "M" on a daily chart, are measured, and this asks `
+          + `for ${JSON.stringify(lit)}. The bare \`time_close\` — this bar’s own close — does translate`)
     }
     const leaf = clockLeaf('dayclosetime')
     return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+  }
+
+  /** ⭐⭐ C36 — `time_close("W" | "M")` ON A DAILY CHART: THE CLOSE OF THE PERIOD'S
+   *  LAST SESSION. Returns a node, or throws a `pine:function` refusal that names
+   *  the form it cannot take.
+   *
+   *  THE READING (`tests/fixtures/vendor/harness/vw-time-close-tf-spy-1d-2026-09-30.json`,
+   *  probe `tools/visual_conformance/probes/vw-time-close-tf.pine`, AMEX:SPY 1D,
+   *  4,800 bars 2007-08-31 → 2026-09-30): Friday 16:00 New York; Thursday 16:00
+   *  when Friday is a closure; 13:00 on a half-day — the `time_close` of the
+   *  period's last chart bar, never the next period's open; and a FORMING period
+   *  reads the SCHEDULED close. The tree is `interpret.js::periodCloseNode` —
+   *  `tf_live(<period>, timeclose)`, the period bar's own close off the vendor's
+   *  session calendar — and it equals the capture on 4,800 / 4,800 bars for the
+   *  week and for the month.
+   *
+   *  ⛔ DAILY CHART ONLY, TWICE, like `periodAnchorOf`: refused when the
+   *  translation is told another chart, and gated in the tree because the member
+   *  door translates once. `interpret.js::periodAnchorMask` withholds, by name, a
+   *  chart that is not daily, a daily chart with weekend bars (the vendor answers
+   *  the NEXT period's open there — `vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30`),
+   *  and a completed period the chart holds no last-session bar for.
+   *  ⛔ `"3M"` AND `"12M"` STAY REFUSED — the capture measured them (Q03 / Q04: the
+   *  close of the quarter's / year's last session) and this engine resamples only
+   *  weeks and months (`interpret.js::TF_RESAMPLABLE`). An engine gap, named. */
+  periodCloseOf(period, tok) {
+    const at = locate(tok)
+    const spelled = { W: '"W"', M: '"M"', '3M': '"3M"', '12M': '"12M"' }[period]
+    const no = (why) => new PineRefusal('pine:function',
+      `${REFUSALS['pine:function']} — \`time_close(${spelled})\`: ${why}`, at)
+    if (!PERIOD_CLOSE_CODES.includes(period)) {
+      throw no('it is measured (vendor capture `vw-time-close-tf-spy-1d-2026-09-30`: the close of the '
+        + 'quarter\'s or year\'s last session), and this engine resamples only weeks and months, so it has '
+        + 'no quarterly or yearly bar to read that close from. `time_close("W")` and `time_close("M")` '
+        + 'translate on a daily chart')
+    }
+    if (!this.strict) {
+      throw no('the close of a higher-timeframe period is read here only on a chart pane; a screen '
+        + 'evaluates stored daily bars that carry no clock')
+    }
+    if (this.requestPeriod) {
+      throw no(`it is read inside a \`request.security\` at \`${this.requestPeriod}\`, and the capture `
+        + 'measured it on the chart\'s own bars only')
+    }
+    if (this.basePeriod !== 'D') {
+      throw no('it is measured on a DAILY chart only (vendor capture '
+        + '`vw-time-close-tf-spy-1d-2026-09-30`), and this chart is '
+        + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe `
+        + 'on this timeframe')
+    }
+    return periodCloseNode(period, this.pineVersion !== null)
   }
 
   /** ⭐⭐ `time("W" | "M" | "3M" | "12M")` ON A DAILY CHART — THE OPENING TIME OF
@@ -9992,6 +10048,47 @@ export class Resolver {
     const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
     const onDaily = cOp('==', [clockLeaf('periodseconds'), cNum(timeframeSeconds('D'))])
     return cOp('?:', [onDaily, value, cOp('/', [cNum(0), cNum(0)])])
+  }
+
+  /** ⭐⭐ C36 — `time(timeframe.period)` AND `time("60")`: THE BAR'S OWN `time`,
+   *  exactly where a capture shows it and nowhere else.
+   *
+   *  THE READING (probe `tools/visual_conformance/probes/vw-time-tf.pine`):
+   *  `vw-time-tf-spy-1d-2026-09-28` T05 `time(timeframe.period)` and T06
+   *  `time("60")` both equal `time` on all 900 daily bars;
+   *  `vw-time-tf-spy-60-2026-09-28` reads both rows equal to `time` on all 300
+   *  hourly bars. Two chart timeframes (`interpret.js::OWN_TIME_WITNESSED_TF`),
+   *  two spellings — and that is the whole of what is served. ⛔ NOT GENERALISED:
+   *  `time("15")`, `time("240")`, any other literal, and either spelling on a
+   *  5-minute, weekly or monthly chart stay refused or withheld; "a timeframe at
+   *  or below the chart's answers the bar's own time" is what Pine's reference
+   *  suggests and NOT what these rows prove.
+   *
+   *  ⛔ TWICE, like `periodAnchorOf`: the translation refuses when it is told a
+   *  chart outside the list, and — because the member door translates once,
+   *  before it knows the chart — the tree carries its own gate
+   *  (`interpret.js::chartOwnTimeNode`), whose `na` on any other chart
+   *  `periodAnchorMask` withholds in both lanes and NAMES
+   *  (`CHART_CLOCK_WITHHELD['time-own:chart-unwitnessed']`). */
+  chartOwnTimeOf(spelled, pineName, tok) {
+    const at = locate(tok)
+    const no = (why) => new PineRefusal('pine:function',
+      `${REFUSALS['pine:function']} — \`${pineName}(${spelled})\`: ${why}. ${timeAnchorSentence(pineName)}`, at)
+    if (!this.strict) {
+      throw no('the bar\'s own opening time under a timeframe argument is read here only on a chart '
+        + 'pane; a screen evaluates stored daily bars that carry no clock')
+    }
+    if (this.requestPeriod) {
+      throw no(`it is read inside a \`request.security\` at \`${this.requestPeriod}\`, and the capture `
+        + 'measured it on the chart\'s own bars only. What would settle it: a '
+        + `\`request.security(…, ${pineName}(${spelled}))\` row added to the \`vw-time-tf\` probe`)
+    }
+    if (!OWN_TIME_WITNESSED_TF.includes(this.basePeriod)) {
+      throw no('it is measured equal to the bar\'s own `time` on 1D and 60-minute charts only (vendor '
+        + 'captures `vw-time-tf-spy-1d-2026-09-28` and `vw-time-tf-spy-60-2026-09-28`), and this chart is '
+        + `\`${this.basePeriod}\`. The capture that would settle it here is the same probe on this timeframe`)
+    }
+    return chartOwnTimeNode(this.pineVersion !== null)
   }
 
   /** ⭐⭐ `time(<tf>, <session>[, <tz>])` — THE SESSION CLOCK, AS THE VENDOR
@@ -11323,8 +11420,15 @@ export class Resolver {
       // today, so it stays refused rather than silently guessed at.
       if (anchorForm) {
         const argNode = args[0] && (args[0].value !== undefined ? args[0].value : args[0])
+        // ⭐⭐ C36 — the chart's OWN timeframe, asked FIRST for the reason
+        // `ownTimeframeOf` states (a rebound `period` is not the chart's).
+        if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
+        // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
+        // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
+        // the same code and no capture row spells it.
+        if (rawTf !== null && String(rawTf).trim() === '60') return this.chartOwnTimeOf('"60"', pineName, tok)
         if (tfCode === 'D') {
           // ⛔⛔ MILLISECONDS, BECAUSE PINE'S CLOCK IS — AND THE MERGE OF 2026-09-23
           // CREATED THIS MISMATCH OUT OF TWO CORRECT HALVES.
