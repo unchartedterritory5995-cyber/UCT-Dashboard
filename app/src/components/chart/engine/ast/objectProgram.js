@@ -593,8 +593,11 @@ function assertColorNode(v, where, depth = 0) {
   }
 }
 
-/** ⭐ C43 — is this a value operator with a getter (or a C14 scalar) beneath it? */
-function opReadsState(v, depth = 0) {
+/** ⭐ C43 — is this a value operator with a getter (or a C14 scalar) beneath it?
+ *  ONE predicate: this validator admits such a value only as a bar coordinate,
+ *  and the object runtime asks the same function which coordinates to mark when
+ *  the arithmetic has no answer (`objectRuntime.js::unsaidProps`). */
+export function opReadsState(v, depth = 0) {
   if (!isObj(v) || v.v !== 'op' || depth > 32 || !Array.isArray(v.args)) return false
   return v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || opReadsState(a, depth + 1)))
 }

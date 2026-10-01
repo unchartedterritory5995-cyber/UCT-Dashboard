@@ -31,7 +31,7 @@
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
-  withObjectTransparency,
+  withObjectTransparency, opReadsState,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
 import { unpackColor, wholeTransparency } from './colorInt.js'
@@ -207,12 +207,10 @@ export function beginObjects(program, ctx) {
   let truncNegative = 0
   let propsUnsaid = 0
   const stateArithKeys = new WeakMap()
-  const readsStateOp = (v, depth = 0) => isObj(v) && v.v === 'op' && depth < 32 && Array.isArray(v.args)
-    && v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || readsStateOp(a, depth + 1)))
   const unsaidProps = (op, resolved) => {
     let keys = stateArithKeys.get(op)
     if (!keys) {
-      keys = Object.entries(op.props || {}).filter(([, v]) => readsStateOp(v)).map(([k]) => k)
+      keys = Object.entries(op.props || {}).filter(([, v]) => opReadsState(v)).map(([k]) => k)
       stateArithKeys.set(op, keys)
     }
     if (!keys.length) return NO_PROPS
