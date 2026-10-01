@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom'
 
 // ── controllable paid state ──────────────────────────────────────────────────
@@ -27,7 +28,13 @@ vi.mock('./components/accounts/AccountSelector', () => ({
 vi.mock('./components/PortfolioSettingsModal', () => ({ default: () => null }))
 vi.mock('./components/accounts/NewAccountModal', () => ({ default: () => null }))
 vi.mock('./components/GenerateReportModal', () => ({ default: () => null }))
-vi.mock('./components/ShortcutCheatSheet', () => ({ default: () => null }))
+// ⛔ A2R-04 (a11y second review, 2026-10-01): the real ShortcutCheatSheet is
+// NOT stubbed — the "JournalLayout — keyboard shortcuts door (A2R-04)" block
+// below needs the real button + real dialog to exercise Enter/Space and the
+// "?" shortcut end to end. Every other describe block in this file never
+// opens the dialog (`showShortcuts` defaults false, and the real component
+// renders null when closed exactly like the old stub did), so this is a
+// behavior-preserving change for them.
 
 // ── "+ Log Trade" (A5) deps: selected-account hook + the two heavy add modals ─
 vi.mock('./hooks/useJ2SelectedAccount', () => ({
@@ -501,5 +508,81 @@ describe('JournalLayout — mobile quick-log FAB (B5)', () => {
     fireEvent.click(fab)
     const menu = screen.getByRole('menu', { name: /quick log a trade/i })
     expect(menu.textContent).not.toMatch(EMOJI)
+  })
+})
+
+// ── Keyboard Shortcuts door (A2R-04) ─────────────────────────────────────────
+// Second a11y review, 2026-10-01. The "Show keyboard shortcuts" button was
+// reachable by Tab but Enter did nothing, and the documented "?" shortcut did
+// nothing either (react-hotkeys-hook's own `event.code`-based matching never
+// satisfies a hotkey string containing the literal "/" character — see the
+// comment beside the `useHotkeys` call in JournalLayout.jsx for the traced
+// mechanism). Both are fixed here; this block proves it with real key events.
+describe('JournalLayout — keyboard shortcuts door (A2R-04)', () => {
+  it('Enter on the "Show keyboard shortcuts" button opens the dialog', async () => {
+    renderAt('/journal')
+    const btn = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    btn.focus()
+    fireEvent.keyDown(btn, { key: 'Enter' })
+    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  })
+
+  it('Space on the "Show keyboard shortcuts" button opens the dialog', async () => {
+    renderAt('/journal')
+    const btn = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    btn.focus()
+    fireEvent.keyDown(btn, { key: ' ' })
+    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  })
+
+  it('a plain click still opens it too (regression)', () => {
+    renderAt('/journal')
+    fireEvent.click(screen.getByRole('button', { name: 'Show keyboard shortcuts' }))
+    expect(screen.getByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  })
+
+  it('the "?" shortcut opens the dialog from a settled, non-input focus', async () => {
+    renderAt('/journal')
+    expect(screen.queryByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeNull()
+    document.body.focus()
+    // The real physical key a Shift+/ press reports — react-hotkeys-hook
+    // matches on `code`, which is what the fix (`'shift+slash'`) depends on.
+    // `key: '?'` is included because that is what a real browser ALSO reports
+    // for this combination; the library ignores it for matching, but a test
+    // that omitted it would not be a faithful replay of a real keydown.
+    fireEvent.keyDown(document.body, { key: '?', code: 'Slash', shiftKey: true })
+    expect(await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeInTheDocument()
+  })
+
+  it('the "?" shortcut does NOT fire while typing in a text field (2.1.4)', async () => {
+    renderAt('/journal')
+    // AccountSelector is stubbed; use the header's own Notebook surface entry
+    // point instead — the Trades search-like inputs aren't mounted from
+    // /journal directly, so reach for a real text input this layout renders
+    // unconditionally: the mobile/desktop nav has none, so seed one via the
+    // "+ Log Trade" > Add Position flow, which has real form fields.
+    fireEvent.click(screen.getByRole('button', { name: /log trade/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: /open position/i }))
+    const modal = screen.getByTestId('add-position-modal')
+    // The stub modal has no text input of its own; build one in place is not
+    // representative, so assert the inverse precisely against a real `?`
+    // event targeted at an <input> that react-hotkeys-hook's own
+    // `enableOnFormTags` default (off) must still exclude.
+    const input = document.createElement('input')
+    modal.appendChild(input)
+    input.focus()
+    fireEvent.keyDown(input, { key: '?', code: 'Slash', shiftKey: true })
+    expect(screen.queryByRole('dialog', { name: 'Keyboard Shortcuts' })).toBeNull()
+  })
+
+  it('Escape closes it and focus returns to the button that opened it', async () => {
+    renderAt('/journal')
+    const opener = screen.getByRole('button', { name: 'Show keyboard shortcuts' })
+    opener.focus()
+    fireEvent.keyDown(opener, { key: 'Enter' })
+    await screen.findByRole('dialog', { name: 'Keyboard Shortcuts' })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    await waitFor(() => expect(document.activeElement).toBe(opener))
   })
 })
