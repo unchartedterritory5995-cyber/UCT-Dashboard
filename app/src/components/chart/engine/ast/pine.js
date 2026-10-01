@@ -18199,7 +18199,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // loop starts and refuses, by name, the one case with two readings.
     if (op.k === 'loop' && op.forIn && op.forIn.all) {
       const elem = regId.get(op.forIn.elem)
-      if (!elem) { unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue }
       const outer = ops
       const body = []
       ops = body
@@ -18242,8 +18241,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `for i = array.size(bs) - 1 to 0` with an `array.remove` in its body is
       // carried and `for i = 0 to array.size(bs) - 1` with one would not be.
       if (liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
-        noteLoopBounds(op, op.forIn ? 'a `for … in` whose body changes the length of the list it walks'
-          : 'an end bound that reads a list length its body changes')
+        noteLoopBounds(op, 'an end bound that reads a list length its body changes')
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
       const outer = ops

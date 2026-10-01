@@ -138,6 +138,17 @@ describe('⭐⭐ C40 — `for x in <drawing list>`: every slot, in index order',
     expect(loop.asc).toBe(true)
   })
 
+  it('a body that draws nothing leaves no loop behind', () => {
+    const t = tr([
+      'var line[] ls = array.new_line()',
+      'array.push(ls, line.new(bar_index, high, bar_index + 1, high))',
+      'for l in ls',
+      '    x = close + 1',
+    ])
+    expect(loops(t)).toEqual([])
+    expect(diag(t).droppedOps).toBe(0)
+  })
+
   it('inside a drawing helper, under the call\'s guard (elliot-wave `drawFibLevels`)', () => {
     const t = tr([
       'var line[] fibs = array.new_line()',
@@ -263,6 +274,36 @@ describe('⛔ C40 — a `for … in` with two readings is refused, by name', () 
     expect(loops(helper)).toEqual([])
   })
 
+  it('…and the method spelling (`bs.remove(0)`), and a body that reassigns the list itself', () => {
+    for (const line of ['        bs.remove(0)', '        bs := other']) {
+      const t = tr([
+        'var box[] bs = array.new_box()',
+        'var box[] other = array.new_box()',
+        'array.push(bs, box.new(bar_index, high, bar_index + 1, low))',
+        'for b in bs',
+        '    box.set_right(b, bar_index)',
+        '    if close < open',
+        line,
+      ])
+      expect(diag(t).forInRefused, line).toEqual(['the body changes `bs`, the list it walks@6'])
+      expect(loops(t)).toEqual([])
+    }
+  })
+
+  it('⛔ inside a loop this reader does not run, a `for … in` is not run either', () => {
+    const t = tr([
+      'var box[] bs = array.new_box()',
+      'array.push(bs, box.new(bar_index, high, bar_index + 1, low))',
+      'var int n = 0',
+      'while n < 2',
+      '    for b in bs',
+      '        box.delete(b)',
+      '    n += 1',
+    ])
+    expect(loops(t)).toEqual([])
+    expect(diag(t).loopBlockedCalls).toContain('box.delete')
+  })
+
   it('a loop variable that is also another statement\'s name is not taken over', () => {
     const t = tr([
       'var box[] bs = array.new_box()',
@@ -360,6 +401,20 @@ describe('⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`', () =>
     expect(lines.every((o) => o.props.x2 === N + 2)).toBe(true)
     // ⛔ only the lines: the boxes are another family's list
     expect(r.live.filter((o) => o.family === 'box').every((o) => o.props.right !== N + 2)).toBe(true)
+  })
+
+  it('a body that never touches the element still runs once per object', () => {
+    const t = tr([
+      'if bar_index < 3',
+      '    line.new(bar_index, high, bar_index + 1, high)',
+      'if barstate.islast',
+      '    for v in line.all',
+      `        label.new(bar_index, high, ${Q}one per line${Q})`,
+    ])
+    expect(diag(t).droppedOps).toBe(0)
+    const r = run(t)
+    expect(r.status).toBe(OBJECT_STATUS.OK)
+    expect(r.live.filter((o) => o.family === 'label')).toHaveLength(3)
   })
 
   it('the clear-all helper with nothing or one object to clear (trend-lines `f_clearAll`)', () => {

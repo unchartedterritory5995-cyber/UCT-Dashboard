@@ -1331,9 +1331,9 @@ export function bindObjectProgram(program, nodeOf, symbolText = null) {
     // `v: 'tree'` as an unknown kind and answer `undefined` for every cell in
     // the loop, which draws an empty table rather than failing.
     if (op.k === 'loop' && Array.isArray(op.body)) {
-      // ⭐ C40 — a cap or a walk has no bounds (its `cond` binds with the list below).
-      if (op.from !== undefined) out.from = bindValue(op.from)
-      if (op.to !== undefined) out.to = bindValue(op.to)
+      // (⭐ C40 — a cap or a walk has no bounds; its `cond` binds with the list below.)
+      out.from = bindValue(op.from)
+      out.to = bindValue(op.to)
       out.body = bindOps(op.body)
     }
     if (op.target) out.target = bindRef(op.target)

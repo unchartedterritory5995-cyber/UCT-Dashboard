@@ -785,7 +785,9 @@ export function collectObjectOps(stmts, h) {
         // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
         // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
         // every other shape falls through to the refusal below, unchanged.
-        if (!head && hostLoops && !inLoop && !rtLoop) {
+        // ⛔ Not inside a loop this reader does not run (`inLoop` — the C20 runtime
+        // `while` included): its passes are not this program's.
+        if (!head && hostLoops && !inLoop) {
           const plan = word === 'for' ? forInPlan(t, st) : capWhileOf(t, st)
           if (plan) {
             hostLoopSeq += 1
@@ -1511,7 +1513,7 @@ export function collectObjectOps(stmts, h) {
     const shortened = new Set()
     let mine = 0
     for (const s2 of body) {
-      if ((s2.sub || []).length) return null
+      // (a statement with a block of its own — `if …` — is not an expression and fails the parse below)
       let n = null
       try { n = h.parseWholeExpression(s2.header || []) } catch { return null }
       if (!n) return null
