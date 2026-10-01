@@ -316,11 +316,18 @@ EXEMPT_TOOLS: dict[str, str] = {
         "AST census over api/**, scripts/, tools/ on every import) -- an unacceptable tax on "
         "every push, and the guard already deliberately defers its one api.*-touching import "
         "to stay cheap for --audit and the unit tests. It only talks to Railway's CLI/API."),
+    "record_clock_parity.py": (
+        "Runs in CI: `.github/workflows/clock-parity-fixture.yml` executes `python "
+        "tools/record_clock_parity.py --check` on a runner that installs only `tzdata`. The "
+        "repo-root conftest imports pytest, so the pin made that job die with "
+        "ModuleNotFoundError, and the job gates the promotion of production: #260 was refused "
+        "on 2026-10-01. The tool writes one committed JSON fixture under app/ and opens no "
+        "database."),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three
 #: EXEMPT ones, or it is walking the wrong directory / matching the wrong glob.
-KNOWN_PINNED_TOOLS = ("record_clock_parity.py", "vendor_truth.py", "wave4_fts_benchmark.py")
+KNOWN_PINNED_TOOLS = ("ai_door_census.py", "vendor_truth.py", "wave4_fts_benchmark.py")
 KNOWN_EXEMPT_TOOLS = ("audit_bars.py", "rollout_cohort.py", "wave_p_activation_canary.py")
 
 
@@ -408,7 +415,7 @@ def test_MUTATION_removing_the_pin_from_a_real_tool_goes_red_then_is_restored_by
     """Capture the real bytes, mutate exactly once (strip the `import conftest` line), prove
     the walk goes RED against the mutated on-disk file, then restore the captured bytes and
     verify by sha256 -- never `git checkout` (`feedback_mutation_check_never_git_checkout`)."""
-    target = TOOLS / "record_clock_parity.py"
+    target = TOOLS / "ai_door_census.py"
     original = target.read_bytes()
     original_sha = hashlib.sha256(original).hexdigest()
     assert _problems(original.decode("utf-8"), target.name) == [], (
@@ -487,7 +494,7 @@ def _under_shared_root(path: str, roots: list[str]) -> bool:
     return any(p == r or p.startswith(r + os.sep) for r in roots)
 
 
-def test_SPOTCHECK_three_pinned_tools_actually_pin_and_arm_from_a_clean_process(tmp_path):
+def test_SPOTCHECK_pinned_tools_actually_pin_and_arm_from_a_clean_process(tmp_path):
     """Item 4: import-check three real PINNED tools in a CLEAN subprocess (every census pin
     stripped, `UCT_TEST_SHARED_ROOT_GUARD=report` so nothing can ever raise or write for real)
     and prove `import conftest` in the tool itself -- not pytest's own conftest, which this
@@ -504,7 +511,7 @@ def test_SPOTCHECK_three_pinned_tools_actually_pin_and_arm_from_a_clean_process(
     `_uct_guarded` marker this check looks for is no longer the live one. That is a property of
     this test's assertion, not a gap in their pin (`test_every_tools_api_importer_pins_the_
     census_or_is_named_exempt` already covers their `import conftest` ordering)."""
-    for tool_name in ("ai_door_census.py", "record_clock_parity.py", "vendor_truth.py"):
+    for tool_name in ("ai_door_census.py", "vendor_truth.py"):
         out = _spotcheck(tool_name, tmp_path)
         assert out["conftest_before"] is False, f"{tool_name}: conftest leaked in from the parent"
         assert out["conftest_loaded"] is True, f"{tool_name}: it never imported the repo-root conftest"
@@ -521,3 +528,60 @@ def test_SPOTCHECK_three_pinned_tools_actually_pin_and_arm_from_a_clean_process(
         assert out["auth_db_env"] == out["isolated_auth_db"], (
             f"{tool_name}: AUTH_DB_PATH ({out['auth_db_env']!r}) is not the isolated sandbox "
             f"({out['isolated_auth_db']!r}) -- a bare run of this tool would still reach C:\\data")
+
+
+# --- a CI job that runs a pinned tool must be able to import pytest ---------------------------
+#
+# The repo-root conftest does `import pytest` at module level, so a pinned tool needs pytest
+# wherever it runs. 2026-10-01: `clock-parity-fixture.yml` runs `record_clock_parity.py --check`
+# on a runner with only `tzdata`; the pin killed the job, the job gates promotion, and #260 never
+# reached production. The pin rail above could not see that: it reads tools/, not who runs them.
+WORKFLOWS = REPO / ".github" / "workflows"
+
+
+def _ci_tool_runs() -> list[tuple[str, str]]:
+    """`(workflow file, tool name)` for every `tools/<name>.py` a workflow names on a line that
+    is not a YAML comment. A commented mention runs nothing."""
+    import re
+    out = []
+    for wf in sorted(WORKFLOWS.glob("*.yml")):
+        for line in wf.read_text(encoding="utf-8").splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            for name in re.findall(r"tools/([A-Za-z0-9_]+\.py)", line):
+                out.append((wf.name, name))
+    return sorted(set(out))
+
+
+def _installs_pytest(workflow_name: str) -> bool:
+    """The workflow pip-installs requirements.txt (which carries pytest) or pytest itself, on a
+    line that is not a comment."""
+    for line in (WORKFLOWS / workflow_name).read_text(encoding="utf-8").splitlines():
+        if line.lstrip().startswith("#") or "pip install" not in line:
+            continue
+        if "requirements.txt" in line or "pytest" in line:
+            return True
+    return False
+
+
+def _imports_conftest(tool_name: str) -> bool:
+    path = TOOLS / tool_name
+    if not path.exists():
+        return False
+    return _module_level_conftest_import(ast.parse(path.read_text(encoding="utf-8"))) is not None
+
+
+def test_no_ci_workflow_runs_a_pinned_tool_without_installing_pytest():
+    runs = _ci_tool_runs()
+    # NON-VACUITY: the scan sees the job that broke, and a pinned tool in a job that is fine.
+    assert ("clock-parity-fixture.yml", "record_clock_parity.py") in runs, (
+        "the scan no longer sees clock-parity-fixture.yml running its tool -- it reads nothing")
+    assert ("notebook-latency.yml", "notebook_scale_benchmark.py") in runs
+    assert _imports_conftest("notebook_scale_benchmark.py") and _installs_pytest("notebook-latency.yml")
+    assert not _installs_pytest("clock-parity-fixture.yml"), (
+        "clock-parity-fixture.yml now installs pytest -- this control needs a new example of a "
+        "workflow that does not")
+    broken = [f"{wf} runs tools/{tool}, which imports the repo-root conftest (needs pytest), "
+              f"and {wf} installs neither requirements.txt nor pytest"
+              for wf, tool in runs if _imports_conftest(tool) and not _installs_pytest(wf)]
+    assert not broken, "\n".join(broken)
