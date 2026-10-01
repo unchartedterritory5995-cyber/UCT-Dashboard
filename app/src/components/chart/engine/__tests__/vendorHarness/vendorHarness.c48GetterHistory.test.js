@@ -245,6 +245,27 @@ describe('C48 — our object lane on TradingView\'s bars: the same texts', () =>
     expect(() => assertObjectProgram(swap((v) => ({ ...v, back: 2 })))).toThrow(/exactly one bar back/)
   })
 
+  it('⛔ a scalar\'s `[1]` is as KNOWN as the scalar was on the previous bar (C17), not as it is now', () => {
+    const b = bars().slice(0, 12)
+    const t = translatePine(['//@version=6', 'indicator("c48 prev taint", overlay = true, max_labels_count = 500)',
+      'var line k = line.new(0, 7.5, 1, 7.5)', 'line.set_y1(k, close)', 'float yk = line.get_y1(k)',
+      'label.new(bar_index, 5, "v|" + str.tostring(yk[1]))', 'plot(close)', ''].join(LF), { strict: true })
+    expect(t.objectDiagnostics.droppedOps).toBe(0)
+    const reader = objectReaderFor({ objects: t.objects }, b, { tf: 'D', newestBarIsForming: false })
+    // every value read is unknown on bars 0-2 (the curtain)
+    const run = evaluateObjects(reader.program, {
+      barCount: b.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: (n, bar) => bar < 3,
+    })
+    // bar 0 has no previous bar: `na`, known. Bars 1-2 read an unknown bar. Bar 3:
+    // `yk` is known again, but `yk[1]` is bar 2's — unknown — so that label is held too.
+    const made = run.live.filter((o) => o.family === 'label')
+    expect(made.map((o) => o.createdBar)).toEqual([0, 4, 5, 6, 7, 8, 9, 10, 11])
+    expect(made[0].props.text).toBe('v|NaN')
+    // CONTROL — with no curtain every bar draws
+    const open = evaluateObjects(reader.program, { barCount: b.length, readNode: reader.readNode, readTime: reader.readTime })
+    expect(open.live.filter((o) => o.family === 'label')).toHaveLength(12)
+  })
+
   it('⭐ a scalar declared INSIDE the last-bar block has the block\'s history: its `[1]` is NaN (as G02, and A12 of `vw-call-site-history`)', () => {
     const { run } = runScript(['if barstate.islast', '    float yb = line.get_y1(b)', '    label.new(bar_index, high, "v|" + str.tostring(yb[1]))'])
     expect(labelTexts(run)).toEqual(['v|NaN'])

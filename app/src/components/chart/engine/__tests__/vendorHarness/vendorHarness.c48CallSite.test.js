@@ -510,6 +510,23 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(screen.blockRuns).toBeUndefined()
     expect(screen.outputs[0].formula).toBe(t.outputs[0].formula)
   })
+
+  it('⛔ a ONE-RUN binding mints what its every-bar reading minted: the ids after it do not move', () => {
+    // `v` on its one run is `na`, a tree that reads no input — but the every-bar
+    // reading it replaces read `mult`, and minted it FIRST. The id of every
+    // input after it is an address a saved document holds.
+    const source = ['//@version=6', 'indicator("c48 mint once")',
+      'mult = input.float(2.0, "Mult")', 'other = input.int(5, "Other length")',
+      'float v = na',
+      'if barstate.islast', '    v := ta.sma(close * mult, 3)',
+      'plot(v, "once")', 'plot(ta.sma(close, other), "every bar")'].join('\n')
+    const t = translatePine(source, { strict: true, paramManifest: true })
+    expect(t.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['ok', 'ok'])
+    expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
+      ['__uct_param_1', 'Mult'], ['__uct_param_2', 'Other length']])
+    // the one-run tree itself reads no input
+    expect(t.outputs[0].formula).not.toMatch(/__uct_param_1/)
+  })
 })
 
 describe('C48 — `blockRuns`: when the every-bar read is the block\'s own history', () => {

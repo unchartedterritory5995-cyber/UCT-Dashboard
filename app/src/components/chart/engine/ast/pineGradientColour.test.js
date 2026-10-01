@@ -47,6 +47,21 @@ describe('C37 — a gradient between two static colours is carried on a plot', (
     expect(p.colorGradient).toMatchObject({ from: '#F2364599', to: '#00FF0080' })
   })
 
+  // ⭐ C48 — `vw-colour-components-spy-1d-2026-10-01`: equal bounds and an `na`
+  // bound do not blend (E / X rows), and reversed bounds answer the BOTTOM colour
+  // while the value lies between them (R rows). On a plot: no position (the
+  // series colour, ruling R-G), and position 0 (the bottom colour) between the
+  // bounds — never the mirrored quotient the reversed pair used to give.
+  it('C48 — written bounds that are equal, `na` or reversed', () => {
+    const f = (lo, hi) => tr(`plot(close, color = color.from_gradient(close, ${lo}, ${hi}, color.red, color.green))`)
+      .outputs[0].presentation.colorGradient.formula
+    expect(f(30, 70)).toBe('(close - 30) / (70 - 30)')
+    expect(f(50, 50)).toBe('0 / 0')
+    expect(f('na', 70)).toBe('0 / 0')
+    expect(f(30, 'na')).toBe('0 / 0')
+    expect(f(70, 30)).toBe('close >= 30 && close <= 70 ? 0 : 0 / 0')
+  })
+
   it('a rightward `offset` moves the colour with the value', () => {
     const p = tr(`plot(close, color = ${G}, offset = 2)`).outputs[0].presentation
     expect(p.colorGradient.formula).toBe('((close - 30) / (70 - 30))[2]')

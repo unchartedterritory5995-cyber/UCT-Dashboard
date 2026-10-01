@@ -1,0 +1,46 @@
+//@version=6
+indicator("UCTPROBE_VW_ONCE_TA_HELPER", overlay = true, max_labels_count = 50)
+
+// --- 2026-10-01 C48 - THE ONE-RUN `ta.*` ROWS, INSIDE A HELPER -------------------------------
+//
+// `vw-call-site-history` shows what a `ta.*` call answers when its BLOCK runs exactly once
+// (`if barstate.islast`): `ta.rsi`, `ta.stdev`, `ta.atr`, `ta.change` -> NaN; `ta.cum(x)` ->
+// the bar's own value. Its helper rows cover `ta.highest`, `ta.lowest`, `ta.sma`, `ta.ema`.
+// The five block-only rows are served in a block and REFUSED, by name, in a helper called
+// from one - no row prints them there. This probe prints them.
+//
+//   T01  f() => ta.rsi(close, 14)        called under barstate.islast     NaN?
+//   T02  f() => ta.stdev(close, 5)                                         NaN?
+//   T03  f() => ta.atr(14)                                                 NaN?
+//   T04  f() => ta.change(close)                                           NaN?
+//   T05  f() => ta.cum(volume)                                             the bar's volume?
+//   T06  f() => ta.wma(close, 5)   (no row in a block either)              NaN?
+//   B0x  the same written directly in the block (B01-B05 CONTROL - already witnessed)
+//   V0x  the bar's own close / volume (CONTROL)
+//
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, inputs at defaults (none), after the close.
+
+f_rsi() => ta.rsi(close, 14)
+f_stdev() => ta.stdev(close, 5)
+f_atr() => ta.atr(14)
+f_change() => ta.change(close)
+f_cum() => ta.cum(volume)
+f_wma() => ta.wma(close, 5)
+
+if barstate.islast
+    label.new(bar_index, high, "T01 rsi in helper|" + str.tostring(f_rsi()))
+    label.new(bar_index, high, "T02 stdev in helper|" + str.tostring(f_stdev()))
+    label.new(bar_index, high, "T03 atr in helper|" + str.tostring(f_atr()))
+    label.new(bar_index, high, "T04 change in helper|" + str.tostring(f_change()))
+    label.new(bar_index, high, "T05 cum in helper|" + str.tostring(f_cum()))
+    label.new(bar_index, high, "T06 wma in helper|" + str.tostring(f_wma()))
+    label.new(bar_index, high, "B01 rsi in block|" + str.tostring(ta.rsi(close, 14)))
+    label.new(bar_index, high, "B02 stdev in block|" + str.tostring(ta.stdev(close, 5)))
+    label.new(bar_index, high, "B03 atr in block|" + str.tostring(ta.atr(14)))
+    label.new(bar_index, high, "B04 change in block|" + str.tostring(ta.change(close)))
+    label.new(bar_index, high, "B05 cum in block|" + str.tostring(ta.cum(volume)))
+    label.new(bar_index, high, "B06 wma in block|" + str.tostring(ta.wma(close, 5)))
+    label.new(bar_index, high, "V01 close CONTROL|" + str.tostring(close))
+    label.new(bar_index, high, "V02 volume CONTROL|" + str.tostring(volume))
+
+plot(close, "V00_close_CONTROL")
