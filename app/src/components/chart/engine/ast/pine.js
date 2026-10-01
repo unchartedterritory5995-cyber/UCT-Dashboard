@@ -13493,6 +13493,53 @@ function condCallMark(ctx, rhsToks, name) {
   try { return { node: parseWholeExpression(once.toks) } } catch { return { refuse: sentence(taCall.value) } }
 }
 
+/**
+ * ⭐⭐ C48 — DOES THIS PART OF A HELPER'S TUPLE READ THE CALL'S OWN HISTORY?
+ *
+ * `[a, b] = f(…)` in a block that does not run on every bar marks its names
+ * (`condCallMark`), because `f` reads its own history. But a tuple is several
+ * values, and one of them may read none of it: capture `vw-call-site-history`,
+ * row H06 — the sixth part of `f_many` is `volume[1]`, the CHART's value one bar
+ * back, right on 317 / 317 run bars whatever the block skipped. Marking it with
+ * its five neighbours refused a number that was TradingView's.
+ *
+ * A part reads the call's history when its own expression holds a `ta.*` call,
+ * a call to a script function or a method, an offset over anything but a
+ * witnessed chart series the script has not bound, or a name that does.
+ * ⛔ FAIL CLOSED: a parameter (its argument is the caller's, which the mark
+ * already judged as a whole), a binding that is not an expression, or a shape
+ * this walk does not follow all count as a read.
+ */
+function partReadsCallHistory(part, chart, depth = 0) {
+  if (!part || typeof part !== 'object' || !part.node || depth > 24) return true
+  if (part.kind !== undefined && part.kind !== 'expr') return true
+  const env = part.env
+  const bound = (name) => (env && typeof env.get === 'function' ? env.get(name) : undefined)
+  const walk = (n, d) => {
+    if (n === null || n === undefined) return false
+    if (typeof n !== 'object' || d > 64) return true
+    switch (n.type) {
+      case 'number': case 'num': case 'string': case 'str': case 'bool': case 'colour': return false
+      case 'name': {
+        const b = bound(n.name)
+        return b === undefined ? false : partReadsCallHistory(b, chart, depth + 1)
+      }
+      case 'offset': {
+        const a = n.arg
+        return !(a && a.type === 'name' && chart.has(a.name) && bound(a.name) === undefined)
+      }
+      case 'call':
+        if (String(n.name || '').startsWith('ta.') || bound(n.name) !== undefined) return true
+        return (n.args || []).some((a) => walk(a && a.value !== undefined ? a.value : a, d + 1))
+      case 'unary': return walk(n.arg, d + 1)
+      case 'binary': return walk(n.left, d + 1) || walk(n.right, d + 1)
+      case 'ternary': return walk(n.test, d + 1) || walk(n.yes, d + 1) || walk(n.no, d + 1)
+      default: return true
+    }
+  }
+  return walk(part.node, 0)
+}
+
 function markAfterLoop(ctx, binding) {
   if (ctx && ctx.loopSeen && ctx.loopSeen.v && binding && typeof binding === 'object'
       && binding.kind !== 'param' && binding.kind !== 'fn') binding.afterLoop = true
@@ -15290,16 +15337,21 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         // helper's `src[1]`, `x[1]`, `ta.sma` and `bar_index[1]` the every-bar way
         // (capture `vw-call-site-history`, rows H01–H05: 163–242 of 634 bars
         // wrong). No one-run tuple is built, so each part refuses by name.
+        // ⭐ …except a part whose own expression reads none of the call's history
+        // (`partReadsCallHistory`: H06, `volume[1]` — the chart's, 317 / 317).
         if (ctx && ctx.conditional) {
           const eqAt = findTop(toks, (t) => isPunct(t, '='))
           const mark = condCallMark({ ...ctx, oneExecution: false }, toks.slice(eqAt + 1), d.names.map((n) => n.value).join(', '))
+          const chart = typeof ctx.chartSeries === 'function' ? ctx.chartSeries() : new Set()
           for (const n of d.names) {
             const b = env.get(n.value)
             if (!b || typeof b !== 'object') continue
             // ⛔ a COPY per name: a tuple part may be an object the callee's own
             // fold shares with every other call site.
             const own = { ...b, blockLocal: ctx.oneExecution ? 'once' : 'many', execGuard: ctx.execGuard || null }
-            if (mark && mark.refuse) own.condCall = mark.refuse
+            const part = b.kind === 'tuplePart' && b.fn && b.fn.value && Array.isArray(b.fn.value.parts)
+              ? b.fn.value.parts[b.index] : null
+            if (mark && mark.refuse && partReadsCallHistory(part, chart)) own.condCall = mark.refuse
             env.set(n.value, own)
           }
         }

@@ -334,7 +334,7 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
   }
   const titlesOf = (door) => (door.built.translation.outputs || []).map((o) => o.title)
 
-  it('⛔⛔ the probe: every C / H row the pane carries is refused by name at the bind; C06 is served', () => {
+  it('⛔⛔ the probe: every C / H row the pane carries that reads a conditional call is refused by name at the bind; C06 and H06 are served', () => {
     const cap = capture(RDDT)
     const { door, cols, errors } = bind(cap, cap.source.text)
     expect(door.def, door.refusal || '').toBeTruthy()
@@ -342,11 +342,11 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(door.built.translation.outputs.filter((o) => o.refusal)).toEqual([])
     const stamped = door.built.translation.blockRuns.outputs.map((x) => titlesOf(door)[x.index])
     expect(stamped).toEqual(['C01_highest10_cond', 'C02_lowest10_cond', 'C03_sma3_cond', 'C04_ema3_cond', 'C05_local_x1_cond',
-      'H01_param_src1_cond', 'H02_local_x1_cond', 'H03_sma3_cond', 'H04_highest10_cond', 'H05_bar_index1_cond', 'H06_volume1_cond',
+      'H01_param_src1_cond', 'H02_local_x1_cond', 'H03_sma3_cond', 'H04_highest10_cond', 'H05_bar_index1_cond',
       'D01_highest3_even', 'D02_sma3_even', 'D03_local_y1_even'])
-    // the pane carries the first twelve plots: eleven are refused, C06 computed
+    // the pane carries the first twelve plots: ten are refused, C06 and H06 computed
     const keys = door.def.meta.blockRuns.keys.map((k) => k.key)
-    expect(keys).toEqual(['value', 'out2', 'out3', 'out4', 'out5', 'out7', 'out8', 'out9', 'out10', 'out11', 'out12'])
+    expect(keys).toEqual(['value', 'out2', 'out3', 'out4', 'out5', 'out7', 'out8', 'out9', 'out10', 'out11'])
     for (const key of keys) {
       expect(cols[key], key).toBeUndefined()
       expect(errors[key].guard, key).toBe(BLOCK_RUNS_GUARD)
@@ -356,6 +356,16 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(errors.out7.message).toMatch(/calls `f_many`, a function that reads its own history/)
     expect(errors.out6).toBeUndefined()
     expect(Array.from(cols.out6).filter(Number.isFinite).length).toBeGreaterThan(300)
+    // ⭐ H06 — the sixth part of `f_many`'s tuple is `volume[1]`, the CHART's: it
+    // reads none of the call's history, so it is not marked with its neighbours
+    // and is TradingView's number on every bar.
+    expect(titlesOf(door)[11]).toBe('H06_volume1_cond')
+    expect(errors.out12).toBeUndefined()
+    const h06 = columnOf(cap, 'H06_volume1_cond')
+    const got = Array.from(cols.out12)
+    const off = h06.map((v, i) => (v === undefined || same(v ?? null, Number.isFinite(got[i]) ? got[i] : null) ? null : i)).filter((i) => i !== null)
+    expect(off).toEqual([])
+    expect(h06.filter((v) => v !== undefined && v !== null).length).toBeGreaterThan(300)
     // RDDT's first bar closes up and its second down: bar 1 is the first skip, bar 2 the next run
     const B = rowsOf(cap)
     expect([B[0].c > B[0].o, B[1].c > B[1].o, B[2].c > B[2].o]).toEqual([true, false, true])
@@ -509,6 +519,30 @@ describe('C48 — MANY executions: a chart\'s plot is refused where its block sk
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
     expect(screen.outputs[0].formula).toBe(t.outputs[0].formula)
+  })
+
+  it('⭐ a tuple part is gated only when ITS OWN expression reads the call\'s history (H06)', () => {
+    const names = ['p0', 'p1', 'p2', 'p3', 'p4', 'p5']
+    const source = ['//@version=6', 'indicator("c48 parts")',
+      'h() => close[1]',
+      'f() =>',
+      '    q = close * 2',
+      '    s = ta.sma(close, 3)',
+      '    [q[1], volume[1] * 2, nz(high[2], 0) - low, ta.ema(close, 3), h(), -s]',
+      ...names.map((n) => `float ${n} = na`),
+      'if close > open',
+      '    [a0, a1, a2, a3, a4, a5] = f()',
+      ...names.map((n, k) => `    ${n} := a${k}`),
+      ...names.map((n) => `plot(${n}, "${n.toUpperCase()}")`)].join('\n')
+    const t = translatePine(source, { strict: true })
+    expect(t.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(Array(6).fill('ok'))
+    // P1 / P2 read only the chart's own series, at offsets: TradingView's on every run.
+    // P0 a body local at an offset, P3 a `ta.*` call, P4 a call to a script function
+    // (not followed — fail closed), P5 a local bound to a `ta.*` call: gated.
+    // (The tuple opens with `q[1]` on purpose: `scriptBoundNames` takes every name up
+    // to a statement's first `]` as bound, so a tuple that OPENS with `volume[1]`
+    // would make `volume` the script's own name — and gate it, the safe way.)
+    expect(t.blockRuns.outputs.map((x) => t.outputs[x.index].title)).toEqual(['P0', 'P3', 'P4', 'P5'])
   })
 
   it('⛔ a ONE-RUN binding mints what its every-bar reading minted: the ids after it do not move', () => {
