@@ -103,7 +103,7 @@ describe('C37 — colours reached through a name, a helper or a constant selecto
     expect(new Set(o.rows.filter((r) => r.kind === 'line').map((r) => r.ours))).toEqual(new Set(['#089784ff']))
   }, 60000)
 
-  it('⭐ `color.new(<the theme colour>, <arithmetic over an input>)`: the 48 slots of artemis', () => {
+  it('⭐ `color.new(<the theme colour>, <arithmetic over an input>)`: every colour slot of artemis', () => {
     const ID = 'artemis-oscillator-pro-rddt-1d-2026-09-28'
     const o = tallyOf(ID)
     expectAllAgree(ID, o)
@@ -111,7 +111,9 @@ describe('C37 — colours reached through a name, a helper or a constant selecto
     // 14 theme-coloured labels; the other 3 name no colour and wear the default
     expect(o.tally['label.color'].agree).toBe(14)
     expect(o.tally['label.color'].agreeByDefault).toBe(3)
-    expect(o.tally['cell.text_color'].agree).toBe(15)
+    // 15 cells before wave 9's C31 served the KNN panel's `O-  V-  S-` cell; with
+    // it drawn, its text colour is one more slot — and it is TradingView's too
+    expect(o.tally['cell.text_color'].agree).toBe(16)
     expect(o.tally['table.frame_color'].agree + o.tally['table.border_color'].agree).toBe(6)
     // ⛔ NON-VACUITY: several distinct colours, transparent ones among them
     const drawn = new Set(o.rows.map((r) => r.ours))

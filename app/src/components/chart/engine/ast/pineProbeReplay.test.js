@@ -128,16 +128,29 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // census), one more cell served (`vendorHarness.c32Collections`). Pre-C32:
       // plain [521, 405996, '65582febd0bccf56'] / manifest [521, 406004,
       // '41fd10acf67ccfb8'].
+      // ⭐ C31 moved artemis: its KNN panel's `fTxt` cell — a block local declared
+      // below an unfoldable `for` — is bound and read now (TradingView's
+      // `O-  V-  S-`, `vendorHarness.c31Loops`), so six more Resolvers are built
+      // for the three comparisons it reads. Plots byte-identical (translation
+      // census). Pre-C31: [521, 405996, '65582febd0bccf56'] / [521, 406004,
+      // '41fd10acf67ccfb8'].
       // ⭐ C37 moved artemis: 48 colour slots the object lane dropped are read now
-      // (its theme chain over an `input.string`, `color.new(theme, <constant
-      // arithmetic>)`, its one-expression tint helpers) — each a colour test or a
-      // transparency the Resolver is asked for: 197 more Resolvers, 20,094 more
-      // steps. Plot outputs byte-identical (translation census); every one of the
-      // 48 slots is TradingView's colour (`vendorHarness.c37ObjectColours`).
-      // Pre-C37: plain [525, 406118, '81b662ae781896a1'] / manifest [525, 406126,
-      // '600f194c24160688'].
+      // — `color.new(thOb, 100 - divRegAlpha)`, `color.new(thOb, isLight ? 55 :
+      // 45)` and its tint helper's conditions, each a transparency or a colour
+      // test the Resolver is asked for. Plot outputs byte-identical (translation
+      // census); every one of the 48 slots is TradingView's colour
+      // (`vendorHarness.c37ObjectColours`). On the wave-8 + C29/C30/C32/C34/C35
+      // base alone C37 read plain [722, 426212, '55e872139c194b7f'] / manifest
+      // [722, 426220, 'c489c4af4d0b625d'] against [525, 406118] / [525, 406126]:
+      // 197 more Resolvers, 20,094 more steps.
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [722, 426212, '55e872139c194b7f'], manifest: [722, 426220, 'c489c4af4d0b625d'] },
+        // ⭐ Wave 9 carries BOTH (C32 +4 Resolvers / +122 steps, C31 +6 / +3,759): the
+        // measured sum, exactly additive — 521 + 4 + 6, 405,996 + 122 + 3,759 —
+        // was plain [531, 409877, 'f38c24a72a987c60'] / manifest [531, 409885,
+        // '61f060f7ebfeaf71'] before C37 merged. With C37 on top, MEASURED on the
+        // merged tree (C31's cell and C37's colours read some of the same names,
+        // so this is the measurement, not a sum):
+        plain: [729, 429977, '60011f510b56bd70'], manifest: [729, 429985, 'bde49be716751a27'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
