@@ -153,7 +153,10 @@ describe('⛔⛔ a colour and a price are never confused', () => {
 })
 
 describe('⛔ the unserved colour calls keep their refusal', () => {
-  it('`color.from_gradient` is NOT served, and says so', () => {
+  // ⚰️ C29 SERVES the gradient (the vendor's curve, measured on
+  // `vw-gradient-spy-1d-2026-09-30`); what no capture pins — an empty range or an
+  // `na` bound — still stops the run by name.
+  it('`color.from_gradient` over what no capture pins stops, and says so', () => {
     // ⭐ 21 corpus scripts use it. It interpolates a ramp rather than packing a
     // colour, and TradingView's curve has not been observed — a guess would put
     // a shade on screen close enough to look right and wrong enough to be a
@@ -165,11 +168,11 @@ describe('⛔ the unserved colour calls keep their refusal', () => {
     // probe (`colours.js`; the probe half is `c18UnmeasuredProbe.test.js`). So the
     // refusal is asked of the run, with the same three sentences.
     let err = null
-    try { run('bgcolor(color.from_gradient(close, 0, 1, color.red, color.green))\nplot(close)') } catch (e) { err = e }
+    try { run('bgcolor(color.from_gradient(close, 1, 1, color.red, color.green))\nplot(close)') } catch (e) { err = e }
     expect(err, 'the run must stop, not draw a guessed colour').not.toBe(null)
     expect(err.name).toBe('ColourError')
     expect(err.message).toContain('color.from_gradient')
-    expect(err.message).toMatch(/does not compute/)
+    expect(err.message).toMatch(/unmeasured/)
     expect(err.message).not.toMatch(/is not one/)
   })
 })

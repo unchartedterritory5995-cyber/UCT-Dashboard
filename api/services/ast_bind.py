@@ -115,7 +115,9 @@ _BINARY = {
     ">=": lambda a, b: float(a >= b),
     "<=": lambda a, b: float(a <= b),
     "==": lambda a, b: float(a == b),
-    "!=": lambda a, b: float(a != b),
+    # C29 (C14, measured 2026-09-30): a comparison with an na operand is FALSE in
+    # Pine, `!=` included; Python's `nan != 1` is True. bind.js twin.
+    "!=": lambda a, b: float(not (math.isnan(a) or math.isnan(b)) and a != b),
     "&&": lambda a, b: float(bool(a) and bool(b)),
     "||": lambda a, b: float(bool(a) or bool(b)),
 }

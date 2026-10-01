@@ -37,6 +37,9 @@ const pine = (lines) => ['//@version=5', 'indicator("c26", overlay=true)', ...li
 // would leave nothing to read a refusal off.
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
 afterAll(() => { vi.unstubAllEnvs() })
+// ⚠️ C29 — the first other-symbol read builds the harness's capture index (every
+// committed capture, unioned per listing); under a loaded full run that exceeds 15 s.
+vi.setConfig({ testTimeout: 60000 })
 
 describe('C26 served — TradingView\'s SPY bars on an RDDT chart, date for date', () => {
   const spyByDate = new Map(toProductBars(load(SPY_CAPTURE)).map((b) => [b.t, b.c]))
@@ -73,11 +76,17 @@ describe('C26 served — TradingView\'s SPY bars on an RDDT chart, date for date
     expect(ours.objects.texts.labels).toEqual([String(spyByDate.get(last))])
   })
 
-  it('control: the same read spelled bare is refused by name, and draws nothing', () => {
-    const ours = on(RDDT, pine(['plot(request.security("SPY", timeframe.period, close), "spy")']))
-    expect(ours.notes.some((n) => n.startsWith(`other symbol SPY: refused (${R.BARE})`)
-      && n.includes('"AMEX:SPY"'))).toBe(true)
-    expect(Array.from(ours.plots[0].column).every(Number.isNaN)).toBe(true)
+  // ⚰️ C29 (measured: bare "SPY" == "AMEX:SPY" on every bar of
+  // `vw-other-symbol-rddt-1d-2026-09-30`): the bare spelling is SERVED, the same
+  // series; a bare ticker the store does not hold is the refusal now.
+  it('C29: the same read spelled bare is served, bar for bar the prefixed column; an unheld bare one is refused', () => {
+    const bare = on(RDDT, pine(['plot(request.security("SPY", timeframe.period, close), "spy")']))
+    const amex = on(RDDT, pine(['plot(request.security("AMEX:SPY", timeframe.period, close), "spy")']))
+    expect(bare.notes).toContain('other symbol SPY: served')
+    expect(Array.from(bare.plots[0].column)).toEqual(Array.from(amex.plots[0].column))
+    const gold = on(RDDT, pine(['plot(request.security("XAUUSD", timeframe.period, close), "x")']))
+    expect(gold.notes.some((n) => n.startsWith(`other symbol XAUUSD: refused (${R.BARE})`))).toBe(true)
+    expect(Array.from(gold.plots[0].column).every(Number.isNaN)).toBe(true)
   })
 })
 

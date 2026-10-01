@@ -34,7 +34,7 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
-import { otherSymbolRequestsOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -73,9 +73,29 @@ function otherCaptureIndex() {
     const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
     const bars = toProductBars(cap)
     const last = bars.length ? String(bars[bars.length - 1].t) : ''
+    // ⭐ C29 — the UNION of every capture of one listing at one timeframe, keyed by
+    // the bar's own date: each is TradingView's own bars of the same series, so a
+    // short recent capture (the 2026-09-30 SPY probes, 300 bars) EXTENDS a deeper
+    // older one instead of replacing it (which left C26's 632 RDDT dates short —
+    // red at base `bcac5dd34`). A date two captures share keeps the capture
+    // reaching the later bar (its newest bar may have closed since).
     const held = otherIndex.get(key)
-    if (held && (held.last > last || (held.last === last && held.bars.length >= bars.length))) continue
-    otherIndex.set(key, { bars, exchange: storeExchangeOfCapture(cap, exchange), file: name, last })
+    if (!held) {
+      otherIndex.set(key, { byT: new Map(bars.map((b) => [String(b.t), { b, last }])),
+        exchange: storeExchangeOfCapture(cap, exchange), files: [name], last })
+      continue
+    }
+    for (const b of bars) {
+      const k = String(b.t)
+      const had = held.byT.get(k)
+      if (!had || had.last < last) held.byT.set(k, { b, last })
+    }
+    held.files.push(name)
+    if (last > held.last) held.last = last
+  }
+  for (const entry of otherIndex.values()) {
+    entry.bars = [...entry.byT.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, v]) => v.b)
+    entry.file = entry.files.join(', ')
   }
   return otherIndex
 }
@@ -111,10 +131,11 @@ function otherSymbolSupply(def, capture) {
   for (const { ticker } of requests) {
     const hit = index.get(`${ticker}|${tf}`)
     if (hit) {
-      secondary.set(ticker, { bars: hit.bars, status: 'available', exchange: hit.exchange })
-      notes.push(`other symbol ${ticker}: bars from the committed capture ${hit.file}`)
+      // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
+      secondary.set(storeTickerOf(ticker), { bars: hit.bars, status: 'available', exchange: hit.exchange })
+      for (const f of hit.files) notes.push(`other symbol ${ticker}: bars from the committed capture ${f}`)
     } else {
-      secondary.set(ticker, { bars: [], status: 'no_data' })
+      secondary.set(storeTickerOf(ticker), { bars: [], status: 'no_data' })
       notes.push(`other symbol ${ticker}: no committed capture of ${ticker} at ${capture.timeframe} — `
         + 'the vendor bars (and listing) this read would need')
     }

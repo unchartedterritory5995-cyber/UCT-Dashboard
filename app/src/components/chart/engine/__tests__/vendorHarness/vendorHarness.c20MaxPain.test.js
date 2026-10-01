@@ -127,17 +127,17 @@ describe("⭐ C18 + C20 — max-pain draws TradingView's objects, value for valu
       expect([o.props.y1, o.props.y2, ours(o.props.color), o.props.width, lineStyle(o.props.style)])
         .toEqual([v.y1, v.y2, tvHex(v.ci), v.w, TV_LINE[v.st]])
     }
-    // ── the labels: all but the two gradient legend labels ─────────────────────
+    // ── the labels — since C29 the two gradient legend labels too ─────────────────────
     const labels = pairs.filter(([o]) => o.family === 'label')
     for (const [o, v] of labels) {
       expect([o.props.text, o.props.y, ours(o.props.color), ours(o.props.textcolor), o.props.style, o.props.size])
         .toEqual([v.t, v.y, tvHex(v.ci), tvHex(v.tci), TV_STYLE[v.st], v.sz])
     }
-    expect(labels.map(([, v]) => v.t).sort()).toEqual(['140', '145', 'GAMMA\nEXPOSURE', 'MAX PAIN\nZONE',
-      'NET: SHORT\n98314.6', 'PAIN\nHEATMAP'])
-    // ── the pin zone box (its background is `color.new(red, <input 80>)`) ──────
+    expect(labels.map(([, v]) => v.t).sort()).toEqual(['140', '145', 'GAMMA\nEXPOSURE', 'HIGH\nPAIN', 'LOW\nPAIN',
+      'MAX PAIN\nZONE', 'NET: SHORT\n98314.6', 'PAIN\nHEATMAP'])
+    // ── the pin zone box and (C29) the twelve gradient heatmap boxes ─────────────
     const boxes = pairs.filter(([o]) => o.family === 'box')
-    expect(boxes.length).toBe(1)
+    expect(boxes.length).toBe(cap.objects.records.boxes.length)
     for (const [o, v] of boxes) {
       expect([o.props.top, o.props.bottom, ours(o.props.bgcolor), ours(o.props.border_color)])
         .toEqual([v.y1, v.y2, tvHex(v.bc), tvHex(v.c)])
@@ -160,19 +160,18 @@ describe("⭐ C18 + C20 — max-pain draws TradingView's objects, value for valu
     }
   })
 
-  it('names what it does not draw, and why: the gradient-coloured heatmap and legend are WITHHELD', () => {
+  // ⚰️ C20 WITHHELD the twelve heatmap boxes and two legend labels here: their
+  // colours are `color.from_gradient`, whose curve was then unmeasured. C29 serves
+  // it (the vendor's curve, `vw-gradient-spy-1d-2026-09-30`), so nothing is withheld.
+  it('C29 — nothing is withheld: every box and label TradingView drew is drawn', () => {
     const { cap, d, run, live } = runMaxPain(true)
     const diag = d.translation.objectDiagnostics
-    // every drawing inside a `while` is read now — none is the reader's refusal
     expect(diag.loopBlockedCalls).toEqual([])
     expect(diag.dropReasons['runtime:prop']).toBeUndefined()
-    // what is missing is exactly the fourteen `color.from_gradient` objects, and
-    // they are counted as withheld at run time, never dropped silently
     const R = cap.objects.records
-    expect(live.filter((o) => o.family === 'box').length).toBe(1)
-    expect(R.boxes.length - 1).toBe(12)
-    expect(live.filter((o) => o.family === 'label').length).toBe(R.labels.length - 2)
-    expect(run.stats.withheldUnknown).toBe(14)
+    expect(live.filter((o) => o.family === 'box').length).toBe(R.boxes.length)
+    expect(live.filter((o) => o.family === 'label').length).toBe(R.labels.length)
+    expect(run.stats.withheldUnknown || 0).toBe(0)
   })
 
   it('⛔ behind the listing (a series that does not start there), every runtime value is WITHHELD', () => {

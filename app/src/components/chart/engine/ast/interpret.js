@@ -692,6 +692,30 @@ export const switchedVarSeed = (seed) => ({
   name: '*',
   args: [{ type: 'op', name: '/', args: [{ type: 'num', value: 0 }, { type: 'num', value: 0 }] }, seed],
 })
+/** ⭐⭐ C29 (C12w's named issue) — WHICH BAR-0 READING A SWITCHED RECURRENCE'S
+ *  SPELLING MEANS. `var n = 0; n := n + 1` and `n = na(n[1]) ? 0 : n[1] + 1` both
+ *  become `accum(0, self + 1)`, and they are a fixed 1 apart (measured on
+ *  `vw-bar-counters-rddt-1d-2026-09-30`: bar_index + 1 and bar_index). The
+ *  translator KNOWS which it wrote, so it says so inside the switched mark's real
+ *  seed: `1 * S` is the self-reference spelling (bar 0 IS the seed), `1 * (1 * S)`
+ *  a `var` (bar 0 runs the update from the seed; a history read there is `na`).
+ *  ⛔ VALUE-SAFE: both shapes evaluate to `S` for every reader that does not know
+ *  them (Python lane, probes, the bounded window). Only the listing pass reads
+ *  the reading, so a counter is exact from the listing and — being switched and
+ *  never forgetting — withheld everywhere else (the curtain default). */
+const ONE = () => ({ type: 'num', value: 1 })
+export const readingSeed = (seed, reading) => (reading === 'update'
+  ? { type: 'op', name: '*', args: [ONE(), { type: 'op', name: '*', args: [ONE(), seed] }] }
+  : { type: 'op', name: '*', args: [ONE(), seed] })
+const isOneTimes = (n) => !!n && n.type === 'op' && n.name === '*' && Array.isArray(n.args)
+  && n.args.length === 2 && n.args[0] && n.args[0].type === 'num' && n.args[0].value === 1
+/** `{reading: 'seed' | 'update', seed}` for a reading mark, else null. */
+export const readingOf = (n) => {
+  if (!isOneTimes(n)) return null
+  const inner = n.args[1]
+  return isOneTimes(inner) ? { reading: 'update', seed: inner.args[1] } : { reading: 'seed', seed: inner }
+}
+
 /** The real seed a switched mark carries, or null when `n` is not one. */
 export const switchedSeedOf = (n) => (!!n && n.type === 'op' && n.name === '*'
   && Array.isArray(n.args) && n.args.length === 2 && isZeroOverZero(n.args[0]) && n.args[1]
@@ -770,7 +794,7 @@ const listingKey = (v) => {
 
 /** The listing pass. Returns the column, or `null` when it is not taken (over
  *  the step ceiling), in which case the caller runs the bounded window. */
-function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup }) {
+function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, windowAt, sink, prefixProbe, stepT, windowFrom = warmup, reading = null }) {
   const s0 = seed[0]
   // A guarded read has two candidates only when the seed is a number; with an
   // `na` seed both readings are `na`.
@@ -786,8 +810,12 @@ function listingPass({ seed, ambiguousSeed, warmup, length, maxSelfLag, out, win
     if (guarded && twoWay) guardedReads += 1
     return s0
   }
-  const starts = [s0, stepT(0, beforeBar0(), firstRead)]
-  if (twoWay && guardedReads > 0) {
+  // ⭐ C29 — a SPELLED reading (`readingSeed`) is the only start: the seed
+  // itself, or the update run from it (a history read on bar 0 is Pine's `na`).
+  const starts = reading === 'seed' ? [s0]
+    : reading === 'update' ? [stepT(0, beforeBar0(), (lag) => (lag > 0 ? NaN : s0))]
+      : [s0, stepT(0, beforeBar0(), firstRead)]
+  if (!reading && twoWay && guardedReads > 0) {
     if (guardedReads > LISTING_MAX_GUARDED_READS) {
       starts.push(stepT(0, beforeBar0(), (lag, guarded) => (lag > 0 || guarded ? LISTING_UNKNOWN : s0)))
     } else {
@@ -4824,7 +4852,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // ⭐ C12s — a switched mark carries the REAL seed for the listing pass; the
     // bounded window never reads it (its window starts from an unknown state).
     const switchedReal = switchedSeedOf(node.args[rec.seed])
-    const seedNode = switchedReal || node.args[rec.seed]
+    // ⭐ C29 — a spelled bar-0 reading rides inside the switched mark (`readingSeed`).
+    const spelled = switchedReal ? readingOf(switchedReal) : null
+    const seedNode = spelled ? spelled.seed : (switchedReal || node.args[rec.seed])
     const seed = toColumn(evalNode(seedNode), length)
     const out = nan(length)
     // ⭐ C12 — A PROBE, NEVER AN ANSWER. `opts.prefixProbe` (a number) fills the
@@ -4900,6 +4930,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         prefixProbe: opts && typeof opts.prefixProbe === 'number' ? opts.prefixProbe : null,
         stepT: (j, history, read) => stepListing(body, j, history, read),
         ...(switched ? { windowFrom: 0 } : {}),
+        ...(spelled ? { reading: spelled.reading } : {}),
       })
       if (listed) return listed
     }

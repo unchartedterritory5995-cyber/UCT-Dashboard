@@ -81,7 +81,11 @@ const BINARY = {
   '>=': (a, b) => Number(a >= b),
   '<=': (a, b) => Number(a <= b),
   '==': (a, b) => Number(a === b),
-  '!=': (a, b) => Number(a !== b),
+  // ⭐ C29 (C14, measured 2026-09-30, `vw-ne-na-spy-1d-2026-09-30.json`): every
+  // comparison with an `na` operand is FALSE in Pine, `!=` included — and
+  // JavaScript's `NaN !== 1` is true. The interpreter's `cmp` already answers 0;
+  // the fold now agrees with it.
+  '!=': (a, b) => Number(!Number.isNaN(a) && !Number.isNaN(b) && a !== b),
   '&&': (a, b) => Number(Boolean(a) && Boolean(b)),
   '||': (a, b) => Number(Boolean(a) || Boolean(b)),
 }
