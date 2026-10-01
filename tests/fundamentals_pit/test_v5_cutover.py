@@ -13,6 +13,7 @@ import pytest
 from api.services.fundamentals_pit import derive as D, publish as P, serving as SV, store as S
 from api.services.fundamentals_pit import v5_discovery as DISC, v5_live as L, v5_ops as OPS, v5_pipeline as PL
 from api.services.fundamentals_pit import v5_prod as VP, v5_publish as PUB, v5_validate as VAL, incremental as INC
+from api.services.fundamentals_pit import v5_acceptance as ACC
 
 CIK = 1234567
 
@@ -23,7 +24,24 @@ def _cf(rows):
         for s, e, v, a, f, fd in rows]}}}}}
 
 
+# EDGAR filing headers (<ACCEPTANCE-DATETIME>, Eastern wall clock). By default a filing's header states the instant its
+# submissions row gives in UTC (SEC's day-after form); HDR overrides it per accession (None = header unavailable).
+REG: dict = {}
+HDR: dict = {}
+
+
+def _fake_header(cik, accn, get=None):
+    raw = HDR[accn] if accn in HDR else (
+        dt.datetime.fromisoformat(REG[accn].replace("Z", "+00:00")).astimezone(ACC.ET).strftime("%Y%m%d%H%M%S")
+        if accn in REG else None)
+    if raw is None:
+        raise ACC.AcceptanceUnavailable(f"{accn}: header unavailable (test)")
+    return (raw, *ACC.eastern_to_utc(raw))
+
+
 def _sub(accns):
+    for a, _, t, _ in accns:
+        REG.setdefault(a, t)
     return {"cik": str(CIK), "name": "TESTCO", "tickers": ["TST"], "fiscalYearEnd": "1231",
             "filings": {"recent": {
                 "accessionNumber": [a for a, *_ in accns], "filingDate": [d for _, d, *_ in accns],
@@ -49,6 +67,8 @@ def env(tmp_path, monkeypatch):
     """A 'frozen base' (ingested + V5-derived synthetic company), installed like production, plus a local bucket."""
     from api.services.fundamentals_pit import sec_client as SEC
     monkeypatch.setattr(SEC, "filing_instance", lambda cik, accn: None)
+    monkeypatch.setattr(ACC, "header_acceptance", _fake_header)
+    REG.clear(); HDR.clear()
     build = tmp_path / "build.db"
     c = S.connect(str(build))
     INC_ingest(c, FACTS, ACCNS)
