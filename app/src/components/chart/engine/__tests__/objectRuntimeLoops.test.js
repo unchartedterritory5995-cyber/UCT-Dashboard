@@ -192,11 +192,11 @@ describe('⭐⭐ (a) text only the run holds', () => {
     for (const a of at.filter((x) => x.kind === 'text')) expect(JSON.stringify(a.node)).not.toMatch(/str\.tostring/)
   })
 
-  it('⛔ a script that reads `timeframe.period` asks the run for no text, colour or loop (C15)', () => {
+  // ⚰️ C29 lifted C15's exclusion: the run spells the period as TradingView does
+  // (`periodTextOf`), so a script reading `timeframe.period` is asked like any other.
+  it('⭐ C29 — a script that reads `timeframe.period` is asked for its text like any other', () => {
     const src = NET.replace('bias = net > 0', 'tfx = timeframe.period\n    bias = net > 0')
-    const at = (checked(src).objects || { runtime: { at: [] } }).runtime
-    expect(((at && at.at) || []).filter((a) => a.kind || a.loop)).toEqual([])
-    // ⛔ CONTROL — the same script without it does
+    expect(checked(src).objects.runtime.at.some((a) => a.kind === 'text')).toBe(true)
     expect(checked(NET).objects.runtime.at.some((a) => a.kind === 'text')).toBe(true)
   })
 })
@@ -217,17 +217,19 @@ describe('⭐⭐ (b) colours the run computes', () => {
     expect(draw(door(COL('c'))).live.map((o) => o.props.color)).toEqual(['#F23645'])
   })
 
-  it('⛔ a colour the run made TRANSPARENT itself is unknown — its packed alpha does not round-trip', () => {
+  // ⚰️ C29: these two were HELD. The run's byte is now the complement of
+  // TradingView's opacity, and a fractional transparency is Pine's truncated whole
+  // number (both measured on `vw-gradient-spy-1d-2026-09-30`).
+  it('⭐ C29 — a colour the run made TRANSPARENT itself is served at TradingView\'s opacity', () => {
     const src = COL('d').replace('    c = net', '    d = color.new(net > 0 ? color.green : color.red, 70)\n    c = net')
     const { live, reader } = draw(door(src))
     expect(reader.runtime.served).toBe(true)
-    expect(live).toEqual([])
+    expect(live.map((o) => o.props.color)).toEqual(['#F236454D'])
   })
 
-  it('⛔ a transparency this engine has not measured (a fraction) holds the object, never a default colour', () => {
+  it('⭐ C29 — a fractional transparency is the truncated whole one (70.5 → 70)', () => {
     const src = COL('color.new(c, tr)').replace('    c = net', '    tr = 70.5 + i * 0\n    c = net')
-    expect(draw(door(src)).live).toEqual([])
-    // ⛔ CONTROL — a whole transparency, computed the same way, is served
+    expect(draw(door(src)).live.map((o) => o.props.color)).toEqual(['#F236454D'])
     expect(draw(door(src.replace('70.5', '70'))).live.map((o) => o.props.color)).toEqual(['#F236454D'])
   })
 })

@@ -108,8 +108,10 @@ describe('1 · the gate — `forgetsOnReset`', () => {
     expect(forgetsOnReset(op('?:', up, op('?:', op('>', close, num(105)), op('+', self, num(2)), num(0)), op('+', self, num(1))), TABLE)).toBe(true)
   })
 
-  it('⛔ the translator still refuses a counter that never resets', () => {
-    const t = translatePine(pine(['var int n = 0', 'n := n + 1', 'plot(n)']))
+  // ⚰️ C29: a never-resetting +1 counter is served (listing-only, switched); a
+  // running sum of a series that never resets still refuses.
+  it('⛔ the translator still refuses a running sum that never resets', () => {
+    const t = translatePine(pine(['var float n = 0.0', 'n := n + volume', 'plot(n)']))
     expect(t.ok).toBe(false)
     expect(t.refusal.guard).toBe('pine:state')
   })

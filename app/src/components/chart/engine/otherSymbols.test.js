@@ -89,10 +89,17 @@ describe('the bind serves a read only when the spelling is witnessed AND is our 
     expect(r.symbols.SPY).toBe(BARS)
   })
 
-  it('REFUSED bare: an unprefixed ticker is unmeasured — and the refusal names the spelling that WOULD serve', () => {
+  // ⚰️ C29 (measured, `vw-other-symbol-rddt-1d-2026-09-30`: bare "SPY" == "AMEX:SPY"
+  // on all 634 bars): a bare ticker our store holds on a witnessed exchange is SERVED.
+  it('C29 — SERVED bare: an unprefixed ticker is the listing its witnessed spelling reads', () => {
     const r = decide(pine(['plot(request.security("SPY", timeframe.period, close))']))
-    expect(codes(r)).toEqual([`SPY:${R.BARE}`])
-    expect(r.refused[0].reason).toContain('"AMEX:SPY"')
+    expect(codes(r)).toEqual([])
+    expect(r.served).toEqual(['SPY'])
+  })
+
+  it('REFUSED bare: a bare ticker our store does not hold on a witnessed exchange', () => {
+    const r = decide(pine(['plot(request.security("XAUUSD", timeframe.period, close))']))
+    expect(codes(r)).toEqual([`XAUUSD:${R.BARE}`])
     expect(r.symbols).toEqual({})
   })
 
@@ -125,17 +132,28 @@ describe('the bind serves a read only when the spelling is witnessed AND is our 
     expect(codes(noBars)).toEqual([`SPY:${R.NO_BARS}`])
   })
 
-  it('REFUSED: one ticker spelled two ways refuses whole (the tree cannot tell the nodes apart)', () => {
+  // ⚰️ C29: bare and `AMEX:` now name ONE listing, so one ticker spelled both ways
+  // is served; spelled with two DIFFERENT venues it still refuses whole.
+  it('one ticker spelled bare and with its witnessed venue is one listing; two venues refuse', () => {
     const r = decide(pine([
       'plot(request.security("AMEX:SPY", timeframe.period, close))',
       'plot(request.security("SPY", timeframe.period, high))',
     ]))
-    expect(codes(r)).toEqual([`SPY:${R.BARE}`])
+    expect(r.served).toEqual(['SPY'])
+    const two = decide(pine([
+      'plot(request.security("AMEX:SPY", timeframe.period, close))',
+      'plot(request.security("NASDAQ:SPY", timeframe.period, high))',
+    ]))
+    expect(codes(two)).toEqual([`SPY:${R.VENUE_MISMATCH}`])
   })
 
   it('REFUSED: a class share, a framed instance, and a document saved without the spelling table', () => {
+    // ⚰️ C29: `BRK.B` is our store's `BRK-B` (measured) — refused here only because
+    // this context's store does not hold it; the hyphen spelling is the class refusal.
     const cls = decide(pine(['plot(request.security("NYSE:BRK.B", timeframe.period, close))']))
-    expect(codes(cls)).toEqual([`BRK.B:${R.CLASS_SHARE}`])
+    expect(codes(cls)).toEqual([`BRK.B:${R.NOT_HELD}`])
+    const hy = decide(pine(['plot(request.security("NYSE:BRK-B", timeframe.period, close))']))
+    expect(codes(hy)).toEqual([`BRK-B:${R.CLASS_SHARE}`])
     const framed = decide(pine(['plot(request.security("AMEX:SPY", timeframe.period, close))']), { framed: true })
     expect(codes(framed)).toEqual([`SPY:${R.FRAMED}`])
     const { def } = docOf(pine(['plot(request.security("AMEX:SPY", timeframe.period, close))']))
@@ -145,7 +163,7 @@ describe('the bind serves a read only when the spelling is witnessed AND is our 
 })
 
 describe('the chart fetches only what the bind could serve', () => {
-  it('fetchableOtherSymbols: witnessed spellings and the chart prefix; never bare or unconfirmed', () => {
+  it('fetchableOtherSymbols: witnessed spellings, the chart prefix and (C29) a bare US-shaped ticker; never unconfirmed', () => {
     const { def } = docOf(pine([
       'plot(request.security("AMEX:SPY", timeframe.period, close))',
       'plot(request.security("EURUSD", timeframe.period, close))',

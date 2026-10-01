@@ -28,7 +28,7 @@ import { loadCapture } from './harness'
 import { toProductBars } from './ourSide'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { objectReaderFor } from '../../objectColumns'
-import { evaluateObjects } from '../../objectRuntime'
+import { evaluateObjects, defaultNumberText } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock'
@@ -92,7 +92,7 @@ describe('⭐ C18 — k-clustering', () => {
     }
     // and the densities, read where the cells stand, print as TradingView's
     const pct = rt.at.map((a2, k) => (a2.line >= 185 && a2.line <= 187 ? vals[k] : null)).filter((v) => v !== null)
-    expect(pct.map((v) => String(Number(v.toPrecision(10))) + '%')).toEqual(['52%', '29.4%', '18.7%'])
+    expect(pct.map((v) => defaultNumberText(v) + '%')).toEqual(['52%', '29.4%', '18.7%'])
   })
 
   it('⛔ on the product path the last bar is over INSTRUCTIONS_PER_BAR — withheld by name, nothing drawn off it', () => {

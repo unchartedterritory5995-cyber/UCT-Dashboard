@@ -102,27 +102,78 @@
       "_unverified": "⚠️ THE ENTRIES ABOVE WERE MEASURED ON COMMON STOCKS AND ONE ETF. A NASDAQ or NYSE warrant, right, unit or preferred share carries the same store exchange string and has NOT been captured; the probe is queued."
     }
   },
+  "listing_fields": {
+    "_": "⭐⭐ SIX `syminfo.*` FIELDS A US LISTING ANSWERS, SERVED PER EXCHANGE AND ONLY WHERE A CAPTURE SAYS SO (2026-09-30, lane C29). Keyed by OUR STORE's exchange spelling — the key space of `confirmed` and `tick_size`. Each entry's `fields` are the VALUES the fold serves: text for `root`/`basecurrency`/`currency`/`timezone`/`session`, a number for `pointvalue`. `root` is written `=ticker` because Pine's `root` of a non-derivative IS its ticker (R-R, measured on every equity witness), so it folds to the same text `syminfo.ticker` serves and cannot disagree with it. ⛔ AN ENTRY NEEDS `witnesses`, and `symbolScopeListing.test.js` re-reads every one of those captures AND runs the probe through the member door on each, so a value here that the vendor does not print fails by name. An exchange with no entry refuses every field by name; there is no default. ⛔ `type` IS DELIBERATELY ABSENT: SPY (a fund) and AAPL (a stock) share these six answers and differ on `type`, and our store holds no stock-vs-fund fact, so `type` stays on `unserved`.",
+    "NASDAQ": {
+      "fields": {
+        "root": "=ticker",
+        "basecurrency": "",
+        "currency": "USD",
+        "timezone": "America/New_York",
+        "session": "regular",
+        "pointvalue": 1
+      },
+      "witnesses": [
+        "NASDAQ:AAPL"
+      ],
+      "captured": "2026-09-30",
+      "how": "tools/visual_conformance/probes/syminfo-roster.pine, saved as Script$USER;edb497ebfb9f42698089cace49016154 and captured 2026-09-30 (receipt-verified, verify_capture PASS). Constant on every one of the 300 bars: S2 (`basecurrency == \"\"`) 1 and S3 length 0, S4 (`currency == \"USD\"`) 1, S9 (`timezone == \"America/New_York\"`) 1, S13 (`root == ticker`) 1, S15 (`session == \"regular\"`) 1, S18 (`pointvalue`) 1; the S19 control (`str.length(syminfo.ticker)`) is non-zero, so every row evaluated. Captures: tests/fixtures/vendor/harness/syminfo-roster-aapl-1d-2026-09-30.json."
+    },
+    "NYSE": {
+      "fields": {
+        "root": "=ticker",
+        "basecurrency": "",
+        "currency": "USD",
+        "timezone": "America/New_York",
+        "session": "regular",
+        "pointvalue": 1
+      },
+      "witnesses": [
+        "NYSE:BRK.B",
+        "NYSE:F"
+      ],
+      "captured": "2026-09-30",
+      "how": "tools/visual_conformance/probes/syminfo-roster.pine, saved as Script$USER;edb497ebfb9f42698089cace49016154 and captured 2026-09-30 (receipt-verified, verify_capture PASS). Constant on every one of the 300 bars: S2 (`basecurrency == \"\"`) 1 and S3 length 0, S4 (`currency == \"USD\"`) 1, S9 (`timezone == \"America/New_York\"`) 1, S13 (`root == ticker`) 1, S15 (`session == \"regular\"`) 1, S18 (`pointvalue`) 1; the S19 control (`str.length(syminfo.ticker)`) is non-zero, so every row evaluated. Captures: tests/fixtures/vendor/harness/syminfo-roster-brk-b-1d-2026-09-30.json and tests/fixtures/vendor/harness/syminfo-roster-f-1d-2026-09-30.json."
+    },
+    "NYSE Arca": {
+      "fields": {
+        "root": "=ticker",
+        "basecurrency": "",
+        "currency": "USD",
+        "timezone": "America/New_York",
+        "session": "regular",
+        "pointvalue": 1
+      },
+      "witnesses": [
+        "AMEX:SPY"
+      ],
+      "captured": "2026-09-30",
+      "how": "tools/visual_conformance/probes/syminfo-roster.pine, saved as Script$USER;edb497ebfb9f42698089cace49016154 and captured 2026-09-30 (receipt-verified, verify_capture PASS). Constant on every one of the 300 bars: S2 (`basecurrency == \"\"`) 1 and S3 length 0, S4 (`currency == \"USD\"`) 1, S9 (`timezone == \"America/New_York\"`) 1, S13 (`root == ticker`) 1, S15 (`session == \"regular\"`) 1, S18 (`pointvalue`) 1; the S19 control (`str.length(syminfo.ticker)`) is non-zero, so every row evaluated. Captures: tests/fixtures/vendor/harness/syminfo-roster-spy-1d-2026-09-30.json. ⚠️ SPY is a FUND (its `type` is 4 characters, not `stock`), and every one of these six fields agrees with the three equities anyway — which is why `type` is not in this table and these are."
+    },
+    "_not_served": "⛔ NYSE American, Cboe BZX and OTC listings have no syminfo-roster capture, and every other store spelling (FMP free text, none at all) is unmapped — each refuses the six fields by name. The crypto witness (BITSTAMP:BTCUSD: basecurrency 3 characters, timezone Etc/UTC) is the control proving the fields are readable and that they are NOT constants of Pine: our store holds no crypto listing, so it reaches no row here."
+  },
   "unserved": {
     "_": "⛔ THE `syminfo.*` FIELDS THAT ARE REFUSED BY NAME, each with the reason a member can act on. A generic `pine:builtin` — *\"the engine grammar does not hold this\"* — would be FALSE the moment `syminfo.ticker` works one line above, and a refusal that is false about its neighbours teaches the reader to distrust every refusal.",
-    "type": "what kind of instrument the symbol is (`stock`, `futures`, `crypto`…). This engine screens US equities, so the answer would be the same constant for every symbol it can reach — a value that cannot vary is not a value, it is a hidden assumption, and a script branching on it would take one arm forever without being told why.",
-    "currency": "the symbol's quote currency. Same shape as `type`: constant across everything this engine holds, so serving it would let a multi-currency script look like it was working while one whole branch was unreachable.",
-    "session": "the symbol's trading session string. This engine evaluates the bars it is given and holds no session calendar per symbol, so there is nothing here to read it from.",
-    "pointvalue": "the currency value of one point, which is a contract specification for futures and is not something this engine holds for the equities it screens.",
-    "description": "the instrument's long name. It is free text from a data vendor, it differs between our providers for the same symbol, and a script that branches on it would branch on which provider answered — the definition of a value that is not reproducible.",
-    "basecurrency": "the symbol's BASE currency — the left half of a pair like `BTCUSD`. It is a property of an instrument that HAS two currencies, and this engine screens US equities, where there is no base half to name. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 22 uses across 7 corpus files, 6 of them reaching an output — the largest of the three names that were still falling through the namespace refusal unnamed. ⚠️ It is on this roster rather than served because answering it for an equity would mean choosing between `\"USD\"` and the empty string, and a script that branches on that branches on our guess.",
-    "timezone": "the exchange's timezone string. This engine evaluates the bars it is given and holds no session calendar, which is the same reason `session` is on this roster — and the two are usually read together, so they refuse together rather than one of them falling through anonymously. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 13 uses across 6 corpus files, 4 reaching an output.",
-    "root": "the root of a futures contract — the symbol with its expiry stripped (`ES` from `ESH2026`). It is a futures concept, like `pointvalue`, and this engine screens equities where a symbol has no expiry to strip. ⭐ RULED IN 2026-09-15 ON ITS NUMBERS (item (h)): 1 use in 1 corpus file, reaching no output. ⛔ It is rostered at ONE use deliberately: the roster's job is to record that a name has been THOUGHT ABOUT, and a rare name is exactly the one a reader would otherwise assume had merely fallen through."
+    "type": "what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.",
+    "description": "the instrument's long name. It is free text from a data vendor, it differs between our providers for the same symbol, and a script that branches on it would branch on which provider answered — the definition of a value that is not reproducible."
   },
   "_why_unserved_is_a_ROSTER_and_not_a_default": "⛔ BECAUSE A DEFAULT CANNOT BE COUNTED. A namespace-wide fallthrough would refuse an unknown `syminfo.whatever` with the same sentence as `syminfo.mintick`, and nobody could tell from the outside which names had been THOUGHT ABOUT and which had merely fallen through. The roster is the thinking; the fallthrough stays behind it for names nobody has ruled on yet.",
   "pending_measurement": {
     "_": "⛔ THE REASON THE FOLD QUOTES when one of these cannot be resolved for a binding. It is a MEASUREMENT gap, not a grammar gap, and the sentence has to say so — a member reading \"the engine grammar does not hold this\" would rewrite a script that will work unchanged the day a witness lands.",
     "tickerid": "the exchange-prefixed identifier — `EXCHANGE:SYMBOL`. The symbol half is ours; the exchange half is a TradingView string this engine has not measured, and a comparison against a guessed prefix answers backwards rather than approximately. Waiting on the capture described in `_the_probe_that_settles_it`. ⭐ IF YOU ONLY NEED TO KNOW WHETHER THE SYMBOL IS A PAIR OR RATIO CHART, `syminfo.ticker` already answers that and is served.",
     "prefix": "the exchange code — a TradingView string this engine has not measured. Our symbol store holds a trader-friendly name (`NYSE Arca`) which is not what Pine returns, and serving it would answer `syminfo.prefix == \"AMEX\"` false where TradingView answers true. Waiting on the same capture.",
-    "mintick": "the symbol's minimum price increment — `minmov / pricescale` in the vendor's own metadata. It is served only for a symbol whose exchange (our store's spelling) has a `tick_size` entry backed by TradingView captures — today NASDAQ, NYSE and NYSE Arca listings — and this symbol's exchange has none, so the tick size is not something this engine holds for it. A guessed 0.01 would be wrong for an OTC, futures, forex or crypto symbol and would move every level built on it."
+    "mintick": "the symbol's minimum price increment — `minmov / pricescale` in the vendor's own metadata. It is served only for a symbol whose exchange (our store's spelling) has a `tick_size` entry backed by TradingView captures — today NASDAQ, NYSE and NYSE Arca listings — and this symbol's exchange has none, so the tick size is not something this engine holds for it. A guessed 0.01 would be wrong for an OTC, futures, forex or crypto symbol and would move every level built on it.",
+    "root": "the root of the symbol — for a listing that is not a derivative, its ticker (R-R, measured 2026-09-30 on every equity witness). It is served only for a symbol whose exchange (our store's spelling) has a `listing_fields` entry backed by a TradingView capture — today NASDAQ, NYSE and NYSE Arca listings — and this symbol's exchange has none.",
+    "basecurrency": "the symbol's base currency — empty text for every US listing captured 2026-09-30 (SPY, AAPL, BRK.B, F). Served only for a symbol whose exchange has a `listing_fields` entry; this symbol's exchange has none, and a crypto pair answers a real currency here.",
+    "currency": "the symbol's quote currency — `USD` for every US listing captured 2026-09-30. Served only for a symbol whose exchange has a `listing_fields` entry; this symbol's exchange has none.",
+    "timezone": "the exchange timezone — `America/New_York` for every US listing captured 2026-09-30 (a crypto pair answers `Etc/UTC`). Served only for a symbol whose exchange has a `listing_fields` entry; this symbol's exchange has none.",
+    "session": "the session string — `regular` on every witness captured 2026-09-30. Served only for a symbol whose exchange has a `listing_fields` entry; this symbol's exchange has none.",
+    "pointvalue": "the currency value of one point — 1 on every US listing captured 2026-09-30. Served only for a symbol whose exchange has a `listing_fields` entry; this symbol's exchange has none, and a futures contract's point value is its contract specification."
   },
   "unserved_on_a_screen": {
     "_": "⛔ FIELDS THE CHART PANE SERVES AND A SCREEN CANNOT. A screen evaluates one saved definition across many symbols on the server, and its rows carry no exchange, so a per-symbol value the fold settles from `{ticker, exchange}` has nothing to settle from there. The Pine door refuses these on the screener lane by name, with this sentence, instead of saving a screen that would refuse on every row.",
-    "mintick": "the symbol's minimum price increment differs per symbol, and a screen evaluates one definition across many symbols whose rows carry no exchange, so no row could be given its own tick size — and one shared 0.01 would be wrong for every OTC, futures, forex and sub-cent name it touched. It IS served on the chart pane, for a symbol whose exchange has a vendor-measured tick size. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — `math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero denominator is reported as NOT COMPUTABLE for that symbol rather than quietly replaced, so write `(close - low) / (high - low)` and a halted, zero-range bar is left unanswered instead of being scored as though it closed on its low. ⚠️ That is a REAL difference, not a simplification: Pine answers 0 on such a bar and this engine answers nothing, which is why the edit is yours to make rather than one taken silently on your behalf."
+    "mintick": "the symbol's minimum price increment differs per symbol, and a screen evaluates one definition across many symbols whose rows carry no exchange, so no row could be given its own tick size — and one shared 0.01 would be wrong for every OTC, futures, forex and sub-cent name it touched. It IS served on the chart pane, for a symbol whose exchange has a vendor-measured tick size. ⭐ IN PRACTICE IT APPEARS IN ONE IDIOM — `math.max(high - low, syminfo.mintick)` — a guard against dividing by a bar whose range is zero. THIS ENGINE DOES NOT NEED THAT GUARD: a zero denominator is reported as NOT COMPUTABLE for that symbol rather than quietly replaced, so write `(close - low) / (high - low)` and a halted, zero-range bar is left unanswered instead of being scored as though it closed on its low. ⚠️ That is a REAL difference, not a simplification: Pine answers 0 on such a bar and this engine answers nothing, which is why the edit is yours to make rather than one taken silently on your behalf.",
+    "pointvalue": "the currency value of one point is settled per symbol from its exchange's `listing_fields` row, and a screen evaluates one definition across many symbols whose rows carry no exchange, so no row could be given its own point value. It IS served on the chart pane, for a listing whose exchange has a vendor-measured row."
   },
   "_the_tickerid_capture_is_a_different_question": "⚰️ READ THIS BEFORE REUSING THE 2026-09-09 CAPTURE. `tests/fixtures/vendor/barstate-realtime-spy-2026-09-09.json::tickerid_shape_five_symbols` is a real, correct measurement of `syminfo.ticker` and `syminfo.tickerid` — and it is NOT evidence about `syminfo.prefix`, which is the field this map is keyed on. ⛔ THE PREFIX IS NOT THE EXCHANGE: that same capture requested `SP:SPX` and the vendor resolved it to `SP_DLY:SPX`, so the tickerid prefix is not even the text the member typed. Deriving a `confirmed` entry from a tickerid prefix would be the exact 'assertion wearing a data structure' this file refuses. `exchange-spelling.pine` N11 measures whether the two fields agree instead of assuming it.",
   "_ruling_2026_09_10_the_identifier": "⚰️⚰️ THIS MANIFEST NAMED `syminfo.exchange` UNTIL 2026-09-10. THERE IS NO SUCH IDENTIFIER IN PINE v6 — the vendor answers `CE10272 Undeclared identifier \"syminfo.exchange\"`, so every sentence here that promised a member could write `syminfo.exchange == \"AMEX\"` described a script that cannot compile. The field is `syminfo.prefix`. ⭐ RENAMED RATHER THAN ALIASED, ON A MEASUREMENT: all 502 tracked .pine files across 16 directories were counted and `syminfo.exchange` appears 0 times outside our own probe, with an R6 control in the same pass (`syminfo.*` matched 944 times in 183 files across 10 directories) proving the reader could see it. Nothing in the wild used the old name, so keeping it as an alias would have preserved a name no script has ever written."

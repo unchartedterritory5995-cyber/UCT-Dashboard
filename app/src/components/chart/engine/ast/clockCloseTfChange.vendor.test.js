@@ -50,10 +50,14 @@ const col = (titles, k) => 1 + titles.findIndex((t) => t.startsWith(`${k}_`))
 const TITLES = D1.study.plots.map((p) => p.title)
 
 /** The rows the door serves, and the ones it still refuses by a SEPARATE,
- *  named rule: `hour(<a computed timestamp>)` (K09–K11) and `time("W"/"M")`
- *  (K14/K15, the controls). Those five are checked off the columns directly. */
+ *  named rule: `hour(<a computed timestamp>)` (K09–K11), checked off the
+ *  columns directly. ⭐ C30 (2026-09-30): K14/K15 (`time("W"/"M")`, the
+ *  controls) are served on the DAILY chart now and graded there
+ *  (`DAILY_ONLY`); on the weekly and 60m charts they refuse by name. */
 const SERVED = ['K00', 'K01', 'K02', 'K03', 'K04', 'K05', 'K06', 'K07', 'K08', 'K12', 'K13', 'K16', 'K17']
-const REFUSED = { K09: 'pine:builtin', K10: 'pine:builtin', K11: 'pine:builtin', K14: 'pine:function', K15: 'pine:function' }
+const REFUSED = { K09: 'pine:builtin', K10: 'pine:builtin', K11: 'pine:builtin' }
+/** Served on 1D only (C30): `time("W"/"M")` is measured on a daily chart. */
+const DAILY_ONLY = ['K14', 'K15']
 /** Rows that read the PREVIOUS bar — ungraded on a window's first bar when the
  *  window does not start at the capture's bar 0. */
 const READS_PREVIOUS = new Set(['K04', 'K05', 'K06', 'K07', 'K12', 'K16'])
@@ -150,6 +154,47 @@ describe('1D — the product\'s ISO-date daily bars, all 8,473 SPY sessions', ()
       expect(bad, k).toEqual([])
     }
     expect(early.map((i) => etClockAt(cols.timeclose[i]).h)).toEqual(early.map(() => 13))
+  })
+
+  it('⭐ C30 — K14/K15 through the door: 0 wrong on 8,473 sessions; bar 0 and the first boundary withheld', () => {
+    // `time("W"/"M")` before the first period boundary the series shows is an open
+    // from bars before the window (`interpret.js::periodAnchorMask`): bar 0 (the
+    // listing, 1993-01-29) and the boundary bar that reads it one back through
+    // `ta.change` are withheld (`NaN`), never a confident 0. Every other bar agrees.
+    //
+    // ⚰️ RE-PINNED 2026-09-30 (C36), with the reason. This read `withheld = [0, 1]`.
+    // `vw-time-close-tf-spy-1d-2026-09-30` then showed `time("W") - time` reading
+    // −2 / −3 / −4 on the three bars of the Hurricane Sandy week (2012): TradingView
+    // anchors to the first session ITS CALENDAR holds (it does not close 10-29 /
+    // 10-30), not to the first bar. That calendar applies no closure before 2000
+    // either, where no daily chart was measured — so a period whose opening bar is
+    // not the calendar's first session is now withheld
+    // (`time-anchor:session-open-missing`), and with it the bar that reads it one
+    // back. The EVENT these two rows plot was right on those bars; the VALUE under
+    // it was not, and the mask cannot tell the two readers apart.
+    const dateOf = (i) => bars[i].t
+    const pinned = { K14: 154, K15: 174 }
+    for (const k of DAILY_ONLY) {
+      expect(rows[k].values, `${k}: ${rows[k].refusal && rows[k].refusal.message}`).toBeTruthy()
+      const c = col(TITLES, k)
+      const withheld = []
+      const wrong = []
+      V.forEach((r, i) => {
+        const got = rows[k].values[i]
+        if (Number.isNaN(got)) withheld.push(i)
+        else if (got !== r[c]) wrong.push(i)
+      })
+      expect(wrong, k).toEqual([])
+      expect(withheld.slice(0, 2), k).toEqual([0, 1])
+      // every other withheld bar: before 2000 (or the first bar of 2000, which reads
+      // December 1999 one back), or the Sandy week and the Monday after it
+      const unexplained = withheld.slice(2).filter((i) => {
+        const d = dateOf(i)
+        return !(d < '2000-01-04' || (d >= '2012-10-31' && d <= '2012-11-05'))
+      })
+      expect(unexplained.map(dateOf), k).toEqual([])
+      expect(withheld.length, k).toBe(pinned[k])
+    }
   })
 
   it('K14/K15 (the controls `ta.change(time("W"/"M")) != 0`) equal our week / month columns', () => {
@@ -310,7 +355,11 @@ describe('the door — CONTROLS that were refusals before C8', () => {
 
   it('⛔ every unmeasured `time_close(...)` form is refused BY NAME', () => {
     for (const [body, why] of [
-      ['plot(time_close("W"))', /only "D"/],
+      // ⚰️ `"W"` left this list on 2026-09-30 (C36): `vw-time-close-tf-spy-1d-2026-09-30`
+      // measured it and `"M"` on a daily chart (`vendorHarness.c36TimeFollowups.test.js`).
+      // `"3M"` / `"12M"` are measured too and stay refused: no quarterly bar to read.
+      ['plot(time_close("3M"))', /resamples only weeks and months/],
+      ['plot(time_close("12M"))', /resamples only weeks and months/],
       ['plot(time_close("60"))', /only "D"/],
       ['plot(time_close("D", "0930-1600"))', /exactly one argument/],
       ['plot(time_close(timeframe.period))', /does not fold to a literal/],

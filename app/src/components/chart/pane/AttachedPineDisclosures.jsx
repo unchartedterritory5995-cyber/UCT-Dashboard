@@ -52,6 +52,8 @@
 // decides whether an attached one discloses.
 import { useEffect, useMemo, useState } from 'react'
 import { anyPaneScaled, onPaneScaleChange } from '../engine/paneFitNotice'
+import { runtimeErrorNoticeFor, onRuntimeErrorNoticeChange } from '../engine/runtimeErrorNotice'
+import { chartClockNotesFor, onChartClockChange } from '../engine/chartClockNotice'
 import { TABLES_FIT } from '../engine/objectTableDom'
 import * as defaultRegistry from '../engine/nativeRegistry'
 import { requirementNote } from '../engine/ast/parse'
@@ -77,6 +79,46 @@ function drawnMeta(settings, registry) {
     const def = typeof registry.getDefinition === 'function'
       ? registry.getDefinition(inst.defId) : null
     if (def && def.meta) out.push(def.meta)
+  }
+  return out
+}
+
+/** The instance ids this chart is drawing (a hidden instance draws nothing). */
+export function attachedInstanceIds(settings) {
+  const instances = (settings && Array.isArray(settings.indicatorInstances))
+    ? settings.indicatorInstances : []
+  return instances
+    .filter((inst) => inst && typeof inst === 'object' && !inst.hidden && typeof inst.instanceId === 'string')
+    .map((inst) => inst.instanceId)
+}
+
+/**
+ * ⭐⭐ C43 — THE SCRIPTS ON THIS CHART THAT STOPPED THEMSELVES, AS ROWS.
+ *
+ * A script whose own `runtime.error` is reached at the member's settings draws
+ * NOTHING — TradingView shows the error and an empty pane (measured, see
+ * `engine/runtimeErrorStop.js`). An empty pane with no sentence reads as "broken";
+ * this is where the member reads the script's own message instead.
+ *
+ * ⛔ NOT A PROPERTY OF THE DOCUMENT: it depends on this chart's bars and this
+ * instance's settings, so it comes from the session store the binder publishes
+ * to (`engine/runtimeErrorNotice.js`), never from `meta.disclosures`.
+ * ⛔ A hidden instance draws nothing and computes nothing, so it says nothing —
+ * the same rule `drawnMeta` keeps.
+ *
+ * @returns {{name: string, note: string}[]}
+ */
+export function attachedRuntimeErrors(settings, registry = defaultRegistry) {
+  const instances = (settings && Array.isArray(settings.indicatorInstances))
+    ? settings.indicatorInstances : []
+  const out = []
+  for (const inst of instances) {
+    if (!inst || typeof inst !== 'object' || inst.hidden || typeof inst.instanceId !== 'string') continue
+    const sentence = runtimeErrorNoticeFor(inst.instanceId)
+    if (!sentence) continue
+    const def = typeof registry.getDefinition === 'function' ? registry.getDefinition(inst.defId) : null
+    const name = (def && def.meta && def.meta.name) || 'This script'
+    out.push({ name, note: `${name} — ${sentence}` })
   }
   return out
 }
@@ -160,11 +202,44 @@ export default function AttachedPineDisclosures({
     return onPaneScaleChange(() => setScaled(anyPaneScaled()))
   }, [])
 
+  // ⭐⭐ C43 — AND THE ONE THAT IS A PROPERTY OF THIS CHART'S BARS: a script's own
+  // `runtime.error`, reached. The binder publishes it per instance; this re-reads
+  // on change, like the scale notice above.
+  const [stopTick, setStopTick] = useState(0)
+  useEffect(() => onRuntimeErrorNoticeChange(() => setStopTick((n) => n + 1)), [])
+  const stopped = useMemo(
+    () => attachedRuntimeErrors(settings, registry),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [settings, registry, generation, stopTick],
+  )
+
+  // ⭐⭐ C36 — THE OTHER DISCLOSURE THAT IS NOT A PROPERTY OF THE DOCUMENT: an
+  // attached indicator whose `time(<timeframe>)` is withheld on THIS chart (it is
+  // not daily; its daily bars include a weekend; no capture measured its
+  // timeframe). The binder publishes what `interpret.js::periodAnchorMask`
+  // decided; the sentence is `CHART_CLOCK_WITHHELD`'s, never written here.
+  // ⛔ ONLY THIS PANE'S INSTANCES, and only the ones it draws (`hidden` is off).
+  const drawnIds = useMemo(() => attachedInstanceIds(settings), [settings])
+  const [clockNotes, setClockNotes] = useState(() => chartClockNotesFor(drawnIds))
+  useEffect(() => {
+    const read = () => setClockNotes((prev) => {
+      const next = chartClockNotesFor(drawnIds)
+      return prev.length === next.length && prev.every((p, i) => p.code === next[i].code && p.reason === next[i].reason)
+        ? prev : next
+    })
+    read()
+    return onChartClockChange(read)
+  }, [drawnIds])
+
   // ⛔ ONCE, however many panes scaled. Two attached documents on one phone are
   // one fact about the screen, not two sentences.
-  const all = scaled && TABLES_FIT.memberNote
-    ? [...rows, { name: 'Tables', note: TABLES_FIT.memberNote }]
-    : rows
+  // ⭐ C43 — a stopped script leads: it is why its pane is empty.
+  const all = [
+    ...stopped,
+    ...rows,
+    ...clockNotes.map((n) => ({ name: `Time (${n.code})`, note: n.reason })),
+    ...(scaled && TABLES_FIT.memberNote ? [{ name: 'Tables', note: TABLES_FIT.memberNote }] : []),
+  ]
   if (!all.length) return null
   return (
     <ul data-testid="pine-attached-disclosures" className={styles.notes}>

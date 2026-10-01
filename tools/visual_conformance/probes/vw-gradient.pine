@@ -1,0 +1,49 @@
+//@version=6
+indicator("UCTPROBE_GRADIENT", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C20: "color.from_gradient, whose interpolation curve no capture pins; settled by
+// a gradient probe capture (a value sweep 0 -> 1 between two known colours, with and without
+// color.new on top) ... A transparency that is not whole - unmeasured; settled by a capture
+// of color.new(c, 70.5)."
+// CAPTURE: AMEX:SPY 1D (any symbol: every row depends on bar_index only), inputs at defaults.
+//
+// Colours are plotted as their COMPONENTS (color.r/g/b/t), so the reading is a number per
+// bar rather than a colorer palette index. The endpoints are max-pain's two captured legend
+// colours, #0064C84D and #FF32324D (transparency 70 -> alpha 0x4D).
+
+v  = (bar_index % 101) / 100.0
+w  = (bar_index % 101) / 50.0 - 0.5
+cA = color.rgb(0, 100, 200, 70)
+cB = color.rgb(255, 50, 50, 70)
+g1 = color.from_gradient(v, 0, 1, cA, cB)
+g2 = color.from_gradient(w, 0, 1, cA, cB)
+g3 = color.new(color.from_gradient(v, 0, 1, color.blue, color.red), 30)
+g4 = color.from_gradient(v, 0, 1, color.new(color.blue, 0), color.new(color.red, 100))
+n1 = color.new(color.red, 70.5)
+n2 = color.new(#0064C8, 70.5)
+n3 = color.new(#0064C8, 70.4)
+
+plot(bar_index,        "G00_bar_index_CONTROL")
+plot(v,                "G01_v")
+plot(color.r(g1),      "G02_g1_r")
+plot(color.g(g1),      "G03_g1_g")
+plot(color.b(g1),      "G04_g1_b")
+plot(color.t(g1),      "G05_g1_t")
+plot(w,                "G06_w")
+plot(color.r(g2),      "G07_g2_r_clamp")
+plot(color.g(g2),      "G08_g2_g_clamp")
+plot(color.b(g2),      "G09_g2_b_clamp")
+plot(color.t(g2),      "G10_g2_t_clamp")
+plot(color.r(g3),      "G11_g3_r_new30")
+plot(color.g(g3),      "G12_g3_g_new30")
+plot(color.b(g3),      "G13_g3_b_new30")
+plot(color.t(g3),      "G14_g3_t_new30")
+plot(color.t(g4),      "G15_g4_t_interp_0_to_100")
+plot(color.r(g4),      "G16_g4_r")
+plot(color.t(n1),      "G17_new_red_70p5_t")
+plot(color.r(n1),      "G18_new_red_70p5_r")
+plot(color.t(n2),      "G19_new_0064C8_70p5_t")
+plot(color.t(n3),      "G20_new_0064C8_70p4_t")
+plot(color.t(cA),      "G21_cA_t_CONTROL")
+plot(v, "G22_drawn_in_g1", color = g1)

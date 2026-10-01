@@ -122,21 +122,59 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // (translation census). Pre-C28b: artemis [521, 405316, '0ed727028fb37e4b']
       // / [521, 405324, '4fd1716a833c1b5d'], htf-liquidity [691, 5704,
       // '83d96de74e5b2d0d'] both.
+      // ⭐ C32 moved artemis: its KNN memory (`knnF1`, 100 slots, read above its
+      // writer) is a window now, so `str.tostring(kSize)` resolves — four more
+      // Resolvers, 122 more steps; plot outputs byte-identical (translation
+      // census), one more cell served (`vendorHarness.c32Collections`). Pre-C32:
+      // plain [521, 405996, '65582febd0bccf56'] / manifest [521, 406004,
+      // '41fd10acf67ccfb8'].
+      // ⭐ C31 moved artemis: its KNN panel's `fTxt` cell — a block local declared
+      // below an unfoldable `for` — is bound and read now (TradingView's
+      // `O-  V-  S-`, `vendorHarness.c31Loops`), so six more Resolvers are built
+      // for the three comparisons it reads. Plots byte-identical (translation
+      // census). Pre-C31: [521, 405996, '65582febd0bccf56'] / [521, 406004,
+      // '41fd10acf67ccfb8'].
+      // ⭐ C37 moved artemis: 48 colour slots the object lane dropped are read now
+      // — `color.new(thOb, 100 - divRegAlpha)`, `color.new(thOb, isLight ? 55 :
+      // 45)` and its tint helper's conditions, each a transparency or a colour
+      // test the Resolver is asked for. Plot outputs byte-identical (translation
+      // census); every one of the 48 slots is TradingView's colour
+      // (`vendorHarness.c37ObjectColours`). On the wave-8 + C29/C30/C32/C34/C35
+      // base alone C37 read plain [722, 426212, '55e872139c194b7f'] / manifest
+      // [722, 426220, 'c489c4af4d0b625d'] against [525, 406118] / [525, 406126]:
+      // 197 more Resolvers, 20,094 more steps.
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [521, 405996, '65582febd0bccf56'], manifest: [521, 406004, '41fd10acf67ccfb8'] },
+        // ⭐ Wave 9 carries BOTH (C32 +4 Resolvers / +122 steps, C31 +6 / +3,759): the
+        // measured sum, exactly additive — 521 + 4 + 6, 405,996 + 122 + 3,759 —
+        // was plain [531, 409877, 'f38c24a72a987c60'] / manifest [531, 409885,
+        // '61f060f7ebfeaf71'] before C37 merged. With C37 on top, MEASURED on the
+        // merged tree (C31's cell and C37's colours read some of the same names,
+        // so this is the measurement, not a sum):
+        plain: [729, 429977, '60011f510b56bd70'], manifest: [729, 429985, 'bde49be716751a27'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
       // exactly as the merged tree does: C24's replay still charges what the
       // repeat would have. Pre-C22, pre-C24: [691, 4876, 'f537521acc6fad15'].
+      // ⭐ C33 moved htf-liquidity: its thirty `if show_x and <another symbol's
+      // request>` guards are asked, once per `if`, whether the input gate alone
+      // reads (`partialAndGuard`) — each term costs a Resolver. Every cell under
+      // them is still refused by its own text, the latches nothing reads are
+      // pruned, and the object program is wave 8's - the same 71 ops over the same
+      // 41 trees, interned in another order (program dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [691, 5824, '9ae53426ed6cfe3f'], manifest: [691, 5824, '9ae53426ed6cfe3f'] },
+        plain: [856, 7174, 'ff55463c3a36e466'], manifest: [856, 7174, 'ff55463c3a36e466'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
         plain: [38, 20104, '1c4c4d2d8bb41941'], manifest: [38, 20110, '751365c865ed51f9'] },
+      // ⭐ C43 moved 72s-strategy: `label.set_x(pvtLabel, label.get_x(pvtLabel) +
+      // ((time-time[1]) * 21))` — a getter in `+` arithmetic as a bar coordinate —
+      // is read now (`pine.js::stateArith`), so one more Resolver is built for the
+      // getter-free operand, 6 more steps. Plots byte-identical (translation
+      // census). Pre-C43: [101, 931, 'b03efcd81da53a58'] both.
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [101, 931, 'b03efcd81da53a58'], manifest: [101, 931, 'b03efcd81da53a58'] },
+        plain: [102, 937, '6aa396f1a09699d5'], manifest: [102, 937, '6aa396f1a09699d5'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {

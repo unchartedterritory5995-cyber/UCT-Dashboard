@@ -146,7 +146,21 @@ plot(${src})
       expect(out.ok, `${src} must translate for ${target} to be excused`).toBe(true)
       expect(out.outputs[out.selected].formula).toContain(`${target}(`)
     }
-    const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name))
+    // ⭐⭐ C38 (2026-09-30) — AN OPERATOR'S LANDING SPOT IS NOT A GAP EITHER.
+    // `barsAgo` is where Pine's own history operator lands when its index is a
+    // per-bar value (`x[e]`); no script writes `ta.barsAgo(...)`. Excused BY
+    // DERIVATION, and paid for the same way: the Pine spelling must really
+    // translate onto it on the host lane, or it counts again.
+    const operatorForms = new Map([['barsAgo', 'close[bar_index % 3]']])
+    for (const [target, src] of operatorForms) {
+      const out = translatePine(`//@version=6
+indicator("t")
+plot(${src})
+`, { strict: true })
+      expect(out.ok, `${src} must translate for ${target} to be excused`).toBe(true)
+      expect(out.outputs[out.selected].formula).toContain(`${target}(`)
+    }
+    const gaps = adapterGaps(ROWS).filter((g) => !redirected.has(g.name) && !operatorForms.has(g.name))
     // Measured 2026-09-28: 21 rows, of which `atrPine` and `mfiPine` are the two
     // redirect targets — 19 real gaps, so the ceiling FALLS from 20 to 19.
     expect(gaps.length).toBeLessThanOrEqual(19)
@@ -210,6 +224,11 @@ plot(${n}(volume))
       // `PINE_CALL_SHAPES` lands on it (bar 0's flow on both sides, first value
       // on bar n-1). No Pine script writes `mfiPine(...)`.
       'mfiPine',
+      // ⭐⭐ `barsAgo` (2026-09-30, C38) — the same shape again: reachable ONLY
+      // through Pine's own history operator with a per-bar index (`close[e]`),
+      // on the host lane. No Pine script writes `barsAgo(...)`; the adapter-gap
+      // case above proves the operator really lands on it.
+      'barsAgo',
     ]
     // A SUPERSET check, so closing any one is green while a NEW name falling out
     // of every door is a named regression.

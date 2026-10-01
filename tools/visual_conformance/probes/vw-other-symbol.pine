@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_OTHER_SYMBOL", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C26: other-symbol:bare ("a capture of plot(request.security("SPY", timeframe.period,
+// close)) beside request.security("AMEX:SPY", ...) on one chart"), other-symbol:class-share
+// ("a capture pinning TradingView's BRK.B"), and "a capture of
+// plot(request.security("AMEX:SPY", timeframe.period, close)) (and a label printing it) on
+// NYSE:RDDT 1D would make it one".
+// CAPTURE: NYSE:RDDT 1D, full history loaded, inputs at defaults.
+
+sBare = request.security("SPY", timeframe.period, close)
+sAmex = request.security("AMEX:SPY", timeframe.period, close)
+bBare = request.security("BRK.B", timeframe.period, close)
+bNyse = request.security("NYSE:BRK.B", timeframe.period, close)
+
+plot(bar_index,                   "O00_bar_index_CONTROL")
+plot(close,                       "O01_chart_close")
+plot(sBare,                       "O02_SPY_bare")
+plot(sAmex,                       "O03_AMEX_SPY")
+plot(sBare == sAmex ? 1 : 0,      "O04_bare_eq_amex")
+plot(bBare,                       "O05_BRKB_bare")
+plot(bNyse,                       "O06_NYSE_BRKB")
+plot(bBare == bNyse ? 1 : 0,      "O07_brkb_bare_eq_nyse")
+
+if barstate.islast
+    label.new(bar_index, close, str.tostring(sAmex), style = label.style_label_down)

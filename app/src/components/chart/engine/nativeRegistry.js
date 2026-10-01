@@ -102,6 +102,8 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
+import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
+import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
 // moved to `ast/bind.js`, beside `bindingConstants` and `symbolConstantsWith`,
@@ -1581,9 +1583,70 @@ export function columnErrors(columns) {
   return e || {}
 }
 
+// ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
+//
+// TradingView's study holds NOTHING once the script's own `runtime.error` is
+// reached on any bar (measured — see `runtimeErrorStop.js`). The evaluator is
+// REGISTERED here by that module rather than imported: it reads the object
+// lane's warm-up probe, and this module must not pull the object lane into its
+// chunk. Unregistered (a caller that computes columns without the object lane
+// loaded), every document computes as it always did.
+let runtimeErrorStopFn = null
+export function registerRuntimeErrorStop(fn) {
+  runtimeErrorStopFn = typeof fn === 'function' ? fn : null
+}
+
+/** The guard a column refused by the script's own error carries. */
+export const RUNTIME_ERROR_GUARD = 'pine:runtime.error'
+
+/** The key a column map carries the stop decision under — non-enumerable for the
+ *  reason `__columnErrors` is (a visible key is a phantom plot). */
+const RUNTIME_ERROR_STOP = '__runtimeErrorStop'
+
+/** What the script's `runtime.error` calls did on the bars a column map was
+ *  computed over: `{reached, bar, sentence, unknown, unread, …}`, or null for a
+ *  document that carries none. `unknown` names each call this binding could not
+ *  evaluate — the columns are then the unstopped ones, as before C43. */
+export function runtimeErrorStopOf(columns) {
+  return (columns && columns[RUNTIME_ERROR_STOP]) || null
+}
+
+function withRuntimeErrorStop(out, stop) {
+  if (stop) Object.defineProperty(out, RUNTIME_ERROR_STOP, { value: stop, enumerable: false })
+  return out
+}
+
 function astColumnsFor(def, bars, inputs, ctx) {
+  const stop = runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
+    ? runtimeErrorStopFn(def, bars, inputs, ctx)
+    : null
+  if (stop && stop.reached) {
+    // ⛔ EVERY COLUMN, AND BY NAME: an absent column with no reason reads as "the
+    // definition never declared it" (`columnErrors`).
+    const errors = {}
+    for (const key of astPlotKey(def)) errors[key] = { guard: RUNTIME_ERROR_GUARD, message: stop.sentence }
+    return withRuntimeErrorStop(withColumnErrors({}, errors), stop)
+  }
+  const out = astColumnsUnstopped(def, bars, inputs, ctx)
+  return stop ? withRuntimeErrorStop(out, stop) : out
+}
+
+function astColumnsUnstopped(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
+  // ⭐⭐ C29 — a document folded at another chart period does not answer here
+  // (`periodReads.js`): every column is refused by name, none drawn off the
+  // other period's constants.
+  const periodWhy = new Map()
+  for (const k of keys) {
+    const why = periodReadsRefusalFor(def, k, ctx && ctx.tf)
+    if (why) periodWhy.set(k, why)
+  }
+  if (periodWhy.size && (!trees || periodWhy.size === keys.length)) {
+    const errors = {}
+    for (const key of keys) errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) || [...periodWhy.values()][0] }
+    return withColumnErrors({}, errors)
+  }
   // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
   // into the integers THIS binding needs. `Uncharted Volume` line 233's
   // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
@@ -1636,6 +1699,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
     // distinct node once). On an inlined document every lookup misses and the
     // cost is one Map probe per self-free node.
     const crossMemo = new Map()
+    // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
+    const clock = {}
     for (const key of keys) {
       if (!Object.prototype.hasOwnProperty.call(trees, key)) {
         throw new Error(
@@ -1673,6 +1738,11 @@ function astColumnsFor(def, bars, inputs, ctx) {
       // needs no new handling anywhere; a 5,000-long NaN array per failed column
       // would allocate for nothing and read as a column that computed.
       // The REASON is preserved instead — see `columnErrors`.
+      // ⭐ C29 — only the plots that folded the other period's value are refused.
+      if (periodWhy.has(key)) {
+        errors[key] = { guard: PERIOD_READS_GUARD, message: periodWhy.get(key) }
+        continue
+      }
       try {
         out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
           // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
@@ -1681,7 +1751,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}), crossMemo })
+            ...(other ? { symbols: other.symbols } : {}), crossMemo,
+            chartClockSink: (clock[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -1692,7 +1763,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
             message: String((err && err.message) || err) }
       }
     }
-    return withOtherSymbols(withColumnErrors(out, errors), other)
+    return withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -1715,13 +1786,15 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  return withOtherSymbols({
+  const clock = { [keys[0]]: new Map() }
+  return withChartClock(withOtherSymbols({
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
         newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
         ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}) }),
-  }, other)
+        ...(other ? { symbols: other.symbols } : {}),
+        chartClockSink: clock[keys[0]] }),
+  }, other), clock)
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
@@ -1756,6 +1829,40 @@ function withOtherSymbols(out, other) {
  *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
 export function otherSymbolReport(columns) {
   return (columns && columns[OTHER_SYMBOLS]) || null
+}
+
+/** The key a column map carries its `time(<timeframe>)` withholdings under —
+ *  non-enumerable for the reason `__columnErrors` is. */
+const CHART_CLOCK = '__chartClock'
+
+/** `byKey`: plot key → Map(code → sentence), filled by `interpret` through
+ *  `opts.chartClockSink` (`interpret.js::periodAnchorMask` is the ONE place the
+ *  decision is made). Folded to one row per code, naming the plots it covers. */
+function withChartClock(out, byKey) {
+  const rows = new Map()
+  for (const [key, reasons] of Object.entries(byKey || {})) {
+    for (const [code, reason] of reasons) {
+      if (!rows.has(code)) rows.set(code, { code, reason, plots: [] })
+      rows.get(code).plots.push(key)
+    }
+  }
+  if (rows.size) {
+    Object.defineProperty(out, CHART_CLOCK, {
+      value: Object.freeze({ withheld: Object.freeze([...rows.values()]) }), enumerable: false,
+    })
+  }
+  return out
+}
+
+/** ⭐⭐ C36 — WHY EVERY BAR OF A PLOT THAT READS `time(<timeframe>)` IS WITHHELD
+ *  ON THIS CHART: `{withheld: [{code, reason, plots}]}`, or null when nothing is.
+ *  The codes and sentences are `interpret.js::CHART_CLOCK_WITHHELD`'s — a chart
+ *  that is not daily, daily bars that include a weekend, a chart timeframe no
+ *  capture measured. The binder publishes it to the member's disclosure strip
+ *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
+ *  `otherSymbolReport`: the decision rides on the columns it was made for. */
+export function chartClockReport(columns) {
+  return (columns && columns[CHART_CLOCK]) || null
 }
 
 /** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
@@ -1906,6 +2013,22 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   try {
     return _runtimeLane(def, bars, inputs, ctx)
   } catch (err) {
+    // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error`, REACHED BY THE RUN (C35's
+    // `PineRuntimeError`). The witnessed result is the host lane's too: no column
+    // at all, and the member reads the script's message in TradingView's words
+    // (`runtimeErrorText.js`). The run executed the bar, so the stop is exact;
+    // its bar number is TradingView's only on a series that starts at the listing
+    // bar.
+    if (err && err.name === 'runtime.error') {
+      const bar = Number.isInteger(err.bar) ? err.bar : 0
+      const barKnown = Number.isInteger(err.bar) && !!(ctx && ctx.historyFromListing === true)
+      const message = String(err.message)
+      const stop = {
+        reached: true, bar, barKnown, line: null, message,
+        ...runtimeErrorWords({ message, bar, barKnown }), unknown: [], unread: [],
+      }
+      return withRuntimeErrorStop(reasonFor(RUNTIME_ERROR_GUARD, stop.sentence), stop)
+    }
     // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
     // paint path — the binder would otherwise skip the whole instance silently.
     return reasonFor((err && err.guard) || ENGINE_ERROR,

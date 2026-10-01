@@ -87,7 +87,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (77)
+## Functions (78)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -103,6 +103,7 @@ decide whether a formula can run at all.
 | `atr(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close` |
 | `atrPine(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close`, counting the first bar's range as `high` minus `low` |
 | `avwap(anchor)` | a number | a session (960 bars) | the volume-weighted average price accumulated from the first bar at or after epoch `anchor` |
+| `barsAgo(source, offset, period)` | a number | whatever `period` asks for | `source` as it stood `offset` bars earlier, a count that changes from bar to bar and is read only below `period` |
 | `barssince(condition, period)` | a number | whatever `period` asks for | the number of bars since `condition` was last true, and `period` when it has not been true that recently |
 | `bbw(source, period, mult)` | a number | whatever `period` asks for | the `period`-bar Bollinger Band Width of `source` at multiplier `mult` |
 | `bop(period)` | a number | whatever `period` asks for | the `period`-bar average of where each bar closed within its own range |

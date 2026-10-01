@@ -99,6 +99,13 @@ export const DROP_KEYS = Object.freeze({
   // stale one, never an extra one…
   'state:lost': C(LOSS.PARTIAL,
     "a step reading a drawing's state this chart cannot carry — withheld, never drawn off a different value"),
+  // ⭐ C33 — a step under a guard one of whose `and` terms this chart cannot read
+  // (`pine.js::partialAndGuard`). It is CARRIED: known not to run wherever a read
+  // term is false, and on every other bar withheld by the object runtime, which
+  // marks whatever it would have written, moved or deleted so that object is
+  // held rather than drawn (C17) — never an extra object on screen.
+  'guard:partial': C(LOSS.PARTIAL,
+    'a step whose condition has a term this chart cannot read — carried, and withheld on every bar its readable terms hold'),
   // …except a DELETE withheld that way: the object Pine deletes stays.
   'state:removal': C(LOSS.REMOVES,
     "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),

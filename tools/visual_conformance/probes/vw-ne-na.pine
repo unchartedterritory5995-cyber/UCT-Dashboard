@@ -1,0 +1,25 @@
+//@version=6
+indicator("UCTPROBE_NE_NA", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C14 (a live `!=` compare, C16's LIVE_CMP_OPS) - what `!=` and `==` answer when an
+// operand is na. Operands are series variables, never the literal `na`, so the probe
+// compiles in v6.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. x is na on even bars, close on odd bars.
+
+float x = bar_index % 2 == 0 ? na : close
+int   i = bar_index % 2 == 0 ? na : 1
+float y = na
+
+plot(bar_index,                     "Q00_bar_index_CONTROL")
+plot(na(x) ? 1 : 0,                 "Q01_x_is_na")
+plot(x != close ? 1 : 0,            "Q02_x_ne_close")
+plot(x == close ? 1 : 0,            "Q03_x_eq_close")
+plot(x != x ? 1 : 0,                "Q04_x_ne_x")
+plot(x == x ? 1 : 0,                "Q05_x_eq_x")
+plot(i != 1 ? 1 : 0,                "Q06_i_ne_1")
+plot(i == 1 ? 1 : 0,                "Q07_i_eq_1")
+plot(x > 0 ? 1 : 0,                 "Q08_x_gt_0")
+plot(not (x == close) ? 1 : 0,      "Q09_not_x_eq_close")
+plot(y != close ? 1 : 0,            "Q10_na_var_ne_close")
+plot(y == close ? 1 : 0,            "Q11_na_var_eq_close")

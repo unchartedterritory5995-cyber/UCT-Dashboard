@@ -510,8 +510,29 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     # `source` would produce a plausible column off a price compared to zero. It
     # is PINNED below, the way `seed`/`update` are, so it cannot spread to a slot
     # whose entry does not yield a condition there.
-    generic = {"source", "left", "right", "seed", "update", "condition"}
+    # (2026-09-30, C38) `offset` JOINED, AND IT IS PINNED LIKE `condition`. Pine's
+    # history operator with a per-bar index (`barsAgo(source, offset, period)`)
+    # takes a slot the maths reads as a COUNT OF BARS, never a price -- a translator
+    # that filled it with `close` because it looked like a second source would read
+    # hundreds of bars back and be refused by the buffer on every bar.
+    generic = {"source", "left", "right", "seed", "update", "condition", "offset"}
     allowed = set(ast_table.TABLE["series"]) | generic
+
+    # AND `offset` IS ONLY LEGAL WHERE THE ENTRY BOUNDS IT. The slot must be a
+    # `series`, the NEXT slot must be the `int` window, that window must be what the
+    # entry's lookback names, and the sentence must say the slot counts bars.
+    for name, spec in functions.items():
+        roles = list(spec.get("argRoles") or ())
+        for i, role in enumerate(roles):
+            if role != "offset":
+                continue
+            assert spec["args"][i] == "series", (name, i, spec["args"])
+            assert i + 1 < len(roles) and spec["args"][i + 1] == "int", (name, spec["args"])
+            assert roles[i + 1].lower().endswith("period"), (name, roles)
+            assert spec.get("lookback") == "arg%d" % (i + 1), (name, spec.get("lookback"))
+            assert ("{%d} bars earlier" % i) in spec.get("sentence", ""), (name, spec.get("sentence"))
+    assert any("offset" in (s.get("argRoles") or ()) for s in functions.values()), (
+        "no function declares an `offset` slot -- the pin above has no subject")
 
     # ⛔ AND `condition` IS ONLY LEGAL WHERE THE ENTRY REALLY READS AN EVENT.
     # Derived from the manifest: the slot must be a `series`, and the entry must

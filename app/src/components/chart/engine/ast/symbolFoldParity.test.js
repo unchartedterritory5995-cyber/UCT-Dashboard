@@ -42,7 +42,9 @@ const SYMBOLS = [
 
 /** Every `syminfo.*` the corpus actually reads, measured rather than listed.
  *  ⛔ THE COUNTS ARE THE REASON THE CONTRACT IS TWO FIELDS AND NOT SIX. */
-const MEMBERS = ['ticker', 'tickerid', 'prefix', 'mintick', 'type', 'currency', 'session']
+const MEMBERS = ['ticker', 'tickerid', 'prefix', 'mintick', 'type', 'currency', 'session',
+  // ⭐ C29 (2026-09-30) — the listing fields, per witnessed exchange.
+  'root', 'basecurrency', 'timezone', 'pointvalue']
 
 const CONTAINS = (field, needle) => ({
   type: 'textop', name: 'contains',
@@ -104,15 +106,23 @@ describe('R-K — the two lanes fold one symbol the same way', () => {
     expect(btc.prefix).toMatch(/^REFUSED:syminfo\.prefix/)
   })
 
-  it('⛔ the six unserved members refuse in BOTH lanes, on every symbol', () => {
-    // `mintick`, `type`, `currency`, `session` are refused BY NAME at the door
-    // (`symbolScope.json::unserved`) — the fold must not invent them either, and
-    // it must not invent them differently in the two lanes.
+  it('⛔ `type` refuses in BOTH lanes, on every symbol', () => {
+    // `type` is refused BY NAME at the door (`symbolScope.json::unserved`) — the
+    // fold must not invent it either, and not differently in the two lanes.
     for (const s of SYMBOLS) {
-      const js = jsFold(s)
-      for (const m of ['type', 'currency', 'session']) {
-        expect(js[m], `${s.ticker}.${m}`).toMatch(/^REFUSED:/)
-      }
+      expect(jsFold(s).type, `${s.ticker}.type`).toMatch(/^REFUSED:/)
+    }
+  })
+
+  it('⭐⭐ C29 — the listing fields resolve PER WITNESSED EXCHANGE, identically in both lanes', () => {
+    // ⚰️ `currency` and `session` were in the loop above until 2026-09-30, when
+    // the syminfo-roster captures witnessed them on NASDAQ / NYSE / NYSE Arca.
+    const spy = jsFold(SYMBOLS[0])
+    expect([spy.currency, spy.session, spy.root, spy.basecurrency, spy.timezone, spy.pointvalue])
+      .toEqual(['USD', 'regular', 'SPY', '', 'America/New_York', '1'])
+    const btc = jsFold(SYMBOLS[2])
+    for (const m of ['currency', 'session', 'root', 'basecurrency', 'timezone', 'pointvalue']) {
+      expect(btc[m], `BTC/USD.${m}`).toMatch(new RegExp(`^REFUSED:syminfo\\.${m}`))
     }
   })
 

@@ -11,24 +11,28 @@
 // window's average inside the statement that fills this one.
 //
 // ⭐ WHAT IS PINNED, from the listing (the capture's `startsAtBar0`):
-//   * 26 of TradingView's 28 labels, each its text and its y, in its creation
+//   * 27 of TradingView's 28 labels, each its text and its y, in its creation
 //     order — every label we draw is one of TradingView's;
 //   * the table's average row, "23" and "19", at TradingView's addresses and
 //     text colours;
-//   * NO line: TradingView extends `LengthLine` by `bullishCount.avg()` bars off
-//     a getter (`get_x1() + avg + 1`, refused by name), so ours is withheld —
-//     it was drawn one bar long before C22.
+//   * ⭐ C43 — THE LINE, and `LabelProbLen` (id 82). `LengthLine.set_x2(
+//     LengthLine.get_x1() + bullishCount.avg() + 1)` is a getter in arithmetic
+//     over an `array<int>` average: the exact float mean (22.6), the sum
+//     TRUNCATED into the `int` x (`vw-int-array-avg-spy-1d-2026-09-30`) — x2 =
+//     x1 + 23. The label sits at `int(math.avg(get_x1(), get_x2()))` = x1 + 11
+//     and reads `Probable Length\n23`: the window read between its add and its
+//     removal, exact on every bar no add ran (`objectWindowPositions`). Both at
+//     TradingView's x RANK (the capture stores x as a dense rank) and y.
+//     ⚰️ C22 held the line (it was drawn one bar long before) and the label.
 // ⛔ WHAT IS NOT DRAWN, named:
 //   * TradingView's first label (id 2, bar 58): our `trend` reads `na` until the
 //     HMA exists (`ta.rising` of `na`), so the first flip compares against `na`
 //     and is not seen — withheld by construction, never guessed;
-//   * `LabelProbLen` (id 82): its x is `int(math.avg(get_x1(), get_x2()))` (a
-//     getter in arithmetic) and its text reads a window between its add and its
-//     removal, where it may hold one element more than its cap;
-//   * 30 of 34 cells (`cell:text`): their text is per-iteration — the index
+//   * (served since C32) the 30 cells whose text is per-iteration — the index
 //     column `str.tostring(i + 1)` and `bullishCount.get(i)` read by the loop
-//     counter. ⭐ With C25 (a loop counter's condition, `{v:'loop'}`) the two
-//     headers under `if i == 0` are served: TradingView's address, text, colour.
+//     counter — are pinned in `vendorHarness.c32Collections`. ⭐ With C25 (a loop
+//     counter's condition, `{v:'loop'}`) the two headers under `if i == 0` are
+//     served: TradingView's address, text, colour.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import path from 'node:path'
 
@@ -71,17 +75,23 @@ describe("⭐ C22 — trend-duration-forecast draws TradingView's labels and ave
     return { cap, run, lines: fam('line'), labels: fam('label'), tables: fam('table') }
   }
 
-  it('⭐ from the listing: 26 labels, each TradingView\'s text and y, in its creation order', () => {
-    const { cap, labels } = runTd(true)
+  it('⭐ from the listing: 27 labels, each TradingView\'s text and y, in its creation order', () => {
+    const { cap, labels, lines } = runTd(true)
     expect(cap.history.startsAtBar0).toBe(true)
     const vendor = cap.objects.records.labels
     expect(vendor).toHaveLength(28)
-    // the two we withhold, by id: the first flip's label and the probable-length label
-    const expected = vendor.filter((l) => l.id !== 2 && l.id !== 82)
+    // the one we withhold, by id: the first flip's label
+    const expected = vendor.filter((l) => l.id !== 2)
     expect(labels.map((l) => [l.props.text, l.props.y])).toEqual(expected.map((l) => [l.t, l.y]))
-    // and in TradingView's left-to-right order
-    const xs = labels.map((l) => l.props.x)
-    expect(xs).toEqual([...xs].sort((a, b) => a - b))
+    // ⭐ C43 — the probable-length label (TradingView's id 82) is among them, last made
+    expect(labels[labels.length - 1].props.text).toBe('Probable Length\n23')
+    // and every x at TradingView's RANK: the capture stores x as a dense rank
+    // over all its objects; ours lacks the withheld id 2, which is rank 0
+    expect(vendor.find((l) => l.id === 2).x).toBe(0)
+    const all = [...new Set([...labels.map((l) => l.props.x), ...lines.flatMap((l) => [l.props.x1, l.props.x2])])]
+      .sort((a, b) => a - b)
+    const rank = (x) => all.indexOf(x) + 1
+    expect(labels.map((l) => rank(l.props.x))).toEqual(expected.map((l) => l.x))
   })
 
   it('⭐ the table\'s average row: TradingView\'s address, text and colour', () => {
@@ -107,23 +117,62 @@ describe("⭐ C22 — trend-duration-forecast draws TradingView's labels and ave
       expect(p.text).toBe(v.t)
       expect(p.text_color.toUpperCase()).toBe(hexOf(v.tc))
     }
-    expect(cells).toHaveLength(4)
+    // ⭐ C32 — and the 30 cells read by the loop counter (`vendorHarness.c32Collections`)
+    expect(cells).toHaveLength(34)
     // every cell we draw is one of TradingView's
     const vend = new Set(cap.objects.records.tableCells.map((c) => `${c.col},${c.row},${c.t}`))
     for (const c of cells) expect(vend.has(`${c.col},${c.row},${c.props.text}`), `${c.col},${c.row}`).toBe(true)
   })
 
-  it('⛔ no line: TradingView\'s `LengthLine` is extended off a getter this lane refuses, so ours is withheld, not drawn short', () => {
-    const { cap, lines, run } = runTd(true)
-    expect(cap.objects.records.lines).toHaveLength(1)
-    expect(lines).toEqual([])
+  it('⭐ C43 — the line: TradingView\'s y, style and x ranks; x2 = x1 + trunc(mean + 1), the label at its middle', () => {
+    const { cap, lines, labels, run } = runTd(true)
     expect(run.status).toBe('ok')
+    const vendor = cap.objects.records.lines
+    expect(vendor).toHaveLength(1)
+    expect(lines).toHaveLength(1)
+    const [v] = vendor
+    const p = lines[0].props
+    expect([p.y1, p.y2]).toEqual([v.y1, v.y2])
+    expect(v.st).toBe('ar')
+    expect(p.style).toBe('arrow_right')
+    // ⭐ THE LENGTH, from the capture's own numbers: the open trend is bullish
+    // (its label reads `Trend ↑ … Real Length`), so the line runs the mean of the
+    // ten bullish lengths TradingView tabulates (column 1, rows 1–10), plus one,
+    // the fraction dropped.
+    const cells = cap.objects.records.tableCells
+    const bull = cells.filter((c) => c.col === 1 && c.row >= 1 && c.row <= 10).map((c) => Number(c.t))
+    expect(bull).toHaveLength(10)
+    const mean = bull.reduce((s, x) => s + x, 0) / bull.length
+    expect(Number.isInteger(mean)).toBe(false)                  // non-vacuity: a fraction is dropped
+    expect(p.x2 - p.x1).toBe(Math.trunc(mean + 1))
+    expect(Math.trunc(mean + 1)).not.toBe(Math.round(mean + 1)) // …and rounding would have drawn another bar
+    // the flip label sits one bar right of x1, the probable-length label at the middle
+    const flip = labels.find((l) => /Real Length/.test(l.props.text))
+    const prob = labels.find((l) => /^Probable Length/.test(l.props.text))
+    expect(flip.props.x).toBe(p.x1 + 1)
+    expect(prob.props.x).toBe(Math.trunc((p.x1 + p.x2) / 2))
+    expect(prob.props.y).toBe(v.y1)
+    // ⭐ and every one of those x's at TradingView's RANK (the capture's x is a
+    // dense rank over all its objects; ours lacks the withheld id 2, rank 0)
+    const all = [...new Set([...labels.map((l) => l.props.x), p.x1, p.x2])].sort((a, b) => a - b)
+    const rank = (x) => all.indexOf(x) + 1
+    expect([rank(p.x1), rank(p.x2)]).toEqual([v.x1, v.x2])
+    const v82 = cap.objects.records.labels.find((l) => l.id === 82)
+    expect(rank(prob.props.x)).toBe(v82.x)
+    expect(prob.props.text).toBe(v82.t)
+    // the line runs PAST the last bar — a future x, as TradingView's does
+    expect(p.x2).toBeGreaterThan(cap.bars.count - 1)
   })
 
   it('behind the curtain (listing fact withheld): nothing drawn that TradingView lacks', () => {
     const { cap, labels, lines } = runTd(false)
     const vend = new Set(cap.objects.records.labels.map((l) => `${l.t}|${l.y}`))
     for (const l of labels) expect(vend.has(`${l.props.text}|${l.props.y}`), l.props.text).toBe(true)
-    expect(lines).toEqual([])
+    // ⭐ C43 — a line drawn there is TradingView's own: its y, and its length
+    const [v] = cap.objects.records.lines
+    for (const l of lines) {
+      expect([l.props.y1, l.props.y2]).toEqual([v.y1, v.y2])
+      expect(l.props.x2 - l.props.x1).toBe(23)
+    }
   })
 })

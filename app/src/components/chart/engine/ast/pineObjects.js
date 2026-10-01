@@ -37,9 +37,10 @@
 import { methodFormCall, splitMethodName } from './ufcs.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
-  historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
+  historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt, literalInit, isMutator,
+  barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
+  oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -185,12 +186,24 @@ export function collectObjectOps(stmts, h) {
     lostColls: [],
     // ⭐ C21 — beside each lost collection, WHY (`<what>@<line>`), same index.
     lostCollsWhy: [],
+    // ⭐ C40 — every `for … in` this pass could have walked and did not, with
+    // why (`<what>@<line>`): the loop then keeps the legacy refusal (`loopBlocked`).
+    forInRefused: [],
   }
   const loseColl = (name, why, tok) => {
     diagnostics.lostColls.push(name)
     diagnostics.lostCollsWhy.push(`${why}@${tok && tok.line !== undefined ? tok.line : '?'}`)
   }
   let siteSeq = 0
+  /** ⭐ C42 — the line of every statement read as it answers on a block's ONE
+   *  execution (`walk`), and of every statement nested under one: the runtime
+   *  lane runs the script as written — a `ta.*` there over every bar — so no
+   *  value of such a statement may be read from it (`rtEligibleOp`). */
+  const onceLines = new Set()
+  const noteOnceLines = (st) => {
+    if (st && st.header && st.header[0] && Number.isInteger(st.header[0].line)) onceLines.add(st.header[0].line)
+    for (const s of (st && st.sub) || []) noteOnceLines(s)
+  }
   /** ⭐ C22 — every body this pass inlined, rewritten for its call site, and
    *  whether the call runs on EVERY bar (no guard, no loop): a `var` array its
    *  body declares is then that call site's own window (`buildObjectProgram`). */
@@ -251,7 +264,16 @@ export function collectObjectOps(stmts, h) {
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
   const userMethods = new Set([...fnDefs.keys()].filter((n) => fnDefs.get(n).isMethod))
-  const pureFns = pureFunctions(fnDefs, drawFns)
+  /** ⭐ C34 — the witnessed chart series (`open`/`high`/`low`/`close`) no
+   *  script name shadows: a conditional call's body reads them at an offset as
+   *  the chart's own, not the call's (`objectFnInline.js`, C34). */
+  const chartSeries = chartSeriesFor(stmts, h)
+  /** ⭐ C42 — `bar_index`, unless the script binds the name (`oneExecutionBody`). */
+  const callOwned = callOwnedSeriesFor(stmts, h)
+  const pureFns = pureFunctions(fnDefs, drawFns, chartSeries, drawMethods)
+  /** ⭐ C42 — value functions that read the call's own history (a drawing
+   *  function is judged where it is inlined, `inlineCall`). */
+  const historyFns = new Set([...callHistoryFunctions(fnDefs, h, callOwned)].filter((n) => !drawing.has(n)))
   /** Top-level names fixed for the whole run — see `barInvariantNames`. */
   const invariantNames = barInvariantNames(stmts, h)
   /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
@@ -261,11 +283,21 @@ export function collectObjectOps(stmts, h) {
    *  `{refused, fn, line}`. See the walk's declaration and `:=` arms. */
   const loopScalars = new Map()
   let inlineSeq = 0
+  // ⭐ C33 — names the `<tmp>` of each `array.push(C, f(…))` rewrite (`pushOfDrawCall`).
+  let pushTmpSeq = 0
   let inlineDepth = 0
   /** How many loops (of any kind) the walk is inside right now. */
   let loopNest = 0
   /** ⭐ C20 — the `while` whose body is being read for the runtime lane, or null. */
   let rtLoop = null
+  /** ⭐ C40 — counters minted for `for … in` and cap-`while` loops (see `walk`),
+   *  and the element names those loops declared (a loop variable is the loop's
+   *  own: a name another statement declared is never taken over). */
+  let hostLoopSeq = 0
+  const forInElems = new Set()
+  /** ⭐ C40 — only the HOST lane runs these loops (`pine.js` `hostPasses`); the
+   *  runtime lane's own object pass keeps the program it had. */
+  const hostLoops = h.hostLoops === true
 
   /**
    * ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS.
@@ -565,8 +597,28 @@ export function collectObjectOps(stmts, h) {
         rootPos += 1
         rootTok = st.header && st.header[0] && Number.isFinite(st.header[0].index) ? st.header[0].index : null
       }
-      const t = st.header
+      let t = st.header
       if (!t || !t.length) continue
+      // ⭐⭐ C42 — A `ta.*` CALL WRITTEN IN A BLOCK THAT RUNS ONCE. Under a guard
+      // that is provably `barstate.islast`, in no loop, the call has run exactly
+      // once when its value is read: `ta.highest(src, len)` is `src` and
+      // `ta.sma(src, len)` is `na` (witnessed — `objectFnInline.js`, the C42
+      // section). ⚰️ Read the every-bar way, `str.tostring(ta.highest(high, 10))`
+      // in a last-bar cell printed 161.67 where TradingView prints the last bar's
+      // own high, 151.8899. Any other `ta.*` left standing is marked and refuses
+      // by name where its value is read (`Resolver.resolveCall`): what it answers
+      // on its first run is in no capture. ⛔ The same for a call to a user
+      // function that reads its OWN history (`historyFns`): called once, its
+      // `ta.*` and its locals' history hold one run, which the value reader's
+      // frame does not model — refused by name, never the every-bar number.
+      // ⛔ Only the tokens this reader emits from are rewritten — `st` keeps its
+      // header, which the value walk's bindings are joined on.
+      if (!inLoop && loopIds.length === 0 && (taCallIn(t) || historyCallIn(t, historyFns))
+          && !definitionHeader(t, h)
+          && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
+        t = oneExecutionTokens(t, h, { flagRest: true, historyFns }).toks
+        noteOnceLines(st)
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -630,6 +682,19 @@ export function collectObjectOps(stmts, h) {
             const intoTok = reIdx >= 0 ? t[asIdx - 1] : h.boundName(t, asIdx)
             const into = tupleNames || (intoTok && intoTok.kind === 'ident' ? String(intoTok.value) : null)
             inlineAt(rh, rhs, 1, into, guards, inLoop, st, localScope)
+            continue
+          }
+          // ⭐⭐ C33 — `array.push(list, f(…))` / `list.push(f(…))`: A HELPER'S
+          // DRAWING PUSHED STRAIGHT ONTO A LIST (average-day-range-adr-pivots,
+          // `array.push(adr_1_r_bx_arr, draw_box(true, …))`). Pine evaluates the
+          // argument before the push, so the statement IS `tmp = f(…)` followed by
+          // `array.push(list, tmp)` — walked as exactly those two, so the call is
+          // inlined by the one inliner and the push emitted by the one collection
+          // reader. ⛔ Only when the value is the WHOLE argument and the list is a
+          // declared drawing list; any other place inside an expression refuses.
+          const pushed = pushOfDrawCall(t, headOf)
+          if (pushed) {
+            walk(pushed, guards, inLoop, localScope)
             continue
           }
         }
@@ -767,6 +832,69 @@ export function collectObjectOps(stmts, h) {
         // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
+        // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
+        // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
+        // every other shape falls through to the refusal below, unchanged.
+        // ⛔ Inside a loop this reader does not run, the body is walked with that
+        // loop's `inLoop`, so every op in it is refused there and no loop is left.
+        if (!head && hostLoops) {
+          const plan = word === 'for' ? forInPlan(t, st) : capWhileOf(t, st)
+          if (plan) {
+            hostLoopSeq += 1
+            const tok0 = t[0]
+            const line = st.header[0].line
+            const T = (kind, value) => ({ kind, value, line: tok0.line, column: tok0.column, index: tok0.index })
+            const counter = plan.idx || `uct_loop_${hostLoopSeq}`
+            let scopeIn = bodyScope
+            const outer = ops
+            const body = []
+            ops = body
+            loopIds.push(counter)
+            loopNest += 1
+            try {
+              if (plan.kind === 'coll') {
+                // The element is a COPY of the slot taken as the pass starts
+                // (C16's eager `copy` → `setreg`): Pine's loop variable.
+                ops.push({
+                  k: 'copy', into: plan.elem, fromColl: plan.src, index: h.parseWholeExpression([T('ident', counter)]),
+                  guards, locals: bodyScope, loopIds: [...loopIds], at: tok0, line,
+                })
+              } else if (plan.kind === 'window') {
+                // The element of a bounded numeric window is `array.get(w, i)` —
+                // the read C32 already serves per pass (`wget`).
+                scopeIn = [...bodyScope, {
+                  name: plan.elem,
+                  toks: [T('ident', 'array.get'), T('punct', '('), T('ident', plan.src), T('punct', ','), T('ident', counter), T('punct', ')')],
+                  st: { header: t, sub: [], synthetic: { fn: 'for … in', mutable: new Set(), carried: new Set() } },
+                }]
+              }
+              walk(st.sub || [], guards, inLoop, scopeIn)
+            } finally {
+              loopNest -= 1
+              loopIds.pop()
+              ops = outer
+            }
+            if (loopRe.length) localScope = [...localScope, ...loopRe]
+            // ⛔ Nothing carried (an element copy alone draws nothing) → no loop op.
+            if (!body.some((b) => !(b.k === 'copy' && b.fromColl === plan.src && b.into === plan.elem))) continue
+            const common = { k: 'loop', id: counter, body, guards, locals: localScope, loopIds: [...loopIds], at: tok0, line }
+            if (plan.kind === 'cap') {
+              ops.push({ ...common, whileToks: t.slice(1), capColl: plan.coll })
+            } else if (plan.kind === 'all') {
+              ops.push({ ...common, forIn: { all: plan.family, elem: plan.elem } })
+            } else {
+              // `0 to size − 1`, never counted down: an empty list runs no pass.
+              ops.push({
+                ...common,
+                from: { value: h.parseWholeExpression([T('number', 0)]) },
+                to: { value: h.parseWholeExpression([T('ident', 'array.size'), T('punct', '('), T('ident', plan.src), T('punct', ')'), T('punct', '-'), T('number', 1)]) },
+                asc: true,
+                forIn: { src: plan.src, elem: plan.kind === 'coll' ? plan.elem : null },
+              })
+            }
+            continue
+          }
+        }
         if (!head) {
           // ⭐⭐ C20 — A `while` THE RUNTIME LANE READS PER PASS. See `rtLoopTry`.
           if (word === 'while' && rtLoopTry(st, t, guards, inLoop, bodyScope)) {
@@ -901,6 +1029,24 @@ export function collectObjectOps(stmts, h) {
             k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
             at: t[0], line: st.header[0].line,
           })
+        } else if (st.synthetic && !inLoop && !loopIds.length && assign === 1 && h.isPunct(t[assign], '=')
+            && !scalars.has(String(name)) && !decls.has(String(name))
+            && !(st.synthetic.mutable && st.synthetic.mutable.has(String(name)))
+            && !(st.synthetic.carried && st.synthetic.carried.has(String(name)))
+            && (isBareGetterAt(rhs, 0, h) || isBareGetterHistoryAt(rhs, h))) {
+          // ⭐⭐ C33 — A HELPER'S OWN LOCAL BOUND TO A GETTER: `b1 = line.get_y1(h1)`
+          // and `a1 = line.get_y1(h1)[1]` in high-low-open-mid-ranges' `f_line3`.
+          // `getterScalars` rules function bodies out because a body's name is not
+          // ONE variable; an INLINED body's is — the rename made it this call
+          // site's own, declared once, and a local the body never reassigns
+          // (`synthetic.mutable`) has exactly this one write. So it is the same
+          // scalar C14 serves at the top level: written HERE, in op order, under
+          // this block's guards, read whole (a coordinate, a text's number).
+          scalars.set(String(name), { init: null, persist: false })
+          ops.push({
+            k: 'getnum', name: String(name), rhs, guards, locals: localScope, loopIds: [...loopIds],
+            at: t[0], line: st.header[0].line,
+          })
         }
         // ⭐⭐ C25 — A HELPER'S `var` CARRIED IN A LOOP. Pine initialises it ONCE
         // (per call site — the rename already made it this site's) and keeps it
@@ -982,7 +1128,10 @@ export function collectObjectOps(stmts, h) {
           }
           if (rhs[0].value.startsWith('array.new_')) {
             const fam = rhs[0].value.slice('array.new_'.length)
-            if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
+            if (OBJECT_NAMESPACES.includes(fam)) {
+              decls.set(name, { family: fam, kind: 'coll' })
+              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+            }
             continue
           }
           // ⭐⭐ THE GENERIC SPELLING IS THE SAME DECLARATION — `array.new<label>()`.
@@ -1001,7 +1150,10 @@ export function collectObjectOps(stmts, h) {
           // type argument ends.
           if (rhs[0].value === 'array.new' && Array.isArray(rhs[0].typeArgs)) {
             const fam = String(rhs[0].typeArgs[0] || '')
-            if (OBJECT_NAMESPACES.includes(fam)) decls.set(name, { family: fam, kind: 'coll' })
+            if (OBJECT_NAMESPACES.includes(fam)) {
+              decls.set(name, { family: fam, kind: 'coll' })
+              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+            }
             continue
           }
         }
@@ -1065,6 +1217,13 @@ export function collectObjectOps(stmts, h) {
       // miss, so a postfix this cannot lower is dropped and COUNTED by
       // `argsOf`'s span guard rather than half-read.
       if (word && h.isPunct(t[1], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
+      // ⭐ C40 — the same statement with its receiver in parentheses:
+      // `(array.shift(ls)).delete()`. ⚰️ It opens with `(`, so no branch here
+      // read it — the delete and the shift vanished with no count. The parser
+      // already folds the parentheses away; `emitPostfix` reads what is left.
+      if (!word && h.isPunct(t[0], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
         continue
       }
 
@@ -1239,6 +1398,220 @@ export function collectObjectOps(stmts, h) {
     }
   }
 
+  // ─── ⭐⭐ C40 — `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while` ──
+  //
+  // C34 showed the helper call was never the wall: the drawing steps sit in
+  // `for x in <list>` and `while array.size(a) > N` loops this reader did not
+  // run. Two of those shapes ARE loops the object runtime can run exactly:
+  //
+  //   for b in fut_boxes            for [i, v] in line.all       for [i, u] in ups
+  //       box.delete(b)                 line.delete(v)               tbl.cell(0, i, str.tostring(u))
+  //   (a declared drawing list)     (every line on the chart)    (a bounded numeric window, C32)
+  //
+  //   while array.size(lbs) > N                 ← the FIFO cap: the oldest goes
+  //       label.delete(array.shift(lbs))
+  //
+  // ⭐ WITNESS (committed capture `trend-lines-supports-and-resistances-rddt-1d-
+  // 2026-09-28`): TradingView walked `for [i, v] in downtrends` over TWO elements
+  // and applied the body to both — lines 8 and 11 are dotted with no colour, and
+  // their extension lines (7, 10) and labels (9, 12) are gone.
+  //
+  // ⛔ SERVED ONLY WHERE THE LOOP HAS ONE READING. A body that changes the list
+  // it walks (`push`/`shift`/`remove`/`set`/`clear`, or a helper handed the list)
+  // is unwitnessed — whether Pine walks a snapshot or the live list is not in any
+  // capture — and keeps the legacy refusal, named (`forInRefused`). A loop
+  // variable that takes over a name another statement declared refuses too.
+  const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
+  const refuseForIn = (why, t) => {
+    diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
+    return null
+  }
+  /** Does this statement list (at any depth, and through any user function it
+   *  calls) change the list `name` — a mutating member, a reassignment, or a
+   *  user function that is handed it or names it? */
+  const bodyMayWriteList = (list, name) => {
+    const seenFns = new Set()
+    let scan = null
+    const scanToks = (toks) => {
+      for (let i = 0; i < toks.length; i += 1) {
+        const tk = toks[i]
+        if (!tk || tk.kind !== 'ident') continue
+        const v = String(tk.value)
+        const nx = toks[i + 1]
+        if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
+        if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
+            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) return true
+        const m = splitMethodName(v)
+        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) return true
+        const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
+        if (!fn || !h.isPunct(nx, '(')) continue
+        const close = closeOf(toks, i + 1)
+        const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
+        if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
+        if (!seenFns.has(fn)) {
+          seenFns.add(fn)
+          if (scan(fnDefs.get(fn).body)) return true
+        }
+      }
+      return false
+    }
+    scan = (items) => (items || []).some((s2) => scanToks(s2.header || []) || scan(s2.sub))
+    return scan(list)
+  }
+  const mentionsName = (list, name) => (list || []).some((s2) => (s2.header || [])
+    .some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name) || mentionsName(s2.sub, name))
+  /** `for x in SRC` / `for [i, x] in SRC` → `{kind, idx, elem, src, family}` for
+   *  a SRC this lane walks, else null (the caller keeps the legacy refusal). */
+  const forInPlan = (t, st) => {
+    let k = 1
+    let idx = null
+    if (h.isPunct(t[1], '[')) {
+      if (!(t[2] && t[2].kind === 'ident' && h.isPunct(t[3], ',') && t[4] && t[4].kind === 'ident'
+          && h.isPunct(t[5], ']'))) return null
+      idx = String(t[2].value)
+      k = 4
+    }
+    const elemTok = t[k]
+    const inAt = idx === null ? 2 : 6
+    const inTok = t[inAt]
+    if (!elemTok || elemTok.kind !== 'ident' || !inTok || inTok.kind !== 'ident' || inTok.value !== 'in') return null
+    if (t.length !== inAt + 2 || t[inAt + 1].kind !== 'ident') return null
+    const elem = String(elemTok.value)
+    const src = String(t[inAt + 1].value)
+    if (elem.includes('.') || (idx !== null && (idx.includes('.') || !/^[a-z][a-z0-9_]*$/.test(idx)))) return null
+    const d = decls.get(src)
+    const family = ALL_FAMILIES[src] || (d && d.kind === 'coll' && OBJECT_NAMESPACES.includes(d.family) ? d.family : null)
+    const isWindow = !family && !d && !src.includes('.') && typeof h.forInWindow === 'function' && h.forInWindow(src)
+    if (!family && !isWindow) return null
+    // ⛔ THE LOOP VARIABLE IS THE LOOP'S OWN. A name some other statement holds
+    // is not taken over (Pine's would shadow it; one register cannot).
+    // ⭐ In an INLINED helper body the statements are this call site's own copy
+    // (`rewriteBody`), so the variable is given a name of its own for this loop —
+    // trend-lines' `f_clearAll` walks `line.all`, `box.all` and `label.all` with
+    // one `v`. At the top level the statements are the value walk's too, and the
+    // loop is refused by name instead.
+    const taken = decls.has(elem) && (!forInElems.has(elem) || (family && decls.get(elem).family !== family))
+    let elemName = elem
+    if (taken) {
+      if (!st.synthetic || !family) {
+        return refuseForIn(!forInElems.has(elem) ? `loop variable \`${elem}\` is also declared outside the loop`
+          : `loop variable \`${elem}\` already holds a ${decls.get(elem).family}`, t)
+      }
+      elemName = `${elem}__uctfi${hostLoopSeq + 1}`
+    }
+    // ⛔ An object's POSITION in `line.all` depends on every create TradingView
+    // made, including any this program lost — never read.
+    if (ALL_FAMILIES[src] && idx !== null && mentionsName(st.sub, idx)) return refuseForIn(`a position in \`${src}\` is read`, t)
+    if (!ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
+    if (isWindow) return { kind: 'window', idx, elem, src, family: null }
+    if (elemName !== elem) {
+      // …renamed only once the loop is taken, in this call site's own tokens.
+      const rename = (toks) => {
+        for (const x of toks || []) {
+          if (x.kind !== 'ident') continue
+          const v = String(x.value)
+          if (v === elem) x.value = elemName
+          else if (v.startsWith(`${elem}.`)) x.value = elemName + v.slice(elem.length)
+        }
+      }
+      const renameAll = (items) => { for (const s2 of items || []) { rename(s2.header); renameAll(s2.sub) } }
+      rename([elemTok])
+      renameAll(st.sub)
+    }
+    decls.set(elemName, { family, kind: 'local' })
+    forInElems.add(elemName)
+    return { kind: ALL_FAMILIES[src] ? 'all' : 'coll', idx, elem: elemName, src, family }
+  }
+
+  /** `array.size(C)` / `C.size()` → C when C is a declared drawing list. */
+  const sizedList = (node) => {
+    if (!node || node.type !== 'call') return null
+    const name = String(node.name || '')
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    let c = null
+    if (name === 'array.size') {
+      const a = args.length === 1 ? args[0].value : null
+      if (a && a.type === 'name') c = a.name
+    } else {
+      const m = splitMethodName(name)
+      if (m && m.method === 'size' && !args.length && !isDefined('size')) c = m.recv
+    }
+    const d = c ? decls.get(c) : null
+    return d && d.kind === 'coll' && OBJECT_NAMESPACES.includes(d.family) ? c : null
+  }
+  /** A VALUE that takes one element off the front or the back of an array —
+   *  `array.shift(X)` / `X.shift()` / `array.pop(X)` / `X.pop()` → X, else null. */
+  const endRemovalOf = (v) => {
+    if (!v || v.type !== 'call') return null
+    const name = String(v.name || '')
+    const args = v.args || []
+    if (args.some((a) => a && a.name)) return null
+    if (name === 'array.shift' || name === 'array.pop') {
+      const a = args.length === 1 ? args[0].value : null
+      return a && a.type === 'name' ? String(a.name) : null
+    }
+    const m = splitMethodName(name)
+    return m && (m.method === 'shift' || m.method === 'pop') && !args.length && !isDefined(m.method) ? m.recv : null
+  }
+  /**
+   * ⭐⭐ THE CAP `while` — `while array.size(C) > N` whose every pass takes ONE
+   * element off `C` (and deletes it, or not), and does nothing else but the same
+   * to other arrays kept in step:
+   *
+   *     while array.size(zzLines) > maxZigzagSwings        renderingnature
+   *         line.delete(array.shift(zzLines))
+   *
+   * That is a loop the object runtime runs as written: the condition is the
+   * list's own length (the runtime's), re-read before every pass, and each pass
+   * shortens the list, so it ends. ⛔ EXACTLY THAT SHAPE: one removal of `C` per
+   * pass, flat statements only, a bound that reads no length and no array a
+   * pass shortens. Anything else returns null and keeps the `while` refusal.
+   * @returns {{kind: 'cap', coll: string, idx: null}|null}
+   */
+  const capWhileOf = (t, st) => {
+    let node = null
+    try { node = h.parseWholeExpression(t.slice(1)) } catch { return null }
+    if (!node || node.type !== 'binary' || !['>', '>=', '<', '<='].includes(node.op)) return null
+    const sizeLeft = node.op === '>' || node.op === '>='
+    const coll = sizedList(sizeLeft ? node.left : node.right)
+    if (!coll) return null
+    const body = splitCommaStatements(st.sub || [], h)
+    if (!body.length) return null
+    const shortened = new Set()
+    for (const s2 of body) {
+      // (a statement with a block of its own — `if …` — is not an expression and fails the parse below)
+      let n = null
+      try { n = h.parseWholeExpression(s2.header || []) } catch { return null }
+      if (!n) return null
+      let arr = null
+      if (n.type === 'method' && n.name === 'delete' && !(n.args || []).length) {
+        arr = endRemovalOf(n.recv)                       // `array.shift(C).delete()`
+        if (!arr || !decls.get(arr) || decls.get(arr).kind !== 'coll') return null
+      } else if (n.type === 'call' && /^[a-z]+\.delete$/.test(String(n.name || ''))
+          && OBJECT_NAMESPACES.includes(nsOf(String(n.name)))) {
+        const a = (n.args || []).length === 1 && !n.args[0].name ? n.args[0].value : null
+        arr = endRemovalOf(a)                            // `label.delete(array.shift(C))`
+        if (!arr || !decls.get(arr) || decls.get(arr).kind !== 'coll') return null
+      } else {
+        arr = endRemovalOf(n)                            // `array.shift(C)` — dropped, not deleted
+        if (!arr || (decls.get(arr) && decls.get(arr).kind !== 'coll')) return null
+      }
+      if (shortened.has(arr)) return null               // one removal of each array per pass
+      shortened.add(arr)
+    }
+    if (!shortened.has(coll)) return null                // …the measured list among them
+    const opAt = h.findTop(t, (x) => h.isPunct(x, node.op))
+    if (opAt < 1) return null
+    const bound = sizeLeft ? t.slice(opAt + 1) : t.slice(1, opAt)
+    for (const x of bound) {
+      if (x.kind !== 'ident') continue
+      const v = String(x.value)
+      if (v === 'array.size' || v.endsWith('.size') || shortened.has(v.split('.')[0]) || shortened.has(v)) return null
+    }
+    return { kind: 'cap', coll, idx: null }
+  }
+
   /**
    * `for <id> = <from> to <to>` — the ONE loop shape this reader carries.
    *
@@ -1278,6 +1651,23 @@ export function collectObjectOps(stmts, h) {
       }
       return head
     } catch { return null }
+  }
+
+  /** ⭐⭐ C40 (H14) — `array.new_line(3)` / `array.new<box>(n)` / `array.new_box(n, na)`:
+   *  A DRAWING LIST CREATED WITH SLOTS. The object runtime starts every list
+   *  EMPTY, so `array.set(a, i, line.new(…))` on such a list wrote nothing and
+   *  `line.delete(array.get(a, i))` deleted nothing — the corpus's "replace my
+   *  three lines every bar" idiom drew a new set every bar and removed none,
+   *  with a clean ledger (measured at the wave-9 base: 180 boxes where Pine
+   *  holds 3). No capture witnesses a sized drawing list, so it is not modelled:
+   *  the list is DIVERGED from its creation (`coll:sized`), and every read of it
+   *  is withheld and counted (C16's `coll:diverged`), never run against an empty
+   *  one. ⛔ `array.new_line()` and `array.new_line(0)` are empty in Pine too and
+   *  stay as they were. Capture `vw-forin-collections` (rows Z01–Z03) settles it. */
+  const createdWithSlots = (rhs) => {
+    if (!h.isPunct(rhs[1], '(')) return false
+    if (h.isPunct(rhs[2], ')')) return false
+    return !(rhs[2] && rhs[2].kind === 'number' && Number(rhs[2].value) === 0 && h.isPunct(rhs[3], ')'))
   }
 
   /** `box(na)` / `line(na)` / … — Pine's typed empty handle — → its family,
@@ -1896,6 +2286,29 @@ export function collectObjectOps(stmts, h) {
   /** ⭐ C14 — `if c … else …` as a body's LAST statements, each arm ending in a
    *  bare `ns.new(…)` of one family → `{family, creates}` (the two create ops,
    *  found by their arm's line), else null. */
+  /** ⭐ C33 — a body whose LAST statement is an `if` with no `else` and whose arm
+   *  ends in a bare `ns.new(…)` → `{family, create}` (the create op, found by its
+   *  line), else null. ⛔ An `if` followed by `else` is `ifElseReturn`'s. */
+  function ifOnlyReturn(stmts, sink, before) {
+    const n = stmts.length
+    if (!n) return null
+    const last = stmts[n - 1]
+    const it = (last && last.header) || []
+    if (!it.length || it[0].kind !== 'ident' || it[0].value !== 'if') return null
+    const sub = last.sub || []
+    const tail = sub[sub.length - 1]
+    const lt = (tail && tail.header) || []
+    if (!lt.length || lt[0].kind !== 'ident') return null
+    const ns = nsOf(String(lt[0].value))
+    if (!ns || !OBJECT_NAMESPACES.includes(ns) || methodOf(String(lt[0].value)) !== 'new') return null
+    if (!h.isPunct(lt[1], '(') || closeOf(lt, 1) !== lt.length - 1) return null
+    for (let k = sink.length - 1; k >= before; k -= 1) {
+      const o = sink[k]
+      if (o.k === 'create' && !o.into && o.family === ns && o.line === lt[0].line) return { family: ns, create: o }
+    }
+    return null
+  }
+
   function ifElseReturn(stmts, sink, before) {
     const n = stmts.length
     if (n < 2) return null
@@ -1925,6 +2338,76 @@ export function collectObjectOps(stmts, h) {
     return { family: a.family, creates: [a, b] }
   }
 
+  /** ⭐ C33 — `<bare getter>[k]`, `k` a whole literal: the getter's own history. */
+  const isBareGetterHistoryAt = (rhs, hh) => {
+    const n = rhs.length
+    return n >= 6 && hh.isPunct(rhs[n - 1], ']') && hh.isPunct(rhs[n - 3], '[')
+      && rhs[n - 2].kind === 'number' && /^\d+$/.test(String(rhs[n - 2].value))
+      && isBareGetterAt(rhs.slice(0, n - 3), 0, hh)
+  }
+
+  /** ⭐⭐ C33 — `array.push(C, f(…))`, `array.unshift(C, f(…))`, `C.push(f(…))`
+   *  or `C.unshift(f(…))` as a whole statement, where `C` is a declared DRAWING
+   *  list and `f(…)` — a function or method that draws — is the whole value
+   *  argument → the two statements Pine runs, `<tmp> = f(…)` then
+   *  `array.<m>(C, <tmp>)`, on the original tokens' positions; else null.
+   *  `<tmp>` is a name no Pine author writes (`INLINE_SUFFIX` + `ret` + a count). */
+  function pushOfDrawCall(t, headOf) {
+    if (!t.length || t[0].kind !== 'ident' || !h.isPunct(t[1], '(') || closeOf(t, 1) !== t.length - 1) return null
+    const word = String(t[0].value)
+    let coll = null
+    let method = null
+    let valueToks = null
+    const parts = splitArgs(t, 1, h.isPunct)
+    if (!parts || parts.some((a) => a.name)) return null
+    if (word === 'array.push' || word === 'array.unshift') {
+      if (parts.length !== 2 || parts[0].toks.length !== 1 || parts[0].toks[0].kind !== 'ident') return null
+      coll = String(parts[0].toks[0].value)
+      method = methodOf(word)
+      valueToks = parts[1].toks
+    } else {
+      const split = splitMethodName(word)
+      if (!split || (split.method !== 'push' && split.method !== 'unshift') || isDefined(split.method)) return null
+      if (parts.length !== 1) return null
+      coll = split.recv
+      method = split.method
+      valueToks = parts[0].toks
+    }
+    const d = decls.get(coll)
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return null
+    if (!valueToks || valueToks.length < 3 || !headOf(valueToks[0]) || !h.isPunct(valueToks[1], '(')
+        || closeOf(valueToks, 1) !== valueToks.length - 1) return null
+    pushTmpSeq += 1
+    const at = t[0]
+    const tok = (kind, value, from = at) => ({ kind, value, line: from.line, column: from.column, index: from.index })
+    const tmp = `${INLINE_SUFFIX}ret${pushTmpSeq}`
+    const assign = { header: [tok('ident', tmp, valueToks[0]), tok('punct', '=', valueToks[0]), ...valueToks], sub: [] }
+    const push = {
+      header: [tok('ident', `array.${method}`), t[1], tok('ident', coll, parts[0] && parts[0].toks[0] ? parts[0].toks[0] : at),
+        tok('punct', ','), tok('ident', tmp, valueToks[0]), t[t.length - 1]],
+      sub: [],
+    }
+    diagnostics.pushedDrawCalls = (diagnostics.pushedDrawCalls || 0) + 1
+    return [assign, push]
+  }
+
+  /** ⭐ C34 — a body inlined into a loop this reader does not run: what it
+   *  would have removed, created or re-listed, recorded as that loop's loss —
+   *  the refused call's own accounting (`bodyEffects`), kept at full volume. A
+   *  removal whose family the tokens cannot name is `object.delete`, which the
+   *  door classifies as a removal (`classifyReaderName`), never as nothing. */
+  function loopBodyEffects(def, fnName, st) {
+    const fx = bodyEffects(def, fnDefs, objColls)
+    const kinds = { ...(fx.kinds || {}) }
+    for (const fam of fx.families || []) {
+      const clear = fam === 'table' && (kinds.clear || 0) > 0
+      if (clear) kinds.clear -= 1
+      diagnostics.loopBlocked.push(clear ? 'table.clear' : `${fam || 'object'}.delete`)
+    }
+    for (const fam of fx.creates || []) diagnostics.loopBlocked.push(`${fam}.new`)
+    for (const name of fx.colls || []) loseColl(name, `loop:fn ${fnName}`, st && st.header ? st.header[0] : null)
+  }
+
   function inlineAt(head, callToks, open, into, guards, inLoop, st, scope) {
     if (!head.recv) return inlineCall(head.fn, callToks, open, into, guards, inLoop, st, scope)
     const root = head.recv.split('.')[0]
@@ -1950,7 +2433,23 @@ export function collectObjectOps(stmts, h) {
     if (def.isMethod && def.overloaded) {
       return refuseCall('method', fnName, st, `\`${fnName}\` is defined more than once`)
     }
-    if (inLoop) return refuseCall('loop', fnName, st)
+    // ⭐⭐ C34 — A CALL IN A LOOP THIS READER DOES NOT RUN (`for … in`, `while`)
+    // IS INLINED, AND ITS BODY MEETS THE LOOP'S OWN REFUSAL. The helper was
+    // never the wall: Pine runs the body where the call stands, so each of its
+    // statements is a statement of that loop, and every op the walk makes there
+    // is `loopBlocked` exactly as a top-level statement in the same loop is.
+    // Refusing the CALL named the helper and hid what actually stops the
+    // drawing (`trend-lines-supports-and-resistances`: six calls in `for … in`
+    // over a list of user-type points, and in two `while`s).
+    // ⛔ Nothing new is drawn by this: an op in such a loop is blocked either way.
+    // ⛔ What the body would have removed, created or re-listed is ALSO recorded
+    // against the loop (`loopBodyEffects` below), read off the tokens the same
+    // way a refused call's is — so a removal the walk cannot name (a method-form
+    // delete on a handle it never declared) stays as loud as it was when the
+    // call was refused, and the member door's partial-drawing rule sees it.
+    // ⛔ Still refused: inside the C20 runtime-lane `while` try (`rtLoop`), whose
+    // carried body must be statement creates and nothing else.
+    if (inLoop && rtLoop) return refuseCall('loop', fnName, st)
     if (inlineDepth >= MAX_INLINE_DEPTH) return refuseCall('depth', fnName, st)
     const args = splitArgs(callToks, open, h.isPunct)
     if (!args) return refuseCall('arity', fnName, st)
@@ -1963,13 +2462,36 @@ export function collectObjectOps(stmts, h) {
     // every bar or on none, so the call's history is the every-bar history —
     // see `guardIsBarInvariant`. ⛔ A counted loop still refuses: its body runs
     // several times per bar, so no guard can make that history the columnar one.
-    const varies = loopIds.length > 0
+    // ⭐ C34 — and a loop this reader does not run varies too (its passes).
+    const varies = inLoop || loopIds.length > 0
       || guards.some((g) => !guardIsBarInvariant(g.toks, invariantNames))
+    const { locals, mutable, carried } = bodyNames(def, h)
+    /** ⭐ C42 — the body this call site inlines: the definition's own, or — for
+     *  a call that runs exactly once — the body as it reads on that one run. */
+    let siteDef = def
     if (varies) {
-      const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
+      let why = historyReason(def, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
+      // ⭐⭐ C42 — A CALL THAT RUNS ONCE (`objectFnInline.js`, the C42 section):
+      // under a guard that is provably `barstate.islast`, in no loop, the call's
+      // own history is `na` and a `ta.highest` window holds this run alone —
+      // witnessed. ⛔ Every other varying guard refuses as before, and so does
+      // whatever the one-run body still reads that the capture does not show.
+      if (why && !inLoop && loopIds.length === 0
+          && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
+        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned)
+        if (once.body) {
+          const candidate = { ...def, body: once.body }
+          why = historyReason(candidate, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
+          if (!why) {
+            siteDef = candidate
+            diagnostics.oneExecutionCalls = (diagnostics.oneExecutionCalls || 0) + 1
+          }
+        } else {
+          why = once.why
+        }
+      }
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }
-    const { locals, mutable, carried } = bodyNames(def, h)
     inlineSeq += 1
     const suffix = `${INLINE_SUFFIX}${inlineSeq}`
     const meta = {
@@ -1979,10 +2501,11 @@ export function collectObjectOps(stmts, h) {
       mutable: new Set([...mutable].map((n) => n + suffix)),
       carried: new Set([...carried].map((n) => n + suffix)),
     }
-    const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
+    const rw = rewriteBody(siteDef, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
     diagnostics.inlinedCalls += 1
-    inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 })
+    inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 && !inLoop })
+    if (inLoop) loopBodyEffects(def, fnName, st)
     const sink = ops
     const before = sink.length
     inlineDepth += 1
@@ -2001,6 +2524,10 @@ export function collectObjectOps(stmts, h) {
     const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
     for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
+    // ⛔ C34 — a handle RETURNED inside a loop this reader does not run is not
+    // copied: the copy would run on every bar outside the loop. Blocked with
+    // the loop, the way a top-level copy there is.
+    if (inLoop) { diagnostics.loopBlocked.push('object copy'); return true }
     // ⭐⭐ C11c — A TUPLE OF RETURNED HANDLES. Pine returns the body's last
     // statement; `[Line, A, B]` there hands each caller name the handle the
     // body's own name holds at the return — an eager register copy per element
@@ -2075,6 +2602,29 @@ export function collectObjectOps(stmts, h) {
     // guards, so the caller's variable holds exactly the object Pine returned.
     // ⛔ Only a plain `if … else` pair whose two arms each END in a bare create
     // of ONE family; any other shape reads as before.
+    // ⭐⭐ C33 — THE HANDLE A LONE `if` RETURNS. `draw_box(display, …) => if
+    // display … box.new(…)` returns the box its arm made, and `na` on a call
+    // where the arm did not run (Pine's value of an `if` with no `else`). The
+    // caller's name is emptied under the CALL's guards, then filled from the
+    // create under the create's own guards — so it holds exactly what Pine
+    // returned on every bar the call ran.
+    const lone = !family ? ifOnlyReturn(rw.stmts, sink, before) : null
+    if (lone && !Array.isArray(into)) {
+      const existingLone = decls.get(into)
+      if (existingLone && (existingLone.kind === 'coll' || existingLone.family !== lone.family)) {
+        return refuseCall('return-type', fnName, st)
+      }
+      if (!existingLone) decls.set(into, { family: lone.family, kind: 'local' })
+      ops.push({
+        k: 'reset', into, guards, locals: scope, loopIds: [...loopIds],
+        at: st.header[0], line: st.header[0].line,
+      })
+      ops.push({
+        k: 'copy', into, from: null, fromSite: lone.create.site, guards: lone.create.guards, locals: scope,
+        loopIds: [...loopIds], at: st.header[0], line: st.header[0].line, inlined: !!lone.create.inlined,
+      })
+      return true
+    }
     const arms = !family ? ifElseReturn(rw.stmts, sink, before) : null
     if (arms) {
       const existingArm = decls.get(into)
@@ -2130,5 +2680,5 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies }
+  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines }
 }

@@ -26,10 +26,17 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask,
+  symAlignmentMask, withheldReadMask,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
+import {
+  resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, computeFor, runtimeErrorStopOf,
+} from './nativeRegistry'
+import { periodReadsObjectRefusal } from './periodReads'
+// ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
+// use each other only inside functions, and importing it here is what registers
+// the stop into the plot lane for every pane the binder draws.
+import { runtimeErrorStopFor } from './runtimeErrorStop'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
 
@@ -303,6 +310,31 @@ function withSymMask(mask, tree, bars, iopts) {
   return out
 }
 
+/** ⭐⭐ C30 — an object tree that reads `time("W"|"M"|"3M"|"12M")` is UNKNOWN
+ *  (withheld by C17, never drawn) on the bars `interpret.js::periodAnchorMask`
+ *  names: before the first period boundary the series shows, within the tree's
+ *  reach of one, and on every bar of a chart that is not daily. Merged into the
+ *  warm-up mask, one channel — the plot lane withholds the same bars.
+ *  ⭐ C36 — and a daily chart with weekend bars, and `time(timeframe.period)` /
+ *  `time("60")` on a chart no capture measured; `iopts.chartClockSink` receives
+ *  the reason for each whole-series withholding.
+ *  ⭐ C38 — and the same for a `barsAgo` count that cannot be read
+ *  (`interpret.js::historyReadMask`): one function answers both. */
+function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
+  let am
+  try {
+    am = withheldReadMask(tree, bars, inputs, budget, undefined, iopts)
+  } catch {
+    // a mask that cannot be computed withholds the whole series — the safe side
+    am = new Uint8Array(bars.length).fill(1)
+  }
+  if (!am) return mask
+  if (!mask) return am
+  const out = new Uint8Array(Math.max(mask.length, am.length))
+  for (let i = 0; i < out.length; i++) out[i] = (mask[i] || am[i]) ? 1 : 0
+  return out
+}
+
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
@@ -327,6 +359,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ ONE MEMO PER PROBE SIGN (and probed length) for the whole pass, beside `crossMemo` — a probe
   // value must never be served to the real column, nor one sign to the other.
   const probeMemos = new Map()
+  // ⭐ C36 — why a tree's `time(<timeframe>)` is withheld on this chart (code →
+  // sentence), written by `periodAnchorMask` as it decides; one Map per pass.
+  const chartClock = new Map()
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
   for (const node of wanted) {
@@ -339,7 +374,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: chartClock })
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -363,7 +398,12 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
-  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted }
+  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock) }
+}
+
+/** ⭐ C36 — the pass's `time(<timeframe>)` withholdings as `[{code, reason}]`. */
+function chartClockRows(map) {
+  return [...map].map(([code, reason]) => ({ code, reason }))
 }
 
 /**
@@ -413,6 +453,33 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
+  // another chart period draws NOTHING here rather than the other period's text.
+  if (periodReadsObjectRefusal(definition, opts.tf)) return null
+  // ⭐⭐ C43 — the script's own `runtime.error`, reached on these bars at these
+  // settings: TradingView's study holds no drawing at all (measured), so nothing
+  // is read here — the same decision the plot lane takes (`runtimeErrorStop.js`,
+  // one evaluation for both).
+  if (definition.meta && definition.meta.runtimeErrors) {
+    const stop = runtimeErrorStopFor(definition, bars, opts.inputs, {
+      tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
+      historyFromListing: opts.historyFromListing === true,
+    })
+    if (stop && stop.reached) return null
+  }
+  // ⭐ C43 — and a RUNTIME-lane document (dark pane) whose own run the script
+  // stopped: the run is the authority there, and it is memoised per bars array.
+  if (definition.compute && definition.compute.kind === 'runtime') {
+    let cols = null
+    try {
+      cols = computeFor(definition, bars, opts.inputs, {
+        tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+      })
+    } catch { cols = null }
+    const stop = runtimeErrorStopOf(cols)
+    if (stop && stop.reached) return null
+  }
   // ⭐ ONE RESOLUTION FOR BOTH FORMS, and it is the PLOT lane's function — an
   // object's coordinate and the plot beside it now read the same knob.
   const inputs = resolveInputs(definition, opts.inputs)
@@ -481,8 +548,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, readUnknown, failed, refusals } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols }
+    const { readNode, readUnknown, failed, refusals, chartClock } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
   if (!trees) return null
@@ -513,6 +580,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const crossMemo = new Map()
   const unknown = new Map()
   const probeMemos = new Map()
+  const chartClock = new Map()
   const intern = makeInterner()
   for (const i of graphNodesReferenced(bound)) {
     // ⭐ C18 — a runtime placeholder is read off the run, never interpreted.
@@ -535,7 +603,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock })
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
@@ -571,6 +639,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const readUnknown = (node, bar) => { const m = unknown.get(node); return !!m && m[bar] === 1 }
   return {
     program: bound, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
+    // ⭐ C36 — why every bar of a tree reading `time(<timeframe>)` is withheld on
+    // this chart (`interpret.js::CHART_CLOCK_WITHHELD`), `[]` when none is.
+    chartClock: chartClockRows(chartClock),
     // ⭐ C18 — whether the runtime values were served, and if not, why (named).
     ...(runtime ? { runtime: { served: runtime.served, reason: runtime.reason } } : {}),
   }

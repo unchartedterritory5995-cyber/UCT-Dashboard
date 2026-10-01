@@ -76,8 +76,9 @@ const SPANNING = [
   // guard, body, the offending TOKEN the refusal should point at
   ['pine:undefined', `plot(close${LF}     + high${LF}     + nosuchname)${LF}`, 'nosuchname'],
   // ⚰️ WAS `syminfo.mintick`, which the chart pane SERVES since 2026-09-28 (per
-  // witnessed exchange). `syminfo.pointvalue` is still on the unserved roster.
-  ['pine:builtin', `plot(close${LF}     + high${LF}     + syminfo.pointvalue)${LF}`, 'syminfo.pointvalue'],
+  // witnessed exchange). ⚰️ and `syminfo.pointvalue` since C29 (2026-09-30);
+  // `syminfo.type` is still on the unserved roster.
+  ['pine:builtin', `plot(close${LF}     + high${LF}     + str.length(syminfo.type))${LF}`, 'syminfo.type'],
   ['pine:function', `plot(close${LF}     + high${LF}     + ta.notarealfunction(close, 5))${LF}`,
     'ta.notarealfunction'],
 ]

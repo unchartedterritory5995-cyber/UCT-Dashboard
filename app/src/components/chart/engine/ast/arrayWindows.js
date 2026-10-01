@@ -64,7 +64,10 @@ const ADD = new Set(['push', 'unshift'])
 const EVICT = new Set(['pop', 'shift'])
 /** The reads a window answers. Everything else under `array.` keeps its refusal. */
 export const WINDOW_READ_MEMBERS = Object.freeze(new Set(['size', 'get', 'first', 'last', 'max', 'min', 'sum', 'avg', 'indexof']))
-/** A window wider than this is refused: its reads are unrolled per slot. */
+/** A window wider than this is refused: its reads are unrolled per slot.
+ *  ⭐⭐ C32 — except its LENGTH, which is one `valuewhen` (the cap-th most
+ *  recent add exists) and unrolls nothing: such a window is modelled
+ *  `sizeOnly`, every other read of it refused by name. The cap is unchanged. */
 export const MAX_WINDOW_CAP = 64
 
 const text = (toks) => toks.map((t) => String(t.value)).join(' ')
@@ -325,6 +328,27 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
         continue
       }
       if (word === 'else') return refuse('an `else` with no `if` this reader followed')
+      // ⭐⭐ C40 — THE CAP WRITTEN AS A `while`: `while a.size() > K` whose body
+      // ONLY evicts. It is the eviction guard above, repeated until the length
+      // fits — and this model adds at most one element on a bar it serves (a
+      // bar two adds may run on is the ambiguous `doubles` bar, withheld), so
+      // the loop runs at most one pass there: the same window, the same cap.
+      // Each eviction is then held to the `if` form's own rules below (its
+      // guard must measure the array it shortens; one eviction per add).
+      // ⛔ Anything else inside a `while` keeps the refusal below.
+      if (word === 'while') {
+        const cond = t.slice(1)
+        const sg = sizeGuardOf(cond, h)
+        const evictBody = splitCommaStatements(st.sub || [], h)
+        const evs = evictBody.map((s2) => ((s2.sub || []).length ? null : evictOf(s2.header || [])))
+        if (sg && evs.length && evs.every(Boolean)) {
+          if (sg.refused) return refuse(sg.refused)
+          for (const e of evs) {
+            ops.push({ kind: 'evict', arr: e.arr, member: e.member, guards, size: sg, seq: seq++, ord: ord++, callGuarded, path })
+          }
+          continue
+        }
+      }
       if (word === 'for' || word === 'while' || word === 'switch') {
         if (touches) return refuse(`\`${name}\` is written inside \`${word}\``)
         continue
@@ -499,7 +523,7 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
     }
     cap = ev.size.k
   }
-  if (!(cap >= 1) || cap > MAX_WINDOW_CAP) return { refused: `a window of ${cap} slots` }
+  if (!(cap >= 1)) return { refused: `a window of ${cap} slots` }
   // ⭐⭐ C22 — WHERE A READ INSIDE A WRITING STATEMENT MAY BE SERVED. The model
   // above is the window as the BAR leaves it. A read in an arm of an if-chain
   // that EXCLUDES the add's arm runs only on bars where the add did not, so
@@ -524,6 +548,7 @@ export function seriesWindowOf({ stmts, name, writerStmts, n0, h, creationSizeOf
       lastWriter,
       readsInWriters: inWriters,
       capInput: (ev.size && ev.size.capInput) || null,
+      sizeOnly: cap > MAX_WINDOW_CAP,
     },
   }
 }
@@ -608,7 +633,7 @@ function multiSiteWindow({ name, n0, adds, evicts, ops, readSites, addStmt, addS
   const caps = new Set([...evictOf.values()].map((e) => e.size.k))
   if (caps.size !== 1) return { refused: `\`${name}\` is kept to different lengths at different places` }
   const cap = [...caps][0]
-  if (!(cap >= 1) || cap > MAX_WINDOW_CAP) return { refused: `a window of ${cap} slots` }
+  if (!(cap >= 1)) return { refused: `a window of ${cap} slots` }
   for (const e of new Set(evictOf.values())) {
     if (e.size.of === name) continue
     // A twin: another array added to at the same places, in step, from the same size.
@@ -668,6 +693,7 @@ function multiSiteWindow({ name, n0, adds, evicts, ops, readSites, addStmt, addS
       lastWriter,
       readsInWriters: readSites.map((r) => ({ from: r.from, to: r.to, line: r.line, exclusive: false, served: served(r) })),
       capInput: capE ? capE.size.capInput : null,
+      sizeOnly: cap > MAX_WINDOW_CAP,
     },
   }
 }

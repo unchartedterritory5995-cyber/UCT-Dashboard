@@ -13,6 +13,7 @@ import pytest
 from api.services.fundamentals_pit import derive as D, publish as P, serving as SV, store as S
 from api.services.fundamentals_pit import v5_discovery as DISC, v5_live as L, v5_ops as OPS, v5_pipeline as PL
 from api.services.fundamentals_pit import v5_prod as VP, v5_publish as PUB, v5_validate as VAL, incremental as INC
+from api.services.fundamentals_pit import v5_acceptance as ACC
 
 CIK = 1234567
 
@@ -23,7 +24,24 @@ def _cf(rows):
         for s, e, v, a, f, fd in rows]}}}}}
 
 
+# EDGAR filing headers (<ACCEPTANCE-DATETIME>, Eastern wall clock). By default a filing's header states the instant its
+# submissions row gives in UTC (SEC's day-after form); HDR overrides it per accession (None = header unavailable).
+REG: dict = {}
+HDR: dict = {}
+
+
+def _fake_header(cik, accn, get=None):
+    raw = HDR[accn] if accn in HDR else (
+        dt.datetime.fromisoformat(REG[accn].replace("Z", "+00:00")).astimezone(ACC.ET).strftime("%Y%m%d%H%M%S")
+        if accn in REG else None)
+    if raw is None:
+        raise ACC.AcceptanceUnavailable(f"{accn}: header unavailable (test)")
+    return (raw, *ACC.eastern_to_utc(raw))
+
+
 def _sub(accns):
+    for a, _, t, _ in accns:
+        REG.setdefault(a, t)
     return {"cik": str(CIK), "name": "TESTCO", "tickers": ["TST"], "fiscalYearEnd": "1231",
             "filings": {"recent": {
                 "accessionNumber": [a for a, *_ in accns], "filingDate": [d for _, d, *_ in accns],
@@ -49,6 +67,8 @@ def env(tmp_path, monkeypatch):
     """A 'frozen base' (ingested + V5-derived synthetic company), installed like production, plus a local bucket."""
     from api.services.fundamentals_pit import sec_client as SEC
     monkeypatch.setattr(SEC, "filing_instance", lambda cik, accn: None)
+    monkeypatch.setattr(ACC, "header_acceptance", _fake_header)
+    REG.clear(); HDR.clear()
     build = tmp_path / "build.db"
     c = S.connect(str(build))
     INC_ingest(c, FACTS, ACCNS)
@@ -100,9 +120,9 @@ def _local_serving(env, monkeypatch):
     SV.clear_cache()
 
 
-def _batch(env, facts, accns, entries, **kw):
+def _batch(env, facts, accns, entries, now=NOW, **kw):
     SV.clear_cache()
-    return PL.run_batch("replay", target=env["t"], p=env["p"], now=NOW, entries=entries,
+    return PL.run_batch("replay", target=env["t"], p=env["p"], now=now, entries=entries,
                         fetch_company=_fetch(facts, accns), fetch_instance=lambda cik, accn: None, sync_split=False, **kw)
 
 
@@ -247,7 +267,9 @@ def test_a_crash_before_the_pointer_leaves_members_on_the_old_version(env, monke
     rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
     assert rec["state"] == "FAILED" and PUB.read_current(env["t"]) == cur0
     monkeypatch.setattr(env["t"], "put", real_put)
-    rec2 = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [])             # resumes from pending; same result
+    # resumes from pending; same result. A retry is a later batch (its own clock -> its own version id): reusing
+    # the crashed batch's id would make the write-once manifest check depend on whether the wall clock ticked.
+    rec2 = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [], now=NOW + 60)
     assert rec2["state"] == "PUBLISHED"
 
 

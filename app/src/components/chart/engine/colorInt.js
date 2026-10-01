@@ -33,6 +33,17 @@ export const BYTE_ORDER = Object.freeze({ transparency: 24, blue: 16, green: 8, 
 export const TRANSPARENCY_MAX = 100
 export const BYTE_MAX = 255
 
+/** ⭐⭐ C29 — THE TRANSPARENCY A PINE COLOUR HOLDS: a WHOLE number, TRUNCATED
+ *  (measured, `vw-gradient-spy-1d-2026-09-30`: `color.new(c, 70.5)` and
+ *  `(c, 70.4)` both hold 70). ONE authority for every lane. Snapped to 1e-9
+ *  FIRST, so an arithmetic 19.999999999999996 (`(1 − 0.8) × 100`) is the 20 it
+ *  names, never 19; a real fraction still truncates. Non-finite passes through. */
+export function wholeTransparency(t) {
+  const n = Number(t)
+  if (!Number.isFinite(n)) return n
+  return Math.trunc(Math.round(n * 1e9) / 1e9)
+}
+
 function requireInt(v) {
   const n = Number(v)
   if (!Number.isFinite(n)) throw new Error(`colorer value is not a number: ${v}`)

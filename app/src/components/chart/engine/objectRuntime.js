@@ -31,10 +31,12 @@
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
-  withObjectTransparency,
+  withObjectTransparency, opReadsState,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
-import { unpackColor } from './colorInt.js'
+import { unpackColor, wholeTransparency } from './colorInt.js'
+// ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
+import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -43,7 +45,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
-import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW } from './ast/interpret'
+import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
 import { formatMessageNumber } from './pineTextFormat'
@@ -59,9 +61,24 @@ export const OBJECT_STATUS = Object.freeze({
   // negative / fractional offset). TradingView stops the script and draws
   // nothing, so `finish` holds nothing — never the objects made before it.
   RUNTIME_ERROR: 'OBJECT_RUNTIME_ERROR',
+  // ⭐ C40 — the run reached a step whose meaning on TradingView no committed
+  // capture settles (two readings that draw differently). Nothing is drawn: a
+  // guess is the one answer this lane never gives. `reason` names the capture.
+  UNWITNESSED: 'OBJECT_UNWITNESSED',
 })
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
+
+/** ⭐⭐ C43 — `str.tostring(x)` with NO format: ten decimals, trailing zeros
+ *  trimmed (see `formatNumber`). Exported for the rails that replay a vendor
+ *  text, so they ask the formatter instead of restating it. */
+export function defaultNumberText(n) {
+  if (!Number.isFinite(n)) return 'NaN'
+  const s = n.toFixed(10)
+  // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
+  if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
+  return s.replace(/0+$/, '').replace(/\.$/, '')
+}
 
 /** Pine's own ceiling on an array's length (the reference: "the maximum size of
  *  an array is 100,000"). A collection that would pass it stops the run, as
@@ -184,6 +201,29 @@ export function beginObjects(program, ctx) {
   let withheldUnknown = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
   let propsUnmeasured = 0
+  /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
+   *  stateArith`: `l.set_x2(l.get_x1() + w.avg() + 1)`). The fraction Pine drops
+   *  from a float handed to an `int` coordinate is measured for NON-NEGATIVE
+   *  values only (`vw-int-array-avg`: truncation and floor agree there), so a
+   *  negative one is counted (`truncNegative`) and not written; a getter of an
+   *  empty register or an `na` operand has no number either. The op still runs —
+   *  Pine ran it — and the coordinate is MARKED unknown (C17's per-property
+   *  taint), never left at the value before: a later clean write clears it, an
+   *  object still marked at the end is held, not drawn. */
+  let truncNegative = 0
+  let propsUnsaid = 0
+  const stateArithKeys = new WeakMap()
+  const unsaidProps = (op, resolved) => {
+    let keys = stateArithKeys.get(op)
+    if (!keys) {
+      keys = Object.entries(op.props || {}).filter(([, v]) => opReadsState(v)).map(([k]) => k)
+      stateArithKeys.set(op, keys)
+    }
+    if (!keys.length) return NO_PROPS
+    const bad = keys.filter((k) => !(typeof resolved[k] === 'number' && Number.isFinite(resolved[k])))
+    propsUnsaid += bad.length
+    return bad
+  }
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -260,6 +300,40 @@ export function beginObjects(program, ctx) {
    *  op pays for asking. A run with no curtain (the runtime lane) never forms
    *  one. ⛔ Set by every writer of a mark below, never cleared. */
   let taintSeen = false
+  // ⭐⭐ C33 — A PROGRAM THAT CARRIES AN UNREAD CONJUNCT (`{v:'unknown'}`) OR A
+  // GETTER'S HISTORY (`{v:'get', back}`) holds something unknown before any mark
+  // forms, so the fast path is off for it from the first bar.
+  if (/"v":"unknown"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
+  /** ⭐⭐ C33 — a getter's history: per reference, the number it answered on each
+   *  bar its op ran (`value` records it; `[back]` reads it back). */
+  const getHistory = new WeakMap()
+  /** ⭐⭐ C33 — the scalars a GETTER feeds (`setnum` whose value is a `get`), found
+   *  once from the program: a text that prints one prints object state. */
+  const getterFedNums = new Set()
+  {
+    const scan = (list) => {
+      for (const o of list || []) {
+        if (o && o.k === 'loop') scan(o.body)
+        else if (o && o.k === 'setnum' && isObj(o.value) && o.value.v === 'get') getterFedNums.add(o.num)
+      }
+    }
+    scan(program.ops)
+  }
+  const printsObjectState = (v) => isObj(v) && (v.v === 'get' || (v.v === 'num' && getterFedNums.has(v.id)))
+  /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
+   *  `unknownGuard` create withheld on a bar), per family; and the families
+   *  whose live count TradingView's collector may therefore have cut — its count
+   *  is ours plus up to that many, so past the collector's trigger which objects
+   *  it still holds is unknown. Such a family is withheld whole (`finish`), and a
+   *  getter on a LIVE object of it is unknown from then on (an empty handle is
+   *  still `na` whatever the collector did). */
+  const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  const collectorUnknown = new Set()
+  const noteUnknownCreate = (op) => {
+    if (!op || op.k !== 'create' || op.unknownGuard !== true || !own(POOL_LIMITS, op.family)) return
+    unknownCreates[op.family] += 1
+    if (counts[op.family] + unknownCreates[op.family] > collectsAbove(limits[op.family])) collectorUnknown.add(op.family)
+  }
   const taintInst = (id, props) => {
     if (id === null || id === undefined || !live.has(id)) return
     const cur = instTaint.get(id)
@@ -357,6 +431,8 @@ export function beginObjects(program, ctx) {
    *  capture pins a rendering for (`formatMessageNumber` → `null`). The object's
    *  text is then `null` and the render state does not draw it. */
   let textsWithheld = 0
+  // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
+  let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
    *  which counts OBJECTS. A dashboard that clears and rewrites every bar makes
    *  this number large and `deleted` zero, and conflating them would make both
@@ -372,6 +448,37 @@ export function beginObjects(program, ctx) {
   const runtimeError = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
   }
+  const unwitnessed = (why) => {
+    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.UNWITNESSED; reason = why }
+  }
+  // ⭐⭐ C40 — `for … in <family>.all`: DOES THE BODY CHANGE WHICH OBJECTS OF THE
+  // FAMILY EXIST? A delete of one, or a create (which can also wake the
+  // collector). Read off the program once per loop, never a flag it carries.
+  const familyOfRef = (() => {
+    const regFam = new Map((program.regs || []).map((r) => [r.id, r.family]))
+    const collFam = new Map((program.colls || []).map((c) => [c.id, c.family]))
+    const siteFam = new Map()
+    const scan = (list) => {
+      for (const o of list || []) {
+        if (o.k === 'create') siteFam.set(o.site, o.family)
+        if (o.k === 'loop') scan(o.body)
+      }
+    }
+    scan(program.ops)
+    return (r) => (!isObj(r) ? null : r.r === 'reg' ? regFam.get(r.id) : r.r === 'coll' ? collFam.get(r.id)
+      : r.r === 'site' ? siteFam.get(r.id) : null) || null
+  })()
+  const changesFamily = (list, fam) => (list || []).some((b) => (b.k === 'create' && b.family === fam)
+    || (b.k === 'delete' && (familyOfRef(b.target) === fam || familyOfRef(b.target) === null))
+    || (b.k === 'loop' && changesFamily(b.body, fam)))
+  const walkChanges = new Map()
+  const walkChangesFamily = (op) => {
+    if (!walkChanges.has(op)) walkChanges.set(op, changesFamily(op.body, op.over.all))
+    return walkChanges.get(op)
+  }
+  /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
+   *  hold an object of it this run does not, so `<family>.all` is unknown. */
+  const famUnknown = new Set()
   /** ⭐⭐ C9 — every `{v:'at'}` history read an op's values carry (see
    *  `MAX_BARS_BACK_CAP` in objectProgram.js), once per op. */
   const atAtoms = new Map()
@@ -695,8 +802,17 @@ export function beginObjects(program, ctx) {
     const formatNumber = (n, fmt) => {
       if (!Number.isFinite(n)) return 'NaN'
       if (typeof fmt !== 'string' || !fmt) {
-        // Pine's default: up to 10 significant digits, trailing zeros trimmed.
-        return String(Number(n.toPrecision(10)))
+        // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
+        // (`#.##########`), MEASURED: `str.tostring(4 / 3)` prints `1.3333333333`
+        // (`vw-int-array-avg-spy-1d-2026-09-30`) and `str.tostring(hlc3)` prints
+        // `151.5633333333` (`vw-fn-series-history-rddt-1d-2026-09-30`) — thirteen
+        // significant digits. ⚰️ This kept ten SIGNIFICANT digits (`toPrecision`,
+        // never read off a chart): `1.333333333`, a digit short, and a price in
+        // the hundreds three short.
+        // (C42 read the same rule off the same two captures independently; wave 10
+        // keeps ONE implementation, `defaultNumberText`, which also keeps a small
+        // value like 0.0000001 out of exponent form.)
+        return defaultNumberText(n)
       }
       // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
       // formatting the remainder is how `'#,###'` would silently become `'####'`.
@@ -764,6 +880,16 @@ export function beginObjects(program, ctx) {
           return parts.some((p) => p === null) ? null : parts.join('')
         }
         case 'if': return truthy(value(t.cond)) ? textOf(t.then) : textOf(t.else)
+        // ⭐⭐ C32 — a number that moves per PASS (a loop counter's arithmetic, a
+        // window element it picks), by the same `str.tostring` rules as `num`.
+        // ⛔ A value this pass cannot say withholds the text, never an empty one.
+        // ⭐ C33 — the SAME node carries a number read off a drawing (a getter, a
+        // getter-fed scalar); `textTainted` decides when that one is known.
+        case 'val': {
+          const n = value(t.v)
+          if (typeof n !== 'number') { textsWithheld += 1; return null }
+          return formatNumber(n, t.fmt)
+        }
         default: return ''
       }
     }
@@ -772,21 +898,24 @@ export function beginObjects(program, ctx) {
       if (!isObj(c)) return null
       if (c.c === 'lit') return c.hex
       if (c.c === 'if') return truthy(value(c.cond)) ? colorOf(c.then) : colorOf(c.else)
-      // ⭐⭐ C20 — A COLOUR THE RUNTIME LANE COMPUTED, served OPAQUE only.
-      // ⛔⛔ The run packs a transparency into one byte (`colours.js::
-      // transparencyToByte`, `round(t × 2.55)`) and TradingView's opacity is
-      // `round((100 − t) × 2.55)` — measured on max-pain's NET label,
-      // `color.new(red, 70)`: alpha 77 where the run's byte gives 76. The two
-      // disagree at every half step, so a packed alpha is NEVER turned back into
-      // an opacity: `color.new(c, t)` is `{c:'new'}` (from `c` and `t`), and any
-      // other colour the run made transparent answers `null`.
+      // ⭐⭐ C20/C29 — A COLOUR THE RUNTIME LANE COMPUTED. ⚰️ C20 served it OPAQUE
+      // only: the run's byte was `round(t × 2.55)` and TradingView's opacity is
+      // `round((1 − t/100) × 255)` (`color.new(red, 70)`: 77 vs the byte's 76).
+      // C29 made the byte the opacity's complement, so it is read exactly below.
       // ⛔ A create/update that asked for this colour and got `null` is HELD
       // (`unservedColour`), never drawn in a default.
       if (c.c === 'rt') {
         const v = value(c.v)
         if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null
         const u = unpackColor(v)
-        return u.transparencyByte === 0 ? u.hex : null
+        if (u.transparencyByte === 0) return u.hex
+        // ⭐⭐ C29 — THE RUN'S BYTE IS NOW THE COMPLEMENT OF TRADINGVIEW'S OPACITY
+        // (`colours.js::transparencyToByte`, measured: `color.new(red, 70)` →
+        // 0x4D = 77), so the vendor's `#RRGGBBAA` is read straight off it — a
+        // gradient's truncated blend (0x4C) included, which no transparency
+        // round trip could carry.
+        const alpha = 255 - u.transparencyByte
+        return u.hex + alpha.toString(16).padStart(2, '0').toUpperCase()
       }
       // ⭐⭐ C20 — `color.new(c, t)`: `c`'s colour with its transparency SET to
       // `t`, by the same formula a translate-time colour uses
@@ -794,16 +923,35 @@ export function beginObjects(program, ctx) {
       // vendor captures pin whole ones; a fraction, `na` or out-of-range value is
       // unmeasured and answers `null` (held).
       if (c.c === 'new') {
-        const t = value(c.t)
-        if (typeof t !== 'number' || !Number.isInteger(t) || t < 0 || t > 100) return null
+        // ⭐⭐ C29 — a FRACTIONAL transparency is Pine's truncated whole number
+        // (`color.t(color.new(c, 70.5))` = 70, and 70.4 → 70, measured on
+        // `vw-gradient-spy-1d-2026-09-30`); `na` or out of range is still held.
+        const raw = value(c.t)
+        const t = typeof raw === 'number' && Number.isFinite(raw) ? wholeTransparency(raw) : NaN
+        if (!Number.isInteger(t) || t < 0 || t > 100) return null
         const base = colorOf(c.of)
         return base ? withObjectTransparency(base, t) : null
+      }
+      // ⭐⭐ C37 — `color.from_gradient(value, bottom, top, a, b)` on the HOST
+      // lane: the three numbers are read where the drawing stands (this bar, this
+      // pass) and blended by the vendor's measured curve (`fromGradient`,
+      // `vw-gradient-spy-1d-2026-09-30`). ⛔ What that curve does not pin — an
+      // `na` value or bound, `top == bottom`, an end that is not a plain colour
+      // (a theme reference, an unserved one) — answers `null`: the object is
+      // HELD (`unservedColour`), never painted an end it guessed.
+      if (c.c === 'grad') {
+        const a = objectHexToPacked(colorOf(c.a))
+        const b = objectHexToPacked(colorOf(c.b))
+        if (a === null || b === null) return null
+        const num = (x) => (typeof x === 'number' ? x : NaN)
+        const packed = fromGradient(num(value(c.v)), num(value(c.lo)), num(value(c.hi)), a, b)
+        return packed === null ? null : packedToObjectHex(packed)
       }
       return null
     }
     /** ⭐ C20 — did a colour the program asked the RUNTIME for come back unserved?
-     *  (A `lit`/`if` colour never answers `null`; only `rt`/`new` can.) */
-    const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new'
+     *  (A `lit`/`if` colour never answers `null`; only `rt`/`new`/`grad` can.) */
+    const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new' || c.c === 'grad'
       || (c.c === 'if' && (runtimeColourNode(c.then, depth + 1) || runtimeColourNode(c.else, depth + 1))))
     const unservedColour = (props, resolved) => Object.entries(props || {})
       .filter(([k, v]) => isObj(v) && v.v === 'color' && runtimeColourNode(v.node)
@@ -839,6 +987,12 @@ export function beginObjects(program, ctx) {
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
           // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
           // from zero), never `Math.round`, which sends -2.5 to -2.
+          // ⭐ C43 — `trunc`: the fraction dropped, served non-negative only
+          // (see `truncNegative`); a negative one answers `undefined`.
+          if (ref.args.length === 1 && ref.op === 'trunc') {
+            if (a < 0) { truncNegative += 1; return undefined }
+            return Math.trunc(a)
+          }
           if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
@@ -855,7 +1009,11 @@ export function beginObjects(program, ctx) {
         // checked before its values were read (`atCheck`), so here `e` is a
         // whole number in [0, limit); a bar before the first is `na`.
         case 'at': {
-          const back = numOf(value(ref.args[1]))
+          // ⭐ C29 — `x[na]` is `x` on this bar (measured, `vw-offset-na`).
+          const raw = numOf(value(ref.args[1]))
+          // ⛔ C38 — the SAME `historyBackOf` `atCheck` asks, not a second copy of
+          // the `na` rule: a mutation of the shared one left this read unmoved.
+          const back = historyBackOf(raw)
           const k = bar - back
           if (!Number.isInteger(k) || k < 0) return NaN
           const src = ref.args[0]
@@ -876,8 +1034,19 @@ export function beginObjects(program, ctx) {
           const id = resolveRef(ref.target)
           const inst = id === null ? null : live.get(id)
           const x = inst && inst.props ? inst.props[ref.prop] : undefined
-          return typeof x === 'number' ? x : NaN
+          const now = typeof x === 'number' ? x : NaN
+          if (!ref.back) return now
+          // ⭐ C33 — the getter's own history: what it answered HERE `back` bars
+          // ago. Recorded per bar (a second read on one bar re-records the same
+          // state), so the answer never depends on how often it is asked.
+          let h = getHistory.get(ref)
+          if (!h) { h = new Map(); getHistory.set(ref, h) }
+          h.set(bar, now)
+          const then = h.get(bar - ref.back)
+          return then === undefined ? NaN : then
         }
+        // ⭐ C33 — an unread conjunct has no value; `tainted` answers for it.
+        case 'unknown': return NaN
         // ⭐ C16 — `array.size(bs)`: the collection's length as it stands NOW,
         // dead and `na` slots included (Pine's count — see `reap`).
         case 'size': {
@@ -900,6 +1069,23 @@ export function beginObjects(program, ctx) {
         }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
         case 'num': return nums.get(ref.id) ?? NaN
+        // ⭐⭐ C32 — `w.get(i)` of a bounded window by the loop counter: Pine index
+        // `k` of `size` elements is newest-first slot `k` (unshift) or
+        // `size − 1 − k` (push — index 0 is the oldest). ⛔ An index outside the
+        // elements is where Pine STOPS the script (`array.get` out of bounds): a
+        // runtime error, never an `na` cell.
+        case 'wget': {
+          const k = value(ref.args[0])
+          const size = numOf(value(ref.args[1]))
+          if (typeof k !== 'number' || !Number.isInteger(k) || !Number.isInteger(size)) return undefined
+          if (k < 0 || k >= size) {
+            runtimeError(`\`array.get\` index ${k} is out of bounds of an array of ${size} on bar ${bar} — TradingView stops the script there`)
+            return undefined
+          }
+          const j = ref.order === 'unshift' ? k : size - 1 - k
+          if (j < 0 || j >= ref.args.length - 2) return undefined
+          return numOf(value(ref.args[2 + j]))
+        }
         default: return undefined
       }
     }
@@ -910,9 +1096,24 @@ export function beginObjects(program, ctx) {
      *  'ok' · 'unknown' (withhold the op on this bar) · 'error' (Pine stops). */
     const atCheck = (op) => {
       for (const at of atNodesOf(op)) {
-        const back = numOf(value(at.args[1]))
-        if (Number.isNaN(back)) return 'unknown'
-        if (!Number.isInteger(back) || back < 0 || back >= at.limit) {
+        // ⭐⭐ C29 (C9, measured 2026-09-30) — an `na` offset reads the CURRENT
+        // bar: TradingView ran `close[na]` with no error and read the bar's own
+        // close on all 100 na-offset bars (`vw-offset-na-spy-1d-2026-09-30`).
+        const raw = numOf(value(at.args[1]))
+        const back = historyBackOf(raw)
+        // ⭐⭐ C29 — with no `max_bars_back` declared, reach is measured to 399
+        // (`AUTO_MAX_BARS_BACK`); past it TradingView's automatic buffer is not
+        // measured, so the op is withheld on this bar — never stopped, never read.
+        // ⛔ C38 — ONE comparison against the buffer (`historyReadable`), asked
+        // first; what an unreadable count MEANS is this lane's: a whole,
+        // non-negative count past an AUTOMATIC buffer is unmeasured (withheld),
+        // anything else is Pine's runtime error.
+        const readable = historyReadable(back, at.limit)
+        if (!readable && at.auto === true && Number.isInteger(back) && back >= 0) {
+          atBeyondAuto += 1
+          return 'unknown'
+        }
+        if (!readable) {
           runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
               : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)
@@ -1031,6 +1232,17 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
+      // ⭐⭐ ONE `val` NODE (C32 / C33). A per-pass number (C32) is as known as
+      // its read. A number read off a DRAWING (C33 — a getter, a getter-fed
+      // scalar) is ⛔ SERVED ONLY WHERE THE READ IS `na`: TradingView prints that
+      // as "NaN" (eight labels of high-low-open-mid-ranges,
+      // `vendorHarness.c33ObjectReads`). No capture prints a FINITE getter value
+      // through `str.tostring`, so a finite one is unknown text — the op is
+      // withheld, never drawn off this chart's own formatting of a number
+      // TradingView was never seen to print.
+      if (t.t === 'val') {
+        return tainted(t.v, depth + 1) || (printsObjectState(t.v) && !Number.isNaN(numOf(value(t.v))))
+      }
       return false
     }
     const colorTainted = (c, depth) => {
@@ -1038,6 +1250,10 @@ export function beginObjects(program, ctx) {
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)
+      if (c.c === 'grad') {
+        return tainted(c.v, depth + 1) || tainted(c.lo, depth + 1) || tainted(c.hi, depth + 1)
+          || colorTainted(c.a, depth + 1) || colorTainted(c.b, depth + 1)
+      }
       return false
     }
     /** Does this value read anything tainted? (Graph columns on the warm-up
@@ -1053,8 +1269,22 @@ export function beginObjects(program, ctx) {
         case 'get': {
           if (refTainted(v.target, depth + 1)) return true
           const id = resolveRef(v.target)
-          return id !== null && instPropTainted(id, v.prop)
+          if (id !== null && instPropTainted(id, v.prop)) return true
+          // ⭐ C33 — a LIVE object of a family TradingView's collector may have
+          // cut differently: it may be gone there, where the getter reads `na`.
+          if (id !== null && live.has(id) && collectorUnknown.has(live.get(id).family)) return true
+          if (!v.back) return false
+          // ⭐⭐ C33 — A GETTER'S HISTORY IS SERVED ONLY WHERE A CAPTURE SHOWS IT:
+          // an empty handle `back` bars ago, which reads `na` (high-low-open-mid-
+          // ranges, `"LW | Open | NaN"`), and a bar before the series began.
+          // ⛔ A NUMBER read back, or a bar this place did not run on, is
+          // unmeasured — unknown, so the op that reads it marks what it writes.
+          if (bar - v.back < 0) return false
+          const h = getHistory.get(v)
+          const then = h ? h.get(bar - v.back) : undefined
+          return then === undefined || !Number.isNaN(then)
         }
+        case 'unknown': return true
         case 'text': return textTainted(v.node, depth + 1)
         case 'color': return colorTainted(v.node, depth + 1)
         // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
@@ -1111,6 +1341,7 @@ export function beginObjects(program, ctx) {
           if (op.into) regTaint.add(op.into)
           if (op.once) onceUnknown.add(op.site)
           siteTaint.add(op.site)
+          famUnknown.add(op.family)
           break
         case 'update':
           for (const id of targetsOf(op.target)) taintInst(id, Object.keys(op.props || {}))
@@ -1140,7 +1371,14 @@ export function beginObjects(program, ctx) {
         case 'collclear':
           collLenTaint.add(op.coll)
           break
-        case 'loop': for (const b of op.body || []) taintOutputs(b); break
+        case 'loop':
+          // ⭐ C40 — a walk over every object of a family may act on any of them.
+          if (op.over) {
+            for (const inst of live.values()) if (inst.family === op.over.all) taintInst(inst.id, '*')
+            regTaint.add(op.elem)
+          }
+          for (const b of op.body || []) taintOutputs(b)
+          break
         case 'latch': latches.set(op.id, LATCH_UNKNOWN); break
         default: break
       }
@@ -1197,6 +1435,7 @@ export function beginObjects(program, ctx) {
         // Pine did not run the op either, so nothing it would write is unknown.
         if (op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
         withheldUnknown += 1
+        noteUnknownCreate(op)
         taintOutputs(op)
         continue
       }
@@ -1206,7 +1445,7 @@ export function beginObjects(program, ctx) {
       // the reduction, so its falseness is as unmeasured as its value.
       if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
       // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
-      if (handleUnknown || guardTainted(op)) { withholdTainted(op); continue }
+      if (handleUnknown || guardTainted(op)) { noteUnknownCreate(op); withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
       if (op.k !== 'loop') {
         const at = atCheck(op)
@@ -1226,6 +1465,72 @@ export function beginObjects(program, ctx) {
         // rather than assumed — `for i = n to 0` is a real and common idiom and
         // an ascending-only reader draws nothing for it, silently.
         case 'loop': {
+          // ⭐⭐ C40 — THE CAP: `while array.size(a) > N`, the condition re-read
+          // before every pass (the list's length is this runtime's). ⛔ A pass
+          // that leaves every measured list as long as it was would never end:
+          // the run stops, by name — Pine's own `while` has no such pass here
+          // (the program door requires the removal; an out-of-range one is this).
+          if (op.cond !== undefined) {
+            if (taintSeen && tainted(op.cond)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            const measured = []
+            const sizes = (v, depth = 0) => {
+              if (!isObj(v) || depth > 32) return
+              if (v.v === 'size') measured.push(v.coll)
+              if (Array.isArray(v.args)) v.args.forEach((a) => sizes(a, depth + 1))
+            }
+            sizes(op.cond)
+            const lengthOf = () => measured.reduce((n, c) => n + ((colls.get(c) || []).length), 0)
+            const had = loopVars.has(op.id)
+            const prev = loopVars.get(op.id)
+            let ok = true
+            for (let n = 0; truthy(value(op.cond)); n += 1) {
+              const before = lengthOf()
+              loopVars.set(op.id, n)
+              if (!runOps(op.body)) { ok = false; break }
+              if (lengthOf() >= before) {
+                fail(`a \`while\` over a list's length ran a pass that did not shorten the list (bar ${bar})`)
+                ok = false
+                break
+              }
+            }
+            if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+            if (!ok) return false
+            break
+          }
+          // ⭐⭐ C40 — THE WALK: `for … in line.all` / `box.all` / `label.all`. The
+          // family's live objects, oldest first (what `<family>.all` holds —
+          // `vw-object-gc-d`), taken when the loop starts and handed to the loop
+          // variable's register one at a time.
+          // ⛔ UNWITNESSED, AND NOT RUN: two or more objects AND a body that
+          // deletes or creates objects of the family. Walking what the loop
+          // started with deletes all of them; walking the list as it shrinks
+          // deletes every other one. No committed capture says which, so the run
+          // stops and draws nothing (capture `vw-forin-collections`). With one
+          // object or none, or a body that only moves them, both readings agree.
+          if (op.over !== undefined) {
+            const fam = op.over.all
+            if (famUnknown.has(fam)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            const items = []
+            for (const inst of live.values()) if (inst.family === fam) items.push(inst.id)
+            if (items.length >= 2 && walkChangesFamily(op)) {
+              unwitnessed(`\`for … in ${fam}.all\` over ${items.length} ${fam} objects with a body that deletes or creates `
+                + `${fam} objects (bar ${bar}) — whether TradingView walks the list it started with or the list as it `
+                + 'changes is not captured (capture `vw-forin-collections`)')
+              return false
+            }
+            const had = loopVars.has(op.id)
+            const prev = loopVars.get(op.id)
+            let ok = true
+            for (let n = 0; n < items.length; n += 1) {
+              loopVars.set(op.id, n)
+              regs.set(op.elem, items[n])
+              regTaint.delete(op.elem)
+              if (!runOps(op.body)) { ok = false; break }
+            }
+            if (had) loopVars.set(op.id, prev); else loopVars.delete(op.id)
+            if (!ok) return false
+            break
+          }
           const from = Number(value(op.from))
           const to = Number(value(op.to))
           // ⛔ A BOUND THAT IS NOT A NUMBER RUNS ZERO TIMES, NEVER "from 0".
@@ -1233,6 +1538,9 @@ export function beginObjects(program, ctx) {
           // and treating that as 0 would draw a row of blanks that looks like
           // data. Drawing nothing is the honest answer for a list that is empty.
           if (!Number.isFinite(from) || !Number.isFinite(to)) break
+          // ⭐ C40 — a `for … in` (`0 to size − 1`) never counts down: an empty
+          // list is `0 to −1`, which Pine's counted `for` would run twice.
+          if (op.asc === true && to < from) break
           // ⭐ `by <step>`: Pine steps by the step's SIZE in the direction
           // `from → to` takes. ⛔ A step that is not a positive finite number
           // runs ZERO times — `by 0` would never end, and a guessed 1 would
@@ -1333,7 +1641,12 @@ export function beginObjects(program, ctx) {
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it (C22: or read an
           // unmeasured reduction on this bar).
-          { const um = unmeasuredProps(op); taintInst(id, um.length ? [...taintedProps(op.props), ...um] : taintedProps(op.props)) }
+          {
+            const um = unmeasuredProps(op)
+            const unsaid = unsaidProps(op, props)
+            if (unsaid.length) taintSeen = true
+            taintInst(id, um.length || unsaid.length ? [...taintedProps(op.props), ...um, ...unsaid] : taintedProps(op.props))
+          }
           // ⭐ C20 — a colour asked of the runtime that it could not serve exactly
           // (transparent, or a transparency this engine has not measured) holds
           // the object: drawn in a default colour it would be a colour Pine did
@@ -1362,8 +1675,11 @@ export function beginObjects(program, ctx) {
           resolveProps(op.props, inst.props)
           // ⭐ C17 — a clean write clears its property; a tainted value marks it.
           const um = unmeasuredProps(op)
+          // ⭐ C43 — a getter in arithmetic this bar could not say marks its coordinate.
+          const unsaid = unsaidProps(op, inst.props)
+          if (unsaid.length) taintSeen = true
           if (taintSeen) {
-            const bad = new Set([...taintedProps(op.props), ...um])
+            const bad = new Set([...taintedProps(op.props), ...um, ...unsaid])
             for (const k of Object.keys(op.props || {})) {
               if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
             }
@@ -1682,6 +1998,9 @@ export function beginObjects(program, ctx) {
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
+  // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
+  // this run could not decide pushed the possible count past its trigger).
+  for (const fam of collectorUnknown) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {
@@ -1717,7 +2036,9 @@ export function beginObjects(program, ctx) {
   // ⭐ C9 — a Pine runtime error draws NOTHING on TradingView, so nothing is
   // held here: the objects made before the error are not a smaller picture of
   // the script, they are a picture TradingView never shows.
-  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR
+  // ⭐ C40 — and a run stopped on an unwitnessed step holds nothing either: what
+  // it drew before that step is not known to be what TradingView shows after it.
+  const stopped = status === OBJECT_STATUS.RUNTIME_ERROR || status === OBJECT_STATUS.UNWITNESSED
   if (stopped) for (const fam of Object.keys(heldCounts)) heldCounts[fam] = 0
   // ⭐ CREATION ORDER IS RENDER ORDER, and it is the object id because the id IS
   // a creation counter. Sorting by anything else (price, family) would put a
@@ -1747,8 +2068,11 @@ export function beginObjects(program, ctx) {
       ...(fillsReplaced ? { fillsReplaced } : {}),
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
+      ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
+      ...(propsUnsaid ? { propsUnsaid } : {}),
+      ...(truncNegative ? { truncNegative } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),

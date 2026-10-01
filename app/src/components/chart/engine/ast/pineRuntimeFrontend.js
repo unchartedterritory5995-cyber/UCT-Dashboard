@@ -32,7 +32,7 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
+  OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
@@ -865,6 +865,32 @@ export const pointwiseTarget = (pineName, shapes = PINE_CALL_SHAPES) => {
  *  directly followed by another identifier is a type or a qualifier, and the one
  *  nearest the name wins (`series float x` is a float). An untyped parameter is
  *  simply absent. */
+/** ⭐ C35 — the QUALIFIER written in front of each parameter of a definition
+ *  header, `name → 'simple' | 'series' | 'const'`: `f(series float src, simple int
+ *  len)` gives `src → series`, `len → simple`. A parameter with none is absent —
+ *  Pine then takes the qualifier of the argument. Reads the same span
+ *  `functionParams` does and decides nothing about which names are parameters. */
+const PARAM_QUALIFIERS = new Set(['simple', 'series', 'const'])
+export function paramQualifiers(toks, arrow) {
+  const out = new Map()
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return out
+  let qual = null
+  for (let i = 2; i < close; i += 1) {
+    const t = toks[i]
+    if (isPunct(t, ',')) { qual = null; continue }
+    if (!t || t.kind !== 'ident') continue
+    const next = toks[i + 1]
+    if (next && next.kind === 'ident') {
+      if (PARAM_QUALIFIERS.has(String(t.value))) qual = String(t.value)
+      continue
+    }
+    if (qual) out.set(String(t.value), qual)
+    qual = null
+  }
+  return out
+}
+
 export function paramTypeHeads(toks, arrow) {
   const out = new Map()
   const close = toks.findIndex((t) => isPunct(t, ')'))
@@ -1176,6 +1202,13 @@ export function buildRuntimeIr(source, opts = {}) {
   /** name → the refusal its DEFINITION hit, re-raised at the first call site.
    *  See the deferral in the statement walk for why a definition is not fatal. */
   const deferredFnRefusals = new Map()
+  /** ⭐ C35 — name → the definition's `{st, toks, arrow}`, kept for a definition
+   *  whose held refusal a call site may settle (`simpleSpecialisation`). */
+  const deferredFnDefs = new Map()
+  /** ⭐ C35 — `name|consts` → `{index}` or `{index, error}`: one compiled copy
+   *  per distinct set of call-site constants, shared by every call site that
+   *  fixes the same values (state stays per call site, as for any function). */
+  const specialisations = new Map()
   /** `name@line guard` for every definition this lane skipped and nobody called
    *  — reported so an unreachable helper is NAMED rather than invisible. */
   const skippedFunctions = []
@@ -1194,6 +1227,11 @@ export function buildRuntimeIr(source, opts = {}) {
   /** The function currently being compiled — `null` inside the main program.
    *  ⭐ A slot's OWNER, which is what makes its address frame-relative. */
   let owner = null
+  /** ⭐ C35 — slot → constant, for the parameters of the function body being
+   *  compiled whose CALL SITE fixed them (a `simple` argument, resolved per call
+   *  site by `lowerSimpleCall`). Read only by `foldConstNode`; `null` outside
+   *  such a compile. */
+  let frameConsts = null
   /** While a function body is being compiled, the scope its globals live in — so
    *  a reference to a global mutable variable is refused BY NAME rather than
    *  arriving at the columnar resolver as an undefined name. */
@@ -2782,11 +2820,12 @@ export function buildRuntimeIr(source, opts = {}) {
     // (an inlined parameter bound to a slot read) — is never asked: a mutable
     // `tickerid` or `period` would read as the built-in to a reader that cannot
     // see it. Those keep the request path below and its refusals.
+    let targetReader = null
     const identity = (() => {
       let t = null
       try {
-        t = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
-          .requestTargetOf(node)
+        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
+        t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
       return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
@@ -2796,6 +2835,25 @@ export function buildRuntimeIr(source, opts = {}) {
     // chart's own period the expression runs in THIS context, which is the
     // whole reason it folds.
     if (identity) return requestValueIr(identity.positional[2], scope)
+
+    // ⭐⭐ C35 — A TIMEFRAME BELOW THE CHART'S OWN IS THE HOST'S QUESTION, ASKED
+    // ONCE (`Resolver.lowerTfDeclineOf` → `lowerTf.js::lowerTfRefusal`, C27). It
+    // reads intraday bars this chart does not hold, and which intrabar TradingView
+    // answers is not yet captured — so it is refused here by the SAME code and
+    // sentence the plot lane gives, BEFORE the state check below: that check asks
+    // whether this chart's state may cross into another context, which is moot for
+    // a read no lane serves (ema-ribbon's `"15"`/`"60"`/`"240"` on a daily chart
+    // were told about their `var`s instead of the capture that settles them).
+    const lowerDecline = (() => {
+      if (!targetReader) return null
+      try { return targetReader.lowerTfDeclineOf(node) } catch { return null }
+    })()
+    if (lowerDecline) {
+      note(lowerDecline.code)
+      const why = String(lowerDecline.why || '')
+      throw new RuntimeRefusal(lowerDecline.code,
+        why.startsWith(`${lowerDecline.code}: `) ? why.slice(lowerDecline.code.length + 2) : why, at)
+    }
 
     // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The
     // symbol argument has its own seam (a symbol-settled value refuses when the
@@ -3015,6 +3073,47 @@ export function buildRuntimeIr(source, opts = {}) {
    *  length, which is precisely the divergence the frozen-default rule exists to
    *  prevent. */
   const foldConstNode = (e, at, what = null, scope = null) => {
+    // ⭐⭐ C35 — A NAME THIS FRAME HOLDS IS ANSWERED BY THE FRAME, NEVER BY `env`.
+    //
+    // The frozen resolver reads the TOP-LEVEL environment. Inside a function
+    // body that is the wrong authority for any name the frame declares: a
+    // parameter `len` beside a top-level `len = 3` folded to 3 whatever the call
+    // passed — measured, `f(src, len) => ta.sma(src, len)` called as
+    // `f(close, 5)` ran a 3-bar window. So a frame name is substituted here
+    // before the resolver sees it: a parameter the call site FIXED (`frameConsts`,
+    // a `simple` argument resolved per call site — `lowerSimpleCall`) becomes its
+    // constant, and any other frame name refuses by name, exactly as an unbound
+    // one did. A main-program name (owner `null`) is untouched.
+    if (scope && owner !== null) {
+      let foreign = null
+      const sub = (n, depth) => {
+        if (!n || typeof n !== 'object' || depth > 64) return n
+        if (Array.isArray(n)) return n.map((x) => sub(x, depth + 1))
+        if (n.type === 'name' && typeof n.name === 'string') {
+          const s = scope.lookup(n.name)
+          if (s !== null && slots[s] && slots[s].owner === owner) {
+            if (frameConsts && frameConsts.has(s)) {
+              return { type: 'number', value: frameConsts.get(s), tok: n.tok }
+            }
+            if (foreign === null) foreign = n.name
+          }
+          return n
+        }
+        const out = {}
+        for (const [k, v] of Object.entries(n)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
+        return out
+      }
+      const e2 = sub(e, 0)
+      if (foreign !== null) {
+        note('runtime:history-dynamic-offset')
+        const err = new RuntimeRefusal('runtime:history-dynamic-offset',
+          `\`${foreign}\` is given a value by this script, but not one the `
+          + 'engine can read before bar 0', at)
+        err.frameName = foreign
+        throw err
+      }
+      e = e2
+    }
     // ⭐⭐ THE CONSTANT IS READ OFF THE CANONICAL TREE, NOT OFF AN EVALUATION.
     //
     // ⚰️ The first draft interpreted the expression and asked whether the result
@@ -3540,7 +3639,10 @@ export function buildRuntimeIr(source, opts = {}) {
         // above and in `ownTimeframeOf`: a script may write `period = "60"`.
         if (OWN_TF_NAMES.has(node.name)
             && scope.lookup(node.name) === null && !env.has(node.name)) {
-          return str(lanePeriod)
+          // ⭐ C29 — the TEXT Pine reads, in this script's version: the one
+          // `periodTextOf` the columnar resolver asks (v6 daily is `"1D"`).
+          notePeriodRead('timeframe.period', pineVersion)
+          return str(periodTextOf(lanePeriod, pineVersion))
         }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
@@ -3898,6 +4000,7 @@ export function buildRuntimeIr(source, opts = {}) {
         // ⛔ A DEFERRED REFUSAL COMES BACK HERE, AT THE CALL. The definition
         // could not be compiled; this is the first line that actually needs it,
         // so this is where a member is told.
+        let specIndex = null
         if (deferredFnRefusals.has(node.name)) {
           const held = deferredFnRefusals.get(node.name)
           // ⭐⭐ INSIDE A REQUEST, TRY LOWERING THE BODY HERE BEFORE RE-RAISING.
@@ -3919,10 +4022,14 @@ export function buildRuntimeIr(source, opts = {}) {
           if (inl) {
             try { return lowerInlineCall(node.name, inl, node, scope, opts) } catch { /* the held refusal below is the better message */ }
           }
-          note(held && held.guard ? held.guard : 'runtime:function')
-          throw held
+          // ⭐ C35 — a `simple` argument settles a window the shared frame could not.
+          specIndex = simpleSpecialisation(node, scope, held)
+          if (specIndex === null) {
+            note(held && held.guard ? held.guard : 'runtime:function')
+            throw held
+          }
         }
-        const fnIndex = fnByName.get(node.name)
+        const fnIndex = specIndex !== null ? specIndex : fnByName.get(node.name)
         // ⭐⭐ THE NAMESPACED TRANSFORM, IN THIS LANE TOO.
         //
         // `PINE_NAMESPACED_TREE` rewrites a Pine call into the tree that means
@@ -5571,6 +5678,7 @@ export function buildRuntimeIr(source, opts = {}) {
               else if (functions[idx]) functions[idx].compiling = false
             }
             deferredFnRefusals.set(fname, err)
+            deferredFnDefs.set(fname, { st, toks, arrow })
             const at = locate(nameTok)
             skippedFunctions.push(
               `${fname}@${at ? at.line : '?'} ${err && err.guard ? err.guard : 'refused'}`)
@@ -6297,7 +6405,7 @@ export function buildRuntimeIr(source, opts = {}) {
    *  name, parameters, its own frame, its own persistent-local count, a body and
    *  a result. Not a macro, and not re-parsed at each call: the CODE is shared and
    *  only the state is per call site. */
-  const defineFunction = (st, toks, arrow) => {
+  const defineFunction = (st, toks, arrow, spec = null) => {
     const nameTok = toks[0]
     if (!nameTok || nameTok.kind !== 'ident' || !isPunct(toks[1], '(') || !isPunct(toks[arrow - 1], ')')) {
       throw new RuntimeRefusal('runtime:function',
@@ -6344,10 +6452,13 @@ export function buildRuntimeIr(source, opts = {}) {
       effects: null, at: locate(nameTok),
     }
     functions.push(record)
-    fnByName.set(nameTok.value, fnIndex)
+    // ⭐ C35 — a SPECIALISATION (`spec`, see `lowerSimpleCall`) is a second copy
+    // of a definition whose name already routes calls; it registers nothing.
+    if (!spec) fnByName.set(nameTok.value, fnIndex)
 
     const prevOwner = owner
     const prevGuard = guardOuter
+    const prevFrameConsts = frameConsts
     owner = fnIndex
     // ⛔ NO PARENT SCOPE. A Pine function cannot assign to a global, and reading
     // a global mutable slot from inside a frame would need a cross-frame address
@@ -6406,7 +6517,7 @@ export function buildRuntimeIr(source, opts = {}) {
     // as the next capability, and it is what lets a helper like
     // `isAbove30mOrb()` — `var` + `if` + a clock read — run per requested
     // symbol instead of against this chart's bars.
-    record.inlineBody = (() => {
+    record.inlineBody = spec ? null : (() => {
       try {
         if (arrow !== toks.length - 1) {
           return { params, lines: [], result: parseWholeExpression(toks.slice(arrow + 1)), body: null }
@@ -6443,6 +6554,16 @@ export function buildRuntimeIr(source, opts = {}) {
       } catch { return null }
     })()
     if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
+    // ⭐ C35 — the parameters this call site fixed, by SLOT (a nested block that
+    // re-declares the name is a different slot and is not touched).
+    frameConsts = null
+    if (spec && spec.consts && spec.consts.size) {
+      frameConsts = new Map()
+      for (const [p, v] of spec.consts) {
+        const s = fnScope.lookup(p)
+        if (s !== null) frameConsts.set(s, v)
+      }
+    }
 
     const sitesBefore = callSites.length
     try {
@@ -6541,7 +6662,149 @@ export function buildRuntimeIr(source, opts = {}) {
       record.compiling = false
       owner = prevOwner
       guardOuter = prevGuard
+      frameConsts = prevFrameConsts
     }
+  }
+
+  /** ⭐⭐ C35 — A `simple` ARGUMENT IS FIXED FOR ITS CALL SITE, so a window it sizes
+   *  is a constant window PER CALL SITE.
+   *
+   *  Pine: a parameter qualified `simple` (or `const`) takes a value known before
+   *  bar 0 and never changes across bars at that call; an unqualified parameter
+   *  takes the qualifier of its argument. So `drmEngine(src, simple int len) =>
+   *  ta.highest(src, len)` called as `drmEngine(close, drmLen)` runs a `drmLen`-bar
+   *  window at that call — the shared frame refused it only because it compiles
+   *  one body for every call site, and a frame slot is not known before bar 0.
+   *
+   *  The rule, exactly: at a call to a definition held on
+   *  `runtime:history-dynamic-offset` for one of its PARAMETERS, each argument of
+   *  a parameter not declared `series` is folded in the caller's context the way a
+   *  length is folded (literal, input at its default, constant arithmetic — the
+   *  frozen resolver, `foldConstNode`'s own); the body is compiled once per
+   *  distinct set of folded values with those parameters answered as constants
+   *  wherever a length or an offset reads them (`frameConsts`). Every other read
+   *  of the parameter is still the slot the call passes, as in any call.
+   *
+   *  ⛔ Refused by name: an argument only known while the bar runs, for the
+   *  parameter the refusal names (declared `simple`, Pine rejects the script; a
+   *  `series` parameter is a series length, which this lane does not size);
+   *  anything else the compiled copy meets keeps its own refusal. Not inside a
+   *  request's value (a request re-lowers its helpers per symbol, `carriesColumn`).
+   *
+   *  @returns the specialised function's index, or `null` = the held refusal stands */
+  const simpleSpecialisation = (node, scope, held) => {
+    if (!held || held.guard !== 'runtime:history-dynamic-offset' || inRequestValue) return null
+    const def = deferredFnDefs.get(node.name)
+    const culprit = held.frameName
+    if (!def || typeof culprit !== 'string') return null
+    const rawParams = functionParams(def.toks, def.arrow)
+    if (!rawParams) return null
+    const typed = paramTypeHeads(def.toks, def.arrow)
+    const typeWords = new Set([...typed.values()].map((t) => t.word))
+    const params = rawParams.filter((p) => !(udtTypes.has(p) && typeWords.has(p) && !typed.has(p)))
+    if (!params.includes(culprit)) return null
+    if (node.args.some((a) => a && a.name)) return null
+    const args = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
+    if (args.length !== params.length) return null
+    const quals = paramQualifiers(def.toks, def.arrow)
+    const at = locate(node.tok)
+    const consts = new Map()
+    /** parameter → the CALLER's frame name that kept its argument from folding */
+    const blockedBy = new Map()
+    params.forEach((p, i) => {
+      if (quals.get(p) === 'series') return
+      const c = constantArgOf(args[i], scope)
+      if (c.value !== null) consts.set(p, c.value)
+      else if (c.frameName) blockedBy.set(p, c.frameName)
+    })
+    const unfixed = (err) => {
+      const p = err && err.frameName
+      if (typeof p !== 'string' || !params.includes(p) || consts.has(p)) return err
+      const q = quals.get(p)
+      note('runtime:history-dynamic-offset')
+      const refusal = new RuntimeRefusal('runtime:history-dynamic-offset',
+        q === 'simple' || q === 'const'
+          ? `\`${p}\` is declared \`${q}\` in \`${node.name}\`, and this call passes a value `
+            + 'that is only known while the bar is running (Pine does not compile that)'
+          : q === 'series'
+            ? `\`${p}\` is declared \`series\` in \`${node.name}\` and sizes a window there, `
+              + 'so the ring it needs cannot be sized before bar 0'
+            : `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value that `
+              + 'is only known while the bar is running, so the ring it needs cannot be sized before bar 0', at)
+      // ⭐ An argument that read the CALLER's own parameter names it, so the
+      // caller's call site can settle it in turn (`f(x, simple n) => g(x, n * 2)`).
+      if (blockedBy.has(p)) refusal.frameName = blockedBy.get(p)
+      return refusal
+    }
+    if (!consts.has(culprit)) throw unfixed(held)
+    const key = `${node.name}|${JSON.stringify([...consts].sort((x, y) => (x[0] < y[0] ? -1 : 1)))}`
+    let rec = specialisations.get(key)
+    if (!rec) {
+      rec = { index: functions.length }
+      specialisations.set(key, rec)
+      const saved = { env: new Map(env), hoistSink, stmtHoistSink, loopDepth }
+      hoistSink = null
+      stmtHoistSink = null
+      loopDepth = 0
+      try {
+        defineFunction(def.st, def.toks, def.arrow, { consts })
+      } catch (err) {
+        rec.error = err
+        // ⛔ THE RECORD STAYS, VALID AND UNCALLED. Popping it would hand its index
+        // to the next definition while its slots still name it as their owner.
+        const r = functions[rec.index]
+        if (r) {
+          r.body = []
+          r.result = naValue()
+          r.returns = 1
+          r.valueless = false
+          r.frameSize = countFor(rec.index, SLOT.LOCAL)
+          r.persistCount = countFor(rec.index, SLOT.PERSIST)
+          r.effects = { pure: false }
+        }
+      } finally {
+        env.clear()
+        for (const [k, v] of saved.env) env.set(k, v)
+        hoistSink = saved.hoistSink
+        stmtHoistSink = saved.stmtHoistSink
+        loopDepth = saved.loopDepth
+      }
+    }
+    if (rec.error) throw unfixed(rec.error)
+    diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
+    return rec.index
+  }
+
+  /** ⭐ C35 — an argument folded as a length is folded (the frozen resolver, the
+   *  frame's own constants first): `{value}`, `value: null` when it does not fold
+   *  (with `frameName` = the caller's own frame name that stopped it). Never a
+   *  refusal, since a parameter that nothing sizes may take any value. */
+  const constantArgOf = (e, scope) => {
+    if (!e) return { value: null }
+    let n = e
+    if (owner !== null && scope) {
+      let foreign = null
+      const sub = (x, depth) => {
+        if (!x || typeof x !== 'object' || depth > 64) return x
+        if (Array.isArray(x)) return x.map((y) => sub(y, depth + 1))
+        if (x.type === 'name' && typeof x.name === 'string') {
+          const s = scope.lookup(x.name)
+          if (s !== null && slots[s] && slots[s].owner === owner) {
+            if (frameConsts && frameConsts.has(s)) return { type: 'number', value: frameConsts.get(s), tok: x.tok }
+            if (foreign === null) foreign = x.name
+          }
+          return x
+        }
+        const out = {}
+        for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, depth + 1)
+        return out
+      }
+      n = sub(e, 0)
+      if (foreign !== null) return { value: null, frameName: foreign }
+    }
+    let canonical
+    try { canonical = makeFrozenResolver().resolve(n) } catch { return { value: null } }
+    return { value: canonical && canonical.type === 'num' && Number.isFinite(canonical.value) ? canonical.value : null }
   }
 
   let statements

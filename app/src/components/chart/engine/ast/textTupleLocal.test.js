@@ -31,7 +31,10 @@ import { describe, it, expect } from 'vitest'
 import { translatePine } from './pine'
 
 /** A helper returning a UNIT/DIVISOR tuple from a four-arm chain, and a
- *  formatter that reads both — `uncharted-volume-v2.pine`'s shape, shrunk. */
+ *  formatter that reads both — `uncharted-volume-v2.pine`'s shape, shrunk.
+ *  ⚰️ C31 — the average is computed at the TOP level, as v2 computes it. It sat
+ *  inside `if barstate.islast`, where a `ta.*` call sees only the bars its block
+ *  runs on (ema-ribbon's capture), and the object lane now refuses it there. */
 const HEAD = `//@version=6
 indicator("t", overlay=true)
 f_unit(_v) =>
@@ -46,11 +49,12 @@ f_unit(_v) =>
         ['', 1.0]
 f_fmt(_vol, _unit, _div) =>
     str.tostring(_vol / _div, '0.00') + _unit
+avgVol = ta.sma(volume, 50)
 `
 
 const body = (lines) => `${HEAD}if barstate.islast
     vD = volume
-    aD = ta.sma(volume, 50)
+    aD = avgVol
     [u, dv] = f_unit(vD)
 ${lines}
     var table tt = table.new(position.top_right, 1, 1)

@@ -1,0 +1,164 @@
+//@version=5
+indicator("UCTPROBE_VW_FORIN_COLLECTIONS", overlay = false, max_lines_count = 100, max_boxes_count = 100, max_labels_count = 100)
+
+// --- 2026-09-30 C40 - `for ... in` OVER A LIST, `<family>.all`, THE CAP `while`, A SIZED LIST ---
+//
+// Witnessed already (trend-lines-supports-and-resistances-rddt-1d-2026-09-28): a
+// `for [i, v] in <list>` runs its body for every element of a two-element list.
+// The engine serves that, and refuses BY NAME the four things no capture shows:
+//
+//   F03-F05  a body that CHANGES the list it walks (shift / push / set):
+//            does TradingView walk the list it started with, or the list as it changes?
+//            (engine: `forInRefused` "the body changes `x`, the list it walks")
+//   A02-A05  `box.all`: is the array a snapshot or the live list, and what does
+//            `for b in box.all -> box.delete(b)` leave when two or more exist?
+//            (engine: the run stops, OBJECT_UNWITNESSED, and draws nothing)
+//   A06      an object's POSITION in `box.all` (engine: `forInRefused` "a position in ... is read")
+//   Z01-Z03  a drawing list created WITH SLOTS, `array.new_label(3)`
+//            (engine: the list is diverged from its creation, `coll:sized`)
+//
+// and two rows are CONTROLS for what the engine already serves (F01, F02, W01).
+//
+// Three families, one experiment each, so the `.all` rows see only their own objects:
+//   LINES  F01-F05    y = 10..14 (F01), 20..24 (F03), 30..32 + 40.. (F04), 50..52 + 59 (F05)
+//   BOXES  A01-A06    bottoms 60..64 (first batch), 70..72 (second batch)
+//   LABELS W01, Z01-Z03   y = 80..83 (W), 90..92 (Z)
+//
+// CAPTURE: NYSE:RDDT 1D (from the listing), inputs at defaults (none), AFTER THE CLOSE.
+// Every F / A / W row runs ONCE, on the last bar; Z runs on every bar. A runtime error
+// is itself a reading - record its text and the bar it names.
+//
+//   row   reads                                             a snapshot / fixed walk    the live list
+//   F01   passes of `for [i, l] in fl` over 5 lines         5; x2 = bar_index+1+i, i = 0 for y=10
+//   F02   passes over an EMPTY list                         0
+//   F03   passes when the body shifts the list              5 (all five deleted)       3 (y=23, 24 left)
+//   F04   passes when the body pushes onto the list         3                          13
+//   F05   which line a later pass is handed after `set`     y=52 moved (x2 +5)         y=59 moved
+//   A01   array.size(box.all) after five boxes              5
+//   A02   size of the HELD array after one delete           5                          4
+//   A03   array.size(box.all) after that delete             4
+//   A04   passes of `for b in box.all -> box.delete(b)`     4 (no box of 60..64 left)  2 (two left)
+//   A05   array.size(box.all) after the walk                0                          2
+//   A06   text = position in `box.all` of the second batch  "0","1","2" oldest first (shifted by A05 if any survived)
+//   W01   passes of `while size > 2 -> delete(shift)`       2; labels W2, W3 remain
+//   Z01   array.size(array.new_label(3))                    3 on every bar
+//   Z02   labels held after the replace-in-place idiom      3 (Z0..Z2 of the LAST bar)
+//   Z03   bar_index of the label in slot 0                  the last bar
+
+float F01 = na
+float F02 = na
+float F03 = na
+float F04 = na
+float A01 = na
+float A02 = na
+float A03 = na
+float A04 = na
+float A05 = na
+float W01 = na
+
+// ---------------------------------------------------------------- F: lines
+if barstate.islast
+    // F01 - order and position
+    line[] fl = array.new_line()
+    for k = 0 to 4
+        array.push(fl, line.new(bar_index, 10 + k, bar_index + 1, 10 + k))
+    int p1 = 0
+    for [i, l] in fl
+        line.set_x2(l, bar_index + 1 + i)
+        p1 += 1
+    F01 := p1
+    // F02 - an empty list
+    line[] none = array.new_line()
+    int p2 = 0
+    for l in none
+        p2 += 1
+    F02 := p2
+    // F03 - the body SHIFTS (and deletes from) the list it walks
+    line[] sh = array.new_line()
+    for k = 0 to 4
+        array.push(sh, line.new(bar_index, 20 + k, bar_index + 1, 20 + k))
+    int p3 = 0
+    for l in sh
+        if array.size(sh) > 0
+            line.delete(array.shift(sh))
+        p3 += 1
+    F03 := p3
+    // F04 - the body PUSHES onto the list it walks (ten pushes at most)
+    line[] gr = array.new_line()
+    for k = 0 to 2
+        array.push(gr, line.new(bar_index, 30 + k, bar_index + 1, 30 + k))
+    int p4 = 0
+    for l in gr
+        if p4 < 10
+            array.push(gr, line.new(bar_index, 40 + p4, bar_index + 1, 40 + p4))
+        p4 += 1
+    F04 := p4
+    // F05 - the body REPLACES a later slot before the walk reaches it
+    line[] rp = array.new_line()
+    for k = 0 to 2
+        array.push(rp, line.new(bar_index, 50 + k, bar_index + 1, 50 + k))
+    line other = line.new(bar_index, 59, bar_index + 1, 59)
+    for [i, l] in rp
+        if i == 0
+            array.set(rp, 2, other)
+        if i == 2
+            line.set_x2(l, bar_index + 5)
+
+// ---------------------------------------------------------------- A: boxes
+if barstate.islast
+    for k = 0 to 4
+        box.new(bar_index, 60 + k + 0.5, bar_index + 1, 60 + k)
+    box[] held = box.all
+    A01 := array.size(held)
+    box.delete(array.get(held, 0))
+    A02 := array.size(held)
+    A03 := array.size(box.all)
+    int pa = 0
+    for b in box.all
+        box.delete(b)
+        pa += 1
+    A04 := pa
+    A05 := array.size(box.all)
+    for k = 0 to 2
+        box.new(bar_index + 2, 70 + k + 0.5, bar_index + 3, 70 + k)
+    for [i, b] in box.all
+        box.set_text(b, str.tostring(i))
+
+// ---------------------------------------------------------------- W: the cap
+if barstate.islast
+    label[] wl = array.new_label()
+    for k = 0 to 3
+        array.push(wl, label.new(bar_index, 80 + k, "W" + str.tostring(k)))
+    int pw = 0
+    while array.size(wl) > 2
+        label.delete(array.shift(wl))
+        pw += 1
+    W01 := pw
+
+// ---------------------------------------------------------------- Z: a sized list
+var label[] zl = array.new_label(3)
+float Z01 = array.size(zl)
+for i = 0 to 2
+    label.delete(array.get(zl, i))
+    array.set(zl, i, label.new(bar_index, 90 + i, "Z" + str.tostring(i)))
+int z2 = 0
+for l in label.all
+    if label.get_y(l) >= 90
+        z2 += 1
+float Z02 = z2
+float Z03 = label.get_x(array.get(zl, 0))
+
+plot(F01, "F01_forin_passes_5")
+plot(F02, "F02_forin_passes_empty")
+plot(F03, "F03_forin_passes_body_shifts")
+plot(F04, "F04_forin_passes_body_pushes")
+plot(A01, "A01_box_all_size")
+plot(A02, "A02_held_all_size_after_delete")
+plot(A03, "A03_box_all_size_after_delete")
+plot(A04, "A04_forin_all_delete_passes")
+plot(A05, "A05_box_all_size_after_walk")
+plot(W01, "W01_while_cap_passes")
+plot(Z01, "Z01_sized_list_size")
+plot(Z02, "Z02_sized_list_labels_held")
+plot(Z03, "Z03_slot0_bar")
+plot(bar_index, "C00_bar_index_CONTROL")

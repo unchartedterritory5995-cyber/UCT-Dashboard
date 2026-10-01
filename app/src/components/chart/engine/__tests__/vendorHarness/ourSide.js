@@ -34,7 +34,7 @@ import { objectReaderFor } from '../../objectColumns'
 import { evaluateObjects } from '../../objectRuntime'
 import { toRenderState } from '../../objectRenderState'
 import { maxLookback } from '../../ast/interpret'
-import { otherSymbolRequestsOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf } from '../../otherSymbols'
 import SYMBOL_SCOPE from '../../ast/symbolScope.json'
 import { createFakeChart } from '../fakeChart'
 import { normalizeColor } from '../../../../../../../tools/vendor_harness/compare.mjs'
@@ -73,9 +73,29 @@ function otherCaptureIndex() {
     const key = `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`
     const bars = toProductBars(cap)
     const last = bars.length ? String(bars[bars.length - 1].t) : ''
+    // ⭐ C29 — the UNION of every capture of one listing at one timeframe, keyed by
+    // the bar's own date: each is TradingView's own bars of the same series, so a
+    // short recent capture (the 2026-09-30 SPY probes, 300 bars) EXTENDS a deeper
+    // older one instead of replacing it (which left C26's 632 RDDT dates short —
+    // red at base `bcac5dd34`). A date two captures share keeps the capture
+    // reaching the later bar (its newest bar may have closed since).
     const held = otherIndex.get(key)
-    if (held && (held.last > last || (held.last === last && held.bars.length >= bars.length))) continue
-    otherIndex.set(key, { bars, exchange: storeExchangeOfCapture(cap, exchange), file: name, last })
+    if (!held) {
+      otherIndex.set(key, { byT: new Map(bars.map((b) => [String(b.t), { b, last }])),
+        exchange: storeExchangeOfCapture(cap, exchange), files: [name], last })
+      continue
+    }
+    for (const b of bars) {
+      const k = String(b.t)
+      const had = held.byT.get(k)
+      if (!had || had.last < last) held.byT.set(k, { b, last })
+    }
+    held.files.push(name)
+    if (last > held.last) held.last = last
+  }
+  for (const entry of otherIndex.values()) {
+    entry.bars = [...entry.byT.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([, v]) => v.b)
+    entry.file = entry.files.join(', ')
   }
   return otherIndex
 }
@@ -111,10 +131,11 @@ function otherSymbolSupply(def, capture) {
   for (const { ticker } of requests) {
     const hit = index.get(`${ticker}|${tf}`)
     if (hit) {
-      secondary.set(ticker, { bars: hit.bars, status: 'available', exchange: hit.exchange })
-      notes.push(`other symbol ${ticker}: bars from the committed capture ${hit.file}`)
+      // ⭐ C29 — keyed as the product keys it: our store's ticker (`BRK-B`).
+      secondary.set(storeTickerOf(ticker), { bars: hit.bars, status: 'available', exchange: hit.exchange })
+      for (const f of hit.files) notes.push(`other symbol ${ticker}: bars from the committed capture ${f}`)
     } else {
-      secondary.set(ticker, { bars: [], status: 'no_data' })
+      secondary.set(storeTickerOf(ticker), { bars: [], status: 'no_data' })
       notes.push(`other symbol ${ticker}: no committed capture of ${ticker} at ${capture.timeframe} — `
         + 'the vendor bars (and listing) this read would need')
     }
@@ -193,7 +214,13 @@ function symbolOf(capture) {
   const s = capture.symbol || {}
   const pro = String(s.pro_name || s.full_name || s.name || '')
   const ticker = pro.includes(':') ? pro.split(':').pop() : (s.name || pro)
-  const exchange = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  const tv = s.exchange || (pro.includes(':') ? pro.split(':')[0] : null)
+  // ⭐ C29 — the product hands the fold OUR STORE's exchange spelling (`NYSE
+  // Arca` for SPY), never TradingView's (`AMEX`). A capture carries the vendor's,
+  // so it is linked to the store's by the same witness rule the other-symbol
+  // supply uses; where no witness links it, the vendor's spelling is kept (what
+  // the harness did before, so nothing unlinked changes).
+  const exchange = storeExchangeOfCapture(capture, tv) || tv
   return { ticker, exchange }
 }
 
@@ -297,7 +324,7 @@ function objectsOf(def, bars, ctx) {
       barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime,
       readUnknown: reader.readUnknown,
     })
-    const state = toRenderState(run.live, { bars, tf: ctx.tf })
+    const state = toRenderState(run.live, { bars, tf: ctx.tf, pineVersion: reader.program.pineVersion })
     const cells = state.tables.flatMap((t) => t.cells || [])
     // ⭐⭐ LINES, LABELS AND BOXES ARE COUNTED AS THE SCRIPT HOLDS THEM — the
     // runtime's LIVE set at the last bar — because that is what the capture's
@@ -336,6 +363,15 @@ function objectsOf(def, bars, ctx) {
       // labels and cells) — the zero-lag rail pins it against the records.
       texts: { labels: heldTexts.label, boxes: heldTexts.box, tableCells: cells.map((c) => c.text) },
       dropped: state.dropped || null,
+      // ⭐ C37 — the objects themselves (the runtime's LIVE set, and the render
+      // state's tables), for the colour census (`colourCensus.measure.test.js`):
+      // a colour is compared on an object PAIRED by value, which a count cannot
+      // do. ⛔ Never read by `compareObjects` and never written to a verdict file.
+      held: run.live || [],
+      tables: state.tables || [],
+      pineVersion: reader.program.pineVersion,
+      // ⭐ C36 — why drawings that read `time(<timeframe>)` are withheld here.
+      chartClock: reader.chartClock || [],
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
@@ -413,6 +449,11 @@ export function runOurSide(capture) {
       for (const t of otherReport.served) notes.push(`other symbol ${t}: served`)
       for (const r of otherReport.refused) notes.push(`other symbol ${r.ticker}: refused (${r.code}) — ${r.reason}`)
     }
+    // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart, by name.
+    const clockReport = registry.chartClockReport(cols)
+    if (clockReport) {
+      for (const r of clockReport.withheld) notes.push(`time(<timeframe>) withheld (${r.code}) on ${r.plots.length} plot(s) — ${r.reason}`)
+    }
 
     let colours
     try {
@@ -465,6 +506,9 @@ export function runOurSide(capture) {
       })
     }
     const objects = objectsOf(def, bars, ctx)
+    for (const r of (objects && objects.chartClock) || []) {
+      notes.push(`time(<timeframe>) withheld (${r.code}) in the object lane — ${r.reason}`)
+    }
     if (objects && objects.ok && objects.drawn) {
       for (const f of ['lines', 'labels', 'boxes']) {
         const gap = objects.counts[f] - objects.drawn[f]

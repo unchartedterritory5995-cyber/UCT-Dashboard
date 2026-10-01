@@ -195,16 +195,32 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     // above instead of guessing."* It went red, the readings were read, and Q4
     // had already settled the semantics — `dayopentime` is the node, and the
     // merge that brought the two lineages together is what made it reachable.
-    // ⛔ THE OTHER THREE STAY, because nothing has measured them: `"W"`,
-    // `timeframe.period` as a NAME, and the two-argument session form.
+    // ⛔ WHAT STAYS is what nothing has measured: an intraday period the probe
+    // never asked (`"15"`, `"240"`).
     const arms = [
-      ['time(timeframe.period)', 'plot(time(timeframe.period) - time)'],
-      ['time("W")', `plot(time(${Q}W${Q}))`],
+      [`time(${Q}15${Q})`, `plot(time(${Q}15${Q}) - time)`],
+      [`time(${Q}240${Q})`, `plot(time(${Q}240${Q}) - time)`],
     ]
     for (const [label, src] of arms) {
       expect(runtimeGuard(src), `${label} — runtime lane no longer refuses`).toBe('pine:function')
       expect(hostGuard(src), `${label} — host lane no longer refuses`).toBe('pine:function')
     }
+    // ⚰️ 2026-09-30 (C36): `time(timeframe.period)` LEFT THE LIST — the rail's
+    // fourth time. `vw-time-tf-spy-1d-2026-09-28` row T05 reads it equal to `time`
+    // on all 900 daily bars and `vw-time-tf-spy-60-2026-09-28` on all 300 hourly
+    // ones; the HOST lane serves it on those two chart timeframes and withholds
+    // it, by name, on any other (`vendorHarness.c36TimeFollowups.test.js`). The
+    // RUNTIME lane still refuses it.
+    const own = 'plot(time(timeframe.period) - time)'
+    expect(hostGuard(own)).toBe('ok')
+    expect(runtimeGuard(own)).toBe('pine:function')
+    // ⚰️ 2026-09-30 (C30): `time("W")` LEFT THE LIST — the rail's third time.
+    // `vw-time-tf-spy-1d-2026-09-28` measured it (and "M", "3M", "12M") on a daily
+    // chart, and the HOST lane serves it there
+    // (`vendorHarness.c30TimeAnchor.test.js`). The RUNTIME lane still refuses it.
+    const weekly = `plot(time(${Q}W${Q}))`
+    expect(hostGuard(weekly)).toBe('ok')
+    expect(runtimeGuard(weekly)).toBe('pine:function')
     // ⚰️ 2026-09-28: THE TWO-ARGUMENT SESSION FORM LEFT THE LIST — this rail
     // doing its job a second time. `vw-time-session` (1D + 60m) measured it and
     // the HOST lane serves it now (`sessionClockOf`, held bar by bar in
