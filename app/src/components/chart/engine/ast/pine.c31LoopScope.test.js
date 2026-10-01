@@ -45,9 +45,8 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
     expect(refusesName(t, 'n'), refusalNames(t).join('\n')).toBe(true)
   })
 
-  it('⛔ THE MAIN WALK STILL REFUSES THE BLOCK AT ITS LOOP — the step-over belongs to the object lane', () => {
-    // A chain the main walk folded would reach inputs a refused one never did,
-    // and a saved script's parameter ids are an address (`paramIds.test.js`).
+  it('C46 TRIAL — the main walk folds the chain again, stepping over its loop', () => {
+    // TRIAL BRANCH ONLY: see `pine.c46MainWalkStepOver.test.js`.
     const t = translatePine(src(
       'float m = 0.0',
       'if close > open',
@@ -56,7 +55,7 @@ describe('C31 — a loop inside a block, on the PLOT lane: its writes refuse', (
       '    m := high - low',
       'plot(m, "m")',
     ))
-    expect(outputOk(t, 'm')).toBe(false)
+    expect(outputOk(t, 'm')).toBe(true)
   })
 
   it('⛔ an array the loop pushes into (method form) refuses when read after it', () => {
