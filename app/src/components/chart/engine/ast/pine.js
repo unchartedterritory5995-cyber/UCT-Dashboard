@@ -11217,6 +11217,19 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⭐⭐ C47 — THE QUARTER, `'3M'`, FOR A LOOK-AHEAD REQUEST ON A DAILY CHART.
+      // `request.security(syminfo.tickerid, '3M', x, lookahead = barmerge.
+      // lookahead_on)` reads the quarter the bar is INSIDE — `tf_live`, as the
+      // same request at `W` / `M` does — and `interpret.js::TF_LIVE_RESAMPLABLE`
+      // holds the two captures that witness its boundaries and its values.
+      // ⛔ EXACTLY THAT FORM, AND NOTHING WIDER (`quarterRequest`): the look-ahead
+      // spelling only (the CLOSED quarter is in no capture), a daily base only,
+      // and the DRAWING lane only — a plot that began to translate here would
+      // mint its parameters ahead of saved ones (the C10 confinement). Anything
+      // else leaves `code` unset and the call declines as it always did.
+      // ⛔ Deliberately NOT a `PINE_TF_SPELLING` entry: that map also feeds the
+      // `timeframe.*` family (`TF_CODES`), which has no answer for a quarter.
+      if (!code && this.quarterRequest(raw, args, placed)) code = '3M'
       // ⭐ C27 — what this call ASKED for, kept for `lowerTfDeclineOf`, so naming
       // a refusal never resolves the timeframe argument a second time (a second
       // read would charge the step budget for work already done).
@@ -11253,7 +11266,7 @@ export class Resolver {
           foldedTo: 'the chart\u2019s own series',
         })
         code = null
-      } else if (!TF_RESAMPLABLE.includes(code)) {
+      } else if (!TF_RESAMPLABLE.includes(code) && code !== '3M') {
         return null
       }
     }
@@ -11282,6 +11295,15 @@ export class Resolver {
     if (live && !code) live = false
 
     return { own, other, venue, code, live, positional }
+  }
+
+  /** ⭐ C47 — is this the one quarter request this door serves? The timeframe is
+   *  the literal `'3M'`, the request looks AHEAD, the chart is daily and this is
+   *  the object pass. See the call site in `requestTargetOf`. */
+  quarterRequest(raw, args, placed) {
+    return raw !== null && String(raw).trim().toUpperCase() === '3M'
+      && this.objectPass === true && this.basePeriod === 'D'
+      && this.requestLookaheadOf(args, placed) === true
   }
 
   /** ⭐ C27 — THE `lookahead` A REQUEST ASKS FOR: true (on), false (off), or null

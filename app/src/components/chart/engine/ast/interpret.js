@@ -301,6 +301,33 @@ export const isIntradayTf = (code) => {
  *  intraday, and a member whose weekly window silently draws nothing. */
 export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
 
+/** ⭐⭐ C47 — THE PERIODS A *FORMING* READ (`tf_live`) MAY NAME: everything `tf`
+ *  resamples, plus the calendar QUARTER (`'3M'`). The mirror of
+ *  `ast_interpret.TF_LIVE_RESAMPLABLE`.
+ *
+ *  ⭐ WITNESSED, both halves:
+ *    boundaries  a quarter opens on the first session of January, April, July
+ *                and October — `vw-time-tf-spy-1d-2026-09-28` (C30, the anchor
+ *                `time("3M")` on every bar of AMEX:SPY 1D);
+ *    values      `high-low-open-mid-ranges-rddt-1d-2026-09-28` prints
+ *                `request.security(syminfo.tickerid, '3M', <open | high | low |
+ *                hl2>[, [1]], lookahead = barmerge.lookahead_on)` in eight table
+ *                cells — this quarter's and last quarter's — and the bucketed
+ *                daily bars reproduce all eight to the digit
+ *                (`vendorHarness.c47Quarter`, `tests/test_ast_tf_live_quarter.py`).
+ *
+ *  ⛔ `tf` (the last CLOSED period) DOES NOT GAIN IT. No capture shows
+ *  `request.security(…, '3M', x)` without look-ahead, so `TF_RESAMPLABLE` — and
+ *  with it the ladder, `BASE_TF`, the screener's sweep and every door that asks
+ *  that list — is exactly what it was. A separate list, not a third entry.
+ *  ⛔ AND ONLY FROM DAILY BARS: both captures are 1D charts. A base that is not
+ *  stated, or is not `'D'`, refuses by name (`assertLiveResamplable`). */
+export const TF_LIVE_RESAMPLABLE = Object.freeze([...TF_RESAMPLABLE, '3M'])
+
+/** Base bars per forming period, for the lookback sum — `TF_BASE_BARS` plus the
+ *  quarter (three 21-bar months; rounded UP, the safe direction). */
+export const TF_LIVE_BASE_BARS = Object.freeze({ ...TF_BASE_BARS, '3M': 63 })
+
 /** Refuse a `tf` code this engine cannot serve — THE ONE PLACE THAT DECIDES.
  *
  *  ⛔⛔ THIS EXISTS BECAUSE THE ANSWER WAS GIVEN TWICE AND THE COPIES DISAGREED.
@@ -359,6 +386,25 @@ function assertResamplable(code, refuse) {
       `'${code}' — this engine resamples ${TF_RESAMPLABLE.join(', ')} from the `
       + `bars it is given. The declared ladder is ${TF_LADDER.join(', ')}; a code `
       + 'outside it is not a timeframe this table knows.')
+  }
+}
+
+/** ⭐ C47 — the same decision for a FORMING read (`tf_live`): the ONE place that
+ *  says which periods it may name (`TF_LIVE_RESAMPLABLE`). `base` is passed by
+ *  the evaluator only; the lookback sum has no base and asks the list alone.
+ *  ⛔ The quarter is read from DAILY bars and from nothing else — a base the
+ *  caller did not state is not assumed to be daily. */
+function assertLiveResamplable(code, refuse, base) {
+  if (!TF_LIVE_RESAMPLABLE.includes(code)) {
+    refuse('interpret:timeframe',
+      `'${code}' — a forming higher-timeframe read resamples `
+      + `${TF_LIVE_RESAMPLABLE.join(', ')} from the bars it is given. The declared ladder is `
+      + `${TF_LADDER.join(', ')}; a code outside it is not a timeframe this table knows.`)
+  }
+  if (base !== undefined && !TF_RESAMPLABLE.includes(code) && base !== 'D') {
+    refuse('interpret:timeframe',
+      `'${code}' is read from DAILY bars only — its boundaries and values were measured against `
+      + `TradingView on daily charts — and these bars are ${base === null ? 'of no stated timeframe' : `'${String(base)}'`}.`)
   }
 }
 
@@ -457,6 +503,9 @@ function isoWeekKey(iso) {
 /** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
 export function tfBucket(iso, code) {
   if (code === 'W') return isoWeekKey(iso)
+  // ⭐ C47 — the calendar quarter: months 1–3, 4–6, 7–9, 10–12 (see
+  // `TF_LIVE_RESAMPLABLE` for the two captures that witness it).
+  if (code === '3M') return `${iso.slice(0, 4)}-Q${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`
   return iso.slice(0, 7)                             // YYYY-MM
 }
 
@@ -3435,8 +3484,8 @@ export function maxLookback(ast) {
       // ⭐ THE FORMING PERIOD, SO NO `+1`: a base bar reads the bucket it is IN,
       // not the one before it. Mirrors `ast_interpret.max_lookback`'s arm.
       const code = String(node.value)
-      assertResamplable(code, refuse)
-      seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_BASE_BARS[code]))
+      assertLiveResamplable(code, refuse)
+      seen.set(node, Math.max(1, seen.get(node.args[0]) * TF_LIVE_BASE_BARS[code]))
       continue
     }
     if (node.type === 'sym') {
@@ -4958,7 +5007,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       case 'tf':
       case 'tf_live': {
         const code = String(n.value)
-        assertResamplable(code, refuse)
+        // ⭐ C47 — a forming read may also name the quarter, from daily bars.
+        if (n.type === 'tf_live') assertLiveResamplable(code, refuse, (opts && opts.tf) ?? null)
+        else assertResamplable(code, refuse)
         // \u26d4 STRICTLY ABOVE THE BASE, and only when the caller SAID what the base
         // is. `opts.tf` is what the caller knows and the bars do not; absent, this
         // check cannot run and does not pretend to \u2014 the same fail-closed-but-say-so

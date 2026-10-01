@@ -960,6 +960,9 @@ function renderOffset(node, rules, inputs, depth, path, trace) {
  *  grammar cannot say — which must REFUSE rather than leak `W` into a sentence a
  *  member is asked to trust. */
 const TF_WORD = Object.freeze({ W: 'weekly', M: 'monthly' })
+/** ⭐ C47 — the period a FORMING read is inside, as the noun the sentence ends
+ *  on. The quarter exists for `tf_live` only (`interpret.js::TF_LIVE_RESAMPLABLE`). */
+const TF_LIVE_NOUN = Object.freeze({ W: 'week', M: 'month', '3M': 'quarter' })
 
 /** ⭐ A SUFFIX, THE WAY `renderOffset` IS ONE, and for the same reason: a
  *  higher-timeframe read changes *WHERE THE VALUE COMES FROM*, never what the
@@ -976,8 +979,9 @@ function renderTf(node, rules, inputs, depth, path, trace) {
       `at ${path}: a higher-timeframe read has exactly one child column, got `
       + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
   }
+  const liveNoun = node.type === 'tf_live' ? TF_LIVE_NOUN[String(node.value)] : undefined
   const word = TF_WORD[String(node.value)]
-  if (!word) {
+  if (!word && !liveNoun) {
     refuse('sentence:window',
       `at ${path}: no English is declared for timeframe ${JSON.stringify(node.value)} `
       + `\u2014 this grammar says ${Object.keys(TF_WORD).join(', ')}`)
@@ -992,7 +996,7 @@ function renderTf(node, rules, inputs, depth, path, trace) {
   trace.push({ path, rule: live ? 'tf_live' : 'tf' })
   const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
   return live
-    ? `${inner} so far this ${word === 'weekly' ? 'week' : 'month'}`
+    ? `${inner} so far this ${liveNoun}`
     : `${inner} on the ${word} timeframe`
 }
 
