@@ -333,3 +333,21 @@ def test_filings_that_shared_the_floor_may_separate_but_nothing_else_may_change(
     assert ACC.correction_guard(parent, stale, moves)                    # still effective at the old (early) time
     before = {**parent, "metrics": {"m": [[10, 1.5, 20240331, "x"], [105, 2.0, 20240630, "x"], [110, 3.0, 20240630, "x"]]}}
     assert ACC.correction_guard(parent, before, moves)                   # history before the window changed
+
+
+def test_overlapping_corrections_without_a_shared_old_time_are_an_exact_remap():
+    """Two filings of one company accepted 30 min apart, both stamped 4 h early: their windows overlap."""
+    parent = {"split_status": "verified", "withheld_split_sensitive": False,
+              "metrics": {"m": [[10, 1.0, 1, "x"], [100, 2.0, 2, "x"], [130, 3.0, 3, "x"]]}}
+    moves = [(100, 400), (130, 430)]
+    ok = {**parent, "metrics": {"m": [[10, 1.0, 1, "x"], [400, 2.0, 2, "x"], [430, 3.0, 3, "x"]]}}
+    assert ACC.correction_guard(parent, ok, moves) == []
+    swapped = {**parent, "metrics": {"m": [[10, 1.0, 1, "x"], [400, 3.0, 3, "x"], [430, 3.0, 3, "x"]]}}
+    assert ACC.correction_guard(parent, swapped, moves)
+
+
+def test_an_excluded_company_is_left_exactly_as_served(env, monkeypatch):
+    v1, ev = _legacy_publish(env, monkeypatch)
+    rec = ACC.run_correction(env["t"], ev, reason="t", p=env["p"], now=NOW + 3600, exclude_ciks={CIK})
+    assert rec["state"] == "NO_CHANGE" and rec["correction"]["planned"] == 0
+    assert PUB.read_current(env["t"])["version"] == v1 and _filing(env, "A-26-5")[0] == U("2026-09-29T12:30:38")

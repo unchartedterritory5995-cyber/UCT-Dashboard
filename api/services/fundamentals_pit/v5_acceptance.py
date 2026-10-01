@@ -175,38 +175,52 @@ def correction_windows(moves: list[tuple[int, int]]) -> list[tuple[int, int, fro
     return [(o, max(ns), frozenset(ns)) for o, ns in sorted(by.items())]
 
 
+def remap_metrics(metrics: dict, tmap: dict[int, int]) -> dict:
+    """The parent's served series with every point at a corrected filing's OLD effective time moved to its NEW one."""
+    return {m: sorted(([tmap.get(r[0], r[0])] + list(r[1:]) for r in rows), key=lambda r: r[0])
+            for m, rows in (metrics or {}).items()}
+
+
 def correction_guard(parent: dict | None, new: dict, moves) -> list[str]:
-    """[] iff `new` differs from `parent` ONLY by the corrected effective times:
-      - outside every correction window, every metric's as-of value (value, period, method) is identical at every
-        breakpoint of either series (so values before the old time and from the latest true time on are unchanged);
-      - inside a window the new series steps ONLY at the corrected filings' true acceptance times;
-      - split status and company-wide withholding are identical.
-    When one filing moves, this is exactly 'the parent with its effective time remapped'. When several filings that
-    shared an old time (e.g. the 06:00 ET floor) separate, the intermediate knowledge between their true times is the
-    one thing allowed to be new."""
+    """[] iff `new` differs from `parent` ONLY by the corrected effective times. Split status and company-wide
+    withholding must be identical, and:
+      EXACT (old -> new is a function: no two corrected filings shared an old time): `new` must be exactly the
+        parent with every point at an old time moved to its new time -- same values, periods, methods.
+      SHARED OLD TIME (several corrected filings sat at one old time, e.g. the 06:00 ET floor, and separate):
+        outside the correction windows [old time, latest true time) every as-of value is identical at every
+        breakpoint of either series; inside them the series steps ONLY at corrected filings' true acceptance
+        times. The knowledge between two such filings' true times is the one thing allowed to be new."""
     if parent is None:
         return ["no parent object"]
-    moves = list(moves.items()) if isinstance(moves, dict) else list(moves)
+    moves = [(o, n) for o, n in (moves.items() if isinstance(moves, dict) else moves) if o != n]
     errs = []
     if bool(parent.get("withheld_split_sensitive")) != bool(new.get("withheld_split_sensitive")):
         errs.append("withholding changed")
     if parent.get("split_status") != new.get("split_status"):
         errs.append("split_status changed")
-    wins = correction_windows(moves)
-    inside = lambda t: next((w for w in wins if w[0] <= t < w[1]), None)
+    tmap: dict[int, int] = {}
+    shared = False
+    for o, n in moves:
+        if tmap.setdefault(o, n) != n:
+            shared = True
     pm, nm = parent.get("metrics") or {}, new.get("metrics") or {}
+    if not shared:
+        want, got = remap_metrics(pm, tmap), {m: [list(r) for r in rows] for m, rows in nm.items()}
+        for m in sorted(set(want) | set(got)):
+            if want.get(m) != got.get(m):
+                errs.append(f"series {m} differs beyond the remapped effective times")
+        return errs
+    wins = correction_windows(moves)
+    allowed = {n for _, n in moves}
+    inside = lambda t: any(w[0] <= t < w[1] for w in wins)
     for m in sorted(set(pm) | set(nm)):
         a, b = sorted(pm.get(m) or [], key=lambda r: r[0]), sorted(nm.get(m) or [], key=lambda r: r[0])
-        for r in b:
-            w = inside(r[0])
-            if w is not None and r[0] not in w[2] and r[0] != w[0]:
-                errs.append(f"series {m} steps inside a correction window at a time that is no corrected filing's"); break
-            if w is not None and r[0] == w[0] and r[0] not in w[2]:
-                errs.append(f"series {m} still steps at a corrected filing's OLD effective time"); break
-        else:
-            for t in sorted({r[0] for r in a} | {r[0] for r in b}):
-                if inside(t) is None and _asof(a, t) != _asof(b, t):
-                    errs.append(f"series {m} differs outside the correction windows"); break
+        if any(inside(r[0]) and r[0] not in allowed for r in b):
+            errs.append(f"series {m} steps inside a correction window at a time that is no corrected filing's")
+            continue
+        for t in sorted({r[0] for r in a} | {r[0] for r in b}):
+            if not inside(t) and _asof(a, t) != _asof(b, t):
+                errs.append(f"series {m} differs outside the correction windows"); break
     return errs
 
 
@@ -246,6 +260,15 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
     resolve = resolve or header_acceptance
     if L.held(p):
         return {"state": "HOLD"}
+    # EDGAR re-reads happen BEFORE the pipeline lease (they take minutes; cycles must not wait on them)
+    reread: dict[str, tuple] = {}
+    for e in evidence:
+        if int(e["cik"]) in exclude_ciks:
+            continue
+        try:
+            reread[e["accn"]] = resolve(int(e["cik"]), e["accn"])
+        except AcceptanceUnavailable as x:
+            reread[e["accn"]] = x
     lease = L.Lease(p)
     if not lease.acquire():
         return {"state": "BUSY"}
@@ -277,7 +300,10 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
             resumed = done is not None and tuple(done) == (e["stored_accepted_at"], e["old_public_at"])                 and row[0] == e["authoritative_accepted_at"]
             if not resumed and (row[0] != e["stored_accepted_at"] or row[1] != e["old_public_at"]):
                 problems.append([accn, "live row differs from the audited stored value", row[:2]]); continue
-            raw, at, status = resolve(cik, accn)
+            got = reread.get(accn)
+            if not isinstance(got, tuple):
+                problems.append([accn, f"EDGAR acceptance record unavailable: {got}"]); continue
+            raw, at, status = got
             new_acc = int(at.timestamp())
             if raw != e["header_eastern"] or new_acc != e["authoritative_accepted_at"]:
                 problems.append([accn, "header re-read disagrees with the audit", raw, new_acc]); continue

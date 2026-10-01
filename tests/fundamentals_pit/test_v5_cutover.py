@@ -120,9 +120,9 @@ def _local_serving(env, monkeypatch):
     SV.clear_cache()
 
 
-def _batch(env, facts, accns, entries, **kw):
+def _batch(env, facts, accns, entries, now=NOW, **kw):
     SV.clear_cache()
-    return PL.run_batch("replay", target=env["t"], p=env["p"], now=NOW, entries=entries,
+    return PL.run_batch("replay", target=env["t"], p=env["p"], now=now, entries=entries,
                         fetch_company=_fetch(facts, accns), fetch_instance=lambda cik, accn: None, sync_split=False, **kw)
 
 
@@ -267,7 +267,9 @@ def test_a_crash_before_the_pointer_leaves_members_on_the_old_version(env, monke
     rec = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [{"accn": "A-24-2", "cik": CIK, "form": "10-Q"}])
     assert rec["state"] == "FAILED" and PUB.read_current(env["t"]) == cur0
     monkeypatch.setattr(env["t"], "put", real_put)
-    rec2 = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [])             # resumes from pending; same result
+    # resumes from pending; same result. A retry is a later batch (its own clock -> its own version id): reusing
+    # the crashed batch's id would make the write-once manifest check depend on whether the wall clock ticked.
+    rec2 = _batch(env, FACTS + [NEWQ], ACCNS + [NEWQ_ACCN], [], now=NOW + 60)
     assert rec2["state"] == "PUBLISHED"
 
 
