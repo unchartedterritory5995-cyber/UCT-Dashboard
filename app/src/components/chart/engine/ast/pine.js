@@ -100,6 +100,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
 import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed } from './interpret.js'
+import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
@@ -5809,6 +5810,11 @@ export class Resolver {
      *  which is the same claim `finalBindings.get(name) === bound` makes at the
      *  top level — asked of the object rather than of the name. */
     this.finalLocals = opts.finalLocals || new Set()
+    /** ⭐ C28 — the source position (token index) of the binding whose tree is
+     *  being read, while `resolveBindingInner` is inside one; `undefined` at an
+     *  output's own top level. `staleSnapshotRead` compares it with the first
+     *  write the closing pass could not fold. */
+    this.readAt = undefined
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
     /** name → the binding in scope where its own `[1]` was read: the SEED. */
@@ -6117,6 +6123,34 @@ export class Resolver {
     try { return this.resolveBindingInner(bound, tok, name) } finally { this.depth -= 1 }
   }
 
+  /** ⛔⛔ C28 — A SNAPSHOT DOES NOT SEE THE CLOSING PASS. Every binding carries
+   *  the env AS IT STOOD where it was written (`new Map(env)`), and the closing
+   *  pass condemns a name only in the FINAL env, after the walk. So a name bound
+   *  BELOW a write the walk could not fold still held the name's older binding in
+   *  its snapshot, and read it as if the write had never happened. ⚰️ MEASURED
+   *  on artemis-oscillator-pro (RDDT 1D): `float knnVal = 50.0`, then
+   *  `knnVal := kBull / knnK * 100.0` inside an `if` whose fold stops at a `for`,
+   *  then `knnIsBull = knnVal >= 60.0` — the plot lane read `50 >= 60` on every
+   *  bar, and the objects pane drew `◈ NEUTRAL`, `0%`, `29 ▼ BEAR` and `↓-3`
+   *  where TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR` and `↓-17`.
+   *
+   *  ⭐ ONE RULE: a historic top-level binding of a condemned name (`stale`,
+   *  stamped by the closing pass) is read only by a binding written BEFORE the
+   *  first write the walk could not fold — there it is Pine's value (a
+   *  statement above a reassignment reads what it held then). Read anywhere
+   *  else — below that write, at an output's top level, or inside a function
+   *  call frame whose call position this does not track — it refuses with the
+   *  condemnation's own sentence. `var` state keeps its own guard
+   *  (`staleLastWord`); a parameter or a local that shares the name is not in
+   *  the historic set and is untouched. */
+  staleSnapshotRead(bound, name) {
+    if (!name || bound.kind !== 'expr') return
+    const fin = this.finalBindings.get(name)
+    if (!fin || fin.kind !== 'opaque' || !fin.stale || !fin.stale.bindings.has(bound)) return
+    if (this.frames.length === 0 && Number.isFinite(this.readAt) && this.readAt < fin.stale.cut) return
+    throw new PineRefusal(fin.guard, fin.message, fin.at)
+  }
+
   resolveBindingInner(bound, tok, name) {
     if (!bound) {
       // ⭐ Same question as the other refusal site: a name the closed table holds
@@ -6145,6 +6179,7 @@ export class Resolver {
       throw this.undefinedName(name, tok)
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
+    this.staleSnapshotRead(bound, name)
     if (bound.kind === 'state') {
       // ⭐⭐ A READ OF A `var` BETWEEN TWO OF ITS OWN REASSIGNMENTS (2026-09-28).
       // `bound` is then not the last word on the name, and folding IT into an
@@ -6398,8 +6433,11 @@ export class Resolver {
           try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = innerEnv }
         })
         if (!out) {
+          // ⭐ C27 — a tuple element of a request below the chart names why.
+          const lower = this.lowerTfDeclineOf(bound.call)
           throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\``, bound.at || locate(tok))
+            `${REFUSALS['pine:request']} — \`${name}\`${lower ? `: ${lower.why}` : ''}`,
+            bound.at || locate(tok))
         }
         return out
       } finally { this.env = prevEnv }
@@ -6473,7 +6511,9 @@ export class Resolver {
     }
     this.stack.add(bound)
     const prevEnv = this.env
+    const prevReadAt = this.readAt
     if (bound.env) this.env = bound.env
+    if (bound.at && Number.isFinite(bound.at.index)) this.readAt = bound.at.index
     try {
       const body = this.resolve(bound.node)
       if (isFinalOfMutable && this.recurrenceSeeds.has(name)
@@ -6559,6 +6599,7 @@ export class Resolver {
       this.stack.delete(bound)
       this.stack = prevStack
       this.env = prevEnv
+      this.readAt = prevReadAt
       this.buildingRecurrence = wasBuilding
       if (buildMarker) {
         const k = this.stateBuilds.lastIndexOf(buildMarker)
@@ -9370,6 +9411,16 @@ export class Resolver {
             locate(node.tok), decline.suggest)
         }
       }
+      // ⭐ C27 — the intrabar ARRAY form names its reason too (`lowerTf.js`).
+      if (name === 'request.security_lower_tf') {
+        const argv = node.args || []
+        const tfArg = argv.find((a) => a && a.name === 'timeframe') || argv.filter((a) => a && !a.name)[1]
+        const raw = tfArg ? this.timeframeLiteralOf(tfArg.value) : null
+        const code = raw === null ? '?'
+          : (PINE_TF_SPELLING[String(raw).trim().toUpperCase()] || String(raw))
+        const refusal = lowerTfRefusal({ code, base: this.basePeriod, array: true })
+        throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\`: ${refusal.why}`, locate(node.tok))
+      }
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     if (ns && !VALUE_NAMESPACES.has(ns)) {
@@ -9987,6 +10038,8 @@ export class Resolver {
     if (this.ownTimeframeOf(tfNode) === null) {
       const raw = this.timeframeLiteralOf(tfNode)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      const lower = this.lowerTfDeclineOf(node)
+      const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
         // was only ever correct by accident: `.join(' and ')` reads right for the
@@ -10000,13 +10053,37 @@ export class Resolver {
         return {
           suggest: 'timeframe.period',
           why: `this engine resamples ${names} from the daily bars it holds, and `
-            + `\`${String(raw)}\` is not one of them. ⚠️ THIS IS NOT THE SAME REQUEST: `
+            + `\`${String(raw)}\` is not one of them.${lowerWhy} ⚠️ THIS IS NOT THE SAME REQUEST: `
             + '`timeframe.period` reads the timeframe the chart is on rather than '
             + 'forcing one, so decide whether that is what you meant before you take it.',
         }
       }
     }
     return null
+  }
+
+  /** ⭐⭐ C27 — WHY A `request.security` BELOW THE CHART'S OWN TIMEFRAME IS NOT
+   *  SERVED, or null when the call is not such a request. A timeframe below the
+   *  chart reads intraday bars the chart does not hold — not a resample question —
+   *  and whether and how that is served is `lowerTf.js`'s answer alone
+   *  (`lowerTfRefusal`): look-ahead, another symbol, a code the store does not
+   *  serve, or the reading TradingView has not been captured giving. The ONE
+   *  reader here; both refusal sites (the call's own and a tuple element's) ask it. */
+  lowerTfDeclineOf(node) {
+    // ⛔ ONLY what `requestTargetOf` already read for this call (`requestCodes`):
+    // nothing here resolves an argument again, so naming a refusal is free.
+    if (!this.requestCodes || !this.requestCodes.has(node)) return null
+    const { code, other } = this.requestCodes.get(node)
+    if (!code || code === this.basePeriod || !isLowerTfRequest(code, this.basePeriod)) return null
+    const args = node.args || []
+    const placed = positionaliseSecurityArgs(args)
+    if (!placed) return null
+    return lowerTfRefusal({
+      code,
+      base: this.basePeriod,
+      lookahead: this.requestLookaheadOf(args, placed) !== false,
+      other,
+    })
   }
 
   /** The `ticker.new(…)` / `tickerid(…)` call behind a symbol argument, however
@@ -10300,7 +10377,15 @@ export class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
+    // `request.security`: "To use the chart's main timeframe, use an empty
+    // string or the `timeframe.period` variable." The `''` spelling (a literal,
+    // or an `input.timeframe` whose default is `''`) is therefore the identity,
+    // the same request `timeframe.period` makes. ⚰️ It fell through to
+    // `pine:request`, and a colour written through it drew in the pane's gold
+    // where TradingView draws the script's own (donchian-channels, RDDT 1D).
     const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
+      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
     let code = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
@@ -10309,6 +10394,11 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⭐ C27 — what this call ASKED for, kept for `lowerTfDeclineOf`, so naming
+      // a refusal never resolves the timeframe argument a second time (a second
+      // read would charge the step budget for work already done).
+      if (!this.requestCodes) this.requestCodes = new WeakMap()
+      this.requestCodes.set(node, { code, other })
       if (!code) return null
 
       // ⭐⭐ A LITERAL THAT NAMES THE ENGINE'S OWN BASE IS THE IDENTITY (ruling 3.5,
@@ -10360,6 +10450,22 @@ export class Resolver {
     // their script AND the honest label, instead of a refusal for a thing we could
     // model. ⚠️ An UNRECOGNISED lookahead spelling still falls through to refused:
     // this admits the two declared values, never "anything that isn't off".
+    let live = this.requestLookaheadOf(args, placed)
+    if (live === null) return null
+
+    // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
+    // there is no period to be part-way through, so `lookahead_on` at
+    // `timeframe.period` is the identity the same way `lookahead_off` is.
+    if (live && !code) live = false
+
+    return { own, other, venue, code, live, positional }
+  }
+
+  /** ⭐ C27 — THE `lookahead` A REQUEST ASKS FOR: true (on), false (off), or null
+   *  for a spelling this door cannot read (the whole call then declines). Split
+   *  out of `requestTargetOf`, never copied, so `securityDeclineReason` names a
+   *  lower-timeframe look-ahead from the same reading. */
+  requestLookaheadOf(args, placed) {
     let live = false
     let sawLookahead = false
     for (const a of args) {
@@ -10423,13 +10529,7 @@ export class Resolver {
       const slot = placed[REQUEST_SECURITY_ARGS.indexOf('lookahead')]
       if (slot && slot.tok && slot.tok.value === 'true') live = true
     }
-
-    // ⛔ AND A LOOK-AHEAD READ OF THE CHART'S OWN TIMEFRAME IS NOTHING TO MODEL:
-    // there is no period to be part-way through, so `lookahead_on` at
-    // `timeframe.period` is the identity the same way `lookahead_off` is.
-    if (live && !code) live = false
-
-    return { own, other, venue, code, live, positional }
+    return live
   }
 
   /**
@@ -19421,6 +19521,19 @@ function translatePineResult(source, opts = {}) {
   // ⚠️ IT MUST OVERWRITE. Every other marker in this function refuses to clobber
   // an existing binding, which is right for them and wrong for this: the whole
   // job is to replace a binding the walk was too optimistic about.
+  // ⭐ C28 — what `Resolver.staleSnapshotRead` reads: every TOP-LEVEL binding the
+  // name held before it was condemned (`envLog`'s `prev`s and the one it holds
+  // now), and the first position its value stopped being known (`cut`). Stamped
+  // onto the condemning binding, because only the final env ever sees it.
+  const condemnStale = (name, cut, condemn) => {
+    const bindings = new Set()
+    for (const e of envLog.get(name) || []) if (e.prev) bindings.add(e.prev)
+    const before = env.get(name)
+    if (before) bindings.add(before)
+    condemn()
+    const fin = env.get(name)
+    if (fin && fin.kind === 'opaque' && Number.isFinite(cut)) fin.stale = { cut, bindings }
+  }
   for (const [name, toks] of reassigned) {
     const missed = toks.find((t) => !ctx.consumed.has(t.index))
     const why = unfoldable.get(name)
@@ -19468,10 +19581,11 @@ function translatePineResult(source, opts = {}) {
         ? `\`${name}\` — and the fold stopped before it, at line ${why.line}: ${why.message}`
         : null
       const reason = carried || fromChain || `\`${name}\``
-      forceOpaque(name, 'pine:reassign', locate(missed), reason)
+      const cut = Math.min(...toks.filter((t) => !ctx.consumed.has(t.index)).map((t) => t.index))
+      condemnStale(name, cut, () => forceOpaque(name, 'pine:reassign', locate(missed), reason))
     } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
-      forceOpaque(name, why.guard,
-        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+      condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
     }
   }
   // ⛔⛔ A TOP-LEVEL `array.set` INVALIDATES ITS VECTOR TOO, AND UNTIL
@@ -19514,8 +19628,8 @@ function translatePineResult(source, opts = {}) {
   for (const [name, why] of unfoldable) {
     const bound = env.get(name)
     if (!bound || bound.kind === 'opaque') continue
-    forceOpaque(name, why.guard,
-      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+    condemnStale(name, why.index, () => forceOpaque(name, why.guard,
+      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``))
   }
 
   /** ⭐ THE LAST WORD ON EVERY NAME, captured once the walk is over. It answers
@@ -21574,6 +21688,43 @@ function chainPalette(acc) {
   return { palette, opacity: agree && a0 !== null ? a0 : null }
 }
 
+/** ⭐⭐ C28b — A COLOUR COMPUTED BY `request.security` IS THE SAME RULE, ASKED
+ *  IN THE REQUESTED CONTEXT. `request.security(sym, tf, a ? c1 : b ? c2 : na)`
+ *  with every leaf a static colour picks its leaf by tests evaluated on the
+ *  requested bars — so the rule is the inner one, and only its DECIDING tree
+ *  (the two-colour test, or the chain's index) moves inside the request:
+ *  `request.security(sym, tf, <that tree>)`. The Resolver then answers the
+ *  wrapped tree through `securityAsNode`, the one reader of symbol, period and
+ *  lookahead, so a colour and a plot of the same request cannot disagree; a
+ *  request it refuses fails soft to `colorDynamic`, as any rule does.
+ *  ⚰️ MEASURED on donchian-channels (NYSE:RDDT 1D): `color =
+ *  request.security(syminfo.tickerid, timeframeInput, close > basis[1] ? … :
+ *  close < basis[1] ? … : na)` drew its Basis in the pane's gold on 533 bars
+ *  where TradingView draws blue, red, or nothing.
+ *  Returns `undefined` for a call that is not a request (the caller goes on),
+ *  else the rule or null. New rules never mint (`withholdMint`, R36). */
+function securityColourRule(node, env, depth, ctx) {
+  if (node.name !== 'request.security' && node.name !== 'security') return undefined
+  const args = node.args || []
+  const placed = positionaliseSecurityArgs(args)
+  if (!placed || placed[2] === undefined) return null
+  let at = args.findIndex((a) => a && a.name === 'expression')
+  if (at < 0) {
+    let k = -1
+    at = args.findIndex((a) => a && !a.name && (k += 1) === 2)
+  }
+  if (at < 0) return null
+  const inner = colourConditional(placed[2], env, depth + 1, ctx)
+  if (!inner || inner.inline) return inner && inner.inline ? null : inner
+  const wrap = (tree) => ({
+    ...node,
+    args: args.map((a, i) => (i === at ? { ...a, value: tree } : a)),
+  })
+  if (inner.indexTree) return { ...inner, indexTree: wrap(inner.indexTree), withholdMint: true }
+  if (inner.test) return { ...inner, test: wrap(inner.test), withholdMint: true }
+  return inner
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -21607,6 +21758,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
   // the outer call's arguments.
   if (node.type === 'call') {
     if (ctx && ctx.inline) return null
+    const requested = securityColourRule(node, env, depth, ctx)
+    if (requested !== undefined) return requested
     const helper = openColourHelper(node, env, ctx)
     if (!helper) return null
     const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })

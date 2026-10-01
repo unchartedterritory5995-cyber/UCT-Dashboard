@@ -59,6 +59,26 @@
 > `chain/chain-through-L8.jsonl`, `check-origin-master-round2-*.log`,
 > `rehearse_round2.py`, `sandbox/s01-tip2/`, `sandbox/s-L8/`).
 >
+> ⭐ **RE-MEASURED A FOURTH TIME AT `599cd44f1` (L9 #256 + L10 #257 + L12 #258, production's tip,
+> 2026-09-30; lane R1e).** `L12` is the new top row; `L10` and `L9` are the next two. L9 (R1d's own
+> PR, merged after R1d wrote `MEASURED_AT=6f563c158` so it could not measure itself) ships zero
+> `app/` or `api/` files -- same shape as L6/L8 -- selected by PATH only (its one Notebook-owned
+> file is `tests/test_notebook_rollback_chain.py`), declared in `CHAIN_BY_PATH_ONLY`. L10 and L12
+> DO ship real `app/`/`api/` Notebook code, but their squash subjects read "Notebook w10 LN: ..."
+> rather than "Notebook 10/10 -- wave 10 LN: ...", dropping the word "wave" `NOTEBOOK_SUBJECT`
+> requires -- a NEW, different reason for the same declared PATH-only exception. All three revert
+> with 0 conflicts. The whole chain was rebuilt from the new tip: all sixteen pins recorded at
+> `8d08da86f` came back byte-identical, no new conflict anywhere in the chain. Nine more path-only
+> commits in the window were read and ruled NOT Notebook landings (two econ-harness entries to the
+> shared `reachable.test.js` rail, an event-loop fix and a Terminal-Next router mount each touching
+> only `api/main.py`, a Terminal-Next flag reader touching only `api/routers/auth.py`, a BRK-01
+> router+flag mount, a revert/reapply pair of another workstream's wave-3 Pine-engine integrate
+> merge, and a clock/build-budget perf commit sharing the wave-3 pair's `vite.config.js` plugin),
+> all added to `REVIEWED_NOT_LANDINGS`. `MEASURED_AT` is `599cd44f1`. Rehearsed on a sandbox: the
+> tip, through `L12` and through `L10`. L12's door (`sort=updated_asc` on `GET /api/j2/notes`) and
+> L10's door (the template-gallery card count) are read in the table below. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1e/` (`sandbox-results.md` is the table).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -109,6 +129,9 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L12` | `599cd44f1` | wave 10 L12 #258 | |
+| `L10` | `8eb7f008b` | wave 10 L10 #257 | |
+| `L9` | `89390fb85` | wave 10 L9 #256 | |
 | `L8` | `6f563c158` | wave 10 L8 #255 | |
 | `L7` | `8d08da86f` | wave 10 L7 #254 | |
 | `L6` | `3fb184cdf` | wave 10 L6 #253 | |
@@ -619,6 +642,46 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-09-30: L9 #256 + L10 #257 + L12 #258 on top, from `6f563c158` (lane R1e)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-09-30-r1e/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | product conflicts | new since 2026-09-29 (R1d) |
+|---|---|---|
+| `L12` | 0 | the new top step. Ships real `app/`/`api/` Notebook code (silent failures, the server-side `updated_asc`/`title_desc` sort toggle, typing fixes, the quote-in-list disable) -- its squash subject reads "Notebook w10 L12: ..." (drops "wave"), so SUBJECT still does not select it; in CHAIN by path |
+| `L10` | 0 | the second new step. Ships real `app/`/`api/` Notebook code (the 25-template gallery, design-review close-out) -- same subject-format reason as L12, in CHAIN by path |
+| `L9` | 0 | the third new step. Ships zero `app/` or `api/` file at all (the rollback tool's own coverage for L6/L7/L8 -- R1d's own PR, merged after R1d wrote `MEASURED_AT=6f563c158`); in CHAIN by path, same reason as L6/L8 |
+| `L8`...`wave5`, guards | unchanged | -- (same rules, same pins) |
+
+- **All sixteen pins recorded at `8d08da86f` came back byte-identical** from the new tip
+  (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-09-30-r1e/chain/record-pins-output.json`). Nothing that landed
+  between `6f563c158` and `599cd44f1` changed the lines of a conflict the chain already resolves.
+- **The census of the new window** (`evidence/rollback-rehearsal-2026-09-30-r1e/check-before.log`,
+  the raw `--check` refusal before this lane's edit): 12 commits selected -- `L12`, `L10` and `L9`
+  by path only (real landings, declared in `CHAIN_BY_PATH_ONLY` -- see the tool's own comment), and
+  9 more by path only, all added to `REVIEWED_NOT_LANDINGS` with a reason apiece. A rail derives the
+  window from the tool's own census and fails on any selected commit that is neither in `CHAIN` nor
+  reviewed.
+- **None of the 9 reviewed commits edits Notebook-owned code** (no `app/src/pages/journal-2-0/**`,
+  no `api/services/journal_two/**`, no `notebook_*.py` router). Two were handed down already ruled
+  by the controller and reverified here by reading them: `df82f7a1e` (a revert of another
+  workstream's wave-3 Pine-engine integrate merge `a3afa840d` -- a 2-parent merge commit, never
+  itself selected by the census) and `da7d23f49` (a clock/build-budget perf commit sharing
+  `vite.config.js`'s manifest-stripping plugin). `ae60a34b3` is the mirror-image reapply of
+  `df82f7a1e`'s own revert (the same workstream toggling itself), read side by side with it and
+  confirmed byte-identical except for the one async/await pairing each one flips.
+
+**The sandbox rehearsal, 2026-09-30 (lane R1e).**
+`evidence/rollback-rehearsal-2026-09-30-r1e/rehearse.py` (same method as R1's, R1b's, R1c's and
+R1d's) and `probe.py` (imports R1d's probe for the never-revert set, the per-landing doors and L7's
+door; adds L12's door -- `sort=updated_asc` on `GET /api/j2/notes`, honored at the tip and fallen
+back to `updated_at DESC` through `L12` and through `L10` -- and L10's door -- the template
+gallery's `[data-template-card]` count, 27 at the tip and through `L12`, 11 through `L10`, gone
+exactly at L10's own step; L9 ships no door, verified as a pure behaviour-preservation check like
+L6's and L8's). Full table: `evidence/rollback-rehearsal-2026-09-30-r1e/sandbox-results.md`.
 
 ## Measured, 2026-09-29: L6 #253 + L7 #254 on top, from `8d08da86f` (lane R1d)
 

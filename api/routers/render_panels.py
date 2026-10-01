@@ -253,8 +253,13 @@ def render_earnings_history(token: str = "", syms: str = ""):
 # Public-safe flow fields — the structured conviction board the engine already
 # emits into wire["options_flow"]. Same board the FREE OptionsFlow page shows; the
 # rows are display-shaped (no raw signal-sourcing), so we pass them through capped.
+# ⚰️ FlowRender.jsx also reads trade_type / oi_state / streak; they were missing
+# here, so the letter's flow image always printed a blank Type column, uncoloured
+# vol/OI tags and no multi-day streak badge (META 7D, U 8D on 9/30). The rail in
+# tests/test_render_flow_public_fields.py derives the list from the renderer.
 _FLOW_PUBLIC = ("sym", "cp", "call_put", "strike_label", "exp_label", "prem_spoken",
-                "vol_oi_tag", "er", "sentiment", "urgency", "urgency_cls", "bought", "size_pct")
+                "vol_oi_tag", "er", "sentiment", "urgency", "urgency_cls", "bought", "size_pct",
+                "trade_type", "oi_state", "streak")
 
 
 @router.get("/r/flow")

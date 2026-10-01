@@ -108,21 +108,35 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
     // and pro-trading-art (a window's `readMemo`), adaptive-trend-following and
     // 72s-hull (Track F minting — the two § C9 names).
     const PINNED = {
+      // ⭐ C28 moved artemis and 72s-hull (`Resolver.staleSnapshotRead`): a name
+      // bound below a write the walk could not fold now refuses at the read
+      // instead of resolving on through the declaration, so fewer Resolvers are
+      // built and fewer steps spent. 72s-hull's outputs are byte-identical (the
+      // refusal is inside a probe); artemis withholds four cells TradingView
+      // does not draw (`vendorHarness.c28StaleSnapshot`). Pre-C28: artemis
+      // plain [603, 758613, 'b59350139db56c8b'] / manifest [603, 758621,
+      // '71eed9b8287182f3'], 72s-hull [101, 1387, 'a3aad37da07d35dd'] both.
+      // ⭐ C28b moved artemis and htf-liquidity again: a `request.security` whose
+      // timeframe is `''` (an `input.timeframe('')`) is the identity now, so it
+      // resolves on instead of refusing — more steps, outputs byte-identical
+      // (translation census). Pre-C28b: artemis [521, 405316, '0ed727028fb37e4b']
+      // / [521, 405324, '4fd1716a833c1b5d'], htf-liquidity [691, 5704,
+      // '83d96de74e5b2d0d'] both.
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [603, 758613, 'b59350139db56c8b'], manifest: [603, 758621, '71eed9b8287182f3'] },
+        plain: [521, 405996, '65582febd0bccf56'], manifest: [521, 406004, '41fd10acf67ccfb8'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
       // exactly as the merged tree does: C24's replay still charges what the
       // repeat would have. Pre-C22, pre-C24: [691, 4876, 'f537521acc6fad15'].
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [691, 5704, '83d96de74e5b2d0d'], manifest: [691, 5704, '83d96de74e5b2d0d'] },
+        plain: [691, 5824, '9ae53426ed6cfe3f'], manifest: [691, 5824, '9ae53426ed6cfe3f'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
         plain: [38, 20104, '1c4c4d2d8bb41941'], manifest: [38, 20110, '751365c865ed51f9'] },
       '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt': {
-        plain: [101, 1387, 'a3aad37da07d35dd'], manifest: [101, 1387, 'a3aad37da07d35dd'] },
+        plain: [101, 931, 'b03efcd81da53a58'], manifest: [101, 931, 'b03efcd81da53a58'] },
     }
     const got = {}
     for (const name of Object.keys(PINNED)) {

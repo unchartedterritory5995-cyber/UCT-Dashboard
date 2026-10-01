@@ -174,9 +174,14 @@ describe('R14 — a refusal set is a property of the surface', () => {
       .toBeGreaterThan(0)
     expect(roc.unexplained.map((r) => r.guard)).toEqual(['pine:hidden-only'])
 
+    // ⚰️ RE-PINNED 2026-09-30 (C28b): line 10 is `security(syminfo.tickerid, res, …)`
+    // with `res = input(type=input.resolution, defval="")` — the chart's own
+    // timeframe, the identity — so the screener no longer refuses it
+    // (`pine:request@10`) and stops at its next wall, the `v1 := …` recurrence on
+    // line 18. The host side still refuses line 10 for its own reason.
     const h20 = lanes('high_engagement__20-ehlers-fisher-transform-cheatcountry.pine').c
     expect(h20.unexplained.map((r) => `${r.guard}@${r.line}`))
-      .toEqual(['pine:request@10', 'pine:request@10', 'pine:request@10', 'pine:request@10'])
+      .toEqual(['pine:state@18', 'pine:state@18', 'pine:state@18', 'pine:state@18'])
     expect(h20.hostOnly.every((r) => r.line === 10),
       'the host-only side of this script moved off line 10').toBe(true)
   })

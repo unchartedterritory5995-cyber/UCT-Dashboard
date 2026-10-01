@@ -466,10 +466,13 @@ export default function ChartSettingsIndicators({
   // drawn only when a narrower panel really makes the strip scroll. A DOM
   // attribute, not state: it restyles one element and must not re-render the panel.
   const tabsObserver = useRef(null)
+  const tabsCheck = useRef(null)
   const tabsRef = useCallback((el) => {
     if (tabsObserver.current) { tabsObserver.current.disconnect(); tabsObserver.current = null }
+    tabsCheck.current = null
     if (!el) return
     const check = () => { el.dataset.overflowing = el.scrollWidth > el.clientWidth + 1 ? 'true' : 'false' }
+    tabsCheck.current = check
     check()
     if (typeof ResizeObserver === 'function') {
       tabsObserver.current = new ResizeObserver(check)
@@ -874,6 +877,9 @@ export default function ChartSettingsIndicators({
   const econCat = useEconomicCatalog(discovering)
   const econAvailable = econCat.available
   const libraryTabs = libraryTabsFor({ economic: econAvailable })
+  // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
+  // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
+  useLayoutEffect(() => { if (tabsCheck.current) tabsCheck.current() }, [libraryTabs])
 
   // ⭐ THE ROW A MEMBER CLICKS AND THE RESULT IT WAS BUILT FROM, KEPT TOGETHER.
   //
@@ -2838,6 +2844,7 @@ export default function ChartSettingsIndicators({
     // click is not offered.
     const refused = row.capability === CAPABILITY.UNSUPPORTED
     const canAdd = !on && !refused
+    const isEcon = row.kind === 'economic'
     return (
       <li
         key={row.key || row.id}
@@ -2874,10 +2881,14 @@ export default function ChartSettingsIndicators({
         <span className={styles.resGlyph} data-glyph={glyphFamilyOf(row)} aria-hidden="true">
           <UIcon name={glyphNameOf(row)} size={20} gold={false} strokeWidth={1.5} />
         </span>
-        <span className={styles.resMain}>
+        {/* ⭐ AN ECONOMIC ROW IS TWO LEVELS (owner, 2026-09-30): the NAME owns line one
+            and `SYMBOL · agency · frequency · units` sits under it in the muted ink.
+            On one line the name, chip and metadata split ~330px three ways and every
+            name truncated to a word. Economic only — every other kind keeps its line. */}
+        <span className={`${styles.resMain} ${isEcon ? styles.resMainStacked : ''}`}>
           <span className={styles.resTitleRow}>
             <span className={styles.resName}>{row.name}</span>
-            <span className={styles.resShort}>{row.shortName}</span>
+            {!isEcon && <span className={styles.resShort}>{row.shortName}</span>}
             {row.userDefined && <span className={styles.resMine}>Your formula</span>}
             {row.sessionOnly && <span className={styles.resPill}>Intraday only</span>}
             {/* The LINTER's measurement, per plot — never the definition's own
@@ -2919,9 +2930,14 @@ export default function ChartSettingsIndicators({
             && row.description.trim() !== String(row.name || '').trim() && (
             <span className={styles.resSub}>{row.description}</span>
           )}
-          {/* An economic row's second half: `agency · frequency · units`. */}
-          {row.kind === 'economic' && row.sub && (
-            <span className={styles.resSub} data-testid="econ-row-sub">{row.sub}</span>
+          {/* An economic row's second line: `SYMBOL · agency · frequency · units`.
+              ⚠️ Truncates last; the row's `title` carries the full name + metadata. */}
+          {isEcon && (row.shortName || row.sub) && (
+            <span className={styles.resMeta} data-testid="econ-row-meta">
+              {row.shortName && <span className={styles.resMetaSym}>{row.shortName}</span>}
+              {row.shortName && row.sub && <span aria-hidden="true"> · </span>}
+              {row.sub && <span data-testid="econ-row-sub">{row.sub}</span>}
+            </span>
           )}
           {/* ⚰️⚰️ THE DESCRIPTION WAS A SECOND LINE HERE AND IS NOW THE ROW'S
               TOOLTIP. It cost 34px of every row — with the padding, a result was
@@ -3057,7 +3073,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, positioning or formulas…"
+            placeholder="Search indicators, symbols, or formulas…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
