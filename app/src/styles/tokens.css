@@ -578,6 +578,22 @@
   --text-display: 40px;
 }
 
+/* Control density (TERM-067). Three steps over the canonical control geometry
+   above; the default step is :root's own values, so nothing changes until a
+   surface opts in with data-control-density on any ancestor.
+   The attribute is NOT data-density: the provenance components already use that
+   name, with their own values (mini, compact, ondemand, full, inline). */
+[data-control-density='compact'] {
+  --control-pad-y: 5px;
+  --control-pad-x: 8px;
+  --control-font: var(--text-sm);
+}
+[data-control-density='comfortable'] {
+  --control-pad-y: 11px;
+  --control-pad-x: 14px;
+  --control-font: var(--text-md);
+}
+
 /* ── Phone comfort scale ───────────────────────────────────────────────────
    On phones, nudge the smallest type tokens up one step so token-compliant UI
    (labels, captions, body, controls) reads comfortably on a 375px screen. Dense

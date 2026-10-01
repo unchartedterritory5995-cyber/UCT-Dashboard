@@ -12,8 +12,9 @@ WHAT ONE RUN DOES
   2. Streams one CSV row per contract into a gzip file on local disk -- never the
      whole chain in memory.
   3. Builds a per-underlying summary in the same pass: contracts, call/put open
-     interest, the underlying's price, and one at-the-money IV (nearest expiry
-     20-45 days out, the strike closest to the underlying; mean of call and put IV).
+     interest, the underlying's price, and one at-the-money IV (the expiry CLOSEST
+     to 30 days out within 7-90 days, the strike closest to the underlying; mean of
+     call and put IV), with the days-to-expiry it was read at.
      That summary is what an IV rank will read once history exists.
   4. Uploads both files plus a manifest to R2 (the DATA_SYNC_* bucket the store
      backups use) under `options_log/<YYYY>/<YYYY-MM-DD>.*`.
@@ -44,7 +45,12 @@ PAGE_LIMIT = 250
 TIME_BUDGET_S = 40 * 60          # measured 13 min; 3x headroom before calling it partial
 PAGE_RETRIES = 3
 KEY_PREFIX = "options_log"
-ATM_DTE_MIN, ATM_DTE_MAX = 20, 45
+#: The ATM read takes the expiry closest to ATM_DTE_TARGET within [MIN, MAX].
+#: First run (2026-09-30) used a fixed 20-45 day window and found an ATM IV for only
+#: 687 of 6,034 underlyings: most names list monthlies only, and that day the
+#: monthlies sat at 16 and 51 days. "Closest to 30" is the standard constant-maturity
+#: read, and the DTE travels with the number so two days are comparable.
+ATM_DTE_MIN, ATM_DTE_MAX, ATM_DTE_TARGET = 7, 90, 30
 
 _ET = ZoneInfo("America/New_York")
 
@@ -52,7 +58,7 @@ CONTRACT_FIELDS = ("contract", "underlying", "expiration", "strike", "type",
                    "open_interest", "iv", "delta", "gamma", "theta", "vega",
                    "bid", "ask", "last", "volume", "vwap", "underlying_price")
 UNDERLYING_FIELDS = ("underlying", "contracts", "call_oi", "put_oi", "underlying_price",
-                     "atm_iv", "atm_expiration", "atm_strike")
+                     "atm_iv", "atm_expiration", "atm_strike", "atm_dte")
 
 
 def is_enabled() -> bool:
@@ -120,16 +126,19 @@ class _Summary:
         for und in sorted(self.by):
             s = self.by[und]
             px = s["underlying_price"]
-            atm_iv = atm_exp = atm_strike = None
+            atm_iv = atm_exp = atm_strike = atm_dte = None
             if px is not None and s["_atm"]:
-                nearest_exp = min(e for e, _ in s["_atm"])
-                strikes = [k for e, k in s["_atm"] if e == nearest_exp]
+                dte_of = {e: (_dt.date.fromisoformat(e) - self.session).days
+                          for e in {e for e, _ in s["_atm"]}}
+                # closest to the target; an exact tie takes the NEARER expiry
+                chosen = min(dte_of, key=lambda e: (abs(dte_of[e] - ATM_DTE_TARGET), dte_of[e]))
+                strikes = [k for e, k in s["_atm"] if e == chosen]
                 atm_strike = min(strikes, key=lambda k: abs(k - px))
-                ivs = s["_atm"][(nearest_exp, atm_strike)]
-                atm_iv, atm_exp = round(sum(ivs) / len(ivs), 6), nearest_exp
+                ivs = s["_atm"][(chosen, atm_strike)]
+                atm_iv, atm_exp, atm_dte = round(sum(ivs) / len(ivs), 6), chosen, dte_of[chosen]
             yield {"underlying": und, "contracts": s["contracts"], "call_oi": s["call_oi"],
                    "put_oi": s["put_oi"], "underlying_price": px, "atm_iv": atm_iv,
-                   "atm_expiration": atm_exp, "atm_strike": atm_strike}
+                   "atm_expiration": atm_exp, "atm_strike": atm_strike, "atm_dte": atm_dte}
 
 
 def walk(get: Callable[[str], dict], api_key: str, *, budget_s: float = TIME_BUDGET_S,
@@ -162,6 +171,30 @@ def walk(get: Callable[[str], dict], api_key: str, *, budget_s: float = TIME_BUD
         url = f"{nxt}&apiKey={api_key}" if nxt else None
     yield {"_receipt": {"pages": pages, "complete": reason is None and url is None,
                         "reason": reason}}
+
+
+def resummarize(contracts_gz_path: str, session: _dt.date, out_gz_path: str) -> int:
+    """Rebuild the per-underlying summary FROM a stored contracts file -- the full
+    record is the authority, so a summary rule can change without losing a day.
+    Returns the number of underlyings written."""
+    summary = _Summary(session)
+    num = ("strike", "open_interest", "iv", "underlying_price")
+    with gzip.open(contracts_gz_path, "rt", newline="", encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            for k in num:
+                v = r.get(k)
+                # a whole number comes back as int, so a rebuilt summary is
+                # byte-identical to one written in the original pass
+                r[k] = None if v in (None, "") else (float(v) if "." in v or "e" in v.lower() else int(v))
+            summary.add(r)
+    n = 0
+    with gzip.open(out_gz_path, "wt", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=UNDERLYING_FIELDS)
+        w.writeheader()
+        for row in summary.rows():
+            w.writerow(row)
+            n += 1
+    return n
 
 
 def keys_for(session: _dt.date) -> dict:
