@@ -3,8 +3,8 @@
 Branch `feat/notebook-w10-ty3`, based at `f314076f7`. Raw evidence commits, in order:
 `48dee1028f` (traced attribution at the base, R-RAW) · `39fd60e277` (the lever + the
 real-browser checks + `exportNote.test.js`) · `e0bd10c53d` (the interleaved A/B, raw,
-R-RAW). This file is the interpretation; every number below is cited to a committed raw
-file.
+R-RAW) · `ff36e7aed2` (traced attribution WITH the lever, raw, R-RAW). This file is the
+interpretation; every number below is cited to a committed raw file.
 
 ## What was measured first (the attribution), and what it changed about the plan
 
@@ -47,6 +47,37 @@ change: the trace shows exactly **one** `Layout` operation per keystroke, not se
 spread across separate formatting-context roots -- not evidence of layout escaping into
 the surrounding page chrome. Lever 3: nothing else in the trace names a distinct,
 separately-addressable cost that lever 1 does not already reach.
+
+## The trace, before vs after the lever
+
+A second traced attribution, same recipe, at HEAD (`29b6f29c6`, i.e. the lever + the
+real-browser-check tool committed), box not quiet (lock FREE, load BUSY -- 2 unrelated
+pytest processes; run anyway, said so) -- `ty3-attr-after.json`/`.log`. Not a matched-load
+pair with the base reading (that one was QUIET), so these are a DIRECTION, not a clean
+percentage; the direction is what matters here.
+
+| phase | before (quiet) | after (loaded) | note |
+|---|---:|---:|---|
+| UpdateLayoutTree (style recalc) | 0.013 | 0.009 | already near-free; stayed near-free |
+| **Layout** | **0.870** | **1.110** | higher, not lower |
+| PrePaint | 0.539 | 0.564 | roughly flat |
+| Paint | 0.357 | 0.350 | roughly flat |
+| Layerize | 0.337 | 0.462 | higher |
+| Commit | 0.248 | 0.253 | roughly flat |
+| FunctionCall (editor's own JS) | 5.546 | 5.463 | roughly flat (not CSS-ownable either way) |
+| **IntersectionObserverController::computeIntersections** | **absent** | **2.732** | **new -- content-visibility's own bookkeeping cost** |
+| renderer main thread, total busy | 12.462 | 13.929 | **+1.467 ms/key** |
+
+**None of the containment-eligible phases got cheaper; most read flat or slightly higher,
+and a brand new cost appeared that was not there at all on the base build.**
+`IntersectionObserverController::computeIntersections` (2.732 ms/key, 2.77 calls/key) is
+Chromium's own per-element relevance tracking for ~2,000 individually-`content-visibility:
+auto` blocks -- the mechanism that decides which blocks are "close enough to the viewport"
+to render. It did not exist in the base trace because the base build has no
+content-visibility anywhere. This is the single clearest piece of evidence for why the A/B
+below reads the way it does: the lever's bookkeeping cost is measured, named, and larger
+than the rendering-pipeline savings the attribution above found available to remove (~2.4 ms
+total across Layout/PrePaint/Paint/Layerize/Commit/UpdateLayoutTree).
 
 ## The lever: CSS containment on the editor's top-level blocks
 
@@ -173,13 +204,17 @@ but it is the same small n=4-per-side sample, so this is a secondary observation
 second budget finding.
 
 **Reading, tied to the attribution:** this result is not a surprise given what the
-attribution found. The containment-eligible phases were already only ~19% of a
-keystroke's busy time, because Blink's incremental layout was already close to free
-(UpdateLayoutTree 0.013 ms/key) even without containment -- there was little
-rendering-pipeline cost left to remove. Adding `content-visibility: auto` to ~2,000
-individual elements has its own bookkeeping cost (per-element relevance/intersection
-tracking), and on this measurement that bookkeeping cost is not clearly paid back by the
-small amount of rendering work it allows Blink to skip during steady-state typing.
+before/after trace found (above). The containment-eligible phases were already only ~19%
+of a keystroke's busy time on the base build, because Blink's incremental layout was
+already close to free (UpdateLayoutTree 0.013 ms/key) even without containment -- there
+was little rendering-pipeline cost left to remove, and the after-trace shows none of
+Layout/PrePaint/Paint/Layerize/Commit got cheaper. What the after-trace adds, named and
+measured rather than inferred: `content-visibility: auto` on ~2,000 individual elements
+costs **2.732 ms/key of its own** (`IntersectionObserverController::computeIntersections`,
+absent from the base trace entirely) -- Chromium's bookkeeping for tracking which blocks
+are relevant. That cost is larger than the entire rendering-pipeline budget the lever was
+trying to trim, which is the mechanistic explanation for why the A/B reads flat-to-slower
+rather than faster.
 
 **Clause 4d stays NOT MET**, the same reading as TY2 (`docs/notebook/perf-runs/ty2/` and
 `ty2-quiet/`): every run on both A and B breaches the 16 ms/char line at 2,000
@@ -202,18 +237,28 @@ pre-existing environment gap, unrelated to this change.
 The lever is **safe and correct** -- every real-browser correctness check passes, the
 two live-DOM export paths are explicitly covered, and nothing about it changes what is
 captured, how often, or where it is written (no draft-save timing touched;
-`perf-budgets.json` untouched). It is **not a demonstrated performance win**: the
-interleaved A/B reads B slightly slower than A at both sizes and both percentiles, on
-the full set and on the two load-matched pairs alike, though the sample is small (n=4
-per side) and no run in this session was a matched QUIET pair. Clause 4d stays NOT MET
-on both builds.
+`perf-budgets.json` untouched). It is **not a demonstrated performance win, and the
+reason is now named rather than inferred**: the before/after trace shows the
+rendering-pipeline phases content-visibility targets did not get cheaper (most read
+flat or higher), while content-visibility's own per-element bookkeeping
+(`IntersectionObserverController::computeIntersections`) costs 2.732 ms/key on ~2,000
+contained blocks -- more than the entire rendering-pipeline budget (~2.4 ms/key) the
+attribution found available to trim in the first place. The interleaved A/B is
+consistent with that mechanism: B reads at-or-slower than A in all 12 size x percentile
+x comparison-type cells measured (the full-session medians and both load-matched
+pairs), small sample (n=4 per side) notwithstanding. Clause 4d stays NOT MET on both
+builds.
 
 **A product decision is needed, and it is not this lane's to make unilaterally:**
-whether to (a) keep this lever on the branch anyway, as a correctness-neutral, possibly
-small-regression change, on the theory that a larger or quieter-box sample might read
-differently or that it still helps the initial-open case; (b) revert it, since its
-stated purpose -- the typing budget -- is not met and the measured direction is mildly
-against it; or (c) re-measure with more reps / a guaranteed-quiet box before deciding
-either way. This lane's job was to measure first rather than assume, implement the
-lever cleanly, verify it does not break anything, and report the honest number --
-done -- not to decide whether a correctness-neutral, unproven-benefit CSS change ships.
+whether to (a) revert this lever, since its stated purpose -- the typing budget -- is
+not met and there is now a measured mechanism (not just a direction) for why it is
+unlikely to help on this editor's content shape; (b) keep it anyway, on the theory that
+`note_open` showed a mixed-but-mostly-favorable signal (3 of 4 cells faster) that a
+dedicated open-time measurement might confirm, decoupled from the typing budget this
+lane was scoped to; or (c) narrow it (e.g. to only the largest/least-uniform block
+types, where Blink's existing incremental layout is least likely to already be cheap)
+and re-measure, rather than applying it uniformly to ~2,000 near-identical paragraphs.
+This lane's job was to measure first rather than assume, implement the lever cleanly,
+verify it does not break anything, and report the honest number, including the
+mechanism -- done -- not to decide whether a correctness-neutral, now-explained-negative
+CSS change ships.
