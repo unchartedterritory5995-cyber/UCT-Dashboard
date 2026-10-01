@@ -45,7 +45,8 @@ const conditionOf = (r, label) => {
 }
 
 // The commonest shape: a bool that picks between two literal colours. The legacy
-// colour lane MINTS `useAdapt` here (`__uct_param_2`), which is the case "add,
+// colour lane MINTS `useAdapt` here (the script's first input call, so
+// `__uct_param_1001` — C46: an id is the call's place in the source), which is the case "add,
 // never renumber" is about.
 const TOGGLE = `${V5}useAdapt = input.bool(true, "Adaptive Color")\nlen = input.int(5, "Len")\n`
   + 'thr = input.float(1.5, "Thr")\nshow = input.bool(true, "Show")\n'
@@ -75,7 +76,7 @@ describe('a colour-only input is a declared member input', () => {
   it('⛔⛔ no parameter id moves: the minted colour input keeps its id, and so does every later one', () => {
     const before = legacyDoor(TOGGLE)
     const after = door(TOGGLE)
-    expect(ids(before)).toEqual([['__uct_param_1', 'len', 5], ['__uct_param_2', 'useAdapt', 1]])
+    expect(ids(before)).toEqual([['__uct_param_1001', 'useAdapt', 1], ['__uct_param_1002', 'len', 5]])
     expect(ids(after)).toEqual(ids(before))
     expect(after.definition.compute.paramManifest).toEqual(before.definition.compute.paramManifest)
     // …and the drawn palettes / colours are byte-identical at the default.

@@ -162,7 +162,7 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
 
     expect(formulaField().value).toBe('sma(close, 1)')
     expect(screen.getByText('Adjustable parameters')).toBeTruthy()
-    const checkbox = () => screen.getByTestId('param-input-__uct_param_1')
+    const checkbox = () => screen.getByTestId('param-input-__uct_param_1001')
     expect(checkbox().checked).toBe(true)
     expect(screen.getByText('default On')).toBeTruthy()
 
@@ -176,10 +176,10 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
     expect(H.store.size).toBe(1)
     const [, firstRow] = [...H.store.entries()][0]
     expect(firstRow.definition.compute.source).toBe('sma(close, 1)')
-    expect(firstRow.definition.compute.paramManifest.__uct_param_1).toMatchObject({
+    expect(firstRow.definition.compute.paramManifest.__uct_param_1001).toMatchObject({
       type: 'bool', default: 1, sourceName: 'useLong',
     })
-    expect(firstRow.definition.compute.paramState.__uct_param_1).toEqual({ state: 'attached', value: 1, reason: null })
+    expect(firstRow.definition.compute.paramState.__uct_param_1001).toEqual({ state: 'attached', value: 1, reason: null })
 
     // ── 2. Genuine unmount ───────────────────────────────────────────────
     cleanup()
@@ -241,7 +241,7 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
     fireEvent.click(within(row).getByRole('button', { name: /^Edit Bool Toggle Test$/i }))
     await settleFormula()
 
-    const checkbox = () => screen.getByTestId('param-input-__uct_param_1')
+    const checkbox = () => screen.getByTestId('param-input-__uct_param_1001')
     expect(checkbox().checked).toBe(true)
 
     // ⭐ THE WIRING WORKS: the click reaches applyParamEdit, which reaches
@@ -281,6 +281,6 @@ describe('a window-bound input.bool through the real "Your formulas" reopen door
     // The default IS the current value here (fresh import), so no Reset
     // button is offered yet — matching `ParamControls.jsx`'s own "at the
     // default value, no reset button" rule, already pinned for int/float.
-    expect(screen.queryByTestId('param-reset-__uct_param_1')).toBeNull()
+    expect(screen.queryByTestId('param-reset-__uct_param_1001')).toBeNull()
   })
 })
