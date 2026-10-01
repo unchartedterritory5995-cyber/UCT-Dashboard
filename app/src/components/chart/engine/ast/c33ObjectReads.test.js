@@ -23,6 +23,7 @@ import { describe, it, expect } from 'vitest'
 import { translatePine, INPUT_TIMEFRAME_TEXT_WITNESS, inputTimeframeTextWitnessed } from './pine'
 import { evaluateObjects } from '../objectRuntime'
 import { assertObjectProgram } from './objectProgram'
+import { classifyDropKey, LOSS } from './objectLoss'
 
 const LF = String.fromCharCode(10)
 const src = (v, ...lines) => [`//@version=${v}`, 'indicator("t", overlay=true)', ...lines].join(LF)
@@ -241,12 +242,17 @@ describe('C33 (4) — a request timeframe that is a parameter, on the object pas
 describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s own getter local', () => {
   const textOf = (t, k = 0) => opsOf(t).filter((o) => o.k === 'create' && o.family === 'label')[k].props.text.node
 
-  it('⭐ `str.tostring(line.get_y1(l))` is the object runtime\'s number, formatted', () => {
+  it('⛔ `str.tostring(line.get_y1(l))` is carried as the runtime\'s read — and a FINITE number is held', () => {
+    // no capture prints a finite getter value through `str.tostring`: the label
+    // is withheld, never drawn off this chart's own formatting of that number.
     const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
-      'label.new(bar_index, high, "y=" + str.tostring(line.get_y1(ln)))'))
+      'label.new(bar_index, high, "y=" + str.tostring(line.get_y1(ln)))',
+      'label.new(bar_index, low, "control")'))
+    expect(diag(t).dropReasons['create:label']).toBeUndefined()
     expect(textOf(t)).toEqual({ t: 'cat', args: [{ t: 'lit', s: 'y=' }, { t: 'val', v: { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y1' } }] })
     const r = run(t)
-    expect(r.live.filter((o) => o.family === 'label').every((l) => l.props.text === 'y=7.5')).toBe(true)
+    expect(r.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(12).fill('control'))
+    expect(r.withheld.label).toBe(12)
   })
 
   it('⭐ on an EMPTY handle a getter — and its history — read `na`: "NaN", TradingView\'s own text', () => {
@@ -259,16 +265,17 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(r.withheld).toBeUndefined()
   })
 
-  it('⛔ a getter\'s history on a LIVE handle reads a number back — unmeasured, so the label is held', () => {
+  it('⛔ a getter\'s history on a LIVE handle reads a number back — unmeasured, so what stands on it is held', () => {
+    // in a GUARD, where no text rule can be what holds it
     const t = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
-      'label.new(bar_index, high, str.tostring(line.get_y1(ln)[1]))',
+      'if line.get_y1(ln)[1] > 5', '    label.new(bar_index, high, "g")',
       'label.new(bar_index, low, "control")'))
+    expect(diag(t).dropReasons['guard:create']).toBeUndefined()
     const r = run(t)
     const texts = r.live.filter((o) => o.family === 'label').map((l) => l.props.text)
-    // bar 0 has no previous bar (`na`, served); every later bar is held
-    expect(texts.filter((x) => x !== 'control')).toEqual(['NaN'])
-    expect(texts.filter((x) => x === 'control').length).toBe(12)
-    expect(r.withheld.label).toBe(11)
+    // bar 0 has no previous bar: `na > 5` is a KNOWN false. Every later bar is held.
+    expect(texts).toEqual(Array(12).fill('control'))
+    expect(r.stats.withheldUnknown).toBe(11)
   })
 
   it('⭐ a helper\'s own local bound to a getter is a scalar written where it stands', () => {
@@ -286,10 +293,14 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
         `label.new(bar_index, high, str.tostring(line.get_y1(ln), ${fmt}))`))
       expect(diag(t).dropReasons['create:label'], fmt).toBe(1)
     }
-    // CONTROL: a plain pattern is served through the same formatter
-    const ok = host(src(5, 'var line ln = line.new(0, 7.5, 1, 7.5)',
+    // CONTROL: a plain pattern is carried, and prints an empty handle's `na`
+    const ok = host(src(5, 'var line ln = na',
       'label.new(bar_index, high, str.tostring(line.get_y1(ln), "#.00"))'))
-    expect(run(ok).live.filter((o) => o.family === 'label').every((l) => l.props.text === '7.50')).toBe(true)
+    expect(diag(ok).dropReasons['create:label']).toBeUndefined()
+    expect(textOf(ok)).toEqual({ t: 'val', v: { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'y1' }, fmt: '#.00' })
+    const labels = run(ok).live.filter((o) => o.family === 'label')
+    expect(labels.length).toBe(12)
+    expect(labels.every((l) => l.props.text === 'NaN')).toBe(true)
   })
 
   it('⛔ CONTROL: a getter inside arithmetic is still refused by name', () => {
@@ -334,6 +345,9 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
     expect(diag(t).dropReasons['guard:create']).toBeUndefined()
     // counted, as the refusal was: a step this chart cannot always follow
     expect(diag(t).dropReasons['guard:partial']).toBe(1)
+    // ...and the door reads that count as a drawing missing, never as a removal lost
+    expect(classifyDropKey('guard:partial').cls).toBe(LOSS.PARTIAL)
+    expect(classifyDropKey('guard:some-kind-nobody-classified').cls).toBe(LOSS.REMOVES)
     expect(t.objects.lostCreates).toBeUndefined()
     const latch = opsOf(t).find((o) => o.k === 'latch')
     expect(latch.cond.v).toBe('bool')
@@ -399,14 +413,14 @@ describe('C33 (8) — a guard with a term nothing reads, gated by an input', () 
       'gate = input.bool(true, "G")', 'var line ln = line.new(0, 7.5, 1, 7.5)',
       'if gate and dayofweek(time, "GMT+10") == dayofweek.monday',
       '    line.new(bar_index, high, bar_index + 1, high)',
-      'label.new(bar_index, low, "y=" + str.tostring(line.get_y1(ln)))'].join(LF))
+      'if line.get_y1(ln) > 5', '    label.new(bar_index, low, "y")'].join(LF))
     const r = run(t, 60)
     const labels = r.live.filter((o) => o.family === 'label')
     // 54 bars read a known 7.5 (bars 0..53: 1 + 54 possible = 55, not past it) …
     expect(labels.length).toBe(54)
-    expect(labels.every((l) => l.props.text === 'y=7.5')).toBe(true)
+    expect(labels.every((l) => l.props.text === 'y')).toBe(true)
     // … and the six after it are held, never drawn off a line that may be gone.
-    expect(r.withheld.label).toBe(6)
+    expect(r.stats.withheldUnknown).toBe(60 + 6)
     expect(r.live.filter((o) => o.family === 'line')).toEqual([])
   })
 

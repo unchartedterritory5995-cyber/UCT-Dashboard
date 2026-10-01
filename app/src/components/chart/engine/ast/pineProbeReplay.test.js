@@ -133,8 +133,8 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // request>` guards are asked, once per `if`, whether the input gate alone
       // reads (`partialAndGuard`) — each term costs a Resolver. Every cell under
       // them is still refused by its own text, the latches nothing reads are
-      // pruned, and the object program is byte-identical to wave 8's (program
-      // dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
+      // pruned, and the object program is wave 8's - the same 71 ops over the same
+      // 41 trees, interned in another order (program dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
         plain: [856, 7174, 'ff55463c3a36e466'], manifest: [856, 7174, 'ff55463c3a36e466'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {

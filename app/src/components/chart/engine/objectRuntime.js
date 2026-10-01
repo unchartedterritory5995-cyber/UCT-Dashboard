@@ -1066,8 +1066,13 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
-      // ⭐ C33 — a number read off a drawing is as known as that read.
-      if (t.t === 'val') return tainted(t.v, depth + 1)
+      // ⭐ C33 — a number read off a drawing, printed. ⛔ SERVED ONLY WHERE THE
+      // READ IS `na`: TradingView prints that as "NaN" (eight labels of
+      // high-low-open-mid-ranges, `vendorHarness.c33ObjectReads`). No capture
+      // prints a FINITE getter value through `str.tostring`, so a finite one is
+      // unknown text — the op is withheld, never drawn off this chart's own
+      // formatting of a number TradingView was never seen to print.
+      if (t.t === 'val') return tainted(t.v, depth + 1) || !Number.isNaN(numOf(value(t.v)))
       return false
     }
     const colorTainted = (c, depth) => {
