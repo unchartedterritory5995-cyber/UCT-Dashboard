@@ -127,3 +127,36 @@ Four families (L–O) were added to the original eleven.
 2. **Where history comes in.** Consumers A and B-formulas are the only ones where history matters. The authority supplies a daily historical series; today B-formulas apply today's value to every past bar.
 3. **Current-value freshness.** The dataset's last day is the last close in bars. Intraday consumers (C, E, I) would need `latest state × live price`: the share state from this dataset, the price from the live quote.
 4. **Units and format.** Every consumer that receives a pre-formatted string (C, J) must move to raw USD.
+
+## 2026-10-01 re-inventory against origin/master `22f07e1bd`
+
+No code that reads, computes, or thresholds market cap changed between f40b541c2 and 22f07e1bd. The only diff is
+one comment, at `ChartPane.jsx:466`. The families below existed before 09-30 but were missing from this document.
+
+| Family | Locations | Source | Class |
+|---|---|---|---|
+| A′ Server PIT composer (inert) | `fundamentals_pit/price_derived.py:3-38`, `catalog.py:174-178,230` | close × as-of shares | **A**. Nothing outside the tests imports it. Retire it, or point it at the authority. |
+| B+ Canonical resolver | `canonical/resolver.py:117`, `canonical_address_book.json:1410` (DESK_FIGURE → `screener_rows`, "authoritative") | Massive | **B**. Conflicts with the new authority's role. Re-point it at cutover. |
+| B+ Formula engines | `pcf.js:879-880` (TC2000 aliases, ÷1e6), `ast_interpret.py:4498`, `scan_evaluator.py:1038`, `saved_screens.py:330` | `screener_rows` scalar | **B**. Formulas gain history. |
+| C-LLM | `ai_search.py:927-931`, `ai_search_dossier.py:247`, `voice_deep_research.py:194`, `research/comparison_ai_adapter.py:114` | family C string | **A**. Pass the raw value plus a formatter. |
+| C+ Widgets | ProfileWidget, DockProfile, CompanySearch, FundamentalSnapshot, research Profile/Setup/Overview/Compare, `positionDetail.js:74`, GridChartCell | family C | **A** (display) |
+| F+ Calendar | CalendarWidget, `calendar_sector_read.py`, `calendar_anticipated_png.py`, `earnings_preview_warm.py`, `provider_coverage_monitor.py` (mc_b fill rate) | wire `mc_b`, then Finviz | **B**. Importance, poster membership and warm order would shift. |
+| G+ Catalyst | public `/r/*` render panel (`render_panels.py:29`), rejection log (`store.py:948`) | yfinance | **A** value. **B** for the $300M floor and the log weight. |
+| I+ Flow | `darkpool_eod.py` (Mega ≥$500B, Large ≥$10B), `darkpool_records.py`, `flow_summary.py`, `flow_opt_aggregate.py`, `/flow/small-data` $10B ceiling, UW ingest, admin `backfill-mktcap` (`main.py:9528-9606`) | vendor `MktCap` → flow.db latest → Schwab (incl. **marketCapFloat**) → Yahoo | **C**. Also **D** for the float fallback and the self-perpetuating "latest". |
+| M+ Universe floors | `cap_universe.py` + `api/data/cap_universe.json` ($300M+), `rs_ranking.py:65-88` | wire / static | **B**. Population changes alter RS percentiles. |
+| P Hard-coded mega-cap lists | `liveflow_worker.py:201-233` (MEGA_CAP_TICKERS), `darkpool_aggregator.py:100,168` (LARGE_CAP_KNOWN) | static | **C**. Policy lists, not values. Leave them alone. |
+
+Confirmed D findings:
+- **Watchlist mix.** For lists of 100 or fewer, the values are Yahoo strings. For larger lists, the values are Massive, with missing names falling back to Yahoo. Yahoo is applied last, so it wins wherever both cover a name. `parseMcap` then sorts the mixed strings.
+- **Voice `get_company_info`.** `market_cap_b` is always None (`voice_tool_impls.py:4104-4107`: `float("$1.23T")` raises and the error is swallowed).
+- **Screener column.** `columnDefs.js:79` describes the column as "shares × price, dual-class combined", but the value is the provider's.
+
+Cap-band and size thresholds are located only. Policy is unchanged:
+- **Mega at $500B:** `flowCompute.js:225,235`, `weekly_flow.py:313`, `darkpool_eod.py:94-104`.
+- **Mega at $200B:** `live_massive_router.py:181`, `LiveFlowMassive.jsx:2067`, `hypothesis_sheet.py:50`, `DarkPool.jsx:2312` (+ Mid ≥$2B), `conceptVocabulary.json:774,799`, poster `calendar_week_poster.py:114`.
+- **OTM tiers:** `flowCompute.js:934`, `flow_summary.py:229`, `flow_opt_aggregate.py:228`, `weekly_flow.py:165`.
+- **Premium multipliers:** `OptionsFlow.jsx:837`.
+- **Ask-accumulation ceiling, $50B:** `live_massive_router.py:318`.
+- **Calendar pills, $0/1/10/100B:** `filterLogic.js:7,21`.
+- **FEATURED ≥$10B:** `importance.js:158`.
+- **$300M floors:** catalyst `tuning.py:53`, news `engine.py:2227`, `saved_screens.py:330`, `calendar.py:219`.
