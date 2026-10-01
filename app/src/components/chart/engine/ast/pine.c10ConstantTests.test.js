@@ -35,7 +35,11 @@ const firstTree = (out) => {
 }
 const withLive = (src) => `${src}plot(close)\n`
 const VALID15 = 'v = timeframe.in_seconds("15") >= timeframe.in_seconds()'
-const REQ15 = 'request.security(syminfo.tickerid, "15", close)'
+// ⚰️ C41 (2026-09-30): this was `"15"`, which a daily chart SERVES now (an `ltf`
+// read). The cases below are about a side that REFUSES, so the request is one
+// that still does — `"30"`, a timeframe no capture shows read below a chart
+// (`lower-tf:unwitnessed`). The validity test keeps artemis's own shape.
+const REQ15 = 'request.security(syminfo.tickerid, "30", close)'
 /** The object program's tree behind a table cell whose text is
  *  `str.tostring(<expr>)`, or the drop reasons when the cell was dropped. */
 const cellTree = (expr) => {

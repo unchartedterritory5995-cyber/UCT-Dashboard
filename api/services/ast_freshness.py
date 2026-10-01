@@ -91,7 +91,7 @@ LIVE, AS_OF_SNAPSHOT, UNKNOWN = FRESHNESS_MODES
 #: ``type == "series"`` plus the scalars table, so a text node is neutral by
 #: construction — it reads no bar, so it can make nothing staler.
 _CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-                    "str", "symtext", "textop")
+                    "str", "symtext", "textop", "ltf")
 
 
 def _walk(tree: Any) -> List[Any]:

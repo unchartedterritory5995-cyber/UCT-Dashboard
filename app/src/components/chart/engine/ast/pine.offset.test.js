@@ -239,13 +239,14 @@ describe('the seam between the two lanes', () => {
     expect(NODE_TYPES).toContain('offset')
     // ⚰️ 5 -> 6 when W2b added `tf`, 6 -> 7 when Task 4 added `sym`, 7 -> 8 when `tf_live` landed, 8 -> 11 when the
     // bind-time text trio landed (`str`, `symtext`, `textop` — a text QUESTION
-    // whose answer is a number, and the two operands it takes). The floor
+    // whose answer is a number, and the two operands it takes), 11 -> 12 when C41
+    // added `ltf`, the read below the chart's own timeframe. The floor
     // is not about the NUMBER — it is
     // that this module must NOTICE when the roster moves, because it emits an
     // `offset` node and a withdrawn type would make it emit something no walker
     // has a case for. A count that is updated deliberately keeps that property;
     // a `toBeGreaterThan` would quietly stop asking.
-    expect(NODE_TYPES.length).toBe(11)
+    expect(NODE_TYPES.length).toBe(12)
   })
 
   it('the two lanes agree on which offsets are legal, in both directions', () => {

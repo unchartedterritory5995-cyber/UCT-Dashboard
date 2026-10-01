@@ -381,7 +381,14 @@ export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'
   // ELSE — `assertCanonical` enforces that parentage, so "text is not a value in
   // this engine" is a structural property of every persisted tree rather than a
   // convention. See `TEXTOP_ARITY` and `convertTextOperand`.
-  'str', 'symtext', 'textop'])
+  'str', 'symtext', 'textop',
+  // ⭐⭐ C41 — A READ BELOW THE CHART'S OWN TIMEFRAME. `ltf(close, '60')` evaluates
+  // its child on the chart symbol's INTRADAY bars and each chart bar reads its
+  // last intrabar's value. The same SHAPE as `tf` (the code is a field, never an
+  // expression) and a separate TYPE because it reads bars the chart does not
+  // hold: every rule is `engine/lowerTf.js`'s, and a lane with no intraday
+  // supply (the screener) refuses it by name.
+  'ltf'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -1255,6 +1262,23 @@ function enterNode(node) {
           build: (k) => ({ type: 'tf_live', value: code.value, args: k }),
         }
       }
+      // ⭐⭐ C41 — THE READ BELOW THE CHART, spelled `ltf(expr, '60')`: the same
+      // surface a third time, the code a FIELD. ⚠️ WHICH codes are served, and
+      // on which charts, is `engine/lowerTf.js`'s answer per binding; the parser
+      // decides SHAPE only — a whole number of minutes.
+      if (node.callee && node.callee.name === 'ltf') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:timeframe')
+        const code = args[1]
+        if (!code || code.type !== 'Literal' || typeof code.value !== 'string'
+            || !/^[1-9][0-9]*$/.test(code.value)) {
+          return refuse('canonicalise:timeframe')
+        }
+        return {
+          children: [args[0]],
+          build: (k) => ({ type: 'ltf', value: code.value, args: k }),
+        }
+      }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
       // INSTRUMENT, and both keep their parameter as a FIELD so neither can be
@@ -1536,6 +1560,9 @@ export const CANONICAL_KEYS = Object.freeze({
   // A question ABOUT text whose answer is a number. Same key set as `call`,
   // because that is what it is — a closed, declared function over operands.
   textop: ['type', 'name', 'args'],
+  // ⚠️ C41 — THE READ BELOW THE CHART. `tf`'s key set, for `tf`'s reason: the
+  // code is the node, so it can never be computed at runtime.
+  ltf: ['type', 'value', 'args'],
 })
 
 /** The tree really is one of the declared shapes, with exactly its own keys.

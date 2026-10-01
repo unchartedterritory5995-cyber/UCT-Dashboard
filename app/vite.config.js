@@ -197,6 +197,12 @@ export default defineConfig({
     // warning goes to die.
     rollupOptions: {
       output: {
+        // ⭐ C41 — ONE SHARED CHUNK KEEPS ITS NAME. Rollup names a shared chunk after
+        // the last module it holds; adding `chart/engine/lowerTf.js` to the chunk
+        // that was `bind-<hash>.js` renamed it `lowerTf-<hash>.js`, and three preload
+        // lists in the Notebook's first-open closure grew by the three characters
+        // each (+9 B, measured). Everything else is Vite's own default pattern.
+        chunkFileNames: (chunk) => (chunk.name === 'lowerTf' ? 'assets/bind-[hash].js' : 'assets/[name]-[hash].js'),
         // Object form (NOT function form): Rollup walks the dependency
         // graph and bundles React + every package that imports React into
         // vendor-react automatically. Function form whitelists by name
