@@ -9,9 +9,10 @@
   The frozen base carries the same defect for companies whose submissions were served that way at bulk time
   (filing_anomaly: CIK 16875, 829224, 312069 -- whole histories, +14400 s in EDT, +18000 s in EST).
 
-AUTHORITY (deterministic, one source): the EDGAR filing header `<ACCEPTANCE-DATETIME>YYYYMMDDHHMMSS`
-(Archives/edgar/data/<cik>/<accn>/<accn>.hdr.sgml) -- the acceptance record itself, Eastern wall clock without a
-zone, identical on the filing day and ever after. It is interpreted with America/New_York (zoneinfo: real DST rules,
+AUTHORITY (deterministic): EDGAR's acceptance record -- the filing header `<ACCEPTANCE-DATETIME>YYYYMMDDHHMMSS`
+(Archives/edgar/data/<cik>/<accn>/<accn>.hdr.sgml), or, only where that header carries no such line, the same
+stamp on the filing index page ('Accepted'). Eastern wall clock without a zone, identical on the filing day and
+ever after. It is interpreted with America/New_York (zoneinfo: real DST rules,
 never a fixed offset) and normalised to UTC. Submissions' value is never trusted for a NEW filing. If the header
 cannot be read, the company is NOT ingested this cycle (fail closed; the queue retries it).
 
@@ -32,6 +33,7 @@ from zoneinfo import ZoneInfo
 
 ET = ZoneInfo("America/New_York")
 _HDR = re.compile(rb"<ACCEPTANCE-DATETIME>\s*(\d{14})")
+_IDX = re.compile(rb'Accepted</div>\s*<div class="info">(\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)')
 
 ACCEPTANCE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS v5_acceptance (
@@ -69,19 +71,36 @@ def parse_header(body: bytes | None) -> str | None:
     return m.group(1).decode() if m else None
 
 
+def index_url(cik: int, accn: str) -> str:
+    from .sec_client import WWW
+    return f"{WWW}/Archives/edgar/data/{int(cik)}/{accn.replace('-', '')}/{accn}-index.htm"
+
+
+def parse_index_accepted(body: bytes | None) -> str | None:
+    """The filing index page's 'Accepted' field (EDGAR Eastern wall clock, 'YYYY-MM-DD HH:MM:SS') as 14 digits."""
+    m = _IDX.search(body or b"")
+    return b"".join(m.groups()).decode() if m else None
+
+
 def header_acceptance(cik: int, accn: str, *, get=None) -> tuple[str, dt.datetime, str]:
-    """(header_eastern, accepted_at UTC, status) from the EDGAR filing header. Raises AcceptanceUnavailable."""
+    """(eastern_14, accepted_at UTC, status) from EDGAR's acceptance record. Raises AcceptanceUnavailable.
+
+    Deterministic order: 1) the filing header `.hdr.sgml` <ACCEPTANCE-DATETIME>; 2) only when the header carries no
+    such line (MEASURED: pre-2001 headers, e.g. 0000950159-97-000194) or is absent, the filing index page's
+    'Accepted' field -- the same EDGAR Eastern acceptance stamp rendered as a page. Nothing else."""
     if get is None:
         from .sec_client import get_bytes as get
-    try:
-        body = get(header_url(cik, accn))
-    except Exception as e:                                    # 404 / network: not established -> fail closed
-        raise AcceptanceUnavailable(f"{accn}: header unavailable ({str(e)[:120]})") from e
-    raw = parse_header(body)
-    if raw is None:
-        raise AcceptanceUnavailable(f"{accn}: header has no ACCEPTANCE-DATETIME")
-    at, status = eastern_to_utc(raw)
-    return raw, at, status
+    errs = []
+    for url, parse in ((header_url(cik, accn), parse_header), (index_url(cik, accn), parse_index_accepted)):
+        try:
+            raw = parse(get(url))
+        except Exception as e:                                # 404 / network: try the next record, else fail closed
+            errs.append(str(e)[:80]); continue
+        if raw is not None:
+            at, status = eastern_to_utc(raw)
+            return raw, at, status
+        errs.append("no acceptance stamp")
+    raise AcceptanceUnavailable(f"{accn}: no EDGAR acceptance record ({'; '.join(errs)})")
 
 
 def utc_z(at: dt.datetime) -> str:

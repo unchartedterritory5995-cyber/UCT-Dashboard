@@ -305,3 +305,13 @@ def test_a_correction_killed_before_publishing_is_completed_by_a_rerun(env, monk
     assert rec["state"] == "PUBLISHED" and PUB.read_current(env["t"])["version"] == rec["version"]
     SV.clear_cache()
     assert U("2026-09-29T16:30:38") in [r[0] for r in _series(env["t"])]
+
+
+def test_an_old_header_without_the_stamp_falls_back_to_the_filing_index_only():
+    pages = {".hdr.sgml": b"<SEC-HEADER>0000950159-97-000194.hdr.sgml : 19970512\n<TYPE>10-Q\n",
+             "-index.htm": b'<div class="infoHead">Accepted</div>\n<div class="info">1997-05-12 14:03:11</div>'}
+    get = lambda url: next(v for k, v in pages.items() if url.endswith(k))
+    assert _REAL_HEADER(1, "0000950159-97-000194", get=get) == (
+        "19970512140311", dt.datetime(1997, 5, 12, 18, 3, 11, tzinfo=dt.timezone.utc), "exact")    # EDT in May 1997
+    both = {".hdr.sgml": b"<ACCEPTANCE-DATETIME>20260115163038", "-index.htm": b'Accepted</div><div class="info">1999-01-01 00:00:00'}
+    assert _REAL_HEADER(1, "x", get=lambda url: next(v for k, v in both.items() if url.endswith(k)))[0] == "20260115163038"
