@@ -352,3 +352,80 @@ describe('C43 — anchored on the newest bar, and the calls this lane cannot pla
     expect(built.translation.runtimeErrors).toBeUndefined()
   })
 })
+
+describe('C43 — reading the conditions moves NOTHING else in the translation', () => {
+  const N = 90
+  const BARS = Array.from({ length: N }, (_, i) => {
+    const d = new Date(Date.UTC(2023, 0, 2) + i * 86400000).toISOString().slice(0, 10)
+    const c = 100 + 6 * Math.sin(i / 7)
+    return { t: d, o: c - 0.5, h: c + 1, l: c - 1, c, v: 1000 + i }
+  })
+  const script = (lines) => ['//@version=6', 'indicator("c43")', ...lines, ''].join(LF)
+  /** the translation with the `runtime.error` block, and the same script without it */
+  const pair = (head, guard, tail) => {
+    const withIt = memberPaneDefinition({ source: script([...head, ...guard, ...tail]), id: DEF_ID, name: 'a' })
+    const without = memberPaneDefinition({ source: script([...head, ...tail]), id: DEF_ID, name: 'a' })
+    expect(withIt.ok, withIt.reason).toBe(true)
+    expect(without.ok, without.reason).toBe(true)
+    return { withIt, without }
+  }
+
+  it('⛔ no parameter id is minted for a setting only the validation reads (a name that cannot be a knob stays folded)', () => {
+    // `Limit` is upper-case: it can never be a member-input key, so it is folded —
+    // and folding it for the validation must not mint it a `__uct_param_N`
+    const { withIt, without } = pair(
+      ['len = input.int(14, "Length")', 'Limit = input.int(5, "Limit")'],
+      ['if barstate.isfirst and Limit > 100', '    runtime.error("limit too high")'],
+      ['plot(ta.sma(close, len), "ma")'],
+    )
+    expect(withIt.translation.inputParams).toEqual(without.translation.inputParams)
+    expect(withIt.translation.inputParams.map((p) => p.sourceName)).toEqual(['len'])
+    expect(withIt.definition.inputs).toEqual(without.definition.inputs)
+    expect(withIt.definition.compute).toEqual(without.definition.compute)
+    expect(withIt.definition.plots).toEqual(without.definition.plots)
+    expect(withIt.notes).toEqual(without.notes)
+    // the setting is recorded as folded at the value the translation saw
+    expect(withIt.definition.meta.runtimeErrors.stops[0].folded).toEqual([{ name: 'Limit', value: 5 }])
+  })
+
+  it('⛔ a period read by the validation is the validation\'s own: the plots and drawings refuse nothing on another timeframe', () => {
+    const { withIt, without } = pair(
+      [],
+      ['if timeframe.in_seconds() < 3600', '    runtime.error("needs at least an hour")'],
+      ['plot(close, "c")'],
+    )
+    // the translation's own period record is the plots' and the drawings': untouched
+    expect(withIt.translation.periodReads).toEqual(without.translation.periodReads)
+    expect(withIt.definition.meta.periodReads).toBeUndefined()
+    const stop0 = withIt.definition.meta.runtimeErrors.stops[0]
+    expect(stop0.period.reads.map((r) => r.name)).toEqual(['timeframe.in_seconds'])
+    const { installed } = registry.installUserDefinitions([withIt.definition])
+    const def = installed[0]
+    // on the period it was translated at: decided (a day is not under an hour)
+    const daily = registry.computeFor(def, BARS, undefined, ctxOf())
+    expect(Object.keys(daily)).toEqual(['value'])
+    expect(registry.runtimeErrorStopOf(daily)).toEqual({ reached: false, unknown: [], unread: [] })
+    // on another period the folded value is the wrong chart's: NOT guessed — the
+    // plot still draws (it read no period) and the call is named
+    const weekly = registry.computeFor(def, BARS, undefined, ctxOf({ tf: 'W' }))
+    expect(Object.keys(weekly)).toEqual(['value'])
+    const stop = registry.runtimeErrorStopOf(weekly)
+    expect(stop.reached).toBe(false)
+    expect(stop.unknown[0].why).toMatch(/reads the chart's period, translated at `D`, and this chart is `W`/)
+  })
+
+  it('⭐ a setting the validation AND a plot read is one knob: the member\'s value reaches both', () => {
+    const built = memberPaneDefinition({
+      source: script(['k = input.float(2.0, "K")', 'plot(close * k, "scaled")',
+        'if barstate.islast and k > 10', '    runtime.error("K is too large")']),
+      id: DEF_ID, name: 'a',
+    })
+    expect(built.ok, built.reason).toBe(true)
+    expect(built.definition.inputs.filter((i) => i.key === 'k')).toHaveLength(1)
+    expect(built.definition.meta.runtimeErrors.stops[0].live).toEqual(['k'])
+    const { installed } = registry.installUserDefinitions([built.definition])
+    expect(registry.runtimeErrorStopOf(registry.computeFor(installed[0], BARS, undefined, ctxOf())).reached).toBe(false)
+    const stop = registry.runtimeErrorStopOf(registry.computeFor(installed[0], BARS, { k: 11 }, ctxOf()))
+    expect([stop.reached, stop.message]).toEqual([true, 'K is too large'])
+  })
+})
