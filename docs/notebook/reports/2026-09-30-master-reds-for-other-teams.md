@@ -48,3 +48,17 @@ Seen in the L13 gate at `8588ad1b1`, each passed alone at 20:30 with `load: QUIE
 - `lib/context/symbolLinkChannels.test.js`: four more of its tests timed out at 15 s on a busy box.
 
 Each walks or parses the whole tree inside one test. A longer per-test timeout, or one shared parse per file, would stop them showing up as NEW rows.
+
+## Added 2026-10-01 (L15 gate at `8123e172d`, and the accessibility second review)
+
+**One more red on master:** `app/src/components/chart/engine/__tests__/objectFnInline.vendor.test.js` > "sector-rotation: its lines are withheld" fails alone on the L15 tree, whose chart code is identical to master `22f07e1bd`. It arrived with the Pine vendor-harness merge. Charts.
+
+**More load-sensitive tests** (red inside a busy gate, pass alone): `chart/engine/__tests__/flipCGeometry.test.jsx` (production never calls the test override), `lib/presentation/dataGrid/dataGridSeed.rail.test.js` (a planted new grid fails the census by name), `chart/engine/runtime/__tests__/objectLaneCensus.measure.test.js`.
+
+**Keyboard access to ticker chips outside the Notebook** (`docs/notebook/evidence/a11y-second-review-2026-10-01/findings-and-wcag-map.md`, Re-walk 2). L15 makes the shared ticker popup's trigger keyboard-operable everywhere it renders its own trigger. These call sites open the popup another way and still have no keyboard path (WCAG 2.1.1):
+
+- `LiveFlow`, `LiveFlowMassive`, `OptionsFlow`: the ticker cell is long-press only (`useLongPress`), with no tabIndex and no key handler.
+- `AskAiSection`: a delegated click on a container; the chip is not focusable.
+- Community `ChatView` and `ThreadView`: the chip is a plain span (`tickerMention.js`).
+
+Also for the Desk owner: `ArticleReader` opens the popup from a real button, but there is no HTTP way to create a throwaway article in a sandbox, so the reviewer could not walk it.
