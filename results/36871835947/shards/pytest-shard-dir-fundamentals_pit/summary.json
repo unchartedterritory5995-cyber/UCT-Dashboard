@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 185,
+  "passed": 184,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 138.4,
+  "failed_files": [
+    "tests/fundamentals_pit/test_v5_cutover.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 184 passed, 1 warning in 138.40s (0:02:18)",
+  "ok": true
+}
