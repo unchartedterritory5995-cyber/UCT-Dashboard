@@ -15,12 +15,15 @@
 // appends to TEXT is folded pass by pass (`unrollTextLoop`, ema-ribbon's
 // `f_strengthBar`), and a helper's own locals are visible to the text reader.
 //
-// ⭐ AND THE WALL THE FOLD EXPOSED, served as a refusal: ema-ribbon's strength
-// bar reads `maxSpread = ta.highest(spread, 50)` declared inside
+// ⭐ AND THE WALL THE FOLD EXPOSED: ema-ribbon's strength bar reads
+// `maxSpread = ta.highest(spread, 50)` declared inside
 // `if showTable and barstate.islast`. A `ta.*` call there sees only the bars its
 // block runs on (one), so TradingView draws `██████████`; the every-bar maximum
 // would draw `██████░░░░`. The capture witnesses the difference; the block local
-// is MARKED (`condCall`) and the object lane refuses it, so neither is drawn.
+// is MARKED (`condCall`) and the object lane refuses it under every guard but
+// one — ⭐ C42: a block that runs exactly ONCE reads what the call answers on
+// that run (capture `vw-fn-series-history-rddt-1d-2026-09-30`, C04), so the
+// strength bar is drawn, as TradingView's (`vendorHarness.c42OneExecution`).
 //
 // Captures: NYSE:RDDT 1D, 632 bars, 2026-09-28 (tests/fixtures/vendor/harness).
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -125,12 +128,12 @@ describe('C31 — htf-candle-footprint: `indxBar` below a `for … in`', () => {
 })
 
 describe('C31 — ema-ribbon: a text loop folds, and a conditional call is refused by name', () => {
-  it('⭐ every drawn cell is TradingView\'s; the strength bar is withheld, never the every-bar six', () => {
+  it('⭐ every drawn cell is TradingView\'s; the strength bar is the one-run ten (C42), never the every-bar six', () => {
     const c = cap(EMA)
     const { d, cells } = run(c)
     expectOnlyVendorCells(c, cells)
-    expect(cells.has('top_right|2|3')).toBe(false)
     expect(vendorCells(c).get('top_right|2|3')).toBe('██████████')
+    expect(cells.get('top_right|2|3')).toBe('██████████')
     expect(d.translation.objectDiagnostics.dropReasons['cell:text']).toBeGreaterThanOrEqual(1)
   })
 
@@ -161,21 +164,33 @@ describe('C31 — ema-ribbon: a text loop folds, and a conditional call is refus
     expect(cells.get('top_right|0|0')).toBe(expected)
   })
 
-  it('⛔ a `ta.*` local inside a last-bar block is refused; the same call at the top level is read (control)', () => {
+  it('⛔ a `ta.*` local inside a block that does not run on every bar is refused; the same call at the top level is read (control)', () => {
     const c = cap(EMA)
     const src = [
       '//@version=6',
       'indicator("c31 cond", overlay=true)',
       'float top = ta.highest(close, 50)',
-      'var table d = table.new(position.top_right, 2, 1)',
+      'var table d = table.new(position.top_right, 3, 1)',
       'if barstate.islast',
-      '    float inner = ta.highest(close, 50)',
+      '    float inner = ta.lowest(close, 50)',
+      '    float once = ta.highest(close, 50)',
       '    table.cell(d, 0, 0, str.tostring(top))',
       '    table.cell(d, 1, 0, str.tostring(inner))',
+      '    table.cell(d, 2, 0, str.tostring(once))',
+      'if close > open',
+      '    float varies = ta.highest(close, 50)',
+      '    label.new(bar_index, high, str.tostring(varies))',
     ].join('\n')
-    const { cells } = run(c, src)
-    expect(cells.has('top_right|0|0')).toBe(true)
+    const { bars, cells, state } = run(c, src)
+    const closes = bars.map((b) => b.c)
+    expect(Number(cells.get('top_right|0|0'))).toBeCloseTo(Math.max(...closes.slice(-50)), 6)
+    // `ta.lowest` on its first run is in no capture: refused
     expect(cells.has('top_right|1|0')).toBe(false)
+    // ⭐ C42 — `ta.highest` on its ONE run is its source (witnessed), not the 50-bar maximum
+    expect(Number(cells.get('top_right|2|0'))).toBe(closes[closes.length - 1])
+    expect(Math.max(...closes.slice(-50))).not.toBe(closes[closes.length - 1])
+    // a guard that varies bar to bar: refused, as C31 left it
+    expect(state.labels).toHaveLength(0)
   })
 })
 

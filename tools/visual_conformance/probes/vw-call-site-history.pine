@@ -1,0 +1,125 @@
+//@version=6
+indicator("UCTPROBE_VW_CALL_SITE_HISTORY", overlay = true, max_bars_back = 5000, max_labels_count = 100)
+
+// --- 2026-09-30 C42 / Q-C31a - A CALL SITE'S HISTORY, PAST THE ONE-EXECUTION CASE ---
+//
+// Witnessed already (vw-fn-series-history-rddt-1d-2026-09-30, and ema-ribbon's
+// strength bar): code that has run exactly ONCE. A helper's local `x[1]`, its
+// parameter `src[1]`, `bar_index[k]` and `ta.sma(close, 3)` are `na`;
+// `ta.highest(high, 10)` is the last bar's own high. The engine serves exactly
+// that case and refuses the rest by name. This probe asks the rest:
+//
+//   A*  the OTHER built-ins on their first run, in a BLOCK (`if barstate.islast`)
+//   B*  the same in a HELPER called once, plus the reads the first probe did not
+//       ask: `bar_index[k]` beside `bar_index - k`, `time_close[k]`, `hlcc4[k]`,
+//       an offset of 0, the one-argument `ta.highest(length)`, a length of 1
+//   C*  MANY executions, guard `close > open` (irregular): a block's `ta.*`, its
+//       local's history, and `bar_index[1]`, plotted on the bars the block runs
+//   H*  the same from a HELPER called under that guard
+//   D*  MANY executions, guard `bar_index % 2 == 0` (every other bar): a window
+//       over EXECUTIONS and a window over BARS give different numbers on every
+//       bar, so one capture tells them apart
+//   E*  the every-bar answers, for comparison
+//
+// CAPTURE: NYSE:RDDT 1D (from the listing - every execution is on a loaded bar),
+// inputs at defaults; AMEX:SPY 1D as a second witness. A* / B* are one label each
+// on the last bar (text carries the value); C* / H* / D* / E* are plot rows.
+
+// ---------------------------------------------------------------- B: helper, once
+f_once(int k, float src) =>
+    x = close * 2
+    label.new(bar_index, high, "B01 bar_index[k]|" + str.tostring(bar_index[k]) + "|bar_index-k|" + str.tostring(bar_index - k))
+    label.new(bar_index, high, "B02 time_close[k]|" + str.tostring(time_close[k]))
+    label.new(bar_index, high, "B03 hlcc4[k]|" + str.tostring(hlcc4[k]))
+    label.new(bar_index, high, "B04 ta.lowest(low,10)|" + str.tostring(ta.lowest(low, 10)))
+    label.new(bar_index, high, "B05 ta.ema(close,3)|" + str.tostring(ta.ema(close, 3)))
+    label.new(bar_index, high, "B06 local x[0]|" + str.tostring(x[0]))
+    label.new(bar_index, high, "B07 param src[0]|" + str.tostring(src[0]))
+    label.new(bar_index, high, "B08 ta.highest(10)|" + str.tostring(ta.highest(10)))
+    label.new(bar_index, high, "B09 ta.sma(close,1)|" + str.tostring(ta.sma(close, 1)))
+    label.new(bar_index, high, "B10 ta.highest(high,10) CONTROL|" + str.tostring(ta.highest(high, 10)))
+
+// ---------------------------------------------------------------- H: helper, many
+f_many(float src) =>
+    x = close * 2
+    [src[1], x[1], ta.sma(src, 3), ta.highest(src, 10), bar_index[1], volume[1]]
+
+// ---------------------------------------------------------------- C: block, irregular guard
+float c_hi = na
+float c_lo = na
+float c_sma = na
+float c_ema = na
+float c_x1 = na
+float c_bi1 = na
+float h_src1 = na
+float h_x1 = na
+float h_sma = na
+float h_hi = na
+float h_bi1 = na
+float h_vol1 = na
+if close > open
+    cx = close * 2
+    c_hi := ta.highest(high, 10)
+    c_lo := ta.lowest(low, 10)
+    c_sma := ta.sma(close, 3)
+    c_ema := ta.ema(close, 3)
+    c_x1 := cx[1]
+    c_bi1 := bar_index[1]
+    [a1, a2, a3, a4, a5, a6] = f_many(close)
+    h_src1 := a1
+    h_x1 := a2
+    h_sma := a3
+    h_hi := a4
+    h_bi1 := a5
+    h_vol1 := a6
+
+// ---------------------------------------------------------------- D: block, every other bar
+float d_hi = na
+float d_sma = na
+float d_y1 = na
+if bar_index % 2 == 0
+    dy = close * 2
+    d_hi := ta.highest(high, 3)
+    d_sma := ta.sma(close, 3)
+    d_y1 := dy[1]
+
+plot(c_hi,    "C01_highest10_cond")
+plot(c_lo,    "C02_lowest10_cond")
+plot(c_sma,   "C03_sma3_cond")
+plot(c_ema,   "C04_ema3_cond")
+plot(c_x1,    "C05_local_x1_cond")
+plot(c_bi1,   "C06_bar_index1_cond")
+plot(h_src1,  "H01_param_src1_cond")
+plot(h_x1,    "H02_local_x1_cond")
+plot(h_sma,   "H03_sma3_cond")
+plot(h_hi,    "H04_highest10_cond")
+plot(h_bi1,   "H05_bar_index1_cond")
+plot(h_vol1,  "H06_volume1_cond")
+plot(d_hi,    "D01_highest3_even")
+plot(d_sma,   "D02_sma3_even")
+plot(d_y1,    "D03_local_y1_even")
+plot(ta.highest(high, 10), "E01_highest10_every_bar")
+plot(ta.lowest(low, 10),   "E02_lowest10_every_bar")
+plot(ta.sma(close, 3),     "E03_sma3_every_bar")
+plot(ta.ema(close, 3),     "E04_ema3_every_bar")
+plot(close[1] * 2,         "E05_local_every_bar")
+plot(ta.highest(high, 3),  "E06_highest3_every_bar")
+
+// ---------------------------------------------------------------- A: block, once
+if barstate.islast
+    bx = close * 2
+    label.new(bar_index, low, "A01 ta.highest(high,10) CONTROL|" + str.tostring(ta.highest(high, 10)))
+    label.new(bar_index, low, "A02 ta.lowest(low,10)|" + str.tostring(ta.lowest(low, 10)))
+    label.new(bar_index, low, "A03 ta.sma(close,3)|" + str.tostring(ta.sma(close, 3)))
+    label.new(bar_index, low, "A04 ta.ema(close,3)|" + str.tostring(ta.ema(close, 3)))
+    label.new(bar_index, low, "A05 ta.rsi(close,14)|" + str.tostring(ta.rsi(close, 14)))
+    label.new(bar_index, low, "A06 ta.atr(14)|" + str.tostring(ta.atr(14)))
+    label.new(bar_index, low, "A07 ta.change(close)|" + str.tostring(ta.change(close)))
+    label.new(bar_index, low, "A08 ta.highest(10)|" + str.tostring(ta.highest(10)))
+    label.new(bar_index, low, "A09 ta.sma(close,1)|" + str.tostring(ta.sma(close, 1)))
+    label.new(bar_index, low, "A10 ta.stdev(close,5)|" + str.tostring(ta.stdev(close, 5)))
+    label.new(bar_index, low, "A11 ta.cum(volume)|" + str.tostring(ta.cum(volume)))
+    label.new(bar_index, low, "A12 block local bx[1]|" + str.tostring(bx[1]))
+    label.new(bar_index, low, "A13 block bar_index[5]|" + str.tostring(bar_index[5]) + "|bar_index-5|" + str.tostring(bar_index - 5))
+    label.new(bar_index, low, "A14 block volume[5]|" + str.tostring(volume[5]))
+    f_once(5, close)

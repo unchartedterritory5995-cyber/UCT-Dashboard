@@ -93,7 +93,13 @@ const PURE_NAMESPACES = new Set(['math', 'str', 'color', 'array', 'line', 'label
  *  last non-na value forward, which is history. */
 const PURE_BARE = new Set(['na', 'nz', 'int', 'float', 'bool', 'string', 'tostring',
   'abs', 'max', 'min', 'round', 'floor', 'ceil', 'sqrt', 'pow', 'log', 'log10', 'exp',
-  'sign', 'avg', 'iff', 'timestamp', 'color', 'rgb'])
+  'sign', 'avg', 'iff', 'timestamp', 'color', 'rgb',
+  // ⭐ C42 — the CLOCK functions: `time(tf, session, …)`, `time_close(…)` and the
+  // calendar readers answer from the bar's own timestamp and their arguments;
+  // none keeps a history a conditional call could starve. (`time[k]` — the
+  // SERIES at an offset — is a different read, judged by `historyIn`'s `[`.)
+  'time', 'time_close', 'year', 'month', 'weekofyear', 'dayofmonth', 'dayofweek',
+  'hour', 'minute', 'second'])
 
 /** Object-method spellings that WRITE a drawing — the method form's half of
  *  "does this body draw". ⛔ `get_*` is a read, not a write, and is excluded: a
@@ -501,13 +507,25 @@ const NOT_A_CALL = new Set(['if', 'for', 'while', 'switch', 'and', 'or', 'not', 
 //    inlined, under the same guards, as a drawing function already is.
 
 /** ⭐ C34 — the chart series a conditional call's body may read at an offset.
- *  Each one WITNESSED (see the section above). */
-export const CHART_SERIES_WITNESSED = new Set(['open', 'high', 'low', 'close'])
+ *  Each one WITNESSED (see the section above).
+ *  ⭐ C42 — `volume`, `time`, `hl2`, `hlc3`, `ohlc4`: capture
+ *  `vw-fn-series-history-rddt-1d-2026-09-30`, rows S01 / S03–S06 — a helper
+ *  called only on the last bar prints each at k = 5, 40 and 200, and all fifteen
+ *  labels are the capture's own bars `k` back (`vendorHarness.c42OneExecution`). */
+export const CHART_SERIES_WITNESSED = new Set(['open', 'high', 'low', 'close',
+  'volume', 'time', 'hl2', 'hlc3', 'ohlc4'])
 /** ⛔ C34 — chart series Pine keeps the same way, per its reference, but no
  *  committed capture reads one at an offset from inside a conditional call.
- *  Refused BY NAME with the capture that would settle it. */
-export const CHART_SERIES_UNWITNESSED = new Set(['volume', 'time', 'time_close', 'bar_index',
-  'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+ *  Refused BY NAME with the capture that would settle it. ⛔ C42 — the 2026-09-30
+ *  probe did not ask these two, so they stay here (`vw-call-site-history`). */
+export const CHART_SERIES_UNWITNESSED = new Set(['time_close', 'hlcc4'])
+/** ⛔⛔ C42 — `bar_index` IS NOT THE CHART'S IN A CONDITIONAL CALL. Row S02 of the
+ *  same capture: `bar_index[k]` inside the last-bar helper prints `NaN` at all
+ *  three offsets, where the chart's value is 628 / 593 / 433. It answers like the
+ *  call's OWN history (nothing before the call's first run), so it is carried
+ *  only where a parameter's or a local's history is — a call that runs exactly
+ *  once (`oneExecutionBody`) — and refuses for every other varying guard. */
+export const CALL_OWNED_SERIES = new Set(['bar_index'])
 
 /** The first history read in these tokens, or null. `pureFns` are user
  *  functions (and methods) already proven history-free; `methods` are user
@@ -532,7 +550,11 @@ function historyIn(toks, drawFns, userFns, pureFns, methods, chart = EMPTY_SET, 
       // ⭐ C34 — the chart's own series, witnessed (see the section above).
       if (prev.kind === 'ident' && !prev.member && chart.has(String(prev.value))) continue
       if (prev.kind === 'ident' && !prev.member && CHART_SERIES_UNWITNESSED.has(String(prev.value))) {
-        return `a history read \`${prev.value}[…]\` at line ${tk.line} — the chart's \`${prev.value}\` is not yet witnessed read from inside a conditional call (capture \`vw-fn-series-history\`)`
+        return `a history read \`${prev.value}[…]\` at line ${tk.line} — the chart's \`${prev.value}\` is not yet witnessed read from inside a conditional call (capture \`vw-call-site-history\`)`
+      }
+      // ⛔ C42 — witnessed NOT to be the chart's: see `CALL_OWNED_SERIES`.
+      if (prev.kind === 'ident' && !prev.member && CALL_OWNED_SERIES.has(String(prev.value))) {
+        return `a history read \`${prev.value}[…]\` at line ${tk.line} — inside a conditional call \`${prev.value}\` answers like the call's own history (\`na\` on the call's first run, capture \`vw-fn-series-history\`), which is carried only for a call that runs once`
       }
       if (prev.kind === 'ident' || prev.kind === 'number'
         || (prev.kind === 'punct' && (prev.value === ')' || prev.value === ']'))) {
@@ -718,6 +740,24 @@ function allInvariant(toks, from, to, names) {
         // arguments say (a title, an `options=[…]` list, a tooltip).
         const close = closeOf(toks, i + 1)
         if (close < 0 || close >= to) return false
+        i = close
+        continue
+      }
+      // ⭐ C42 — a bare `input(<literal>, …)` is a simple input too: its default
+      // is a number, a string or `true` / `false` written into the call, so it
+      // cannot be the v4 SOURCE form (`input(close, …)`), which stays excluded.
+      // ⚰️ MEASURED: `show_equal_highlow = input(true, …)` guarding
+      // `high_eqh := ta.pivothigh(…)` (smart-money-concepts-by-welotrades) read as
+      // a guard that varies, and the conditional-call mark refused four drawings
+      // of a block that runs on every bar.
+      if (v === 'input') {
+        const first = toks[i + 2]
+        const after = toks[i + 3]
+        const literal = first && (first.kind === 'number' || first.kind === 'string'
+          || (first.kind === 'ident' && !first.member && (first.value === 'true' || first.value === 'false')))
+        const ends = after && after.kind === 'punct' && (after.value === ',' || after.value === ')')
+        const close = closeOf(toks, i + 1)
+        if (!literal || !ends || close < 0 || close >= to) return false
         i = close
         continue
       }
@@ -911,6 +951,257 @@ export function getterScalars(stmts, h) {
 export function historyReason(def, drawFns, userFns, pureFns = new Set(), methods = new Set(),
   chart = EMPTY_SET, drawMethods = EMPTY_SET) {
   return historyIn(allTokens(def.body), drawFns, userFns, pureFns, methods, chart, drawMethods)
+}
+
+// ─── ⭐⭐ C42 — A CALL THAT RUNS EXACTLY ONCE (2026-09-30) ────────────────────
+//
+// The per-call-site rule, WITNESSED for one case: a call that has run once.
+// Capture `vw-fn-series-history-rddt-1d-2026-09-30` (NYSE:RDDT 1D, 634 bars from
+// the listing) calls `f_series(k)` / `f_call(close)` only under
+// `if barstate.islast` and prints what each read answers:
+//
+//   C01  a body local    `x[1]`  (`x = close * 2`)   NaN   (every bar: 290.72)
+//   C02  a parameter     `src[1]` (`f_call(close)`)  NaN   (every bar: 145.36)
+//   C03  `ta.sma(close, 3)`                          NaN   (every bar: 143.6267)
+//   C04  `ta.highest(high, 10)`                      151.8899 — the last bar's
+//        OWN high, a window holding the one execution (every bar: 161.67)
+//   S02  `bar_index[k]`, k = 5 / 40 / 200            NaN   (chart: 628 / 593 / 433)
+//
+// and `ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28` shows the same C04
+// answer in a block: `ta.highest(spread, 50)` under `if showTable and
+// barstate.islast` draws ten full glyphs (the ratio 1).
+//
+// So, for a call whose guard is PROVABLY `barstate.islast` (`guardIsLastBarOnly`)
+// and that stands in no loop — one execution on the bars a chart loads:
+//   • `<parameter>[n]`, `<body local>[n]`, `bar_index[n]`, n a whole number ≥ 1
+//     written into the script (or a parameter bound to one) → `na`;
+//   • `ta.highest(src, len)` → `src` (the window holds this execution alone);
+//   • `ta.sma(src, len)`, `len` a whole number ≥ 2 written the same way → `na`
+//     (fewer executions than the average needs).
+// ⛔ NOTHING ELSE. `ta.lowest`, `ta.ema`, `ta.rsi`, the one-argument
+// `ta.highest(len)`, an offset or a length that is not a literal: none is in the
+// capture, so each still refuses by name (`fn:conditional-history`), as does
+// every guard that is not `barstate.islast` — how a window answers across MANY
+// executions is not witnessed (probe `vw-call-site-history`, queued).
+// ⚠️ ONE EXECUTION IS THE LOADED CHART. On a chart left open, TradingView runs the
+// block again on each new realtime bar and the call's history grows; this
+// engine recomputes from the bars it holds, where the last bar is the only
+// `barstate.islast` bar — the state the capture was taken in.
+
+/** ⭐ C42 — `ta.*` whose window, on its first execution, IS its source. */
+export const ONE_EXECUTION_WINDOW_IS_SOURCE = new Set(['ta.highest'])
+/** ⭐ C42 — `ta.*` that is `na` until it has run `length` times (length ≥ 2). */
+export const ONE_EXECUTION_IS_NA = new Set(['ta.sma'])
+
+/** ⭐ C42 — is this guard `barstate.islast`, alone or as a top-level `and`
+ *  conjunct? ⛔ Fails closed: an `or`, a ternary, a `not`, or the word inside
+ *  brackets is not proof (`not barstate.islast` runs on every bar but one). */
+export function guardIsLastBarOnly(toks) {
+  if (!toks || !toks.length) return false
+  let depth = 0
+  let found = false
+  let start = 0
+  const conjunct = (from, to) => {
+    if (to - from === 1 && toks[from].kind === 'ident' && !toks[from].member
+      && toks[from].value === 'barstate.islast') found = true
+  }
+  for (let i = 0; i < toks.length; i += 1) {
+    const tk = toks[i]
+    if (tk.kind === 'punct') {
+      if (tk.value === '(' || tk.value === '[') depth += 1
+      else if (tk.value === ')' || tk.value === ']') depth -= 1
+      else if (depth === 0 && (tk.value === '?' || tk.value === ':')) return false
+      continue
+    }
+    if (depth !== 0 || tk.kind !== 'ident') continue
+    if (tk.value === 'or') return false
+    if (tk.value === 'and') { conjunct(start, i); start = i + 1 }
+  }
+  conjunct(start, toks.length)
+  return found
+}
+
+/** A whole number ≥ `min` written into the script — directly, or as a parameter
+ *  the call binds to one. null otherwise. */
+function literalCountOf(toks, bind, locals, min) {
+  if (!toks || toks.length !== 1) return null
+  let tk = toks[0]
+  if (tk.kind === 'ident' && !tk.member && bind && bind.has(String(tk.value)) && !locals.has(String(tk.value))) {
+    const arg = bind.get(String(tk.value))
+    if (!arg || arg.length !== 1) return null
+    tk = arg[0]
+  }
+  if (tk.kind !== 'number') return null
+  const n = Number(tk.value)
+  return Number.isInteger(n) && n >= min ? n : null
+}
+
+/** ⭐ C42 — the first `ta.*(` call in these tokens, or null. */
+export function taCallIn(toks) {
+  for (let i = 0; i + 1 < (toks || []).length; i += 1) {
+    const tk = toks[i]
+    if (tk && tk.kind === 'ident' && !tk.member && String(tk.value).startsWith('ta.')
+      && toks[i + 1].kind === 'punct' && toks[i + 1].value === '(') return tk
+  }
+  return null
+}
+
+/**
+ * ⭐⭐ C42 — these tokens, as they read on the ONE execution of the block or
+ * call they stand in (see the section above). Only the witnessed shapes are
+ * rewritten:
+ *   `owned[n]` → `na` · `ta.highest(src, len)` → `(src)` · `ta.sma(src, len≥2)` → `na`
+ * `owned` are the names whose history belongs to the call (a body's parameters
+ * and locals, `CALL_OWNED_SERIES`) — empty for a top-level block, whose locals
+ * are not asked here. `why` is the first witnessed NAME met in a shape the
+ * capture does not show; `left` the first `ta.*` call still standing, or the
+ * first call to a user function that reads its own history (`historyFns`,
+ * `callHistoryFunctions`). With `flagRest`, every such call left standing is
+ * marked `onceUnwitnessed`, which the object lane refuses by name where the
+ * value is read.
+ * @returns {{toks: object[], why: string|null, left: object|null}}
+ */
+export function oneExecutionTokens(toks, h, {
+  bind = null, locals = EMPTY_SET, owned = EMPTY_SET, flagRest = false, historyFns = EMPTY_SET,
+} = {}) {
+  let why = null
+  const na = (at) => ({ kind: 'ident', value: 'na', line: at.line, column: at.column, index: at.index })
+  const P = (value, at) => ({ kind: 'punct', value, line: at.line, column: at.column, index: at.index })
+  const rw = (t) => {
+    const out = []
+    for (let i = 0; i < t.length; i += 1) {
+      const tk = t[i]
+      const next = t[i + 1]
+      if (tk.kind !== 'ident' || tk.member || !next || next.kind !== 'punct') { out.push(tk); continue }
+      const v = String(tk.value)
+      if (next.value === '[' && next.line === tk.line && owned.has(v)) {
+        const close = closeOf(t, i + 1)
+        // `float[] x` — a type, not a read
+        if (close === i + 2) { out.push(tk); continue }
+        if (close < 0 || literalCountOf(t.slice(i + 2, close), bind, locals, 1) === null) {
+          why = why || `a history read \`${v}[…]\` at line ${tk.line} — the call's own history, \`na\` on its one run only where the offset is a whole number above 0 written into the script`
+          out.push(tk)
+          continue
+        }
+        out.push(na(tk))
+        i = close
+        continue
+      }
+      if (next.value !== '(') { out.push(tk); continue }
+      const window = ONE_EXECUTION_WINDOW_IS_SOURCE.has(v)
+      if (!window && !ONE_EXECUTION_IS_NA.has(v)) { out.push(tk); continue }
+      const close = closeOf(t, i + 1)
+      const args = close < 0 ? null : splitArgs(t, i + 1, h.isPunct)
+      if (!args || args.length !== 2 || args.some((a) => a.name !== null || !a.toks.length)) {
+        why = why || `\`${v}\` at line ${tk.line}, called in a form no capture reads from a call that runs once (only \`${v}(source, length)\` is witnessed)`
+        out.push(tk)
+        continue
+      }
+      if (window) {
+        out.push(P('(', tk), ...rw(args[0].toks), P(')', tk))
+      } else if (literalCountOf(args[1].toks, bind, locals, 2) === null) {
+        why = why || `\`${v}\` at line ${tk.line}, whose length is not a whole number above 1 written into the script — only then is its first run known to be \`na\``
+        out.push(tk)
+        continue
+      } else {
+        out.push(na(tk))
+      }
+      i = close
+    }
+    return out
+  }
+  let out = rw(toks || [])
+  const left = taCallIn(out) || historyCallIn(out, historyFns)
+  if (flagRest && left) {
+    out = out.map((tk, i) => (historyCallAt(out, i, historyFns) || (tk.kind === 'ident' && !tk.member
+      && String(tk.value).startsWith('ta.') && out[i + 1] && out[i + 1].kind === 'punct' && out[i + 1].value === '(')
+      ? { ...tk, onceUnwitnessed: true } : tk))
+  }
+  return { toks: out, why, left }
+}
+
+/** Is `toks[i]` the head of a call to one of `names` — `f(…)`, or the method
+ *  form `x.f(…)` on a script value (never under one of Pine's own namespaces)? */
+function historyCallAt(toks, i, names) {
+  const tk = toks[i]
+  const next = toks[i + 1]
+  if (!names || !names.size || !tk || tk.kind !== 'ident' || !next || next.kind !== 'punct' || next.value !== '(') return false
+  const v = String(tk.value)
+  if (names.has(v)) return true
+  const dot = v.lastIndexOf('.')
+  if (dot <= 0) return false
+  const first = v.split('.')[0]
+  return names.has(v.slice(dot + 1)) && !KNOWN_NAMESPACES.has(first) && !DRAWN_FAMILIES.includes(first)
+}
+
+/** ⭐ C42 — the first call, in these tokens, to a function that reads its own
+ *  history (`callHistoryFunctions`), or null. */
+export function historyCallIn(toks, names) {
+  if (!names || !names.size) return null
+  for (let i = 0; i + 1 < (toks || []).length; i += 1) if (historyCallAt(toks, i, names)) return toks[i]
+  return null
+}
+
+/**
+ * ⭐⭐ C42 — USER FUNCTIONS AND METHODS WHOSE BODY READS THE CALL'S OWN HISTORY:
+ * a `ta.*` call, or a parameter / a body local / a `CALL_OWNED_SERIES` name at an
+ * offset — directly, or through another such function. Exactly the reads the
+ * capture shows answering differently from a call that has not run on every
+ * bar (C01–C04, S02). ⛔ Not "impure": a `request.*` or an `input.*` inside a
+ * body is not the call's history and does not put the function here.
+ * @returns {Set<string>}
+ */
+export function callHistoryFunctions(defs, h, callOwned = EMPTY_SET) {
+  const direct = (d) => {
+    const toks = allTokens(d.body)
+    if (taCallIn(toks)) return true
+    const owned = new Set([...callOwned, ...bodyNames(d, h).locals, ...d.params.map((p) => p.name)])
+    for (let i = 0; i + 2 < toks.length; i += 1) {
+      const tk = toks[i]
+      const next = toks[i + 1]
+      if (tk.kind === 'ident' && !tk.member && owned.has(String(tk.value))
+        && next.kind === 'punct' && next.value === '[' && next.line === tk.line
+        && !(toks[i + 2].kind === 'punct' && toks[i + 2].value === ']')) return true
+    }
+    return false
+  }
+  const out = new Set()
+  for (const [name, d] of defs) if (direct(d)) out.add(name)
+  let grew = true
+  while (grew) {
+    grew = false
+    for (const [name, d] of defs) {
+      if (out.has(name)) continue
+      if (historyCallIn(allTokens(d.body), out)) { out.add(name); grew = true }
+    }
+  }
+  return out
+}
+
+/**
+ * ⭐⭐ C42 — the body of `def`, as it reads on the call's ONE execution. What the
+ * rewrite leaves is for `historyIn` to judge, so whatever stays refused keeps
+ * its own sentence. `callOwned` are the built-in series whose history is the
+ * call's (`callOwnedSeriesFor`), beside its parameters and its locals.
+ * @returns {{body: object[]}|{why: string}}
+ */
+export function oneExecutionBody(def, bind, locals, h, callOwned = EMPTY_SET) {
+  const owned = new Set([...callOwned, ...locals, ...def.params.map((p) => p.name)])
+  let why = null
+  const list = (stmts) => (stmts || []).map((st) => {
+    const r = oneExecutionTokens(st.header || [], h, { bind, locals, owned })
+    why = why || r.why
+    return { ...st, header: r.toks, sub: list(st.sub) }
+  })
+  const body = list(def.body)
+  return why ? { why } : { body }
+}
+
+/** ⭐ C42 — `CALL_OWNED_SERIES` this script does not bind itself. */
+export function callOwnedSeriesFor(stmts, h) {
+  if (!stmts || !h) return EMPTY_SET
+  const bound = scriptBoundNames(stmts, h)
+  return new Set([...CALL_OWNED_SERIES].filter((n) => !bound.has(n)))
 }
 
 /** Names a body DECLARES or ASSIGNS (all become per-call-site locals), and the

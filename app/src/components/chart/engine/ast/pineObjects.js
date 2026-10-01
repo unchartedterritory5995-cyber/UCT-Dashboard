@@ -39,7 +39,8 @@ import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
-  barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt, literalInit, isMutator,
+  barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
+  oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -191,6 +192,15 @@ export function collectObjectOps(stmts, h) {
     diagnostics.lostCollsWhy.push(`${why}@${tok && tok.line !== undefined ? tok.line : '?'}`)
   }
   let siteSeq = 0
+  /** ⭐ C42 — the line of every statement read as it answers on a block's ONE
+   *  execution (`walk`), and of every statement nested under one: the runtime
+   *  lane runs the script as written — a `ta.*` there over every bar — so no
+   *  value of such a statement may be read from it (`rtEligibleOp`). */
+  const onceLines = new Set()
+  const noteOnceLines = (st) => {
+    if (st && st.header && st.header[0] && Number.isInteger(st.header[0].line)) onceLines.add(st.header[0].line)
+    for (const s of (st && st.sub) || []) noteOnceLines(s)
+  }
   /** ⭐ C22 — every body this pass inlined, rewritten for its call site, and
    *  whether the call runs on EVERY bar (no guard, no loop): a `var` array its
    *  body declares is then that call site's own window (`buildObjectProgram`). */
@@ -255,7 +265,12 @@ export function collectObjectOps(stmts, h) {
    *  script name shadows: a conditional call's body reads them at an offset as
    *  the chart's own, not the call's (`objectFnInline.js`, C34). */
   const chartSeries = chartSeriesFor(stmts, h)
+  /** ⭐ C42 — `bar_index`, unless the script binds the name (`oneExecutionBody`). */
+  const callOwned = callOwnedSeriesFor(stmts, h)
   const pureFns = pureFunctions(fnDefs, drawFns, chartSeries, drawMethods)
+  /** ⭐ C42 — value functions that read the call's own history (a drawing
+   *  function is judged where it is inlined, `inlineCall`). */
+  const historyFns = new Set([...callHistoryFunctions(fnDefs, h, callOwned)].filter((n) => !drawing.has(n)))
   /** Top-level names fixed for the whole run — see `barInvariantNames`. */
   const invariantNames = barInvariantNames(stmts, h)
   /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
@@ -571,8 +586,28 @@ export function collectObjectOps(stmts, h) {
         rootPos += 1
         rootTok = st.header && st.header[0] && Number.isFinite(st.header[0].index) ? st.header[0].index : null
       }
-      const t = st.header
+      let t = st.header
       if (!t || !t.length) continue
+      // ⭐⭐ C42 — A `ta.*` CALL WRITTEN IN A BLOCK THAT RUNS ONCE. Under a guard
+      // that is provably `barstate.islast`, in no loop, the call has run exactly
+      // once when its value is read: `ta.highest(src, len)` is `src` and
+      // `ta.sma(src, len)` is `na` (witnessed — `objectFnInline.js`, the C42
+      // section). ⚰️ Read the every-bar way, `str.tostring(ta.highest(high, 10))`
+      // in a last-bar cell printed 161.67 where TradingView prints the last bar's
+      // own high, 151.8899. Any other `ta.*` left standing is marked and refuses
+      // by name where its value is read (`Resolver.resolveCall`): what it answers
+      // on its first run is in no capture. ⛔ The same for a call to a user
+      // function that reads its OWN history (`historyFns`): called once, its
+      // `ta.*` and its locals' history hold one run, which the value reader's
+      // frame does not model — refused by name, never the every-bar number.
+      // ⛔ Only the tokens this reader emits from are rewritten — `st` keeps its
+      // header, which the value walk's bindings are joined on.
+      if (!inLoop && loopIds.length === 0 && (taCallIn(t) || historyCallIn(t, historyFns))
+          && !definitionHeader(t, h)
+          && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
+        t = oneExecutionTokens(t, h, { flagRest: true, historyFns }).toks
+        noteOnceLines(st)
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -2112,11 +2147,33 @@ export function collectObjectOps(stmts, h) {
     // ⭐ C34 — and a loop this reader does not run varies too (its passes).
     const varies = inLoop || loopIds.length > 0
       || guards.some((g) => !guardIsBarInvariant(g.toks, invariantNames))
+    const { locals, mutable, carried } = bodyNames(def, h)
+    /** ⭐ C42 — the body this call site inlines: the definition's own, or — for
+     *  a call that runs exactly once — the body as it reads on that one run. */
+    let siteDef = def
     if (varies) {
-      const why = historyReason(def, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
+      let why = historyReason(def, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
+      // ⭐⭐ C42 — A CALL THAT RUNS ONCE (`objectFnInline.js`, the C42 section):
+      // under a guard that is provably `barstate.islast`, in no loop, the call's
+      // own history is `na` and a `ta.highest` window holds this run alone —
+      // witnessed. ⛔ Every other varying guard refuses as before, and so does
+      // whatever the one-run body still reads that the capture does not show.
+      if (why && !inLoop && loopIds.length === 0
+          && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
+        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned)
+        if (once.body) {
+          const candidate = { ...def, body: once.body }
+          why = historyReason(candidate, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
+          if (!why) {
+            siteDef = candidate
+            diagnostics.oneExecutionCalls = (diagnostics.oneExecutionCalls || 0) + 1
+          }
+        } else {
+          why = once.why
+        }
+      }
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }
-    const { locals, mutable, carried } = bodyNames(def, h)
     inlineSeq += 1
     const suffix = `${INLINE_SUFFIX}${inlineSeq}`
     const meta = {
@@ -2126,7 +2183,7 @@ export function collectObjectOps(stmts, h) {
       mutable: new Set([...mutable].map((n) => n + suffix)),
       carried: new Set([...carried].map((n) => n + suffix)),
     }
-    const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
+    const rw = rewriteBody(siteDef, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
     diagnostics.inlinedCalls += 1
     inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 && !inLoop })
@@ -2305,5 +2362,5 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies }
+  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines }
 }
