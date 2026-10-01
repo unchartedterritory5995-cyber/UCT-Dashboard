@@ -315,3 +315,21 @@ def test_an_old_header_without_the_stamp_falls_back_to_the_filing_index_only():
         "19970512140311", dt.datetime(1997, 5, 12, 18, 3, 11, tzinfo=dt.timezone.utc), "exact")    # EDT in May 1997
     both = {".hdr.sgml": b"<ACCEPTANCE-DATETIME>20260115163038", "-index.htm": b'Accepted</div><div class="info">1999-01-01 00:00:00'}
     assert _REAL_HEADER(1, "x", get=lambda url: next(v for k, v in both.items() if url.endswith(k)))[0] == "20260115163038"
+
+
+def test_filings_that_shared_the_floor_may_separate_but_nothing_else_may_change():
+    """Two filings were both stamped before 06:00 ET -> both effective at the floor (t=100). Their true times are 105
+    and 110: between them the company knew only the first. That intermediate step is the ONLY new knowledge allowed."""
+    parent = {"split_status": "verified", "withheld_split_sensitive": False,
+              "metrics": {"m": [[10, 1.0, 20240331, "x"], [100, 3.0, 20240630, "x"]]}}
+    moves = [(100, 105), (100, 110)]
+    ok = {**parent, "metrics": {"m": [[10, 1.0, 20240331, "x"], [105, 2.0, 20240630, "x"], [110, 3.0, 20240630, "x"]]}}
+    assert ACC.correction_guard(parent, ok, moves) == [] and ACC.intermediate_points(parent, ok, moves) == 1
+    stray = {**parent, "metrics": {"m": [[10, 1.0, 20240331, "x"], [107, 2.0, 20240630, "x"], [110, 3.0, 20240630, "x"]]}}
+    assert ACC.correction_guard(parent, stray, moves)                    # a step at no corrected filing's time
+    final = {**parent, "metrics": {"m": [[10, 1.0, 20240331, "x"], [105, 2.0, 20240630, "x"], [110, 3.5, 20240630, "x"]]}}
+    assert ACC.correction_guard(parent, final, moves)                    # the post-window value changed
+    stale = {**parent, "metrics": {"m": [[10, 1.0, 20240331, "x"], [100, 3.0, 20240630, "x"]]}}
+    assert ACC.correction_guard(parent, stale, moves)                    # still effective at the old (early) time
+    before = {**parent, "metrics": {"m": [[10, 1.5, 20240331, "x"], [105, 2.0, 20240630, "x"], [110, 3.0, 20240630, "x"]]}}
+    assert ACC.correction_guard(parent, before, moves)                   # history before the window changed

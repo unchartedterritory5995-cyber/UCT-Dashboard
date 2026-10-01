@@ -154,27 +154,71 @@ def record_evidence(conn, evidence: list[dict]) -> None:
 
 
 # ── correction of stored filings ────────────────────────────────────────────────────────────────────────────────
-def remap_metrics(metrics: dict, tmap: dict[int, int]) -> dict:
-    """The parent's served series with every point at a corrected filing's OLD effective time moved to its NEW one."""
-    return {m: sorted(([tmap.get(r[0], r[0])] + list(r[1:]) for r in rows), key=lambda r: r[0])
-            for m, rows in (metrics or {}).items()}
+def _asof(rows: list, t: int):
+    best = None
+    for r in rows:
+        if r[0] <= t:
+            best = r
+        else:
+            break
+    return None if best is None else tuple(best[1:])
 
 
-def correction_guard(parent: dict | None, new: dict, tmap: dict[int, int]) -> list[str]:
-    """[] iff `new` is exactly the parent with its effective times remapped: same metrics, same values, periods,
-    methods, same split status and withholding. Anything else is not an acceptance-time correction."""
+def correction_windows(moves: list[tuple[int, int]]) -> list[tuple[int, int, frozenset]]:
+    """[(old_t, end, allowed_step_times)]: from a corrected filing's OLD effective time to the LATEST true time of
+    every corrected filing that shared it. Inside a window the company's knowledge is legitimately different
+    (the filings were not yet public, or became public one at a time)."""
+    by: dict[int, set] = {}
+    for o, n in moves:
+        if o != n:
+            by.setdefault(o, set()).add(n)
+    return [(o, max(ns), frozenset(ns)) for o, ns in sorted(by.items())]
+
+
+def correction_guard(parent: dict | None, new: dict, moves) -> list[str]:
+    """[] iff `new` differs from `parent` ONLY by the corrected effective times:
+      - outside every correction window, every metric's as-of value (value, period, method) is identical at every
+        breakpoint of either series (so values before the old time and from the latest true time on are unchanged);
+      - inside a window the new series steps ONLY at the corrected filings' true acceptance times;
+      - split status and company-wide withholding are identical.
+    When one filing moves, this is exactly 'the parent with its effective time remapped'. When several filings that
+    shared an old time (e.g. the 06:00 ET floor) separate, the intermediate knowledge between their true times is the
+    one thing allowed to be new."""
     if parent is None:
         return ["no parent object"]
+    moves = list(moves.items()) if isinstance(moves, dict) else list(moves)
     errs = []
     if bool(parent.get("withheld_split_sensitive")) != bool(new.get("withheld_split_sensitive")):
         errs.append("withholding changed")
     if parent.get("split_status") != new.get("split_status"):
         errs.append("split_status changed")
-    want, got = remap_metrics(parent.get("metrics"), tmap), {m: [list(r) for r in rows] for m, rows in (new.get("metrics") or {}).items()}
-    for m in sorted(set(want) | set(got)):
-        if want.get(m) != got.get(m):
-            errs.append(f"series {m} differs beyond the remapped effective times")
+    wins = correction_windows(moves)
+    inside = lambda t: next((w for w in wins if w[0] <= t < w[1]), None)
+    pm, nm = parent.get("metrics") or {}, new.get("metrics") or {}
+    for m in sorted(set(pm) | set(nm)):
+        a, b = sorted(pm.get(m) or [], key=lambda r: r[0]), sorted(nm.get(m) or [], key=lambda r: r[0])
+        for r in b:
+            w = inside(r[0])
+            if w is not None and r[0] not in w[2] and r[0] != w[0]:
+                errs.append(f"series {m} steps inside a correction window at a time that is no corrected filing's"); break
+            if w is not None and r[0] == w[0] and r[0] not in w[2]:
+                errs.append(f"series {m} still steps at a corrected filing's OLD effective time"); break
+        else:
+            for t in sorted({r[0] for r in a} | {r[0] for r in b}):
+                if inside(t) is None and _asof(a, t) != _asof(b, t):
+                    errs.append(f"series {m} differs outside the correction windows"); break
     return errs
+
+
+def intermediate_points(parent: dict, new: dict, moves) -> int:
+    """New-series points inside correction windows that are NOT a plain remap of a parent point (reported)."""
+    moves = list(moves.items()) if isinstance(moves, dict) else list(moves)
+    wins = correction_windows(moves)
+    n = 0
+    for m, rows in (new.get("metrics") or {}).items():
+        prow = {tuple(r[1:]) for r in (parent.get("metrics") or {}).get(m, [])}
+        n += sum(1 for r in rows if any(w[0] <= r[0] < w[1] for w in wins) and tuple(r[1:]) not in prow)
+    return n
 
 
 def load_evidence(path_or_doc) -> list[dict]:
@@ -266,7 +310,7 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
             D.build_company(conn, cik, version=VP.V5, force=True, now=now)
         b.state("VALIDATING")
         companies = {int(c): s for c, s in parent["companies"].items()}
-        bodies, changed, failures, unchanged = {}, [], {}, []
+        bodies, changed, failures, unchanged, intermediate = {}, [], {}, [], {}
         for cik in moved:
             doc = P.artifact(conn, cik, VP.V5)
             body, _ = P.encode(doc)
@@ -275,14 +319,12 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
                 unchanged.append(cik); continue
             parent_obj = PUB.read_json(target, PUB.obj_key(companies[cik])) if cik in companies else None
             mine = [x for x in plan if x[1] == cik and x[4] != x[5]]
-            tmap, errs = {}, []
-            for x in mine:
-                if tmap.setdefault(x[4], x[5]) != x[5]:
-                    errs.append("two corrected filings share an old effective time with different new times")
+            moves = [(x[4], x[5]) for x in mine]
+            errs = []
             others = {pa for (pa,) in conn.execute(
                 "SELECT public_at FROM filing WHERE cik=? AND accn NOT IN (%s)" % ",".join("?" * len(mine)),
                 (cik, *[x[0] for x in mine]))} if mine else set()
-            if others & set(tmap):
+            if others & {o for o, _ in moves}:
                 errs.append("an uncorrected filing shares a corrected filing's old effective time")
             rows = VAL.stored_rows(conn, cik)
             inv = {k: v for k, v in VAL.invariants(conn, cik, rows).items() if k in VAL.HARD and v}
@@ -290,16 +332,20 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
                 errs.append(f"invariants: {inv}")
             if VAL.derive_rows(conn, cik) != rows:
                 errs.append("nondeterministic")
-            errs += correction_guard(parent_obj, doc, tmap)
+            errs += correction_guard(parent_obj, doc, moves)
             if errs:
                 failures[str(cik)] = errs
             else:
                 bodies[s] = body; companies[cik] = s; changed.append(cik)
+                k = intermediate_points(parent_obj, doc, moves)
+                if k:
+                    intermediate[str(cik)] = k
         b.rec["validation"] = {"changed": len(changed), "unchanged_after_derive": len(unchanged),
                                "failures": failures, "quarantined": [], "retro_allowed": {}, "batch_errors": [],
                                "withholding_events": [], "impossible_dates_new": {},
                                "acceptance_correction": {"companies_moved": len(moved), "filings": len(plan),
-                                                         "public_at_moved": sum(1 for x in plan if x[4] != x[5])}}
+                                                         "public_at_moved": sum(1 for x in plan if x[4] != x[5]),
+                                                         "intermediate_points_by_company": intermediate}}
         if failures:
             _revert(conn, applied, moved, built0)
             applied = []
@@ -323,8 +369,9 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
             "correction": {"kind": "acceptance_time", "reason": reason, "filings": len(plan),
                            "public_at_moved": sum(1 for x in plan if x[4] != x[5]),
                            "rule": "EDGAR header ACCEPTANCE-DATETIME, America/New_York -> UTC; public_at = frozen filings.public_at"},
-            "validation": {"ok": True, "changed": len(changed),
-                           "basis": "every changed object == parent object with corrected effective times remapped"}})
+            "validation": {"ok": True, "changed": len(changed), "intermediate_points_by_company": intermediate,
+                           "basis": "every changed object equals its parent outside the correction windows; inside a "
+                                    "window it steps only at corrected filings' true acceptance times"}})
         b.state("READY_TO_PUBLISH", version=vid)
         if not publish:
             b.rec["candidate_manifest"] = {k: v for k, v in manifest.items() if k not in ("companies", "tickers")}
