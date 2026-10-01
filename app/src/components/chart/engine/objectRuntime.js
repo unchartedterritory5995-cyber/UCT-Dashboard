@@ -260,6 +260,27 @@ export function beginObjects(program, ctx) {
    *  op pays for asking. A run with no curtain (the runtime lane) never forms
    *  one. ⛔ Set by every writer of a mark below, never cleared. */
   let taintSeen = false
+  // ⭐⭐ C33 — A PROGRAM THAT CARRIES AN UNREAD CONJUNCT (`{v:'unknown'}`) OR A
+  // GETTER'S HISTORY (`{v:'get', back}`) holds something unknown before any mark
+  // forms, so the fast path is off for it from the first bar.
+  if (/"v":"unknown"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
+  /** ⭐⭐ C33 — a getter's history: per reference, the number it answered on each
+   *  bar its op ran (`value` records it; `[back]` reads it back). */
+  const getHistory = new WeakMap()
+  /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
+   *  `unknownGuard` create withheld on a bar), per family; and the families
+   *  whose live count TradingView's collector may therefore have cut — its count
+   *  is ours plus up to that many, so past the collector's trigger which objects
+   *  it still holds is unknown. Such a family is withheld whole (`finish`), and a
+   *  getter on a LIVE object of it is unknown from then on (an empty handle is
+   *  still `na` whatever the collector did). */
+  const unknownCreates = Object.fromEntries(OBJECT_FAMILIES.map((f) => [f, 0]))
+  const collectorUnknown = new Set()
+  const noteUnknownCreate = (op) => {
+    if (!op || op.k !== 'create' || op.unknownGuard !== true || !own(POOL_LIMITS, op.family)) return
+    unknownCreates[op.family] += 1
+    if (counts[op.family] + unknownCreates[op.family] > collectsAbove(limits[op.family])) collectorUnknown.add(op.family)
+  }
   const taintInst = (id, props) => {
     if (id === null || id === undefined || !live.has(id)) return
     const cur = instTaint.get(id)
@@ -751,6 +772,9 @@ export function beginObjects(program, ctx) {
           const v = readNode(t.node, bar, loopVars)
           return typeof v === 'string' ? v : ''
         }
+        // ⭐ C33 — a number read off a drawing (a getter, a getter-fed scalar),
+        // through the one number format.
+        case 'val': return formatNumber(numOf(value(t.v)), t.fmt)
         // ⭐ A SYMBOL'S TEXT the binding could not settle (`bindObjectProgram`
         // replaces a settled one with a literal before it gets here) — withheld,
         // because the only honest spellings are the ones the binding holds.
@@ -876,8 +900,19 @@ export function beginObjects(program, ctx) {
           const id = resolveRef(ref.target)
           const inst = id === null ? null : live.get(id)
           const x = inst && inst.props ? inst.props[ref.prop] : undefined
-          return typeof x === 'number' ? x : NaN
+          const now = typeof x === 'number' ? x : NaN
+          if (!ref.back) return now
+          // ⭐ C33 — the getter's own history: what it answered HERE `back` bars
+          // ago. Recorded per bar (a second read on one bar re-records the same
+          // state), so the answer never depends on how often it is asked.
+          let h = getHistory.get(ref)
+          if (!h) { h = new Map(); getHistory.set(ref, h) }
+          h.set(bar, now)
+          const then = h.get(bar - ref.back)
+          return then === undefined ? NaN : then
         }
+        // ⭐ C33 — an unread conjunct has no value; `tainted` answers for it.
+        case 'unknown': return NaN
         // ⭐ C16 — `array.size(bs)`: the collection's length as it stands NOW,
         // dead and `na` slots included (Pine's count — see `reap`).
         case 'size': {
@@ -1031,6 +1066,8 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
+      // ⭐ C33 — a number read off a drawing is as known as that read.
+      if (t.t === 'val') return tainted(t.v, depth + 1)
       return false
     }
     const colorTainted = (c, depth) => {
@@ -1053,8 +1090,22 @@ export function beginObjects(program, ctx) {
         case 'get': {
           if (refTainted(v.target, depth + 1)) return true
           const id = resolveRef(v.target)
-          return id !== null && instPropTainted(id, v.prop)
+          if (id !== null && instPropTainted(id, v.prop)) return true
+          // ⭐ C33 — a LIVE object of a family TradingView's collector may have
+          // cut differently: it may be gone there, where the getter reads `na`.
+          if (id !== null && live.has(id) && collectorUnknown.has(live.get(id).family)) return true
+          if (!v.back) return false
+          // ⭐⭐ C33 — A GETTER'S HISTORY IS SERVED ONLY WHERE A CAPTURE SHOWS IT:
+          // an empty handle `back` bars ago, which reads `na` (high-low-open-mid-
+          // ranges, `"LW | Open | NaN"`), and a bar before the series began.
+          // ⛔ A NUMBER read back, or a bar this place did not run on, is
+          // unmeasured — unknown, so the op that reads it marks what it writes.
+          if (bar - v.back < 0) return false
+          const h = getHistory.get(v)
+          const then = h ? h.get(bar - v.back) : undefined
+          return then === undefined || !Number.isNaN(then)
         }
+        case 'unknown': return true
         case 'text': return textTainted(v.node, depth + 1)
         case 'color': return colorTainted(v.node, depth + 1)
         // ⭐ C11c — an `and` with a KNOWN false operand is known false whatever
@@ -1197,6 +1248,7 @@ export function beginObjects(program, ctx) {
         // Pine did not run the op either, so nothing it would write is unknown.
         if (op.when != null && !valueUnknown(op.when) && !truthy(value(op.when))) continue
         withheldUnknown += 1
+        noteUnknownCreate(op)
         taintOutputs(op)
         continue
       }
@@ -1206,7 +1258,7 @@ export function beginObjects(program, ctx) {
       // the reduction, so its falseness is as unmeasured as its value.
       if (withheldAt(op)) { withheldUnknown += 1; taintOutputs(op); continue }
       // ⭐⭐ C17 — whether it runs, or what it acts on, reads a tainted value.
-      if (handleUnknown || guardTainted(op)) { withholdTainted(op); continue }
+      if (handleUnknown || guardTainted(op)) { noteUnknownCreate(op); withholdTainted(op); continue }
       if (op.when != null && !truthy(value(op.when))) continue
       if (op.k !== 'loop') {
         const at = atCheck(op)
@@ -1682,6 +1734,9 @@ export function beginObjects(program, ctx) {
   for (const fam of Object.keys(POOL_LIMITS)) {
     if (collectedBy[fam] > 0 && (lost.has(fam) || lost.has('*'))) withheldFams.add(fam)
   }
+  // ⭐ C33 — a family whose count TradingView's collector may have cut (creates
+  // this run could not decide pushed the possible count past its trigger).
+  for (const fam of collectorUnknown) withheldFams.add(fam)
   if (withheldFams.has('line')) withheldFams.add('linefill')
   const withheld = {}
   for (const o of live.values()) {

@@ -69,12 +69,19 @@ describe('high-low-open-mid-ranges — the input-guarded helpers are inlined', (
     expect(extra, `a cell TradingView does not show: ${JSON.stringify(extra)}`).toBeNull()
   })
 
-  it('⛔ its lines and labels are WITHHELD — the collector cut families that lost creates', () => {
+  // ⚰️ This read "its lines and labels are WITHHELD". C33 (2026-09-30) carried
+  // every label create (an `input.timeframe` text, a getter and its history in a
+  // text, an `na` text-colour arm), so the label family lost nothing and holds
+  // TradingView's 504 — text, price and order pinned in
+  // `vendorHarness.c33ObjectReads`. The LINES are still withheld: the `vline`
+  // divider's guard has a term this lane does not read (`time(<timeframe>)`).
+  it('⛔ its lines are WITHHELD (TradingView may have collected them differently); its labels are the 504', () => {
     vi.stubEnv(FLAG, '1')
     const cap = load('high-low-open-mid-ranges')
     const ours = runOurSide(cap)
     expect(ours.objects.counts.lines).toBe(0)
-    expect(ours.objects.counts.labels).toBe(0)
+    expect(ours.objects.counts.labels).toBe(cap.objects.counts.labels)
+    expect(cap.objects.counts.labels).toBe(504)
     // ⭐ the evidence the count alone hid: TradingView holds FIVE lines a week
     // (four ranges + the `vline` divider this chart cannot guard), 101 weeks.
     const perX = new Map()

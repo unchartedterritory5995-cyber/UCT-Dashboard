@@ -352,7 +352,20 @@ export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round'])
  *   · a collection index — `array.pop(bs)` is slot `array.size(bs) - 1`.
  * ⛔ Still never a coordinate, a caption, a screener column or a tree.
  */
-export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross'])
+export const LIVE_GUARD_KINDS = Object.freeze(['get', 'size', 'latch', 'bool', 'cmp', 'cross', 'unknown'])
+/** ⭐⭐ C33 — `{v:'unknown'}`: A CONJUNCT OF A GUARD THIS READER COULD NOT READ.
+ *  `if i_mr1 and dayofweek(time, tz) == d and h[1] != h` (high-low-open-mid-ranges):
+ *  the middle term has no reading here, but the `and` is still KNOWN FALSE on every
+ *  bar a readable term is false — Pine did not run the block either — and unknown
+ *  everywhere else. So it rides as an operand the object runtime answers "unknown"
+ *  for (`objectRuntime.js`: its `and` is known false beside a known-false operand,
+ *  C11c; otherwise the latch is unknown and every op reading it is withheld and
+ *  marks what it would have written, C17). ⛔ Legal only under a `bool` `and`. */
+/** ⭐⭐ C33 — how far back a getter's own history may be read (`{v:'get', back}`):
+ *  `line.get_y1(l)[1]` is the number that getter answered at this place on the
+ *  previous bar. The runtime answers it only where a capture shows the answer
+ *  (an empty handle — `na`); a number read back is unmeasured and held. */
+export const MAX_GETTER_BACK = 5
 export const LIVE_BOOL_OPS = Object.freeze(['and', 'or', 'not'])
 /** ⭐ C16 adds `==`/`!=` — `if array.size(bs) == 0` — through `interpret`'s own
  *  `BINARY` table, like the four orderings. */
@@ -492,6 +505,21 @@ function assertTextNode(v, where, depth = 0, live = null) {
         throw new Error(`${where}: a symbol text must name a syminfo field`)
       }
       return
+    // ⭐⭐ C33 — A NUMBER READ OFF A DRAWING, FORMATTED: `str.tostring(line.get_y1(l))`,
+    // or of a getter-fed scalar. The number is object state, so it is the object
+    // runtime's to read where the op stands (C14) and never a graph node; the
+    // format is `{t:'num'}`'s own. ⛔ Only where object state may be read at all
+    // (`live`: a create/update's own text, outside loops) — never a table cell.
+    case 'val':
+      if (!live) throw new Error(`${where}: a text that reads object state is legal only in a create or update's own text`)
+      if (!isObj(v.v) || (v.v.v !== 'get' && v.v.v !== 'num')) {
+        throw new Error(`${where}: a formatted state value reads a getter or a getter-fed scalar`)
+      }
+      assertLiveRef(v.v, `${where}.v`, live)
+      if (v.fmt !== undefined && typeof v.fmt !== 'string') {
+        throw new Error(`${where}: a number format must be a string`)
+      }
+      return
     case 'cat':
       if (!Array.isArray(v.args) || !v.args.length) throw new Error(`${where}: a concatenation needs parts`)
       v.args.forEach((a, i) => assertTextNode(a, `${where}.args[${i}]`, depth + 1, live))
@@ -548,7 +576,7 @@ function containsGet(v, depth = 0) {
   if (!isObj(v) || depth > 32) return false
   // ⭐ C25 — and the LOOP COUNTER: a condition on the pass (`i == 0`) is not a
   // tree either — a tree is one value per bar — so it lives here too.
-  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch' || v.v === 'loop') return true
+  if (v.v === 'get' || v.v === 'num' || v.v === 'size' || v.v === 'latch' || v.v === 'loop' || v.v === 'unknown') return true
   return NESTED_KINDS.has(v.v) && Array.isArray(v.args) && v.args.some((a) => containsGet(a, depth + 1))
 }
 
@@ -566,7 +594,17 @@ function assertLiveRef(v, where, live) {
   // ⛔ A CROSSING IS OBSERVED ONCE PER BAR, AT THE OP'S POSITION; a loop body
   // runs several times a bar, so "the previous pair" has no single answer there.
   if (v.v === 'cross' && live.inLoop) throw new Error(`${where}: a cross in a loop body`)
+  // ⭐ C33 — an unread conjunct: only as an operand of an `and` (`live.underAnd`).
+  if (v.v === 'unknown') {
+    if (!live.underAnd) throw new Error(`${where}: an unknown operand is legal only under an \`and\``)
+    return
+  }
   if (v.v === 'get') {
+    // ⭐ C33 — the getter's own history, a whole number of bars back.
+    if (v.back !== undefined && !(Number.isInteger(v.back) && v.back >= 1 && v.back <= MAX_GETTER_BACK)) {
+      throw new Error(`${where}: a getter's history is read 1..${MAX_GETTER_BACK} bars back, got ${JSON.stringify(v.back)}`)
+    }
+    if (v.back !== undefined && live.inLoop) throw new Error(`${where}: a getter's history in a loop body`)
     const t = v.target
     if (!isObj(t) || t.r !== 'reg' || t.back !== undefined) {
       throw new Error(`${where}: a getter reads a register as it stands now — \`{r:'reg', id}\``)
@@ -595,7 +633,8 @@ function assertLiveRef(v, where, live) {
   if (!Array.isArray(v.args) || v.args.length < arity[0] || v.args.length > arity[1]) {
     throw new Error(`${where}: ${v.v} ${v.op || v.dir} takes ${arity[0]}${arity[1] > arity[0] ? '+' : ''} argument(s)`)
   }
-  v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
+  const inner = v.v === 'bool' && v.op === 'and' ? { ...live, underAnd: true } : (live.underAnd ? { ...live, underAnd: false } : live)
+  v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, inner))
   // ⛔ PURE LOGIC NEVER LIVES HERE — it is one tree. A live node with no getter
   // under it is a second boolean algebra for the graph's own job.
   if (!containsGet(v)) throw new Error(`${where}: a ${v.v} guard node that reads no object state belongs in a tree`)
