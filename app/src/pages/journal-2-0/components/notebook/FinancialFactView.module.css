@@ -107,6 +107,15 @@
   font-size: 11px;
 }
 
+/* G-062: the attribution line for a `rights_class: conditional` fact (e.g.
+   an FMP-sourced analyst consensus). Same size/weight as .captured -- a
+   footnote, not a warning. */
+.source {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.2px;
+}
+
 .caption {
   color: var(--text-muted);
   font-size: 12px;

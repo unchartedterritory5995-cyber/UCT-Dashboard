@@ -37,6 +37,40 @@ def _resolve_price(tickers: list[str]) -> dict[str, float | None]:
         return {t: None for t in tickers}
 
 
+def _resolve_price_target_consensus(ticker: str) -> float | None:
+    """G-062 -- one-shot FMP consensus lookup for the CAPTURE path only.
+
+    `analyst_price_target_consensus` is `snapshot`, never `live_and_snapshot`
+    (fact_registry.py, financial-temporal-semantics.md's Rights section): a
+    consensus has no historical re-query source, so `resolve_current_values`
+    never calls this -- there is nothing to compare against by design, not by
+    failure, and this function is never invoked at READ time, only once, at
+    CAPTURE time. It lives beside `_resolve_price` anyway because it is the
+    same kind of seam: the single source-of-truth fetch a capture path can
+    auto-fill from (note_facts.create_fact_observation's "UCT already knows
+    this" principle, extended to a second fact type).
+
+    Never raises, and returns `None` on ANY failure -- an unconfigured
+    `FMP_API_KEY`, a network error, or a ticker FMP genuinely has no
+    consensus for are indistinguishable here on purpose: the caller turns a
+    `None` into an honest "no consensus available" sentence, never a
+    fabricated number (checkpoint's "Honest missing data" rule)."""
+    if not ticker:
+        return None
+    try:
+        from api.services import fmp_client
+        data = fmp_client.body_or_none(fmp_client.get_price_target_consensus, ticker, timeout=10)
+        row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
+        if not row:
+            return None
+        consensus = row.get("targetConsensus")
+        if consensus is None:
+            consensus = row.get("targetMedian")
+        return float(consensus) if consensus is not None else None
+    except Exception:
+        return None
+
+
 def resolve_current_values(facts: list[dict[str, Any]]) -> dict[str, float | str | None]:
     """`facts` is the already-resolved list from `note_facts.list_note_facts`
     (each a dict with `id`, `factType`, `temporalMode`, `ticker`). Returns

@@ -207,6 +207,25 @@ FINGERPRINT_JS = """() => {
 }"""
 
 
+NAV_LINK_WAIT_MS = 5000
+
+def nav_link(page, href: str, wait_ms: int = NAV_LINK_WAIT_MS):
+    """The nav link to `href`, WAITED for, or None if it never appears within `wait_ms`.
+
+    ⛔ A WAITER, NOT A SAMPLE. The fan-out used `locator(...).count() == 0` a fixed 900 ms after
+    a goto, so a slow mount silently skipped links: the /dashboard fan-out read 12 entries on one
+    run and 3 on the next, on the same live build (2026-09-30, L12 smoke). A skipped entry is
+    still legitimate (a locked page is absent for this account), so it stays a skip, but the
+    caller now also records it by name, so the coverage it cost is visible.
+    """
+    link = page.locator(f'a[href="{href}"]').first
+    try:
+        link.wait_for(state="attached", timeout=wait_ms)
+    except Exception:  # noqa: BLE001 - a Playwright TimeoutError: absent within the window
+        return None
+    return link
+
+
 def fingerprint(page) -> str:
     raw = page.evaluate(FINGERPRINT_JS)
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
@@ -344,9 +363,10 @@ def check_route(page, base: str, start: str, entries: list[dict]) -> tuple[list[
             continue
         before_url = page.url
         before_fp = fingerprint(page)
-        link = page.locator(f'a[href="{entry["to"]}"]').first
-        if link.count() == 0:
+        link = nav_link(page, entry["to"])
+        if link is None:
             # Not a failure: a locked page is legitimately absent from the nav for this account.
+            say(f"    skipped {entry['to']} (not in the nav after {NAV_LINK_WAIT_MS} ms)")
             continue
         clicked += 1
         try:
@@ -412,8 +432,9 @@ def sweep_every_route(page, base: str, routes: list[str], entries: list[dict]):
 
         if target == route:
             continue
-        link = page.locator(f'a[href="{target}"]').first
-        if link.count() == 0:
+        link = nav_link(page, target)
+        if link is None:
+            say(f"    skipped {target} (not in the nav after {NAV_LINK_WAIT_MS} ms)")
             continue
         before_url, before_fp = page.url, fingerprint(page)
         clicked += 1

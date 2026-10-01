@@ -14,7 +14,8 @@ by up to a minute, longer at peak) stays PENDING and is retried; nothing is
 half-applied. `reconcile` (nightly) re-runs the bulk archives through the same
 idempotent path and repairs anything a missed poll left behind.
 
-Scheduled by schedule.py / jobs.py when FUNDAMENTALS_PIT_INCREMENTAL_ENABLED=1 (worker).
+Not scheduled since the 2026-09-29 cutover: schedule.py registers only the V5 pipeline
+(FUNDAMENTALS_PIT_V5_PIPELINE=1, worker). The flag that used to schedule this is read by nothing.
 """
 from __future__ import annotations
 

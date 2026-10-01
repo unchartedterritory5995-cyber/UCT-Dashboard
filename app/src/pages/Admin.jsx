@@ -10,6 +10,10 @@ import CompassHealthPanel from '../components/admin/CompassHealthPanel'
 import DataPipelineHealthPanel from '../components/admin/DataPipelineHealthPanel'
 import ThemeEngineHealthPanel from '../components/admin/ThemeEngineHealthPanel'
 import { formatETDate } from '../utils/timeAgo'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
+import Checkbox from '../components/ui/Checkbox'
+import Textarea from '../components/ui/Textarea'
 
 // ── Constants ──
 const FILTERS = [
@@ -284,14 +288,16 @@ function AnnouncementSection() {
     <div className={styles.announcementSection}>
       <div className={styles.sectionTitle}>Send Announcement</div>
       <div className={styles.announcementForm}>
-        <input
+        <Input
           type="text"
+          aria-label="Announcement subject"
           className={styles.announcementInput}
           placeholder="Subject line..."
           value={subject}
           onChange={e => setSubject(e.target.value)}
         />
-        <textarea
+        <Textarea
+          aria-label="Announcement message"
           className={styles.announcementTextarea}
           placeholder="Message body (plain text)..."
           rows={5}
@@ -408,8 +414,9 @@ function AdminTodoList() {
       </div>
 
       <div className={styles.todoAddRow}>
-        <input
+        <Input
           type="text"
+          aria-label="New task for the team"
           className={styles.todoInput}
           placeholder="Add a task for the team..."
           value={newTask}
@@ -960,8 +967,9 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <input
+                <Input
                   type="text"
+                  aria-label="Custom tag"
                   className={styles.noteInput}
                   placeholder="Custom tag..."
                   value={customTagInput}
@@ -1006,8 +1014,9 @@ function UserDetailDrawer({ userId, onClose, onAction }) {
                 ))}
               </div>
               <div className={styles.noteInputRow}>
-                <input
+                <Input
                   type="text"
+                  aria-label="Note about this user"
                   className={styles.noteInput}
                   placeholder="Add a note..."
                   value={noteText}
@@ -1211,7 +1220,8 @@ function TicketDrawer({ ticketId, onClose, onRefresh }) {
             <div className={styles.ticketDrawerControls}>
               <div className={styles.ticketDrawerControl}>
                 <label className={styles.ticketDrawerLabel}>Status</label>
-                <select
+                <Select
+                  aria-label="Ticket status"
                   className={styles.ticketDrawerSelect}
                   value={statusVal}
                   onChange={e => handleStatusChange(e.target.value)}
@@ -1221,11 +1231,12 @@ function TicketDrawer({ ticketId, onClose, onRefresh }) {
                       {s === 'in_progress' ? 'In Progress' : s.charAt(0).toUpperCase() + s.slice(1)}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className={styles.ticketDrawerControl}>
                 <label className={styles.ticketDrawerLabel}>Priority</label>
-                <select
+                <Select
+                  aria-label="Ticket priority"
                   className={styles.ticketDrawerSelect}
                   value={priorityVal}
                   onChange={e => handlePriorityChange(e.target.value)}
@@ -1234,7 +1245,7 @@ function TicketDrawer({ ticketId, onClose, onRefresh }) {
                   {TICKET_PRIORITIES.map(p => (
                     <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
 
@@ -1259,7 +1270,8 @@ function TicketDrawer({ ticketId, onClose, onRefresh }) {
 
             {/* Admin reply */}
             <div className={styles.ticketDrawerReply}>
-              <textarea
+              <Textarea
+                aria-label="Admin reply"
                 className={styles.ticketDrawerReplyInput}
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
@@ -1762,8 +1774,9 @@ export default function Admin() {
         </div>
 
         <div className={styles.controls}>
-          <input
+          <Input
             type="text"
+            aria-label="Search users by email"
             className={styles.searchInput}
             placeholder="Search by email..."
             value={search}
@@ -1790,8 +1803,9 @@ export default function Admin() {
               <thead>
                 <tr>
                   <th style={{ width: 32 }}>
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      aria-label="Select all users"
+                      indeterminate={selectedUsers.size > 0 && selectedUsers.size < users.length}
                       className={styles.checkbox}
                       checked={users.length > 0 && selectedUsers.size === users.length}
                       onChange={toggleSelectAll}
@@ -1817,8 +1831,8 @@ export default function Admin() {
                   return (
                     <tr key={u.id}>
                       <td>
-                        <input
-                          type="checkbox"
+                        <Checkbox
+                          aria-label={`Select ${u.email}`}
                           className={styles.checkbox}
                           checked={selectedUsers.has(u.id)}
                           onChange={() => toggleSelectUser(u.id)}

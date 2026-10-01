@@ -16,6 +16,9 @@ import BottomsView from './modelbook/BottomsView'
 import BuilderView from './modelbook/builder/BuilderView'
 import UIcon from '../components/ui/UIcon'
 import styles from './ModelBook.module.css'
+import Input from '../components/ui/Input'
+import Select from '../components/ui/Select'
+import Textarea from '../components/ui/Textarea'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => r.json())
 
@@ -340,26 +343,26 @@ function AddStockForm({ year, onAdded }) {
   return (
     <form className={styles.adminForm} onSubmit={submit}>
       <div className={styles.formRow}>
-        <input className={styles.input} type="number" placeholder="Year" value={form.year}
+        <Input className={styles.input} type="number" aria-label="Year" placeholder="Year" value={form.year}
           onChange={e => setForm(f => ({ ...f, year: e.target.value }))} required />
-        <input className={styles.input} placeholder="Ticker" value={form.symbol}
+        <Input className={styles.input} aria-label="Ticker" placeholder="Ticker" value={form.symbol}
           onChange={e => setForm(f => ({ ...f, symbol: e.target.value.toUpperCase() }))} required />
-        <input className={styles.input} placeholder="Company" value={form.company}
+        <Input className={styles.input} aria-label="Company" placeholder="Company" value={form.company}
           onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
-        <input className={styles.input} type="number" placeholder="Rank" value={form.sort_order}
+        <Input className={styles.input} type="number" aria-label="Rank" placeholder="Rank" value={form.sort_order}
           onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} />
-        <input className={styles.input} type="number" step="0.1" placeholder="Gain %" value={form.gain_pct}
+        <Input className={styles.input} type="number" step="0.1" aria-label="Gain percent" placeholder="Gain %" value={form.gain_pct}
           onChange={e => setForm(f => ({ ...f, gain_pct: e.target.value }))} />
       </div>
       <div className={styles.formRow}>
-        <input className={styles.input} placeholder="Sector (optional — AI-filled)" value={form.sector}
+        <Input className={styles.input} aria-label="Sector" placeholder="Sector (optional — AI-filled)" value={form.sector}
           onChange={e => setForm(f => ({ ...f, sector: e.target.value }))} />
-        <input className={styles.input} placeholder="Industry (optional — AI-filled)" value={form.industry}
+        <Input className={styles.input} aria-label="Industry" placeholder="Industry (optional — AI-filled)" value={form.industry}
           onChange={e => setForm(f => ({ ...f, industry: e.target.value }))} />
-        <input className={styles.input} placeholder="Data symbol (non-US, e.g. 005930.KS)" value={form.data_symbol}
+        <Input className={styles.input} aria-label="Data symbol" placeholder="Data symbol (non-US, e.g. 005930.KS)" value={form.data_symbol}
           onChange={e => setForm(f => ({ ...f, data_symbol: e.target.value }))} />
       </div>
-      <textarea className={styles.textarea} placeholder="Why it's a model stock (thesis)" value={form.thesis}
+      <Textarea className={styles.textarea} aria-label="Thesis" placeholder="Why it's a model stock (thesis)" value={form.thesis}
         onChange={e => setForm(f => ({ ...f, thesis: e.target.value }))} />
       <div className={styles.formActions}>
         <button className="btn btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Stock'}</button>
@@ -425,8 +428,8 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
       <div className={styles.formRow}>
         {customSetup ? (
           <div className={styles.setupCell}>
-            <input className={styles.input} type="text" required autoFocus
-              placeholder="Custom setup name" value={form.setup_type}
+            <Input className={styles.input} type="text" required autoFocus
+              aria-label="Custom setup name" placeholder="Custom setup name" value={form.setup_type}
               onChange={e => setForm(f => ({ ...f, setup_type: e.target.value }))} />
             <button type="button" className={styles.toggleLink}
               onClick={() => { setCustomSetup(false); setForm(f => ({ ...f, setup_type: '' })) }}>
@@ -434,7 +437,7 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
             </button>
           </div>
         ) : (
-          <select className={styles.input} value={form.setup_type} required
+          <Select className={styles.input} aria-label="Setup" value={form.setup_type} required
             onChange={e => {
               const v = e.target.value
               if (v === '__custom__') { setCustomSetup(true); setForm(f => ({ ...f, setup_type: '' })) }
@@ -447,18 +450,18 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
               </optgroup>
             ))}
             <option value="__custom__">+ Custom setup…</option>
-          </select>
+          </Select>
         )}
-        <select className={styles.input} value={form.timeframe}
+        <Select className={styles.input} aria-label="Timeframe" value={form.timeframe}
           onChange={e => setForm(f => ({ ...f, timeframe: e.target.value }))}>
           <option value="D">Daily</option>
           <option value="W">Weekly</option>
-        </select>
-        <select className={styles.input} value={form.grade}
+        </Select>
+        <Select className={styles.input} aria-label="Grade" value={form.grade}
           onChange={e => setForm(f => ({ ...f, grade: e.target.value }))}>
           <option value="">Grade…</option>
           {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
+        </Select>
       </div>
       <div className={styles.formRow}>
         <label className={styles.dateField}>
@@ -480,14 +483,14 @@ function SetupForm({ stockId, year, initial, onSaved, onCancel }) {
         </label>
       </div>
       <div className={styles.formRow}>
-        <input className={styles.input} type="number" step="0.01" placeholder="Entry" value={form.entry_price}
+        <Input className={styles.input} type="number" step="0.01" aria-label="Entry price" placeholder="Entry" value={form.entry_price}
           onChange={e => setForm(f => ({ ...f, entry_price: e.target.value }))} />
-        <input className={styles.input} type="number" step="0.01" placeholder="Stop" value={form.stop_price}
+        <Input className={styles.input} type="number" step="0.01" aria-label="Stop price" placeholder="Stop" value={form.stop_price}
           onChange={e => setForm(f => ({ ...f, stop_price: e.target.value }))} />
-        <input className={styles.input} type="number" step="0.01" placeholder="Target" value={form.target_price}
+        <Input className={styles.input} type="number" step="0.01" aria-label="Target price" placeholder="Target" value={form.target_price}
           onChange={e => setForm(f => ({ ...f, target_price: e.target.value }))} />
       </div>
-      <textarea className={styles.textarea} placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
+      <Textarea className={styles.textarea} aria-label="Teaching notes" placeholder="Teaching notes — why this setup worked / failed" value={form.notes}
         onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
       <div className={styles.formActions}>
         <button className="btn btn-primary" type="submit" disabled={saving}>
@@ -573,7 +576,8 @@ function SetupDetails({ setup, isAdmin, onSave, onGenerate }) {
   if (editing) {
     return (
       <div className={styles.setupDesc} onClick={e => e.stopPropagation()}>
-        <textarea
+        <Textarea
+          aria-label="Setup description"
           className={styles.setupDescEdit}
           value={draft}
           autoFocus
@@ -648,8 +652,8 @@ function CatalystForm({ stockId, year, initial, onSaved, onCancel }) {
 
   return (
     <form className={styles.adminForm} onSubmit={submit}>
-      <input className={styles.input} type="text" required autoFocus
-        placeholder="Catalyst (e.g. Q3 earnings beat)" value={form.title}
+      <Input className={styles.input} type="text" required autoFocus
+        aria-label="Catalyst" placeholder="Catalyst (e.g. Q3 earnings beat)" value={form.title}
         onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
       <div className={styles.formRow}>
         <label className={styles.dateField}>
@@ -664,7 +668,7 @@ function CatalystForm({ stockId, year, initial, onSaved, onCancel }) {
             onChange={e => setForm(f => ({ ...f, move_pct: e.target.value }))} />
         </label>
       </div>
-      <textarea className={styles.textarea} placeholder="What happened and why it moved the stock" value={form.description}
+      <Textarea className={styles.textarea} aria-label="What happened and why it moved the stock" placeholder="What happened and why it moved the stock" value={form.description}
         onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
       <div className={styles.formActions}>
         <button className="btn btn-primary" type="submit" disabled={saving}>
@@ -1329,7 +1333,7 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
               {stock.has_custom_bars && (
                 <button className={styles.annotateCancel} onClick={clearBars} title="Remove uploaded data">Clear Data</button>
               )}
-              <input ref={barsFileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
+              <Input ref={barsFileRef} type="file" aria-label="Upload price data (CSV)" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onBarsFile} />
             </>
           )}
           {barsMsg && <span style={{ fontSize: 11, color: 'var(--color-text-muted, #9aa)', marginLeft: 4 }}>{barsMsg}</span>}
@@ -1437,11 +1441,11 @@ function StockDetail({ stockId, isAdmin, catNavRef }) {
               {editNarr ? (
                 <>
                   <span className={styles.sectionLabel}>WHAT THE COMPANY DOES</span>
-                  <textarea className={styles.textarea} style={{ minHeight: 50 }} value={descDraft}
+                  <Textarea className={styles.textarea} aria-label="What the company does" style={{ minHeight: 50 }} value={descDraft}
                     placeholder="One sentence on what the company does"
                     onChange={e => setDescDraft(e.target.value)} />
                   <span className={styles.sectionLabel} style={{ marginTop: 8, display: 'inline-block' }}>WHY IT RAN THAT YEAR</span>
-                  <textarea className={styles.textarea} style={{ minHeight: 110 }} value={storyDraft}
+                  <Textarea className={styles.textarea} aria-label="Why it ran that year" style={{ minHeight: 110 }} value={storyDraft}
                     placeholder="Catalysts, drivers, the theme behind the move"
                     onChange={e => setStoryDraft(e.target.value)} />
                   <div className={styles.formActions}>

@@ -1,4 +1,4 @@
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, screen, act, waitFor, within, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createRef } from 'react'
 import PositioningRail from './PositioningRail'
@@ -170,6 +170,14 @@ describe('PositioningRail — v2 sections', () => {
     await waitFor(() => expect(screen.getByText("This week's read")).toBeInTheDocument())
     expect(screen.getByText('First paragraph.')).toBeInTheDocument()
     expect(screen.getByText('Group by group')).toBeInTheDocument()
+    // TERM-050: the read names its source through S8's <Provenance>, and the
+    // disclosure carries the report date; no observed-at time is invented.
+    const src = screen.getByTestId('cot-read-source')
+    expect(within(src).getByTestId('provenance-present')).toBeInTheDocument()
+    fireEvent.click(within(src).getByTestId('provenance-detail-toggle'))
+    const panel = within(src).getByTestId('provenance-detail-panel')
+    expect(panel.textContent).toMatch(/CFTC Commitments of Traders/)
+    expect(panel.textContent).not.toMatch(/Observed:/)
     expect(posts(fetchMock)).toHaveLength(1)
     expect(JSON.parse(posts(fetchMock)[0][1].body).report_date).toBe(rows[199].date)
 
