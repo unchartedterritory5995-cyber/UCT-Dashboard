@@ -23313,11 +23313,23 @@ function naSelectorTakesElse(ast) {
  *  factored out rather than re-typed, so the branches of a conditional and a
  *  plain `color=` can never disagree about what counts as a colour. */
 /** ⭐ C23 — THE NODE `input.color(…)` DRAWS WITH until a member moves the picker:
- *  its first argument (`defval`, named or not). ONE reader, used by every colour
- *  reader in this file and by the runtime lane, which lowers the same node as the
- *  colour value at defaults (`input.color` mints no member parameter — the knob
- *  is not a Track F kind, `skippedInputs` reports it). */
-export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] || {}).value
+ *  `defval =` when the script NAMES it, else its first positional argument. ONE
+ *  reader, used by every colour reader in this file and by the runtime lane, which
+ *  lowers the same node as the colour value at defaults (`input.color` mints no
+ *  member parameter — the knob is not a Track F kind, `skippedInputs` reports it).
+ *
+ *  ⚰️ C45 — it read `args[0]` whatever that argument was NAMED, so
+ *  `input.color(title = "Table Color", defval = color.rgb(0, 175, 200, 20))`
+ *  (atr-bands, five live sites) answered the TITLE string as the colour: no
+ *  colour folded, and the pane's own default was drawn where TradingView draws
+ *  the author's. Named arguments may come in any order; a positional one is the
+ *  default only when it is FIRST (Pine's own rule, and `inputDefaultNode`'s). */
+export const inputColourDefaultNode = (node) => {
+  const args = (node && node.args) || []
+  const named = args.find((a) => a && a.name === 'defval')
+  if (named) return named.value
+  return args[0] && !args[0].name ? args[0].value : undefined
+}
 
 /** ⭐⭐ C38 — THE FOUR COMPONENT READS, and the sentence the unwitnessed ones
  *  refuse with. */
