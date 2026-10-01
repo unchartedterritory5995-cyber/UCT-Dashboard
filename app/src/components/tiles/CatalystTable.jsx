@@ -16,6 +16,7 @@ import { prefetchBarOnIntent } from '../../utils/prefetchBars'
 import ReadAloudButton from '../voice/ReadAloudButton'
 import UIcon from '../ui/UIcon'
 import AbsenceReceipt from '../provenance/AbsenceReceipt'
+import Provenance from '../provenance/Provenance'
 import EpFlag, { isEpSetup } from './EpBaseRate'
 import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
 
@@ -322,7 +323,7 @@ function SortableTh({ col, className, sortBy, onSort, children }) {
   )
 }
 
-function CitationsPopover({ sources }) {
+export function CitationsPopover({ sources }) {
   const [open, setOpen] = useState(false)
   if (!sources || sources.length === 0) return null
   return (
@@ -341,14 +342,27 @@ function CitationsPopover({ sources }) {
             Sources ({sources.length})
             <button type="button" className={styles.citationsClose} onClick={() => setOpen(false)}><UIcon name="x" size={14} /></button>
           </span>
-          {sources.slice(0, 8).map((url, i) => (
-            <a key={i} href={url} target="_blank" rel="noreferrer" className={styles.citationLink}>
-              {(() => {
-                try { return new URL(url).hostname.replace(/^www\./, '') }
-                catch { return url.slice(0, 40) }
-              })()}
-            </a>
-          ))}
+          {sources.slice(0, 8).map((url, i) => {
+            let host
+            try { host = new URL(url).hostname.replace(/^www\./, '') }
+            catch { host = String(url).slice(0, 40) }
+            // TERM-050: each cited source is S8's <Provenance> around the SAME
+            // link, as on the AI Search widget. No `timestamp` is passed: the
+            // stored citation is a URL with no observed-at time, and the row's
+            // own thesis time is when the thesis was written, not the source.
+            return (
+              <span key={i} className={styles.citationRow} data-testid="catalyst-source">
+                <Provenance
+                  value={(
+                    <a href={url} target="_blank" rel="noreferrer" className={styles.citationLink}>
+                      {host}
+                    </a>
+                  )}
+                  provenance={{ sourceActivity: `catalyst source · ${host}` }}
+                />
+              </span>
+            )
+          })}
         </span>
       )}
     </span>
