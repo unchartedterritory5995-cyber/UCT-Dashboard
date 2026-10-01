@@ -14,6 +14,8 @@ Evidence: `docs/notebook/gate-runs/wave10-L13-final/` (manifest, shard logs, `cl
 | 4 | `tests/test_gate_shards.py::test_the_read_set_covers_every_root_relative_path_the_suite_reads` | A frontend test reads `api/services/workspace_doc_store.py`, which is not in `GATE_READ_PATHS`. | Terminal (TERM-021) / the gate's owner | `fb5a14bf0` |
 | 5 | `tests/test_shared_data_root_guard.py` (2 tests) | 7 `/data` literals no env var can move (expected 0), and 13 unguarded sites (ceiling 8). | Breadth V2, hub reports, economic data | L14 `49e8a124b` (= master `a680b0d40` + lanes) |
 
+| 6 | `app/src/hooks/pollingSites.rail.test.js` (full-suite-only rail) | `pages/research/tabs/OptionsChainTab.jsx: 1 (listed 0)`: a bare `useSWR` poll with no census entry, added by `017f40d938` (BRK-01 option chain). | Terminal / research | lane PF's run on `ad7efc93a` + its change (file untouched by the lane) |
+
 What each one costs until fixed:
 
 1. Every route, the Notebook included, loads those chart-engine modules in the entry chunk. The test's own remedy is a dynamic `import()` at the edge nearest the shell.
