@@ -412,12 +412,13 @@ describe('C45 — across the committed corpus', () => {
         if (door.def) registry.uninstallUserDefinition(HARNESS_DEF_ID)
       }
     }
-    // ⭐ MEASURED 2026-10-01, objects pane on: 16 of 266. THREE attach today —
-    // and of those, ict-killzones' three lost captions reach a list of labels its
-    // drawing does not show (its creates sit behind guards this chart cannot
-    // read; its table is what is drawn, and is unchanged), so the two scripts a
-    // member sees change are poor-man's-volume-profile and volume-profile. The
-    // other thirteen are refused at the door for other reasons: the rule is
+    // ⭐ MEASURED 2026-10-01, objects pane on: 17 of 266. FOUR attach today —
+    // and of those, ict-killzones' three lost captions and sector-rotation's six
+    // lost steps reach lists whose objects their drawings do not show (the
+    // creates sit behind guards this chart cannot read, or were already withheld;
+    // both object programs are byte for byte what they were), so the two scripts
+    // a member sees change here are poor-man's-volume-profile and volume-profile.
+    // The other thirteen are refused at the door for other reasons: the rule is
     // already in their translation the day they attach.
     // (atr-support-and-resistance is not in this list: its lost moves NAME their
     // lists — `activeBox = array.get(upBox, i)` in a loop dropped whole — and are
@@ -430,13 +431,14 @@ describe('C45 — across the committed corpus', () => {
       'market-structure-break-order-block: 4 (not attached)',
       'poor-man039s-volume-profile: 2',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
+      'sector-rotation: 6',
       'session-tpo-profile: 1 (not attached)',
       'smart-money-breakout-channels-algoalpha: 8 (not attached)',
       'smc-structures-and-multi-timeframe-fvg-ma-py: 8 (not attached)',
       'smt-divergence-ict-killzones: 1 (not attached)',
       'tehthomas-aligned-timeframe-fair-value-gaps: 7 (not attached)',
-      'volume-delta-oi-delta-kioseff-trading: 22 (not attached)',
-      'volume-profile-auto-line-v2: 4 (not attached)',
+      'volume-delta-oi-delta-kioseff-trading: 26 (not attached)',
+      'volume-profile-auto-line-v2: 8 (not attached)',
       'volume-profile-bar-magnified-order-blocks-jacobmagleby: 3 (not attached)',
       'volume-profile: 2',
     ])

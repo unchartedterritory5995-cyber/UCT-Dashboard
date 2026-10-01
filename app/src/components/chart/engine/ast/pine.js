@@ -19406,7 +19406,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   /** ⭐ C45 — an `update` inside a body that was never converted (`unconverted`). */
   function lostUpdateInBody(b, via) {
-    const target = targetRef(b.target)
+    // ⛔ The HANDLE only, read off the node — never `targetRef`, which resolves a
+    // slot's index and interns a tree for it: a step that was never converted
+    // must not leave a tree in the program (sector-rotation gained one).
+    const v = b.target && b.target.value
+    const site = b.target && b.target.createSite
+    const named = v && v.type === 'name' ? v.name : (v && v.type === 'offset' && v.arg && v.arg.type === 'name' ? v.arg.name : null)
+    // a slot of a list (`array.get(bars, i)`) names the LIST, not an object: that
+    // is `lostUnaddressed`'s case, and it is named in the diagnostics there
+    const target = site ? (emittedSites.has(site) ? { r: 'site', id: site } : null)
+      : named && regId.has(named) ? { r: 'reg', id: regId.get(named) } : null
     if (!target) { lostUnaddressed(b, via); return }
     contentLostBy(b, target)
     lostMoveOf(b.family, b.props, target)
