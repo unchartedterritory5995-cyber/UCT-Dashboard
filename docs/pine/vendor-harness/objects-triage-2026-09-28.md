@@ -148,6 +148,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 41 | C31 loop-scoped names and loop-built text in the OBJECT lane — the block reader (`foldStatements` under the block harvest) steps over a `for`/`while` instead of stopping at it: the names its body can change refuse (`loopWrites` → `loopWriteRefusal`, one builder with the top-level walk), everything below the loop binds; a counted `for` with ascending integer-literal bounds that only appends to text is folded pass by pass (`unrollTextLoop`); a helper's own locals are visible to the text reader; a `ta.*` local under a guard that is not bar-invariant is marked (`condCall`) and refused, also by the runtime rescue; a binding below a stepped-over loop stays the runtime lane's to answer (`afterLoop`). The main walk is unchanged — see § C31 | `136994295`, `319a91668` | 28 / 47 → 28 / 47 (overall 25 → 25) | 222 / 266 → 222 / 266 | no family flips: `artemis-oscillator-pro` cells 14 → **15** / 21 (`fTxt` = `O-  V-  S-`, TradingView's); `htf-candle-footprint` boxes 0 → **3** / 13 (the three body boxes, at TradingView's bars and prices); ema-ribbon 34 / 48 and poor-man 0 / 40 labels unchanged, each with its wall re-named. Committed harness dir (87): the same two entries, objects 49, overall 42 unchanged. Census 266 × 2: attach 41 / 64 → 41 / 64, 0 rows (control 0). Translation census 266 × 2: 0 plots, refusals or parameters moved; object programs changed in 4 scripts. Notebook first-open +0 B; pine chunk +3,965 B. `paramIds.test.js` green, no edit |
 | 43 | C33 three object-lane reads, one script each — **(a)** `array.push(list, f(…))` / `list.push(f(…))` is the two statements Pine runs (`pineObjects.js::pushOfDrawCall`), and a helper whose body ends in a lone `if … <ns>.new(…)` returns that object or `na` (`ifOnlyReturn`: the caller's name is emptied under the call's guards, then filled under the create's); **(b)** an `input.timeframe` default printed in a text is served only for a spelling a committed capture prints under that Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`: `D` under v6, `W` under v5) — any other spelling marks the property unknown and is never printed; a request timeframe that is a function PARAMETER is the caller's argument, on the object pass only; `color.new(c, <input default>)` and an `na` arm of a colour choice resolve without minting; **(c)** `<getter>[k]` (k ≤ 5), `str.tostring(<getter>)` and an inlined helper's own getter local are read by the object runtime; an `and` guard with a term nothing reads, gated by an `input.bool`, is carried as a latch over its read terms and one unknown (`guard:partial`); **(d)** `last_bar_time` is the newest bar's time in ms | `e3ebd3a6a`, `0c48cc0a9` | 29 / 47 | 228 / 266 | **average-day-range-adr-pivots DIVERGE → MATCH** (lines 0 → 2 of 2, boxes 0 → 2 of 2, cells 3 → 4 of 4, cell text agrees; ids, coordinates, colours and text equal TradingView's — `vendorHarness.c33ObjectReads`). **high-low-open-mid-ranges** labels 0 → **504 of 504**, label text agrees (text, y, x-rank and text colour of all 504 equal); its 504 lines stay WITHHELD and cells stay 37 of 45. **volume-profile**: `last_bar_time` served, its 3 lines still withheld (next wall `chart.left_visible_bar_time`). Overall MATCH 25 → 26 of 47; plots 161 / 172 unchanged. Committed harness dir (87 graded): objects 49 → 50, overall 42 → 43, families 278 → 284 of 322 — the same two entries and only those; flag-off runs unchanged (18 / 15 and 39 / 32). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 of 532 rows changed** (base-vs-base control 0). Translation census 266: no served output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +8,600 B; total JS +10,368 B. `paramIds.test.js` green, no re-pin |
 | 47 | C36 what C30 left (§ C36). **(1)** an every-day daily chart (BTCUSD capture: the week starts MONDAY, the month on the 1st) is SERVED, less a period whose calendar first day has no bar and a bar across a New York clock change from its anchor — both withheld by name; a chart with one weekend day but not the other stays withheld whole. ⛔ **A wrong value fixed on the way:** on a session chart TradingView anchors to the first session ITS CALENDAR holds, not the first bar — the Hurricane Sandy week read 0 / −1 / −2 where the vendor reads −2 / −3 / −4; a period not opened by the calendar's first session is now withheld (that week, and every holiday-opened period before 2000). **(2)** every withholding carries a named reason out of `periodAnchorMask` to the member's disclosure strip (`chartClockNotice.js`). **(3)** `time(timeframe.period)` / `time("60")` = the bar's own `time` on 1D and 60m charts, as witnessed; nowhere else. **(4)** ⛔ the Python interpreter answered `na(time("W")) ? a : b` with a confident `a` on EVERY bar in all three server consumers that can evaluate a pane's saved tree (alerts, the scan sweep, the screen backtest); `ast_interpret.period_anchor_mask` is now the mask's port, one parity fixture. **(5)** `time_close("W" / "M")` on a session daily chart = `tf_live(<period>, timeclose)`, 4,800 / 4,800 incl. the forming period's scheduled close; withheld by name with weekend bars and off 1D; `"3M"` / `"12M"` refused by name (measured; no quarterly bar) | `a4f56d007` | 30 / 47 (unchanged) | 233 / 266 (unchanged) | none on the 47 or the committed dir (0 graded entries; 5 probe entries' refusal sentence). Through the door once the unrelated row is cut: `vw-time-tf-bitstamp-btcusd-1d` T01–T04 0 wrong, 5,438 / 4,795 / 4,247 / 1,845 bars equal; `vw-time-close-tf-spy-1d` Q01 / Q02 / Q12 / Q13 MATCH 4,800 / 4,800 and Q08 3 wrong → 0; `vw-time-tf-spy-1d` T05 / T06 MATCH 900 / 900. C30's surviving mutation M5 is red — see § C36 |
+| 48 | C37 colours this door did not carry (ruling R-G), and colour graded as its own column (§ C37): **(a)** `color.from_gradient` as a PLOT colour — the position `(value − bottom) / (top − bottom)` is a hidden column, the two ends static strings, drawn by the one measured curve (`pine.js::colourGradientRule`, `pool.js::gradientPointColour`); **(b)** object colours on the host lane — `color.new(c, <computed t>)`, a `var` colour never reassigned, a one-expression colour helper, `na` / `color(na)`, `color.from_gradient` (`{c:'grad'}`), a colour test on the loop counter; **(c)** the default colours that depend on the script's Pine version (`objectDefaults.js`, v4 / v5, each read off a capture); **(d)** `chart.fg_color` / `chart.bg_color` carried as a reference and resolved against OUR chart's own colours where the object is drawn (`objectTheme.js`), graded theme-relative | `pine/c37-colours` | 30 / 47 → 30 / 47 (overall 27 → 27; base `19bcbf278c`, objects pane on) | 233 / 266 → 233 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves — the harness verdict does not grade an object's colour. Committed harness dir: **rvol DIVERGE → MATCH** (611 of 611 coloured bars were the pane's gold), the only entry, both flag states. **The colour column** (`vendorHarness/colourColumn.js`, new): plots 611 → **0** differing bars of 971,741; paired object colour slots not carried **349 → 0** of 3,406 over the 47 (887 → 0 of 4,598 over the harness dir), 42 (55) theme-relative, 1 carried and different (heat-map-seasons' gauge point, named). Member-door census 266 × 2: attach 41 / 64 unchanged, 1 row (rvol plots 2 → 3); base-vs-base control 0 rows. Translation census 266: every output's value byte-identical, 1 presentation moved (rvol), dropped colour props 287 → 103 sites, programs with colours factored out 0 changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk +4,341 B; total JS +10,459 B. `paramIds.test.js` green, no edit |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -2641,3 +2642,125 @@ the Monday-first key on 5,490 / 5,490 bars and with the Sunday-first key on fewe
 5. **The lookback disagreement** above.
 6. A named refusal at alert arm / `assert_scannable` for a tree the mask withholds whole (the Python sink carries
    the code): today such an alert is admitted and reads "no number" forever, which is honest and quiet.
+
+## C37 — colours this door did not carry, and colour graded as its own column (2026-10-01, step 48)
+
+Branch `pine/c37-colours`, measured on wave 9 at `19bcbf278c` (C29–C36) merged into the lane. Ruling R-G:
+an uncarried plot colour keeps its line; the fix is to CARRY the colour, and colour is graded as its own
+column so the defect stays counted.
+
+**The column (new instrument).** The harness verdict already carried the plot half (`stats.colorCompared` /
+`colorMismatches`). It had no object half: `compareObjects` reads counts and texts, so a drawing in the wrong
+colour graded MATCH. `vendorHarness/colourColumn.js` pairs every live object with the capture's own record by
+value (a line's two prices, a label's text and price, a box's two prices, a cell's table / address / text) and
+reads each colour slot as `agree`, `agreeByDefault` (the script names no colour and our default is the
+vendor's), `notCarried` (the script names one, we carry none, the default standing in is not the vendor's),
+`carriedDiffers`, or `themeRelative`. `colourCensus.measure.test.js` runs it over a directory (opt-in,
+`PINE_COLOUR_CENSUS=1`, asserts no count).
+
+⚰️ Two instrument errors found before anything was believed: a vendor object colour is a palette INDEX into
+`palette_common` wherever the compiler could enumerate the study's colours (22 of the 47 captures) and a
+packed `0xAABBGGRR` otherwise — read as packed, the first run reported 1,316 manufactured mismatches; and the
+plot census's "uncarried" flag keyed on a title that is `null` for an untitled plot, so RVOL's line read as
+carried.
+
+**Measured at base (`19bcbf278c`, objects pane on), ranked.** Plots, 47 graded: 40,278 bars compared, **0**
+differ — no graded plot's colour was uncarried. Committed harness dir: 971,741 compared, **611** differ, all
+RVOL's line. Objects, 47 graded: 3,406 paired slots, **349 not carried**; harness dir: 4,598 slots, **887**.
+
+| capture | slots | what the script writes | mechanism |
+|---|---|---|---|
+| vw-object-gc-b / -a / -c | 162 / 73 / 24 | nothing — label text, box fill, box text unset (v5) | the version's default |
+| makuchaku FVG | 102 | `color.new(color.black, boxTransparency)`, an input | `color.new` with a computed transparency |
+| contraction-box | 78 | `var color LineColorInput = input.color(…)` | a `var` never reassigned |
+| artemis | 49 | `color.new(thOb, 100 - divRegAlpha)`, `color.new(thOb, isLight ? 55 : 45)`, tint helpers | the same, through names and a helper |
+| heat-map-seasons | 28 | `i < 15 ? color.from_gradient(i, 0, 15, …) : color.from_gradient(i, 15, 30, …)` in a `for` | a gradient per pass |
+| rsi-swing, fibonacci-pivots | 21, 7 | nothing — line colour, label colour and text unset (v4) | the version's default |
+| zero-lag | 21 | `color = color(na)`; `text_color = chart.fg_color` | `na`; the theme |
+| trend-duration, market-structure, ict-killzones | 20, 16, 6 | `chart.fg_color` / `chart.bg_color` | the theme |
+| ema-ribbon | 9 | `text_color = f_trendClr(bull, bear)` | a one-expression colour helper |
+| htf-candle-footprint, position-size-calculator, htf-liquidity, keltner-cog, vdubus | 5, 4, 3, 1, 1 | `border_color = color(na)`; `na` through a helper; unset cell / label text (v5) | `na`; the version's default |
+| **rvol (plot)** | **611 bars** | `plot(rvol, color = color.new(color.from_gradient(rvol, 0.5, 2, dnv, upv), 0))` | a gradient as a plot colour |
+
+**Why RVOL was still gold after C29.** C29 served `color.from_gradient` to the lanes that compute a colour as a
+VALUE (`runtime/colours.js::fromGradient`, the runtime VM). A plot's colour is not a value there: the plot
+lane holds a static colour, a two-colour test or a palette index, and a gradient is none of them, so the rule
+was never asked. Not a wiring slip — a missing shape.
+
+**What is carried now.**
+
+1. **A gradient as a plot colour** (`pine.js::colourGradientRule`). The position `(value − bottom) / (top −
+   bottom)` is one numeric tree, resolved like any series and carried as a hidden column exactly as a
+   two-colour test or a palette index is; the two ends ride as static strings (`colorGradient: {from, to,
+   transparency?}`, validated by `defSchema`). The renderer hands the column to `fromGradient(w, 0, 1, a, b)`,
+   so the measured curve has one implementation. `color.new(<gradient>, t)` with a literal `t` sets the
+   transparency. The rule resolves with the parameter mint withheld (R36).
+2. **Object colours, on the host lane** — `color.new(c, t)` with a computed `t` (`{c:'new'}` over a per-bar
+   tree: an input stays the member's knob); a `var` seeded with one colour and never reassigned anywhere in the
+   script; a one-expression colour helper read with the call's arguments in place; `na` / `color(na)` as the
+   absent colour (`#00000000`, TradingView's own record); `color.from_gradient` as `{c:'grad'}` (three value
+   references, two colour nodes); and a colour `if` whose test is on the loop counter (`{c:'if'}` over a pass
+   condition — `objectProgram.js::isPassCondition`: comparisons and boolean operators over the counter,
+   constants and per-bar trees, never object state).
+3. **The defaults that depend on the Pine version** (`objectDefaults.js`), each read off a capture whose script
+   leaves that colour unset: v4 `color.blue` (`#2196F3`) for a line and a label, `color.black` label text; v5
+   `color.black` label text, an OPAQUE `color.blue` box fill, `color.black` box and cell text. A program states
+   `pineVersion` only for v4 / v5, so every other program keeps its bytes.
+
+**`chart.fg_color` / `chart.bg_color` — the rule.** They are the colours of the chart the script runs on, so
+neither can be folded when a script is translated. `objectTheme.js`: the translator carries the Pine name as a
+REFERENCE (with the transparency a `color.new` set on it); it is resolved where the object is drawn, against
+that chart's own settings — foreground = the chart's text colour, background = its solid background — and the
+objects repaint when either changes. ⛔ TradingView's theme colours are never hard-coded: the captures record
+its light theme (`#0f0f0f` on `#ffffff`), and the same script is correct here in OUR chart's colours.
+
+**Grading: theme-relative, not a mismatch.** A slot carried as a theme reference is counted `themeRelative`
+and is not compared with the capture's colour. What the capture still grades, and `vendorHarness.c37Theme`
+asserts: WHICH slots are the theme's and which of the two — every foreground reference sits where TradingView
+drew its foreground, every background reference where it drew its background — and that the slots beside
+them still agree colour for colour.
+
+**Measured** (wave 9 `19bcbf278c` → merged tip; one vitest process at a time).
+
+| | base | tip |
+|---|---|---|
+| 1. 47 captures, objects pane on: objects MATCH / overall / families / plots | 30 / 27 / 233 of 266 / 161 of 172 | unchanged, 0 entries moved |
+| 1. flag off | 18 / 15 / 107 of 119 / 140 of 151 | unchanged, 0 entries |
+| 2. committed harness dir (on): objects / overall / plots | 62 / 46 / 343 of 417 | 62 / **47** / **344** — `rvol` DIVERGE → MATCH, the only entry (both flag states; off: overall 34 → 35) |
+| colour column, plots (harness dir) | 611 of 971,741 bars differ | **0** |
+| colour column, objects, 47 | 349 not carried of 3,406 slots | **0** not carried · 42 theme-relative · 1 carried and different |
+| colour column, objects, harness dir | 887 of 4,598 | **0** · 55 theme-relative · 1 |
+| 3. member-door census 266 × 2 | attach 41 / 64 | 41 / 64; **1 row**: `rvol` plots 2 → 3 (its position column). Base-vs-base control: 0 rows |
+| 4. translation census 266 | served outputs 733; `colorDynamic` 99; dropped colour props 287 sites | 733, values byte-identical in all 266; 1 output's presentation moved (rvol: `colorDynamic` → `colorGradient`); 98; **103** sites (32 scripts, 13 of them door-attached). Programs with colours and the version stamp factored out: **0** changed |
+| 5. bytes | notebook first-open 1,897,262 B; `pine` chunk 353,925 B; total JS 12,686,331 B | +0 (`notebook_perf_budgets` PASS); +4,341 B; +10,459 B |
+| 6. `paramIds.test.js` | green | green, no edit |
+
+`pineProbeReplay`'s artemis pin moves (the Resolver is asked for the transparencies and colour tests it now
+reads): on the merged tree `[729, 429977]` plain / `[729, 429985]` manifest, measured there rather than
+summed with C31's and C32's.
+
+**Still not carried, by name, and what settles each.**
+
+| what | where | settles it |
+|---|---|---|
+| heat-map-seasons' gauge point — `bgcolor = color`, a variable NAMED `color` (`pine:statement`) | 1 slot, the only `carriedDiffers` | the statement reader binding a name that is also a namespace |
+| a theme colour as a PLOT colour (`plot(x, color = chart.fg_color)`) — `colorDynamic`, the line keeps drawing | no graded capture | a decision: a plot colour is a member-editable input with a concrete default |
+| `chart.bg_color` under a GRADIENT chart background (`theme:gradient-background`) | — | capture **Q-T1**: a probe under a solid light, a solid dark and a gradient background |
+| a gradient with `top == bottom` or an `na` bound; a gradient end that is a theme reference; a transparency outside 0–100 — the object is HELD, a plot bar draws the series colour | — | C29's open gradient capture |
+| a gradient on a marker, a candle or a fill; a gradient between two moving colours | — | a schema that holds it |
+| the plot lane's constant-selector fold asked for OBJECTS — built, measured, removed: it changed one corpus script (ict-killzones, two cell fills) and its capture withholds those cells | `cell.bgcolor@1050`, `@1052` | a capture that draws them |
+| `input.color(title = …, defval = …)` — the default read as the FIRST argument, not the named one | atr-bands, 48 sites (door-attached, no capture) | exact and small; not done in this lane (it is the plot lane's reader too) |
+| a colour in a UDT field (`theme.frame`) | multicator-table, 19 sites | C11's UDT grammar |
+| v6 unset box fill / cell text, v4 box border | the base default stands | a capture whose script leaves them unset |
+
+**Mutation proofs** — 57 mutations on the merged tree (16 plot gradient, 35 object colours / version defaults / theme, 6 added after the first pass), each RED on its own, controls 117 / 117 green before and after every batch. Each mutation alone, bytes and sha256 captured,
+restored by bytes, sha verified against the capture and against `HEAD`; a control run brackets each batch.
+The first pass found four changes no rail could see (the gradient's mint, the version reaching what is drawn
+through the render state and through the binding, a theme change repainting) and one mechanism no capture
+exercises (the fold above). The rails were tightened until each went red; the fold was removed.
+
+**For the integrator.** (1) `colourColumn.js` is a census, not a verdict: whether an object's colour should
+join the harness verdict (it would move objects MATCH counts for every lane) is yours. (2) The 21–31
+"unresolvable" plots in the harness dir are constants our pane hides (`hidden (constant)`) where the vendor
+draws a line — not a colour defect, not touched. (3) 13 door-attached corpus scripts draw colours they did not
+before; each mechanism is witnessed on a capture, the individual scripts are not.
