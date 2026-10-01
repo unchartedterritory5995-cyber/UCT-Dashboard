@@ -98,7 +98,11 @@ test('modal shows tab buttons for all timeframes', async () => {
   // fallback can still be up when a findByRole for a button times out. Once the
   // stub is present the pane has mounted, so its timeframe bar is present too
   // and the rest can be synchronous.
-  await screen.findByTestId('stock-chart-NVDA-D')
+  // ⚠️ This is the FIRST test in the file to import the lazy ChartPane chunk, so on a cold
+  // transform cache the import alone can outlast Testing Library's default 1000 ms wait:
+  // measured 2026-10-01, it failed 1 run in 4 on unchanged code, always the first run. The
+  // wait is on the chunk, not on the product, so it gets a longer ceiling.
+  await screen.findByTestId('stock-chart-NVDA-D', {}, { timeout: 10000 })
   for (const label of ['1m', '5m', '30m', '1h', '1D', '1W']) {
     expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
   }
