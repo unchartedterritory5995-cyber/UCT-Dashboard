@@ -12749,6 +12749,129 @@ function ifBranches(stmts, i) {
   return { branches, next: j }
 }
 
+/** ⭐⭐ C43 — EVERY `runtime.error(…)` THE SCRIPT WRITES, AND WHERE IT STANDS.
+ *
+ *  TradingView stops the script on the first bar a `runtime.error` is reached
+ *  and the study then holds NOTHING — no plot row, no drawing, bars before the
+ *  error included (`tests/fixtures/vendor/runtime/vw-runtime-error-reached-spy-
+ *  1d-2026-09-30.json`). So the host lane has to know, per bar, whether one is
+ *  reached. This finds each call and the CONDITIONS it stands under; the caller
+ *  resolves them (`translatePineResult`, after every output and the object pass).
+ *
+ *  ⭐ A SITE: a bare `runtime.error(msg)` statement at the top level, or under
+ *  any nesting of `if … else if … else` chains that starts at the top level.
+ *  Each condition is kept as its own token list with a `negate` mark (an arm
+ *  runs under its own condition and the negation of every arm above it; Pine's
+ *  `if` takes the `else` on `na`) — never joined into one expression, so the
+ *  bind can say true / false / UNKNOWN per condition per bar.
+ *
+ *  ⛔ EVERYTHING ELSE IS `unread`, BY NAME, AND IS NEVER GUESSED: a call inside a
+ *  function body, a `switch` arm, a loop or a larger expression runs where this
+ *  lane cannot place it; a nested condition (or the message) that reads a name
+ *  the enclosing block sets above it would be read at the chain's START, before
+ *  that write. An unread call leaves the script drawn exactly as it is today.
+ *
+ *  @returns {{sites: object[], unread: {line: number|null, why: string}[]}} */
+function runtimeErrorSitesOf(stmts) {
+  const RTE = 'runtime.error'
+  const sites = []
+  const unread = []
+  const isIdent = (t, v) => !!t && t.kind === 'ident' && t.value === v
+  const allToks = (st) => [...((st && st.header) || []), ...((st && st.body) || [])]
+  const mentions = (st) => allToks(st).some((t) => isIdent(t, RTE))
+  const callTok = (st) => allToks(st).find((t) => isIdent(t, RTE)) || null
+  const isBareCall = (st) => {
+    const h = st.header || []
+    return isIdent(h[0], RTE) && isPunct(h[1], '(') && matchBracket(h, 1) === h.length - 1
+      && !(st.body && st.body.length)
+  }
+  const ASSIGN = new Set(['=', ':=', '+=', '-=', '*=', '/=', '%='])
+  /** every name a statement (and the blocks under it) assigns */
+  const assignedBy = (st, out) => {
+    const t = st.header || []
+    for (let i = 0; i + 1 < t.length; i += 1) {
+      if (t[i].kind === 'ident' && t[i + 1].kind === 'punct' && ASSIGN.has(t[i + 1].value)) out.add(String(t[i].value))
+    }
+    if (isPunct(t[0], '[')) {
+      const close = t.findIndex((x) => isPunct(x, ']'))
+      if (close > 0) for (const x of t.slice(1, close)) if (x.kind === 'ident') out.add(String(x.value))
+    }
+    for (const s of st.sub || []) assignedBy(s, out)
+  }
+  const reads = (toks, names) => names.size > 0 && (toks || []).some((t) => t.kind === 'ident'
+    && (names.has(String(t.value)) || names.has(String(t.value).split('.')[0])))
+  const whyOf = (st) => {
+    const h = st.header || []
+    const word = h[0] && h[0].kind === 'ident' ? String(h[0].value) : ''
+    if (word === 'for' || word === 'while') return `it sits inside a \`${word}\` loop, which runs several times a bar`
+    if (h.some((t) => isIdent(t, 'switch'))) return 'it is an arm of a `switch`, which this lane does not place'
+    if (h.some((t) => isPunct(t, '=>'))) return 'it sits inside a function body, which runs where it is called'
+    return 'it is part of a larger expression, not a statement of its own'
+  }
+  const walk = (list, head, conds, locals, depth) => {
+    for (let i = 0; i < list.length; i += 1) {
+      const st = list[i]
+      const h = st.header || []
+      if (!h.length) continue
+      if (isIdent(h[0], 'if')) {
+        const chain = ifBranches(list, i)
+        const group = list.slice(i, chain ? chain.next : i + 1)
+        if (chain && group.some(mentions)) {
+          const prior = []
+          for (const br of chain.branches) {
+            const mine = [...conds, ...prior.map((c) => ({ toks: c, negate: true, nested: depth > 0 })),
+              ...(br.condToks ? [{ toks: br.condToks, negate: false, nested: depth > 0 }] : [])]
+            walk(br.sub || [], head || st, mine, new Set(locals), depth + 1)
+            if (br.condToks) prior.push(br.condToks)
+          }
+        } else if (!chain && mentions(st)) {
+          unread.push({ line: (callTok(st) || {}).line ?? null, why: 'it sits under an `if` this lane could not read' })
+        }
+        if (depth > 0) for (const s of group) assignedBy(s, locals)
+        if (chain) i = chain.next - 1
+        continue
+      }
+      if (mentions(st)) {
+        const tok = callTok(st)
+        if (!isBareCall(st)) {
+          unread.push({ line: tok ? tok.line : null, why: whyOf(st) })
+        } else {
+          const nestedReadsLocal = conds.find((c) => c.nested && reads(c.toks, locals))
+          if (nestedReadsLocal) {
+            unread.push({ line: tok.line, why: 'a condition it stands under reads a name the block above it sets' })
+          } else {
+            const argToks = h.slice(2, h.length - 1)
+            sites.push({ tok, head: head || st, conds, argToks, messageReadsLocal: reads(argToks, locals) })
+          }
+        }
+      }
+      if (depth > 0) assignedBy(st, locals)
+    }
+  }
+  walk(stmts || [], null, [], new Set(), 0)
+  return { sites, unread }
+}
+
+/** ⭐ C43 — a `runtime.error` MESSAGE as parts the bind can say: text written in
+ *  the script, joined by `+`, with `str.tostring(<number>)` (no format) between.
+ *  Null for anything else — the stop is still exact, its sentence is not carried. */
+function runtimeErrorMessageOf(node, resolver, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 24) return null
+  const s = resolver.stringValueOf(node)
+  if (typeof s === 'string') return [{ s }]
+  if (node.type === 'binary' && node.op === '+') {
+    const a = runtimeErrorMessageOf(node.left, resolver, depth + 1)
+    const b = a && runtimeErrorMessageOf(node.right, resolver, depth + 1)
+    return a && b ? [...a, ...b] : null
+  }
+  if (node.type === 'call' && node.name === 'str.tostring' && Array.isArray(node.args)
+      && node.args.length === 1 && !node.args[0].name) {
+    const ast = resolver.resolve(node.args[0].value)
+    return [{ n: ast, formula: printFormula(ast) }]
+  }
+  return null
+}
+
 /** Fold one `if` chain into (a) a new binding for every OUTER name any branch
  *  reassigns, and (b) the chain's own value, for `x = if …`.
  *
@@ -19670,12 +19793,20 @@ function translatePineResult(source, opts = {}) {
     env.set(d.name, stateBinding(parseWholeExpression(d.seedToks), new Map(env),
       selfNode(d.nameTok), new Map(env), locate(d.nameTok)))
   }
+  // ⭐⭐ C43 — the `runtime.error` calls (host lane only), found before the walk
+  // so each one's top-level statement can keep the scope it stood in.
+  const runtimeErrorPlan = isHostLane(opts) && tokens.some((t) => t.kind === 'ident' && t.value === 'runtime.error')
+    ? runtimeErrorSitesOf(stmts) : null
+  const runtimeErrorEnvAt = new Map()
+  const runtimeErrorHeads = new Set(runtimeErrorPlan ? runtimeErrorPlan.sites.map((s) => s.head) : [])
   let si = 0
   while (si < stmts.length) {
     const stmt = stmts[si]
     si += 1
     // ⭐ C11b — a window's reads resolve in the scope its add stood in.
     if (windowEnvAt.has(stmt)) for (const m of windowEnvAt.get(stmt)) m.env = new Map(env)
+    // ⭐ C43 — a `runtime.error` site's conditions read the names as they stand here.
+    if (runtimeErrorHeads.has(stmt)) runtimeErrorEnvAt.set(stmt, new Map(env))
     const toks = stmt.header
     const first = toks[0]
     logPos = first && Number.isFinite(first.index) ? first.index : null
@@ -20576,6 +20707,106 @@ function translatePineResult(source, opts = {}) {
     return scoped || env
   }
 
+  /** ⭐⭐ C43 — each `runtime.error` site's conditions (and message) as trees.
+   *
+   *  ⛔ IT MUST CHANGE NOTHING ELSE. Its resolver mints no parameter (the ids a
+   *  saved document carries are the outputs'), writes no note, observes no bool
+   *  context, and reads the chart period and other symbols into sinks of its
+   *  own — the translation's `periodReads` and `otherSymbols` are the plots' and
+   *  the drawings', and a guard that reads `timeframe.in_seconds()` must not
+   *  make the drawings refuse on a weekly chart.
+   *
+   *  ⛔ A SITE THAT DOES NOT RESOLVE IS `unread`, never dropped and never
+   *  guessed: the refusal's own guard and sentence are kept. A condition that
+   *  reads another symbol or another timeframe is unread too (no capture says
+   *  what the error does to a request). */
+  const resolveRuntimeErrors = () => {
+    const stops = []
+    const unread = [...runtimeErrorPlan.unread]
+    const outerSymbols = OTHER_SYMBOL_SINK
+    const outerPeriod = PERIOD_READ_SINK
+    const readsOther = (n, d = 0) => !!n && typeof n === 'object' && d < 256
+      && (n.type === 'sym' || n.type === 'tf' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
+    // the calls that vary bar to bar whatever they are handed (`readsBars`'s own set)
+    const barFns = barVaryingNamesFor(table)
+    for (const site of runtimeErrorPlan.sites) {
+      const envAt = runtimeErrorEnvAt.get(site.head)
+      if (!envAt) { unread.push({ line: site.tok.line, why: 'the statement it stands in was not reached by the reader' }); continue }
+      const r = makeResolver(positionEnv({ envAt }))
+      r.paramMint = null
+      r.noteSink = () => {}
+      r.onCondition = null
+      const symbols = new Map()
+      const period = { names: new Map(), count: 0, inOutput: false, outside: false, current: new Set() }
+      OTHER_SYMBOL_SINK = symbols
+      PERIOD_READ_SINK = period
+      try {
+        // ⭐ A CONDITION THAT IS A CONJUNCTION IS ITS FACTORS, each its own tree:
+        // `isfirst and <the settings are invalid>` is then one factor that reads
+        // no bar at all beside one that names the first bar, and the bind can say
+        // which is which (`runtimeErrorStop.js`). Only a POSITIVE condition splits
+        // — the negation of a conjunction is not a conjunction.
+        const flatten = (ast) => (ast && ast.type === 'op' && ast.name === '&&' && Array.isArray(ast.args)
+          ? ast.args.flatMap(flatten) : [ast])
+        const leavesOf = (ast) => {
+          const series = new Set()
+          let barCalls = false
+          const stack = [ast]
+          while (stack.length) {
+            const n = stack.pop()
+            if (!n || typeof n !== 'object') continue
+            if (n.type === 'series' && typeof n.name === 'string') series.add(n.name)
+            if (n.type === 'call' && barFns.has(n.name)) barCalls = true
+            if (n.type === 'offset' || n.type === 'tf' || n.type === 'sym') barCalls = true
+            if (Array.isArray(n.args)) stack.push(...n.args)
+            else if (n.arg && typeof n.arg === 'object') stack.push(n.arg)
+          }
+          return { series: [...series].sort(), barCalls }
+        }
+        const guards = site.conds.flatMap((c) => {
+          const ast = r.condition(r.resolve(parseWholeExpression(c.toks)), 'ternary', c.toks[0])
+          return (c.negate === true ? [ast] : flatten(ast))
+            .map((part) => ({ ast: part, formula: printFormula(part), negate: c.negate === true, ...leavesOf(part) }))
+        })
+        if (symbols.size || guards.some((g) => readsOther(g.ast))) {
+          unread.push({ line: site.tok.line, why: 'a condition it stands under reads another symbol or timeframe' })
+          continue
+        }
+        let message = null
+        if (!site.messageReadsLocal && site.argToks.length) {
+          const before = new Map(r.usedInputs)
+          try {
+            const node = parseWholeExpression(site.argToks)
+            message = runtimeErrorMessageOf(node, r)
+            if (message && message.some((p) => p.n && readsOther(p.n))) message = null
+          } catch { message = null }
+          if (!message) { r.usedInputs.clear(); for (const [k, v] of before) r.usedInputs.set(k, v) }
+        }
+        const declared = (name) => !!(name && r.declareInputs
+          && (r.declareInputs === 'all' || r.declareInputs.has(name)))
+        const inputs = [...r.usedInputs.values()].filter((e) => e && e.name).map((e) => {
+          const w = r.windowBoundInputs.has(e.name) || r.displacementBoundInputs.has(e.name)
+          return { ...e, declared: declared(e.name), ...(w ? { windowBound: true } : {}) }
+        })
+        stops.push({
+          line: site.tok.line,
+          guards,
+          message,
+          inputs,
+          period: period.names.size ? periodReadsOf(period.names, basePeriodOf(opts)) : null,
+        })
+      } catch (err) {
+        const f = fromError(err)
+        unread.push({ line: site.tok.line, why: `a condition it stands under is not read here (${f.guard}): ${String(f.message).slice(0, 160)}` })
+      } finally {
+        OTHER_SYMBOL_SINK = outerSymbols
+        PERIOD_READ_SINK = outerPeriod
+      }
+    }
+    if (!stops.length && !unread.length) return null
+    return { stops, unread: unread.sort((a, b) => (a.line || 0) - (b.line || 0)) }
+  }
+
   const resolved = []
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
@@ -21416,7 +21647,7 @@ function translatePineResult(source, opts = {}) {
     || (objectOnlyCleanWin && !blocked)
   const ok = strict ? strictOk : lenientOk
 
-  return {
+  const result = {
     ok,
     // ⭐ THE CALLER CAN SEE WHICH CONTRACT IT GOT — but the field is NOT set
     // here. `mode` is stamped by the exported `translatePine`, on this return
@@ -21470,6 +21701,15 @@ function translatePineResult(source, opts = {}) {
     // them into a shape a save can submit.
     inputParams: paramMint ? paramMint.metadata : [],
   }
+  // ⭐⭐ C43 — the `runtime.error` calls: each one this lane can place, with the
+  // conditions it stands under as trees the bind evaluates per bar
+  // (`engine/runtimeErrorStop.js`), and each one it cannot, by name. Present
+  // only for a script that writes the call, so every other result is unchanged.
+  // ⛔ RESOLVED LAST — after every output, the object pass and the fills above —
+  // so nothing else moved: no parameter id, no note, no period read, no memo.
+  const runtimeErrors = runtimeErrorPlan ? resolveRuntimeErrors() : null
+  if (runtimeErrors) result.runtimeErrors = runtimeErrors
+  return result
   } finally {
     // ⛔ ALWAYS CLOSED. A budget left open would make the NEXT standalone
     // `printFormula` call — a test, a preview — throw a timeout it never earned.

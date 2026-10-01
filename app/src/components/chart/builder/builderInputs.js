@@ -695,6 +695,12 @@ export function memberInputTranslation(translate, source, opts = {}) {
     const { colourInputs: _drop, ...rest } = opts
     opts = rest
   }
+  // ⭐ C43 — `guardInputs: true`, the same kind of option: see `withGuardInputs`.
+  const wantGuard = !!(opts && opts.guardInputs === true)
+  if (opts && Object.prototype.hasOwnProperty.call(opts, 'guardInputs')) {
+    const { guardInputs: _dropGuard, ...rest } = opts
+    opts = rest
+  }
   const usable = (t) => (t.outputs || []).filter((o) => !o.refusal && o.formula)
 
   const first = translate(source, { ...opts, declareInputs: 'all' })
@@ -782,11 +788,118 @@ export function memberInputTranslation(translate, source, opts = {}) {
   }
   const final = attempt
 
+  let out = { ...final, outputs: final.outputs, declared: final.declaredNames }
   if (wantColour) {
     const coloured = withColourInputs(first, final, withDeclarations, { windowBound, displacementBound })
-    if (coloured) return coloured
+    if (coloured) out = coloured
   }
-  return { ...final, outputs: final.outputs, declared: final.declaredNames }
+  if (wantGuard) {
+    const guarded = withGuardInputs(first, out, final, withDeclarations, { windowBound, displacementBound })
+    if (guarded) out = guarded
+  }
+  return out
+}
+
+// ⛔ ONE SET OF "NOTHING ELSE MOVED" CHECKS for every pass that ADDS declarations
+// to a finished translation (`withColourInputs`, `withGuardInputs`): the added
+// pass must reproduce the parameter ids, every output's formula and refusal, the
+// object program, and every colour byte-for-byte except a rule's own formula.
+const sameParamIds = (a, b) => JSON.stringify((a.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
+  === JSON.stringify((b.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
+const sameValueOutputs = (a, b) => (a.outputs || []).length === (b.outputs || []).length
+  && (a.outputs || []).every((o, i) => {
+    const q = b.outputs[i]
+    return o.formula === q.formula && !o.refusal === !q.refusal
+  })
+const sameObjectProgram = (a, b) => JSON.stringify(a.objects || null) === JSON.stringify(b.objects || null)
+const presentationShapeOf = (p) => JSON.stringify(p || null, (k, v) => ((k === 'formula' || k === 'ast') ? undefined : v))
+const samePresentationShape = (a, b) => (a.outputs || []).every((o, i) => presentationShapeOf(o.presentation) === presentationShapeOf((b.outputs[i] || {}).presentation))
+  && presentationShapeOf((a.presentation || {}).fills) === presentationShapeOf((b.presentation || {}).fills)
+
+/**
+ * ⭐⭐ C43 — AN INPUT ONLY A `runtime.error` CONDITION READS IS STILL THE MEMBER'S
+ * CONTROL.
+ *
+ * A script validates its settings with `if <condition> → runtime.error(msg)`,
+ * and TradingView lists every `input.*` in the indicator's settings — so a member
+ * can move one that nothing but the validation reads, and TradingView then shows
+ * the error and an empty pane (measured: `vw-runtime-error`, "Stop at bar" = 100).
+ * This door declared only the inputs an output's VALUE (or colour) reads, so such
+ * an input had no control here and the validation could never be reached: the
+ * chart could only ever show the default's answer.
+ *
+ * ⭐ HOW: pass 1 (`declareInputs: 'all'`) records the inputs each placed
+ * `runtime.error` site's conditions and message read (`runtimeErrors.stops[].
+ * inputs`). The ones no value, no colour and no object tree reads are ADDED to
+ * the declarations; the conditions then carry the identifier and the chart
+ * evaluates them against the member's value (`engine/runtimeErrorStop.js`).
+ *
+ * ⛔⛔ ADD, NEVER RENUMBER, AND NOTHING ELSE MAY MOVE — the same proof
+ * `withColourInputs` makes (`sameParamIds` / `sameValueOutputs` /
+ * `sameObjectProgram` / `samePresentationShape`); any difference returns `null`
+ * and the caller keeps what it had. A guard-only input mints no parameter (the
+ * conditions are resolved with no minting), so no id exists to move.
+ * ⛔ An input a condition reads in a WINDOW is not added (a window takes a
+ * literal), and one no spec backs is taken back out.
+ *
+ * @returns the translation with `guardInputs` (spec rows, `BUILDER_INPUTS`
+ *   shape) and the added names in `declared`, or `null` when nothing is added.
+ */
+function withGuardInputs(first, base, final, withDeclarations, { windowBound, displacementBound }) {
+  const stopsOf = (t) => ((t && t.runtimeErrors && t.runtimeErrors.stops) || [])
+  if (!stopsOf(first).length) return null
+  const valueNames = new Set()
+  const note = (list) => { for (const e of (list || [])) if (e && e.name) valueNames.add(e.name) }
+  for (const o of (first.outputs || [])) if (o) { note(o.inputsFolded); note(o._colourInputs) }
+  note(((first.presentation || {}).fills || {})._colourInputs)
+  const objectNames = namesAnywhere((first.objects && first.objects.trees) || [])
+  const entryByName = new Map()
+  const windowed = new Set()
+  for (const s of stopsOf(first)) {
+    for (const e of (s.inputs || [])) {
+      if (!e || !e.name) continue
+      if (e.windowBound) windowed.add(e.name)
+      if (!entryByName.has(e.name)) entryByName.set(e.name, e)
+    }
+  }
+  const already = [...new Set(base.declaredNames || base.declared || [])]
+  let names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
+    && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
+    && !windowed.has(n) && !already.includes(n))
+  if (!names.length) return null
+  // the colour pass's `mintDeclared` rides along, or its ids would move here
+  const minted = new Set((final.inputParams || []).map((p) => p && p.sourceName).filter(Boolean))
+  const carriedMint = already.filter((n) => minted.has(n) && !(final.declaredNames || []).includes(n))
+  for (let round = 0; round < 4 && names.length; round += 1) {
+    const t = withDeclarations([...already, ...names], carriedMint.length ? { mintDeclared: carriedMint } : null)
+    if (!sameParamIds(base, t) || !sameValueOutputs(base, t) || !sameObjectProgram(base, t)
+      || !samePresentationShape(base, t)) return null
+    const added = new Set(names)
+    const specs = new Map()
+    const readAdded = new Set()
+    for (const s of stopsOf(t)) {
+      const trees = [...(s.guards || []), ...((s.message || []).filter((p) => p && p.n).map((p) => ({ ast: p.n, formula: p.formula })))]
+      for (const g of trees) {
+        const read = [...seriesNamesOf(g.ast)].filter((n) => added.has(n))
+        if (!read.length) continue
+        read.forEach((n) => readAdded.add(n))
+        const { inputs } = inputsFromFolded(read.map((n) => entryByName.get(n)), g.formula)
+        for (const row of inputs) if (!specs.has(row.key)) specs.set(row.key, row)
+      }
+    }
+    const keep = names.filter((n) => readAdded.has(n) && specs.has(n))
+    if (keep.length === names.length) {
+      return {
+        ...t,
+        outputs: t.outputs,
+        declared: t.declaredNames,
+        ...(base.colourInputs ? { colourInputs: base.colourInputs } : {}),
+        guardInputs: names.map((n) => specs.get(n)),
+      }
+    }
+    names = keep
+  }
+  return null
 }
 
 /** Every `series` name anywhere in a subtree — objects and arrays alike (an
@@ -881,21 +994,16 @@ function withColourInputs(first, final, withDeclarations, { windowBound, displac
   let names = [...entryByName.keys()].filter((n) => memberInputKey(n) && !valueNames.has(n)
     && !objectNames.has(n) && !windowBound.has(n) && !displacementBound.has(n)
     && !windowed.has(n) && !already.has(n))
-  const sameIds = (a, b) => JSON.stringify((a.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
-    === JSON.stringify((b.inputParams || []).map((p) => [p.id, p.sourceName, p.default]))
-  const sameValues = (a, b) => (a.outputs || []).length === (b.outputs || []).length
-    && (a.outputs || []).every((o, i) => {
-      const q = b.outputs[i]
-      return o.formula === q.formula && !o.refusal === !q.refusal
-    })
-  const sameObjects = (a, b) => JSON.stringify(a.objects || null) === JSON.stringify(b.objects || null)
+  // (`sameParamIds` … `samePresentationShape` — module level since C43, shared
+  // with `withGuardInputs`.)
   // ⛔ THE COLOURS THEMSELVES MUST NOT MOVE: every palette, colour, opacity and
   // which rules are carried stays byte-identical; only a rule's FORMULA may change
   // (the literal default becomes the identifier). A rule the declaration made the
   // lane decline would draw a different colour at the default — refused.
-  const shapeOf = (p) => JSON.stringify(p || null, (k, v) => ((k === 'formula' || k === 'ast') ? undefined : v))
-  const samePresentation = (a, b) => (a.outputs || []).every((o, i) => shapeOf(o.presentation) === shapeOf((b.outputs[i] || {}).presentation))
-    && shapeOf((a.presentation || {}).fills) === shapeOf((b.presentation || {}).fills)
+  const sameIds = sameParamIds
+  const sameValues = sameValueOutputs
+  const sameObjects = sameObjectProgram
+  const samePresentation = samePresentationShape
   for (let round = 0; round < 4 && names.length; round += 1) {
     // A name the final pass MINTED is declared AND keeps minting its id
     // (`mintDeclared`, `pine.js::resolveInput`), so no later id moves.

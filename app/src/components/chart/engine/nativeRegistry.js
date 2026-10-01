@@ -103,6 +103,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
+import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
 // moved to `ast/bind.js`, beside `bindingConstants` and `symbolConstantsWith`,
@@ -1582,7 +1583,55 @@ export function columnErrors(columns) {
   return e || {}
 }
 
+// ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
+//
+// TradingView's study holds NOTHING once the script's own `runtime.error` is
+// reached on any bar (measured — see `runtimeErrorStop.js`). The evaluator is
+// REGISTERED here by that module rather than imported: it reads the object
+// lane's warm-up probe, and this module must not pull the object lane into its
+// chunk. Unregistered (a caller that computes columns without the object lane
+// loaded), every document computes as it always did.
+let runtimeErrorStopFn = null
+export function registerRuntimeErrorStop(fn) {
+  runtimeErrorStopFn = typeof fn === 'function' ? fn : null
+}
+
+/** The guard a column refused by the script's own error carries. */
+export const RUNTIME_ERROR_GUARD = 'pine:runtime.error'
+
+/** The key a column map carries the stop decision under — non-enumerable for the
+ *  reason `__columnErrors` is (a visible key is a phantom plot). */
+const RUNTIME_ERROR_STOP = '__runtimeErrorStop'
+
+/** What the script's `runtime.error` calls did on the bars a column map was
+ *  computed over: `{reached, bar, sentence, unknown, unread, …}`, or null for a
+ *  document that carries none. `unknown` names each call this binding could not
+ *  evaluate — the columns are then the unstopped ones, as before C43. */
+export function runtimeErrorStopOf(columns) {
+  return (columns && columns[RUNTIME_ERROR_STOP]) || null
+}
+
+function withRuntimeErrorStop(out, stop) {
+  if (stop) Object.defineProperty(out, RUNTIME_ERROR_STOP, { value: stop, enumerable: false })
+  return out
+}
+
 function astColumnsFor(def, bars, inputs, ctx) {
+  const stop = runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
+    ? runtimeErrorStopFn(def, bars, inputs, ctx)
+    : null
+  if (stop && stop.reached) {
+    // ⛔ EVERY COLUMN, AND BY NAME: an absent column with no reason reads as "the
+    // definition never declared it" (`columnErrors`).
+    const errors = {}
+    for (const key of astPlotKey(def)) errors[key] = { guard: RUNTIME_ERROR_GUARD, message: stop.sentence }
+    return withRuntimeErrorStop(withColumnErrors({}, errors), stop)
+  }
+  const out = astColumnsUnstopped(def, bars, inputs, ctx)
+  return stop ? withRuntimeErrorStop(out, stop) : out
+}
+
+function astColumnsUnstopped(def, bars, inputs, ctx) {
   const keys = astPlotKey(def)
   const trees = astTrees(def)
   // ⭐⭐ C29 — a document folded at another chart period does not answer here
@@ -1925,6 +1974,22 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
   try {
     return _runtimeLane(def, bars, inputs, ctx)
   } catch (err) {
+    // ⭐⭐ C43 — THE SCRIPT'S OWN `runtime.error`, REACHED BY THE RUN (C35's
+    // `PineRuntimeError`). The witnessed result is the host lane's too: no column
+    // at all, and the member reads the script's message in TradingView's words
+    // (`runtimeErrorText.js`). The run executed the bar, so the stop is exact;
+    // its bar number is TradingView's only on a series that starts at the listing
+    // bar.
+    if (err && err.name === 'runtime.error') {
+      const bar = Number.isInteger(err.bar) ? err.bar : 0
+      const barKnown = Number.isInteger(err.bar) && !!(ctx && ctx.historyFromListing === true)
+      const message = String(err.message)
+      const stop = {
+        reached: true, bar, barKnown, line: null, message,
+        ...runtimeErrorWords({ message, bar, barKnown }), unknown: [], unread: [],
+      }
+      return withRuntimeErrorStop(reasonFor(RUNTIME_ERROR_GUARD, stop.sentence), stop)
+    }
     // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
     // paint path — the binder would otherwise skip the whole instance silently.
     return reasonFor((err && err.guard) || ENGINE_ERROR,
