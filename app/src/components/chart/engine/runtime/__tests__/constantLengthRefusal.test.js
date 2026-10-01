@@ -30,6 +30,14 @@
 // a loop counter's per ITERATION; serving them is monomorphisation and a
 // dynamic ring read, which are capabilities, not sentences. This changes which
 // sentence a member reads, and nothing else.
+//
+// ⭐ C35 — THE PARAMETER HALF IS NOW SERVED where the call site fixes it: a
+// `simple` argument (a literal, an input) is constant for its call site, so
+// `g(close, 5)` compiles one copy of `g` with a 5-bar window
+// (`simpleArgWindow.test.js`, and against TradingView
+// `vendorHarness.c35SimpleArg.test.js`). The two parameter cases below therefore
+// pass an argument only known while the bar runs — the case that still refuses,
+// and whose sentence must still name the parameter rather than blame the member.
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
@@ -47,7 +55,7 @@ const refusalOf = (src) => {
 describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
   it('⭐⭐ a function PARAMETER used as a window length', () => {
     // The `artemis-oscillator-pro` / `machine-learning-moving-average` shape.
-    const r = refusalOf(`${head}g(src, len) =>\n    ta.sma(src, len)\nplot(g(close, 5))\n`)
+    const r = refusalOf(`${head}g(src, len) =>\n    ta.sma(src, len)\nplot(g(close, bar_index % 3 + 1))\n`)
     expect(r.message, 'the member is still being told their script never defined it')
       .not.toContain('never given a value')
     // ⛔ IT NAMES THE NAME AND THE REASON, not just "unsupported".
@@ -73,7 +81,7 @@ describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
     // assertion above would stay green while it did.
     const r = refusalOf(`${head}g(src, len) =>
     ta.ema(src, len)
-plot(g(close, 5))
+plot(g(close, bar_index % 3 + 1))
 `)
     expect(r.message, 'the carried-state site still blames the member')
       .not.toContain('never given a value')
