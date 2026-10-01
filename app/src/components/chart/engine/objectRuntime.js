@@ -43,7 +43,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
-import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW } from './ast/interpret'
+import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
 import { formatMessageNumber } from './pineTextFormat'
@@ -950,7 +950,7 @@ export function beginObjects(program, ctx) {
         // bar: TradingView ran `close[na]` with no error and read the bar's own
         // close on all 100 na-offset bars (`vw-offset-na-spy-1d-2026-09-30`).
         const raw = numOf(value(at.args[1]))
-        const back = Number.isNaN(raw) ? 0 : raw
+        const back = historyBackOf(raw)
         // ⭐⭐ C29 — with no `max_bars_back` declared, reach is measured to 399
         // (`AUTO_MAX_BARS_BACK`); past it TradingView's automatic buffer is not
         // measured, so the op is withheld on this bar — never stopped, never read.
@@ -958,7 +958,7 @@ export function beginObjects(program, ctx) {
           atBeyondAuto += 1
           return 'unknown'
         }
-        if (!Number.isInteger(back) || back < 0 || back >= at.limit) {
+        if (!historyReadable(back, at.limit)) {
           runtimeError(`a history read \`x[${back}]\` on bar ${bar} is ${back < 0 ? 'a future bar'
             : !Number.isInteger(back) ? 'not a whole number of bars'
               : `past the script's max_bars_back (${at.limit})`} — TradingView stops the script there`)

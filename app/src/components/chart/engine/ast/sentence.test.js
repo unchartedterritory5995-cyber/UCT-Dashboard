@@ -249,6 +249,12 @@ const FORMS = [
     name: 'valuewhen',
     parts: ['the value of ', 1, ' on the most recent of the last ', 2,
             ' bars where ', 0, ' was true'] },
+  // ⭐⭐ `barsAgo` (2026-09-30, C38) -- Pine's `x[e]` with a per-bar index,
+  // hand-typed from the manifest's own sentence like every row here. It opens
+  // on its first ARGUMENT, so its anchor is the first literal after it.
+  { kind: 'call',
+    name: 'barsAgo',
+    parts: [0, ' as it stood ', 1, ' bars earlier, a count that changes from bar to bar and is read only below ', 2] },
   // ⭐⭐ `valuewhenOccurrence` (2026-09-20) -- hand-typed from the manifest's
   // own sentence, like every row above. ⚠️ NOT ambiguous with `valuewhen`'s
   // row despite sharing the "the value of {1} " opening: the literal
@@ -1078,6 +1084,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
       'function:atrPine',
       'function:avwap',
+      // ⭐ (2026-09-30, C38) Pine's `x[e]` with a per-bar index — see `barsAgo` in the forms above.
+      'function:barsAgo',
       'function:barssince',
       // ⭐ 97 -> 101: Vendor Parity Tranche 2, Lane B — `bbw`, `median`,
       // `percentrank`, `rising`, each resolved 2026-09-06 by a real
@@ -1190,7 +1198,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(entries.length).toBe(129)
+    // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
+    expect(entries.length).toBe(130)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1210,7 +1219,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(subjects.length).toBe(129)
+    // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
+    expect(subjects.length).toBe(130)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2439,6 +2449,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'barssince_the_last_up_bar',
       'valuewhen_the_last_up_bars_close',
       'valuewhenOccurrence_the_second_most_recent_up_bar',
+      // (2026-09-30, C38) Pine's `x[e]`: an `na` count, counts 1..3, and one past the buffer.
+      'bars_ago_a_per_bar_count_na_and_past_the_buffer',
+      'bars_ago_under_na_is_withheld_not_answered',
       'highestbars_the_offset_back_to_the_high',
       'lowestbars_the_offset_back_to_the_low',
       'obvN_bounded_signed_volume',
@@ -2640,7 +2653,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 121 -> 122 (2026-09-20): `dayopentime` joined too.
     // ⭐ 122 -> 123 (2026-09-27): `atrPine`, Pine's `ta.atr`, joined too.
     // ⭐ 123 -> 129 (2026-09-28): `timeclose`, `dayclosetime`, `weekfirst`, `monthfirst`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 129)
+    // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
+    expect(sentences.length).toBe(CORPUS.cases.length + 130)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

@@ -61,7 +61,12 @@ const CASES = [
     // ⭐ So the case is a `var` whose right-hand side the lane genuinely cannot
     // read — which is the shape line 57 actually was.
     branch: 'STATE_KEYWORDS — a `var` whose RHS the lane cannot read',
-    src: `${HEAD}var c = color.t(color.red)\nplot(close)\n`,
+    // ⚰️ 2026-09-30 (C38): `color.t(color.red)` IS READ NOW — a fixed colour's
+    // component is a number (`pine.js::witnessedColourOf`), so that fixture had
+    // stopped exercising this branch for the THIRD time. The component of an
+    // `input.color` is not one of the colours the vendor capture measured and
+    // still refuses `pine:colour-value`.
+    src: `${HEAD}var c = color.t(input.color(color.red))\nplot(close)\n`,
     find: 'var c = color.t',
   },
   {
@@ -121,7 +126,7 @@ describe('every statement branch records its binding, or refuses it by name', ()
   it('⭐⭐ THE CLOSING PASS — an unread UNREADABLE binding is noted, by its own reason', () => {
     // Not merely "a line appears": the note must carry the refusal's own guard, or
     // the member is told a line is unread without being told what about it is.
-    const src = `${HEAD}c = color.t(color.red)\nplot(close)\n`
+    const src = `${HEAD}c = color.t(input.color(color.red))\nplot(close)\n`
     const t = translatePine(src, { mode: 'host' })
     const note = (t.notes || []).find((n) => n.line === 2)
     expect(note, 'line 2 is bound, never read, and must not be silent').toBeTruthy()

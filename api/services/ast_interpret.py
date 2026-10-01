@@ -1285,6 +1285,42 @@ def _fn_valuewhen(cond: Sequence[float], src: Sequence[float], n: int) -> List[f
     return out
 
 
+def _fn_bars_ago(src: Sequence[float], back: Sequence[float], limit: int) -> List[float]:
+    """``barsAgo(src, back, limit)`` -- Pine's ``src[back]`` with a PER-BAR ``back``.
+
+    Mirrors ``interpret.js::barsAgo``, whose rule is ``interpret.js::historyReadable``'s (measured
+    on TradingView 2026-09-30, C29 rule 7): an ``na`` count reads the CURRENT bar;
+    a whole count in ``[0, limit)`` reads that many bars back, and is not
+    computable before the first bar held; any other count (negative, fractional,
+    at or past ``limit``) is not a read this engine can answer.
+
+    ⛔ BOTH ``NaN``s HERE -- a count that cannot be read, and a read before the
+    first bar held -- ARE WITHHELD AT THE ROOT by ``history_read_mask`` (the
+    second unless the series starts at the listing), because downstream a ``NaN``
+    is Pine's ``na`` and these are not.
+    """
+    out = _nan_col(len(src))
+    for i in range(len(src)):
+        k = _history_back_of(back[i])
+        if not _history_readable(k, limit):
+            continue
+        j = i - int(k)
+        if j >= 0:
+            out[i] = src[j]
+    return out
+
+
+def _history_back_of(raw: float) -> float:
+    """``interpret.js::historyBackOf`` -- an ``na`` offset reads the CURRENT bar."""
+    return 0.0 if math.isnan(raw) else raw
+
+
+def _history_readable(back: float, limit: int) -> bool:
+    """``interpret.js::historyReadable`` -- a whole number of bars, not negative
+    (a future bar), and below the buffer."""
+    return (not math.isinf(back)) and back == math.floor(back) and 0 <= back < limit
+
+
 def _fn_valuewhen_occurrence(
     cond: Sequence[float], src: Sequence[float], occurrence: int
 ) -> List[float]:
@@ -1952,6 +1988,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "barssince": _fn_barssince,
     "valuewhen": _fn_valuewhen,
     "valuewhenOccurrence": _fn_valuewhen_occurrence,
+    "barsAgo": _fn_bars_ago,
     # ⭐ THE PIVOTS, AND THE PREDICATE IS THE WHOLE DIFFERENCE BETWEEN THEM. The
     # STRICT comparison is what makes a plateau not a pivot; `>=` here would emit
     # both bars of a tie. See `closedTable.json::_functions_pivots`.
@@ -3733,10 +3770,96 @@ def interpret(ast: Any, bars: List[dict],
                 if not (a == b or (math.isnan(a) and math.isnan(b))):
                     real[i] = math.nan
         column = real
+    if not probing:
+        # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
+        held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
+        if held is not None:
+            column = [math.nan if held[i] else v for i, v in enumerate(column)]
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+def history_read_mask(tree: Any, bars: List[dict],
+                      inputs: Optional[Mapping[str, Any]] = None,
+                      budget: Optional[Mapping[str, Any]] = None,
+                      scalars: Optional[Mapping[str, Any]] = None,
+                      opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::historyReadMask`` (C38) -- the bars of a tree whose answer
+    reads a ``barsAgo`` count that cannot be read, or a bar before the first one
+    held (1 = withheld), or ``None`` when no bar is.
+
+    ``barsAgo`` answers ``NaN`` there, and downstream that is Pine's ``na`` --
+    ``na(x[e]) ? 1 : 0`` would answer a confident 1. ``max_lookback`` is a tree
+    sum, so every root bar within ``max_lookback(root) - max_lookback(read)``
+    bars of such a bar is withheld; a read under a function whose memory is
+    unbounded (``lookback: "series"``) or under a recurrence withholds every bar
+    from the first one on; a read under ``tf`` / ``sym``, or whose count reads a
+    recurrence's own binding, withholds the whole tree. A read before the first
+    bar is Pine's ``na`` only when the series starts at the listing
+    (``opts["historyFromListing"] is True``), and is not withheld then."""
+    n = len(bars)
+    reads: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        if is_call and name == "barsAgo":
+            reads.append((node, nested, unbounded))
+        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(
+            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or name in RECURRENCES))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if not reads:
+        return None
+    mask = [0] * n
+    held = False
+    root_reach = max_lookback(tree)
+    from_listing = (opts or {}).get("historyFromListing") is True
+    for node, nested, unbounded in reads:
+        if nested or _reads_recurrence_binding(node["args"][1]):
+            return [1] * n
+        limit = _window_literal(node, 2)
+        reach = max(0, root_reach - max_lookback(node))
+        back = _interpret_column(node["args"][1], bars, inputs, budget, scalars, opts)
+        last = -math.inf
+        for i in range(n):
+            k = _history_back_of(back[i])
+            if not _history_readable(k, limit) or (not from_listing and i - k < 0):
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    return mask if held else None
+
+
+def _reads_recurrence_binding(tree: Any) -> bool:
+    """Does this subtree read a recurrence's own binding (``self``)? Such a tree
+    has no column outside the recurrence that runs it."""
+    stack = [tree]
+    seen = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "series" and node.get("name") in RECURRENCE_BINDINGS:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
 
 
 def switched_dependency_mask(tree: Any, bars: List[dict],

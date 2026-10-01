@@ -110,6 +110,49 @@ export function fromGradient(value, bottom, top, a, b) {
   })
 }
 
+/** ⭐⭐ C38 — `fromGradient`, WRITTEN AS A CANONICAL TREE, one component of it.
+ *
+ *  The columnar lane cannot call a function per bar; it evaluates a tree. So the
+ *  component a script PLOTS (`plot(color.r(color.from_gradient(…)))`) is this:
+ *  the arithmetic above, node for node and in the SAME ORDER, so both lanes give
+ *  the same double on every bar. `value` is the gradient's value as a canonical
+ *  tree; `lo` / `hi` are numbers (two different finite ones — the caller refuses
+ *  anything else); `a` / `b` are packed colours.
+ *
+ *  ⛔⛔ THIS IS A SECOND SPELLING OF ONE FORMULA, AND IT IS RAILED AS ONE:
+ *  `colourComponents.test.js` evaluates this tree and `fromGradient` over a
+ *  dense sweep and requires the same number on every point, and
+ *  `vendorHarness.c38ColourValue.test.js` grades it against the vendor's 300
+ *  bars. Change either spelling alone and both go red. `floor` stands for
+ *  `Math.trunc` (every quantity here is ≥ 0) and `round` is
+ *  `byteTransparency`'s; an `na` value gives an `na` component (what a gradient
+ *  of `na` holds is unmeasured — nothing is drawn for it). */
+export function gradientChannelTree({ value, lo, hi, a, b }, channel) {
+  const op = (name, args) => ({ type: 'op', name, args })
+  const call = (name, args) => ({ type: 'call', name, args })
+  // a negative literal is `u-` of a positive one — the canonical spelling
+  const num = (v) => (v < 0 ? op('u-', [{ type: 'num', value: -v }]) : { type: 'num', value: v })
+  // `(value − lo) / (hi − lo)`; `x − 0` and `x / 1` are `x` exactly, so they are not written
+  const above = lo === 0 ? value : op('-', [value, num(lo)])
+  const w = call('min', [num(1), call('max', [num(0), hi - lo === 1 ? above : op('/', [above, num(hi - lo)])])])
+  const rest = op('-', [num(1), w])
+  const A = unpackColor(Number(a) >>> 0)
+  const B = unpackColor(Number(b) >>> 0)
+  const opA = BYTE_MAX - A.transparencyByte
+  const opB = BYTE_MAX - B.transparencyByte
+  const opO = op('+', [op('*', [num(opA), rest]), op('*', [num(opB), w])])
+  if (channel === 't') {
+    // `byteTransparency(BYTE_MAX − trunc(opO))`
+    return call('round', [op('*', [
+      op('/', [op('-', [num(BYTE_MAX), call('floor', [opO])]), num(BYTE_MAX)]), num(TRANSPARENCY_MAX)])])
+  }
+  const aA = opA / BYTE_MAX
+  const aB = opB / BYTE_MAX
+  const aO = op('/', [opO, num(BYTE_MAX)])
+  const mixed = op('+', [op('*', [num(A[channel] * aA), rest]), op('*', [num(B[channel] * aB), w])])
+  return op('?:', [op('==', [aO, num(0)]), num(0), call('floor', [op('/', [mixed, aO])])])
+}
+
 /** `#RRGGBB` (or `#RGB`) + a Pine transparency → the colorer integer. */
 export function hexToPacked(hex, transparency = 0) {
   const s = String(hex || '').replace('#', '')

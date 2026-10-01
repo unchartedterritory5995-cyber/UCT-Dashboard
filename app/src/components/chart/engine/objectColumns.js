@@ -26,7 +26,7 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, periodAnchorMask,
+  symAlignmentMask, withheldReadMask,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
@@ -308,11 +308,13 @@ function withSymMask(mask, tree, bars, iopts) {
  *  (withheld by C17, never drawn) on the bars `interpret.js::periodAnchorMask`
  *  names: before the first period boundary the series shows, within the tree's
  *  reach of one, and on every bar of a chart that is not daily. Merged into the
- *  warm-up mask, one channel — the plot lane withholds the same bars. */
+ *  warm-up mask, one channel — the plot lane withholds the same bars.
+ *  ⭐ C38 — and the same for a `barsAgo` count that cannot be read
+ *  (`interpret.js::historyReadMask`): one function answers both. */
 function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
   let am
   try {
-    am = periodAnchorMask(tree, bars, inputs, budget, undefined, iopts)
+    am = withheldReadMask(tree, bars, inputs, budget, undefined, iopts)
   } catch {
     // a mask that cannot be computed withholds the whole series — the safe side
     am = new Uint8Array(bars.length).fill(1)

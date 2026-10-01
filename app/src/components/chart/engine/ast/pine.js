@@ -128,7 +128,8 @@ import {
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency,
 } from './objectProgram.js'
-import { wholeTransparency } from '../colorInt.js'
+import { wholeTransparency, unpackColor } from '../colorInt.js'
+import { hexToPacked, byteTransparency, gradientChannelTree } from '../runtime/colours.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
 // `symbolScope.json` is a fact about the outside world (our symbol store's
@@ -4705,6 +4706,16 @@ function parseOffsetIndex(cur, openTok) {
     // as it did. `parse.js` still gives an offset no slot for an expression, so
     // "the offset is a literal" stays true by construction of the emitted node.
     if (tok && !isPunct(tok, ']')) {
+      // ⛔⛔ C38 — THE SIGN BELONGS TO THE EXPRESSION. `negative` above consumed a
+      // leading `-` so that a LITERAL `close[-1]` reports its own rule; for an
+      // expression that swallowed the sign outright: `bar_index[-FL]` was parsed
+      // as `bar_index[FL]`. Harmless while every non-literal index refused or
+      // folded (a folded `-n` is an offset Pine itself rejects), and a WRONG BAR
+      // the moment a per-bar index is a read — `-ta.lowestbars(…)` is the idiom
+      // (fib-retracement, line 74), and without its sign every count is negative.
+      // The cursor steps back so `parseExpression` reads the unary minus itself,
+      // with its own precedence (`[-a + b]` is `(-a) + b`).
+      if (negative) cur.i -= 1
       const expr = parseExpression(cur, 0)
       if (!isPunct(cur.peek(), ']')) {
         throw new PineRefusal('pine:offset-literal', REFUSALS['pine:offset-literal'],
@@ -5061,6 +5072,118 @@ export function wholeValued(node, depth = 0) {
   if (node.name === 'u-' && a.length === 1) return wholeValued(a[0], depth + 1)
   if (node.name === '?:' && a.length === 3) return wholeValued(a[1], depth + 1) && wholeValued(a[2], depth + 1)
   return false
+}
+
+/** ⭐⭐ C38 — THE LARGEST COUNT A PER-BAR HISTORY INDEX CAN TAKE, or null when
+ *  this cannot say. An INTERVAL walk over the canonical tree (`historyBackRange`),
+ *  because the commonest index is a NEGATION — `x[-ta.lowestbars(low, n)]` — and
+ *  the ceiling of `-y` is the floor of `y`.
+ *
+ *  ⛔ AN UPPER BOUND, NEVER A GUESS. Every arm answers a range the value cannot
+ *  leave, or the whole line (unknown). A count the tree could push below 0 or
+ *  onto a fraction is not a readable count either, and
+ *  `interpret.js::historyReadable` refuses it per bar; an `na` anywhere makes the
+ *  count `na`, which reads the current bar — so the answer is never below 0. */
+function maxHistoryBack(node) {
+  const hi = historyBackRange(node, 0)[1]
+  return Number.isFinite(hi) ? Math.max(0, Math.floor(hi)) : null
+}
+
+const UNBOUNDED = Object.freeze([-Infinity, Infinity])
+/** `[lo, hi]` a canonical index tree's value stays inside. Only the shapes whose
+ *  range is a fact about the tree: a literal; Pine's `na` (the current bar, 0);
+ *  `barindex` (never negative); negation, `+`, `-`; `cond ? a : b` (the union of
+ *  the arms); `mod(x, n)` (inside ±(n − 1), and never negative for a `x` that is
+ *  not); `min` / `max` / `nz`; and this table's own window readers, which answer
+ *  a count of bars: `highestbars` / `lowestbars(src, n)` in 0 … n − 1,
+ *  `barssince(cond, n)` in 0 … n. Anything else is the whole line. */
+function historyBackRange(node, depth) {
+  if (!node || typeof node !== 'object' || depth > 32) return UNBOUNDED
+  if (node.type === 'num') return Number.isFinite(node.value) ? [node.value, node.value] : UNBOUNDED
+  if (isStaticNa(node)) return [0, 0]
+  if (node.type === 'series') return node.name === 'barindex' ? [0, Infinity] : UNBOUNDED
+  const a = node.args || []
+  const r = (i) => historyBackRange(a[i], depth + 1)
+  const whole = (n) => (n && n.type === 'num' && Number.isInteger(n.value) && n.value >= 1 ? n.value : null)
+  const sane = (lo, hi) => (Number.isNaN(lo) || Number.isNaN(hi) ? UNBOUNDED : [lo, hi])
+  if (node.type === 'op') {
+    if (node.name === 'u-' && a.length === 1) { const [lo, hi] = r(0); return [-hi, -lo] }
+    if (node.name === '?:' && a.length === 3) {
+      const x = r(1)
+      const y = r(2)
+      return [Math.min(x[0], y[0]), Math.max(x[1], y[1])]
+    }
+    if (node.name === '+' && a.length === 2) { const x = r(0); const y = r(1); return sane(x[0] + y[0], x[1] + y[1]) }
+    if (node.name === '-' && a.length === 2) { const x = r(0); const y = r(1); return sane(x[0] - y[1], x[1] - y[0]) }
+    return UNBOUNDED
+  }
+  if (node.type !== 'call') return UNBOUNDED
+  if (node.name === 'mod' && a.length === 2) {
+    const n = whole(a[1])
+    if (n === null) return UNBOUNDED
+    return r(0)[0] >= 0 ? [0, n - 1] : [-(n - 1), n - 1]
+  }
+  if ((node.name === 'highestbars' || node.name === 'lowestbars') && a.length === 2) {
+    const n = whole(a[1])
+    return n === null ? UNBOUNDED : [0, n - 1]
+  }
+  if (node.name === 'barssince' && a.length === 2) {
+    const n = whole(a[1])
+    return n === null ? UNBOUNDED : [0, n]
+  }
+  if ((node.name === 'min' || node.name === 'max' || node.name === 'nz') && a.length === 2) {
+    const x = r(0)
+    const y = r(1)
+    if (node.name === 'min') return [Math.min(x[0], y[0]), Math.min(x[1], y[1])]
+    if (node.name === 'max') return [Math.max(x[0], y[0]), Math.max(x[1], y[1])]
+    return [Math.min(x[0], y[0]), Math.max(x[1], y[1])]
+  }
+  return UNBOUNDED
+}
+
+/** ⭐⭐ C38 — WHAT BARS DOES THIS CANONICAL TREE READ? A leaf that is a price, a
+ *  clock column or a recurrence's own binding reads one; a literal and a declared
+ *  input (a `series` node carrying its `inputDefault`) do not; anything that is
+ *  not plain arithmetic over those (`tf`, `sym`, an `offset`) does.
+ *  `{any, onlyBarState}` — `onlyBarState` when every bar it reads is one of the
+ *  `barstate.*` clock columns (`BUILTIN_BARSTATE_SERIES`, the manifest's roster).
+ *  Iterative. */
+function barReadsOf(tree) {
+  const barState = new Set(Object.values(BUILTIN_BARSTATE_SERIES))
+  let any = false
+  let other = false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'num') continue
+    if (n.type === 'series') {
+      if (typeof n.inputDefault === 'number') continue
+      any = true
+      if (!barState.has(n.name)) other = true
+      continue
+    }
+    if (n.type !== 'op' && n.type !== 'call') { any = true; other = true; continue }
+    for (const a of n.args || []) stack.push(a)
+  }
+  return { any, onlyBarState: any && !other }
+}
+
+/** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
+ *  stripped scan as the `max_*_count` ceilings), and whether the script calls
+ *  the per-series `max_bars_back(x, n)` form. ⭐ C38 — ONE reader for both
+ *  lanes: the object lane's `historyReadRef` and the plot lane's
+ *  `Resolver.historyReadOf` size a per-bar read from this and nothing else. */
+function declaredMaxBarsBackOf(source) {
+  const code = strippedForScan(String(source || ''))
+  const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
+  const n = m ? Number(m[1]) : NaN
+  return {
+    limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
+    call: /\bmax_bars_back\s*\(/.test(code),
+  }
 }
 
 function foldWindow(node) {
@@ -8609,6 +8732,18 @@ export class Resolver {
             folded = foldWindow(folded)
           }
           if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
+            // ⭐⭐ C38 — A PER-BAR INDEX IS A READ, NOT A WINDOW (`historyReadOf`).
+            const read = this.historyReadOf(node, folded)
+            if (read) return read
+            // ⭐ C38 — a CONSTANT negative index is the forward reference, and says
+            // so: `n = 3` / `close[-n]` names a bar that has not happened. (The
+            // sign used to be swallowed at parse — see `parseOffsetIndex` — so
+            // this read `close[3]`, an offset Pine itself rejects.)
+            const fixed = constantValueOf(folded)
+            if (fixed !== null && fixed < 0) {
+              throw new PineRefusal('pine:offset-negative',
+                REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
+            }
             throw new PineRefusal('pine:offset-literal',
               `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
               + 'number, so the window it opens would depend on a value that can change',
@@ -8698,6 +8833,81 @@ export class Resolver {
    * `var` handler marks it — but `x = 0.0` / `x := nz(x[1]) + volume` carries no
    * `var` at all and is just as much an accumulator, and this is what catches it.
    */
+  /** ⭐⭐ C38 — `x[e]` WITH A PER-BAR `e`, IN A PLOT: `barsAgo(x, e, limit)`.
+   *
+   *  The object lane and the VM have answered this read since C9 / C29
+   *  (`{v:'at'}`, `READ_*_DYN`); the columnar lane refused it because an `offset`
+   *  node's bar count is a literal — which is what keeps `maxLookback` a tree
+   *  sum. `barsAgo` keeps that: its THIRD argument is a literal, the buffer the
+   *  read may reach into, and the declared lookback is that argument. The rule
+   *  it evaluates is the object lane's own, stated once in `interpret.js` (`historyReadable`)
+   *  (measured, `vw-offset-na` / `vw-mbb-auto` 2026-09-30).
+   *
+   *  The buffer is the script's declared `max_bars_back`, else
+   *  `AUTO_MAX_BARS_BACK` (the reach TradingView's automatic buffer was measured
+   *  to cover) — read by the SAME `declaredMaxBarsBackOf` the object lane reads —
+   *  and never more than the index can take (`maxHistoryBack`), so
+   *  `close[cond ? na : 1]` asks for two bars rather than four hundred, and
+   *  `bar_index[-ta.lowestbars(low, 100)]` for a hundred rather than the 5,000 a
+   *  script declares out of habit. A buffer
+   *  past the lookback budget is refused by that budget, by name.
+   *
+   *  ⛔ AN INDEX THAT MOVES ONLY WITH `barstate.*` STAYS REFUSED, by name
+   *  (`x[barstate.isrealtime ? 1 : 0]`, the non-repainting `security` idiom). The
+   *  rule was measured on closed bars; on the forming bar it is not. ⚠️ And
+   *  serving it carries `high_engagement__20-ehlers-fisher-transform` one wall on
+   *  (to `pine:state`), which mints its `Length` input — an append to the pinned
+   *  parameter map (`docs/pine/param-ids.json`), an owner-ruled act this lane
+   *  does not take. Deleting this arm is the whole change, once ruled.
+   *
+   *  Answers null (the caller keeps `pine:offset-literal`) for a CONSTANT index
+   *  that is not a whole number of bars; for an index that reads NO bar — an
+   *  expression over inputs and literals the window fold could not reduce
+   *  (`x[rep ? 0 : 1]`) is a window that did not fold, not a per-bar read, and
+   *  serving it here would resolve (and mint) what that refusal stops short of;
+   *  and on the screener lane — a saved scan
+   *  is evaluated where the root is not withheld around an unreadable count
+   *  (`interpret.js::historyReadMask` is the chart lanes'). Refuses by name:
+   *    · `max_bars_back(x, n)` — the per-series form sizes one buffer, a rule
+   *      this read does not model (the object lane's `max-bars-back-call`);
+   *    · a source the script REASSIGNS — its history is the value it held when
+   *      each earlier bar finished, which the binding in scope here is not. */
+  historyReadOf(node, back) {
+    const reads = barReadsOf(back)
+    if (constantValueOf(back) !== null || !reads.any) return null
+    if (this.screen) return null
+    const at = locate(node.n.tok || node.tok)
+    if (reads.onlyBarState) {
+      throw new PineRefusal('pine:offset-literal',
+        `${REFUSALS['pine:offset-literal']} — this one moves only with \`barstate.*\` (whether `
+        + 'the bar is still forming), and a per-bar index was measured on closed bars only', at)
+    }
+    const declared = declaredMaxBarsBackOf(this.source)
+    if (declared.call) {
+      throw new PineRefusal('pine:offset-literal',
+        `${REFUSALS['pine:offset-literal']} — this one changes from bar to bar, and the script `
+        + 'sizes a series\' history with `max_bars_back(x, n)`, a per-series buffer this read '
+        + 'does not model', at)
+    }
+    const arg = node.arg
+    if (arg && arg.type === 'name' && (this.mutated.has(arg.name) || this.buildingRecurrence === arg.name)) {
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${arg.name}[…]\` reads what \`${arg.name}\` held a `
+        + 'changing number of bars ago, and this script reassigns it', at)
+    }
+    const limit = declared.limit || AUTO_MAX_BARS_BACK
+    // `-(-x)` is `x`, exactly (an `na` stays `na`): Pine's `x[-ta.lowestbars(…)]`
+    // negates a count this table already answers as bars back
+    let count = back
+    while (count.type === 'op' && count.name === 'u-' && count.args.length === 1
+        && count.args[0].type === 'op' && count.args[0].name === 'u-' && count.args[0].args.length === 1) {
+      count = count.args[0].args[0]
+    }
+    const most = maxHistoryBack(count)
+    const window = most === null ? limit : Math.min(limit, most + 1)
+    return cCall('barsAgo', [this.resolve(arg), count, cNum(window)])
+  }
+
   /** `s[k]` INSIDE `s`'s OWN UPDATE — the lag it means, or `null`.
    *
    *  ⭐⭐ PINE COUNTS FROM ONE HERE AND THIS ENGINE COUNTS FROM ZERO, and getting
@@ -9259,6 +9469,22 @@ export class Resolver {
     return [at(span[0]), at(span[1])]
   }
 
+  /** Resolve `node` in ANOTHER binding's scope (the env it was written in). */
+  resolveAt(env, node) {
+    const prev = this.env
+    this.env = env || prev
+    try { return this.resolve(node) } finally { this.env = prev }
+  }
+
+  /** ⭐⭐ C38 — `color.r|g|b|t(<colour>)` → the canonical tree of that number,
+   *  or null when the colour is not one the capture witnesses. */
+  colourComponentOf(name, node) {
+    const args = node.args || []
+    if (args.length !== 1 || args[0].name) return null
+    const colour = witnessedColourOf(args[0].value, this.env, this)
+    return colour ? colourChannelTree(colour, name.slice('color.'.length)) : null
+  }
+
   resolveCall(node) {
     const offer = this.mintickGuardOffer(node)
     if (offer) throw offer
@@ -9588,6 +9814,18 @@ export class Resolver {
       throw new PineRefusal('pine:builtin',
         `\`${name}\` is a Pine built-in this engine holds no COLUMN for, though it `
         + `holds its siblings: ${BUILTIN_TIMEFRAME_RULED[name]}`,
+        locate(node.tok))
+    }
+    // ⭐⭐ C38 — A COLOUR'S COMPONENT IS A NUMBER, AND A NUMBER IS A COLUMN.
+    // `color.r(c)` / `.g` / `.b` (0-255) and `color.t(c)` (0-100) are served for
+    // the colours `vw-gradient-spy-1d-2026-09-30` witnesses (`witnessedColourOf`)
+    // and refuse `pine:colour-value`, by name, for every other one. A colour
+    // itself is still not a column: only its four numbers are.
+    if (COLOUR_COMPONENT_CALLS.has(name) && !this.shadowedByDefinition(name)) {
+      const tree = this.colourComponentOf(name, node)
+      if (tree) return tree
+      throw new PineRefusal('pine:colour-value',
+        `${REFUSALS['pine:colour-value']} — \`${name}\`: ${COLOUR_COMPONENT_UNWITNESSED}`,
         locate(node.tok))
     }
     if (ns && own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
@@ -14788,18 +15026,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  (`rawTrees`/`iterTrees`, `runtime/objectLane.js`): that lane evaluates each
    *  pass itself and keeps exactly the program it had. */
   const hostPasses = !rawTrees && !iterTrees
-  /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
-   *  stripped scan as the `max_*_count` ceilings), and whether the script calls
-   *  the per-series `max_bars_back(x, n)` form. See `historyReadRef`. */
-  const declaredMaxBarsBack = (() => {
-    const code = strippedForScan(String(source || ''))
-    const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
-    const n = m ? Number(m[1]) : NaN
-    return {
-      limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
-      call: /\bmax_bars_back\s*\(/.test(code),
-    }
-  })()
+  /** ⭐ C9 — the script's declared history buffer (`declaredMaxBarsBackOf`, the
+   *  one reader both lanes use). See `historyReadRef`. */
+  const declaredMaxBarsBack = declaredMaxBarsBackOf(source)
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts, {
@@ -21478,6 +21707,97 @@ function naSelectorTakesElse(ast) {
  *  colour value at defaults (`input.color` mints no member parameter — the knob
  *  is not a Track F kind, `skippedInputs` reports it). */
 export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] || {}).value
+
+/** ⭐⭐ C38 — THE FOUR COMPONENT READS, and the sentence the unwitnessed ones
+ *  refuse with. */
+const COLOUR_COMPONENT_CALLS = new Set(['color.r', 'color.g', 'color.b', 'color.t'])
+const COLOUR_COMPONENT_UNWITNESSED = 'its components are served for a fixed colour '
+  + '(a Pine colour name, a `#RRGGBB` literal, `color.rgb` of literals, `color.new` of '
+  + 'one with a literal transparency), for `color.from_gradient` between two fixed colours '
+  + 'over literal bounds, and for `color.new` of that gradient — the colours the '
+  + '`vw-gradient` capture measured. This one is none of those'
+
+/** ⭐⭐ C38 — A COLOUR `vw-gradient-spy-1d-2026-09-30` WITNESSES, read to what its
+ *  components need, or null (the caller refuses by name).
+ *
+ *    {packed}                              a FIXED colour, as `hexToPacked` packs it
+ *    {gradient: {value, lo, hi, a, b}, t}  `color.from_gradient(value, lo, hi, A, B)`,
+ *                                          `t` the whole transparency a `color.new`
+ *                                          on top replaced its own with, else null
+ *
+ *  ⛔ ONLY THE SHAPES THE PROBE WRITES. A Pine colour NAME (`color.blue`), a
+ *  six-digit literal, `color.rgb` of literals, `color.new(<fixed>, <literal>)`;
+ *  a gradient whose bounds fold to two different finite numbers and whose two ends
+ *  are fixed; `color.new(<that gradient>, <literal>)`. An eight-digit literal, an
+ *  `input.color`, a per-bar transparency, a ternary of colours, a user helper and
+ *  a gradient between gradients are NOT in the capture and answer null.
+ *
+ *  ⛔ NO COLOUR ARITHMETIC OF ITS OWN: the hex is `staticColourOf`'s, the packing
+ *  (and the whole-number transparency) `runtime/colours.js::hexToPacked`'s. */
+function witnessedColourOf(node, env, resolver, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound) {
+      return bound.kind === 'expr' && bound.node
+        ? witnessedColourOf(bound.node, bound.env || env, resolver, depth + 1) : null
+    }
+    const hex = isColourName(node) ? staticColourOf(node, env) : null
+    return hex && /^#[0-9a-f]{6}$/i.test(hex) ? { packed: hexToPacked(hex, 0) } : null
+  }
+  if (node.type === 'colour') {
+    const hex = String(node.value)
+    return /^#[0-9a-f]{6}$/i.test(hex) ? { packed: hexToPacked(hex, 0) } : null
+  }
+  if (node.type !== 'call') return null
+  const args = node.args || []
+  if (args.some((a) => !a || a.name)) return null
+  const literal = (a) => numberValue(a.value)
+  if (node.name === 'color.rgb') {
+    if (args.length !== 3 && args.length !== 4) return null
+    const t = args.length === 4 ? literal(args[3]) : 0
+    const hex = staticColourOf(node, env)
+    if (t === null || !(t >= 0 && t <= 100) || !hex) return null
+    return { packed: hexToPacked(hex, t) }
+  }
+  if (node.name === 'color.new') {
+    if (args.length !== 2) return null
+    const t = literal(args[1])
+    if (t === null || !(t >= 0 && t <= 100)) return null
+    const base = witnessedColourOf(args[0].value, env, resolver, depth + 1)
+    if (!base) return null
+    if (base.gradient) return base.t === null ? { gradient: base.gradient, t: wholeTransparency(t) } : null
+    // `color.new` SETS the transparency; the three colour bytes ride through.
+    return { packed: hexToPacked(unpackColor(base.packed).hex, t) }
+  }
+  if (node.name === 'color.from_gradient') {
+    if (args.length !== 5 || !resolver) return null
+    const a = witnessedColourOf(args[3].value, env, resolver, depth + 1)
+    const b = witnessedColourOf(args[4].value, env, resolver, depth + 1)
+    if (!a || !b || a.gradient || b.gradient) return null
+    const lo = constantValueOf(resolver.resolveAt(env, args[1].value))
+    const hi = constantValueOf(resolver.resolveAt(env, args[2].value))
+    // ⛔ An `na` or EMPTY range is what no capture pins (C29 rule 4): refused.
+    if (lo === null || hi === null || !Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) return null
+    return { gradient: { value: resolver.resolveAt(env, args[0].value), lo, hi, a: a.packed, b: b.packed }, t: null }
+  }
+  return null
+}
+
+/** ⭐⭐ C38 — ONE COMPONENT OF A WITNESSED COLOUR, as a canonical tree.
+ *  A fixed colour's is a number (`unpackColor`; its transparency is the whole
+ *  number its byte holds, `byteTransparency`). A gradient's is
+ *  `runtime/colours.js::gradientChannelTree` — `fromGradient` written as a tree,
+ *  beside it. `color.new` over a gradient replaces the transparency and nothing
+ *  else (`withTransparency`: "the three colour bytes are carried through"). */
+function colourChannelTree(colour, channel) {
+  if (colour.gradient) {
+    if (channel === 't' && colour.t !== null) return cNum(colour.t)
+    return gradientChannelTree(colour.gradient, channel)
+  }
+  const u = unpackColor(colour.packed)
+  return cNum(channel === 't' ? byteTransparency(u.transparencyByte) : u[channel])
+}
 
 function staticColourOf(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
