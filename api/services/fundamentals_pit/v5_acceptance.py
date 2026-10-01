@@ -242,7 +242,7 @@ def load_evidence(path_or_doc) -> list[dict]:
 
 
 def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None = None, now: float | None = None,
-                   resolve=None, publish: bool = True, exclude_ciks=()) -> dict:
+                   resolve=None, publish: bool = True, exclude_ciks=(), approved_ciks=()) -> dict:
     """ONE evidenced acceptance-time correction batch.
 
     For every audited accession: re-read the EDGAR header (it must equal the audit's authoritative instant), require
@@ -250,6 +250,10 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
     filings.public_at), record old -> new, re-derive ONLY the companies whose effective times moved, and accept a
     company only if its new object is EXACTLY its parent object with those effective times remapped (no value,
     period, method, split or withholding change). Any failure reverts every row and publishes nothing.
+    APPROVED (`approved_ciks`, owner decision with evidence): for these companies ONLY the value comparison is waived
+    -- a legitimate derivation change caused by the authoritative ordering (e.g. filings that sat simultaneously at one
+    wrong instant now arrive in sequence). Invariants, zero lookahead, determinism, split status and withholding must
+    still hold; the waived differences are recorded per company in the batch record and the manifest.
     RESUMABLE: a batch killed after rewriting rows (a worker redeploy) is completed by re-running it -- a row already
     holding the audited new instant WITH its recorded old values counts as applied."""
     from . import derive as D, publish as P, store as S, v5_live as L, v5_pipeline as PL, v5_prod as VP
@@ -336,7 +340,7 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
             D.build_company(conn, cik, version=VP.V5, force=True, now=now)
         b.state("VALIDATING")
         companies = {int(c): s for c, s in parent["companies"].items()}
-        bodies, changed, failures, unchanged, intermediate = {}, [], {}, [], {}
+        bodies, changed, failures, unchanged, intermediate, approved_changes = {}, [], {}, [], {}, {}
         for cik in moved:
             doc = P.artifact(conn, cik, VP.V5)
             body, _ = P.encode(doc)
@@ -358,7 +362,14 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
                 errs.append(f"invariants: {inv}")
             if VAL.derive_rows(conn, cik) != rows:
                 errs.append("nondeterministic")
-            errs += correction_guard(parent_obj, doc, moves)
+            g = correction_guard(parent_obj, doc, moves)
+            if cik in approved_ciks:
+                hard = [x for x in g if x in ("withholding changed", "split_status changed", "no parent object")]
+                errs += hard
+                if not hard and g:
+                    approved_changes[str(cik)] = g
+            else:
+                errs += g
             if errs:
                 failures[str(cik)] = errs
             else:
@@ -371,7 +382,8 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
                                "withholding_events": [], "impossible_dates_new": {},
                                "acceptance_correction": {"companies_moved": len(moved), "filings": len(plan),
                                                          "public_at_moved": sum(1 for x in plan if x[4] != x[5]),
-                                                         "intermediate_points_by_company": intermediate}}
+                                                         "intermediate_points_by_company": intermediate,
+                                                         "approved_derivation_changes": approved_changes}}
         if failures:
             _revert(conn, applied, moved, built0)
             applied = []
@@ -396,6 +408,7 @@ def run_correction(target, evidence: list[dict], *, reason: str, p: dict | None 
                            "public_at_moved": sum(1 for x in plan if x[4] != x[5]),
                            "rule": "EDGAR header ACCEPTANCE-DATETIME, America/New_York -> UTC; public_at = frozen filings.public_at"},
             "validation": {"ok": True, "changed": len(changed), "intermediate_points_by_company": intermediate,
+                           "approved_derivation_changes": approved_changes,
                            "basis": "every changed object equals its parent outside the correction windows; inside a "
                                     "window it steps only at corrected filings' true acceptance times"}})
         b.state("READY_TO_PUBLISH", version=vid)

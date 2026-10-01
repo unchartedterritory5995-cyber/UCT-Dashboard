@@ -351,3 +351,21 @@ def test_an_excluded_company_is_left_exactly_as_served(env, monkeypatch):
     rec = ACC.run_correction(env["t"], ev, reason="t", p=env["p"], now=NOW + 3600, exclude_ciks={CIK})
     assert rec["state"] == "NO_CHANGE" and rec["correction"]["planned"] == 0
     assert PUB.read_current(env["t"])["version"] == v1 and _filing(env, "A-26-5")[0] == U("2026-09-29T12:30:38")
+
+
+def test_an_approved_company_waives_only_the_value_comparison(env, monkeypatch):
+    v1, ev = _legacy_publish(env, monkeypatch)
+    monkeypatch.setattr(ACC, "correction_guard", lambda parent, new, moves: ["series eps_diluted_ttm differs outside the correction windows"])
+    rec = ACC.run_correction(env["t"], ev, reason="t", p=env["p"], now=NOW + 3600)
+    assert rec["state"] == "FAILED"                                           # not approved: blocked
+    rec = ACC.run_correction(env["t"], ev, reason="t", p=env["p"], now=NOW + 7200, approved_ciks={CIK})
+    assert rec["state"] == "PUBLISHED"
+    assert PUB.read_manifest(env["t"], rec["version"])["validation"]["approved_derivation_changes"] == {
+        str(CIK): ["series eps_diluted_ttm differs outside the correction windows"]}
+
+
+def test_approval_never_waives_split_or_withholding(env, monkeypatch):
+    v1, ev = _legacy_publish(env, monkeypatch)
+    monkeypatch.setattr(ACC, "correction_guard", lambda parent, new, moves: ["withholding changed"])
+    rec = ACC.run_correction(env["t"], ev, reason="t", p=env["p"], now=NOW + 3600, approved_ciks={CIK})
+    assert rec["state"] == "FAILED" and PUB.read_current(env["t"])["version"] == v1

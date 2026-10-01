@@ -11,7 +11,7 @@
     python -m api.services.fundamentals_pit.v5_ops shadow --symbols AAPL,TSLA --series ...     # (WEB) v4 vs v5
     python -m api.services.fundamentals_pit.v5_ops rollback-drill --dir /tmp/x                 # local, dark
     python -m api.services.fundamentals_pit.v5_ops quarantine --cik C [--cik C2] --version V --reason TEXT
-    python -m api.services.fundamentals_pit.v5_ops acceptance-correct AUDIT.json --reason TEXT [--no-publish] [--exclude-cik C]
+    python -m api.services.fundamentals_pit.v5_ops acceptance-correct AUDIT.json --reason TEXT [--no-publish] [--exclude-cik C] [--approve-cik C]
 
 Every write goes through v5_publish (immutable objects/manifests, pointer last). `serve` is the ONLY command that
 changes what members see.
@@ -204,6 +204,8 @@ def main(argv=None) -> int:
     ap.add_argument("--max-companies", type=int)
     ap.add_argument("--sweep-floor")
     ap.add_argument("--exclude-cik", action="append", type=int, default=[])
+    ap.add_argument("--approve-cik", action="append", type=int, default=[],
+                    help="acceptance-correct: owner-approved legitimate derivation change for this company")
     a = ap.parse_args(argv)
     from .backfill import quiet_http_loggers
     quiet_http_loggers()
@@ -243,7 +245,7 @@ def main(argv=None) -> int:
         if not a.reason:
             ap.error("--reason is required")
         out = ACC.run_correction(_target(a), ACC.load_evidence(a.arg), reason=a.reason, publish=not a.no_publish,
-                                 exclude_ciks=set(a.exclude_cik))
+                                 exclude_ciks=set(a.exclude_cik), approved_ciks=set(a.approve_cik))
     elif a.cmd == "rollback-drill":
         out = rollback_drill(a.dir)
     else:
