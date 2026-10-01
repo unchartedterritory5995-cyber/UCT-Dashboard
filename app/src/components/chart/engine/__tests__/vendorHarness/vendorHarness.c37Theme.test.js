@@ -54,7 +54,9 @@ const TV_LIGHT = { fg: '#0f0f0fff', bg: '#ffffffff' }
 
 const CASES = [
   // [capture, theme slots expected: {'kind.slot': count}, other graded slots beside them?]
-  ['trend-duration-forecast-chartprime-rddt-1d-2026-09-28', { 'cell.text_color': 20 }, true],
+  // ⭐ wave 10: C43 draws this script's line and one more label, and both name the
+  // chart's own foreground — two more theme references (measured on the merged tree).
+  ['trend-duration-forecast-chartprime-rddt-1d-2026-09-28', { 'cell.text_color': 20, 'label.textcolor': 1, 'line.color': 1 }, true],
   ['market-structure-by-leviathan-rddt-1d-2026-09-28', { 'label.textcolor': 16 }, true],
   ['ict-killzones-pivots-tfo-rddt-1d-2026-09-28', {
     'table.bgcolor': 1, 'table.frame_color': 1, 'table.border_color': 1, 'cell.text_color': 3,

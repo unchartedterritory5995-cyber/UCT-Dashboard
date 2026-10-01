@@ -88,15 +88,16 @@ describe('C38 — vw-gradient: a colour component is a column', () => {
     for (const t of CONSTANT_ROWS) expect(joined.source.text, t).toContain(` + close * 0,`)
     const { verdict } = gradeCapture(joined)
     expect(verdict.plots.map((p) => p.title)).toEqual(keep)
-    // ⛔ THE ONE ROW THAT IS NOT A COMPONENT READ: `plot(v, color = g1)` WEARS the
-    // gradient. Its values agree; its colour is the pane's own, because a gradient
-    // as a plot COLOUR is not carried by the columnar lane (ruling R-G keeps the
-    // line). Named here so it is counted, not hidden.
-    expect(notMatch(verdict)).toEqual(['G22_drawn_in_g1: DIVERGE'])
+    // ⭐ THE ONE ROW THAT IS NOT A COMPONENT READ: `plot(v, color = g1)` WEARS the
+    // gradient. ⚰️ On C38's own branch this row was a DIVERGE on colour — a
+    // gradient as a plot COLOUR was not carried (ruling R-G kept the line, in the
+    // pane's gold). Wave 10 also carries C37's `colourGradientRule`, which draws
+    // exactly that, so the row is TradingView's on every bar: value AND colour.
+    // Measured on the merged tree; nothing in this capture is left not-MATCH.
+    expect(notMatch(verdict)).toEqual([])
     const worn = plotOf(verdict, 'G22_drawn_in_g1')
     expect(worn.stats.valueMismatches + worn.stats.naMismatches).toBe(0)
-    expect(worn.stats.firstDivergence.kind).toBe('color')
-    for (const p of verdict.plots.filter((x) => x.title !== 'G22_drawn_in_g1')) {
+    for (const p of verdict.plots) {
       expect(p.stats.matching, p.title).toBe(300)
     }
   })
@@ -127,7 +128,8 @@ describe('C38 — vw-gradient: a colour component is a column', () => {
       rows[7][at] += 1
     })
     const { verdict } = gradeCapture(joined)
-    expect(notMatch(verdict)).toEqual(['G16_g4_r: DIVERGE', 'G22_drawn_in_g1: DIVERGE'])
+    // (G22 left this list in wave 10: C37 carries the gradient as a plot colour.)
+    expect(notMatch(verdict)).toEqual(['G16_g4_r: DIVERGE'])
     expect(plotOf(verdict, 'G16_g4_r').stats.valueMismatches).toBe(1)
   })
 })

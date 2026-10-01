@@ -125,7 +125,10 @@ describe('C37 — colours reached through a name, a helper or a constant selecto
     const ID = 'ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28'
     const o = tallyOf(ID)
     expectAllAgree(ID, o)
-    expect(o.tally['cell.text_color'].agree).toBe(32)
+    // ⭐ 32 -> 33 in wave 10: C42 serves the strength-bar cell (`ta.highest` under
+    // `barstate.islast`, TradingView's `██████████`), so one more cell is drawn and
+    // its text colour agrees too. Measured on the merged tree.
+    expect(o.tally['cell.text_color'].agree).toBe(33)
   }, 120000)
 
   it('⭐ `na` as a colour is the absent one (transparent), through a helper too: position-size-calculator', () => {
