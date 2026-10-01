@@ -697,8 +697,14 @@ export function beginObjects(program, ctx) {
     const formatNumber = (n, fmt) => {
       if (!Number.isFinite(n)) return 'NaN'
       if (typeof fmt !== 'string' || !fmt) {
-        // Pine's default: up to 10 significant digits, trailing zeros trimmed.
-        return String(Number(n.toPrecision(10)))
+        // ⭐ C42 — Pine's default is up to TEN DECIMALS, rounded, trailing zeros
+        // trimmed — not ten significant digits. Read off two captures of
+        // 2026-09-30: `vw-fn-series-history-rddt-1d` prints `hlc3` as
+        // `151.5633333333` and `158.5233333333`, and `vw-int-array-avg-spy-1d`
+        // prints `1.3333333333` and `1.6666666667` (the last digit rounded up).
+        // ⚰️ Ten significant digits printed `151.5633333`. No committed capture
+        // holds a text with more than ten decimals.
+        return String(Number(n.toFixed(10)))
       }
       // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
       // formatting the remainder is how `'#,###'` would silently become `'####'`.
