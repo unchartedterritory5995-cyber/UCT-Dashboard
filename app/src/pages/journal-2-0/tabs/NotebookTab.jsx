@@ -1457,12 +1457,22 @@ export default function NotebookTab() {
   // Wave 6: a member's OWN template (saved from one of their notes). The full
   // template is read when picked, then made through the SAME createNote ->
   // createNoteViaApi path as a built-in: title, body and property values.
+  //
+  // Wave 10 (DR-C follow-up): the gallery's card passes a bare SUMMARY
+  // (`{id, name, title, createdAt}` -- no `bodyJson`), which still needs this
+  // read. But Preview's "Use this template" already ran that exact read to
+  // show the body, and hands back the FULL record it fetched -- re-reading it
+  // here would be the same GET twice for one pick. `bodyJson` is the key
+  // `getMemberTemplate` always includes and a bare summary never does, so its
+  // presence (not truthiness -- an empty body is a real, valid template) is
+  // what tells the two apart.
   const createFromMemberTemplate = async (summary) => {
     setCreating(true)
     setPickerOpen(false)
+    const alreadyFull = Object.prototype.hasOwnProperty.call(summary || {}, 'bodyJson')
     let full
     try {
-      full = await getMemberTemplate(summary.id)
+      full = alreadyFull ? summary : await getMemberTemplate(summary.id)
     } catch (e) {
       console.error('[notebook] read member template failed', e)
       setActionError(`Couldn't open the template “${summary.name}”. Nothing was created.`)

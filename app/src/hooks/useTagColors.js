@@ -3,8 +3,10 @@ import { useMemo } from 'react'
 import { TAG_COLORS } from '../constants/tagColors'
 import usePreferences from './usePreferences'
 
-export default function useTagColors() {
-  const { prefs, setPref } = usePreferences()
+// `enabled` defaults to true (see usePreferences.js) and is threaded straight
+// through — every existing caller omits it and is unaffected.
+export default function useTagColors(enabled = true) {
+  const { prefs, setPref } = usePreferences(enabled)
 
   const tagColors = useMemo(() => {
     let custom = {}

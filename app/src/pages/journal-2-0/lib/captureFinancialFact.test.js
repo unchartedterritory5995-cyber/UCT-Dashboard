@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 vi.mock('./captureTargets', () => ({ freshLastNote: vi.fn() }))
 
 import { freshLastNote } from './captureTargets'
-import { capturePriceToNotebook } from './captureFinancialFact'
+import { capturePriceToNotebook, captureConsensusToNotebook } from './captureFinancialFact'
 
 const realFetch = global.fetch
 beforeEach(() => {
@@ -60,5 +60,34 @@ describe('capturePriceToNotebook', () => {
     global.fetch.mockResolvedValueOnce({ ok: false })
     const msg = await capturePriceToNotebook('NVDA')
     expect(msg).toBe('Capture failed — try again')
+  })
+
+  // Ruling 149: a locked note takes no captures.
+  it('a locked note refuses the insert (423), and the message names the lock', async () => {
+    freshLastNote.mockReturnValue({ id: 'note-1', title: 'Existing' })
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ fact: { id: 'fact-1' } }) })
+      .mockResolvedValueOnce({
+        ok: false, status: 423,
+        json: async () => ({ detail: 'This note is locked — unlock it in the Notebook first' }),
+      })
+    const msg = await capturePriceToNotebook('NVDA')
+    expect(msg).toBe('NVDA price not saved — that note is locked. Unlock it in the Notebook first.')
+    expect(msg).not.toMatch(/captured to Notebook/)
+  })
+})
+
+describe('captureConsensusToNotebook — ruling 149: a locked note takes no captures', () => {
+  it('a locked note refuses the insert (423), and the message names the lock', async () => {
+    freshLastNote.mockReturnValue({ id: 'note-1', title: 'Existing' })
+    global.fetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ fact: { id: 'fact-1' } }) })
+      .mockResolvedValueOnce({
+        ok: false, status: 423,
+        json: async () => ({ detail: 'This note is locked — unlock it in the Notebook first' }),
+      })
+    const msg = await captureConsensusToNotebook('NVDA')
+    expect(msg).toBe('NVDA analyst consensus not saved — that note is locked. Unlock it in the Notebook first.')
+    expect(msg).not.toMatch(/captured to Notebook/)
   })
 })

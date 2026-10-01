@@ -104,7 +104,11 @@ def _production_paths() -> set:
         out.add(os.path.abspath(store._db_path()))
     except Exception:
         pass
-    for p in ("/data/breadth_daily_ohlc.db", r"C:\data\breadth_daily_ohlc.db"):
+    # Same env var `breadth_daily_ohlc._db_path()` reads -- one authority over
+    # the production path, not a second one -- so the repo-root census can
+    # pin and sandbox this well-known-paths entry too.
+    for p in (os.environ.get("BREADTH_OHLC_DB", "/data/breadth_daily_ohlc.db"),
+              r"C:\data\breadth_daily_ohlc.db"):
         out.add(os.path.abspath(p))
     return out
 

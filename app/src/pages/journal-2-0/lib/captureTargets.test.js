@@ -68,6 +68,46 @@ describe('default target preserves the shipped door behaviour', () => {
   })
 })
 
+// ── Ruling 149: a locked note takes no captures ─────────────────────────────
+describe('ruling 149: a locked note takes no captures', () => {
+  function stubLockedThenInbox(embedsUrl) {
+    vi.stubGlobal('fetch', vi.fn((url, opts = {}) => {
+      const u = String(url)
+      H.calls.push({ url: u, method: opts.method || 'GET', body: opts.body })
+      if (u === embedsUrl) {
+        return Promise.resolve({
+          ok: false, status: 423,
+          json: () => Promise.resolve({ detail: 'This note is locked — unlock it in the Notebook first' }),
+        })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+    }))
+  }
+
+  it('a 423 from the embed door is named in the toast, and the capture still reaches the inbox', async () => {
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'nLocked', ts: Date.now(), title: 'Daily Journal' }))
+    stubLockedThenInbox('/api/j2/notes/nLocked/embeds')
+    const msg = await sendCaptureToJournal('chart', CAP, { label: 'AMD' })
+    expect(msg).toBe('“Daily Journal” is locked — AMD captured to your inbox until you unlock it')
+    expect(journalCalls().map((c) => c.url)).toEqual(['/api/j2/notes/nLocked/embeds', '/api/j2/inbox'])
+  })
+
+  it('without a note title, the toast still names the lock (never a bare "sent")', async () => {
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'nLocked2', ts: Date.now() }))
+    stubLockedThenInbox('/api/j2/notes/nLocked2/embeds')
+    const msg = await sendCaptureToJournal('chart', CAP, { label: 'AMD' })
+    expect(msg).toBe('That note is locked — AMD captured to your inbox until you unlock it')
+  })
+
+  it('a 423 never reads as success — the "sent to" phrasing never appears', async () => {
+    localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: 'nLocked3', ts: Date.now(), title: 'T' }))
+    stubLockedThenInbox('/api/j2/notes/nLocked3/embeds')
+    const msg = await sendCaptureToJournal('chart', CAP, { label: 'AMD' })
+    expect(msg).not.toMatch(/sent to/)
+    expect(msg).toMatch(/locked/)
+  })
+})
+
 describe('new destinations every door gets for free', () => {
   it('newNote creates an entry holding the embed, and re-points the capture target', async () => {
     const msg = await sendCaptureToJournal('chart', CAP, { label: 'AMD', target: 'newNote' })

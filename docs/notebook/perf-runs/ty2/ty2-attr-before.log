@@ -1,0 +1,84 @@
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; launcher output: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\ty2-attr-before.sandbox.log; log: C:\Users\Patrick\AppData\Local\Temp\claude\C--Users-Patrick\441b0c89-c1d8-471c-bd31-2a4fb712ee30\scratchpad\ty2-attr-before.integrity.md
+attribution at 1,000 paragraphs: 60 keys, instrumented p50 9.4 ms/key, 176 pieces wrapped
+     1.430 ms/key    1.00 calls/key  dispatch (total)
+     0.672 ms/key    1.00 calls/key  tiptap emit update
+     0.363 ms/key    1.00 calls/key  view.updateState (DOM, decorations, plugin views)
+     0.173 ms/key    0.23 calls/key  React scheduler tasks (render + commit)  (1.18 React commits/key)
+     0.067 ms/key    1.00 calls/key  tiptap emit transaction
+     0.058 ms/key    1.00 calls/key  appendTransaction autolink$19
+     0.032 ms/key    1.00 calls/key  view.update uctBlockHandle$
+     0.028 ms/key    1.00 calls/key  state.apply noteLinkMenu$19
+     0.017 ms/key    1.00 calls/key  appendTransaction clearDocument$19
+     0.017 ms/key    1.00 calls/key  decorations notebookPlaceholder$
+     0.015 ms/key    1.00 calls/key  handleTextInput plugin$1958
+     0.013 ms/key    1.00 calls/key  state.apply history$
+     0.013 ms/key    1.00 calls/key  appendTransaction selectingCells$
+     0.010 ms/key    1.00 calls/key  tiptap emit selectionUpdate
+     0.008 ms/key    1.00 calls/key  handleKeyDown plugin$1957
+     0.008 ms/key    1.00 calls/key  state.apply suggestion$
+     0.005 ms/key    1.00 calls/key  handleTextInput plugin$1987
+     0.005 ms/key    1.00 calls/key  handleTextInput plugin$2012
+  renderer main thread, traced: 9.159 ms/key busy (1 thread(s)); self time by phase:
+     4.278 ms/key   53.15 /key  FunctionCall
+     1.363 ms/key    1.00 /key  EventDispatch textInput
+     0.693 ms/key    1.00 /key  Layout
+     0.646 ms/key   15.82 /key  ThreadControllerImpl::RunTask
+     0.386 ms/key    1.10 /key  Layerize
+     0.335 ms/key    1.10 /key  PrePaint
+     0.297 ms/key    2.17 /key  Paint
+     0.281 ms/key   53.15 /key  v8.callFunction
+     0.174 ms/key    1.10 /key  Commit
+     0.136 ms/key    1.17 /key  Receive mojo message
+     0.133 ms/key   15.98 /key  RunTask
+     0.072 ms/key    3.32 /key  SimpleWatcher::OnHandleReady
+     0.071 ms/key    1.00 /key  EventDispatch keydown
+     0.047 ms/key    1.00 /key  EventDispatch keyup
+     0.034 ms/key    1.00 /key  EventDispatch keypress
+     0.030 ms/key    0.07 /key  V8.GC_SCAVENGER_SCAVENGE_PARALLEL
+     0.025 ms/key    1.00 /key  EventDispatch input
+     0.017 ms/key   11.17 /key  BlinkScheduler_PerformMicrotaskCheckpoint
+attribution at 2,000 paragraphs: 60 keys, instrumented p50 14.4 ms/key, 172 pieces wrapped
+     2.792 ms/key    1.00 calls/key  dispatch (total)
+     1.658 ms/key    1.00 calls/key  tiptap emit update
+     0.502 ms/key    1.00 calls/key  view.updateState (DOM, decorations, plugin views)
+     0.212 ms/key    0.23 calls/key  React scheduler tasks (render + commit)  (1.18 React commits/key)
+     0.103 ms/key    1.00 calls/key  appendTransaction autolink$38
+     0.062 ms/key    1.00 calls/key  tiptap emit transaction
+     0.043 ms/key    1.00 calls/key  state.apply noteLinkMenu$38
+     0.042 ms/key    1.00 calls/key  appendTransaction selectingCells$
+     0.038 ms/key    1.00 calls/key  view.update uctBlockHandle$
+     0.030 ms/key    1.00 calls/key  decorations notebookPlaceholder$
+     0.028 ms/key    1.00 calls/key  appendTransaction clearDocument$38
+     0.015 ms/key    1.00 calls/key  state.apply history$
+     0.012 ms/key    1.00 calls/key  handleTextInput plugin$3915
+     0.012 ms/key    1.00 calls/key  tiptap emit selectionUpdate
+     0.008 ms/key    1.00 calls/key  handleKeyDown plugin$3914
+     0.008 ms/key    1.00 calls/key  state.apply suggestion$
+     0.008 ms/key    1.00 calls/key  state.apply notebookCodeHighlight$
+     0.007 ms/key    1.00 calls/key  state.apply plugin$3915
+  renderer main thread, traced: 15.84 ms/key busy (1 thread(s)); self time by phase:
+     6.865 ms/key   54.20 /key  FunctionCall
+     2.998 ms/key    1.00 /key  EventDispatch textInput
+     1.475 ms/key    1.00 /key  Layout
+     0.898 ms/key    1.08 /key  PrePaint
+     0.748 ms/key   16.13 /key  ThreadControllerImpl::RunTask
+     0.539 ms/key    2.13 /key  Paint
+     0.509 ms/key    1.08 /key  Layerize
+     0.488 ms/key   54.20 /key  v8.callFunction
+     0.291 ms/key    1.17 /key  Receive mojo message
+     0.261 ms/key    1.08 /key  Commit
+     0.165 ms/key    3.33 /key  SimpleWatcher::OnHandleReady
+     0.161 ms/key   16.18 /key  RunTask
+     0.072 ms/key    1.00 /key  EventDispatch keydown
+     0.057 ms/key    1.00 /key  EventDispatch keyup
+     0.054 ms/key    1.00 /key  EventDispatch input
+     0.041 ms/key    1.00 /key  EventDispatch keypress
+     0.038 ms/key    0.07 /key  V8.GC_SCAVENGER_SCAVENGE_PARALLEL
+     0.025 ms/key   12.33 /key  BlinkScheduler_PerformMicrotaskCheckpoint
+| measure | paragraphs | samples | p50 | p95 | budget | tree |
+|---|---:|---:|---:|---:|---:|---|
+| note_open | 1,000 | 5 | 71.1 ms | 86.3 ms | < 300 ms | `e4af130f4` |
+| note_open | 2,000 | 5 | 174.7 ms | 208.4 ms | n/a | `e4af130f4` |
+| typing_per_char | 1,000 | 60 | 9.4 ms | 16.2 ms | < 16 ms | `e4af130f4` |
+| typing_per_char | 2,000 | 60 | 14.1 ms | 20.7 ms | < 16 ms | `e4af130f4` |
+VERDICT: BUDGET BREACH -- typing p95 16.20 ms/char >= 16 ms at 1,000 paragraphs; typing p95 20.70 ms/char >= 16 ms at 2,000 paragraphs

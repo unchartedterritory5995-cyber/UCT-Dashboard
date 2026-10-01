@@ -79,6 +79,20 @@
 > L10's door (the template-gallery card count) are read in the table below. Evidence:
 > `docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1e/` (`sandbox-results.md` is the table).
 >
+> ⭐ **RE-MEASURED A FIFTH TIME AT `a680b0d40` (L13 #259, production's tip, 2026-09-30; lane
+> R1f).** `L13` is the new top row. It ships real `app/`/`api/` Notebook code AND its squash
+> subject kept the literal word "wave" ("Notebook 10/10 wave 10 L13: ..."), so unlike L10/L12 it
+> is selected by SUBJECT AND PATH both -- no new `CHAIN_BY_PATH_ONLY` exception needed. It reverts
+> with 0 conflicts, not even a doc-only one. The whole chain was rebuilt from the new tip: all
+> seven pins recorded at `599cd44f1` came back byte-identical, no new conflict anywhere in the
+> chain. One more path-only commit in the window was read and ruled NOT a Notebook landing --
+> `69beea8d1` (Terminal TERM-073, the nightly analyst-revisions "what changed" timeline, dark),
+> touching only `api/main.py` (one router mount behind `ANALYST_REVISIONS_ENABLED`) -- added to
+> `REVIEWED_NOT_LANDINGS`. `MEASURED_AT` is `a680b0d40`. Rehearsed on a sandbox: the tip, through
+> `L13` and through `L12`. L13's door -- `POST /api/j2/notes/{id}/facts` with
+> `factType=analyst_price_target_consensus` -- is read in the table below. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1f/` (`sandbox-results.md` is the table).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -129,6 +143,7 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L13` | `a680b0d40` | wave 10 L13 #259 | |
 | `L12` | `599cd44f1` | wave 10 L12 #258 | |
 | `L10` | `8eb7f008b` | wave 10 L10 #257 | |
 | `L9` | `89390fb85` | wave 10 L9 #256 | |
@@ -642,6 +657,39 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-09-30: L13 #259 on top, from `599cd44f1` (lane R1f)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-09-30-r1f/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | product conflicts | new since 2026-09-30 (R1e) |
+|---|---|---|
+| `L13` | 0 | the new top step. Ships real `app/`/`api/` Notebook code (G-062 analyst-consensus capture, smoke + master-red fixes) -- its squash subject reads "Notebook 10/10 wave 10 L13: ..." (kept "wave"), so SUBJECT selects it directly; no `CHAIN_BY_PATH_ONLY` exception needed |
+| `L12`...`wave5`, guards | unchanged | -- (same rules, same pins) |
+
+- **All seven pins recorded at `599cd44f1` came back byte-identical** from the new tip
+  (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-09-30-r1f/chain/record-pins-output.json`). L13 reverts with
+  zero conflicts of any kind -- not even a doc-only one.
+- **The census of the new window** (`evidence/rollback-rehearsal-2026-09-30-r1f/check-before.log`,
+  the raw `--check` refusal before this lane's edit): 2 commits selected -- `L13` by subject AND
+  path (a real landing, selected without any declared exception) and one more, `69beea8d1`
+  (Terminal TERM-073, the nightly analyst-revisions "what changed" timeline, dark), by path only,
+  added to `REVIEWED_NOT_LANDINGS`. A rail derives the window from the tool's own census and fails
+  on any selected commit that is neither in `CHAIN` nor reviewed.
+- **`69beea8d1` edits no Notebook-owned code**: its only touch among shared files is one router
+  mount in `api/main.py` behind `ANALYST_REVISIONS_ENABLED`; its own router, service and panel
+  files are all outside the derived Notebook set.
+
+**The sandbox rehearsal, 2026-09-30 (lane R1f).**
+`evidence/rollback-rehearsal-2026-09-30-r1f/rehearse.py` (same method as R1's, R1b's, R1c's, R1d's
+and R1e's) and `probe.py` (imports R1e's probe for the never-revert set, the per-landing doors,
+L7's door, L12's sort door and L10's template door; adds L13's door -- `POST
+/api/j2/notes/{id}/facts` with `factType=analyst_price_target_consensus`, accepted (200,
+`rightsClass=conditional`/`temporalMode=snapshot`/`source=fmp`) at the tip and refused (400, the
+pre-G-062 inactive-type rejection) once L13 is reverted). Full table:
+`evidence/rollback-rehearsal-2026-09-30-r1f/sandbox-results.md`.
 
 ## Measured, 2026-09-30: L9 #256 + L10 #257 + L12 #258 on top, from `6f563c158` (lane R1e)
 

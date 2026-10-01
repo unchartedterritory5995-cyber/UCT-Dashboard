@@ -13,6 +13,12 @@ Usage:
   python tools/desk_audio_backfill.py --limit 10         # do 10 (resumable)
   python tools/desk_audio_backfill.py                    # do all missing
 """
+import os as _uct_os  # noqa: E402
+import sys as _uct_sys  # noqa: E402
+_uct_repo_root = _uct_os.path.dirname(_uct_os.path.dirname(_uct_os.path.abspath(__file__)))
+if _uct_repo_root not in _uct_sys.path:
+    _uct_sys.path.insert(0, _uct_repo_root)
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import
 import argparse, os, subprocess, sys, tempfile, time
 
 from api.services import education_service, data_sync, desk_background_audio
