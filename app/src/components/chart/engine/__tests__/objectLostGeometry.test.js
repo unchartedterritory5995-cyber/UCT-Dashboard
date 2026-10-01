@@ -82,7 +82,10 @@ describe('⛔⛔ C22 — a lost geometry setter withholds the object; a lost sty
   })
 
   it('⛔ CONTROL — a lost STYLE setter leaves the line drawn (a style Pine defaults is still Pine\'s)', () => {
-    const t = tr([...HEAD, 'l.set_color(chart.fg_color)'])
+    // ⚰️ This used `l.set_color(chart.fg_color)` as its uncarried colour; C37
+    // carries that one (a theme reference), so the control now sets a colour
+    // whose CHANNELS move bar to bar — still nothing this lane can say.
+    const t = tr([...HEAD, 'l.set_color(color.rgb(close % 255, 0, 0))'])
     expect(t.objectDiagnostics.dropReasons['update:props']).toBeGreaterThan(0)
     expect(lines(t).length).toBe(creates)
   })

@@ -128,8 +128,16 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // census), one more cell served (`vendorHarness.c32Collections`). Pre-C32:
       // plain [521, 405996, '65582febd0bccf56'] / manifest [521, 406004,
       // '41fd10acf67ccfb8'].
+      // ⭐ C37 moved artemis: 48 colour slots the object lane dropped are read now
+      // (its theme chain over an `input.string`, `color.new(theme, <constant
+      // arithmetic>)`, its one-expression tint helpers) — each a colour test or a
+      // transparency the Resolver is asked for: 197 more Resolvers, 20,094 more
+      // steps. Plot outputs byte-identical (translation census); every one of the
+      // 48 slots is TradingView's colour (`vendorHarness.c37ObjectColours`).
+      // Pre-C37: plain [525, 406118, '81b662ae781896a1'] / manifest [525, 406126,
+      // '600f194c24160688'].
       'artemis-oscillator-pro__ea1097ca9e': {
-        plain: [525, 406118, '81b662ae781896a1'], manifest: [525, 406126, '600f194c24160688'] },
+        plain: [722, 426212, '55e872139c194b7f'], manifest: [722, 426220, 'c489c4af4d0b625d'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

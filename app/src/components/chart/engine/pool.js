@@ -59,8 +59,7 @@
 // complete option set can name `priceScaleId` even when a caller supplies no
 // placement at all.
 import { ALPHA, withAlpha } from '../designTokens'
-import { fromGradient, hexToPacked } from './runtime/colours'
-import { packColor, unpackColor } from './colorInt'
+import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours'
 import { withObjectTransparency } from './ast/objectProgram'
 import { MAIN_PRICE_SCALE_ID } from './placement'
 import { presentedPlot } from './presentation'
@@ -760,21 +759,13 @@ export function columnColorsForPlot(plot) {
 /** ⭐⭐ C37 — a plot's `colorGradient` as the renderer reads it: the two
  *  endpoints PACKED (`0xTTBBGGRR`, the integer `fromGradient` blends) and the
  *  transparency a `color.new` set on the result, or null. `sig` is the memo key.
- *  ⛔ Packed through `hexToPacked` / the alpha byte's own complement — never a
- *  second byte order (`colorInt.js`'s header says why). */
+ *  ⛔ Packed through `colours.js::objectHexToPacked` — never a second byte order
+ *  (`colorInt.js`'s header says why). */
 function gradientOf(plot) {
   const g = plot && plot.colorGradient
   if (!g || typeof g !== 'object') return null
-  const pack = (c) => {
-    const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(String(c || ''))
-    if (!m) return null
-    const base = hexToPacked(`#${m[1]}`)
-    if (!m[2]) return base
-    const u = unpackColor(base)
-    return packColor({ r: u.r, g: u.g, b: u.b, transparencyByte: 255 - parseInt(m[2], 16) })
-  }
-  const a = pack(g.from)
-  const b = pack(g.to)
+  const a = objectHexToPacked(g.from)
+  const b = objectHexToPacked(g.to)
   if (a === null || b === null) return null
   const transparency = Number.isInteger(g.transparency) && g.transparency >= 0 && g.transparency <= 100
     ? g.transparency : null
@@ -791,10 +782,8 @@ export function gradientPointColour(gradient, w) {
   if (!gradient || typeof w !== 'number' || !Number.isFinite(w)) return null
   const packed = fromGradient(w, 0, 1, gradient.a, gradient.b)
   if (packed === null || packed === undefined) return null
-  const u = unpackColor(packed)
-  if (gradient.transparency !== null) return withObjectTransparency(u.hex, gradient.transparency)
-  if (u.transparencyByte === 0) return u.hex
-  return u.hex + (255 - u.transparencyByte).toString(16).padStart(2, '0').toUpperCase()
+  const hex = packedToObjectHex(packed)
+  return gradient.transparency !== null ? withObjectTransparency(hex, gradient.transparency) : hex
 }
 
 // ─── registry resolution ─────────────────────────────────────────────────────

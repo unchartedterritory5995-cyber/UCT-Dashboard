@@ -34,6 +34,11 @@
 // calendar it is read in. The clock columns read the same two, so an `xloc.bar_time`
 // coordinate built from `time` and the bar that `time` came from cannot disagree.
 import { barOpenInstant, etClockAt } from '../indicators.js'
+// ⭐ C37 — `chart.fg_color` / `chart.bg_color` are resolved HERE, against the
+// chart the objects are about to be drawn on (`objectTheme.js`).
+import { isThemeColour, resolveThemeColour } from './objectTheme.js'
+// ⭐ C37 — the defaults that depend on the script's Pine version.
+import { versionObjectDefaults } from './objectDefaults.js'
 
 /** Pine's own defaults, so an object drawn with two arguments still looks like
  *  the author's. ⛔ Every one of these is Pine's documented default, not a
@@ -56,6 +61,23 @@ export const OBJECT_DEFAULTS = Object.freeze({
   }),
   linefill: Object.freeze({ color: 'rgba(41,98,255,0.20)' }),
 })
+
+const defaultsMemo = new Map()
+/** ⭐ C37 — `OBJECT_DEFAULTS` with the witnessed defaults of `pineVersion` laid
+ *  over it (`objectDefaults.js`), plus `cell` (a table cell's own). An unknown
+ *  or absent version is the base, unchanged. */
+export function objectDefaultsFor(pineVersion) {
+  const over = versionObjectDefaults(pineVersion)
+  const hit = defaultsMemo.get(over)
+  if (hit) return hit
+  const out = {}
+  for (const family of ['line', 'label', 'box', 'table', 'linefill', 'cell']) {
+    out[family] = Object.freeze({ ...(OBJECT_DEFAULTS[family] || {}), ...(over[family] || {}) })
+  }
+  const frozen = Object.freeze(out)
+  defaultsMemo.set(over, frozen)
+  return frozen
+}
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
@@ -255,6 +277,15 @@ function xOf(value, xloc, clock) {
   return t
 }
 
+/** The colour slots of each family — the only props a theme reference can sit in. */
+const THEME_SLOTS = Object.freeze({
+  line: Object.freeze(['color']),
+  label: Object.freeze(['color', 'textcolor']),
+  box: Object.freeze(['border_color', 'bgcolor', 'text_color']),
+  table: Object.freeze(['bgcolor', 'frame_color', 'border_color']),
+  linefill: Object.freeze(['color']),
+})
+
 /**
  * @param {Array}  live   `evaluateObjects(...).live`
  * @param {object} opts
@@ -262,10 +293,27 @@ function xOf(value, xloc, clock) {
  * @param {string} [opts.tf]  the chart's timeframe code. A DATE-keyed series needs
  *                  it to know when each date's bar opened (`barOpenInstant`);
  *                  absent, an `xloc.bar_time` object on one is dropped, never guessed.
+ * @param {{fg: string|null, bg: string|null}} [opts.theme]  the chart's own
+ *                  colours (`objectTheme.js::chartThemeOf`). A colour the script
+ *                  wrote as `chart.fg_color` / `chart.bg_color` becomes that
+ *                  chart's colour here; with no theme — or one that cannot answer
+ *                  (a gradient background) — the slot has no colour of its own and
+ *                  takes its default, exactly as an uncarried colour does.
+ * @param {number} [opts.pineVersion]  the script's Pine version, where the
+ *                  program states one (`objectDefaultsFor`): the default colours
+ *                  TradingView draws for an object the script left uncoloured.
  * @returns {{lines, labels, boxes, tables, fills, dropped, counts}}
  */
 export function toRenderState(live, opts = {}) {
   const clock = makeBarClock(opts.bars || [], opts.tf)
+  const theme = opts.theme || null
+  /** A colour as it is drawn on THIS chart: a theme reference resolved, or the
+   *  fallback where the chart cannot answer it; anything else untouched. */
+  const paint = (c, fallback) => {
+    if (!isThemeColour(c)) return c
+    const drawn = resolveThemeColour(c, theme)
+    return drawn === undefined ? fallback : drawn
+  }
   const lines = []
   const labels = []
   const boxes = []
@@ -274,8 +322,11 @@ export function toRenderState(live, opts = {}) {
   const dropped = { line: 0, label: 0, box: 0, table: 0, linefill: 0 }
   const byId = new Map()
 
+  const defaults = objectDefaultsFor(opts.pineVersion)
   for (const o of live || []) {
-    const p = { ...OBJECT_DEFAULTS[o.family], ...o.props }
+    const base = defaults[o.family] || {}
+    const p = { ...base, ...o.props }
+    for (const k of THEME_SLOTS[o.family] || []) p[k] = paint(p[k], base[k])
     if (o.family === 'line') {
       const x1 = xOf(p.x1, p.xloc, clock)
       const x2 = xOf(p.x2, p.xloc, clock)
@@ -366,11 +417,11 @@ export function toRenderState(live, opts = {}) {
           col: c.col,
           row: c.row,
           text: c.props.text === undefined || c.props.text === null ? '' : String(c.props.text),
-          text_color: c.props.text_color,
+          text_color: paint(c.props.text_color, undefined) ?? defaults.cell.text_color,
           text_size: c.props.text_size,
           text_halign: c.props.text_halign,
           text_valign: c.props.text_valign,
-          bgcolor: c.props.bgcolor,
+          bgcolor: paint(c.props.bgcolor, undefined),
           // ⭐ `'bold'` | `'italic'` | `'bold_italic'` | `'none'` | undefined —
           // the translator's canonical spelling, passed through untouched. ⛔ IT
           // IS NOT RE-DERIVED HERE. This layer is the CONTRACT an adapter reads;

@@ -110,6 +110,37 @@ export function fromGradient(value, bottom, top, a, b) {
   })
 }
 
+/** ⭐⭐ C37 — THE OBJECT LANE'S COLOUR STRING ⇄ THE PACKED INTEGER.
+ *
+ *  A drawing's colour is ONE string — `#RRGGBB`, or `#RRGGBBAA` whose last byte
+ *  is TradingView's OPACITY (`objectProgram.js::withObjectTransparency`). The
+ *  gradient blends packed integers whose top byte is the opacity's COMPLEMENT
+ *  (`transparencyToByte`). These two are that conversion, in both directions,
+ *  for every caller that hands a static endpoint to `fromGradient` or reads its
+ *  result back (the object runtime's `{c:'grad'}`, the plot pool's gradient).
+ *  Byte-exact both ways: an opacity byte is never routed through a 0-100
+ *  transparency, which would lose it (`0x4C` has no whole transparency).
+ *  `null` for anything that is not such a string — a theme reference, a CSS
+ *  name — so a caller holds the colour rather than blending a guess. */
+export function objectHexToPacked(hex) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})?$/i.exec(String(hex ?? ''))
+  if (!m) return null
+  return packColor({
+    r: parseInt(m[1], 16),
+    g: parseInt(m[2], 16),
+    b: parseInt(m[3], 16),
+    transparencyByte: m[4] === undefined ? 0 : BYTE_MAX - parseInt(m[4], 16),
+  })
+}
+
+export function packedToObjectHex(packed) {
+  const v = packed
+  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null
+  const u = unpackColor(v)
+  if (u.transparencyByte === 0) return u.hex
+  return u.hex + (BYTE_MAX - u.transparencyByte).toString(16).padStart(2, '0').toUpperCase()
+}
+
 /** `#RRGGBB` (or `#RGB`) + a Pine transparency → the colorer integer. */
 export function hexToPacked(hex, transparency = 0) {
   const s = String(hex || '').replace('#', '')

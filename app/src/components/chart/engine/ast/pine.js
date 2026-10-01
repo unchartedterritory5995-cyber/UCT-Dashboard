@@ -126,9 +126,11 @@ import {
   MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
-  withObjectTransparency,
+  withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
 import { wholeTransparency } from '../colorInt.js'
+import { THEME_NAMES } from '../objectTheme.js'
+import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
 // `symbolScope.json` is a fact about the outside world (our symbol store's
@@ -15821,11 +15823,49 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  reachable table scripts colour conditionally far more often than not. */
   const colorNodeOf = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
+    // carried as a REFERENCE (the Pine name itself) and resolved where the
+    // drawing is painted, against the chart it is painted on
+    // (`objectTheme.js`). ⛔ Never a hex chosen here — the translation is one
+    // document and the chart it lands on is not known until it is drawn.
+    // ⛔ A script's own binding of the name wins, as it does for a colour name.
+    if (node.type === 'name' && THEME_NAMES.includes(node.name)
+        && !(scope && typeof scope.get === 'function' && scope.get(node.name))) {
+      return { c: 'lit', hex: node.name }
+    }
     // ⭐ WITH its transparency — see `staticObjectColourOf`. A drawing object
     // has one colour string and no opacity field, so the alpha rides in it.
     const hex = staticObjectColourOf(node, scope)
     if (hex) return { c: 'lit', hex }
+    // ⭐⭐ C37 — A `var` SEEDED WITH A COLOUR AND NEVER REASSIGNED IS THAT COLOUR.
+    // `var color LineColorInput = input.color(…)` (contraction-box, 78 lines in
+    // the renderer's blue where TradingView draws the input's teal) is declared
+    // once and never written again: Pine evaluates the seed on the first bar and
+    // the name holds it from then on. ⛔ ONLY a seed that is ONE colour whatever
+    // the bar (`{c:'lit'}`): a seed that reads the bar (`close > open ? a : b`)
+    // is frozen at bar 0's answer in Pine, which a per-bar node would not be.
+    // ⛔ ONLY a name the script never reassigns, anywhere (`mutableNames`).
+    if (node.type === 'name') {
+      const sb = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      if (sb && sb.kind === 'state' && sb.seed && sb.update && sb.update.type === 'selfref'
+          && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+          && !objectOpts.mutableNames.has(node.name)) {
+        const seeded = colorNodeOf(sb.seed, sb.seedEnv || scope, depth + 1)
+        if (seeded && seeded.c === 'lit') return seeded
+      }
+    }
     if (node.type === 'ternary') {
+      // ⭐⭐ C37 — A TEST ON THE LOOP COUNTER IS DECIDED PER PASS, exactly as a
+      // guard on it is (`liftLive`, C25): `i < 15 ? grad_a : grad_b` inside
+      // `for i = 0 to 29` (heat-map-seasons' gauge). A tree is one value per bar
+      // and cannot say it. ⛔ Only a condition made of the counter, constants and
+      // per-bar trees (`passCondition`) — object state in a colour stays refused.
+      if (hostPasses && loopIds.length && mentionsLoop(node.test)) {
+        const passCond = liftLive(node.test)
+        const thenP = passCond && passCondition(passCond) ? colorNodeOf(node.yes, scope, depth + 1) : null
+        const otherP = thenP ? colorNodeOf(node.no, scope, depth + 1) : null
+        return thenP && otherP ? { c: 'if', cond: passCond, then: thenP, else: otherP } : lateColourOf(node, scope, depth)
+      }
       // ⭐ C10 — a test that is the same on every bar answers with its live
       // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
       const condTree = canonicalOf(node.test)
@@ -15836,14 +15876,129 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const decided = decidedTest(condTree)
         if (decided !== null) return decided !== 0 ? then : other
       }
-      if (!cond || !then || !other) return rtColourOf(node, scope, depth)
+      if (!cond || !then || !other) return lateColourOf(node, scope, depth)
       return { c: 'if', cond, then, else: other }
     }
     const opened = openName(node, scope, depth)
     // ⭐ C20 — a name whose binding cannot be read here is read from the run.
-    if (opened) return colorNodeOf(opened.node, opened.env, depth + 1) || rtColourOf(node, scope, depth)
-    return rtColourOf(node, scope, depth)
+    if (opened) {
+      // ⭐ C37 — a binding that settled on ONE colour is that colour wherever the
+      // name is read: a `{c:'lit'}` depends on the binding and its scope alone
+      // (never on the drawing, the loop or the runtime lane), so it is read once.
+      // A theme colour is named by dozens of drawings, and each read of an
+      // eleven-arm chain would walk the Resolver eleven times to no new answer.
+      const seen = litByBinding.get(opened.node)
+      if (seen && seen.env === opened.env) return seen.lit
+      const c = colorNodeOf(opened.node, opened.env, depth + 1) || lateColourOf(node, scope, depth)
+      if (c && c.c === 'lit') litByBinding.set(opened.node, { env: opened.env, lit: c })
+      return c
+    }
+    return lateColourOf(node, scope, depth)
   }
+  const litByBinding = new WeakMap()
+
+  /** ⭐ C37 — a per-pass condition a COLOUR may carry: comparisons and boolean
+   *  operators over the loop counter, constants, counter arithmetic and per-bar
+   *  trees. The validator asks the same question (`objectProgram.js::
+   *  isPassCondition`) — this is the translator declining before it builds one. */
+  const passCondition = (v) => isPassCondition(v)
+
+  /** ⭐⭐ C37 — THE COLOURS THE HOST LANE CAN SAY THAT A STATIC READ CANNOT, asked
+   *  only after the runtime lane's own reading (`rtColourOf`) declined — so a
+   *  drawing that lane feeds keeps exactly what it had.
+   *
+   *    · `na` / `color(na)`                Pine's absent colour: fully transparent
+   *                                        (TradingView records `0x00000000`;
+   *                                        zero-lag's `color = color(na)` labels)
+   *    · `color.new(c, t)`, `t` computed   `{c:'new'}` over a PER-BAR TREE — an
+   *                                        input's transparency stays the member's
+   *                                        knob (makuchaku's 51 boxes,
+   *                                        `color.new(color.black, boxTransparency)`)
+   *    · `color.from_gradient(…)`          `{c:'grad'}`: three value references
+   *                                        and two colour nodes, the measured curve
+   *    · a one-expression colour HELPER    its body with the call's arguments in
+   *                                        place (`f_trendClr(bull, bear)`), then
+   *                                        read like any other colour
+   *    · a constant-selected chain         `foldedObjectColourOf` (ruling 1)
+   *
+   *  Anything else is `null`: the property is dropped and counted, as before. */
+  const NA_OBJECT_COLOUR = '#00000000'
+  const hostColourOf = (node, scope, depth) => {
+    if (!node || depth > 12 || rawTrees) return null
+    if (isNaColourLeaf(node)) return { c: 'lit', hex: NA_OBJECT_COLOUR }
+    if (node.type === 'call') {
+      const args = node.args || []
+      const plain = !args.some((a) => !a || a.name)
+      // `color(x)` is Pine's cast: the colour `x` is.
+      if (node.name === 'color' && plain && args.length === 1) return colorNodeOf(args[0].value, scope, depth + 1)
+      if (node.name === 'color.new' && plain && args.length === 2) {
+        const of = colorNodeOf(args[0].value, scope, depth + 1)
+        if (of) {
+          const tn = args[1].value
+          const lit = numberValue(tn)
+          if (lit !== null) {
+            // a literal transparency on a readable base folds to one string where
+            // the base is one (a theme reference keeps being a reference)
+            const folded = of.c === 'lit' ? withObjectTransparency(of.hex, lit) : null
+            return folded ? { c: 'lit', hex: folded } : { c: 'new', of, t: { v: 'const', value: lit } }
+          }
+          const t = loopIds.length && mentionsLoop(tn) ? (hostPasses ? loopArgRef(tn) : null) : internTree(canonicalOf(tn))
+          if (t) return { c: 'new', of, t }
+        }
+      }
+      if (node.name === 'color.from_gradient') {
+        const g = gradientArgsOf(node)
+        const a = g ? colorNodeOf(g[3], scope, depth + 1) : null
+        const b = a ? colorNodeOf(g[4], scope, depth + 1) : null
+        if (b) {
+          const num = (n) => {
+            const lit = numberValue(n)
+            if (lit !== null) return { v: 'const', value: lit }
+            if (loopIds.length && mentionsLoop(n)) return hostPasses ? loopArgRef(n) : null
+            return internTree(canonicalOf(n))
+          }
+          const v = num(g[0])
+          const lo = v ? num(g[1]) : null
+          const hi = lo ? num(g[2]) : null
+          if (hi) return { c: 'grad', v, lo, hi, a, b }
+        }
+      }
+      // a user colour helper whose body is ONE expression: that expression with
+      // the call's arguments substituted for its parameters (`substituteFrame`,
+      // the one substitution this pass has), read in the caller's scope.
+      const bound = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      if (bound && bound.kind === 'fn' && bound.value && bound.value.kind === 'expr' && bound.value.node
+          && Array.isArray(bound.params) && bound.params.length === args.length && plain) {
+        const body = substituteFrame(bound.value.node, { bound, args, callerEnv: scope })
+        const c = body ? colorNodeOf(body, scope, depth + 1) : null
+        if (c) return c
+      }
+    }
+    // a colour that settles on ONE static value once its constant selectors fold
+    const folded = foldedColourAt(node, scope || scopeEnv)
+    return folded ? { c: 'lit', hex: folded } : null
+  }
+  /** The folded read, asked ONCE per (node, scope): the answer depends on nothing
+   *  else, a theme colour is referenced from dozens of drawings (artemis: 48
+   *  slots over a handful of chains), and every ask walks the Resolver. One
+   *  Resolver per scope, for the same reason. */
+  const foldResolvers = new Map()
+  const foldedMemo = new WeakMap()
+  const foldedColourAt = (node, env) => {
+    if (!node || typeof node !== 'object') return null
+    let byEnv = foldedMemo.get(node)
+    if (!byEnv) { byEnv = new Map(); foldedMemo.set(node, byEnv) }
+    if (byEnv.has(env)) return byEnv.get(env)
+    let out = null
+    try {
+      let r = foldResolvers.get(env)
+      if (!r) { r = makeResolver(env); foldResolvers.set(env, r) }
+      out = foldedObjectColourOf(node, env, { resolver: r, env, foldSelectors: { n: 0 } })
+    } catch { out = null }
+    byEnv.set(env, out)
+    return out
+  }
+  const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
   /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
    *
@@ -16275,6 +16430,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // tree, fmt}` — the object runtime's `formatNumber` is the ONE authority
       // on Pine's number format, and a short-circuit here would have needed a
       // second copy of it in the runtime lane.
+      // ⭐⭐ C37 — A COLOUR THAT MOVES PER PASS, on the host lane: a colour node
+      // is its own grammar and can say it — a test on the counter
+      // (`{c:'if'}` over a pass condition), a gradient or a transparency whose
+      // number is counter arithmetic (`{c:'grad'}` / `{c:'new'}` over
+      // `loopArgRef`). heat-map-seasons' gauge is the first two together.
+      // ⛔ Only what `colorNodeOf` can read; anything else refuses as before.
+      if (hostPasses && slot && isColourSlot(slot)) {
+        const c = colorNodeOf(node, scopeEnv)
+        if (c) return { v: 'color', node: c }
+      }
       if (!iterTrees) {
         diagnostics.loopValuesUnresolved += 1
         return null
@@ -17733,6 +17898,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ C20 — a runtime colour, and `color.new(c, t)`.
       if (t.c === 'rt') walkV(t.v, d + 1)
       if (t.c === 'new') { walkN(t.of, d + 1); walkV(t.t, d + 1) }
+      // ⭐ C37 — a host-lane gradient: three values, two colours.
+      if (t.c === 'grad') {
+        walkV(t.v, d + 1); walkV(t.lo, d + 1); walkV(t.hi, d + 1)
+        walkN(t.a, d + 1); walkN(t.b, d + 1)
+      }
     }
     walkV(o.when, 0)
     if (o.k === 'setnum') walkV(o.value, 0)
@@ -18700,9 +18870,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const lostCreates = [...lostCreateFamilies].map((f) => (f === null ? '*' : f)).sort()
   if (lostCreates.length) diagnostics.lostCreates = lostCreates
 
+  // ⭐ C37 — the script's version rides on the program ONLY where an uncoloured
+  // object's default depends on it (v4, v5 — `VERSIONS_WITH_OBJECT_DEFAULTS`), so
+  // every other program keeps its bytes.
+  let defaultsVersion = null
+  try {
+    const pv = activePaletteVersion()
+    if (VERSIONS_WITH_OBJECT_DEFAULTS.includes(pv)) defaultsVersion = pv
+  } catch { defaultsVersion = null }
+
   return {
     program: {
       programVersion: OBJECT_PROGRAM_VERSION,
+      ...(defaultsVersion !== null ? { pineVersion: defaultsVersion } : {}),
       regs: regs.filter((r) => usedRegs.has(r.id)),
       colls: colls.filter((c) => usedColls.has(c.id)),
       ...(usedNums.size ? { nums: nums.filter((n) => usedNums.has(n.id)) } : {}),
@@ -21766,6 +21946,35 @@ function staticObjectColourOf(node, env) {
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
   // ⭐ C20 — the one formula, shared with the object runtime's `{c:'new'}`.
   return withObjectTransparency(base[0], t)
+}
+
+/** ⭐⭐ C37 — `staticObjectColourOf` WITH THE RULING-1 FOLD: a colour whose
+ *  ternaries are selected by a translation-time constant (an `input.string`
+ *  default, a literal) and whose transparency is constant arithmetic, read to
+ *  the branch the default takes — the SAME reading the plot lane has given such
+ *  a colour since 2026-09-28 (`constantColourSelector`, `alphaNumberOf`), now
+ *  asked for a drawing object too.
+ *
+ *  ⚰️ MEASURED on artemis-oscillator-pro (NYSE:RDDT 1D, 2026-09-28): its theme
+ *  is `themeChoice == "Aurora" ? … : themeChoice == "Ember" ? … : …` over an
+ *  `input.string`, and 48 of its drawn colour slots — 13 lines, 14 labels, six
+ *  table frames and borders, 15 cells — wore the renderer's default where
+ *  TradingView draws the Aurora branch.
+ *
+ *  ⛔ A FALLBACK ONLY: the object lane asks this after every reading it already
+ *  had, so a colour it carried before keeps its node and its bytes.
+ *  ⛔ A selector that reads a KNOB is never folded (`constantColourSelector`'s
+ *  own rule) — it stays a per-bar condition, or stays uncarried.
+ *  ⛔ The transparency comes from `colourHelperAlpha` UNDER THE SAME CONTEXT:
+ *  `staticObjectColourOf`'s own (`colourTransparencyOf`) has none, would answer
+ *  "unknown" for a folded colour, and the colour would paint SOLID. */
+function foldedObjectColourOf(node, env, ctx) {
+  const hex = staticColourOf(node, env, 0, ctx)
+  if (!hex) return null
+  const base = /^#[0-9a-f]{6}/i.exec(hex)
+  const a = colourHelperAlpha(node, env, ctx)
+  if (!base || a === null) return hex
+  return withObjectTransparency(base[0], Math.round((1 - a) * 100))
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
