@@ -85,6 +85,7 @@ import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
+import { setChartClockNotes } from './chartClockNotice'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -635,6 +636,21 @@ export function createBinder({ chart, LWC }) {
   /** instanceId → the live object layer for that indicator, if it draws any. */
   const objectLayers = new Map()
 
+  /** ⭐ C36 — the (instance, lane) pairs THIS binder has published a
+   *  `time(<timeframe>)` withholding for (`chartClockNotice.js`), so an instance
+   *  that leaves the chart takes its sentence with it. */
+  const clockPublished = { plots: new Set(), objects: new Set() }
+  const publishClock = (instanceId, lane, list) => {
+    const has = Array.isArray(list) && list.length > 0
+    if (!has && !clockPublished[lane].has(instanceId)) return
+    attempt(() => setChartClockNotes(instanceId, lane, has ? list : []))
+    if (has) clockPublished[lane].add(instanceId)
+    else clockPublished[lane].delete(instanceId)
+  }
+  const pruneClock = (lane, keep) => {
+    for (const id of [...clockPublished[lane]]) if (!keep || !keep.has(id)) publishClock(id, lane, [])
+  }
+
   /** ⭐⭐ C3B — EVERY INSTANCE'S OBJECT PROGRAM, EVALUATED AND DRAWN.
    *
    *  ⛔ ONE INSTANCE, ONE LAYER. Two copies of the same indicator on one chart
@@ -737,8 +753,12 @@ export function createBinder({ chart, LWC }) {
           // guard: twenty-two nodes refusing the same way is ONE fact.
           unreadableGuards: [...new Set((reader.refusals || []).map((r) => r.guard))].sort(),
           unreadableWhy: ((reader.refusals || [])[0] || {}).message || null,
+          // ⭐ C36 — why every drawing that reads `time(<timeframe>)` is withheld
+          // on this chart, in the reader's own words.
+          chartClock: reader.chartClock || [],
         }
       })
+      publishClock(inst.instanceId, 'objects', built.ok && built.value ? built.value.chartClock : [])
       if (!built.ok || !built.value) { attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
@@ -777,6 +797,7 @@ export function createBinder({ chart, LWC }) {
       attempt(() => layer.clear())
       objectLayers.delete(id)
     }
+    pruneClock('objects', alive)
   }
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
@@ -891,6 +912,8 @@ export function createBinder({ chart, LWC }) {
     // to prevent, one surface newer.
     for (const [, layer] of objectLayers) attempt(() => layer.clear())
     objectLayers.clear()
+    pruneClock('plots', null)
+    pruneClock('objects', null)
     held = []
     computeMemo = new Map()
     pointMemo = new Map()
@@ -990,6 +1013,11 @@ export function createBinder({ chart, LWC }) {
       // A flag that flips OFF at runtime must not leave ghosts behind. When
       // nothing is held this is still zero calls, so the dark contract holds.
       if (held.length) releaseAll()
+      // ⭐ C36 — and its `time(<timeframe>)` sentences, held or not: an indicator
+      // whose every bar is withheld binds NO series, so `held` is empty exactly
+      // when there is a sentence to take down. Zero calls when none was published.
+      pruneClock('plots', null)
+      pruneClock('objects', null)
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1016,6 +1044,8 @@ export function createBinder({ chart, LWC }) {
     // cannot be computed must not take the paint down with it.
     const columns = new Map()
     const computedIds = new Set()
+    // ⭐ C36 — the instances whose columns were in hand this pass (`publishClock`).
+    const clockSeen = new Set()
 
     // ⭐⭐ BARS FOR ANY CANONICAL SYMBOL AN INSTANCE NAMES, AS DATA. The binder
     // never fetches — `sync` runs inside a paint — so this arrives already
@@ -1287,6 +1317,13 @@ export function createBinder({ chart, LWC }) {
           computeMemo.delete(inst.instanceId)
         }
       }
+      // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
+      // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
+      // columns the decision was made for; a registry without the report (a test
+      // double) publishes nothing.
+      clockSeen.add(inst.instanceId)
+      publishClock(inst.instanceId, 'plots', typeof registry.chartClockReport === 'function'
+        ? ((registry.chartClockReport(cols) || {}).withheld || []) : [])
       // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
       //
       // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
@@ -1345,6 +1382,7 @@ export function createBinder({ chart, LWC }) {
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
+    pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
     // affected bars read NaN until it lands.
