@@ -49,20 +49,49 @@ def test_a_record_with_no_contract_is_skipped_and_missing_greeks_stay_blank():
 
 # ── the per-underlying summary ──────────────────────────────────────────────────
 
-def test_atm_iv_is_the_nearest_20_to_45_day_expiry_at_the_strike_closest_to_price():
+def test_atm_iv_is_the_expiry_CLOSEST_to_30_days_at_the_strike_closest_to_price():
     s = log._Summary(dt.date(2026, 9, 30))
     for r in [
-        rec("a", "AAPL", "2026-10-10", 100, "call", iv=0.90, oi=5),   # 10 DTE: outside
+        rec("a", "AAPL", "2026-10-02", 100, "call", iv=0.90, oi=5),   # 2 DTE: under the floor
         rec("b", "AAPL", "2026-10-30", 100, "call", iv=0.30, oi=7),   # 30 DTE, ATM
         rec("c", "AAPL", "2026-10-30", 100, "put", iv=0.34, oi=3),    # 30 DTE, ATM
         rec("d", "AAPL", "2026-10-30", 110, "call", iv=0.20, oi=1),   # further strike
-        rec("e", "AAPL", "2026-11-06", 100, "call", iv=0.50, oi=1),   # later expiry
+        rec("e", "AAPL", "2026-11-06", 100, "call", iv=0.50, oi=1),   # 37 DTE: further from 30
     ]:
         s.add(log.contract_row(r))
     (row,) = list(s.rows())
     assert row["atm_expiration"] == "2026-10-30" and row["atm_strike"] == 100
     assert row["atm_iv"] == pytest.approx(0.32)                   # mean of call and put
+    assert row["atm_dte"] == 30
     assert row["call_oi"] == 14 and row["put_oi"] == 3 and row["contracts"] == 5
+
+
+def test_a_MONTHLIES_ONLY_name_still_gets_an_atm_iv():
+    """2026-09-30: a fixed 20-45 day window found an ATM IV for 687 of 6,034 names,
+    because the monthlies sat at 16 and 51 days. The closer one (16) is the read."""
+    s = log._Summary(dt.date(2026, 9, 30))
+    s.add(log.contract_row(rec("a", "CPK", "2026-10-16", 100, "call", iv=0.25)))   # 16 DTE
+    s.add(log.contract_row(rec("b", "CPK", "2026-11-20", 100, "call", iv=0.28)))   # 51 DTE
+    (row,) = list(s.rows())
+    assert row["atm_expiration"] == "2026-10-16" and row["atm_dte"] == 16
+    assert row["atm_iv"] == pytest.approx(0.25)
+
+
+def test_a_summary_can_be_REBUILT_from_the_stored_contracts_file(tmp_path):
+    """The contracts file is the authority: a changed summary rule loses no day."""
+    stored = {}
+
+    def upload(path, key, ctype):
+        with open(path, "rb") as fh:
+            stored[key] = fh.read()
+    log.run(now=WED, api_key="K", workdir=str(tmp_path), upload=upload,
+            get=lambda u: {"results": [rec("a", "CPK", "2026-10-16", 100, "call", iv=0.25, oi=4),
+                                       rec("b", "CPK", "2026-10-16", 100, "put", iv=0.27, oi=6)]})
+    keys = log.keys_for(dt.date(2026, 9, 30))
+    src, out = tmp_path / "c.csv.gz", tmp_path / "u.csv.gz"
+    src.write_bytes(stored[keys["contracts"]])
+    assert log.resummarize(str(src), dt.date(2026, 9, 30), str(out)) == 1
+    assert gzip.decompress(out.read_bytes()) == gzip.decompress(stored[keys["underlyings"]])
 
 
 def test_no_contract_in_the_window_means_no_atm_iv_not_a_guess():
