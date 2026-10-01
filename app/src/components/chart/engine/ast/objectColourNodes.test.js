@@ -165,6 +165,14 @@ describe('C37 — colours reached through a `var`, a helper, `na`', () => {
     expect(c === undefined || !(c.node.c === 'lit' && c.node.hex === '#F23645')).toBe(true)
   })
 
+  it('⛔ …nor one reassigned BELOW the drawing: the name still holds the last write when the drawing reads it', () => {
+    // At the drawing's own statement the binding still looks untouched (its
+    // update is the name itself); only the script-wide reassigned set knows.
+    const t = translatePine(src('var color C = color.red', 'line.new(bar_index, low, bar_index + 1, low, color = C)', 'if close > open', '    C := color.green'), {})
+    const c = firstCreate(t).props.color
+    expect(c === undefined || !(c.node.c === 'lit' && c.node.hex === '#F23645')).toBe(true)
+  })
+
   it('⛔ a `var` whose seed reads the bar is frozen at bar 0 in Pine — not carried as a per-bar colour', () => {
     const t = translatePine(src('var color C = close > open ? color.red : color.green', 'line.new(bar_index, low, bar_index + 1, low, color = C)'), {})
     expect(firstCreate(t).props.color).toBeUndefined()
