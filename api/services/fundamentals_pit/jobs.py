@@ -6,9 +6,9 @@
     weekly_reconcile  Sun 06:10 ET: fresh bulk archives (+ the latest FS quarters)
                       through the SAME idempotent backfill, then publish what changed
 
-Registered only when FUNDAMENTALS_PIT_INCREMENTAL_ENABLED=1 AND the store exists
-(api/main.py register_fundamentals_pit_jobs) -- so a web pod, or a worker without
-the store, registers nothing. Publishing to R2 still needs
+NOT REGISTERED BY ANYTHING since the 2026-09-29 cutover: schedule.py registers only the
+V5 pipeline (FUNDAMENTALS_PIT_V5_PIPELINE=1, worker), and this module remains a manual
+CLI. The flag that used to register these jobs is read by nothing. Publishing to R2 still needs
 FUNDAMENTALS_PIT_PUBLISH_R2=1 (publish.r2_enabled); without it the jobs update the
 store and publish nowhere.
 

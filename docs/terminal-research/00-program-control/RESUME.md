@@ -2,6 +2,43 @@
 
 ---
 
+## READ THIS FIRST — 2026-09-30 evening (21:00–23:00 CT)
+
+**Backlog, from its own status column (re-verified vs master 2026-09-30 by the afternoon session):** 93 tickets;
+74 closed (64 built and live, 6 built/recut, 4 moot); 19 open. Of the 19: nine are the owner's or a vendor's
+(001 002 004 005 006 007 008 043 093), two are built and wait on an owner switch (011 ops channel + vars, 081
+second toolkit), two need a measurement (014 017), six are partly built (038 049 050 055 056 067).
+⛔ The backlog is NOT the whole plan. `10-roadmap/roadmap.md` carries rows with no ticket: BRK-01 pre-trade options
+analysis (the largest), BRK-10, BRK-04 mobile push, COV-01 seasonality, RM-L16 end of coexistence, RM-L19.
+
+**Quiet window ran 2026-09-30 09:25–10:34 ET** (`10-roadmap/evidence/2026-09-30-quiet-window/results.md`): one pod,
+69 samples, RSS +0.9 MB/min and flattening (the +7.9 MB/min was not reproduced), loop lag median 0.2 ms / max 45.9 ms.
+014 and 017 stay HELD: 69 min < 104, no heavy-job window. 017's per-check histogram is built; the next window can use it.
+
+**Built this evening, on `integrate/terminal-fixes`, NOT on master (owner runs the push):**
+- `9119ca20ab` options-log: ATM IV reads the expiry closest to 30 days (7–90), `atm_dte` column, `resummarize()`. Dark.
+- `59064add1c` TERM-050: catalyst tile sources and the COT weekly read compose on `<Provenance>`. With `c26f124ac4`
+  (AI Search) the only surface left is Notebook Ask, which is the Notebook workstream's file.
+- `e3eeeb6756` ⛔ **STATE-2 regression fixed.** TERM-010's first-run path (`a921c54522`, live since 2026-09-29) treated
+  a member whose stored board could not be READ as a new member, and `applyUctDefault` wrote the UCT Default over it on
+  mount. Three STATE-2 cases in `VersionHistory.workspace.test.jsx` were RED on the branch and nobody had run them.
+  The first-run path now requires the stored value not be unreadable. Exposure in production was not measured; the
+  2026-09-25 census found 0 unparseable boards of 17.
+- `79e16f694e` TERM-067: `Input` / `Select` / `Checkbox` / `FieldError` in `components/ui/`, control density tokens
+  under `data-control-density` (`data-density` was taken by the provenance components), and `PeriodSortConfig`
+  migrated as proof. The migration of the other ~820 native control sites is the remaining work, per surface.
+- origin/master merged in afterwards (clean, 15 commits).
+- Flag ledger trued up: `FUNDAMENTALS_PIT_INCREMENTAL_ENABLED` was retired by the fundamentals cutover (`cd9ecc8333`) and
+  its ledger entry had kept `tests/test_feature_flag_ledger.py` red on master (the master gate does not run that file).
+  Replaced by `FUNDAMENTALS_PIT_V5_PIPELINE` (read `=1` on worker 2026-09-30, recorded as measured), declared through a
+  `FUNDAMENTALS_PIT_MODE_FLAGS` table in `schedule.py` so the rail can see a name with no ENABLED marker.
+
+**Next, in order:** deploy the above (web only; after the close) · a 104+ minute single-pod window covering the open
+and a heavy job, for 014/017 · the next slices of 038 / 049 / 056 · form-control migration by surface, starting with
+the census's most-unlabelled files outside partner and Notebook paths.
+
+---
+
 ## ⭐⭐⭐⭐⭐⭐⭐ READ THIS FIRST — 2026-09-29 16:00–18:15 ET (evening)
 
 **Flags armed by the owner on web 21:03:55Z and verified in production:** `TICKER_HISTORY_ENABLED=1` (auth
