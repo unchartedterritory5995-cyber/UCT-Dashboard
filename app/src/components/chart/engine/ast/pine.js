@@ -17118,10 +17118,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const condTree = canonicalOf(node.test)
       // ⭐⭐ C45 — AN ARM THAT CALLS `ta.*` UNDER A TEST THAT VARIES IS NOT THE
       // EVERY-BAR NUMBER, so its colour is HELD by name (see `heldColour`).
-      if (decidedTest(condTree) === null) {
-        const call = armHistoryCall(node.yes) || armHistoryCall(node.no)
-        if (call) return heldColour(node, call)
-      }
+      // ⛔ The arms are read FIRST: `decidedTest` folds the test, and a colour
+      // with no `ta.*` in its arms must leave the program byte for byte as it was.
+      const armCall = armHistoryCall(node.yes) || armHistoryCall(node.no)
+      if (armCall && decidedTest(condTree) === null) return heldColour(node, armCall)
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
