@@ -150,9 +150,18 @@ describe('C3B — the object translator against the frozen 60', () => {
       'label.new(bar_index, high, str.tostring(line.get_x1(l)))',
       'plot(close, title = "C")', ''].join('\n')
     const t = translatePine(src)
-    expect(t.objectDiagnostics.getters).toContain('line.get_x1')
-    // …and the label that depended on it was DROPPED, not drawn with a wrong x.
+    // ⭐ C33 — `str.tostring(<bare getter>)` is no longer refused: it is carried
+    // as the OBJECT RUNTIME's read (`{t:'val', v:{v:'get'}}`) — still never a
+    // graph node — and printed only where the read is `na`; a finite number is
+    // withheld at run time (`ast/c33ObjectReads.test.js`, section 6).
     const labels = ((t.objects && t.objects.ops) || []).filter((o) => o.family === 'label')
-    expect(labels).toHaveLength(0)
+    expect(labels).toHaveLength(1)
+    expect(labels[0].props.text.node).toEqual({ t: 'val', v: { v: 'get', target: { r: 'reg', id: 'r0' }, prop: 'x1' } })
+    expect(JSON.stringify(t.objects.trees)).not.toContain('get_x1')
+    // The guard itself, driven where it still stands: a getter inside
+    // arithmetic is refused BY NAME, and the label that read it is dropped.
+    const arith = translatePine(src.replace('str.tostring(line.get_x1(l))', 'str.tostring(line.get_x1(l) + 1)'))
+    expect(arith.objectDiagnostics.getters).toContain('line.get_x1')
+    expect(((arith.objects && arith.objects.ops) || []).filter((o) => o.family === 'label')).toHaveLength(0)
   })
 })

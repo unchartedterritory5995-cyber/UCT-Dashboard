@@ -143,8 +143,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
       // exactly as the merged tree does: C24's replay still charges what the
       // repeat would have. Pre-C22, pre-C24: [691, 4876, 'f537521acc6fad15'].
+      // ⭐ C33 moved htf-liquidity: its thirty `if show_x and <another symbol's
+      // request>` guards are asked, once per `if`, whether the input gate alone
+      // reads (`partialAndGuard`) — each term costs a Resolver. Every cell under
+      // them is still refused by its own text, the latches nothing reads are
+      // pruned, and the object program is wave 8's - the same 71 ops over the same
+      // 41 trees, interned in another order (program dump diff). Pre-C33: [691, 5824, '9ae53426ed6cfe3f'] both.
       'htf-liquidity-dashboard-tfo__ec8f8316a4': {
-        plain: [691, 5824, '9ae53426ed6cfe3f'], manifest: [691, 5824, '9ae53426ed6cfe3f'] },
+        plain: [856, 7174, 'ff55463c3a36e466'], manifest: [856, 7174, 'ff55463c3a36e466'] },
       'pro-trading-art-double-top-bottom-with-alert__5321f25fcb': {
         plain: [85, 356778, '9fcabbf403bf29e0'], manifest: [85, 356778, '9fcabbf403bf29e0'] },
       'adaptive-trend-following-suite-alpha-extract__d615e5a027': {
