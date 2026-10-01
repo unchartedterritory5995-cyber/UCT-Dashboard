@@ -588,12 +588,14 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // saying the engine HOLDS that column — the generic reason no longer applies
     // to it. ⚰️ THIS USED TO NAME `timenow` FOR THE IDENTICAL REASON, AND IT
     // MOVED FOR THE IDENTICAL ONE (2026-09-20): `timenow` now maps onto
-    // `lastbartime`. `last_bar_time` is a built-in this engine genuinely does
-    // NOT hold — `last_bar_index` (its sibling) is held, `last_bar_time` is
-    // not — so the generic sentence keeps a case that exercises it.
+    // `lastbartime`. ⚰️ The case after that was `last_bar_time`, and C33
+    // (2026-09-30) binds it too — to the same `lastbartime`, in milliseconds, the
+    // chart's last bar as each capture states it (`vendorHarness.c33ObjectReads`).
+    // `time_tradingday` is a built-in this engine genuinely does NOT hold, so the
+    // generic sentence keeps a case that exercises it.
     ['a built-in this engine genuinely does not hold',
-      '//@version=5\nindicator("t")\nplot(last_bar_time)\n',
-      'pine:builtin', 3, 6, 'last_bar_time'],
+      '//@version=5\nindicator("t")\nplot(time_tradingday)\n',
+      'pine:builtin', 3, 6, 'time_tradingday'],
     ['a name the script never bound',
       '//@version=5\nindicator("t")\nplot(mystery)\n',
       'pine:undefined', 3, 6, 'mystery'],

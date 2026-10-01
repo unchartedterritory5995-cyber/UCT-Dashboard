@@ -123,7 +123,7 @@ import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK, MAX_GETTER_BACK,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency,
@@ -782,6 +782,39 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  fix even documents the ordering rule that this line then ignored. Caught by a
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
+
+/** ⭐⭐ C33 — THE TEXT AN `input.timeframe` DEFAULT PRINTS, WHERE A CAPTURE SHOWS IT.
+ *
+ *  `input.timeframe` has no knob in this product (it is not a numeric kind, so
+ *  `resolveInput` never mints one), so its DEFAULT is the only string the script
+ *  can ever read. In a text slot the question is how TradingView SPELLS that
+ *  string: Pine v6 re-spells `timeframe.period` (a v6 1D chart reads `"1D"`, not
+ *  `"D"` — ema-ribbon, C15), so "the default, verbatim" is a claim about the
+ *  vendor, not a given. It is served only for a spelling a committed capture
+ *  PRINTS, under the Pine version that printed it:
+ *
+ *    · `D` on v6 — average-day-range-adr-pivots-rddt-1d-2026-09-28: the box text
+ *      `str.tostring(top, '#.##') + ' (' + tf + ')'` with `tf = input.timeframe('D')`
+ *      reads `"152.43 (D)"` / `"145.57 (D)"` (not `"(1D)"`), and the cell
+ *      `res_to_str(tf)` reads `"4.6 % (D)"`.
+ *    · `W` on v5 — high-low-open-mid-ranges-rddt-1d-2026-09-28: `higherTF + b +
+ *      str.tostring(a)` with `higherTF = input.timeframe("W")` reads `"W | Open | 149"`.
+ *
+ *  ⛔ Anything else — `M`, `W` on v6, `D` on v5, `60`, `3M` — is withheld by name
+ *  (`textFormatRefusals['input.timeframe:unwitnessed …']`), and what settles it is a
+ *  capture that prints that default under that version (a one-line
+ *  `label.new(bar_index, high, input.timeframe("M"))` probe per spelling). */
+export const INPUT_TIMEFRAME_TEXT_WITNESS = Object.freeze({
+  D: Object.freeze({ versions: Object.freeze([6]), capture: 'average-day-range-adr-pivots-rddt-1d-2026-09-28' }),
+  W: Object.freeze({ versions: Object.freeze([5]), capture: 'high-low-open-mid-ranges-rddt-1d-2026-09-28' }),
+})
+
+/** Is `spelling` a witnessed `input.timeframe` text under Pine `version`? */
+export const inputTimeframeTextWitnessed = (spelling, version) => {
+  const w = Object.prototype.hasOwnProperty.call(INPUT_TIMEFRAME_TEXT_WITNESS, spelling)
+    ? INPUT_TIMEFRAME_TEXT_WITNESS[spelling] : null
+  return !!w && w.versions.includes(version)
+}
 
 const OWN_SYMBOL_NAMES = new Set([
   'syminfo.tickerid', 'syminfo.ticker', 'tickerid', 'ticker',
@@ -10201,6 +10234,19 @@ export class Resolver {
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
+      // ⭐ C33 — A PARAMETER IS ITS CALLER'S ARGUMENT. `data_adr(string tf) =>
+      // request.security(…, timeframe = tf, …)` called as `data_adr(i_adr_1_tf)`
+      // (average-day-range-adr-pivots) asks for the timeframe the call site
+      // passed; read through the frame the resolver is inside, exactly as
+      // `stringValueOf` reads a parameter (`throughBinding`), never guessed.
+      // ⛔ THE OBJECT PASS ONLY. On the plot lane a request that newly resolves is a
+      // newly served OUTPUT, and its inputs mint member parameters ahead of the ones
+      // a saved definition already addresses (`paramIds.test.js`: measured on
+      // advanced-custom-multi-ma-signals, whose `f_mtf_ma(…, _tf)` plots moved ten
+      // ids). A drawing's coordinate is not an output and mints nothing new there.
+      if (this.objectPass && bound && bound.kind === 'param') {
+        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
+      }
       return null
     }
     // ⭐ PLAIN `input` IS THE v3/v4 SPELLING and it is what the MTF scripts use:
@@ -12190,6 +12236,13 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
   // `time` is: milliseconds for a script that declares a `//@version`, refused by
   // its unit for one that does not.
   time_close: 'timeclose',
+  // ⭐ C33 (2026-09-30) — `last_bar_time` IS the newest bar's opening time: Pine's
+  // "time in UNIX format of the last chart bar". Our `lastbartime` is the newest
+  // bar's own `t` broadcast to every bar (`indicators.js::CLOCK_LASTBAR_TIME`) —
+  // a renamed identity, unlike `timenow` above; the capture pins the value as the
+  // chart's last bar (`vendorHarness.c33ObjectReads`). Milliseconds for a
+  // versioned script (`PINE_CLOCK_TRANSFORM`), refused by its unit otherwise.
+  last_bar_time: 'lastbartime',
 })
 
 /** Pine clock names whose meaning is NOT ours, and the sentence that says why.
@@ -12219,6 +12272,8 @@ const PINE_TO_CLOCK_SPELLING = Object.freeze({
  *  still get the correct generic refusal ("names something the engine grammar
  *  does not hold"), which is still true of them: we do not hold `time_close`,
  *  `time_tradingday` or `last_bar_time` at all.
+ *  ⚰️ (2026-09-30, C33) `time_close` (C8) and `last_bar_time` bind now too, each
+ *  with its unit named in this map; `time_tradingday` is the one still unheld.
  *  ⚰️ `timenow` IS NO LONGER ONE OF THE THREE (2026-09-20) — it now BINDS,
  *  via `PINE_TO_CLOCK_SPELLING.timenow`, to `lastbartime`. That is not a
  *  reason to list it here: this map is for a name we hold under the SAME
@@ -12247,6 +12302,10 @@ const PINE_CLOCK_MISMATCH = Object.freeze({
     + 'this engine’s `timeclose` is SECONDS — a thousand-fold difference that would '
     + 'compare true against no literal a member wrote, on every bar, without ever '
     + 'looking wrong',
+  // ⭐ C33 (2026-09-30) — `last_bar_time` reaches `lastbartime` (the newest bar's
+  // own `t`, the same value on every bar) under a different spelling AND unit.
+  last_bar_time: 'in Pine the newest chart bar’s opening time in MILLISECONDS since 1970, '
+    + 'where this engine’s `lastbartime` is SECONDS — a thousand-fold difference',
 })
 
 /** ⭐⭐ A MISMATCH THAT IS EXACTLY RECONCILABLE, FOR A SCRIPT SPEAKING PINE.
@@ -12278,6 +12337,7 @@ const PINE_CLOCK_TRANSFORM = Object.freeze({
   time: () => cOp('*', [cSeries('time'), cNum(1000)]),
   // ⭐ (2026-09-28) exact for the same reason: `timeclose` is whole seconds.
   time_close: () => cOp('*', [cSeries('timeclose'), cNum(1000)]),
+  last_bar_time: () => cOp('*', [cSeries('lastbartime'), cNum(1000)]),
 })
 
 /** The reconciliation decision, in ONE place because there are TWO doors.
@@ -12435,6 +12495,11 @@ export function boundName(toks, eqIndex) {
  *  over the deepest real shape while still bounding a cyclic binding, and
  *  `objectDiagnostics.textTooDeep` names any script that reaches it. */
 const TEXT_MAX_DEPTH = 64
+
+/** ⭐ C33 — the deepest text node `objectProgram.js::assertTextNode` accepts (its
+ *  `depth > 16` refusal). Read by `fitTextNest`; the two are pinned together by
+ *  `objectTextNest.test.js`. */
+const TEXT_NODE_MAX_NEST = 16
 
 /** ⭐⭐ HOW MANY STEPS ONE TEXT READ MAY TAKE — a WORK bound beside the depth one.
  *
@@ -15827,6 +15892,78 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const dv = named ? named.value : first ? first.value : null
     return depth > 0 && dv && dv.type === 'string' ? String(dv.value) : null
   }
+  /** ⭐ C33 — a name whose binding is, through plain name bindings only, an
+   *  `input.timeframe(…)` with a string-literal default → that default; else
+   *  null. The same walk as `inputStringText`, for the one kind it leaves out. */
+  const inputTimeframeDefault = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node ? inputTimeframeDefault(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || node.name !== 'input.timeframe') return null
+    const args = node.args || []
+    const named = args.find((a) => a && a.name === 'defval')
+    const first = args.find((a) => a && !a.name)
+    const dv = named ? named.value : first ? first.value : null
+    return depth > 0 && dv && dv.type === 'string' ? String(dv.value) : null
+  }
+  /** ⭐⭐ C33 — A TEXT THE PROGRAM VALIDATOR WOULD REJECT FOR ITS NESTING, fitted.
+   *
+   *  `objectProgram.js::assertTextNode` accepts a text nested at most
+   *  `TEXT_NODE_MAX_NEST` deep, and a definition that breaks it is refused WHOLE at
+   *  the door (`defSchema`). A helper that maps a timeframe to its label through
+   *  a 17-arm `if` chain (average-day-range-adr-pivots' `res_to_str(_res)`,
+   *  `if _res == '' … else if _res == '12M' … else _res`) builds one arm per
+   *  test even when every test is decided — so reading its cell would have cost
+   *  the script every drawing it has.
+   *  ⭐ Only an `if` whose test is the SAME ON EVERY BAR (`decidedIfArm`, recorded
+   *  where `textNodeOf` built it) is replaced by the arm it always takes; the text
+   *  drawn is the one the whole chain draws. Applied ONLY to a text that is over
+   *  the bound, so every text that validated before keeps its exact node.
+   *  ⛔ Still over the bound → null, counted in `textTooDeep` (a cell or label
+   *  refused by name, never a document the door throws out). */
+  /** ⭐⭐ C33 — THE PLACE AN UNWITNESSED `input.timeframe` TEXT STANDS IN A TEXT.
+   *  A text holding it is not refused whole: the op that writes it RUNS (Pine ran
+   *  it — ids, lists and deletes stay Pine's) and the property is MARKED unknown
+   *  on every bar (`UNWITNESSED_TEXT_MARK`, C17's per-property rule, `propWithhold`),
+   *  so the object is held and never drawn unless a clean write of that property
+   *  clears it. ⚰️ Refused whole, average-day-range-adr-pivots' weekly and monthly
+   *  boxes (created and deleted on the same bar — never on TradingView's chart)
+   *  lost their creates, and the lost creates took every drawing the script has
+   *  off the chart. ⛔ Identity-compared: the node is an ordinary empty literal to
+   *  the validator and the runtime, and only these readers know what it means. */
+  const UNWITNESSED_TF_TEXT = Object.freeze({ t: 'lit', s: '' })
+  const holdsUnwitnessed = (t, d = 0) => {
+    if (!t || typeof t !== 'object' || d > TEXT_MAX_DEPTH) return false
+    if (t === UNWITNESSED_TF_TEXT) return true
+    if (t.t === 'cat') return t.args.some((x) => holdsUnwitnessed(x, d + 1))
+    if (t.t === 'if') return holdsUnwitnessed(t.then, d + 1) || holdsUnwitnessed(t.else, d + 1)
+    return false
+  }
+  const decidedIfArm = new WeakMap()
+  const textNest = (t, d = 0) => {
+    if (!t || typeof t !== 'object' || d > TEXT_NODE_MAX_NEST + 1) return d
+    if (t.t === 'cat') return Math.max(d, ...t.args.map((a) => textNest(a, d + 1)))
+    if (t.t === 'if') return Math.max(textNest(t.then, d + 1), textNest(t.else, d + 1))
+    return d
+  }
+  const collapseDecided = (t) => {
+    if (!t || typeof t !== 'object') return t
+    if (t.t === 'if' && decidedIfArm.has(t)) return collapseDecided(decidedIfArm.get(t))
+    if (t.t === 'if') return { ...t, then: collapseDecided(t.then), else: collapseDecided(t.else) }
+    if (t.t === 'cat') return { ...t, args: t.args.map(collapseDecided) }
+    return t
+  }
+  const fitTextNest = (t, at) => {
+    if (!t || textNest(t) <= TEXT_NODE_MAX_NEST) return t
+    const fitted = collapseDecided(t)
+    if (textNest(fitted) <= TEXT_NODE_MAX_NEST) return fitted
+    diagnostics.textTooDeep = diagnostics.textTooDeep || []
+    const entry = `nest>${TEXT_NODE_MAX_NEST}@${at ? at.line : '?'}`
+    if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+    return null
+  }
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⭐ THE WORK BOUND (`TEXT_WORK_BUDGET`): reset by every top-level read.
@@ -15876,6 +16013,20 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const arg0 = node.args && node.args[0] && node.args[0].value
       if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
         && !(node.args[1])) return { t: 'sym', name: arg0.name }
+      // ⭐⭐ C33 — `str.tostring(<a getter | its history | a getter-fed scalar>)`:
+      // a number the OBJECT RUNTIME holds, formatted by the one number format
+      // (`{t:'val'}`). ⛔ Only in a create/update's own text outside loops
+      // (`stateOk`), never through a text helper's frame, never a table cell.
+      // ⛔ The format is absent or a plain `#`/`0` pattern the one formatter
+      // understands WHOLE (`objectRuntime.js::formatNumber`); `format.mintick`, a
+      // pattern with a thousands comma or with words in it
+      // (swing-highlow-zigzag's `"Swing H  (#,###.####)"`) keeps its refusal.
+      const stateFmt = node.args && node.args[1] ? node.args[1].value : null
+      const stateFmtOk = !stateFmt || (stateFmt.type === 'string' && /^[#0]*(\.[#0]*)?$/.test(String(stateFmt.value)) && String(stateFmt.value) !== '')
+      if (stateOk && !inline && arg0 && stateFmtOk && !(node.args && node.args.length > 2)) {
+        const live = stateOperand(arg0)
+        if (live) return stateFmt ? { t: 'val', v: live, fmt: String(stateFmt.value) } : { t: 'val', v: live }
+      }
       const ast = canonicalOf(node.args && node.args[0] && node.args[0].value, inline, envAt)
       if (!ast) return null
       const fmtNode = node.args && node.args[1] && node.args[1].value
@@ -15923,7 +16074,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (decided !== null) return decided !== 0 ? then : other
       }
       if (!cond || !then || !other) return null
-      return { t: 'if', cond, then, else: other }
+      const ifNode = { t: 'if', cond, then, else: other }
+      // ⭐ C33 — which arm a test that is the same on every bar takes, kept
+      // beside the node for `fitTextNest` (the node itself is unchanged).
+      const decidedNow = condTree ? decidedTest(condTree) : null
+      if (decidedNow !== null) decidedIfArm.set(ifNode, decidedNow !== 0 ? then : other)
+      return ifNode
     }
     if (node.type === 'name') {
       // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
@@ -16002,6 +16158,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // literal does not settle — falls through to the readers below.
       const lit = inputStringText(node, scope)
       if (lit !== null) return { t: 'lit', s: lit }
+      // ⭐⭐ C33 — AN `input.timeframe` DEFAULT IN A TEXT SLOT: the default, where
+      // a capture shows TradingView printing exactly that spelling under this
+      // Pine version (`INPUT_TIMEFRAME_TEXT_WITNESS`); withheld by name otherwise.
+      const tfDefault = inputTimeframeDefault(node, scope)
+      if (tfDefault !== null) {
+        let version = null
+        try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+        if (inputTimeframeTextWitnessed(tfDefault, version)) return { t: 'lit', s: tfDefault }
+        const why = `input.timeframe:unwitnessed '${tfDefault}' v${version}`
+        diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+        diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+        return UNWITNESSED_TF_TEXT
+      }
     }
     // ⭐⭐ R2 — A USER FUNCTION THAT RETURNS TEXT, INLINED.
     //
@@ -16153,7 +16322,50 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
 
   /** ⭐ A COLOUR EXPRESSION. The same shape, one branch shorter — and the
    *  reachable table scripts colour conditionally far more often than not. */
+  /** ⭐⭐ C33 — A DRAWING COLOUR WHOSE TRANSPARENCY IS AN INPUT, read as a rescue.
+   *  `bgcolor = color.new(_color, i_adr_bx_transp)` with `i_adr_bx_transp =
+   *  input.int(90)` (average-day-range-adr-pivots) had no static answer on this
+   *  lane — the alpha reader takes a literal, and a Resolver to read anything else
+   *  (`alphaNumberOf`), which the object lane does not hand it — so the prop was
+   *  dropped and the box drew in the renderer's default blue where TradingView
+   *  draws the author's red and green at 10 % (`bc` in the capture: `#F7525F19`).
+   *  ⭐ Asked ONLY when every existing reader answered nothing, so a colour that
+   *  resolved before keeps its exact node. `input.int` has no knob on a colour
+   *  (nothing mints one — R36), so its default is the only value it can hold. */
   const colorNodeOf = (node, scope, depth = 0) => {
+    const known = colorNodeOfBase(node, scope, depth)
+    if (known || !node || depth > 12) return known
+    // ⛔ R36 — THIS READ RESOLVES NOTHING AND MINTS NOTHING. The transparency is
+    // read off the `input.int` / `input.float` call's own literal default
+    // (`inputNumberDefault`, plain name bindings only) and handed to the static
+    // fold as that literal: no Resolver is built, so no member parameter can be
+    // minted (`paramIds.test.js`) and no budget step is spent
+    // (`pineProbeReplay.test.js`).
+    if (node.type !== 'call' || node.name !== 'color.new') return null
+    const args = node.args || []
+    if (args.length !== 2 || args.some((a) => !a || a.name)) return null
+    const t = inputNumberDefault(args[1].value, scope)
+    if (t === null) return null
+    const hex = staticObjectColourOf({ ...node, args: [args[0], { ...args[1], value: { type: 'number', value: t } }] }, scope)
+    return hex ? { c: 'lit', hex } : null
+  }
+  /** ⭐ C33 — a name whose binding is, through plain name bindings only, an
+   *  `input.int(…)` / `input.float(…)` with a numeric-literal default → that
+   *  number; else null. (`inputStringText`'s walk, for a number.) */
+  const inputNumberDefault = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node ? inputNumberDefault(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || (node.name !== 'input.int' && node.name !== 'input.float')) return null
+    const args = node.args || []
+    const named = args.find((a) => a && a.name === 'defval')
+    const first = args.find((a) => a && !a.name)
+    const dv = named ? named.value : first ? first.value : null
+    return depth > 0 && dv && dv.type === 'number' && Number.isFinite(Number(dv.value)) ? Number(dv.value) : null
+  }
+  const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
     // ⭐ WITH its transparency — see `staticObjectColourOf`. A drawing object
     // has one colour string and no opacity field, so the alpha rides in it.
@@ -16164,11 +16376,30 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
       const condTree = canonicalOf(node.test)
       const cond = internTree(condTree)
-      const then = colorNodeOf(node.yes, scope, depth + 1)
-      const other = colorNodeOf(node.no, scope, depth + 1)
+      let then = colorNodeOf(node.yes, scope, depth + 1)
+      let other = colorNodeOf(node.no, scope, depth + 1)
       if (!then || !other) {
+        // ⭐⭐ C33 — `na` AS ONE ARM OF A COLOUR CHOICE IS NO COLOUR: fully
+        // transparent, the plot lane's own answer for an `na` colour branch
+        // (`TRANSPARENT_PALETTE_ENTRY`). ⚰️ high-low-open-mid-ranges writes
+        // `textcolor = bool3 ? na : i_h ? txtcol2 : na`; with `bool3` a live input
+        // the `na` arm had no node, the whole colour had none, and — text colour
+        // being a label's content — every one of its 492 range labels was lost
+        // with it. TradingView's own record of a label made with `textcolor = na`
+        // carries no text colour at all (`tci: null`, the same capture's
+        // `LW | … | NaN` labels).
+        // ⛔ Only an ARM, and only one written `na` outright. A colour that
+        // resolved before keeps its exact node: this is asked only of an arm that
+        // had NO node — which, taken, used to drop the property and paint the
+        // renderer's default where Pine paints nothing.
+        const NA_COLOUR = { c: 'lit', hex: '#00000000' }
         const decided = decidedTest(condTree)
-        if (decided !== null) return decided !== 0 ? then : other
+        if (decided !== null) {
+          const taken = decided !== 0 ? then : other
+          return taken || (isNaColourLeaf(decided !== 0 ? node.yes : node.no) ? NA_COLOUR : taken)
+        }
+        if (!then && isNaColourLeaf(node.yes)) then = NA_COLOUR
+        if (!other && isNaColourLeaf(node.no)) other = NA_COLOUR
       }
       if (!cond || !then || !other) return rtColourOf(node, scope, depth)
       return { c: 'if', cond, then, else: other }
@@ -16617,7 +16848,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (slot && TEXT_SLOTS.has(slot)) {
       // ⭐ C20 — the whole text from the runtime lane when the columnar reader
       // could not build it (`rtTextOf` says when that is allowed).
-      const t = textNodeOf(node, scopeEnv) || rtTextOf(node, null, null)
+      const t = fitTextNest(textNodeOf(node, scopeEnv), node.tok ? locate(node.tok) : null)
+        || rtTextOf(node, null, null)
+      if (t && holdsUnwitnessed(t)) return { v: 'text', node: t, unwitnessed: true }
       return t ? { v: 'text', node: t } : null
     }
     if (slot && isColourSlot(slot)) {
@@ -16861,6 +17094,19 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Styling stays out, as at create (`REQUIRED`): a style Pine defaults is
    *  still Pine's. The counts (`update:props`, `guard:update`) are unchanged. */
   const LOST_GEOMETRY_MARK = { v: 'const', value: 1 }
+  /** ⭐ C33 — the mark on a property whose text reads an unwitnessed
+   *  `input.timeframe` spelling (`UNWITNESSED_TF_TEXT`): unknown on every bar. */
+  const UNWITNESSED_TEXT_MARK = { v: 'const', value: 1 }
+  /** ⭐ C33 — strip `valueRef`'s `unwitnessed` flag off an op's props and mark
+   *  those properties (`propWithhold`), or return the op unchanged. */
+  const withUnwitnessedMarked = (op) => {
+    const keys = Object.keys(op.props || {}).filter((k) => op.props[k] && op.props[k].unwitnessed)
+    if (!keys.length) return op
+    const props = { ...op.props }
+    for (const k of keys) props[k] = { v: 'text', node: props[k].node }
+    diagnostics.unwitnessedTextProps = (diagnostics.unwitnessedTextProps || 0) + keys.length
+    return { ...op, props, propWithhold: UNWITNESSED_TEXT_MARK, propWithholdKeys: keys }
+  }
   /** A marking op is not a drawing step: pruning one is not a drop to count. */
   const isGeometryMark = (o) => !!o && (o.withhold === LOST_GEOMETRY_MARK || o.propWithhold === LOST_GEOMETRY_MARK)
   const lostGeometryOp = (op, target, when, extra) => {
@@ -17109,6 +17355,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   /** A getter on a declared register → `{v:'get', target, prop}`, else null. */
   const getterRef = (node) => {
+    // ⭐⭐ C33 — `line.get_y1(l)[1]`: THE GETTER'S OWN HISTORY, a whole literal
+    // number of bars back (`MAX_GETTER_BACK`). The object runtime keeps what the
+    // getter answered at this place on each bar and reads it back; it SERVES only
+    // the answer a capture shows (an empty handle, `na`) and holds a number.
+    if (node && node.type === 'offset' && typeof node.n === 'number' && Number.isInteger(node.n)
+        && node.n >= 1 && node.n <= MAX_GETTER_BACK && !loopIds.length) {
+      const inner = getterRef(node.arg)
+      return inner && !inner.back ? { v: 'get', target: inner.target, prop: inner.prop, back: node.n } : null
+    }
     if (!node || node.type !== 'call') return null
     const name = String(node.name || '')
     const dot = name.lastIndexOf('.')
@@ -17586,6 +17841,62 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // stamped by `collectObjectOps`), never the op's: a block may reassign a name
   // its own condition read, and Pine evaluated that condition once, before the
   // block ran. The op's scope (`scopeEnv`) is restored whatever happens.
+  /** ⭐⭐ C33 — `<input gate> and <unreadable> [and <readable> …]` AS A GUARD.
+   *
+   *  `if i_mr1 and dayofweek(time, i_d4) == i_mr1ab and h[1] != h`
+   *  (high-low-open-mid-ranges): the middle term has no reading on this lane, so
+   *  the whole guard refused and the block's `label.new` and `line.new` were LOST
+   *  creates — which, a create Pine may have run being a count this chart cannot
+   *  know, withheld every label and every line the script draws. But `i_mr1` is an
+   *  input, false by default, and `false and anything` is false: on those bars
+   *  Pine did not run the block, and neither does this.
+   *
+   *  The conjunction becomes a live `and` over each term that DOES read (a tree)
+   *  and one `{v:'unknown'}` for those that do not. The object runtime answers it
+   *  KNOWN FALSE wherever a read term is false (C11c) and UNKNOWN everywhere else:
+   *  every op under it is then withheld on that bar and marks what it would have
+   *  written (C17), and a create is counted as one Pine MAY have made
+   *  (`unknownGuard`, `objectRuntime.js::noteUnknownCreate`).
+   *
+   *  ⛔ NARROW ON PURPOSE: only an un-negated top-level `and`, outside loops, with
+   *  no object state in any term, and at least one read term that is an INPUT GATE
+   *  (a name bound to `input.bool`, or its `not`) — the shape whose default the
+   *  author wrote as an off-switch. Anything else keeps its refusal by name. */
+  const isInputGate = (n, depth = 0) => {
+    if (!n || depth > 8) return false
+    if (n.type === 'unary' && (n.op === 'not' || n.op === '!')) return isInputGate(n.arg, depth + 1)
+    if (n.type !== 'name') return false
+    const b = scopeEnv && typeof scopeEnv.get === 'function' ? scopeEnv.get(n.name) : null
+    if (!b || b.kind !== 'expr' || !b.node) return false
+    return b.node.type === 'call' && b.node.name === 'input.bool'
+  }
+  const partialAsked = new Map()
+  const partialAndGuard = (node) => {
+    const terms = []
+    const flatten = (n) => {
+      if (n && n.type === 'binary' && (n.op === 'and' || n.op === '&&')) { flatten(n.left); flatten(n.right) } else terms.push(n)
+    }
+    flatten(node)
+    if (terms.length < 2 || terms.length > 16) return null
+    // ⛔ ASKED BEFORE ANY TERM IS RESOLVED: a guard with no input gate is refused
+    // here for free, so naming this rule costs an unreadable guard nothing.
+    if (!terms.some((t) => isInputGate(t)) || terms.some((t) => !t || readsState(t))) return null
+    const args = []
+    let unread = 0
+    let gated = false
+    let why = null
+    for (const t of terms) {
+      if (!t || readsState(t)) return null
+      lastCanonRefusal = null
+      const ast = canonicalOf(t)
+      const ref = ast ? internTree(makeResolver().condition(ast, 'guard', ast.tok || t.tok)) : null
+      if (ref) { args.push(ref); if (isInputGate(t)) gated = true; continue }
+      if (!why) why = lastCanonRefusal
+      unread += 1
+    }
+    if (!unread || !gated) return null
+    return { live: { v: 'bool', op: 'and', args: [...args, { v: 'unknown' }] }, why }
+  }
   const guardOf = (guards, op) => {
     const opScope = scopeEnv
     try {
@@ -17604,6 +17915,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /** ⭐ C18 — a condition only the runtime lane can read: the op then runs where
      *  the runtime ARRIVES at its statement, which carries every `if` around it. */
     let needReached = false
+    /** ⭐ C33 — the guard carries a term nothing here could read (`partialAndGuard`). */
+    let unknownGuard = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
     // (a `continue` above it skips it on some passes, which no guard shows).
@@ -17711,6 +18024,24 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       let ast = canonicalOf(node)
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
+        // ⭐⭐ C33 — AN `and` WITH A TERM THIS READER CANNOT READ, GATED BY AN INPUT.
+        const whole = lastCanonRefusal
+        // Asked ONCE per `if`: every op of the block hands the same condition
+        // tokens, and the answer (like the latch it becomes) is the `if`'s.
+        let partial = null
+        if (!g.negate && !loopIds.length && !rawTrees) {
+          if (!partialAsked.has(g.toks)) partialAsked.set(g.toks, partialAndGuard(node))
+          partial = partialAsked.get(g.toks)
+        }
+        if (partial) {
+          diagnostics.guardPartial = diagnostics.guardPartial || []
+          const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${(partial.why && partial.why.guard) || 'refused'}`
+          if (!diagnostics.guardPartial.includes(e)) diagnostics.guardPartial.push(e)
+          liveParts.push(latchOf(g.toks, partial.live))
+          unknownGuard = true
+          continue
+        }
+        lastCanonRefusal = whole
         return undefined
       }
       // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
@@ -17782,8 +18113,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       ...(lastBarOnly ? { lastBarOnly: true } : {}),
       ...(requiresLive ? { requiresLive } : {}),
       ...(requiresEmpty ? { requiresEmpty } : {}),
+      ...(unknownGuard ? { unknownGuard: true } : {}),
     }
     if (needReached) {
+      if (unknownGuard) return undefined
       // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
       // a latch) is the object runtime's, and the runtime lane holds none.
       if (liveParts.length || requiresLive || requiresEmpty) return undefined
@@ -18061,7 +18394,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const walkN = (t, d) => {
       if (!t || typeof t !== 'object' || d > 48) return
       if ((t.t === 'num' || t.t === 'str') && Number.isInteger(t.tree)) trees.add(t.tree)
-      if (t.t === 'val') walkV(t.v, d + 1)   // C32 — a per-pass number
+      // C32 — a per-pass number; C33 — a number read off a drawing. One node.
+      if (t.t === 'val') walkV(t.v, d + 1)
       if (t.t === 'cat') (t.args || []).forEach((a) => walkN(a, d + 1))
       if (t.t === 'if' || t.c === 'if') { walkV(t.cond, d + 1); walkN(t.then, d + 1); walkN(t.else, d + 1) }
       // ⭐ C20 — a runtime colour, and `color.new(c, t)`.
@@ -18307,7 +18641,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
-      ops.push({
+      ops.push(withUnwitnessedMarked({
         k: 'create',
         family: op.family,
         site: op.site,
@@ -18316,7 +18650,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         ...(op.once ? { once: true } : {}),
         ...lastBarOnly,
         props,
-      })
+      }))
     } else if (op.k === 'update') {
       const target = targetRef(op.target)
       if (!target) { stateLostFamilies.add(op.family || null); dropped('update:target'); continue }
@@ -18342,7 +18676,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (m) ops.push(m)
         continue
       }
-      ops.push({ k: 'update', target, when, ...lastBarOnly, props })
+      ops.push(withUnwitnessedMarked({ k: 'update', target, when, ...lastBarOnly, props }))
     } else if (op.k === 'delete') {
       const target = targetRef(op.target)
       if (!target) { stateLostFamilies.add(op.family || null); lostRemoval('delete:target', op); dropped('delete:target'); continue }
@@ -18414,7 +18748,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
-      ops.push({ k: 'cell', target, col, row, when, ...lastBarOnly, props })
+      ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
     } else if (op.k === 'cellpatch') {
       const target = targetRef(op.target)
       const col = op.col ? valueRef(op.col.value) : null
@@ -18431,7 +18765,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // purpose — by property and line, so an engineer can find the expression,
       // and by drop reason, so the op count still adds up.
       if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
-      ops.push({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } })
+      ops.push(withUnwitnessedMarked({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } }))
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
       if (!target) { lostRemoval('clear:target', op); dropped('clear:target'); continue }
@@ -18577,7 +18911,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       getnumPlan.set(op, { value, g })
       continue
     }
-    const value = node && !op.inlined ? getterRef(node) : null
+    // ⭐ C33 — in an INLINED body only on the body's own handle (C14's rule for a
+    // whole coordinate, `stateOperand`): a getter pasted in from the call's
+    // arguments was evaluated at the call, before the body's earlier statements.
+    const ownGetter = (n) => {
+      const g0 = getterRef(n)
+      return g0 && String(regNameOf.get(g0.target.id) || '').includes(INLINE_SUFFIX) ? g0 : null
+    }
+    const value = node ? (op.inlined ? ownGetter(node) : getterRef(node)) : null
     // ⛔ A scalar written under a condition that itself reads object state would
     // need that condition latched where the `if` stands; not carried — refused.
     const stateGuard = (op.guards || []).some((gd) => {
@@ -19025,8 +19366,53 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // (`for i = 0 to 3 \n lb := label.new(…)`) then answered "this program creates
   // nothing" and threw the whole drawing away. Measured: every loop case in
   // `objectLoopReader.test.js` produced `ops: []` until this descended.
+  // ⭐ C33 — a step under a guard with an unread term is CARRIED, and it is still
+  // a step this chart cannot always follow: on every bar its read terms hold it
+  // is withheld. Counted (`guard:partial`) — once, for the steps that are really
+  // IN the program — so the member's sentence and the objects-only door's
+  // clean-win rule see it as they saw the refusal it replaces.
+  {
+    const count = (list) => {
+      for (const o of list || []) {
+        if (o.k === 'loop') { count(o.body); continue }
+        if (o.unknownGuard === true && o.k !== 'setnum' && o.k !== 'latch') dropped('guard:partial')
+      }
+    }
+    count(keptOps)
+    // ⛔ …and a latch of that kind that NO surviving step reads is not carried:
+    // every step under it was refused for a reason of its own (htf-liquidity's
+    // thirty `show and <another symbol>` cells, each still refused by its text),
+    // so the latch would be evaluated on every bar for nobody.
+    // Only a latch with an unread term is ever dropped, and only when nothing
+    // that survives reads it — directly, or through another latch that is read.
+    const flat = []
+    const flatten = (list) => { for (const o of list || []) { flat.push(o); if (o.k === 'loop') flatten(o.body) } }
+    flatten(keptOps)
+    const unread = flat.filter((o) => o.k === 'latch' && JSON.stringify(o.cond).includes('"v":"unknown"'))
+    if (unread.length) {
+      const refsIn = (v) => [...JSON.stringify(v).matchAll(/"v":"latch","id":"([^"]+)"/g)].map((m) => m[1])
+      const condOf = new Map(flat.filter((o) => o.k === 'latch').map((o) => [o.id, o.cond]))
+      const read = new Set()
+      const reach = (ids) => { for (const id of ids) if (!read.has(id)) { read.add(id); reach(refsIn(condOf.get(id) ?? null)) } }
+      for (const o of flat) if (o.k !== 'latch') reach(refsIn(o.k === 'loop' ? { ...o, body: null } : o))
+      const orphan = new Set(unread.filter((o) => !read.has(o.id)))
+      const prune = (list) => {
+        if (!Array.isArray(list)) return
+        for (const o of list) if (o.k === 'loop') prune(o.body)
+        if (list.some((o) => orphan.has(o))) list.splice(0, list.length, ...list.filter((o) => !orphan.has(o)))
+      }
+      if (orphan.size) prune(keptOps)
+    }
+  }
+  // ⛔ C33 — A CREATE UNDER A GUARD WITH AN UNREAD TERM IS NOT, BY ITSELF, A
+  // DRAWING. It runs only where this chart cannot say whether it ran, so a
+  // program whose every create is one draws nothing on any bar — and attaching
+  // it would trade the door's own sentence ("no plot and no alert condition")
+  // for an empty pane. ⚰️ Measured in the member-door census:
+  // fvg-detector-tradingfinder (`if DConditionFVG and ShowDeFVG`, the gate ON)
+  // attached with four creates and never drew one.
   const createsSomewhere = (list) => (list || []).some((o) => (
-    o.k === 'create' || (o.k === 'loop' && createsSomewhere(o.body))))
+    (o.k === 'create' && o.unknownGuard !== true) || (o.k === 'loop' && createsSomewhere(o.body))))
   if (!createsSomewhere(keptOps)) return { program: null, diagnostics }
 
   // ⭐⭐ C11c — EVERY STEP THAT READS A WINDOW REDUCTION IS WITHHELD ON A BAR ITS
@@ -19065,6 +19451,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         if (!rest.length && keys.length) {
           withheldSteps += 1
+          // ⭐ C33 — a property already marked on EVERY bar (an unwitnessed text)
+          // keeps that mark; the ambiguous ones join it (held on every bar too —
+          // more withheld, never less).
+          if (out.propWithhold === UNWITNESSED_TEXT_MARK) {
+            return { ...out, propWithholdKeys: [...new Set([...out.propWithholdKeys, ...keys])] }
+          }
           return { ...out, propWithhold: internTree(orOf(propAmb)), propWithholdKeys: keys }
         }
       }
