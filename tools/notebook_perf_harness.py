@@ -20,6 +20,18 @@ the renderer main thread's self time per phase -- each input event's dispatch, s
 paint, script, GC -- because what the wrappers cannot see (the browser's own editing work on
 a large contenteditable) can be where a keystroke's time goes.
 
+Lane TY4, `--busy`: a THIRD, TRACE-ONLY pass (no wrappers of any kind, not even the typing
+probe's own keydown/MessageChannel listeners) types the same characters again with Chrome
+tracing on. The window for each timed keystroke is read back out of the trace itself --
+that keydown's `EventDispatch keydown` up to the next one's -- and the renderer main thread's
+busy time inside that window (`keystroke_busy_ms`) is reported as a new row,
+`typing_busy_per_char`, with p50 and p95. It exists because `typing_per_char`'s wall-clock
+sample is bounded below by the ~16.7 ms display-frame interval (the control reading,
+docs/notebook/perf-runs/ty-floor/README.md), so near the 16 ms budget line it can no longer
+tell a fast editor from a slow one; `typing_busy_per_char` is the main-thread work alone, with
+no frame wait in it. It is REPORTED, never a verdict: `typing_per_char` is unchanged by this,
+and which row (if either) the 16 ms line binds is the controller's ruling, not this harness's.
+
 Budgets: read from docs/notebook/perf-budgets.json, key "editor" (never retyped here):
   * note open p95 < 300 ms for notes up to 1,000 paragraphs
   * typing < 16 ms per character up to 2,000 paragraphs
@@ -355,9 +367,7 @@ def summarize_trace(trace, keys: int, top: int = 25) -> dict:
     its children, so the rows ADD UP to the thread's busy time (`busy_ms_per_key`)."""
     data = json.loads(trace) if isinstance(trace, (bytes, bytearray, str)) else trace
     events = data.get("traceEvents", []) if isinstance(data, dict) else list(data)
-    mains = {(e.get("pid"), e.get("tid")) for e in events
-             if e.get("ph") == "M" and e.get("name") == "thread_name"
-             and (e.get("args") or {}).get("name") == "CrRendererMain"}
+    mains = _renderer_main_threads(events)
     threads: dict[tuple, list[dict]] = {}
     for e in events:
         if e.get("ph") == "X" and "dur" in e and (e.get("pid"), e.get("tid")) in mains:
@@ -389,6 +399,132 @@ def summarize_trace(trace, keys: int, top: int = 25) -> dict:
     rows.sort(key=lambda r: -(r["self_ms_per_key"] or 0))
     return {"threads": len(threads), "busy_ms_per_key": round(busy / 1000.0 / keys, 3) if keys else None,
             "rows": rows[:top]}
+
+
+def _renderer_main_threads(events: list[dict]) -> set[tuple]:
+    """(pid, tid) pairs for the renderer's main thread(s) -- the same question
+    `summarize_trace` asks, factored out so the keystroke-busy reading below asks it
+    identically rather than restating it."""
+    return {(e.get("pid"), e.get("tid")) for e in events
+            if e.get("ph") == "M" and e.get("name") == "thread_name"
+            and (e.get("args") or {}).get("name") == "CrRendererMain"}
+
+
+def _top_level_spans(events: list[dict], mains: set[tuple]) -> dict[tuple, list[tuple[float, float]]]:
+    """Per renderer main thread, the [start, end) spans of TOP-LEVEL complete (`X`) events --
+    nothing else on that thread was running outside of one of these spans, and nothing nested
+    inside one starts or ends outside it (a well-formed trace's own invariant). The SAME nesting
+    technique `summarize_trace` uses (sort by start, track what is currently open), but kept at
+    the top-level-task granularity rather than per-label self time: a parent's duration is
+    already self-inclusive of every child running inside it, so top-level spans never overlap
+    each other, and summing them is the thread's busy time with no double counting -- the
+    identical total `summarize_trace`'s per-label self-time rows would add up to, because
+    clipping a span to a window and clipping its self-time pieces to the same window and
+    re-summing produce the same number (clipping distributes over a disjoint partition of time)."""
+    by_thread: dict[tuple, list[dict]] = {}
+    for e in events:
+        if e.get("ph") == "X" and "dur" in e and (e.get("pid"), e.get("tid")) in mains:
+            by_thread.setdefault((e["pid"], e["tid"]), []).append(e)
+    out: dict[tuple, list[tuple[float, float]]] = {}
+    for key, evs in by_thread.items():
+        evs = sorted(evs, key=lambda e: (e["ts"], -e["dur"]))
+        spans: list[tuple[float, float]] = []
+        cur_start: float | None = None
+        cur_end: float | None = None
+        for e in evs:
+            start, end = float(e["ts"]), float(e["ts"]) + float(e["dur"])
+            if cur_end is not None and start < cur_end:
+                cur_end = max(cur_end, end)  # nested inside the open top-level span
+                continue
+            if cur_end is not None:
+                spans.append((cur_start, cur_end))
+            cur_start, cur_end = start, end
+        if cur_end is not None:
+            spans.append((cur_start, cur_end))
+        out[key] = spans
+    return out
+
+
+def _keydown_dispatch_times(events: list[dict], mains: set[tuple]) -> list[float]:
+    """Start timestamps (trace `ts`, microseconds) of every `EventDispatch keydown` on a
+    renderer main thread, sorted. These are real keydown dispatches the browser itself
+    recorded -- not a JS-side `performance.now()` stamp -- so there is no second clock to align
+    with the trace's own timestamps."""
+    out = []
+    for e in events:
+        if (e.get("ph") == "X" and e.get("name") == "EventDispatch"
+                and (e.get("pid"), e.get("tid")) in mains
+                and ((e.get("args") or {}).get("data") or {}).get("type") == "keydown"):
+            out.append(float(e["ts"]))
+    return sorted(out)
+
+
+def keystroke_busy_ms(trace) -> list[float]:
+    """Per-keystroke main-thread BUSY time, in ms -- one sample per complete keydown-to-keydown
+    window. This is the quantity the typing budget is meant to bind ("a keystroke's work fits
+    in one frame"), as distinct from `typing_per_char`'s wall-clock sample: that sample's tail
+    is bounded below by the ~16.7 ms display-frame interval once a keystroke is fast, and near
+    the 16 ms budget line it can no longer tell a fast editor from a slow one (the control
+    reading in docs/notebook/perf-runs/ty-floor/README.md; `typing_per_char` itself is NOT
+    changed by this function -- it stays exactly what it was).
+
+    MUST be read from a TRACE-ONLY pass: no attribution wrappers installed (`ATTRIBUTION_INIT_JS`
+    / `INSTALL_ATTRIBUTION_JS`), because the wrappers add their own cost to the very thing being
+    measured. Chrome's own trace is what is read here; nothing about the editor is touched.
+
+    A window is `[keydown_i, keydown_{i+1})`. The LAST keydown in a trace never closes a window
+    (nothing bounds its end) and is dropped, the same way the typing probe's own first-open
+    warm-up is dropped. Fewer than two keydowns -> no windows -> `[]`.
+
+    What counts as busy, exactly: the portion of every TOP-LEVEL task's span
+    (`_top_level_spans`) that overlaps the window. A task that straddles a window boundary is
+    SPLIT at the boundary -- the portion before the boundary counts in the earlier window, the
+    portion at or after counts in the later one. It is never attributed whole to one side (that
+    would overstate one window and understate its neighbour) and never counted in both (that
+    would double count the straddling portion). The idle gap between tasks, and the harness's
+    own inter-key delay, are wall-clock time with NOTHING running on the main thread; they are
+    never added in -- a window's busy time can be, and usually is, less than its wall width.
+
+    What this does NOT count: GPU rasterization and compositor work happen off the renderer
+    main thread and carry no `CrRendererMain` events in this trace's categories (TRACE_CATEGORIES
+    is devtools-timeline / toplevel / v8, all main-thread), so they are invisible to this
+    reading by construction. This is a MAIN-THREAD busy number, not a frame number -- it does not
+    answer "did the frame land", only "was the main thread doing this keystroke's work"."""
+    data = json.loads(trace) if isinstance(trace, (bytes, bytearray, str)) else trace
+    events = data.get("traceEvents", []) if isinstance(data, dict) else list(data)
+    mains = _renderer_main_threads(events)
+    keydowns = _keydown_dispatch_times(events, mains)
+    if len(keydowns) < 2:
+        return []
+    spans: list[tuple[float, float]] = []
+    for thread_spans in _top_level_spans(events, mains).values():
+        spans.extend(thread_spans)
+    spans.sort()
+    out = []
+    for i in range(len(keydowns) - 1):
+        w0, w1 = keydowns[i], keydowns[i + 1]
+        busy_us = 0.0
+        for s0, s1 in spans:
+            if s1 <= w0 or s0 >= w1:
+                continue
+            busy_us += min(s1, w1) - max(s0, w0)
+        out.append(busy_us / 1000.0)
+    return out
+
+
+def summarize_busy(busy_ms: dict[int, list[float]]) -> list[dict]:
+    """Pure: per-size keystroke-busy samples -> REPORTED rows (`typing_busy_per_char`). No
+    budget, no breach, no INCONCLUSIVE entry -- this reading is reported, never gated, and the
+    verdict logic in `summarize()` above is untouched by it. Which row (if any) the 16 ms line
+    binds is the controller's ruling, not this harness's (TY4 brief)."""
+    rows = []
+    for n, samples in sorted(busy_ms.items()):
+        if not samples:
+            continue
+        rows.append({"measure": "typing_busy_per_char", "paragraphs": n, "samples": len(samples),
+                     "p50_ms": round(percentile(samples, 50), 2),
+                     "p95_ms": round(percentile(samples, 95), 2), "budget_ms": None})
+    return rows
 
 
 def percentile(samples: list[float], pct: float) -> float:
@@ -733,12 +869,28 @@ def _dismiss_intro(pg) -> None:
 
 
 def run_live(base: str, sizes: list[int], opens: int, chars: int,
-             attribution: dict | None = None) -> tuple[dict, dict, dict, list[str]]:
+             attribution: dict | None = None, busy: dict | None = None) -> tuple[dict, dict, dict, list[str]]:
     """`attribution`, when given a dict, is filled with each size's per-keystroke breakdown
     (`summarize_attribution`), taken in a SECOND typing pass after the timed one, so the
-    budget reading never runs through the wrappers."""
+    budget reading never runs through the wrappers.
+
+    `busy`, when given a dict, is filled with each size's per-keystroke main-thread busy-time
+    samples (`keystroke_busy_ms`), taken in its OWN traced pass with no instrumentation
+    installed at all -- not even the typing probe's keydown/MessageChannel listeners, since the
+    window boundaries come from the trace's own keydown-dispatch events, not a JS-side stamp.
+    ⚠️ Leave `attribution` as `None` (CLI: do not pass `--attribute`) when a clean `busy` reading
+    matters: `ATTRIBUTION_INIT_JS` is a context-level init script, installed once at context
+    creation whenever `attribution` is given, and it stays loaded (inert but not costless -- it
+    wraps `MessagePort.prototype.onmessage`) for every page in that context for the rest of the
+    run, including the busy pass. Requesting both is recorded as a caveat in `errors`, never
+    silently accepted as clean."""
     from playwright.sync_api import sync_playwright
     errors: list[str] = []
+    if busy is not None and attribution is not None:
+        errors.append("--busy was requested alongside --attribute: the attribution init script "
+                      "is loaded in this context for every page even while inert, so this run's "
+                      "typing_busy_per_char reading is not from a clean no-wrapper trace -- rerun "
+                      "with --busy alone for a reading this caveat does not apply to")
     run = time.strftime("r%H%M%S")
     open_ms: dict[int, list[float]] = {n: [] for n in sizes}
     typing_ms: dict[int, list[float]] = {}
@@ -775,6 +927,17 @@ def run_live(base: str, sizes: list[int], opens: int, chars: int,
             samples = pg.evaluate(READ_TYPING_JS) or []
             typing_ms[n] = samples
             typed[n] = chars
+            if busy is not None:
+                # TRACE-ONLY: no wrappers, not even the typing probe's own keydown/MessageChannel
+                # listeners -- the window boundaries are read back out of the trace itself.
+                br.start_tracing(page=pg, categories=TRACE_CATEGORIES)
+                pg.keyboard.type("z" * chars, delay=25)
+                pg.wait_for_timeout(300)
+                btrace = br.stop_tracing()
+                busy[n] = keystroke_busy_ms(btrace)
+                if not busy[n]:
+                    errors.append(f"keystroke-busy trace at {n} paragraphs: fewer than two "
+                                  "keydown dispatches were captured -- no complete window")
             if attribution is not None:
                 inst = pg.evaluate(INSTALL_ATTRIBUTION_JS)
                 if not inst.get("ok"):
@@ -825,6 +988,36 @@ def dry_run() -> int:
     got = {r["phase"]: r["self_ms_per_key"] for r in tr["rows"]}
     assert got == {"Layout": 2.0, "EventDispatch keydown": 1.0, "RunTask": 2.0}, got
     assert tr["busy_ms_per_key"] == 5.0 and tr["threads"] == 1, tr
+    # lane TY4: keystroke-busy windows are read from the trace's OWN keydown-dispatch events --
+    # no JS-side stamp needed. Three keydowns -> two complete windows [0,10000) and
+    # [10000,25000). Busy time only (idle gaps excluded), and a task that straddles the boundary
+    # (8000..14000, spanning the keydown at 10000) is SPLIT at the boundary: 2000us before it
+    # counts in the earlier window, 4000us at-or-after counts in the later one.
+    busy = keystroke_busy_ms({"traceEvents": [
+        {"ph": "M", "name": "thread_name", "pid": 1, "tid": 7, "args": {"name": "CrRendererMain"}},
+        {"ph": "X", "name": "EventDispatch", "pid": 1, "tid": 7, "ts": 0, "dur": 100,
+         "args": {"data": {"type": "keydown"}}},                       # keystroke 0's dispatch
+        {"ph": "X", "name": "RunTask", "pid": 1, "tid": 7, "ts": 2000, "dur": 3000},  # work, all in window 0
+        # idle gap, 5000..8000: nothing on the main thread -- must not be counted as busy
+        {"ph": "X", "name": "RunTask", "pid": 1, "tid": 7, "ts": 8000, "dur": 6000},  # straddles the boundary
+        {"ph": "X", "name": "EventDispatch", "pid": 1, "tid": 7, "ts": 10000, "dur": 50,
+         "args": {"data": {"type": "keydown"}}},                       # keystroke 1's dispatch, nested inside it
+        {"ph": "X", "name": "RunTask", "pid": 1, "tid": 7, "ts": 16000, "dur": 2000},  # work, all in window 1
+        {"ph": "X", "name": "EventDispatch", "pid": 1, "tid": 7, "ts": 25000, "dur": 50,
+         "args": {"data": {"type": "keydown"}}},                       # closes window 1; opens no window 2
+    ]})
+    assert len(busy) == 2, busy
+    assert abs(busy[0] - 5.1) < 1e-9, busy    # 100 (kd0) + 3000 (work) + 2000 (straddle's share) us
+    assert abs(busy[1] - 6.0) < 1e-9, busy    # 4000 (straddle's share) + 2000 (work) us
+    assert busy[0] < 10.0 and busy[1] < 15.0, busy  # each window's busy < its wall width -- idle excluded
+    assert keystroke_busy_ms({"traceEvents": [
+        {"ph": "M", "name": "thread_name", "pid": 1, "tid": 7, "args": {"name": "CrRendererMain"}},
+        {"ph": "X", "name": "EventDispatch", "pid": 1, "tid": 7, "ts": 0, "dur": 100,
+         "args": {"data": {"type": "keydown"}}}]}) == [], "one keydown closes no window"
+    busy_rows = summarize_busy({1000: busy, 2000: []})
+    assert len(busy_rows) == 1 and busy_rows[0]["measure"] == "typing_busy_per_char", busy_rows
+    assert busy_rows[0]["paragraphs"] == 1000 and busy_rows[0]["budget_ms"] is None, busy_rows
+    assert busy_rows[0]["p50_ms"] == 5.1 and busy_rows[0]["p95_ms"] == 6.0, busy_rows
     doc, marker = paragraphs_doc(1000, "dry")
     assert len(doc["content"]) == 1000 and doc["content"][-1]["content"][0]["text"] == marker
     ok = summarize({1000: [100.0] * 20, 2000: [400.0] * 20}, {1000: [3.0] * 60, 2000: [9.0] * 60},
@@ -856,7 +1049,9 @@ def dry_run() -> int:
     assert read_integrity(None, [PRE_BOOT])["status"] == "MISSING"
     print(markdown_rows(ok, "dryrun"))
     print("DRY RUN: page scripts parse, the verdict logic breaches and goes INCONCLUSIVE when it must, "
-          "and the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart")
+          "the integrity reader tells CLEAN, INCOMPLETE, NOT CLEAN and MISSING apart, and "
+          "keystroke-busy windows sum top-level task time with idle gaps excluded and a "
+          "boundary-straddling task split correctly")
     return 0
 
 
@@ -928,12 +1123,22 @@ def main(argv: list[str] | None = None) -> int:
                     help="after each size's timed typing pass, type the same characters again with "
                          "every plugin piece, the view's dispatch/updateState, TipTap's events and "
                          "React's scheduler tasks timed; report ms per keystroke by piece (wave 10)")
+    ap.add_argument("--busy", action="store_true",
+                    help="a TRACE-ONLY pass (no wrappers) typing the same characters again; reports "
+                         "typing_busy_per_char, the renderer main thread's busy time per keystroke "
+                         "(keydown-dispatch to next keydown-dispatch, from the trace itself) -- for a "
+                         "clean reading do not combine with --attribute (TY4 brief)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     if args.dry_run:
         return dry_run()
     attr: dict | None = {} if args.attribute else None
-    live_kw = {"attribution": attr} if attr is not None else {}
+    busy: dict | None = {} if args.busy else None
+    live_kw = {}
+    if attr is not None:
+        live_kw["attribution"] = attr
+    if busy is not None:
+        live_kw["busy"] = busy
     try:
         sizes = [int(x) for x in args.sizes.split(",") if x.strip()]
     except ValueError:
@@ -1034,7 +1239,21 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     open_ms, typing_ms, typed, errors = live
     summary = summarize(open_ms, typing_ms, typed)
-    out.update({"page_errors": errors, "raw": {"open_ms": open_ms, "typing_ms": typing_ms}, **summary})
+    # `busy_rows` is REPORTED only -- it is never folded into `summary` itself, so every check
+    # below (`summary["breaches"]`, `summary["inconclusive"]`, `summary["rows"]`) reads exactly
+    # what it would have read without --busy. Which line (if any) binds typing_busy_per_char is
+    # the controller's ruling, not this harness's.
+    busy_rows = summarize_busy(busy) if busy is not None else []
+    raw = {"open_ms": open_ms, "typing_ms": typing_ms}
+    if busy is not None:
+        raw["busy_ms"] = busy
+    out.update({"page_errors": errors, "raw": raw, **summary})
+    if busy_rows:
+        out["rows"] = summary["rows"] + busy_rows
+        for row in busy_rows:
+            print(f"typing busy at {row['paragraphs']:,} paragraphs: {row['samples']} windows, "
+                  f"p50 {row['p50_ms']} ms/key, p95 {row['p95_ms']} ms/key "
+                  "(renderer main-thread busy time, trace-only pass)")
     if attr is not None:
         out["attribution"] = attr
         for n, a in sorted(attr.items()):
@@ -1050,7 +1269,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {r['self_ms_per_key']:8.3f} ms/key  {r['count_per_key']:6.2f} /key  {r['phase']}")
     if args.json_path:
         Path(args.json_path).write_text(json.dumps(out, indent=1), encoding="utf-8")
-    md = markdown_rows(summary, sha)
+    # The markdown table gets the REPORTED busy rows too (display only); the verdict checks
+    # below still read `summary` untouched.
+    md = markdown_rows({"rows": out.get("rows", summary["rows"]), "inconclusive": summary["inconclusive"]}, sha)
     if args.md == "-":
         print(md)
     elif args.md:
