@@ -764,9 +764,11 @@ describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
 // that takes its last unnamed control away.
 export const NAMED_SURFACES = [
   'app/src/components/chart/ChartToolbar.jsx',
+  'app/src/pages/Admin.jsx',
   'app/src/pages/ModelBook.jsx',
   'app/src/pages/Settings.jsx',
   'app/src/pages/charts/PeriodSortConfig.jsx',
+  'app/src/pages/desk/TeamSection.jsx',
 ]
 const NAMED = new Set(['labelled', 'hidden', 'n/a'])
 export const unnamedSites = (sites) => sites.filter((s) => !NAMED.has(s.label))

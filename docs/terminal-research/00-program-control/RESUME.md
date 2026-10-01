@@ -33,6 +33,17 @@ analysis (the largest), BRK-10, BRK-04 mobile push, COV-01 seasonality, RM-L16 e
   Replaced by `FUNDAMENTALS_PIT_V5_PIPELINE` (read `=1` on worker 2026-09-30, recorded as measured), declared through a
   `FUNDAMENTALS_PIT_MODE_FLAGS` table in `schedule.py` so the rail can see a name with no ENABLED marker.
 
+**DEPLOYED 2026-10-01 03:21Z:** everything above is on master and production as `4ee0ca6f8c` (owner-run push; web SUCCESS;
+`hub_nav_smoke --auth` PASS, 19 routes / 37 nav entries, pod 6+ min old). flow-worker did not redeploy.
+
+**After the deploy, on the branch only (not on master):** `3735184f77` Settings, `d9f98af4e5` ChartToolbar, `9601fe2c2d`
+`Textarea` + ModelBook, and the Admin + desk/TeamSection commit after it: every control on those surfaces has an accessible
+name and renders through the `components/ui/` primitives; `NAMED_SURFACES` in `formControls.census.test.js` keeps them so.
+The census now judges a primitive like a native control (it used to wave them through). Unnamed sites 295 -> 215.
+⚠️ Red on master, NOT ours, left alone: `src/__tests__/entryExcludesChartEngine.test.js` — `aada122e05` (chart session,
+2026-09-30 13:37) made `components/chart/instanceShape.js` import `engine/legacyCotGroups.js`, which puts three engine
+modules (329 lines) on the entry chunk through `usePreferences`.
+
 **Next, in order:** deploy the above (web only; after the close) · a 104+ minute single-pod window covering the open
 and a heavy job, for 014/017 · the next slices of 038 / 049 / 056 · form-control migration by surface, starting with
 the census's most-unlabelled files outside partner and Notebook paths.
