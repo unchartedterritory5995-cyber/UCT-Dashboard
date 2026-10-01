@@ -32,3 +32,31 @@ not drawn, and one line of 504 is missing at the far end of the collected histor
 **What it would move.** Lifts `time-anchor:session-open-missing` for the listing's first partial
 period (or re-rules it), which is the last object `high-low-open-mid-ranges` is missing: lines
 503 → 504 of 504, the script's objects verdict DIVERGE → MATCH.
+
+## Q-C47-2 — a user function's default parameter value
+
+**Probe:** `tools/visual_conformance/probes/vw-default-param.pine` (new).
+**Chart:** `AMEX:SPY` **1D**, >= 200 bars. No inputs.
+
+**Why.** C47 serves, in the drawing lane only, a trailing parameter that declares one literal
+default and a call that leaves it off the end (`pine.js::functionParamDefaults`). The rule is Pine's
+reference. The one committed capture that exercises it — pro-trading-art, `drawLL(..., style =
+label.style_label_down)` called without the style — is consistent with it and does not separate it:
+the declared default there is also `label.new`'s own. This probe uses defaults no built-in shares.
+
+**What we must read off it.**
+
+| row | shipped | what would falsify it |
+|---|---|---|
+| D01 / D02 `f_num(close)` vs `f_num(close, 7)` | `close * 7` on both | any other multiplier, or `na` |
+| D03 / D04 negative default | `close - 3` on both | the sign lost |
+| D05 / D06 `bool` default `false` | `-close` on both | `false` read as `na` or `true` |
+| D07 / D08 string default | `close * 2` on both | the default not equal to its own text |
+| D09 / D10 `na` default | `close` on both | `na` not `na` in the body |
+| D11 / D12, D13 / D14 two defaults | `close * 2 + 3`; `close * 9 + 3` | the second default bound to the first's value; a given argument not winning |
+| D15 | `0` on every bar | any pair differing |
+
+**What it would move.** Nothing in the 47 by itself (liquidity-heatmap's labels stop next on a
+lower-timeframe request). It turns the rule from "Pine's reference" into a measured one, which is
+what would let the PLOT lane take such a function (today it stays `pine:function-def` there, so no
+saved parameter id can move).

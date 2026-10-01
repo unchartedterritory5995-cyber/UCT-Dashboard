@@ -11401,7 +11401,16 @@ export class Resolver {
           + `script defines as ${name}(${bound.params.join(', ')})`, locate(arg.tok || node.tok))
       }
     }
-    if (node.args.length !== bound.params.length) {
+    // ⭐⭐ C47 — AN OMITTED TRAILING ARGUMENT TAKES THE DEFAULT ITS PARAMETER
+    // DECLARES (`functionParamDefaults`: one literal, so it is the same value at
+    // every call and in every scope). Only arguments left off the END, and only
+    // when every parameter left over declares one — anything else is the arity
+    // refusal it was.
+    const defaults = Array.isArray(bound.defaults) ? bound.defaults : null
+    const given = node.args.length
+    const filled = !!defaults && given < bound.params.length
+      && defaults.slice(given).every((d) => d !== null && d !== undefined)
+    if (given !== bound.params.length && !filled) {
       throw new PineRefusal('pine:arity',
         `${REFUSALS['pine:arity']} — \`${name}\` was given ${node.args.length} `
         + `argument${node.args.length === 1 ? '' : 's'} and this script defines it with `
@@ -11411,7 +11420,11 @@ export class Resolver {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(node.tok))
     }
     const callerEnv = this.env
-    this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    const frame = node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv }))
+    if (filled) {
+      for (let k = given; k < bound.params.length; k += 1) frame.push({ kind: 'expr', node: defaults[k], env: callerEnv })
+    }
+    this.frames.push(frame)
     const prevEnv = this.env
     this.env = bound.value.env || prevEnv
     // ⛔ THROUGH `resolveBinding`, NOT `resolve(bound.value.node)`. A function's
@@ -14255,6 +14268,60 @@ export function functionParams(toks, arrow) {
     params.push(t.value)
   }
   return params
+}
+
+/** ⭐⭐ C47 — `f(a, b = 5, c = false) =>`: A HEADER WHOSE TRAILING PARAMETERS
+ *  DECLARE DEFAULT VALUES. `{ names, defaults }` — `defaults[k]` the parsed
+ *  literal of parameter `k`, or `null` where it declares none — or `null` when
+ *  the header is not that shape.
+ *
+ *  Pine: a parameter may declare a default; a call that omits the argument runs
+ *  the body with it. `functionParams` above refuses the `=` (it is not an
+ *  identifier), so such a function was `pine:function-def` and everything read
+ *  through it went with it (liquidity-heatmap: `resolutionInMinutes(tf = "")`).
+ *
+ *  ⛔ ONLY THE SHAPE WHOSE VALUE IS THE SAME AT EVERY CALL:
+ *    · the default is ONE LITERAL — a number (or `-number`), a quoted string,
+ *      `true`, `false` or `na`. A default that names anything (`len = other`,
+ *      `style = label.style_label_down`, a call) is read in some scope at some
+ *      time, and which is not this function's to decide: not this shape.
+ *    · every parameter after the first default declares one too. A required
+ *      parameter behind an optional one can only be reached by name, and named
+ *      arguments on a user function are refused (`pine:named-argument`).
+ *  ⛔ A SEPARATE READER, NOT A LOOSER `functionParams`: that one is the runtime
+ *  front end's too, whose calls are compiled against an exact arity. */
+export function functionParamDefaults(toks, arrow) {
+  if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return null
+  const names = []
+  const defaults = []
+  let any = false
+  for (const seg of splitTopLevel(toks.slice(2, close), ',')) {
+    const eq = seg.findIndex((t) => isPunct(t, '='))
+    const head = eq >= 0 ? seg.slice(0, eq) : seg
+    // the head is `functionParams`' own grammar: type words, then one name
+    if (!head.length || head.some((t) => t.kind !== 'ident')) return null
+    if (head.slice(0, -1).some((t) => !TYPE_WORDS.has(t.value))) return null
+    const name = head[head.length - 1].value
+    if (TYPE_WORDS.has(name) && head.length > 1) return null
+    let node = null
+    if (eq >= 0) {
+      const rest = seg.slice(eq + 1)
+      const literal = (t) => t && (t.kind === 'number' || t.kind === 'string'
+        || (t.kind === 'ident' && (t.value === 'true' || t.value === 'false' || t.value === 'na')))
+      const ok = (rest.length === 1 && literal(rest[0]))
+        || (rest.length === 2 && isPunct(rest[0], '-') && rest[1].kind === 'number')
+      if (!ok) return null
+      try { node = parseWholeExpression(rest) } catch { return null }
+      any = true
+    } else if (any) {
+      return null
+    }
+    names.push(name)
+    defaults.push(node)
+  }
+  return any ? { names, defaults } : null
 }
 
 /**
@@ -21571,7 +21638,16 @@ function translatePineResult(source, opts = {}) {
       // PROGRAM name that merely shares a spelling with one of them. That is
       // exactly what `src` does in the everget family.
       const nameTok = toks[0].kind === 'ident' ? toks[0] : null
-      const params = functionParams(toks, arrow)
+      let params = functionParams(toks, arrow)
+      // ⭐⭐ C47 — A HEADER WITH DEFAULT VALUES (`functionParamDefaults`) is read
+      // for the DRAWING lane only. Everywhere else the function stays the
+      // refusal it has always been — same guard, sentence and note, written by
+      // the `catch` below — with the readable function hung beside it
+      // (`objectLane`, the door C47's `name = switch` body already uses). ⛔ The
+      // plot lane must not begin to translate through it: a plot that started
+      // to translate would mint its parameters ahead of saved ones.
+      const withDefaults = !params && nameTok ? functionParamDefaults(toks, arrow) : null
+      if (withDefaults) params = withDefaults.names
       consumeMutators(ctx, stmt.body)
       try {
         if (!nameTok || !params) {
@@ -21666,6 +21742,13 @@ function translatePineResult(source, opts = {}) {
         // sentence and note the `catch` below writes — with the readable function
         // hung beside it for the object pass's resolver (`objectLane`).
         if (bodyTrace.legacySwitch) throw Object.assign(bodyTrace.legacySwitch, { c47ObjectLane: self })
+        // ⭐ C47 — and a header with defaults likewise: readable by the drawing
+        // lane, `pine:function-def` (the sentence it had) to everything else.
+        if (withDefaults) {
+          self.defaults = withDefaults.defaults
+          throw Object.assign(new PineRefusal('pine:function-def', REFUSALS['pine:function-def'],
+            locate(toks[arrow])), { c47ObjectLane: self })
+        }
         env.set(nameTok.value, self)
       } catch (err) {
         const r = fromError(err)
