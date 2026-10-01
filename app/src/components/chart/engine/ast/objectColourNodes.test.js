@@ -188,7 +188,9 @@ describe('C37 — colours reached through a `var`, a helper, `na`', () => {
   })
 
   it('⭐ `na` and `color(na)` are the absent colour: fully transparent, in a branch or alone', () => {
-    const t = translatePine(src('show = input.bool(true, "Show")', 'label.new(bar_index, high, "x", color = color(na), textcolor = show ? color.white : na)'), {})
+    // a LIVE test: a test decided at translation takes its arm alone (C33's rule,
+    // `c33ObjectReads.test.js` (7))
+    const t = translatePine(src('label.new(bar_index, high, "x", color = color(na), textcolor = close > open ? color.white : na)'), {})
     const p = firstCreate(t).props
     expect(p.color).toEqual({ v: 'color', node: { c: 'lit', hex: '#00000000' } })
     expect(p.textcolor.node).toMatchObject({ c: 'if', then: { c: 'lit', hex: '#FFFFFF' }, else: { c: 'lit', hex: '#00000000' } })

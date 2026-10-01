@@ -16390,7 +16390,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
-      if (!then || !other) {
+      // ⭐ C33 × C37 (merged) — C37 reads `na` as a colour everywhere
+      // (`hostColourOf`), so an `na` arm now HAS a node; C33's rule for a DECIDED
+      // test over such an arm (the taken arm alone, never a constant `if`) is
+      // kept by asking it whenever an arm is written `na`, not only when an arm
+      // had no node.
+      if (!then || !other || isNaColourLeaf(node.yes) || isNaColourLeaf(node.no)) {
         // ⭐⭐ C33 — `na` AS ONE ARM OF A COLOUR CHOICE IS NO COLOUR: fully
         // transparent, the plot lane's own answer for an `na` colour branch
         // (`TRANSPARENT_PALETTE_ENTRY`). ⚰️ high-low-open-mid-ranges writes
@@ -16404,7 +16409,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         // resolved before keeps its exact node: this is asked only of an arm that
         // had NO node — which, taken, used to drop the property and paint the
         // renderer's default where Pine paints nothing.
-        const NA_COLOUR = { c: 'lit', hex: '#00000000' }
+        const NA_COLOUR = { c: 'lit', hex: NA_OBJECT_COLOUR }
         const decided = decidedTest(condTree)
         if (decided !== null) {
           const taken = decided !== 0 ? then : other
