@@ -11,6 +11,7 @@ import { BlockHandle } from './blockHandle'
 import { Columns, Column, ColumnsGuard } from './columnsNode'
 import { LinkPreview, WebEmbed } from './webLinkNodes'
 import { LinkPasteOffer } from './linkPasteOffer'
+import { LinkClickOpen } from './linkClickOpen'
 import { DateMention } from './dateMentionNode'
 import { TableOfContents } from './tableOfContentsNode'
 import Link from '@tiptap/extension-link'
@@ -108,6 +109,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('import-link://') || ctx.defaultValidate(url),
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
+    // Ruling 165: Ctrl/Cmd+click opens a link (new tab, noopener/noreferrer);
+    // a touch re-tap on an already-selected link does too; hovering hints the
+    // gesture. A plain click is untouched — see linkClickOpen.js's own header.
+    LinkClickOpen,
     // G-035: NotebookPlaceholder, not the stock @tiptap/extension-placeholder --
     // see the header comment on notebookPlaceholder.js for the measured reason.
     NotebookPlaceholder.configure({ placeholder }),
