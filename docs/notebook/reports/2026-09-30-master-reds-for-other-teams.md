@@ -16,6 +16,8 @@ Evidence: `docs/notebook/gate-runs/wave10-L13-final/` (manifest, shard logs, `cl
 
 | 6 | `app/src/hooks/pollingSites.rail.test.js` (full-suite-only rail) | `pages/research/tabs/OptionsChainTab.jsx: 1 (listed 0)`: a bare `useSWR` poll with no census entry, added by `017f40d938` (BRK-01 option chain). | Terminal / research | lane PF's run on `ad7efc93a` + its change (file untouched by the lane) |
 
+| 7 | `tests/test_admin_oi_routes_off_the_loop.py` | Its smoke of `/api/admin/flow/plan` and `/api/admin/flow/optimize` opens the hardcoded `/data/flow.db`, which on this box is the live `C:\datalow.db`; `optimize` would run `wal_checkpoint(TRUNCATE)` and `ANALYZE` on it. The repo-root tripwire refuses the open and fails the session at its end, while every test in the file reports passed. Added by `9c430e2d4` (W3 / OI-44). | W3 loop-blockers | lane DR, on `49e8a124b`; `C:\datalow.db` mtime still 2026-09-08, no sidecars, so nothing was written |
+
 What each one costs until fixed:
 
 1. Every route, the Notebook included, loads those chart-engine modules in the entry chunk. The test's own remedy is a dynamic `import()` at the edge nearest the shell.
@@ -27,7 +29,7 @@ What each one costs until fixed:
    - `api/services/hub_reports.py:33`: `/data/hub_reports.db`. Its comment says the census pins it; it does not.
    - `api/services/econ/adapters/eia.py:330` and `fed_ddp.py:605`: URL fragments (`.../data/`), not file paths. False positives, but they still redden the guard.
 
-   Lane DR of this session is fixing item 5 on `feat/notebook-w10-dr` with the repo's standard remedy (an env override whose default is the existing literal). It will land with L14 unless an owner objects.
+   Lane DR of this session fixed item 5 (`da1b9c218`..`9d384d2b7`, on L14): the real paths read a new env var whose default is the old literal (`BV2_FROZEN_FINAL_DIR`, `BV2_SEED_LEDGER_PATH`, `BV2_SEED_GROUPED_DIR`, `BV2_PINNED_UCT_SEED_PATH`, `HUB_REPORTS_DB_PATH`), the two URLs are built so no constant starts with `/data`, `breadth_combined_pass._production_paths` reuses `BREADTH_OHLC_DB`, and `api/main.py`'s two flow diagnostics moved their DB body to a module-level function (same body, same literal). Production resolves the same with nothing set.
 
 ## Fixed in passing (#259)
 
