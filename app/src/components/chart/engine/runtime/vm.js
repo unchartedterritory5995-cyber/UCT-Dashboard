@@ -489,13 +489,18 @@ export function execute(program, ctx, limits, opts) {
           //
           // ⚠️ `n | 0` IS NOT USED. It turns 2.7 into 2 and NaN into 0 — the
           // second of which would read bar 0 and call it an answer.
-          const n = stack[--sp]
+          // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-offset-na-spy-1d`): an `na`
+          // offset is NOT unanswerable — TradingView reads the CURRENT bar
+          // (`close[na]` is `close` on all 100 na-offset bars, no error).
+          const raw = stack[--sp]
+          const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
           stack[sp++] = idx >= 0 ? columns[a][idx] : NaN
           break
         }
         case OP.READ_SERIES_HIST_DYN: {
-          const n = stack[--sp]
+          const raw = stack[--sp]
+          const n = Number.isNaN(raw) ? 0 : raw
           const idx = Number.isInteger(n) && n >= 0 ? bar - n : -1
           stack[sp++] = idx >= 0 ? series[a][idx] : NaN
           break

@@ -175,7 +175,8 @@ describe('⭐⭐ v6 `and`/`or` and `?:` do not run the side that is not taken', 
 describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('without a probe, an empty reduction and a gradient still stop the run by name', () => {
     expect(() => run('a = array.new<float>()\nplot(array.avg(a))\n')).toThrow(/array\.avg of an empty array/)
-    expect(() => run('bgcolor(color.from_gradient(close, 0, 1, color.red, color.green))\nplot(close)\n'))
+    // ⚰️ C29 computes a gradient; only what no capture pins (an empty range) stops.
+    expect(() => run('bgcolor(color.from_gradient(close, 1, 1, color.red, color.green))\nplot(close)\n'))
       .toThrow(/color\.from_gradient/)
   })
 

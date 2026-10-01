@@ -25,15 +25,30 @@ import { translatePine } from '../ast/pine'
 const HEAD = '//@version=5\nindicator("g", overlay=true)\n'
 
 describe('C17 — `guardRefusals` names the refusal and the name a dropped guard stopped on', () => {
-  it('⭐ a count that NEVER resets, in a create\'s guard: `pine:state` on the counter', () => {
-    const t = translatePine(`${HEAD}var int c = 0
-c := c + 1
+  // ⚰️ C29 SERVES a bar counter (measured, `vw-bar-counters-rddt-1d-2026-09-30`):
+  // switched, exact from the listing, withheld elsewhere — so the guard converts.
+  // The naming rail moves to a count that never resets AND is no bar counter.
+  it('⭐ a running SUM that never resets, in a create\'s guard: `pine:state` on it', () => {
+    const t = translatePine(`${HEAD}var float c = 0.0
+c := c + volume
 if c == 3
     label.new(bar_index, high, "X")
 plot(close)
 `)
     expect(t.objectDiagnostics.dropReasons['guard:create']).toBe(1)
     expect(t.objectDiagnostics.guardRefusals).toEqual(['create@6: pine:state `c`'])
+  })
+
+  it('⭐ C29 — a bar counter in a create\'s guard converts (listing-only)', () => {
+    const src = `${HEAD}var int c = 0
+c := c + 1
+if c == 3
+    label.new(bar_index, high, "X")
+plot(close)
+`
+    // the chart (host) lane serves it; the SCREEN lane has no listing, so it refuses there
+    expect(translatePine(src, { strict: true }).objectDiagnostics.guardRefusals || []).toEqual([])
+    expect(translatePine(src).objectDiagnostics.guardRefusals).toEqual(['create@6: pine:state `c`'])
   })
 
   it('⛔ CONTROL — a counter that the accumulator CAN hold is not a refusal, and names nothing', () => {

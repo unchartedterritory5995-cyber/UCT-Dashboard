@@ -1,0 +1,26 @@
+//@version=6
+indicator("UCTPROBE_TF_PERIOD", overlay = false)
+
+// PROVENANCE: written 2026-09-30 for docs/pine/vendor-harness/objects-triage-2026-09-28.md
+// section C15 remainder (a): "a capture that prints timeframe.period itself on a v6 D/W/M
+// chart settles it" (vendor evidence so far: on a v6 1D chart timeframe.period == "D" is FALSE).
+// CAPTURE: AMEX:SPY on 1D, 1W and 1M, inputs at defaults.
+// The last-bar label prints the string itself; the plots discriminate the candidates.
+
+p = timeframe.period
+
+plot(bar_index,                     "T00_bar_index_CONTROL")
+plot(str.length(p),                 "T01_len_period")
+plot(p == "D"   ? 1 : 0,            "T02_eq_D")
+plot(p == "1D"  ? 1 : 0,            "T03_eq_1D")
+plot(p == "W"   ? 1 : 0,            "T04_eq_W")
+plot(p == "1W"  ? 1 : 0,            "T05_eq_1W")
+plot(p == "M"   ? 1 : 0,            "T06_eq_M")
+plot(p == "1M"  ? 1 : 0,            "T07_eq_1M")
+plot(timeframe.multiplier,          "T08_multiplier")
+plot(timeframe.isdaily   ? 1 : 0,   "T09_isdaily")
+plot(timeframe.isweekly  ? 1 : 0,   "T10_isweekly")
+plot(timeframe.ismonthly ? 1 : 0,   "T11_ismonthly")
+
+if barstate.islast
+    label.new(bar_index, 0, "[" + p + "]", style = label.style_label_down)

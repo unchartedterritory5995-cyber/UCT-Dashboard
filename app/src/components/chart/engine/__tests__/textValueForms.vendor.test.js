@@ -62,13 +62,18 @@ describe('⭐ `syminfo.ticker` in a cell is the symbol\'s text', () => {
   }, 60000)
 })
 
-describe('⛔ a text that flips on how a v6 `timeframe.period` is spelled is withheld', () => {
-  it('⭐⭐ ema-ribbon row 9: the vendor drew "   1D", and we no longer draw "► 1D"', () => {
+describe('⭐⭐ C29 — a v6 `timeframe.period` is `1D`, and the text chosen on it is TradingView\'s', () => {
+  // ⚰️ C15 WITHHELD these cells: the engine spelled the period `D` on every
+  // version. C29 serves the vendor's spelling (`periodTextOf`, measured on
+  // `vw-tf-period-spy-{1d,1w,1m}-2026-09-30.json`), so the cells are DRAWN.
+  it('⭐⭐ ema-ribbon rows 5 and 9: "► 1D" and "   1D", as the vendor drew them', () => {
     const { state, records } = drawCapture(RIBBON, { ticker: 'RDDT', exchange: 'NYSE' })
+    for (const row of [5, 9]) {
+      const v = records.tableCells.find((c) => c.col === 0 && c.row === row)
+      expect(cellAt(state, 0, row) && cellAt(state, 0, row).text, `row ${row}`).toBe(v.t)
+    }
     expect(records.tableCells.find((c) => c.col === 0 && c.row === 9).t).toBe('   1D')
-    expect(cellAt(state, 0, 9)).toBeUndefined()
-    // ⛔ CONTROL — its neighbours compare the period with a code BOTH spellings
-    // answer alike ("15", "60", "240"), and they still draw, matching the vendor
+    // ⛔ CONTROL — its neighbours compare with codes both spellings answer alike
     for (const row of [6, 7, 8]) {
       const v = records.tableCells.find((c) => c.col === 0 && c.row === row)
       expect(cellAt(state, 0, row) && cellAt(state, 0, row).text, `row ${row}`).toBe(v.t)
@@ -85,10 +90,12 @@ describe('⛔ a text that flips on how a v6 `timeframe.period` is spelled is wit
     return { cells: (tr.objects ? tr.objects.ops : []).filter((o) => o.k === 'cell'), diag: tr.objectDiagnostics }
   }
 
-  it('⛔ v6, `== "D"`: refused by name', () => {
-    const { cells, diag } = cellOps(6, 'D')
-    expect(cells).toHaveLength(0)
-    expect(diag.textFormatRefusals['timeframe.period:v6-spelling']).toBe(1)
+  it('v6, `== "D"` and `== "1D"`: the cell is carried, nothing withheld (ema-ribbon above reads the arm)', () => {
+    for (const cmp of ['D', '1D']) {
+      const d = cellOps(6, cmp)
+      expect(d.cells, cmp).toHaveLength(1)
+      expect((d.diag.textFormatRefusals || {})['timeframe.period:v6-spelling'], cmp).toBeUndefined()
+    }
   })
 
   it('⛔ CONTROLS — v5 `== "D"` and v6 `== "15"` still draw', () => {

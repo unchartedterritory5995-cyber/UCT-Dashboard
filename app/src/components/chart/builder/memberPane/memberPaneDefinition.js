@@ -662,6 +662,20 @@ export function memberPaneDefinition({ source, id, name, translation = null } = 
     // TradingView means (`engine/otherSymbols.js`); absent for every script that
     // reads no other symbol, so no other document changes.
     ...(Array.isArray(t.otherSymbols) && t.otherSymbols.length ? { otherSymbols: t.otherSymbols } : {}),
+    // ⭐⭐ C29 — the chart-period values the translation folded (`timeframe.period`
+    // text, `.multiplier`, `.in_seconds()`), each at every rung, so a chart whose
+    // period differs from the one they were folded at is refused, never drawn off
+    // the other period's constants (`engine/periodReads.js`). Absent otherwise.
+    // The plots (keys) that read it are named, so ONLY they are refused there.
+    ...(t.periodReads ? {
+      periodReads: {
+        ...t.periodReads,
+        keys: drawable.flatMap((o, i) => {
+          const hit = (t.periodReads.outputs || []).find((x) => x.index === (t.outputs || []).indexOf(o))
+          return hit ? [{ key: keyAt(i), names: hit.names }] : []
+        }),
+      },
+    } : {}),
   }
 
   return {

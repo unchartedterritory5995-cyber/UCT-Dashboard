@@ -25,6 +25,7 @@
 // the true figures are 95 / 70 / 47.5. A hand-typed literal would have pinned the
 // wrong ones — so the layer alphas are COMPUTED here from the script's own three
 // constants, and a hard-coded value fails two of the three layers.
+import { wholeTransparency } from '../colorInt.js'
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -55,7 +56,8 @@ const transparencyAt = (k) => {
   const b = MAX_T - STEP * k
   return Math.min(b + (100 - b) * (USER_T / 100), 100)
 }
-const opacityAt = (k) => Math.max(0, Math.min(1, 1 - transparencyAt(k) / 100))
+// ⭐ C29 — Pine holds a WHOLE transparency, truncated (measured, `vw-gradient-spy-1d-2026-09-30`).
+const opacityAt = (k) => Math.max(0, Math.min(1, 1 - wholeTransparency(transparencyAt(k)) / 100))
 
 describe('R35d — color.t of a static colour folds to its transparency', () => {
   it('⛔⛔ NON-VACUITY — the shape under test really is unfoldable today', () => {

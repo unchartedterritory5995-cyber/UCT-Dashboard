@@ -296,18 +296,18 @@ describe('⛔ THE VENDOR GATE — an unwitnessed exchange spelling is not served
 // the loop beneath it.
 describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () => {
   it('the roster is the data file, and it is not empty', () => {
+    // ⚰️ C29 (2026-09-30): `root`, `basecurrency`, `currency`, `timezone`,
+    // `session` and `pointvalue` left the roster — served per witnessed exchange
+    // off the syminfo-roster captures (symbolScopeListing.test.js).
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED).sort()).toEqual([
-      'syminfo.basecurrency', 'syminfo.currency', 'syminfo.description',
-      'syminfo.pointvalue', 'syminfo.root',
-      'syminfo.session', 'syminfo.timezone', 'syminfo.type',
+      'syminfo.description', 'syminfo.type',
     ])
   })
 
   // ⚰️ `mintick` left this loop 2026-09-28 — it is served per witnessed exchange
   // now, and `str.length(syminfo.mintick)` refuses `pine:text-value` naming the
   // FIELD (a number is not text); see syminfoMintick.test.js.
-  for (const field of ['type', 'currency', 'session', 'pointvalue', 'description',
-    'basecurrency', 'timezone', 'root']) {
+  for (const field of ['type', 'description']) {
     it(`⛔ \`syminfo.${field}\` — and the refusal does NOT say the grammar lacks it`, () => {
       const r = translatePine(`${HEAD}plot(close + str.length(syminfo.${field}))\n`)
       expect(r.ok).toBe(false)
@@ -336,11 +336,11 @@ describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () 
   // fix that happened to work for text predicates and nowhere else fails here.
   const NESTED = [
     ['inside a served TEXT op',
-      'plot(close + str.length(syminfo.session))', 'syminfo.session', 'str.length'],
+      'plot(close + str.length(syminfo.type))', 'syminfo.type', 'str.length'],
     ['inside served ARITHMETIC',
-      'plot(close * 2 + syminfo.pointvalue)', 'syminfo.pointvalue', null],
+      'plot(close * 2 + str.length(syminfo.description))', 'syminfo.description', null],
     ['inside a TERNARY arm',
-      'plot(close > 1 ? syminfo.currency : close)', 'syminfo.currency', null],
+      'plot(close > 1 ? syminfo.type : close)', 'syminfo.type', null],
   ]
   for (const [label, body, inner, outer] of NESTED) {
     it(`⛔ the INNERMOST unserved name is the one refused — ${label}`, () => {
@@ -361,7 +361,8 @@ describe('⛔ the unserved fields refuse BY NAME, with their own sentences', () 
 
   it('⭐ …while the three symbol-scoped names DO resolve at the door', () => {
     expect(Object.keys(BUILTIN_SYMBOL_SCOPED).sort())
-      .toEqual(['syminfo.prefix', 'syminfo.ticker', 'syminfo.tickerid'])
+      .toEqual(['syminfo.basecurrency', 'syminfo.currency', 'syminfo.prefix', 'syminfo.root',
+        'syminfo.session', 'syminfo.ticker', 'syminfo.tickerid', 'syminfo.timezone'])
     const r = translatePine(
       `${HEAD}isRatio = str.contains(syminfo.ticker, "/")\nplot(isRatio ? 0 : close)\n`)
     expect(r.refusal, r.refusal && r.refusal.what).toBe(null)

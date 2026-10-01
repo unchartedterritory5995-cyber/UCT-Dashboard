@@ -60,6 +60,7 @@
 
 import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
+import { wholeTransparency } from '../colorInt.js'
 
 /** Bumped only when the stored shape changes incompatibly. */
 export const OBJECT_PROGRAM_VERSION = 1
@@ -282,8 +283,11 @@ export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop
 export function withObjectTransparency(hex, t) {
   const base = /^#[0-9a-f]{6}/i.exec(String(hex || ''))
   if (!base) return null
-  if (!(t > 0)) return base[0]
-  const alpha = Math.round((1 - Math.min(100, t) / 100) * 255)
+  // ⭐ C29 — Pine holds a WHOLE transparency, truncated (`color.new(c, 70.5)` is
+  // 70; measured on `vw-gradient-spy-1d-2026-09-30`).
+  const tw = wholeTransparency(t)
+  if (!(tw > 0)) return base[0]
+  const alpha = Math.round((1 - Math.min(100, tw) / 100) * 255)
   return base[0] + alpha.toString(16).padStart(2, '0').toUpperCase()
 }
 
@@ -387,6 +391,16 @@ export const GETTER_PROPS = Object.freeze({
  *                         stops and nothing is drawn, as TradingView draws nothing
  */
 export const MAX_BARS_BACK_CAP = 5000
+
+/** ⭐⭐ C29 (C9, measured 2026-09-30) — the history TradingView's AUTOMATIC buffer
+ *  was measured to cover when a script declares NO `max_bars_back`: dynamic
+ *  offsets 0..399 ran with no error and read the vendor's own bars
+ *  (`vw-mbb-auto-spy-1d-2026-09-30.json`). A read built without a declared
+ *  buffer carries `limit: AUTO_MAX_BARS_BACK, auto: true`; an offset at or past
+ *  it is UNMEASURED and the op is withheld on that bar (never a runtime error,
+ *  never a guess). And an `na` offset reads the CURRENT bar (`x[na]` is `x`,
+ *  measured on `vw-offset-na-spy-1d-2026-09-30.json`: all 100 na-offset bars). */
+export const AUTO_MAX_BARS_BACK = 400
 
 /**
  * ⭐⭐ C14 (2026-09-29) — A GETTER'S NUMBER, WHERE PINE READS IT. The runtime
@@ -694,6 +708,9 @@ function assertValueRef(v, where, live = null) {
       }
       if (!Number.isInteger(v.limit) || v.limit < 1 || v.limit > MAX_BARS_BACK_CAP) {
         throw new Error(`${where}: a history read needs the script's max_bars_back (1..${MAX_BARS_BACK_CAP}), got ${JSON.stringify(v.limit)}`)
+      }
+      if (v.auto !== undefined && (v.auto !== true || v.limit !== AUTO_MAX_BARS_BACK)) {
+        throw new Error(`${where}: an automatic-buffer history read is bounded by AUTO_MAX_BARS_BACK (${AUTO_MAX_BARS_BACK})`)
       }
       v.args.forEach((a, i) => assertValueRef(a, `${where}.args[${i}]`, live))
       return
