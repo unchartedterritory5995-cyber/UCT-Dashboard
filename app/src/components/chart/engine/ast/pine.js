@@ -123,7 +123,7 @@ import { splitMethodName } from './ufcs.js'
 import {
   OBJECT_PROGRAM_VERSION, DEFAULT_OBJECT_LIMITS,
   FAMILY_PROPS as OBJECT_FAMILY_PROPS, CELL_PROPS as OBJECT_CELL_PROPS,
-  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK,
+  MAX_COLLECTION_CAP as MAX_OBJECT_COLLECTION_CAP, OBJECT_VALUE_OPS, MAX_HANDLE_BACK, BAR_COORD_PROPS,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
   withObjectTransparency,
@@ -7641,12 +7641,62 @@ export class Resolver {
       // keeps the refusal below.
       if (why && member === 'size' && w.readAbove && w.readAbove(pos)) {
         member = 'sizePrev'
+      } else if (why && this.windowAmbiguity && !w.sizeOnly && w.readBetween && w.readBetween(pos)
+          && (BETWEEN_READ_MEMBERS.has(member)
+            || (BETWEEN_LITERAL_MEMBERS.has(member) && args[1] && args[1].type === 'number'))) {
+        // ⭐⭐ C43 — BETWEEN ITS ADD AND ITS REMOVAL the read is the model on
+        // every bar no add ran (`windowReadBetween`), and unknown on a bar one
+        // did: served with that ambiguity, where a drawing step can be withheld.
+        const tree = this.resolveWindowReadBetween(w, member, args, node)
+        if (tree) return tree
+        throw new PineRefusal('pine:collection',
+          `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`,
+          locate(node.tok))
       } else if (why) {
         throw new PineRefusal('pine:collection',
           `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`,
           locate(node.tok))
       }
     }
+    return this.resolveWindowReadPlaced(w, member, args, node)
+  }
+
+  /** ⭐⭐ C43 — a window read standing BETWEEN the add and the removal
+   *  (`windowReadBetween`): `<an add ran this bar> ? na : <the read>`, its own
+   *  tree (so the same read after the last writer keeps its own, unambiguous
+   *  one), registered with the ambiguity "an add ran this bar". Null when the
+   *  add runs on EVERY bar (no bar is exact); the plain read when it never runs.
+   *  Memoised per window like every placed read. */
+  resolveWindowReadBetween(w, member, args, node) {
+    // the read as the bar leaves the window — memoised, and it re-registers its
+    // own ambiguity (an empty window, an `na` element) in this registry
+    const base = this.resolveWindowReadPlaced(w, member, args, node)
+    const memoKey = `between:${member}:${BETWEEN_LITERAL_MEMBERS.has(member) ? args[1].value : ''}`
+    if (!w.readMemo) w.readMemo = new Map()
+    const hit = w.readMemo.get(memoKey)
+    if (hit) {
+      if (hit.amb && !this.windowAmbiguity.has(hit.key)) this.windowAmbiguity.set(hit.key, hit.amb)
+      return hit.tree
+    }
+    const ran = this.condition(this.resolveWindowReadOnce(w, 'addRan', args, node), 'ternary', node.tok)
+    let entry
+    if (ran.type === 'num') {
+      entry = { tree: ran.value !== 0 ? null : base, key: null, amb: null }
+    } else {
+      const tree = cOp('?:', [ran, cOp('/', [cNum(0), cNum(0)]), base])
+      let key = null
+      try { key = printFormula(tree) } catch { key = null }
+      entry = key === null ? { tree: null, key: null, amb: null } : { tree, key, amb: ran }
+      if (key !== null) this.windowAmbiguity.set(key, ran)
+    }
+    w.readMemo.set(memoKey, entry)
+    this.firstTimeWork += 1
+    return entry.tree
+  }
+
+  /** One read of a bounded window at a position the model is exact at (or one
+   *  `resolveWindowRead` has already re-spelled: `sizePrev`). */
+  resolveWindowReadPlaced(w, member, args, node) {
     // ⭐⭐ C32 — a read that is UNKNOWN on some bars (last bar's length on bar
     // 0; the length of a window too wide to unroll before it fills) is served
     // only where a drawing step can be withheld on those bars, memo or not.
@@ -7752,7 +7802,8 @@ export class Resolver {
     const refuse = (why) => new PineRefusal('pine:collection',
       `${REFUSALS['pine:collection']} — \`${w.name}\` is a bounded window this engine reads as a series, and ${why}`, at)
     const sizeTest = member === 'sizeAtLeast' || member === 'sizeBelow'
-    if (!WINDOW_READ_MEMBERS.has(member) && !sizeTest && member !== 'slot' && member !== 'sizePrev') throw refuse(`\`array.${member}\` of one is not folded`)
+    if (!WINDOW_READ_MEMBERS.has(member) && !sizeTest && member !== 'slot' && member !== 'sizePrev'
+        && member !== 'addRan') throw refuse(`\`array.${member}\` of one is not folded`)
     if (!w.env) throw refuse('it is read before the statement that fills it')
     // ⭐⭐ C32 — A WINDOW WIDER THAN `MAX_WINDOW_CAP` (`arrayWindows.js`,
     // `sizeOnly`) is read for its LENGTH only: every other read would unroll its
@@ -7787,6 +7838,12 @@ export class Resolver {
       for (let k = 1; k < sites.length; k += 1) {
         value = [P('('), P('('), ...siteConds[k], P(')'), P('?'), P('('), ...sites[k].value, P(')'), P(':'), ...value, P(')')]
       }
+    }
+    // ⭐ C43 — "an add ran on this bar": any site's condition, as the add reads it.
+    if (member === 'addRan') {
+      const prev = this.env
+      this.env = w.env
+      try { return this.resolve(parseWholeExpression(cond)) } finally { this.env = prev }
     }
     const vw = (src, j) => [I('ta.valuewhen'), P('('), ...cond, P(','), P('('), ...src, P(')'), P(','), N(j), P(')')]
     // ⛔ A BAR TWO SITES MAY BOTH ADD ON gains two elements, which this one-per-
@@ -13181,6 +13238,13 @@ function userArrayWriters(stmts) {
  *  (`Resolver.inlineReadMethod`). Anything else keeps the refusal it had. */
 /** ⭐ C11c — the window reductions the object pass folds (`resolveWindowRead`). */
 const REDUCTION_MEMBERS = new Set(['max', 'min', 'sum', 'avg'])
+/** ⭐ C43 — the reads served BETWEEN a window's add and its removal, with the
+ *  bar's own add as their ambiguity (`Resolver.resolveWindowReadBetween`); a
+ *  `get` at a literal index and a length test against a literal
+ *  (`windowSizeComparison`) join them. A search and a series index keep the
+ *  positional refusal. */
+const BETWEEN_READ_MEMBERS = new Set(['size', 'first', 'last', 'max', 'min', 'sum', 'avg'])
+const BETWEEN_LITERAL_MEMBERS = new Set(['get', 'sizeAtLeast', 'sizeBelow'])
 const READ_METHOD_WRITES = new Set(['push', 'unshift', 'pop', 'shift', 'set', 'insert', 'remove',
   'clear', 'fill', 'sort', 'reverse', 'concat'])
 function readMethodDefs(stmts) {
@@ -14819,6 +14883,26 @@ function windowReadVerdict(m, stmts, writerStmts) {
   }
 }
 
+/** ⭐⭐ C43 — does a read at position `p` stand BETWEEN the window's writing
+ *  statements — after its first, before the end of its last, inside none of
+ *  them (trend-duration's `if not trend … bearishCount.avg()` block, between
+ *  the flip block's `push` and the `if size() > samples → shift()` below it)?
+ *  There the array is exactly what LAST bar left on every bar no add has run:
+ *  nothing grew, so no removal fires, and the model — the window as the bar
+ *  leaves it — is that same array. On a bar an add ran it may hold one element
+ *  more than its cap, which the model does not say: `Resolver.resolveWindowRead`
+ *  serves the read with that ambiguity registered, so a step reading it there
+ *  is withheld on those bars and exact on every other. */
+function windowReadBetween(m, stmts, writerStmts) {
+  const writerSpans = writerStmts.map(spanOf)
+  const addSpans = m.addSpans || [m.addSpan]
+  const firstFrom = spanOf(stmts[m.firstWriter]).from
+  const lastTo = spanOf(stmts[m.lastWriter]).to
+  const inside = (p, s) => !!s && p >= s.from && p <= s.to
+  return (p) => Number.isFinite(p) && p >= firstFrom && p <= lastTo
+    && !addSpans.some((s) => inside(p, s)) && !writerSpans.some((s) => inside(p, s))
+}
+
 /** ⭐⭐ C32 — does a read at position `p` stand ABOVE the window's first
  *  writing statement, where the array still holds last bar's elements? (Its
  *  LENGTH there is the model one bar back — `Resolver` member `sizePrev`.) */
@@ -15203,6 +15287,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         m.bodySpan = bodySpan
         m.readVerdict = windowReadVerdict(m, b.stmts, writers)
         m.readAbove = windowReadAbove(m, b.stmts)
+        m.readBetween = windowReadBetween(m, b.stmts, writers)
         vec.window = m
       }
     }
@@ -16658,6 +16743,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (stateOk) {
       const s = stateOperand(node)
       if (s) return s
+      // ⭐ C43 — a getter in arithmetic, as a BAR coordinate (see `stateArith`).
+      if (BAR_COORD_PROPS.includes(slot) && readsState(node)) {
+        const a = stateArith(node)
+        if (a) return a.v === 'op' && a.op === 'trunc' ? a : { v: 'op', op: 'trunc', args: [a] }
+      }
     }
     // ⭐ C25 — a loop scalar, whole, inside its loop (`scalarRef` says where).
     if (loopIds.length) {
@@ -17190,6 +17280,60 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return g
     }
     return scalarRef(node, inline)
+  }
+  /** ⭐⭐ C43 — A GETTER IN ARITHMETIC, AS A BAR COORDINATE (2026-09-30).
+   *
+   *  trend-duration-forecast extends its line every bar by an average:
+   *  `LengthLine.set_x2(LengthLine.get_x1() + bullishCount.avg() + 1)`, and puts
+   *  a label at its middle: `LabelProbLen.set_x(int(math.avg(LengthLine.get_x1(),
+   *  LengthLine.get_x2())))`. The getter is the runtime's (C14) and the average a
+   *  per-bar tree; this joins them as the value operators the object runtime
+   *  already evaluates (`{v:'op'}`), read where the op stands — after the
+   *  `set_x2` the line above just ran.
+   *
+   *  ⭐ WHAT PINE DOES WITH THE FRACTION IS MEASURED
+   *  (`vw-int-array-avg-spy-1d-2026-09-30`): `array<int>.avg()` is the exact
+   *  float mean, and a float handed to an `int` x is TRUNCATED — means 1.5 /
+   *  1.33 / 1.67 give `get_x2() - get_x1()` 2, 2, 2 and 2.5 gives 3. So every
+   *  value built here is wrapped in `trunc` (`OBJECT_VALUE_UNARY`), as an
+   *  explicit `int(…)` is (truncation toward zero, `vw-int-cast`).
+   *  ⛔ Only a NON-NEGATIVE result: every measured sum is positive, so truncation
+   *  and floor are not told apart — the runtime holds the coordinate instead of
+   *  writing a negative one (`truncNegative`).
+   *
+   *  ⛔ EXACTLY: `+` / `-` over whole getters (`stateOperand`), C14 scalars and
+   *  getter-free values; `int(x)`; `math.avg(a, b)` of two such. Only for a bar
+   *  coordinate (`objectProgram.js::BAR_COORD_PROPS`, which the validator holds
+   *  too), only outside a loop body (`stateOk`).
+   *  A price, a colour, a text, `*` / `/`, a getter's history — still refused. */
+  const stateArith = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 16) return null
+    const s = stateOperand(node)
+    if (s) return s
+    if (!readsState(node)) {
+      // a getter-free operand is an ordinary number: a literal, `bar_index`, a tree
+      if (node.type === 'string' || node.type === 'colour') return null
+      const v = valueRef(node)
+      return v && ['const', 'bar', 'tree', 'graph', 'param', 'at'].includes(v.v)
+        && !(v.v === 'const' && typeof v.value !== 'number') ? v : null
+    }
+    if (node.type === 'binary' && (node.op === '+' || node.op === '-')) {
+      const a = stateArith(node.left, depth + 1)
+      const b = a && stateArith(node.right, depth + 1)
+      return a && b ? { v: 'op', op: node.op, args: [a, b] } : null
+    }
+    const args = node.type === 'call' && Array.isArray(node.args) && !node.args.some((x) => !x || x.name)
+      ? node.args.map((x) => x.value) : null
+    if (args && node.name === 'int' && args.length === 1) {
+      const a = stateArith(args[0], depth + 1)
+      return a ? { v: 'op', op: 'trunc', args: [a] } : null
+    }
+    if (args && node.name === 'math.avg' && args.length === 2) {
+      const a = stateArith(args[0], depth + 1)
+      const b = a && stateArith(args[1], depth + 1)
+      return a && b ? { v: 'op', op: '/', args: [{ v: 'op', op: '+', args: [a, b] }, { v: 'const', value: 2 }] } : null
+    }
+    return null
   }
   /** A getter-free node → its interned tree; a bare getter → its `get` ref.
    *  ⭐ C16: a bare `array.size(bs)` → its `size` ref, and `+ - *` over live
@@ -19490,6 +19634,7 @@ function translatePineResult(source, opts = {}) {
     const m = got.model
     m.readVerdict = windowReadVerdict(m, stmts, stmts.filter((s) => vec.writers.some((w) => w.stmt === s)))
     m.readAbove = windowReadAbove(m, stmts)
+    m.readBetween = windowReadBetween(m, stmts, stmts.filter((s) => vec.writers.some((w) => w.stmt === s)))
     // a token inside a function DEFINITION is read at the call (`windowReadPos`)
     m.inDefinition = (p) => definitionSpans.some((s) => p >= s.from && p <= s.to)
     vec.window = m

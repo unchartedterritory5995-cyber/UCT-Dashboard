@@ -312,8 +312,13 @@ export const OBJECT_VALUE_OPS = Object.freeze(['+', '-', '*', '/'])
 /** ⭐ C25 — the one-argument address forms: a counter's MIDPOINT
  *  (`math.round((left + right) / 2)`, the bar a drawn candle's wick stands on)
  *  is `/` then `round`. Both are the tree lane's own arithmetic
- *  (`interpret.js::BINARY` / `POINTWISE`), read by the runtime, never restated. */
-export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round'])
+ *  (`interpret.js::BINARY` / `POINTWISE`), read by the runtime, never restated.
+ *  ⭐ C43 — `trunc`: a float handed to an `int` bar coordinate, and `int(x)` —
+ *  Pine drops the fraction (measured non-negative, `vw-int-array-avg`). */
+export const OBJECT_VALUE_UNARY = Object.freeze(['-', 'round', 'trunc'])
+/** ⭐ C43 — the BAR coordinates: the only properties whose value may be a getter
+ *  in arithmetic (`pine.js::stateArith`). A price, a text, a colour may not. */
+export const BAR_COORD_PROPS = Object.freeze(['x', 'x1', 'x2', 'left', 'right'])
 
 /**
  * ⭐⭐ A GUARD THAT READS OBJECT STATE — `ta.crossunder(high, box1.get_bottom())`.
@@ -412,7 +417,9 @@ export const AUTO_MAX_BARS_BACK = 400
  *                                            a WHOLE coordinate, a text `if` operand
  *
  * ⛔ A bare `get`/`num` is legal as a whole create/update coordinate and in a
- * text `if` condition too — never inside arithmetic, a colour, a cell or a loop.
+ * text `if` condition too — never a colour, a cell or a loop. ⭐ C43: and under
+ * the value operators (`{v:'op'}`) in a create/update coordinate — a getter in
+ * arithmetic, `pine.js::stateArith`, a bar coordinate only.
  * The converter (`pine.js`, `staleReads`/`statePass`) decides where it is exact.
  */
 /** The value-reference kinds whose `args` are value references too. */
@@ -566,6 +573,12 @@ function assertColorNode(v, where, depth = 0) {
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
   }
+}
+
+/** ⭐ C43 — is this a value operator with a getter (or a C14 scalar) beneath it? */
+function opReadsState(v, depth = 0) {
+  if (!isObj(v) || v.v !== 'op' || depth > 32 || !Array.isArray(v.args)) return false
+  return v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || opReadsState(a, depth + 1)))
 }
 
 /** Does this value reference read object state anywhere beneath it? */
@@ -1082,7 +1095,10 @@ function assertProps(op, where, family, regs, colls, siteFamily, live = null) {
     }
     // ⭐ C14 — a WHOLE coordinate may read object state; a text `if` may test it.
     if (live && v.v === 'text') assertTextNode(v.node, where, 0, live)
-    else assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num') ? live : null)
+    else {
+      assertValueRef(v, `${where}.props.${k}`, live && (v.v === 'get' || v.v === 'num'
+        || (BAR_COORD_PROPS.includes(k) && opReadsState(v))) ? live : null)
+    }
   }
 }
 

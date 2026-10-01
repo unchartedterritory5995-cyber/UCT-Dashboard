@@ -187,12 +187,16 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       'if w.size() > 0',
       '    label.new(bar_index, w.get(0), "x")',
     ].join('\n') + '\n'))
-    it('a read BEFORE the last write', () => refusedWith([
+    // ⚰️ `w.last()` BEFORE the last write was refused here until C43. Between the
+    // add and the removal the array is last bar's on every bar no add ran, so it
+    // is served there and withheld on the bars one did
+    // (`objectWindowPositions.test.js`). Still refused where it stands: a SEARCH.
+    it('a search BEFORE the last write', () => refusedWith([
       'var w = array.new_float()',
       'if close > open',
       '    w.push(high)',
       'if w.size() > 0',
-      '    label.new(bar_index, w.last(), "x")',
+      '    label.new(bar_index, w.indexof(high), "x")',
       'if w.size() > 3',
       '    w.shift()',
     ].join('\n') + '\n'))

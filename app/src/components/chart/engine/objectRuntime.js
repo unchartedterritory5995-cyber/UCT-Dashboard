@@ -63,6 +63,17 @@ export const OBJECT_STATUS = Object.freeze({
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+/** ⭐⭐ C43 — `str.tostring(x)` with NO format: ten decimals, trailing zeros
+ *  trimmed (see `formatNumber`). Exported for the rails that replay a vendor
+ *  text, so they ask the formatter instead of restating it. */
+export function defaultNumberText(n) {
+  if (!Number.isFinite(n)) return 'NaN'
+  const s = n.toFixed(10)
+  // `toFixed` answers in exponent form from 1e21 up; the plain number is all there is
+  if (!/^-?\d+\.\d{10}$/.test(s)) return String(n)
+  return s.replace(/0+$/, '').replace(/\.$/, '')
+}
+
 /** Pine's own ceiling on an array's length (the reference: "the maximum size of
  *  an array is 100,000"). A collection that would pass it stops the run, as
  *  Pine's runtime error stops the script. */
@@ -184,6 +195,31 @@ export function beginObjects(program, ctx) {
   let withheldUnknown = 0
   /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
   let propsUnmeasured = 0
+  /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
+   *  stateArith`: `l.set_x2(l.get_x1() + w.avg() + 1)`). The fraction Pine drops
+   *  from a float handed to an `int` coordinate is measured for NON-NEGATIVE
+   *  values only (`vw-int-array-avg`: truncation and floor agree there), so a
+   *  negative one is counted (`truncNegative`) and not written; a getter of an
+   *  empty register or an `na` operand has no number either. The op still runs —
+   *  Pine ran it — and the coordinate is MARKED unknown (C17's per-property
+   *  taint), never left at the value before: a later clean write clears it, an
+   *  object still marked at the end is held, not drawn. */
+  let truncNegative = 0
+  let propsUnsaid = 0
+  const stateArithKeys = new WeakMap()
+  const readsStateOp = (v, depth = 0) => isObj(v) && v.v === 'op' && depth < 32 && Array.isArray(v.args)
+    && v.args.some((a) => isObj(a) && (a.v === 'get' || a.v === 'num' || readsStateOp(a, depth + 1)))
+  const unsaidProps = (op, resolved) => {
+    let keys = stateArithKeys.get(op)
+    if (!keys) {
+      keys = Object.entries(op.props || {}).filter(([, v]) => readsStateOp(v)).map(([k]) => k)
+      stateArithKeys.set(op, keys)
+    }
+    if (!keys.length) return NO_PROPS
+    const bad = keys.filter((k) => !(typeof resolved[k] === 'number' && Number.isFinite(resolved[k])))
+    propsUnsaid += bad.length
+    return bad
+  }
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -697,8 +733,14 @@ export function beginObjects(program, ctx) {
     const formatNumber = (n, fmt) => {
       if (!Number.isFinite(n)) return 'NaN'
       if (typeof fmt !== 'string' || !fmt) {
-        // Pine's default: up to 10 significant digits, trailing zeros trimmed.
-        return String(Number(n.toPrecision(10)))
+        // ⭐⭐ C43 — Pine's default is TEN DECIMALS, trailing zeros trimmed
+        // (`#.##########`), MEASURED: `str.tostring(4 / 3)` prints `1.3333333333`
+        // (`vw-int-array-avg-spy-1d-2026-09-30`) and `str.tostring(hlc3)` prints
+        // `151.5633333333` (`vw-fn-series-history-rddt-1d-2026-09-30`) — thirteen
+        // significant digits. ⚰️ This kept ten SIGNIFICANT digits (`toPrecision`,
+        // never read off a chart): `1.333333333`, a digit short, and a price in
+        // the hundreds three short.
+        return defaultNumberText(n)
       }
       // ⛔ THE WHOLE STRING MUST BE UNDERSTOOD. Stripping unknown characters and
       // formatting the remainder is how `'#,###'` would silently become `'####'`.
@@ -856,6 +898,12 @@ export function beginObjects(program, ctx) {
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
           // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
           // from zero), never `Math.round`, which sends -2.5 to -2.
+          // ⭐ C43 — `trunc`: the fraction dropped, served non-negative only
+          // (see `truncNegative`); a negative one answers `undefined`.
+          if (ref.args.length === 1 && ref.op === 'trunc') {
+            if (a < 0) { truncNegative += 1; return undefined }
+            return Math.trunc(a)
+          }
           if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
@@ -1380,7 +1428,12 @@ export function beginObjects(program, ctx) {
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
           // something tainted is what stays unknown on it (C22: or read an
           // unmeasured reduction on this bar).
-          { const um = unmeasuredProps(op); taintInst(id, um.length ? [...taintedProps(op.props), ...um] : taintedProps(op.props)) }
+          {
+            const um = unmeasuredProps(op)
+            const unsaid = unsaidProps(op, props)
+            if (unsaid.length) taintSeen = true
+            taintInst(id, um.length || unsaid.length ? [...taintedProps(op.props), ...um, ...unsaid] : taintedProps(op.props))
+          }
           // ⭐ C20 — a colour asked of the runtime that it could not serve exactly
           // (transparent, or a transparency this engine has not measured) holds
           // the object: drawn in a default colour it would be a colour Pine did
@@ -1409,8 +1462,11 @@ export function beginObjects(program, ctx) {
           resolveProps(op.props, inst.props)
           // ⭐ C17 — a clean write clears its property; a tainted value marks it.
           const um = unmeasuredProps(op)
+          // ⭐ C43 — a getter in arithmetic this bar could not say marks its coordinate.
+          const unsaid = unsaidProps(op, inst.props)
+          if (unsaid.length) taintSeen = true
           if (taintSeen) {
-            const bad = new Set([...taintedProps(op.props), ...um])
+            const bad = new Set([...taintedProps(op.props), ...um, ...unsaid])
             for (const k of Object.keys(op.props || {})) {
               if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
             }
@@ -1797,6 +1853,8 @@ export function beginObjects(program, ctx) {
       ...(atBeyondAuto ? { atBeyondAutoBuffer: atBeyondAuto } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
+      ...(propsUnsaid ? { propsUnsaid } : {}),
+      ...(truncNegative ? { truncNegative } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),
