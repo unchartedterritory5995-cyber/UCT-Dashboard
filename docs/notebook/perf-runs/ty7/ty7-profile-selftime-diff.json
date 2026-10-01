@@ -1,0 +1,327 @@
+{
+ "small": 1,
+ "big": 2000,
+ "chars": 200,
+ "rows": [
+  {
+   "functionName": "stringifyNode",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 952,
+   "ms_per_key_small": 0.01471,
+   "ms_per_key_big": 1.41997,
+   "delta_ms_per_key": 1.40526
+  },
+  {
+   "functionName": "commitBeforeMutationEffects",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 6689,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.85102,
+   "delta_ms_per_key": 0.85102
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "ms_per_key_small": 0.03936,
+   "ms_per_key_big": 0.5458,
+   "delta_ms_per_key": 0.50644
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "ms_per_key_small": 0.09821,
+   "ms_per_key_big": 0.38544,
+   "delta_ms_per_key": 0.28723
+  },
+  {
+   "functionName": "get isLeaf",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 2082,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.24662,
+   "delta_ms_per_key": 0.24662
+  },
+  {
+   "functionName": "nodesBetween",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 191,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.18881,
+   "delta_ms_per_key": 0.18881
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1174,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.15758,
+   "delta_ms_per_key": 0.15758
+  },
+  {
+   "functionName": "forEach",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 355,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.13347,
+   "delta_ms_per_key": 0.13347
+  },
+  {
+   "functionName": "child",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 339,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.10497,
+   "delta_ms_per_key": 0.10497
+  },
+  {
+   "functionName": "toJSON",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 931,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.09203,
+   "delta_ms_per_key": 0.09203
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/tiptap-BuSDS1ve.js",
+   "line": 6473,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.08277,
+   "delta_ms_per_key": 0.08277
+  },
+  {
+   "functionName": "matchType",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1632,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.08223,
+   "delta_ms_per_key": 0.08223
+  },
+  {
+   "functionName": "createCan",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12114,
+   "ms_per_key_small": 0.19544,
+   "ms_per_key_big": 0.26932,
+   "delta_ms_per_key": 0.07388
+  },
+  {
+   "functionName": "matchFragment",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1642,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.06309,
+   "delta_ms_per_key": 0.06309
+  },
+  {
+   "functionName": "get size",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7931,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.0623,
+   "delta_ms_per_key": 0.0623
+  },
+  {
+   "functionName": "posBeforeChild",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7398,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.06157,
+   "delta_ms_per_key": 0.06157
+  },
+  {
+   "functionName": "walk",
+   "url": "http://127.0.0.1:8391/assets/tiptap-BuSDS1ve.js",
+   "line": 6472,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.05761,
+   "delta_ms_per_key": 0.05761
+  },
+  {
+   "functionName": "stageNoteWithIntent",
+   "url": "http://127.0.0.1:8391/assets/offlineFlag-BGIGI264.js",
+   "line": 94,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.05508,
+   "delta_ms_per_key": 0.05508
+  },
+  {
+   "functionName": "batchedUpdates$1",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1583,
+   "ms_per_key_small": 0.02031,
+   "ms_per_key_big": 0.07384,
+   "delta_ms_per_key": 0.05353
+  },
+  {
+   "functionName": "propagateParentContextChanges",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2579,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.04693,
+   "delta_ms_per_key": 0.04693
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7309,
+   "ms_per_key_small": 0.03523,
+   "ms_per_key_big": 0.08171,
+   "delta_ms_per_key": 0.04648
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 10908,
+   "ms_per_key_small": 0.01589,
+   "ms_per_key_big": 0.06215,
+   "delta_ms_per_key": 0.04626
+  },
+  {
+   "functionName": "findNodeMatch",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 8372,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.04408,
+   "delta_ms_per_key": 0.04408
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 12121,
+   "ms_per_key_small": 0.03028,
+   "ms_per_key_big": 0.07372,
+   "delta_ms_per_key": 0.04344
+  },
+  {
+   "functionName": "eq",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 309,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.04181,
+   "delta_ms_per_key": 0.04181
+  },
+  {
+   "functionName": "get isLeaf",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1424,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.04111,
+   "delta_ms_per_key": 0.04111
+  },
+  {
+   "functionName": "get nodeSize",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 1575,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.03932,
+   "delta_ms_per_key": 0.03932
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "ms_per_key_small": 0.0493,
+   "ms_per_key_big": 0.08855,
+   "delta_ms_per_key": 0.03925
+  },
+  {
+   "functionName": "commitRoot",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8672,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.03879,
+   "delta_ms_per_key": 0.03879
+  },
+  {
+   "functionName": "SyntheticBaseEvent",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1663,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.03754,
+   "delta_ms_per_key": 0.03754
+  },
+  {
+   "functionName": "getActiveElementDeep",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2047,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.03393,
+   "delta_ms_per_key": 0.03393
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 6904,
+   "ms_per_key_small": 0.03081,
+   "ms_per_key_big": 0.06265,
+   "delta_ms_per_key": 0.03184
+  },
+  {
+   "functionName": "getRootForUpdatedFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2174,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.03148,
+   "delta_ms_per_key": 0.03148
+  },
+  {
+   "functionName": "req.onsuccess",
+   "url": "http://127.0.0.1:8391/assets/offlineFlag-BGIGI264.js",
+   "line": 150,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.02963,
+   "delta_ms_per_key": 0.02963
+  },
+  {
+   "functionName": "updateStateInner",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 11528,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.02807,
+   "delta_ms_per_key": 0.02807
+  },
+  {
+   "functionName": "NoteEditorPage",
+   "url": "http://127.0.0.1:8391/assets/NotebookFlagGate-BnsQLb9y.js",
+   "line": 7008,
+   "ms_per_key_small": 0.13984,
+   "ms_per_key_big": 0.16776,
+   "delta_ms_per_key": 0.02792
+  },
+  {
+   "functionName": "setSelection",
+   "url": "http://127.0.0.1:8391/assets/askInsert-ktnvBCjI.js",
+   "line": 7617,
+   "ms_per_key_small": 0.0,
+   "ms_per_key_big": 0.02611,
+   "delta_ms_per_key": 0.02611
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "ms_per_key_small": 0.03236,
+   "ms_per_key_big": 0.05761,
+   "delta_ms_per_key": 0.02525
+  },
+  {
+   "functionName": "useSWRHandler",
+   "url": "http://127.0.0.1:8391/assets/vendor-swr-DKTmVg48.js",
+   "line": 1101,
+   "ms_per_key_small": 0.04257,
+   "ms_per_key_big": 0.06578,
+   "delta_ms_per_key": 0.02321
+  },
+  {
+   "functionName": "createWorkInProgress",
+   "url": "http://127.0.0.1:8391/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2203,
+   "ms_per_key_small": 0.01746,
+   "ms_per_key_big": 0.03947,
+   "delta_ms_per_key": 0.02201
+  }
+ ]
+}
