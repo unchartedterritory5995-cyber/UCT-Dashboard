@@ -184,8 +184,12 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
   // ⚰️ "W" and "M" left this list on 2026-09-30 (C30): the vendor capture
   // `vw-time-tf-spy-1d-2026-09-28` settled them on a DAILY chart, and
   // `vendorHarness.c30TimeAnchor.test.js` grades them bar for bar.
+  // ⚰️ `"60"` left it on 2026-09-30 (C36): the same capture's row T06 reads
+  // `time("60")` equal to `time` on every daily bar, and the 60m capture agrees —
+  // `vendorHarness.c36TimeFollowups.test.js`. `"15"` takes its place: nothing asked it.
   it('⛔ any OTHER period still refuses, with an updated message confirming "D" now works', () => {
-    for (const tf of ['"60"', '"6M"', '"2W"', '"1Y"']) {
+    expect(translatePine(S('ta.change(time("60")) != 0 ? 1 : 0'), { strict: true }).ok).toBe(true)
+    for (const tf of ['"15"', '"6M"', '"2W"', '"1Y"']) {
       const t = translatePine(S(`ta.change(time(${tf})) != 0 ? 1 : 0`), { strict: true })
       expect(t.ok, tf).toBe(false)
       expect(t.refusal.guard, tf).toBe('pine:function')
