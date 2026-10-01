@@ -93,6 +93,34 @@
 > `factType=analyst_price_target_consensus` -- is read in the table below. Evidence:
 > `docs/notebook/evidence/rollback-rehearsal-2026-09-30-r1f/` (`sandbox-results.md` is the table).
 >
+> ⭐ **RE-MEASURED A SIXTH TIME AT `c75bf6ea0` (L14 #260 + hotfix #261, production's tip,
+> 2026-10-01; lane R1g).** `L14` is the new top row. It ships real `app/`/`api/` Notebook code AND
+> its squash subject kept the literal word "wave" ("Notebook 10/10 wave 10 L14: ..."), so like L13
+> it is selected by SUBJECT AND PATH both -- no new `CHAIN_BY_PATH_ONLY` exception needed. Five
+> more path-only commits landed in the window (`a680b0d40..c75bf6ea0`): four are a Terminal
+> TERM-067 accessible-name pass, each touching exactly one shared file already in the derived
+> Notebook set (`desk/TeamSection.jsx`, `Settings.jsx` twice, `styles/tokens.css`) -- added to
+> `REVIEWED_NOT_LANDINGS`. The fifth is `c75bf6ea0` itself, `hotfix(tools) #261`: it un-pins
+> `tools/record_clock_parity.py` (a CI job without pytest runs it; `tools/` is a kept path
+> regardless) and adds a test to `tests/test_tools_pin_the_root.py` -- selected by the census ONLY
+> because L14 itself created that file -- also added to `REVIEWED_NOT_LANDINGS`. `MEASURED_AT`
+> moves past the hotfix, not left at L14's own sha, because a `REVIEWED_NOT_LANDINGS` entry must
+> fall inside the window the rail checks. **Unlike every prior re-measure, this one is NOT
+> conflict-free**: reverting L14 onto the new tip collides with the hotfix's own edit to
+> `tests/test_tools_pin_the_root.py` (a real modify/delete conflict, that file is not a
+> `KEEP_PATH`) -- resolved `"ours"` (keep the hotfix's newer, non-Notebook test-rail work, the same
+> shape as wave 7's `daily_counters.py` rule), one new rule and one new pin. All seven pins
+> recorded at `a680b0d40` for the steps below L14 came back byte-identical. `MEASURED_AT` is
+> `c75bf6ea0`. Rehearsed on a sandbox: the tip, through `L14` and through `L13`. L14's two doors --
+> a locked note's three append endpoints (`POST /api/j2/notes/{id}/embeds`,
+> `/facts/{id}/insert`, `/excerpts`) all answering 423, and `App.jsx`'s `INTRO_SKIP_PREFIXES`
+> keeping the brand film off `/share/n/:token` and `/p/:slug` for a signed-out stranger -- are read
+> in the table below. ⚠️ `origin/master` moved 46 commits further during this lane (an unrelated
+> Pine vendor-harness merge wave); none of it is selected by the census (`--check --from
+> origin/master` still reports `current`), and extending the chain to cover it is explicitly out
+> of this lane's scope -- the next lane re-reads `--check` from the live tip. Evidence:
+> `docs/notebook/evidence/rollback-rehearsal-2026-10-01-r1g/` (`sandbox-results.md` is the table).
+>
 > ⛔⛔ **"Roll back wave N" means: revert EVERY Notebook landing newer than or equal to N,
 > newest first.** Every wave is built on the ones before it and every one landed as a squash.
 > Reverting one old wave alone is not a procedure: measured 2026-09-26, reverting wave 5 by itself
@@ -143,6 +171,7 @@ python tools/notebook_rollback_chain.py --list
 
 | key | squash | landing | kept? |
 |---|---|---|---|
+| `L14` | `0e7d0561a` | wave 10 L14 #260 | |
 | `L13` | `a680b0d40` | wave 10 L13 #259 | |
 | `L12` | `599cd44f1` | wave 10 L12 #258 | |
 | `L10` | `8eb7f008b` | wave 10 L10 #257 | |
@@ -657,6 +686,56 @@ the record the rail rebuilds tree for tree):
   except the wave-5 test-file rule, which touches no shipped code.
 - In every boot, including the tip, the sandbox made real Anthropic calls, which were refused for
   credit balance. This comes from the launcher, not the chain. It is recorded, not investigated.
+
+## Measured, 2026-10-01: L14 #260 + hotfix #261 on top, from `a680b0d40` (lane R1g)
+
+**The chain from the new tip** (`evidence/rollback-rehearsal-2026-10-01-r1g/chain/chain-through-wave5.jsonl`,
+the record the rail rebuilds tree for tree):
+
+| `--through` key | product conflicts | new since 2026-09-30 (R1f) |
+|---|---|---|
+| `L14` | 1 (`tests/test_tools_pin_the_root.py`) | the new top step. Ships real `app/`/`api/` Notebook code (public links skip the intro, locked notes refuse captures, links open, tools kept off live data) -- its squash subject reads "Notebook 10/10 wave 10 L14: ..." (kept "wave"), so SUBJECT selects it directly; no `CHAIN_BY_PATH_ONLY` exception needed. **New rule**: hotfix #261 (`c75bf6ea0`, REVIEWED_NOT_LANDINGS, one commit above MEASURED_AT) further edits `tests/test_tools_pin_the_root.py` (L14's own tools-census-pin rail file); a real modify/delete conflict, resolved `"ours"` (keep the hotfix's newer, non-Notebook test-rail work -- same shape as wave 7's `daily_counters.py` rule) |
+| `L13`...`wave5`, guards | unchanged | -- (same rules, same pins) |
+
+- **All seven pins recorded at `a680b0d40` for the steps below L14 came back byte-identical**
+  from the new tip (`--record-pins --through wave5`, raw output
+  `evidence/rollback-rehearsal-2026-10-01-r1g/chain/record-pins-output.json`). L14's own revert is
+  **not** conflict-free -- one new rule and one new pin, `RULES["0e7d0561a"]["tests/test_tools_pin_the_root.py"] = "ours"`.
+- **The census of the new window** (`evidence/rollback-rehearsal-2026-10-01-r1g/check-before.log`,
+  the raw `--check` refusal before this lane's edit, from `origin/master` at `c75bf6ea0` before a
+  later, unrelated Pine merge wave landed): 5 commits selected -- `L14` by subject AND path (a real
+  landing, selected without any declared exception) and four more Terminal TERM-067 accessible-name
+  commits by path only (`f771f3d0b` Admin + Desk team form, `9601fe2c2` a Textarea primitive + Model
+  Book, `3735184f7` the whole Settings page, `79e16f694` Input/Select/Checkbox/FieldError + density
+  tokens), each touching exactly one shared file already in the derived Notebook set. A fifth
+  commit, the hotfix `c75bf6ea0` itself, was NOT yet selected at that census run (it only becomes
+  selectable once L14's own `tests/test_tools_pin_the_root.py` joins the derived Notebook set);
+  re-running `--check` after adding `L14` to `CHAIN` selects it too, by path. All five added to
+  `REVIEWED_NOT_LANDINGS`. A rail derives the window from the tool's own census and fails on any
+  selected commit that is neither in `CHAIN` nor reviewed.
+- **None of the four TERM-067 commits edits Notebook-owned code**: each touches its one shared file
+  (`desk/TeamSection.jsx`, `Settings.jsx` twice, `tokens.css`) purely to add an accessible name or a
+  UI primitive/density token -- read via their own diffs and commit messages.
+- **`MEASURED_AT` moves to `c75bf6ea0` (the hotfix), not to `L14`'s own sha** -- a
+  `REVIEWED_NOT_LANDINGS` entry must fall inside the window the rail checks
+  (`WAVE5^..MEASURED_AT`), and the hotfix is one commit above L14. The rail's own invariant was
+  generalised accordingly: the newest `CHAIN` landing must be an ancestor of (or equal to)
+  `MEASURED_AT`, not literally equal to it (`tests/test_notebook_rollback_chain.py::test_every_commit_since_the_previous_measurement_is_in_CHAIN_or_reviewed`).
+- ⚠️ **`origin/master` moved 46 commits further during this lane** (an unrelated Pine
+  vendor-harness/runtime merge wave, `19bcbf278c`..`46f54d80b5`). None of it is selected by the
+  census -- `--check --from origin/master` still reports `current` against the live tip
+  (`evidence/rollback-rehearsal-2026-10-01-r1g/check-origin-master-after.log`). Extending the chain
+  to cover it is out of this lane's scope; the next lane re-reads `--check` from the live tip.
+
+**The sandbox rehearsal, 2026-10-01 (lane R1g).**
+`evidence/rollback-rehearsal-2026-10-01-r1g/rehearse.py` (same method as R1's through R1f's) and
+`probe.py` (imports R1f's probe for the never-revert set, the per-landing doors, L7's door, L12's
+sort door, L10's template door and L13's analyst-consensus door; adds L14's two doors). First
+attempt at `s-L14` collided with another session's sandbox that had independently bound the same
+port (8231) in the 8230-8250 band; the identity proof refused to write and named the mismatch
+(`http://127.0.0.1:8231 is a hub sandbox, but not the one that writes ...`) -- moved to port 8242
+and re-ran clean. Full table:
+`evidence/rollback-rehearsal-2026-10-01-r1g/sandbox-results.md`.
 
 ## Measured, 2026-09-30: L13 #259 on top, from `599cd44f1` (lane R1f)
 
