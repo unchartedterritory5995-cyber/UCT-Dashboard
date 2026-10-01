@@ -102,6 +102,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
+import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -1616,6 +1617,9 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
   const other = otherSymbolsFor(def, ctx)
+  // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
+  // every tree of the document (`lowerTfFor`). Null for a document that reads none.
+  const lower = lowerTfFor(def, ctx)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -1700,7 +1704,8 @@ function astColumnsFor(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}), crossMemo })
+            ...(other ? { symbols: other.symbols } : {}),
+            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
         // exception a guard name, so a TypeError inside a walker was
@@ -1711,7 +1716,7 @@ function astColumnsFor(def, bars, inputs, ctx) {
             message: String((err && err.message) || err) }
       }
     }
-    return withOtherSymbols(withColumnErrors(out, errors), other)
+    return withLowerTf(withOtherSymbols(withColumnErrors(out, errors), other), lower)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -1734,13 +1739,49 @@ function astColumnsFor(def, bars, inputs, ctx) {
   // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
-  return withOtherSymbols({
+  return withLowerTf(withOtherSymbols({
     [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
       undefined, { tf: ctx && ctx.tf,
         newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
         ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}) }),
-  }, other)
+        ...(other ? { symbols: other.symbols } : {}),
+        ...(lower ? { lowerTf: lower.supply } : {}) }),
+  }, other), lower)
+}
+
+/** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
+ *  (`engine/lowerTf.js::resolveLowerTf`), or null when the document reads none.
+ *  Only the member door's Pine documents write an `ltf` node; the codes are its
+ *  stamp (`meta.lowerTf`), so a document that reads none costs one property read.
+ *  `ctx.lowerTf` is the chart's OWN symbol at each store timeframe
+ *  (`useLowerTfSources`); `ctx.tf` the chart's — or the frame's — timeframe. */
+export function lowerTfFor(def, ctx) {
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
+  if (!Array.isArray(def.meta.lowerTf) || !def.meta.lowerTf.length) return null
+  return resolveLowerTf(def, {
+    tf: ctx && ctx.tf,
+    lowerTf: ctx && ctx.lowerTf,
+    framed: !!(ctx && ctx.framed),
+  })
+}
+
+/** The key a column map carries its lower-timeframe decision under —
+ *  non-enumerable, like `__otherSymbols`. */
+const LOWER_TF = '__lowerTf'
+
+function withLowerTf(out, lower) {
+  if (lower) {
+    Object.defineProperty(out, LOWER_TF, {
+      value: Object.freeze({ served: lower.served, refused: lower.refused }), enumerable: false,
+    })
+  }
+  return out
+}
+
+/** ⭐ C41 — which lower-timeframe codes a computed column map was served, and
+ *  which were refused and why: `{served, refused: [{code, refusal, reason}]}`, or null. */
+export function lowerTfReport(columns) {
+  return (columns && columns[LOWER_TF]) || null
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),

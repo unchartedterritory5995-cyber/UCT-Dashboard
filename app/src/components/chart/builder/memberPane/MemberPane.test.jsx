@@ -140,9 +140,11 @@ describe('⭐⭐ flag ON — the pane is handed the member\'s own script', () =>
   })
 
   it('⛔ a refused script shows the REASON, not a blank', () => {
+    // ⚰️ C41: this used `"60"`, which is SERVED on a daily chart now (an `ltf` read).
+    // `"45"` names no timeframe this engine has, so it still refuses.
     const { getByTestId, queryByTestId } = render(
       <MemberPane sym="SPY" tf="D"
-        source={'//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "60", close))\n'} />)
+        source={'//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "45", close))\n'} />)
     expect(queryByTestId('pine-member-pane')).toBe(null)
     expect(getByTestId('pine-member-pane-refusal').textContent.length).toBeGreaterThan(0)
   })

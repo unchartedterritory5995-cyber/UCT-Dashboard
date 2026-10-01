@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-09-30",
+  "measured_at": "2026-10-01",
   "scripts": 266,
-  "host_ok": 58,
+  "host_ok": 59,
   "screener_ok": 58,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -1249,8 +1249,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:builtin",
-        "pine:request"
+        "pine:builtin"
       ],
       "screenerGuards": [
         "pine:builtin",
@@ -1525,11 +1524,9 @@
     },
     {
       "file": "mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8.pine",
-      "host": false,
+      "host": true,
       "screener": true,
-      "hostGuards": [
-        "pine:request"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:request"
       ]
@@ -2011,7 +2008,6 @@
         "pine:text-value",
         "pine:plot-offset",
         "pine:reassign",
-        "pine:request",
         "pine:window"
       ],
       "screenerGuards": [
@@ -2565,7 +2561,6 @@
       "screener": false,
       "hostGuards": [
         "pine:declaration-strategy",
-        "pine:request",
         "pine:strategy-call",
         "pine:hidden-only"
       ],

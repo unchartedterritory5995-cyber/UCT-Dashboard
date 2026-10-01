@@ -333,10 +333,26 @@ export const TF_BASE_BARS = Object.freeze({ W: 5, M: 21 })
  *  once per tree, so the gate that runs before a sweep and the gate that answers
  *  inside it cannot disagree. Mirrors `ast_interpret._assert_sym_placement`. */
 function assertSymPlacement(root, refuse) {
-  const stack = [[root, false]]
+  const stack = [[root, false, false, false]]
   while (stack.length) {
-    const [node, underTf] = stack.pop()
+    const [node, underTf, underRequest, underLtf] = stack.pop()
     if (!node || typeof node !== 'object') continue
+    // ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE. `ltf` hands its child the
+    // chart symbol's INTRADAY bars and maps the answer back onto the chart's own
+    // bars: under another request (`tf` / `tf_live` / `sym` / `ltf`) those are
+    // not the bars it would be mapped onto, and a request INSIDE it would
+    // resample or re-align intraday bars no capture shows TradingView reading.
+    // Refused here, statically, for the reason `sym` under `tf` is.
+    if (node.type === LTF && underRequest) {
+      refuse('interpret:timeframe',
+        '— a lower-timeframe read (`ltf`) cannot sit inside another request: it is mapped '
+        + 'onto the chart\'s own bars, and those are not the bars that request hands its child')
+    }
+    if (underLtf && (node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym')) {
+      refuse('interpret:timeframe',
+        `— a \`${node.type}\` read cannot sit inside a lower-timeframe read (\`ltf\`): `
+        + 'its child runs on intraday bars, and a request made from those is not one this engine reads')
+    }
     if (node.type === 'sym' && underTf) {
       const ticker = String(node.value)
       refuse('interpret:symbol',
@@ -347,8 +363,26 @@ function assertSymPlacement(root, refuse) {
         + `higher-timeframe bar: sym('${ticker}', tf(…)).`)
     }
     if (Array.isArray(node.args)) {
-      for (const a of node.args) stack.push([a, underTf || node.type === 'tf' || node.type === 'tf_live'])
+      const isTf = node.type === 'tf' || node.type === 'tf_live'
+      for (const a of node.args) {
+        stack.push([a, underTf || isTf, underRequest || isTf || node.type === 'sym' || node.type === LTF,
+          underLtf || node.type === LTF])
+      }
     }
+  }
+}
+
+/** ⭐ C41 — the node type of a read BELOW the chart's own timeframe
+ *  (`parse.js::NODE_TYPES`; the rules are `engine/lowerTf.js`'s). */
+const LTF = 'ltf'
+
+/** ⭐ C41 — an `ltf` node names a whole number of MINUTES and nothing else. Which
+ *  codes are SERVED is `engine/lowerTf.js`'s answer, given per binding as the
+ *  supply (`opts.lowerTf`); this only refuses a node no door writes. */
+function assertLowerCode(code, refuse) {
+  if (!/^[1-9][0-9]*$/.test(code)) {
+    refuse('interpret:timeframe',
+      `— a lower-timeframe read (\`ltf\`) names a whole number of minutes; got ${JSON.stringify(code)}`)
   }
 }
 
@@ -2946,7 +2980,7 @@ function flatten(root) {
     // children nothing checked.
     if (node.type === 'op' || node.type === 'call' || node.type === 'offset'
         || node.type === 'tf' || node.type === 'sym' || node.type === 'tf_live'
-        || node.type === 'textop') {
+        || node.type === LTF || node.type === 'textop') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -3381,6 +3415,17 @@ export function maxLookback(ast) {
       seen.set(node, seen.get(node.args[0]))
       continue
     }
+    if (node.type === LTF) {
+      // ⭐ C41 — THE CHILD'S OWN, UNMULTIPLIED, and an UPPER bound in chart bars:
+      // the child's reach is counted in INTRABARS and every chart bar holds at
+      // least one, so it can never need more chart bars than that. Rounding up is
+      // the safe direction (the `tf` arm's argument). How far back the INTRADAY
+      // supply must reach is `lowerTf.js::lowerTfFetchPlan`'s, not this number's.
+      // Mirrors `ast_interpret.max_lookback`'s `ltf` arm.
+      assertLowerCode(String(node.value), refuse)
+      seen.set(node, seen.get(node.args[0]))
+      continue
+    }
     if (node.type === 'offset') {
       // ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM. `sma(close[2], 20)` needs
       // 20 + 2 bars and `close[2]` alone needs 2; the offset ADDS to whatever
@@ -3554,7 +3599,7 @@ export function nodeCount(ast, held) {
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
  *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym'])
+const SCOPE_TYPES = new Set(['tf', 'tf_live', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -3779,7 +3824,91 @@ function readsClock(ast, table) {
  *  may be the memoised one another plot shares. */
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
   const out = withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
-  return withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts)
+  return withLowerTfWithheld(ast, bars, withPeriodAnchorWithheld(ast, bars, out, inputs, budget, scalars, opts), opts)
+}
+
+/** The supply for one lower-timeframe code, or null when the caller gave none:
+ *  `{bars: intraday bars, groups(chartBars, reach) → (number[]|null)[]}`. */
+function lowerSupplyOf(opts, code) {
+  const all = opts && opts.lowerTf
+  const sup = all && typeof all === 'object' && Object.prototype.hasOwnProperty.call(all, code) ? all[code] : null
+  return sup && Array.isArray(sup.bars) && sup.bars.length && typeof sup.groups === 'function' ? sup : null
+}
+
+/** ⭐⭐ C41 — DOES THIS TREE READ BELOW THE CHART'S TIMEFRAME? Iterative. */
+export function treeReadsLowerTf(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === LTF) return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** ⭐⭐ C41 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON A LOWER-TIMEFRAME READ WE
+ *  CANNOT MAKE, as a 0/1 column (1 = withheld), or null when the tree holds no
+ *  `ltf` node.
+ *
+ *  A chart bar's `ltf` read is unknown when the supply does not cover it WHOLE
+ *  (`lowerTf.js::intrabarGroups`: a session of its period incomplete, an
+ *  intrabar missing within the child's reach, the reach running off the front of
+ *  our intraday history) or when no supply was given at all. TradingView holds a
+ *  value there — or `na`, where ITS intraday history ends, which is not ours to
+ *  know — so a `NaN` would read downstream as Pine's `na` (`nz` → 0, `na(x)` →
+ *  true): a confident wrong value. Those bars are UNKNOWN, and so is every root
+ *  bar within the tree's reach of one (`maxLookback` is a tree sum — the C12s
+ *  argument, `symAlignmentMask`'s rule).
+ *
+ *  ⛔ UNLIKE `symAlignmentMask` IT IS ASKED WHATEVER THE CALLER SUPPLIED: only the
+ *  member door writes an `ltf` node, and an unsupplied one has no value to show. */
+export function lowerTfMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const nodes = []
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    // ⛔ not descended into: nothing may sit inside one (`assertSymPlacement`)
+    if (node.type === LTF) { nodes.push(node); continue }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1, like the masks beside it
+  const mask = new Float64Array(n)
+  // ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself.
+  const rootReach = maxLookback(tree)
+  for (const a of nodes) {
+    const sup = lowerSupplyOf(opts, String(a.value))
+    if (!sup) { mask.fill(1); return mask }
+    let reach = Math.max(0, rootReach - maxLookback(a))
+    if (!Number.isFinite(reach)) reach = n
+    const groups = sup.groups(bars, maxLookback(a.args[0]))
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const g = groups[i]
+      if (!g || !g.length) last = i
+      if (i - last <= reach) mask[i] = 1
+    }
+  }
+  return mask
+}
+
+/** Withhold (`NaN`) the bars `lowerTfMask` names — see there. A COPY: the column
+ *  may be the memoised one another plot shares. */
+function withLowerTfWithheld(ast, bars, out, opts) {
+  if (opts && typeof opts.prefixProbe === 'number') return out
+  if (!isColumn(out) || !treeReadsLowerTf(ast)) return out
+  const mask = lowerTfMask(ast, bars, opts)
+  if (!mask) return out
+  const copy = Float64Array.from(out)
+  for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
+  return copy
 }
 
 /** ⭐⭐ C30 — "THIS BAR OPENS A NEW <period>" for `time("W"|"M"|"3M"|"12M")`, the
@@ -3881,7 +4010,7 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
       nodes.push(node)
       continue
     }
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -3960,7 +4089,7 @@ export function symAlignmentMask(tree, bars, opts) {
       if (under) nested = true
       nodes.push(node)
     }
-    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -4082,7 +4211,7 @@ export function switchedDependencyMask(tree, bars, inputs, budget, scalars, opts
       if (under) crossesBars = true
       nodes.push(node)
     }
-    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym'
+    const into = under || node.type === 'tf' || node.type === 'tf_live' || node.type === 'sym' || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
   if (!nodes.length) return null
@@ -4458,6 +4587,35 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           const b = at.get(tfBucket(iso, code))
           if (live) out[i] = child[b]
           else if (b > 0) out[i] = child[b - 1]
+        }
+        return out
+      }
+      case LTF: {
+        // ⭐⭐ C41 — A READ BELOW THE CHART'S OWN TIMEFRAME (`engine/lowerTf.js`
+        // states every rule). The child is evaluated on the chart symbol's
+        // INTRADAY series and each chart bar reads its LAST intrabar's value
+        // (witnessed: `vw-lower-tf-*-2026-09-30` L02/L03/L04).
+        //
+        // ⛔ THE INTERPRETER DOES NOT FETCH AND DOES NOT BUCKET — THE CALLER
+        // SUPPLIES (`opts.lowerTf[code] = {bars, groups}`, built per binding by
+        // `lowerTf.js::resolveLowerTf`). An unsupplied code is NOT COMPUTABLE on
+        // every bar, and a chart bar the supply does not cover WHOLE (`groups`
+        // answers null for it) is not computable either: both are WITHHELD by
+        // `lowerTfMask` — never read as Pine's `na`.
+        const code = String(n.value)
+        assertLowerCode(code, refuse)
+        const sup = lowerSupplyOf(opts, code)
+        if (!sup) return nan(length)
+        const child = toColumn(
+          interpret(n.args[0], sup.bars, inputs, budget, scalars,
+            { ...(opts || {}), tf: code, crossMemo: scopedCrossMemo(`ltf\u0001${code}`), probeBase: undefined,
+              historyFromListing: undefined, newestBarIsForming: null, symbols: undefined, lowerTf: undefined }),
+          sup.bars.length)
+        const groups = sup.groups(bars, maxLookback(n.args[0]))
+        const out = nan(length)
+        for (let i = 0; i < length; i++) {
+          const g = groups[i]
+          if (g && g.length) out[i] = child[g[g.length - 1]]
         }
         return out
       }

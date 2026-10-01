@@ -26,10 +26,10 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, periodAnchorMask,
+  symAlignmentMask, periodAnchorMask, lowerTfMask,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
-import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor } from './nativeRegistry'
+import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, lowerTfFor } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
@@ -304,6 +304,26 @@ function withSymMask(mask, tree, bars, iopts) {
   return out
 }
 
+/** ⭐⭐ C41 — an object tree that reads BELOW the chart's timeframe is UNKNOWN
+ *  (withheld by C17, never drawn) on every bar whose answer depends on a
+ *  lower-timeframe read we cannot make (`interpret.js::lowerTfMask`: the supply
+ *  does not cover the chart bar whole, or none was given) — merged into the
+ *  warm-up mask, one channel; the plot lane withholds the same bars. */
+function withLowerTfMask(mask, tree, bars, iopts) {
+  let lm
+  try {
+    lm = lowerTfMask(tree, bars, iopts)
+  } catch {
+    // a mask that cannot be computed withholds the whole series — the safe side
+    lm = new Uint8Array(bars.length).fill(1)
+  }
+  if (!lm) return mask
+  if (!mask) return lm
+  const out = new Uint8Array(Math.max(mask.length, lm.length))
+  for (let i = 0; i < out.length; i++) out[i] = (mask[i] || lm[i]) ? 1 : 0
+  return out
+}
+
 /** ⭐⭐ C30 — an object tree that reads `time("W"|"M"|"3M"|"12M")` is UNKNOWN
  *  (withheld by C17, never drawn) on the bars `interpret.js::periodAnchorMask`
  *  names: before the first period boundary the series shows, within the tree's
@@ -355,12 +375,13 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       const tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
-        ...(opts.symbols ? { symbols: opts.symbols } : {}) }
+        ...(opts.symbols ? { symbols: opts.symbols } : {}),
+        ...(opts.lowerTf ? { lowerTf: opts.lowerTf } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, iopts)
+      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, iopts), tree, bars, iopts)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -490,6 +511,11 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const otherSymbols = otherSymbolsFor(definition, opts)
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
+  // ⭐⭐ C41 — the lower-timeframe codes this binding may read, decided by the SAME
+  // function the plot lane asks (`nativeRegistry.lowerTfFor`), so an object and the
+  // plot beside it are handed the same intraday supply.
+  const lowerTf = lowerTfFor(definition, opts)
+  if (lowerTf) evalOpts.lowerTf = lowerTf.supply
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
   // instant in MILLISECONDS, exactly what the same name reads inside a tree
   // (`time * 1000`, off the clock column `barOpenInstant` fills). The runtime
@@ -556,10 +582,11 @@ export function objectReaderFor(definition, bars, opts = {}) {
       const tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
-        ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}) }
+        ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
+        ...(evalOpts.lowerTf ? { lowerTf: evalOpts.lowerTf } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, iopts)
+      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, iopts), tree, bars, iopts)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)

@@ -38,6 +38,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import { bindConstsFor, foldBound } from './bind.js'
+import { LOWER_TF_REFUSAL } from '../lowerTf.js'
 import {
   makeIrProgram, SLOT, EXPR, STMT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
@@ -2853,6 +2854,21 @@ export function buildRuntimeIr(source, opts = {}) {
       const why = String(lowerDecline.why || '')
       throw new RuntimeRefusal(lowerDecline.code,
         why.startsWith(`${lowerDecline.code}: `) ? why.slice(lowerDecline.code.length + 2) : why, at)
+    }
+    // ⭐⭐ C41 — AND A LOWER READ THE HOST LANE SERVES IS NOT THIS LANE'S. The host
+    // reads it as an `ltf` column over the symbol's intraday bars
+    // (`engine/lowerTf.js`); the per-bar run holds no intraday bars, and taking it
+    // for an ordinary request would resample bars it was never handed. Refused by
+    // name, before the request path below.
+    const lowerServed = (() => {
+      if (!targetReader || typeof targetReader.lowerTfServedCodeOf !== 'function') return null
+      try { return targetReader.lowerTfServedCodeOf(node) } catch { return null }
+    })()
+    if (lowerServed) {
+      note(LOWER_TF_REFUSAL.RUNTIME_LANE)
+      throw new RuntimeRefusal(LOWER_TF_REFUSAL.RUNTIME_LANE,
+        `\`${lowerServed}\` is below this chart's timeframe — the host lane reads it off the symbol's `
+        + 'intraday bars, and the per-bar runtime lane holds none', at)
     }
 
     // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The

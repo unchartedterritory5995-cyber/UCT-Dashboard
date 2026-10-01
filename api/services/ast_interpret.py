@@ -125,8 +125,15 @@ INF = float("inf")
 #: for any of the three, which is correct: they must be FOLDED before evaluation
 #: (``ast_bind.fold_bound``), and one that reaches the evaluator is a refusal
 #: rather than a silently wrong column.
+#: ⭐⭐ AND ``ltf`` (C41) — A READ BELOW THE CHART'S OWN TIMEFRAME. ``ltf(close,
+#: '60')`` evaluates its child on the chart symbol's INTRADAY bars and each chart
+#: bar reads its last intrabar's value; ``tf``'s shape, the code a FIELD. Every
+#: rule is ``app/src/components/chart/engine/lowerTf.js``'s. ⛔ THIS LANE HOLDS NO
+#: INTRADAY BARS: the supply exists only on a chart, so here the node is NOT
+#: COMPUTABLE on every bar (the JS lane's own answer for an unsupplied code) and
+#: ``scan_definition.assert_scannable`` refuses a screen that carries one, by name.
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-              "str", "symtext", "textop")
+              "str", "symtext", "textop", "ltf")
 
 #: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
 #: before anything computes, and refused by ``interpret`` if one ever reaches it.
@@ -248,12 +255,27 @@ def _assert_sym_placement(root: Any) -> None:
     refused — the control in `test_the_nesting_guard_does_NOT_refuse_the_shapes_
     that_are_fine` is what keeps this from quietly becoming "no `sym` at all".
     """
-    stack = [(root, False)]
+    stack = [(root, False, False, False)]
     while stack:
-        node, under_tf = stack.pop()
+        node, under_tf, under_request, under_ltf = stack.pop()
         if not isinstance(node, dict):
             continue
         kind = node.get("type")
+        # ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE, the JS lane's rule
+        # (``interpret.js::assertSymPlacement``) sentence for sentence: under
+        # another request its answer is not mapped onto the bars that request
+        # hands its child, and a request INSIDE it would resample or re-align
+        # intraday bars no capture shows TradingView reading.
+        if kind == "ltf" and under_request:
+            _refuse("interpret:timeframe",
+                    "— a lower-timeframe read (`ltf`) cannot sit inside another "
+                    "request: it is mapped onto the chart's own bars, and those "
+                    "are not the bars that request hands its child")
+        if under_ltf and kind in ("tf", "tf_live", "sym"):
+            _refuse("interpret:timeframe",
+                    "— a `%s` read cannot sit inside a lower-timeframe read "
+                    "(`ltf`): its child runs on intraday bars, and a request made "
+                    "from those is not one this engine reads" % kind)
         if kind == "sym" and under_tf:
             ticker = str(node.get("value"))
             _refuse("interpret:symbol",
@@ -265,8 +287,23 @@ def _assert_sym_placement(root: Any) -> None:
                     "sym('%s', tf(…))." % (ticker, ticker, ticker))
         args = node.get("args")
         if isinstance(args, list):
+            is_tf = kind in ("tf", "tf_live")
             for a in args:
-                stack.append((a, under_tf or kind in ("tf", "tf_live")))
+                stack.append((a, under_tf or is_tf,
+                              under_request or is_tf or kind in ("sym", "ltf"),
+                              under_ltf or kind == "ltf"))
+
+
+def _assert_lower_code(code):
+    """An ``ltf`` node names a whole number of MINUTES and nothing else — the
+    mirror of ``interpret.js::assertLowerCode``. Which codes are SERVED is the
+    chart lane's answer per binding (``lowerTf.js``); this refuses only a node no
+    door writes."""
+    if not (isinstance(code, str) and code.isdigit() and code.isascii()
+            and not code.startswith("0")):
+        _refuse("interpret:timeframe",
+                "— a lower-timeframe read (`ltf`) names a whole number of "
+                "minutes; got %r" % (code,))
 
 
 def _assert_resamplable(code):
@@ -2607,7 +2644,7 @@ def _flatten(root: Any) -> List[dict]:
         # type most likely to arrive UNFOLDED was the one whose children nothing
         # checked.
         if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
-                            "textop"):
+                            "ltf", "textop"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -3039,6 +3076,13 @@ def max_lookback(ast: Any) -> int:
             # it: a supplier that hands over fewer bars than this asks for gets a
             # NaN prefix from the child, which is `not_computable` and correct —
             # never a confident answer off a warmup it never had.
+            seen[id(node)] = seen[id(node["args"][0])]
+            continue
+        if kind == "ltf":
+            # ⭐ C41 — THE CHILD'S OWN, UNMULTIPLIED, and an UPPER bound in chart
+            # bars: the child's reach is counted in INTRABARS and every chart bar
+            # holds at least one. Mirrors ``interpret.js::maxLookback``'s arm.
+            _assert_lower_code(str(node.get("value")))
             seen[id(node)] = seen[id(node["args"][0])]
             continue
         if kind == "offset":
@@ -3548,7 +3592,7 @@ def node_count(ast: Any) -> int:
 
 
 #: Node types whose child a FRESH ``interpret`` evaluates on other bars.
-_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym"))
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym", "ltf"))
 
 
 def evaluation_units(root: Any) -> int:
@@ -3771,7 +3815,7 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
-        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
@@ -4077,7 +4121,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf", "sym", "tf_live") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "ltf") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -4252,6 +4296,20 @@ def _interpret_column(ast: Any, bars: List[dict],
                 if j is not None:
                     out[i] = child[j]
             return out
+        if kind == "ltf":
+            # ⭐⭐ C41 — A READ BELOW THE CHART'S OWN TIMEFRAME. In the chart lane the
+            # CALLER supplies the symbol's intraday series per code
+            # (``interpret.js``'s ``opts.lowerTf``, built by ``lowerTf.js``) and an
+            # unsupplied code is NOT COMPUTABLE on every bar.
+            #
+            # ⛔ THIS LANE IS NEVER SUPPLIED — a screen evaluates daily bars and
+            # holds no intraday ones — so the answer here is that same one, on
+            # every bar: not computable, never a number read off the bars in hand
+            # (which would be the chart's own timeframe under a lower one's name).
+            # ``scan_definition.assert_scannable`` refuses the definition up
+            # front, by name, so no sweep reaches this arm with a saved screen.
+            _assert_lower_code(str(n.get("value")))
+            return _nan_col(length)
         if kind == "op":
             return apply_op(n, [eval_node(a) for a in n["args"]])
         if kind == "call":

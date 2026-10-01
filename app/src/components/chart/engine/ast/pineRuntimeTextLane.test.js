@@ -197,9 +197,12 @@ describe('⛔⛔ a pane draws the HOST lane\'s verdict, or it draws nothing', ()
   })
 
   it('⛔ a host refusal reaches the pane as ITS OWN sentence, not a blank', () => {
-    const bad = translatePine('//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "60", close))\n', { strict: true })
+    // ⚰️ C41 (2026-09-30): it DID go red — `"60"` on a daily chart resolves now (a
+    // read below the chart, `ltf`) — and `"45"`, a timeframe this engine has no
+    // name for, is the script that still refuses.
+    const bad = translatePine('//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "45", close))\n', { strict: true })
     // ⛔ NO CONDITIONAL SKIP. An `if (bad.ok) return` here would turn this into a
-    // test that cannot fail the day the capability lands; if `60` ever resolves,
+    // test that cannot fail the day the capability lands; if `45` ever resolves,
     // this goes RED and somebody picks a script that still refuses.
     expect(bad.ok).toBe(false)
     expect(bad.refusal.guard).toBe('pine:request')

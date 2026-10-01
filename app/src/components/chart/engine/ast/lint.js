@@ -222,6 +222,7 @@ function argYieldsBool(node, table) {
       return own(functions, node.name) ? functions[node.name].yields === 'bool' : false
     }
     case 'sym':
+    case 'ltf':
     case 'tf_live':
     case 'tf': {
       const args = Array.isArray(node.args) ? node.args : []
@@ -699,6 +700,23 @@ export function astReach(ast, opts = {}) {
         if (args.length !== 1) {
           reachOf.set(node, noteUnknown(
             `a symbol node carries exactly one child, got ${args.length}`))
+          break
+        }
+        reachOf.set(node, reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN })
+        break
+      }
+      case 'ltf': {
+        // ⭐ C41 — A READ BELOW THE CHART changes WHICH BARS the child runs on,
+        // never WHEN the chart bar is answered: the last intrabar of a chart bar
+        // that has closed (`engine/lowerTf.js`; a forming one is withheld). The
+        // child's reach is counted in intrabars, and a chart bar holds at least
+        // one, so it passes straight through as an upper bound in chart bars —
+        // the same number `interpret.js::maxLookback` gives. Mirrors `ast_lint`.
+        const args = Array.isArray(node.args) ? node.args : []
+        if (args.length !== 1 || !/^[1-9][0-9]*$/.test(String(node.value))) {
+          reachOf.set(node, noteUnknown(
+            'a lower-timeframe node carries exactly one child and a whole number of minutes, got '
+            + `${JSON.stringify(node.value)} over ${args.length}`))
           break
         }
         reachOf.set(node, reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN })

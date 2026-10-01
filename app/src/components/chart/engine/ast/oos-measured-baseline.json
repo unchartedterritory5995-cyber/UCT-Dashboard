@@ -220,10 +220,10 @@
   "long_tail__12-setup-grader.pine": {
     "outputs": 6,
     "refusals": [
-      "pine:request",
-      "pine:request",
-      "pine:request",
-      "pine:request"
+      "pine:text-value",
+      "pine:text-value",
+      "pine:text-value",
+      "pine:text-value"
     ],
     "flat": 0,
     "pair": 0,

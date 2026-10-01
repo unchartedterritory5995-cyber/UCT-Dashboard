@@ -137,7 +137,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
       'artemis-oscillator-pro__ea1097ca9e': {
         // ⭐ Wave 9 carries BOTH (C32 +4 Resolvers / +122 steps, C31 +6 / +3,759): the
         // measured sum, exactly additive — 521 + 4 + 6, 405,996 + 122 + 3,759.
-        plain: [531, 409877, 'f38c24a72a987c60'], manifest: [531, 409885, '61f060f7ebfeaf71'] },
+        // ⭐ C41 moved artemis: its oscillator is requested at `"15"`, `"60"` and `"240"`,
+        // each BELOW a daily chart. Those were refused at the request (the child never
+        // resolved); they are `ltf` reads now (`engine/lowerTf.js`), so each child — the
+        // whole oscillator expression — is resolved once per request: the same 531
+        // Resolvers, 103,890 more steps. Plot outputs byte-identical (translation
+        // census). Pre-C41: plain [531, 409877, 'f38c24a72a987c60'] / manifest
+        // [531, 409885, '61f060f7ebfeaf71'].
+        plain: [531, 513767, 'd7a0547e09a51fe8'], manifest: [531, 513775, '77b51e036b23b7ac'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…

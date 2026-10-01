@@ -627,6 +627,18 @@ function readTfLiveSentence(s) {
   return { via: 'tf_live', ast: { type: 'tf_live', value: TF_LIVE_CODE_OF[m[2]], args: [readOperand(m[1])] } }
 }
 
+/** ⭐ C41 — THE READ BELOW THE CHART, hand-typed from `renderLtf`'s words like
+ *  every form here: a whole number of minutes, then the same suffix chrome as
+ *  `tf`. ⚠️ It cannot collide with `TF_SUFFIX` — that one reads `weekly|monthly`,
+ *  this one `<digits>-minute` — and `the grammar is UNAMBIGUOUS` asserts it. */
+const LTF_SUFFIX = /^(.+) on the ([1-9][0-9]*)-minute timeframe$/
+
+function readLtfSentence(s) {
+  const m = LTF_SUFFIX.exec(s)
+  if (!m) return null
+  return { via: 'ltf', ast: { type: 'ltf', value: m[2], args: [readOperand(m[1])] } }
+}
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
@@ -649,6 +661,10 @@ function readSentenceCandidates(s) {
   try {
     const forming = readTfLiveSentence(s)
     if (forming) found.push(forming)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
+    const lower = readLtfSentence(s)
+    if (lower) found.push(lower)
   } catch { /* the chrome matched but the child did not read */ }
   for (const form of FORMS) {
     const slots = matchForm(form.parts, s)
@@ -785,6 +801,11 @@ function predictTrace(node, at = '$') {
     // rule would make this walk agree with the renderer only because both were
     // hand-typed twice.
     return [{ path: at, rule: 'sym' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
+  }
+  if (node.type === 'ltf') {
+    // ⭐ C41 — one `ltf` frame, then the child's own walk; no branch on the code.
+    return [{ path: at, rule: 'ltf' },
       ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'tf_live') {
@@ -2467,6 +2488,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sym_an_unsupplied_benchmark_is_not_computable',
       'tf_live_close_weekly',
       'tf_live_compared_to_the_closed_week',
+      // ⭐ C41 — the read BELOW the chart's timeframe (`ltf`), a twelfth node type.
+      'ltf_close_sixty_is_not_computable_without_a_supply',
       // ⭐ FOUR ADDED WITH THE mod/idiv OVERFLOW FIX. The two `*_overflow_to_nan`
       // cases drive an arm the corpus had NEVER driven, and the lanes were wrong
       // there in OPPOSITE directions — Python raised `OverflowError` from
