@@ -24,6 +24,9 @@ import { gradeCapture } from './harness'
 import { runOurSide, toProductBars } from './ourSide'
 import { validateCapture, sealCapture, sha256Hex } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { translatePine } from '../../ast/pine.js'
+import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { objectReaderFor } from '../../objectColumns'
+import { evaluateObjects } from '../../objectRuntime'
 
 const REPO = path.resolve(process.cwd(), '..')
 const FILE = path.join(REPO, 'tests/fixtures/vendor/harness/vw-time-tf-spy-1d-2026-09-28.json')
@@ -220,6 +223,71 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
       '    label.new(bar_index, high, str.tostring(dayofweek))',
     ]))
     expect(ours.objects.counts.labels).toBe(1)
+  })
+})
+
+describe('C30 — high-low-open-mid-ranges (NYSE:RDDT 1D): the weekly dividers, against TradingView\'s records', () => {
+  // `vline(a) => if ta.change(time(higherTF)) and i_v1  line.new(a, low - ta.tr, a, high + ta.tr, …, extend.both)`
+  // with `higherTF = input.timeframe("W")`. Until C30 that op refused
+  // (`pine:function time(<timeframe>)`) and the script held NO line; TradingView
+  // holds 504 (100 of them the dividers).
+  const cap = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/harness/high-low-open-mid-ranges-rddt-1d-2026-09-28.json'), 'utf8'))
+  const bars = toProductBars(cap)
+  // built inside the test: the objects-only pane flag is stubbed in `beforeAll`
+  const door = () => memberPaneDefinition({ source: cap.source.text, id: 'u_c30_ohlm', name: 'ohlm' })
+  const lines = () => {
+    const d = door()
+    expect(d.ok, d.reason).toBe(true)
+    const reader = objectReaderFor(d.definition, bars, {
+      tf: 'D', symbol: { ticker: 'RDDT', exchange: 'NYSE' }, newestBarIsForming: cap.newestBarIsForming ?? null,
+    })
+    const run = evaluateObjects(reader.program, {
+      barCount: bars.length, readNode: reader.readNode, readTime: reader.readTime, readUnknown: reader.readUnknown,
+    })
+    return run.live.filter((o) => o.family === 'line').map((o) => o.props)
+  }
+  const r4 = (v) => Math.round(v * 1e4) / 1e4
+  const V = cap.objects.records.lines
+
+  it('every line we hold is one TradingView holds — 503 of its 504, none of ours unmatched', () => {
+    const ours = lines()
+    expect(V.length).toBe(504)
+    expect(ours.length).toBe(503)
+    const left = new Map()
+    for (const l of V) { const k = `${r4(l.y1)}|${r4(l.y2)}`; left.set(k, (left.get(k) || 0) + 1) }
+    const unmatched = []
+    for (const l of ours) {
+      const k = `${r4(l.y1)}|${r4(l.y2)}`
+      if (left.get(k)) left.set(k, left.get(k) - 1)
+      else unmatched.push(l)
+    }
+    expect(unmatched).toEqual([])
+    // the ONE vendor line we do not hold is its oldest (id 2151, y 82.21) — the
+    // collector's edge (C7), not a divider
+    expect([...left.entries()].filter(([, n]) => n > 0)).toEqual([['82.21|82.21', 1]])
+  })
+
+  it('⭐ the 100 dividers: one per week TradingView draws one, at the same place in the sequence, same span', () => {
+    const ours = lines()
+    const ourV = ours.filter((l) => l.x1 === l.x2)
+    const venV = V.filter((l) => l.x1 === l.x2)
+    expect(venV.length).toBe(100)
+    expect(ourV.length).toBe(100)
+    // the capture keeps x as an index into its own point list; ours is the bar
+    // index. The two orderings must pair one to one, with the vendor's y span.
+    const xs = [...new Set(V.flatMap((l) => [l.x1, l.x2]))].sort((a, b) => a - b)
+    const oxs = [...new Set(ours.flatMap((l) => [l.x1, l.x2]))].sort((a, b) => a - b)
+    expect(oxs.length).toBe(xs.length)
+    const toOurs = new Map(xs.map((x, i) => [x, oxs[i]]))
+    const key = (x, l) => `${x}|${r4(l.y1)}|${r4(l.y2)}`
+    expect(ourV.map((l) => key(l.x1, l)).sort()).toEqual(venV.map((l) => key(toOurs.get(l.x1), l)).sort())
+    for (const l of ourV) {
+      expect(l.extend).toBe('both')
+      // each sits on the first trading day of its week
+      const [y, m, dd] = bars[l.x1].t.split('-').map(Number)
+      const [py, pm, pd] = bars[l.x1 - 1].t.split('-').map(Number)
+      expect(isoWeek({ y, m, d: dd })).not.toBe(isoWeek({ y: py, m: pm, d: pd }))
+    }
   })
 })
 
