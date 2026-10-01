@@ -86,7 +86,7 @@ export function censusOf(file) {
     const tally = {}
     for (const r of rows) {
       const k = `${r.kind}.${r.slot}`
-      tally[k] = tally[k] || { agree: 0, agreeByDefault: 0, carriedDiffers: 0, notCarried: 0, themeRelative: 0, vendorUndecodable: 0 }
+      tally[k] = tally[k] || { agree: 0, agreeByDefault: 0, carriedDiffers: 0, notCarried: 0, themeRelative: 0, vendorUndecodable: 0, undrawn: 0 }
       tally[k][r.state] += 1
     }
     row.objects = {
@@ -106,7 +106,7 @@ export function totalsOf(rows) {
   const t = {
     captures: rows.length,
     plots: { valueAgreeing: 0, barsCompared: 0, barsMismatching: 0, plotsMismatching: 0, uncarried: 0 },
-    objects: { slots: 0, agree: 0, agreeByDefault: 0, carriedDiffers: 0, notCarried: 0, themeRelative: 0, vendorUndecodable: 0 },
+    objects: { slots: 0, agree: 0, agreeByDefault: 0, carriedDiffers: 0, notCarried: 0, themeRelative: 0, vendorUndecodable: 0, undrawn: 0 },
   }
   for (const r of rows) {
     for (const p of r.plots || []) {
@@ -118,7 +118,7 @@ export function totalsOf(rows) {
     }
     t.plots.uncarried += (r.uncarriedPlotColours || []).length
     for (const k of Object.values((r.objects && r.objects.tally) || {})) {
-      for (const s of ['agree', 'agreeByDefault', 'carriedDiffers', 'notCarried', 'themeRelative', 'vendorUndecodable']) {
+      for (const s of ['agree', 'agreeByDefault', 'carriedDiffers', 'notCarried', 'themeRelative', 'vendorUndecodable', 'undrawn']) {
         t.objects[s] += k[s]
         t.objects.slots += k[s]
       }

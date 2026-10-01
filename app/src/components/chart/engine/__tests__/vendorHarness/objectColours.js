@@ -24,6 +24,11 @@
 //                     compared with the capture's colour — the capture records
 //                     TradingView's theme, our chart wears its own, by design
 //   vendorUndecodable the capture's value is not a colour it can decode
+//   undrawn           the object is held at an `na` coordinate on BOTH sides, so
+//                     NEITHER platform draws it (C44 ruling: the verdict measures
+//                     what a member sees). Not graded — but never dropped: the row
+//                     keeps both colours and, in `wouldBe`, the state it would
+//                     have had, so a difference in HELD state stays on the books
 //
 // What the VERDICT does with those states is said once, in
 // `tools/vendor_harness/compare.mjs::objectColourRows`.
@@ -101,6 +106,34 @@ function slotRowOf(vendorHex, kind, slot, raw, fallback, vendorInt, where) {
   return { kind, slot, state: carried ? 'carriedDiffers' : 'notCarried', vendor, ours, where }
 }
 
+/** ⭐⭐ C44 — COLOUR IS GRADED ONLY ON OBJECTS THAT ARE DRAWN (integrator ruling,
+ *  2026-10-01). An object neither platform can draw — a coordinate is `na` on
+ *  BOTH sides — shows a member nothing, so its colour does not decide a verdict.
+ *
+ *  ⛔ BOTH SIDES, AND THAT IS THE WHOLE SAFETY OF THE EXEMPTION. An object ONE
+ *  side draws is graded as before: were "ours is undrawable" enough, a line we
+ *  fail to place would excuse its own wrong colour, and were "the vendor's is"
+ *  enough, a drawing we make that TradingView does not would go ungraded.
+ *
+ *  What "cannot be drawn" means, per family, on each side's own record:
+ *    line   any of x1 / y1 / x2 / y2 is `na`
+ *    box    any of left / top / right / bottom is `na`
+ *    label  x is `na`, or its y is `na` while it is placed BY PRICE (a label at
+ *           `yloc.abovebar` / `belowbar` draws off the bar and needs no y)
+ *  A table and its cells are always drawn. */
+const lineUndrawable = (x1, y1, x2, y2) => isNa(x1) || isNa(y1) || isNa(x2) || isNa(y2)
+const ourLabelUndrawable = (p) => isNa(p.x) || ((p.yloc === undefined || p.yloc === null || p.yloc === 'price') && isNa(p.y))
+const vendorLabelUndrawable = (v) => isNa(v.x) || ((v.yl === undefined || v.yl === null || v.yl === 'pr') && isNa(v.y))
+/** Is this PAIRED object undrawn — undrawable on our side AND on the vendor's? */
+export function pairUndrawn(family, p, v) {
+  if (family === 'line') return lineUndrawable(p.x1, p.y1, p.x2, p.y2) && lineUndrawable(v.x1, v.y1, v.x2, v.y2)
+  if (family === 'box') return lineUndrawable(p.left, p.top, p.right, p.bottom) && lineUndrawable(v.x1, v.y1, v.x2, v.y2)
+  if (family === 'label') return ourLabelUndrawable(p) && vendorLabelUndrawable(v)
+  return false
+}
+/** A slot of an undrawn object: the same reading, filed as `undrawn`. */
+const asUndrawn = (row) => ({ ...row, state: 'undrawn', wouldBe: row.state })
+
 /** Pair our live objects with the capture's records, by value and in creation
  *  order (an id that agrees AND carries the same values is preferred). */
 export function pairObjects(capture, objects) {
@@ -119,27 +152,35 @@ export function pairObjects(capture, objects) {
   // the program's Pine version (`objectDefaults.js`), never a copy typed here
   const D = objectDefaultsFor(objects.pineVersion)
   const reader = vendorColourReader(capture)
-  const slotRow = (...a) => slotRowOf(reader.read, ...a)
+  const read = (...a) => slotRowOf(reader.read, ...a)
+  // set per paired object, just before its slots are read
+  let undrawn = false
+  const slotRow = (...a) => (undrawn ? asUndrawn(read(...a)) : read(...a))
   for (const o of live) {
     const p = o.props || {}
+    undrawn = false
     if (o.family === 'line') {
       const v = take(R.lines || [], used, o.id, (x) => near(p.y1, x.y1) && near(p.y2, x.y2))
       if (!v) { unpaired.ours += 1; continue }
+      undrawn = pairUndrawn('line', p, v)
       rows.push(slotRow('line', 'color', p.color, D.line.color, v.ci, `line #${o.id}`))
     } else if (o.family === 'label') {
       const text = p.text === undefined || p.text === null ? '' : String(p.text)
       const v = take(R.labels || [], used, o.id, (x) => String(x.t ?? '') === text && near(p.y ?? null, x.y ?? null))
       if (!v) { unpaired.ours += 1; continue }
+      undrawn = pairUndrawn('label', p, v)
       rows.push(slotRow('label', 'color', p.color, D.label.color, v.ci, `label #${o.id} ${JSON.stringify(text.slice(0, 24))}`))
       if (text) rows.push(slotRow('label', 'textcolor', p.textcolor, D.label.textcolor, v.tci, `label #${o.id} ${JSON.stringify(text.slice(0, 24))}`))
     } else if (o.family === 'box') {
       const v = take(R.boxes || [], used, o.id, (x) => near(p.top, x.y1) && near(p.bottom, x.y2))
       if (!v) { unpaired.ours += 1; continue }
+      undrawn = pairUndrawn('box', p, v)
       rows.push(slotRow('box', 'border_color', p.border_color, D.box.border_color, v.c, `box #${o.id}`))
       rows.push(slotRow('box', 'bgcolor', p.bgcolor, D.box.bgcolor, v.bc, `box #${o.id}`))
       if (v.t && p.text) rows.push(slotRow('box', 'text_color', p.text_color, D.box.text_color, v.tc, `box #${o.id}`))
     }
   }
+  undrawn = false // tables and cells are always drawn
   for (const f of ['lines', 'labels', 'boxes']) unpaired.vendor += (R[f] || []).filter((v) => !used.has(v)).length
 
   // tables by position, cells by address + text

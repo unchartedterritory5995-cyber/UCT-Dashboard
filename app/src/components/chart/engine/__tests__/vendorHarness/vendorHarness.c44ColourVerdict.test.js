@@ -14,6 +14,8 @@
 //                                 OUR chart's colours, never TradingView's (§ C37)
 //   carriedDiffers / notCarried   DIFFERS
 //   vendorUndecodable             not graded (the capture's encoding)
+//   undrawn                       not graded — held at an `na` coordinate on BOTH
+//                                 sides, so no member sees it; counted, never dropped
 //
 // WHAT THIS FILE HOLDS:
 //   1. the rule itself, state by state, fail-closed on a state it does not name;
@@ -26,9 +28,10 @@
 //      script colours itself diverges (the control);
 //   5. the option: colour off reproduces the old verdict and the old sentence
 //      byte for byte;
-//   6. the two committed captures whose verdict colour changes, by name and slot;
-//   7. the pairing reads an `na` coordinate as `na` on both sides (a held object
-//      nobody can draw still pairs, so its colour is graded and not skipped).
+//   6. the one committed capture whose verdict colour changes, by name and slot,
+//      and the one whose held-but-undrawn boxes are counted without deciding it;
+//   7. the pairing reads an `na` coordinate as `na` on both sides, files an object
+//      NEITHER side draws as `undrawn`, and still grades one EITHER side draws.
 //
 // ⛔ SYNTHETIC VARIANTS of a capture are built HERE, in memory, and re-sealed
 // (`sealCapture`) — never written under `tests/fixtures/` (that directory holds
@@ -38,7 +41,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import path from 'node:path'
 
 import { gradeCapture, loadCapture, objectColourGraded } from './harness'
-import { pairObjects, vendorColourReader } from './objectColours'
+import { pairObjects, pairUndrawn, vendorColourReader } from './objectColours'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { compareObjects, objectColourRows } from '../../../../../../../tools/vendor_harness/compare.mjs'
 
@@ -103,6 +106,21 @@ describe('C44 — the rule: what each slot state means for the verdict', () => {
     expect(objectColourRows(null)).toEqual([])
   })
 
+  it('⛔ an UNDRAWN slot is not graded — and stays counted, with the difference it holds named', () => {
+    const rows = objectColourRows({ rows: [
+      slot('box', 'undrawn', { slot: 'bgcolor', wouldBe: 'agree' }),
+      slot('box', 'undrawn', { slot: 'bgcolor', wouldBe: 'notCarried', where: 'box #7' }),
+      slot('box', 'undrawn', { slot: 'border_color', wouldBe: 'carriedDiffers', where: 'box #7' }),
+      slot('line', 'agree'), slot('line', 'undrawn', { wouldBe: 'agreeByDefault' }),
+    ] })
+    expect(rows).toEqual([
+      expect.objectContaining({ family: 'lines colour', agree: true, slots: 2, agreeing: 1, undrawn: 1, undrawnDiffering: 0, firstUndrawn: null }),
+      // every slot of the family is undrawn: nothing graded, nothing claimed
+      expect.objectContaining({ family: 'boxes colour', agree: null, slots: 3, agreeing: 0, differing: 0, undrawn: 3, undrawnDiffering: 2 }),
+    ])
+    expect(rows[1].firstUndrawn).toEqual({ slot: 'box.bgcolor', state: 'notCarried', vendor: '#111111ff', ours: '#222222ff', where: 'box #7' })
+  })
+
   it('⛔ FAIL CLOSED — a state or a kind this table does not name is never read as agreeing', () => {
     expect(() => objectColourRows({ rows: [slot('line', 'probablyFine')] })).toThrow(/unknown slot state "probablyFine"/)
     expect(() => objectColourRows({ rows: [slot('polyline', 'agree')] })).toThrow(/unknown object kind "polyline"/)
@@ -136,6 +154,15 @@ describe('C44 — the rule: what each slot state means for the verdict', () => {
     expect(r.verdict).toBe('MATCH')
     expect(r.reason).toMatch(/no colour slot was paired, so no colour was graded/)
     expect(r.colourUnpaired).toEqual({ ours: 2, vendor: 2 })
+  })
+
+  it('undrawn slots that differ do not decide the verdict, and the reason says they exist', () => {
+    const r = compareObjects(V, O, { rows: [
+      slot('line', 'agree'),
+      slot('box', 'undrawn', { wouldBe: 'notCarried' }), slot('box', 'undrawn', { wouldBe: 'agree' }),
+    ], unpaired: { ours: 0, vendor: 0 } })
+    expect(r).toMatchObject({ verdict: 'MATCH', verdictWithoutColour: 'MATCH' })
+    expect(r.reason).toBe('object counts and texts agree; colours agree on 1 paired slots; 2 slots on objects neither side draws not graded (1 of them hold a colour that differs); coordinates are NOT compared by v1')
   })
 
   it('a caller that pairs nothing gets the verdict and the sentence it always got', () => {
@@ -300,25 +327,27 @@ describe('C44 — the option: colour off is the verdict as it was', () => {
     expect(off.plots.map((p) => [p.id, p.verdict])).toEqual(on.plots.map((p) => [p.id, p.verdict]))
   }, 180000)
 
-  it('⭐ multi-timeframe-supply-demand-zones — the other one: 8 held boxes whose colours a loop sets', () => {
+  it('⭐ multi-timeframe-supply-demand-zones — 504 boxes NOBODY draws: counted, not graded, MATCH', () => {
     // 504 boxes, every one created `box.new(na, na, na, na)` and — on this chart —
-    // still at `na` on BOTH sides (nothing is drawn by either platform). On eight
-    // of them TradingView ran `box.set_bgcolor` / `box.set_border_color` inside a
-    // helper's loop; our program drops those updates, so the eight hold the
-    // default where TradingView holds the script's colour. Held state differs,
-    // and it would be DRAWN differently the day a zone gets its coordinates.
-    // ⚰️ Invisible until C44 twice over: a count cannot see a colour, and the
-    // pairing skipped every object at an `na` price (`objectColours.js::isNa`).
+    // still at `na` on BOTH sides: neither platform draws one, a member sees
+    // nothing. On eight of them TradingView ran `box.set_bgcolor` /
+    // `box.set_border_color` inside a helper's loop; our program drops those
+    // updates, so the eight HOLD the default where TradingView holds the script's
+    // colour. Integrator ruling (2026-10-01): colour is graded only on objects
+    // that are drawn, so this is not a verdict — and it is not hidden either:
+    // the 16 differing slots are counted and the first is named.
+    // ⛔ WHEN A ZONE GETS COORDINATES (another symbol, another day) these become
+    // drawn objects and the dropped updates become a real DIVERGE.
     const v = gradeCapture(load('multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28')).verdict
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
     expect(v.objects.verdictWithoutColour).toBe('MATCH')
-    expect(v.objects.verdict).toBe('DIVERGE')
-    expect(v.verdictWithoutColour).toBe('MATCH')
-    expect(v.verdict).toBe('DIVERGE')
+    expect(v.verdict).toBe('MATCH')
     const boxes = colourRow(v, 'boxes')
     // ⛔ NON-VACUITY: all 504 boxes paired (two slots each), none skipped
-    expect(boxes).toMatchObject({ agree: false, slots: 1008, agreeing: 992, differing: 16 })
-    expect(boxes.first).toMatchObject({ slot: 'box.border_color', state: 'notCarried', vendor: '#c6f89561' })
+    expect(boxes).toMatchObject({ agree: null, slots: 1008, agreeing: 0, differing: 0, undrawn: 1008, undrawnDiffering: 16 })
+    expect(boxes.firstUndrawn).toMatchObject({ slot: 'box.border_color', state: 'notCarried', vendor: '#c6f89561' })
     expect(v.objects.colourUnpaired).toEqual({ ours: 0, vendor: 0 })
+    expect(v.objects.reason).toBe('object counts and texts agree; no colour slot was paired, so no colour was graded; 1008 slots on objects neither side draws not graded (16 of them hold a colour that differs); coordinates are NOT compared by v1')
   }, 180000)
 
   it('a script with no drawing program is graded exactly as before — there is no colour to pair', () => {
@@ -329,33 +358,68 @@ describe('C44 — the option: colour off is the verdict as it was', () => {
   }, 120000)
 })
 
-describe('C44 — the pairing: an `na` coordinate is `na` on both sides', () => {
+describe('C44 — the pairing: `na` is `na` on both sides, and only an object NOBODY draws is exempt', () => {
   // The capture writes `na` as `null`; our runtime holds `NaN`. Packed colours
   // (no palette): 0xff0000ff is opaque red, 0xff00ff00 opaque green.
-  const capture = (boxes) => ({ study: {}, objects: { records: { boxes } } })
-  const box = (id, top, bottom, colour) => ({ id, family: 'box', props: { top, bottom, border_color: colour, bgcolor: colour } })
+  const capture = (boxes, extra = {}) => ({ study: {}, objects: { records: { boxes, ...extra } } })
+  const box = (id, top, bottom, colour, x = [3, 9]) => ({ id, family: 'box', props: { left: x[0], right: x[1], top, bottom, border_color: colour, bgcolor: colour } })
+  const vbox = (id, y1, y2, x1 = 3, x2 = 9) => ({ id, x1, x2, y1, y2, c: 0xff0000ff, bc: 0xff0000ff })
+  const states = (r) => r.rows.map((x) => [x.slot, x.state, x.wouldBe])
 
-  it('⭐ a box both sides hold at `na` pairs, and its colours are graded', () => {
-    const cap = capture([{ id: 1, y1: null, y2: null, c: 0xff0000ff, bc: 0xff0000ff }])
+  it('⭐ a box both sides hold at `na` PAIRS — and is filed `undrawn`, with the state it would have had', () => {
+    const cap = capture([vbox(1, null, null)])
     const same = pairObjects(cap, { held: [box(1, NaN, NaN, '#FF0000')] })
     expect(same.unpaired).toEqual({ ours: 0, vendor: 0 })
-    expect(same.rows.map((r) => [r.slot, r.state])).toEqual([['border_color', 'agree'], ['bgcolor', 'agree']])
-    // …so a wrong colour there is SEEN (it was skipped before: nothing paired)
+    expect(states(same)).toEqual([['border_color', 'undrawn', 'agree'], ['bgcolor', 'undrawn', 'agree']])
+    // a wrong colour there is still SEEN and kept — it just does not decide a verdict
     const wrong = pairObjects(cap, { held: [box(1, NaN, NaN, '#00FF00')] })
-    expect(wrong.rows.map((r) => r.state)).toEqual(['carriedDiffers', 'carriedDiffers'])
+    expect(states(wrong)).toEqual([['border_color', 'undrawn', 'carriedDiffers'], ['bgcolor', 'undrawn', 'carriedDiffers']])
+    expect(wrong.rows[0]).toMatchObject({ vendor: '#ff0000ff', ours: '#00ff00ff' })
     // `undefined` (a coordinate never written) is the same `na`
     expect(pairObjects(cap, { held: [box(1, undefined, undefined, '#FF0000')] }).unpaired).toEqual({ ours: 0, vendor: 0 })
   })
 
+  it('🔴 an object DRAWN ON EITHER SIDE is still graded — the exemption cannot hide a real difference', () => {
+    // both sides draw it: graded
+    const both = pairObjects(capture([vbox(1, 10, 5)]), { held: [box(1, 10, 5, '#00FF00')] })
+    expect(states(both)).toEqual([['border_color', 'carriedDiffers', undefined], ['bgcolor', 'carriedDiffers', undefined]])
+    // TradingView draws it (every coordinate held) and WE cannot place it (our
+    // left edge is `na`): a member looking at TradingView sees a red box. Graded.
+    const theirs = pairObjects(capture([vbox(1, 10, 5)]), { held: [box(1, 10, 5, '#00FF00', [NaN, 9])] })
+    expect(theirs.rows.map((r) => r.state)).toEqual(['carriedDiffers', 'carriedDiffers'])
+    // WE draw it and TradingView's record cannot be drawn (its x is `na`): graded.
+    const ours = pairObjects(capture([vbox(1, 10, 5, null, 9)]), { held: [box(1, 10, 5, '#00FF00')] })
+    expect(ours.rows.map((r) => r.state)).toEqual(['carriedDiffers', 'carriedDiffers'])
+    // 🟢 CONTROL — the same wrong colour with BOTH sides undrawable is the exempt case
+    const none = pairObjects(capture([vbox(1, 10, 5, null, 9)]), { held: [box(1, 10, 5, '#00FF00', [NaN, 9])] })
+    expect(none.rows.map((r) => r.state)).toEqual(['undrawn', 'undrawn'])
+  })
+
+  it('the per-family test of "can it be drawn", on each side\'s own record', () => {
+    const P = { x1: 1, y1: 2, x2: 3, y2: 4 }
+    expect(pairUndrawn('line', P, P)).toBe(false)
+    for (const k of ['x1', 'y1', 'x2', 'y2']) {
+      expect(pairUndrawn('line', { ...P, [k]: NaN }, { ...P, [k]: null }), k).toBe(true)
+      expect(pairUndrawn('line', { ...P, [k]: NaN }, P), `${k}: only ours`).toBe(false)
+      expect(pairUndrawn('line', P, { ...P, [k]: null }), `${k}: only theirs`).toBe(false)
+    }
+    // a label placed BY PRICE needs its y; one placed off the bar does not
+    expect(pairUndrawn('label', { x: 5, y: NaN }, { x: 5, y: null, yl: 'pr' })).toBe(true)
+    expect(pairUndrawn('label', { x: 5, y: NaN, yloc: 'abovebar' }, { x: 5, y: null, yl: 'ab' })).toBe(false)
+    expect(pairUndrawn('label', { x: 5, y: NaN, yloc: 'abovebar' }, { x: 5, y: null, yl: 'pr' })).toBe(false)
+    expect(pairUndrawn('label', { x: NaN, y: 1 }, { x: null, y: 1, yl: 'pr' })).toBe(true)
+    // a table and its cells are always drawn
+    expect(pairUndrawn('table', {}, {})).toBe(false)
+    expect(pairUndrawn('cell', {}, {})).toBe(false)
+  })
+
   it('⛔ `na` pairs with `na` ONLY — never with a price', () => {
-    const cap = capture([{ id: 1, y1: 10, y2: 5, c: 0xff0000ff, bc: 0xff0000ff }])
-    const r = pairObjects(cap, { held: [box(1, NaN, NaN, '#FF0000')] })
+    const r = pairObjects(capture([vbox(1, 10, 5)]), { held: [box(1, NaN, NaN, '#FF0000')] })
     expect(r.rows).toEqual([])
     expect(r.unpaired).toEqual({ ours: 1, vendor: 1 })
     // and the other way round
-    const cap2 = capture([{ id: 1, y1: null, y2: null, c: 0xff0000ff, bc: 0xff0000ff }])
-    expect(pairObjects(cap2, { held: [box(1, 10, 5, '#FF0000')] }).unpaired).toEqual({ ours: 1, vendor: 1 })
+    expect(pairObjects(capture([vbox(1, null, null)]), { held: [box(1, 10, 5, '#FF0000')] }).unpaired).toEqual({ ours: 1, vendor: 1 })
     // 🟢 CONTROL — two prices that agree still pair
-    expect(pairObjects(cap, { held: [box(1, 10, 5, '#FF0000')] }).unpaired).toEqual({ ours: 0, vendor: 0 })
+    expect(pairObjects(capture([vbox(1, 10, 5)]), { held: [box(1, 10, 5, '#FF0000')] }).unpaired).toEqual({ ours: 0, vendor: 0 })
   })
 })

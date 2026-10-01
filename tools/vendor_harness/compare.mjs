@@ -803,6 +803,14 @@ export function nonDefaultInputs(capture) {
 //                           the default drawn in its place is not the vendor's
 //   vendorUndecodable       NOT GRADED — a verdict about the capture's encoding,
 //                           not about either engine; counted and reported
+//   undrawn                 NOT GRADED — the object is held at an `na` coordinate
+//                           on BOTH sides, so neither platform draws it and a
+//                           member sees nothing (integrator ruling: the verdict
+//                           measures what a member sees). ⛔ COUNTED, never
+//                           dropped: `undrawn` slots and, of those, how many hold
+//                           a colour that differs (`undrawnDiffering`, with the
+//                           first one named) stay in the row and in the reason,
+//                           so a difference in HELD state stays on the books
 //
 // One row per object family that paired at least one slot. A family that paired
 // none has no row: nothing was graded, and nothing is claimed.
@@ -815,6 +823,7 @@ const COLOUR_FAMILY_ORDER = Object.freeze(['lines', 'labels', 'boxes', 'tables',
 const COLOUR_AGREES = new Set(['agree', 'agreeByDefault', 'themeRelative'])
 const COLOUR_DIFFERS = new Set(['carriedDiffers', 'notCarried'])
 const COLOUR_UNGRADED = new Set(['vendorUndecodable'])
+const COLOUR_UNDRAWN = 'undrawn'
 
 export function objectColourRows(pairing) {
   const by = new Map()
@@ -824,13 +833,19 @@ export function objectColourRows(pairing) {
     // quietly read as agreeing.
     if (!family) throw new Error(`object colour: unknown object kind ${JSON.stringify(r.kind)}`)
     if (!by.has(family)) {
-      by.set(family, { family: `${family} colour`, agree: null, slots: 0, agreeing: 0, themeRelative: 0, differing: 0, undecodable: 0, first: null })
+      by.set(family, { family: `${family} colour`, agree: null, slots: 0, agreeing: 0, themeRelative: 0, differing: 0, undecodable: 0, undrawn: 0, undrawnDiffering: 0, first: null, firstUndrawn: null })
     }
     const row = by.get(family)
     row.slots += 1
     if (COLOUR_DIFFERS.has(r.state)) {
       row.differing += 1
       if (!row.first) row.first = { slot: `${r.kind}.${r.slot}`, state: r.state, vendor: r.vendor, ours: r.ours, where: r.where }
+    } else if (r.state === COLOUR_UNDRAWN) {
+      row.undrawn += 1
+      if (COLOUR_DIFFERS.has(r.wouldBe)) {
+        row.undrawnDiffering += 1
+        if (!row.firstUndrawn) row.firstUndrawn = { slot: `${r.kind}.${r.slot}`, state: r.wouldBe, vendor: r.vendor, ours: r.ours, where: r.where }
+      }
     } else if (COLOUR_UNGRADED.has(r.state)) {
       row.undecodable += 1
     } else if (COLOUR_AGREES.has(r.state)) {
@@ -904,6 +919,12 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   const colourDiverge = colours.filter((r) => r.agree === false)
   const graded = colours.reduce((n, r) => n + r.agreeing + r.differing, 0)
   const theme = colours.reduce((n, r) => n + r.themeRelative, 0)
+  const undrawn = colours.reduce((n, r) => n + r.undrawn, 0)
+  const undrawnDiffering = colours.reduce((n, r) => n + r.undrawnDiffering, 0)
+  // ⛔ said in the reason, MATCH or not: held state that differs on objects nobody draws
+  const undrawnSaid = undrawn
+    ? `; ${undrawn} slot${undrawn === 1 ? '' : 's'} on objects neither side draws not graded${undrawnDiffering ? ` (${undrawnDiffering} of them hold a colour that differs)` : ''}`
+    : ''
   const first = colourDiverge.length ? colourDiverge[0].first : null
   const colourSaid = !graded ? 'no colour slot was paired, so no colour was graded'
     : first
@@ -912,7 +933,7 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   return {
     verdict: diverge || colourDiverge.length ? 'DIVERGE' : 'MATCH',
     verdictWithoutColour: diverge ? 'DIVERGE' : 'MATCH',
-    reason: `${diverge ? `${diverge} object families differ (count or text)` : 'object counts and texts agree'}; ${colourSaid}; coordinates are NOT compared by v1`,
+    reason: `${diverge ? `${diverge} object families differ (count or text)` : 'object counts and texts agree'}; ${colourSaid}${undrawnSaid}; coordinates are NOT compared by v1`,
     counts: rows,
     texts: textRows,
     colours,

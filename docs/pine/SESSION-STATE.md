@@ -35,23 +35,25 @@ plot, per object family, and per capture.
 ### Scoreboard on wave 10 (`e4e24524ef`)
 
 Since C44 an object family grades MATCH only when the colours of its paired objects agree too
-(integrator ruling). Both verdicts come out of every run; a capture whose two verdicts differ
-changed because of colour and nothing else.
+(integrator ruling). Colour is graded only on objects that are DRAWN: one held at an `na`
+coordinate on both sides is counted (`undrawn`) and decides nothing. Both verdicts come out of
+every run; a capture whose two verdicts differ changed because of colour and nothing else.
 
 | | verdict with colour (current) | verdict without colour (how every earlier number was taken) |
 |---|---|---|
-| 47 captures, objects pane on: objects MATCH / overall MATCH | **28 of 46 / 25 of 47** | 30 / 27 |
+| 47 captures, objects pane on: objects MATCH / overall MATCH | **29 of 46 / 26 of 47** | 30 / 27 |
 | 47 captures, objects pane off | 17 of 25 / 14 | 18 / 15 |
-| committed harness dir (117), pane on | 64 of 85 / 46 | 66 / 48 |
+| committed harness dir (117), pane on | 65 of 85 / 47 | 66 / 48 |
 | committed harness dir, pane off | 53 of 64 / 35 | 54 / 36 |
 | object families agreeing on count and text (47, on) | 234 of 266 | the same |
-| object colour families agreeing (47, on) | 73 of 75 | not graded |
+| object colour families agreeing (47, on) | 72 of 73 | not graded |
 | plots MATCH (47, on) | 161 of 172 | the same |
 | member door, 266 corpus scripts: attach, pane off / on | 41 / 64 | |
 | the same with the DARK runtime pane flag set in a test process (a measurement, nothing armed) | 43 / 66 — inside-bar-range and wyckoff-accumulation-distribution, nothing else | |
 
-Moved by colour: `heat-map-seasons` (one cell fill) and `multi-timeframe-supply-demand-zones`
-(8 held boxes). Nothing else.
+Moved by colour: `heat-map-seasons` (one cell fill). Nothing else.
+`multi-timeframe-supply-demand-zones` holds 8 boxes in the wrong colour that neither platform draws
+on this chart: 16 undrawn slots counted as differing, not a verdict.
 
 ### What is live, and what is gated
 
@@ -97,14 +99,15 @@ Flags:
 6. **R-G**: a plot whose colour this door cannot carry keeps its line; the fix is to carry the
    colour, never to withhold the plot.
 7. **Object colour is part of the harness verdict** (C44). Theme references (`chart.fg_color`,
-   `chart.bg_color`) count as agreeing: they are our chart's colours, not TradingView's.
+   `chart.bg_color`) count as agreeing: they are our chart's colours, not TradingView's. Colour is
+   graded only on objects that are drawn — the verdict measures what a member sees.
 8. **Saved parameter ids never move**: `engine/ast/paramIds.test.js` stays green with zero edits;
    `docs/pine/param-ids.json` may only gain ids for a script that had none.
 9. **JS and Python mirrors move together** (tree vocabulary, masks, parity tests).
 
 ### What is left on the 47, in one table
 
-22 of the 47 are not MATCH under the current verdict. By what stops each one first:
+21 of the 47 are not MATCH under the current verdict. By what stops each one first:
 
 | class | scripts | what it would take |
 |---|---|---|
@@ -114,11 +117,11 @@ Flags:
 | row ceiling (12 plots per pane) | candlestick-patterns, madrid-ma-ribbon, ema-ribbon (its 13th plot) | a ruling, not a fix |
 | behind a dark flag | inside-bar-range (runtime pane), ema-ribbon cells (lower-tf, C41) | the flag, by ruling |
 | another symbol the store does not hold | htf-liquidity (futures), smt-divergence (XAUUSD), vold (`USI:*`), mcclellan (`ADVN`/`DECN`) | data, not a capture |
-| lists of user types / the collection grammar | trend-lines, htf-candle-footprint, multi-timeframe-supply-demand (colours) | a design wave (C11's UDT grammar) |
+| lists of user types / the collection grammar | trend-lines, htf-candle-footprint (and multi-timeframe-supply-demand's held colours, counted, not a verdict) | a design wave (C11's UDT grammar) |
 | correct end state | sector-rotation (`chart.left_visible_bar_time` is viewport state) | nothing; a named refusal is right |
 
-Honest ceiling: with everything buildable built, **27 of 47 overall** (objects 30 of 46) is firm,
-and up to 29 if artemis and one unexplained OHLM line resolve. No graded capture reaches MATCH on
+Honest ceiling: with everything buildable built, **28 of 47 overall** (objects 31 of 46) is firm,
+and up to 30 if artemis and one unexplained OHLM line resolve. No graded capture reaches MATCH on
 an owed capture alone; the captures unblock corpus refusals and rails.
 
 ### The capture queue (what is still owed from a live TradingView session)
