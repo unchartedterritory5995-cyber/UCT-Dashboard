@@ -79,6 +79,22 @@ def _late(d: str) -> datetime:
     return datetime.combine(date.fromisoformat(d), datetime.max.time().replace(microsecond=0), tzinfo=ET).astimezone(timezone.utc)
 
 
+def _authority(D):
+    if D.acc is None:
+        from .acceptance import Authority
+        D.acc = Authority(None)
+    return D.acc
+
+
+def _evidence_public(D, accn: str, filed: str) -> datetime:
+    """An evidence filing absent from inputs.filing: its EDGAR acceptance record if known, else the END of its date."""
+    hit = _authority(D).lookup(accn) if accn else None
+    if hit is not None:
+        from .acceptance import public_at as _pub
+        return _pub(hit[0], date.fromisoformat(filed))
+    return _late(filed)
+
+
 @dataclass
 class Data:
     inp: sqlite3.Connection
@@ -89,6 +105,7 @@ class Data:
     ipo: sqlite3.Connection | None = None       # each text harvest mode writes its own file (no writer contention)
     econ: sqlite3.Connection | None = None
     adr: sqlite3.Connection | None = None
+    acc: object = None                          # acceptance.Authority (the ONE source of evidence public times)
 
 
 def load_ref(path: str) -> dict:
@@ -132,7 +149,7 @@ def observations(D: Data, cik: int, filings: dict) -> tuple[list[tuple], dict]:
 
     def pub(accn, filed):
         f = filings.get(accn)
-        return (_ts(f["public_at"]) if f else None) or _late(filed)
+        return (_ts(f["public_at"]) if f else None) or _evidence_public(D, accn, filed)
 
     seen = set()
     # 1. per-class and non-dimensional rendered covers
@@ -208,7 +225,7 @@ def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> t
         if cls == "TOTAL":
             continue
         f = filings.get(accn)
-        p = (_ts(f["public_at"]) if f else None) or _late(fd)
+        p = (_ts(f["public_at"]) if f else None) or _evidence_public(D, accn, fd)
         out.append((cls, Obs(listing_start, p, cnt, R.IPO_PROSPECTUS, accn, form, "ipo:to_be_outstanding", cls, snip or "",
                              "MEDIUM"), {}))
     return out, "OK"
@@ -218,8 +235,12 @@ def ipo_observations(D: Data, cik: int, filings: dict, listing_start: date) -> t
 def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
     iss = D.inp.execute("SELECT name, tickers_json, exchanges_json FROM issuer WHERE cik=?", (cik,)).fetchone()
     tickers = json.loads(iss[1] or "[]")
-    filings = {a: {"form": f, "filing_date": fd, "public_at": pa, "report_date": rd}
-               for a, f, fd, pa, rd in D.inp.execute("SELECT accn, form, filing_date, public_at, report_date FROM filing WHERE cik=?", (cik,))}
+    # ⛔ public times come ONLY from the acceptance authority (submissions' acceptanceDateTime can be Eastern labelled
+    # UTC -- a one-day lookahead at the daily close). See acceptance.py.
+    filings = {}
+    for a, f, fd, acc_raw, rd in D.inp.execute("SELECT accn, form, filing_date, accepted, report_date FROM filing WHERE cik=?", (cik,)):
+        pa, src = _authority(D).resolve(a, acc_raw, fd)
+        filings[a] = {"form": f, "filing_date": fd, "public_at": pa.isoformat(), "report_date": rd, "acc_source": src}
     foreign = any(v["form"] in FPI_FORMS for v in filings.values())
     first_filing = min((date.fromisoformat(v["filing_date"]) for v in filings.values()), default=None)
     edgar = EDGAR_FOREIGN if foreign else EDGAR_DOMESTIC
@@ -504,6 +525,12 @@ def main(argv=None) -> int:
              sqlite3.connect(P("text.db")) if os.path.exists(P("text.db")) else None, sqlite3.connect(P("prices.db")),
              load_ref(P("ref.jsonl")),
              *(sqlite3.connect(P(n)) if os.path.exists(P(n)) else None for n in ("ipo.db", "econ.db", "adr.db")))
+    from .acceptance import Authority
+    if not os.path.exists(P("acceptance.db")):
+        print("REFUSED: acceptance.db missing -- evidence public times would fall back to submissions' ambiguous "
+              "acceptanceDateTime (one-day lookahead risk). Build it: python -m api.services.marketcap.acceptance ...")
+        return 2
+    D.acc = Authority(P("acceptance.db"))
     build_id = f"{DATASET}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     os.makedirs(a.out, exist_ok=True)
     out_path = os.path.join(a.out, build_id + ".db")
@@ -539,7 +566,7 @@ def main(argv=None) -> int:
     man = {"dataset": DATASET, "build_id": build_id, "code_commit": git_head(), "issuers": len(ciks), "status": dict(stat),
            "safety_bound_days": R.SAFETY_BOUND_DAYS, "built_at": datetime.now(timezone.utc).isoformat()}
     if not a.no_hash:
-        for n in ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl"):
+        for n in ("inputs.db", "covers.db", "text.db", "ipo.db", "econ.db", "adr.db", "prices.db", "ref.jsonl", "acceptance.db"):
             if os.path.exists(P(n)):
                 man[f"input_sha256:{n}"] = sha256(P(n))
     for k, v in man.items():

@@ -30,7 +30,8 @@ NUM_RX = re.compile(r"\d{1,3}(?:,\d{3})+|\d{5,}")
 
 STATEMENT = re.compile(r"latest practicable date|number of (?:the )?(?:outstanding )?shares (?:outstanding )?of each"
                        r"|indicate (?:the )?number of shares outstanding|outstanding shares of each of the"
-                       r"|close of the period covered by the annual report", re.I)
+                       r"|close of the period covered by the annual report"
+                       r"|shares outstanding of the registrant's (?:common|capital) stock", re.I)
 WINDOW_END = re.compile(r"documents incorporated by reference|indicate by check mark|table of contents|\bpart\s+i\b"
                         r"|securities registered pursuant to section 12", re.I)
 STOP = re.compile(r"\b(?:PART\s+I\b|TABLE OF CONTENTS|FINANCIAL INFORMATION|ITEM\s+1\.)", re.I)
@@ -107,6 +108,10 @@ RULES = [
     ("AS_OF_THERE_WERE_OUTSTANDING", re.compile(rf"(?:as of|at|on)\s+({DATE}),?\s*there\s+were\s+outstanding\s+(?:approximately\s+)?{NUM}\s+(?:shares|ordinary shares|common shares)", re.I)),
     # "As of February 15, 2011, there were approximately 160.1 million shares of common stock issued and outstanding"
     ("APPROX_MILLIONS", re.compile(r"(?:as of|at|on)\s+(" + DATE + r"),?\s*there\s+were\s+(?:approximately\s+)?(\d{1,4}(?:_\d{1,3})?)\s+(million|billion)\s+shares[^.;]{0,120}?outstanding", re.I)),
+    # "414.5 million shares of Common Stock outstanding as of February 25, 1995" / "6,703 million shares ..." (INTC 10-K)
+    ("N_MILLION_SHARES_OUTSTANDING_AS_OF", re.compile(r"(?<![\d$_.,])(\d{1,3}(?:,\d{3})*(?:_\d{1,3})?)\s+(million|billion)\s+"
+                                                      r"(?:shares|common shares|ordinary shares)(?:\s+of\s+[^.;$]{0,50}?)?\s+outstanding\s+"
+                                                      r"(?:as of|at|on)\s+(" + DATE + r")", re.I)),
     ("AS_OF_N_SHARES", re.compile(rf"(?:as of|at|on)\s+({DATE}),?\s*(?:there were|the registrant had|the company had|[a-z ,']{{0,60}}had)?\s*(?:approximately\s+)?{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,160}}?outstanding", re.I)),
     ("N_SHARES_OUTSTANDING_AS_OF", re.compile(rf"{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,160}}?outstanding[^.;\d]{{0,60}}?(?:as of|at|on)\s+({DATE})", re.I)),
     ("LPD_N_SHARES_AS_OF", re.compile(rf"latest practicable date[^\d]{{0,60}}?{NUM}\s+(?:shares|ordinary shares|common shares)[^.;]{{0,120}}?(?:as of|at|on)\s+({DATE})", re.I)),
@@ -124,6 +129,11 @@ WINDOW_RULES = [
     ("WIN_DATE_DASH_N", re.compile(rf"({DATE})\s*[-:]\s*{NUM}\s+(?:common\s+|ordinary\s+)?shares", re.I)),
     # "Class Shares Outstanding at July 23, 2010 Common Stock, $0.06 Par Value 139,959,016"
     ("WIN_TABLE_BARE", re.compile(rf"outstanding\s+(?:shares\s+)?(?:at|as of)\s+({DATE})[^.;]{{0,160}}?{NUM}", re.I)),
+    # "Class  Outstanding at March 30, 1996  Common Stock, $.001 par value  822.4 million" (INTC 1995-2009 shape)
+    ("WIN_TABLE_MILLIONS", re.compile(r"outstanding\s+(?:shares\s+)?(?:at|as of)\s+(" + DATE + r")[^.;]{0,160}?"
+                                      r"(?<![\d$_.,])(\d{1,3}(?:,\d{3})+(?:_\d{1,3})?|\d{1,4}(?:_\d{1,3})?)\s+(million|billion)\b"
+                                      r"(?!\s*(?:dollars|of\s+dollars))",
+                                      re.I)),
 ]
 # per-class shapes inside the statement window
 CLASS_RULES = [
@@ -163,9 +173,13 @@ def _rule_hits(text: str, base: int, report_date: date | None, rules=None) -> li
     for name, rx in (rules or RULES):
         for m in rx.finditer(text):
             g = [x for x in m.groups() if x]
-            if name == "APPROX_MILLIONS":
-                ds, mant, unit = m.group(1), m.group(2), m.group(3).lower()
-                n = float(mant.replace("_", ".")) * (1e6 if unit == "million" else 1e9)
+            if name in ("APPROX_MILLIONS", "WIN_TABLE_MILLIONS", "N_MILLION_SHARES_OUTSTANDING_AS_OF"):
+                if name == "N_MILLION_SHARES_OUTSTANDING_AS_OF":
+                    mant, unit, ds = m.group(1), m.group(2).lower(), m.group(3)
+                else:
+                    ds, mant, unit = m.group(1), m.group(2), m.group(3).lower()
+                unit = unit.lower()
+                n = float(mant.replace(",", "").replace("_", ".")) * (1e6 if unit == "million" else 1e9)
                 d = parse_date(ds)
                 key = (n, d)
                 if d and key not in seen:
