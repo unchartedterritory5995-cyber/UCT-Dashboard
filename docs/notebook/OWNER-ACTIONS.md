@@ -30,6 +30,28 @@ their place in this ordering; see each row's "Blocked today?" cell.
 | 11 | Decide how long UCT keeps `activity_log` rows — the table that records member actions, including Notebook's own save/export/import/share/publish/writing-help/dictation events — and say so | ~15–20 min | None of the 61 scorecard clauses — no clause names an internal retention policy; this closes an open privacy question the vendor-terms review found and never answered | §3.11 | No |
 | 12 | Sit for a full working day timing UCT against Notion, Evernote and Obsidian on the same tasks | ~1 full working day (the protocol states no duration; this is an estimate) | None of the 61 scorecard clauses — standard #4's own clauses are already scored from UCT's internal budgets, independently of any competitor; this closes Plan Phase 7 item 1 and one caveat line in the scorecard, not a clause | §3.6 | No, but needs a quiet machine for the whole sitting |
 
+**Already done or decided (controller, 2026-10-01).** The table above was written from the
+repository alone. Three of its rows are further along than it says. The source for the first
+three lines below is the controller's working ledger, which is not in git, and the owner's own
+words in chat; the scheduled-task readings were taken on this machine on 2026-10-01.
+
+- **Row 2 (browser extension): already submitted.** The owner submitted it to the Chrome Web
+  Store on 2026-09-26 as an unlisted item. What is left is the store's review, which is outside
+  anyone's control, and then two small steps: put the install link in the Notebook's capture
+  help, and switch the listing to Public at launch.
+- **Row 6 (the soak): already running.** The nightly roll-up task `UCT-NB-Soak` has run since
+  2026-09-26; its last run was 2026-09-30 18:30 and exited 0. That run's line reads day 4.2 of
+  30, verdict INCONCLUSIVE, with 2 of the 5 organic members and 3 of the 20 active members the
+  soak needs. So the setup is done; what is left is the cohort. The 30 days only count once
+  enough real members are using the Notebook.
+- **Row 1 (the two zero-retention letters): deferred by the owner.** On 2026-09-26 the owner
+  chose to send them shortly after the live launch. The drafts in §2 are unchanged and ready.
+- **The weekly restore drill (standard #7): next unattended run is Sunday 2026-10-04 at 09:00.**
+  The folder the task runs from, `C:\Users\Patrick\uct-worktrees\notebook-soak-ref`, was
+  missing on 2026-10-01 and was re-created that day, so the run can start. The last scheduled run
+  (2026-09-27) ended INCONCLUSIVE because that night's attachment backup predated the checksum
+  list; a run by hand on 2026-09-28 passed. Nothing for the owner to do unless Sunday's run fails.
+
 **The arithmetic, derived from `docs/notebook/parity-scorecard.md` §B and §C (checked today
 against the committed file, not estimated):** the scorecard reads **40 of 61 clauses met, 3 of
 16 standards at the bar** today. If every row above runs, and both vendor letters in row 1 come
