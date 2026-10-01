@@ -26,6 +26,7 @@ import { askCitationStaleKey } from './askCitationNode'
 import { appendAskInsert, buildAskInsertNode } from './askInsert'
 import { codeHighlightPluginKey } from './codeBlockNode'
 import { highlighterLoader } from './codeLanguages'
+import { readToolbarFormatState } from '../components/notebook/NoteEditorPage'
 
 let editor
 afterEach(() => { editor?.destroy(); editor = null; document.body.innerHTML = '' })
@@ -170,6 +171,102 @@ describe('structural rail: neither extension re-walks the document once neither 
       ed.chain().setTextSelection(insertAt).insertContent('y').run()
     }
     expect(spy).toHaveBeenCalled()
+    spy.mockRestore()
+  })
+
+  // Wave 10 (lane TY7, "whose caller" perf pass). A THIRD whole-doc walk, a
+  // size-scaling cost ty5 left named only by self time (nodesBetween /
+  // matchType / forEach / child / posBeforeChild, prosemirror-model's own
+  // Fragment.nodesBetween, which iterates its children from index 0 up to
+  // `to` REGARDLESS of `from`) -- traced by a CPU-profile call-tree walk
+  // (docs/notebook/perf-runs/ty7/) to `@tiptap/core`'s `isNodeActive`, called
+  // by `readToolbarFormatState` (NoteEditorPage.jsx) 6 times EVERY
+  // keystroke (heading x2, bulletList, orderedList, blockquote, codeBlock).
+  // `nodeActiveAtCursor` (lib/fastToolbarProbes.js) answers the same
+  // collapsed-selection question from `$from`'s own resolved ancestor chain
+  // instead -- an O(1) array index per depth, never `Fragment.nodesBetween`.
+  //
+  // ⛔ A literal "zero nodesBetween calls" assertion for typing alone would be
+  // FALSE, and measuring that (not assuming it) is what this rail is for:
+  // `@tiptap/extension-link`'s own built-in `autolink` plugin calls
+  // `findChildrenInRange`/`textBetween` from its `appendTransaction` on every
+  // doc-changing transaction -- genuinely, correctly scoped to
+  // `getChangedRanges(transform)` (the transaction's own local edit), never
+  // the whole doc. It still costs nodesBetween calls near the TAIL of a flat
+  // document, because `Fragment.prototype.nodesBetween`'s own loop
+  // (`for (let i = 0, pos = 0; pos < to; i++)`) starts at index 0 regardless
+  // of how narrow `[from, to]` is -- the SAME core-machinery tax ty5's own
+  // README names for point 2, paid by a correctly-scoped VENDOR call site
+  // this lane does not own and is not fixing. So the rail compares
+  // readToolbarFormatState's OWN marginal contribution against that baseline,
+  // not against a hand-picked zero.
+  it('readToolbarFormatState, called on a FLAT 300-paragraph note with the caret at the END (the exact shape this size-scaling cost was measured on), adds only a ONE-TIME, bounded nodesBetween cost on top of the pre-existing (vendor, correctly-scoped, left alone) typing baseline -- never a PER-KEYSTROKE one', () => {
+    // canBlockquoteFast's memoization still pays for the first, necessary
+    // evaluation of canRunHistory(editor, 'toggleBlockquote') -- which, per
+    // prosemirror-commands' own `toggleWrap`, checks "is this already a
+    // blockquote" via isNodeActive internally (2 more nodesBetween calls for
+    // this doc's ancestor depth, traced via a stack-trace diagnostic, not
+    // guessed). That is a REAL, bounded, ONE-TIME cost -- never repeated for
+    // a keystroke that does not change the block context -- so the rail
+    // measures the delta at 20 keystrokes AND at 40, and asserts it does NOT
+    // grow between them (the signature this lane actually fixed: the cost no
+    // longer scales with how long you keep typing).
+    const paras = () => { const a = []; for (let i = 0; i < 300; i += 1) a.push(P(`p${i}`)); return a }
+
+    const baselineAfter = (n) => {
+      const ed = mount(paras(), extensions())
+      ed.chain().setTextSelection(ed.state.doc.content.size - 1).run()
+      const spy = vi.spyOn(PMNode.prototype, 'nodesBetween')
+      for (let i = 0; i < n; i += 1) ed.chain().setTextSelection(ed.state.doc.content.size - 1).insertContent('x').run()
+      const calls = spy.mock.calls.length
+      spy.mockRestore()
+      ed.destroy()
+      return calls
+    }
+    const withToolbarAfter = (n) => {
+      const ed = mount(paras(), extensions())
+      ed.chain().setTextSelection(ed.state.doc.content.size - 1).run()
+      const spy = vi.spyOn(PMNode.prototype, 'nodesBetween')
+      for (let i = 0; i < n; i += 1) {
+        ed.chain().setTextSelection(ed.state.doc.content.size - 1).insertContent('x').run()
+        // NoteEditorPage calls readToolbarFormatState on every 'transaction'/
+        // 'selectionUpdate' event, which is every keystroke.
+        readToolbarFormatState(ed)
+      }
+      const calls = spy.mock.calls.length
+      spy.mockRestore()
+      ed.destroy()
+      return calls
+    }
+
+    const base20 = baselineAfter(20)
+    const base40 = baselineAfter(40)
+    expect(base20).toBeGreaterThan(0) // non-vacuity: the baseline is real, not a spy that never fires
+    expect(base40).toBeGreaterThan(base20) // and it DOES scale with keystrokes (the Link plugin's own cost, unrelated)
+
+    const delta20 = withToolbarAfter(20) - base20
+    const delta40 = withToolbarAfter(40) - base40
+    expect(delta20).toBeGreaterThan(0) // the one-time cost is real, not zero by construction
+    expect(delta20).toBeLessThanOrEqual(4) // small: one cache-miss evaluation's own internal cost
+    expect(delta40).toBe(delta20) // and it does NOT grow between 20 and 40 keystrokes -- never per-keystroke
+  })
+
+  // Mutation target for the rail above: reverting `nodeActiveAtCursor` back
+  // to a direct `editor.isActive(...)` call in `readToolbarFormatState` must
+  // make `withToolbarCalls` EXCEED `baselineCalls` (6 extra isNodeActive
+  // walks a keystroke, each several nodesBetween calls deep for a nested
+  // ancestor chain) -- proving the rail above can actually fail, not just
+  // read as reassuring.
+  it('control: calling the REAL editor.isActive(nodeType) directly (what readToolbarFormatState used to do) DOES add nodesBetween calls on top of the same typing baseline', () => {
+    const paras = []
+    for (let i = 0; i < 300; i += 1) paras.push(P(`p${i}`))
+    const ed = mount(paras, extensions())
+    ed.chain().setTextSelection(ed.state.doc.content.size - 1).run()
+    const spy = vi.spyOn(PMNode.prototype, 'nodesBetween')
+    ed.chain().setTextSelection(ed.state.doc.content.size - 1).insertContent('x').run()
+    const afterTyping = spy.mock.calls.length
+    ed.isActive('bulletList')
+    expect(spy.mock.calls.length).toBeGreaterThan(afterTyping)
     spy.mockRestore()
   })
 })
