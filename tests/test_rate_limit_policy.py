@@ -525,3 +525,13 @@ def test_the_status_read_is_admin_only(app):
     route = next(r for r in app.routes if getattr(r, "path", "") == rlp.STATUS_PATH)
     assert "require_admin" in asc._guard_names_for(route)
     assert _client(app).get(rlp.STATUS_PATH).status_code in (401, 403)
+
+
+def test_the_render_pages_are_EXEMPT_so_enforcement_cannot_fail_a_discord_render():
+    """Owner ruling 2026-09-30: enforce, but never 429 the chart-renderer. Its
+    /api/r/* reads are exempt; its /api/bars/* never reach web (bars-edge-router)."""
+    hit = rlp.classify("/api/r/chart-settings")
+    assert hit is not None and hit[0] == rlp.KIND_EXEMPT, hit
+    assert "render" not in rlp.FAMILIES
+    # the control: an ordinary market-data read is still limited
+    assert rlp.classify("/api/ticker-meta/NVDA")[0] != rlp.KIND_EXEMPT
