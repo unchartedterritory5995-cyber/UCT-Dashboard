@@ -737,6 +737,24 @@ function allInvariant(toks, from, to, names) {
         i = close
         continue
       }
+      // ⭐ C42 — a bare `input(<literal>, …)` is a simple input too: its default
+      // is a number, a string or `true` / `false` written into the call, so it
+      // cannot be the v4 SOURCE form (`input(close, …)`), which stays excluded.
+      // ⚰️ MEASURED: `show_equal_highlow = input(true, …)` guarding
+      // `high_eqh := ta.pivothigh(…)` (smart-money-concepts-by-welotrades) read as
+      // a guard that varies, and the conditional-call mark refused four drawings
+      // of a block that runs on every bar.
+      if (v === 'input') {
+        const first = toks[i + 2]
+        const after = toks[i + 3]
+        const literal = first && (first.kind === 'number' || first.kind === 'string'
+          || (first.kind === 'ident' && !first.member && (first.value === 'true' || first.value === 'false')))
+        const ends = after && after.kind === 'punct' && (after.value === ',' || after.value === ')')
+        const close = closeOf(toks, i + 1)
+        if (!literal || !ends || close < 0 || close >= to) return false
+        i = close
+        continue
+      }
       const ns = nsOf(v)
       if (INVARIANT_CALLS.has(v) || (ns && INVARIANT_CALL_NAMESPACES.has(ns) && v !== 'math.random')) continue
       return false

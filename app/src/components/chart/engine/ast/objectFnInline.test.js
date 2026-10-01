@@ -531,3 +531,23 @@ describe('⭐⭐ C42 — tokens as they read on ONE execution', () => {
     expect(taCallIn(toks('x = math.max(a, b)'))).toBeNull()
   })
 })
+
+describe('⭐⭐ C42 — a bare `input(<literal>, …)` is a simple input, and its guard holds on every bar', () => {
+  const body = ['f() =>', '    label.new(bar_index, ta.highest(high, 10), "x")']
+
+  it('⭐ `show = input(true, "Show")` / `if show` — the call inlines as an every-bar call', () => {
+    for (const dflt of ['true', 'false', '14', '"on"']) {
+      const t = host(src(`show = input(${dflt}, "Show")`, ...body, 'if show', '    f()'))
+      expect(diag(t).dropReasons && diag(t).dropReasons['fn:conditional-history'], dflt).toBeUndefined()
+      expect(diag(t).inlinedCalls, dflt).toBe(1)
+      expect(diag(t).oneExecutionCalls, dflt).toBeUndefined()
+    }
+  })
+
+  it('⛔ CONTROL — the v4 SOURCE form `input(close, …)`, and a default that is an expression, still vary', () => {
+    for (const decl of ['s = input(close, "Src")', 's = input(defval = close, title = "Src")', 's = input(2 * 3, "n")']) {
+      const t = host(src(decl, ...body, 'if s > 0', '    f()'))
+      expect(diag(t).dropReasons['fn:conditional-history'], decl).toBe(1)
+    }
+  })
+})

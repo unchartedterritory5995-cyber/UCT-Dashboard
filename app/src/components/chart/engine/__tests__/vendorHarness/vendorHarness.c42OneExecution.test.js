@@ -419,24 +419,28 @@ describe('C42 — the same call, reached another way, is never the every-bar num
     expect(diag.dropReasons['create:label']).toBe(4)
   })
 
-  it('⛔ a `var` written from a `ta.*` call in a block that does not run on every bar is refused where a drawing reads it', () => {
+  it('⛔ a `var` written from a `ta.*` call in a block that runs once is refused where a drawing reads it', () => {
     const cap = capture()
     const { labels, diag } = run(cap, script(
-      'var float vh = na',
       'float eh = 0.0',
       'var float top = na',
+      'var float sv2 = na',
       'top := ta.highest(high, 10)',
       'if close > open',
-      '    vh := ta.highest(high, 10)',
       '    eh := ta.highest(high, 10)',
+      'if barstate.islast',
+      '    sv2 := ta.highest(high, 10)',
       'if barstate.islast',
       '    var float sv = na',
       '    sv := ta.highest(high, 10)',
-      '    label.new(bar_index, low, "V|" + str.tostring(vh))',
       '    label.new(bar_index, low, "E|" + str.tostring(eh))',
       '    label.new(bar_index, low, "SV|" + str.tostring(sv))',
+      '    label.new(bar_index, low, "SV2|" + str.tostring(sv2))',
       '    label.new(bar_index, low, "TOP|" + str.tostring(top))',
     ))
+    // `eh` — a plain reassignment under a guard that varies (C31's refusal);
+    // `sv` — a `var` written in the once block; `sv2` — written in ANOTHER
+    // once block and read through the chain's fold.
     // 🔴 CONTROL — the same `var` written on every bar is read
     expect(labels.map((l) => l.text)).toEqual(['TOP|161.67'])
     expect(diag.dropReasons['create:label']).toBe(3)
@@ -459,5 +463,19 @@ describe('C42 — the same call, reached another way, is never the every-bar num
     const want = [629, 630, 631, 632, 633].map((i) => txt(Math.max(...bars.slice(i - 9, i + 1).map((b) => b.h))))
     expect(labels.map((l) => l.text)).toEqual(want)
     expect(want[4]).toBe('161.67')
+  })
+
+  it('⭐ the same for a `var` written from `ta.*` under a bare `input(true, …)` guard (welotrades\' EQH / EQL shape)', () => {
+    const cap = capture()
+    const { labels, diag } = run(cap, script(
+      'show = input(true, "show")',
+      'var float top = na',
+      'if show',
+      '    top := ta.highest(high, 10)',
+      'if barstate.islast',
+      '    label.new(bar_index, high, "TOP|" + str.tostring(top))',
+    ))
+    expect(diag.dropReasons || {}).toEqual({})
+    expect(labels.map((l) => l.text)).toEqual(['TOP|161.67'])
   })
 })

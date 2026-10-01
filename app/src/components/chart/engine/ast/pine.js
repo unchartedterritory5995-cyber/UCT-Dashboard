@@ -14591,11 +14591,18 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       }
       if (prior.kind === 'state') {
         env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
-        // ⭐ C42 — a `var` written from a `ta.*` call in a block that does not run
-        // on every bar holds that call's answer from then on; no one-execution
+        // ⭐ C42 — a `var` written from a `ta.*` call in a block that runs exactly
+        // ONCE holds that call's one-run answer from then on; no one-execution
         // binding is built for a running variable, so the object lane refuses it
         // by name (and a later write keeps the mark: the value is still in it).
-        const stateMark = condCallMark(ctx, toks.slice(mut + 1), nameTok.value)
+        // ⛔ ONLY the one-run block, where the every-bar number is witnessed
+        // wrong. Under any other guard the write is read as it always was:
+        // marking it there refused drawings of blocks that in fact run on every
+        // bar (measured: smart-money-concepts-by-welotrades writes `high_eqh :=
+        // ta.pivothigh(…)` a second time under `barstate.isconfirmed and …`, and
+        // four EQH / EQL drawings were lost). What a window answers across many
+        // runs is the queued probe's question, not this mark's.
+        const stateMark = ctx && ctx.oneExecution ? condCallMark(ctx, toks.slice(mut + 1), nameTok.value) : null
         const carried = stateMark
           ? (stateMark.refuse || `\`${nameTok.value}\` is written from a \`ta.*\` call inside a block that runs once, `
             + 'and a running variable is not read on that one run here')
