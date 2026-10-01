@@ -136,6 +136,13 @@ describe('C37 — the plot lane\'s gradient function, on the probe\'s own colore
     expect(gradientPointColour(cc.gradient, NaN)).toBeNull()
     expect(gradientPointColour(cc.gradient, Infinity)).toBeNull()
     expect(gradientPointColour(cc.gradient, -Infinity)).toBeNull()
+    // …and a position that is not a number at all is never coerced to 0
+    expect(gradientPointColour(cc.gradient, null)).toBeNull()
+    expect(gradientPointColour(cc.gradient, undefined)).toBeNull()
+    // the same with a transparency a `color.new` set: still no colour
+    const withT = columnColorsForPlot({ colorMode: 'column:w', colorGradient: { from: '#000000', to: '#FFFFFF', transparency: 40 } })
+    expect(gradientPointColour(withT.gradient, NaN)).toBeNull()
+    expect(gradientPointColour(withT.gradient, 0.5)).toBe('#7F7F7F99')
     // CONTROL — a finite position outside [0, 1] IS measured (clamped to an end)
     expect(gradientPointColour(cc.gradient, -3)).toBe('#000000')
     expect(gradientPointColour(cc.gradient, 7)).toBe('#FFFFFF')

@@ -779,10 +779,12 @@ function gradientOf(plot) {
  *  1. A transparency a `color.new` set replaces the blend's, by the object
  *  lane's one formula; otherwise the blend's own opacity byte is the alpha. */
 export function gradientPointColour(gradient, w) {
-  if (!gradient || typeof w !== 'number' || !Number.isFinite(w)) return null
-  const packed = fromGradient(w, 0, 1, gradient.a, gradient.b)
-  if (packed === null || packed === undefined) return null
-  const hex = packedToObjectHex(packed)
+  // ⛔ ONE check of its own: a position that is not a NUMBER (no column value)
+  // must not be coerced to 0 and painted the bottom colour. A NaN or infinite
+  // position is `fromGradient`'s to refuse (it answers `null`), and `null` flows
+  // through the two conversions below as `null`.
+  if (!gradient || typeof w !== 'number') return null
+  const hex = packedToObjectHex(fromGradient(w, 0, 1, gradient.a, gradient.b))
   return gradient.transparency !== null ? withObjectTransparency(hex, gradient.transparency) : hex
 }
 

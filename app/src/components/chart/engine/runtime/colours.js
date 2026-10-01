@@ -134,8 +134,10 @@ export function objectHexToPacked(hex) {
 }
 
 export function packedToObjectHex(packed) {
+  // `Number.isInteger` is false for everything that is not a number (`null`, a
+  // string), so the gradient's own "unmeasured" answer (`null`) stays `null`.
+  if (!Number.isInteger(packed) || packed < 0 || packed > 0xffffffff) return null
   const v = packed
-  if (typeof v !== 'number' || !Number.isInteger(v) || v < 0 || v > 0xffffffff) return null
   const u = unpackColor(v)
   if (u.transparencyByte === 0) return u.hex
   return u.hex + (BYTE_MAX - u.transparencyByte).toString(16).padStart(2, '0').toUpperCase()
