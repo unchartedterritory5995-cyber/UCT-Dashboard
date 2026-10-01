@@ -228,6 +228,8 @@
   word-break: break-all;
   white-space: normal;
 }
+/* TERM-050: each source row is S8's <Provenance> around the link. */
+.citationRow { display: flex; align-items: center; }
 .citationLink:hover {
   background: rgba(220, 187, 94, 0.08);
   color: var(--ut-gold, #dcbb5e);

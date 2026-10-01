@@ -30,7 +30,7 @@ from typing import Any
 # ⛔ Its OWN env var with a /data default, which is the repo's census idiom — `conftest.py` derives
 # the pin by AST over `api/**`, so this path is redirected in tests the day it lands rather than
 # needing a hand-added entry. Do NOT resolve it through DATA_DIR: that reaches 1 of 72 path vars.
-_DEFAULT_DB = "/data/hub_reports.db"
+_DEFAULT_DB = os.environ.get("HUB_REPORTS_DB_PATH", "/data/hub_reports.db")
 
 
 def db_path() -> str:

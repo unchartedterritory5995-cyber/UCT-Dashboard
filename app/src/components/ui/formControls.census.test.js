@@ -259,7 +259,11 @@ export function scanSource(src, { primitiveNames = new Set() } = {}) {
       || literalOf(getAttr(op, 'aria-hidden')) === 'true'
     if (kind === 'button-input') label = 'n/a'
     else if (hiddenInput) label = 'hidden'
-    else if (impl === 'primitive') label = 'primitive'
+    // ⛔ A PRIMITIVE IS JUDGED LIKE THE NATIVE CONTROL IT RENDERS. This branch used
+    // to answer `primitive` for every use of one, so moving an unnamed `<input>`
+    // onto `<Input>` made "unlabelled" go DOWN with no name added — the count
+    // improved by migration alone. The primitives forward `aria-label`, `id` and
+    // `title` untouched, so the same evidence is on the JSX and is read the same way.
     else if (getAttr(op, 'aria-label') || getAttr(op, 'aria-labelledby') || getAttr(op, 'title')) label = 'labelled'
     // `visit` runs BEFORE the element pushes itself, so `st.els` is exactly its ancestors
     else if (st.els.includes('label')) label = 'labelled'
@@ -269,7 +273,7 @@ export function scanSource(src, { primitiveNames = new Set() } = {}) {
       const lit = literalOf(id)
       return typeof lit === 'string' ? htmlForLiterals.has(lit) : htmlForDynamic > 0
     })()) label = 'labelled'
-    else if (impl !== 'native' && hasTextContent(n)) label = 'labelled'
+    else if (impl !== 'native' && impl !== 'primitive' && hasTextContent(n)) label = 'labelled'
     else if (hasSpread(op)) label = 'indeterminate'
     else if (getAttr(op, 'placeholder')) label = 'placeholder-only'
     else label = 'unlabelled'
@@ -745,6 +749,55 @@ describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
     const { raw, sites } = readSwitchBaseline()
     expect(raw).toBe(serializeSwitchBaseline(sites))
   })
+})
+
+// ── the named surfaces ──────────────────────────────────────────────────────────
+//
+// FB-S10-03's `Known it worked.` says nothing measured form-control inconsistency,
+// so "it worked" could not be told from "it shipped". This is that observable for
+// the surfaces TERM-067 has migrated: every control site on them carries an
+// accessible name, and stays that way.
+//
+// ⛔ NARROW ON PURPOSE. This is a list of surfaces somebody finished, not a rule
+// over the tree — a rail over every file would fail other lanes' work by name
+// (the census header records that lesson). A file joins the list in the commit
+// that takes its last unnamed control away.
+export const NAMED_SURFACES = [
+  'app/src/components/chart/ChartToolbar.jsx',
+  'app/src/pages/Admin.jsx',
+  'app/src/pages/ModelBook.jsx',
+  'app/src/pages/Settings.jsx',
+  'app/src/pages/charts/PeriodSortConfig.jsx',
+  'app/src/pages/desk/TeamSection.jsx',
+]
+const NAMED = new Set(['labelled', 'hidden', 'n/a'])
+export const unnamedSites = (sites) => sites.filter((s) => !NAMED.has(s.label))
+
+describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
+  it('a primitive is judged like a native control — an unnamed one is NOT waved through', () => {
+    const prim = { primitiveNames: new Set(['Input', 'Select', 'Checkbox', 'Switch']) }
+    const labels = (src) => scanSource(src, prim).sites.map((s) => s.label)
+    expect(labels('const a = <Input value={v} />')).toEqual(['unlabelled'])
+    expect(labels('const a = <Input placeholder="Code" />')).toEqual(['placeholder-only'])
+    expect(labels('const a = <Input aria-label="Code" />')).toEqual(['labelled'])
+    expect(labels('const a = <label>Replay <Checkbox checked={x} /></label>')).toEqual(['labelled'])
+    expect(labels('const a = <div><label htmlFor="f">Sort</label><Select id="f" /></div>')).toEqual(['labelled'])
+    expect(labels('const a = <Select {...rest} />')).toEqual(['indeterminate'])
+  })
+
+  it('the verdict can FAIL — a planted unnamed control on a named surface is reported', () => {
+    const planted = scanSource('const a = <div><input aria-label="ok" /><select /></div>')
+    expect(unnamedSites(planted.sites).map((s) => `${s.kind}:${s.label}`)).toEqual(['select:unlabelled'])
+  })
+
+  it.each(NAMED_SURFACES)('%s — every control has an accessible name', (file) => {
+    const { perFile } = census()
+    const sites = perFile[file]?.sites || []
+    expect(sites.length, `${file} holds no control sites at all — renamed, or the scan missed it`).toBeGreaterThan(0)
+    expect(unnamedSites(sites).map((s) => `${s.kind}/${s.impl} ${s.label} in ${s.component}`),
+      `${file} was migrated under TERM-067 and every control on it had a name. Give the new one an`
+      + ' aria-label or a <label htmlFor>.').toEqual([])
+  }, 120_000)
 })
 
 // ── the census, printed ─────────────────────────────────────────────────────────

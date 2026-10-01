@@ -280,6 +280,8 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cit:hover { border-color: var(--ut-gold, #dcbb5e); color: var(--ut-gold, #dcbb5e); }
+/* TERM-050: each source row is S8's <Provenance> around the link; keep the chip inline. */
+.citRow { display: inline-flex; align-items: center; }
 .citNum {
   display: inline-flex; align-items: center; justify-content: center;
   width: 15px; height: 15px; border-radius: 3px;

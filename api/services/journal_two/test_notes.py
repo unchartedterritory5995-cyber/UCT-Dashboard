@@ -979,6 +979,25 @@ def test_append_widget_embed_guards(conn):
     assert svc.append_widget_embed("u2", n["id"], EMBED_ATTRS, conn=conn) is None
 
 
+def test_append_widget_embed_refuses_a_locked_note(conn):
+    """Ruling 149: a locked note takes no captures. `append_widget_embed` is
+    'Send to Journal's server half (sendToJournal.js -> captureTargets.js's
+    `appendToNote` -> POST /notes/{id}/embeds), and before this it had NO
+    lock check at all -- only `note_personal_api.append_nodes` (the personal
+    API's own append door) refused. Body and updatedAt stay untouched."""
+    n = svc.create_note("u1", {"title": "T", "bodyJson": {
+        "type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Existing"}]}]}},
+        conn=conn)
+    locked = svc.update_note("u1", n["id"], {"locked": True}, conn=conn)
+    assert locked["locked"] is True
+    with pytest.raises(svc.NoteLockedError):
+        svc.append_widget_embed("u1", n["id"], EMBED_ATTRS, conn=conn)
+    after = svc.get_note("u1", n["id"], conn=conn)
+    assert after["bodyJson"] == locked["bodyJson"]
+    assert after["updatedAt"] == locked["updatedAt"]
+
+
 def test_update_note_compare_and_set(conn, monkeypatch):
     # A15: an optional updated_at baseline turns the full-doc PUT into a CAS,
     # so a server-side append (Send to Journal) can never be silently deleted

@@ -1,0 +1,126 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10-l13/app
+
+ ❯ src/lib/context/symbolLinkChannels.test.js (8 tests | 1 failed) 1314ms
+     ✓ NON-VACUITY: the sweep sees a real population of sources 22ms
+     ✓ the param names are DERIVED from the authority, not typed here 1ms
+     ✓ POSITIVE CONTROL: the matcher can see a real hand-typed read 277ms
+     ✓ POSITIVE CONTROL: the authority itself routes through the constant, not a literal 260ms
+     × ⛔ no NEW surface reads a symbol/timeframe param by hand 258ms
+     ✓ ⭐ the baseline has not gone stale in the other direction 240ms
+     ✓ records WHICH spellings are in use, so the finding has a measurement 255ms
+     ✓ the ruling it cites is still where the packet says it is 0ms
+ ❯ src/pages/journal-2-0/lib/offline/f5Freeze.test.js (8 tests | 2 failed) 17ms
+     × every frozen call site is still exactly where the freeze says it is 8ms
+     × every frozen call site still LANDS its revision 2ms
+     ✓ the classification and the settle are named, and they exist 1ms
+     ✓ ⛔⛔ an APPEND door records its revision and NEVER settles with local state 3ms
+     ✓ ⚖️ D3b — the SWEEP’s fork settle passes no `forked`; the one-transaction check is the OWNER’s alone 1ms
+     ✓ ⚖️ D3b fix round 1, residual (c) — the drain reads the base it classifies against in ONE place, and both call sites ask it 1ms
+     ✓ ⭐ the freeze declares WHEN it lifts, and it has not lifted 0ms
+     ✓ ⭐ CONTROL — the matcher can tell a settled door from an unsettled one 0ms
+ ❯ src/hooks/pollingSites.rail.test.js (4 tests | 1 failed) 17876ms
+     ✓ the wrapper exempts itself by RESOLUTION, and there is exactly one of it  8099ms
+     × no NEW bare polling site, and no allow-listed one that has since moved 9764ms
+     ✓ the ADOPTION TRADE is pinned, so nobody re-pitches migration as a pure win 9ms
+     ✓ CONTROL — the scanner SEES a planted poll and IGNORES what is not one 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/hooks/pollingSites.rail.test.js > polling sites — the opt-in helper gets a rail > no NEW bare polling site, and no allow-listed one that has since moved
+AssertionError: A bare `useSWR(..., { refreshInterval })` site appeared that the 2026-08-09
+census did not hold. That is a decision, not a lint nit:
+  • `useMobileSWR` HALVES the tick on a touch client — take it if a phone renders this;
+  • bare `useSWR` keeps the app-global `revalidateOnFocus: false` from App.jsx —
+    the wrapper overrides that to `true`, which is MORE requests on desktop focus,
+    plus a visibilitychange listener and a 60s useMarketOpen timer per call site.
+Pick one, then add the row below with your reason. Do NOT add a row to silence this.: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "app/src/pages/research/tabs/OptionsChainTab.jsx: 1 (listed 0)",
++ ]
+
+ ❯ src/hooks/pollingSites.rail.test.js:442:19
+    440|       '    plus a visibilitychange listener and a 60s useMarketOpen ti…
+    441|       'Pick one, then add the row below with your reason. Do NOT add a…
+    442|     ].join('\n')).toEqual([])
+       |                   ^
+    443| 
+    444|     const stale = Object.entries(BARE_POLL_SITES)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  src/lib/context/symbolLinkChannels.test.js > S4 CP2 — the deep-link ruling has a derived rail behind it > ⛔ no NEW surface reads a symbol/timeframe param by hand
+AssertionError: NEW hand-typed deep-link read(s): testing/panes/paneHarness.jsx.
+chartDeepLink.js:13-17 rules that a URL param is a one-shot INSTRUCTION applied through an existing authority and then STRIPPED — never a second source of truth. Route through readChartsLink/chartsLinkPath, or add the file to HAND_TYPED_BASELINE with the reason it is a separate door.: expected [ 'testing/panes/paneHarness.jsx' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "testing/panes/paneHarness.jsx",
++ ]
+
+ ❯ src/lib/context/symbolLinkChannels.test.js:204:7
+    202|             'file to HAND_TYPED_BASELINE with the reason it is a separ…
+    203|         : '',
+    204|     ).toEqual([])
+       |       ^
+    205|   })
+    206| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  src/pages/journal-2-0/lib/offline/f5Freeze.test.js > ⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are proved live > every frozen call site is still exactly where the freeze says it is
+AssertionError: ⛔ a frozen call site moved or changed shape — re-derive the freeze before merging: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "append_financial_fact — app/src/pages/journal-2-0/lib/captureFinancialFact.js no longer contains `/api/j2/notes/${noteId}/facts/${fact.id}/insert`",
++ ]
+
+ ❯ src/pages/journal-2-0/lib/offline/f5Freeze.test.js:195:106
+    193|       if (!read(file).includes(call)) missing.push(`${family} — ${file…
+    194|     }
+    195|     expect(missing, '⛔ a frozen call site moved or changed shape — re-…
+       |                                                                                                          ^
+    196|   })
+    197| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  src/pages/journal-2-0/lib/offline/f5Freeze.test.js > ⛔⛔ Q1-F5 FREEZE — the append doors do not move until they are proved live > every frozen call site still LANDS its revision
+AssertionError: ⛔ a frozen append door lost its settle: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "append_financial_fact — app/src/pages/journal-2-0/lib/captureFinancialFact.js",
++ ]
+
+ ❯ src/pages/journal-2-0/lib/offline/f5Freeze.test.js:209:65
+    207|       if (!/settleNoteWrite\s*\(/.test(window)) unsettled.push(`${fami…
+    208|     }
+    209|     expect(unsettled, '⛔ a frozen append door lost its settle').toEqua…
+       |                                                                 ^
+    210|   })
+    211| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  3 failed (3)
+      Tests  4 failed | 16 passed (20)
+   Start at  08:45:01
+   Duration  18.58s (transform 83ms, setup 372ms, import 50ms, tests 19.21s, environment 1.34s)
+

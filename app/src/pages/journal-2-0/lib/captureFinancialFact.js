@@ -30,6 +30,16 @@ async function resolveDestinationNoteId(label) {
   return note?.id || null
 }
 
+// Ruling 149: a locked note takes no captures. `append_financial_fact`'s
+// server half refuses with 423 (`notes_service.NoteLockedError`), and each
+// capture function below names that outcome rather than letting it read as
+// the generic 'Capture failed' every OTHER failure uses: the member needs to
+// know WHY nothing landed. The fact row still exists un-placed (it is not
+// retried or deleted here; it simply never got a node).
+// ⛔ The insert call and its settle stay INLINE at both sites, in the exact
+// shape `lib/offline/f5Freeze.test.js` freezes. The 423 branch is the only
+// line added beside them.
+
 /** Captures the current price for `ticker` into the member's last-active
  * note (or a fresh one), returning a toast line — never throws. */
 export async function capturePriceToNotebook(ticker) {
@@ -46,12 +56,49 @@ export async function capturePriceToNotebook(ticker) {
     const insertRes = await fetch(`/api/j2/notes/${noteId}/facts/${fact.id}/insert`, {
       method: 'POST', credentials: 'include',
     })
+    if (insertRes.status === 423) {
+      return `${ticker} price not saved — that note is locked. Unlock it in the Notebook first.`
+    }
     if (!insertRes.ok) return 'Capture failed — try again'
     // ⛔⛔ `append_financial_fact` advanced this note's revision. Unlanded, it
     // reads to the offline queue as a stranger's write and forks the member's
     // note against their own saved price.
     await settleNoteWrite(noteId, insertRes)
     return `${ticker} price captured to Notebook`
+  } catch {
+    return 'Capture failed — try again'
+  }
+}
+
+/** G-062 (wave 10, lane G62) — the analyst-consensus twin of
+ * capturePriceToNotebook, mirrored exactly (same capture call shape, same
+ * frozen-at-insert settle, same honest failure text): TickerPopup's second
+ * "Save … to Notebook" door, beside the price one. The only differences are
+ * `factType` and the success line. Never throws. */
+export async function captureConsensusToNotebook(ticker) {
+  try {
+    const noteId = await resolveDestinationNoteId(ticker)
+    if (!noteId) return 'Capture failed — try again'
+    const factRes = await fetch(`/api/j2/notes/${noteId}/facts`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticker, factType: 'analyst_price_target_consensus' }),
+    })
+    // A refusal here is most likely the honest "no consensus available"
+    // path (note_facts.create_fact_observation) — FMP unconfigured, or no
+    // consensus for this ticker. Never fabricate a number; the generic
+    // failure line is the same one every other capture failure uses.
+    if (!factRes.ok) return 'Capture failed — try again'
+    const { fact } = await factRes.json()
+    const insertRes = await fetch(`/api/j2/notes/${noteId}/facts/${fact.id}/insert`, {
+      method: 'POST', credentials: 'include',
+    })
+    if (insertRes.status === 423) {
+      return `${ticker} analyst consensus not saved — that note is locked. Unlock it in the Notebook first.`
+    }
+    if (!insertRes.ok) return 'Capture failed — try again'
+    await settleNoteWrite(noteId, insertRes)
+    return `${ticker} analyst consensus captured to Notebook`
   } catch {
     return 'Capture failed — try again'
   }

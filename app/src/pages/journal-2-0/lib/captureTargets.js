@@ -33,6 +33,12 @@ export function freshLastNote() {
   return last?.id ? last : null
 }
 
+// Ruling 149: a locked note takes no captures. The server already refuses
+// (423, `notes_service.NoteLockedError`) for append_widget_embed; this names
+// that case to the caller — never a silent 'false' indistinguishable from a
+// 404 (deleted note) or any other failure.
+const APPEND_LOCKED = 'locked'
+
 async function appendToNote(noteId, attrs) {
   const res = await fetch(`/api/j2/notes/${noteId}/embeds`, {
     method: 'POST',
@@ -40,6 +46,7 @@ async function appendToNote(noteId, attrs) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ attrs }),
   })
+  if (res.status === 423) return APPEND_LOCKED
   if (!res.ok) return false
   // ⛔⛔ SEND TO JOURNAL MOVES THE NOTE'S REVISION. Landing it is what stops the
   // offline queue from meeting a revision it has never heard of, deciding
@@ -81,11 +88,26 @@ export const CAPTURE_TARGETS = {
     hint: 'Append to the note you have open (or the inbox)',
     run: async (attrs, { widgetId, label }) => {
       const last = freshLastNote()
-      if (last && await appendToNote(last.id, attrs)) {
-        // Name the destination — "your last note" was unverifiable.
-        return last.title ? `${label} sent to “${last.title}”` : `${label} sent to your most recent note`
+      if (last) {
+        const outcome = await appendToNote(last.id, attrs)
+        if (outcome === true) {
+          // Name the destination — "your last note" was unverifiable.
+          return last.title ? `${label} sent to “${last.title}”` : `${label} sent to your most recent note`
+        }
+        if (outcome === APPEND_LOCKED) {
+          // A locked note takes no captures: it waits in the inbox until
+          // Unlock (the same rule NoteEditorPage's CaptureInboxTray already
+          // enforces client-side for the note's OWN inbox tray) — named here
+          // rather than left as a silent "sent" the member never sees reach
+          // the note.
+          return await pushToInbox(widgetId, attrs)
+            ? (last.title
+              ? `“${last.title}” is locked — ${label} captured to your inbox until you unlock it`
+              : `That note is locked — ${label} captured to your inbox until you unlock it`)
+            : 'Capture failed — try again'
+        }
+        // outcome === false: 404, the note was deleted since — fall through below.
       }
-      // 404 = the note was deleted since — fall through to the inbox.
       return await pushToInbox(widgetId, attrs)
         ? `${label} captured → Notebook inbox`
         : 'Capture failed — try again'

@@ -1,0 +1,18 @@
+
+ RUN  v4.0.18 C:/Users/Patrick/uct-worktrees/notebook-w10-l13/app
+
+warning: in the working copy of 'app/src/hub/rule12Paths.test.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/hub/rule12Paths.test.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/hub/rule12Paths.test.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/hub/rule12Paths.test.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'app/src/hub/rule12Paths.test.js', LF will be replaced by CRLF the next time Git touches it
+ ✓ src/hub/rule12Paths.test.js (28 tests) 3135ms
+     ✓ the rail can actually see this branch's changes — the non-vacuity control  812ms
+     ✓ ⛔ no file under the Notebook workstream's paths is touched, except the one permitted card  1086ms
+     ✓ ⛔ the permitted file may ONLY gain the attribute — the exception is a shape, not a filename  939ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  20:32:19
+   Duration  4.81s (transform 86ms, setup 384ms, import 106ms, tests 3.13s, environment 931ms)
+

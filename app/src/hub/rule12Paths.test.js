@@ -46,7 +46,11 @@ const PERMITTED_INSERT = ' data-note-card-id={note.id}'
 // matches nothing, and returns an EMPTY diff. The shape check below then compared zero added
 // lines against zero removed lines and passed a real off-shape edit. Its own mutation proof is
 // what caught it. `-C` removes the whole class.
-const gitRaw = (args) => execFileSync('git', args, { encoding: 'utf8', windowsHide: true }).trim()
+// maxBuffer: `git ls-files` passed Node's 1 MiB default on 2026-09-30 (1,050,169 bytes on
+// master f912aaa9c), and execFileSync then throws ENOBUFS -- a red that says nothing about rule 12.
+const gitRaw = (args) => execFileSync('git', args, {
+  encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024,
+}).trim()
 const REPO_ROOT = gitRaw(['rev-parse', '--show-toplevel'])
 const git = (args) => gitRaw(['-C', REPO_ROOT, ...args])
 
