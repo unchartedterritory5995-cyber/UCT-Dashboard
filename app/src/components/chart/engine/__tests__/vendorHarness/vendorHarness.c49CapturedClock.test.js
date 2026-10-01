@@ -22,6 +22,12 @@
 // WHAT IS SERVED (sections 2–5, through the real member door), and what is not
 // (section 6), is `interpret.js::chartClockRegime` / `periodAnchorMask`.
 //
+// Section 8 is packet #3 — `request.security(tickerid, "D", close)` on a 5-minute
+// chart with the newest bar forming (`request-realtime-alignment-spy-5-2026-10-01`
+// and `…-b-…`) — and the wrong value it found in the member door: a request for the
+// translation's base period folded to its own expression, so on a 5-minute chart
+// the pane drew the 5-MINUTE close as the daily one, on 299 of 300 bars.
+//
 // ⚠️ THE PROBES STAY REFUSED AT THE DOOR on rows outside this lane (T16 `input.time`;
 // Q03 / Q04 `time_close("3M" / "12M")`; Q05 `time_close(timeframe.period)`), so each
 // replay grades a DERIVED capture — those rows cut, re-sealed — exactly as the C30 and
@@ -36,7 +42,7 @@ import { translatePine } from '../../ast/pine.js'
 import {
   chartClockRegime, periodAnchorNode, periodAnchorGatePeriod, chartSixtyTimeNode, isChartSixtyTime,
   CHART_CLOCK_WITHHELD, CHART_CLOCK_WHOLE, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF,
-  SIXTY_WITNESSED_TF,
+  SIXTY_WITNESSED_TF, requestBaseNode, requestBaseOf, interpret, periodAnchorMask,
 } from '../../ast/interpret.js'
 import {
   computePeriodCalendar, PERIOD_CALENDAR_CODES, PERIOD_CALENDAR_CLOSURES_FROM, barOpenInstant,
@@ -58,6 +64,9 @@ const CAP = {
   FX_T: load('vw-time-tf-fx-eurusd-1d-2026-10-01'),
   FX_Q: load('vw-time-close-tf-fx-eurusd-1d-2026-10-01'),
   EXT5: load('vw-clock-vwap-spy-5-ext-2026-09-28'),
+  REQ_A: load('request-realtime-alignment-spy-5-2026-10-01'),
+  REQ_B: load('request-realtime-alignment-spy-5-b-2026-10-01'),
+  D900: load('vw-time-tf-spy-1d-2026-09-28'),
 }
 
 const OPEN_ROW = { W: 'T01_timeW_minus_time_DAYS', M: 'T02_timeM_minus_time_DAYS', '3M': 'T03_time3M_minus_time_DAYS', '12M': 'T04_time12M_minus_time_DAYS' }
@@ -578,5 +587,189 @@ describe('C49 · 7 — the trees, and what stays refused by name', () => {
       expect(say('5'), code).toMatch(/What would settle it/)
     }
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD), code).toContain(code)
+  })
+})
+
+// ════════════════════════════════════════════════════════════════════════════
+describe('C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AMEX:SPY 5 minutes, the newest bar forming', () => {
+  const A = CAP.REQ_A
+  const B = CAP.REQ_B
+  const R = (cap) => ({
+    on: vendor(cap, 'R1_close_D_lookahead_ON'), off: vendor(cap, 'R2_close_D_lookahead_OFF'), prev: vendor(cap, 'R7_prev_D_close_OFF'),
+    rt: vendor(cap, 'R4_isrealtime'), last: vendor(cap, 'R5_islast'), close: vendor(cap, 'R6_chart_close'),
+    day: cap.bars.rows.map((r) => ny(r[0]).ymd), hm: cap.bars.rows.map((r) => ny(r[0]).hm),
+  })
+  const a = R(A)
+  const b = R(B)
+
+  it('the two captures verify: 300 and 301 five-minute bars, the newest forming, taken 2 minutes apart during regular hours', () => {
+    for (const cap of [A, B]) expect(validateCapture(cap).ok).toBe(true)
+    expect([A.bars.rows.length, B.bars.rows.length]).toEqual([300, 301])
+    expect(A.newestBarIsForming && B.newestBarIsForming).toBe(true)
+    expect(A.capturedAtUTC.slice(0, 16)).toBe('2026-10-01T19:53')
+    expect(B.capturedAtUTC.slice(0, 16)).toBe('2026-10-01T19:55')
+    expect(a.rt.filter((x) => x === 1).length).toBe(1)
+    expect(b.rt.filter((x) => x === 1).length).toBe(2)
+  })
+
+  it('⭐ HISTORICAL bars of a finished day: look-ahead ON is that day\'s DAILY close on every bar; OFF is the previous day\'s, except on the day\'s last bar', () => {
+    const closeOf = {}                                          // the daily close each finished day shows (ON)
+    for (const d of ['2026-09-28', '2026-09-29', '2026-09-30']) {
+      const on = new Set(b.on.filter((_, i) => b.day[i] === d))
+      expect(on.size, d).toBe(1)
+      closeOf[d] = [...on][0]
+    }
+    expect(closeOf).toEqual({ '2026-09-28': 765.61, '2026-09-29': 764.2, '2026-09-30': 762.63 })
+    for (const [d, before] of [['2026-09-29', '2026-09-28'], ['2026-09-30', '2026-09-29']]) {
+      const idx = b.day.map((x, i) => (x === d ? i : -1)).filter((i) => i >= 0)
+      const lastBar = idx[idx.length - 1]
+      expect(b.hm[lastBar], d).toBe('15:55')
+      for (const i of idx.slice(0, -1)) expect(b.off[i], `${d} ${b.hm[i]}`).toBe(closeOf[before])
+      expect(b.off[lastBar], d).toBe(closeOf[d])
+    }
+    // R7 — `close[1]` of the daily bar, look-ahead off: one day further back, switching on the same bar
+    const i30 = b.day.map((x, i) => (x === '2026-09-30' ? i : -1)).filter((i) => i >= 0)
+    expect(new Set(i30.slice(0, -1).map((i) => b.prev[i]))).toEqual(new Set([closeOf['2026-09-28']]))
+    expect(b.prev[i30[i30.length - 1]]).toBe(closeOf['2026-09-29'])
+  })
+
+  it('⭐ the daily close is the DAILY bar\'s, not the last 5-minute bar\'s: 762.63 against 762.46 on 2026-09-30', () => {
+    const last = b.day.lastIndexOf('2026-09-30')
+    expect(b.hm[last]).toBe('15:55')
+    expect(b.close[last]).toBe(762.46)
+    expect(b.on[last]).toBe(762.63)
+  })
+
+  it('⭐ THE FORMING BAR: look-ahead ON and OFF read the same number — the forming daily bar\'s current close; a bar that closed in realtime keeps its final value', () => {
+    const n = a.on.length - 1
+    expect([a.rt[n], a.last[n]]).toEqual([1, 1])
+    expect([a.on[n], a.off[n], a.close[n]]).toEqual([765.03, 765.03, 765.03])
+    expect(a.prev[n]).toBe(762.63)                              // `close[1]`, off: yesterday's close
+    // today's HISTORICAL bars (loaded before the capture): ON is today's daily close as it stood then, OFF yesterday's
+    const today = a.day.map((x, i) => (x === '2026-10-01' && a.rt[i] === 0 ? i : -1)).filter((i) => i >= 0)
+    expect(today.length).toBe(76)
+    expect(new Set(today.map((i) => a.on[i]))).toEqual(new Set([765.08]))
+    expect(new Set(today.map((i) => a.off[i]))).toEqual(new Set([762.63]))
+    // two minutes later: the 15:50 bar has closed (still `isrealtime`) and reads its final close; the new one forms
+    expect([b.on[299], b.off[299], b.close[299], b.rt[299]]).toEqual([764.52, 764.52, 764.52, 1])
+    // ⚠️ and the daily request and the 5-minute bar are separate feeds: they can differ by a tick
+    expect([b.on[300], b.off[300], b.close[300]]).toEqual([764.13, 764.13, 764.2])
+  })
+
+  it('⛔ WHAT THE DOOR DREW BEFORE C49: the request folded to its own expression — the 5-MINUTE close — wrong on 299 of 300 bars for each merge', () => {
+    // the fold is the chart's own `close` (R6 is that column, and it MATCHes the vendor's on 300 / 300)
+    const wrong = (col) => col.filter((v, i) => v !== a.close[i]).length
+    expect([wrong(a.on), wrong(a.off)]).toEqual([299, 299])
+    expect(Math.max(...a.on.map((v, i) => Math.abs(v - a.close[i])))).toBeCloseTo(6.61, 2)
+    expect(Math.max(...a.off.map((v, i) => Math.abs(v - a.close[i])))).toBeCloseTo(7.42, 2)
+    // …right only on the bar still forming
+    expect(a.on.map((v, i) => (v === a.close[i] ? i : -1)).filter((i) => i >= 0)).toEqual([299])
+  })
+
+  for (const [name, cap, n] of [['the first capture', A, 300], ['the second, two minutes later', B, 301]]) {
+    it(`⭐ through the member door, ${name}: the four request rows draw NOTHING — 0 wrong values, all ${n} bars withheld, by name`, () => {
+      const { verdict } = gradeCapture(cap)
+      const byTitle = new Map(verdict.plots.map((p) => [p.title, p]))
+      for (const title of ['R1_close_D_lookahead_ON', 'R2_close_D_lookahead_OFF', 'R3_DELTA_on_minus_off', 'R7_prev_D_close_OFF']) {
+        expect(byTitle.get(title).stats, title).toMatchObject({ matching: 0, valueMismatches: 0, naMismatches: n })
+      }
+      expect(byTitle.get('R6_chart_close').verdict).toBe('MATCH')
+      const ours = runOurSide(cap)
+      expect(noteCodes(ours)).toEqual(['request:other-timeframe'])
+      expect(ours.notes.join('\n')).toMatch(/This chart's timeframe is `5`/)
+      expect(ours.notes.join('\n')).toMatch(/request-realtime-alignment-spy-5-2026-10-01/)
+    })
+  }
+
+  it('the object lane: a drawing that reads the daily request is withheld on the 5-minute chart, and says why — and `nz(…)` does not turn it into a 0', () => {
+    const ours = on(A, pine(['d = request.security(syminfo.tickerid, "D", high)', 'plot(nz(d), "nz")', 'if barstate.islast',
+      '    label.new(bar_index, high, str.tostring(d))', '    line.new(bar_index - 5, d, bar_index, d)']))
+    expect(ours.ok, ours.refusal).toBe(true)
+    expect(column(ours).every(Number.isNaN)).toBe(true)
+    expect(ours.objects.counts).toMatchObject({ labels: 0, lines: 0 })
+    expect(ours.objects.chartClock).toEqual([{ code: 'request:other-timeframe', reason: CHART_CLOCK_WITHHELD['request:other-timeframe']('5') }])
+  })
+
+  it('CONTROL — on a 1D chart the same requests are the bars in hand: drawn on every bar, nothing named', () => {
+    const ours = on(CAP.D900, pine(['plot(request.security(syminfo.tickerid, "D", close), "d")',
+      'plot(request.security(syminfo.tickerid, "D", close, lookahead = barmerge.lookahead_on), "don")',
+      'plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on), "won")',
+      'if barstate.islast', '    label.new(bar_index, high, str.tostring(request.security(syminfo.tickerid, "D", high)))']))
+    const closes = CAP.D900.bars.rows.map((r) => r[4])
+    expect(column(ours, 0)).toEqual(closes)
+    expect(column(ours, 1)).toEqual(closes)
+    expect(column(ours, 2).some(Number.isNaN)).toBe(false)
+    expect(column(ours, 2)[899]).toBe(closes[899])                          // Fri 2026-09-25: its own week's close
+    expect(noteCodes(ours)).toEqual([])
+    expect(ours.objects.texts.labels).toEqual([String(CAP.D900.bars.rows[899][2])])
+  })
+
+  it('a weekly / monthly request is built from DAILY bars: served on 1D, withheld by name on 5-minute, 60-minute and weekly charts (never an `interpret:timeframe` throw)', () => {
+    const src = pine(['plot(request.security(syminfo.tickerid, "W", close), "w")', 'plot(nz(request.security(syminfo.tickerid, "M", close)), "m")'])
+    for (const cap of [CAP.I5, CAP.I60, CAP.W_T]) {
+      const ours = on(cap, src)
+      expect(ours.ok, `${cap.id}: ${ours.refusal}`).toBe(true)
+      expect(column(ours, 0).every(Number.isNaN) && column(ours, 1).every(Number.isNaN), cap.id).toBe(true)
+      expect(noteCodes(ours), cap.id).toEqual(['request:other-timeframe'])
+    }
+    const daily = on(CAP.D900, src)
+    expect(noteCodes(daily)).toEqual([])
+    expect(column(daily, 0).filter(Number.isNaN).length).toBe(1)             // the first partial week: no closed week before it
+    // ⚠️ WHY the intraday resample was not the answer: on the 60-minute chart its "weekly close" is the last
+    // HOURLY bar's close, which is not the daily bar's — the same gap the 5-minute capture shows for the day
+    const h = CAP.I60.bars.rows
+    const lastOf = (ymd) => h.filter((r) => ny(r[0]).ymd === ymd).pop()[4]
+    const d = CAP.D900.bars.rows.find((r) => ny(r[0]).ymd === '2026-09-18')[4]
+    expect([lastOf('2026-09-18'), d]).toEqual([761.64, 761.69])
+  })
+
+  it('CONTROL — the chart\'s OWN timeframe is the identity on every chart, and this platform\'s own `tf(…)` formula carries no gate', () => {
+    for (const cap of [CAP.I5, CAP.W_T, CAP.D900]) {
+      const ours = on(cap, pine(['plot(request.security(syminfo.tickerid, timeframe.period, close), "own")', 'plot(request.security(syminfo.tickerid, "", close), "empty")']))
+      const closes = cap.bars.rows.map((r) => r[4])
+      expect(column(ours, 0), cap.id).toEqual(closes)
+      expect(column(ours, 1), cap.id).toEqual(closes)
+      expect(noteCodes(ours), cap.id).toEqual([])
+    }
+    const native = { type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }
+    const bars = toProductBars(CAP.I5)
+    expect(periodAnchorMask(native, bars, {}, undefined, undefined, { tf: '5' })).toBeNull()
+    expect(Array.from(interpret(native, bars, {}, undefined, undefined, { tf: '5' })).some((v) => !Number.isNaN(v))).toBe(true)
+  })
+
+  it('the tree: the request under the gate of the base it was translated for — on a chart pane only, own symbol only, and exact', () => {
+    const S = (body, opts) => translatePine(`//@version=6\nindicator("t")\n${body}\n`, opts)
+    const f = (body, opts = { strict: true }) => { const t = S(body, opts); return t.ok ? t.outputs[t.selected].formula : `${t.refusal.guard}` }
+    expect(f('plot(request.security(syminfo.tickerid, "D", close))')).toBe('86400 != periodseconds ? 0 / 0 : close')
+    expect(f('plot(request.security(syminfo.tickerid, "D", close[1], lookahead = barmerge.lookahead_on))')).toBe('86400 != periodseconds ? 0 / 0 : close[1]')
+    expect(f('plot(request.security(syminfo.tickerid, "W", close))')).toBe("86400 != periodseconds ? 0 / 0 : tf(close, 'W')")
+    expect(f('plot(request.security(syminfo.tickerid, "M", high, lookahead = barmerge.lookahead_on))')).toBe("86400 != periodseconds ? 0 / 0 : tf_live(high, 'M')")
+    // the chart's own timeframe: no gate
+    expect(f('plot(request.security(syminfo.tickerid, timeframe.period, close))')).toBe('close')
+    // a screen evaluates stored daily bars: the bare tree, as before
+    expect(f('plot(request.security(syminfo.tickerid, "D", close))', {})).toBe('close')
+    expect(f('plot(request.security(syminfo.tickerid, "W", close))', {})).toBe("tf(close, 'W')")
+    // told the chart is intraday, a daily request still refuses (ruling 3.5's own guard), as before
+    expect(f('plot(request.security(syminfo.tickerid, "D", close))', { strict: true, basePeriod: '5' })).toBe('pine:request')
+    const gated = requestBaseNode('D', { type: 'series', name: 'close' })
+    expect(requestBaseOf(gated)).toBe('D')
+    expect(requestBaseNode('240', gated)).toBe(gated)                       // no bar length known for the base: nothing to gate on
+    // a member's own ternary with the comparison the other way round keeps its own meaning
+    const own = JSON.parse(JSON.stringify(gated)); own.args[0].args.reverse()
+    expect(requestBaseOf(own)).toBeNull()
+    expect(requestBaseOf(gated.args[2])).toBeNull()
+  })
+
+  it('a chart that does not STATE its timeframe evaluates the request as it always has (the server\'s daily consumers)', () => {
+    const tree = requestBaseNode('D', { type: 'series', name: 'close' })
+    const bars = toProductBars(CAP.D900).slice(-50)
+    const closes = bars.map((x) => x.c)
+    for (const opts of [undefined, {}, { tf: 'D' }]) {
+      expect(Array.from(interpret(tree, bars, {}, undefined, undefined, opts)), JSON.stringify(opts)).toEqual(closes)
+      expect(periodAnchorMask(tree, bars, {}, undefined, undefined, opts) || [], JSON.stringify(opts)).toEqual([])
+    }
+    const sink = new Map()
+    expect(Array.from(interpret(tree, bars, {}, undefined, undefined, { tf: '60', chartClockSink: sink })).every(Number.isNaN)).toBe(true)
+    expect([...sink.keys()]).toEqual(['request:other-timeframe'])
   })
 })

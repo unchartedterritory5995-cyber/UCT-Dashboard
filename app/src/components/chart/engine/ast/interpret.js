@@ -4083,6 +4083,63 @@ export function isPeriodClose(node) {
   if (!node || node.type !== 'op' || node.name !== '?:') return false
   return PERIOD_CLOSE_SHAPES.some((shape) => matchesShape(node, shape))
 }
+/** ⭐⭐ C49 — A `request.security(<own symbol>, <timeframe>, x)` IS TRANSLATED FOR
+ *  ONE CHART TIMEFRAME, AND CARRIES A GATE THAT SAYS WHICH:
+ *  `<base seconds> != periodseconds ? na : <the request's tree>`.
+ *
+ *  WHY. The member door translates ONCE, for a daily base, and the saved tree is
+ *  then bound on whatever chart the member opens. On a daily base a request for
+ *  `"D"` folds to its own expression (ruling 3.5, 2026-09-11: "the daily bars" ARE
+ *  the bars in hand) and one for `"W"` / `"M"` becomes `tf` / `tf_live`, a resample
+ *  of those daily bars. Both are statements about a DAILY chart. On any other chart
+ *  the same tree read the wrong bars — the fold drew the chart's own 5-MINUTE
+ *  series under the name of the daily one, and the resample built its week out of
+ *  intraday bars — where ruling 3.5 itself records that the intraday case "is
+ *  REFUSED rather than folded, so the difference can never reach a member as a
+ *  number" (`tests/fixtures/vendor/divergences.json`). The refusal it relies on
+ *  reads the base the TRANSLATION is told, which the member door never is.
+ *
+ *  MEASURED, on the capture that asks exactly this
+ *  (`request-realtime-alignment-spy-5-2026-10-01`, AMEX:SPY 5 minutes, 300 bars,
+ *  the newest one forming): for `request.security(tickerid, "D", close)`
+ *  TradingView answers the day's own DAILY close on every bar with look-ahead on,
+ *  and the PREVIOUS day's close with it off (the day's last bar reads the day's
+ *  own). The fold answered the 5-minute close: wrong on 299 of 300 bars for each,
+ *  by up to 6.61 and 7.42 — right only on the one bar still forming. And the daily close it
+ *  shows is the DAILY bar's (762.63 on 2026-09-30), not the last 5-minute bar's
+ *  (762.46): a week or a month resampled out of intraday bars closes on the wrong
+ *  print too.
+ *
+ *  So every such request carries this gate, as C30's anchor and C36's own-time
+ *  tree carry theirs for the same reason, and `periodAnchorMask` WITHHOLDS the
+ *  whole tree by name (`request:other-timeframe`) on a chart whose timeframe is
+ *  stated and is not the base — never Pine's `na`, which `nz(…)` would turn into a
+ *  confident 0.
+ *  ⭐ A chart whose timeframe is NOT STATED evaluates the request as it always
+ *  has: `periodseconds` is blank there and a comparison with a blank is false.
+ *  That is the server's daily consumers (a user-series alert, the screen
+ *  backtest), whose bars are daily by construction.
+ *  ⛔ The literal sits on the LEFT of the comparison on purpose: a member's own
+ *  `timeframe.in_seconds() != 86400 ? na : x` keeps its own meaning. And a `tf`
+ *  node written in this platform's OWN formula language carries no gate and is
+ *  untouched: its meaning is ours, not a vendor's. */
+export function requestBaseNode(base, child) {
+  const secs = CLOCK_PERIOD_SECONDS[base]
+  if (secs === undefined) return child
+  return ccOp('?:', [ccOp('!=', [ccNum(secs), ccLeaf('periodseconds')]), ccNa(), child])
+}
+const REQUEST_BASE_CONDS = Object.keys(CLOCK_PERIOD_SECONDS)
+  .map((base) => [base, ccOp('!=', [ccNum(CLOCK_PERIOD_SECONDS[base]), ccLeaf('periodseconds')])])
+const REQUEST_BASE_NA = ccNa()
+/** The base period a gated request tree was translated for — node for node on its
+ *  gate — or null. */
+export function requestBaseOf(node) {
+  if (!node || node.type !== 'op' || node.name !== '?:' || !Array.isArray(node.args) || node.args.length !== 3) return null
+  if (!matchesShape(node.args[1], REQUEST_BASE_NA)) return null
+  for (const [base, cond] of REQUEST_BASE_CONDS) if (matchesShape(node.args[0], cond)) return base
+  return null
+}
+
 /** `{code, ms}` of a period-close node (its period, and whether it is in Pine's
  *  milliseconds), or null. */
 export function periodCloseParts(node) {
@@ -4171,6 +4228,15 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + '00:00 UTC; FX:EURUSD 1D: Friday 17:00 New York), which this chart\'s daily clock does not hold, so '
     + 'everything this indicator draws from them is withheld on this chart rather than drawn wrong. What '
     + 'would settle it: this chart reading such a symbol\'s daily bar at its session\'s own open.',
+  'request:other-timeframe': (tf) => 'This indicator reads another timeframe of its own symbol with '
+    + '`request.security`. Here that read is built for a 1D chart: a daily request is the chart\'s own bars, '
+    + `and a weekly or monthly one is made from them. This chart's timeframe is ${tfSpelled(tf)}, where the `
+    + 'bars in hand are not daily bars — measured on AMEX:SPY 5 minutes (capture '
+    + '`request-realtime-alignment-spy-5-2026-10-01`), TradingView answers the DAILY bar there: the day\'s own '
+    + 'close with look-ahead on, the previous day\'s with it off, and a close that is the daily bar\'s, not the '
+    + 'last 5-minute bar\'s. This chart holds no daily bars beside its own, so everything this indicator draws '
+    + 'from that request is withheld on this chart rather than drawn from the wrong bars. On a 1D chart it '
+    + 'draws. What would settle it: this chart reading the symbol\'s daily bars beside its own.',
   'time-close:period-end-missing': () => `${CLOSE_SPELLED} are the close of the period's last session as `
     + 'TradingView\'s calendar has it. Before 2000 that calendar applies no market closure, and a period that '
     + 'ends on a holiday there is drawn from it (measured on AMEX:SPY 1D back to 1993: 13 weeks, 2 months). '
@@ -4181,16 +4247,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
 })
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
-  'time-close:weekend-bars', 'time-clock:outside-session'])
+  'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
- *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, and whether any
- *  sits under `tf` / `tf_live` / `sym`. */
+ *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
+ *  under `tf` / `tf_live` / `sym` — and the base periods of its gated requests
+ *  (`requestBaseOf`), which are walked THROUGH: the request's own tree may read a
+ *  clock of its own. */
 function scanChartClock(tree) {
   const anchors = []
   const closes = []
   const owns = []
   const sixties = []
+  const folds = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -4218,10 +4287,12 @@ function scanChartClock(tree) {
       closes.push(node)
       continue
     }
+    const base = requestBaseOf(node)
+    if (base !== null && !folds.includes(base)) folds.push(base)
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, sixties, nested }
+  return { anchors, closes, owns, sixties, folds, nested }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -4314,10 +4385,19 @@ function chartClockRegimeOf(bars, inputs, budget, scalars, opts) {
  *  sentence to `opts.chartClockSink`. */
 function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   const scan = scanChartClock(tree)
-  if (!scan.anchors.length && !scan.closes.length && !scan.owns.length && !scan.sixties.length) return null
+  const clocked = scan.anchors.length || scan.closes.length || scan.owns.length || scan.sixties.length
+  if (!clocked && !scan.folds.length) return null
   const tf = opts ? opts.tf : undefined
   const why = []
   const add = (code) => { if (!why.includes(code)) why.push(code) }
+  // ⭐ C49 — a request translated for one base period, on a chart that STATES
+  // another timeframe: those are not the bars it asked for (`requestBaseNode`). An
+  // unstated timeframe is the server's daily consumers, and is served as it always was.
+  if (typeof tf === 'string' && tf && scan.folds.some((base) => base !== tf)) add('request:other-timeframe')
+  if (!clocked) {
+    nameChartClock(opts, why, tf)
+    return { scan, why, regime: chartClockRegime(undefined), everyDay: false }
+  }
   if (scan.nested) add('time-anchor:other-bars')
   const regime = chartClockRegimeOf(bars, inputs, budget, scalars, opts)
   if (regime.kind === 'unreadable') add('time-clock:unreadable')

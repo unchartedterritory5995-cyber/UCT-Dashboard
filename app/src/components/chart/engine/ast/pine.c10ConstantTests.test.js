@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
+import { requestBaseNode } from './interpret.js'
 
 /**
  * ⭐⭐ C10 (2026-09-29, objects-triage fix-order step 20) — what a
@@ -161,8 +162,10 @@ if barstate.islast
     table.cell(tb, 0, 0, str.tostring(request.security(syminfo.tickerid, tf, close)))`), { strict: true })
     const cellOp = out.objects.ops.find((op) => op.k === 'cell')
     expect(cellOp, JSON.stringify(out.objectDiagnostics.dropReasons)).toBeTruthy()
+    // ⭐ C49 — the request reaches `tf(close, 'W')`, under the gate of the base it
+    // was translated for (`interpret.js::requestBaseNode`).
     expect(out.objects.trees[cellOp.props.text.node.tree])
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual(requestBaseNode('D', { type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] }))
   })
 
   it('⛔ CONFINED — the plot lane keeps its four-hop reader (its parameter addresses must not move)', () => {

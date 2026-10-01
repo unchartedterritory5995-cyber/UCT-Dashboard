@@ -3937,7 +3937,7 @@ PERIOD_CLOSE_CODES = ("W", "M")
 CHART_CLOCK_WHOLE = (
     "time-anchor:other-bars", "time-clock:unreadable", "time-anchor:not-daily",
     "time-anchor:weekend-bars", "time-own:chart-unwitnessed", "time-close:not-daily",
-    "time-close:weekend-bars", "time-clock:outside-session",
+    "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:session-open-missing",
@@ -4157,6 +4157,38 @@ def _period_close_inner(node: dict) -> dict:
     return value if value.get("type") == "tf_live" else value["args"][0]
 
 
+def request_base_node(base: str, child: dict) -> dict:
+    """``interpret.js::requestBaseNode`` -- a ``request.security`` of the chart's own
+    symbol is translated for ONE base timeframe and carries a gate saying which:
+    ``<base seconds> != periodseconds ? na : <the request's tree>``. On a chart that
+    STATES another timeframe the tree reads the wrong bars and is withheld by name
+    (``request:other-timeframe``); an unstated timeframe evaluates it as it always
+    has. Read that docstring for the capture."""
+    secs = CLOCK_PERIOD_SECONDS.get(base)
+    if secs is None:
+        return child
+    return _cc_op("?:", [_cc_op("!=", [_cc_num(secs), _cc_leaf("periodseconds")]), _cc_na(), child])
+
+
+_REQUEST_BASE_CONDS = tuple((base, _cc_op("!=", [_cc_num(secs), _cc_leaf("periodseconds")]))
+                            for base, secs in CLOCK_PERIOD_SECONDS.items())
+_REQUEST_BASE_NA = _cc_na()
+
+
+def request_base_of(node: Any) -> Optional[str]:
+    """``interpret.js::requestBaseOf`` -- the base period a gated request tree was
+    translated for, or ``None``."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return None
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 3 or not _matches_shape(args[1], _REQUEST_BASE_NA):
+        return None
+    for base, cond in _REQUEST_BASE_CONDS:
+        if _matches_shape(args[0], cond):
+            return base
+    return None
+
+
 def period_close_parts(node: Any) -> Optional[tuple]:
     """``interpret.js::periodCloseParts`` -- ``(code, ms)`` of a period-close node."""
     if not is_period_close(node):
@@ -4221,6 +4253,7 @@ def _scan_chart_clock(tree: Any):
     closes: List[dict] = []
     owns: List[dict] = []
     sixties: List[dict] = []
+    folds: List[str] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -4245,12 +4278,15 @@ def _scan_chart_clock(tree: Any):
             nested = nested or under
             closes.append(node)
             continue
+        base = request_base_of(node)
+        if base is not None and base not in folds:
+            folds.append(base)
         into = under or node.get("type") in ("tf", "tf_live", "sym")
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, sixties, nested
+    return anchors, closes, owns, sixties, folds, nested
 
 
 def _name_chart_clock(opts, codes) -> None:
@@ -4263,8 +4299,9 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, sixties, nested = _scan_chart_clock(tree)
-    if not anchors and not closes and not owns and not sixties:
+    anchors, closes, owns, sixties, folds, nested = _scan_chart_clock(tree)
+    clocked = bool(anchors or closes or owns or sixties)
+    if not clocked and not folds:
         return None
     tf = (opts or {}).get("tf")
     why: List[str] = []
@@ -4273,6 +4310,14 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
         if code not in why:
             why.append(code)
 
+    # C49 -- a request translated for one base period, on a chart that STATES another
+    # timeframe (``interpret.js::requestBaseNode``). An unstated timeframe is served.
+    if isinstance(tf, str) and tf and any(base != tf for base in folds):
+        add("request:other-timeframe")
+    if not clocked:
+        _name_chart_clock(opts, why)
+        return {"anchors": [], "closes": [], "why": why, "regime": chart_clock_regime(None),
+                "every_day": False}
     if nested:
         add("time-anchor:other-bars")
     regime = _chart_clock_regime_of(bars, inputs, budget, scalars, opts)

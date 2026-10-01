@@ -195,7 +195,7 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     expect(vLabels.filter((l) => l.tci === null).length).toBe(4)
   })
 
-  it('⭐ on wave 9 the divider\'s guard is READ (C30 `time("W")`): 503 of TradingView\'s 504 lines, beside the 504 labels', () => {
+  it('⭐ on wave 9 the divider\'s guard is READ (C30 `time("W")`): all 504 of TradingView\'s lines (C49), beside the 504 labels', () => {
     const cap = capOf(OHLM)
     const { run, diag, d } = runObjects(cap)
     // ⚰️ Before C30 merged, `if ta.change(time(higherTF)) and i_v1` had a term
@@ -209,9 +209,12 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     const vAll = byId(cap.objects.records.lines)
     const oLines = byId(run.live.filter((o) => o.family === 'line'))
     expect(vAll.length).toBe(504)
-    expect(oLines.length).toBe(503)
-    // the ONE line not held is TradingView's oldest (id 2151): the collector's edge
-    const vLines = vAll.slice(1)
+    // ⭐ C49 — re-pinned 503 → 504: the first partial week is answered by the calendar,
+    // so the vendor's oldest line (id 2151) is held too (`vendorHarness.c30TimeAnchor`).
+    expect(oLines.length).toBe(504)
+    // ⚰️ "the ONE line not held is TradingView's oldest (id 2151): the collector's edge"
+    // — it was the first partial week's withholding, not the collector. Held now.
+    const vLines = vAll
     expect(vAll[0].id).toBe(2151)
     expect(new Set(oLines.map((l, i) => vLines[i].id - l.id)).size).toBe(1)
     // position: both ends' price, and the bar order of both ends
@@ -236,7 +239,7 @@ describe('C33 — high-low-open-mid-ranges: the 504 labels', () => {
     // CONTROL: all three kinds of line are in the comparison
     expect(vLines.filter((l) => l.ex === 'b').length).toBe(100)   // the weekly dividers
     expect(vLines.filter((l) => l.ex === 'r').length).toBe(4)
-    expect(vLines.filter((l) => l.ex === 'n').length).toBe(399)
+    expect(vLines.filter((l) => l.ex === 'n').length).toBe(400)   // C49: 399 + the oldest line, now held
   })
 
   it('⛔ a getter\'s history on a LIVE handle is unmeasured: the label that reads it is held, not drawn', () => {

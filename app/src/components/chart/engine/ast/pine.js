@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -11055,6 +11055,20 @@ export class Resolver {
       this.requestPeriod = outerPeriod
     }
     if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
+    // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
+    // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
+    // base) and its tree is bound on every chart; on any chart but the base's the
+    // folded child is NOT the daily series (measured wrong on 299 of 300
+    // five-minute bars) and a `tf` resample is built out of the wrong bars
+    // (`interpret.js::requestBaseNode`, where the capture is).
+    // ⛔ ONLY WHERE A CHART CAN DIFFER FROM THE BASE: a screen evaluates stored daily
+    // bars and keeps the bare tree. The chart's OWN timeframe (`timeframe.period`,
+    // `''`) is the identity on every chart and carries no gate.
+    // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
+    // property of the request, not of the instrument, and `sym` hands the other
+    // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
+    const gateBase = this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
+    if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
       out = { type: 'sym', value: other, args: [out] }
       // ⭐ C26 — the spelling beside the node, for the bind's confirmed-table
@@ -11064,6 +11078,7 @@ export class Resolver {
         if (!OTHER_SYMBOL_SINK.has(other)) OTHER_SYMBOL_SINK.set(other, new Set())
         OTHER_SYMBOL_SINK.get(other).add(target.venue == null ? '?' : target.venue)
       }
+      if (gateBase) out = requestBaseNode(gateBase, out)
     }
     return out
   }
@@ -11123,6 +11138,9 @@ export class Resolver {
     const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
       || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
     let code = null
+    // C49 — the base period a LITERAL timeframe folded to the identity on (null for
+    // `timeframe.period` / `''`, which are the chart's own on every chart)
+    let folded = null
     if (!sameTimeframe) {
       const raw = this.timeframeLiteralOf(tfNode)
       // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
@@ -11165,6 +11183,7 @@ export class Resolver {
           base: this.basePeriod,
           foldedTo: 'the chart\u2019s own series',
         })
+        folded = code
         code = null
       } else if (!TF_RESAMPLABLE.includes(code)) {
         return null
@@ -11194,7 +11213,7 @@ export class Resolver {
     // `timeframe.period` is the identity the same way `lookahead_off` is.
     if (live && !code) live = false
 
-    return { own, other, venue, code, live, positional }
+    return { own, other, venue, code, live, positional, folded }
   }
 
   /** ⭐ C27 — THE `lookahead` A REQUEST ASKS FOR: true (on), false (off), or null

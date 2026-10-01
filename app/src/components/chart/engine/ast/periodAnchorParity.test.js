@@ -149,6 +149,10 @@ const PINE = {
   closeM: 'plot(time_close("M"))',
   'na(closeW)': 'plot(na(time_close("W")) ? 111 : 222)',
   'change(closeW)': 'plot(ta.change(time_close("W")) != 0 ? 1 : 0)',
+  // C49 — a request for another timeframe of the chart's own symbol
+  reqD: 'plot(request.security(syminfo.tickerid, "D", close))',
+  'nz(reqW)': 'plot(nz(request.security(syminfo.tickerid, "W", close)))',
+  reqOwn: 'plot(request.security(syminfo.tickerid, timeframe.period, close))',
 }
 /** Trees no translation writes TODAY but a saved document still carries. */
 const BUILT = {
@@ -209,6 +213,16 @@ const CASES = [
   // an unmeasured chart timeframe: every bar, by name
   ['W · rth 15m · 30 (unmeasured)', 'W', 'rth15', { tf: '30' }],
   ['sixty · rth 15m · 30 (unmeasured)', 'sixty', 'rth15', { tf: '30' }],
+  // ⭐⭐ C49 — `request.security` of the chart's own symbol is translated for a DAILY base:
+  // served on a daily chart and where no timeframe is stated (the server's daily consumers),
+  // withheld whole and named on a chart that states another; the chart's OWN timeframe is
+  // the identity everywhere
+  ...['reqD', 'nz(reqW)', 'reqOwn'].flatMap((k) => [
+    [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }],
+    [`${k} · weekdays · no tf`, k, 'weekdays', null],
+    [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }],
+    [`${k} · weekly · W`, k, 'weekly', { tf: 'W' }],
+  ]),
   // the tree a document saved before C49 carries: still 1D and 60 minutes only
   ['own (C36 tree) · weekdays · D', 'own (C36 tree)', 'weekdays', { tf: 'D' }],
   ['own (C36 tree) · rth 15m · 15', 'own (C36 tree)', 'rth15', { tf: '15' }],
@@ -500,6 +514,31 @@ describe('C36 · the fixture is not vacuous', () => {
     expect(codes('W · rth 15m · 30 (unmeasured)')).toEqual(['time-anchor:not-daily'])
     expect(col('closeW · rth 15m · 15').every((v) => v === null)).toBe(true)
     expect(codes('closeW · rth 15m · 15')).toEqual(['time-close:not-daily'])
+  })
+
+  it('⛔ C49 — a `request.security` for another timeframe is translated for a daily chart: served there, withheld by name on a chart that states another', () => {
+    const closes = (set) => PARITY.bars[set].map((b) => b.c)
+    // the daily request on a daily chart, and where no timeframe is stated, is the bars in hand
+    expect(col('reqD · weekdays · D')).toEqual(closes('weekdays'))
+    expect(col('reqD · weekdays · no tf')).toEqual(closes('weekdays'))
+    expect(codes('reqD · weekdays · D').concat(codes('reqD · weekdays · no tf'))).toEqual([])
+    // the weekly one there is the last closed week (`nz` of the first partial week is Pine's 0)
+    expect(col('nz(reqW) · weekdays · D').slice(0, 2)).toEqual([0, 0])
+    expect(col('nz(reqW) · weekdays · D')[2]).toBe(PARITY.bars.weekdays[1].c)
+    expect(col('nz(reqW) · weekdays · no tf')).toEqual(col('nz(reqW) · weekdays · D'))
+    // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
+    // close under the name of the daily one, never `nz`'s confident 0
+    for (const k of ['reqD', 'nz(reqW)']) {
+      for (const chart of ['rth 15m · 15', 'weekly · W']) {
+        expect(col(`${k} · ${chart}`).every((v) => v === null), `${k} ${chart}`).toBe(true)
+        expect(codes(`${k} · ${chart}`), `${k} ${chart}`).toEqual(['request:other-timeframe'])
+      }
+    }
+    // CONTROL — the chart's OWN timeframe is the identity on every chart
+    for (const [chart, set] of [['weekdays · D', 'weekdays'], ['rth 15m · 15', 'rth15'], ['weekly · W', 'weekly']]) {
+      expect(col(`reqOwn · ${chart}`), chart).toEqual(closes(set))
+      expect(codes(`reqOwn · ${chart}`), chart).toEqual([])
+    }
   })
 
   it('⛔ C49 — the tree a document saved before this lane carries keeps C36\'s two charts: it cannot say which spelling wrote it', () => {
