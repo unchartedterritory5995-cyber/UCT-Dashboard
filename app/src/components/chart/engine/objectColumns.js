@@ -26,7 +26,7 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, periodAnchorMask, lowerTfMask,
+  symAlignmentMask, periodAnchorMask, lowerTfMask, treeReadsLowerTf,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import { resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, lowerTfFor } from './nativeRegistry'
@@ -347,6 +347,18 @@ function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
   return out
 }
 
+/** ⭐⭐ C41 — A TREE THAT READS BELOW THE CHART AND COULD NOT BE COMPUTED IS
+ *  UNKNOWN ON EVERY BAR. A node whose `interpret` throws (a budget, most often:
+ *  the `ltf` child makes a condition a few nodes larger) has no column, so it
+ *  reads `NaN` — and a `NaN` CONDITION is false, which picks the text's last arm
+ *  and DRAWS it. For a tree holding an `ltf` that is a value drawn off a
+ *  lower-timeframe read nobody made; `lowerTfMask`'s rule (unknown, never Pine's
+ *  `na`) has to hold for the tree that failed as well as the one that ran.
+ *  ⛔ Only a tree holding an `ltf`: every other failed node reads as it always has. */
+function withholdFailedLowerTf(unknown, node, tree, barCount) {
+  if (tree && treeReadsLowerTf(tree)) unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
+}
+
 export function computeObjectColumns(graph, program, bars, opts = {}) {
   const columns = new Map()
   const failed = []
@@ -377,8 +389,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
   for (const node of wanted) {
+    let tree = null
     try {
-      const tree = intern(fold(nodeTree(graph, node)))
+      tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(opts.symbols ? { symbols: opts.symbols } : {}),
@@ -391,6 +404,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
+      withholdFailedLowerTf(unknown, node, tree, bars.length)
       // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
       // node index cannot tell a member that their dashboard is blank because
       // the engine declined to spend the steps. Every refusal is kept with its
@@ -590,8 +604,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
       }
       continue
     }
+    let tree = null
     try {
-      const tree = intern(fold(trees[i]))
+      tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
@@ -602,6 +617,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
+      withholdFailedLowerTf(unknown, i, tree, barCount)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
       // and a member on a V1 document is owed the same reason as one on a V2.
       refusals.push({

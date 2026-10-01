@@ -99,7 +99,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES } from './interpret.js'
+import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, treeReadsLowerTf } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { memberNumber } from './memberValue.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
@@ -4315,6 +4315,29 @@ let OTHER_SYMBOL_SINK = null
  *  it as `lowerTf` and the member door stamps `meta.lowerTf`, which is what a
  *  chart fetches intraday bars for (`engine/lowerTf.js::lowerTfWindowsOf`). */
 let LOWER_TF_SINK = null
+
+/** ⭐ C41 — does this resolved operand hold an `ltf` read? Asked only of the side a
+ *  constant test may never take (the resolver's `ternary` and `and`/`or` cases),
+ *  and answered without a walk in every translation that has emitted none. */
+const deadLowerTfRead = (tree) => !!(LOWER_TF_SINK && LOWER_TF_SINK.size) && treeReadsLowerTf(tree)
+
+/** The codes of the `ltf` nodes a finished translation still HOLDS (plots and
+ *  object program). A read a constant test never takes is emitted and then
+ *  dropped (`deadLowerTfRead`); the chart must not fetch intraday bars for it. */
+function lowerTfCodesHeld(t) {
+  const held = new Set()
+  const seen = new Set()
+  const stack = [t.outputs, t.objects]
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'ltf' && typeof n.value === 'string') held.add(n.value)
+    if (Array.isArray(n)) for (const x of n) stack.push(x)
+    else for (const k of Object.keys(n)) if (k !== 'tok' && k !== 'endTok') stack.push(n[k])
+  }
+  return held
+}
 
 /** The clock leaves a lower-timeframe child may NOT read: each answers from where
  *  the loaded series starts or ends, or from the bar's realtime state — facts our
@@ -8576,6 +8599,9 @@ export class Resolver {
               && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
             throw err
           }
+          // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
+          // same way (`deadLowerTfRead`): the left has decided every bar.
+          if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
           return foldLogicalIdentity(mapped, decidedBy, right, this.table)
         }
         if (probed) {
@@ -8645,6 +8671,20 @@ export class Resolver {
             if (folded !== null && folded !== 0) return yes
           }
           throw err
+        }
+        // ⭐⭐ C41 — A DEAD ARM THAT READS BELOW THE CHART IS STILL A DEAD ARM.
+        // Until C41 a lower-timeframe `request.security` refused, so the rescue
+        // above took the live arm of every such test. Now the read RESOLVES (an
+        // `ltf` tree) — and kept in the tree it would withhold the value on every
+        // bar our intraday bars do not cover (`interpret.js::lowerTfMask` is a
+        // rule about the tree's nodes), for a read Pine never makes: artemis'
+        // `not valid or na(o) ? 0 : o > 50 ? 1 : …` with `valid` folded false is 0
+        // on every bar, and its `— n/a` cells are TradingView's. So a test that is
+        // the same on every bar still answers with its live arm when the dead one
+        // holds an `ltf` — exactly the tree this produced before C41.
+        if (deadLowerTfRead(yes) || deadLowerTfRead(no)) {
+          const folded = constantTestValue(test)
+          if (folded !== null && deadLowerTfRead(folded !== 0 ? no : yes)) return folded !== 0 ? yes : no
         }
         return cOp('?:', [test, yes, no])
       }
@@ -19740,7 +19780,13 @@ export function translatePine(source, opts = {}) {
   }
   // ⭐⭐ C41 — WHICH LOWER TIMEFRAMES THE TREES READ (`ltf` nodes). Present only
   // when one was emitted, so every other result is byte-identical to before.
-  if (lowerSink.size) t.lowerTf = [...lowerSink].sort((a, b) => Number(a) - Number(b))
+  // ⛔ Only the codes a tree still HOLDS: a read behind a test that is false on
+  // every bar is emitted and dropped, and stamping it would fetch for nothing.
+  if (lowerSink.size) {
+    const held = lowerTfCodesHeld(t)
+    const codes = [...lowerSink].filter((c) => held.has(c)).sort((a, b) => Number(a) - Number(b))
+    if (codes.length) t.lowerTf = codes
+  }
   // ⚠️ ASSIGNED, NOT SPREAD. Every return path below builds a fresh object
   // literal that nothing else holds, so there is nothing to protect from
   // mutation — while a copy would re-key a result the callers pass around by

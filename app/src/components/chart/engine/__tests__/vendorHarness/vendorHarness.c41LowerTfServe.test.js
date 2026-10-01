@@ -35,6 +35,8 @@ import { runOurSide, enterMemberDoor, HARNESS_DEF_ID, toProductBars } from './ou
 import { LOWER_TF_REFUSAL as R } from '../../lowerTf.js'
 import { translatePine } from '../../ast/pine.js'
 import * as registry from '../../nativeRegistry'
+import { computeObjectColumns, objectReaderFor } from '../../objectColumns'
+import { buildGraph } from '../../ast/graph.js'
 
 const REPO = path.resolve(process.cwd(), '..')
 const H = path.join(REPO, 'tests/fixtures/vendor/harness')
@@ -347,5 +349,102 @@ describe('C41 — what stays refused, by name', () => {
     const run = on(monthly, ['plot(request.security(syminfo.tickerid, "60", close), "x")'])
     expect(run.notes.some((n) => n.startsWith(`lower timeframe 60: refused (${R.UNWITNESSED})`))).toBe(true)
     expect(columnOf(run, 'x').every((v) => Number.isNaN(v))).toBe(true)
+  })
+})
+
+// ─── ⭐⭐ a read Pine never makes, and a read we could not make ──────────────────
+//
+// Found by the full chart suite on the first C41 tip (`c10SecurityObjects`):
+//
+//   1. artemis-oscillator-pro guards each MTF row with a validity that is FALSE on
+//      every bar of a daily chart (`timeframe.in_seconds("15") >= chartSec`).
+//      Before C41 its 15-minute request REFUSED and C10's rescue took the live arm;
+//      once the request resolved to an `ltf` tree the dead arm stayed in the tree,
+//      and the structural mask withheld cells TradingView draws (`— n/a`,
+//      `◮ MIXED`) — and the chart fetched 15-minute bars nothing reads.
+//   2. With the validity made per-bar, the header's condition grew past the node
+//      budget, FAILED, read `NaN`, and a `NaN` condition drew the text's last arm
+//      (`◮ MIXED`) off a lower-timeframe read nobody made.
+describe('C41 — a dead arm that reads below the chart, and a tree that could not be computed', () => {
+  const HOST = { strict: true }
+  const holdsLtf = (t) => JSON.stringify(t.objects || null).includes('"ltf"')
+  const script = (validity, value) => pine([
+    validity,
+    'o = request.security(syminfo.tickerid, "15", close)',
+    value,
+    'plot(close)',
+    'if barstate.islast',
+    '    label.new(bar_index, high, str.tostring(d))',
+  ])
+  const DEAD = 'v = timeframe.in_seconds("15") >= timeframe.in_seconds()'
+  const PER_BAR = 'v = timeframe.in_seconds("15") >= timeframe.in_seconds() or close < 0'
+  // the TERNARY's dead arm, and the right side of an `or` the left has decided
+  const TERNARY = 'd = v ? o : 7'
+  const OR = 'd = (not v or na(o)) ? 7 : 8'
+
+  for (const [name, value] of [['ternary', TERNARY], ['or', OR]]) {
+    it(`⭐ ${name}: a test false on every bar answers with its live arm — no \`ltf\` in a tree, nothing stamped to fetch`, () => {
+      const t = translatePine(script(DEAD, value), HOST)
+      expect(t.ok).toBe(true)
+      expect(holdsLtf(t)).toBe(false)
+      expect(t.lowerTf).toBeUndefined()
+    })
+
+    it(`⛔ control — ${name}: the same script with a PER-BAR validity keeps the read, and stamps its code`, () => {
+      const t = translatePine(script(PER_BAR, value), HOST)
+      expect(t.ok).toBe(true)
+      expect(holdsLtf(t)).toBe(true)
+      expect(t.lowerTf).toEqual(['15'])
+    })
+  }
+
+  it('⭐ through the member door, on a chart with NO intraday bars in hand: the dead read withholds nothing', () => {
+    const aapl = load('syminfo-roster-aapl-1d-2026-09-30.json')
+    const run = on(aapl, [DEAD, 'o = request.security(syminfo.tickerid, "15", close)', TERNARY,
+      'plot(close, "c")', 'if barstate.islast', '    label.new(bar_index, high, str.tostring(d))'])
+    expect(run.notes.some((n) => n.startsWith('lower timeframe'))).toBe(false)
+    expect(run.objects.counts.labels).toBe(1)
+    expect(run.objects.texts.labels).toContain('7')
+    // ⛔ control: the per-bar validity on the same chart is withheld, never drawn
+    const live = on(aapl, [PER_BAR, 'o = request.security(syminfo.tickerid, "15", close)', TERNARY,
+      'plot(close, "c")', 'if barstate.islast', '    label.new(bar_index, high, str.tostring(d))'])
+    expect(live.notes.some((n) => n.startsWith('lower timeframe 15'))).toBe(true)
+    expect(live.objects.counts.labels).toBe(0)
+  })
+
+  // ── a tree that reads below the chart and FAILED is unknown, not `na` ──────
+  const bars = toProductBars(SPY_1D).slice(-40)
+  const LTF_TREE = { type: 'call', name: 'na', args: [{ type: 'ltf', value: '60', args: [{ type: 'series', name: 'close' }] }] }
+  const PLAIN_TREE = { type: 'call', name: 'na', args: [{ type: 'op', name: '+', args: [{ type: 'series', name: 'close' }, { type: 'num', value: 1 }] }] }
+  const everyBar = (reader, node) => bars.map((_, i) => reader.readUnknown(node, i))
+
+  it('⭐ graph form: an `ltf` tree over the node budget has no column — and is UNKNOWN on every bar', () => {
+    const graph = buildGraph({ a: LTF_TREE })
+    const node = graph.outputRoots.a
+    const program = { ops: [{ props: { y: { v: 'graph', node } } }] }
+    const r = computeObjectColumns(graph, program, bars, { tf: 'D', inputs: {}, budget: { maxNodes: 1 } })
+    expect(r.failed).toEqual([node])
+    expect(r.refusals[0].guard).toBe('budget:nodes')
+    expect(Number.isNaN(r.readNode(node, bars.length - 1))).toBe(true)
+    expect(everyBar(r, node).every((u) => u === true)).toBe(true)
+    // ⛔ control: a failed tree that reads NO lower timeframe reads as it always has
+    const g2 = buildGraph({ a: PLAIN_TREE })
+    const r2 = computeObjectColumns(g2, { ops: [{ props: { y: { v: 'graph', node: g2.outputRoots.a } } }] }, bars,
+      { tf: 'D', inputs: {}, budget: { maxNodes: 1 } })
+    expect(r2.failed).toEqual([g2.outputRoots.a])
+    expect(everyBar(r2, g2.outputRoots.a).some((u) => u === true)).toBe(false)
+  })
+
+  it('⭐ trees form (a document under the byte budget): the same', () => {
+    const def = (tree) => ({ inputs: [], compute: { budget: { maxNodes: 1 } },
+      objects: { ops: [{ props: { y: { v: 'graph', node: 0 } } }], trees: [tree] } })
+    const r = objectReaderFor(def(LTF_TREE), bars, { tf: 'D' })
+    expect(r.form).toBe('trees')
+    expect(r.failed).toEqual([0])
+    expect(r.refusals[0].guard).toBe('budget:nodes')
+    expect(everyBar(r, 0).every((u) => u === true)).toBe(true)
+    const r2 = objectReaderFor(def(PLAIN_TREE), bars, { tf: 'D' })
+    expect(r2.failed).toEqual([0])
+    expect(everyBar(r2, 0).some((u) => u === true)).toBe(false)
   })
 })

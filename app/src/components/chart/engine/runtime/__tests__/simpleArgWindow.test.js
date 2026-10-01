@@ -148,10 +148,18 @@ describe('(3) `runtime.error` stops the run where it is reached', () => {
 
 describe('(4) a request below the chart\'s timeframe is the host\'s C27 refusal, asked first', () => {
   const src = (tf) => `${head}float s = close\nif bar_index > 1\n    s := open\ne = ta.ema(s, 3)\nx = request.security(syminfo.tickerid, "${tf}", e)\nplot(x)\n`
-  it('⛔ `"15"` on a daily chart names `lower-tf:unwitnessed` and the capture that settles it', () => {
+  it('⛔ `"15"` on a daily chart is stopped by the lower-timeframe code of the host, named for this lane', () => {
+    // ⚰️ C41 (2026-10-01): this read `lower-tf:unwitnessed`, naming the Q-L1
+    // capture as what would settle it. Q-L1 was captured and the HOST lane serves
+    // the read now (an `ltf` node off the symbol's intraday bars); the per-bar
+    // runtime lane holds no intraday bars, so the same request stops it under its
+    // own name (`LOWER_TF_REFUSAL.RUNTIME_LANE`) — still asked before the state check.
     const r = refusalOf(src('15'))
-    expect(r.guard).toBe('lower-tf:unwitnessed')
-    expect(r.message).toContain('Q-L1')
+    expect(r.guard).toBe('lower-tf:runtime-lane')
+    expect(r.message).toContain('intraday bars')
+  })
+  it('⛔ a code no capture shows read below a chart (`"30"`) keeps `lower-tf:unwitnessed`', () => {
+    expect(refusalOf(src('30')).guard).toBe('lower-tf:unwitnessed')
   })
   it('⛔ CONTROL — the same request at a HIGHER timeframe still meets the state check', () => {
     expect(refusalOf(src('W')).guard).toBe('runtime:request-with-state')

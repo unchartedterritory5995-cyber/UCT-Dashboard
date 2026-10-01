@@ -144,7 +144,14 @@ describe('C24 — the comparison probe is replayed, not resolved twice', () => {
         // Resolvers, 103,890 more steps. Plot outputs byte-identical (translation
         // census). Pre-C41: plain [531, 409877, 'f38c24a72a987c60'] / manifest
         // [531, 409885, '61f060f7ebfeaf71'].
-        plain: [531, 513767, 'd7a0547e09a51fe8'], manifest: [531, 513775, '77b51e036b23b7ac'] },
+        // ⭐ …and the C41 follow-up (2026-10-01) took 73,794 of them back: each of the
+        // three reads sits behind a validity that is false on every bar of a daily
+        // chart, and a dead side that holds an `ltf` is dropped where the test is
+        // decided (`pine.js::deadLowerTfRead`) instead of being carried — and
+        // re-resolved — through every expression that reads it. The first C41 tip
+        // read plain [531, 513767, 'd7a0547e09a51fe8'] / manifest [531, 513775,
+        // '77b51e036b23b7ac'].
+        plain: [531, 439973, '333c713ec06e6af5'], manifest: [531, 439981, '66fbb4ab3df857dd'] },
       // ⭐ C22 moved htf-liquidity (7fc4c8cc5 — its window reads now resolve
       // where they stand; drawing identical, no refusal moved). Re-pinned from
       // the C22 tree WITHOUT C24 (783ed6a50), which reads 5704 / 83d96de7…
