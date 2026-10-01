@@ -242,7 +242,9 @@ export function beginObjects(program, ctx) {
   const histDepth = deepestBack(program.ops)
   const regHist = histDepth > 0
     ? new Map((program.regs || []).map((r) => [r.id, []])) : null
-  const colls = new Map((program.colls || []).map((c) => [c.id, []]))
+  // ⭐ C48 — a list created WITH SLOTS starts holding that many `na` slots
+  // (`slots`; `vw-forin-collections` Z01: `array.size(array.new_label(3))` is 3).
+  const colls = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(null)]))
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
 
   /** ⭐⭐ C17 — REGISTER TAINT: WHAT A WITHHELD OP WOULD HAVE WRITTEN IS UNKNOWN.
@@ -280,7 +282,7 @@ export function beginObjects(program, ctx) {
   /** A list whose length (and so every slot) is unknown. */
   const collLenTaint = new Set()
   /** Per list, a boolean per slot, kept in step with `colls`. */
-  const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, []]))
+  const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(false)]))
   /** table instanceId → Set<"col,row"> | '*'. */
   const cellTaint = new Map()
   /** A `var` initialiser withheld where it stood: Pine may already have run it. */
@@ -441,34 +443,10 @@ export function beginObjects(program, ctx) {
   const runtimeError = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
   }
-  const unwitnessed = (why) => {
-    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.UNWITNESSED; reason = why }
-  }
-  // ⭐⭐ C40 — `for … in <family>.all`: DOES THE BODY CHANGE WHICH OBJECTS OF THE
-  // FAMILY EXIST? A delete of one, or a create (which can also wake the
-  // collector). Read off the program once per loop, never a flag it carries.
-  const familyOfRef = (() => {
-    const regFam = new Map((program.regs || []).map((r) => [r.id, r.family]))
-    const collFam = new Map((program.colls || []).map((c) => [c.id, c.family]))
-    const siteFam = new Map()
-    const scan = (list) => {
-      for (const o of list || []) {
-        if (o.k === 'create') siteFam.set(o.site, o.family)
-        if (o.k === 'loop') scan(o.body)
-      }
-    }
-    scan(program.ops)
-    return (r) => (!isObj(r) ? null : r.r === 'reg' ? regFam.get(r.id) : r.r === 'coll' ? collFam.get(r.id)
-      : r.r === 'site' ? siteFam.get(r.id) : null) || null
-  })()
-  const changesFamily = (list, fam) => (list || []).some((b) => (b.k === 'create' && b.family === fam)
-    || (b.k === 'delete' && (familyOfRef(b.target) === fam || familyOfRef(b.target) === null))
-    || (b.k === 'loop' && changesFamily(b.body, fam)))
-  const walkChanges = new Map()
-  const walkChangesFamily = (op) => {
-    if (!walkChanges.has(op)) walkChanges.set(op, changesFamily(op.body, op.over.all))
-    return walkChanges.get(op)
-  }
+  /** ⭐ C48 — the families a create of which this PROGRAM lost (`lostCreates`;
+   *  `*` = one whose family could not be named): TradingView holds objects of
+   *  them this run never made, so a POSITION in `<family>.all` is unknown. */
+  const lostCreateFams = new Set(Array.isArray(program.lostCreates) ? program.lostCreates : [])
   /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
    *  hold an object of it this run does not, so `<family>.all` is unknown. */
   const famUnknown = new Set()
@@ -1528,23 +1506,26 @@ export function beginObjects(program, ctx) {
           // family's live objects, oldest first (what `<family>.all` holds —
           // `vw-object-gc-d`), taken when the loop starts and handed to the loop
           // variable's register one at a time.
-          // ⛔ UNWITNESSED, AND NOT RUN: two or more objects AND a body that
-          // deletes or creates objects of the family. Walking what the loop
-          // started with deletes all of them; walking the list as it shrinks
-          // deletes every other one. No committed capture says which, so the run
-          // stops and draws nothing (capture `vw-forin-collections`). With one
-          // object or none, or a body that only moves them, both readings agree.
+          // ⭐⭐ C48 — A SNAPSHOT, whatever the body does. Capture
+          // `vw-forin-collections-rddt-1d-2026-10-01`: the array `box.all` hands
+          // back does not shrink when a box is deleted (A02: still 5), and
+          // `for b in box.all` → `box.delete(b)` over four boxes makes FOUR passes
+          // and leaves none (A04 / A05). ⚰️ This stopped the run, by name, for a
+          // body that deletes or creates the family's objects over two or more —
+          // it was the unwitnessed case; the capture is the witness.
+          // ⭐ C48 — a POSITION read in the body (`pos`) is the index in that
+          // snapshot (A06: "0", "1", "2", oldest first). ⛔ Only for a family this
+          // run holds whole: one of whose creates the program lost, or this run
+          // withheld, has positions TradingView counts differently — the loop is
+          // withheld, never numbered wrong.
           if (op.over !== undefined) {
             const fam = op.over.all
-            if (famUnknown.has(fam)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            if (famUnknown.has(fam)
+                || (op.pos === true && (lostCreateFams.has(fam) || lostCreateFams.has('*')))) {
+              opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break
+            }
             const items = []
             for (const inst of live.values()) if (inst.family === fam) items.push(inst.id)
-            if (items.length >= 2 && walkChangesFamily(op)) {
-              unwitnessed(`\`for … in ${fam}.all\` over ${items.length} ${fam} objects with a body that deletes or creates `
-                + `${fam} objects (bar ${bar}) — whether TradingView walks the list it started with or the list as it `
-                + 'changes is not captured (capture `vw-forin-collections`)')
-              return false
-            }
             const had = loopVars.has(op.id)
             const prev = loopVars.get(op.id)
             let ok = true
@@ -1578,7 +1559,16 @@ export function beginObjects(program, ctx) {
           const had = loopVars.has(op.id)
           const prev = loopVars.get(op.id)
           let ok = true
-          for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
+          // ⭐⭐ C48 — `live`: A `for … in` OVER A LIST ITS BODY CHANGES WALKS THE
+          // LIST AS IT IS. The length is re-read before every pass (and the slot
+          // is copied as the pass starts — the body's first op). Capture
+          // `vw-forin-collections-rddt-1d-2026-10-01`: a body that shifts makes 3
+          // passes over five lines (F03), one that pushes ten makes 13 (F04), and
+          // a slot replaced before the walk reaches it hands the replacement (F05).
+          // ⛔ A body that grows its list on every pass never ends, in Pine too —
+          // here the per-bar instruction budget stops the run, by name.
+          const reread = op.live === true
+          for (let n = from; reread ? n <= Number(value(op.to)) : (step > 0 ? n <= to : n >= to); n += step) {
             loopVars.set(op.id, n)
             if (!runOps(op.body)) { ok = false; break }
           }

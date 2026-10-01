@@ -972,6 +972,11 @@ export function assertObjectProgram(program) {
     if (!Number.isInteger(c.cap) || c.cap <= 0 || c.cap > MAX_COLLECTION_CAP) {
       throw new Error(`objects: collection ${c.id} needs an integer cap in 1..${MAX_COLLECTION_CAP}, got ${JSON.stringify(c.cap)}`)
     }
+    // ⭐ C48 — `slots`: the list is created holding that many `na` slots
+    // (`var … = array.new_label(3)`, capture `vw-forin-collections` Z01–Z03).
+    if (c.slots !== undefined && (!Number.isInteger(c.slots) || c.slots < 1 || c.slots > c.cap)) {
+      throw new Error(`objects: collection ${c.id} is created with an integer slot count in 1..${c.cap}, got ${JSON.stringify(c.slots)}`)
+    }
     if (colls.has(c.id)) throw new Error(`objects: collection ${c.id} is declared twice`)
     colls.set(c.id, c)
   }
@@ -1068,6 +1073,15 @@ export function assertObjectProgram(program) {
       }
       if (op.asc !== undefined && (op.asc !== true || op.from === undefined)) {
         throw new Error(`${where}: asc is a flag on a counted loop — it is either absent or true`)
+      }
+      // ⭐ C48 — `live`: a `for … in` over a list its body changes re-reads the
+      // list's length before every pass (`vw-forin-collections`, F03 / F04);
+      // `pos`: a walk whose body reads the object's position in `<family>.all`.
+      if (op.live !== undefined && (op.live !== true || op.asc !== true || op.step !== undefined)) {
+        throw new Error(`${where}: live is a flag on a \`for … in\` over a list (asc, no step) — it is either absent or true`)
+      }
+      if (op.pos !== undefined && (op.pos !== true || op.over === undefined)) {
+        throw new Error(`${where}: pos is a flag on a walk — it is either absent or true`)
       }
       if (op.cond !== undefined) {
         assertValueRef(op.cond, `${where}.cond`, live)

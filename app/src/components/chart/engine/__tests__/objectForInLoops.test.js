@@ -15,10 +15,14 @@
 //     while array.size(lbs) > N          the FIFO cap — the condition re-read
 //         label.delete(array.shift(lbs)) before every pass, the oldest deleted
 //
-// ⛔ SERVED ONLY WHERE THE LOOP HAS ONE READING. A body that changes the list it
-// walks, a loop variable that takes over another statement's name, a position in
-// `line.all`, and `for … in line.all` deleting from two or more objects are all
-// refused BY NAME — the capture that settles each is `vw-forin-collections`.
+// ⛔ SERVED ONLY WHERE THE LOOP HAS ONE READING. A loop variable that takes over
+// another statement's name is refused BY NAME.
+// ⭐ C48 — `vw-forin-collections-rddt-1d-2026-10-01` settled the other three, and
+// they are served as it shows (`vendorHarness.c48ForIn`): a body that changes the
+// list it walks by push / shift / set walks the LIVE list; `<family>.all` is a
+// snapshot, so deleting from two or more deletes them all; a position in
+// `<family>.all` is the object's place, oldest first. A change by any other member
+// (`remove`, `pop`, …), a reassignment and a helper handed the list stay refused.
 //
 // Every expectation is Pine's own arrays run by hand over the same bars.
 import { describe, it, expect } from 'vitest'
@@ -187,12 +191,14 @@ describe('⭐⭐ C40 — `for x in <drawing list>`: every slot, in index order',
   })
 })
 
-describe('⛔ C40 (H14) — a drawing list created WITH SLOTS is not modelled: named, never run as an empty list', () => {
-  // `var a = array.new_box(3)` holds three `na` slots in Pine. This runtime starts
+describe('C40 (H14) / C48 — a drawing list created WITH SLOTS: three `na` slots where a capture shows it, named otherwise', () => {
+  // `var a = array.new_box(3)` holds three `na` slots in Pine. This runtime started
   // every list empty, so `array.set(a, i, box.new(…))` wrote nothing and
   // `box.delete(array.get(a, i))` deleted nothing: the "replace my three boxes
   // every bar" idiom drew three more every bar and removed none — 180 boxes over
   // these 60 bars where Pine holds 3, with a clean ledger (measured at the base).
+  // C40 named it (`coll:sized`); ⭐ C48 serves the form `vw-forin-collections`
+  // shows (Z01–Z03): `var`, one whole-number literal.
   const SRC = (ctor) => [
     `var a = ${ctor}`,
     'for i = 0 to 2',
@@ -200,8 +206,28 @@ describe('⛔ C40 (H14) — a drawing list created WITH SLOTS is not modelled: n
     'for i = 0 to 2',
     '    array.set(a, i, box.new(bar_index, high + i, bar_index + 2, low))',
   ]
-  for (const ctor of ['array.new_box(3)', 'array.new<box>(3)', 'array.new_box(3, na)']) {
-    it(`\`${ctor}\`: the list is diverged from its creation, its deletes withheld and counted`, () => {
+  // ⭐ C48 re-pin — these two read "the list is diverged from its creation, its
+  // deletes withheld and counted". Z01–Z03: the list holds its three slots, so the
+  // idiom is RUN — three boxes, the last bar's.
+  for (const ctor of ['array.new_box(3)', 'array.new<box>(3)']) {
+    it(`⭐ C48 — \`${ctor}\`: three \`na\` slots, and the replace-in-place idiom holds the last bar's three`, () => {
+      const t = tr(SRC(ctor))
+      expect(diag(t).collsDivergedWhy).toBeUndefined()
+      expect(diag(t).droppedOps).toBe(0)
+      expect(t.objects.colls).toEqual([{ id: 'c0', family: 'box', cap: 500, slots: 3 }])
+      const r = run(t)
+      expect(r.status).toBe('ok')
+      expect(bornAt(r, 'box')).toEqual([59, 59, 59])
+      expect(r.stats.created).toBe(180)
+      expect(r.stats.deleted).toBe(177)
+    })
+  }
+  it('⛔ a list declared WITHOUT `var` is made anew every bar in Pine: its slots are not modelled', () => {
+    const t = tr(SRC('array.new_box(3)').map((l, i) => (i === 0 ? l.replace('var ', '') : l)))
+    expect(diag(t).collsDivergedWhy).toEqual(['a: coll:sized@3'])
+  })
+  for (const ctor of ['array.new_box(3, na)', 'array.new_box(n)', 'array.new_box(501)']) {
+    it(`⛔ \`${ctor}\` (no row prints it): the list is diverged from its creation, its deletes withheld and counted`, () => {
       const t = tr(SRC(ctor))
       expect(diag(t).collsDivergedWhy).toEqual(['a: coll:sized@3'])
       expect(diag(t).dropReasons['coll:diverged']).toBeGreaterThan(0)
@@ -223,7 +249,9 @@ describe('⛔ C40 (H14) — a drawing list created WITH SLOTS is not modelled: n
     })
   }
 
-  it('a `for … in` over such a list is withheld with it, not run over nothing', () => {
+  // ⭐ C48 re-pin — this read "a `for … in` over such a list is withheld with it":
+  // the list is modelled now (Z01–Z03), so the walk runs over its fifty slots.
+  it('⭐ C48 — a `for … in` over such a list walks its slots, `na` ones included', () => {
     const t = tr([
       'var a = array.new<box>(50)',
       'for data in a',
@@ -231,14 +259,26 @@ describe('⛔ C40 (H14) — a drawing list created WITH SLOTS is not modelled: n
       'for i = 0 to 2',
       '    a.set(i, box.new(bar_index, high + i, bar_index + 2, low))',
     ])
-    expect(diag(t).collsDivergedWhy).toEqual(['a: coll:sized@3'])
-    expect(loops(t).filter((o) => o.asc)).toEqual([])
-    expect(diag(t).dropReasons['coll:diverged']).toBeGreaterThan(0)
+    expect(diag(t).collsDivergedWhy).toBeUndefined()
+    expect(loops(t).filter((o) => o.asc)).toHaveLength(1)
+    expect(diag(t).droppedOps).toBe(0)
+    expect(bornAt(run(t), 'box')).toEqual([59, 59, 59])
+  })
+  it('⛔ the program door holds `slots` to a whole number within the cap', () => {
+    const t = tr(SRC('array.new_box(3)'))
+    for (const slots of [0, -1, 1.5, 501, '3']) {
+      const p = { ...t.objects, colls: [{ ...t.objects.colls[0], slots }] }
+      expect(() => assertObjectProgram(p), String(slots)).toThrow(/slot count/)
+    }
   })
 })
 
-describe('⛔ C40 — a `for … in` with two readings is refused, by name', () => {
-  it('a body that shortens the list it walks keeps the loop refusal (market-structure-break)', () => {
+describe('C40 / C48 — a `for … in` whose body changes the list it walks: LIVE for push / shift / set, refused by name otherwise', () => {
+  // ⭐ C48 re-pin — this read "a body that shortens the list it walks keeps the loop
+  // refusal". `vw-forin-collections` F03: the walk is over the LIVE list — the
+  // length is re-read before every pass. By hand: on a down bar a list of n boxes
+  // loses its oldest ⌈n / 2⌉ (pass k runs while k < n − k).
+  it('⭐ C48 — a body that SHIFTS the list it walks runs over the live list (market-structure-break)', () => {
     const t = tr([
       'var box[] bs = array.new_box()',
       'array.push(bs, box.new(bar_index, high, bar_index + 1, low))',
@@ -246,12 +286,43 @@ describe('⛔ C40 — a `for … in` with two readings is refused, by name', () 
       '    if close < open',
       '        box.delete(array.shift(bs))',
     ])
-    expect(diag(t).forInRefused).toEqual(['the body changes `bs`, the list it walks@5'])
-    expect(diag(t).loopBlockedCalls).toContain('box.delete')
-    expect(loops(t)).toEqual([])
+    expect(diag(t).forInRefused).toBeUndefined()
+    expect(diag(t).droppedOps).toBe(0)
+    expect(loops(t).filter((o) => o.asc && o.live)).toHaveLength(1)
+    const born = []
+    for (let i = 0; i < N; i += 1) {
+      born.push(i)
+      if (BARS[i].c < BARS[i].o) for (let k = 0; k < born.length; k += 1) born.shift()
+    }
+    const r = run(t)
+    expect(r.status).toBe('ok')
+    expect(bornAt(r, 'box')).toEqual(born)
+    // CONTROL: the walk over the list it STARTED with would have emptied it on every down bar
+    expect(born.length).toBeGreaterThan(1)
+    expect(BARS[N - 1].c < BARS[N - 1].o || born[born.length - 1] === N - 1).toBe(true)
   })
 
-  it('…so does one that only REPLACES a slot (`array.set`), and one that hands the list to a helper', () => {
+  it('⭐ C48 — a body that PUSHES onto the list it walks is handed what it pushed (F04), within the bar\'s budget', () => {
+    const t = tr([
+      'var line[] ls = array.new_line()',
+      'if bar_index == 10',
+      '    array.push(ls, line.new(bar_index, high, bar_index + 1, high))',
+      '    for [i, l] in ls',
+      '        line.set_x2(l, bar_index + 2 + i)',
+      '        if i < 4',
+      '            array.push(ls, line.new(bar_index, high + 1 + i, bar_index + 1, high + 1 + i))',
+    ])
+    expect(diag(t).forInRefused).toBeUndefined()
+    const r = run(t)
+    expect(r.status).toBe('ok')
+    // one line to start, four pushed: FIVE passes, each line's x2 set by its own pass
+    expect(r.live.filter((o) => o.family === 'line').map((o) => o.props.x2)).toEqual([12, 13, 14, 15, 16])
+  })
+
+  // ⭐ C48 re-pin — "so does one that only REPLACES a slot (`array.set`)": F05 shows a
+  // slot is read when the walk reaches it, so a `set` is served. A helper handed the
+  // list has no row and keeps the refusal.
+  it('⭐ C48 — one that REPLACES a slot (`array.set`) is served; ⛔ one that hands the list to a helper is not', () => {
     const set = tr([
       'var box[] bs = array.new_box()',
       'array.push(bs, box.new(bar_index, high, bar_index + 1, low))',
@@ -259,8 +330,10 @@ describe('⛔ C40 — a `for … in` with two readings is refused, by name', () 
       '    array.set(bs, i, b)',
       '    box.set_right(b, bar_index)',
     ])
-    expect(diag(set).forInRefused).toEqual(['the body changes `bs`, the list it walks@5'])
-    expect(diag(set).loopBlockedCalls).toContain('box.set_right')
+    expect(diag(set).forInRefused).toBeUndefined()
+    const rs = run(set)
+    expect(rs.live.filter((o) => o.family === 'box')).toHaveLength(N)
+    expect(rs.live.filter((o) => o.family === 'box').every((o) => o.props.right === N - 1)).toBe(true)
     const helper = tr([
       'var box[] bs = array.new_box()',
       'drop(arr) =>',
@@ -270,12 +343,13 @@ describe('⛔ C40 — a `for … in` with two readings is refused, by name', () 
       '    if close < box.get_bottom(b)',
       '        drop(bs)',
     ])
-    expect(diag(helper).forInRefused).toEqual(['the body changes `bs`, the list it walks@7'])
+    expect(diag(helper).forInRefused).toEqual(['the body changes `bs`, the list it walks, by more than push / shift / set@7'])
     expect(loops(helper)).toEqual([])
   })
 
-  it('…and the method spelling (`bs.remove(0)`), and a body that reassigns the list itself', () => {
-    for (const line of ['        bs.remove(0)', '        bs := other']) {
+  it('⛔ a change by any other member (`remove`, `pop`, `unshift`, `insert`, `clear`), and a body that reassigns the list itself', () => {
+    for (const line of ['        bs.remove(0)', '        array.remove(bs, 0)', '        box.delete(array.pop(bs))',
+      '        array.unshift(bs, b)', '        array.insert(bs, 0, b)', '        array.clear(bs)', '        bs := other']) {
       const t = tr([
         'var box[] bs = array.new_box()',
         'var box[] other = array.new_box()',
@@ -285,7 +359,7 @@ describe('⛔ C40 — a `for … in` with two readings is refused, by name', () 
         '    if close < open',
         line,
       ])
-      expect(diag(t).forInRefused, line).toEqual(['the body changes `bs`, the list it walks@6'])
+      expect(diag(t).forInRefused, line).toEqual(['the body changes `bs`, the list it walks, by more than push / shift / set@6'])
       expect(loops(t)).toEqual([])
     }
   })
@@ -470,7 +544,11 @@ describe('⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`', () =>
     expect(diag(t).loopBlockedCalls).toEqual(['label.delete'])
   })
 
-  it('⛔ UNWITNESSED: deleting from two or more is not run — the chart draws nothing, and says why', () => {
+  // ⭐ C48 re-pin — this read "UNWITNESSED: deleting from two or more is not run — the
+  // chart draws nothing, and says why". `vw-forin-collections` A04 / A05: the walk is
+  // over a SNAPSHOT, one pass per object, and none is left. Every fifth bar clears
+  // the chart, that bar's own line included; bars 56–59 remain.
+  it('⭐ C48 — deleting from two or more deletes them ALL: `<family>.all` is a snapshot', () => {
     const t = tr([
       'line.new(bar_index, high, bar_index + 1, high)',
       'if bar_index % 5 == 0',
@@ -478,20 +556,74 @@ describe('⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`', () =>
       '        line.delete(v)',
     ])
     const r = run(t)
-    expect(r.status).toBe(OBJECT_STATUS.UNWITNESSED)
-    expect(r.reason).toContain('for … in line.all')
-    expect(r.reason).toContain('vw-forin-collections')
-    expect(r.live).toEqual([])
+    expect(r.status).toBe(OBJECT_STATUS.OK)
+    expect(bornAt(r, 'line')).toEqual([56, 57, 58, 59])
+    expect(r.stats.deleted).toBe(56)
   })
 
-  it('⛔ a POSITION in `line.all` is never read', () => {
+  it('⭐ C48 — a body that CREATES the family is not handed what it made (the snapshot again)', () => {
+    const t = tr([
+      'if bar_index == 10 or bar_index == 11',
+      '    line.new(bar_index, high, bar_index + 1, high)',
+      'if bar_index == 12',
+      '    for v in line.all',
+      '        line.new(bar_index, low, bar_index + 1, low)',
+    ])
+    const r = run(t)
+    // two lines when the walk starts: two passes, two more lines — not an endless walk
+    expect(bornAt(r, 'line')).toEqual([10, 11, 12, 12])
+  })
+
+  // ⭐ C48 re-pin — this read "a POSITION in `line.all` is never read". A06: positions
+  // are 0, 1, 2 …, oldest first.
+  it('⭐ C48 — a POSITION in `line.all` is the object\'s place, oldest first', () => {
     const t = tr([
       'line.new(bar_index, high, bar_index + 1, high)',
       'for [i, v] in line.all',
       '    line.set_y2(v, close + i)',
     ])
-    expect(diag(t).forInRefused).toEqual(['a position in `line.all` is read@4'])
-    expect(diag(t).loopBlockedCalls).toContain('line.set_y2')
+    expect(diag(t).forInRefused).toBeUndefined()
+    expect(loops(t).filter((o) => o.over && o.pos)).toHaveLength(1)
+    const r = run(t)
+    const lines = r.live.filter((o) => o.family === 'line')
+    expect(lines).toHaveLength(N)
+    lines.forEach((l, k) => expect(near(l.props.y2, BARS[N - 1].c + k), `line ${k}`).toBe(true))
+  })
+
+  it('⛔ C48 — …and is NOT read for a family one of whose creates this program lost: the loop is withheld', () => {
+    // the second label's text is a format this reader does not carry: its create
+    // is lost, so TradingView holds a label this run never made — and every
+    // position after it is one more than this run would count.
+    const t = tr([
+      'var line ln = line.new(0, 7.5, 1, 7.5)',
+      'label.new(bar_index, high, "a")',
+      'label.new(bar_index, low, str.tostring(line.get_y1(ln), "#,###.##"))',
+      'for [i, v] in label.all',
+      '    label.set_text(v, str.tostring(i))',
+    ])
+    expect(diag(t).lostCreates).toEqual(['label'])
+    expect(loops(t).filter((o) => o.over && o.pos)).toHaveLength(1)
+    const r = run(t)
+    // no label is numbered: each is still "a", or is withheld
+    expect(r.live.filter((o) => o.family === 'label').map((o) => o.props.text).filter((x) => x !== 'a')).toEqual([])
+    // CONTROL: the same walk with no lost create numbers them
+    const ok = run(tr([
+      'label.new(bar_index, high, "a")',
+      'for [i, v] in label.all',
+      '    label.set_text(v, str.tostring(i))',
+    ]))
+    expect(ok.live.filter((o) => o.family === 'label').map((o) => o.props.text).slice(0, 3)).toEqual(['0', '1', '2'])
+  })
+
+  it('⛔ the program door holds `live` and `pos` to the loops they belong on', () => {
+    const live = tr(['var box[] bs = array.new_box()', 'array.push(bs, box.new(bar_index, high, bar_index + 1, low))',
+      'for b in bs', '    if close < open', '        box.delete(array.shift(bs))'])
+    const pos = tr(['line.new(bar_index, high, bar_index + 1, high)', 'for [i, v] in line.all', '    line.set_y2(v, close + i)'])
+    const swap = (t, edit) => ({ ...t.objects, ops: t.objects.ops.map((o) => (o.k === 'loop' ? edit(o) : o)) })
+    expect(() => assertObjectProgram(swap(live, (o) => ({ ...o, live: 1 })))).toThrow(/live is a flag/)
+    expect(() => assertObjectProgram(swap(live, (o) => ({ ...o, asc: undefined })))).toThrow(/live is a flag/)
+    expect(() => assertObjectProgram(swap(pos, (o) => ({ ...o, pos: 1 })))).toThrow(/pos is a flag/)
+    expect(() => assertObjectProgram(swap(live, (o) => ({ ...o, pos: true })))).toThrow(/pos is a flag/)
   })
 })
 

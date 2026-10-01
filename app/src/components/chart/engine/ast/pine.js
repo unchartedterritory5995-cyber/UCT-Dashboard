@@ -18153,7 +18153,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (d.kind === 'coll') {
       const id = `c${colls.length}`
       collId.set(name, id)
-      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP })
+      // ⭐ C48 — `slots`: a list created holding that many `na` slots (`witnessedSlots`).
+      colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}) })
     } else {
       const id = `r${regs.length}`
       regId.set(name, id)
@@ -19625,7 +19626,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⭐⭐ C40 — `for … in line.all` / `box.all` / `label.all`: every object of the
     // family on the chart, oldest first (`vw-object-gc-d`), each handed to the
     // loop variable's register in turn. The runtime walks what it holds when the
-    // loop starts and refuses, by name, the one case with two readings.
+    // loop starts — a snapshot (C48, `vw-forin-collections` A02 / A04 / A05).
+    // ⭐ C48 — `pos`: the body reads the object's position in the list (A06).
     if (op.k === 'loop' && op.forIn && op.forIn.all) {
       const elem = regId.get(op.forIn.elem)
       const outer = ops
@@ -19636,7 +19638,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       scopeEnv = scopeFor(op.locals, op)
       loopIds = op.loopIds || []
       if (!body.some((b) => b.k !== 'latch')) { dropped('loop:empty'); continue }
-      ops.push({ k: 'loop', id: op.id, over: { all: op.forIn.all }, elem, body, when, ...lastBarOnly })
+      ops.push({
+        k: 'loop', id: op.id, over: { all: op.forIn.all }, elem, body, when, ...lastBarOnly,
+        ...(op.forIn.pos ? { pos: true } : {}),
+      })
       continue
     }
     if (op.k === 'loop') {
@@ -19669,7 +19674,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // start is evaluated once in both, which is why institutional-smc's
       // `for i = array.size(bs) - 1 to 0` with an `array.remove` in its body is
       // carried and `for i = 0 to array.size(bs) - 1` with one would not be.
-      if (liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
+      // ⭐⭐ C48 — EXCEPT A `for … in` OVER THE LIST ITSELF, which TradingView
+      // walks LIVE in both versions (`vw-forin-collections`, F03 / F04 / F05, a
+      // v5 script): the length is re-read before every pass. The loop says so
+      // (`live`) and the runtime re-reads its end bound. (Per-iteration mode has
+      // no such loop: the reader makes `for … in` ops for the host lane only.)
+      const liveWalk = !!(op.forIn && op.forIn.live === true && op.asc && !step)
+      if (!liveWalk && liveReadsCollsOf(to, step).some((c) => bodyChangesLength(op.body, c))) {
         noteLoopBounds(op, 'an end bound that reads a list length its body changes')
         unconverted(op.body, 'loop:bounds'); dropped('loop:bounds'); continue
       }
@@ -19694,6 +19705,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         k: 'loop', id: op.id, from, to, ...(step ? { step } : {}), body, when, ...lastBarOnly,
         // ⭐ C40 — a `for … in` never counts down: an empty list runs no pass.
         ...(op.asc ? { asc: true } : {}),
+        // ⭐ C48 — …and one whose body changes its list re-reads the length per pass.
+        ...(liveWalk ? { live: true } : {}),
         ...(iterTrees ? { fromNode: op.from && op.from.value, toNode: op.to && op.to.value } : {}),
       })
       continue
