@@ -22,8 +22,10 @@ const ALL_ACCOUNTS = '_all_'
 // only fires cross-tab.)
 const CHANGE_EVENT = 'uct:j2:selected-account-changed'
 
-export default function useJ2SelectedAccount() {
-  const { accounts, isLoading } = useJ2Accounts()
+// `enabled` defaults to true (see useJ2Accounts.js) and is threaded straight
+// through to it — every existing caller omits it and is unaffected.
+export default function useJ2SelectedAccount(enabled = true) {
+  const { accounts, isLoading } = useJ2Accounts(enabled)
   const [accountId, setAccountIdState] = useState(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored === ALL_ACCOUNTS) return null
