@@ -638,6 +638,12 @@ function assertColorNode(v, where, depth = 0) {
       assertColorNode(v.a, `${where}.a`, depth + 1)
       assertColorNode(v.b, `${where}.b`, depth + 1)
       return
+    // ⭐⭐ C45 — a colour the translator could READ and could not serve exactly
+    // (`pine.js::heldColour`): no value, only the reason. The object runtime
+    // marks it unknown, so what asked for it is held, never painted a guess.
+    case 'held':
+      if (typeof v.why !== 'string' || !v.why) throw new Error(`${where}: a held colour names its reason`)
+      return
     default:
       throw new Error(`${where}: unknown colour node ${JSON.stringify(v.c)}`)
   }

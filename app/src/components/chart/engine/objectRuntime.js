@@ -303,7 +303,8 @@ export function beginObjects(program, ctx) {
   // ⭐⭐ C33 — A PROGRAM THAT CARRIES AN UNREAD CONJUNCT (`{v:'unknown'}`) OR A
   // GETTER'S HISTORY (`{v:'get', back}`) holds something unknown before any mark
   // forms, so the fast path is off for it from the first bar.
-  if (/"v":"unknown"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
+  // ⭐ C45 — and one that carries a HELD colour (`{c:'held'}`), unknown on every bar.
+  if (/"v":"unknown"|"c":"held"|"v":"get"[^}]*\}[^{}]*"back":/.test(JSON.stringify(program.ops || []))) taintSeen = true
   /** ⭐⭐ C33 — a getter's history: per reference, the number it answered on each
    *  bar its op ran (`value` records it; `[back]` reads it back). */
   const getHistory = new WeakMap()
@@ -952,6 +953,7 @@ export function beginObjects(program, ctx) {
     /** ⭐ C20 — did a colour the program asked the RUNTIME for come back unserved?
      *  (A `lit`/`if` colour never answers `null`; only `rt`/`new`/`grad` can.) */
     const runtimeColourNode = (c, depth = 0) => isObj(c) && depth < 48 && (c.c === 'rt' || c.c === 'new' || c.c === 'grad'
+      || c.c === 'held'
       || (c.c === 'if' && (runtimeColourNode(c.then, depth + 1) || runtimeColourNode(c.else, depth + 1))))
     const unservedColour = (props, resolved) => Object.entries(props || {})
       .filter(([k, v]) => isObj(v) && v.v === 'color' && runtimeColourNode(v.node)
@@ -1247,6 +1249,8 @@ export function beginObjects(program, ctx) {
     }
     const colorTainted = (c, depth) => {
       if (!isObj(c) || depth > 48) return false
+      // ⭐ C45 — a colour the translator HELD (`{c:'held'}`) has no value on any bar.
+      if (c.c === 'held') return true
       if (c.c === 'if') return tainted(c.cond, depth + 1) || colorTainted(c.then, depth + 1) || colorTainted(c.else, depth + 1)
       if (c.c === 'rt') return tainted(c.v, depth + 1)
       if (c.c === 'new') return colorTainted(c.of, depth + 1) || tainted(c.t, depth + 1)

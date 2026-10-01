@@ -12875,12 +12875,27 @@ function reassignedNames(tokens) {
   return out
 }
 
+/** ⭐⭐ C45 — THE TYPE WORDS A SCRIPT MAY ALSO USE AS A VARIABLE'S NAME, each
+ *  witnessed on a capture. `color = color_level > 0 ? … : …` then
+ *  `table.cell(…, bgcolor = color)` and `barcolor(color)` is heat-map-seasons
+ *  (`heat-map-seasons-rddt-1d-2026-09-28`: TradingView compiled and ran it, and
+ *  drew the gauge cell in that variable's colour). `color.red` and `color(na)`
+ *  are other tokens (`color.red` lexes as one identifier, `color(` is a call), so
+ *  the namespace is untouched.
+ *  ⛔ ONLY what a capture shows. `line`, `label`, `box`, `table` as a variable
+ *  name are written in the corpus too (support-and-resistance's `box = box.new`)
+ *  and no capture runs one: they keep refusing, by `pine:statement`. */
+const TYPE_WORDS_BINDABLE = Object.freeze(new Set(['color']))
+
 /** The name a declaration binds — the identifier immediately before the `=`,
  *  unless that identifier is one of Pine's type words (`float x = 0.0`, where the
- *  walk-back has already passed `x`). */
+ *  walk-back has already passed `x`).
+ *  ⭐ C45 — a witnessed type word standing ALONE before the `=` is the variable's
+ *  name (`color = …`): nothing precedes it for it to be the type OF. */
 export function boundName(toks, eqIndex) {
   const tok = toks[eqIndex - 1]
-  if (!tok || tok.kind !== 'ident' || TYPE_WORDS.has(tok.value)) return null
+  if (!tok || tok.kind !== 'ident') return null
+  if (TYPE_WORDS.has(tok.value)) return eqIndex === 1 && TYPE_WORDS_BINDABLE.has(tok.value) ? tok : null
   return tok
 }
 
@@ -17097,6 +17112,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ C10 — a test that is the same on every bar answers with its live
       // arm when the dead one cannot be read, as `textNodeOf` does (a rescue only).
       const condTree = canonicalOf(node.test)
+      // ⭐⭐ C45 — AN ARM THAT CALLS `ta.*` UNDER A TEST THAT VARIES IS NOT THE
+      // EVERY-BAR NUMBER, so its colour is HELD by name (see `heldColour`).
+      if (decidedTest(condTree) === null) {
+        const call = armHistoryCall(node.yes) || armHistoryCall(node.no)
+        if (call) return heldColour(node, call)
+      }
       const cond = internTree(condTree)
       let then = colorNodeOf(node.yes, scope, depth + 1)
       let other = colorNodeOf(node.no, scope, depth + 1)
@@ -17149,6 +17170,48 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     return lateColourOf(node, scope, depth)
   }
   const litByBinding = new WeakMap()
+
+  /** ⭐⭐ C45 — A COLOUR WHOSE ARM CALLS `ta.*` UNDER A TEST THAT VARIES PER BAR.
+   *
+   *  heat-map-seasons colours its gauge point `color_level > 0
+   *  ? color.from_gradient(color_level, 0, ta.highest(color_level, 70), …)
+   *  : color.from_gradient(color_level, ta.lowest(color_level, 70), 0, …)`.
+   *  TradingView runs each arm's `ta.*` only on the bars that arm is taken, so
+   *  its window holds the last 70 values of THOSE bars (and fewer until there
+   *  are 70) — measured on `heat-map-seasons-rddt-1d-2026-09-28`: that reading
+   *  reproduces the capture's bar colours on every one of its 632 bars; the
+   *  every-bar window this lane computes differs on 16 of them, the last bar
+   *  among them (vendor `#f3e841`, every-bar `#9fd974`).
+   *
+   *  No tree says "the last N bars a condition held", so the colour cannot be
+   *  served exactly — and an object's colour is never guessed (C20 / C37): the
+   *  slot is carried as `{c:'held'}`, which the object runtime marks unknown, so
+   *  the object or cell that asked for it is HELD rather than painted. Named in
+   *  `objectDiagnostics.heldColours`.
+   *  ⛔ Only a `ta.*` written INSIDE the arm: a name bound above the ternary runs
+   *  on every bar and reads as it always has. A test that is the same on every
+   *  bar (`decidedTest`) runs one arm on every bar and is not this case. */
+  const armHistoryCall = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 48) return null
+    if (Array.isArray(n)) {
+      for (const x of n) { const c = armHistoryCall(x, depth + 1); if (c) return c }
+      return null
+    }
+    if (n.type === 'call' && typeof n.name === 'string' && n.name.startsWith('ta.')) return n
+    for (const [k, v] of Object.entries(n)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const c = armHistoryCall(v, depth + 1)
+      if (c) return c
+    }
+    return null
+  }
+  const heldColour = (node, call) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `fn:conditional-history \`${call.name}\`@${at ? at.line : '?'}`
+    diagnostics.heldColours = diagnostics.heldColours || []
+    if (!diagnostics.heldColours.includes(entry)) diagnostics.heldColours.push(entry)
+    return { c: 'held', why: 'fn:conditional-history' }
+  }
 
   /** ⭐ C37 — a per-pass condition a COLOUR may carry: comparisons and boolean
    *  operators over the loop counter, constants, counter arithmetic and per-bar
