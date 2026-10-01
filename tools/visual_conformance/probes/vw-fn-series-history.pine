@@ -1,0 +1,46 @@
+//@version=5
+indicator("UCTPROBE_VW_FN_SERIES_HISTORY", overlay = true, max_bars_back = 5000)
+
+// --- 2026-09-30 C34 - WHOSE HISTORY A CONDITIONAL CALL READS ---------------------
+//
+// Witnessed already (trend-lines-supports-and-resistances-rddt-1d-2026-09-28): a
+// helper called ONLY on the last bar reads the chart's open / high / low / close at
+// an offset as the chart's own series. This probe settles the two halves the engine
+// still refuses by name (`fn:conditional-history`):
+//
+//   (i)  the other chart series read the same way - volume, time, bar_index, hl2,
+//        hlc3, ohlc4 (`CHART_SERIES_UNWITNESSED` in objectFnInline.js): rows S*;
+//   (ii) the per-call-site rule itself - a body LOCAL, a PARAMETER and a `ta.*`
+//        read from a call that has run exactly once: rows C*. Pine documents these
+//        as the CALL's history (so `na` / a one-bar window on the first execution).
+//
+// CAPTURE: NYSE:RDDT 1D (from the listing), inputs at defaults. Every row is one
+// label on the last bar; the text carries the value, the y carries it again.
+
+f_series(int k) =>
+    label.new(bar_index, low,  "S01 volume|" + str.tostring(volume[k]))
+    label.new(bar_index, low,  "S02 bar_index|" + str.tostring(bar_index[k]))
+    label.new(bar_index, low,  "S03 time|" + str.tostring(time[k]))
+    label.new(bar_index, low,  "S04 hl2|" + str.tostring(hl2[k]))
+    label.new(bar_index, low,  "S05 hlc3|" + str.tostring(hlc3[k]))
+    label.new(bar_index, low,  "S06 ohlc4|" + str.tostring(ohlc4[k]))
+    label.new(bar_index, low,  "S07 close CONTROL|" + str.tostring(close[k]))
+
+f_call(float src) =>
+    x = close * 2
+    label.new(bar_index, high, "C01 local x[1]|" + str.tostring(x[1]))
+    label.new(bar_index, high, "C02 param src[1]|" + str.tostring(src[1]))
+    label.new(bar_index, high, "C03 ta.sma(close,3)|" + str.tostring(ta.sma(close, 3)))
+    label.new(bar_index, high, "C04 ta.highest(high,10)|" + str.tostring(ta.highest(high, 10)))
+
+// the every-bar answers, for comparison with C01-C04
+plot(close[1] * 2,            "E01_local_every_bar")
+plot(close[1],                "E02_param_every_bar")
+plot(ta.sma(close, 3),        "E03_sma_every_bar")
+plot(ta.highest(high, 10),    "E04_highest_every_bar")
+
+if barstate.islast
+    f_series(5)
+    f_series(40)
+    f_series(200)
+    f_call(close)

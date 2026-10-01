@@ -37,7 +37,7 @@
 import { methodFormCall, splitMethodName } from './ufcs.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
-  historyReason, pureFunctions, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
+  historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
   barInvariantNames, guardIsBarInvariant, getterScalars, isBareGetterAt, literalInit, isMutator,
 } from './objectFnInline.js'
@@ -251,7 +251,11 @@ export function collectObjectOps(stmts, h) {
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
   const userMethods = new Set([...fnDefs.keys()].filter((n) => fnDefs.get(n).isMethod))
-  const pureFns = pureFunctions(fnDefs, drawFns)
+  /** ⭐ C34 — the witnessed chart series (`open`/`high`/`low`/`close`) no
+   *  script name shadows: a conditional call's body reads them at an offset as
+   *  the chart's own, not the call's (`objectFnInline.js`, C34). */
+  const chartSeries = chartSeriesFor(stmts, h)
+  const pureFns = pureFunctions(fnDefs, drawFns, chartSeries, drawMethods)
   /** Top-level names fixed for the whole run — see `barInvariantNames`. */
   const invariantNames = barInvariantNames(stmts, h)
   /** ⭐ C14 — names that hold a number read off a drawing (`getterScalars`). */
@@ -1925,6 +1929,23 @@ export function collectObjectOps(stmts, h) {
     return { family: a.family, creates: [a, b] }
   }
 
+  /** ⭐ C34 — a body inlined into a loop this reader does not run: what it
+   *  would have removed, created or re-listed, recorded as that loop's loss —
+   *  the refused call's own accounting (`bodyEffects`), kept at full volume. A
+   *  removal whose family the tokens cannot name is `object.delete`, which the
+   *  door classifies as a removal (`classifyReaderName`), never as nothing. */
+  function loopBodyEffects(def, fnName, st) {
+    const fx = bodyEffects(def, fnDefs, objColls)
+    const kinds = { ...(fx.kinds || {}) }
+    for (const fam of fx.families || []) {
+      const clear = fam === 'table' && (kinds.clear || 0) > 0
+      if (clear) kinds.clear -= 1
+      diagnostics.loopBlocked.push(clear ? 'table.clear' : `${fam || 'object'}.delete`)
+    }
+    for (const fam of fx.creates || []) diagnostics.loopBlocked.push(`${fam}.new`)
+    for (const name of fx.colls || []) loseColl(name, `loop:fn ${fnName}`, st && st.header ? st.header[0] : null)
+  }
+
   function inlineAt(head, callToks, open, into, guards, inLoop, st, scope) {
     if (!head.recv) return inlineCall(head.fn, callToks, open, into, guards, inLoop, st, scope)
     const root = head.recv.split('.')[0]
@@ -1950,7 +1971,23 @@ export function collectObjectOps(stmts, h) {
     if (def.isMethod && def.overloaded) {
       return refuseCall('method', fnName, st, `\`${fnName}\` is defined more than once`)
     }
-    if (inLoop) return refuseCall('loop', fnName, st)
+    // ⭐⭐ C34 — A CALL IN A LOOP THIS READER DOES NOT RUN (`for … in`, `while`)
+    // IS INLINED, AND ITS BODY MEETS THE LOOP'S OWN REFUSAL. The helper was
+    // never the wall: Pine runs the body where the call stands, so each of its
+    // statements is a statement of that loop, and every op the walk makes there
+    // is `loopBlocked` exactly as a top-level statement in the same loop is.
+    // Refusing the CALL named the helper and hid what actually stops the
+    // drawing (`trend-lines-supports-and-resistances`: six calls in `for … in`
+    // over a list of user-type points, and in two `while`s).
+    // ⛔ Nothing new is drawn by this: an op in such a loop is blocked either way.
+    // ⛔ What the body would have removed, created or re-listed is ALSO recorded
+    // against the loop (`loopBodyEffects` below), read off the tokens the same
+    // way a refused call's is — so a removal the walk cannot name (a method-form
+    // delete on a handle it never declared) stays as loud as it was when the
+    // call was refused, and the member door's partial-drawing rule sees it.
+    // ⛔ Still refused: inside the C20 runtime-lane `while` try (`rtLoop`), whose
+    // carried body must be statement creates and nothing else.
+    if (inLoop && rtLoop) return refuseCall('loop', fnName, st)
     if (inlineDepth >= MAX_INLINE_DEPTH) return refuseCall('depth', fnName, st)
     const args = splitArgs(callToks, open, h.isPunct)
     if (!args) return refuseCall('arity', fnName, st)
@@ -1963,10 +2000,11 @@ export function collectObjectOps(stmts, h) {
     // every bar or on none, so the call's history is the every-bar history —
     // see `guardIsBarInvariant`. ⛔ A counted loop still refuses: its body runs
     // several times per bar, so no guard can make that history the columnar one.
-    const varies = loopIds.length > 0
+    // ⭐ C34 — and a loop this reader does not run varies too (its passes).
+    const varies = inLoop || loopIds.length > 0
       || guards.some((g) => !guardIsBarInvariant(g.toks, invariantNames))
     if (varies) {
-      const why = historyReason(def, drawFns, userFns, pureFns, userMethods)
+      const why = historyReason(def, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
       if (why) return refuseCall('conditional-history', fnName, st, why)
     }
     const { locals, mutable, carried } = bodyNames(def, h)
@@ -1982,7 +2020,8 @@ export function collectObjectOps(stmts, h) {
     const rw = rewriteBody(def, bound.bind, locals, suffix, h, meta)
     if (rw.error) return refuseCall(rw.error.split(':')[0], fnName, st, rw.error)
     diagnostics.inlinedCalls += 1
-    inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 })
+    inlineBodies.push({ suffix, fn: fnName, stmts: rw.stmts, everyBar: guards.length === 0 && loopIds.length === 0 && !inLoop })
+    if (inLoop) loopBodyEffects(def, fnName, st)
     const sink = ops
     const before = sink.length
     inlineDepth += 1
@@ -2001,6 +2040,10 @@ export function collectObjectOps(stmts, h) {
     const siteAt = callToks[0] && Number.isFinite(callToks[0].index) ? callToks[0].index : null
     for (let i = before; i < sink.length; i += 1) { sink[i].inlined = true; sink[i].siteIndex = siteAt }
     if (!into) return true
+    // ⛔ C34 — a handle RETURNED inside a loop this reader does not run is not
+    // copied: the copy would run on every bar outside the loop. Blocked with
+    // the loop, the way a top-level copy there is.
+    if (inLoop) { diagnostics.loopBlocked.push('object copy'); return true }
     // ⭐⭐ C11c — A TUPLE OF RETURNED HANDLES. Pine returns the body's last
     // statement; `[Line, A, B]` there hands each caller name the handle the
     // body's own name holds at the return — an eager register copy per element

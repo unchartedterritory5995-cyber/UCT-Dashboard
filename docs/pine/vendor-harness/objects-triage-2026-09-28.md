@@ -141,6 +141,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 38 | C27 `request.security` / `request.security_lower_tf` at a timeframe BELOW the chart's own — the mechanism (`engine/lowerTf.js`, every rule stated once in its header): the store's intraday bars kept to TradingView's regular session for the day (`tradingViewCloseMinute`), bucketed from 09:30 in the code's minutes (60 built from the store's 15, whose own 60 is clock-aligned), a bucket complete only when every source slot is present; each chart bar reads its LAST intrabar (`request.security`) or all of them in order (`security_lower_tf`), the expression evaluated on the intraday series through the real `interpret`; a chart bar is UNKNOWN (never `na`) unless every session of its period is complete and no intrabar is missing within the expression's reach. Served NOWHERE: two rules (which intrabar, which session) are documented, not captured, so every lower read is refused BY NAME at the door (`lower-tf:unwitnessed` / `lookahead` / `other-symbol` / `not-served` / `intraday-chart` / `intrabar-array`) with the capture that settles it — see § C27 | `pine/c27-lower-tf` | 28 / 47 → 28 / 47 (overall 24 → 24; base `476383d32`, objects pane on; off: 18 → 18, overall 14 → 14) | 222 / 266 → 222 / 266 | **none moved, measured — no graded capture reads a lower timeframe off committed intraday bars.** Replayed on TradingView's own SPY bars (`vendorHarness.c27LowerTf`): the 60m regular-session bars ARE the 5m bars bucketed from 09:30 (12 / 12 complete buckets equal OHLCV); the daily close equals the last 60m close on only 190 of 2,951 sessions; `request.security("60", ema(close, 9))` equals an independent EMA over the 60m closes at each day's last bar on every known day. Committed harness dir (120 captures, both flag states): **0 entries changed**; inventory identical. Member-door census 266 × both flags: attach 41 / 64 → 41 / 64; 1 row × 2 states changed, refusal text only (`mtf-dashboard-pro-rsi-fib-sr-volume-strixedge`, ungraded: its `r1` tuple element now names `lower-tf:unwitnessed`). `paramIds.test.js` green, no re-pin |
 | 39 | C28 a measured sweep (re-grade of the 47 and the committed harness dir on the wave-7 tip, every non-MATCH traced to its first named wall — § C28), and the two fixes it ranked first: **(a)** a name bound BELOW a reassignment the walk could not fold no longer reads that name's older binding out of its own env snapshot (`Resolver.staleSnapshotRead`; the closing pass condemns only the FINAL env) — a WRONG VALUE, live on the objects pane and the plot lane; **(b)** `request.security(sym, "", x)` (a `""` literal or an `input.timeframe('')`) is the chart's own timeframe, per Pine's reference, and a plot colour written as a request is the inner rule with its deciding tree moved inside the same request (`securityColourRule`) | `30d99259f`, `0cfefd0d8`, `bd7c756b6` | 28 / 47 → 28 / 47 (overall **24 → 25**; base `476383d32`, objects pane on) | 222 / 266 → 222 / 266 (plots MATCH 160 → 161 / 172) | **donchian-channels DIVERGE → MATCH**: its Basis wore the pane's gold on 533 bars where TradingView draws blue, red or nothing; now value and colour agree on all 632 (`vendorHarness.c28Donchian`). **artemis-oscillator-pro** cells 18 → 14 of 21, texts `onlyOurs` 4 → **0**: `◈ NEUTRAL`, `0%`, `29 ▼ BEAR`, `↓-3` (read off `float knnVal = 50.0`) where TradingView draws `▼ BEAR`, `80%`, `22 ▼ STRONG BEAR`, `↓-17` — withheld now, every cell still drawn is TradingView's at its address (`vendorHarness.c28StaleSnapshot`). Same two entries, and only those, in the committed harness dir (82) under both objects-flag states and in the 47 with the flag off. Member-door census 266 × 2 (and × 2 with the dark runtime-pane flag on): attach 41 / 64 (43 / 66) unchanged; 7 rows — donchian's colour column (13 → 14 plots), and five door-refused scripts whose first refusal moved to a write read past (every one refused before and after). Translation census 266: no served output changed; `smarter-snr` serves 2 more cells (its `''` row, the identity). Census alternated base / tip / base / tip: 35.4 / 37.0 / 43.8 / 45.7 s. Notebook first-open 1,891,971 B at base and tip (+0, PASS); `pine` chunk +1,353 B. `paramIds.test.js` green, no re-pin |
 | 42 | C32 arrays in the object lane, three general Pine semantics on the HOST lane (§ C32): **(a)** a text that moves per PASS of a counted loop — `str.tostring(<counter arithmetic>)` and `str.tostring(w.get(i))` of a bounded window, through a body local — is `{t:'val'}` over a value reference the object runtime evaluates on each pass; the window read is `{v:'wget'}` (per-bar slot trees, the length, Pine's index mapped per pass; an index outside the elements is Pine's `array.get` runtime error — the run stops and draws nothing); **(b)** a window's LENGTH read ABOVE its first writer is last bar's length (`sizePrev`), withheld on the first bar; **(c)** a window wider than `MAX_WINDOW_CAP` (64, unchanged) is read for its length only (`sizeOnly`: `cap` once the cap-th most recent add exists, withheld before; every other read refused by name), and a cap declared with a type word (`int knnLen = input.int(…)`) is the cap, not a stray read of it | `3d8813fbe` (+ the docs commit: two artemis pins, `pineProbeReplay` budget steps and `partialDrawing` 7 → 6 of 38) | 28 / 47 → 28 / 47 (overall 25 → 25; base `e0eb227ee`, objects pane on) | 222 / 266 → **224 / 266** (plots 161 / 172 unchanged) | **trend-duration** table cells 4 → **34 / 34** (address, text, tooltip — `vendorHarness.c32Collections`); its labels stay 26 / 28 and its line 0 / 1 (getter arithmetic over an `array<int>` average whose integer rounding no capture witnesses — § C32). **artemis-oscillator-pro** cells 14 → **15 / 21**: `100 bars` at (1, 2), TradingView's. Exactly those 2 entries changed in the 47 and in the committed harness dir (87), under both objects-flag states (47 flag off: 105 → 107 / 119; dir on 278 → 280 / 322, off 161 → 163 / 175; objects MATCH 49 / 39 and overall 42 / 32 unchanged). Member-door census 266 × both flags: attach 41 / 64 → 41 / 64, **0 rows changed**. Translation census 266: the same 2 scripts' object programs, no plot output changed. Notebook first-open 1,897,262 B at base and tip (+0, PASS); `pine` chunk 330,629 → 334,233 B (+3,604), total JS +4,625 B. `paramIds.test.js` green, no edit |
+| 44 | C34 a conditional helper's history, read precisely: `fn:conditional-history` refuses only what the CALL owns (its locals, parameters, `ta.*` state). The chart's own `open`/`high`/`low`/`close` at an offset are the chart's, witnessed on the trend-lines capture (a last-bar-only helper reads 40 to 257 bars back and TradingView draws the chart's values); a keyword before `[`, a built-in method on a chained value, `map.*`/`matrix.*` and a pure user method are no longer read as history. A call in a loop the host reader does not run (`for ... in`, `while`) is inlined into that loop instead of refused as `fn:loop` - its ops meet the loop's own refusal and its body's removals stay counted - see § C34 | `2902087c3` | 28 / 47 -> 28 / 47 (overall 25 -> 25, objects pane on; flag off 18 -> 18) | 222 / 266 -> 222 / 266 (plots 161 -> 161 / 172) | no graded entry changed (the 47 and the committed harness dir, both flag states: 0 entries). Translation census 266: `fn:loop` 27 -> **0** (5 scripts, all past it), `fn:conditional-history` 579 -> 540 (7 scripts fewer, 4 fully past); no served output changed; object programs changed in 2 (ict-killzones: same 7 ops, still MATCH; fx-market-sessions 225 -> 273 ops, door-refused `pine:module` before and after). Member-door census 266 x 2: attach 41 / 64 unchanged, 0 rows; base-vs-base control 0 rows. `paramIds.test.js` green, no edit |
 
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
@@ -1937,3 +1938,90 @@ untouched — `wget` and `val` are object-program references, not tree nodes.
 ⚠️ **Noted for the integrator, not changed:** C22's served average cells (`23`, `19`) and flip-label texts
 format a FLOAT mean with `"##"`. That equals an integer mean rounded half-up on both captured values; it
 would differ under a ceiling (22.2 → `22` vs `23`). Q-C32-1 settles that too.
+## C34 — a user function that reads history or sits in a loop (2026-09-30, step 44)
+
+Branch `pine/c34-fn-loops`, base `e0eb227ee` (wave 8). C28 named trend-lines' walls as `fn:loop` @299–337 and
+`fn:conditional-history f_clearAll`@294. Traced, neither was the drawing's real wall:
+
+| refusal | what it actually was | now |
+|---|---|---|
+| `f_clearAll:conditional-history@294` "a history read `[…]` at line 258" | `for [i, v] in line.all` — the `[` after the keyword `for` read as an offset | inlined; its deletes meet the unrun `for … in line.all` (`loopBlocked`) |
+| `fn:loop` ×6 @299/303/312/316/330/337 | helper calls inside `for [i, v] in <list of user-type points>` and two `while`s — loops the host reader does not run | inlined into those loops; every op they make is `loopBlocked`, named by what it is |
+
+**The rule, as implemented** (`objectFnInline.js`, the C34 section; one reader, `historyIn`). Pine keeps one history per
+CALL SITE for what the function owns — its locals, its parameters, the state inside a `ta.*` it calls — advanced only on
+the bars the call runs; that is what `fn:conditional-history` refuses, unchanged. What it no longer mistakes for that:
+
+| read | why it is not the call's history | proof |
+|---|---|---|
+| `open`/`high`/`low`/`close` `[e]` | the chart's series, kept by the chart on every bar. **Witnessed:** trend-lines calls `f_drawSupport`/`f_drawResistance` only on the last bar and reads `low`/`high`/`open`/`close` 40–257 bars back; TradingView's 4 boxes and 4 labels are the chart's values at the pivot bars (119.27/122.5 bar 506, 135.2223/140.67 bar 591, 263.4999/257.67 bar 452, 282.95/271.99 bar 374) — a per-call history would have been `na` | `vendorHarness.c34ChartSeries`: our lane, running the same helper shape under `barstate.islast` on the vendor's bars, reads all eight edges value for value |
+| a keyword before `[` | `for [i, v] in …` is a destructure, `in [a, b]` a literal | rail + mutation |
+| `x.m().delete()`, `.set_x2()`, `.get_y()` | a built-in method on the value this bar holds (the un-chained `l.get_x2()` was already admitted); a chained name the script defines as a METHOD is still judged as one | rail + control |
+| `map.*`, `matrix.*` | a collection, as `array.*` | rail |
+| a user method whose body reads only the current bar | the same purity fixpoint as a function; an overloaded method never qualifies | rail |
+
+⛔ **Refused by name, with what would settle it:** `volume`, `time`, `time_close`, `bar_index`, `hl2`, `hlc3`, `ohlc4`,
+`hlcc4` at an offset inside a conditional call (`CHART_SERIES_UNWITNESSED`) — Pine documents them as the chart's too,
+but no committed capture reads one that way. **Capture `vw-fn-series-history` (queued):** on NYSE:RDDT 1D, a helper
+`f(k) => label.new(bar_index, volume[k], str.tostring(volume[k]) + "|" + str.tostring(bar_index[k]) + "|" + str.tostring(hl2[k]))`
+called only under `barstate.islast` with `k = 5, 40, 200`, plus a control helper that reads a LOCAL `x = close * 2`
+as `x[1]` under the same guard (expected `na` — the per-call history rule itself, which no capture witnesses yet).
+A name the script binds itself (`low = …`, a parameter or local called `low`) is the script's series and still refuses.
+`ta.*`, a parameter or a body local at an offset — the call's own history — still refuse (`fn:conditional-history`).
+
+**A call inside a loop the host reader does not run is inlined into it** (`pineObjects.js` `inlineCall`). Pine runs the
+body where the call stands, so its statements are statements of that loop and every op they make meets the loop's own
+refusal (`loopBlocked`) exactly as a top-level statement there does. ⛔ Nothing new is drawn by this half. What the
+body would have removed, created or re-listed is ALSO recorded against the loop from its tokens (`loopBodyEffects`,
+the refused call's own `bodyEffects`), so a removal the walk cannot name stays loud (`object.delete`, which the door
+classifies as a removal); a handle RETURNED inside such a loop is not copied onto every bar (`object copy`); a body
+that reads the call's own history in such a loop is still `fn:conditional-history` (the loop's passes vary). Still
+refused as `fn:loop`: a call inside the C20 runtime-lane `while` try, whose carried body must be statement creates only.
+
+**What trend-lines stops on now** (all 7 helper calls inlined, 0 `fn:*` drops): its drawing steps sit in
+`for [i, v] in f_getAllPairCombinations(lowPivots.slice(0, tlPointsToCheck).reversed())`@297/310 and
+`for [i, v] in uptrends/downtrends`@301/314 (lists of user types — C11 / the host `for … in` reader, lane C31's
+mechanism) and in `while sCount < srPointsToCheck`@327/334 (the C20 runtime-lane `while` does not carry a body with
+kept handles or list pushes). Behind those: `lowValue = low[e]` held in a body local and `math.min(open[e], close[e])`
+are not addresses the object runtime reads a per-bar offset in (C9 serves `x[e]` as a WHOLE coordinate only), and
+`line.new(start, end, …)` with `chart.point` arguments is `unsupported`. The runtime lane stops earlier, at
+`alert.freq_once_per_bar`@79 and then `chart.point.from_index`@280. The member door's sentence for it moves from
+"a function of its own that deletes" (withheld) to naming the loop ops (partial); its program is empty either way.
+
+**Corpus (translation census, 266):**
+
+| | base | tip |
+|---|---|---|
+| `fn:loop` refusals | 27 (5 scripts) | **0** |
+| `fn:conditional-history` refusals | 579 (15 scripts) | 540 (11 scripts) |
+| served plot outputs changed | — | 0 |
+
+| script | moved | first wall now |
+|---|---|---|
+| trend-lines-supports-and-resistances | loop 6→0, cond-hist 1→0 | `loopBlocked` in `for … in` over user-type lists / `while` (above) |
+| support-and-resistance-logistic-regression | loop 7→0 | `loopBlocked` `line.new`/`label.new`/deletes in `for curSR in allPivots` (UDT list); door `pine:reassign _supportRetestDetected`@236 unchanged |
+| ict-killzones-pivots-tfo | loop 6→0, cond-hist 14→4 | `table.cell` in `for l in levels`; 4 × `dwm_hl` refused on `alert(…)`@556 in its body; still MATCH on the 47 |
+| renderingnature-smc-reversal-engine | loop 4→0 | deletes / `array.remove` in `while array.size(…) > maxHTFZones` |
+| market-structure-break-order-block | loop 4→0 | `box.delete`/`array.shift` in `for bull_ob in bu_ob_boxes`; door `pine:collection`@69 unchanged |
+| fx-market-sessions | cond-hist 12→0 | 273 ops (was 225) behind `guard:*`; door `pine:module` unchanged |
+| bull-vs-bear-market-intraday-sessions | cond-hist 10→0 | `array.flush`/`linefill.all.flush` unsupported, `guard:*` |
+| candelacharts-equal-highslows | cond-hist 2→0 | `guard:create`, `guard:cell` |
+| stop-loss-clustering | cond-hist 4→2 | `gradBox` on `time(…)`@248 |
+| bigbeluga-smart-money-concepts | cond-hist 3→1 | `structure` on a history read@977 |
+
+Unchanged and still refused on the call's own state (or an unwitnessed series): `candlestick-patterns-on-backtest` (287: past `matrix.col`, now on
+`ta.highest`), `mgi-levels-suite` (227, `time(…)`), `ict-institutional-order-flow` (`time[1]` beside `high[1]`), `power-of-3`
+(`On[1]`, a parameter), `auto-harmonic` / `smt-divergence` / `smart-money-concepts-by-welotrades` (`ta.lowest` /
+`ta.highest`), `multi-timeframe-supply-demand-zones` (`time_close`).
+
+**Measured** (base `e0eb227ee` vs tip, protocol items 1–6): 47 captures objects pane on — objects MATCH 28 → 28,
+overall 25 → 25, families 222 / 266, plots 161 / 172, **0 entries changed**; flag off 18 / 15, 0 changed. Committed
+harness dir (82) on: objects 46, overall 39; off: 36 / 29; 0 entries changed. Member-door census 266 × 2: attach
+41 / 64 → 41 / 64, 0 rows; base-vs-base control 0 rows. Notebook first-open 1,897,262 B at base and tip (+0, `notebook_perf_budgets` PASS); `pine` chunk 330,629 → 332,542 B (+1,913), total JS +1,913 B. `paramIds.test.js` green, no edit.
+
+**Rails and proofs:** `vendorHarness.c34ChartSeries` (7), `objectFnInline.test` (+13), `partialDrawing` (trend-lines
+re-pinned as a partial row naming its loops; a fixture — a helper reading `ta.sma` and deleting an unnamed handle —
+keeps the withheld-helper sentence). Eleven mutations, each red alone, restored by bytes with the sha verified: the
+witnessed set emptied, the keyword skip, the chained-member admission, `map`/`matrix` purity, the pure-method check,
+shadowing ignored, loop calls refused again, loop body effects dropped, a returned handle copied out of the loop, an
+unrun loop not treated as varying, the unwitnessed-series naming.
