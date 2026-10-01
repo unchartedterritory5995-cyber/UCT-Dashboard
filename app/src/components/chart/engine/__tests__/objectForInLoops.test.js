@@ -714,6 +714,30 @@ describe('⛔ C40 — the program door and the runtime hold the new loop forms t
     expect(evaluateObjects(prog, ctx(false)).live.map((o) => o.createdBar)).toEqual([6, 7])
   })
 
+  it('⛔ C17 — a cap whose bound is unknown deletes nothing from a list that is itself known', () => {
+    // `c` gains two lines a bar and is cut back to the length of `d`; `d`'s push
+    // is withheld on bars 0–2, so its length — the bound — is unknown from there.
+    const colls = [...coll, { id: 'd', family: 'line', cap: 500 }]
+    const mk = (site, y) => ({ ...create, site, props: { ...create.props, y1: { v: 'const', value: y }, y2: { v: 'const', value: y } } })
+    const pushTo = (c, site) => ({ k: 'push', coll: c, value: { r: 'site', id: site }, when: null })
+    const bound = { v: 'cmp', op: '>', args: [size, { v: 'size', coll: 'd' }] }
+    const prog = P({ colls, ops: [
+      mk('s1', 1), pushTo('c', 's1'), mk('s2', 2), pushTo('c', 's2'),
+      { ...mk('s3', 3), when: { v: 'graph', node: 0 } }, { ...pushTo('d', 's3'), when: { v: 'graph', node: 0 } },
+      cap([{ k: 'delete', target: { r: 'coll', id: 'c', index: { v: 'const', value: 0 } }, when: null }, drop], bound),
+    ] })
+    const ctx = (unknown) => ({ barCount: 8, readNode: () => 1, readTime: (i) => i, ...(unknown ? { readUnknown: (n, bar) => bar < 3 } : {}) })
+    const r = evaluateObjects(prog, ctx(true))
+    expect(r.status).toBe(OBJECT_STATUS.OK)
+    expect(r.stats.deleted).toBe(0)
+    // …and nothing of `c` is drawn: only `d`'s own lines of the known bars are
+    expect(r.live.map((o) => [o.createdBar, o.props.y1])).toEqual([[3, 3], [4, 3], [5, 3], [6, 3], [7, 3]])
+    // ⛔ CONTROL — with no curtain `c` is cut to `d`'s length on every bar
+    const ok = evaluateObjects(prog, ctx(false))
+    expect(ok.stats.deleted).toBe(8)
+    expect(ok.live.filter((o) => o.props.y1 !== 3)).toHaveLength(8)
+  })
+
   it('⛔ C17 — `<family>.all` is unknown once a create of the family was withheld: the walk is withheld', () => {
     const regs = [{ id: 'r', family: 'line' }]
     const guarded = { ...create, when: { v: 'graph', node: 0 } }
