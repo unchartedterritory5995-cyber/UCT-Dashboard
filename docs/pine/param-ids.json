@@ -192,7 +192,8 @@
     "__uct_param_1": "Show Stealth 9",
     "__uct_param_2": "Show Support and Resistance",
     "__uct_param_3": "Show 1 to 13 |",
-    "__uct_param_4": "Only 13 |"
+    "__uct_param_4": "Only 13 |",
+    "__uct_param_5": "Both Mode"
   },
   "corpus/committed/cdc-btc-rainbow-road__d880789793.pine": {
     "__uct_param_1": "MA Length",
@@ -1269,7 +1270,8 @@
     "__uct_param_10": "Displacement Factor",
     "__uct_param_11": "Require Liquidity Sweep",
     "__uct_param_12": "Minimum FVG Size / ATR",
-    "__uct_param_13": "SL Buffer"
+    "__uct_param_13": "SL Buffer",
+    "__uct_param_14": "Target R:R"
   },
   "tests/fixtures/pine_oos/mid_engagement__17-volume-surge-radar.pine": {
     "__uct_param_1": "Exclude current bar from average",

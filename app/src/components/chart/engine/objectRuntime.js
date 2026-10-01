@@ -30,7 +30,7 @@
 // went nowhere", and hiding it would make a real authoring bug invisible, so it
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
-  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, OP_VALUE_FIELDS,
+  OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
   withObjectTransparency,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
@@ -43,7 +43,7 @@ import { POOL_LIMITS, resolveCapacity, collectsAbove } from './objectPool'
 // ⭐ A GUARD THAT READS OBJECT STATE (`{v:'bool'|'cmp'|'cross'|'get'|'size'}`, see
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
-import { BINARY, UNARY, CARRIED2 } from './ast/interpret'
+import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW } from './ast/interpret'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
 import { formatMessageNumber } from './pineTextFormat'
@@ -182,6 +182,8 @@ export function beginObjects(program, ctx) {
     return false
   }
   let withheldUnknown = 0
+  /** ⭐ C22 — properties marked because their value read an unmeasured reduction. */
+  let propsUnmeasured = 0
 
   /** instanceId → { family, id, site, createdBar, props } */
   const live = new Map()
@@ -382,7 +384,7 @@ export function beginObjects(program, ctx) {
       if (v.v === 'at') found.push(v)
       if (Array.isArray(v.args)) v.args.forEach(walk)
     }
-    for (const f of OP_VALUE_FIELDS) walk(op[f])
+    for (const v of opValueRefs(op)) walk(v)
     for (const v of Object.values(op.props || {})) if (isObj(v) && !v.r) walk(v)
     atAtoms.set(op, found)
     return found
@@ -835,12 +837,17 @@ export function beginObjects(program, ctx) {
         case 'op': {
           const a = value(ref.args[0])
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
-          if (ref.args.length === 1) return ref.op === '-' ? -a : a
+          // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
+          // from zero), never `Math.round`, which sends -2.5 to -2.
+          if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
           if (ref.op === '+') return a + b
           if (ref.op === '-') return a - b
           if (ref.op === '*') return a * b
+          // ⭐ C25 — Pine's `/` is fractional for ints too (`5 / 2` is 2.5);
+          // a zero divisor answers `undefined`, the address this grammar declines.
+          if (ref.op === '/') { const q = BINARY['/'](a, b); return Number.isFinite(q) ? q : undefined }
           return undefined
         }
         case 'time': return readTime(bar)
@@ -922,6 +929,18 @@ export function beginObjects(program, ctx) {
      *  window reduction over an `na` element or an empty window, whose answer
      *  no capture pins.) Withheld and counted, never run off a guess. */
     const withheldAt = (op) => op.withhold != null && truthy(value(op.withhold))
+    /** ⭐⭐ C22 — the PROPERTIES whose value reads an unmeasured reduction on this
+     *  bar (`op.propWithhold`, naming `op.propWithholdKeys`). The op runs — Pine
+     *  ran it, so ids stay in Pine's order — and only these are marked (C17's
+     *  value rule), so a later clean write of the same property clears them:
+     *  trend-duration's `label.new(…, "…" + str.tostring(bullishCount.avg()))`
+     *  over an empty window, re-texted by `set_text` in the same bar. */
+    const unmeasuredProps = (op) => {
+      if (op.propWithhold == null || !truthy(value(op.propWithhold))) return NO_PROPS
+      taintSeen = true
+      propsUnmeasured += op.propWithholdKeys.length
+      return op.propWithholdKeys
+    }
 
     /** Does this guard read a latch whose condition was unknowable? */
     const readsUnknownLatch = (v, depth = 0) => {
@@ -1312,8 +1331,9 @@ export function beginObjects(program, ctx) {
           }
           live.set(id, inst)
           // ⭐ C17 — Pine made this object here; a property whose VALUE read
-          // something tainted is what stays unknown on it.
-          taintInst(id, taintedProps(op.props))
+          // something tainted is what stays unknown on it (C22: or read an
+          // unmeasured reduction on this bar).
+          { const um = unmeasuredProps(op); taintInst(id, um.length ? [...taintedProps(op.props), ...um] : taintedProps(op.props)) }
           // ⭐ C20 — a colour asked of the runtime that it could not serve exactly
           // (transparent, or a transparency this engine has not measured) holds
           // the object: drawn in a default colour it would be a colour Pine did
@@ -1341,8 +1361,9 @@ export function beginObjects(program, ctx) {
           if (!inst) { writesToDeleted += 1; break }
           resolveProps(op.props, inst.props)
           // ⭐ C17 — a clean write clears its property; a tainted value marks it.
+          const um = unmeasuredProps(op)
           if (taintSeen) {
-            const bad = new Set(taintedProps(op.props))
+            const bad = new Set([...taintedProps(op.props), ...um])
             for (const k of Object.keys(op.props || {})) {
               if (bad.has(k)) taintInst(inst.id, [k]); else cleanInstProp(inst.id, k)
             }
@@ -1394,7 +1415,8 @@ export function beginObjects(program, ctx) {
           map.set(key, resolveProps(op.props, cur))
           // ⭐ C17 — a cell written from a tainted value is unknown; a whole
           // `table.cell` written clean is known again (a patch is only part of it).
-          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (taintedProps(op.props).length) taintCell(inst.id, key)
+          const um = unmeasuredProps(op)
+          if (!taintSeen) { /* nothing marked yet: nothing to mark or clear */ } else if (um.length || taintedProps(op.props).length) taintCell(inst.id, key)
           else if (op.k === 'cell') {
             const ct = cellTaint.get(inst.id)
             if (ct && ct !== '*') { ct.delete(key); if (!ct.size) cellTaint.delete(inst.id) }
@@ -1726,6 +1748,7 @@ export function beginObjects(program, ctx) {
       ...(fillsWithoutLines ? { fillsWithoutLines } : {}),
       ...(textsWithheld ? { textsWithheld } : {}),
       ...(withheldUnknown ? { withheldUnknown } : {}),
+      ...(propsUnmeasured ? { propsUnmeasured } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),

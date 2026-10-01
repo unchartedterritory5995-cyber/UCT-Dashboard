@@ -299,6 +299,40 @@ export function lowerIrProgram(ir) {
           patch(toEnd, 1, here())
           return
         }
+        // ⭐⭐ C23 — AND FOR EVERY OTHER v6 OPERAND. Pine v6's `and`/`or` are lazy
+        // whatever the operands, and they are BOOLEAN: "`bool` values can no
+        // longer be `na`" (TradingView's v6 migration guide), so an operand is true
+        // or false and so is the answer. The provable-0/1 form above is the case
+        // where this lane can show no NaN reaches either side; for any other
+        // operand the value this lane holds is read AS A BOOL exactly as this VM
+        // reads every branch it takes — `JUMP_IF_FALSE`: finite and non-zero is
+        // true, 0 and NaN are false ("Pine will not branch on `na`") — and the
+        // right operand is run only where the left did not decide:
+        //   `a and b` → a ? bool(b) : false        `a or b` → a ? true : bool(b)
+        // with `bool(x)` = `x != 0` (`cmp` answers 0 for NaN — the cast `pine.js`
+        // folds `bool(x)` to). ⛔ So a v6 `and`/`or` over an operand this lane
+        // holds as NaN answers false where the eager `logical` answered NaN:
+        // Pine's answer, since Pine never holds that operand as `na`.
+        // ⛔ v4/v5 (`lazyLogic` false) are untouched: Pine evaluates both operands
+        // there, and the eager `logical` below stands.
+        if ((e.op === '&&' || e.op === '||') && lazyLogic) {
+          const asBool = (x) => {
+            expr(x)
+            if (!isBoolIr(x)) { emit(OP.CONST, constIndex(0)); emit(OP.NE) }
+          }
+          expr(e.left)
+          const toFalsy = here()
+          emit(OP.JUMP_IF_FALSE, 0)
+          if (e.op === '&&') asBool(e.right)
+          else emit(OP.CONST, constIndex(1))
+          const toEnd = here()
+          emit(OP.JUMP, 0)
+          patch(toFalsy, 1, here())
+          if (e.op === '&&') emit(OP.CONST, constIndex(0))
+          else asBool(e.right)
+          patch(toEnd, 1, here())
+          return
+        }
         expr(e.left); expr(e.right); emit(op)
         return
       }

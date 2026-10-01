@@ -490,12 +490,10 @@
       "host": false,
       "screener": true,
       "hostGuards": [
-        "pine:timeout",
-        "pine:state"
+        "pine:timeout"
       ],
       "screenerGuards": [
-        "pine:timeout",
-        "pine:state"
+        "pine:timeout"
       ]
     },
     {
@@ -2648,10 +2646,10 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:state"
+        "pine:window"
       ],
       "screenerGuards": [
-        "pine:state"
+        "pine:window"
       ]
     },
     {

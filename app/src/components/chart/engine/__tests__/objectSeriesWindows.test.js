@@ -174,12 +174,14 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       expect(diag.droppedOps).toBeGreaterThan(0)
       if (want) expect(JSON.stringify(diag)).toMatch(want)
     }
-    it('two places that add', () => refusedWith([
+    // ⚰️ Two places that add were refused here until C22; the same order at
+    // both is served now (`objectWindowSites.test.js`). Two orders are not.
+    it('two places that add, one at the front and one at the back', () => refusedWith([
       'var w = array.new_float()',
       'if close > open',
       '    w.unshift(high)',
       'if close < open',
-      '    w.unshift(low)',
+      '    w.push(low)',
       'if w.size() > 1',
       '    w.pop()',
       'if w.size() > 0',
@@ -194,7 +196,12 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       'if w.size() > 3',
       '    w.shift()',
     ].join('\n') + '\n'))
-    it('a cap that is an input, not a number written into the script', () => refusedWith([
+    // ⚰️ A cap that is an INPUT was refused here until C22. An input the member
+    // door gives no knob holds its default on every chart, so the window's size
+    // is decided before bar 0 — served at that value (`objectWindowInputCap`
+    // below, and `objectWindowPositions.test.js`). Still refused: the same input
+    // also read by a plot (a plot would mint it a knob the cap could not follow).
+    it('a cap that is an input a plot also reads', () => refusedWith([
       'k = input.int(3, "k")',
       'var w = array.new_float()',
       'if close > open',
@@ -203,6 +210,7 @@ describe('⭐⭐ C11b — a bounded window is read as a series', () => {
       '    w.shift()',
       'if w.size() > 0',
       '    label.new(bar_index, w.last(), "x")',
+      'plot(close + k)',
     ].join('\n') + '\n'))
     // ⚰️ `first` of a growing push window was refused here until C11c — its slot
     // moves as the window fills, and C11c reads it as a pick over the window's

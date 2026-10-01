@@ -107,9 +107,11 @@ describe('⭐ the presentation family, and what is left of it', () => {
   it('⛔ what is STILL presentation, by name', () => {
     // ⭐ `plotcandle`/`plotbar` need four roles on one call — the descriptor can
     // carry that now, so they are a table entry rather than a capability.
-    // `alert()` is an EFFECT, not a value: it fires a message, and this lane
-    // has no effect system. Naming them keeps the remainder legible.
-    for (const call of ['plotcandle(open, high, low, close)', 'alert("hi")']) {
+    // Naming them keeps the remainder legible.
+    // ⚰️ `alert("hi")` stood here until C23: alert DELIVERY is the host lane's
+    // path, and the statement draws nothing and writes nothing here, so it is a
+    // no-op in this lane (`runtimeWallsC23.test.js` holds it, arguments and all).
+    for (const call of ['plotcandle(open, high, low, close)']) {
       expect(refusalOf(`${call}\nplot(close)`).guard, call).toBe('runtime:presentation')
     }
   })

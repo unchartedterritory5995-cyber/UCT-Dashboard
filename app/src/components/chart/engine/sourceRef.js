@@ -4,6 +4,7 @@ import { semanticName } from './semanticName'
 import { FUND_MARK, parseFundamentalSource } from './fundamentalGrammar'
 import { parseEconomicSource } from './econMark'
 import { catalogMetric } from './fundamentalSeries'
+import { fetchableOtherSymbols } from './otherSymbols'
 
 function fundamentalOptionLabel(p) {
   const m = catalogMetric(p.metric)
@@ -270,6 +271,10 @@ export function symbolsNeeded(instances, defOf) {
       // `sym:AAPL:close` source would fetch, so it rides the same request.
       else if (parsed && parsed.kind === 'fundamental' && parsed.symbol) out.add(parsed.symbol)
     }
+    // ⭐ C26 — a Pine document's `request.security` of another symbol reads that
+    // symbol's bars at the chart's timeframe: the same request a `sym:` source
+    // makes, riding the same cache (`otherSymbols.js` decides what is served).
+    for (const t of fetchableOtherSymbols(def)) out.add(t)
   }
   // ⚠️ SORTED so the same set of symbols is the same array every time. A caller
   // keying a fetch or a memo on this must not see a new order because an

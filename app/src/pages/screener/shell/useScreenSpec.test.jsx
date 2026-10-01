@@ -42,6 +42,34 @@ describe('useScreenSpec', () => {
     expect(calls.some(u => u.includes('/saved-screens'))).toBe(false)
   })
 
+  it("savedScreen= (the S:<id> address door) applies the member's OWN saved screen", async () => {
+    vi.useRealTimers()
+    setUrl('savedScreen=7')
+    const calls = []
+    vi.stubGlobal('fetch', vi.fn(u => {
+      calls.push(String(u))
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ saved: [
+        { id: 3, name: 'Other', spec: { filters: [{ key: 'price', op: 'gte', min: 1 }] } },
+        { id: 7, name: 'Leaders', spec: { filters: [{ key: 'rs_rank', op: 'gte', min: 90 }], view: 'technical' } },
+      ] }) })
+    }))
+    const { result } = renderHook(() => useScreenSpec())
+    await waitFor(() => expect(result.current.filters.rs_rank).toEqual({ op: 'gte', min: 90 }))
+    expect(result.current.filters.price).toBeUndefined()      // the RIGHT screen, not the first
+    expect(calls).toEqual(['/api/screener/saved-screens'])
+  })
+
+  it('an unknown savedScreen id leaves the page untouched and warns, never throws', async () => {
+    vi.useRealTimers()
+    setUrl('savedScreen=999')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ saved: [] }) })))
+    const { result } = renderHook(() => useScreenSpec())
+    await waitFor(() => expect(warn).toHaveBeenCalled())
+    expect(result.current.filters).toEqual({})
+    warn.mockRestore()
+  })
+
   it('filter/sort/view changes reset the page; loadMore advances it', () => {
     const { result } = renderHook(() => useScreenSpec())
     act(() => result.current.loadMore())

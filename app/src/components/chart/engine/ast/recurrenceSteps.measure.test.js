@@ -122,8 +122,11 @@ describe('⭐⭐ the deepest recurrence any real script declares', () => {
     // ⭐ MEASURED 2026-09-13: two of the fifty-nine corpus scripts declare a
     // recurrence (`13-spma-trend`, `14-master-line-lite`), both at 250, and v2's
     // is 250 as well — reached through the OBJECT trees, not the plots.
+    // ⭐ C22 (2026-09-30): THREE — `16-ict-smc-guide`'s session highs / lows,
+    // switched recurrences whose reset reads another `var`, translate now
+    // (`forgetsOnReset` scopes `self` to the nearest recurrence); at 250 too.
     expect(maxWarmup).toBe(250)
-    expect(perScript.size).toBe(2)
+    expect(perScript.size).toBe(3)
     expect(v2Warmups).toContain(250)
     // ⛔ AND THE CAP IS A REAL BOUND ON IT, not an accident of this corpus:
     // `warmup` is an `int` window like any other, so `budget:lookback` already

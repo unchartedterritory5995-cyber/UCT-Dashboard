@@ -28,6 +28,24 @@ import { Budget } from './limits.js'
 import { MAX_COLLECTION_CAP as ITER_SLOTS, rtLoopId } from '../ast/objectProgram.js'
 import { registerObjectRuntimeValues } from '../objectColumns.js'
 
+/** ⭐⭐ C23 — THE RUNTIME LANE SERVES A CHART PANE, NEVER A SCREEN, from every
+ *  door in this module: a runtime pane's columns and an object pass's values are
+ *  both drawn on ONE symbol's chart. `pane` hands the columnar resolver the host
+ *  lane's pane contract (`buildRuntimeIr`'s `resolverOpts`), so `barstate.isfirst`,
+ *  the forming-bar clock and `timeframe.change` are the plot lane's own columns.
+ *  The two COMPILE checks build over no bars before a symbol is chosen, so they
+ *  also leave what a symbol settles (`syminfo.mintick`) to the binding
+ *  (`symbolAtBind`); every build with bars carries the chart's symbol instead. */
+const COMPILE_ON_A_PANE = Object.freeze({ pane: true, symbolAtBind: true })
+
+/** The chart's `{ticker, exchange}` as the binder hands it, or undefined — the
+ *  SAME object the object reader folds its trees with (`objectColumns.js`
+ *  `bindConstsFor({… symbol: opts.symbol})`), so a run and the trees beside it
+ *  settle `syminfo.*` from one symbol. */
+const symbolOf = (ctx) => (ctx && ctx.symbol && typeof ctx.symbol === 'object'
+  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange } : undefined)
+const symbolKey = (s) => (s ? `${s.ticker}@${s.exchange}` : '-')
+
 /**
  * Can the runtime lane build this script at all, and what does it output?
  *
@@ -41,7 +59,7 @@ export function probeRuntimeProgram(source) {
   let built
   try {
     built = buildRuntimeIr(String(source || ''), {
-      bars: [], inputs: {}, objectTrees: [], ...runtimeClockOpts(false),
+      bars: [], inputs: {}, objectTrees: [], ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -80,7 +98,8 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
   const rows = Array.isArray(bars) ? bars : []
   const tf = ctx && typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
-  const key = `${def && def.id}|${compute.fn}|${tf}|${forming}`
+  const symbol = symbolOf(ctx)
+  const key = `${def && def.id}|${compute.fn}|${tf}|${forming}|${symbolKey(symbol)}`
   let perBars = _memo.get(rows)
   if (!perBars) { perBars = new Map(); _memo.set(rows, perBars) }
   if (perBars.has(key)) return perBars.get(key)
@@ -92,6 +111,8 @@ export function runtimeColumnsFor(def, bars, _inputs, ctx) {
     // `[]` = the caller owns the drawing: `line.new` & co. are skipped, not
     // refused. The document's object program (the host lane's) draws them.
     objectTrees: [],
+    pane: true,
+    ...(symbol ? { symbol } : {}),
     ...(tf ? { basePeriod: tf, tf } : {}),
     ...clock,
   })
@@ -144,7 +165,7 @@ export function probeObjectRuntime(source, specs) {
   let built
   try {
     built = buildRuntimeIr(String(source || ''), {
-      bars: [], inputs: {}, objectTrees: [], objectTreesAt: specs, ...runtimeClockOpts(false),
+      bars: [], inputs: {}, objectTrees: [], objectTreesAt: specs, ...COMPILE_ON_A_PANE, ...runtimeClockOpts(false),
     })
   } catch (err) {
     return { ok: false, refusal: { guard: 'runtime:build', message: String((err && err.message) || err) } }
@@ -220,7 +241,8 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
   if (ctx.atDefaults !== true) return withheld('runtime:member-inputs')
   const tf = typeof ctx.tf === 'string' ? ctx.tf : undefined
   const forming = newestBarIsFormingFrom(ctx)
-  const key = `${tf}|${forming}|${rt.source.length}|${JSON.stringify(rt.at).length}`
+  const symbol = symbolOf(ctx)
+  const key = `${tf}|${forming}|${symbolKey(symbol)}|${rt.source.length}|${JSON.stringify(rt.at).length}`
   let perBars = _objectMemo.get(rows)
   if (!perBars) { perBars = new Map(); _objectMemo.set(rows, perBars) }
   const memoFor = perBars.get(rt)
@@ -234,6 +256,8 @@ export function runtimeObjectValues(rt, bars, ctx = {}) {
         inputs: {},
         objectTrees: [],
         objectTreesAt: at,
+        pane: true,
+        ...(symbol ? { symbol } : {}),
         ...(tf ? { basePeriod: tf, tf } : {}),
         ...runtimeClockOpts(forming, tf ? { tf } : {}),
       })

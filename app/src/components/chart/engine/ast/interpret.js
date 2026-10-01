@@ -3750,6 +3750,110 @@ function readsClock(ast, table) {
  *  existing column moves. The returned column is a COPY: the real run's column
  *  may be the memoised one another plot shares. */
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
+  return withSymAlignment(ast, bars, interpretAgreed(ast, bars, inputs, budget, scalars, opts), opts)
+}
+
+/** ⭐⭐ C26 — DOES THIS TREE READ ANOTHER SYMBOL? Iterative, like every walk here. */
+export function treeReadsSym(tree) {
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const n = stack.pop()
+    if (!n || typeof n !== 'object' || seen.has(n)) continue
+    seen.add(n)
+    if (n.type === 'sym') return true
+    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
+  }
+  return false
+}
+
+/** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
+ *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
+ *
+ *  `sym` aligns the supplied series on the bar's own `t`, exact match, never
+ *  forward-filled (`case 'sym'`), and that stays the rule. What the alignment
+ *  alone cannot tell apart is a chart bar that has NO counterpart because the
+ *  other symbol's history had not begun — TradingView's `na` too, so our `NaN` IS
+ *  its answer — from one whose counterpart is MISSING after that history began
+ *  (a halt, a one-sided holiday, a series that ends early), where TradingView's
+ *  default `barmerge.gaps_off` carries the previous bar forward and a `NaN` would
+ *  read downstream as Pine's `na` (`nz` → 0, `na(x)` → true): a confident wrong
+ *  value. Those bars are UNKNOWN, and so is every root bar within the tree's
+ *  reach of one (`maxLookback` is a tree sum — the C12s argument,
+ *  `switchedDependencyMask`). An unsupplied ticker is unknown on every bar.
+ *
+ *  ⛔ ASKED ONLY WHEN THE CALLER SUPPLIES `opts.symbols` (the member door's bind,
+ *  `engine/otherSymbols.js`): a caller that supplies nothing gets the column it
+ *  always got. */
+export function symAlignmentMask(tree, bars, opts) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  const supplied = (opts && opts.symbols) || {}
+  const nodes = []
+  let nested = false
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'sym') {
+      if (under) nested = true
+      nodes.push(node)
+    }
+    const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live'
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
+  }
+  if (!nodes.length) return null
+  // a Float64Array of 0/1 — the only typed array this pure module uses
+  const mask = new Float64Array(n)
+  // ⛔ A `sym` read on OTHER bars (inside a `tf` / another `sym`) is not aligned
+  // on this chart's bars at all: the whole tree is withheld, sound and named.
+  if (nested) { mask.fill(1); return mask }
+  // ⛔ NO `try` (`budget.test.js`): the tree was measured before it was
+  // interpreted, and a refusal here must reach the caller as the refusal it is.
+  const rootReach = maxLookback(tree)
+  let any = false
+  for (const a of nodes) {
+    const series = supplied[String(a.value).trim().toUpperCase()]
+    if (!Array.isArray(series) || series.length === 0) { mask.fill(1); return mask }
+    let reach = Math.max(0, rootReach - maxLookback(a))
+    if (!Number.isFinite(reach)) reach = n
+    const held = new Set()
+    let first
+    for (const b of series) {
+      const key = b && typeof b === 'object' ? b.t : undefined
+      if (key === undefined || key === null) continue
+      held.add(key)
+      if (first === undefined || key < first) first = key
+    }
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      const b = bars[i]
+      const key = b && typeof b === 'object' ? b.t : undefined
+      const missing = key === undefined || key === null || first === undefined
+        || typeof key !== typeof first
+        || (!held.has(key) && key > first)
+      if (missing) last = i
+      if (i - last <= reach) { mask[i] = 1; any = true }
+    }
+  }
+  return any ? mask : null
+}
+
+/** Withhold (`NaN`) the bars `symAlignmentMask` names — see there. A COPY: the
+ *  column may be the memoised one another plot shares. */
+function withSymAlignment(ast, bars, out, opts) {
+  if (!opts || !opts.symbols || typeof opts.symbols !== 'object') return out
+  if (typeof opts.prefixProbe === 'number') return out
+  if (!isColumn(out) || !treeReadsSym(ast)) return out
+  const mask = symAlignmentMask(ast, bars, opts)
+  if (!mask) return out
+  const copy = Float64Array.from(out)
+  for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
+  return copy
+}
+
+function interpretAgreed(ast, bars, inputs, budget, scalars, opts) {
   const probing = !!opts && typeof opts.prefixProbe === 'number'
   if (probing || (opts && opts.switchedAgreement === false) || !readsSwitchedState(ast)) {
     return interpretOnce(ast, bars, inputs, budget, scalars, opts)
@@ -4106,9 +4210,14 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // hand would answer confidently about the WRONG INSTRUMENT.
         if (!Array.isArray(series) || series.length === 0) return nan(length)
 
+        // ⛔ C26 — `historyFromListing` IS A STATEMENT ABOUT THE CHART'S OWN
+        // SERIES (bar 0 is ITS listing bar), never about another symbol's: the
+        // child runs on the supplied series with the bounded warm-up, whatever
+        // the caller said of its own bars.
         const child = toColumn(
           interpret(n.args[0], series, inputs, budget, scalars,
-            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined }),
+            { ...(opts || {}), crossMemo: scopedCrossMemo(`sym\u0001${ticker}`), probeBase: undefined,
+              historyFromListing: undefined }),
           series.length)
 
         // ⭐ ALIGNED ON THE BAR'S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.

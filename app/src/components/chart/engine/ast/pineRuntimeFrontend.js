@@ -32,14 +32,14 @@ import {
   lexPine, blockStatements, parseWholeExpression, Resolver,
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
-  OWN_TF_NAMES, basePeriodOf,
+  OWN_TF_NAMES, basePeriodOf, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { TABLE, isPointwise } from './parse.js'
 import { interpret, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED } from './interpret.js'
 import { bindConstsFor, foldBound } from './bind.js'
 import {
-  makeIrProgram, SLOT, EXPR, num, str, concat, series, column, read, hist, binary, unary, ternary,
+  makeIrProgram, SLOT, EXPR, STMT, num, str, concat, series, column, read, hist, binary, unary, ternary,
   declare, assign, ifStmt, emit, emitIter, naValue, call as irCall, builtin as irBuiltin, histSlot,
   histDyn, windowCall, carriedCall, carried2Call, textCall, arrayCall, exprStmt,
   forStmt, whileStmt, breakStmt, continueStmt, tuple, destructure, requestCall, colourCall,
@@ -1066,8 +1066,30 @@ export function buildRuntimeIr(source, opts = {}) {
   // authority over one value and would drift the first time the pragma grammar
   // moved.
   const pineVersion = Number.isFinite(lexed && lexed.version) ? lexed.version : null
+  /** ⭐⭐ C23 — WHICH CONTRACT THIS BUILD SERVES, decided by the CALLER, never
+   *  guessed here: `opts.pane === true` says the run draws ONE symbol's chart
+   *  pane, and the columnar resolver it asks for pure subtrees then answers as the
+   *  HOST lane answers a pane (`Resolver`'s `strict`: `barstate.isfirst`, the
+   *  forming-bar clock and `timeframe.change` are columns there, exactly the
+   *  columns the plot lane already serves), with the chart's own period and the
+   *  forming-bar tri-state (what `securityAsNode`'s own-timeframe identity reads).
+   *
+   *  ⛔ UNSET IS THE SCREEN, and that is the fail-closed default: a caller that
+   *  says nothing keeps every refusal it had (`pine:window-dependent` on
+   *  `isfirst`, "this is a screen, not a chart pane" on `timeframe.change`).
+   *  ⛔ NO RULE LIVES HERE. Every answer is `pine.js`'s; this only hands the host
+   *  lane the same three facts its own pane translation hands it. */
+  const resolverOpts = opts.pane === true
+    ? {
+      pineVersion,
+      strict: true,
+      basePeriod: basePeriodOf(opts),
+      newestBarIsForming: opts.newestBarIsForming === true
+        || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
+    }
+    : { pineVersion }
   const makeResolver = () => {
-    const r = new Resolver(env, TABLE, new Map(), { pineVersion })
+    const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
   }
@@ -1093,7 +1115,7 @@ export function buildRuntimeIr(source, opts = {}) {
   //  setting, and a frozen fold that read `pivothigh` as the house column while
   //  the live one read Pine's would put two meanings on one name inside a
   //  single script (`lesson_rail_the_mirror_not_just_the_lane`).
-  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), { pineVersion })
+  const makeFrozenResolver = () => new Resolver(env, TABLE, new Map(), resolverOpts)
 
   // ─── ⭐⭐ THE BIND-TIME FOLD, ON THE SAME ASSEMBLY THE OTHER TWO LANES USE ──
   //
@@ -1274,7 +1296,20 @@ export function buildRuntimeIr(source, opts = {}) {
       // differently.
       value = interpret(foldBound(canonical, bindConsts), bars, inputs,
         undefined, undefined, opts.interpretOpts)
-    } catch (e) { throw e }
+    } catch (e) {
+      // ⭐⭐ C23 — A COMPILE-ONLY BUILD LEAVES THE SYMBOL TO THE BINDING. The
+      // member door's checks (`probeObjectRuntime`, `probeRuntimeProgram`) build
+      // over NO bars and before any chart has chosen a symbol, exactly as the
+      // plot lane translates `syminfo.mintick` to `tonumber(symtext mintick)` and
+      // settles it per symbol at bind time (`bind.js::symbolConstantsWith`, the
+      // `symbolScope.json` tick-size table). So there, and only there, a value a
+      // symbol settles is not a refusal: its column is empty because there are no
+      // bars. ⛔ The build with bars carries the symbol and refuses by name where
+      // the table refuses (an exchange with no tick entry) — nothing is defaulted.
+      if (!(opts.symbolAtBind === true && bars.length === 0
+        && e && e.guard === 'interpret:bind-time-text')) throw e
+      value = new Float64Array(0)
+    }
     let arr
     if (typeof value === 'number') arr = new Float64Array(bars.length).fill(value)
     else if (value instanceof Float64Array) arr = value
@@ -1578,6 +1613,10 @@ export function buildRuntimeIr(source, opts = {}) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ C23 — an `input.color` is the colour its default is (`inputColourDefaultNode`).
+    if (node.type === 'call' && node.name === 'input.color' && !definedNames.has(node.name)) {
+      return holdsColour(inputColourDefaultNode(node), scope)
+    }
     // ⛔ BOTH ARMS, NOT EITHER. `cond ? color.red : 0` is a colour on one side
     // and a number on the other, which Pine rejects — answering "colour" for it
     // would send a price into a colour slot with no complaint.
@@ -2351,6 +2390,145 @@ export function buildRuntimeIr(source, opts = {}) {
     return false
   }
 
+  /** ⭐ C23 — does this subtree reach one of THIS lane's slots (or a user
+   *  function), following `env` macros the way the host resolver follows them?
+   *  `readsSlot` alone stops at a name the env binds; an inlined parameter is an
+   *  env macro whose node may read a caller's slot. Deeper than the walk bound
+   *  answers `true` — unknown is never "pure". */
+  const reachesSlotThroughEnv = (node, scope, depth = 0, seen = new Set()) => {
+    if (!node || typeof node !== 'object') return false
+    if (depth > 24) return true
+    if (readsSlot(node, scope)) return true
+    if (node.type === 'name') {
+      const bound = env.get(node.name)
+      if (bound && bound.kind === 'expr' && !seen.has(node.name)) {
+        seen.add(node.name)
+        return reachesSlotThroughEnv(bound.node, scope, depth + 1, seen)
+      }
+      return false
+    }
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of']) {
+      if (reachesSlotThroughEnv(node[k], scope, depth + 1, seen)) return true
+    }
+    for (const k of ['args', 'elements']) {
+      if (!Array.isArray(node[k])) continue
+      for (const a of node[k]) {
+        if (reachesSlotThroughEnv(a && a.value !== undefined ? a.value : a, scope, depth + 1, seen)) return true
+      }
+    }
+    return false
+  }
+
+  /** ⭐ C23 — could evaluating this argument change anything the run holds?
+   *  True for a call to a user function (it may push into a global array or set
+   *  a drawing) and for any call outside the VALUE builtins — a collection, map,
+   *  matrix or drawing call, a method form, anything unknown. `str.*`, `math.*`,
+   *  `ta.*`, `color.*`, `input.*`, `na`/`nz` and the casts compute a value and
+   *  nothing else. ⛔ Unknown answers true: the caller then evaluates it, which
+   *  is Pine's own order, never skips it. */
+  const VALUE_CALL = /^(math|str|ta|color|input|timeframe|syminfo)\.[a-z_0-9]+$/
+  const VALUE_CALL_BARE = new Set(['na', 'nz', 'int', 'float', 'bool', 'string'])
+  /** A COMPILED user function whose body (and every body it calls) holds no
+   *  statement run for its effect, no field write, no collection or drawing
+   *  expression: calling it computes a value and changes nothing any other
+   *  statement can read (its own `var`s are its call site's, read only through
+   *  that call). Unknown — not compiled yet, deferred, recursive — is not pure. */
+  const EFFECT_KINDS = new Set([STMT.EXPR, STMT.FIELD_SET, EXPR.ARRAY, EXPR.DRAWING])
+  const fnIsEffectFree = (fnIndex, seen = new Set()) => {
+    const f = functions[fnIndex]
+    if (!f || f.compiling || !f.body || seen.has(fnIndex)) return false
+    seen.add(fnIndex)
+    let ok = true
+    const walk = (n, depth) => {
+      if (!ok || !n || typeof n !== 'object') return
+      if (depth > 256) { ok = false; return }
+      if (Array.isArray(n)) { for (const x of n) walk(x, depth + 1); return }
+      if (EFFECT_KINDS.has(n.kind)) { ok = false; return }
+      if (n.kind === EXPR.CALL && !fnIsEffectFree(n.fn, seen)) { ok = false; return }
+      for (const v of Object.values(n)) if (v && typeof v === 'object') walk(v, depth + 1)
+    }
+    walk(f.body, 0)
+    walk(f.result, 0)
+    return ok
+  }
+  const argumentHasEffect = (node, depth = 0) => {
+    if (!node || typeof node !== 'object') return false
+    if (depth > 64) return true
+    if (node.type === 'call') {
+      const name = String(node.name || '')
+      if (methodCallOf(node) || deferredFnRefusals.has(name)) return true
+      if (isUserFn(name) || definedNames.has(name)) {
+        if (!fnByName.has(name) || !fnIsEffectFree(fnByName.get(name))) return true
+      } else if (!VALUE_CALL.test(name) && !VALUE_CALL_BARE.has(name)) return true
+    }
+    if (node.type === 'offset' && node.n && typeof node.n === 'object'
+        && argumentHasEffect(node.n.expr, depth + 1)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'of', 'recv']) {
+      if (argumentHasEffect(node[k], depth + 1)) return true
+    }
+    for (const k of ['args', 'elements']) {
+      if (!Array.isArray(node[k])) continue
+      for (const a of node[k]) {
+        if (argumentHasEffect(a && a.value !== undefined ? a.value : a, depth + 1)) return true
+      }
+    }
+    return false
+  }
+
+  /** ⭐ C23 — a `math.*` call the HOST lane serves as a `BUILTIN_CALL_TREE`
+   *  expansion (the table declares no such name), rebuilt as a PARSE tree over
+   *  this call's own argument nodes, or null. Only an expansion made of
+   *  arithmetic operators and numbers is taken; anything else (an offset, a
+   *  call) keeps its refusal. ⛔ `math.` only: that is the one Pine namespace
+   *  whose members reach this map with no second meaning (`iff`, `roc`, `mom`,
+   *  `tr`, `vwma`, `linreg` are `ta.`/bare spellings with guards of their own in
+   *  the Resolver, and none is taken here). */
+  const callTreeExpansion = (node) => {
+    const name = String(node && node.name || '')
+    if (!name.startsWith('math.') || definedNames.has(name) || isUserFn(name)) return null
+    const bare = name.slice('math.'.length)
+    if (!Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE, bare)) return null
+    const shape = PINE_CALL_SHAPES[bare]
+    if (TABLE.functions[shape && shape.table ? shape.table : bare]) return null
+    const at = locate(node.tok)
+    for (const a of node.args || []) {
+      if (a && a.name) {
+        throw new RuntimeRefusal('runtime:statement',
+          `a named argument \`${a.name}\` on \`${name}\``, at)
+      }
+    }
+    const given = (node.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
+    const least = Object.prototype.hasOwnProperty.call(BUILTIN_CALL_TREE_MIN_ARGS, bare)
+      ? BUILTIN_CALL_TREE_MIN_ARGS[bare] : 0
+    if (given.length < least) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${name}\` takes at least ${least} arguments, given ${given.length}`, at)
+    }
+    const HOLE = '__c23_call_tree_arg_'
+    let built
+    try {
+      built = BUILTIN_CALL_TREE[bare](given.map((_, k) => ({ type: 'series', name: `${HOLE}${k}` })))
+    } catch { return null }
+    const ARITH = new Set(['+', '-', '*', '/'])
+    const toParse = (c) => {
+      if (!c || typeof c !== 'object') return null
+      if (c.type === 'num' && Number.isFinite(Number(c.value))) {
+        return { type: 'number', value: Number(c.value), tok: node.tok }
+      }
+      if (c.type === 'series' && String(c.name).startsWith(HOLE)) {
+        const k = Number(String(c.name).slice(HOLE.length))
+        return Number.isInteger(k) && k >= 0 && k < given.length ? given[k] : null
+      }
+      if (c.type === 'op' && ARITH.has(c.name) && Array.isArray(c.args) && c.args.length === 2) {
+        const left = toParse(c.args[0])
+        const right = toParse(c.args[1])
+        return left && right ? { type: 'binary', op: c.name, left, right, tok: node.tok } : null
+      }
+      return null
+    }
+    return toParse(built)
+  }
+
   /** Lower a `request.security(symbol, timeframe, value, …)`.
    *
    *  ⭐⭐ THE VALUE IS LOWERED HERE BUT EXECUTED ELSEWHERE — over the requested
@@ -2586,18 +2764,38 @@ export function buildRuntimeIr(source, opts = {}) {
     // ⛔ AND THE TIMEFRAME IS READ SYNTACTICALLY, not lowered here. Lowering it
     // early would reorder `lowerExpr`'s column allocation against the two
     // refusals below and change which one a member sees first.
-    const symNode = argOf(positional[0])
-    const tfNode0 = argOf(positional[1])
-    const ownSymbol = !!symNode && symNode.type === 'name'
-      && (symNode.name === 'syminfo.tickerid' || symNode.name === 'syminfo.ticker')
-    const ownPeriod = !!tfNode0 && (
-      (tfNode0.type === 'string' && String(tfNode0.value).trim() === String(lanePeriod).trim())
-      || (tfNode0.type === 'name' && OWN_TF_NAMES.has(tfNode0.name)
-          && scope.lookup(tfNode0.name) === null && !env.has(tfNode0.name)))
+    // ⭐⭐ C23 — WHICH REQUEST IS THE IDENTITY IS `pine.js`'s ANSWER, NOT THIS
+    // FILE'S. `Resolver.requestTargetOf` is the reader `securityAsNode` composes
+    // from — the symbol (a binding followed first, then the built-in spellings),
+    // the period (`timeframe.period`, a literal, an `input.timeframe` default
+    // through its binding, the base-period guard on an intraday forming bar) and
+    // every `lookahead` spelling. ⚰️ This lane used to answer it with its own
+    // syntactic test — a namespaced symbol and a literal or `timeframe.period` —
+    // so `request.security(syminfo.tickerid, higher_timeframe, x, lookahead =
+    // barmerge.lookahead_off)` with `higher_timeframe = input.timeframe("D")` on
+    // a daily chart (dual-view, L594) was the identity to the plot lane and a
+    // refused `lookahead` here: two answers to one question.
+    // ⛔ ASKED AGAINST THIS CHART'S OWN PERIOD (`lanePeriod`), whatever contract.
+    // ⛔ AND ONLY WHERE THE HOST'S WORLD IS THIS LANE'S WORLD. The host follows
+    // `env` and knows nothing of this lane's mutable slots, so a symbol or
+    // period argument that reaches a slot — directly or through an `env` macro
+    // (an inlined parameter bound to a slot read) — is never asked: a mutable
+    // `tickerid` or `period` would read as the built-in to a reader that cannot
+    // see it. Those keep the request path below and its refusals.
+    const identity = (() => {
+      let t = null
+      try {
+        t = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
+          .requestTargetOf(node)
+      } catch { return null } // a refusal on the way is "not the identity": the path below names it
+      if (!t || t.own === null || t.other !== null || t.code !== null) return null
+      return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
+        ? null : t
+    })()
     // ⛔ IN THE CALLER'S SCOPE, and `inRequestValue` stays false: at this
     // chart's own period the expression runs in THIS context, which is the
     // whole reason it folds.
-    if (ownSymbol && ownPeriod) return requestValueIr(argOf(positional[2]), scope)
+    if (identity) return requestValueIr(identity.positional[2], scope)
 
     // ⛔⛔ CHECKED BEFORE ANYTHING IS LOWERED, and the ORDER is the point. The
     // symbol argument has its own seam (a symbol-settled value refuses when the
@@ -3652,6 +3850,22 @@ export function buildRuntimeIr(source, opts = {}) {
           const mc = methodCallOf(node)
           if (mc) return lowerExpr(mc, scope, opts)
         }
+        // ⭐⭐ C23 — `input.color(<default>, …)` IS ITS DEFAULT COLOUR, the node the
+        // host lane's every colour reader opens (`pine.js::inputColourDefaultNode`).
+        // The columnar lane refuses it (`pine:input-kind`: a column holds no colour),
+        // and a drawing's colour that only the run holds reached that refusal.
+        // ⛔ NO MEMBER PARAMETER IS MINTED OR READ: a colour picker is not a knob in
+        // either lane, so the default is the only value it has — and a run's values
+        // are served only at defaults (`runtimeObjectValues`' C18 conditions).
+        // ⛔ Only a default that is itself a colour; anything else keeps its refusal.
+        if (node.name === 'input.color' && !definedNames.has(node.name)) {
+          const dflt = inputColourDefaultNode(node)
+          if (!holdsColour(dflt, scope)) {
+            throw new RuntimeRefusal('runtime:colour',
+              '`input.color`\'s default is not a colour this lane can read', locate(node.tok))
+          }
+          return lowerExpr(dflt, scope, opts)
+        }
         // ⭐⭐ C18 — `int(x)` / `float(x)` OVER A VALUE THE RUN COMPUTES.
         // Pine documents `int` as "casts na or truncates float value to int" and
         // `float` as the identity on a number, so both are read exactly as
@@ -3910,6 +4124,17 @@ export function buildRuntimeIr(source, opts = {}) {
         // Its arguments are lowered in the caller's scope, so a state-derived
         // argument is an ordinary runtime expression, and the result composes
         // back into assignments, conditions, outputs and further calls.
+        // ⭐⭐ C23 — `math.avg` OVER RUNTIME STATE IS THE PLOT LANE'S OWN EXPANSION.
+        // A pure `math.avg(a, b)` already reached the columnar lane, which expands
+        // it through `pine.js::BUILTIN_CALL_TREE` into `(a + b) / 2`; one that
+        // reads a slot came here and refused `runtime:call-undeclared-builtin-state`
+        // (dual-view L765: `math.floor(math.avg(candle_start_time,
+        // candle_end_time))`). The SAME builder is asked here, with placeholder
+        // leaves, and its tree becomes the parse tree lowered in this scope — so
+        // the two lanes cannot disagree about what the mean of its arguments is,
+        // `na` included (any `na` operand makes the sum `na` in both).
+        const expanded = callTreeExpansion(node)
+        if (expanded) return lowerExpr(expanded, scope, opts)
         const pw = pointwiseTarget(node.name)
         if (pw) {
           for (const a of node.args) {
@@ -5880,6 +6105,29 @@ export function buildRuntimeIr(source, opts = {}) {
 
       // ── a bare call statement ──
       if (word && isPunct(toks[1], '(')) {
+        // ⭐⭐ C23 — `alert(message, freq)` IS A PRESENTATION CALL AND DRAWS NOTHING
+        // HERE, as the host lane holds it (`pine.js::CHART_ONLY_CALLS`, noted
+        // `pine:chart-only`, no output, no binding): alert DELIVERY is the host's
+        // path, and no value this lane computes depends on it. ⛔ BUT PINE
+        // EVALUATES ITS ARGUMENTS, so an argument whose evaluation could change
+        // something (a user function, a collection or drawing call — directly or
+        // in a method form) is evaluated exactly where the call stands, into a
+        // slot nothing reads; an argument made only of names, literals, operators
+        // and value builtins (`str.*`, `math.*`, `ta.*` — a `ta.*` call site's
+        // state is read only through that call) is dropped, which is the same
+        // program. Any other statement of this family keeps its refusal.
+        if (word === 'alert' && !definedNames.has('alert')) {
+          const call = parseWholeExpression(toks)
+          for (const a of (call && call.args) || []) {
+            const v = a && a.value !== undefined ? a.value : a
+            if (!argumentHasEffect(v)) continue
+            const tmp = `alert argument ${out.length}@${first.line}:${first.column}`
+            const slot = scope.declare(tmp, newSlot(tmp, false))
+            if (holdsText(v, scope)) slots[slot].text = true
+            out.push(declare(slot, lowerExpr(v, scope)))
+          }
+          continue
+        }
         if (PRESENTATION_CALLS.has(word)) {
           note('runtime:presentation')
           throw new RuntimeRefusal('runtime:presentation', `\`${word}()\``, locate(first))

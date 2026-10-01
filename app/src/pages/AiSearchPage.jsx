@@ -319,6 +319,14 @@ export default function AiSearchPage() {
     } catch { /* noop */ }
   }, [])
 
+  // Build D (2026-09-30): the `A:<id>` address door. `?thread=<id>` reopens that
+  // conversation on arrival through the SAME openThread a click on a past
+  // conversation uses (owner-scoped server-side; an unknown id changes nothing).
+  const threadParamRef = useRef((params.get('thread') || '').trim() || null)
+  useEffect(() => {
+    if (threadParamRef.current && !handoffRef.current) openThread({ thread_id: threadParamRef.current })
+  }, [openThread])
+
   const onTicker = useCallback((tk) => {
     try { localStorage.setItem('charts_mobile_sym', tk) } catch { /* noop */ }
     navigate('/charts')

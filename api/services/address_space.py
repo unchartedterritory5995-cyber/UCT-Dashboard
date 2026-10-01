@@ -74,6 +74,18 @@ def _notes(user_id: str) -> list[dict]:
     return [{"id": str(r["id"]), "name": (r.get("title") or "").strip() or "Untitled"} for r in rows]
 
 
+def _screens(user_id: str) -> list[dict]:
+    from api.services.screener import saved_screens as svc
+    svc.init()
+    return [{"id": str(r["id"]), "name": r["name"]} for r in svc.list_for(user_id)]
+
+
+def _ai_threads(user_id: str) -> list[dict]:
+    from api.services import ai_search_member as svc
+    return [{"id": str(r["thread_id"]), "name": (r.get("title") or "").strip() or "Untitled conversation"}
+            for r in svc.list_threads(user_id, limit=100)]
+
+
 KINDS: dict[str, Kind] = {
     "layout": Kind("L", "Chart layout", "charts_layouts", _layouts,
                    lambda i: f"/charts?openLayout={quote(i)}"),
@@ -81,6 +93,14 @@ KINDS: dict[str, Kind] = {
                       lambda i: f"/charts?openWatchlist=user:{quote(i)}"),
     "note": Kind("N", "Note", "j2_notes", _notes,
                  lambda i: f"/journal/notebook?note={quote(i)}"),
+    # 2026-09-30 (owner: build D). The door is `useScreenSpec`'s `savedScreen=`
+    # arrival: it loads the member's OWN saved screen by id and applies its spec.
+    "screen": Kind("S", "Saved screen", "screener_saved_screens", _screens,
+                   lambda i: f"/screener?savedScreen={quote(i)}"),
+    # 2026-09-30 (build D). The door is AiSearchPage's `thread=` arrival, which calls
+    # the page's own `openThread` -- the same reopen a click on a past conversation does.
+    "ai_thread": Kind("A", "AI conversation", "ais_threads", _ai_threads,
+                      lambda i: f"/ai-search?thread={quote(i)}"),
 }
 _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 
@@ -88,13 +108,13 @@ _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 # each line is a reason, with its kind first. `no-door` means a real saved object that
 # has no URL instruction to open it yet -- the next thing to build, not a wontfix.
 EXEMPT: dict[str, str] = {
-    "screener_saved_screens": "no-door: a saved screen has no URL instruction that opens it on /screener yet",
-    "theme_sets": "no-door: a theme set has no URL instruction that opens it yet",
+    "theme_sets": "no-door: a theme set is a Themes-widget option on the /charts board "
+                  "(opts.themeSetId), not a page; a door needs ChartsWorkspace to find or "
+                  "add that widget first (build D, 2026-09-30, stopped here by choice)",
     "playbooks": "no-door: Journal 1.0 playbooks, a retired surface with no route that opens one",
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
     "upb_entries": "no-door: user playbook entries have no URL instruction yet",
     "upb_sections": "not-a-saved-object: a section groups playbook entries; the entry is the object",
-    "ais_threads": "no-door: an AI Search thread has no URL instruction that reopens it yet",
     "j2_note_saved_views": "no-door: a saved notebook view has no URL instruction yet",
     "j2_note_templates": "no-door: a note template is applied from the editor, never opened by URL",
     "j2_note_folders": "no-door: a folder has no URL instruction that opens it yet",
@@ -193,7 +213,7 @@ def resolve(user_id: str, address: str) -> Optional[dict]:
 #   private -> {address, kind, kind_label, shared: False}            (NO name: a private title is
 #                                                                      not the Floor's to publish)
 #   not the author's / unknown -> omitted, so ordinary text ("W:3 in a row") never gets a chip.
-_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWN]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
+_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSA]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
 MAX_TEXT_ADDRESSES = 8
 
 
@@ -249,7 +269,28 @@ def _shared_note(author_id: str, obj_id: str) -> Optional[dict]:
     return {"shared": False} if note else None
 
 
-_SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist, "note": _shared_note}
+def _shared_screen(author_id: str, obj_id: str) -> Optional[dict]:
+    from api.services.screener import saved_screens as svc
+    if not obj_id.isdigit():
+        return None
+    rec = svc.get(int(obj_id), author_id)               # the AUTHOR's screen, or nothing
+    if not rec:
+        return None
+    if rec.get("is_public") and rec.get("share_token"):
+        return {"name": rec["name"], "to": f"/screener?screen={quote(rec['share_token'])}",
+                "shared": True}
+    return {"shared": False}
+
+
+def _shared_ai_thread(author_id: str, obj_id: str) -> Optional[dict]:
+    # An AI conversation is member-scoped with no share: the author's own is "private".
+    from api.services import ai_search_member as svc
+    return {"shared": False} if svc.get_thread(author_id, obj_id) else None
+
+
+_SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist,
+                     "note": _shared_note, "screen": _shared_screen,
+                     "ai_thread": _shared_ai_thread}
 
 
 def shared_links(author_id: Optional[str], text: str) -> list[dict]:
