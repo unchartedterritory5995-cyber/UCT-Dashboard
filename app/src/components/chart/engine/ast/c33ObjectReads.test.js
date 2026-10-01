@@ -286,6 +286,17 @@ describe('C33 (6) — a getter\'s number in a text, its history, and a helper\'s
     expect(run(t).live.filter((o) => o.family === 'label').every((l) => l.props.text === 'b=NaN')).toBe(true)
   })
 
+  it('⛔ a getter-FED scalar that holds a finite number is held too — the same rule through the scalar', () => {
+    const t = host(src(5, 'f(a) =>', '    var line h1 = line.new(0, 7.5, 1, 7.5)', '    b1 = line.get_y1(h1)',
+      '    label.new(bar_index, a, "b=" + str.tostring(b1))', 'f(high)',
+      'label.new(bar_index, low, "control")'))
+    expect(diag(t).dropReasons['create:label']).toBeUndefined()
+    expect(diag(t).getterScalars.served.length).toBe(1)
+    const r = run(t)
+    expect(r.live.filter((o) => o.family === 'label').map((l) => l.props.text)).toEqual(Array(12).fill('control'))
+    expect(r.withheld.label).toBe(12)
+  })
+
   it('⛔ a format the one formatter does not understand whole keeps its refusal', () => {
     // swing-highlow-zigzag: `str.tostring(line_h.get_y1(), "Swing H  (#,###.####)")`
     for (const fmt of ['"Swing H  (#,###.####)"', '"#,###.##"', 'format.mintick']) {
