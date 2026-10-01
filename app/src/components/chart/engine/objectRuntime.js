@@ -943,8 +943,12 @@ export function beginObjects(program, ctx) {
         const a = objectHexToPacked(colorOf(c.a))
         const b = objectHexToPacked(colorOf(c.b))
         if (a === null || b === null) return null
-        const num = (x) => (typeof x === 'number' ? x : NaN)
-        const packed = fromGradient(num(value(c.v)), num(value(c.lo)), num(value(c.hi)), a, b)
+        // ⭐ C48 — a value this run does not HOLD (not a number at all) is still
+        // unserved; a number that is `na` is the measured zero colour
+        // (`fromGradient`, `vw-colour-components`).
+        const three = [value(c.v), value(c.lo), value(c.hi)]
+        if (three.some((x) => typeof x !== 'number')) return null
+        const packed = fromGradient(three[0], three[1], three[2], a, b)
         return packed === null ? null : packedToObjectHex(packed)
       }
       return null

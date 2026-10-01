@@ -134,7 +134,7 @@ import {
   withObjectTransparency, isPassCondition,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
-import { hexToPacked, byteTransparency, gradientChannelTree } from '../runtime/colours.js'
+import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
 import { THEME_NAMES } from '../objectTheme.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
@@ -23560,10 +23560,12 @@ export const inputColourDefaultNode = (node) => ((node && node.args || [])[0] ||
  *  refuse with. */
 const COLOUR_COMPONENT_CALLS = new Set(['color.r', 'color.g', 'color.b', 'color.t'])
 const COLOUR_COMPONENT_UNWITNESSED = 'its components are served for a fixed colour '
-  + '(a Pine colour name, a `#RRGGBB` literal, `color.rgb` of literals, `color.new` of '
-  + 'one with a literal transparency), for `color.from_gradient` between two fixed colours '
-  + 'over literal bounds, and for `color.new` of that gradient — the colours the '
-  + '`vw-gradient` capture measured. This one is none of those'
+  + '(a Pine colour name, a `#RRGGBB` or `#RRGGBBAA` literal, `color.rgb` of literals, an '
+  + '`input.color` of one), for `color.new` of one with a literal transparency or a per-bar one '
+  + 'that stays within 0-100, for a ternary of two such colours, for `color.from_gradient` between '
+  + 'two fixed colours, and for `color.new(<that gradient>, <literal>)` — the colours the '
+  + '`vw-gradient` and `vw-colour-components` captures measured. This one is none of those '
+  + '(a gradient between gradients and a colour returned by a user function are measured and not served)'
 
 /** ⭐⭐ C38 — A COLOUR `vw-gradient-spy-1d-2026-09-30` WITNESSES, read to what its
  *  components need, or null (the caller refuses by name).
@@ -23573,15 +23575,30 @@ const COLOUR_COMPONENT_UNWITNESSED = 'its components are served for a fixed colo
  *                                          `t` the whole transparency a `color.new`
  *                                          on top replaced its own with, else null
  *
- *  ⛔ ONLY THE SHAPES THE PROBE WRITES. A Pine colour NAME (`color.blue`), a
+ *  ⛔ ONLY THE SHAPES THE PROBES WRITE. A Pine colour NAME (`color.blue`), a
  *  six-digit literal, `color.rgb` of literals, `color.new(<fixed>, <literal>)`;
- *  a gradient whose bounds fold to two different finite numbers and whose two ends
- *  are fixed; `color.new(<that gradient>, <literal>)`. An eight-digit literal, an
- *  `input.color`, a per-bar transparency, a ternary of colours, a user helper and
- *  a gradient between gradients are NOT in the capture and answer null.
+ *  a gradient whose two ends are fixed; `color.new(<that gradient>, <literal>)`.
+ *
+ *  ⭐⭐ C48 — the forms `vw-colour-components-spy-1d-2026-10-01` asks, each
+ *  300 / 300 on its rows (`vendorHarness.c48ColourComponents`):
+ *    {packed}        an EIGHT-digit literal — its last byte is the opacity
+ *                    (K02–K07: `#0064C84D` holds transparency 70, `#FF323280` 50);
+ *                    an `input.color(<colour>)` — its default (I01–I05; this
+ *                    product hands out no colour knob, so the default is the value)
+ *    {parts}         one canonical tree per component, for a colour that moves:
+ *                    `color.new(<fixed>, <per-bar number>)` (N01–N04: the number
+ *                    REPLACES the transparency, truncated as a literal's is) and a
+ *                    ternary of two colours (Q01–Q06: the taken arm's four)
+ *    {gradient}      per-bar bounds (B01–B04), equal or `na` bounds and an `na`
+ *                    value (E01–E03, X01–X04: the zero colour), reversed bounds
+ *                    (E04 / E05: the bottom colour) — `gradientChannelTree`
+ *  ⛔ STILL NULL: a gradient between gradients (G01–G04 — measured, and the
+ *  curve reproduces it bar for bar, but its tree would compute both inner blends
+ *  per component), a colour a user function returns (U01 / U02), a per-bar
+ *  transparency not provably within 0-100, `color.new` over a moving colour.
  *
  *  ⛔ NO COLOUR ARITHMETIC OF ITS OWN: the hex is `staticColourOf`'s, the packing
- *  (and the whole-number transparency) `runtime/colours.js::hexToPacked`'s. */
+ *  (and the whole-number transparency) `runtime/colours.js`'s. */
 function witnessedColourOf(node, env, resolver, depth = 0) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -23595,9 +23612,33 @@ function witnessedColourOf(node, env, resolver, depth = 0) {
   }
   if (node.type === 'colour') {
     const hex = String(node.value)
-    return /^#[0-9a-f]{6}$/i.test(hex) ? { packed: hexToPacked(hex, 0) } : null
+    if (/^#[0-9a-f]{6}$/i.test(hex)) return { packed: hexToPacked(hex, 0) }
+    // ⭐ C48 — `#RRGGBBAA`: the last byte is the OPACITY (`objectHexToPacked`).
+    return /^#[0-9a-f]{8}$/i.test(hex) ? { packed: objectHexToPacked(hex) } : null
+  }
+  // ⭐ C48 — a ternary of two colours is the taken arm's components (Q01–Q06).
+  if (node.type === 'ternary') {
+    if (!resolver) return null
+    const yes = witnessedColourOf(node.yes, env, resolver, depth + 1)
+    const no = witnessedColourOf(node.no, env, resolver, depth + 1)
+    if (!yes || !no) return null
+    let test
+    try { test = resolver.condition(resolver.resolveAt(env, node.test), 'ternary', node.tok) } catch { return null }
+    const parts = {}
+    for (const ch of COLOUR_CHANNELS) {
+      const a = colourChannelTree(yes, ch)
+      const b = colourChannelTree(no, ch)
+      if (!a || !b) return null
+      parts[ch] = naSelectorTakesElse(cOp('?:', [test, a, b]))
+    }
+    return { parts }
   }
   if (node.type !== 'call') return null
+  // ⭐ C48 — `input.color(<colour>, …)` is the colour it defaults to (I01–I05).
+  if (node.name === 'input.color') {
+    const dflt = inputColourDefaultNode(node)
+    return dflt ? witnessedColourOf(dflt, env, resolver, depth + 1) : null
+  }
   const args = node.args || []
   if (args.some((a) => !a || a.name)) return null
   const literal = (a) => numberValue(a.value)
@@ -23610,10 +23651,34 @@ function witnessedColourOf(node, env, resolver, depth = 0) {
   }
   if (node.name === 'color.new') {
     if (args.length !== 2) return null
-    const t = literal(args[1])
-    if (t === null || !(t >= 0 && t <= 100)) return null
     const base = witnessedColourOf(args[0].value, env, resolver, depth + 1)
     if (!base) return null
+    const t = literal(args[1])
+    if (t === null) {
+      // ⭐⭐ C48 — A PER-BAR TRANSPARENCY (N01–N04): the number REPLACES the
+      // colour's own, truncated the way a literal's is (`wholeTransparency`: a
+      // 28.999999999999996 the arithmetic produced is the 29 it names — 9 of
+      // the capture's 300 bars are that case). ⛔ Only a FIXED base, and only a
+      // number this reader can prove stays within 0-100: what TradingView holds
+      // outside that range, or for `na`, is in no capture.
+      if (!resolver || base.packed === undefined) return null
+      let tree
+      try { tree = resolver.resolveAt(env, args[1].value) } catch { return null }
+      const [lo, hi] = transparencyRange(tree, 0)
+      if (!(lo >= 0 && hi <= 100)) return null
+      const u = unpackColor(base.packed)
+      return {
+        parts: {
+          r: cNum(u.r),
+          g: cNum(u.g),
+          b: cNum(u.b),
+          // `wholeTransparency`, as a tree: trunc(round(t × 1e9) / 1e9), t ≥ 0
+          t: cCall('floor', [cOp('/', [cCall('round', [cOp('*', [tree, cNum(1e9)])]), cNum(1e9)])]),
+        },
+      }
+    }
+    if (!(t >= 0 && t <= 100)) return null
+    if (base.parts) return null
     if (base.gradient) return base.t === null ? { gradient: base.gradient, t: wholeTransparency(t) } : null
     // `color.new` SETS the transparency; the three colour bytes ride through.
     return { packed: hexToPacked(unpackColor(base.packed).hex, t) }
@@ -23622,14 +23687,80 @@ function witnessedColourOf(node, env, resolver, depth = 0) {
     if (args.length !== 5 || !resolver) return null
     const a = witnessedColourOf(args[3].value, env, resolver, depth + 1)
     const b = witnessedColourOf(args[4].value, env, resolver, depth + 1)
-    if (!a || !b || a.gradient || b.gradient) return null
-    const lo = constantValueOf(resolver.resolveAt(env, args[1].value))
-    const hi = constantValueOf(resolver.resolveAt(env, args[2].value))
-    // ⛔ An `na` or EMPTY range is what no capture pins (C29 rule 4): refused.
-    if (lo === null || hi === null || !Number.isFinite(lo) || !Number.isFinite(hi) || lo === hi) return null
-    return { gradient: { value: resolver.resolveAt(env, args[0].value), lo, hi, a: a.packed, b: b.packed }, t: null }
+    // ⛔ Both ends FIXED: a gradient between gradients, or between colours that
+    // move, would compute its ends per component (rows G01–G04 — not served).
+    if (!a || !b || a.packed === undefined || b.packed === undefined) return null
+    let value
+    let loTree
+    let hiTree
+    try {
+      value = resolver.resolveAt(env, args[0].value)
+      loTree = resolver.resolveAt(env, args[1].value)
+      hiTree = resolver.resolveAt(env, args[2].value)
+    } catch { return null }
+    // ⭐⭐ C48 — A BOUND IS A NUMBER THE SCRIPT WROTE, `na`, OR A PER-BAR TREE.
+    // Written `na` (X01 / X02), equal bounds (E01–E03) and an `na` value
+    // (X03 / X04) are the zero colour; reversed bounds the bottom colour
+    // (E04 / E05); a per-bar bound is read on the bar (B01–B04).
+    // `gradientChannelTree` holds all of it, beside `fromGradient`.
+    const boundOf = (tree) => {
+      if (isStaticNa(tree)) return NaN
+      const c = constantValueOf(tree)
+      return c === null ? tree : c
+    }
+    return { gradient: { value, lo: boundOf(loTree), hi: boundOf(hiTree), a: a.packed, b: b.packed }, t: null }
   }
   return null
+}
+
+/** ⭐ C48 — the four components, in the order every reader walks them. */
+const COLOUR_CHANNELS = Object.freeze(['r', 'g', 'b', 't'])
+
+/** ⭐⭐ C48 — `[lo, hi]` A PER-BAR TRANSPARENCY'S TREE STAYS INSIDE, or the whole
+ *  line. Only what is a fact about the tree: a literal, `barindex` (never
+ *  negative), negation, `+` / `-`, a product or quotient by a POSITIVE literal,
+ *  `mod(x, n)`, `min` / `max`, a ternary (the union of its arms). ⛔ `na` is not
+ *  a range: what a colour holds for an `na` transparency is in no capture. */
+function transparencyRange(node, depth) {
+  const WHOLE = [-Infinity, Infinity]
+  if (!node || typeof node !== 'object' || depth > 32 || isStaticNa(node)) return WHOLE
+  if (node.type === 'num') return Number.isFinite(node.value) ? [node.value, node.value] : WHOLE
+  if (node.type === 'series') return node.name === 'barindex' ? [0, Infinity] : WHOLE
+  const a = node.args || []
+  const r = (i) => transparencyRange(a[i], depth + 1)
+  const sane = (lo, hi) => (Number.isNaN(lo) || Number.isNaN(hi) ? WHOLE : [lo, hi])
+  const positive = (n) => (n && n.type === 'num' && Number.isFinite(n.value) && n.value > 0 ? n.value : null)
+  if (node.type === 'op') {
+    if (node.name === 'u-' && a.length === 1) { const [lo, hi] = r(0); return sane(-hi, -lo) }
+    if (node.name === '?:' && a.length === 3) { const x = r(1); const y = r(2); return [Math.min(x[0], y[0]), Math.max(x[1], y[1])] }
+    if (node.name === '+' && a.length === 2) { const x = r(0); const y = r(1); return sane(x[0] + y[0], x[1] + y[1]) }
+    if (node.name === '-' && a.length === 2) { const x = r(0); const y = r(1); return sane(x[0] - y[1], x[1] - y[0]) }
+    if (node.name === '*' && a.length === 2) {
+      const k = positive(a[1]) !== null ? [positive(a[1]), 0] : (positive(a[0]) !== null ? [positive(a[0]), 1] : null)
+      if (!k) return WHOLE
+      const x = r(k[1])
+      return sane(x[0] * k[0], x[1] * k[0])
+    }
+    if (node.name === '/' && a.length === 2) {
+      const k = positive(a[1])
+      if (k === null) return WHOLE
+      const x = r(0)
+      return sane(x[0] / k, x[1] / k)
+    }
+    return WHOLE
+  }
+  if (node.type !== 'call') return WHOLE
+  if (node.name === 'mod' && a.length === 2) {
+    const n = positive(a[1])
+    if (n === null || !Number.isInteger(n)) return WHOLE
+    return r(0)[0] >= 0 ? [0, n - 1] : [-(n - 1), n - 1]
+  }
+  if ((node.name === 'min' || node.name === 'max') && a.length === 2) {
+    const x = r(0)
+    const y = r(1)
+    return node.name === 'min' ? [Math.min(x[0], y[0]), Math.min(x[1], y[1])] : [Math.max(x[0], y[0]), Math.max(x[1], y[1])]
+  }
+  return WHOLE
 }
 
 /** ⭐⭐ C38 — ONE COMPONENT OF A WITNESSED COLOUR, as a canonical tree.
@@ -23639,6 +23770,8 @@ function witnessedColourOf(node, env, resolver, depth = 0) {
  *  beside it. `color.new` over a gradient replaces the transparency and nothing
  *  else (`withTransparency`: "the three colour bytes are carried through"). */
 function colourChannelTree(colour, channel) {
+  // ⭐ C48 — a colour that moves holds one tree per component already.
+  if (colour.parts) return colour.parts[channel] || null
   if (colour.gradient) {
     if (channel === 't' && colour.t !== null) return cNum(colour.t)
     return gradientChannelTree(colour.gradient, channel)
@@ -24441,6 +24574,33 @@ function gradientArgsOf(node) {
 
 const OBJECT_HEX = /^#[0-9a-f]{6}([0-9a-f]{2})?$/i
 
+/** ⭐⭐ C48 — THE POSITION A GRADIENT PLOT'S COLOUR COLUMN HOLDS.
+ *
+ *  `(value − bottom) / (top − bottom)`, which the renderer hands to
+ *  `fromGradient(w, 0, 1, a, b)`. ⚰️ With `top < bottom` that quotient runs the
+ *  blend BACKWARDS; TradingView holds the BOTTOM colour for every value between
+ *  reversed bounds (`vw-colour-components-spy-1d-2026-10-01`, rows E04 / E05).
+ *  So: bounds in order → the quotient, as before; reversed → position 0 (the
+ *  bottom colour) for a value between them and `na` outside (no capture reads
+ *  one there — the renderer then draws the series colour, never a guessed end).
+ *  ⛔ Two written bounds in order keep the tree they always had, byte for byte.
+ *  ⚠️ Equal or `na` bounds are `na` here too, and the renderer draws the series
+ *  colour: TradingView holds the zero colour there (rows E01–E03, X01–X04), but
+ *  this column cannot tell a bar Pine holds `na` from a bar this window cannot
+ *  compute (`pool.js::gradientPointColour`). */
+function gradientPositionTree(v, lo, hi) {
+  const quotient = cOp('/', [cOp('-', [v, lo]), cOp('-', [hi, lo])])
+  const NA = cOp('/', [cNum(0), cNum(0)])
+  const between = cOp('?:', [cOp('&&', [cOp('>=', [v, hi]), cOp('<=', [v, lo])]), cNum(0), NA])
+  const loC = isStaticNa(lo) ? NaN : constantValueOf(lo)
+  const hiC = isStaticNa(hi) ? NaN : constantValueOf(hi)
+  if (loC !== null && hiC !== null) {
+    if (Number.isNaN(loC) || Number.isNaN(hiC) || loC === hiC) return NA
+    return hiC > loC ? quotient : between
+  }
+  return cOp('?:', [cOp('>=', [hi, lo]), quotient, between])
+}
+
 function colourGradientRule(node, env, ctx, depth = 0) {
   if (!node || depth > 8) return null
   if (node.type === 'name') {
@@ -24797,7 +24957,7 @@ function outputPresentation(args, ctx) {
             const v = r.resolve(g.value)
             const lo = r.resolve(g.bottom)
             const hi = r.resolve(g.top)
-            const ast = cOp('/', [cOp('-', [v, lo]), cOp('-', [hi, lo])])
+            const ast = gradientPositionTree(v, lo, hi)
             const formula = printFormula(ast)
             verifyRoundTrip(formula, ast)
             pres.colorGradient = {
