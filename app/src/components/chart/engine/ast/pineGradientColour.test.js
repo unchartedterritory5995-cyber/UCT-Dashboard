@@ -49,10 +49,20 @@ describe('C37 — a gradient between two static colours is carried on a plot', (
   })
 
   it('⛔ R36 — the rule RESOLVES, it does not MINT: an input its position reads declares nothing new', () => {
-    const withRule = tr('len = input.int(14, "Len")', 'r = ta.rsi(close, len)', `plot(close, color = color.from_gradient(r, 30, 70, color.red, color.green))`)
-    const without = tr('len = input.int(14, "Len")', 'r = ta.rsi(close, len)', 'plot(close)')
-    expect(withRule.outputs[0].presentation.colorGradient).toBeTruthy()
-    expect(JSON.stringify(withRule.inputParams)).toBe(JSON.stringify(without.inputParams))
+    // the options under which a parameter is minted at all (`paramIds.test.js`)
+    const MANIFEST = { strict: true, paramManifest: true }
+    const head = ['len = input.int(14, "Len")', 'r = ta.rsi(close, len)']
+    const ids = (...lines) => (translatePine(src(...head, ...lines), MANIFEST).inputParams || []).map((p) => `${p.id}=${p.label || p.title}`)
+    const COLOURED = 'plot(close, color = color.from_gradient(r, 30, 70, color.red, color.green))'
+    expect(translatePine(src(...head, COLOURED), MANIFEST).outputs[0].presentation.colorGradient).toBeTruthy()
+    // the colour reads `len` and the plot does not: no parameter is declared
+    expect(ids(COLOURED)).toEqual(ids('plot(close)'))
+    expect(ids('plot(close)')).toEqual([])
+    // 🔴 CONTROL — the same input read by a plot's VALUE does mint, so the
+    // equality above is not two empty lists by accident of the options
+    expect(ids('plot(r)')).toEqual(['__uct_param_1=Len'])
+    // and a later output's id is not pushed along by the colour before it
+    expect(ids(COLOURED, 'plot(r)')).toEqual(['__uct_param_1=Len'])
   })
 })
 

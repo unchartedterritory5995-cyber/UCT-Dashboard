@@ -11,7 +11,8 @@
 //   color.new(c, <input>)        makuchaku FVG — `color.new(color.black, boxTransparency)`,
 //                                51 boxes × border and fill, `#363A45` at alpha 0x0D
 //   a `var` never reassigned     contraction-box — `var color LineColorInput = input.color(…)`
-//   a constant-selected chain    artemis — an eleven-arm theme over an `input.string`
+//                                artemis — `color.new(thOb, 100 - divRegAlpha)` and
+//                                `color.new(thOb, isLight ? 55 : 45)`, 48 slots
 //   a one-expression helper      ema-ribbon — `f_trendClr(bull, bear)`, `f_gradeClr(spread)`
 //   `na` / `color(na)`           position-size-calculator, zero-lag — the absent colour
 //   color.from_gradient, per pass  heat-map-seasons — the 28 cells of its gauge
@@ -25,11 +26,16 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import path from 'node:path'
 
 import { loadCapture } from './harness'
-import { runOurSide } from './ourSide'
+import { runOurSide, toProductBars } from './ourSide'
 import { censusOf, pairObjects } from './colourColumn'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
-import { objectDefaultsFor, OBJECT_DEFAULTS } from '../../objectRenderState'
+import { objectDefaultsFor, OBJECT_DEFAULTS, toRenderState } from '../../objectRenderState'
+import * as registry from '../../nativeRegistry'
+import { createBinder } from '../../binder'
+import { addInstance } from '../../instanceControls'
+import { mergeChartSettings } from '../../../chartDefaults'
+import { createFakeChart } from '../fakeChart'
 import { versionObjectDefaults, VERSIONS_WITH_OBJECT_DEFAULTS } from '../../objectDefaults'
 
 beforeAll(() => { vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1') })
@@ -97,7 +103,7 @@ describe('C37 — colours reached through a name, a helper or a constant selecto
     expect(new Set(o.rows.filter((r) => r.kind === 'line').map((r) => r.ours))).toEqual(new Set(['#089784ff']))
   }, 60000)
 
-  it('⭐ a theme chain over an `input.string` folds to the branch the default takes: artemis', () => {
+  it('⭐ `color.new(<the theme colour>, <arithmetic over an input>)`: the 48 slots of artemis', () => {
     const ID = 'artemis-oscillator-pro-rddt-1d-2026-09-28'
     const o = tallyOf(ID)
     expectAllAgree(ID, o)
@@ -222,6 +228,53 @@ describe('C37 — an uncoloured object wears the default of its script\'s Pine v
     expect(notCarried.length).toBe(21) // 10 lines + 11 label texts: what the base drew
     const withVersion = pairObjects(c, ours.objects)
     expect(withVersion.rows.filter((r) => r.state === 'notCarried')).toEqual([])
+  }, 60000)
+
+  it('⭐ what is DRAWN wears them: the render state reads the version the program states', () => {
+    const c = load('rsi-swing-indicator-rddt-1d-2026-09-28')
+    const ours = runOurSide(c)
+    const bars = toProductBars(c)
+    const at = (pineVersion) => toRenderState(ours.objects.held, { bars, tf: 'D', pineVersion })
+    const v4 = at(ours.objects.pineVersion)
+    expect(v4.lines.length).toBeGreaterThan(5)
+    expect(new Set(v4.lines.map((l) => l.color))).toEqual(new Set(['#2196F3']))
+    expect(new Set(v4.labels.map((l) => l.textcolor))).toEqual(new Set(['#363A45']))
+    // 🔴 CONTROL — with no version the SAME objects draw the base defaults
+    const base = at(undefined)
+    expect(new Set(base.lines.map((l) => l.color))).toEqual(new Set(['#2962FF']))
+    expect(new Set(base.labels.map((l) => l.textcolor))).toEqual(new Set(['#FFFFFF']))
+  }, 60000)
+
+  it('⭐ …and so does the chart binding: a v5 label with no text colour is drawn in `color.black`', () => {
+    const LF = String.fromCharCode(10)
+    const BARS = Array.from({ length: 8 }, (_, i) => ({ t: 1_700_000_000 + i * 86400, o: 100, h: 102, l: 98, c: 100 + i, v: 1000 }))
+    const drawn = (version) => {
+      const door = memberPaneDefinition({
+        source: [`//@version=${version}`, 'indicator("d", overlay=true)', 'if barstate.islast', '    label.new(bar_index, high, "x")', 'plot(close)'].join(LF) + LF,
+        id: `u_member-pane-c37bind${version}`, name: 'd',
+      })
+      expect(door.ok, door.reason).toBe(true)
+      const { installed, errors } = registry.installUserDefinitions([door.definition])
+      expect(errors).toEqual([])
+      const def = installed[0]
+      try {
+        const fake = createFakeChart()
+        const binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+        const cs = addInstance(mergeChartSettings({}), def.id, registry)
+        let state = null
+        binder.sync({
+          enabled: true, cs, instances: (cs.indicatorInstances || []).filter((i) => i.defId === def.id), registry,
+          bars: BARS, tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false,
+          adjustTime: (t) => t, applyData: (series, data) => series.setData(data), plan: { fresh: true },
+          resolvePlacement: () => ({ paneIndex: 1, scaleId: def.id, scaleOptions: {} }),
+          createObjectLayer: () => ({ set: (s) => { state = s }, clear: () => {} }),
+        })
+        binder.teardown()
+        return state.labels.map((l) => l.textcolor)
+      } finally { registry.uninstallUserDefinition(def.id) }
+    }
+    expect(drawn(5)).toEqual(['#363A45'])
+    expect(drawn(6)).toEqual(['#FFFFFF']) // v6: white, the base default
   }, 60000)
 
   it('⛔ only the (version, slot) pairs a capture shows — v6 and unknown versions are the base, untouched', () => {

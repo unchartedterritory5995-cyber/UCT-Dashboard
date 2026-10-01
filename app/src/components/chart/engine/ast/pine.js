@@ -15885,8 +15885,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐ C37 — a binding that settled on ONE colour is that colour wherever the
       // name is read: a `{c:'lit'}` depends on the binding and its scope alone
       // (never on the drawing, the loop or the runtime lane), so it is read once.
-      // A theme colour is named by dozens of drawings, and each read of an
-      // eleven-arm chain would walk the Resolver eleven times to no new answer.
+      // A script's theme colour is named by dozens of drawings (artemis: 48
+      // slots), and each read of an eleven-arm chain walks the Resolver eleven
+      // times to the answer it gave the first time.
       const seen = litByBinding.get(opened.node)
       if (seen && seen.env === opened.env) return seen.lit
       const c = colorNodeOf(opened.node, opened.env, depth + 1) || lateColourOf(node, scope, depth)
@@ -15919,9 +15920,16 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *    · a one-expression colour HELPER    its body with the call's arguments in
    *                                        place (`f_trendClr(bull, bear)`), then
    *                                        read like any other colour
-   *    · a constant-selected chain         `foldedObjectColourOf` (ruling 1)
    *
-   *  Anything else is `null`: the property is dropped and counted, as before. */
+   *  Anything else is `null`: the property is dropped and counted, as before.
+   *
+   *  ⛔ NOT HERE, and measured before it was left out: the plot lane's ruling-1
+   *  fold (a colour whose ternaries are selected by a translation-time constant,
+   *  read to the branch the default takes — `constantColourSelector`). Asked for
+   *  objects it changed ONE corpus script (ict-killzones: two cell fills reached
+   *  through a helper's parameter), and no capture grades those cells — they are
+   *  withheld. An unwitnessed reading is not served; it stays dropped, by name
+   *  (`cell.bgcolor@1050`, `@1052`). */
   const NA_OBJECT_COLOUR = '#00000000'
   const hostColourOf = (node, scope, depth) => {
     if (!node || depth > 12 || rawTrees) return null
@@ -15974,29 +15982,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (c) return c
       }
     }
-    // a colour that settles on ONE static value once its constant selectors fold
-    const folded = foldedColourAt(node, scope || scopeEnv)
-    return folded ? { c: 'lit', hex: folded } : null
-  }
-  /** The folded read, asked ONCE per (node, scope): the answer depends on nothing
-   *  else, a theme colour is referenced from dozens of drawings (artemis: 48
-   *  slots over a handful of chains), and every ask walks the Resolver. One
-   *  Resolver per scope, for the same reason. */
-  const foldResolvers = new Map()
-  const foldedMemo = new WeakMap()
-  const foldedColourAt = (node, env) => {
-    if (!node || typeof node !== 'object') return null
-    let byEnv = foldedMemo.get(node)
-    if (!byEnv) { byEnv = new Map(); foldedMemo.set(node, byEnv) }
-    if (byEnv.has(env)) return byEnv.get(env)
-    let out = null
-    try {
-      let r = foldResolvers.get(env)
-      if (!r) { r = makeResolver(env); foldResolvers.set(env, r) }
-      out = foldedObjectColourOf(node, env, { resolver: r, env, foldSelectors: { n: 0 } })
-    } catch { out = null }
-    byEnv.set(env, out)
-    return out
+    return null
   }
   const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
@@ -21946,35 +21932,6 @@ function staticObjectColourOf(node, env) {
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
   // ⭐ C20 — the one formula, shared with the object runtime's `{c:'new'}`.
   return withObjectTransparency(base[0], t)
-}
-
-/** ⭐⭐ C37 — `staticObjectColourOf` WITH THE RULING-1 FOLD: a colour whose
- *  ternaries are selected by a translation-time constant (an `input.string`
- *  default, a literal) and whose transparency is constant arithmetic, read to
- *  the branch the default takes — the SAME reading the plot lane has given such
- *  a colour since 2026-09-28 (`constantColourSelector`, `alphaNumberOf`), now
- *  asked for a drawing object too.
- *
- *  ⚰️ MEASURED on artemis-oscillator-pro (NYSE:RDDT 1D, 2026-09-28): its theme
- *  is `themeChoice == "Aurora" ? … : themeChoice == "Ember" ? … : …` over an
- *  `input.string`, and 48 of its drawn colour slots — 13 lines, 14 labels, six
- *  table frames and borders, 15 cells — wore the renderer's default where
- *  TradingView draws the Aurora branch.
- *
- *  ⛔ A FALLBACK ONLY: the object lane asks this after every reading it already
- *  had, so a colour it carried before keeps its node and its bytes.
- *  ⛔ A selector that reads a KNOB is never folded (`constantColourSelector`'s
- *  own rule) — it stays a per-bar condition, or stays uncarried.
- *  ⛔ The transparency comes from `colourHelperAlpha` UNDER THE SAME CONTEXT:
- *  `staticObjectColourOf`'s own (`colourTransparencyOf`) has none, would answer
- *  "unknown" for a folded colour, and the colour would paint SOLID. */
-function foldedObjectColourOf(node, env, ctx) {
-  const hex = staticColourOf(node, env, 0, ctx)
-  if (!hex) return null
-  const base = /^#[0-9a-f]{6}/i.exec(hex)
-  const a = colourHelperAlpha(node, env, ctx)
-  if (!base || a === null) return hex
-  return withObjectTransparency(base[0], Math.round((1 - a) * 100))
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.

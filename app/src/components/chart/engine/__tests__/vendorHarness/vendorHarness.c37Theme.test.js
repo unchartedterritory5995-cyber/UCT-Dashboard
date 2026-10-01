@@ -191,6 +191,7 @@ describe('C37 — through the chart binding: the objects repaint when the chart\
       const cs = addInstance(mergeChartSettings(settings), def.id, registry)
       const instances = (cs.indicatorInstances || []).filter((i) => i.defId === def.id)
       const states = []
+      const sigs = []
       const sync = (withCs) => binder.sync({
         enabled: true, cs: withCs, instances, registry, bars: BARS, tf: 'D',
         symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false,
@@ -198,13 +199,17 @@ describe('C37 — through the chart binding: the objects repaint when the chart\
         applyData: (series, data) => series.setData(data),
         plan: { fresh: true },
         resolvePlacement: () => ({ paneIndex: 1, scaleId: def.id, scaleOptions: {} }),
-        createObjectLayer: () => ({ set: (s) => { states.push(s) }, clear: () => {} }),
+        // the real layer repaints only when the SIGNATURE it is handed changes
+        createObjectLayer: () => ({ set: (s, sig) => { states.push(s); sigs.push(sig) }, clear: () => {} }),
       })
       sync(cs)
       // the SAME bars and program, the chart repainted
       sync({ ...cs, textColor: '#101010', background: '#fafafa' })
       binder.teardown()
-      return states.filter(Boolean).map((s) => s.labels.map((l) => [l.color, l.textcolor]))
+      return {
+        drawn: states.filter(Boolean).map((s) => s.labels.map((l) => [l.color, l.textcolor])),
+        sigs,
+      }
     } finally {
       registry.uninstallUserDefinition(def.id)
     }
@@ -212,9 +217,12 @@ describe('C37 — through the chart binding: the objects repaint when the chart\
 
   it('⭐ the label wears the chart\'s background and foreground, and follows a change of either', () => {
     const got = drawn({ textColor: '#706b5e', background: '#17181a' })
-    expect(got).toEqual([
+    expect(got.drawn).toEqual([
       [['#17181A', '#706B5E']],
       [['#FAFAFA', '#101010']],
     ])
+    // ⛔ and the layer is TOLD it changed: same bars, same program, a new signature
+    expect(got.sigs.length).toBe(2)
+    expect(got.sigs[0]).not.toBe(got.sigs[1])
   }, 60000)
 })
