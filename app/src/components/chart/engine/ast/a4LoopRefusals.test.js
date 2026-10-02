@@ -228,7 +228,8 @@ describe('a4 — a retired loop form refuses AT ITS OWN LINE', () => {
   //
   it('⭐ CORPUS / R6 — all 13 owed `for x in` uses are refused EARLIER, so none can test the loop line', () => {
     const CASES = [
-      ['ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine', 'pine:declaration-strategy'],
+      // C50: the chart door reads a strategy's declaration now; the next wall, still before the loop, is the request.
+      ['ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48.pine', 'pine:request'],
       ['ict-killzones-pivots-tfo__d0b8be94f1.pine', 'pine:constant-only'],
       ['volume-footprint-measuring-classical-indicators-by-math-geometry-intro__e15e52b27d.pine', 'pine:module'],
       ['multi-timeframe-supply-demand-zones__a98a2ab367.pine', 'pine:objects-only'],

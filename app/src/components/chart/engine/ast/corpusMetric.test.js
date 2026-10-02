@@ -118,6 +118,12 @@ describe('the committed corpus, both lanes', () => {
     // …and the lanes are not the same question: the screener is the looser one, so
     // it must clear at least as many as the host. If this ever inverts, one of the
     // two lanes is not what its name says.
-    expect(screenerOk).toBeGreaterThanOrEqual(hostOk)
+    // ⭐ C50 (2026-10-02): ONE deliberate exception - a STRATEGY draws on the chart (the host
+    // lane reads its plots) and is still refused by the screener (a backtest is not a screen).
+    // Those rows are taken out of the host count before the comparison; nothing else is.
+    const strategyOnlyHost = rows.filter((r) => r.host && !r.screener
+      && (r.screenerGuards || []).includes('pine:declaration-strategy')).length
+    expect(strategyOnlyHost).toBeGreaterThan(0)
+    expect(screenerOk).toBeGreaterThanOrEqual(hostOk - strategyOnlyHost)
   })
 })

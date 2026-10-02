@@ -1,7 +1,7 @@
 {
-  "measured_at": "2026-10-01",
+  "measured_at": "2026-10-02",
   "scripts": 266,
-  "host_ok": 58,
+  "host_ok": 64,
   "screener_ok": 58,
   "threw": [
     "smart-money-breakouts-chartprime__ea79c79a67.pine"
@@ -36,7 +36,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:statement",
         "pine:strategy-call"
       ],
@@ -103,7 +102,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:request",
         "pine:block",
         "pine:hidden-only",
@@ -169,7 +167,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:state",
         "pine:block",
         "pine:strategy-call"
@@ -228,7 +225,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:statement"
       ],
       "screenerGuards": [
@@ -421,7 +417,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:strategy-call"
       ],
       "screenerGuards": [
@@ -845,10 +840,10 @@
     },
     {
       "file": "flawless-victory-strategy__1BVZuaaWOU.pine",
-      "host": false,
+      "host": true,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy"
+        "pine:constant-only"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"
@@ -912,7 +907,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:module",
         "pine:strategy-call",
         "pine:request"
@@ -966,7 +960,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:function"
       ],
       "screenerGuards": [
@@ -1094,10 +1087,9 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:strategy-call",
         "pine:arity",
-        "pine:tuple"
+        "pine:tuple",
+        "pine:strategy-call"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
@@ -1204,7 +1196,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy"
+        "pine:no-output"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"
@@ -1288,11 +1280,9 @@
     },
     {
       "file": "macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:declaration-strategy"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy"
       ]
@@ -1352,7 +1342,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:module",
         "pine:type",
         "pine:builtin",
@@ -1571,7 +1560,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:request"
       ],
       "screenerGuards": [
@@ -1718,12 +1706,9 @@
     },
     {
       "file": "optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:strategy-call"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:builtin",
@@ -1735,7 +1720,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:function-def",
         "pine:hidden-only"
       ],
@@ -1836,7 +1820,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:state"
       ],
       "screenerGuards": [
@@ -2092,9 +2075,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:arity",
-        "pine:strategy-call"
+        "pine:arity"
       ],
       "screenerGuards": [
         "pine:declaration-strategy",
@@ -2114,7 +2095,7 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy"
+        "pine:no-output"
       ],
       "screenerGuards": [
         "pine:declaration-strategy"
@@ -2367,7 +2348,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:strategy-call"
       ],
       "screenerGuards": [
@@ -2458,7 +2438,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:state",
         "pine:hidden-only"
       ],
@@ -2564,7 +2543,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:request",
         "pine:strategy-call",
         "pine:hidden-only"
@@ -2589,12 +2567,9 @@
     },
     {
       "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:strategy-call"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:strategy-call"
@@ -2602,12 +2577,9 @@
     },
     {
       "file": "tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:strategy-call"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:strategy-call"
@@ -2618,7 +2590,6 @@
       "host": false,
       "screener": false,
       "hostGuards": [
-        "pine:declaration-strategy",
         "pine:module",
         "pine:block",
         "pine:strategy-call"
@@ -2939,12 +2910,9 @@
     },
     {
       "file": "vwap-fibo-dev-extensions-strategy__mR2vfyGjUv.pine",
-      "host": false,
+      "host": true,
       "screener": false,
-      "hostGuards": [
-        "pine:declaration-strategy",
-        "pine:strategy-call"
-      ],
+      "hostGuards": [],
       "screenerGuards": [
         "pine:declaration-strategy",
         "pine:function",

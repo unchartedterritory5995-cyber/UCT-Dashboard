@@ -225,6 +225,18 @@ export function servableTimeframesText(codes = TF_RESAMPLABLE) {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+/** ⭐ C50 - the order calls a strategy makes. On the chart they are the simulated broker's
+ *  and draw nothing of their own, so the chart door skips them (with a note); anything else
+ *  in the `strategy` namespace - a VALUE such as `strategy.position_size` - stays refused. */
+export const STRATEGY_ORDER_CALLS = Object.freeze(new Set(['strategy.entry', 'strategy.exit', 'strategy.close',
+  'strategy.close_all', 'strategy.order', 'strategy.cancel', 'strategy.cancel_all',
+  'strategy.risk.allow_entry_in', 'strategy.risk.max_cons_loss_days', 'strategy.risk.max_drawdown',
+  'strategy.risk.max_intraday_filled_orders', 'strategy.risk.max_intraday_loss', 'strategy.risk.max_position_size']))
+const STRATEGY_CHART_NOTE = 'a strategy draws its plots, fills and drawings like an indicator; its orders, '
+  + 'fills and backtest are not simulated here, so its trade markers and any strategy.* value are not drawn'
+const STRATEGY_ORDER_NOTE = (word) => `\`${word}\` places an order in TradingView's simulated broker - it draws `
+  + 'nothing of its own on the chart, and the trade it would make is not simulated here'
+
 export const REFUSALS = Object.freeze({
   'pine:empty':
     'there is no Pine here to translate',
@@ -239,7 +251,7 @@ export const REFUSALS = Object.freeze({
   'pine:module':
     'importing another script pulls in code this engine never sees',
   'pine:strategy-call':
-    'an order-placing call answers with no value a screen could filter',
+    'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
   // column reads". BOTH are inside it: this very door emits `sym` and `tf`. What
   // it actually fires on is a request this door could not RESOLVE — a computed
@@ -22275,6 +22287,21 @@ function translatePineResult(source, opts = {}) {
       continue
     }
     if (word === 'strategy' && isPunct(toks[1], '(') && toks.some((t) => t.kind === 'string')) {
+      // ⭐⭐ C50 (2026-10-02) - A STRATEGY DRAWS ON A CHART. On TradingView a strategy's plots,
+      // fills, shapes and drawings are drawn exactly as an indicator's; what it ADDS is a
+      // simulated broker (orders, fills, the trade markers and the strategy.* values). The
+      // CHART door (host lane) therefore reads the declaration as an indicator's - title and
+      // overlay - and leaves the broker out: order calls are skipped with a note below, and a
+      // `strategy.*` VALUE stays refused by name (NAMESPACE_GUARD) because it is a fill this
+      // engine never simulates. ⛔ The SCREENER lane still refuses: a backtest is not a screen.
+      if (isHostLane(opts)) {
+        declaration = 'strategy'
+        const firstString = toks.find((t) => t.kind === 'string')
+        title = firstString ? firstString.value : null
+        overlay = declarationOverlay(toks)
+        notes.push(noteOf('pine:strategy-chart', STRATEGY_CHART_NOTE, first))
+        continue
+      }
       hardRefusals.push(refusalValue('pine:declaration-strategy',
         REFUSALS['pine:declaration-strategy'], locate(first)))
       continue
@@ -22887,6 +22914,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       if (ns === 'strategy') {
+        // ⭐ C50 - on the CHART door an order call is the simulated broker's, and draws
+        // nothing of its own: skipped, and said so. The screener still refuses it.
+        if (isHostLane(opts) && STRATEGY_ORDER_CALLS.has(word)) {
+          notes.push(noteOf('pine:strategy-order', STRATEGY_ORDER_NOTE(word), first))
+          continue
+        }
         hardRefusals.push(refusalValue('pine:strategy-call',
           `${REFUSALS['pine:strategy-call']} — \`${word}\``, locate(first)))
         continue
