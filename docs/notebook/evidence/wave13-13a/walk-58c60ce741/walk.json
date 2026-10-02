@@ -1,0 +1,152 @@
+{
+ "wave": 13,
+ "lane": "13A",
+ "checks": {
+  "P0_gate_and_identity": {
+   "verdict": "PASS",
+   "payload_flag": true
+  },
+  "P1_make_a_plan_note_by_keyboard": {
+   "verdict": "PASS",
+   "note": "abcdb4e420de46f7b4d81e5dfbb4f125",
+   "saved_at": "2026-10-02T23:40:32.578211+00:00",
+   "ticker": "NVDA",
+   "screenshot": "p1-plan-note-1200.jpg",
+   "how": "note created empty over the member's API, plan typed in the editor"
+  },
+  "P2_log_a_matching_trade": {
+   "verdict": "PASS",
+   "status": 200,
+   "trade": "6d698b05-2c21-4ae6-89d1-62a63621b8e6",
+   "entry": "2026-10-02 19:41 ET",
+   "plan_saved_at": "2026-10-02T23:40:32.578211+00:00",
+   "how": "logged over the member's API (the trade is the input; the walk is about the grade)"
+  },
+  "P3_see_the_grade_1200": {
+   "verdict": "PASS",
+   "card": {
+    "text": "Plan vs execution Plan note · written before entry · NVDA plan r183958 · 1R = 4.00 Entry Kept Planned 100.00 · filled 100.40 (+0.10R) Stop Honoured Stop 96.00 · exit 110.00 · line 95.00 Size Kept Planned 100 · entered 100 (0.0%) Target — Target 120.00 · the best price reached is computed overnight. Frozen when it was first matched. Editing the plan does not change this grade. Write review note Re-link",
+    "checks": {
+     "entry": "Entry Kept Planned 100.00 · filled 100.40 (+0.10R)",
+     "stop": "Stop Honoured Stop 96.00 · exit 110.00 · line 95.00",
+     "size": "Size Kept Planned 100 · entered 100 (0.0%)",
+     "target": "Target — Target 120.00 · the best price reached is computed overnight."
+    }
+   },
+   "status": "planned",
+   "plan": {
+    "entry": 100.0,
+    "stop": 96.0,
+    "target": 120.0,
+    "shares": 100.0,
+    "matchTier": "window",
+    "matchedAt": "2026-10-02T23:41:02.640828+00:00"
+   },
+   "checks": {
+    "entry": "kept",
+    "stop": "kept",
+    "size": "kept",
+    "target": "unknown"
+   },
+   "screenshot": "p3-grade-1200.jpg"
+  },
+  "P4_edit_the_plan_afterwards_grade_unchanged": {
+   "verdict": "PASS",
+   "note_now_says_130": true,
+   "api_entry_after": 100.0,
+   "matched_at_before": "2026-10-02T23:41:02.640828+00:00",
+   "matched_at_after": "2026-10-02T23:41:02.640828+00:00",
+   "card_identical": true,
+   "screenshots": [
+    "p4-plan-edited.jpg",
+    "p4-grade-after-edit.jpg"
+   ]
+  },
+  "P5_unplanned_trade_flagged": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"unplanned-chip\").first to be visible\n",
+   "traceback": "\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"unplanned-chip\").first to be visible\n\n"
+  },
+  "P6_discipline_record_1200": {
+   "verdict": "PASS",
+   "text": "Discipline record Last 20 Last 60 2 closed trades: 1 planned, 1 unplanned. Plan checks over the last 20 closed trades Check How often Trades with a plan too few to judge Entry kept too few to judge Stop honoured too few to judge Size kept too few to judge Target hit no graded trades Followed the whole plan too few to judge",
+   "screenshot": "p6-discipline-1200.jpg"
+  },
+  "P7_keyboard_relink": {
+   "verdict": "PASS",
+   "tabs_to_reach": 44,
+   "aria_expanded": "true",
+   "screenshot": "p7-keyboard-relink.jpg"
+  },
+  "P8_phone_390": {
+   "verdict": "INCONCLUSIVE",
+   "reason": "exception: TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"unplanned-chip\").first to be visible\n",
+   "traceback": "\\Python314\\site-packages\\playwright\\sync_api\\_generated.py\", line 18074, in wait_for\n    self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))\n    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"unplanned-chip\").first to be visible\n\n"
+  },
+  "P9_no_page_errors": {
+   "verdict": "PASS",
+   "errors": []
+  }
+ },
+ "errors": [],
+ "requests": [
+  "GET /api/j2/plan-grades/trades/6d698b05-2c21-4ae6-89d1-62a63621b8e6",
+  "GET /api/j2/plan-grades/trades/6d698b05-2c21-4ae6-89d1-62a63621b8e6",
+  "GET /api/j2/plan-grades/trades/bd351003-120f-4570-bc27-7726cdac90db",
+  "GET /api/j2/plan-grades/discipline?accountId=85b7ec49-3753-41e1-8938-8f62070e2dfa",
+  "GET /api/j2/plan-grades/trades/6d698b05-2c21-4ae6-89d1-62a63621b8e6"
+ ],
+ "tip": "58c60ce741",
+ "base": "http://127.0.0.1:8600",
+ "data_dir": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data",
+ "instrument": "tools\\notebook_w13a_plan_grade_walk.py",
+ "gate_source": "the sandbox's auth payload (row P0 payload_flag)",
+ "sandbox_identity": {
+  "ok": true,
+  "sentence": "http://127.0.0.1:8600 proved it is the sandbox that writes C:\\Users\\Patrick\\uct-worktrees\\notebook-w13a\\docs\\plans\\joystick\\sandbox-runs\\2026-10-02T18-38-11.md (identity 6708f102f988..., data dir C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\w13a-data)"
+ },
+ "run": "r183958",
+ "accounts": {
+  "member": "w13a-member-r183958@local.dev",
+  "admin": "hubtest@local.dev"
+ },
+ "prewarm_checkpoint_reached": true,
+ "stop": "FORCED after 120 s without a graceful exit",
+ "first_line": "SANDBOX INTEGRITY: INCOMPLETE -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, post-prewarm (+120s) CLEAN; 62 db files hashed; no checkpoint 'shutdown'; log: docs\\notebook\\evidence\\wave13-13a\\walk-58c60ce741\\walk.integrity.md",
+ "integrity": {
+  "path": "docs\\notebook\\evidence\\wave13-13a\\walk-58c60ce741\\walk.integrity.md",
+  "required": [
+   "pre-boot (baseline)",
+   "post-boot (+15s)",
+   "post-prewarm (+120s)",
+   "shutdown"
+  ],
+  "checkpoints": [
+   {
+    "label": "pre-boot (baseline)",
+    "at": "2026-10-02 18:38:23",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-boot (+15s)",
+    "at": "2026-10-02 18:39:56",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   },
+   {
+    "label": "post-prewarm (+120s)",
+    "at": "2026-10-02 18:41:53",
+    "root": "C:\\data",
+    "db_files": 62,
+    "verdict": "CLEAN"
+   }
+  ],
+  "status": "INCOMPLETE",
+  "clean": false,
+  "why": "no checkpoint 'shutdown'"
+ },
+ "not_run": null
+}
