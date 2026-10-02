@@ -453,7 +453,7 @@
    "method": "GET",
    "path": "/api/stream/prices",
    "kind": "open",
-   "reason": "NOT GATED - BLOCKED: the live price SSE is opened by the FREE page for a free member (hub/HubContext.jsx:278; TickerPopup.jsx:126 on /morning-wire) AND, with no session, by the Discord Activity (/r/activity -> ChartDayGain.jsx:28 -> lib/priceStreamManager.js:144). A paid gate breaks the free page; a member-tier gate blanks the Activity's day-gain. Needs an owner call on the Activity (or an Activity token) first."
+   "reason": "NOT GATED - BLOCKED: the live price SSE is opened, with no session, by the Discord Activity (/r/activity -> ChartDayGain.jsx:28 -> lib/priceStreamManager.js:144), and by paid pages (hub/HubContext.jsx:278; TickerPopup.jsx:126). Until 2026-10-02 the FREE page (/morning-wire) opened it too; the 'everything is paywall' ruling removed that reader. A member-tier or paid gate still blanks the Activity's day-gain. Needs an owner call on the Activity (or an Activity token) first."
   },
   {
    "method": "GET",

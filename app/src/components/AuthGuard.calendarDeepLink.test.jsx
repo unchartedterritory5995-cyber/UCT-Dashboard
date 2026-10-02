@@ -63,6 +63,10 @@ function renderAt(path) {
           <Route path="/calendar" element={<CurrentUrl />} />
           <Route path="/research/:sym" element={<ResearchPage />} />
         </Route>
+        {/* OUTSIDE the guard, as in App.jsx: the upgrade screen a non-paid
+            member is bounced to since the 2026-10-02 "everything is paywall"
+            ruling emptied FREE_PAGES (the Wire was the bounce target before). */}
+        <Route path="/subscribe" element={<div data-testid="upgrade">Upgrade</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -78,7 +82,7 @@ describe('AuthGuard — /calendar?earnings= deep link (free tier)', () => {
     auth.isPaid = false
     renderAt('/calendar?earnings=NVDA')
     expect(await screen.findByText(/Unlock NVDA Research/i)).toBeInTheDocument()
-    expect(screen.queryByTestId('morning-wire')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('upgrade')).not.toBeInTheDocument()
   })
 
   it('free user with lowercase ?earnings=nvda still resolves (case-insensitive, matches calendar\'s own param handling)', async () => {
@@ -87,10 +91,10 @@ describe('AuthGuard — /calendar?earnings= deep link (free tier)', () => {
     expect(await screen.findByText(/Unlock NVDA Research/i)).toBeInTheDocument()
   })
 
-  it('free user with NO param keeps today\'s behaviour — plain bounce to /morning-wire', async () => {
+  it('free user with NO param keeps today\'s behaviour — plain bounce to the upgrade screen', async () => {
     auth.isPaid = false
     renderAt('/calendar')
-    expect(await screen.findByTestId('morning-wire')).toBeInTheDocument()
+    expect(await screen.findByTestId('upgrade')).toBeInTheDocument()
   })
 
   it('paid user hitting /calendar?earnings=NVDA is completely unaffected — stays on /calendar with the param intact', async () => {
@@ -107,22 +111,22 @@ describe('AuthGuard — /calendar?earnings= deep link (free tier)', () => {
     auth.user = { role: 'user', email_verified: true } // restore for later tests
   })
 
-  it('a path-traversal-shaped param degrades safely — no navigation into /research/.., falls back to /morning-wire', async () => {
+  it('a path-traversal-shaped param degrades safely — no navigation into /research/.., falls back to the upgrade screen', async () => {
     auth.isPaid = false
     renderAt('/calendar?earnings=' + encodeURIComponent('../settings'))
-    expect(await screen.findByTestId('morning-wire')).toBeInTheDocument()
+    expect(await screen.findByTestId('upgrade')).toBeInTheDocument()
     expect(screen.queryByText(/Unlock/i)).not.toBeInTheDocument()
   })
 
-  it('a markup-shaped garbage param degrades safely — falls back to /morning-wire', async () => {
+  it('a markup-shaped garbage param degrades safely — falls back to the upgrade screen', async () => {
     auth.isPaid = false
     renderAt('/calendar?earnings=' + encodeURIComponent('<script>alert(1)</script>'))
-    expect(await screen.findByTestId('morning-wire')).toBeInTheDocument()
+    expect(await screen.findByTestId('upgrade')).toBeInTheDocument()
   })
 
-  it('a numeric (non-ticker-shaped) param degrades safely — falls back to /morning-wire', async () => {
+  it('a numeric (non-ticker-shaped) param degrades safely — falls back to the upgrade screen', async () => {
     auth.isPaid = false
     renderAt('/calendar?earnings=12345')
-    expect(await screen.findByTestId('morning-wire')).toBeInTheDocument()
+    expect(await screen.findByTestId('upgrade')).toBeInTheDocument()
   })
 })

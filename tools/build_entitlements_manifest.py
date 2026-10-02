@@ -156,7 +156,11 @@ def _free_pages_value() -> list[str]:
     m = _FREE_PAGES_RE.search(code)
     assert m, "no FREE_PAGES array literal found in constants/freePages.js"
     values = json.loads(m.group(1).replace("'", '"'))
-    assert isinstance(values, list) and values, "FREE_PAGES parsed empty"
+    # ⭐ EMPTY IS NOW THE TRUE VALUE (owner ruling 2026-10-02, TERM-081 / OI-12,
+    # "everything is paywall"). The non-vacuity this line used to carry
+    # ("parsed empty" was an error) moved to the regex match above: an array
+    # LITERAL must still be found, so an unreadable file still fails loudly.
+    assert isinstance(values, list), "FREE_PAGES did not parse as an array"
     return values
 
 
@@ -164,7 +168,7 @@ def _free_pages_value() -> list[str]:
 #: specifier differs per consumer's depth (`../constants/freePages` vs
 #: `../../constants/freePages`), so this matches the tail common to both.
 _FREE_PAGES_IMPORT_RE = re.compile(
-    r"import\s*\{\s*FREE_PAGES\s*\}\s*from\s*['\"][./]*constants/freePages['\"]")
+    r"import\s*\{\s*FREE_PAGES\s*(?:,[^}]*)?\}\s*from\s*['\"][./]*constants/freePages['\"]")
 
 
 def _free_pages_consumer_entry(path: pathlib.Path) -> dict:

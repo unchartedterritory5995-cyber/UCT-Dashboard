@@ -16,8 +16,9 @@
 // not — so the one deliberate gap stays a documented, verified fact instead
 // of a silent landmine the next person re-derives by hand.
 export const NAV_GROUPS = [
-  // routes[0] = the group's primary navigable target; home also contributes
-  // routes[1] as the free-tier Wire entry (/morning-wire) — see navigableTargets().
+  // routes[0] = the group's primary navigable target. `/morning-wire` is a
+  // match-prefix here only (it lights Home); it is NOT a free-tier tab — there
+  // is no free tier (owner ruling 2026-10-02, TERM-081 / OI-12).
   { key: 'home', label: 'Home', icon: 'dashboard', routes: ['/calendar', '/morning-wire', '/charts'] },
   { key: 'markets', label: 'Markets', icon: 'markets',
     routes: ['/dashboard', '/breadth', '/options-flow', '/flow-scoreboard', '/live-massive', '/dark-pool',
@@ -30,17 +31,13 @@ export const NAV_GROUPS = [
 
 // The full set of `to` targets a consumer actually navigates a user to,
 // derived from NAV_GROUPS rather than hand-typed. Every group contributes
-// its first route (the rule the retired tab bar's map followed);
-// `home` additionally contributes its SECOND route because the tab bar
-// splits it into two mutually-exclusive tabs — paid users get `/dashboard`,
-// free users get `/morning-wire` (the free tier's only page) — never both at
-// once, but both are real navigation targets across the two tiers. Every
-// other route in every group (e.g. `/catalysts`) is a match-prefix only.
+// its first route (the rule the retired tab bar's map followed). Every other
+// route in every group (e.g. `/catalysts`) is a match-prefix only.
+//
+// ⚰️ Until 2026-10-02 `home` ALSO contributed routes[1], `/morning-wire`, as
+// the free tier's own tab (free members got the Wire, paid members the
+// Dashboard). The owner ruled "everything is paywall": there is no free tab,
+// so there is no second home target.
 export function navigableTargets() {
-  const out = []
-  for (const g of NAV_GROUPS) {
-    out.push(g.routes[0])
-    if (g.key === 'home') out.push(g.routes[1])
-  }
-  return out
+  return NAV_GROUPS.map((g) => g.routes[0])
 }
