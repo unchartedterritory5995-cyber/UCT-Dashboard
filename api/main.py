@@ -9035,6 +9035,8 @@ from api.routers import seasonality as seasonality_router  # noqa: E402  (COV-01
 app.include_router(seasonality_router.router)
 from api.routers import filing_blackline as filing_blackline_router  # noqa: E402  (COV-04, dark)
 app.include_router(filing_blackline_router.router)
+from api.routers import web_push as web_push_router  # noqa: E402  (BRK-04, dark)
+app.include_router(web_push_router.router)
 app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router, dependencies=_OPEN_READS)
 app.include_router(ticker_logos_router.router, dependencies=_OPEN_READS)
@@ -11275,6 +11277,16 @@ if os.path.exists(DIST):
     @app.get("/sw.js", include_in_schema=False)
     def _serve_sw():
         return FileResponse(os.path.join(DIST, "sw.js"), media_type="application/javascript; charset=utf-8")
+
+    # BRK-04 Web Push worker (app/public/push-sw.js). push + notificationclick
+    # ONLY -- no fetch handler, no caching -- registered at scope /push/. A
+    # separate file from /sw.js (the legacy kill switch) by design. Without
+    # this route the SPA catch-all would hand the browser index.html.
+    @app.get("/push-sw.js", include_in_schema=False)
+    def _serve_push_sw():
+        return FileResponse(os.path.join(DIST, "push-sw.js"),
+                            media_type="application/javascript; charset=utf-8",
+                            headers={"Cache-Control": "no-cache"})
 
     @app.get("/favicon.svg", include_in_schema=False)
     def _serve_favicon():
