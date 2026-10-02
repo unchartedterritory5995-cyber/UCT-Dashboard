@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import { searchFloor } from '../../../lib/chatStreamManager'
 import styles from '../Community.module.css'
+import Input from '../../../components/ui/Input'
 
 function ago(epoch) {
   if (!epoch) return ''
@@ -37,7 +38,7 @@ export default function FloorSearch({ onOpenChannel, onOpenThread }) {
       {open && (
         <div className={styles.inbox}>
           <div className={styles.searchBox}>
-            <input autoFocus className={styles.searchInput} placeholder="Search the floor…"
+            <Input aria-label="Search the floor" autoFocus className={styles.searchInput} placeholder="Search the floor…"
               value={q} onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }} />
           </div>
