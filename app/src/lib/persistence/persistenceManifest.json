@@ -295,7 +295,8 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/hooks/useAppFocus.js",
-        "app/src/pages/charts/ChartsWorkspace.jsx"
+        "app/src/pages/charts/ChartsWorkspace.jsx",
+        "app/src/pages/terminal/useTerminalLayout.js"
       ]
     },
     {
@@ -515,6 +516,18 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/hooks/useTagColors.js"
+      ]
+    },
+    {
+      "key": "terminal_layout",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "setting",
+      "label": "Terminal panel layout and each panel's function",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/useTerminalLayout.js"
       ]
     },
     {
@@ -2268,6 +2281,17 @@
       ]
     },
     {
+      "key": "uct.terminal.history",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Terminal command history",
+      "files": [
+        "app/src/pages/terminal/CommandLine.jsx"
+      ]
+    },
+    {
       "key": "uct.themePerf.v1",
       "store": "localStorage",
       "scope": "device-local",
@@ -2299,6 +2323,17 @@
       "surface": "Breadth",
       "kind": "setting",
       "label": "Drill-down list columns",
+      "files": [
+        "app/src/pages/Watchlists.jsx"
+      ]
+    },
+    {
+      "key": "uct.watchlist.cols.listSub",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "setting",
+      "label": "Watchlist columns for a subscribed scan list",
       "files": [
         "app/src/pages/Watchlists.jsx"
       ]

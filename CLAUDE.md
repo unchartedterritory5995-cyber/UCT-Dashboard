@@ -58,7 +58,16 @@ node tools/nav_manifest.mjs --self-check
 ```
 
 Derived by **acorn AST** from `NAV_ITEMS` in `app/src/components/NavBar.jsx:19`
-on **2026-09-21**. Regenerate after any change to that array.
+on **2026-10-02**. Regenerate after any change to that array.
+
+⭐ **UCT Terminal (TERMINAL-NEXT, 2026-10-02, cohort-gated).** The entry's `to` is still
+`/calendar`. For a member the `terminal-next` cohort admits (`TERMINAL_NEXT_ENABLED` + a
+`user_tags` row), `/calendar` redirects into the shell at `/terminal/calendar`, query
+string kept, so the entry lands in the shell; everyone else gets today's page, and the
+shell's own routes (`/terminal`, `/terminal/calendar`) send them back to `/calendar`.
+`nav_manifest.mjs` lists those two routes under a declared exclusion for that reason.
+The literal `to` becomes `/terminal` at graduation, when `viewportLockedRoutes.test.js`
+gets the measurement it requires for a new NavBar route. Code: `app/src/pages/terminal/`.
 
 | label | route |
 |---|---|
@@ -85,7 +94,7 @@ on **2026-09-21**. Regenerate after any change to that array.
 **19 entries** (was 18 — `/portfolio-heat` added 2026-09-21, A14 CP1: a real member
 door on `portfolio_heat.py`'s already-computed risk numbers, paid-gated the normal
 way per G1's "no free tier, only paid" answer). Every one resolves to a
-registered route (`navWithoutRoute = 0` against 89 routes in `App.jsx`) — so the
+registered route (`navWithoutRoute = 0` against 92 routes in `App.jsx`, 2026-10-02) — so the
 **phantom-entry defect this section used to commit is currently absent**, and the
 generator is what keeps saying so.
 

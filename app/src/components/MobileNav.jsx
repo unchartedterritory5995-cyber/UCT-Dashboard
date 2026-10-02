@@ -21,6 +21,7 @@ const ROUTE_TITLES = {
   '/breadth': 'Breadth',
   '/charts': 'Charts',
   '/calendar': 'UCT Terminal',
+  '/terminal': 'UCT Terminal',
   '/screener': 'Screener',
   '/options-flow': 'Options Flow',
   '/dark-pool': 'Dark Pool',
