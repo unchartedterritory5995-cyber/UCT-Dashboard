@@ -213,6 +213,9 @@ NOT_REHEARSED = {
     "NOTEBOOK_TRADE_CANVAS_ENABLED": "dark (wave 11 11D): the trade-plan canvas note (schema level 3, "
                                      "NEVER-REVERT); no route of its own, only the doors that make "
                                      "a canvas",
+    # Wave 13 lane 13C.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
+                                      "one-click earnings prep note; waits for its real-browser walk",
 }
 
 

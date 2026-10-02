@@ -176,6 +176,10 @@ NOTEBOOK_FLAGS = {
     # (journal_two/template_gallery.enabled) reads the same variable through
     # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
+    # Wave 13 lane 13C: earnings prep (Reporting soon + a one-click prep note). The router's
+    # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_earnings_prep_enabled`.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with

@@ -1,0 +1,128 @@
+/* Wave 13 lane 13C: Reporting soon on Research Home. Same section and row idiom as
+   ResearchHome.module.css; the action is a real button with the 44px floor on touch. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 820px;
+  margin-bottom: 24px;
+}
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.scope {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.quiet,
+.note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-danger, #f87171);
+}
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-height: 44px;
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+}
+.main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  flex: 1;
+}
+.symbol {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ut-gold);
+  text-decoration: none;
+}
+.symbol:hover,
+.symbol:focus-visible {
+  text-decoration: underline;
+}
+.when {
+  font-size: 12.5px;
+  color: var(--text-bright);
+}
+.chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.chip {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 12.5px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.action:hover:not(:disabled) {
+  border-color: rgba(220, 187, 94, 0.5);
+}
+.action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.primary {
+  border-color: rgba(220, 187, 94, 0.45);
+}
+
+@media (max-width: 1024px) {
+  .action,
+  .symbol {
+    min-height: var(--tap-min, 44px);
+  }
+  .symbol {
+    display: inline-flex;
+    align-items: center;
+  }
+}

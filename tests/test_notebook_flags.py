@@ -41,6 +41,8 @@ NOTEBOOK_KEYS = [
     "notebook_trade_canvas_enabled",
     # Wave 12 lane 12A: the community template gallery — an enablement gate.
     "notebook_template_gallery_enabled",
+    # Wave 13 lane 13C: earnings prep (Reporting soon) — an enablement gate.
+    "notebook_earnings_prep_enabled",
 ]
 
 

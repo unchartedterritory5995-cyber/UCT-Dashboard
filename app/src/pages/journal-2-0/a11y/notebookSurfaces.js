@@ -90,6 +90,9 @@ export const SURFACES = Object.freeze({
   // sets a note's History lists; rail a11y/aiActions.a11y.test.jsx (request, review, applied).
   'components/notebook/AiActionsPanel.jsx': { recipe: 'ai-actions-review' },
   'components/notebook/AiChangeSetHistory.jsx': { recipe: 'ai-change-set-history' },
+  // Wave 13 lane 13C: Reporting soon on Research Home (dark behind
+  // notebook_earnings_prep_enabled); rail a11y/earningsPrep.a11y.test.jsx.
+  'components/notebook/ReportingSoon.jsx': { recipe: 'reporting-soon' },
 
   // ── the editor's side sections ─────────────────────────────────────────────
   'components/notebook/PropertiesSection.jsx': { coveredBy: 'editor-thesis' },
