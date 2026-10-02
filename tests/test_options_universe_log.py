@@ -26,7 +26,9 @@ def rec(occ, und, exp, strike, typ, *, oi=10, iv=0.3, px=100.0):
             "open_interest": oi, "implied_volatility": iv,
             "greeks": {"delta": 0.5, "gamma": 0.1, "theta": -0.02, "vega": 0.12},
             "last_quote": {"bid": 1.0, "ask": 1.2}, "last_trade": {"price": 1.1},
-            "day": {"volume": 5, "vwap": 1.05}, "underlying_asset": {"ticker": und, "price": px}}
+            # the UNIVERSAL snapshot's shape: `session.volume`, no `day` (see the fixture
+            # tests/fixtures/massive_options_log/unified_snapshot_docs_sample.json)
+            "session": {"volume": 5}, "underlying_asset": {"ticker": und, "price": px}}
 
 
 # ── one record, one row ─────────────────────────────────────────────────────────

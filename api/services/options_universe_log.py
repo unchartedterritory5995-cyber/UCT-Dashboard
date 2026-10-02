@@ -61,6 +61,10 @@ _ET = ZoneInfo("America/New_York")
 CONTRACT_FIELDS = ("contract", "underlying", "expiration", "strike", "type",
                    "open_interest", "iv", "delta", "gamma", "theta", "vega",
                    "bid", "ask", "last", "volume", "vwap", "underlying_price")
+#: Numeric columns whose fill count the manifest records. `vwap` is excluded: the
+#: universal snapshot has no day vwap, so it is blank by construction.
+COUNTED_FIELDS = ("open_interest", "iv", "delta", "gamma", "theta", "vega", "bid", "ask",
+                  "last", "volume", "underlying_price")
 UNDERLYING_FIELDS = ("underlying", "contracts", "call_oi", "put_oi", "underlying_price",
                      "atm_iv", "atm_expiration", "atm_strike", "atm_dte",
                      "front_expiration", "front_dte", "front_strike", "front_straddle")
@@ -81,8 +85,38 @@ def _mid(bid, ask):
     return (bid + ask) / 2.0
 
 
+def _volume(sess: dict):
+    """The session's contract volume, or None when the vendor sent none.
+    `volume` is the integer; `decimal_volume` is the same figure as a string, read
+    only when the integer is missing. ⛔ An absent volume is None (a blank cell),
+    NEVER 0: a zero would read as "nothing traded" and poison every average."""
+    v = _num(sess.get("volume"))
+    if v is not None:
+        return v
+    dv = sess.get("decimal_volume")
+    if isinstance(dv, str) and dv.strip():
+        try:
+            f = float(dv)
+        except ValueError:
+            return None
+        return int(f) if f.is_integer() else f
+    return None
+
+
 def contract_row(x: dict) -> Optional[dict]:
-    """One snapshot record -> one CSV row, or None when it names no contract."""
+    """One snapshot record -> one CSV row, or None when it names no contract.
+
+    ⛔⛔ THE UNIVERSAL SNAPSHOT IS NOT THE CHAIN SNAPSHOT. `/v3/snapshot?type=options`
+    carries the day's trading under **`session`** (`session.volume`) and has NO `day`
+    object and NO day vwap (Massive docs, unified snapshot, read 2026-10-02). The
+    per-underlying chain endpoint `/v3/snapshot/options/{underlying}` is the one with
+    `day.volume`/`day.vwap`; this function used to read THAT shape, so the 2026-09-30
+    log carried an EMPTY volume and vwap on all 2,018,713 contracts.
+    `vwap` stays a column (the file schema is stable across days) and is blank: the
+    source has no day vwap. `last_minute.vwap` is ONE MINUTE's vwap, never the day's.
+    """
+    if x.get("error") or x.get("type") not in (None, "options"):
+        return None                       # a per-ticker error record, or not an option
     d = x.get("details") or {}
     occ = d.get("ticker") or x.get("ticker")
     if not occ:
@@ -90,7 +124,7 @@ def contract_row(x: dict) -> Optional[dict]:
     g = x.get("greeks") or {}
     q = x.get("last_quote") or {}
     t = x.get("last_trade") or {}
-    day = x.get("day") or {}
+    sess = x.get("session") or {}
     u = x.get("underlying_asset") or {}
     return {
         "contract": occ, "underlying": u.get("ticker"),
@@ -99,8 +133,8 @@ def contract_row(x: dict) -> Optional[dict]:
         "iv": _num(x.get("implied_volatility")), "delta": _num(g.get("delta")),
         "gamma": _num(g.get("gamma")), "theta": _num(g.get("theta")),
         "vega": _num(g.get("vega")), "bid": _num(q.get("bid")), "ask": _num(q.get("ask")),
-        "last": _num(t.get("price")), "volume": _num(day.get("volume")),
-        "vwap": _num(day.get("vwap")), "underlying_price": _num(u.get("price")),
+        "last": _num(t.get("price")), "volume": _volume(sess),
+        "vwap": None, "underlying_price": _num(u.get("price")),
     }
 
 
@@ -275,7 +309,11 @@ def run(*, now: Optional[_dt.datetime] = None, get=None, upload=None, api_key: O
     c_path = os.path.join(tmp, "contracts.csv.gz")
     u_path = os.path.join(tmp, "underlyings.csv.gz")
     summary = _Summary(session)
-    n = with_iv = 0
+    n = 0
+    #: How many rows carry each numeric column. A column the vendor did not send is
+    #: blank in the file and COUNTED here, so an all-empty column shows in the
+    #: manifest and the receipt instead of being found weeks later in R2.
+    filled = {k: 0 for k in COUNTED_FIELDS}
     receipt = {"pages": 0, "complete": False, "reason": "walk did not finish"}
     with gzip.open(c_path, "wt", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=CONTRACT_FIELDS)
@@ -290,7 +328,8 @@ def run(*, now: Optional[_dt.datetime] = None, get=None, upload=None, api_key: O
             w.writerow(row)
             summary.add(row)
             n += 1
-            with_iv += row["iv"] is not None
+            for k in COUNTED_FIELDS:
+                filled[k] += row[k] is not None
     with gzip.open(u_path, "wt", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=UNDERLYING_FIELDS)
         w.writeheader()
@@ -301,7 +340,8 @@ def run(*, now: Optional[_dt.datetime] = None, get=None, upload=None, api_key: O
     keys = keys_for(session)
     manifest = {
         "session": session.isoformat(), "contracts": n, "underlyings": n_und,
-        "with_iv": with_iv, "pages": receipt["pages"], "complete": receipt["complete"],
+        "with_iv": filled["iv"], "with_volume": filled["volume"],
+        "with_open_interest": filled["open_interest"], "filled": filled, "pages": receipt["pages"], "complete": receipt["complete"],
         "reason": receipt["reason"], "seconds": round(time.time() - started, 1),
         "bytes": {"contracts": os.path.getsize(c_path), "underlyings": os.path.getsize(u_path)},
         "keys": keys, "source": "Massive /v3/snapshot?type=options",
@@ -333,9 +373,18 @@ def receipt_text(m: dict) -> tuple[str, str, bool]:
     if m.get("skipped"):
         return ("Options log: skipped", f"{m['session']}: {m['skipped']}.", False)
     mb = m["bytes"]["contracts"] / 1e6
+    vol, oi = m.get("with_volume"), m.get("with_open_interest")
+    extra = "".join(f", {v:,} with {name}" for name, v in (("volume", vol), ("OI", oi))
+                    if v is not None)
     body = (f"{m['session']}: {m['contracts']:,} contracts across {m['underlyings']:,} underlyings "
-            f"({m['with_iv']:,} with IV), {m['pages']:,} pages in {m['seconds']:.0f}s, "
+            f"({m['with_iv']:,} with IV{extra}), {m['pages']:,} pages in {m['seconds']:.0f}s, "
             f"{mb:.0f} MB compressed -> `{m['keys']['contracts']}`.")
     if not m["complete"]:
         return ("Options log: PARTIAL", body + f" Incomplete: {m['reason']}.", True)
+    # ⛔ Contracts recorded but NOT ONE with volume (or OI) is the 2026-09-30 defect --
+    # a wrong field path. That is an alert, never a green "recorded".
+    empty = [name for name, v in (("volume", vol), ("open interest", oi)) if v == 0]
+    if m["contracts"] and empty:
+        return ("Options log: EMPTY COLUMN",
+                body + f" No contract carried {' or '.join(empty)}: read the field path.", True)
     return ("Options log: recorded", body, False)
