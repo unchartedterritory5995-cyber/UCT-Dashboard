@@ -765,3 +765,14 @@ def test_the_walk_driver_never_imports_api():
     seen = [n.module if isinstance(n, ast.ImportFrom) else n.names[0].name
             for n in ast.walk(probe) if isinstance(n, (ast.Import, ast.ImportFrom))]
     assert seen == ["api.services", "api.main"]
+
+
+def test_an_AI_change_block_exports_with_its_own_provenance_label():
+    """The editor reads "Compass · AI change · <model>"; the Markdown export must say the same,
+    never "From Ask Notebook" (the label an Ask answer carries)."""
+    from api.services.journal_two import notes_export
+    block = ai.ai_block(ai.append_content("text", "Next earnings: Nov 19"), request="tag my notes",
+                        model="claude-sonnet-5", inserted_at="2026-10-01T14:00:00+00:00")
+    md = notes_export._block(block)
+    assert md.split("\n")[0] == "> **Compass · AI change · claude-sonnet-5** · 2026-10-01 · Asked: tag my notes"
+    assert "From Ask Notebook" not in md and "> Next earnings: Nov 19" in md
