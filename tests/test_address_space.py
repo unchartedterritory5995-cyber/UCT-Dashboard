@@ -25,6 +25,7 @@ def stores(monkeypatch):
         "theme_set": {MEMBER: [{"id": "ts_abc", "name": "Swing themes"}]},
         "floor": {MEMBER: [{"id": "41", "name": "Swing setups this week"}],
                   OTHER: [{"id": "41", "name": "Swing setups this week"}]},
+        "playbook": {MEMBER: [{"id": "e1", "name": "Breakout recipe"}]},
     }
     for kind, k in list(a.KINDS.items()):
         monkeypatch.setitem(a.KINDS, kind, a.Kind(k.prefix, k.label, k.table,
@@ -186,7 +187,10 @@ def test_the_real_listers_run_against_real_stores(monkeypatch):
     community_store._init_db()
     auth_service.upsert_subscription(uid, "cus_probe", "sub_probe", "pro", "active")
     fid = community_store.create_floor_thread(uid, "Probe floor post")
-    want = {"layout": (str(lay["id"]), "Probe Board"), "watchlist": (str(wl["id"]), "Probe Watch"),
+    from api.services.user_playbook import service as upb
+    sec = upb.create_section(uid, {"title": "Probe Section"})
+    ent = upb.create_entry(uid, sec["id"], {"title": "Probe entry"})
+    want = {"playbook": (ent["id"], "Probe entry"),"layout": (str(lay["id"]), "Probe Board"), "watchlist": (str(wl["id"]), "Probe Watch"),
             "note": (str(note["id"]), "Probe note"), "screen": (str(scr["id"]), "Probe Scan"),
             "ai_thread": (f"t-{uid[:8]}", "Probe question"),
             "theme_set": (ts["id"], "Probe Themes"), "floor": (str(fid), "Probe floor post")}
@@ -361,3 +365,48 @@ def test_floor_text_links_floor_posts_and_keeps_theme_sets_private(monkeypatch):
     assert links[f"T:{ts['id']}"] == {"address": f"T:{ts['id']}", "kind": "theme_set",
                                       "kind_label": "Theme set", "shared": False}
     assert "My Secret Basket" not in str(links)
+
+
+# ── TERM-038 tail: My Playbook entries (owner-scoped, P:) ──────────────────────────────
+
+def _playbook_entry(uid, section_title, entry_title):
+    from api.services.user_playbook import service as upb
+    sec = upb.create_section(uid, {"title": section_title})
+    return upb.create_entry(uid, sec["id"], {"title": entry_title})
+
+
+def test_a_playbook_entry_is_owner_scoped_over_the_real_store():
+    """A member resolves and finds their OWN entry; another member's entry, of the same
+    name, never resolves and never appears -- by address or by name."""
+    mine, theirs = _member("pbm"), _member("pbo")
+    ent = _playbook_entry(mine, "My Setups", "Gap and go rules")
+    other = _playbook_entry(theirs, "Their Setups", "Gap and go rules")
+    assert a.resolve(mine, f"P:{ent['id']}") == {
+        "address": f"P:{ent['id']}", "kind": "playbook", "kind_label": "Playbook entry",
+        "name": "Gap and go rules", "to": f"/model-book?view=builder&playbookEntry={ent['id']}"}
+    assert a.resolve(mine, f"P:{other['id']}") is None             # another member's entry
+    found = [r["address"] for r in a.search(mine, "gap and go")["results"] if r["kind"] == "playbook"]
+    assert found == [f"P:{ent['id']}"]
+    assert a.resolve(theirs, f"P:{other['id']}")["name"] == "Gap and go rules"
+
+
+def test_a_playbook_entry_rename_keeps_its_address_and_a_delete_drops_it():
+    from api.services.user_playbook import service as upb
+    uid = _member("pbr")
+    ent = _playbook_entry(uid, "Studies", "Old name")
+    upb.update_entry(uid, ent["id"], {"title": "Flag pullback recipe"})
+    assert a.resolve(uid, f"P:{ent['id']}")["name"] == "Flag pullback recipe"
+    upb.delete_entry(uid, ent["id"])
+    assert a.resolve(uid, f"P:{ent['id']}") is None
+
+
+def test_a_playbook_entry_is_only_ever_private_on_the_floor():
+    author, other = _member("pba"), _member("pbx")
+    ent = _playbook_entry(author, "Mine", "My secret recipe")
+    theirs = _playbook_entry(other, "Theirs", "Their recipe")
+    links = {l["address"]: l for l in a.shared_links(
+        author, f"see P:{ent['id']} and P:{theirs['id']}")}
+    assert links[f"P:{ent['id']}"] == {"address": f"P:{ent['id']}", "kind": "playbook",
+                                      "kind_label": "Playbook entry", "shared": False}
+    assert f"P:{theirs['id']}" not in links
+    assert "My secret recipe" not in str(links)

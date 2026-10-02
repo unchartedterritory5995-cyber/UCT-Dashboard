@@ -22,6 +22,7 @@ Doors are the SHIPPED one-shot URL instructions, never new ones:
   ai_thread → /ai-search?thread=<id>           (AiSearchPage)
   theme_set → /charts?openThemeSet=<id>        (ChartsWorkspace -> ThemeTrackerPage opts)
   floor     → /community?thread=<id>           (Floor2)
+  playbook  → /model-book?view=builder&playbookEntry=<id>  (BuilderView, My Playbook)
 
 Every kind but ``floor`` is OWNER-scoped. A Floor post is PUBLIC, so its lister is
 VIEWER-scoped instead: every live (not deleted) post in the Floor space, for any member
@@ -126,6 +127,17 @@ def _floor_threads(user_id: str) -> list[dict]:
             for r in store.list_floor_titles()]
 
 
+def _playbook_entries(user_id: str) -> list[dict]:
+    # Through the playbook's own owner-scoped reads: the member's sections, then each
+    # section's entries (list_entries returns None for a section that is not theirs).
+    from api.services.user_playbook import service as svc
+    out = []
+    for sec in svc.overview(user_id).get("sections") or []:
+        for r in svc.list_entries(user_id, sec["id"]) or []:
+            out.append({"id": str(r["id"]), "name": (r.get("title") or "").strip() or "Untitled entry"})
+    return out
+
+
 KINDS: dict[str, Kind] = {
     "layout": Kind("L", "Chart layout", "charts_layouts", _layouts,
                    lambda i: f"/charts?openLayout={quote(i)}"),
@@ -150,6 +162,11 @@ KINDS: dict[str, Kind] = {
     # The door is Floor2's `thread=` arrival, the same open a click on a feed card does.
     "floor": Kind("F", "Floor post", "threads", _floor_threads,
                   lambda i: f"/community?thread={quote(i)}"),
+    # 2026-10-01 (TERM-038 tail). Owner-scoped. The door is BuilderView's `playbookEntry=`
+    # arrival (useDoorParam), the same open a click on an entry card does; `view=builder`
+    # is the Model Book's existing view param, so the page lands on My Playbook first.
+    "playbook": Kind("P", "Playbook entry", "upb_entries", _playbook_entries,
+                     lambda i: f"/model-book?view=builder&playbookEntry={quote(i)}"),
 }
 _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 
@@ -159,7 +176,6 @@ _BY_PREFIX = {k.prefix: (name, k) for name, k in KINDS.items()}
 EXEMPT: dict[str, str] = {
     "playbooks": "no-door: Journal 1.0 playbooks, a retired surface with no route that opens one",
     "journal_resources": "no-door: Journal 1.0 resources, a retired surface",
-    "upb_entries": "no-door: user playbook entries have no URL instruction yet",
     "upb_sections": "not-a-saved-object: a section groups playbook entries; the entry is the object",
     "j2_note_saved_views": "no-door: a saved notebook view has no URL instruction yet, and that door "
                            "belongs in the Notebook editor files, owned by the notebook workstream "
@@ -169,6 +185,8 @@ EXEMPT: dict[str, str] = {
                        "in the Notebook editor files (notebook workstream, slice 2 stopped by rule)",
     "j2_note_documents": "not-a-saved-object: an attached document belongs to its note",
     "j2_note_versions": "not-a-saved-object: a note version is history of the note, reached from the note",
+    "artifact_versions": "not-a-saved-object: a version is history of its screen or layout, reached "
+                         "from that object's History (COV-06)",
     "j2_note_properties": "not-a-saved-object: a property definition, not a thing a member opens",
     "j2_accounts": "not-a-saved-object: a trading account is a setting, chosen inside the Journal",
     "trading_accounts": "not-a-saved-object: Journal 1.0 trading account setting",
@@ -260,7 +278,7 @@ def resolve(user_id: str, address: str) -> Optional[dict]:
 #   private -> {address, kind, kind_label, shared: False}            (NO name: a private title is
 #                                                                      not the Floor's to publish)
 #   not the author's / unknown -> omitted, so ordinary text ("W:3 in a row") never gets a chip.
-_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSATF]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
+_TEXT_ADDRESS_RE = re.compile(r"(?<![A-Za-z0-9])([LWNSATFP]):([A-Za-z0-9_\-]{1,40})(?![A-Za-z0-9_\-])")
 MAX_TEXT_ADDRESSES = 8
 
 
@@ -354,10 +372,16 @@ def _shared_floor(author_id: str, obj_id: str) -> Optional[dict]:
             "to": f"/community?thread={row['id']}", "shared": True}
 
 
+def _shared_playbook(author_id: str, obj_id: str) -> Optional[dict]:
+    # A playbook entry has no share: the author's own reads "private", anyone else's nothing.
+    from api.services.user_playbook import service as svc
+    return {"shared": False} if svc.get_entry_detail(author_id, obj_id) else None
+
+
 _SHARED_RESOLVERS = {"layout": _shared_layout, "watchlist": _shared_watchlist,
                      "note": _shared_note, "screen": _shared_screen,
                      "ai_thread": _shared_ai_thread, "theme_set": _shared_theme_set,
-                     "floor": _shared_floor}
+                     "floor": _shared_floor, "playbook": _shared_playbook}
 
 
 def shared_links(author_id: Optional[str], text: str) -> list[dict]:
