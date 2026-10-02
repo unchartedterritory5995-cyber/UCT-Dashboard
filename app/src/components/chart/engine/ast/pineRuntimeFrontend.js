@@ -2597,6 +2597,107 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return toParse(built)
   }
 
+  /** ⭐⭐ RT3 — BUILTINS THE CLOSED TABLE DOES NOT DECLARE, WHICH PINE ITSELF
+   *  DEFINES IN VOCABULARY THIS LANE ALREADY RUNS, rebuilt as a PARSE tree over
+   *  this call's own argument nodes (or `null`: the call keeps its refusal).
+   *
+   *  - `iff(cond, a, b)` — Pine v1–v4's ternary (removed in v5). The host lane
+   *    rewrites it to `?:` (`pine.js::BUILTIN_CALL_TREE.iff`), so the two lanes
+   *    agree by construction, `na` test included (`?:`'s RT3 rule).
+   *  - `vwma(src, n)` and `linreg(src, n, offset)` (and their `ta.` spellings) —
+   *    the HOST lane's own expansions (`BUILTIN_CALL_TREE.vwma` quotes
+   *    TradingView's published closed form; `.linreg` carries its least-squares
+   *    derivation and a 6e-14 check against a direct fit), asked here with this
+   *    call's FOLDED length/offset and converted to the script's own spellings,
+   *    so the two lanes cannot disagree about either formula.
+   *  - `alma(src, n, offset, sigma[, floor])` — TradingView's published
+   *    `pine_alma`: a Gaussian-weighted sum over the last `n` bars, weights
+   *    computed in the reference's own order; every parameter must fold.
+   *
+   *  ⛔ Positional arguments only, exactly the arity Pine declares, never a
+   *  name the script defines itself, and every length/offset must fold before
+   *  bar 0 (`constValueOf`) — a series length keeps the refusal. */
+  const runtimeRespelling = (node, scope) => {
+    const name = String(node && node.name || '')
+    if (definedNames.has(name) || isUserFn(name)) return null
+    const args = node.args || []
+    if (args.some((a) => a && a.name)) return null
+    const given = args.map((a) => (a && a.value !== undefined ? a.value : a))
+    const tok = node.tok
+    const v5 = pineVersion !== null && pineVersion >= 5
+    if (name === 'iff' && given.length === 3 && !v5) {
+      return { type: 'ternary', test: given[0], yes: given[1], no: given[2], tok }
+    }
+    const bare = name.startsWith('ta.') ? name.slice(3) : name
+    // a spelling the script's version actually has: `ta.x` from v5, bare before
+    if (name.startsWith('ta.') !== v5 && !(name.startsWith('ta.') && pineVersion === null)) return null
+    // a length a call site may fix refuses carrying the parameter's name, so the
+    // call site specialises on it (`simpleSpecialisation`), as a window does.
+    const folded = (k) => {
+      const c = given[k] === undefined ? null : constValueOf(given[k], scope)
+      if (c && typeof c.frameName === 'string') throw frameBoundRefusal(c.frameName, locate(tok))
+      return c && Number.isFinite(c.value) ? c.value : null
+    }
+    const arg = (value) => ({ name: null, value, tok })
+    if ((bare === 'vwma' && given.length === 2) || (bare === 'linreg' && given.length === 3)) {
+      const n = folded(1)
+      const off = bare === 'linreg' ? folded(2) : 0
+      if (n === null || off === null) return null
+      const HOLE = '__rt3_call_tree_src'
+      let built
+      try {
+        built = BUILTIN_CALL_TREE[bare]([{ type: 'series', name: HOLE }, { type: 'num', value: n },
+          ...(bare === 'linreg' ? [{ type: 'num', value: off }] : [])])
+      } catch { return null }
+      const SPELL = { sma: v5 ? 'ta.sma' : 'sma', wma: v5 ? 'ta.wma' : 'wma', sum: v5 ? 'math.sum' : 'sum' }
+      const ARITH = new Set(['+', '-', '*', '/'])
+      const toParse = (c) => {
+        if (!c || typeof c !== 'object') return null
+        if (c.type === 'num' && Number.isFinite(Number(c.value))) return { type: 'number', value: Number(c.value), tok }
+        if (c.type === 'series' && c.name === HOLE) return given[0]
+        if (c.type === 'series' && c.name === 'volume') return { type: 'name', name: 'volume', tok }
+        if (c.type === 'op' && ARITH.has(c.name) && Array.isArray(c.args) && c.args.length === 2) {
+          const left = toParse(c.args[0])
+          const right = toParse(c.args[1])
+          return left && right ? { type: 'binary', op: c.name, left, right, tok } : null
+        }
+        if (c.type === 'call' && Object.prototype.hasOwnProperty.call(SPELL, c.name) && Array.isArray(c.args)) {
+          const a = c.args.map(toParse)
+          return a.every(Boolean) ? { type: 'call', name: SPELL[c.name], args: a.map(arg), tok } : null
+        }
+        return null
+      }
+      return built ? toParse(built) : null
+    }
+    if (bare === 'alma' && (given.length === 4 || given.length === 5)) {
+      const n = folded(1)
+      const offset = folded(2)
+      const sigma = folded(3)
+      const floor = given.length === 5 ? folded(4) : 0
+      if (n === null || offset === null || sigma === null || floor === null) return null
+      if (!Number.isInteger(n) || n < 1 || n > 500 || sigma === 0) return null
+      // TradingView's `pine_alma`, verbatim in its arithmetic and its order:
+      //   m = offset * (n - 1)   (floored when `floor`)    s = n / sigma
+      //   weight_i = exp(-1 * pow(i - m, 2) / (2 * pow(s, 2)))
+      //   sum += src[n - i - 1] * weight_i ; norm += weight_i ; result sum / norm
+      const m = floor ? Math.floor(offset * (n - 1)) : offset * (n - 1)
+      const s = n / sigma
+      let norm = 0
+      let sum = { type: 'number', value: 0, tok }
+      for (let i = 0; i <= n - 1; i += 1) {
+        const weight = Math.exp(-1 * Math.pow(i - m, 2) / (2 * Math.pow(s, 2)))
+        norm += weight
+        const back = n - i - 1
+        const term = back === 0 ? given[0] : { type: 'offset', arg: given[0], n: back, tok }
+        sum = { type: 'binary', op: '+', tok, left: sum,
+          right: { type: 'binary', op: '*', tok, left: term, right: { type: 'number', value: weight, tok } } }
+      }
+      if (!Number.isFinite(norm) || norm === 0) return null
+      return { type: 'binary', op: '/', tok, left: sum, right: { type: 'number', value: norm, tok } }
+    }
+    return null
+  }
+
   /** Lower a `request.security(symbol, timeframe, value, …)`.
    *
    *  ⭐⭐ THE VALUE IS LOWERED HERE BUT EXECUTED ELSEWHERE — over the requested
@@ -4536,6 +4637,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // `na` included (any `na` operand makes the sum `na` in both).
         const expanded = callTreeExpansion(node)
         if (expanded) return lowerExpr(expanded, scope, opts)
+        // ⭐⭐ RT3 — `iff` and `vwma` over runtime state, as the HOST lane spells
+        // them (`pine.js::BUILTIN_CALL_TREE`), rebuilt over this call's own nodes.
+        const respelled = runtimeRespelling(node, scope)
+        if (respelled) return lowerExpr(respelled, scope, opts)
         const pw = pointwiseTarget(node.name)
         if (pw) {
           for (const a of node.args) {
