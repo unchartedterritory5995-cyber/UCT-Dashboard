@@ -159,6 +159,7 @@ without it; each row below is a full re-grade of the 47 captures.
 | 59 | C49 the clock capture round 3 (2026-10-01) witnesses (§ C49). **PRIORITY 0:** graded bar for bar on both full-history fixtures, the live C30 / C36 rule served **0** wrong values (it withheld, never mis-served). **(1)** ONE rule replaces C30's and C36's daily-session rules: `time(P)` for `W` / `M` / `3M` / `12M` is 09:30 New York on the FIRST session the vendor's calendar holds in the period containing the day the bar OPENED, and `time_close(P)` is the close of the LAST such session (`indicators.js::computePeriodCalendar` ⇄ `indicator_compute.py::compute_period_calendar`, over `tradingViewSession.js`); it reproduces every bar of the 1D-full (8,476), 1W (1,758), 1M (406), 15m (3,300), 5m (3,300) and 60m (300) fixtures. The calendar's closures apply from `TRADINGVIEW_CLOSURES_FROM` (2000-01-01), and the fixture brackets that date (last calendar-answered week Fri 1999-12-24, first bars-answered holiday week Tue 2000-01-18); before it a holiday-opened period answers the calendar day, which is what the fixture shows. The two periods from 2000 on whose first / last session has no bar (Sandy week; week of 2001-09-10) stay withheld by name. **(2)** chart timeframes served as witnessed: anchors on 5 / 15 / 60 / D / W / M, `time_close` on D / W / M, `time(timeframe.period)` on the same six, `time("60")` on 5 / 15 as the 60-minute bucket from 09:30; a chart with bars outside the regular session is withheld (`time-clock:outside-session`). **(3)** ⛔ **a wrong value fixed:** the member door folded `request.security(syminfo.tickerid, "D", x)` to `x` and the saved tree was bound on every chart, so a 5-minute chart drew its own close as the daily close (wrong on 299 of 300 bars of `request-realtime-alignment-spy-5-2026-10-01`, both look-ahead settings); a `W` / `M` request was resampled from intraday bars. The tree now carries its base timeframe (`requestBaseNode`), and a chart that STATES another timeframe withholds the column by name (`request:other-timeframe`), plots and objects, both lanes. FX stays withheld (our daily bar is stamped 09:30 New York, the vendor's opens 17:00 the evening before). JS and Python mirrors moved together (`period_anchor_parity.json` regenerated). Rails: `vendorHarness.c49CapturedClock.test.js` · `vendorHarness.c30TimeAnchor.test.js` · `vendorHarness.c36TimeFollowups.test.js` · `ast/periodAnchorParity.test.js` · `tests/test_ast_period_anchor_parity.py` · `ast/clockCloseTfChange.vendor.test.js` | `pine/c49-captured-clock` | 30 / 47 (unchanged; overall 27; base `654d99bd31`, objects pane on) | 234 / 266 → 235 / 266 (plots 161 / 172 unchanged) | 0 entries of the 47 change verdict (one object count 503 → 504); harness dir: 3 entries on, 2 off (the two request captures' rows move from a wrong value to withheld) |
 | 58 | C48 capture round 3 (2026-10-01) served in the object / call-site / colour area, each rule graded on its own fixture and refused by name where no row shows it (section C48): **(P0)** a `ta.*` call, a block local's `[k]` or a helper's history in a block that runs on SOME bars was read the every-bar way in the PLOT lane (ten rows of `vw-call-site-history-rddt` wrong on 151-307 of 634 bars) - the plot now carries its block's guard (`meta.blockRuns`) and the bind refuses it (`pine:block`) on a chart where the block runs after a skipped bar; a block local's `[1]` under `barstate.islast` is `na`; the gradient formula is exact (3,600 / 3,600 component-bars) and its EDGES are the capture's (equal / `na` bounds -> the zero colour, reversed bounds -> the bottom colour between them; they were held and mirrored). **(1)** the one-run `ta.*` table (`ONE_EXECUTION_TA`), `time_close[k]` / `hlcc4[k]`, `x[0]`. **(2)** `for x in <own list>` LIVE for push / shift / set, `<family>.all` a snapshot with positions, `var ... = array.new_label(3)` three slots. **(3)** `input.timeframe` text verbatim under v5 and v6; a live getter number prints, its `[1]` is one bar ago (`NaN` in the last-bar block), a top-level getter variable's `[1]`, a getter on the previous handle. **(4)** a float bar coordinate truncates toward zero, negative included. **(5)** components of an 8-digit literal, `input.color`, a ternary of colours, a per-bar transparency. Many-run serving, `ta.highest` / `ta.lowest` over runs and five named leftovers stay refused; five probes queued. No budget moved | `0eab9691ef`, `8385e43572`, `d503cf1b9b`, `976d1d6b02`, `e5b801e4ea`, `9774e28e4a`, `e2691617ed`, `d72ced8037` | 30 / 47 -> 30 / 47 (overall 27 -> 27; base `e4e24524ef` + the capture merge, objects pane on) | 234 / 266 -> 234 / 266 (plots 161 / 172 unchanged) | no entry of the 47 moves. Committed harness dir, both flag states: objects MATCH **68 -> 71** of 91 (pane off 56 -> 59 of 70), families 343 -> 350 of 385 - `vw-call-site-history-rddt` (labels 5 -> 24 of 24), `vw-input-tf-text-v5` / `-v6` (3 -> 10 of 10); overall 48 -> 48, plots 358 -> 358 (twenty conditional-call plots DIVERGE -> refused at the bind). Member door 41 / 64 attach, **0 rows changed**; 0 served outputs changed; notebook first-open +0 B, pine chunk +9,520 B; `paramIds.test.js` green with no edit. 74 mutations, 72 RED, 2 fail-closed survivors named |
 | 56 | C46 a parameter id no longer depends on what the translator folds (§ C46): `__uct_param_N` was a walk-order counter (the N-th input the walk resolved first), so folding one more block renumbered ids — re-measured on this tree, C31's main-walk step-over moved `long_tail__09` `_2` → `_4` and appended 10 more; C38's index and C41's dead arm appended. **Now** the id is read off the token stream before the walk: `1000 +` the input call's ordinal among the script's `input(…)` calls (`paramIdSource.js`), with the ids the counter gave the 183 corpus scripts that held one FROZEN per lane (`paramIdLegacy.js`: `param-ids.json`'s plain strict lane, plain screen, member pane, PineBox — the member doors never numbered like the pinned lane: 37 scripts / 133 of 634 ids differ). Every lane reproduces base on all 328 scripts except three licence-held scripts where base had already drifted from `param-ids.json` (restored). Rails: `paramIds` unedited; `paramIdSourceStability` (any subset of blocks refused via a test-only hook, surviving inputs keep their ids, every corpus script); `paramIdLegacy` (the map's digest; the three unpinned lanes); `savedDocumentRoundTrip` (38 documents saved at base rebuild identically and take their saved values by id). 16 mutations, each red. The first beneficiary — the main walk stepping over a loop — was built and measured (0 served outputs change, 0 graded entries change, 8 ids gained and none moved) and is NOT kept: no committed capture exercises it (Q-C46a queued, branch `pine/c46-stepover-trial`) | `b5aa8fc308`, `4782cd34d2` | 30 / 46 → 30 / 46 (overall 27 → 27) | 234 / 266 → 234 / 266 | none: the 47, the committed harness dir, the member-door census (41 / 64) and the translation census (266 × 3 lanes) are identical to base |
+| R1 | R1 (lane brief, wave 12) the RUNTIME lane catches up with C50 and takes the exact part of its two largest first walls (section R1). **(1)** `strategy(` is skipped exactly as `indicator(` (the program is byte-for-byte the indicator's), an order call in pine.js's own `STRATEGY_ORDER_CALLS` is skipped as a statement, a `strategy.*` VALUE stays refused by name (`pine:strategy-call`); only the CALL form `strategy(` / `library(` is a declaration, so an indicator's VARIABLE named `strategy` compiles. **(2)** of `runtime:statement`: a lone atom on its own line is discarded (still lowered, so its own refusals stand); `#RRGGBBAA` through `objectHexToPacked` (C48's conversion); `[x]` is a one-element tuple (`[a] = f()`), never a plain value; a body ending in a void collection call is valueless; `request.security` named leading args placed by `positionaliseSecurityArgs`; an output call reads its value arg by `OUTPUT_CALLS`' name; 1-arg `ta.highest`/`ta.lowest` fill from `PINE_SHORT_FORM`; an interpret.js `TableRefusal` keeps its guard. **(3)** under ownership, a function ending in a drawing call is valueless (the bare `runtime:object-op` row is the harness's, unchanged by design). No budget moved; no flag moved | `597552a6a4`, `bfecbecbef`, `a029107811`, merge `689e4875d6` | 30 / 46 -> 30 / 46 (overall 29 / 47 unchanged; base `cf5e38d5d2`, objects pane on) | translation census unchanged (`corpus_metric.json` untouched) | 0 entries change on the 47 (both pane states) and the committed harness dir (both). Member door 45 / 68 -> 45 / 68, **0 rows changed** (base-vs-base 0). Runtime census compiled end to end **15 -> 19** (owned 27 -> 31); first walls: `runtime:declaration` 26 -> 0, `runtime:statement` 33 -> 14 |
 ᵃ Steps 15–17 count families over the 238 the object verdict compares (the base, `b27e0e9e6`, reads 18 / 47 and 169 / 238; two of the 47 are door refusals with no object families), not the 252 of the rows above.
 
 ### Where the lane stands
@@ -4571,3 +4572,77 @@ builder directory + the id rails `Tests  2 failed | 2060 passed | 12 skipped (20
 `37 passed`. Translation census byte-identical to § 10's merged tip. Bytes: `pine` chunk 396,432 → 396,522
 (+90), `BuilderSheet` chunk 365,945 → 366,768 (+823), total JS 12,784,999 → 12,785,912, notebook first-open
 1,901,893 B (+0, PASS). Wave 11's tip was still `da7142cce3`; no second merge.
+
+## R1 - the runtime lane reads a strategy, and the exact half of `runtime:statement` (2026-10-02)
+
+Branch `pine/r1-runtime-strategy`, base `cf5e38d5d2` (origin/master with C50), merged `5564cca92b`.
+Scope: carry C50 into the RUNTIME lane (`engine/ast/pineRuntimeFrontend.js`), then the next-largest
+runtime first walls, `runtime:statement` and `runtime:object-op`, as far as is exact.
+
+### Step 1 - a strategy (`597552a6a4`)
+
+- `strategy(` is skipped exactly as `indicator(` is (this lane reads neither; title and overlay are the
+  host translation's). The program is byte-for-byte the indicator's (`runtimeStrategy.test.js`).
+- An order call in `STRATEGY_ORDER_CALLS` - IMPORTED from `pine.js`, one authority - is skipped as a
+  statement and counted (`runtime:strategy-order`). A `strategy.*` call outside the set is not.
+- A `strategy.*` VALUE still refuses by name (`pine:strategy-call`), including inside a condition.
+- Only the CALL form `strategy(` / `library(` is a declaration. `liquidity-engulfing-candles-upslidedown`
+  is an indicator with a VARIABLE named `strategy`; it was refused "not an indicator" and now compiles,
+  all three plots equal to the vendor on all 632 bars (`runtimeStrategyWord.vendor.test.js`).
+- No strategy capture exists (none of the 139 harness captures declares `strategy(`). Queued:
+  `docs/pine/capture-queue-2026-10-02-r1-strategy.md`, probe `r1-strategy-draws.pine`.
+
+### Step 2 - `runtime:statement`, the exact shapes (`bfecbecbef`)
+
+| shape | rule | proof |
+|---|---|---|
+| lone atom on its own line (`countBuy` closing an `if` body) | discarded; still lowered first so its own refusals stand; a function ending in a loop stays valueless | `runtimeDiscardedValue.vendor` (btc-charlie, 5 rows, every bar) |
+| `#RRGGBBAA` literal | `objectHexToPacked` (C48's conversion) | `runtimeColourLiteral8.vendor` (vw-colour-components K02..K07 through `bgcolor` of a `var`) |
+| `[x]` function result | one-element tuple: `[a] = f()`; a plain read refuses; ir.js admits 1-element tuple / destructure | unit |
+| body ending in a void collection call | valueless, its own sentence at a reading call site | unit |
+| `request.security(symbol =, timeframe =, expression =)` | placed by `pine.js::positionaliseSecurityArgs` (now exported) | unit: same answer as positional |
+| `plot(title =, series =)` | value arg by `pine.js::OUTPUT_CALLS` name | unit |
+| 1-arg `ta.highest` / `ta.lowest` | filled from `PINE_SHORT_FORM` (groupb-hilo-default) - the explicit spelling's answer | unit |
+| interpret.js `TableRefusal` | keeps its guard (`interpret:bind-time-text`), not `runtime:statement` | unit |
+
+Left refused by name (14): session-clock arguments (7: `time(tf, ...)` off the chart period, a
+non-literal session), a line carrying `,`-separated statements AND a block (3: the split is grammar no
+capture witnesses here), `ta.pivothigh` with a per-bar leftbars (1), `input.string` with a non-literal
+default (1), `color.new(color =, transp =)` (1: no evidenced parameter names), and
+`madrid-moving-average-ribbon` (1) - a DEFECT found, not fixed: a user function reading history of its
+parameter, called inside a plot's `color =`, produces IR whose history index has no slot; the IR
+validator catches it, so it is a refusal (line null), never a wrong drawing. Minimal repro:
+`f(_ma) => d = ta.change(_ma) ... plot(close, color = f(ta.sma(close, 3)))`; bound to a variable first,
+it compiles.
+
+### Step 3 - `runtime:object-op` (`a029107811`)
+
+The BARE row (29 -> 33) is the harness's: a build not told who owns the drawing refuses every drawing
+call, and `runtimeCorpusCensus.measure.test.js` rails exactly that. It is left as it is. Under ownership
+the real rows were 6: two were a function whose LAST line is a drawing call (lowered as its result);
+such a body is now valueless, like a loop body. The other four read a drawing's state as a value
+(`box.get_top`, `line.get_y1`, `line.get_x2`, `line.get_price`) - a real gap, refused by name.
+
+### Measured (base `cf5e38d5d2` / tip after merge `689e4875d6`)
+
+| | base | tip |
+|---|---|---|
+| runtime census compiled end to end | 15 / 266 | **19** / 266 |
+| owned-drawing census | 27 | **31** |
+| `runtime:declaration` / `runtime:statement` | 26 / 33 | 0 / 14 |
+| member door attach (off / on) | 45 / 68 | 45 / 68, 0 rows changed (base vs base: 0) |
+| the 47, pane on: objects / overall | 30 of 46 / 29 of 47 | identical, 0 entries changed |
+| the 47, pane off | 17 of 25 / 16 | identical, 0 entries changed |
+| harness dir, pane on / off: objects | 68 of 86 / 55 of 65 | identical, 0 entries changed |
+| translation census (`corpus_metric.json`) | | unchanged |
+| notebook first-open | 2,148,818 B | 2,148,818 B (+0, PASS) |
+| pine chunk / total JS | 417,918 / 13,253,874 B | 417,950 / 13,255,794 B |
+| `paramIds.test.js` | green | green, no edit |
+
+Why the served numbers do not move: the runtime pane is dark (`VITE_PINE_RUNTIME_PANE_ENABLED`), and the
+object lane consults this lane only for a last-bar drawing it could rescue - no such script changed.
+
+Mutations (bytes + sha256, restored by bytes): 18 run, 18 red after one fix - M5 (8-digit literal)
+first SURVIVED because the probe's own `color.r(k1)` rows are folded by the columnar lane; the rail was
+rebuilt on `bgcolor` of a `var` and then went red. M16 (ownership re-checked in the drawing-end
+predicate) survived and the check was deleted as dead (`lowerStmts` is the authority).
