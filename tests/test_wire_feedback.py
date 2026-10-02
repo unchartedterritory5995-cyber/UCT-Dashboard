@@ -66,7 +66,6 @@ def test_note_capped_at_2000():
     assert len(fb["overall"]["note"]) == 2000
 
 
-os.environ.setdefault("PUSH_SECRET", "test-secret-123")
 from fastapi.testclient import TestClient
 from api.main import app
 
@@ -79,7 +78,11 @@ def test_internal_requires_bearer():
                       headers={"Authorization": "Bearer wrong"}).status_code == 401
 
 
-def test_internal_valid_bearer_returns_votes_list():
+def test_internal_valid_bearer_returns_votes_list(monkeypatch):
+    # Scoped to THIS test: a module-level os.environ.setdefault leaked the
+    # secret into every later test module (test_exposed_routes_gated's gate
+    # ladder then crashed on hmac.compare_digest(Header(), str)).
+    monkeypatch.setenv("PUSH_SECRET", "test-secret-123")
     # ⚠️ THE 200 USED TO COME FROM A PRODUCTION FILE. Nothing here creates the
     # `wire_feedback` table: the route reached `C:\data\wire_feedback.db`, the
     # owner's live store, which of course has it. The `_fresh_store()` tests
@@ -99,3 +102,52 @@ def test_vote_requires_auth():
     r = client.post("/api/wire-feedback",
                     json={"market_date": "2026-06-18", "segment_key": "tape", "verdict": "up"})
     assert r.status_code == 401
+
+
+# ── per-SETUP feedback (owner 2026-10-02) ───────────────────────────────────
+import contextlib  # noqa: E402
+
+from api.middleware.auth_middleware import get_current_user  # noqa: E402
+
+
+@contextlib.contextmanager
+def _as(role):
+    app.dependency_overrides[get_current_user] = lambda: {"id": "owner-1", "role": role}
+    try:
+        yield
+    finally:
+        app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_admin_rates_a_setup_and_names_a_miss():
+    s = _fresh_store()
+    with _as("admin"):
+        r1 = client.post("/api/wire-feedback", json={
+            "market_date": "2026-10-02", "segment_key": "setup:LITE", "verdict": "up"})
+        r2 = client.post("/api/wire-feedback", json={
+            "market_date": "2026-10-02", "segment_key": "missed:SKHY",
+            "note": "tight under the high, memory leader"})
+    assert r1.status_code == 200 and r2.status_code == 200
+    rows = {r["segment_key"]: r for r in s.recent_admin_votes(days=30, now=time.time())}
+    assert rows["setup:LITE"]["verdict"] == "up"
+    assert "memory leader" in rows["missed:SKHY"]["note"]
+
+
+def test_setup_feedback_is_admin_only():
+    _fresh_store()
+    with _as("member"):
+        r = client.post("/api/wire-feedback", json={
+            "market_date": "2026-10-02", "segment_key": "setup:LITE", "verdict": "up"})
+    assert r.status_code == 403
+
+
+def test_setup_keys_are_validated():
+    _fresh_store()
+    with _as("admin"):
+        for bad in ("setup:", "setup:lite", "setup:LITE;DROP", "missed:" + "A" * 11, "setupLITE"):
+            r = client.post("/api/wire-feedback", json={
+                "market_date": "2026-10-02", "segment_key": bad, "verdict": "up"})
+            assert r.status_code == 400, bad
+        ok = client.post("/api/wire-feedback", json={
+            "market_date": "2026-10-02", "segment_key": "setup:BRK.B", "verdict": "down"})
+        assert ok.status_code == 200
