@@ -551,6 +551,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # same thing to it.
         **_watchlist_copy_or_link_flag(),
         **_filing_blackline_flag(),
+        **_charts_list_subscribe_flag(),
     }
     # ── TERM-039 — member-facing feature status at the point of use ─────────
     # ⭐ DERIVED FROM THE FLAGS ABOVE, AFTER THEY ARE READ. Which capabilities are
@@ -560,6 +561,25 @@ def _access_payload(user: dict, plan: str) -> dict:
     # `api/services/feature_status.py` for what each state may and may not mean.
     payload["feature_status"] = _feature_status(payload)
     return payload
+
+
+CHARTS_LIST_SUBSCRIBE_FLAG = "CHARTS_LIST_SUBSCRIBE_ENABLED"
+
+
+def charts_list_subscribe_enabled() -> bool:
+    """COV-10: a /charts Watchlist widget may subscribe to a scan its colour group
+    publishes, as a FROZEN copy or a TRACKING list, chosen at import. Read per call.
+    Client-only feature: no route reads this, so the auth payload IS the gate."""
+    return os.environ.get(CHARTS_LIST_SUBSCRIBE_FLAG, "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _charts_list_subscribe_flag() -> dict:
+    """⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): unset => this payload is
+    byte-identical to before COV-10. The client reads `=== true`. Never raises."""
+    try:
+        return {"charts_list_subscribe_enabled": True} if charts_list_subscribe_enabled() else {}
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return {}
 
 
 def _watchlist_copy_or_link_flag() -> dict:

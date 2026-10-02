@@ -1300,6 +1300,12 @@
       ],
       "note": "Receiver half of the OptionsFlow ETF replica; the sender is OPTIONSFLOW_ETF_REPLICA_PUSH_ENABLED on web."
     },
+    "CHARTS_LIST_SUBSCRIBE_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-01",
+      "where": [],
+      "note": "COV-10 (roadmap S4 / A12): on /charts, a Watchlist widget with no list picked can SUBSCRIBE to the scan its colour group's Scanner widget publishes (list-ref source 'scan'), and the member must choose, with no default: FREEZE (a copy of the scan's members at that moment, stored in the widget's own opts with its timestamp, never re-resolved) or TRACK (re-resolved from the scan endpoint every 30s). The choice is shown on the widget. A tracking list whose source cannot be read SAYS SO (unknown scan, HTTP error, network) and keeps the last members it read with the time they were read; it never renders as an empty list. A Market Map following its group never plots a scan list-ref it cannot resolve; it says so and keeps its own universe. Client-only: no route reads the flag; the auth payload carries charts_list_subscribe_enabled ONLY when on (api/routers/auth.py charts_list_subscribe_enabled, read per call). Unset: the Scanner widget publishes nothing, the Watchlist picker shows no subscribe strip, the payload is byte-identical. Rails: tests/test_charts_list_subscribe_flag.py, app/src/pages/charts/widgets/WatchlistWidget.subscribe.test.jsx. Not decided: whether to arm, and which source comes next (themes, saved screens). Arm: railway variables --service web --set CHARTS_LIST_SUBSCRIBE_ENABLED=1 (owner). Rollback = unset it; a frozen/tracking widget already on a board falls back to the list picker with its opts kept."
+    },
     "FILING_BLACKLINE_ENABLED": {
       "status": "pending",
       "since": "2026-10-01",
