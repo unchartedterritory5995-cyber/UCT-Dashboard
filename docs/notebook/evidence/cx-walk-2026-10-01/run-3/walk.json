@@ -1,0 +1,96 @@
+{
+ "run": "213915",
+ "base": "http://127.0.0.1:8547",
+ "steps": {
+  "1_screener": {
+   "verdict": "PASS",
+   "note_id": "48a23ea0d3db4709ac1b56286d3946cd",
+   "tabs_to_button": 337,
+   "toast": "Screener results sent to “CX walk Screener 213915”",
+   "rows_frozen": 50,
+   "total_line": "72 matches",
+   "asof_line": "As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:39 PM ET",
+   "cut_line": "Showing the first 50 of 72 matches, as captured.",
+   "run_href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ",
+   "identical_after_reload": true,
+   "criteria": [
+    "All Market",
+    "Price: Over $10"
+   ],
+   "fresh_run_filter_chip": "Price: Over $10",
+   "fresh_run_chip_count": 1,
+   "fresh_run_url": "http://127.0.0.1:8547/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ"
+  },
+  "2_cot": {
+   "verdict": "PASS",
+   "note_id": "36b4331ffe464ef4a79f153b5999dc4d",
+   "latest_week_label": "Save CL COT positioning for the week of 9/22/2026 to Notebook",
+   "scrubbed_week_label": "Save CL COT positioning for the week of 1/13/2026 to Notebook",
+   "tabs_to_button": 35,
+   "toast": "CL COT positioning sent to “CX walk COT 213915”",
+   "week_saved": "1/13/2026",
+   "week_saved_iso": "2026-01-13",
+   "embed_week_line": "Report week Jan 13, 2026, captured Oct 1, 2026",
+   "current_href": "/breadth?tab=cot&cot=CL",
+   "current_link_landed_on": "Save CL COT positioning for the week of 9/22/2026 to Notebook",
+   "rail_head": "POSITIONING\nWEEK OF\n1/13/2026\nSave to Notebook\nCONTRARIAN BIAS\nContrarian Bullish\nstrong signal · 3Y index\nCROWDING\nCrow"
+  },
+  "3_modelbook": {
+   "verdict": "INCONCLUSIVE",
+   "error": "Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"modelbook-embed-tombstone\") to be visible\n",
+   "tb": "ht\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_locator.py\", line 710, in wait_for\n    await self._frame.wait_for_selector(\n        self._selector, strict=True, timeout=timeout, state=state\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 369, in wait_for_selector\n    await self._channel.send(\n        \"waitForSelector\", self._timeout, locals_to_params(locals())\n    )\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Locator.wait_for: Timeout 15000ms exceeded.\nCall log:\n  - waiting for get_by_test_id(\"modelbook-embed-tombstone\") to be visible\n\n"
+  },
+  "4_locked": {
+   "verdict": "PASS",
+   "note_id": "ff5070c8510b483ca7acab903b4dfe6f",
+   "lock_status": 200,
+   "toast": "“CX walk Locked 213915” is locked — Screener results captured to your inbox until you unlock it",
+   "expected": "“CX walk Locked 213915” is locked — Screener results captured to your inbox until you unlock it",
+   "inbox_before": 2,
+   "inbox_after": 3,
+   "inbox_widget_ids": [
+    "screener",
+    "screener",
+    "screener"
+   ],
+   "embeds_in_locked_note": 0
+  },
+  "5_page_errors": {
+   "verdict": "PASS",
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "console_error_count": 16
+  }
+ },
+ "pageerrors": [],
+ "console_errors": [
+  "http://127.0.0.1:8547/journal/notebook?note=48a23ea0d3db4709ac1b56286d3946cd :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=48a23ea0d3db4709ac1b56286d3946cd :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=48a23ea0d3db4709ac1b56286d3946cd :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=36b4331ffe464ef4a79f153b5999dc4d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=36b4331ffe464ef4a79f153b5999dc4d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=f737c96a15274985a50a6e92c97bb9fe :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/model-book?view=years :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=f737c96a15274985a50a6e92c97bb9fe :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=f737c96a15274985a50a6e92c97bb9fe :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=ff5070c8510b483ca7acab903b4dfe6f :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ :: Failed to load resource: the server responded with a status of 423 (Locked)"
+ ],
+ "log": [
+  "[PASS] 1_screener: {\"note_id\": \"48a23ea0d3db4709ac1b56286d3946cd\", \"tabs_to_button\": 337, \"toast\": \"Screener results sent to “CX walk Screener 213915”\", \"rows_frozen\": 50, \"total_line\": \"72 matches\", \"asof_line\": \"As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:39 PM ET\", \"cut_line\": \"Showing the first 50 of 72 matches, as captured.\", \"run_href\": \"/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ\", \"identical_after_reload\": true, \"criteria\": [\"All Market\", \"Price: Over $10\"], \"fresh_run_filter_chip\": \"Price: Over $10\", \"fresh_run_chip_count\": 1, \"fresh_run_url\": \"http://127.0.0.",
+  "[PASS] 2_cot: {\"note_id\": \"36b4331ffe464ef4a79f153b5999dc4d\", \"latest_week_label\": \"Save CL COT positioning for the week of 9/22/2026 to Notebook\", \"scrubbed_week_label\": \"Save CL COT positioning for the week of 1/13/2026 to Notebook\", \"tabs_to_button\": 35, \"toast\": \"CL COT positioning sent to “CX walk COT 213915”\", \"week_saved\": \"1/13/2026\", \"week_saved_iso\": \"2026-01-13\", \"embed_week_line\": \"Report week Jan 13, 2026, captured Oct 1, 2026\", \"current_href\": \"/breadth?tab=cot&cot=CL\", \"current_link_landed_on\": \"Save CL COT positioning for the week of 9/22/2026 to Notebook\", \"rail_head\": \"POSITIONING\\nWEEK OF",
+  "[INCONCLUSIVE] 3_modelbook: {\"error\": \"Locator.wait_for: Timeout 15000ms exceeded.\\nCall log:\\n  - waiting for get_by_test_id(\\\"modelbook-embed-tombstone\\\") to be visible\\n\", \"tb\": \"ht\\\\_impl\\\\_sync_base.py\\\", line 115, in _sync\\n    return task.result()\\n           ~~~~~~~~~~~^^\\n  File \\\"C:\\\\Users\\\\Patrick\\\\AppData\\\\Roaming\\\\Python\\\\Python314\\\\site-packages\\\\playwright\\\\_impl\\\\_locator.py\\\", line 710, in wait_for\\n    await self._frame.wait_for_selector(\\n        self._selector, strict=True, timeout=timeout, state=state\\n    )\\n  File \\\"C:\\\\Users\\\\Patrick\\\\AppData\\\\Roaming\\\\Python\\\\Python314\\\\site-packages\\\\playwright\\",
+  "[PASS] 4_locked: {\"note_id\": \"ff5070c8510b483ca7acab903b4dfe6f\", \"lock_status\": 200, \"toast\": \"“CX walk Locked 213915” is locked — Screener results captured to your inbox until you unlock it\", \"expected\": \"“CX walk Locked 213915” is locked — Screener results captured to your inbox until you unlock it\", \"inbox_before\": 2, \"inbox_after\": 3, \"inbox_widget_ids\": [\"screener\", \"screener\", \"screener\"], \"embeds_in_locked_note\": 0}",
+  "[PASS] 5_page_errors: {\"pageerror_count\": 0, \"pageerrors\": [], \"console_error_count\": 16}"
+ ],
+ "account": {
+  "login": 200,
+  "role": "member",
+  "paid_equiv": true
+ }
+}

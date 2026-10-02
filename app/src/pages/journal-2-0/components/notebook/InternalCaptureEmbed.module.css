@@ -1,0 +1,123 @@
+/* G-040 — the three capture-only embeds (Screener, COT, Model Book).
+   Real tokens only (tokens.css). */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  height: 100%;
+  overflow: auto;
+  color: var(--text-bright);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.sub {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.stamp {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.criteria {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.chip {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.tableWrap {
+  overflow-x: auto;
+}
+.table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+.table th,
+.table td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  white-space: nowrap;
+}
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+.table th {
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.note {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.link {
+  color: var(--accent);
+  font-size: 12px;
+}
+.verdicts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tile {
+  flex: 1 1 120px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.tileLabel {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.tileValue {
+  font-weight: 600;
+}
+.annotation {
+  margin: 0;
+  padding: 6px 8px;
+  border-left: 2px solid var(--border-accent);
+  font-style: italic;
+}
+.tombstone {
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--text-dim);
+}
+.dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+.dl dt {
+  color: var(--text-dim);
+}
+.dl dd {
+  margin: 0;
+}

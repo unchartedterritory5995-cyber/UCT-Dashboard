@@ -1,0 +1,6 @@
+== curve-d22-q start 19:34:27 tree bfaeff5ab2
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 7 marked process(es) (gate 0, vitest 6, pytest 1); largest pid 56116 node.exe "node"   "C:\Users\Patrick\uct-worktrees\_merge-master\app\node_modules\.bin\\..\vitest\vi
+== end 19:38:31 exit 2
+  lock: FREE  C:\ProgramData\uct\gate-box.lock
+  load: BUSY — 5 marked process(es) (gate 0, vitest 5, pytest 0); largest pid 49276 node.exe "C:\Program Files\nodejs\node.exe" --conditions node --conditions development --experiment

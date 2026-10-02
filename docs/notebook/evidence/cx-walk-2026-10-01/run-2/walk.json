@@ -1,0 +1,87 @@
+{
+ "run": "213439",
+ "base": "http://127.0.0.1:8547",
+ "steps": {
+  "1_screener": {
+   "verdict": "FAIL",
+   "note_id": "cb668cd0cab1456b996a6464c4ca0d0d",
+   "tabs_to_button": 337,
+   "toast": "Screener results sent to “CX walk Screener 213439”",
+   "rows_frozen": 50,
+   "total_line": "72 matches",
+   "asof_line": "As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:34 PM ET",
+   "cut_line": "Showing the first 50 of 72 matches, as captured.",
+   "run_href": "/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ",
+   "identical_after_reload": true,
+   "criteria": [
+    "All Market",
+    "Price: Over $10"
+   ],
+   "fresh_run_filter_chip": "Price: Over $10",
+   "fresh_run_chip_count": 0,
+   "fresh_run_url": "http://127.0.0.1:8547/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ"
+  },
+  "2_cot": {
+   "verdict": "PASS",
+   "note_id": "18d316d72f6d46a19d133a57f73db84d",
+   "latest_week_label": "Save CL COT positioning for the week of 9/22/2026 to Notebook",
+   "scrubbed_week_label": "Save CL COT positioning for the week of 1/13/2026 to Notebook",
+   "tabs_to_button": 35,
+   "toast": "CL COT positioning sent to “CX walk COT 213439”",
+   "week_saved": "1/13/2026",
+   "week_saved_iso": "2026-01-13",
+   "embed_week_line": "Report week Jan 13, 2026, captured Oct 1, 2026",
+   "current_href": "/breadth?tab=cot&cot=CL",
+   "current_link_landed_on": "Save CL COT positioning for the week of 9/22/2026 to Notebook",
+   "rail_head": "POSITIONING\nWEEK OF\n1/13/2026\nSave to Notebook\nCONTRARIAN BIAS\nContrarian Bullish\nstrong signal · 3Y index\nCROWDING\nCrow"
+  },
+  "3_modelbook": {
+   "verdict": "INCONCLUSIVE",
+   "error": "Page.wait_for_function: Timeout 8000ms exceeded.",
+   "tb": "\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_sync_base.py\", line 115, in _sync\n    return task.result()\n           ~~~~~~~~~~~^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_page.py\", line 1110, in wait_for_function\n    return await self._main_frame.wait_for_function(**locals_to_params(locals()))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_frame.py\", line 878, in wait_for_function\n    await self._channel.send(\"waitForFunction\", self._timeout, params)\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 69, in send\n    return await self._connection.wrap_api_call(\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n    ...<3 lines>...\n    )\n    ^\n  File \"C:\\Users\\Patrick\\AppData\\Roaming\\Python\\Python314\\site-packages\\playwright\\_impl\\_connection.py\", line 559, in wrap_api_call\n    raise rewrite_error(error, f\"{parsed_st['apiName']}: {error}\") from None\nplaywright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 8000ms exceeded.\n"
+  },
+  "4_locked": {
+   "verdict": "PASS",
+   "note_id": "6855dd59ac2a48c5a489d556c9bbc417",
+   "lock_status": 200,
+   "toast": "“CX walk Locked 213439” is locked — Screener results captured to your inbox until you unlock it",
+   "expected": "“CX walk Locked 213439” is locked — Screener results captured to your inbox until you unlock it",
+   "inbox_before": 1,
+   "inbox_after": 2,
+   "inbox_widget_ids": [
+    "screener",
+    "screener"
+   ],
+   "embeds_in_locked_note": 0
+  },
+  "5_page_errors": {
+   "verdict": "PASS",
+   "pageerror_count": 0,
+   "pageerrors": [],
+   "console_error_count": 8
+  }
+ },
+ "pageerrors": [],
+ "console_errors": [
+  "http://127.0.0.1:8547/journal/notebook?note=cb668cd0cab1456b996a6464c4ca0d0d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=cb668cd0cab1456b996a6464c4ca0d0d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=cb668cd0cab1456b996a6464c4ca0d0d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=18d316d72f6d46a19d133a57f73db84d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=18d316d72f6d46a19d133a57f73db84d :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=13134dfa19c94427a005b5984eb9901b :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/journal/notebook?note=6855dd59ac2a48c5a489d556c9bbc417 :: Failed to load resource: the server responded with a status of 503 (Service Unavailable)",
+  "http://127.0.0.1:8547/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ :: Failed to load resource: the server responded with a status of 423 (Locked)"
+ ],
+ "log": [
+  "[FAIL] 1_screener: {\"note_id\": \"cb668cd0cab1456b996a6464c4ca0d0d\", \"tabs_to_button\": 337, \"toast\": \"Screener results sent to “CX walk Screener 213439”\", \"rows_frozen\": 50, \"total_line\": \"72 matches\", \"asof_line\": \"As of 2026-10-01 03:00 ET (nightly build) · captured Oct 1, 2026, 10:34 PM ET\", \"cut_line\": \"Showing the first 50 of 72 matches, as captured.\", \"run_href\": \"/screener?s=eyJmIjp7InByaWNlIjp7Im9wIjoiZ3RlIiwibWluIjoxMH19fQ\", \"identical_after_reload\": true, \"criteria\": [\"All Market\", \"Price: Over $10\"], \"fresh_run_filter_chip\": \"Price: Over $10\", \"fresh_run_chip_count\": 0, \"fresh_run_url\": \"http://127.0.0.",
+  "[PASS] 2_cot: {\"note_id\": \"18d316d72f6d46a19d133a57f73db84d\", \"latest_week_label\": \"Save CL COT positioning for the week of 9/22/2026 to Notebook\", \"scrubbed_week_label\": \"Save CL COT positioning for the week of 1/13/2026 to Notebook\", \"tabs_to_button\": 35, \"toast\": \"CL COT positioning sent to “CX walk COT 213439”\", \"week_saved\": \"1/13/2026\", \"week_saved_iso\": \"2026-01-13\", \"embed_week_line\": \"Report week Jan 13, 2026, captured Oct 1, 2026\", \"current_href\": \"/breadth?tab=cot&cot=CL\", \"current_link_landed_on\": \"Save CL COT positioning for the week of 9/22/2026 to Notebook\", \"rail_head\": \"POSITIONING\\nWEEK OF",
+  "[INCONCLUSIVE] 3_modelbook: {\"error\": \"Page.wait_for_function: Timeout 8000ms exceeded.\", \"tb\": \"\\\\AppData\\\\Roaming\\\\Python\\\\Python314\\\\site-packages\\\\playwright\\\\_impl\\\\_sync_base.py\\\", line 115, in _sync\\n    return task.result()\\n           ~~~~~~~~~~~^^\\n  File \\\"C:\\\\Users\\\\Patrick\\\\AppData\\\\Roaming\\\\Python\\\\Python314\\\\site-packages\\\\playwright\\\\_impl\\\\_page.py\\\", line 1110, in wait_for_function\\n    return await self._main_frame.wait_for_function(**locals_to_params(locals()))\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\n  File \\\"C:\\\\Users\\\\Patrick\\\\AppData\\\\Roaming\\\\Python\\\\Pyt",
+  "[PASS] 4_locked: {\"note_id\": \"6855dd59ac2a48c5a489d556c9bbc417\", \"lock_status\": 200, \"toast\": \"“CX walk Locked 213439” is locked — Screener results captured to your inbox until you unlock it\", \"expected\": \"“CX walk Locked 213439” is locked — Screener results captured to your inbox until you unlock it\", \"inbox_before\": 1, \"inbox_after\": 2, \"inbox_widget_ids\": [\"screener\", \"screener\"], \"embeds_in_locked_note\": 0}",
+  "[PASS] 5_page_errors: {\"pageerror_count\": 0, \"pageerrors\": [], \"console_error_count\": 8}"
+ ],
+ "account": {
+  "login": 200,
+  "role": "member",
+  "paid_equiv": true
+ }
+}

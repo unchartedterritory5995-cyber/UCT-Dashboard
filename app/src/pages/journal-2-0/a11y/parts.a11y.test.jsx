@@ -30,6 +30,9 @@ import NewsEmbed from '../components/notebook/NewsEmbed'
 import ScannerEmbed from '../components/notebook/ScannerEmbed'
 import ThemesEmbed from '../components/notebook/ThemesEmbed'
 import WatchlistEmbed from '../components/notebook/WatchlistEmbed'
+import ScreenerEmbed from '../components/notebook/ScreenerEmbed'
+import CotEmbed from '../components/notebook/CotEmbed'
+import ModelBookEmbed from '../components/notebook/ModelBookEmbed'
 import { buildWidgetEmbedAttrs } from '../lib/widgetEmbedCore'
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
@@ -114,6 +117,22 @@ const EMBEDS = [
   ['embed-scanner', ScannerEmbed, embed('scanner', { scanName: 'Pullback MA', rows: ROWS })],
   ['embed-themes', ThemesEmbed, embed('themes', { period: '1w', rows: [{ label: 'Semis', chgPct: 4.1 }] })],
   ['embed-watchlist', WatchlistEmbed, embed('watchlist', { watchName: 'Leaders', rows: ROWS })],
+  // G-040: the capture-only kinds (the Model Book one resolves its reference over
+  // the fixture network, so it is measured in whatever state that leaves it).
+  ['embed-screener', ScreenerEmbed, embed('screener', {
+    name: 'Screener — UCT Universe', criteria: ['UCT Universe', 'Price: ≥ $10'], asOf: '2026-09-18 03:00 ET (nightly build)',
+    spec: { filters: { price: { op: 'gte', min: 10 } } },
+    columns: [{ key: 'ticker', label: 'Ticker' }, { key: 'price', label: 'Price' }],
+    rows: [{ ticker: 'NVDA', cells: ['NVDA', '$142.80'] }], total: 12,
+  })],
+  ['embed-cot', CotEmbed, embed('cot', {
+    market: 'ES', marketName: 'E-mini S&P 500', reportDate: '2026-09-15',
+    groups: { commercials: { net: -1000, wow: 50, index: 12 }, largeSpecs: { net: 900, wow: -20, index: 88 }, smallSpecs: { net: 100, wow: -30, index: 40 } },
+    openInterest: { value: 21000, wow: 120, index: 55 },
+    bias: { label: 'Contrarian Bearish', tone: 'bear', strength: 'moderate' },
+    crowding: { label: 'Crowded long', tone: 'bear', index: 88 },
+  })],
+  ['embed-model-book', ModelBookEmbed, embed('modelbook', { year: 2023, symbol: 'NVDA', title: 'NVDA 2023', annotation: 'the gap' })],
 ]
 
 describe('journal embed renderers', () => {
