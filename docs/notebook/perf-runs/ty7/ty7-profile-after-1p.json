@@ -1,0 +1,492 @@
+{
+ "keys": 200,
+ "total_self_ms": 9514.623,
+ "idle_self_ms": 8721.996,
+ "busy_self_ms": 792.627,
+ "busy_self_ms_per_key": 3.9631,
+ "sample_count": 17037,
+ "rows": [
+  {
+   "functionName": "get commands",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12143,
+   "column": 18,
+   "self_ms": 42.427,
+   "self_ms_per_key": 0.21213
+  },
+  {
+   "functionName": "createCan",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12114,
+   "column": 11,
+   "self_ms": 34.444,
+   "self_ms_per_key": 0.17222
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 32.217,
+   "self_ms_per_key": 0.16109
+  },
+  {
+   "functionName": "createChainableState",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12020,
+   "column": 29,
+   "self_ms": 25.623,
+   "self_ms_per_key": 0.12812
+  },
+  {
+   "functionName": "NoteEditorPage",
+   "url": "http://127.0.0.1:8394/assets/NotebookFlagGate-BOvyMobY.js",
+   "line": 7049,
+   "column": 23,
+   "self_ms": 25.01,
+   "self_ms_per_key": 0.12505
+  },
+  {
+   "functionName": "someProp",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11644,
+   "column": 10,
+   "self_ms": 16.166,
+   "self_ms_per_key": 0.08083
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 9371,
+   "column": 29,
+   "self_ms": 16.13,
+   "self_ms_per_key": 0.08065
+  },
+  {
+   "functionName": "renderWithHooks",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3532,
+   "column": 26,
+   "self_ms": 14.916,
+   "self_ms_per_key": 0.07458
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "column": 32,
+   "self_ms": 11.476,
+   "self_ms_per_key": 0.05738
+  },
+  {
+   "functionName": "clientRect",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 6893,
+   "column": 19,
+   "self_ms": 11.43,
+   "self_ms_per_key": 0.05715
+  },
+  {
+   "functionName": "checkIfContextChanged",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2609,
+   "column": 32,
+   "self_ms": 10.438,
+   "self_ms_per_key": 0.05219
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/vendor-swr-DKTmVg48.js",
+   "line": 1164,
+   "column": 6,
+   "self_ms": 10.126,
+   "self_ms_per_key": 0.05063
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 9.446,
+   "self_ms_per_key": 0.04723
+  },
+  {
+   "functionName": "getBoundingClientRect",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 8.05,
+   "self_ms_per_key": 0.04025
+  },
+  {
+   "functionName": "useSWRArgs",
+   "url": "http://127.0.0.1:8394/assets/vendor-swr-DKTmVg48.js",
+   "line": 1047,
+   "column": 28,
+   "self_ms": 7.973,
+   "self_ms_per_key": 0.03986
+  },
+  {
+   "functionName": "useSWRHandler",
+   "url": "http://127.0.0.1:8394/assets/vendor-swr-DKTmVg48.js",
+   "line": 1101,
+   "column": 22,
+   "self_ms": 7.152,
+   "self_ms_per_key": 0.03576
+  },
+  {
+   "functionName": "createWorkInProgress",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2203,
+   "column": 31,
+   "self_ms": 6.87,
+   "self_ms_per_key": 0.03435
+  },
+  {
+   "functionName": "propagateParentContextChanges",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2579,
+   "column": 40,
+   "self_ms": 6.864,
+   "self_ms_per_key": 0.03432
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 6904,
+   "column": 27,
+   "self_ms": 6.718,
+   "self_ms_per_key": 0.03359
+  },
+  {
+   "functionName": "flush",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 10934,
+   "column": 7,
+   "self_ms": 6.371,
+   "self_ms_per_key": 0.03186
+  },
+  {
+   "functionName": "updateWorkInProgressHook",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3627,
+   "column": 35,
+   "self_ms": 6.309,
+   "self_ms_per_key": 0.03155
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12121,
+   "column": 22,
+   "self_ms": 5.988,
+   "self_ms_per_key": 0.02994
+  },
+  {
+   "functionName": "matchMedia",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.787,
+   "self_ms_per_key": 0.02893
+  },
+  {
+   "functionName": "applyInner",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 5936,
+   "column": 12,
+   "self_ms": 5.786,
+   "self_ms_per_key": 0.02893
+  },
+  {
+   "functionName": "getClientRects",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.779,
+   "self_ms_per_key": 0.0289
+  },
+  {
+   "functionName": "setTimeout",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.555,
+   "self_ms_per_key": 0.02777
+  },
+  {
+   "functionName": "clearTimeout",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 5.32,
+   "self_ms_per_key": 0.0266
+  },
+  {
+   "functionName": "SyntheticBaseEvent",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1663,
+   "column": 31,
+   "self_ms": 4.99,
+   "self_ms_per_key": 0.02495
+  },
+  {
+   "functionName": "findSuggestionMatch",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 19284,
+   "column": 28,
+   "self_ms": 4.953,
+   "self_ms_per_key": 0.02477
+  },
+  {
+   "functionName": "parseBetween",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11128,
+   "column": 21,
+   "self_ms": 4.92,
+   "self_ms_per_key": 0.0246
+  },
+  {
+   "functionName": "runCustomHandler",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 9502,
+   "column": 25,
+   "self_ms": 4.914,
+   "self_ms_per_key": 0.02457
+  },
+  {
+   "functionName": "completeWork",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 6091,
+   "column": 23,
+   "self_ms": 4.548,
+   "self_ms_per_key": 0.02274
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12120,
+   "column": 38,
+   "self_ms": 4.308,
+   "self_ms_per_key": 0.02154
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 13650,
+   "column": 22,
+   "self_ms": 4.301,
+   "self_ms_per_key": 0.0215
+  },
+  {
+   "functionName": "view.dom.addEventListener.view.input.eventHandlers.<computed>",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 9475,
+   "column": 71,
+   "self_ms": 4.248,
+   "self_ms_per_key": 0.02124
+  },
+  {
+   "functionName": "domFromPos",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 7520,
+   "column": 12,
+   "self_ms": 4.174,
+   "self_ms_per_key": 0.02087
+  },
+  {
+   "functionName": "getEventTarget",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1523,
+   "column": 25,
+   "self_ms": 4.163,
+   "self_ms_per_key": 0.02082
+  },
+  {
+   "functionName": "applyTransaction",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 5903,
+   "column": 18,
+   "self_ms": 3.965,
+   "self_ms_per_key": 0.01982
+  },
+  {
+   "functionName": "inputRuleMatcherHandler",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 14655,
+   "column": 30,
+   "self_ms": 3.955,
+   "self_ms_per_key": 0.01978
+  },
+  {
+   "functionName": "getListener",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1596,
+   "column": 22,
+   "self_ms": 3.879,
+   "self_ms_per_key": 0.01939
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "column": 33,
+   "self_ms": 3.846,
+   "self_ms_per_key": 0.01923
+  },
+  {
+   "functionName": "batchedUpdates$1",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1583,
+   "column": 27,
+   "self_ms": 3.644,
+   "self_ms_per_key": 0.01822
+  },
+  {
+   "functionName": "escapeForRegEx",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 17433,
+   "column": 23,
+   "self_ms": 3.487,
+   "self_ms_per_key": 0.01743
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 12145,
+   "column": 42,
+   "self_ms": 3.441,
+   "self_ms_per_key": 0.0172
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 10908,
+   "column": 23,
+   "self_ms": 3.418,
+   "self_ms_per_key": 0.01709
+  },
+  {
+   "functionName": "isMacPlatform",
+   "url": "http://127.0.0.1:8394/assets/platform-DeI51cbD.js",
+   "line": 0,
+   "column": 22,
+   "self_ms": 3.402,
+   "self_ms_per_key": 0.01701
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8394/assets/NotebookFlagGate-BOvyMobY.js",
+   "line": 7350,
+   "column": 27,
+   "self_ms": 3.373,
+   "self_ms_per_key": 0.01687
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 9542,
+   "column": 44,
+   "self_ms": 3.332,
+   "self_ms_per_key": 0.01666
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11995,
+   "column": 17,
+   "self_ms": 3.247,
+   "self_ms_per_key": 0.01623
+  },
+  {
+   "functionName": "stringifyNode",
+   "url": "http://127.0.0.1:8394/assets/NotebookFlagGate-BOvyMobY.js",
+   "line": 952,
+   "column": 24,
+   "self_ms": 3.213,
+   "self_ms_per_key": 0.01606
+  },
+  {
+   "functionName": "readDOMChange",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11189,
+   "column": 22,
+   "self_ms": 3.011,
+   "self_ms_per_key": 0.01506
+  },
+  {
+   "functionName": "apply",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 19512,
+   "column": 11,
+   "self_ms": 2.957,
+   "self_ms_per_key": 0.01478
+  },
+  {
+   "functionName": "captureLocalState",
+   "url": "http://127.0.0.1:8394/assets/NotebookFlagGate-BOvyMobY.js",
+   "line": 7330,
+   "column": 28,
+   "self_ms": 2.931,
+   "self_ms_per_key": 0.01465
+  },
+  {
+   "functionName": "updateSyncExternalStore",
+   "url": "http://127.0.0.1:8394/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3792,
+   "column": 34,
+   "self_ms": 2.893,
+   "self_ms_per_key": 0.01446
+  },
+  {
+   "functionName": "updateStateInner",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11528,
+   "column": 18,
+   "self_ms": 2.885,
+   "self_ms_per_key": 0.01442
+  },
+  {
+   "functionName": "isTouch",
+   "url": "http://127.0.0.1:8394/assets/tiptap-CrLKwlG9.js",
+   "line": 6022,
+   "column": 16,
+   "self_ms": 2.846,
+   "self_ms_per_key": 0.01423
+  },
+  {
+   "functionName": "coordsAtPos",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 7184,
+   "column": 20,
+   "self_ms": 2.813,
+   "self_ms_per_key": 0.01407
+  },
+  {
+   "functionName": "configure",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 14884,
+   "column": 11,
+   "self_ms": 2.8,
+   "self_ms_per_key": 0.014
+  },
+  {
+   "functionName": "hasFocus",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11664,
+   "column": 10,
+   "self_ms": 2.698,
+   "self_ms_per_key": 0.01349
+  },
+  {
+   "functionName": "EditorView.dispatch",
+   "url": "http://127.0.0.1:8394/assets/askInsert-CRRkiVmT.js",
+   "line": 11866,
+   "column": 40,
+   "self_ms": 2.667,
+   "self_ms_per_key": 0.01333
+  }
+ ],
+ "paragraphs": 1,
+ "raw_profile": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty7-fixed-raw\\profile-1p-r151058.cpuprofile.json"
+}

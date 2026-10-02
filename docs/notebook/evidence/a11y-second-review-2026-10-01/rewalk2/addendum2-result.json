@@ -1,0 +1,23 @@
+{
+  "status_region_after_open_before_capture": {
+    "present": true,
+    "role": "status",
+    "ariaLive": "polite",
+    "ariaAtomic": "true",
+    "text": ""
+  },
+  "focus_right_after_open": {
+    "present": true,
+    "tag": "input",
+    "role": "input",
+    "name": "Switch ticker \u2014 type a symbol to open its chart"
+  },
+  "focus_is_switch_ticker_box": true,
+  "hotkey_check": {
+    "typed_value": "j",
+    "url_before": "http://127.0.0.1:8318/dashboard",
+    "url_after": "http://127.0.0.1:8318/dashboard",
+    "no_navigation": true,
+    "text_inserted": true
+  }
+}

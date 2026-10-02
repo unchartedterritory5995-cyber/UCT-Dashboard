@@ -16,6 +16,7 @@ import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
 import useAppFocus from '../hooks/useAppFocus'
+import useFocusTrap, { focusableWithin } from './mobile/useFocusTrap'
 import SymbolSearch from './chart/SymbolSearch'
 import styles from './TickerPopup.module.css'
 import { chordById, matchesChord } from '../pages/command/chords.js'
@@ -39,7 +40,29 @@ const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [
 // ThemeTrackerPage.jsx.
 const SHIFT_F = chordById('SHIFT_F')
 
-export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose }) {
+// RW-NEW-02 (a11y second review, 2026-10-01): the capture result's life.
+// Success is transient -- the member already sees the chart/header update,
+// so a short beat is enough. A refusal (the locked-note message) or a
+// generic failure is different: the member has to READ it, understand WHY
+// nothing landed, and go act on it (unlock the note, retry) -- the rewalk's
+// own probe lost a race against the old 2500ms on a machine "no slower than
+// an average member's", which is the sighted-reader version of the same
+// problem a screen reader has with zero role/aria-live at all. 8s is chosen
+// as comfortably past that: long enough to read a one-sentence refusal and
+// decide what to do, without becoming a stuck banner that outlives the
+// member's next click. Never role="alert" (below) for either case, and
+// never used for the routine success.
+const CAPTURE_TOAST_SUCCESS_MS = 2500
+const CAPTURE_TOAST_HOLD_MS = 8000
+// Every success line this door produces ends this way (captureFinancialFact.js);
+// every failure/refusal line does not (`captureFinancialFact.test.js` pins both
+// shapes) -- so this is a safe, cheap classifier without a second success/
+// failure flag threaded through the two capture functions.
+function isCaptureSuccessMessage(msg) {
+  return typeof msg === 'string' && /captured to Notebook$/.test(msg)
+}
+
+export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose, focusable = true }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -48,6 +71,77 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
   const controlled = openProp !== undefined
   const modalOpen = controlled ? openProp : modalOpenState
   const closeModal = () => { if (controlled) onClose?.(); else setModalOpen(false) }
+  // A2R-05 (a11y second review, 2026-10-01): the trigger below used to render
+  // as `<Tag role="button">` with no tabIndex and no key handler — reachable
+  // by mouse only, on every call site that did not pass `as="button"` (26 of
+  // 37). `triggerRef` is assigned to the trigger element itself; the actual
+  // close-time restore (RW-NEW-01, below) captures `document.activeElement`
+  // generically via `invokerRef` so the SAME mechanism covers both this
+  // trigger (uncontrolled mode) and the seven controlled-mode call sites that
+  // render no trigger at all. `focusable` is an explicit opt-out for the rare
+  // call site that already sits inside its OWN focusable ancestor (a
+  // `role="button"` row, a native `<a>`) — nesting a second focus stop there
+  // would be the thing this fix exists to avoid, not a fix for it. See
+  // UCT20.jsx and NewsFeed.jsx.
+  const triggerRef = useRef(null)
+  // RW-NEW-01 (a11y second review, 2026-10-01): Enter/click on the trigger
+  // opened the modal but never moved focus into it -- Tab then walked
+  // through 26 stops of BACKGROUND page content (every other ticker chip,
+  // the nav rail, the Compass orb) on /dashboard before ever reaching the
+  // dialog's own controls. The old restore-only effect below also skipped
+  // controlled mode outright (`|| controlled`), so the seven call sites that
+  // render this with `open`/`onClose` and no trigger never got focus back
+  // either. This single effect now handles BOTH shapes identically:
+  //  · uncontrolled -- this component stays mounted, `modalOpen` toggles;
+  //  · controlled -- the caller mounts this fresh with `open` already true
+  //    and unmounts it (not just flips the prop) to close.
+  // A dependency change (open -> false) and an unmount both run the same
+  // returned cleanup, so one effect covers both lifecycles without a
+  // `wasOpenRef` guard -- the exact shape ShortcutCheatSheet's own A2R-04 fix
+  // uses for the identical always-mounted-vs-mount-while-shown split.
+  const modalRef = useRef(null)
+  const invokerRef = useRef(null)
+  useEffect(() => {
+    if (!modalOpen) return undefined
+    // Capture whatever had focus before the dialog opened (the trigger, in
+    // uncontrolled mode; whatever the controlled caller's own trigger was,
+    // in controlled mode -- there is no `triggerRef` to fall back on there).
+    invokerRef.current = document.activeElement
+    // Move focus into the dialog, onto its FIRST focusable control -- never
+    // the Close button specifically. The header packs the "Switch ticker"
+    // field plus six action buttons (Research/Ask AI/Save price/Save
+    // consensus/Compare/Flag) BEFORE Close, so landing on Close would put
+    // "Save ... price to Notebook" multiple dialog-widths of Tabs away
+    // (through the whole mode row and the chart pane's own controls before
+    // wrapping) -- exactly the kind of long detour this fix exists to kill.
+    // `focusableWithin` reads the REAL DOM (the same helper the trap below
+    // uses), so this adapts automatically if the header's control order
+    // ever changes, and is never behind the lazy ChartPane chunk -- it fires
+    // the instant the dialog's OWN header chrome mounts, before the Suspense
+    // fallback even has a chance to resolve. Because this runs once per open
+    // transition (not on every render), a later Suspense->chart swap never
+    // re-steals focus away from wherever the member has since tabbed to.
+    focusableWithin(modalRef.current)[0]?.focus()
+    return () => {
+      // By now the dialog's nodes are gone (portal content un-rendered):
+      // focus that was inside it has already fallen to <body>.
+      const active = document.activeElement
+      const lost = !active || active === document.body
+      if (!lost) return
+      const invoker = invokerRef.current
+      if (invoker && invoker !== document.body && invoker.isConnected
+          && typeof invoker.focus === 'function') {
+        invoker.focus()
+      }
+    }
+  }, [modalOpen])
+  // Tab/Shift+Tab stay inside the dialog while it is open -- the ONE shared
+  // trap (ConfirmModal, ShortcutCheatSheet and the intro animation all
+  // consume the same hook; see its own file header for why a fifth
+  // hand-written copy is exactly the defect it was extracted to end).
+  // Background content, including this popup's own trigger, is never
+  // removed from the DOM -- this is what actually stops Tab from reaching it.
+  useFocusTrap(modalOpen, modalRef)
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
   // Anchored+reveal (Desk recordings): open positioned at the session date; the
@@ -134,11 +228,15 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     return () => clearTimeout(t)
   }, [flagToast])
 
-  // Clear capture toast after 2.5s (longer than flagToast -- this one names
-  // a destination note, worth a beat longer to read).
+  // RW-NEW-02: success keeps CAPTURE_TOAST_SUCCESS_MS (longer than flagToast's
+  // 1.5s -- this one names a destination note, worth a beat longer to read);
+  // a refusal or failure holds for CAPTURE_TOAST_HOLD_MS. Re-firing a capture
+  // (another action) replaces `captureToast` with a new value, which restarts
+  // this effect and its timer the normal React way.
   useEffect(() => {
     if (!captureToast) return
-    const t = setTimeout(() => setCaptureToast(null), 2500)
+    const ms = isCaptureSuccessMessage(captureToast) ? CAPTURE_TOAST_SUCCESS_MS : CAPTURE_TOAST_HOLD_MS
+    const t = setTimeout(() => setCaptureToast(null), ms)
     return () => clearTimeout(t)
   }, [captureToast])
 
@@ -216,12 +314,27 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
     <>
       {!controlled && (
       <Tag
+        ref={triggerRef}
         className={`${styles.trigger}${className ? ` ${className}` : ''}`}
         onClick={() => {
           // On touch, a tap opens the universal Ticker Hub sheet; desktop keeps
           // the full chart modal.
           if (isTouch) { openTicker(sym); return }
           setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
+        }}
+        onKeyDown={!focusable ? undefined : (e) => {
+          // Enter AND Space activate it, same as a native <button> — this
+          // trigger is a <span> by default (`as` defaults to 'span'), which
+          // carries neither behavior on its own. preventDefault on Space stops
+          // the page from scrolling; on Enter it is a no-op but keeps both
+          // branches symmetric. `focusable=false` call sites skip this prop
+          // entirely rather than attach a handler that can never fire (no
+          // tabIndex means it is never the active element on a keydown).
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+            e.preventDefault()
+            if (isTouch) { openTicker(sym); return }
+            setModalOpen(true); setTab('Daily'); setView('chart'); prefetchAllTimeframes(sym)
+          }
         }}
         onMouseEnter={() => {
           prefetchBar(sym, 'D')
@@ -233,6 +346,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
           import('./chart/pane/ChartPane')
         }}
         {...tickerActions.longPressProps(sym)}
+        {...(focusable ? { tabIndex: 0 } : null)}
         role="button"
         aria-label={`View chart for ${sym}`}
         data-testid={`ticker-${sym}`}
@@ -250,6 +364,7 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
           data-testid="chart-modal"
         >
           <div
+            ref={modalRef}
             className={styles.modal}
             onClick={e => e.stopPropagation()}
             role="dialog"
@@ -285,11 +400,34 @@ export default function TickerPopup({ sym, as: Tag = 'span', customChartFn, clas
                     <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                   </span>
                 )}
-                {captureToast && (
-                  <span className={styles.flagToast}>
-                    <UIcon name="camera" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{captureToast}
-                  </span>
-                )}
+                {/* RW-NEW-02 (a11y second review, 2026-10-01): this span used
+                    to mount ONLY once a message existed, with no role and no
+                    aria-live -- a region inserted together with its text is
+                    often never announced (confirmed live: a page-wide
+                    live-region census at the moment of a refusal found
+                    nothing on the page, even though the toast genuinely
+                    inserted). The region is now ALWAYS mounted, empty,
+                    before any capture -- assistive tech has already
+                    discovered it by the time a message lands. The inner
+                    badge only renders once there is something to show, so a
+                    mouse user still sees no empty pill. role="status" (never
+                    "alert") for both success and a refusal/failure -- a
+                    routine save is not an interruption; see
+                    CAPTURE_TOAST_HOLD_MS above for why a refusal stays up
+                    longer. */}
+                <span
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  className={styles.captureStatus}
+                  data-testid="capture-status"
+                >
+                  {captureToast && (
+                    <span className={styles.captureStatusBadge}>
+                      <UIcon name="camera" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{captureToast}
+                    </span>
+                  )}
+                </span>
                 {/* The journal, visible from the app's universal ticker
                     surface: "4 entries" → click through to them. Keyed to
                     activeSym, so searching another ticker in place re-points

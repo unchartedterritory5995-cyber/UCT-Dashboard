@@ -9,6 +9,8 @@ import {
   ALLOWED_IMAGE_MIMES, ALLOWED_ATTACHMENT_MIMES,
 } from '../../lib/tiptap'
 import { createMemoDocJSON } from '../../lib/memoDocJSON'
+import { createMemoStringify, stringifyDraftPayload } from '../../lib/memoStringifyBody'
+import { nodeActiveAtCursor, canBlockquoteFast } from '../../lib/fastToolbarProbes'
 import Toast from '../Toast'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
@@ -264,8 +266,31 @@ export function canRunHistory(editor, cmd) {
  *   TextColorMenu.jsx `editor.getAttributes('highlight').color`  | highlightColor
  *
  * `isActive` / `getAttributes` resolve against the CURRENT SELECTION, never a
- * document walk, so every row above is O(1) per keystroke regardless of note
- * size. A field added to ANY of these render reads -- this file's JSX or a
+ * document walk -- so every row above is O(1) per keystroke regardless of note
+ * size AT THE APP LEVEL this file controls.
+ *
+ * ⛔⛔ THAT CLAIM WAS WRONG FOR THE SIX NODE-TYPE ROWS (h1/h2/bulletList/
+ * orderedList/blockquote/codeBlock) AND FOR canBlockquote, measured by lane
+ * TY7 via a CPU-profile call-tree walk, not assumed:
+ * `docs/notebook/perf-runs/ty7/ty7-caller-table.json`. `editor.isActive` for
+ * a NODE type (not a mark) calls `@tiptap/core`'s `isNodeActive`, which ALWAYS
+ * calls `state.doc.nodesBetween(from, to, …)` -- and prosemirror-model's
+ * `Fragment.prototype.nodesBetween` iterates its children from index 0 up to
+ * `to`, REGARDLESS of `from`, so resolving a position near the end of a flat
+ * 2,000-paragraph doc costs O(preceding siblings) on EVERY call. canBlockquote
+ * is the same shape one level up (`findWrapping` -> `canReplaceWith` ->
+ * `contentMatchAt`, walking the PARENT's preceding children). Marks (bold,
+ * italic, highlight) and getAttributes genuinely stay O(1) -- confirmed the
+ * same way -- which is why only those two function families changed.
+ * `nodeActiveAtCursor` / `canBlockquoteFast` (`lib/fastToolbarProbes.js`)
+ * answer the SAME question from `$from`'s already-resolved ancestor chain
+ * (O(depth)) instead, with an equivalence test against the real
+ * `editor.isActive` / `editor.can().toggleBlockquote()` over a real editor
+ * (`lib/fastToolbarProbes.equivalence.test.js`) -- this file's own calls
+ * below changed, this comment's field LIST and the toolbarSignatureAudit rail
+ * below did not, because the toolbar still shows exactly the same values.
+ *
+ * A field added to ANY of these render reads -- this file's JSX or a
  * child that does not self-subscribe -- must be added here too, or it goes
  * stale behind a bailed-out render; `NoteEditorPage.toolbarSignatureAudit.test.js`
  * greps this file and TextColorMenu.jsx for exactly this shape and fails BY
@@ -322,13 +347,13 @@ export function readToolbarFormatState(editor) {
   return {
     bold: editor.isActive('bold'),
     italic: editor.isActive('italic'),
-    h1: editor.isActive('heading', { level: 1 }),
-    h2: editor.isActive('heading', { level: 2 }),
-    bulletList: editor.isActive('bulletList'),
-    orderedList: editor.isActive('orderedList'),
-    blockquote: editor.isActive('blockquote'),
-    canBlockquote: canRunHistory(editor, 'toggleBlockquote'),
-    codeBlock: editor.isActive('codeBlock'),
+    h1: nodeActiveAtCursor(editor, 'heading', { level: 1 }),
+    h2: nodeActiveAtCursor(editor, 'heading', { level: 2 }),
+    bulletList: nodeActiveAtCursor(editor, 'bulletList'),
+    orderedList: nodeActiveAtCursor(editor, 'orderedList'),
+    blockquote: nodeActiveAtCursor(editor, 'blockquote'),
+    canBlockquote: canBlockquoteFast(editor, canRunHistory),
+    codeBlock: nodeActiveAtCursor(editor, 'codeBlock'),
     fontFamily: editor.getAttributes('textStyle').fontFamily || '',
     fontSize: editor.getAttributes('textStyle').fontSize || '',
     textColor: editor.getAttributes('textColor').color || '',
@@ -1176,6 +1201,15 @@ export default function NoteEditorPage({
   const draftJSONRef = useRef(null)
   if (!draftJSONRef.current) draftJSONRef.current = createMemoDocJSON()
 
+  // Wave 10 (lane TY5): the memoized `JSON.stringify()` layered over
+  // `draftJSONRef` above -- same convention, same lifetime (one instance for
+  // the component's whole lifetime, a WeakMap keyed on the JSON objects
+  // `draftJSONRef` already reuses by reference for an untouched subtree).
+  // See `lib/memoStringifyBody.js`'s header for why this is safe to cache
+  // and `memoStringifyBody.test.js` for the byte-identical-output proof.
+  const draftStringifyRef = useRef(null)
+  if (!draftStringifyRef.current) draftStringifyRef.current = createMemoStringify()
+
   // Wave Q1: ONE snapshot per keystroke, shared by both local layers.
   // ⛔ Taken once on purpose: `getJSON()` walks the whole document, and the
   // draft and the durable copy must describe the SAME instant — two reads
@@ -1221,9 +1255,22 @@ export default function NoteEditorPage({
     const snap = state || captureLocalState()
     if (!snap) return
     try {
-      localStorage.setItem(DRAFT_KEY(noteId), JSON.stringify({
+      // Wave 10 (lane TY5): `bodyJson` is stringified through
+      // `draftStringifyRef` rather than letting the outer `JSON.stringify`
+      // below re-walk it -- an untouched paragraph's JSON object is the SAME
+      // object `draftJSONRef` handed back last keystroke, and the memoized
+      // stringify reuses its already-computed STRING the same way. This is
+      // where this path's cost scaled with document size (perf-budgets.md,
+      // `docs/notebook/perf-runs/ty5/`): `saveDraftLocally` alone, not the
+      // localStorage write itself, which still writes the same bytes every
+      // keystroke as the Wave Q1 "ONE snapshot per keystroke" guarantee
+      // requires. `stringifyDraftPayload` then reconstructs the REST of this
+      // object's JSON form by hand (see memoStringifyBody.js for why that is
+      // safe) with the memoized body spliced in, never re-walked.
+      const bodyJsonStr = draftStringifyRef.current(snap.bodyJson)
+      localStorage.setItem(DRAFT_KEY(noteId), stringifyDraftPayload({
         title: snap.title, subtitle: snap.subtitle,
-        bodyJson: snap.bodyJson, savedAt: Date.now(),
+        bodyJsonStr, savedAt: Date.now(),
         // Wave Q1: which tab-session wrote it. On reopen that separates "the
         // durable copy from THIS session" (where the draft is written first and
         // can only be equal-or-newer — an exact structural answer) from one

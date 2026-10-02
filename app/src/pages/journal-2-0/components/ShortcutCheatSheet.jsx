@@ -1,7 +1,8 @@
 /** Keyboard shortcut cheat sheet. Bound to `?`. */
 
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { altKeyLabel, homeEndKeys, modKeyLabel, replaceChordKeys } from '../lib/platform'
+import useFocusTrap from '../../../components/mobile/useFocusTrap'
 import shellStyles from './ModalShell.module.css'
 import styles from './ShortcutCheatSheet.module.css'
 
@@ -118,13 +119,48 @@ function Section({ title, shortcuts }) {
 
 export default function ShortcutCheatSheet({ open, onClose }) {
   const titleId = useId()
+  // A2R-04 (a11y second review, 2026-10-01): none of this existed — Tab walked
+  // straight out of the dialog into the page behind it, and closing (by any
+  // door) left focus wherever it fell, usually <body>. Same pattern as
+  // ConfirmModal's own A2R-05 fix (lane 10E-2): focus opens on the Close
+  // button (the one safe, always-present control), Tab/Shift+Tab wrap via the
+  // ONE shared trap, and on close focus returns to whatever had it before —
+  // but only when focus was actually LOST with the dialog, never when a
+  // caller already placed it on purpose.
+  //
+  // This component stays mounted with `open` toggling (JournalLayout always
+  // renders it), so "the dialog opened" is an `open` TRANSITION, not a mount —
+  // unlike ConfirmModal, which IS only ever mounted while shown.
+  const dialogRef = useRef(null)
+  const closeBtnRef = useRef(null)
+  const invokerRef = useRef(null)
+  // The latest onClose, read by the Escape listener without re-subscribing it
+  // (and without re-running the open-transition effect) on every re-render of
+  // the page behind the dialog — mirrors ConfirmModal's onCloseRef.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose })
 
   useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    if (!open) return undefined
+    invokerRef.current = document.activeElement
+    closeBtnRef.current?.focus()
+    const onKey = (e) => { if (e.key === 'Escape') onCloseRef.current?.() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      // By now the dialog's nodes are gone (this runs after the `open=false`
+      // commit): focus that was inside it has already fallen to <body>.
+      const active = document.activeElement
+      const lost = !active || active === document.body
+      const invoker = invokerRef.current
+      if (lost && invoker && invoker !== document.body && invoker.isConnected
+          && typeof invoker.focus === 'function') {
+        invoker.focus()
+      }
+    }
+  }, [open])
+
+  useFocusTrap(open, dialogRef)
 
   if (!open) return null
 
@@ -135,6 +171,7 @@ export default function ShortcutCheatSheet({ open, onClose }) {
       role="presentation"
     >
       <div
+        ref={dialogRef}
         className={shellStyles.modal}
         role="dialog"
         aria-modal="true"
@@ -143,6 +180,7 @@ export default function ShortcutCheatSheet({ open, onClose }) {
         <div className={shellStyles.header}>
           <h2 id={titleId} className={shellStyles.title}>Keyboard Shortcuts</h2>
           <button
+            ref={closeBtnRef}
             type="button"
             className={shellStyles.xBtn}
             onClick={onClose}

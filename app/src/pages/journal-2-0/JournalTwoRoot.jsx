@@ -92,7 +92,12 @@ export default function JournalTwoRoot() {
   const closeSettings = useCallback(() => setShowSettings(false), [])
 
   // Global shortcuts
-  useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
+  // A2R-04 (a11y second review, 2026-10-01): `'shift+/'` never matched a real
+  // Shift+/ keydown — react-hotkeys-hook v5 matches on `event.code`, and a
+  // real Shift+/ press carries `code: "Slash"` (→ "slash"), not the literal
+  // "/" the hotkey string parses to. Same fix as JournalLayout.jsx's copy of
+  // this control; see that file for the full trace.
+  useHotkeys('shift+slash', () => setShowShortcuts((x) => !x), { preventDefault: true })
   useHotkeys('g>p', () => setNestedTab('positions'))
   useHotkeys('g>j', () => setNestedTab('journal'))
   useHotkeys('g>a', () => setNestedTab('calendar'))
@@ -114,6 +119,14 @@ export default function JournalTwoRoot() {
             type="button"
             className={styles.shortcutsBtn}
             onClick={() => setShowShortcuts(true)}
+            // A2R-04: explicit, so Enter/Space are guaranteed regardless of a
+            // native <button>'s own default activation.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault()
+                setShowShortcuts(true)
+              }
+            }}
             aria-label="Show keyboard shortcuts"
             title="Keyboard shortcuts (Shift + ?)"
           >
