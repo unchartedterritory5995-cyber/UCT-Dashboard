@@ -1779,6 +1779,12 @@ L13A_TAG = 'notebook-wave10-L13a-2026-09-30'
 # the waves above can be tied to the squashes that landed them (see B0_WAVES).
 L12_TIP_TAG = 'notebook-wave10-L12-tip-2026-09-30'
 L13_TIP_TAG = 'notebook-wave10-L13-tip-2026-09-30'
+# Quiet re-score QR (2026-10-02): the controller's quiet-box readings for 14d (the per-call curve,
+# curve-d22-q2, measured at 93c4bed77 on feat/notebook-w10-pc3) and 4d (TY8's six interleaved busy-time
+# runs, on feat/notebook-w10-ty8). Neither branch has landed, so the evidence was cherry-picked here and
+# this is a new wave of the same shape as SC/SC2/SC3/L13a (tip and squash both None). The tag is cut at
+# the commit that registers it here, after every evidence file below is committed -- never before.
+QR_TAG = 'notebook-wave10-QR-2026-10-02'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -1804,6 +1810,7 @@ B0_WAVES = (
     ('wave 10 SC2', L12_TIP_TAG, '6cdfc41e6', '599cd44f1'),
     ('wave 10 SC3', L13_TIP_TAG, '5af134095', 'a680b0d40'),
     ('wave 10 L13a', L13_TIP_TAG, '5af134095', 'a680b0d40'),
+    ('wave 10 QR', QR_TAG, None, None),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -1899,6 +1906,18 @@ B0_EVIDENCE = (
     (f'{PROOF}/l12dc2-6cbf0618e/deadclick.json', 'wave 10 SC2'),
     (f'{PROOF}/l3-reconfirm-fe01bdb14/run-meta.json', 'wave 10 SC2'),
     ('docs/notebook/gate-runs/g62/walk-4d2a4edfa-run3.json', 'wave 10 L13a'),  # lane G62's walk
+    # Quiet re-score QR (2026-10-02): 14d's quiet per-call curve and 4d's quiet TY8 A/B.
+    ('docs/notebook/gate-runs/wave10-PC/curve-d22-q2.log', 'wave 10 QR'),
+    ('docs/notebook/gate-runs/wave10-PC/curve-d22-q2.json', 'wave 10 QR'),
+    ('docs/notebook/gate-runs/wave10-PC/curve-d22-q2-box.txt', 'wave 10 QR'),
+    ('docs/notebook/gate-runs/wave10-PC/README-quiet.md', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/README.md', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/A1.json', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/A2.json', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/A3.json', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/B1.json', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/B2.json', 'wave 10 QR'),
+    ('docs/notebook/perf-runs/ty8/ab/B3.json', 'wave 10 QR'),
 )
 # (a tree a browser check or walk measured, the ref it must be reachable from: HEAD, or the tag of the
 # declared wave whose branch it was on -- a squash leaves no other path to it). Fix round 1 (review I-3):
@@ -2565,6 +2584,16 @@ def build(pages_dir=None):
     PAPI_READBACK = measure(PAPI, '48-49', 'read it back as the member: both texts, in order', PAPI_CMD)
     PAPI_REVOKED = measure(PAPI, '65-66', 'the revoked token is refused on its next request', PAPI_CMD)
     QUIET_SLOT = record(PB, '775-776', 'are taken by the controller in a held quiet slot')
+    # Quiet re-score QR (2026-10-02): 14d's quiet per-call curve and 4d's quiet TY8 A/B.
+    QR_CURVE = 'docs/notebook/gate-runs/wave10-PC/curve-d22-q2.log'
+    QR_BOX = 'docs/notebook/gate-runs/wave10-PC/curve-d22-q2-box.txt'
+    QR_README = 'docs/notebook/gate-runs/wave10-PC/README-quiet.md'
+    QR_CURVE_CMD = ('python tools/notebook_scale_benchmark.py --curve --thresholds docs/notebook/perf-budgets.json '
+                    '(the controller, quiet box, 2026-10-02 05:47 CT, tree 93c4bed77)')
+    TY8R = 'docs/notebook/perf-runs/ty8/README.md'
+    TY8A = [f'docs/notebook/perf-runs/ty8/ab/A{i}.json' for i in (1, 2, 3)]
+    TY8_CMD = ('python tools/notebook_perf_harness.py --boot --busy --sizes 1,1000,2000 --opens 20 --chars 60 '
+               '(TY8 A/B, quiet box, 2026-10-02 05:08-05:32 CT)')
     PROOF_CMD = 'python tools/notebook_proof_walk.py --boot (10E-1 instrument; F5 re-ran it)'
     AXE_AFTER = measure(f'{PROOF}/f5-after-aa2417c2c/run.json', '15-18', '"findings": 0', PROOF_CMD)
     PR = f'{PROOF}/README.md'
@@ -3023,7 +3052,7 @@ def build(pages_dir=None):
       {'N': ['N_favorites'], 'E': EB, 'O': NFO}, 'B17: the research home shows Continue working.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
-    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 26, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
+    R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 28, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
                       walk9('B30_live_research_tab')],
       {'N': NA, 'E': NA, 'O': NA}, 'UCT-unique; reachable from the notebook (B17) and from the live research page\'s My Research tab (B30).')
     # Documents (Waves I, J)
@@ -3401,7 +3430,24 @@ def build(pages_dir=None):
           code('app/src/pages/journal-2-0/components/notebook/NoteEditorPage.jsx', 376,
                'export function toolbarStateReducer(prev, editor)'),
           code('app/src/pages/journal-2-0/lib/stepInsertsNodeType.js', 39,
-               'export function stepsIntroduceNodeType(tr, name)')],
+               'export function stepsIntroduceNodeType(tr, name)'),
+          D(24, 'The 16 ms line is read on the main-thread BUSY time per keystroke (p95)'),
+          measure(TY8A[0], 565, '"p95_ms": 10.6', TY8_CMD), measure(TY8A[1], 565, '"p95_ms": 10.93', TY8_CMD),
+          measure(TY8A[2], 565, '"p95_ms": 10.15', TY8_CMD),
+          record(TY8R, 153, 'Lock FREE and load QUIET at both ends of every run'),
+          record(TY8R, 180, '17.12 ms on the same harness): not established'),
+          record(PB, 995, '4d, typing: still NOT MET, because two quiet readings of the same code disagree')],
+         'quiet re-score QR (2026-10-02): the owed quiet-box busy reading now exists and does not settle the clause. '
+         'Six interleaved runs of TY8\'s A/B (`perf-runs/ty8/ab/`, 05:08-05:32 CT), each lock FREE and load QUIET at '
+         'both ends; A is the editor code this tree ships (`git diff fefbc2bf6 HEAD -- app/src/pages/journal-2-0` is '
+         'empty) and B adds TY8\'s `memoStringifyBody.js` change, which is not on this tree. All 18 busy p95 cells are '
+         'under 16 ms: at 2,000 paragraphs A reads 10.60 / 10.93 / 10.15 ms and B 9.89 / 12.18 / 11.66 ms. But L15\'s q1 '
+         'run (2026-10-01 19:28, `perf-runs/ty-l15-quiet/`, on the #263 branch, not this tree) was also QUIET at both '
+         'ends by the same lock tool, on the same editor code, and read 19.56 ms at 1,000 paragraphs and 17.12 ms at '
+         '2,000. Two quiet readings of one build disagree and nothing measured explains it (unmarked background load is '
+         'a hypothesis, not a measurement), and D24 says which row binds, not how to resolve two clean readings that '
+         'disagree. So the verdict stays NOT MET until another quiet hour agrees with one side; the 16 ms line is '
+         'unchanged. Before this re-score the cell read: '
          'below the cap: waiting on the controller\'s quiet slot (10A\'s typing A/B; its loaded p95 sits at the line, '
          'and F1 is in flight, unmeasured); at the cap: G-035 stays open by owner ruling. Lane TY (e1999ca5f, '
          '15ab6b886, on this tree) built two more levers since the 17.6 ms reading above: a `useReducer` bailout '
@@ -3662,8 +3708,13 @@ def build(pages_dir=None):
          'budget binds up to 2,000 paragraphs and beyond it the slowdown is a documented limit, not a defect -- '
          'virtualizing the editor for the top few percent of note sizes is a large change against a budget that is '
          'already measured and enforced below the cap', OWNER),
-        ('no super-linear curve', 'NOT MET',
-         [record(PB, 675, "W7's curve BREACHED 9 ops"),
+        ('no super-linear curve', 'MET',
+         [measure(QR_CURVE, 211, 'VERDICT: PASS -- curve: every op\'s slope <= 1.1 (connection=per-call)', QR_CURVE_CMD),
+          measure(QR_CURVE, 12, 'connection model: per-call (default, D22 clause 14d', QR_CURVE_CMD),
+          record(QR_BOX, 3, 'load: QUIET'), record(QR_BOX, 6, 'load: QUIET'),
+          record(QR_README, 46, 'Clause 14d (the curve) is met on a quiet box under the gating model'),
+          record(PB, 988, '14d, the curve: the owed quiet re-read exists'),
+          record(PB, 675, "W7's curve BREACHED 9 ops"),
           measure(f'{PROOF}/f6-switcher-body/perf/fr1-curve.log', 177, 'VERDICT: BUDGET BREACH',
                   'python tools/notebook_scale_benchmark.py --curve (F6, fix round 1)'),
           measure(f'{QS}/qs-curve.log', 178, 'VERDICT: BUDGET BREACH',
@@ -3675,6 +3726,16 @@ def build(pages_dir=None):
           code('tools/notebook_scale_benchmark.py', 944,
                'primary_connection, diagnostic_connection = "per-call", "shared"'),
           record(PB, 899, 'ruling D22'), record(PB, 915, 'owed before the scorecard cites 14d as MET')],
+         'quiet re-score QR (2026-10-02): the re-read this cell said was owed exists. A bare `--curve` (the per-call '
+         'model, ruling D22) on a box lock FREE and load QUIET at both ends (05:47-05:50 CT) read VERDICT PASS: every '
+         'op\'s fit at or under 1.1 and every last segment at or under 1.3. It was measured at `93c4bed77` '
+         '(feat/notebook-w10-pc3, not merged); `git diff` of that tree against this one is empty for '
+         '`api/services/journal_two`, `api/services/auth_db.py` and the benchmark tool, so it measures this tree\'s '
+         'notes reads. The shared model ran beside it as the diagnostic and recorded 5 breaches (count_notes fit 1.119 '
+         'and last segment 2.531, folder_note_counts last segment 2.024, get_symbol_backlinks 1.121, list_tasks '
+         '1.159), not gating under D22; a per-call PASS says the product does not grow super-linearly as a member '
+         'experiences it, not that the queries are free of page-cache effects (perf-budgets.md, "The per-call '
+         'reading"). The bounds are unchanged. What the cell said before this re-score, kept for the record: '
          'the curve and its bounds are built (10A); every reading taken so far BREACHes (count_notes, folder '
          'counts, backlinks, list_tasks bending between 10k and 25k), including lane RS\'s two quiet-slot repeats. '
          'Lane PC diagnosed the cause: the benchmark holds one long-lived SQLite connection with SQLite\'s default '
@@ -3693,7 +3754,7 @@ def build(pages_dir=None):
          'curve readings measure by default, it does not itself constitute one. A quiet-box reading of the '
          'per-call model does not exist yet on this tree -- perf-budgets.md says so in the same words this row '
          'now does ("that re-read is owed before the scorecard cites 14d as MET") -- and none is invented here. '
-         'The bounds in perf-budgets.json are unchanged', OWNER),
+         'The bounds in perf-budgets.json are unchanged', None),
     ]
     try:
         TELEM_EVENTS = core_action_events(open(os.path.join(ROOT, f'{LB}/notebookTelemetry.js'), encoding='utf-8').read())
@@ -4013,9 +4074,10 @@ def build(pages_dir=None):
                 w(f'| {s["n"]}. {s["name"]} | {esc(clause)} | {verdict} | {esc(lever) or "—"} |')
     w('')
     w('Named performance levers: the wave-9 set (`docs/notebook/perf-budgets.md`:305-317, the integer hop into the FTS map and '
-      'a maintained task index) is BUILT by 10A (§7); what remains is the quiet-box verdict, the curve\'s bend between 10k and '
-      '25k notes (SQLite\'s default page cache is a named second cause, §7 "The curve"), and typing below the cap (the toolbar\'s '
-      'whole-page re-render, §7 "Typing"). G-035 at the size cap stands by owner ruling '
+      'a maintained task index) is BUILT by 10A (§7); what remains is the quiet-box verdict and typing below the cap (the toolbar\'s '
+      'whole-page re-render, §7 "Typing"; two quiet readings of the same build disagree, perf-budgets.md "Quiet '
+      're-reads"). The curve\'s bend between 10k and 25k notes is now only the shared-model diagnostic: the per-call '
+      'curve read PASS on a quiet box (2026-10-02, clause 14d). G-035 at the size cap stands by owner ruling '
       '(`docs/notebook/competitive-gap-ledger.md`:88).')
     w('')
     w('### Rows: every BEHIND, NOT-VERIFIED or BLOCKED verdict')
