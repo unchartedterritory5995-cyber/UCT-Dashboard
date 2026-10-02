@@ -48,3 +48,21 @@ Failing tests:
 - src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c49CapturedClock.test.js > C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AMEX:SPY 5 minutes, the newest bar forming > ⭐ through the member
 - src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c49CapturedClock.test.js > C49 · 8 — packet #3: `request.security(tickerid, "D", close)` on AMEX:SPY 5 minutes, the newest bar forming > ⭐ through the member
 
+
+## Owner delegation 2026-10-01: "You decide it all whatever is best for the platform and users"
+Integrator rulings (members first: charts stay fast, nothing drawn wrong). Each ships behind a
+measurement, never on assertion:
+- R-B (budget): INSTRUCTIONS_PER_BAR 200,000 -> 250,000, ONLY after measuring member chart speed
+  (compute time per indicator on a 5,000-bar chart, before/after, and the app-wide smoke). Admits
+  dual-view (247,425) and poor-man (227,730). k-clustering (800,613) stays refused by name.
+- R-P (plots): CARRY_MAX 12 -> 64 (TradingView's own plot limit), after measuring render time with
+  a 64-plot script. Unblocks candlestick-patterns, madrid, ema-ribbon's 13th plot.
+- R-RT (runtime pane): staged rollout - first an allowlist of scripts whose runtime-lane output is
+  graded MATCH on a capture (inside-bar-range, wyckoff-accumulation-distribution), with the
+  app-wide smoke; widen as the census proves more. Global flag stays dark until then.
+- R-D (data): no new paid data feeds. Breadth symbols (ADVN/DECN, USI:*) map to our own breadth
+  collector ONLY where a capture shows our numbers equal TradingView's. Futures/FX stay refused by name.
+- R-LTF (lower timeframe): flip VITE_PINE_LOWER_TF_ENABLED once `storeIntradayAgreement` passes
+  (>= 99% of sessions equal on OHLC, >= 99.5% same last close) on a committed read-only payload of
+  our own `/api/bars/RDDT?tf=15&bars=60000`, and the same on SPY.
+- Deploys still need the owner's literal "deploy wave N" (standing master-push rule).
