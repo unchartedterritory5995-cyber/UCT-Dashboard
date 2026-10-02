@@ -1061,7 +1061,7 @@ function FilterChips({ filters, onChange, counts, stockEtfFilter, onStockEtfChan
             position: "absolute", left: 9, color: P.mt, fontSize: 12,
             pointerEvents: "none",
           }}>🔍</span>
-          <input
+          <input aria-label="Search tickers"
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -1608,7 +1608,7 @@ function DateRail({ targetDate, onDateChange, onRange, rangeDays }) {
     return (
       <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
         <label style={{ color: P.dm, fontSize: 12 }}>Date:</label>
-        <input
+        <input aria-label="Date"
           type="date" value={iso}
           onChange={(e) => {
             const v = e.target.value;
@@ -2432,7 +2432,7 @@ function TuningPanel({ thresholds, onChange, onSave, onReset, dirty, alerts, aut
             <span style={{ color: P.dm, fontSize: 10, marginLeft: 4 }}>fires</span>
           </div>
           <div><Label>Grade ≥</Label>
-            <select value={thresholds.stack.grade}
+            <select aria-label="Minimum grade" value={thresholds.stack.grade}
               onChange={e => setPath(["stack","grade"], e.target.value)}
               style={{
                 padding: "3px 6px", fontSize: 11, background: P.bg,
@@ -2839,7 +2839,7 @@ function DormantStatusPanel() {
 
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ color: P.dm, fontSize: 10 }}>Lookback:</span>
-        <input
+        <input aria-label="Lookback days"
           type="number" value={lookback} min={1} max={365} step={1}
           onChange={e => setLookback(parseInt(e.target.value, 10) || 30)}
           style={{

@@ -79,6 +79,7 @@ import {
   isEventColumnValue,
   SCHEMA_VERSION,
   SUPPORTED_KINDS,
+  SOURCE_BAR_FIELDS,
 } from './defSchema'
 // ⭐ THE THIRD LANE'S FOUR PIECES, WIRED HERE AT PHASE D TASK 8. Until this
 // commit `interpret`, `checkBudget` and `lintRepaint` were shipped and had NO
@@ -113,6 +114,9 @@ import { runtimeErrorWords } from './runtimeErrorText'
 // ⛔ One authority, three callers — this line is an alias, never a second copy.
 export { bindConstsFor }
 import { timeframeFlags } from '../indicators'
+import { smaOfSeries, emaOfSeries, maSeries, MA_TYPES, numbersToPoints } from '../movingAverages'
+import { TECH_CATEGORY as CAT } from '../technicalCategories'
+import * as S from '../technicalStudies'
 import { checkBudget } from './ast/budget'
 import { lintRepaint, declaredInputs } from './ast/lint'
 import { freshnessFor } from './ast/freshness'
@@ -127,6 +131,7 @@ import { freshnessFor } from './ast/freshness'
 import { worstRepaint, stalestFreshness } from './ast/trees'
 import {
   computeRSI,
+  computeVWAPDeviation,
   computeMACD,
   computeBB,
   computeVWAP,
@@ -292,6 +297,10 @@ const periodInput = (key, label, dflt, min, max) => ({
  *  *"change the back-shift and this goes red with the two numbers in hand."* */
 const ICHIMOKU_KIJUN = periodInput('kijunPeriod', 'Kijun', 26, 1, 200)
 
+/** The one-series `source` input the Tier 1 transforms declare (2026-10-01) —
+ *  the same vocabulary the Moving Average has always used. */
+const SOURCE_INPUT = Object.freeze({ key: 'source', type: 'source', label: 'Source', default: 'close' })
+
 // ─── the definitions ─────────────────────────────────────────────────────────
 //
 // Colours, periods and bounds are copied from `CHART_DEFAULTS.indicators`
@@ -330,7 +339,7 @@ const ICHIMOKU_KIJUN = periodInput('kijunPeriod', 'Kijun', 26, 1, 200)
 const RAW_DEFS = [
   // ── RSI ──────────────────────────────────────────────────────────────────
   nativeDef('rsi', 'rsi',
-    { name: 'Relative Strength Index', shortName: 'RSI', category: 'Momentum', legendParams: ['period'],
+    { name: 'Relative Strength Index', shortName: 'RSI', category: CAT.MOMENTUM, legendParams: ['period'],
       description: 'Momentum on a 0-100 scale: how much of recent movement has been up.',
       tags: ['oscillator', 'momentum'] },
     fixedPane(0, 100, 0.15),
@@ -361,7 +370,7 @@ const RAW_DEFS = [
   // `validateInstance` on purpose — an old instance still draws, it just draws
   // the 8 bars it always should have.
   ({ ...nativeDef('macd', 'macd',
-    { name: 'MACD', shortName: 'MACD', category: 'Momentum',
+    { name: 'MACD', shortName: 'MACD', category: CAT.MOMENTUM,
       description: 'The gap between two moving averages, and how fast that gap is changing.',
       tags: ['oscillator', 'momentum', 'trend'] },
     autoPane(0.17),
@@ -413,7 +422,7 @@ const RAW_DEFS = [
 
   // ── Bollinger Bands ──────────────────────────────────────────────────────
   nativeDef('bb', 'bb',
-    { name: 'Bollinger Bands', shortName: 'BB', category: 'Volatility',
+    { name: 'Bollinger Bands', shortName: 'BB', category: CAT.VOLATILITY,
       description: 'A moving average with volatility bands, so you can see when range is unusual.',
       // ⭐ TASK 2 — the chip reads `BB(20, 2) 431.20`. `shortName` is ALREADY the
       // stem, so the basis declares no `legend.label`: one would short-circuit
@@ -462,7 +471,7 @@ const RAW_DEFS = [
   // reproducible, which is the cost the owner accepted at 2,590 changed pixels.
   ({ ...nativeDef('vwap', 'vwap',
     {
-      name: 'Session VWAP', shortName: 'VWAP', category: 'Volume',
+      name: 'Session VWAP', shortName: 'VWAP', category: CAT.VWAP,
       description: 'The session\'s volume-weighted average price — where the day\'s money traded.',
       tags: ['overlay', 'volume', 'session'],
       // The old `VWAP_TFS` in `StockChart.jsx`, which is DELETED as of Flip B
@@ -483,6 +492,15 @@ const RAW_DEFS = [
         options: [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']],
       },
       { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+      // ⭐⭐ σ BANDS (2026-10-01) — AN OPTION ON THIS ONE VWAP, NOT A SECOND VWAP ROW.
+      // Off by default, and an instance saved without the key reads Off, so every
+      // existing chart draws exactly the single line it always did. The bands are
+      // `vwap ± k·σ` with σ the session's volume-weighted standard deviation
+      // (`indicators.computeVWAPDeviation`), at the conventional 1/2/3 multipliers.
+      {
+        key: 'bands', type: 'enum', label: 'Std dev bands', default: 'off',
+        options: [['off', 'Off'], ['1', '±1σ'], ['2', '±1σ, ±2σ'], ['3', '±1σ, ±2σ, ±3σ']],
+      },
     ],
     [
       // 🔴 THIS READ "The shipped legend has no VWAP chip." Task 2 gives it one:
@@ -506,16 +524,30 @@ const RAW_DEFS = [
         color: '$color', width: '$lineWidth', lineStyle: '$lineStyle',
         role: 'primary', legend: { decimals: 2 },
       },
+      { key: 'upper1', label: '+1σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
+      { key: 'lower1', label: '−1σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
+      { key: 'upper2', label: '+2σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
+      { key: 'lower2', label: '−2σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
+      { key: 'upper3', label: '+3σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
+      { key: 'lower3', label: '−3σ', style: 'line', color: '$color', width: 1, lineStyle: 'dotted', opacity: 0.6, role: 'secondary', legend: { hide: true } },
     ]), compute: { kind: 'native', fn: 'vwap', rev: 2 } }),
 
   // ── Stochastic ───────────────────────────────────────────────────────────
   nativeDef('stoch', 'stoch',
-    { name: 'Stochastic Oscillator', shortName: 'Stoch', category: 'Momentum',
+    { name: 'Stochastic Oscillator', shortName: 'Stoch', category: CAT.MOMENTUM,
       description: 'Where price closed inside its recent high-low range, smoothed.',
-      tags: ['oscillator', 'momentum'] },
+      tags: ['oscillator', 'momentum', 'slow stochastic', 'fast stochastic'],
+      // ⭐⭐ SLOW 14/3/3 FOR A NEW INSTANCE, FAST FOR EVERY SAVED ONE (2026-10-01).
+      // `smoothK` is %K's smoothing. Every Stochastic saved before it existed was
+      // FAST (unsmoothed %K), so an ABSENT key must keep meaning 1 — that is the
+      // declared default, and it is what the inspector shows for those charts. A
+      // member adding Stochastic now gets the mainstream slow stochastic: the add
+      // doors write `createInputs` onto the new instance (`instanceControls`).
+      createInputs: { smoothK: 3 } },
     fixedPane(0, 100, 0.15),
     [
       periodInput('kPeriod', '%K Period', 14, 1, 100),
+      periodInput('smoothK', '%K Smoothing', 1, 1, 20),
       periodInput('dPeriod', '%D Period', 3, 1, 20),
       colorInput('kColor', '%K', '#FF6B6B'),
       colorInput('dColor', '%D', '#4ECDC4'),
@@ -538,7 +570,7 @@ const RAW_DEFS = [
 
   // ── ATR ──────────────────────────────────────────────────────────────────
   nativeDef('atr', 'atr',
-    { name: 'Average True Range', shortName: 'ATR', category: 'Volatility',
+    { name: 'Average True Range', shortName: 'ATR', category: CAT.VOLATILITY,
       description: 'Average size of a bar\'s true range — a volatility number in price units.',
       // ⭐ B4 TASK 10. The shipped chip is `ATR(14) 2.7000` — the period IS in the
       // brackets, so unlike `stoch` this definition needs `legendParams`. Without
@@ -566,7 +598,7 @@ const RAW_DEFS = [
   // a test asserts the prose survives). Phase C's answer is to address it BY
   // EVENT instead, and these two are the addresses.
   ({ ...nativeDef('sar', 'sar',
-    { name: 'Parabolic SAR', shortName: 'SAR', category: 'Trend',
+    { name: 'Parabolic SAR', shortName: 'SAR', category: CAT.TREND,
       description: 'A trailing dot that flips side when the trend does.',
       tags: ['overlay', 'trend', 'stops'] },
     onPrice,
@@ -599,7 +631,7 @@ const RAW_DEFS = [
 
   // ── Ichimoku Cloud ───────────────────────────────────────────────────────
   nativeDef('ichimoku', 'ichimoku',
-    { name: 'Ichimoku Cloud', shortName: 'Ichimoku', category: 'Trend',
+    { name: 'Ichimoku Cloud', shortName: 'Ichimoku', category: CAT.TREND,
       description: 'A trend system in one picture: two averages, a projected cloud and a lagging line.',
       tags: ['overlay', 'trend'],
       // ⛔ ALWAYS THE CHART'S TIMEFRAME (2026-09-28). Its cloud is PROJECTED and its
@@ -661,7 +693,7 @@ const RAW_DEFS = [
 
   // ── MFI ──────────────────────────────────────────────────────────────────
   nativeDef('mfi', 'mfi',
-    { name: 'Money Flow Index', shortName: 'MFI', category: 'Volume',
+    { name: 'Money Flow Index', shortName: 'MFI', category: CAT.VOLUME,
       description: 'RSI weighted by volume — momentum that only counts when size shows up.',
       legendParams: ['period'],
       tags: ['oscillator', 'volume', 'momentum'] },
@@ -680,7 +712,7 @@ const RAW_DEFS = [
 
   // ── CCI ──────────────────────────────────────────────────────────────────
   nativeDef('cci', 'cci',
-    { name: 'Commodity Channel Index', shortName: 'CCI', category: 'Momentum',
+    { name: 'Commodity Channel Index', shortName: 'CCI', category: CAT.MOMENTUM,
       description: 'How far price sits from its own average, in units of its typical deviation.',
       legendParams: ['period'],
       tags: ['oscillator', 'momentum'] },
@@ -702,7 +734,7 @@ const RAW_DEFS = [
 
   // ── Williams %R ──────────────────────────────────────────────────────────
   nativeDef('williamsR', 'williams_r',
-    { name: 'Williams %R', shortName: '%R', category: 'Momentum',
+    { name: 'Williams %R', shortName: '%R', category: CAT.MOMENTUM,
       description: 'Where price closed in its recent range, on a -100 to 0 scale.',
       // ⭐ TASK 2 — `%R(14) -18.6`. NO `legend.label`: `shortName` is already the
       // `%R` that `stoch` has to spell out per plot, so the params stay live.
@@ -725,10 +757,11 @@ const RAW_DEFS = [
 
   // ── ADX / DMI ────────────────────────────────────────────────────────────
   nativeDef('adx', 'adx',
-    { name: 'Average Directional Index', shortName: 'ADX', category: 'Trend',
+    { name: 'Average Directional Index', shortName: 'ADX', category: CAT.TREND,
       description: 'How strong the trend is, regardless of direction, with the two directional lines.',
       legendParams: ['period'],
-      tags: ['trend', 'strength'] },
+      // ⭐ 2026-10-01 — DMI / +DI / −DI are this study's own two lines.
+      tags: ['trend', 'strength', 'dmi', 'directional movement', '+di', '-di', 'di+', 'di-'] },
     fixedPane(0, 100, 0.15),
     [
       periodInput('period', 'Period', 14, 2, 100),
@@ -752,7 +785,7 @@ const RAW_DEFS = [
 
   // ── OBV ──────────────────────────────────────────────────────────────────
   nativeDef('obv', 'obv',
-    { name: 'On-Balance Volume', shortName: 'OBV', category: 'Volume',
+    { name: 'On-Balance Volume', shortName: 'OBV', category: CAT.VOLUME,
       description: 'A running volume total that adds on up bars and subtracts on down bars.',
       tags: ['volume', 'accumulation'] },
     autoPane(0.13),
@@ -775,7 +808,7 @@ const RAW_DEFS = [
 
   // ── Donchian Channels ────────────────────────────────────────────────────
   nativeDef('donchian', 'donchian',
-    { name: 'Donchian Channels', shortName: 'Donchian', category: 'Volatility',
+    { name: 'Donchian Channels', shortName: 'Donchian', category: CAT.VOLATILITY,
       description: 'The highest high and lowest low of the last N bars, as a channel.',
       tags: ['overlay', 'breakout', 'channel'] },
     onPrice,
@@ -831,7 +864,7 @@ const RAW_DEFS = [
   // ── Anchored VWAP ────────────────────────────────────────────────────────
   nativeDef('avwap', 'avwap',
     {
-      name: 'Anchored VWAP', shortName: 'AVWAP', category: 'Volume',
+      name: 'Anchored VWAP', shortName: 'AVWAP', category: CAT.VWAP,
       description: 'Volume-weighted average price measured from a chosen anchor, not from the session open.',
       tags: ['overlay', 'volume', 'anchored'],
       // ⭐ TASK 2 — `AVWAP(session) 431.20`. The ANCHOR is the only thing that
@@ -900,7 +933,7 @@ const RAW_DEFS = [
 
   // ── ATR bands ────────────────────────────────────────────────────────────
   nativeDef('atrBands', 'atrBands',
-    { name: 'ATR Bands', shortName: 'ATR Bands', category: 'Volatility',
+    { name: 'ATR Bands', shortName: 'ATR Bands', category: CAT.VOLATILITY,
       // ⚠️ THE WORDING IS LOAD-BEARING AND THIS IS THE SECOND DRAFT. It read
       // "…a multiple of Average True Range", and the library dialog builds an
       // option's ACCESSIBLE NAME from name + description — so that phrase made
@@ -996,7 +1029,7 @@ const RAW_DEFS = [
       // LABEL, so the word in the name is the word in the dropdown; a third MA
       // type added to `options` names itself with no edit here. `legendParams`
       // stays as the `MA (9)` fallback for a blob whose `maType` is unreadable.
-      { name: 'Moving Average', shortName: 'MA', category: 'Trend', legendParams: ['period'],
+      { name: 'Moving Average', shortName: 'MA', category: CAT.TREND, legendParams: ['period'],
         nameFrom: { stem: 'maType', params: ['period'] },
         // ⭐⭐ THE APPEARANCE A MOVING AVERAGE HAS ALWAYS HAD, DECLARED AS A
         // CAPABILITY (2026-09-28). `cs.overlays`' averages carried Overlap candles,
@@ -1011,7 +1044,14 @@ const RAW_DEFS = [
         // `IndicatorLibraryDialog.toggledRow` reads this.
         addOnly: true,
         description: 'The average of any series — price, volume, or another indicator output.',
-        tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived'] },
+        // ⭐ 2026-10-01 — the seven kit types are TYPES of this one row, so a member
+        // who searches the type's own name (HMA, Hull, SMMA, Wilder…) lands here.
+        // `moving vwap` too: a VWMA of HLC3 IS the moving VWAP (Σ(hlc3·v)/Σv).
+        tags: ['ma', 'sma', 'ema', 'moving average', 'average', 'trend', 'smoothing', 'derived',
+          'wma', 'weighted moving average', 'vwma', 'volume weighted moving average',
+          'hma', 'hull', 'smma', 'rma', 'wilder', 'smoothed moving average',
+          'dema', 'double exponential', 'tema', 'triple exponential',
+          'lsma', 'least squares', 'linear regression', 'moving vwap', 'rolling vwap'] },
       // ⭐⭐ DECLARED ON PRICE, AND THAT IS THE BASE CASE RATHER THAN A COMPROMISE.
       // `MA(Close)` belongs on the candles — it is what a moving average has
       // always been — so the STATIC declaration says so and MA-on-close needs no
@@ -1036,8 +1076,12 @@ const RAW_DEFS = [
         // have vanished on adoption rather than been kept. `maAdoption.MA_PERIOD_MAX`
         // mirrors it.
         periodInput('period', 'Period', 5, 1, 500),
+        // ⭐ NINE TYPES SINCE 2026-10-01 — `../movingAverages.MA_TYPES`, the one
+        // list the compute switches on, so a type a member can PICK is always a
+        // type the maths implements. SMA stays the default: an instance stored
+        // without `maType` reads exactly as it did.
         { key: 'maType', type: 'enum', label: 'Type', default: 'sma',
-          options: [['sma', 'SMA'], ['ema', 'EMA']] },
+          options: MA_TYPES.map(([id, label]) => [id, label]) },
         colorInput('color', 'Color', '#f0b90b'),
       ],
       [
@@ -1169,7 +1213,7 @@ const RAW_DEFS = [
   // no choice to make: it is one number per bar, defined by the bar. A definition
   // with a parameter nobody can vary is a control that writes nowhere.
   nativeDef('dollarVolume', 'dollarVolume',
-    { name: 'Dollar Volume', shortName: '$ Vol', category: 'Volume',
+    { name: 'Dollar Volume', shortName: '$ Vol', category: CAT.VOLUME,
       description: 'The cash traded in each bar — volume multiplied by the closing price.',
       tags: ['dollar volume', 'turnover', 'notional', 'liquidity', 'volume', '$ vol'],
       // ⛔ A MAGNITUDE, NOT A LEVEL (2026-09-28): a day's dollar volume held across
@@ -1187,6 +1231,511 @@ const RAW_DEFS = [
         role: 'primary', legend: { decimals: 0, compact: true } },
     ]),
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ═══ THE TECHNICAL LIBRARY — TIER 1 (2026-10-01) ═══════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  //
+  // Thirty-three studies, each an ordinary native definition over the maths in
+  // `../technicalStudies.js` (and the shared moving-average kit). Semantics,
+  // defaults and every convention choice are recorded per function there and in
+  // `docs/decisions/2026-10-01-technical-library-tier1.md`.
+  //
+  // ⭐ CHART-ONLY, DELIBERATELY. None of these has a server (Python) twin, so none
+  // is an alert address yet — the same standing `dollarVolume`, `movingAverage`
+  // and `atrBands` already ship with. Alert parity is a separate project.
+  //
+  // ⭐ `quickMenu: false` — the chart's right-click "Indicators" quick toggles
+  // stay the shipped set; a Tier 1 study appears there only while it is ON (so it
+  // can be switched off from where it is seen). The library is its door.
+  //
+  // ⭐ A `source` INPUT appears only where the study is a transform of ONE series
+  // (ROC of RSI is meaningful; Ultimate Oscillator of RSI is not). Those that do
+  // not preserve their source's units stay in their own pane — see the
+  // `domainBehavior` gate in `sourceRef.derivedTargetFor`.
+
+  // ── TREND & MOVING AVERAGES ──────────────────────────────────────────────
+  nativeDef('superTrend', 'superTrend',
+    { name: 'SuperTrend', shortName: 'SuperTrend', category: CAT.TREND, quickMenu: false,
+      legendParams: ['atrPeriod', 'multiplier'],
+      description: 'An ATR trailing line that flips sides when the close crosses it.',
+      tags: ['supertrend', 'super trend', 'trailing stop', 'atr', 'trend'] },
+    onPrice,
+    [
+      periodInput('atrPeriod', 'ATR Period', 10, 1, 100),
+      { key: 'multiplier', type: 'float', label: 'Multiplier', default: 3, min: 0.5, max: 10, step: 0.5 },
+      colorInput('upColor', 'Up trend', '#2faf68'),
+      colorInput('downColor', 'Down trend', '#df4646'),
+    ],
+    [
+      // ⭐ 2026-10-01 (polish) — BOTH HALVES ARE `sparse`: each is blank by design
+      // while the other trend holds. The line BREAKS at a flip (one render series
+      // per run — lightweight-charts would otherwise bridge the blank bars with a
+      // diagonal), and the legend shows only the ACTIVE side — one
+      // `SuperTrend(10, 3)` chip in that side's colour — never a bare "Down" or a
+      // stale value. The maths is unchanged.
+      { key: 'up', label: 'Up', style: 'line', color: '$upColor', width: 2, role: 'primary', sparse: true, legend: { decimals: 2 } },
+      { key: 'down', label: 'Down', style: 'line', color: '$downColor', width: 2, role: 'secondary', sparse: true, legend: { decimals: 2 } },
+    ]),
+
+  nativeDef('aroon', 'aroon',
+    { name: 'Aroon', shortName: 'Aroon', category: CAT.TREND, quickMenu: false, legendParams: ['period'],
+      description: 'How recently the period high and low were set — trend start and strength.',
+      tags: ['aroon', 'aroon up', 'aroon down', 'trend strength'] },
+    fixedPane(0, 100, 0.15),
+    [
+      periodInput('period', 'Period', 14, 1, 200),
+      colorInput('upColor', 'Aroon Up', '#3fae75'),
+      colorInput('downColor', 'Aroon Down', '#d9534f'),
+    ],
+    [
+      { key: 'up', label: 'Aroon Up', style: 'line', color: '$upColor', width: 1, role: 'primary', legend: { label: 'Up', decimals: 1 } },
+      { key: 'down', label: 'Aroon Down', style: 'line', color: '$downColor', width: 1, role: 'secondary', legend: { label: 'Down', decimals: 1 } },
+      { key: 'bands', label: '70 / 30', style: 'hlines', levels: [70, 30], color: 'rgba(255,255,255,0.14)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  nativeDef('vortex', 'vortex',
+    { name: 'Vortex Indicator', shortName: 'VI', category: CAT.TREND, quickMenu: false, legendParams: ['period'],
+      description: 'Positive and negative trend movement compared with true range.',
+      tags: ['vortex', 'vi+', 'vi-', 'trend strength'] },
+    autoPane(0.15),
+    [
+      periodInput('period', 'Period', 14, 2, 200),
+      colorInput('plusColor', 'VI+', '#3fae75'),
+      colorInput('minusColor', 'VI−', '#d9534f'),
+    ],
+    [
+      { key: 'plus', label: 'VI+', style: 'line', color: '$plusColor', width: 1, role: 'primary', legend: { label: 'VI+', decimals: 3 } },
+      { key: 'minus', label: 'VI−', style: 'line', color: '$minusColor', width: 1, role: 'secondary', legend: { label: 'VI−', decimals: 3 } },
+      { key: 'one', label: '1.0', style: 'hlines', levels: [1], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('choppiness', 'choppiness',
+    { name: 'Choppiness Index', shortName: 'CHOP', category: CAT.TREND, quickMenu: false, legendParams: ['period'],
+      description: 'Whether the market is trending (low) or moving sideways (high), 0-100.',
+      tags: ['choppiness', 'chop', 'ci', 'range', 'trend strength'] },
+    fixedPane(0, 100, 0.15),
+    [periodInput('period', 'Period', 14, 2, 200), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'chop', label: 'CHOP', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 1 } },
+      { key: 'bands', label: '61.8 / 38.2', style: 'hlines', levels: [61.8, 38.2], color: 'rgba(212,167,44,0.35)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  // ── MOMENTUM & OSCILLATORS ───────────────────────────────────────────────
+  nativeDef('stochRsi', 'stochRsi',
+    { name: 'Stochastic RSI', shortName: 'Stoch RSI', category: CAT.MOMENTUM, quickMenu: false,
+      legendParams: ['rsiPeriod', 'stochPeriod'],
+      description: 'A stochastic of RSI — where RSI sits inside its own recent range.',
+      tags: ['stoch rsi', 'stochrsi', 'stochastic rsi', 'oscillator', 'momentum'] },
+    fixedPane(0, 100, 0.15),
+    [
+      SOURCE_INPUT,
+      periodInput('rsiPeriod', 'RSI Length', 14, 2, 200),
+      periodInput('stochPeriod', 'Stochastic Length', 14, 1, 200),
+      periodInput('kSmooth', '%K Smoothing', 3, 1, 50),
+      periodInput('dSmooth', '%D Smoothing', 3, 1, 50),
+      colorInput('kColor', '%K', '#d4a72c'),
+      colorInput('dColor', '%D', '#7f8ea3'),
+    ],
+    [
+      { key: 'k', label: '%K', style: 'line', color: '$kColor', width: 1, role: 'primary', legend: { decimals: 1 } },
+      { key: 'd', label: '%D', style: 'line', color: '$dColor', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { label: '%D', decimals: 1 } },
+      { key: 'bands', label: '80 / 20', style: 'hlines', levels: [80, 20], color: 'rgba(212,167,44,0.35)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  nativeDef('ppo', 'ppo',
+    { name: 'Percentage Price Oscillator', shortName: 'PPO', category: CAT.MOMENTUM, quickMenu: false,
+      legendParams: ['fastPeriod', 'slowPeriod', 'signalPeriod'],
+      description: 'MACD expressed as a percentage of the slow average, so it compares across prices.',
+      tags: ['ppo', 'percentage price oscillator', 'price oscillator', 'macd %', 'momentum'] },
+    autoPane(0.17),
+    [
+      SOURCE_INPUT,
+      periodInput('fastPeriod', 'Fast', 12, 1, 200),
+      periodInput('slowPeriod', 'Slow', 26, 1, 400),
+      periodInput('signalPeriod', 'Signal', 9, 1, 100),
+      colorInput('lineColor', 'PPO', '#d4a72c'),
+      colorInput('signalColor', 'Signal', '#7f8ea3'),
+    ],
+    [
+      { key: 'ppo', label: 'PPO', style: 'line', color: '$lineColor', width: 1, role: 'primary', legend: { decimals: 3 } },
+      { key: 'signal', label: 'Signal', style: 'line', color: '$signalColor', width: 1, role: 'secondary', legend: { label: 'SIG', decimals: 3 } },
+      { key: 'histogram', label: 'Histogram', style: 'histogram', colorMode: 'sign',
+        colorUp: 'rgba(47,175,104,0.6)', colorDown: 'rgba(223,70,70,0.6)', precision: 4, role: 'secondary', legend: { hide: true } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('roc', 'roc',
+    { name: 'Rate of Change', shortName: 'ROC', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['period'],
+      description: 'Percentage change from N bars ago.',
+      tags: ['roc', 'rate of change', 'percent change', 'momentum'] },
+    autoPane(0.15),
+    [SOURCE_INPUT, periodInput('period', 'Period', 12, 1, 500), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'roc', label: 'ROC', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('momentum', 'momentum',
+    { name: 'Momentum', shortName: 'MOM', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['period'],
+      description: 'The difference between the value now and N bars ago, in price units.',
+      tags: ['momentum', 'mom', 'mtm'] },
+    autoPane(0.15),
+    [SOURCE_INPUT, periodInput('period', 'Period', 10, 1, 500), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'mom', label: 'MOM', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('tsi', 'tsi',
+    { name: 'True Strength Index', shortName: 'TSI', category: CAT.MOMENTUM, quickMenu: false,
+      legendParams: ['longPeriod', 'shortPeriod'],
+      description: 'Double-smoothed momentum as a share of double-smoothed absolute momentum.',
+      tags: ['tsi', 'true strength index', 'momentum'] },
+    autoPane(0.15),
+    [
+      SOURCE_INPUT,
+      periodInput('longPeriod', 'Long', 25, 1, 200),
+      periodInput('shortPeriod', 'Short', 13, 1, 200),
+      periodInput('signalPeriod', 'Signal', 13, 1, 100),
+      colorInput('lineColor', 'TSI', '#d4a72c'),
+      colorInput('signalColor', 'Signal', '#7f8ea3'),
+    ],
+    [
+      { key: 'tsi', label: 'TSI', style: 'line', color: '$lineColor', width: 1, role: 'primary', legend: { decimals: 2 } },
+      { key: 'signal', label: 'Signal', style: 'line', color: '$signalColor', width: 1, role: 'secondary', legend: { label: 'SIG', decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('cmo', 'cmo',
+    { name: 'Chande Momentum Oscillator', shortName: 'CMO', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['period'],
+      description: 'Up moves minus down moves over their total, from −100 to +100.',
+      tags: ['cmo', 'chande momentum oscillator', 'chande', 'oscillator', 'momentum'] },
+    fixedPane(-100, 100, 0.15),
+    [SOURCE_INPUT, periodInput('period', 'Period', 14, 1, 200), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'cmo', label: 'CMO', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 1 } },
+      { key: 'bands', label: '50 / −50', style: 'hlines', levels: [50, -50], color: 'rgba(212,167,44,0.35)', width: 1, lineStyle: 'dashed', role: 'context' },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('trix', 'trix',
+    { name: 'TRIX', shortName: 'TRIX', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['period'],
+      description: 'The one-bar percentage change of a triple-smoothed EMA.',
+      tags: ['trix', 'triple exponential', 'momentum'] },
+    autoPane(0.15),
+    [
+      SOURCE_INPUT,
+      periodInput('period', 'Period', 15, 1, 200),
+      periodInput('signalPeriod', 'Signal', 9, 1, 100),
+      colorInput('lineColor', 'TRIX', '#d4a72c'),
+      colorInput('signalColor', 'Signal', '#7f8ea3'),
+    ],
+    [
+      { key: 'trix', label: 'TRIX', style: 'line', color: '$lineColor', width: 1, role: 'primary', legend: { decimals: 4 } },
+      { key: 'signal', label: 'Signal', style: 'line', color: '$signalColor', width: 1, role: 'secondary', legend: { label: 'SIG', decimals: 4 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('awesome', 'awesome',
+    { name: 'Awesome Oscillator', shortName: 'AO', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['fastPeriod', 'slowPeriod'],
+      description: 'A fast minus a slow average of the bar midpoint, coloured by whether it is rising.',
+      tags: ['awesome oscillator', 'ao', 'bill williams', 'momentum'] },
+    autoPane(0.15),
+    [periodInput('fastPeriod', 'Fast', 5, 1, 100), periodInput('slowPeriod', 'Slow', 34, 1, 300)],
+    [
+      { key: 'ao', label: 'AO', style: 'histogram', colorMode: 'column:rising',
+        colorUp: 'rgba(47,175,104,0.75)', colorDown: 'rgba(223,70,70,0.75)', precision: 4, role: 'primary', legend: { decimals: 4 } },
+      { key: 'rising', label: 'Rising', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('ultimate', 'ultimate',
+    { name: 'Ultimate Oscillator', shortName: 'UO', category: CAT.MOMENTUM, quickMenu: false,
+      legendParams: ['fastPeriod', 'midPeriod', 'slowPeriod'],
+      description: 'Buying pressure over three windows, weighted toward the shortest, 0-100.',
+      tags: ['ultimate oscillator', 'uo', 'williams', 'oscillator', 'momentum'] },
+    fixedPane(0, 100, 0.15),
+    [
+      periodInput('fastPeriod', 'Fast', 7, 1, 100),
+      periodInput('midPeriod', 'Middle', 14, 1, 200),
+      periodInput('slowPeriod', 'Slow', 28, 1, 400),
+      colorInput('color', 'Color', '#d4a72c'),
+    ],
+    [
+      { key: 'uo', label: 'UO', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 1 } },
+      { key: 'bands', label: '70 / 30', style: 'hlines', levels: [70, 30], color: 'rgba(212,167,44,0.35)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  nativeDef('balanceOfPower', 'balanceOfPower',
+    { name: 'Balance of Power', shortName: 'BOP', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['smoothing'],
+      description: 'Where each bar closed relative to its open, as a share of its range, smoothed.',
+      tags: ['balance of power', 'bop', 'momentum'] },
+    autoPane(0.15),
+    [periodInput('smoothing', 'Smoothing', 14, 1, 200)],
+    [
+      { key: 'bop', label: 'BOP', style: 'histogram', colorMode: 'sign',
+        colorUp: 'rgba(47,175,104,0.7)', colorDown: 'rgba(223,70,70,0.7)', precision: 3, role: 'primary', legend: { decimals: 3 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('bullBearPower', 'bullBearPower',
+    { name: 'Bull/Bear Power', shortName: 'Bull/Bear', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['period'],
+      description: 'Elder-ray: how far the high and the low are from an EMA of the close.',
+      tags: ['bull bear power', 'bull power', 'bear power', 'elder ray', 'elder-ray', 'momentum'] },
+    autoPane(0.15),
+    [
+      periodInput('period', 'EMA Period', 13, 1, 200),
+      colorInput('bullColor', 'Bull Power', 'rgba(47,175,104,0.7)'),
+      colorInput('bearColor', 'Bear Power', 'rgba(223,70,70,0.7)'),
+    ],
+    [
+      { key: 'bull', label: 'Bull Power', style: 'histogram', color: '$bullColor', precision: 2, role: 'primary', legend: { label: 'Bull', decimals: 2 } },
+      { key: 'bear', label: 'Bear Power', style: 'histogram', color: '$bearColor', precision: 2, role: 'secondary', legend: { label: 'Bear', decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  // ── VOLATILITY & BANDS ───────────────────────────────────────────────────
+  nativeDef('keltner', 'keltner',
+    { name: 'Keltner Channels', shortName: 'KC', category: CAT.VOLATILITY, quickMenu: false,
+      legendParams: ['period', 'multiplier'],
+      description: 'An EMA of the close with bands a multiple of ATR either side.',
+      tags: ['keltner', 'keltner channels', 'kc', 'channel', 'bands', 'volatility'] },
+    onPrice,
+    [
+      periodInput('period', 'EMA Period', 20, 1, 400),
+      { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
+      periodInput('atrPeriod', 'ATR Period', 10, 1, 200),
+      colorInput('color', 'Color', 'rgba(79,156,249,0.8)'),
+    ],
+    [
+      { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+      { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { decimals: 2 } },
+      { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+    ]),
+
+  ({
+    ...nativeDef('envelope', 'envelope',
+      { name: 'MA Envelope', shortName: 'Envelope', category: CAT.VOLATILITY, quickMenu: false,
+        legendParams: ['period', 'percent'],
+        description: 'A moving average with bands a fixed percentage above and below it.',
+        tags: ['envelope', 'envelopes', 'ma envelope', 'moving average envelope', 'percent bands', 'bands'] },
+      onPrice,
+      [
+        SOURCE_INPUT,
+        periodInput('period', 'Period', 20, 1, 500),
+        { key: 'percent', type: 'float', label: 'Percent', default: 2.5, min: 0.1, max: 50, step: 0.1 },
+        { key: 'maType', type: 'enum', label: 'Type', default: 'sma', options: MA_TYPES.map(([id, label]) => [id, label]) },
+        colorInput('color', 'Color', 'rgba(212,167,44,0.8)'),
+      ],
+      [
+        { key: 'upper', label: 'Upper', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+        { key: 'middle', label: 'Basis', style: 'band', edges: { upper: 'upper', lower: 'lower' }, color: '$color', width: 1, lineStyle: 'solid', role: 'primary', legend: { decimals: 2 } },
+        { key: 'lower', label: 'Lower', style: 'line', color: '$color', width: 1, lineStyle: 'dashed', role: 'secondary', legend: { hide: true } },
+      ]),
+    // ⭐ An envelope of a series is on that series' scale — an envelope of RSI
+    // belongs in RSI's pane, exactly like `MA(RSI)`.
+    domainBehavior: 'inherit',
+  }),
+
+  nativeDef('bbPercentB', 'bbPercentB',
+    { name: 'Bollinger %B', shortName: '%B', category: CAT.VOLATILITY, quickMenu: false, legendParams: ['period', 'stdDev'],
+      description: 'Where the close sits within the Bollinger Bands: 0 at the lower band, 1 at the upper.',
+      tags: ['%b', 'percent b', 'bollinger %b', 'bollinger', 'bands'] },
+    autoPane(0.15),
+    [
+      periodInput('period', 'Period', 20, 2, 200),
+      { key: 'stdDev', type: 'float', label: 'Std Dev', default: 2, min: 0.5, max: 5, step: 0.5 },
+      colorInput('color', 'Color', '#d4a72c'),
+    ],
+    [
+      { key: 'percentB', label: '%B', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 3 } },
+      { key: 'bands', label: '1 / 0', style: 'hlines', levels: [1, 0], color: 'rgba(212,167,44,0.35)', width: 1, lineStyle: 'dashed', role: 'context' },
+      { key: 'midline', label: '0.5', style: 'hlines', levels: [0.5], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('bbWidth', 'bbWidth',
+    { name: 'Bollinger BandWidth', shortName: 'BBW', category: CAT.VOLATILITY, quickMenu: false, legendParams: ['period', 'stdDev'],
+      description: 'The width of the Bollinger Bands as a percentage of their basis.',
+      tags: ['bandwidth', 'bbw', 'bollinger bandwidth', 'bollinger', 'squeeze', 'bands'] },
+    autoPane(0.13),
+    [
+      periodInput('period', 'Period', 20, 2, 200),
+      { key: 'stdDev', type: 'float', label: 'Std Dev', default: 2, min: 0.5, max: 5, step: 0.5 },
+      colorInput('color', 'Color', '#d4a72c'),
+    ],
+    [{ key: 'bandwidth', label: 'BBW', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }]),
+
+  nativeDef('atrPercent', 'atrPercent',
+    { name: 'ATR %', shortName: 'ATR %', category: CAT.VOLATILITY, quickMenu: false, legendParams: ['period'],
+      // ⚠️ NOT "Average True Range …": a description is part of the row's
+      // accessible name, and that phrase would make the ATR row ambiguous.
+      description: 'ATR as a percentage of the close — volatility you can compare across prices.',
+      tags: ['atr%', 'atr percent', 'natr', 'normalized atr', 'volatility'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 14, 1, 100), colorInput('color', 'Color', '#FFA726')],
+    [{ key: 'atrPct', label: 'ATR %', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }]),
+
+  nativeDef('adrPercent', 'adrPercent',
+    { name: 'ADR %', shortName: 'ADR %', category: CAT.VOLATILITY, quickMenu: false, legendParams: ['period'],
+      description: 'Average daily range: the average of each bar\'s high ÷ low, as a percentage.',
+      tags: ['adr', 'adr%', 'average daily range', 'daily range', 'volatility'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 20, 1, 200), colorInput('color', 'Color', '#d4a72c')],
+    [{ key: 'adrPct', label: 'ADR %', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }]),
+
+  nativeDef('historicalVolatility', 'historicalVolatility',
+    { name: 'Historical Volatility', shortName: 'HV', category: CAT.VOLATILITY, quickMenu: false, legendParams: ['period'],
+      description: 'Annualised close-to-close volatility, in percent.',
+      tags: ['historical volatility', 'hv', 'realized volatility', 'volatility'],
+      // ⛔ ANNUALISED BY TRADING PERIODS PER YEAR — 252 daily, 52 weekly, 12
+      // monthly. An intraday bar has no honest annualisation here (extended-hours
+      // sessions vary), so it is not offered there rather than guessed.
+      timeframes: ['D', 'W', 'M'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 20, 2, 400), colorInput('color', 'Color', '#d4a72c')],
+    [{ key: 'hv', label: 'HV', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }]),
+
+  nativeDef('squeeze', 'squeeze',
+    { name: 'Squeeze', shortName: 'Squeeze', category: CAT.VOLATILITY, quickMenu: false,
+      legendParams: ['period'],
+      description: 'Bollinger Bands inside Keltner Channels marks a squeeze; the histogram is momentum.',
+      tags: ['squeeze', 'volatility squeeze', 'bb kc', 'bollinger keltner', 'momentum'] },
+    autoPane(0.15),
+    [
+      periodInput('period', 'Length', 20, 2, 200),
+      { key: 'bbMult', type: 'float', label: 'BB Multiplier', default: 2, min: 0.5, max: 5, step: 0.1 },
+      { key: 'kcMult', type: 'float', label: 'KC Multiplier', default: 1.5, min: 0.5, max: 5, step: 0.1 },
+    ],
+    [
+      { key: 'momentum', label: 'Momentum', style: 'histogram', colorMode: 'sign',
+        colorUp: 'rgba(47,175,104,0.7)', colorDown: 'rgba(223,70,70,0.7)', precision: 4, role: 'primary', legend: { decimals: 4 } },
+      // The squeeze STATE, drawn as a band of colour along the zero line: gold
+      // while the bands are inside the channels, slate once they are not.
+      { key: 'state', label: 'Squeeze', style: 'line', width: 3, colorMode: 'column:on',
+        color: '#d4a72c', colorUp: '#d4a72c', colorDown: 'rgba(127,142,163,0.55)', role: 'secondary', legend: { hide: true } },
+      { key: 'on', label: 'Squeeze on', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
+    ]),
+
+  // ── VOLUME & MONEY FLOW ──────────────────────────────────────────────────
+  nativeDef('relativeVolume', 'relativeVolume',
+    { name: 'Relative Volume', shortName: 'RVOL', category: CAT.VOLUME, quickMenu: false, legendParams: ['period'],
+      description: 'This bar\'s volume divided by the average volume of the previous N bars.',
+      tags: ['relative volume', 'rvol', 'volume ratio', 'volume surge', 'volume'] },
+    autoPane(0.13),
+    [periodInput('period', 'Average Period', 50, 1, 500), colorInput('color', 'Color', 'rgba(143,183,217,0.85)')],
+    [
+      { key: 'rvol', label: 'RVOL', style: 'histogram', color: '$color', precision: 2, role: 'primary', legend: { decimals: 2 } },
+      { key: 'one', label: '1.0', style: 'hlines', levels: [1], color: 'rgba(212,167,44,0.45)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  nativeDef('accumDist', 'accumDist',
+    { name: 'Accumulation/Distribution', shortName: 'A/D', category: CAT.VOLUME, quickMenu: false,
+      description: 'A running total of volume weighted by where each bar closed in its range.',
+      tags: ['accumulation distribution', 'a/d', 'ad line', 'adl', 'chaikin', 'volume'] },
+    autoPane(0.13),
+    [colorInput('color', 'Color', '#9ca3af')],
+    [{ key: 'ad', label: 'A/D', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 0, compact: true } }]),
+
+  nativeDef('chaikinMoneyFlow', 'chaikinMoneyFlow',
+    { name: 'Chaikin Money Flow', shortName: 'CMF', category: CAT.VOLUME, quickMenu: false, legendParams: ['period'],
+      description: 'Money-flow volume over total volume for the window, from −1 to +1.',
+      tags: ['cmf', 'chaikin money flow', 'money flow', 'chaikin', 'volume'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 20, 1, 200)],
+    [
+      { key: 'cmf', label: 'CMF', style: 'histogram', colorMode: 'sign',
+        colorUp: 'rgba(47,175,104,0.7)', colorDown: 'rgba(223,70,70,0.7)', precision: 3, role: 'primary', legend: { decimals: 3 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('chaikinOscillator', 'chaikinOscillator',
+    { name: 'Chaikin Oscillator', shortName: 'Chaikin Osc', category: CAT.VOLUME, quickMenu: false,
+      legendParams: ['fastPeriod', 'slowPeriod'],
+      description: 'The momentum of the Accumulation/Distribution line: a fast minus a slow EMA of it.',
+      tags: ['chaikin oscillator', 'chaikin osc', 'chaikin', 'a/d', 'volume'] },
+    autoPane(0.13),
+    [periodInput('fastPeriod', 'Fast', 3, 1, 100), periodInput('slowPeriod', 'Slow', 10, 1, 200), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'osc', label: 'Chaikin Osc', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 0, compact: true } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('forceIndex', 'forceIndex',
+    { name: 'Elder Force Index', shortName: 'EFI', category: CAT.VOLUME, quickMenu: false, legendParams: ['period'],
+      description: 'Price change times volume, smoothed — the force behind a move.',
+      tags: ['force index', 'elder force index', 'efi', 'elder', 'volume'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 13, 1, 200), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'efi', label: 'EFI', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 0, compact: true } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('pvt', 'pvt',
+    { name: 'Price Volume Trend', shortName: 'PVT', category: CAT.VOLUME, quickMenu: false,
+      description: 'A running total of volume weighted by each bar\'s percentage change.',
+      tags: ['pvt', 'price volume trend', 'volume price trend', 'vpt', 'volume'] },
+    autoPane(0.13),
+    [colorInput('color', 'Color', '#9ca3af')],
+    [{ key: 'pvt', label: 'PVT', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 0, compact: true } }]),
+
+  nativeDef('upDownVolume', 'upDownVolume',
+    { name: 'Up/Down Volume Ratio', shortName: 'U/D Vol', category: CAT.VOLUME, quickMenu: false, legendParams: ['period'],
+      // ⛔ THIS SYMBOL'S OWN BARS — not the Breadth datasets' market-wide
+      // advancing/declining volume, which is a different concept on another tab.
+      description: 'This symbol\'s volume on up bars divided by its volume on down bars, over N bars.',
+      tags: ['up/down volume', 'up down volume', 'u/d volume', 'ud ratio', 'accumulation', 'volume'] },
+    autoPane(0.13),
+    [periodInput('period', 'Period', 50, 2, 500), colorInput('color', 'Color', '#d4a72c')],
+    [
+      { key: 'ratio', label: 'U/D', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } },
+      { key: 'one', label: '1.0', style: 'hlines', levels: [1], color: 'rgba(255,255,255,0.14)', width: 1, lineStyle: 'dashed', role: 'context' },
+    ]),
+
+  // ── RELATIVE STRENGTH ────────────────────────────────────────────────────
+  nativeDef('percentFromMa', 'percentFromMa',
+    // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
+    // row named Moving Average (owner §34), and this is a different study.
+    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+      legendParams: ['period'],
+      description: 'How far the value is above or below its moving average, in percent.',
+      tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
+    autoPane(0.13),
+    [
+      SOURCE_INPUT,
+      periodInput('period', 'Period', 50, 1, 500),
+      { key: 'maType', type: 'enum', label: 'Type', default: 'sma', options: MA_TYPES.map(([id, label]) => [id, label]) },
+      colorInput('color', 'Color', '#d4a72c'),
+    ],
+    [
+      { key: 'pct', label: '% From MA', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+      description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
+      tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
+      // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
+      // answers, which an intraday chart does not hold.
+      timeframes: ['D', 'W', 'M'] },
+    autoPane(0.13),
+    [colorInput('highColor', 'From high', '#df4646'), colorInput('lowColor', 'From low', '#2faf68')],
+    [
+      { key: 'fromHigh', label: 'From 52W high', style: 'line', color: '$highColor', width: 1, role: 'primary', legend: { label: 'Off high %', decimals: 2 } },
+      { key: 'fromLow', label: 'From 52W low', style: 'line', color: '$lowColor', width: 1, role: 'secondary', legend: { label: 'Above low %', decimals: 2 } },
+      { key: 'zero', label: '0', style: 'hlines', levels: [0], color: 'rgba(255,255,255,0.12)', width: 1, lineStyle: 'largeDashed', role: 'context' },
+    ]),
+
+  // ── LEVELS & STATISTICS ──────────────────────────────────────────────────
+  nativeDef('standardDeviation', 'standardDeviation',
+    { name: 'Standard Deviation', shortName: 'StdDev', category: CAT.LEVELS, quickMenu: false, legendParams: ['period'],
+      description: 'The rolling standard deviation of the source (population, the same σ Bollinger uses).',
+      tags: ['standard deviation', 'stdev', 'std dev', 'sigma', 'dispersion', 'statistics'] },
+    autoPane(0.13),
+    [SOURCE_INPUT, periodInput('period', 'Period', 20, 2, 500), colorInput('color', 'Color', '#d4a72c')],
+    [{ key: 'stdev', label: 'StdDev', style: 'line', color: '$color', width: 1, role: 'primary', legend: { decimals: 2 } }]),
+
 ]
 
 // ─── the compute adapter ─────────────────────────────────────────────────────
@@ -1199,54 +1748,37 @@ const RAW_DEFS = [
  * to prevent.
  */
 /**
- * SMA and EMA over a PLAIN NUMERIC SERIES, not over bars.
- *
- * ⚠️ NaN IS A GAP, NOT A ZERO, AND THE WARM-UP IS WHY THIS IS NOT `reduce`. Every
- * source has a head of NaNs — RSI(14) has fourteen — so an average that treated
- * them as values would emit a number for a window that is mostly nothing. A
- * window is emitted only when it is FULL of finite values, which is the same rule
- * `computeSMA` applies to bars and the reason `MA(5, RSI(14))` starts at bar 18
- * rather than bar 4.
- *
- * ⚠️ RETURNS `{value}` POINTS, NOT RAW NUMBERS, because that is what `toColumn`
- * reads (`points[i].value`) and what every other compute in this file emits. A
- * raw-number array type-checks, computes correctly and lands as an ALL-NaN
- * column — silent, and measured: the MA drew nothing with no error anywhere.
+ * SMA and EMA over a PLAIN NUMERIC SERIES live in `../movingAverages.js` now
+ * (2026-10-01), MOVED VERBATIM with the seven other moving-average types the
+ * Technical library added. Every existing SMA/EMA instance computes through the
+ * same two functions it always did; `movingAverages.test.js` pins them against a
+ * frozen copy of the code that used to sit here.
  */
-function smaOfSeries(src, period, n) {
-  const out = new Array(n)
-  const p = Math.max(1, Math.floor(period) || 1)
-  let sum = 0
-  let have = 0
-  for (let i = 0; i < n; i++) {
-    const v = src[i]
-    if (Number.isFinite(v)) { sum += v; have++ } else { sum = 0; have = 0; continue }
-    if (have > p) { const drop = src[i - p]; if (Number.isFinite(drop)) sum -= drop; have-- }
-    if (have === p) out[i] = { value: sum / p }
-  }
-  return out
+/** Whether a VWMA may weight this source by the chart's own bar volume: only a
+ *  bar field (`close`, `hlc3`, …) or another instance's output on this chart. */
+function vwmaSourceAllowed(source) {
+  if (source === undefined || source === null || source === '') return true
+  if (typeof source !== 'string') return false
+  // `@<instanceId>::<plot>` is `sourceRef`'s instance grammar; read here by its
+  // mark rather than by importing `sourceRef`, which would close an import cycle.
+  return source[0] === '@' || SOURCE_BAR_FIELDS.includes(source)
 }
 
-/** ⚠️ SEEDED ON THE FIRST FULL SMA WINDOW, which is what `computeEMA` does for
- *  bars — seeding on the first finite value instead would make the head of the
- *  series depend on where the source's warm-up happened to end. */
-function emaOfSeries(src, period, n) {
+// ─── Tier 1 adapter helpers (2026-10-01) ─────────────────────────────────────
+const barsOf = (bars) => (Array.isArray(bars) ? bars : [])
+/** numbers (NaN = no value) → the `{value}` points `toColumn` reads. */
+const col = (values, bars) => numbersToPoints(values, barsOf(bars).length)
+/** The bar volume column, index-aligned with the bars. */
+const volumeOf = (bars) => barsOf(bars).map((b) => (b ? Number(b.v) : NaN))
+/** The resolved `source` column as plain numbers, bar-length; all NaN when the
+ *  source has not resolved (a GAP, never zeros — `movingAverage`'s rule). */
+function sourceOf(bars, ctx) {
+  const n = barsOf(bars).length
+  const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
   const out = new Array(n)
-  const p = Math.max(1, Math.floor(period) || 1)
-  const k = 2 / (p + 1)
-  let prev = null
-  let sum = 0
-  let have = 0
   for (let i = 0; i < n; i++) {
-    const v = src[i]
-    if (!Number.isFinite(v)) { prev = null; sum = 0; have = 0; continue }
-    if (prev === null) {
-      sum += v; have++
-      if (have === p) { prev = sum / p; out[i] = { value: prev } }
-      continue
-    }
-    prev = v * k + prev * (1 - k)
-    out[i] = { value: prev }
+    const v = src && i < src.length ? src[i] : NaN
+    out[i] = Number.isFinite(v) ? v : NaN
   }
   return out
 }
@@ -1264,11 +1796,50 @@ const NATIVE_COMPUTE = {
     return { upper: raw.upper, middle: raw.middle, lower: raw.lower }
   },
 
-  vwap: (bars) => ({ vwap: computeVWAP(bars) }),
+  vwap: (bars, p) => {
+    // ⛔ THE LINE IS THE SHIPPED `computeVWAP`, UNTOUCHED (still `rev: 2`). The six
+    // band columns are EMPTY unless the member turned bands on — an empty column
+    // binds no series, so a chart without bands is exactly the chart it was.
+    const vwap = computeVWAP(bars)
+    const out = { vwap }
+    const n = Array.isArray(bars) ? bars.length : 0
+    const k = { 1: 1, 2: 2, 3: 3 }[(p && p.bands) || 'off'] || 0
+    const sd = k ? computeVWAPDeviation(bars) : null
+    for (const m of [1, 2, 3]) {
+      const up = new Array(n), dn = new Array(n)
+      if (sd && m <= k) {
+        for (let i = 0; i < n; i++) {
+          const v = vwap[i] ? vwap[i].value : NaN
+          if (Number.isFinite(v) && Number.isFinite(sd[i])) {
+            up[i] = { value: v + m * sd[i] }
+            dn[i] = { value: v - m * sd[i] }
+          }
+        }
+      }
+      out[`upper${m}`] = up
+      out[`lower${m}`] = dn
+    }
+    return out
+  },
 
   stoch: (bars, p) => {
-    const raw = computeStochastic(bars, p.kPeriod, p.dPeriod)
-    return { k: raw.k, d: raw.d }
+    const smooth = Math.max(1, Math.floor(Number(p.smoothK)) || 1)
+    // ⛔ smoothing 1 IS THE SHIPPED FAST STOCHASTIC, untouched — same function,
+    // same floats — so every saved instance (absent `smoothK` ⇒ 1) is unchanged.
+    if (smooth === 1) {
+      const raw = computeStochastic(bars, p.kPeriod, p.dPeriod)
+      return { k: raw.k, d: raw.d }
+    }
+    // SLOW: %K = SMA(smoothK) of the fast %K, %D = SMA(dPeriod) of that %K.
+    const n = Array.isArray(bars) ? bars.length : 0
+    const fast = computeStochastic(bars, p.kPeriod, 1)
+    const fastK = Array.from({ length: n }, (_, i) => {
+      const v = fast.k && fast.k[i] ? fast.k[i].value : NaN
+      return Number.isFinite(v) ? v : NaN
+    })
+    const k = smaOfSeries(fastK, smooth, n)
+    const kNum = Array.from({ length: n }, (_, i) => (k[i] ? k[i].value : NaN))
+    return { k, d: smaOfSeries(kNum, p.dPeriod, n) }
   },
 
   atr: (bars, p) => ({ atr: computeATR(bars, p.period) }),
@@ -1353,7 +1924,18 @@ const NATIVE_COMPUTE = {
     // honest test, and it accepts a plain array too.
     const src = (ctx && ctx.source && typeof ctx.source.length === 'number') ? ctx.source : null
     if (!src) return { ma: new Array(n) }
-    return { ma: p.maType === 'ema' ? emaOfSeries(src, p.period, n) : smaOfSeries(src, p.period, n) }
+    // ⛔ SMA AND EMA TAKE THEIR SHIPPED PATHS UNCHANGED — every saved average.
+    if (p.maType === 'ema') return { ma: emaOfSeries(src, p.period, n) }
+    if (!p.maType || p.maType === 'sma') return { ma: smaOfSeries(src, p.period, n) }
+    const values = Array.from({ length: n }, (_, i) => (i < src.length ? src[i] : NaN))
+    // ⛔ VWMA WEIGHTS BY **THIS CHART'S** VOLUME, so it is only offered a source
+    // that lives on this chart's bars: a bar field or another instance's output.
+    // A foreign symbol (`sym:QQQ`), a fundamental or an economic series has no
+    // bar-aligned volume of its own, and weighting it by the chart symbol's
+    // volume would draw a plausible line that means nothing — so it draws none.
+    if (p.maType === 'vwma' && !vwmaSourceAllowed(p.source)) return { ma: new Array(n) }
+    const vol = p.maType === 'vwma' ? bars.map((b) => (b ? Number(b.v) : NaN)) : null
+    return { ma: numbersToPoints(maSeries(p.maType, values, p.period, vol), n) }
   },
 
   // ⛔ THE BARS' OWN TWO FIELDS, MULTIPLIED — no window, no smoothing, no
@@ -1384,6 +1966,90 @@ const NATIVE_COMPUTE = {
     }
     return { value: out }
   },
+
+  // ═══ THE TECHNICAL LIBRARY — TIER 1 (2026-10-01) ═══════════════════════════
+  // Translations only — the maths is in `../technicalStudies.js`. `col` turns a
+  // number array (NaN = no value) into the `{value}` points `toColumn` reads.
+  superTrend: (bars, p) => {
+    const r = S.superTrend(barsOf(bars), p.atrPeriod, p.multiplier)
+    return { up: col(r.up, bars), down: col(r.down, bars) }
+  },
+  aroon: (bars, p) => {
+    const r = S.aroon(barsOf(bars), p.period)
+    return { up: col(r.up, bars), down: col(r.down, bars) }
+  },
+  vortex: (bars, p) => {
+    const r = S.vortex(barsOf(bars), p.period)
+    return { plus: col(r.plus, bars), minus: col(r.minus, bars) }
+  },
+  choppiness: (bars, p) => ({ chop: col(S.choppiness(barsOf(bars), p.period), bars) }),
+  stochRsi: (bars, p, ctx) => {
+    const r = S.stochRsi(sourceOf(bars, ctx), p.rsiPeriod, p.stochPeriod, p.kSmooth, p.dSmooth)
+    return { k: col(r.k, bars), d: col(r.d, bars) }
+  },
+  ppo: (bars, p, ctx) => {
+    const r = S.ppo(sourceOf(bars, ctx), p.fastPeriod, p.slowPeriod, p.signalPeriod)
+    return { ppo: col(r.line, bars), signal: col(r.signal, bars), histogram: col(r.histogram, bars) }
+  },
+  roc: (bars, p, ctx) => ({ roc: col(S.rateOfChange(sourceOf(bars, ctx), p.period), bars) }),
+  momentum: (bars, p, ctx) => ({ mom: col(S.momentum(sourceOf(bars, ctx), p.period), bars) }),
+  tsi: (bars, p, ctx) => {
+    const r = S.tsi(sourceOf(bars, ctx), p.longPeriod, p.shortPeriod, p.signalPeriod)
+    return { tsi: col(r.line, bars), signal: col(r.signal, bars) }
+  },
+  cmo: (bars, p, ctx) => ({ cmo: col(S.cmo(sourceOf(bars, ctx), p.period), bars) }),
+  trix: (bars, p, ctx) => {
+    const r = S.trix(sourceOf(bars, ctx), p.period, p.signalPeriod)
+    return { trix: col(r.line, bars), signal: col(r.signal, bars) }
+  },
+  awesome: (bars, p) => {
+    const r = S.awesome(barsOf(bars), p.fastPeriod, p.slowPeriod)
+    // `rising` is the colour column: 1 where the bar is not below the last one.
+    const rising = r.ao.map((v, i) => (Number.isFinite(v) ? (Number.isFinite(r.falling[i]) ? 0 : 1) : NaN))
+    return { ao: col(r.ao, bars), rising: col(rising, bars) }
+  },
+  ultimate: (bars, p) => ({ uo: col(S.ultimate(barsOf(bars), p.fastPeriod, p.midPeriod, p.slowPeriod), bars) }),
+  balanceOfPower: (bars, p) => ({ bop: col(S.balanceOfPower(barsOf(bars), p.smoothing), bars) }),
+  bullBearPower: (bars, p) => {
+    const r = S.bullBearPower(barsOf(bars), p.period)
+    return { bull: col(r.bull, bars), bear: col(r.bear, bars) }
+  },
+  keltner: (bars, p) => {
+    const r = S.keltner(barsOf(bars), p.period, p.multiplier, p.atrPeriod)
+    return { upper: col(r.upper, bars), middle: col(r.middle, bars), lower: col(r.lower, bars) }
+  },
+  envelope: (bars, p, ctx) => {
+    if (p.maType === 'vwma' && !vwmaSourceAllowed(p.source)) return { upper: [], middle: [], lower: [] }
+    const r = S.envelope(sourceOf(bars, ctx), p.period, p.percent, p.maType, volumeOf(bars))
+    return { upper: col(r.upper, bars), middle: col(r.middle, bars), lower: col(r.lower, bars) }
+  },
+  bbPercentB: (bars, p) => ({ percentB: col(S.bollingerDerived(barsOf(bars), p.period, p.stdDev).percentB, bars) }),
+  bbWidth: (bars, p) => ({ bandwidth: col(S.bollingerDerived(barsOf(bars), p.period, p.stdDev).bandwidth, bars) }),
+  atrPercent: (bars, p) => ({ atrPct: col(S.atrPercent(barsOf(bars), p.period), bars) }),
+  adrPercent: (bars, p) => ({ adrPct: col(S.adrPercent(barsOf(bars), p.period), bars) }),
+  // Annualised from the bars' own spacing (`periodsPerYearOf`), never from a ctx.
+  historicalVolatility: (bars, p) => ({ hv: col(S.historicalVolatility(barsOf(bars), p.period), bars) }),
+  squeeze: (bars, p) => {
+    const r = S.squeeze(barsOf(bars), p.period, p.bbMult, p.kcMult)
+    const state = r.on.map((v) => (Number.isFinite(v) ? 0 : NaN))
+    return { momentum: col(r.histogram, bars), state: col(state, bars), on: col(r.on, bars) }
+  },
+  relativeVolume: (bars, p) => ({ rvol: col(S.relativeVolume(barsOf(bars), p.period), bars) }),
+  accumDist: (bars) => ({ ad: col(S.accumulationDistribution(barsOf(bars)), bars) }),
+  chaikinMoneyFlow: (bars, p) => ({ cmf: col(S.chaikinMoneyFlow(barsOf(bars), p.period), bars) }),
+  chaikinOscillator: (bars, p) => ({ osc: col(S.chaikinOscillator(barsOf(bars), p.fastPeriod, p.slowPeriod), bars) }),
+  forceIndex: (bars, p) => ({ efi: col(S.forceIndex(barsOf(bars), p.period), bars) }),
+  pvt: (bars) => ({ pvt: col(S.priceVolumeTrend(barsOf(bars)), bars) }),
+  upDownVolume: (bars, p) => ({ ratio: col(S.upDownVolumeRatio(barsOf(bars), p.period), bars) }),
+  percentFromMa: (bars, p, ctx) => {
+    if (p.maType === 'vwma' && !vwmaSourceAllowed(p.source)) return { pct: [] }
+    return { pct: col(S.percentFromMa(sourceOf(bars, ctx), p.period, p.maType, volumeOf(bars)), bars) }
+  },
+  fiftyTwoWeek: (bars) => {
+    const r = S.fiftyTwoWeek(barsOf(bars), 52)
+    return { fromHigh: col(r.fromHigh, bars), fromLow: col(r.fromLow, bars) }
+  },
+  standardDeviation: (bars, p, ctx) => ({ stdev: col(S.standardDeviation(sourceOf(bars, ctx), p.period), bars) }),
 
 }
 
@@ -2779,7 +3445,7 @@ const RS_LINE_RAW = {
   version: 1,
   compute: { kind: 'server', fn: 'rsLine', rev: 1 },
   meta: {
-    name: 'Relative Strength Line', shortName: 'RS', category: 'Momentum',
+    name: 'Relative Strength Line', shortName: 'RS', category: CAT.RELATIVE_STRENGTH,
     description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
     tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],

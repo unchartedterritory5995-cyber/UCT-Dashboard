@@ -132,7 +132,7 @@ import {
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
 // from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
 // valued half, so there is still exactly one formatting pipeline.
-import { legendChips, siblingSuffixes, paneReadoutLabel, chipValueText } from './chart/engine/readout'
+import { legendChips, siblingSuffixes, resolvedInputsOf, paneReadoutLabel, chipValueText } from './chart/engine/readout'
 import { rendererPaneIndexOf, paneGroupOf } from './chart/engine/paneReadoutPlacement'
 import { cotFollowOf, resolveCotFollow } from './chart/engine/cotFollow'
 import * as engineRegistry from './chart/engine/nativeRegistry'
@@ -2276,7 +2276,12 @@ function liveInstanceIdsFor(cs, defId) {
  *  `engineChips` reads them (`inst.inputs`), so the two surfaces compare the same
  *  values; an empty list of siblings yields an empty list of suffixes. */
 function instanceMenuSuffixes(cs, instIds) {
-  return siblingSuffixes(instIds.map((instanceId) => ((findInstance(cs, instanceId) || {}).inputs) || {}))
+  // ⭐ 2026-10-01 — RESOLVED inputs (declared defaults filled in), the same values
+  // the legend compares — see `readout.resolvedInputsOf`.
+  return siblingSuffixes(instIds.map((instanceId) => {
+    const inst = findInstance(cs, instanceId) || {}
+    return resolvedInputsOf(engineRegistry.getDefinition(inst.defId), inst.inputs)
+  }))
 }
 
 export default function StockChart({
@@ -5662,6 +5667,11 @@ export default function StockChart({
       // symbol search — the same reason it is subtracted from the library list.
       submenu: catalogRows()
         .filter((row) => !LIBRARY_HIDDEN_IDS.includes(row.id))
+        // ⭐ 2026-10-01 — A QUICK MENU, NOT THE LIBRARY. A definition declaring
+        // `meta.quickMenu: false` (the Technical library's Tier 1 studies) is listed
+        // here only while it is ON, so it can be switched off where it is seen;
+        // adding one is the Add Indicator library's job, by category and search.
+        .filter((row) => engineRegistry.getDefinition(row.id)?.meta?.quickMenu !== false || indEnabled(row.id))
         .map((row) => ({
           id: 'ind-' + row.id, label: row.shortName, kind: 'toggle', checked: indEnabled(row.id),
           onSelect: () => setIndEnabled(row.id, !indEnabled(row.id)),
@@ -7934,8 +7944,14 @@ export default function StockChart({
       if (src !== 'close' || b.frame) continue
       const period = Math.floor(Number(inputs.period))
       if (!(period > 0)) continue
+      // ⛔ ONLY SMA AND EMA HAVE A ONE-TICK STEP HERE (2026-10-01). The other
+      // kit types (WMA, HMA, VWMA, …) are not an SMA, and stepping them with the
+      // SMA arithmetic below would overwrite a correct value with a wrong one on
+      // every tick; they hold until the next poll recomputes them.
+      const mt = inputs.maType || 'sma'
+      if (mt !== 'sma' && mt !== 'ema') continue
       let val = null
-      if (inputs.maType === 'ema') {
+      if (mt === 'ema') {
         const prior = sameBucket ? b.prevValue : b.lastValue
         if (Number.isFinite(prior)) {
           const k = 2 / (period + 1)

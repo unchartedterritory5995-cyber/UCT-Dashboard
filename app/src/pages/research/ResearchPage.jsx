@@ -22,6 +22,8 @@ import AskAiTab from './tabs/AskAiTab'
 import DecisionRecordTab from './tabs/DecisionRecordTab'
 import HistoryTab from './tabs/HistoryTab'
 import OptionsChainTab from './tabs/OptionsChainTab'
+import SeasonalityTab from './tabs/SeasonalityTab'
+import FilingChangesTab from './tabs/FilingChangesTab'
 import PaywallTeaser from './PaywallTeaser'
 import TickerResearchWorkspace from '../journal-2-0/components/notebook/TickerResearchWorkspace'
 import { notePath } from '../../hooks/useNoteBacklinks'
@@ -109,13 +111,14 @@ import styles from './ResearchPage.module.css'
 // on the market-view side of the MY RESEARCH boundary. Ships DARK behind
 // DECISION_RECORD_MEMBER_ENABLED (served as decision_record_enabled), same
 // mechanism and polarity as the Flow tab.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Ask AI', 'My Research']
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Analyst Ratings', 'Ratings', 'Ownership', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filing changes', 'Ask AI', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
 // the tab stays local state afterwards, and P3 replaces this bar with SectionRail.
 const SECTION_TO_TAB = {
-  overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', options: 'Options', financials: 'Financials', estimates: 'Estimates',
+  'filing-changes': 'Filing changes',
+  overview: 'Overview', news: 'News', catalysts: 'Catalysts', technical: 'Technical', flow: 'Flow', options: 'Options', seasonality: 'Seasonality', financials: 'Financials', estimates: 'Estimates',
   'analyst-ratings': 'Analyst Ratings',
   ratings: 'Ratings', ownership: 'Ownership', calls: 'Calls & Transcript', modelbook: 'Model Book',
   'decision-record': 'Decision Record',
@@ -126,7 +129,7 @@ const SECTION_TO_TAB = {
 export default function ResearchPage() {
   const { sym: rawSym } = useParams()
   const navigate = useNavigate()
-  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled } = useAuth()
+  const { isPaid, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, optionsChainEnabled, seasonalityEnabled, filingBlacklineEnabled } = useAuth()
   const [searchParams] = useSearchParams()
   const [rawActive, setActive] = useState(
     () => SECTION_TO_TAB[(searchParams.get('section') || '').toLowerCase()] || 'Overview',
@@ -152,7 +155,11 @@ export default function ResearchPage() {
     (t !== 'Decision Record' || decisionRecordEnabled === true) &&
     (t !== 'History' || tickerHistoryEnabled === true) &&
     // BRK-01 increment 1: the option chain, dark behind OPTIONS_CHAIN_ENABLED.
-    (t !== 'Options' || optionsChainEnabled === true))
+    (t !== 'Options' || optionsChainEnabled === true) &&
+    // COV-01: seasonality, dark behind SEASONALITY_ENABLED.
+    (t !== 'Seasonality' || seasonalityEnabled === true) &&
+    // COV-04: filing-to-filing blackline, dark behind FILING_BLACKLINE_ENABLED.
+    (t !== 'Filing changes' || filingBlacklineEnabled === true))
   const active = tabs.includes(rawActive) ? rawActive : 'Overview'
 
   const data = useResearchOverview(rawSym)
@@ -202,7 +209,9 @@ export default function ResearchPage() {
       {active === 'Decision Record' && <DecisionRecordTab sym={sym} />}
       {active === 'History' && <HistoryTab sym={sym} />}
       {active === 'Options' && <OptionsChainTab sym={sym} />}
+      {active === 'Seasonality' && <SeasonalityTab sym={sym} />}
       {active === 'Filings' && <FilingsTab sym={sym} />}
+      {active === 'Filing changes' && <FilingChangesTab sym={sym} />}
       {active === 'Ask AI' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />

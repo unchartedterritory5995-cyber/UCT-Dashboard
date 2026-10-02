@@ -325,7 +325,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
             {effLists && effLists.length === 0 && <span className={styles.noLists}>No lists yet</span>}
             {!effLists && <span className={styles.noLists}>Loading…</span>}
             <div className={styles.newListRow}>
-              <input
+              <input aria-label="New list name"
                 className={styles.newListInput}
                 type="text"
                 placeholder="New list…"
@@ -396,11 +396,11 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
         ) : (
           <div className={styles.alertSection}>
             <div className={styles.alertRow}>
-              <select className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
+              <select aria-label="Alert direction" className={styles.alertSelect} value={alertDir} onChange={e => setAlertDir(e.target.value)}>
                 <option value="above">Above</option>
                 <option value="below">Below</option>
               </select>
-              <input
+              <input aria-label="Alert price"
                 className={styles.alertInput}
                 type="number"
                 step="0.01"

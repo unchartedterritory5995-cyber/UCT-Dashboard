@@ -1,0 +1,492 @@
+{
+ "keys": 200,
+ "total_self_ms": 9801.663,
+ "idle_self_ms": 9114.936,
+ "busy_self_ms": 686.727,
+ "busy_self_ms_per_key": 3.4336,
+ "sample_count": 17580,
+ "rows": [
+  {
+   "functionName": "get commands",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 12143,
+   "column": 18,
+   "self_ms": 49.337,
+   "self_ms_per_key": 0.24669
+  },
+  {
+   "functionName": "createCan",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 12114,
+   "column": 11,
+   "self_ms": 44.336,
+   "self_ms_per_key": 0.22168
+  },
+  {
+   "functionName": "someProp",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11644,
+   "column": 10,
+   "self_ms": 23.491,
+   "self_ms_per_key": 0.11746
+  },
+  {
+   "functionName": "NoteEditorPage",
+   "url": "http://127.0.0.1:8333/assets/NotebookFlagGate-EynDVDV_.js",
+   "line": 6985,
+   "column": 23,
+   "self_ms": 21.82,
+   "self_ms_per_key": 0.1091
+  },
+  {
+   "functionName": "createChainableState",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 12020,
+   "column": 29,
+   "self_ms": 20.978,
+   "self_ms_per_key": 0.10489
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 9371,
+   "column": 29,
+   "self_ms": 14.9,
+   "self_ms_per_key": 0.0745
+  },
+  {
+   "functionName": "(garbage collector)",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 14.673,
+   "self_ms_per_key": 0.07336
+  },
+  {
+   "functionName": "clientRect",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 6893,
+   "column": 19,
+   "self_ms": 12.975,
+   "self_ms_per_key": 0.06488
+  },
+  {
+   "functionName": "scrollRectIntoView",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 6904,
+   "column": 27,
+   "self_ms": 12.128,
+   "self_ms_per_key": 0.06064
+  },
+  {
+   "functionName": "renderWithHooks",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3532,
+   "column": 26,
+   "self_ms": 10.433,
+   "self_ms_per_key": 0.05216
+  },
+  {
+   "functionName": "dispatchDiscreteEvent",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 11388,
+   "column": 32,
+   "self_ms": 9.738,
+   "self_ms_per_key": 0.04869
+  },
+  {
+   "functionName": "useSWRHandler",
+   "url": "http://127.0.0.1:8333/assets/vendor-swr-DKTmVg48.js",
+   "line": 1101,
+   "column": 22,
+   "self_ms": 8.884,
+   "self_ms_per_key": 0.04442
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/vendor-swr-DKTmVg48.js",
+   "line": 1164,
+   "column": 6,
+   "self_ms": 8.387,
+   "self_ms_per_key": 0.04194
+  },
+  {
+   "functionName": "getNearestMountedFiber",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 494,
+   "column": 33,
+   "self_ms": 8.07,
+   "self_ms_per_key": 0.04035
+  },
+  {
+   "functionName": "getBoundingClientRect",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 7.202,
+   "self_ms_per_key": 0.03601
+  },
+  {
+   "functionName": "setItem",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 6.681,
+   "self_ms_per_key": 0.0334
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 13650,
+   "column": 22,
+   "self_ms": 5.822,
+   "self_ms_per_key": 0.02911
+  },
+  {
+   "functionName": "workLoopSync",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 8443,
+   "column": 23,
+   "self_ms": 5.381,
+   "self_ms_per_key": 0.02691
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 12121,
+   "column": 22,
+   "self_ms": 5.135,
+   "self_ms_per_key": 0.02567
+  },
+  {
+   "functionName": "getListener",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1596,
+   "column": 22,
+   "self_ms": 5.106,
+   "self_ms_per_key": 0.02553
+  },
+  {
+   "functionName": "inputRuleMatcherHandler",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 14655,
+   "column": 30,
+   "self_ms": 5.035,
+   "self_ms_per_key": 0.02517
+  },
+  {
+   "functionName": "flush",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 10934,
+   "column": 7,
+   "self_ms": 5.033,
+   "self_ms_per_key": 0.02517
+  },
+  {
+   "functionName": "mapRemainingChildren",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2853,
+   "column": 33,
+   "self_ms": 5.026,
+   "self_ms_per_key": 0.02513
+  },
+  {
+   "functionName": "applyInner",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 5936,
+   "column": 12,
+   "self_ms": 4.908,
+   "self_ms_per_key": 0.02454
+  },
+  {
+   "functionName": "matchMedia",
+   "url": "",
+   "line": -1,
+   "column": -1,
+   "self_ms": 4.352,
+   "self_ms_per_key": 0.02176
+  },
+  {
+   "functionName": "SyntheticBaseEvent",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1663,
+   "column": 31,
+   "self_ms": 4.291,
+   "self_ms_per_key": 0.02146
+  },
+  {
+   "functionName": "updateWorkInProgressHook",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3627,
+   "column": 35,
+   "self_ms": 4.255,
+   "self_ms_per_key": 0.02127
+  },
+  {
+   "functionName": "updateStateInner",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11528,
+   "column": 18,
+   "self_ms": 3.981,
+   "self_ms_per_key": 0.0199
+  },
+  {
+   "functionName": "propagateParentContextChanges",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2579,
+   "column": 40,
+   "self_ms": 3.975,
+   "self_ms_per_key": 0.01988
+  },
+  {
+   "functionName": "checkIfContextChanged",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2609,
+   "column": 32,
+   "self_ms": 3.875,
+   "self_ms_per_key": 0.01937
+  },
+  {
+   "functionName": "applyTransaction",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 5903,
+   "column": 18,
+   "self_ms": 3.871,
+   "self_ms_per_key": 0.01936
+  },
+  {
+   "functionName": "findSuggestionMatch",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 19284,
+   "column": 28,
+   "self_ms": 3.777,
+   "self_ms_per_key": 0.01888
+  },
+  {
+   "functionName": "runCustomHandler",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 9502,
+   "column": 25,
+   "self_ms": 3.758,
+   "self_ms_per_key": 0.01879
+  },
+  {
+   "functionName": "eq",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 10811,
+   "column": 4,
+   "self_ms": 3.713,
+   "self_ms_per_key": 0.01857
+  },
+  {
+   "functionName": "useSWRArgs",
+   "url": "http://127.0.0.1:8333/assets/vendor-swr-DKTmVg48.js",
+   "line": 1047,
+   "column": 28,
+   "self_ms": 3.562,
+   "self_ms_per_key": 0.01781
+  },
+  {
+   "functionName": "getRootForUpdatedFiber",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 2174,
+   "column": 33,
+   "self_ms": 3.39,
+   "self_ms_per_key": 0.01695
+  },
+  {
+   "functionName": "apply",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 19512,
+   "column": 11,
+   "self_ms": 3.328,
+   "self_ms_per_key": 0.01664
+  },
+  {
+   "functionName": "findWrapping",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 4174,
+   "column": 21,
+   "self_ms": 3.319,
+   "self_ms_per_key": 0.01659
+  },
+  {
+   "functionName": "readDOMChange",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11189,
+   "column": 22,
+   "self_ms": 3.301,
+   "self_ms_per_key": 0.01651
+  },
+  {
+   "functionName": "isMacPlatform",
+   "url": "http://127.0.0.1:8333/assets/platform-DeI51cbD.js",
+   "line": 0,
+   "column": 22,
+   "self_ms": 3.291,
+   "self_ms_per_key": 0.01646
+  },
+  {
+   "functionName": "parseBetween",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11128,
+   "column": 21,
+   "self_ms": 3.263,
+   "self_ms_per_key": 0.01631
+  },
+  {
+   "functionName": "nodesBetween",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 191,
+   "column": 14,
+   "self_ms": 3.199,
+   "self_ms_per_key": 0.01599
+  },
+  {
+   "functionName": "isActive",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 13828,
+   "column": 17,
+   "self_ms": 3.188,
+   "self_ms_per_key": 0.01594
+  },
+  {
+   "functionName": "ignoreSelectionChange",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 10908,
+   "column": 23,
+   "self_ms": 3.177,
+   "self_ms_per_key": 0.01588
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 12145,
+   "column": 42,
+   "self_ms": 3.153,
+   "self_ms_per_key": 0.01577
+  },
+  {
+   "functionName": "parentNode",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 6722,
+   "column": 27,
+   "self_ms": 3.037,
+   "self_ms_per_key": 0.01518
+  },
+  {
+   "functionName": "updateSyncExternalStore",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 3792,
+   "column": 34,
+   "self_ms": 2.887,
+   "self_ms_per_key": 0.01443
+  },
+  {
+   "functionName": "deriveDeclaredSchema",
+   "url": "http://127.0.0.1:8333/assets/index-ZLkc6H1R.js",
+   "line": 8362,
+   "column": 29,
+   "self_ms": 2.831,
+   "self_ms_per_key": 0.01415
+  },
+  {
+   "functionName": "resolveUpdatePriority",
+   "url": "http://127.0.0.1:8333/assets/vendor-react-CHTKi4DZ.js",
+   "line": 1082,
+   "column": 32,
+   "self_ms": 2.769,
+   "self_ms_per_key": 0.01385
+  },
+  {
+   "functionName": "extend",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 14896,
+   "column": 8,
+   "self_ms": 2.756,
+   "self_ms_per_key": 0.01378
+  },
+  {
+   "functionName": "(anonymous)",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11995,
+   "column": 17,
+   "self_ms": 2.751,
+   "self_ms_per_key": 0.01375
+  },
+  {
+   "functionName": "isMarkActive",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 13774,
+   "column": 21,
+   "self_ms": 2.748,
+   "self_ms_per_key": 0.01374
+  },
+  {
+   "functionName": "DOMObserver.observer",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 10826,
+   "column": 75,
+   "self_ms": 2.74,
+   "self_ms_per_key": 0.0137
+  },
+  {
+   "functionName": "escapeForRegEx",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 17433,
+   "column": 23,
+   "self_ms": 2.73,
+   "self_ms_per_key": 0.01365
+  },
+  {
+   "functionName": "modifiers",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 11979,
+   "column": 18,
+   "self_ms": 2.721,
+   "self_ms_per_key": 0.01361
+  },
+  {
+   "functionName": "addAll",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 2864,
+   "column": 8,
+   "self_ms": 2.684,
+   "self_ms_per_key": 0.01342
+  },
+  {
+   "functionName": "saveDraftLocally",
+   "url": "http://127.0.0.1:8333/assets/NotebookFlagGate-EynDVDV_.js",
+   "line": 7284,
+   "column": 27,
+   "self_ms": 2.497,
+   "self_ms_per_key": 0.01248
+  },
+  {
+   "functionName": "emit",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 14618,
+   "column": 6,
+   "self_ms": 2.366,
+   "self_ms_per_key": 0.01183
+  },
+  {
+   "functionName": "configure",
+   "url": "http://127.0.0.1:8333/assets/askInsert-CYcfaeFY.js",
+   "line": 14884,
+   "column": 11,
+   "self_ms": 2.298,
+   "self_ms_per_key": 0.01149
+  },
+  {
+   "functionName": "scheduleAutosave",
+   "url": "http://127.0.0.1:8333/assets/NotebookFlagGate-EynDVDV_.js",
+   "line": 7442,
+   "column": 27,
+   "self_ms": 2.282,
+   "self_ms_per_key": 0.01141
+  }
+ ],
+ "paragraphs": 1,
+ "raw_profile": "C:\\Users\\Patrick\\AppData\\Local\\Temp\\claude\\C--Users-Patrick\\441b0c89-c1d8-471c-bd31-2a4fb712ee30\\scratchpad\\ty5-profile\\raw3\\profile-1p-r132723.cpuprofile.json"
+}

@@ -16,7 +16,8 @@ vi.mock('./WidgetHost', () => ({
   // existing test reads only `data-testid` and is unaffected by the addition.
   // `data-watchkey` surfaces a watchlist widget's opts.watchKey for the A12 CP2
   // ?openWatchlist= tests below; every other test still reads only `data-testid`.
-  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''}>{widget.type}</div>,
+  // `data-themeset` surfaces a themes widget's opts.themeSetId for the TERM-038 ?openThemeSet= tests.
+  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div>,
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -63,8 +64,9 @@ vi.mock('../../hooks/useMediaQuery', () => ({
 
 // Mock useAuth — ChartsWorkspace reads user.role for the admin-only bits.
 let mockUser = { id: 1, role: 'user' }
+let mockAddressSpace = false   // TERM-038: the address-space flag the auth payload carries
 vi.mock('../../context/AuthContext', () => ({
-  useAuth: () => ({ user: mockUser }),
+  useAuth: () => ({ user: mockUser, addressSpaceEnabled: mockAddressSpace }),
 }))
 
 // Mock useChartLayouts — named layout templates (prebuilt + personal). The
@@ -888,6 +890,48 @@ test('?openWatchlist with a key outside the registry\'s forms degrades — no cr
   renderWS()
   expect(document.querySelectorAll('[data-testid="body-watchlist"]').length).toBe(0)
   expect(window.location.search).not.toContain('openWatchlist')
+})
+
+// ── TERM-038 slice 2 (2026-10-01): ?openThemeSet=<id> — a theme set is an address ──
+
+test('?openThemeSet= on a board with no themes widget ADDS one carrying the set, and strips its param', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  expect(screen.getByTestId('body-themes')).toHaveAttribute('data-themeset', 'ts_abc')
+  expect(window.location.search).not.toContain('openThemeSet')
+  mockAddressSpace = false
+})
+
+test('?openThemeSet= on a board that already has a themes widget RETARGETS it instead of adding a second', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [{ id: 't1', type: 'themes', color: 'B', x: 0, y: 0, w: 4, h: 8, opts: { todayBasis: 'open' } }], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  const all = document.querySelectorAll('[data-testid="body-themes"]')
+  expect(all.length).toBe(1)
+  expect(all[0]).toHaveAttribute('data-themeset', 'ts_abc')
+  mockAddressSpace = false
+})
+
+test('⛔ CONTROL — ?openThemeSet= while the address space is dark: no widget, param left alone', () => {
+  mockAddressSpace = false
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=ts_abc')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(0)
+  expect(window.location.search).toContain('openThemeSet=ts_abc')
+})
+
+test('?openThemeSet= with a malformed id degrades — no widget, param still stripped', () => {
+  mockAddressSpace = true
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  goTo('/charts?openThemeSet=%3Cscript%3E')
+  renderWS()
+  expect(document.querySelectorAll('[data-testid="body-themes"]').length).toBe(0)
+  expect(window.location.search).not.toContain('openThemeSet')
+  mockAddressSpace = false
 })
 
 test('⛔ CONTROL — without the param the same board gets no watchlist widget (the door, not the default, added it above)', () => {

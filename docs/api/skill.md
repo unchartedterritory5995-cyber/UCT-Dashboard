@@ -11,11 +11,14 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
   endpoint answers 402 to a member without a paid plan; report that, do not retry elsewhere.
 - Every endpoint is rate limited per member; on 429 wait for the `Retry-After` header.
 
-## Endpoints (523)
+## Endpoints (529)
 
 | method | path | tier | rate-limit family |
 |---|---|---|---|
 | GET | `/api/about/{sym}` | member | research |
+| GET | `/api/address/resolve` | member | member-workspace |
+| GET | `/api/address/search` | member | member-workspace |
+| GET | `/api/adjustment-basis/{ticker}` | member | market-data |
 | GET | `/api/ai-search/briefings` | paid | ai |
 | GET | `/api/ai-search/deep` | paid | ai |
 | GET | `/api/ai-search/deep/{job_id}` | paid | ai |
@@ -386,6 +389,8 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/regime` | paid | market-analytics |
 | GET | `/api/regime/vocabulary` | paid | market-analytics |
 | GET | `/api/research/analyst-ratings/{sym}` | paid | research |
+| GET | `/api/research/analyst-revisions/{ticker}` | paid | research |
+| GET | `/api/research/blackline/{sym}` | paid | research |
 | GET | `/api/research/company-news/{sym}` | paid | research |
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research |
 | GET | `/api/research/estimates/{sym}` | paid | research |
@@ -399,6 +404,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/ownership/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |
+| GET | `/api/research/seasonality/{sym}` | paid | research |
 | GET | `/api/risk-summary` | paid | member-workspace |
 | GET | `/api/rs-rankings` | paid | market-analytics |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics |

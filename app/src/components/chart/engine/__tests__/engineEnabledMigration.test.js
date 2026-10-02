@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { TIER1_IDS } from './tier1Library.fixture'
 import fs from 'node:fs'
 import path from 'node:path'
 import { stripComments } from './sourceScan'
@@ -386,7 +387,8 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // the reason: no July section, no legacy toggle and no stored blob that ever
     // named it, so there is nothing for a July blob to have carried.
     expect([...SHIPPED_STACK_ORDER].filter(id => !(id in juliaIds)).sort())
-      .toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine'])
+      // ⭐ 2026-10-01 — and the Technical library's Tier 1: no July section, no toggle.
+      .toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...TIER1_IDS].sort())
     // Non-vacuity twice over: the record covers every registered definition, and
     // it is NOT registry order (which is what this line used to assert).
     expect([...SHIPPED_STACK_ORDER].sort())
@@ -438,7 +440,8 @@ describe('a stored July blob on cutover day — every indicator still on, nothin
     // legacy shape with no instance id, no placement and no presentation. This
     // definition is ADDITIVE beside them, not a migration OF them, so no July
     // blob could have carried it either.
-    expect(notCarried).toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine'])
+    // ⭐ 2026-10-01 — the Tier 1 studies are not carried either: they did not exist.
+    expect(notCarried).toEqual(['atrBands', 'avwap', 'dataSeries', 'dollarVolume', 'movingAverage', 'rsLine', ...TIER1_IDS].sort())
     for (const id of notCarried) {
       expect(isIndicatorEnabled(cs, id, ENGINE_OWNED),
         `${id} was switched ON by a migration of a blob that never mentioned it`).toBe(false)

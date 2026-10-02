@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { TIER1_CHIPS } from './__tests__/tier1Library.fixture'
 import { engineChips, chipsFrom, legendChips, disambiguateLabels, siblingSuffixes, chipValueText } from './readout'
 import * as engineRegistry from './nativeRegistry'
 // ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
@@ -319,6 +320,8 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     // ── the ten Task 2 gave a chip to, in the order the registry declares them ──
     'bb::middle', 'vwap::vwap', 'mfi::mfi', 'cci::cci', 'williamsR::williams_r',
     'adx::adx', 'obv::obv', 'donchian::middle', 'avwap::avwap', 'atrBands::middle',
+    // ── 2026-10-01: the Technical library's Tier 1 chips, all new ──
+    ...TIER1_CHIPS,
   ]
 
   /** Every plot in the registry that declares a VISIBLE chip. */

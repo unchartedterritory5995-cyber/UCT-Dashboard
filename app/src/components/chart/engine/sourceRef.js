@@ -791,6 +791,14 @@ export const parsePaneOfTarget = (target) =>
 export function derivedTargetFor(instance, def, instances, defOf, targetOfInstance) {
   const sources = sourceInputsOf(def, instance)
   if (!sources.length) return null
+  // ⛔⛔ ONLY A DOMAIN-PRESERVING TRANSFORM FOLLOWS ITS SOURCE'S PANE (2026-10-01).
+  // `MA(RSI)` belongs in RSI's pane because an average of RSI is still on RSI's
+  // 0-100 ladder — that is what `domainBehavior: 'inherit'` claims. A Rate of
+  // Change, a Standard Deviation or a Stochastic RSI also take a `source`, but
+  // their output is in DIFFERENT units from it: ROC(close) on the candles' scale
+  // would draw a ±5% line against a $400 axis. Such a definition stays where it
+  // declares itself (its own pane), and a member can still move it explicitly.
+  if (!def || def.domainBehavior !== 'inherit') return null
 
   const [, value] = sources[0]
   const parsed = parseSource(value)

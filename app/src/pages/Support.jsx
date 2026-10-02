@@ -1333,7 +1333,7 @@ export default function Support() {
           <form onSubmit={handleSubmit}>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>Category</label>
-              <select
+              <select aria-label="Category"
                 className={styles.formSelect}
                 value={category}
                 onChange={e => setCategory(e.target.value)}
@@ -1345,7 +1345,7 @@ export default function Support() {
             </div>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>Subject</label>
-              <input
+              <input aria-label="Subject"
                 className={styles.formInput}
                 type="text"
                 value={subject}
@@ -1363,7 +1363,7 @@ export default function Support() {
             </div>
             <div className={styles.formGroup}>
               <label className={styles.formLabel}>Message</label>
-              <textarea
+              <textarea aria-label="Message"
                 className={styles.formTextarea}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
@@ -1457,7 +1457,7 @@ export default function Support() {
 
           <div className={styles.replyWrap}>
             <div className={styles.replyComposer}>
-              <textarea
+              <textarea aria-label="Your reply"
                 className={styles.replyInput}
                 value={reply}
                 onChange={e => setReply(e.target.value)}

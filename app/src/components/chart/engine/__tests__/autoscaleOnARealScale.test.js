@@ -55,9 +55,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createChart, LineSeries, CandlestickSeries } from 'lightweight-charts'
 import { resolvePlacement } from '../placement'
-import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT } from '../pool'
+import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, fixedRangeProvider } from '../pool'
 import { __setPaneModeForTest } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── jsdom needs a 2D context and a non-zero layout ──────────────────────────
 //
@@ -150,29 +155,44 @@ function engineRsi(autoscaleOverride) {
   const options = seriesOptionsForPlot(RSI_PLOT, {
     scaleId: p.scaleId,
     autoscale: autoscaleOverride === undefined ? p.autoscale : autoscaleOverride,
+    // ⭐ 2026-10-01 — exactly what the binder forwards from placement.
+    autoscaleRange: p.autoscaleRange,
   })
   return { series: productionOrder(options, p.scaleOptions), options, placement: p }
 }
 
 describe('autoscaleInfoProvider on a REAL fixed-range price scale (B3 carry #1, fix round 1)', () => {
-  it('minimum/maximum reach the options bag and pin NOTHING', () => {
-    const { series, placement } = engineRsi()
-
-    // Placement really does emit them — this is not a strawman.
-    expect(placement.scaleOptions).toMatchObject({ autoScale: false, minimum: 0, maximum: 100 })
+  it('minimum/maximum still pin NOTHING on their own — the control', () => {
+    // The scale options are unchanged and lightweight-charts still ignores the two
+    // unknown keys: with the provider REMOVED, RSI frames at its column's extent.
+    const { placement, options } = engineRsi()
+    expect(placement.scaleOptions).toMatchObject({ autoScale: true, minimum: 0, maximum: 100 })
+    const bare = { ...options }
+    delete bare.autoscaleInfoProvider
+    const series = productionOrder(bare, placement.scaleOptions)
     const live = series.priceScale().options()
     expect(live.minimum, 'merge() copied the unknown key in').toBe(0)
     expect(live.maximum).toBe(100)
-    expect(live.autoScale).toBe(false)
-
-    // …and the scale is NOT 0-100. It is the RSI COLUMN's own extent, because
-    // the range came from the autoscale walk over the series, not from those two
-    // keys. If lightweight-charts ever starts honouring them, this flips and the
-    // comments that depend on it need re-reading.
+    expect(live.autoScale).toBe(true)
     const { from, to } = series.priceScale().getVisibleRange()
     expect(from).toBeGreaterThan(29); expect(from).toBeLessThan(31)
     expect(to).toBeGreaterThan(69); expect(to).toBeLessThan(71)
-    expect(from === 0 && to === 100, 'the scale is NOT pinned to 0-100').toBe(false)
+  })
+
+  it('⭐⭐ THE DECLARED RANGE IS REAL NOW — RSI frames 0-100 on a real chart (2026-10-01)', () => {
+    // The production path: placement's `autoscaleRange` → `pool`'s fixed-range
+    // provider → the autoscale walk the frozen scale is computed from.
+    const { series, placement, options } = engineRsi()
+    expect(placement.autoscaleRange).toEqual({ min: 0, max: 100 })
+    expect(options.autoscaleInfoProvider).toBe(fixedRangeProvider(0, 100))
+    const { from, to } = series.priceScale().getVisibleRange()
+    expect(from).toBeCloseTo(0, 6)
+    expect(to).toBeCloseTo(100, 6)
+    // …and a value outside the declared range would WIDEN it, never be clipped.
+    const wide = fixedRangeProvider(0, 100)(() => ({ priceRange: { minValue: -5, maxValue: 104 } }))
+    expect(wide.priceRange).toEqual({ minValue: -5, maxValue: 104 })
+    // …and with no data at all the declared range still answers.
+    expect(fixedRangeProvider(0, 100)(() => null).priceRange).toEqual({ minValue: 0, maxValue: 100 })
   })
 
   it('EXCLUDE is not inert on RSI — it collapses the band and throws the line off-pane', () => {
@@ -199,13 +219,15 @@ describe('autoscaleInfoProvider on a REAL fixed-range price scale (B3 carry #1, 
     expect(excluded.c30).toBeLessThan(0)
     expect(Math.abs(excluded.c30 - control.c30), 'the provider moved the line by ~2000px').toBeGreaterThan(1000)
 
-    // …and the shipped answer is the control's, exactly.
-    expect(asShipped.range).toEqual(control.range)
-    expect(asShipped.c30).toBe(control.c30)
+    // …and the shipped answer is the PINNED range (2026-10-01), not the control's
+    // column extent: the provider is what moved it, and only it.
+    expect(asShipped.range.from).toBeCloseTo(0, 6)
+    expect(asShipped.range.to).toBeCloseTo(100, 6)
   })
 
   it('AUTOSCALE_DEFAULT is byte-identical to no provider at all', () => {
-    const withDefault = { ...engineRsi().options }
+    // An AUTO-ranged answer for the same plot — RSI's own is now the fixed provider.
+    const withDefault = seriesOptionsForPlot(RSI_PLOT, { scaleId: rsiPlacement().scaleId, autoscale: 'default' })
     expect(withDefault.autoscaleInfoProvider).toBe(AUTOSCALE_DEFAULT)
     const bare = { ...withDefault }
     delete bare.autoscaleInfoProvider

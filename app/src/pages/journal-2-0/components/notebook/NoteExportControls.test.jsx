@@ -13,7 +13,7 @@ import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
 import { printNote } from '../../lib/exportNote'
 
 vi.mock('../../lib/exportNote', () => ({
-  exportNoteAsPng: vi.fn(async () => true),
+  exportNoteAsPng: vi.fn(async () => ({ ok: true })),
   printNote: vi.fn(),
 }))
 
@@ -272,6 +272,30 @@ describe("the editor's pending edits are sent before the file is built (M-9)", (
   })
 })
 
+// A too-tall note refuses the PNG export (exportNote.js's own size guard --
+// see exportNote.test.js for that guard's numbers). This door's job is only
+// to show whatever member-facing reason the guard hands back, in place of
+// the generic "export failed" -- asserted as RENDERED TEXT, never state.
+describe('a refused PNG shows its OWN reason, not the generic failure message', () => {
+  it('renders the reason exportNoteAsPng returns, verbatim', async () => {
+    exportNoteAsPng.mockResolvedValueOnce({
+      ok: false,
+      reason: 'This note is too long for one PNG image. Try Print or the Export menu instead.',
+    })
+    render(<Host />)
+    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent)
+      .toBe('This note is too long for one PNG image. Try Print or the Export menu instead.'))
+  })
+
+  it('falls back to "export failed" when the guard gives no reason', async () => {
+    exportNoteAsPng.mockResolvedValueOnce({ ok: false })
+    render(<Host />)
+    fireEvent.click(screen.getByRole('button', { name: 'PNG' }))
+    await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('export failed'))
+  })
+})
+
 // ⛔ Wave 8 final review, M-1: PNG and Export are DISABLED while a file is made, and a browser
 // moves focus off a disabled button (to <body>). jsdom does not, so each rail drops focus the
 // way the browser does, at the moment the button is disabled -- and asserts where it lands.
@@ -309,7 +333,7 @@ describe('focus comes back to the button that made the file (M-1)', () => {
     await waitFor(() => expect(png).toBeDisabled())
     dropFocusToBody()
     expect(document.activeElement).toBe(document.body)
-    await act(async () => { release(true) })
+    await act(async () => { release({ ok: true }) })
     await waitFor(() => expect(screen.getByTestId('chrome-msg').textContent).toBe('PNG saved'))
     expect(document.activeElement).toBe(png)
   })

@@ -4,6 +4,11 @@ import * as registry from './nativeRegistry'
 import { computePaneLayout, __setPaneModeForTest, SEPARATOR_PX } from './paneLayout'
 import { PRESETS, CHART_DEFAULTS } from '../chartDefaults'
 import { IND_TOKENS } from '../designTokens'
+// ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
+// `autoScale: false` froze the first range a scale computed, and pooled panes
+// kept a previous tenant's frozen range (measured: a Stochastic RSI pane framed
+// −100..103 after a CMO was added). The declared range is now pinned by
+// `pool.fixedRangeProvider`; `minimum`/`maximum` stay as inert metadata.
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 //
@@ -203,13 +208,15 @@ describe('resolvePlacement — the full scale option set, every time (trap #2)',
   const AUTO = ['macd', 'atr', 'cci', 'obv']
 
   for (const [id, [min, max]] of Object.entries(FIXED)) {
-    it(`${id}: carries {autoScale:false, minimum:${min}, maximum:${max}} on EVERY resolve`, () => {
+    it(`${id}: carries {autoScale: true, minimum:${min}, maximum:${max}} on EVERY resolve`, () => {
       const ctx = ctxFor(csWith(id))
       // Ten resolves, not one: the defect this closes is "correct on the first
       // call, missing on the rest", so a single assertion cannot see it.
       for (let i = 0; i < 10; i++) {
         const p = resolvePlacement(inst(id), def(id), ctx)
-        expect(p.scaleOptions.autoScale).toBe(false)
+        // ⭐ 2026-10-01 — autoscaled THROUGH the fixed-range provider (see `placement.js`).
+        expect(p.scaleOptions.autoScale).toBe(true)
+        expect(p.autoscaleRange).toEqual({ min, max })
         expect(p.scaleOptions.minimum).toBe(min)
         expect(p.scaleOptions.maximum).toBe(max)
       }
@@ -241,14 +248,14 @@ describe('resolvePlacement — the full scale option set, every time (trap #2)',
     // Transcribed from the `applyIndScale(..., bandExtra)` call sites
     // (StockChart.jsx:5773 / 5806 / 5845 / 5874 / 5953 / 5977 / 6002 / 6039 / 6067).
     const SHIPPED = {
-      rsi: { autoScale: false, minimum: 0, maximum: 100 },
-      stoch: { autoScale: false, minimum: 0, maximum: 100 },
+      rsi: { autoScale: true, minimum: 0, maximum: 100 },
+      stoch: { autoScale: true, minimum: 0, maximum: 100 },
       macd: { autoScale: true },
       atr: { autoScale: true },
-      mfi: { autoScale: false, minimum: 0, maximum: 100 },
+      mfi: { autoScale: true, minimum: 0, maximum: 100 },
       cci: { autoScale: true },
-      williamsR: { autoScale: false, minimum: -100, maximum: 0 },
-      adx: { autoScale: false, minimum: 0, maximum: 100 },
+      williamsR: { autoScale: true, minimum: -100, maximum: 0 },
+      adx: { autoScale: true, minimum: 0, maximum: 100 },
       obv: { autoScale: true },
     }
     for (const [id, extra] of Object.entries(SHIPPED)) {
@@ -443,7 +450,10 @@ describe('autoscale — the seam a price overlay needs (B3 carry #1)', () => {
       // ⭐ `movingAverage` DECLARES `onPrice` TOO. `MA(Close)` belongs on the
       // candles — it is what a moving average has always been — and like every
       // other price overlay it reserves no vertical space of its own.
-      'movingAverage'])
+      'movingAverage',
+        // ⭐ 2026-10-01 — the Technical library's three price overlays, after every
+        // existing one (registration order is z-order).
+        'superTrend', 'keltner', 'envelope'])
     for (const d of priceDefs) {
       // ⚠️ THE SAME INSTANCE THE LAYOUT WAS BUILT FROM. This passed a
       // DIFFERENT id (`i:<def>`) than the `inst(d.id)` above, and got away with it
@@ -622,7 +632,7 @@ describe('resolvePlacement — its own REAL pane (PANE_MODE panes)', () => {
     const cs = csWith('rsi', 'atr')
     const layout = layoutFor(['rsi', 'atr'])
     expect(resolvePlacement(inst('rsi'), def('rsi'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
-      .toEqual({ borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: false, minimum: 0, maximum: 100 })
+      .toEqual({ borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: true, minimum: 0, maximum: 100 })
     expect(resolvePlacement(inst('atr'), def('atr'), { ...ctxFor(cs), paneLayout: layout }).scaleOptions)
       .toEqual({ borderVisible: false, scaleMargins: { top: 0.16, bottom: 0.1 }, autoScale: true })
   })

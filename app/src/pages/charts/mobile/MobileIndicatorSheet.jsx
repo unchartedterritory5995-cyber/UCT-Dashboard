@@ -340,7 +340,9 @@ export default function MobileIndicatorSheet({ open, onClose, cs, onWrite, onBro
             <div className={styles.paramRow}>
               <span className={styles.indName}>Average type</span>
               <div className={styles.segRow} role="radiogroup" aria-label="Average type">
-                {['SMA', 'EMA'].map((t) => (
+                {/* ⭐ An adopted average may be any kit type (HMA, WMA, …): it is
+                    listed so the segment never claims an HMA is an SMA. */}
+                {['SMA', 'EMA', ...(['SMA', 'EMA'].includes(editTarget.o.type || 'SMA') ? [] : [editTarget.o.type])].map((t) => (
                   <button
                     key={t}
                     type="button"

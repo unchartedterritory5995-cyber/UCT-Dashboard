@@ -130,7 +130,21 @@ export default function JournalLayout() {
 
   // The `?` header button + Shift+? both open the cheat sheet (kept from
   // JournalTwoRoot).
-  useHotkeys('shift+/', () => setShowShortcuts((x) => !x), { preventDefault: true })
+  // ⛔⛔ A2R-04 (a11y second review, 2026-10-01): this was `'shift+/'`, and it
+  // NEVER fired. react-hotkeys-hook v5 matches a hotkey string against
+  // `event.code` (physical key), not `event.key` (the character produced) —
+  // it parses "shift+/" into the literal token "/", but a real Shift+/
+  // keydown carries `code: "Slash"`, which the library's own `K()` reduces to
+  // "slash", not "/". "/" and "slash" never compare equal, so the handler was
+  // provably unreachable from any keyboard, confirmed by replaying the
+  // library's own parse+match functions against a real `{code:"Slash",
+  // key:"?", shiftKey:true}` event. `'shift+slash'` names the SAME physical
+  // key the way the library's own code-based matching expects, and does
+  // match. (The library's documented escape hatch for a shifted character is
+  // `{ useKey: true }` against `event.key`; `shift+slash` needs no option
+  // change and is what the rest of this file's punctuation-free chords
+  // already assume.)
+  useHotkeys('shift+slash', () => setShowShortcuts((x) => !x), { preventDefault: true })
 
   // Legacy `g>` chords → navigation aliases (Task A4). Each routes to the new
   // surface that replaced its old tab. useHotkeys must be called unconditionally
@@ -241,6 +255,15 @@ export default function JournalLayout() {
             type="button"
             className={styles.shortcutsBtn}
             onClick={() => setShowShortcuts(true)}
+            // A2R-04: explicit, so Enter/Space are guaranteed regardless of a
+            // native <button>'s own default activation — see ShortcutCheatSheet
+            // for the dialog-side half of this fix (trap + focus restore).
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault()
+                setShowShortcuts(true)
+              }
+            }}
             aria-label="Show keyboard shortcuts"
             title="Keyboard shortcuts (Shift + ?)"
           >

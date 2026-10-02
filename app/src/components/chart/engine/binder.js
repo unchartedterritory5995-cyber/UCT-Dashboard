@@ -1595,13 +1595,15 @@ export function createBinder({ chart, LWC }) {
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
       const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
       if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue } = placement.value
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
 
       const options = seriesOptionsForPlot(b.plot, {
         scaleId,
         // B3 carry #1: a SERIES option that only PLACEMENT knows the answer to.
         // Placement returns a string; `pool` owns the two function singletons.
         autoscale,
+        // ⭐ A definition's declared fixed range (RSI 0-100), pinned by `pool`.
+        autoscaleRange,
         // The right-axis value tag — the same shape of answer as `autoscale`, and
         // for the same reason: whether a series may write on the axis it sits on
         // is a question about PLACEMENT, and `pool` has never been told where a
@@ -1956,7 +1958,11 @@ export function createBinder({ chart, LWC }) {
       // valid run; the primary keeps the newest run and every time slot, the rest
       // are drawn by run series this binding owns. Everything else is untouched:
       // `gapBreak` false means the exact calls this pass always made.
-      const gapBreak = isConnectedPool(b.poolKey) && hasPitLineage(b.inst, instances)
+      // ⭐ 2026-10-01 — …or a plot that is blank BY DESIGN (`plots[].sparse`,
+      // SuperTrend's two halves): lightweight-charts bridges whitespace on a
+      // connected line, so each valued run is drawn as its own series instead.
+      const gapBreak = isConnectedPool(b.poolKey)
+        && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
       const split = gapBreak ? splitFor(points) : null
       const drawn = split ? split.primary : points
       if (firstBindNeedsSetData(b, planMode)) {
@@ -2036,6 +2042,8 @@ export function createBinder({ chart, LWC }) {
         runData,
         runOptions: runSeries.length ? runSeriesOptions(p.options) : null,
         // The legend's reading of a gap-breaking line at a bar (`readout.chipsFrom`).
+        // ⭐ 2026-10-01 — a `sparse` plot is a gap-breaking line too (above), so a
+        // blank bar answers NaN and its chip is dropped there.
         ...(gapBreak ? { valueAt: valueAtOf(points) } : {}),
         // The legend's OBSERVATION PERIOD for an economic passthrough (`Aug 2026`).
         ...(econObs.has(b.instanceId) ? { observationAt: observationAtOf(econObs.get(b.instanceId), bars, adjustTime) } : {}),

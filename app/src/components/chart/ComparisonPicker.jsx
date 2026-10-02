@@ -114,7 +114,7 @@ export default function ComparisonPicker({ comparisons, onUpdate, onClose, curre
 
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.searchWrap}>
-          <input
+          <input aria-label="Compare symbol"
             ref={inputRef}
             type="text"
             role="combobox"
@@ -186,12 +186,12 @@ export default function ComparisonPicker({ comparisons, onUpdate, onClose, curre
         ) : (
           comparisons.map(c => (
             <div key={c.sym} className={styles.row}>
-              <input
+              <input aria-label={`Show ${c.sym}`}
                 type="checkbox"
                 checked={c.enabled}
                 onChange={() => toggleComparison(c.sym)}
               />
-              <input
+              <input aria-label={`Color for ${c.sym}`}
                 type="color"
                 value={c.color}
                 onChange={e => updateColor(c.sym, e.target.value)}

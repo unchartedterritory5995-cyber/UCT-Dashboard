@@ -6,6 +6,7 @@
 //   calculationTimeframe — which bars COMPUTE it (absent = Chart)
 //   visibility           — on which chart timeframes it DRAWS (absent = All)
 
+import { TIER1_IDS, TIER1_COLUMNS, TIER1_CHIPS } from './tier1Library.fixture'
 import { describe, it, expect } from 'vitest'
 import * as registry from '../nativeRegistry'
 import {
@@ -79,6 +80,10 @@ describe('⭐⭐ THE CAPABILITY MATRIX — derived from definitions, pinned by n
       dollarVolume: 'declared',
       dataSeries: 'passthrough',
       rsLine: 'server',
+      // ⭐ 2026-10-01 — every Tier 1 study takes a calculation timeframe. Historical
+      // Volatility and 52-Week are D/W/M-only but NOT session studies, so a daily
+      // chart may still compute them on weekly or monthly bars.
+      ...Object.fromEntries(TIER1_IDS.map((id) => [id, 'ok'])),
     })
   })
   it('the SOURCE decides for a source-aware definition', () => {

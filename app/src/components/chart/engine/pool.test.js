@@ -724,10 +724,13 @@ describe('signColorsForPlot — colorMode "sign" is two colours or it is nothing
       .toEqual({ up: 'rgba(76,175,80,0.75)', down: 'rgba(244,67,54,0.75)' })
   })
 
+  const SIGNED_TIER1 = new Set(['ppo.histogram', 'balanceOfPower.bop', 'chaikinMoneyFlow.cmf', 'squeeze.momentum'])
   it('every OTHER shipped plot has none — sign colouring is not the default', () => {
     for (const def of registry.listDefinitions()) {
       for (const plot of def.plots) {
         if (def.id === 'macd' && plot.key === 'histogram') continue
+        // ⭐ 2026-10-01 — the Technical library's four signed histograms, by name.
+        if (SIGNED_TIER1.has(`${def.id}.${plot.key}`)) continue
         expect(signColorsForPlot(plot), `${def.id}.${plot.key}`).toBeNull()
       }
     }

@@ -208,7 +208,10 @@ describe('VWAP Flip A — one line on the candles\' scale, intraday only', () =>
     const { F } = sync()
     expect(F.count('createPriceLine')).toBe(0)
     const def = engineRegistry.getDefinition('vwap')
-    expect(def.plots).toHaveLength(1)
+    // ⭐ 2026-10-01 — the line is still the ONLY chip: the six optional σ-band
+    // plots are `legend: { hide: true }` and draw nothing unless bands are on.
+    expect(def.plots).toHaveLength(7)
+    expect(def.plots.filter((p) => !(p.legend && p.legend.hide)).map((p) => p.key)).toEqual(['vwap'])
     expect(def.plots[0].legend, 'VWAP\'s chip declaration moved').toEqual({ decimals: 2 })
     expect(def.meta.legendParams, 'a cosmetic input reached the chip').toBeUndefined()
   })

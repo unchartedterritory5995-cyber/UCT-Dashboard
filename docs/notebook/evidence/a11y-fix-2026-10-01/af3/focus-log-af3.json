@@ -1,0 +1,2481 @@
+{
+  "steps": [
+    {
+      "n": 1,
+      "surface": "RW1-load",
+      "keys": "(navigate)",
+      "note": "*open /dashboard",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/0001-RW1-load-nav.png"
+    },
+    {
+      "n": 2,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 8,
+          "w": 154,
+          "h": 37
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 3,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 0,
+          "y": 10,
+          "w": 59,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 4,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 81,
+          "w": 43,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 5,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 136,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 6,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 169,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 7,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 201,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 8,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 234,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 9,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 267,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 10,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 299,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 11,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 332,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 12,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 365,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 13,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 397,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 14,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 430,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 15,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 463,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 16,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 495,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 17,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 528,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 18,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 561,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 19,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 593,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 20,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 626,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 21,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 659,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 22,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: AF3 Fix Verify, Pro",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 699,
+          "w": 43,
+          "h": 51
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 23,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 759,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 24,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 803,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 25,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 847,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 26,
+      "surface": "RW1-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 25",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 267,
+          "y": 25,
+          "w": 117,
+          "h": 66
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 27,
+      "surface": "RW1-enter",
+      "keys": "Enter",
+      "note": "*Enter on the ticker trigger",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Switch ticker \u2014 type a symbol to open its chart",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 683,
+          "y": 71,
+          "w": 148,
+          "h": 29
+        },
+        "visibleIndicator": false,
+        "url": "/dashboard"
+      },
+      "screenshot": "screenshots/0027-RW1-enter.png"
+    },
+    {
+      "n": 28,
+      "surface": "RW1-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open full research for QQQ",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 841,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 29,
+      "surface": "RW1-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask AI about QQQ",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 879,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 30,
+      "surface": "RW1-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's current price to Notebook",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 917,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 31,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's analyst consensus to Notebook",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 955,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 32,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "QQQ \u2014 click to search a different ticker",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 993,
+          "y": 79,
+          "w": 97,
+          "h": 14
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 33,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Add to flagged list",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1100,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 34,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 4",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Close chart",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1138,
+          "y": 72,
+          "w": 29,
+          "h": 27
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 35,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 5",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Chart",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 130,
+          "y": 125,
+          "w": 62,
+          "h": 24
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 36,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 6",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "About",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 192,
+          "y": 125,
+          "w": 65,
+          "h": 24
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 37,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 7",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "Fundamentals",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 257,
+          "y": 125,
+          "w": 113,
+          "h": 24
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 38,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 8",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "tab",
+        "name": "The Street",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 370,
+          "y": 125,
+          "w": 92,
+          "h": 24
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 39,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 9",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Regular Hours",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 770,
+          "y": 169,
+          "w": 109,
+          "h": 19
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 40,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 10",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Include post-market",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 879,
+          "y": 169,
+          "w": 148,
+          "h": 19
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 41,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 11",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "div",
+        "name": "5:48:49 PMET",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1038,
+          "y": 168,
+          "w": 105,
+          "h": 21
+        },
+        "visibleIndicator": false,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 42,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 12",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1m",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 135,
+          "y": 202,
+          "w": 34,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 43,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 13",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "5m",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 171,
+          "y": 202,
+          "w": 36,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 44,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 14",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "15m",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 209,
+          "y": 202,
+          "w": 41,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 45,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 15",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "30m",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 252,
+          "y": 202,
+          "w": 44,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 46,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 16",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1h",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 298,
+          "y": 202,
+          "w": 30,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 47,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 17",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1D",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 330,
+          "y": 202,
+          "w": 32,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 48,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 18",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1W",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 364,
+          "y": 202,
+          "w": 35,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 49,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 19",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1M",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 401,
+          "y": 202,
+          "w": 33,
+          "h": 20
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 50,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 20",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "More timeframes",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 436,
+          "y": 206,
+          "w": 27,
+          "h": 12
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 51,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 21",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "div",
+        "name": "AL%OCT 1O742.51H744.67L736.25C742.03+2.26+0.31%EMA 9737.07EMA 20729.80SMA 50715.",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 129,
+          "y": 228,
+          "w": 1022,
+          "h": 612
+        },
+        "visibleIndicator": false,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 52,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 22",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Arithmetic price scale",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1084,
+          "y": 824,
+          "w": 17,
+          "h": 11
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 53,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 23",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Logarithmic price scale",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1102,
+          "y": 824,
+          "w": 16,
+          "h": 11
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 54,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 24",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Percentage price scale",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 1119,
+          "y": 824,
+          "w": 17,
+          "h": 11
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 55,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 25",
+      "focus": {
+        "present": true,
+        "tag": "span",
+        "role": "button",
+        "name": "EMA 9 options",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 139,
+          "y": 284,
+          "w": 84,
+          "h": 14
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 56,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 26",
+      "focus": {
+        "present": true,
+        "tag": "span",
+        "role": "button",
+        "name": "EMA 20 options",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 139,
+          "y": 306,
+          "w": 91,
+          "h": 14
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 57,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 27",
+      "focus": {
+        "present": true,
+        "tag": "span",
+        "role": "button",
+        "name": "SMA 50 options",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 139,
+          "y": 328,
+          "w": 91,
+          "h": 14
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 58,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 28",
+      "focus": {
+        "present": true,
+        "tag": "span",
+        "role": "button",
+        "name": "SMA 200 options",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 139,
+          "y": 350,
+          "w": 98,
+          "h": 14
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 59,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 29",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "3M",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 141,
+          "y": 715,
+          "w": 31,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 60,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 30",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "6M",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 173,
+          "y": 715,
+          "w": 32,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 61,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 31",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "YTD",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 206,
+          "y": 715,
+          "w": 39,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 62,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 32",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "1Y",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 246,
+          "y": 715,
+          "w": 27,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 63,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 33",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "5Y",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 274,
+          "y": 715,
+          "w": 29,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 64,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 34",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Origin",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 304,
+          "y": 715,
+          "w": 50,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 65,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 35",
+      "focus": {
+        "present": true,
+        "tag": "span",
+        "role": "button",
+        "name": "Volume options",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 144,
+          "y": 749,
+          "w": 82,
+          "h": 18
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 66,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 36",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Trendline (T)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 141,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 67,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 37",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Extended Line",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 167,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 68,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 38",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Horizontal Line (H)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 193,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 69,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 39",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Horizontal Ray (Alt+J)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 219,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 70,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 40",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Vertical Line (Alt+V)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 245,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 71,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 41",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Rectangle (R)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 271,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 72,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 42",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Circle (Alt+C)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 297,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 73,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 43",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Arrow (Alt+A)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 323,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 74,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 44",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Fibonacci Retracement (Alt+F)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 349,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 75,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 45",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Fibonacci Extension (Alt+E)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 375,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 76,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 46",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Pitchfork (Alt+Y)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 401,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 77,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 47",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Parallel Channel",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 427,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 78,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 48",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Cup Curve \u2014 click the left rim, the bottom, then the right rim",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 453,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 79,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 49",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Anchored VWAP (Alt+W)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 479,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 80,
+      "surface": "RW1-cycle",
+      "keys": "Tab",
+      "note": "cycle probe 50",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Text Note (X)",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 505,
+          "y": 234,
+          "w": 24,
+          "h": 22
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 81,
+      "surface": "RW1-escape",
+      "keys": "Escape",
+      "note": "*Escape closes the chart modal",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 267,
+          "y": 25,
+          "w": 117,
+          "h": 66
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      },
+      "screenshot": "screenshots/0081-RW1-escape.png"
+    },
+    {
+      "n": 82,
+      "surface": "RW1-escape",
+      "keys": "(compare)",
+      "note": "after_close focus: {'present': True, 'tag': 'div', 'role': 'button', 'name': 'View chart for QQQ', 'id': None, 'inDialog': False, 'rect': {'x': 267, 'y': 25, 'w': 117, 'h': 66}, 'visibleIndicator': True, 'url': '/dashboard'}; restored=True",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 267,
+          "y": 25,
+          "w": 117,
+          "h": 66
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 83,
+      "surface": "RW2-load",
+      "keys": "(navigate)",
+      "note": "*open /dashboard, last-active note is LOCKED",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/0083-RW2-load-nav.png"
+    },
+    {
+      "n": 84,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 1",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Skip to main content",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 8,
+          "w": 154,
+          "h": 37
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 85,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 2",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Intelligence \u2014 go to landing page",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 0,
+          "y": 10,
+          "w": 59,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 86,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Search \u2014 Ctrl+K",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 81,
+          "w": 43,
+          "h": 46
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 87,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 4",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Terminal",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 136,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 88,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 5",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Charts",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 169,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 89,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 6",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Morning Wire",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 201,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 90,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 7",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Dashboard",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 234,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 91,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 8",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "AI Search",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 267,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 92,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 9",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT 20",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 299,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 93,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 10",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Breadth",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 332,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 94,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 11",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Screener",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 365,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 95,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 12",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Options Flow",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 397,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 96,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 13",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Flow Record",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 430,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 97,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 14",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Live Flow",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 463,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 98,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 15",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Catalysts History",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 495,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 99,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 16",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Model Book",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 528,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 100,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 17",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Formula Reference",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 561,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 101,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 18",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "The Desk",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 593,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 102,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 19",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Journal",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 626,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 103,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 20",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Portfolio Risk",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 659,
+          "w": 43,
+          "h": 31
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 104,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 21",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Account: AF3 Fix Verify, Pro",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 699,
+          "w": 43,
+          "h": 51
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 105,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 22",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Settings",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 759,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 106,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 23",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "Support",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 803,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 107,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 24",
+      "focus": {
+        "present": true,
+        "tag": "a",
+        "role": "link",
+        "name": "UCT Website",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 8,
+          "y": 847,
+          "w": 43,
+          "h": 42
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 108,
+      "surface": "RW2-reach-trigger",
+      "keys": "Tab",
+      "note": "seek a ticker trigger 25",
+      "focus": {
+        "present": true,
+        "tag": "div",
+        "role": "button",
+        "name": "View chart for QQQ",
+        "id": null,
+        "inDialog": false,
+        "rect": {
+          "x": 267,
+          "y": 25,
+          "w": 117,
+          "h": 66
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 109,
+      "surface": "RW2-enter",
+      "keys": "Enter",
+      "note": "*Enter opens the chart modal",
+      "focus": {
+        "present": true,
+        "tag": "input",
+        "role": "textbox",
+        "name": "Switch ticker \u2014 type a symbol to open its chart",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 683,
+          "y": 71,
+          "w": 148,
+          "h": 29
+        },
+        "visibleIndicator": false,
+        "url": "/dashboard"
+      },
+      "screenshot": "screenshots/0109-RW2-enter.png"
+    },
+    {
+      "n": 110,
+      "surface": "RW2-before",
+      "keys": "(evaluate)",
+      "note": "status region before any capture: {'present': True, 'role': 'status', 'ariaLive': 'polite', 'ariaAtomic': 'true', 'text': ''}",
+      "focus": {}
+    },
+    {
+      "n": 111,
+      "surface": "RW2-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 1",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Open full research for QQQ",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 841,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 112,
+      "surface": "RW2-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 2",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Ask AI about QQQ",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 879,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 113,
+      "surface": "RW2-reach-price",
+      "keys": "Tab",
+      "note": "seek Save price button 3",
+      "focus": {
+        "present": true,
+        "tag": "button",
+        "role": "button",
+        "name": "Save QQQ's current price to Notebook",
+        "id": null,
+        "inDialog": true,
+        "rect": {
+          "x": 917,
+          "y": 73,
+          "w": 28,
+          "h": 26
+        },
+        "visibleIndicator": true,
+        "url": "/dashboard"
+      }
+    },
+    {
+      "n": 114,
+      "surface": "RW2-fire",
+      "keys": "Enter",
+      "note": "*Enter fires the capture against a LOCKED note",
+      "focus": {
+        "present": false
+      },
+      "screenshot": "screenshots/0114-RW2-fire.png"
+    },
+    {
+      "n": 115,
+      "surface": "RW2-fire",
+      "keys": "(evaluate)",
+      "note": "status region immediately after firing: {'present': True, 'role': 'status', 'ariaLive': 'polite', 'ariaAtomic': 'true', 'text': 'QQQ price not saved \u2014 that note is locked. Unlock it in the Notebook first.'}",
+      "focus": {},
+      "screenshot": "screenshots/rw2-refusal-text.png"
+    },
+    {
+      "n": 116,
+      "surface": "RW2-after-3s",
+      "keys": "(wait 3000ms, evaluate)",
+      "note": "status region after 3s: {'present': True, 'role': 'status', 'ariaLive': 'polite', 'ariaAtomic': 'true', 'text': 'QQQ price not saved \u2014 that note is locked. Unlock it in the Notebook first.'}",
+      "focus": {},
+      "screenshot": "screenshots/rw2-after-3s.png"
+    }
+  ],
+  "findings": []
+}

@@ -21,7 +21,7 @@ import traceback
 from zoneinfo import ZoneInfo
 
 from . import derive as D, incremental as INC, ingest as I, publish as P, sec_client as SEC, store as S
-from . import v5_discovery as DISC, v5_live as L, v5_prod as VP, v5_publish as PUB, v5_validate as VAL
+from . import v5_acceptance as ACC, v5_discovery as DISC, v5_live as L, v5_prod as VP, v5_publish as PUB, v5_validate as VAL
 from .filings import parse_submission_pages
 from .split_ledger import PRODUCTION_SOURCES
 
@@ -30,6 +30,15 @@ PERIODIC = frozenset({"10-K", "10-Q", "10-K/A", "10-Q/A", "10-KT", "10-QT", "10-
 LAG_S = 3600                    # companyfacts may trail a filing; before this, "no facts yet" is not an answer
 PERIODIC_FACTS_DEADLINE_S = 48 * 3600
 MAX_ATTEMPTS = 20
+# UPSTREAM-PENDING (measured 2026-10-01: KFFB 10-K 0001213900-26-103633 exists in EDGAR, but SEC companyfacts still
+# lacked its facts after 48 h, and FAILED is never re-polled). Past the 48-h hot window a periodic filing that EXISTS
+# in submissions but has no companyfacts facts is DEFERRED_UPSTREAM: re-checked by the daily/sweep batch at most once
+# per DEFER_RECHECK_S, and FAILED (terminal, visible) only once DEFER_MAX_S has passed. It stays OPEN for the daily
+# verified-through horizon, so currentness keeps saying the authoritative upstream data is pending.
+DEFER_RECHECK_S = 20 * 3600
+DEFER_MAX_S = 120 * 86400
+DEFERRED = "DEFERRED_UPSTREAM"
+_LEGACY_UPSTREAM_FAILED = "periodic filing still has no facts in companyfacts after 48h"
 # BATCH ANOMALY RAIL for company-wide split-sensitive withholding. MEASURED on the frozen artifact (2026-09-29,
 # cutover investigation P14): 361 companies are withheld; the year their withholding first appeared ran 2011-2025 at
 # 5-58 companies/year (2023: 58, the maximum; 2024: 43; 2025: 41), each triggered by an ordinary filing. At the MAX
@@ -111,20 +120,25 @@ def evidence_complete(conn, cik: int) -> bool:
 
 
 # ── acquisition ───────────────────────────────────────────────────────────────────────────────────────────────
-def acquire_company(conn, cik: int, *, now: float, fetch_company=None, fetch_instance=None) -> dict:
+def acquire_company(conn, cik: int, *, now: float, fetch_company=None, fetch_instance=None, resolve_acceptance=None) -> dict:
+    """⛔ A filing's acceptance instant comes from its EDGAR header, never from same-day submissions (v5_acceptance):
+    every filing about to be stored for the first time has its acceptanceDateTime normalised BEFORE the frozen
+    ingest parses it. An unreadable header raises (the company is retried; nothing is ingested)."""
     if fetch_company is None:
         def fetch_company(c):
             main, pages = SEC.submission_pages(c)
             return SEC.companyfacts(c), main, pages
     cf, main, pages = fetch_company(cik)
-    st = I.ingest_company(conn, cik, cf, main, pages, now=now)
-    sig = INC.check_signals(conn, cik, fetch_instance=fetch_instance, now=now)
-    subs = parse_submission_pages(pages)
     # "cited" must mean what INGEST keeps: a filing cited only by tags V5 does not retain is (correctly) never
     # stored -- exactly as in the full rebuild -- so it is NO_FINANCIAL_FACTS, not a retry.
-    _keep, facts, _anom = I.parse_company(cf, pages)
+    keep, facts, _anom = I.parse_company(cf, pages)
+    pages, acc_ev = ACC.normalize_new_filings(conn, cik, pages, keep, resolve=resolve_acceptance, now=now)
+    st = I.ingest_company(conn, cik, cf, main, pages, now=now)
+    ACC.record_evidence(conn, acc_ev)
+    sig = INC.check_signals(conn, cik, fetch_instance=fetch_instance, now=now)
+    subs = parse_submission_pages(pages)
     cited = {f.accn for f in facts}
-    return {"ingest": st, "signals": sig, "submissions": subs, "cited": cited}
+    return {"ingest": st, "signals": sig, "submissions": subs, "cited": cited, "acceptance": len(acc_ev)}
 
 
 def classify(conn, entry: tuple, acq: dict, now: float) -> tuple[str, str | None]:
@@ -139,14 +153,29 @@ def classify(conn, entry: tuple, acq: dict, now: float) -> tuple[str, str | None
     if sub is None:
         return "RETRY", "not yet in submissions"
     if form in PERIODIC:
+        if age is not None and age > DEFER_MAX_S:
+            return "FAILED", f"periodic filing still has no facts in companyfacts after {DEFER_MAX_S // 86400} days"
         if age is not None and age > PERIODIC_FACTS_DEADLINE_S:
-            return "FAILED", "periodic filing still has no facts in companyfacts after 48h"
+            return DEFERRED, "upstream pending: the filing exists in EDGAR but SEC companyfacts lacks its facts; rechecked daily"
         return "RETRY", "periodic filing: facts not yet in companyfacts"
     if accn in acq["cited"]:
         return "RETRY", "cited by companyfacts but not stored"
     if age is not None and age > LAG_S:
         return "NO_FINANCIAL_FACTS", None
     return "RETRY", "inside the companyfacts lag window"
+
+
+def migrate_upstream_failed(conn) -> list[str]:
+    """One-way, idempotent: rows FAILED only because companyfacts lagged past 48 h (the pre-2026-10-01 rule) become
+    DEFERRED_UPSTREAM. Nothing else that is FAILED is touched."""
+    rows = [a for (a,) in conn.execute("SELECT accn FROM v5_queue WHERE state='FAILED' AND last_error=?",
+                                       (_LEGACY_UPSTREAM_FAILED,))]
+    if rows:
+        with conn:
+            conn.execute("UPDATE v5_queue SET state=?, last_error=? WHERE state='FAILED' AND last_error=?",
+                         (DEFERRED, "upstream pending (migrated from FAILED: companyfacts lagged past 48h)",
+                          _LEGACY_UPSTREAM_FAILED))
+    return rows
 
 
 # ── splits ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -303,8 +332,14 @@ def run_batch(kind: str, *, target, p: dict | None = None, now: float | None = N
                 b.rec["splits_error"] = traceback.format_exc()[-600:]
         # ACQUIRING
         b.state("ACQUIRING")
+        b.rec["upstream_migrated"] = migrate_upstream_failed(conn)
         queued = conn.execute("SELECT accn, cik, form, attempts FROM v5_queue WHERE state='QUEUED' AND attempts < ? "
                               "ORDER BY discovered_at", (MAX_ATTEMPTS,)).fetchall()
+        if kind in ("daily", "sweep"):            # bounded low-frequency recheck of upstream-pending filings
+            due = conn.execute("SELECT accn, cik, form, attempts FROM v5_queue WHERE state=? AND updated_at <= ? "
+                               "ORDER BY discovered_at", (DEFERRED, int(now - DEFER_RECHECK_S))).fetchall()
+            b.rec["upstream_recheck"] = [e[0] for e in due]
+            queued = list(queued) + list(due)
         by_cik: dict[int, list] = {}
         for e in queued:
             by_cik.setdefault(e[1], []).append(e)
@@ -516,6 +551,9 @@ def currentness(conn, target, *, now: float | None = None) -> dict:
         reasons.append("a discovered filing has been pending > 2h")
     if (vt is None or vt < (prev_bd - dt.timedelta(days=1)).isoformat()) and et.hour >= 8:
         reasons.append(f"daily index verified-through {vt} behind {prev_bd}")
+    upstream = [a for (a,) in conn.execute("SELECT accn FROM v5_queue WHERE state=? ORDER BY discovered_at", (DEFERRED,))]
+    if upstream:
+        reasons.append(f"{len(upstream)} filing(s) awaiting SEC structured data (upstream pending): {', '.join(upstream[:5])}")
     state = "WITHHELD" if held else ("CURRENT" if not reasons else "STALE")
     return {"state": state, "reasons": reasons, "version": cur.get("version"), "published_at": cur.get("published_at"),
             "last_batch": list(last) if last else None, "last_success_at": last_ok, "daily_index_verified_through": vt,

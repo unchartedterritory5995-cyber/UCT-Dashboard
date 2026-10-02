@@ -494,6 +494,25 @@ export function chipsFrom(entries, seriesData, registry, inputsFor, displayFor, 
  * @param {{describe?: (key: string, value: *) => (string|null|undefined)}} [opts]
  * @returns {string[]} one suffix per sibling, same order, each already spaced
  */
+/**
+ * ⭐ 2026-10-01 — an instance's inputs AS THE COMPUTE READS THEM: every declared
+ * default, overlaid with what the instance actually stored (`resolveInputs`'
+ * rule). The sibling disambiguators compare THESE, never the raw stored object:
+ * a legacy instance that never wrote a key (a fast Stochastic has no `smoothK`
+ * and no colours) would otherwise print `kColor undefined` beside a new one, and
+ * hide the one difference that matters (`smoothK 1` vs `smoothK 3`).
+ */
+export function resolvedInputsOf(def, inputs) {
+  const out = {}
+  for (const inp of ((def && Array.isArray(def.inputs)) ? def.inputs : [])) {
+    if (inp && typeof inp.key === 'string' && inp.default !== undefined) out[inp.key] = inp.default
+  }
+  for (const [k, v] of Object.entries(inputs && typeof inputs === 'object' ? inputs : {})) {
+    if (v !== undefined) out[k] = v
+  }
+  return out
+}
+
 export function siblingSuffixes(inputsList, ignoreKeys, opts) {
   const rows = (Array.isArray(inputsList) ? inputsList : [])
     .map(o => (o && typeof o === 'object' ? o : {}))
@@ -670,7 +689,7 @@ function disambiguateSiblings(chips, inputsByChip, registry, instances) {
     // failure: thin, and never `@inst:dataSeries:1::value` in a member's legend.
     const describe = sourceDescriber(def0, (id) => (registry && typeof registry.getDefinition === 'function'
       ? registry.getDefinition(id) : null), instances)
-    const suffixes = siblingSuffixes(idxs.map(i => inputsByChip.get(i) || {}), ignore,
+    const suffixes = siblingSuffixes(idxs.map(i => resolvedInputsOf(def0, inputsByChip.get(i))), ignore,
       describe ? { describe } : undefined)
 
     idxs.forEach((chipIdx, n) => {
@@ -783,18 +802,31 @@ export function legendChips(bindings, seriesData, registry, instances) {
 
   const out = []
   for (const inst of (Array.isArray(instances) ? instances : [])) {
-    if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') continue
+    // ⭐ 2026-10-01 — chips are collected per instance so a `plots[].sparse` plot's
+    // VALUELESS chip can be omitted (a bare "Down" beside an up-trending
+    // SuperTrend says nothing). At least one chip per instance always survives,
+    // so a hidden instance still has its chip to be shown from.
+    const start = out.length
+    pushInstanceChips(inst)
+    const mine = out.splice(start)
+    const kept = mine.filter((c) => !(c.sparse === true && c.value == null))
+    out.push(...(kept.length ? kept : mine.slice(0, 1)).map((c) => { const o = { ...c }; delete o.sparse; return o }))
+  }
+  return out
+
+  function pushInstanceChips(inst) {
+    if (!inst || typeof inst !== 'object' || typeof inst.instanceId !== 'string') return
     // A tombstone has no defId by design; asking the registry about it would
     // only ever produce a misleading null.
-    if (inst.deleted === true) continue
+    if (inst.deleted === true) return
     // ⛔ HIDDEN BY THE TIMEFRAME IS NOT HIDDEN BY THE MEMBER, AND IT GETS NO CHIP.
     // A greyed chip is a "click to show" offer; showing it for an indicator the
     // member set to "Daily only" while they look at a 5m chart would offer a click
     // that cannot work here and leave a legend ghost on every excluded timeframe.
     // `eligibility.eligibleInstances` stamps `hiddenBy` on the render copy only.
-    if (typeof inst.hiddenBy === 'string') continue
+    if (typeof inst.hiddenBy === 'string') return
     const def = get(inst.defId)
-    if (!def) continue
+    if (!def) return
     const instHidden = inst.hidden === true
     const inputs = (inst.inputs && typeof inst.inputs === 'object') ? inst.inputs : {}
 
@@ -813,7 +845,8 @@ export function legendChips(bindings, seriesData, registry, instances) {
       // they answer the same way (see the `computed` note below).
       const isHidden = instHidden || plot.hidden === true
       const bound = isHidden ? null : formatted.get(`${inst.instanceId}::${plot.key}`)
-      if (bound) { out.push({ ...bound, hidden: false, computed: true }); continue }
+      const sparse = plot.sparse === true
+      if (bound) { out.push({ ...bound, hidden: false, computed: true, sparse }); continue }
       // ⛔ THE SECOND NAMING SURFACE, AND IT MUST READ THE SAME DECLARATION.
       // This walks the INSTANCE LIST so a hidden instance still has a chip to
       // un-hide from, and it formats its own label — so a `labelFrom` definition
@@ -846,10 +879,10 @@ export function legendChips(bindings, seriesData, registry, instances) {
         // module already keeps for `value`.
         ...(isHidden ? {} : { computed: drawn.has(`${inst.instanceId}::${plot.key}`) }),
         text: label,
+        sparse,
       })
     }
   }
-  return out
 }
 
 // ─── PART E · TELLING TWO COPIES OF ONE DEFINITION APART ─────────────
@@ -928,7 +961,14 @@ export function disambiguateLabels(rows, get, opts) {
     // ⭐ A SOURCE IS DESCRIBED, NEVER SPELLED — `EMA 20 · QQQ`, not
     // `EMA 20 (source sym:QQQ:close)`. See `siblingSuffixes`' header.
     const describe = sourceDescriber(def0, get, opts && opts.instances)
-    const suffixes = siblingSuffixes(idxs.map((i) => list[i].inputs || {}), ignore,
+    // ⭐ 2026-10-01 — siblings are compared on their RESOLVED inputs (a declared
+    // default filled in for a key the stored instance never wrote), the reading
+    // `resolveInputs` gives the compute. A legacy fast Stochastic stores no
+    // `smoothK` or colours; compared raw, two Stochastics read
+    // `(dColor #4ECDC4, kColor #FF6B6B, smoothK 3)` beside `(… undefined …)`.
+    // Resolved, they read `(smoothK 3)` and `(smoothK 1)` — the real difference.
+    const resolvedOf = (row) => resolvedInputsOf(typeof get === 'function' ? get(row.defId) : null, row.inputs)
+    const suffixes = siblingSuffixes(idxs.map((i) => resolvedOf(list[i])), ignore,
       describe ? { describe } : undefined)
     idxs.forEach((rowIdx, n) => { out[rowIdx] = `${out[rowIdx]}${suffixes[n]}` })
   }
