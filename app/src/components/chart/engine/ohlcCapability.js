@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ohlcCapability.js
 //
-// ─── MAY THIS OUTPUT BE DRAWN AS CANDLES? ───────────────────────────────────
+// ─── MAY THIS OUTPUT BE DRAWN AS CANDLES OR BARS? ───────────────────────────
 //
 // ⭐⭐ THREE DIMENSIONS, AND THE TWO THAT ARE NOT "does it have o/h/l/c" ARE
 // WHERE BOTH MEASURED DEFECTS HAVE LIVED.
@@ -21,6 +21,13 @@
 // A member cannot tell that by looking, which is exactly what makes it worth a
 // gate. `sourceRef.SYMBOL_SOURCE_FIELDS` already refuses `hl2`/`hlc3`/`ohlc4` for
 // this same reason and says so in the same words.
+//
+// ⭐ 2026-10-01 — THAT BODY IS THE FALLBACK, NOT THE WHOLE STORY. Most UCT breadth
+// days have an OBSERVED OHLC underneath (a minute-file replay of the metric back to
+// 2008; V2's 1-minute OHLC since 2026-03-23), and the server now marks those bars.
+// Breadth therefore joins as an ATTESTED family: drawable only bar by bar, by the
+// mark — see `ATTESTED_OHLC_FAMILIES` below. The gate above still holds for every
+// body.
 //
 // ⛔ NO TICKER LIST, NO PREFIX TEST. The family comes from the breadth registry —
 // the SAME authority `api/routers/bars.py` routes on — injected as `familyOf` so
@@ -123,6 +130,55 @@ export function barsCarryOhlc(bars) {
   return false
 }
 
+// ─── FAMILIES WHOSE BARS ARE ATTESTED ONE AT A TIME ──────────────────────────
+//
+// ⭐⭐ BREADTH IS NOT A SYNTHETIC FAMILY — IT IS A MIXED ONE, AND THE SERVER NOW SAYS
+// WHICH BAR IS WHICH. A UCT breadth day is either an OBSERVATION of the metric through
+// the session (the minute-file replay back to 2008, V2's 1-minute OHLC, the live
+// accumulator) or the close-to-close body the comment at the top of this file
+// describes. Both have four finite numbers, so no structural test can separate them;
+// `breadth_symbols.py` can, and marks an observed bar `ohlc: 1`
+// (`OHLC_OBSERVED_KEY`, the same name on both sides).
+//
+// ⛔ SO FOR THESE FAMILIES THE MARK IS THE STRUCTURAL TEST. A breadth source may wear
+// Candles/Bars only when the bars we hold contain at least one ATTESTED bar, and an
+// unattested bar draws as whitespace — never as the body it is. A payload from before
+// the mark existed carries none, which refuses: the fail-closed direction, again.
+//
+// ⚠️ AN ALLOW LIST, LIKE `OHLC_FAMILIES`. A new family is refused until somebody
+// decides what its bars mean; joining this list is that decision, made per bar.
+const ATTESTED_OHLC_FAMILIES = Object.freeze(new Set([OHLC_FAMILY.BREADTH]))
+
+/** The per-bar attestation key `breadth_symbols.OHLC_OBSERVED_KEY` writes. */
+export const OHLC_OBSERVED_KEY = 'ohlc'
+
+/** Does this bar carry an OBSERVED open/high/low, by the server's own mark? */
+export function barIsAttestedOhlc(bar) {
+  return barHasOhlc(bar) && bar[OHLC_OBSERVED_KEY] === 1
+}
+
+/** Must this family's bars be attested one at a time before they draw as OHLC? */
+export function familyNeedsAttestation(family) {
+  return ATTESTED_OHLC_FAMILIES.has(family)
+}
+
+/**
+ * The bars an OHLC presentation may actually DRAW, for a source of `family`.
+ *
+ * ⛔ AN UNATTESTED BAR KEEPS ITS TIME AND ITS CLOSE AND LOSES THE REST. The close is
+ * the number of record on every bar (the legend still reads it on hover); its open,
+ * high and low are a body, so the candle/bar renderer is handed whitespace there.
+ * Nothing is invented and nothing is repaired.
+ *
+ * ⚠️ IDENTITY for every other family — a security's bars are an auction period as
+ * served, and copying them would cost an allocation per bar for nothing.
+ */
+export function drawableOhlcBars(bars, family) {
+  const list = Array.isArray(bars) ? bars : []
+  if (!familyNeedsAttestation(family)) return list
+  return list.map((b) => (barIsAttestedOhlc(b) ? b : { t: b && b.t, c: b && b.c }))
+}
+
 /**
  * May THIS OUTPUT of this definition be presented as candles?
  *
@@ -157,11 +213,19 @@ export function ohlcCapabilityOf(def, parsed, entry, familyOf) {
   if (family === OHLC_FAMILY.UNKNOWN) {
     return { ok: false, family, reason: OHLC_REFUSAL.FAMILY_UNKNOWN }
   }
-  if (!OHLC_FAMILIES.has(family)) {
+  const attested = familyNeedsAttestation(family)
+  if (!OHLC_FAMILIES.has(family) && !attested) {
     return { ok: false, family, reason: OHLC_REFUSAL.FAMILY_NOT_OHLC }
   }
   const bars = entry && Array.isArray(entry.bars) ? entry.bars : null
   if (!bars || !bars.length) return { ok: false, family, reason: OHLC_REFUSAL.NO_BARS }
+  // ⛔ AN ATTESTED FAMILY IS ASKED THE SEMANTIC QUESTION PER BAR. Breadth with no
+  // observed bar in hand — every US series today, a collector-only score — is refused
+  // for exactly the reason a synthetic family is: its bars are one value a period.
+  if (attested) {
+    if (!bars.some(barIsAttestedOhlc)) return { ok: false, family, reason: OHLC_REFUSAL.FAMILY_NOT_OHLC }
+    return { ok: true, family, reason: null }
+  }
   if (!barsCarryOhlc(bars)) return { ok: false, family, reason: OHLC_REFUSAL.FIELDS_MISSING }
   return { ok: true, family, reason: null }
 }
