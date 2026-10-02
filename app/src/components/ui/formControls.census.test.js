@@ -770,6 +770,7 @@ export const NAMED_SURFACES = [
   'app/src/components/chart/ComparisonPicker.jsx',
   'app/src/components/chart/builder/ParamControls.jsx',
   'app/src/components/voice/VoiceDocumentsPanel.jsx',
+  'app/src/floor2/Composer.jsx',
   'app/src/pages/Admin.jsx',
   'app/src/pages/LiveFlow.jsx',
   'app/src/pages/ModelBook.jsx',
@@ -813,6 +814,47 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
     expect(unnamedSites(sites).map((s) => `${s.kind}/${s.impl} ${s.label} in ${s.component}`),
       `${file} was migrated under TERM-067 and every control on it had a name. Give the new one an`
       + ' aria-label or a <label htmlFor>.').toEqual([])
+  }, 120_000)
+})
+
+// ── the unnamed-site baseline ───────────────────────────────────────────────────
+//
+// NAMED_SURFACES holds the finished files; this holds the REST of the tree to the
+// number it has reached. An unnamed site is one whose label association is
+// `unlabelled` or `placeholder-only` (a placeholder is a hint, not a name — it
+// disappears on the first keystroke). `indeterminate` (a spread that may carry
+// the name) is not counted: the scan cannot see it either way.
+//
+// ⛔ SHRINK-ONLY, and TIGHT. A new unnamed control anywhere fails the first test;
+// a migration that names one fails the second until the number is lowered here,
+// in the commit that earned it. Never raise it — name the control instead.
+//
+//   2026-10-01  140  (start of the lane/term-067-batch run)
+export const UNNAMED_BASELINE = 137
+export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
+export const unnamedTotal = ({ perFile }) =>
+  Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)
+
+describe('⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK', () => {
+  it('the counter can tell a name from a hint', () => {
+    const sites = scanSource('const a = <div><input placeholder="x" /><select /><input aria-label="ok" /></div>').sites
+    expect(sites.filter(isUnnamedForBaseline).map((s) => s.label)).toEqual(['placeholder-only', 'unlabelled'])
+  })
+
+  it('no new unnamed control site appeared anywhere in app/src', () => {
+    const c = census()
+    const now = unnamedTotal(c)
+    const top = Object.entries(c.perFile)
+      .map(([f, r]) => [f, r.sites.filter(isUnnamedForBaseline).length]).filter(([, n]) => n)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([f, n]) => `${n}  ${f}`)
+    expect(now, `unnamed control sites grew ${UNNAMED_BASELINE} -> ${now}. Give the new control an`
+      + ` aria-label or a <label htmlFor>. Most unnamed:\n  ${top.join('\n  ')}`).toBeLessThanOrEqual(UNNAMED_BASELINE)
+  }, 120_000)
+
+  it('the baseline is tight — a migration lowers UNNAMED_BASELINE in the same commit', () => {
+    const now = unnamedTotal(census())
+    expect(now, `unnamed control sites shrank ${UNNAMED_BASELINE} -> ${now}: set UNNAMED_BASELINE = ${now}`)
+      .toBe(UNNAMED_BASELINE)
   }, 120_000)
 })
 
