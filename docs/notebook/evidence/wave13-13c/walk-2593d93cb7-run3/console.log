@@ -1,0 +1,15 @@
+  W0_gate_on_payload: PASS -- /api/auth/me notebook_earnings_prep_enabled=True
+  W1_list_1200: PASS -- section text: 'REPORTING SOON\nYour watchlist, flagged and open-position names, next 7 days\n$AMD\nMon, Oct 5, time not announced yet\nWatchlist\nCreate prep note\n$NVDA\nWed, Oct 7, after the close\nOpen position\nCreate prep note'
+  W2_no_note_without_a_click: PASS -- notes after showing the list: 1 (seeded 1); earnings-prep notes: 0
+  W3_create_by_keyboard: PASS -- 51 Tab presses reached the button; Enter drafted and opened note 77f68d8af4a14af8895c4612f20aa87e in 6.23s
+  W4_body_sourced_and_labelled: PASS -- title=True; tags=True; ticker=True; date_sourced=True; after_the_close=True; implied_move=True; consensus=True; reactions=True; cited_note=True; position=True; recap_missing_labelled=True; trades_missing_labelled=True
+  W5_editor_renders_labels: PASS -- editor shows the source lines, the labelled recap gap and the cited note's title=True
+  W6_open_instead_of_redraft: PASS -- 'Open the NVDA prep note' shown=True
+  W7_frozen_values_survive_a_data_change: PASS -- list now says NVDA 2026-10-08; the note's revision unchanged=True, body unchanged=True
+  W9_research_workspace_entry: FAIL -- 'Earnings prep' button on /journal/notebook/research/NVDA=False; workspace header after Nones
+  W8_phone_390: PASS -- scrollWidth 390 vs clientWidth 390; button {'h': 44, 'w': 132.8125, 'right': 335}; tap drafted note 0ad86ad962c04338bfcccccc9aff9733; timing gap labelled in its body
+  W10_gate_off_client: PASS -- Reporting soon absent=True; earnings-prep requests=[]
+  W11_no_page_errors: PASS -- 0 unforced page errors
+SANDBOX INTEGRITY: CLEAN -- pre-boot (baseline) CLEAN, post-boot (+15s) CLEAN, shutdown CLEAN; 62 db files hashed; post-prewarm (+120s) not reached: the run ended before it (--hold-past-prewarm waits for it); stop: graceful to the shutdown checkpoint, then forced exit; log: docs\notebook\evidence\wave13-13c\walk-2593d93cb7-run3\integrity.md
+  W12_driver_never_imported_api: PASS -- no api.* module in the driver's sys.modules
+VERDICT: FAIL -- W9_research_workspace_entry

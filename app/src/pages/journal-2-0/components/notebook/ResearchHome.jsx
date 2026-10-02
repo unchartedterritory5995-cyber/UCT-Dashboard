@@ -15,6 +15,7 @@ import { precheckNoteBatch } from '../../lib/noteBatch'
 import { openSpanningCitation } from '../../lib/openCitation'
 import AskPanel from './AskPanel'
 import AiActionsBox from './AiActionsPanel'
+import ReportingSoon from './ReportingSoon'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { notePath } from '../../../../hooks/useNoteBacklinks'
@@ -299,11 +300,16 @@ export default function ResearchHome({
       <AiActionsBox blockedNoteIds={blockedNoteIds} onOpenNote={openNote} />
     </div>
   )
+  // Wave 13 lane 13C: "Reporting soon" -- renders nothing while notebook_earnings_prep_enabled
+  // is off. The SECOND child of the same fragment in every return below, for the same reason
+  // as the box above: a home that flips between quiet and full must not remount it mid-draft.
+  const prepBox = <ReportingSoon onOpenNote={openNote} />
 
   if (nothingToShow && homeError) {
     return (
       <>
         {aiBox}
+        {prepBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <LoadFailed what="your research home" error={homeError} onRetry={refreshHome} />
@@ -316,6 +322,7 @@ export default function ResearchHome({
     return (
       <>
         {aiBox}
+        {prepBox}
         <div className={styles.quietState}>
           {sampleNotice}
           <p>Nothing needs your attention right now.</p>
@@ -328,6 +335,7 @@ export default function ResearchHome({
   return (
     <>
     {aiBox}
+    {prepBox}
     <div className={styles.home} data-export-exclude>
       {sampleNotice}
       {/* ⛔ A CALM ENTRY POINT, NOT AN AI DASHBOARD. Research Home still

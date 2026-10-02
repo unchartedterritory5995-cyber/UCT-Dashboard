@@ -120,6 +120,9 @@ from api.routers import notebook_template_gallery as notebook_template_gallery_r
 # (/api/j2/notebook-fingerprint/*), dark behind NOTEBOOK_TA_FINGERPRINT_ENABLED.
 from api.routers import notebook_fingerprint as notebook_fingerprint_router
 
+# Wave 13 lane 13C: earnings prep (/api/j2/earnings-prep/*), dark behind
+# NOTEBOOK_EARNINGS_PREP_ENABLED (router-level 404); mounted with the other Notebook routers.
+from api.routers import notebook_earnings_prep as notebook_earnings_prep_router
 from api.routers import community as community_router
 from api.routers import watchlists as watchlists_router
 from api.routers import ticker_tags as ticker_tags_router
@@ -8918,6 +8921,8 @@ app.include_router(notebook_template_gallery_router.router)
 # Wave 13 lane 13I-1 (router-level 404 while NOTEBOOK_TA_FINGERPRINT_ENABLED is off).
 app.include_router(notebook_fingerprint_router.router)
 
+# Wave 13 lane 13C: outside /api/j2/notes/..., so mount order against journal_two does not matter.
+app.include_router(notebook_earnings_prep_router.router)
 # Phase 2a — the joystick hub's planned-trades backend. No client writes to it
 # yet; the preview is navigation-only plus Voice.
 app.include_router(hub_planned_trades_router.router)

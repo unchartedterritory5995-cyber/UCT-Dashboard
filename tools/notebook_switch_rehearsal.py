@@ -216,6 +216,9 @@ NOT_REHEARSED = {
     # Wave 13 lane 13I-1. No member surface yet: 13I-2 builds the panel that reads it.
     "NOTEBOOK_TA_FINGERPRINT_ENABLED": "dark (wave 13 13I-1): the technical fingerprint and "
                                        "chart-block index API; no member surface until 13I-2",
+    # Wave 13 lane 13C.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": "dark (wave 13 13C): Reporting soon on Research Home and a "
+                                      "one-click earnings prep note; waits for its real-browser walk",
 }
 
 

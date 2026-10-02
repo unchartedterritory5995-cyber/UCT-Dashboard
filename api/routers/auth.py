@@ -180,6 +180,10 @@ NOTEBOOK_FLAGS = {
     # gate (journal_two/tech_fingerprint.enabled) reads the same variable through flag_on,
     # per request; the payload key is `notebook_ta_fingerprint_enabled`.
     "NOTEBOOK_TA_FINGERPRINT_ENABLED": False,  # enablement — unset means OFF (fingerprint, lane 13I-1)
+    # Wave 13 lane 13C: earnings prep (Reporting soon + a one-click prep note). The router's
+    # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
+    # request; the payload key is `notebook_earnings_prep_enabled`.
+    "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
 }
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
