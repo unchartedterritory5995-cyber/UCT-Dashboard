@@ -103,7 +103,9 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { foldBound, bindConstsFor } from './ast/bind'
 import { resolveOtherSymbols, symTickersOf } from './otherSymbols'
+import { resolveLowerTf } from './lowerTf'
 import { periodReadsRefusalFor, PERIOD_READS_GUARD } from './periodReads'
+import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -2331,6 +2333,9 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
   const other = otherSymbolsFor(def, ctx)
+  // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
+  // every tree of the document (`lowerTfFor`). Null for a document that reads none.
+  const lower = lowerTfFor(def, ctx)
   // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
   // result is keyed by the plot, which is the whole of the multi-plot lane: the
   // MACD's three lines are three trees, not one column reshaped. The single-tree
@@ -2417,7 +2422,8 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           undefined, { tf: ctx && ctx.tf,
             newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
             ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}), crossMemo,
+            ...(other ? { symbols: other.symbols } : {}),
+            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
             chartClockSink: (clock[key] = new Map()) })
       } catch (err) {
         // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
@@ -2427,9 +2433,31 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
           ? { guard: err.guard, message: String(err.message) }
           : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
             message: String((err && err.message) || err) }
+        continue
+      }
+      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
+      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
+      // the block runs after a bar it skipped the plot is refused by name —
+      // never drawn off the every-bar number. Same budget, same options, same
+      // memo as the plot's own tree (the guard is a subtree of it).
+      // ⛔ AFTER the plot's own tree, never before it: a plot that cannot be
+      // computed at all keeps ITS reason (`interpret:bind-time-text` on a chart
+      // whose symbol is not resolved, `symbolThread.test.js`) — the guard is a
+      // subtree of that tree, and asked first it failed the same way and the
+      // member was told about blocks instead of about the symbol.
+      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+        undefined, { tf: ctx && ctx.tf,
+          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+          ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+          ...(other ? { symbols: other.symbols } : {}), crossMemo,
+          chartClockSink: new Map() }))
+      if (runsWhy) {
+        delete out[key]
+        delete clock[key]
+        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
       }
     }
-    return withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock)
+    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
   }
   if (keys.length !== 1) {
     throw new Error(
@@ -2453,14 +2481,59 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   // into "an empty scalar map was", which seeds every declared scalar NaN by a
   // different route and reads identically at the call site.
   const clock = { [keys[0]]: new Map() }
-  return withChartClock(withOtherSymbols({
-    [keys[0]]: interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
-      undefined, { tf: ctx && ctx.tf,
-        newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-        ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
-        ...(other ? { symbols: other.symbols } : {}),
-        chartClockSink: clock[keys[0]] }),
-  }, other), clock)
+  const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}),
+      chartClockSink: clock[keys[0]] })
+  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
+  // AFTER its tree computed (a tree that cannot keeps its own reason, above).
+  const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
+    undefined, { tf: ctx && ctx.tf,
+      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
+      ...(historyFromListingFor(def, ctx) ? { historyFromListing: true } : {}),
+      ...(other ? { symbols: other.symbols } : {}),
+      ...(lower ? { lowerTf: lower.supply } : {}),
+      chartClockSink: new Map() }))
+  if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
+  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
+}
+
+/** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
+ *  (`engine/lowerTf.js::resolveLowerTf`), or null when the document reads none.
+ *  Only the member door's Pine documents write an `ltf` node; the codes are its
+ *  stamp (`meta.lowerTf`), so a document that reads none costs one property read.
+ *  `ctx.lowerTf` is the chart's OWN symbol at each store timeframe
+ *  (`useLowerTfSources`); `ctx.tf` the chart's — or the frame's — timeframe. */
+export function lowerTfFor(def, ctx) {
+  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
+  if (!Array.isArray(def.meta.lowerTf) || !def.meta.lowerTf.length) return null
+  return resolveLowerTf(def, {
+    tf: ctx && ctx.tf,
+    lowerTf: ctx && ctx.lowerTf,
+    framed: !!(ctx && ctx.framed),
+  })
+}
+
+/** The key a column map carries its lower-timeframe decision under —
+ *  non-enumerable, like `__otherSymbols`. */
+const LOWER_TF = '__lowerTf'
+
+function withLowerTf(out, lower) {
+  if (lower) {
+    Object.defineProperty(out, LOWER_TF, {
+      value: Object.freeze({ served: lower.served, refused: lower.refused }), enumerable: false,
+    })
+  }
+  return out
+}
+
+/** ⭐ C41 — which lower-timeframe codes a computed column map was served, and
+ *  which were refused and why: `{served, refused: [{code, refusal, reason}]}`, or null. */
+export function lowerTfReport(columns) {
+  return (columns && columns[LOWER_TF]) || null
 }
 
 /** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),

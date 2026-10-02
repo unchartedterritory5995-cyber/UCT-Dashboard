@@ -209,8 +209,9 @@ describe('⛔⛔ the gate is the pane gate, not a second opinion about it', () =
   })
 
   it('a refused script yields a REASON, never a throw and never a blank', () => {
+    // ⚰️ C41: `"60"` on a daily chart is served now (`ltf`); `"45"` still refuses.
     const r = memberPaneDefinition({
-      source: '//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "60", close))\n',
+      source: '//@version=6\nindicator("x")\nplot(request.security(syminfo.tickerid, "45", close))\n',
     })
     expect(r.ok).toBe(false)
     expect(r.guard).toBe('pine:request')

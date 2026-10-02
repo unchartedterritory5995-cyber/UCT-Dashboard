@@ -31,12 +31,15 @@
 // is tallied in `stats.writesToDeleted` and surfaced.
 import {
   OBJECT_FAMILIES, DEFAULT_OBJECT_LIMITS, assertObjectProgram, graphNodesReferenced, opValueRefs,
-  withObjectTransparency, opReadsState,
+  withObjectTransparency, opReadsState, BAR_COORD_PROPS,
 } from './ast/objectProgram'
 // ⭐ C20 — a colour the runtime lane computed is a packed integer; the ONE unpacker.
 import { unpackColor, wholeTransparency } from './colorInt.js'
 // ⭐ C37 — the gradient's one curve, and the object colour string's one packer.
 import { fromGradient, objectHexToPacked, packedToObjectHex } from './runtime/colours.js'
+
+/** ⭐ C48 — the properties that are a bar coordinate (`resolveProps`). */
+const BAR_COORDS = new Set(BAR_COORD_PROPS)
 // ⭐ PINE'S CAPACITY TABLE, WIRED. `objectPool` has held the correct rule
 // (fallback 50, ceiling 500, per family) with tests since R0.2 and was imported
 // by nothing — parked on the reachability allowlist with an expiry that had
@@ -203,14 +206,12 @@ export function beginObjects(program, ctx) {
   let propsUnmeasured = 0
   /** ⭐⭐ C43 — A GETTER IN ARITHMETIC THAT A BAR COULD NOT SAY (`pine.js::
    *  stateArith`: `l.set_x2(l.get_x1() + w.avg() + 1)`). The fraction Pine drops
-   *  from a float handed to an `int` coordinate is measured for NON-NEGATIVE
-   *  values only (`vw-int-array-avg`: truncation and floor agree there), so a
-   *  negative one is counted (`truncNegative`) and not written; a getter of an
-   *  empty register or an `na` operand has no number either. The op still runs —
+   *  from a float handed to an `int` coordinate is dropped TOWARD ZERO
+   *  (`vw-int-array-avg`, and `vw-int-array-avg-neg` for a negative sum — C48).
+   *  A getter of an empty register or an `na` operand has no number. The op still runs —
    *  Pine ran it — and the coordinate is MARKED unknown (C17's per-property
    *  taint), never left at the value before: a later clean write clears it, an
    *  object still marked at the end is held, not drawn. */
-  let truncNegative = 0
   let propsUnsaid = 0
   const stateArithKeys = new WeakMap()
   const unsaidProps = (op, resolved) => {
@@ -241,7 +242,9 @@ export function beginObjects(program, ctx) {
   const histDepth = deepestBack(program.ops)
   const regHist = histDepth > 0
     ? new Map((program.regs || []).map((r) => [r.id, []])) : null
-  const colls = new Map((program.colls || []).map((c) => [c.id, []]))
+  // ⭐ C48 — a list created WITH SLOTS starts holding that many `na` slots
+  // (`slots`; `vw-forin-collections` Z01: `array.size(array.new_label(3))` is 3).
+  const colls = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(null)]))
   const collCap = new Map((program.colls || []).map((c) => [c.id, c.cap]))
 
   /** ⭐⭐ C17 — REGISTER TAINT: WHAT A WITHHELD OP WOULD HAVE WRITTEN IS UNKNOWN.
@@ -279,7 +282,7 @@ export function beginObjects(program, ctx) {
   /** A list whose length (and so every slot) is unknown. */
   const collLenTaint = new Set()
   /** Per list, a boolean per slot, kept in step with `colls`. */
-  const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, []]))
+  const collSlotTaint = new Map((program.colls || []).map((c) => [c.id, Array(c.slots || 0).fill(false)]))
   /** table instanceId → Set<"col,row"> | '*'. */
   const cellTaint = new Map()
   /** A `var` initialiser withheld where it stood: Pine may already have run it. */
@@ -309,17 +312,9 @@ export function beginObjects(program, ctx) {
   const getHistory = new WeakMap()
   /** ⭐⭐ C33 — the scalars a GETTER feeds (`setnum` whose value is a `get`), found
    *  once from the program: a text that prints one prints object state. */
-  const getterFedNums = new Set()
-  {
-    const scan = (list) => {
-      for (const o of list || []) {
-        if (o && o.k === 'loop') scan(o.body)
-        else if (o && o.k === 'setnum' && isObj(o.value) && o.value.v === 'get') getterFedNums.add(o.num)
-      }
-    }
-    scan(program.ops)
-  }
-  const printsObjectState = (v) => isObj(v) && (v.v === 'get' || (v.v === 'num' && getterFedNums.has(v.id)))
+  /** ⭐ C48 — true while the op being run stands in a block that runs ONCE
+   *  (`lastBarOnly`): a getter's history read there has no earlier run. */
+  let onceNow = false
   /** ⭐⭐ C33 — creates Pine MAY have run that this run could not decide (an
    *  `unknownGuard` create withheld on a bar), per family; and the families
    *  whose live count TradingView's collector may therefore have cut — its count
@@ -448,34 +443,10 @@ export function beginObjects(program, ctx) {
   const runtimeError = (why) => {
     if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.RUNTIME_ERROR; reason = why }
   }
-  const unwitnessed = (why) => {
-    if (status === OBJECT_STATUS.OK) { status = OBJECT_STATUS.UNWITNESSED; reason = why }
-  }
-  // ⭐⭐ C40 — `for … in <family>.all`: DOES THE BODY CHANGE WHICH OBJECTS OF THE
-  // FAMILY EXIST? A delete of one, or a create (which can also wake the
-  // collector). Read off the program once per loop, never a flag it carries.
-  const familyOfRef = (() => {
-    const regFam = new Map((program.regs || []).map((r) => [r.id, r.family]))
-    const collFam = new Map((program.colls || []).map((c) => [c.id, c.family]))
-    const siteFam = new Map()
-    const scan = (list) => {
-      for (const o of list || []) {
-        if (o.k === 'create') siteFam.set(o.site, o.family)
-        if (o.k === 'loop') scan(o.body)
-      }
-    }
-    scan(program.ops)
-    return (r) => (!isObj(r) ? null : r.r === 'reg' ? regFam.get(r.id) : r.r === 'coll' ? collFam.get(r.id)
-      : r.r === 'site' ? siteFam.get(r.id) : null) || null
-  })()
-  const changesFamily = (list, fam) => (list || []).some((b) => (b.k === 'create' && b.family === fam)
-    || (b.k === 'delete' && (familyOfRef(b.target) === fam || familyOfRef(b.target) === null))
-    || (b.k === 'loop' && changesFamily(b.body, fam)))
-  const walkChanges = new Map()
-  const walkChangesFamily = (op) => {
-    if (!walkChanges.has(op)) walkChanges.set(op, changesFamily(op.body, op.over.all))
-    return walkChanges.get(op)
-  }
+  /** ⭐ C48 — the families a create of which this PROGRAM lost (`lostCreates`;
+   *  `*` = one whose family could not be named): TradingView holds objects of
+   *  them this run never made, so a POSITION in `<family>.all` is unknown. */
+  const lostCreateFams = new Set(Array.isArray(program.lostCreates) ? program.lostCreates : [])
   /** ⭐ C40 — a family one of whose creates was WITHHELD (C17): TradingView may
    *  hold an object of it this run does not, so `<family>.all` is unknown. */
   const famUnknown = new Set()
@@ -753,7 +724,13 @@ export function beginObjects(program, ctx) {
 
   // ⛔ THE BAR IS A PARAMETER NOW, NOT A LOOP VARIABLE. Everything below is
   // byte-for-byte what the `for` body was; the only change is who advances it.
+  /** ⭐⭐ C48 — WHAT EACH SCALAR HELD AT THE END OF THE PREVIOUS BAR, and whether
+   *  that was known (`{v:'num', back: 1}`). Before the first bar a scalar's
+   *  history is `na`, whatever it was initialised to. */
+  let numsPrev = new Map()
+  let numTaintPrev = new Set()
   const stepBar = (bar) => {
+    if (bar > 0) { numsPrev = new Map(nums); numTaintPrev = new Set(numTaint) }
     /** site id → instanceId created on THIS bar. ⭐ Cleared every bar, which is
      *  the whole meaning of a site reference: `line.new(...)` used inline names
      *  the object made now, never one made yesterday. */
@@ -943,8 +920,12 @@ export function beginObjects(program, ctx) {
         const a = objectHexToPacked(colorOf(c.a))
         const b = objectHexToPacked(colorOf(c.b))
         if (a === null || b === null) return null
-        const num = (x) => (typeof x === 'number' ? x : NaN)
-        const packed = fromGradient(num(value(c.v)), num(value(c.lo)), num(value(c.hi)), a, b)
+        // ⭐ C48 — a value this run does not HOLD (not a number at all) is still
+        // unserved; a number that is `na` is the measured zero colour
+        // (`fromGradient`, `vw-colour-components`).
+        const three = [value(c.v), value(c.lo), value(c.hi)]
+        if (three.some((x) => typeof x !== 'number')) return null
+        const packed = fromGradient(three[0], three[1], three[2], a, b)
         return packed === null ? null : packedToObjectHex(packed)
       }
       return null
@@ -987,12 +968,16 @@ export function beginObjects(program, ctx) {
           if (typeof a !== 'number' || !Number.isFinite(a)) return undefined
           // ⭐ C25 — `math.round` is the tree lane's (`POINTWISE`: a half AWAY
           // from zero), never `Math.round`, which sends -2.5 to -2.
-          // ⭐ C43 — `trunc`: the fraction dropped, served non-negative only
-          // (see `truncNegative`); a negative one answers `undefined`.
-          if (ref.args.length === 1 && ref.op === 'trunc') {
-            if (a < 0) { truncNegative += 1; return undefined }
-            return Math.trunc(a)
-          }
+          // ⭐ C43 — `trunc`: the fraction dropped.
+          // ⭐⭐ C48 — TOWARD ZERO, for a negative value too. Capture
+          // `vw-int-array-avg-neg-spy-1d-2026-10-01`: `x1 + mean + 1` of −0.5,
+          // −1.5, −2.5 reads 0, −1, −2 (rows Z01 / Z02 / Z04; floor would read
+          // −1, −2, −3) and `l.set_x2(a.avg())` of −1.5 / −2.5 / −0.5 reads −1,
+          // −2, 0 (Y01–Y03). ⚰️ A negative one was held (`truncNegative`): the
+          // 2026-09-30 capture's sums were all positive. `+ 0` keeps −0.5 from
+          // reading −0. A line anchored at a negative bar index is no error on
+          // TradingView either (the same capture: no runtime error, 11 lines).
+          if (ref.args.length === 1 && ref.op === 'trunc') return Math.trunc(a) + 0
           if (ref.args.length === 1) return ref.op === 'round' ? PW.round(a) : ref.op === '-' ? -a : a
           const b = value(ref.args[1])
           if (typeof b !== 'number' || !Number.isFinite(b)) return undefined
@@ -1068,7 +1053,8 @@ export function beginObjects(program, ctx) {
           return x === true ? 1 : x === false ? 0 : NaN
         }
         case 'cross': return crossNow.has(ref) ? crossNow.get(ref) : 0
-        case 'num': return nums.get(ref.id) ?? NaN
+        // ⭐ C48 — `back: 1`: what the scalar held at the END of the previous bar.
+        case 'num': return ref.back ? (numsPrev.get(ref.id) ?? NaN) : (nums.get(ref.id) ?? NaN)
         // ⭐⭐ C32 — `w.get(i)` of a bounded window by the loop counter: Pine index
         // `k` of `size` elements is newest-first slot `k` (unshift) or
         // `size − 1 − k` (push — index 0 is the oldest). ⛔ An index outside the
@@ -1199,7 +1185,16 @@ export function beginObjects(program, ctx) {
           const inst = resolveRef(v)
           out[k] = inst === null ? null : { __ref: inst }
         } else {
-          out[k] = value(v)
+          const x = value(v)
+          // ⭐⭐ C48 — A BAR COORDINATE IS A WHOLE NUMBER: a float handed to an
+          // `int` x has its fraction dropped, toward zero. Capture
+          // `vw-int-array-avg-neg-spy-1d-2026-10-01`, rows Y01–Y03:
+          // `l.set_x2(a.avg())` with means −1.5 / −2.5 / −0.5 reads −1, −2, 0.
+          // ⚰️ Only a getter in arithmetic was truncated (C43's `trunc`); a
+          // plain per-bar float was written as it stood, and that line ended at
+          // bar −1.5. One rule, at the one place a property takes its value.
+          out[k] = BAR_COORDS.has(k) && typeof x === 'number' && Number.isFinite(x) && !Number.isInteger(x)
+            ? Math.trunc(x) + 0 : x
         }
       }
       return out
@@ -1232,17 +1227,15 @@ export function beginObjects(program, ctx) {
       if (!isObj(t) || depth > 48) return false
       if (t.t === 'if') return tainted(t.cond, depth + 1) || textTainted(t.then, depth + 1) || textTainted(t.else, depth + 1)
       if (t.t === 'cat') return (t.args || []).some((a) => textTainted(a, depth + 1))
-      // ⭐⭐ ONE `val` NODE (C32 / C33). A per-pass number (C32) is as known as
-      // its read. A number read off a DRAWING (C33 — a getter, a getter-fed
-      // scalar) is ⛔ SERVED ONLY WHERE THE READ IS `na`: TradingView prints that
-      // as "NaN" (eight labels of high-low-open-mid-ranges,
-      // `vendorHarness.c33ObjectReads`). No capture prints a FINITE getter value
-      // through `str.tostring`, so a finite one is unknown text — the op is
-      // withheld, never drawn off this chart's own formatting of a number
-      // TradingView was never seen to print.
-      if (t.t === 'val') {
-        return tainted(t.v, depth + 1) || (printsObjectState(t.v) && !Number.isNaN(numOf(value(t.v))))
-      }
+      // ⭐⭐ ONE `val` NODE (C32 / C33). A number is as known as its read — a
+      // per-pass number (C32), and a number read off a DRAWING (C33: a getter, a
+      // getter-fed scalar).
+      // ⭐ C48 — a FINITE getter number prints like any other. ⚰️ It was held
+      // ("no capture prints one"): `vw-getter-history-spy-1d-2026-10-01` does —
+      // `str.tostring(line.get_y1(a))` is `763.99` (G01), the same through
+      // `"#.00"` (G08), `43.938` for a line never moved (G06), and `get_x1` the
+      // bar index (G07). An `na` read still prints TradingView's `NaN`.
+      if (t.t === 'val') return tainted(t.v, depth + 1)
       return false
     }
     const colorTainted = (c, depth) => {
@@ -1262,7 +1255,7 @@ export function beginObjects(program, ctx) {
       if (!taintSeen || !isObj(v) || depth > 48) return false
       if (v.r) return refTainted(v, depth)
       switch (v.v) {
-        case 'num': return numTaint.has(v.id)
+        case 'num': return v.back ? numTaintPrev.has(v.id) : numTaint.has(v.id)
         case 'size': return collLenTaint.has(v.coll)
         case 'latch': return latches.get(v.id) === LATCH_UNKNOWN
         case 'cross': return (crossTaintUntil.get(v) ?? -1) >= bar
@@ -1277,12 +1270,22 @@ export function beginObjects(program, ctx) {
           // ⭐⭐ C33 — A GETTER'S HISTORY IS SERVED ONLY WHERE A CAPTURE SHOWS IT:
           // an empty handle `back` bars ago, which reads `na` (high-low-open-mid-
           // ranges, `"LW | Open | NaN"`), and a bar before the series began.
-          // ⛔ A NUMBER read back, or a bar this place did not run on, is
-          // unmeasured — unknown, so the op that reads it marks what it writes.
+          // ⭐⭐ C48 — `vw-getter-history-spy-1d-2026-10-01` shows two more:
+          //   · ONE bar back on a LIVE handle is the number the getter answered
+          //     one bar ago — `line.get_y1(a)[1]` is `close[1]` on 299 / 299 bars
+          //     for a line moved every bar (H04; H07 / H09 / H12 likewise). ⚰️ A
+          //     number read back was held as unmeasured.
+          //   · in a block that runs ONCE (`if barstate.islast`) the read is
+          //     `NaN` (G02): the place has no earlier run — its history is the
+          //     block's own, as a block local's is (`vw-call-site-history`, A12).
+          // ⛔ STILL UNKNOWN: a number read back from TWO or more bars ago (no
+          // row), and a bar this place did not run on under any other guard —
+          // TradingView answers the previous RUN there, which is not kept.
           if (bar - v.back < 0) return false
           const h = getHistory.get(v)
           const then = h ? h.get(bar - v.back) : undefined
-          return then === undefined || !Number.isNaN(then)
+          if (then === undefined) return !onceNow
+          return v.back > 1 && !Number.isNaN(then)
         }
         case 'unknown': return true
         case 'text': return textTainted(v.node, depth + 1)
@@ -1416,6 +1419,8 @@ export function beginObjects(program, ctx) {
       // never leak into a tree, a hash or a screener column, where "the last
       // bar" would depend on how many bars the caller asked for.
       if (op.lastBarOnly && bar !== barCount - 1) continue
+      // ⭐ C48 — is this op in a block that runs once? (`tainted`'s getter history)
+      onceNow = op.lastBarOnly === true
       // ⭐⭐ `var x = <expr>` RUNS ONCE. Without this a `var table t =
       // table.new(…)` mints a new table on every bar — 300 bars, 300 tables,
       // the envelope exceeded, the whole indicator refused. It is the
@@ -1501,23 +1506,26 @@ export function beginObjects(program, ctx) {
           // family's live objects, oldest first (what `<family>.all` holds —
           // `vw-object-gc-d`), taken when the loop starts and handed to the loop
           // variable's register one at a time.
-          // ⛔ UNWITNESSED, AND NOT RUN: two or more objects AND a body that
-          // deletes or creates objects of the family. Walking what the loop
-          // started with deletes all of them; walking the list as it shrinks
-          // deletes every other one. No committed capture says which, so the run
-          // stops and draws nothing (capture `vw-forin-collections`). With one
-          // object or none, or a body that only moves them, both readings agree.
+          // ⭐⭐ C48 — A SNAPSHOT, whatever the body does. Capture
+          // `vw-forin-collections-rddt-1d-2026-10-01`: the array `box.all` hands
+          // back does not shrink when a box is deleted (A02: still 5), and
+          // `for b in box.all` → `box.delete(b)` over four boxes makes FOUR passes
+          // and leaves none (A04 / A05). ⚰️ This stopped the run, by name, for a
+          // body that deletes or creates the family's objects over two or more —
+          // it was the unwitnessed case; the capture is the witness.
+          // ⭐ C48 — a POSITION read in the body (`pos`) is the index in that
+          // snapshot (A06: "0", "1", "2", oldest first). ⛔ Only for a family this
+          // run holds whole: one of whose creates the program lost, or this run
+          // withheld, has positions TradingView counts differently — the loop is
+          // withheld, never numbered wrong.
           if (op.over !== undefined) {
             const fam = op.over.all
-            if (famUnknown.has(fam)) { opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break }
+            if (famUnknown.has(fam)
+                || (op.pos === true && (lostCreateFams.has(fam) || lostCreateFams.has('*')))) {
+              opsThisBar -= 1; opsExecuted -= 1; withholdTainted(op); break
+            }
             const items = []
             for (const inst of live.values()) if (inst.family === fam) items.push(inst.id)
-            if (items.length >= 2 && walkChangesFamily(op)) {
-              unwitnessed(`\`for … in ${fam}.all\` over ${items.length} ${fam} objects with a body that deletes or creates `
-                + `${fam} objects (bar ${bar}) — whether TradingView walks the list it started with or the list as it `
-                + 'changes is not captured (capture `vw-forin-collections`)')
-              return false
-            }
             const had = loopVars.has(op.id)
             const prev = loopVars.get(op.id)
             let ok = true
@@ -1551,7 +1559,16 @@ export function beginObjects(program, ctx) {
           const had = loopVars.has(op.id)
           const prev = loopVars.get(op.id)
           let ok = true
-          for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
+          // ⭐⭐ C48 — `live`: A `for … in` OVER A LIST ITS BODY CHANGES WALKS THE
+          // LIST AS IT IS. The length is re-read before every pass (and the slot
+          // is copied as the pass starts — the body's first op). Capture
+          // `vw-forin-collections-rddt-1d-2026-10-01`: a body that shifts makes 3
+          // passes over five lines (F03), one that pushes ten makes 13 (F04), and
+          // a slot replaced before the walk reaches it hands the replacement (F05).
+          // ⛔ A body that grows its list on every pass never ends, in Pine too —
+          // here the per-bar instruction budget stops the run, by name.
+          const reread = op.live === true
+          for (let n = from; reread ? n <= Number(value(op.to)) : (step > 0 ? n <= to : n >= to); n += step) {
             loopVars.set(op.id, n)
             if (!runOps(op.body)) { ok = false; break }
           }
@@ -2072,7 +2089,6 @@ export function beginObjects(program, ctx) {
       ...(withheldUnknown ? { withheldUnknown } : {}),
       ...(propsUnmeasured ? { propsUnmeasured } : {}),
       ...(propsUnsaid ? { propsUnsaid } : {}),
-      ...(truncNegative ? { truncNegative } : {}),
       // ⭐ C17 — ops withheld because they read a tainted value; objects and
       // cells held but not drawn because a property of theirs is still tainted.
       ...(withheldTainted ? { withheldTainted } : {}),
@@ -2117,16 +2133,15 @@ export function evaluateObjects(program, ctx) {
  *  object-valued props included), 0 when none. */
 function deepestBack(ops) {
   let deepest = 0
-  const see = (r) => {
-    if (r && typeof r === 'object' && r.r === 'reg' && Number.isInteger(r.back) && r.back > deepest) {
-      deepest = r.back
-    }
+  // ⭐ C48 — EVERY register reference, wherever it stands: a getter's target is a
+  // reference inside a value (`line.get_y1(c[1])` in a text, a guard, a
+  // coordinate), and a ring sized off the ops' own targets alone had no slot for it.
+  const see = (x, depth) => {
+    if (!x || typeof x !== 'object' || depth > 64) return
+    if (x.r === 'reg' && Number.isInteger(x.back) && x.back > deepest) deepest = x.back
+    for (const v of Array.isArray(x) ? x : Object.values(x)) see(v, depth + 1)
   }
-  for (const o of ops || []) {
-    see(o.target); see(o.value)
-    for (const v of Object.values(o.props || {})) see(v)
-    if (o.k === 'loop') deepest = Math.max(deepest, deepestBack(o.body))
-  }
+  see(ops || [], 0)
   return deepest
 }
 

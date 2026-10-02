@@ -22,7 +22,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
 import { fetchableOtherSymbols } from './otherSymbols'
-import { ensureAll, subscribe } from './secondaryBars'
+import { ensureAll, ensureSecondaryBars, subscribe } from './secondaryBars'
+import { lowerTfWindowsNeeded } from './lowerTf'
 
 /** Do two maps hold the same entry OBJECT for the same symbols? */
 function sameEntries(a, b) {
@@ -132,6 +133,63 @@ export function useOtherSymbolExchanges(instances, defOf, revalidate) {
   }, [instances, defOf, revalidate])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(() => (t) => (_exchanges.has(t) ? _exchanges.get(t) : null), [gen])
+}
+
+// ─── ⭐⭐ C41 — THIS SYMBOL'S INTRADAY BARS, FOR A READ BELOW THE CHART ──────────
+//
+// `request.security(syminfo.tickerid, "60", …)` on a daily chart is an `ltf` node
+// (`engine/lowerTf.js` states every rule), and it reads the chart's OWN ticker at
+// an intraday store timeframe. This is the React half: which windows the chart's
+// instances need (`lowerTfWindowsNeeded` — one `meta.lowerTf` read per instance),
+// asked once each through the SAME cache and fetcher a `sym:` source uses, and a
+// re-render when one lands.
+//
+// ⛔⛔ A CHART WITH NO SUCH INDICATOR ASKS FOR NOTHING. No window ⇒ no key, no
+// request, no cache entry, no subscription — the shared `EMPTY` state, the same
+// zero-cost path `useSecondarySources` takes. Railed in `useLowerTfSources.test.jsx`.
+/**
+ * @param {function} instances  the stored instance list (read through a function)
+ * @param {function} defOf      definition lookup
+ * @param {string}   symbol     the chart's own ticker
+ * @param {string}   tf         the chart's resolved timeframe
+ * @param {number}   barCount   the chart's own history depth
+ * @param {function} fetcher    the chart's fetcher, so aborts on symbol flip apply
+ * @param {*}        revalidate any value that should re-check the needed set
+ * @returns {Map<string,{bars,status}>|null} keyed by STORE timeframe; null when
+ *   this chart needs none
+ */
+export function useLowerTfSources(instances, defOf, symbol, tf, barCount, fetcher, revalidate) {
+  const [state, setState] = useState(EMPTY)
+
+  useEffect(() => {
+    const sym = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
+    const windows = sym ? lowerTfWindowsNeeded(instances ? instances() : null, defOf, tf, barCount) : []
+    const key = `${sym}|${tf}|${windows.map((w) => `${w.tf}:${w.bars}`).join(',')}`
+    let alive = true
+
+    const apply = () => {
+      if (!alive) return
+      let map = null
+      if (windows.length) {
+        map = new Map()
+        for (const w of windows) {
+          const entry = ensureSecondaryBars(sym, w.tf, w.bars, fetcher)
+          if (entry) map.set(w.tf, entry)
+        }
+      }
+      setState((prev) => {
+        if (!map) return prev.map === null ? prev : EMPTY
+        return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
+      })
+    }
+
+    apply()
+    if (!windows.length) return () => { alive = false }
+    const unsub = subscribe(apply)
+    return () => { alive = false; unsub() }
+  }, [instances, defOf, symbol, tf, barCount, fetcher, revalidate])
+
+  return state.map
 }
 
 export default useSecondarySources

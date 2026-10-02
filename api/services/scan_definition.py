@@ -68,6 +68,11 @@ _SYM = "sym"
 #: changes WHEN, never WHAT — but it is its own constant because the branch census
 #: compares this module's set against the engine's, name for name.
 _TF_LIVE = "tf_live"
+#: ⚠️ C41 — A READ BELOW THE CHART'S TIMEFRAME (`ltf`). Classified with `_TF`
+#: below (it changes WHICH BARS, never WHAT) and REFUSED as a screen in
+#: `assert_scannable`: it reads a symbol's intraday bars, which a daily sweep
+#: does not hold.
+_LTF = "ltf"
 #: ⭐ THE BIND-TIME TEXT TRIO. `closedTable.json` settles what they mean to a
 #: classifier in its own words: *"THE TRIO ADDS NO VALUE KIND, AND THAT IS THE
 #: WHOLE DESIGN. A `textop` sits wherever a number sits and every existing walker
@@ -113,6 +118,21 @@ AST_KIND = "ast"
 #: surface branches on, and a gate a surface cannot enumerate is prose.
 GATES = ("kind", "tree", "hash", "yields", "symbol", "cadence", "budget",
          "requirements")
+
+
+def _reads_lower_timeframe(tree: Any) -> bool:
+    """Does this tree hold an `ltf` node anywhere? Iterative."""
+    stack = [tree]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        if node.get("type") == _LTF:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
 
 
 class ScanRefused(Exception):
@@ -258,7 +278,7 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             # `yields` gate rather than by a lookup that happened to miss.
             kinds[id(node)] = _KIND_NUM
             continue
-        if node_type in (_TF, _SYM, _TF_LIVE):
+        if node_type in (_TF, _SYM, _TF_LIVE, _LTF):
             # ⭐ NEITHER CHANGES *WHAT*. A timeframe changes WHICH PERIOD and a
             # symbol changes WHICH INSTRUMENT, so both pass the kind through from
             # the child exactly as an offset's does: `sym('SPY', close > open)` is
@@ -505,6 +525,20 @@ def assert_scannable(definition: Any) -> dict:
                 "still works on the Formula tab."
                 % (", ".join(sorted(allowed)), ", ".join(sorted(unknown))),
             )
+    # ⭐⭐ C41 — A READ BELOW THE DAILY BAR CANNOT BE SWEPT, AND THAT IS DECIDABLE
+    # FROM THE TREE. An `ltf` node evaluates its child on the symbol's INTRADAY
+    # bars; the sweep holds daily bars for the universe and no intraday ones, so
+    # the node is not computable for every symbol (`ast_interpret`'s `ltf` arm) —
+    # a screen that would answer nothing, forever. Refused at the door, by name;
+    # the same read is served on a chart.
+    if _reads_lower_timeframe(tree):
+        raise ScanRefused(
+            "cadence",
+            "this formula reads a timeframe below the daily bar (`ltf`), which "
+            "needs each symbol's intraday bars. A saved scan is run on daily bars "
+            "for the whole universe and holds none, so it would answer nothing "
+            "for every symbol — the same read works on a chart.",
+        )
     if not boolean:
         raise ScanRefused(
             "yields",

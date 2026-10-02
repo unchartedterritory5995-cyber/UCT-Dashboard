@@ -47,6 +47,14 @@
       ],
       "note": "A D2 revisit, owner decision 2026-09-20. `pine:objects-only` is a script that DRAWS -- a table, labels, boxes -- and offers no plot or alert condition, so `ok` is false for the SCREENER and the drawing is real. Measured: 19 of the 266 committed corpus scripts are in that state, plus the acceptance dashboard. OFF means the pane refuses them exactly as it did before. Rollback is the variable, not a revert. ARMED 2026-09-27 on owner ruling, and admission is governed by the partial-drawing rule (PR #207, owner ruling option b): a drawing that loses any removal is refused (or, for a plotting script, its drawings withheld), and any other partial drawing attaches with an 'N of M drawing elements in this script aren't supported yet' disclosure. Measured on the 266 corpus under #207: 47 attach flag-on, 11 refused for a lost removal, 30 disclosed. Rollback: set the variable to 0 (the CLI refuses an empty value; the gate reads anything but '1' as off)."
     },
+    "VITE_PINE_LOWER_TF_ENABLED": {
+      "status": "dark",
+      "since": "2026-10-01",
+      "readBy": [
+        "app/src/components/chart/engine/lowerTfGate.js::lowerTfServingEnabled"
+      ],
+      "note": "Deliberately off: a `request.security` below a daily or weekly chart's timeframe reads intraday bars, and our store's intraday bars have not been measured against TradingView's. Off, the read is refused by name (`lower-tf:store-unmeasured`), nothing is stamped or fetched. On, C41's `ltf` read is served. Flipped by a measurement (engine/__tests__/storeIntradayAgreement.test.js), then an owner decision. Declared as a build ARG in Dockerfile.web. Reach: docs/feature_flags.json build_flags."
+    },
     "VITE_PINE_RUNTIME_PANE_ENABLED": {
       "status": "dark",
       "since": "2026-09-28",

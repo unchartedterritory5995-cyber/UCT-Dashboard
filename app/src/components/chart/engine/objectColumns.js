@@ -26,11 +26,11 @@ import { nodeTree } from './ast/graph'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, withheldReadMask,
+  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf,
 } from './ast/interpret'
 import { RECURRENCES } from './ast/parse.js'
 import {
-  resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, computeFor, runtimeErrorStopOf,
+  resolveInputs, bindConstsFor, historyFromListingFor, otherSymbolsFor, lowerTfFor, computeFor, runtimeErrorStopOf,
 } from './nativeRegistry'
 import { periodReadsObjectRefusal } from './periodReads'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
@@ -310,6 +310,26 @@ function withSymMask(mask, tree, bars, iopts) {
   return out
 }
 
+/** ⭐⭐ C41 — an object tree that reads BELOW the chart's timeframe is UNKNOWN
+ *  (withheld by C17, never drawn) on every bar whose answer depends on a
+ *  lower-timeframe read we cannot make (`interpret.js::lowerTfMask`: the supply
+ *  does not cover the chart bar whole, or none was given) — merged into the
+ *  warm-up mask, one channel; the plot lane withholds the same bars. */
+function withLowerTfMask(mask, tree, bars, iopts) {
+  let lm
+  try {
+    lm = lowerTfMask(tree, bars, iopts)
+  } catch {
+    // a mask that cannot be computed withholds the whole series — the safe side
+    lm = new Uint8Array(bars.length).fill(1)
+  }
+  if (!lm) return mask
+  if (!mask) return lm
+  const out = new Uint8Array(Math.max(mask.length, lm.length))
+  for (let i = 0; i < out.length; i++) out[i] = (mask[i] || lm[i]) ? 1 : 0
+  return out
+}
+
 /** ⭐⭐ C30 — an object tree that reads `time("W"|"M"|"3M"|"12M")` is UNKNOWN
  *  (withheld by C17, never drawn) on the bars `interpret.js::periodAnchorMask`
  *  names: before the first period boundary the series shows, within the tree's
@@ -333,6 +353,18 @@ function withPeriodAnchorMask(mask, tree, bars, inputs, budget, iopts) {
   const out = new Uint8Array(Math.max(mask.length, am.length))
   for (let i = 0; i < out.length; i++) out[i] = (mask[i] || am[i]) ? 1 : 0
   return out
+}
+
+/** ⭐⭐ C41 — A TREE THAT READS BELOW THE CHART AND COULD NOT BE COMPUTED IS
+ *  UNKNOWN ON EVERY BAR. A node whose `interpret` throws (a budget, most often:
+ *  the `ltf` child makes a condition a few nodes larger) has no column, so it
+ *  reads `NaN` — and a `NaN` CONDITION is false, which picks the text's last arm
+ *  and DRAWS it. For a tree holding an `ltf` that is a value drawn off a
+ *  lower-timeframe read nobody made; `lowerTfMask`'s rule (unknown, never Pine's
+ *  `na`) has to hold for the tree that failed as well as the one that ran.
+ *  ⛔ Only a tree holding an `ltf`: every other failed node reads as it always has. */
+function withholdFailedLowerTf(unknown, node, tree, barCount) {
+  if (tree && treeReadsLowerTf(tree)) unknown.set(node, new Uint8Array(Math.max(0, barCount | 0)).fill(1))
 }
 
 export function computeObjectColumns(graph, program, bars, opts = {}) {
@@ -365,19 +397,22 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
   for (const node of wanted) {
+    let tree = null
     try {
-      const tree = intern(fold(nodeTree(graph, node)))
+      tree = intern(fold(nodeTree(graph, node)))
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
-        ...(opts.symbols ? { symbols: opts.symbols } : {}) }
+        ...(opts.symbols ? { symbols: opts.symbols } : {}),
+        ...(opts.lowerTf ? { lowerTf: opts.lowerTf } : {}) }
       const col = interpret(tree, bars, opts.inputs || {}, opts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: chartClock })
+      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
+      withholdFailedLowerTf(unknown, node, tree, bars.length)
       // ⛔⛔ R-Q — WHY, NOT JUST WHICH. `failed` is a list of node indices, and a
       // node index cannot tell a member that their dashboard is blank because
       // the engine declined to spend the steps. Every refusal is kept with its
@@ -533,6 +568,11 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const otherSymbols = otherSymbolsFor(definition, opts)
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
+  // ⭐⭐ C41 — the lower-timeframe codes this binding may read, decided by the SAME
+  // function the plot lane asks (`nativeRegistry.lowerTfFor`), so an object and the
+  // plot beside it are handed the same intraday supply.
+  const lowerTf = lowerTfFor(definition, opts)
+  if (lowerTf) evalOpts.lowerTf = lowerTf.supply
   // ⭐⭐ A BARE `time` IN AN OBJECT PROP IS PINE'S `time` — the bar's opening
   // instant in MILLISECONDS, exactly what the same name reads inside a tree
   // (`time * 1000`, off the clock column `barOpenInstant` fills). The runtime
@@ -596,17 +636,20 @@ export function objectReaderFor(definition, bars, opts = {}) {
       }
       continue
     }
+    let tree = null
     try {
-      const tree = intern(fold(trees[i]))
+      tree = intern(fold(trees[i]))
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
-        ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}) }
+        ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
+        ...(evalOpts.lowerTf ? { lowerTf: evalOpts.lowerTf } : {}) }
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock })
+      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
+      withholdFailedLowerTf(unknown, i, tree, barCount)
       // ⛔ THE SAME RECORD ON THE V1 FORM. A document under the budget stays V1,
       // and a member on a V1 document is owed the same reason as one on a V2.
       refusals.push({

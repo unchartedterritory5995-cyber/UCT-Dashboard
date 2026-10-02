@@ -21,6 +21,18 @@
 // until they were served; they are now graded with the rest, 0 mismatches on all
 // 900 bars (`vendorHarness.c36TimeFollowups.test.js` holds their rule and the 60m
 // reading). The derived capture cannot be dropped for the original while T16 refuses.
+//
+// ⭐⭐ C49 (2026-10-01) — RE-PINNED, WITH THE REASON. Capture round 3 showed the rule
+// above is a special case: the vendor answers the open of the period's first
+// CALENDAR session, bar or no bar (`indicators.js::computePeriodCalendar`;
+// `vendorHarness.c49CapturedClock.test.js` holds the captures). On this capture the
+// two rules agree on every bar the first-bar rule could answer, and the calendar
+// answers the rest: the 1 / 3 / 26 / 214 first-partial-period bars C30 withheld are
+// SERVED and equal TradingView (bar 0 reads −3 / −23 / −52 / −52 days, opens this
+// series does not hold). What stays withheld is bar 0 of a `ta.change(time(tf))`
+// row — it reads the anchor of a bar before the series. And the 60-minute capture
+// C30 read as "a different rule" is the same rule: its −1.0417 days on bar 0
+// (Tuesday 10:30) is Monday 09:30, that week's open.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -122,30 +134,32 @@ describe('C30 — date for date against TradingView (derived capture, the real m
   })
 
   for (const [title, key] of Object.entries(PERIODS)) {
-    it(`${title}: 0 wrong values; exactly the first partial period withheld`, () => {
+    it(`${title}: equal to TradingView on all 900 bars — the first partial period included (C49: the calendar's open)`, () => {
       const p = byTitle.get(title)
       expect(p, title).toBeTruthy()
+      expect(p.verdict).toBe('MATCH')
+      expect(p.stats).toMatchObject({ matching: 900, valueMismatches: 0, naMismatches: 0 })
+      // …and the bars C30 withheld are real vendor numbers, not blanks on both sides
       const first = firstPeriodBars(key)
+      const c = derived.plotValues.fields.indexOf(derived.study.plots.find((x) => x.title === title).id)
+      expect(derived.plotValues.rows.slice(0, first).every((r) => Number.isFinite(r[c]) && r[c] < 0), title).toBe(true)
+    })
+  }
+
+  for (const title of Object.keys(CHANGES)) {
+    it(`${title}: the new-period event agrees on every bar but bar 0, which reads the anchor of a bar before the series`, () => {
+      const p = byTitle.get(title)
       expect(p.stats.valueMismatches).toBe(0)
-      expect(p.stats.naMismatches).toBe(first)
-      expect(p.stats.matching).toBe(900 - first)
-      // every na mismatch is OURS withheld against a vendor value — never the reverse
+      expect(p.stats.naMismatches).toBe(1)
+      expect(p.stats.matching).toBe(899)
       expect(p.stats.firstDivergence).toMatchObject({ bar: 0, kind: 'na', ours: null })
     })
   }
 
-  for (const [title, key] of Object.entries(CHANGES)) {
-    it(`${title}: the new-period event agrees on every bar but the withheld ones (first period + its boundary)`, () => {
-      const p = byTitle.get(title)
-      const first = firstPeriodBars(key)
-      expect(p.stats.valueMismatches).toBe(0)
-      expect(p.stats.naMismatches).toBe(first + 1)
-      expect(p.stats.matching).toBe(900 - first - 1)
-    })
-  }
-
-  it('the counts above are not vacuous: 1 / 3 / 26 / 214 first-period bars', () => {
+  it('the bars C30 withheld and C49 serves are not vacuous: 1 / 3 / 26 / 214 first-period bars, bar 0 reading −3 / −23 / −52 / −52 days', () => {
     expect(Object.values(PERIODS).map(firstPeriodBars)).toEqual([1, 3, 26, 214])
+    const at0 = Object.keys(PERIODS).map((title) => derived.plotValues.rows[0][derived.plotValues.fields.indexOf(derived.study.plots.find((x) => x.title === title).id)])
+    expect(at0).toEqual([-3, -23, -52, -52])
   })
 
   // ⭐ C36 — the two rows that were cut until they were served: the bar's own `time`.
@@ -220,7 +234,7 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
     expect(ours.objects.texts.labels).toEqual([String(vendorW[vendorW.length - 1])])
   })
 
-  it('⛔ a label on the FIRST bar (inside the partial week) is withheld, never drawn off an `na`', () => {
+  it('⭐ C49 — a label on the FIRST bar (inside the partial week) prints the vendor\'s offset to an open this series does not hold — never an `na`', () => {
     const ours = on(pine([
       'd = na(time("W")) ? -99999 : (time("W") - time) / 86400000',
       'if barstate.isfirst',
@@ -228,7 +242,9 @@ describe('C30 — the object lane withholds what it cannot know, and prints what
     ]))
     expect(ours.objects.ok).toBe(true)
     expect(ours.objects.texts.labels).not.toContain('-99999')
-    expect(ours.objects.counts.labels).toBe(0)
+    // Fri 2023-02-24 → Tue 02-21 (Presidents' Day Monday is a closure the calendar applies)
+    expect(vendorW[0]).toBe(-3)
+    expect(ours.objects.texts.labels).toEqual([String(vendorW[0])])
   })
 
   it('CONTROL: the same first-bar label over a known clock IS drawn — the withholding is the anchor\'s', () => {
@@ -263,10 +279,10 @@ describe('C30 — high-low-open-mid-ranges (NYSE:RDDT 1D): the weekly dividers, 
   const r4 = (v) => Math.round(v * 1e4) / 1e4
   const V = cap.objects.records.lines
 
-  it('every line we hold is one TradingView holds — 503 of its 504, none of ours unmatched', () => {
+  it('every line we hold is one TradingView holds — all 504 (C49: its oldest too), none of ours unmatched', () => {
     const ours = lines()
     expect(V.length).toBe(504)
-    expect(ours.length).toBe(503)
+    expect(ours.length).toBe(504)
     const left = new Map()
     for (const l of V) { const k = `${r4(l.y1)}|${r4(l.y2)}`; left.set(k, (left.get(k) || 0) + 1) }
     const unmatched = []
@@ -276,9 +292,9 @@ describe('C30 — high-low-open-mid-ranges (NYSE:RDDT 1D): the weekly dividers, 
       else unmatched.push(l)
     }
     expect(unmatched).toEqual([])
-    // the ONE vendor line we do not hold is its oldest (id 2151, y 82.21) — the
-    // collector's edge (C7), not a divider
-    expect([...left.entries()].filter(([, n]) => n > 0)).toEqual([['82.21|82.21', 1]])
+    // ⭐ C49 — until the first partial week was served the vendor's oldest line (id
+    // 2151, y 82.21) was the one we did not hold: its op sat on a withheld bar.
+    expect([...left.entries()].filter(([, n]) => n > 0)).toEqual([])
   })
 
   it('⭐ the 100 dividers: one per week TradingView draws one, at the same place in the sequence, same span', () => {
@@ -305,35 +321,43 @@ describe('C30 — high-low-open-mid-ranges (NYSE:RDDT 1D): the weekly dividers, 
   })
 })
 
-describe('C30 — an intraday chart: the vendor answers a DIFFERENT rule there, so nothing is drawn', () => {
-  // `vw-time-tf-spy-60-2026-09-28` (the same probe on 60m): the Tuesday 09:30 bar
-  // reads −1.0417 days for time("W") — not the week's first RTH bar. Unmeasured as
-  // a rule, so the member door (which translates once, for every chart) must draw
-  // nothing there: every plot bar withheld, every object reading it withheld.
+describe('C30 → C49 — the 60-minute chart: the SAME rule, read off the vendor (C30 took its bar 0 for a different one)', () => {
+  // `vw-time-tf-spy-60-2026-09-28` (the same probe on 60m). C30 read bar 0 — Tuesday
+  // 2026-07-28 10:30, −1.0417 days — as "not the week's first RTH bar, a different
+  // rule" and served nothing off a daily chart. It is Monday 2026-07-27 09:30: the
+  // open of that week's first session, 25 hours earlier, a bar the 300-bar window
+  // does not hold. Every one of the 300 bars follows the calendar rule (C49).
   const H60 = JSON.parse(fs.readFileSync(path.join(REPO, 'tests/fixtures/vendor/harness/vw-time-tf-spy-60-2026-09-28.json'), 'utf8'))
   const on60 = (src) => runOurSide({ ...H60, source: { ...H60.source, text: src } })
   const pine = (lines) => ['//@version=6', 'indicator("c30-60", overlay=true)', ...lines].join('\n')
+  const c = 1 + H60.study.plots.findIndex((p) => p.title === 'T01_timeW_minus_time_DAYS')
 
-  it('the vendor\'s 60m reading is not the daily rule (so serving it would be a guess)', () => {
-    const c = 1 + H60.study.plots.findIndex((p) => p.title === 'T01_timeW_minus_time_DAYS')
+  it('bar 0 reads −1.0417 days: Tuesday 10:30 back to MONDAY 09:30, the week\'s first session open', () => {
     expect(H60.plotValues.rows[0][c]).toBeCloseTo(-1.0417, 3)
+    const t0 = H60.bars.rows[0][0]
+    expect(ny(t0)).toMatchObject({ y: 2026, m: 7, d: 28, wd: 'Tue' })
+    const anchor = Math.round(t0 + H60.plotValues.rows[0][c] * 86400)
+    expect(ny(anchor)).toMatchObject({ y: 2026, m: 7, d: 27, wd: 'Mon' })
+    expect(new Date(anchor * 1000).toISOString()).toBe('2026-07-27T13:30:00.000Z')      // 09:30 New York
   })
 
-  it('a plot of time("W") on the 60m chart is withheld on every bar', () => {
+  it('⭐ a plot of time("W") on the 60m chart equals TradingView on all 300 bars', () => {
     const ours = on60(pine(['plot(time("W"), "w")']))
     expect(ours.ok, ours.refusal).toBe(true)
     const col = Array.from(ours.plots[0].column)
     expect(col.length).toBe(300)
-    expect(col.every(Number.isNaN)).toBe(true)
+    expect(col.filter(Number.isNaN).length).toBe(0)
+    const vendor = H60.bars.rows.map((r, i) => Math.round(r[0] + H60.plotValues.rows[i][c] * 86400) * 1000)
+    expect(col).toEqual(vendor)
   })
 
-  it('⛔ a last-bar label reading `na(time("W"))` is withheld, never printed off the gate\'s NaN', () => {
+  it('a last-bar label reading `na(time("W"))` prints "known"', () => {
     const ours = on60(pine([
       'if barstate.islast',
       '    label.new(bar_index, high, na(time("W")) ? "na" : "known")',
     ]))
     expect(ours.objects.ok).toBe(true)
-    expect(ours.objects.counts.labels).toBe(0)
+    expect(ours.objects.texts.labels).toEqual(['known'])
   })
 })
 
@@ -345,14 +369,16 @@ describe('C30 — refused by name, everything the capture does not witness', () 
       const t = S(`plot(time(${tf}))`, { strict: true, basePeriod: 'D' })
       expect(t.ok, tf).toBe(false)
       expect(t.refusal.guard, tf).toBe('pine:function')
-      expect(t.refusal.message, tf).toMatch(/`"W"`, `"M"`, `"3M"` and `"12M"` on a daily chart/)
+      expect(t.refusal.message, tf).toMatch(/`"W"`, `"M"`, `"3M"` and `"12M"` on 5-minute, 15-minute, 60-minute, 1D, 1W and/)
     }
   })
-  it('the four periods on an intraday or weekly chart, and on a screen', () => {
-    for (const base of ['60', '5', 'W', 'M']) {
+  it('the four periods on a chart timeframe no capture measured, and on a screen', () => {
+    // ⭐ C49 — 60 / 5 / 15 / W / M left this list: each has its capture and is served.
+    for (const base of ['60', '5', '15', 'W', 'M']) expect(S('plot(time("W"))', { strict: true, basePeriod: base }).ok, base).toBe(true)
+    for (const base of ['1', '30']) {
       const t = S('plot(time("W"))', { strict: true, basePeriod: base })
       expect(t.ok, base).toBe(false)
-      expect(t.refusal.message, base).toMatch(/measured on a DAILY chart only/)
+      expect(t.refusal.message, base).toMatch(/measured on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts only/)
     }
     const screen = S('plot(time("M"))', {})
     expect(screen.ok).toBe(false)
@@ -367,7 +393,7 @@ describe('C30 — refused by name, everything the capture does not witness', () 
     expect(t.ok).toBe(false)
     expect(t.refusal.message).toMatch(/resamples only weeks and months/)
   })
-  it('a daily-translated tree drawn on a non-daily chart reads nothing (the member door translates once)', () => {
+  it('the tree is the one C30 wrote, node for node — so a document saved before C49 is recognised and answered the same', () => {
     const t = S('plot(time("W"))', { strict: true })
     expect(t.ok).toBe(true)
     const f = t.outputs[t.selected].formula

@@ -85,6 +85,7 @@ from api.services.indicator_compute import (
     compute_cci_raw,
     CLOCK_PERIOD_SECONDS,
     compute_clock,
+    compute_period_calendar,
     compute_donchian_raw,
     compute_ichimoku_raw,
     compute_macd_raw,
@@ -126,8 +127,15 @@ INF = float("inf")
 #: for any of the three, which is correct: they must be FOLDED before evaluation
 #: (``ast_bind.fold_bound``), and one that reaches the evaluator is a refusal
 #: rather than a silently wrong column.
+#: ⭐⭐ AND ``ltf`` (C41) — A READ BELOW THE CHART'S OWN TIMEFRAME. ``ltf(close,
+#: '60')`` evaluates its child on the chart symbol's INTRADAY bars and each chart
+#: bar reads its last intrabar's value; ``tf``'s shape, the code a FIELD. Every
+#: rule is ``app/src/components/chart/engine/lowerTf.js``'s. ⛔ THIS LANE HOLDS NO
+#: INTRADAY BARS: the supply exists only on a chart, so here the node is NOT
+#: COMPUTABLE on every bar (the JS lane's own answer for an unsupplied code) and
+#: ``scan_definition.assert_scannable`` refuses a screen that carries one, by name.
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-              "str", "symtext", "textop")
+              "str", "symtext", "textop", "ltf")
 
 #: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
 #: before anything computes, and refused by ``interpret`` if one ever reaches it.
@@ -249,12 +257,27 @@ def _assert_sym_placement(root: Any) -> None:
     refused — the control in `test_the_nesting_guard_does_NOT_refuse_the_shapes_
     that_are_fine` is what keeps this from quietly becoming "no `sym` at all".
     """
-    stack = [(root, False)]
+    stack = [(root, False, False, False)]
     while stack:
-        node, under_tf = stack.pop()
+        node, under_tf, under_request, under_ltf = stack.pop()
         if not isinstance(node, dict):
             continue
         kind = node.get("type")
+        # ⭐⭐ C41 — A LOWER-TIMEFRAME READ STANDS ALONE, the JS lane's rule
+        # (``interpret.js::assertSymPlacement``) sentence for sentence: under
+        # another request its answer is not mapped onto the bars that request
+        # hands its child, and a request INSIDE it would resample or re-align
+        # intraday bars no capture shows TradingView reading.
+        if kind == "ltf" and under_request:
+            _refuse("interpret:timeframe",
+                    "— a lower-timeframe read (`ltf`) cannot sit inside another "
+                    "request: it is mapped onto the chart's own bars, and those "
+                    "are not the bars that request hands its child")
+        if under_ltf and kind in ("tf", "tf_live", "sym"):
+            _refuse("interpret:timeframe",
+                    "— a `%s` read cannot sit inside a lower-timeframe read "
+                    "(`ltf`): its child runs on intraday bars, and a request made "
+                    "from those is not one this engine reads" % kind)
         if kind == "sym" and under_tf:
             ticker = str(node.get("value"))
             _refuse("interpret:symbol",
@@ -266,8 +289,23 @@ def _assert_sym_placement(root: Any) -> None:
                     "sym('%s', tf(…))." % (ticker, ticker, ticker))
         args = node.get("args")
         if isinstance(args, list):
+            is_tf = kind in ("tf", "tf_live")
             for a in args:
-                stack.append((a, under_tf or kind in ("tf", "tf_live")))
+                stack.append((a, under_tf or is_tf,
+                              under_request or is_tf or kind in ("sym", "ltf"),
+                              under_ltf or kind == "ltf"))
+
+
+def _assert_lower_code(code):
+    """An ``ltf`` node names a whole number of MINUTES and nothing else — the
+    mirror of ``interpret.js::assertLowerCode``. Which codes are SERVED is the
+    chart lane's answer per binding (``lowerTf.js``); this refuses only a node no
+    door writes."""
+    if not (isinstance(code, str) and code.isdigit() and code.isascii()
+            and not code.startswith("0")):
+        _refuse("interpret:timeframe",
+                "— a lower-timeframe read (`ltf`) names a whole number of "
+                "minutes; got %r" % (code,))
 
 
 def _assert_resamplable(code):
@@ -2645,7 +2683,7 @@ def _flatten(root: Any) -> List[dict]:
         # type most likely to arrive UNFOLDED was the one whose children nothing
         # checked.
         if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
-                            "textop"):
+                            "ltf", "textop"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -3077,6 +3115,13 @@ def max_lookback(ast: Any) -> int:
             # it: a supplier that hands over fewer bars than this asks for gets a
             # NaN prefix from the child, which is `not_computable` and correct —
             # never a confident answer off a warmup it never had.
+            seen[id(node)] = seen[id(node["args"][0])]
+            continue
+        if kind == "ltf":
+            # ⭐ C41 — THE CHILD'S OWN, UNMULTIPLIED, and an UPPER bound in chart
+            # bars: the child's reach is counted in INTRABARS and every chart bar
+            # holds at least one. Mirrors ``interpret.js::maxLookback``'s arm.
+            _assert_lower_code(str(node.get("value")))
             seen[id(node)] = seen[id(node["args"][0])]
             continue
         if kind == "offset":
@@ -3586,7 +3631,7 @@ def node_count(ast: Any) -> int:
 
 
 #: Node types whose child a FRESH ``interpret`` evaluates on other bars.
-_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym"))
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym", "ltf"))
 
 
 def evaluation_units(root: Any) -> int:
@@ -3898,9 +3943,29 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 # ``ta.change(time("W")) != 0`` a confident 0 on every bar, where the chart
 # withholds. Withheld here too, on the same bars.
 
-#: The chart timeframes ``time(timeframe.period)`` / ``time("60")`` were measured
-#: on. Mirrors ``interpret.js::OWN_TIME_WITNESSED_TF``.
-OWN_TIME_WITNESSED_TF = ("D", "60")
+#: The chart timeframes ``time(timeframe.period)`` was measured equal to ``time``
+#: on (C49: 5 / 15 / 60 minutes, 1D, 1W, 1M), and the two-chart list C36 wrote --
+#: the tree a document saved before C49 still carries, which is NOT widened: C36
+#: translated ``time("60")`` to the same tree, and below 60 minutes that spelling
+#: is not the bar's own time. Mirrors ``interpret.js::OWN_TIME_WITNESSED_TF`` /
+#: ``OWN_TIME_WITNESSED_TF_C36``.
+OWN_TIME_WITNESSED_TF = ("5", "15", "60", "D", "W", "M")
+OWN_TIME_WITNESSED_TF_C36 = ("D", "60")
+
+#: ``time("60")``: the open of the bar's 60-minute bucket from 09:30 below 60
+#: minutes, the bar's own ``time`` at or above. Mirrors ``interpret.js::SIXTY_*``.
+SIXTY_BUCKET_TF = ("5", "15")
+SIXTY_OWN_TF = ("60", "D", "W", "M")
+SIXTY_WITNESSED_TF = SIXTY_BUCKET_TF + SIXTY_OWN_TF
+_SESSION_OPEN_SECONDS = 9 * 3600 + 30 * 60
+_SESSION_CLOSE_SECONDS = 16 * 3600
+
+#: The charts ``time(<period>)`` / ``time_close(<period>)`` are answered on.
+#: Mirrors ``interpret.js::PERIOD_ANCHOR_WITNESSED_TF`` / ``PERIOD_ANCHOR_INTRADAY_TF``
+#: / ``PERIOD_CLOSE_WITNESSED_TF``.
+PERIOD_ANCHOR_WITNESSED_TF = ("5", "15", "60", "D", "W", "M")
+PERIOD_ANCHOR_INTRADAY_TF = ("5", "15", "60")
+PERIOD_CLOSE_WITNESSED_TF = ("D", "W", "M")
 
 #: The periods ``time_close(<tf>)`` is served for. Mirrors
 #: ``interpret.js::PERIOD_CLOSE_CODES``.
@@ -3915,11 +3980,10 @@ PERIOD_CLOSE_CODES = ("W", "M")
 CHART_CLOCK_WHOLE = (
     "time-anchor:other-bars", "time-clock:unreadable", "time-anchor:not-daily",
     "time-anchor:weekend-bars", "time-own:chart-unwitnessed", "time-close:not-daily",
-    "time-close:weekend-bars",
+    "time-close:weekend-bars", "time-clock:outside-session", "request:other-timeframe",
 )
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
-    "time-anchor:period-open-missing", "time-anchor:session-open-missing",
-    "time-anchor:utc-day-clock", "time-close:period-end-missing",
+    "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
 )
 
 
@@ -3976,12 +4040,6 @@ def _period_first_month(period: str) -> Optional[dict]:
     return None
 
 
-def _period_session_open(period: str) -> dict:
-    """``interpret.js::periodSessionOpen`` -- the open of the first session of the
-    bar's week / month as the vendor's calendar has it: ``tf_live(<W|M>, time)``."""
-    return {"type": "tf_live", "value": "W" if period == "W" else "M", "args": [_cc_leaf("time")]}
-
-
 def _matches_shape(node: Any, shape: Any) -> bool:
     """``interpret.js::matchesShape`` -- node for node (type, name, value, args),
     early exit on the first difference. A number compares by value, so a tree
@@ -4025,25 +4083,96 @@ def is_period_anchor(node: Any) -> bool:
     return period_anchor_period(node) is not None
 
 
-def chart_own_time_node(ms: bool) -> dict:
-    """``interpret.js::chartOwnTimeNode`` -- the gated ``time(timeframe.period)``."""
-    witnessed = None
-    for tf in OWN_TIME_WITNESSED_TF:
-        on = _cc_op("==", [_cc_leaf("periodseconds"), _cc_num(CLOCK_PERIOD_SECONDS[tf])])
-        witnessed = on if witnessed is None else _cc_op("||", [witnessed, on])
-    return _cc_op("?:", [witnessed,
-                         _cc_op("*", [_cc_leaf("time"), _cc_num(1000)]) if ms else _cc_leaf("time"),
+def period_anchor_node(period: str, ms: bool) -> Optional[dict]:
+    """``interpret.js::periodAnchorNode`` -- the WHOLE tree ``time("W"|"M"|"3M"|"12M")``
+    translates to, gate and unit included. On a New York session chart the shape
+    is a NAME for the vendor's answer (the period's first calendar session open),
+    not a recipe: read that docstring."""
+    first = period_first_condition(period)
+    if first is None:
+        return None
+    secs = _cc_call("valuewhenOccurrence", [first, _cc_leaf("time"), _cc_num(0)])
+    on_daily = _cc_op("==", [_cc_leaf("periodseconds"), _cc_num(CLOCK_PERIOD_SECONDS["D"])])
+    return _cc_op("?:", [on_daily, _cc_op("*", [secs, _cc_num(1000)]) if ms else secs,
                          _cc_op("/", [_cc_num(0), _cc_num(0)])])
 
 
-_OWN_TIME_SHAPES = tuple(chart_own_time_node(ms) for ms in (True, False))
+_PERIOD_ANCHOR_GATES = tuple((p, period_anchor_node(p, ms))
+                             for p in ("W", "M", "3M", "12M") for ms in (True, False))
+
+
+def period_anchor_gate_period(node: Any) -> Optional[str]:
+    """``interpret.js::periodAnchorGatePeriod`` -- the period of a gated anchor tree."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return None
+    for period, shape in _PERIOD_ANCHOR_GATES:
+        if _matches_shape(node, shape):
+            return period
+    return None
+
+
+def _on_any_period(tfs: Sequence[str]) -> dict:
+    witnessed = None
+    for tf in tfs:
+        on = _cc_op("==", [_cc_leaf("periodseconds"), _cc_num(CLOCK_PERIOD_SECONDS[tf])])
+        witnessed = on if witnessed is None else _cc_op("||", [witnessed, on])
+    return witnessed
+
+
+def _cc_na() -> dict:
+    return _cc_op("/", [_cc_num(0), _cc_num(0)])
+
+
+def chart_own_time_node(ms: bool, tfs: Sequence[str] = OWN_TIME_WITNESSED_TF) -> dict:
+    """``interpret.js::chartOwnTimeNode`` -- the gated ``time(timeframe.period)``."""
+    return _cc_op("?:", [_on_any_period(tfs),
+                         _cc_op("*", [_cc_leaf("time"), _cc_num(1000)]) if ms else _cc_leaf("time"),
+                         _cc_na()])
+
+
+_OWN_TIME_SHAPES = tuple((tfs, chart_own_time_node(ms, tfs))
+                         for tfs in (OWN_TIME_WITNESSED_TF, OWN_TIME_WITNESSED_TF_C36)
+                         for ms in (True, False))
+
+
+def chart_own_time_tfs(node: Any) -> Optional[Sequence[str]]:
+    """``interpret.js::chartOwnTimeTfs`` -- the charts this gated own-time tree is
+    served on, or ``None`` when the node is not one."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return None
+    for tfs, shape in _OWN_TIME_SHAPES:
+        if _matches_shape(node, shape):
+            return tfs
+    return None
 
 
 def is_chart_own_time(node: Any) -> bool:
     """``interpret.js::isChartOwnTime``."""
-    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+    return chart_own_time_tfs(node) is not None
+
+
+def chart_sixty_time_node(ms: bool) -> dict:
+    """``interpret.js::chartSixtyTimeNode`` -- ``time("60")``: the open of the bar's
+    60-minute bucket from 09:30 New York on a 5 / 15-minute chart, the bar's own
+    ``time`` on a 60-minute, 1D, 1W or 1M one."""
+    def session_open() -> dict:
+        return _cc_op("+", [_cc_leaf("dayopentime"), _cc_num(_SESSION_OPEN_SECONDS)])
+    bucket = _cc_op("+", [session_open(), _cc_op("*", [
+        _cc_call("floor", [_cc_op("/", [_cc_op("-", [_cc_leaf("time"), session_open()]), _cc_num(3600)])]),
+        _cc_num(3600)])])
+    secs = _cc_op("?:", [_on_any_period(SIXTY_BUCKET_TF), bucket,
+                         _cc_op("?:", [_on_any_period(SIXTY_OWN_TF), _cc_leaf("time"), _cc_na()])])
+    return _cc_op("*", [secs, _cc_num(1000)]) if ms else secs
+
+
+_SIXTY_SHAPES = tuple(chart_sixty_time_node(ms) for ms in (True, False))
+
+
+def is_chart_sixty_time(node: Any) -> bool:
+    """``interpret.js::isChartSixtyTime``."""
+    if not isinstance(node, dict) or node.get("type") != "op":
         return False
-    return any(_matches_shape(node, shape) for shape in _OWN_TIME_SHAPES)
+    return any(_matches_shape(node, shape) for shape in _SIXTY_SHAPES)
 
 
 def period_close_node(code: str, ms: bool) -> dict:
@@ -4070,23 +4199,103 @@ def _period_close_inner(node: dict) -> dict:
     return value if value.get("type") == "tf_live" else value["args"][0]
 
 
+def request_base_node(base: str, child: dict) -> dict:
+    """``interpret.js::requestBaseNode`` -- a ``request.security`` of the chart's own
+    symbol is translated for ONE base timeframe and carries a gate saying which:
+    ``<base seconds> != periodseconds ? na : <the request's tree>``. On a chart that
+    STATES another timeframe the tree reads the wrong bars and is withheld by name
+    (``request:other-timeframe``); an unstated timeframe evaluates it as it always
+    has. Read that docstring for the capture."""
+    secs = CLOCK_PERIOD_SECONDS.get(base)
+    if secs is None:
+        return child
+    return _cc_op("?:", [_cc_op("!=", [_cc_num(secs), _cc_leaf("periodseconds")]), _cc_na(), child])
+
+
+_REQUEST_BASE_CONDS = tuple((base, _cc_op("!=", [_cc_num(secs), _cc_leaf("periodseconds")]))
+                            for base, secs in CLOCK_PERIOD_SECONDS.items())
+_REQUEST_BASE_NA = _cc_na()
+
+
+def request_base_of(node: Any) -> Optional[str]:
+    """``interpret.js::requestBaseOf`` -- the base period a gated request tree was
+    translated for, or ``None``."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return None
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 3 or not _matches_shape(args[1], _REQUEST_BASE_NA):
+        return None
+    for base, cond in _REQUEST_BASE_CONDS:
+        if _matches_shape(args[0], cond):
+            return base
+    return None
+
+
+def period_close_parts(node: Any) -> Optional[tuple]:
+    """``interpret.js::periodCloseParts`` -- ``(code, ms)`` of a period-close node."""
+    if not is_period_close(node):
+        return None
+    return str(_period_close_inner(node).get("value")), node["args"][1].get("type") != "tf_live"
+
+
 def _clock_column(node: Any, bars: List[dict], inputs, budget, scalars, opts) -> List[float]:
     """One clock leaf (or small clock tree) over the chart's own bars."""
     return _interpret_column(node, bars, inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
 
 
-def _weekend_days(bars: List[dict], inputs, budget, scalars, opts):
-    """(a Saturday bar, a Sunday bar, a bar with no readable clock) by the
-    ``dayofweek`` column the week key reads (Pine's: 1 = Sunday, 7 = Saturday).
-    A BLANK clock is not "no weekend bars" -- see ``interpret.js::weekendDays``."""
-    col = _clock_column(_cc_leaf("dayofweek"), bars, inputs, budget, scalars, opts)
-    return any(v == 7 for v in col), any(v == 1 for v in col), any(math.isnan(v) for v in col)
+def chart_clock_regime(tf, dayofweek=None, hour=None, minute=None) -> dict:
+    """``interpret.js::chartClockRegime`` -- which clock a chart's
+    ``time(<period>)`` / ``time_close(<period>)`` is answered from. ``kind`` is
+    ``session`` (a New York equity session as far as the bars can show: answered
+    from the vendor's calendar), ``every-day``, ``one-weekend-day``,
+    ``outside-session``, ``unreadable`` or ``unwitnessed``. Read that docstring."""
+    if tf not in PERIOD_ANCHOR_WITNESSED_TF:
+        return {"kind": "unwitnessed", "sat": False, "sun": False}
+    sat = sun = off = False
+    for i, d in enumerate(dayofweek or []):
+        # a BLANK clock is not "no weekend bars"
+        if d is None or math.isnan(d):
+            return {"kind": "unreadable", "sat": False, "sun": False}
+        if d == 7:
+            sat = True
+        elif d == 1:
+            sun = True
+        second = hour[i] * 3600 + minute[i] * 60
+        if second < _SESSION_OPEN_SECONDS or second >= _SESSION_CLOSE_SECONDS:
+            off = True
+    if tf == "D":
+        if sat and sun:
+            return {"kind": "every-day", "sat": sat, "sun": sun}
+        return {"kind": "one-weekend-day" if sat != sun else "session", "sat": sat, "sun": sun}
+    if tf in PERIOD_ANCHOR_INTRADAY_TF:
+        return {"kind": "outside-session" if (sat or sun or off) else "session", "sat": sat, "sun": sun}
+    return {"kind": "session", "sat": sat, "sun": sun}
+
+
+#: ``dayofweek * 10000 + hour * 100 + minute`` -- the regime's three columns in
+#: ONE pass over the chart's clock. Mirrors ``interpret.js::REGIME_PACK``.
+_REGIME_PACK = _cc_op("+", [_cc_op("+", [_cc_op("*", [_cc_leaf("dayofweek"), _cc_num(10000)]),
+                                         _cc_op("*", [_cc_leaf("hour"), _cc_num(100)])]),
+                            _cc_leaf("minute")])
+
+
+def _chart_clock_regime_of(bars: List[dict], inputs, budget, scalars, opts) -> dict:
+    tf = (opts or {}).get("tf")
+    if tf not in PERIOD_ANCHOR_WITNESSED_TF:
+        return chart_clock_regime(tf)
+    pack = _clock_column(_REGIME_PACK, bars, inputs, budget, scalars, opts)
+    dow = [math.nan if math.isnan(v) else float(v // 10000) for v in pack]
+    hour = [0.0 if math.isnan(v) else float((v % 10000) // 100) for v in pack]
+    minute = [0.0 if math.isnan(v) else float(v % 100) for v in pack]
+    return chart_clock_regime(tf, dow, hour, minute)
 
 
 def _scan_chart_clock(tree: Any):
     anchors: List[dict] = []
     closes: List[dict] = []
-    owns = 0
+    owns: List[dict] = []
+    sixties: List[dict] = []
+    folds: List[str] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -4101,18 +4310,27 @@ def _scan_chart_clock(tree: Any):
             continue
         if is_chart_own_time(node):
             nested = nested or under
-            owns += 1
+            owns.append(node)
+            continue
+        if is_chart_sixty_time(node):
+            nested = nested or under
+            sixties.append(node)
             continue
         if is_period_close(node):
             nested = nested or under
             closes.append(node)
             continue
-        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        base = request_base_of(node)
+        if base is not None and base not in folds:
+            folds.append(base)
+        # C41 (`interpret.js::scanChartClock`): an `ltf` child runs on the symbol's
+        # intraday series, another clock -- nested exactly as under a request
+        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, nested
+    return anchors, closes, owns, sixties, folds, nested
 
 
 def _name_chart_clock(opts, codes) -> None:
@@ -4125,34 +4343,54 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, nested = _scan_chart_clock(tree)
-    if not anchors and not closes and not owns:
+    anchors, closes, owns, sixties, folds, nested = _scan_chart_clock(tree)
+    clocked = bool(anchors or closes or owns or sixties)
+    if not clocked and not folds:
         return None
     tf = (opts or {}).get("tf")
     why: List[str] = []
+
+    def add(code: str) -> None:
+        if code not in why:
+            why.append(code)
+
+    # C49 -- a request translated for one base period, on a chart that STATES another
+    # timeframe (``interpret.js::requestBaseNode``). An unstated timeframe is served.
+    if isinstance(tf, str) and tf and any(base != tf for base in folds):
+        add("request:other-timeframe")
+    if not clocked:
+        _name_chart_clock(opts, why)
+        return {"anchors": [], "closes": [], "why": why, "regime": chart_clock_regime(None),
+                "every_day": False}
     if nested:
-        why.append("time-anchor:other-bars")
-    sat = sun = blank = False
-    daily = (bool(anchors) or bool(closes)) and tf == "D"
-    if daily:
-        sat, sun, blank = _weekend_days(bars, inputs, budget, scalars, opts)
-    if blank:
-        why.append("time-clock:unreadable")
+        add("time-anchor:other-bars")
+    regime = _chart_clock_regime_of(bars, inputs, budget, scalars, opts)
+    kind = regime["kind"]
+    if kind == "unreadable":
+        add("time-clock:unreadable")
     if anchors:
-        if tf != "D":
-            why.append("time-anchor:not-daily")
-        elif not blank and sat != sun:
-            why.append("time-anchor:weekend-bars")
-    if owns and tf not in OWN_TIME_WITNESSED_TF:
-        why.append("time-own:chart-unwitnessed")
+        if kind == "unwitnessed":
+            add("time-anchor:not-daily")
+        elif kind == "one-weekend-day":
+            add("time-anchor:weekend-bars")
+        elif kind == "outside-session":
+            add("time-clock:outside-session")
+    for own in owns:
+        if tf not in chart_own_time_tfs(own):
+            add("time-own:chart-unwitnessed")
+    if sixties:
+        if tf not in SIXTY_WITNESSED_TF:
+            add("time-own:chart-unwitnessed")
+        elif tf in SIXTY_BUCKET_TF and kind == "outside-session":
+            add("time-clock:outside-session")
     if closes:
-        if tf != "D":
-            why.append("time-close:not-daily")
-        elif not blank and (sat or sun):
-            why.append("time-close:weekend-bars")
+        if tf not in PERIOD_CLOSE_WITNESSED_TF:
+            add("time-close:not-daily")
+        elif kind in ("every-day", "one-weekend-day"):
+            add("time-close:weekend-bars")
     _name_chart_clock(opts, why)
-    return {"anchors": anchors, "closes": closes, "why": why,
-            "every_day": daily and not blank and sat and sun}
+    return {"anchors": anchors, "closes": closes, "why": why, "regime": regime,
+            "every_day": kind == "every-day"}
 
 
 def period_anchor_mask(tree: Any, bars: List[dict],
@@ -4173,13 +4411,15 @@ def period_anchor_mask(tree: Any, bars: List[dict],
     anchors, closes = whole["anchors"], whole["closes"]
     if not anchors and not closes:
         return None
+    tf = (opts or {}).get("tf")
     partial: List[str] = []
     root_reach = max_lookback(tree)
     mask = [0] * n
 
-    def spread(unknown: List[int], node: dict) -> None:
+    def spread(unknown: List[int], node: dict, from_before: bool) -> None:
         reach = max(0, root_reach - max_lookback(node))
-        last = -math.inf
+        # ``from_before``: the bar BEFORE the series is unknown too (index -1)
+        last = -1 if from_before else -math.inf
         for i in range(n):
             if unknown[i]:
                 last = i
@@ -4190,67 +4430,43 @@ def period_anchor_mask(tree: Any, bars: List[dict],
         if code not in partial:
             partial.append(code)
 
-    time_col = _clock_column(_cc_leaf("time"), bars, inputs, budget, scalars, opts) if anchors else None
+    session = whole["regime"]["kind"] == "session"
+    calendar = compute_period_calendar(bars, tf) if session else None
+    time_col = (_clock_column(_cc_leaf("time"), bars, inputs, budget, scalars, opts)
+                if anchors and not session else None)
     for a in anchors:
-        col = _clock_column(a, bars, inputs, budget, scalars, opts)
         period = period_anchor_period(a)
+        unknown = [0] * n
+        if session:
+            if calendar is None:
+                return [1] * n
+            # ruling 2026-10-01: a period whose first session has no bar is the
+            # calendar's answer too; only the bar before the series is unknown
+            spread(unknown, a, True)
+            continue
+        # every day of the week (C36): the literal tree, the period's CALENDAR
+        # first day, and one clock regime
+        col = _clock_column(a, bars, inputs, budget, scalars, opts)
         unknown = [1 if math.isnan(v) else 0 for v in col]
         opens = _clock_column(a["args"][0], bars, inputs, budget, scalars, opts)
-        if not whole["every_day"]:
-            # a Monday-to-Friday session: the opening bar must be the calendar's first session
-            session = _clock_column(_period_session_open(period), bars, inputs, budget, scalars, opts)
-            first_month = _period_first_month(period)
-            month = (_clock_column(first_month, bars, inputs, budget, scalars, opts)
-                     if first_month else None)
-            session_open = True
-            for i in range(n):
-                if opens[i] == 1:
-                    session_open = time_col[i] == session[i] and (month is None or month[i] == 1)
-                if unknown[i]:
-                    continue
-                if not session_open:
-                    unknown[i] = 1
-                    name("time-anchor:session-open-missing")
-        else:
-            # every day of the week: the period's CALENDAR first day, and one clock regime
-            first = _clock_column(period_calendar_first(period), bars, inputs,
-                                  budget, scalars, opts)
-            calendar_open = True
-            for i in range(n):
-                if opens[i] == 1:
-                    calendar_open = first[i] == 1
-                if unknown[i]:
-                    continue
-                if not calendar_open:
-                    unknown[i] = 1
-                    name("time-anchor:period-open-missing")
-                elif (time_col[i] - col[i]) % 86400 != 0:
-                    unknown[i] = 1
-                    name("time-anchor:utc-day-clock")
-        spread(unknown, a)
-    bar_close = _clock_column(_cc_leaf("timeclose"), bars, inputs, budget, scalars, opts) if closes else None
-    for c in closes:
-        col = _clock_column(_period_close_inner(c), bars, inputs, budget, scalars, opts)
-        unknown = [0] * n
-        start = 0
-        for i in range(n + 1):
-            same = i < n and (i == 0 or col[i] == col[i - 1]
-                              or (math.isnan(col[i]) and math.isnan(col[i - 1])))
-            if same:
+        first = _clock_column(period_calendar_first(period), bars, inputs,
+                              budget, scalars, opts)
+        calendar_open = True
+        for i in range(n):
+            if opens[i] == 1:
+                calendar_open = first[i] == 1
+            if unknown[i]:
                 continue
-            # bars [start, i) share one period close. A blank close is unknown; so
-            # is a COMPLETED period (another follows) whose last bar does not close
-            # on it -- the calendar keeps a day open the chart holds no bar for.
-            if start < n:
-                blank = math.isnan(col[start])
-                elsewhere = i < n and not blank and bar_close[i - 1] != col[start]
-                if blank or elsewhere:
-                    for k in range(start, i):
-                        unknown[k] = 1
-                    if elsewhere:
-                        name("time-close:period-end-missing")
-            start = i
-        spread(unknown, c)
+            if not calendar_open:
+                unknown[i] = 1
+                name("time-anchor:period-open-missing")
+            elif (time_col[i] - col[i]) % 86400 != 0:
+                unknown[i] = 1
+                name("time-anchor:utc-day-clock")
+        spread(unknown, a, False)
+    # a period close is the calendar's on every bar (ruling 2026-10-01)
+    if closes and calendar is None:
+        return [1] * n
     _name_chart_clock(opts, partial)
     return mask
 
@@ -4287,7 +4503,7 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
-        into = under or node.get("type") in ("tf", "tf_live", "sym")
+        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
@@ -4572,6 +4788,50 @@ def _interpret_column(ast: Any, bars: List[dict],
     _id_of, _free_of, _ = structural_maps(ast)
     _memo: dict = {}
 
+    # C49 -- ``time(<period>)`` / ``time_close(<period>)`` on a New York session
+    # chart are the VENDOR'S CALENDAR, not the tree's literal reading: the port of
+    # ``interpret.js::chartClockValue``. The recognised shapes are answered from
+    # ``compute_period_calendar`` on exactly the charts ``chart_clock_regime`` calls
+    # ``session``; anywhere else this returns ``None`` and the node is evaluated as
+    # written. What is withheld is ``period_anchor_mask``'s, over the same regime.
+    _clock_state: dict = {}
+
+    def _session_calendar() -> Optional[dict]:
+        if "regime" not in _clock_state:
+            _tf = (opts or {}).get("tf")
+            _clock_state["regime"] = (
+                chart_clock_regime(_tf, scope.get("dayofweek"), scope.get("hour"), scope.get("minute"))
+                if isinstance(scope.get("dayofweek"), list) else {"kind": "unreadable"})
+        if _clock_state["regime"]["kind"] != "session":
+            return None
+        if "calendar" not in _clock_state:
+            _clock_state["calendar"] = compute_period_calendar(bars, (opts or {}).get("tf"))
+        return _clock_state["calendar"]
+
+    def _chart_clock_value(n: Any) -> Any:
+        if not isinstance(n, dict):
+            return None
+        kind = n.get("type")
+        if kind == "call":
+            if n.get("name") != "valuewhenOccurrence":
+                return None
+            period = period_anchor_period(n)
+            calendar = _session_calendar() if period is not None else None
+            return list(calendar["open"][period]) if calendar else None
+        if kind != "op" or n.get("name") != "?:":
+            return None
+        # the anchor's own gate says "daily only"; on a session chart the value branch answers
+        if period_anchor_gate_period(n) is not None:
+            return eval_node(n["args"][1]) if _session_calendar() else None
+        parts = period_close_parts(n)
+        if parts is None or (opts or {}).get("tf") not in PERIOD_CLOSE_WITNESSED_TF:
+            return None
+        calendar = _session_calendar()
+        if not calendar:
+            return None
+        code, ms = parts
+        return [v * 1000 if ms else v for v in calendar["close"][code]]
+
     def eval_node(n: Any) -> Any:
         # ⚠️ ``free_of`` DECIDES, NOT THE SHAPE ALONE. A subtree reading a
         # recurrence bind (``self``) means something different on every bar of the
@@ -4581,7 +4841,9 @@ def _interpret_column(ast: Any, bars: List[dict],
         _slot = _id_of.get(_key) if _free_of.get(_key) else None
         if _slot is not None and _slot in _memo:
             return _memo[_slot]
-        _value = _eval_raw(n)
+        _value = _chart_clock_value(n)
+        if _value is None:
+            _value = _eval_raw(n)
         if _slot is not None:
             _memo[_slot] = _value
         return _value
@@ -4593,7 +4855,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf", "sym", "tf_live") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "ltf") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -4768,6 +5030,20 @@ def _interpret_column(ast: Any, bars: List[dict],
                 if j is not None:
                     out[i] = child[j]
             return out
+        if kind == "ltf":
+            # ⭐⭐ C41 — A READ BELOW THE CHART'S OWN TIMEFRAME. In the chart lane the
+            # CALLER supplies the symbol's intraday series per code
+            # (``interpret.js``'s ``opts.lowerTf``, built by ``lowerTf.js``) and an
+            # unsupplied code is NOT COMPUTABLE on every bar.
+            #
+            # ⛔ THIS LANE IS NEVER SUPPLIED — a screen evaluates daily bars and
+            # holds no intraday ones — so the answer here is that same one, on
+            # every bar: not computable, never a number read off the bars in hand
+            # (which would be the chart's own timeframe under a lower one's name).
+            # ``scan_definition.assert_scannable`` refuses the definition up
+            # front, by name, so no sweep reaches this arm with a saved screen.
+            _assert_lower_code(str(n.get("value")))
+            return _nan_col(length)
         if kind == "op":
             return apply_op(n, [eval_node(a) for a in n["args"]])
         if kind == "call":

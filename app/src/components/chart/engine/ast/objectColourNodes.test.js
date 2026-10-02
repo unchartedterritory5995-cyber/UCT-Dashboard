@@ -95,12 +95,26 @@ describe('C37 — `color.from_gradient` on the host lane', () => {
     expect(new Set(live.map((o) => o.props.color)).size).toBeGreaterThan(8)
   })
 
-  it('⛔ an empty range (`top == bottom`) is UNMEASURED: the object is held, never painted an end', () => {
+  // ⭐ C48 re-pin — this read "an empty range is UNMEASURED: the object is held".
+  // `vw-colour-components-spy-1d-2026-10-01` measured it (rows E01–E03): the zero
+  // colour — red 0, blue 0, transparency 100 — so the label exists and is
+  // painted nothing, as TradingView's is.
+  it('⭐ C48 — an empty range (`top == bottom`) is the ZERO colour: the object is drawn, fully transparent', () => {
     const { live, door } = run('label.new(bar_index, high, "x", color = color.from_gradient(close, 5, 5, color.red, color.green))')
     expect(firstCreate(door.translation).props.color.node.c).toBe('grad')
-    expect(live).toEqual([])
-    // 🔴 CONTROL — the same label with a real range is drawn on every bar
-    expect(run('label.new(bar_index, high, "x", color = color.from_gradient(close, 5, 500, color.red, color.green))').live.length).toBe(N)
+    expect(live.length).toBe(N)
+    expect(new Set(live.map((o) => o.props.color))).toEqual(new Set(['#00000000']))
+    // 🔴 CONTROL — the same label with a real range is drawn on every bar, in colours
+    const real = run('label.new(bar_index, high, "x", color = color.from_gradient(close, 5, 500, color.red, color.green))').live
+    expect(real.length).toBe(N)
+    expect(real.some((o) => o.props.color === '#00000000')).toBe(false)
+  })
+
+  it('⚰️ C48 — reversed bounds hold the BOTTOM colour between them; a value outside them is still held', () => {
+    // bounds 10 → 0 with the bar index as the value: bars 0 … 10 lie between them
+    const { live } = run('label.new(bar_index, high, "x", color = color.from_gradient(bar_index, 10, 0, color.new(#0064C8, 70), color.new(#FF3232, 70)))')
+    expect(live.map((o) => o.createdBar)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+    expect(new Set(live.map((o) => o.props.color))).toEqual(new Set(['#0064C84D']))
   })
 
   it('⛔ an END that is the chart\'s own colour cannot be blended at translation or at run: held', () => {

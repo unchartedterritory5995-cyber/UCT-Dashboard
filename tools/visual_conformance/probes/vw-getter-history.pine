@@ -1,0 +1,54 @@
+//@version=6
+indicator("UCTPROBE_VW_GETTER_HISTORY", overlay = true, max_labels_count = 50, max_lines_count = 50)
+
+// --- 2026-10-01 C33 - A DRAWING GETTER ON A LIVE HANDLE, AND ITS HISTORY -------------
+//
+// Served today only on an EMPTY handle (`na`, printed "NaN"). Unwitnessed:
+//   (a) a FINITE getter number in a text - `str.tostring(line.get_y1(l))` on a line;
+//   (b) the getter through history - `line.get_y1(l)[1]`: the value the getter
+//       returned one bar ago, or the line's CURRENT y1 read again?
+//
+// `a` is moved every bar (`y1 = close`), so "one bar ago" is `close[1]` and "current"
+// is `close`: H03 / H04 equal one or the other. `b` is made once and never moved
+// (y1 = the first bar's close). `c` is replaced every 5 bars: its handle changes.
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults (none).
+
+var line a = line.new(bar_index, close, bar_index + 1, close)
+line.set_xy1(a, bar_index, close)
+line.set_xy2(a, bar_index + 1, close)
+
+var line b = line.new(bar_index, close, bar_index + 1, close)
+
+var line c = na
+if bar_index % 5 == 0
+    line.delete(c)
+    c := line.new(bar_index, high, bar_index + 1, high)
+
+float ya = line.get_y1(a)
+float yc = line.get_y1(c)
+
+plot(bar_index,            "H00_bar_index_CONTROL")
+plot(close,                "H01_close_CONTROL")
+plot(ya,                   "H02_get_y1_moved_every_bar")
+plot(ya[1],                "H03_get_y1_var_hist1")
+plot(line.get_y1(a)[1],    "H04_get_y1_direct_hist1")
+plot(close[1],             "H05_close_hist1_CONTROL")
+plot(line.get_y1(b),       "H06_get_y1_never_moved")
+plot(line.get_y1(b)[1],    "H07_get_y1_never_moved_hist1")
+plot(yc,                   "H08_get_y1_replaced_every_5")
+plot(yc[1],                "H09_get_y1_replaced_hist1")
+plot(line.get_y1(c[1]),    "H10_get_y1_of_previous_handle")
+plot(line.get_x1(a),       "H11_get_x1_moved_every_bar")
+plot(line.get_x1(a)[1],    "H12_get_x1_hist1")
+plot(high[bar_index % 5],  "H13_high_at_last_replace_CONTROL")
+
+if barstate.islast
+    label.new(bar_index, high, "G01 get_y1|" + str.tostring(line.get_y1(a)))
+    label.new(bar_index, high, "G02 get_y1[1] in this block|" + str.tostring(line.get_y1(a)[1]))
+    label.new(bar_index, high, "G03 ya[1] top-level var|" + str.tostring(ya[1]))
+    label.new(bar_index, high, "G04 close CONTROL|" + str.tostring(close))
+    label.new(bar_index, high, "G05 close[1] CONTROL|" + str.tostring(close[1]))
+    label.new(bar_index, high, "G06 get_y1 never moved|" + str.tostring(line.get_y1(b)))
+    label.new(bar_index, high, "G07 get_x1|" + str.tostring(line.get_x1(a)))
+    label.new(bar_index, high, "G08 get_y1 format #.00|" + str.tostring(line.get_y1(a), "#.00"))

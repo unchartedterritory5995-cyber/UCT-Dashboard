@@ -2,11 +2,14 @@
 //
 // ─── ⭐⭐ C27 — a timeframe BELOW the chart's own, replayed on TradingView's bars ─
 //
-// No committed capture holds a lower-timeframe `request.security` read on a
-// higher-timeframe chart, so no graded value can move and the member door refuses
-// every such read by name (`lower-tf:unwitnessed`). What the committed captures DO
-// hold is TradingView's own intraday and daily bars for AMEX:SPY, and this file
-// replays the mechanism (`lowerTf.js`) on them:
+// ⚰️ C27 wrote: "no committed capture holds a lower-timeframe `request.security`
+// read on a higher-timeframe chart, so … the member door refuses every such read
+// by name (`lower-tf:unwitnessed`)". ⭐ C41 (2026-09-30 evening): the capture
+// exists (`vw-lower-tf-{spy-1d,spy-1w,rddt-1d}-2026-09-30`), it agrees with this
+// replay, and the witnessed shapes are SERVED — graded against the capture itself
+// in `vendorHarness.c41LowerTfServe.test.js`. This file keeps what it always
+// proved on TradingView's own intraday and daily bars for AMEX:SPY — the
+// mechanism (`lowerTf.js`):
 //
 //   1. BUCKETING, witnessed: TradingView's regular-session 60m bars ARE its
 //      regular-session 5m bars bucketed from 09:30 — every complete bucket equal,
@@ -19,12 +22,15 @@
 //      intrabar array is the day's 60m closes in order; an incomplete session and
 //      every day before the intraday history are UNKNOWN; a gap poisons exactly
 //      the days within the expression's reach.
-//   4. THE DOOR: the graded scripts that read below the chart name the refusal.
-//
-// The capture that would turn (3) into a vendor reading is named in
-// `lowerTf.js::LOWER_TF_SETTLING_CAPTURE` (queue: capture-queue-2026-09-30-lower-tf.md).
+//   4. THE DOOR: a read below the chart is an `ltf` node on a chart; a screen and
+//      every unwitnessed shape still name their refusal.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll, vi } from 'vitest'
+// ⭐ C41 — a read below the chart is served only behind `VITE_PINE_LOWER_TF_ENABLED`
+// (`lowerTfGate.js`, default OFF). Everything here is about the SERVED read, so the
+// gate is on for the file; the flag-off behaviour has its own cases.
+vi.stubEnv('VITE_PINE_LOWER_TF_ENABLED', '1')
+afterAll(() => { vi.unstubAllEnvs() })
 import fs from 'node:fs'
 import path from 'node:path'
 import { toProductBars } from './ourSide'
@@ -202,25 +208,36 @@ describe('C27 mechanism — replayed on TradingView\'s SPY 1D chart with its own
   })
 })
 
-describe('C27 the door — a read below the chart is refused by name', () => {
+describe('C27 / C41 the door — a read below the chart is served on a chart, refused by name elsewhere', () => {
   const pine = (line) => ['//@version=5', 'indicator("c27")', line].join('\n')
   const refusalOf = (line, opts) => translatePine(pine(line), opts).refusal
+  const HOST = { strict: true }
 
-  it('⛔ `request.security(own, "60", close)` on a daily chart names `lower-tf:unwitnessed` and the capture', () => {
-    const r = refusalOf('plot(request.security(syminfo.tickerid, "60", close))')
+  it('⭐ C41 — `request.security(own, "60", close)` on a daily CHART is an `ltf` node; a SCREEN names `lower-tf:screen`', () => {
+    const line = 'plot(request.security(syminfo.tickerid, "60", close))'
+    const t = translatePine(pine(line), HOST)
+    expect(t.ok).toBe(true)
+    expect(t.outputs[0].ast).toEqual({ type: 'ltf', value: '60', args: [{ type: 'series', name: 'close' }] })
+    expect(t.lowerTf).toEqual(['60'])
+    // a screen evaluates daily bars only: refused, by name, and the sentence still
+    // names what the engine CAN serve
+    const r = refusalOf(line)
     expect(r.guard).toBe('pine:request')
-    expect(r.message).toContain(R.UNWITNESSED)
-    expect(r.message).toContain('vw-lower-tf.pine')
-    // the sentence still names what the engine CAN serve
+    expect(r.message).toContain(R.SCREEN)
     expect(r.message).toMatch(/weekly and monthly/)
+    // control: a script with no lower read carries no `lowerTf` at all
+    expect(translatePine(pine('plot(close)'), HOST).lowerTf).toBeUndefined()
   })
 
-  it('⛔ each shape names its own reason', () => {
-    expect(refusalOf('plot(request.security(syminfo.tickerid, "5", close, lookahead = barmerge.lookahead_on))').message)
+  it('⛔ each shape that is not served names its own reason, on the chart lane too', () => {
+    expect(refusalOf('plot(request.security(syminfo.tickerid, "5", close, lookahead = barmerge.lookahead_on))', HOST).message)
       .toContain(R.LOOKAHEAD)
-    expect(refusalOf('plot(request.security("AMEX:SPY", "15", close))').message).toContain(R.OTHER_SYMBOL)
-    expect(refusalOf('plot(request.security(syminfo.tickerid, "240", close))').message).toContain(R.NOT_SERVED)
-    expect(refusalOf('plot(request.security_lower_tf(syminfo.tickerid, "5", close))').message)
+    expect(refusalOf('plot(request.security("AMEX:SPY", "15", close))', HOST).message).toContain(R.OTHER_SYMBOL)
+    // a code the store could build but no capture shows read below a chart
+    expect(refusalOf('plot(request.security(syminfo.tickerid, "30", close))', HOST).message).toContain(R.UNWITNESSED)
+    // (every code the Pine spelling table knows is now one the store builds, so
+    // `lower-tf:not-served` is reached only through `lowerTfRefusal` itself — `lowerTf.test.js`)
+    expect(refusalOf('plot(request.security_lower_tf(syminfo.tickerid, "5", close))', HOST).message)
       .toContain(R.INTRABAR_ARRAY)
   })
 
@@ -231,14 +248,22 @@ describe('C27 the door — a read below the chart is refused by name', () => {
     expect(onHourly.message).not.toContain('lower-tf:')
   })
 
-  it('⭐ the graded script that reads 15/60/240 below a 1D chart names the refusal (ema-ribbon)', () => {
+  it('⭐ C41 — the graded script that reads 15/60/240 below a 1D chart carries three `ltf` reads (ema-ribbon)', () => {
     const cap = load('ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json')
+    let door
     let text
     try {
-      text = JSON.stringify(enterMemberDoor(cap.source.text), (k, v) => (typeof v === 'bigint' ? String(v) : v))
+      door = enterMemberDoor(cap.source.text)
+      text = JSON.stringify(door, (k, v) => (typeof v === 'bigint' ? String(v) : v))
     } finally {
       registry.uninstallUserDefinition(HARNESS_DEF_ID)
     }
-    expect(text).toContain(R.UNWITNESSED)
+    expect(door.def.meta.lowerTf).toEqual(['15', '60', '240'])
+    for (const code of ['15', '60', '240']) expect(text).toContain(`{"type":"ltf","value":"${code}"`)
+    expect(text).not.toContain(R.UNWITNESSED)
+    // ⚰️ one lower-tf code used to be left — the dark runtime lane's own, from the
+    // rescue run this script's `runtime.error` sent it on. Wave 10's C43 places that
+    // call in the columnar lane, so no rescue is attempted and no refusal is recorded.
+    expect([...new Set(text.match(/lower-tf:[a-z-]+/g) || [])]).toEqual([])
   })
 })

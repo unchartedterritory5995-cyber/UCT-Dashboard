@@ -375,6 +375,12 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     # "ticker" is the literal text ``ticker``.
     "symtext": ("type", "name"),
     "textop": ("type", "name", "args"),
+    # ⭐ C41 — THE READ BELOW THE CHART'S TIMEFRAME — `ltf(expr, "60")`. `tf`'s
+    # key set and `tf`'s reason: the code is the node. Written by the Pine member
+    # door for `request.security(syminfo.tickerid, "60", …)` on a daily chart;
+    # ⛔ without this row the STORE would refuse a document every other door
+    # accepts (the trap `offset` documents above).
+    "ltf": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 

@@ -35,6 +35,7 @@
 // decides no legality, so this file's rosters stay the only authority on which
 // members exist.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+import { MAX_COLLECTION_CAP } from './objectProgram.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
@@ -616,7 +617,7 @@ export function collectObjectOps(stmts, h) {
       if (!inLoop && loopIds.length === 0 && (taCallIn(t) || historyCallIn(t, historyFns))
           && !definitionHeader(t, h)
           && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
-        t = oneExecutionTokens(t, h, { flagRest: true, historyFns }).toks
+        t = oneExecutionTokens(t, h, { flagRest: true, historyFns, chart: chartSeries }).toks
         noteOnceLines(st)
       }
       const first = t[0]
@@ -881,7 +882,7 @@ export function collectObjectOps(stmts, h) {
             if (plan.kind === 'cap') {
               ops.push({ ...common, whileToks: t.slice(1), capColl: plan.coll })
             } else if (plan.kind === 'all') {
-              ops.push({ ...common, forIn: { all: plan.family, elem: plan.elem } })
+              ops.push({ ...common, forIn: { all: plan.family, elem: plan.elem, ...(plan.pos ? { pos: true } : {}) } })
             } else {
               // `0 to size − 1`, never counted down: an empty list runs no pass.
               ops.push({
@@ -889,7 +890,7 @@ export function collectObjectOps(stmts, h) {
                 from: { value: h.parseWholeExpression([T('number', 0)]) },
                 to: { value: h.parseWholeExpression([T('ident', 'array.size'), T('punct', '('), T('ident', plan.src), T('punct', ')'), T('punct', '-'), T('number', 1)]) },
                 asc: true,
-                forIn: { src: plan.src, elem: plan.kind === 'coll' ? plan.elem : null },
+                forIn: { src: plan.src, elem: plan.kind === 'coll' ? plan.elem : null, ...(plan.live ? { live: true } : {}) },
               })
             }
             continue
@@ -1129,8 +1130,9 @@ export function collectObjectOps(stmts, h) {
           if (rhs[0].value.startsWith('array.new_')) {
             const fam = rhs[0].value.slice('array.new_'.length)
             if (OBJECT_NAMESPACES.includes(fam)) {
-              decls.set(name, { family: fam, kind: 'coll' })
-              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+              const slots = word === 'var' ? witnessedSlots(rhs) : null
+              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}) })
+              if (!slots && createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
             }
             continue
           }
@@ -1151,8 +1153,9 @@ export function collectObjectOps(stmts, h) {
           if (rhs[0].value === 'array.new' && Array.isArray(rhs[0].typeArgs)) {
             const fam = String(rhs[0].typeArgs[0] || '')
             if (OBJECT_NAMESPACES.includes(fam)) {
-              decls.set(name, { family: fam, kind: 'coll' })
-              if (createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
+              const slots = word === 'var' ? witnessedSlots(rhs) : null
+              decls.set(name, { family: fam, kind: 'coll', ...(slots ? { slots } : {}) })
+              if (!slots && createdWithSlots(rhs)) loseColl(name, 'coll:sized', rhs[0])
             }
             continue
           }
@@ -1416,20 +1419,35 @@ export function collectObjectOps(stmts, h) {
   // and applied the body to both — lines 8 and 11 are dotted with no colour, and
   // their extension lines (7, 10) and labels (9, 12) are gone.
   //
-  // ⛔ SERVED ONLY WHERE THE LOOP HAS ONE READING. A body that changes the list
-  // it walks (`push`/`shift`/`remove`/`set`/`clear`, or a helper handed the list)
-  // is unwitnessed — whether Pine walks a snapshot or the live list is not in any
-  // capture — and keeps the legacy refusal, named (`forInRefused`). A loop
-  // variable that takes over a name another statement declared refuses too.
+  // ⭐⭐ C48 — WHAT THE LOOP WALKS WHEN ITS BODY CHANGES THE LIST. Capture
+  // `vw-forin-collections-rddt-1d-2026-10-01`:
+  //   · `for x in <own list>` walks the LIVE list: the length is re-read before
+  //     every pass and the slot is read when the pass reaches it. F03 (the body
+  //     shifts: 3 passes over five lines, y = 23 and 24 left), F04 (the body
+  //     pushes: 13 passes), F05 (a later slot replaced by `set`: the pass is
+  //     handed the replacement, y = 59).
+  //   · `<family>.all` is a SNAPSHOT taken when it is read: A02 (the held array
+  //     stays 5 long after a delete), A04 / A05 (`for b in box.all` →
+  //     `box.delete(b)` makes one pass per box and leaves 0), A06 (positions are
+  //     0, 1, 2, oldest first).
+  // ⛔ STILL REFUSED, NAMED (`forInRefused`): a body that changes its list by
+  // anything but `push` / `shift` / `set` (`remove`, `pop`, `unshift`, `insert`,
+  // `clear`, a reassignment, a helper handed the list — no row), a bounded
+  // numeric window changed by its body, and a loop variable that takes over a
+  // name another statement declared.
   const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
+  /** ⭐ C48 — the ways a body may change the list it walks that a capture shows
+   *  (`vw-forin-collections`, F03 / F04 / F05). */
+  const FOR_IN_LIVE_WITNESSED = Object.freeze(new Set(['shift', 'push', 'set']))
   const refuseForIn = (why, t) => {
     diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
     return null
   }
   /** Does this statement list (at any depth, and through any user function it
    *  calls) change the list `name` — a mutating member, a reassignment, or a
-   *  user function that is handed it or names it? */
-  const bodyMayWriteList = (list, name) => {
+   *  user function that is handed it or names it? ⭐ C48 — `allowed`: mutating
+   *  members that do not count (the question becomes "by anything ELSE?"). */
+  const bodyMayWriteList = (list, name, allowed = null) => {
     const seenFns = new Set()
     let scan = null
     const scanToks = (toks) => {
@@ -1440,9 +1458,15 @@ export function collectObjectOps(stmts, h) {
         const nx = toks[i + 1]
         if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
         if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
-            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) return true
+            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) {
+          if (allowed && allowed.has(v.slice(6))) continue
+          return true
+        }
         const m = splitMethodName(v)
-        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) return true
+        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) {
+          if (allowed && allowed.has(m.method)) continue
+          return true
+        }
         const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
         if (!fn || !h.isPunct(nx, '(')) continue
         const close = closeOf(toks, i + 1)
@@ -1499,10 +1523,19 @@ export function collectObjectOps(stmts, h) {
       }
       elemName = `${elem}__uctfi${hostLoopSeq + 1}`
     }
-    // ⛔ An object's POSITION in `line.all` depends on every create TradingView
-    // made, including any this program lost — never read.
-    if (ALL_FAMILIES[src] && idx !== null && mentionsName(st.sub, idx)) return refuseForIn(`a position in \`${src}\` is read`, t)
-    if (!ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
+    // ⭐ C48 — an object's POSITION in `<family>.all` is its place among the
+    // family's objects, oldest first (`vw-forin-collections`, A06: "0", "1", "2").
+    // ⛔ It depends on every create TradingView made, including any this program
+    // lost — so the loop is marked (`pos`) and the runtime runs it only for a
+    // family none of whose creates was lost or withheld.
+    const pos = !!(ALL_FAMILIES[src] && idx !== null && mentionsName(st.sub, idx))
+    // ⭐ C48 — a body that changes its own list walks the LIVE list (F03–F05);
+    // ⛔ by `push` / `shift` / `set` only — every other change keeps the refusal.
+    const liveWalk = !ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)
+    if (liveWalk && isWindow) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
+    if (liveWalk && bodyMayWriteList(st.sub, src, FOR_IN_LIVE_WITNESSED)) {
+      return refuseForIn(`the body changes \`${src}\`, the list it walks, by more than push / shift / set`, t)
+    }
     if (isWindow) return { kind: 'window', idx, elem, src, family: null }
     if (elemName !== elem) {
       // …renamed only once the loop is taken, in this call site's own tokens.
@@ -1520,7 +1553,10 @@ export function collectObjectOps(stmts, h) {
     }
     decls.set(elemName, { family, kind: 'local' })
     forInElems.add(elemName)
-    return { kind: ALL_FAMILIES[src] ? 'all' : 'coll', idx, elem: elemName, src, family }
+    return {
+      kind: ALL_FAMILIES[src] ? 'all' : 'coll', idx, elem: elemName, src, family,
+      ...(pos ? { pos: true } : {}), ...(liveWalk ? { live: true } : {}),
+    }
   }
 
   /** `array.size(C)` / `C.size()` → C when C is a declared drawing list. */
@@ -1659,15 +1695,30 @@ export function collectObjectOps(stmts, h) {
    *  `line.delete(array.get(a, i))` deleted nothing — the corpus's "replace my
    *  three lines every bar" idiom drew a new set every bar and removed none,
    *  with a clean ledger (measured at the wave-9 base: 180 boxes where Pine
-   *  holds 3). No capture witnesses a sized drawing list, so it is not modelled:
-   *  the list is DIVERGED from its creation (`coll:sized`), and every read of it
-   *  is withheld and counted (C16's `coll:diverged`), never run against an empty
-   *  one. ⛔ `array.new_line()` and `array.new_line(0)` are empty in Pine too and
-   *  stay as they were. Capture `vw-forin-collections` (rows Z01–Z03) settles it. */
+   *  holds 3). Unless a capture witnesses the form (`witnessedSlots`, below) it
+   *  is not modelled: the list is DIVERGED from its creation (`coll:sized`), and
+   *  every read of it is withheld and counted (C16's `coll:diverged`), never run
+   *  against an empty one. ⛔ `array.new_line()` and `array.new_line(0)` are empty
+   *  in Pine too and stay as they were. */
   const createdWithSlots = (rhs) => {
     if (!h.isPunct(rhs[1], '(')) return false
     if (h.isPunct(rhs[2], ')')) return false
     return !(rhs[2] && rhs[2].kind === 'number' && Number(rhs[2].value) === 0 && h.isPunct(rhs[3], ')'))
+  }
+  /** ⭐⭐ C48 — THE SIZED DRAWING LIST A CAPTURE SHOWS: `var … = array.new_label(3)`
+   *  holds exactly three `na` slots from its one initialisation on
+   *  (`vw-forin-collections-rddt-1d-2026-10-01`: Z01 its size is 3 on every bar,
+   *  Z02 the replace-in-place idiom holds 3 labels, Z03 slot 0 is the last
+   *  bar's). → the slot count, for exactly that form: `var`, ONE argument, a
+   *  whole-number literal within the list cap.
+   *  ⛔ NOT a second argument (`array.new_box(n, na)` — no row), not a size that
+   *  is not a literal, not a list declared without `var` (Pine makes that one
+   *  anew on every bar; this runtime's lists persist). Those keep `coll:sized`. */
+  const witnessedSlots = (rhs) => {
+    if (rhs.length !== 4 || !h.isPunct(rhs[1], '(') || !h.isPunct(rhs[3], ')')) return null
+    if (!rhs[2] || rhs[2].kind !== 'number') return null
+    const n = Number(rhs[2].value)
+    return Number.isInteger(n) && n >= 1 && n <= MAX_COLLECTION_CAP ? n : null
   }
 
   /** `box(na)` / `line(na)` / … — Pine's typed empty handle — → its family,
@@ -2478,7 +2529,7 @@ export function collectObjectOps(stmts, h) {
       // whatever the one-run body still reads that the capture does not show.
       if (why && !inLoop && loopIds.length === 0
           && guards.some((g) => !g.negate && guardIsLastBarOnly(g.toks))) {
-        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned)
+        const once = oneExecutionBody(def, bound.bind, locals, h, callOwned, chartSeries)
         if (once.body) {
           const candidate = { ...def, body: once.body }
           why = historyReason(candidate, drawFns, userFns, pureFns, userMethods, chartSeries, drawMethods)
