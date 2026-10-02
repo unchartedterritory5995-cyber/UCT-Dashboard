@@ -72,6 +72,15 @@ PHONE_KEYS = (
     "trade-review", "weekly-review", "monthly-review",
 )
 MAX_TABS = 30
+# Enter is probed on its own extra note, once per viewport (run 4: Enter changed the body).
+ENTER_PROBE_KEYS = ("trade-review",)
+
+# The walkthrough toggle (found by its title, wherever it is), open.
+OPEN_JS = r"""
+() => [...document.querySelectorAll('.ProseMirror [data-type="toggle"]')].some((t) =>
+  t.querySelector('summary')?.textContent.trim() === 'How to use this template'
+  && t.getAttribute('data-open') === 'true')
+"""
 
 ACTIVE_JS = r"""
 () => {
@@ -224,7 +233,10 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
             "[data-template-key]",
             "els => els.map(e => ({key: e.getAttribute('data-template-key'),"
             " preview: (e.querySelector('[data-template-preview]')?.textContent || '')}))")
-        keys = [c["key"] for c in cards]
+        # Run 4 read 64 cards for 32 templates (the gallery is in the DOM twice); the
+        # walk covers each template once, in page order.
+        keys = list(dict.fromkeys(c["key"] for c in cards))
+        rec["gallery_card_count"] = len(cards)
         rec["gallery_keys"] = keys
         row("the gallery renders the catalog (keys read from the page)", "PASS" if len(keys) >= 30 else "FAIL",
             saw=len(keys))
@@ -238,7 +250,7 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
         shot(pg, "gallery-1200")
         # The full Preview dialog (lane 12A's file, rendered leniently): recorded, not judged.
         try:
-            pg.get_by_role("button", name="Preview Base Breakout Plan").first.click()
+            pg.get_by_role("button", name="Preview Base Breakout Plan").filter(visible=True).first.click()
             dlg = pg.get_by_role("dialog", name="Base Breakout Plan")
             dlg.wait_for(state="visible", timeout=10000)
             txt = dlg.inner_text()
@@ -252,9 +264,9 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
         pg.close()
 
         # ── N: create a note from each template, open the walkthrough by keyboard ──
-        def walk_one(ctx, label, key):
+        def walk_one(ctx, label, key, probe_enter=False):
             pg = page_for(ctx, label)
-            note = {"viewport": label, "key": key}
+            note = {"viewport": label, "key": key, "probe_enter": probe_enter}
             rec["notes"].append(note)
             t0 = time.time()
             pg.goto(f"{base}/journal/notebook?new={key}", wait_until="domcontentloaded", timeout=60000)
@@ -298,25 +310,35 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
                     reached = True
                     break
             note["tab_trail"] = trail
-            how = "keyboard: Tab x%d then Enter" % len(trail) if reached else None
+            # Run 4 pressed Enter first: Enter on the chevron did NOT open the toggle and
+            # changed the document instead (the stored body no longer ended in the
+            # walkthrough). Space is the button's activation key, so it is the path walked
+            # here; Enter is probed separately (ENTER_PROBE_KEYS) and recorded as a finding.
+            key_name = "Enter" if probe_enter else "Space"
+            how = f"keyboard: Tab x{len(trail)} then {key_name}" if reached else None
             if not reached:
                 chev.focus()
-                how = "fallback: programmatic focus, then Enter"
-            pg.keyboard.press("Enter")
+                how = f"fallback: programmatic focus, then {key_name}"
+            body_before = req.get(f"{base}/api/j2/notes/{note_id}").json()["note"]["bodyJson"]
+            pg.keyboard.press("Enter" if key_name == "Enter" else " ")
             try:
-                pg.wait_for_function(
-                    "() => { const t = [...document.querySelectorAll('.ProseMirror [data-type=\"toggle\"]')].pop();"
-                    " return t && t.getAttribute('data-open') === 'true' }", timeout=5000)
-                opened_by = "Enter"
-            except Exception:  # noqa: BLE001 -- Enter did not open it; try Space, and say so
-                pg.keyboard.press(" ")
-                try:
-                    pg.wait_for_function(
-                        "() => { const t = [...document.querySelectorAll('.ProseMirror [data-type=\"toggle\"]')].pop();"
-                        " return t && t.getAttribute('data-open') === 'true' }", timeout=5000)
-                    opened_by = "Space (Enter did not open it)"
-                except Exception:  # noqa: BLE001
-                    opened_by = None
+                pg.wait_for_function(OPEN_JS, timeout=5000)
+                opened_by = key_name
+            except Exception:  # noqa: BLE001
+                opened_by = None
+            if key_name == "Enter":
+                pg.wait_for_timeout(2500)
+                b_after = req.get(f"{base}/api/j2/notes/{note_id}").json()["note"]["bodyJson"]
+                note["enter_probe"] = {
+                    "opened": opened_by == "Enter",
+                    "top_types_before": [n.get("type") for n in body_before.get("content") or []][-4:],
+                    "top_types_after": [n.get("type") for n in b_after.get("content") or []][-4:],
+                    "body_changed": b_after != body_before,
+                }
+                row(f"[{label}] {key}: FINDING PROBE -- Enter on the chevron opens the toggle and leaves the body alone",
+                    "PASS" if opened_by == "Enter" and b_after == body_before else "FAIL", saw=note["enter_probe"])
+                pg.close()
+                return
             note["how"], note["opened_by"] = how, opened_by
             try:   # toggle > toggleContent > orderedList > first listItem
                 step1 = _text(last["content"][1]["content"][0]["content"][0])
@@ -336,9 +358,13 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
             for _ in range(20):
                 pg.wait_for_timeout(500)
                 b2 = req.get(f"{base}/api/j2/notes/{note_id}").json()["note"]["bodyJson"]
-                stored_open = ((b2.get("content") or [{}])[-1].get("attrs") or {}).get("open")
+                wt = [n for n in b2.get("content") or []
+                      if n.get("type") == "toggle" and _text((n.get("content") or [{}])[0]) == WALKTHROUGH_TITLE]
+                stored_open = (wt[-1].get("attrs") or {}).get("open") if wt else None
                 if stored_open is True:
                     break
+            note["body_unchanged_but_open"] = (
+                [n.get("type") for n in b2.get("content") or []] == [n.get("type") for n in body.get("content") or []])
             note["stored_open_after"] = stored_open
             if opened_by:
                 row(f"[{label}] {key}: opening it is saved like any other edit", "PASS" if stored_open is True else "FAIL",
@@ -347,10 +373,10 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
                 shot(pg, f"{label}-{key}")
             pg.close()
 
-        def guarded_walk(ctx, label, key):
+        def guarded_walk(ctx, label, key, probe_enter=False):
             # One template's failure is a row, never the end of the walk.
             try:
-                walk_one(ctx, label, key)
+                walk_one(ctx, label, key, probe_enter)
             except Exception as e:  # noqa: BLE001 -- recorded with a screenshot
                 row(f"[{label}] {key}: walked to the end", "FAIL", why=f"{type(e).__name__}: {str(e)[:300]}")
                 for p in ctx.pages:
@@ -362,11 +388,15 @@ def _drive(base: str, row, rec: dict, shots: pathlib.Path) -> None:
 
         for key in keys:
             guarded_walk(wide, "1200", key)
+        for key in ENTER_PROBE_KEYS:
+            guarded_walk(wide, "1200", key, probe_enter=True)
         phone = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True,
                                     reduced_motion="reduce")
         ph._signup_or_login(phone.request, base, MEMBER[0], MEMBER[1], MEMBER[2])
         for key in PHONE_KEYS:
             guarded_walk(phone, "390", key)
+        for key in ENTER_PROBE_KEYS:
+            guarded_walk(phone, "390", key, probe_enter=True)
         errs = rec["page_errors"]
         row("no uncaught page error during the walk", "PASS" if not errs else "FAIL", saw=errs[:5] or None)
         browser.close()
