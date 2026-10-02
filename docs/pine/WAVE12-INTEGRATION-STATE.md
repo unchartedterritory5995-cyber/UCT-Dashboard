@@ -66,3 +66,11 @@ measurement, never on assertion:
   (>= 99% of sessions equal on OHLC, >= 99.5% same last close) on a committed read-only payload of
   our own `/api/bars/RDDT?tf=15&bars=60000`, and the same on SPY.
 - Deploys still need the owner's literal "deploy wave N" (standing master-push rule).
+
+## Rulings applied (2026-10-01 night, integrator, solo - lanes stopped by the weekly limit)
+- R-P DONE on `integrate/wave13-2026-10-01`: member pane ceiling 12 -> 64 plots (DOC 36 -> 96).
+  candlestick-patterns and madrid INCONCLUSIVE -> MATCH; ema-ribbon 13/13 plots. Grade time
+  148->142 / 258->411 / 576->637 ms. No saved id moved; only appends (multicator-table +6).
+- R-B MEASURED, NOT TAKEN: 200k -> 250k moved no graded script. dual-view's product path stops
+  on `pine:state` / `coll:diverged` before the budget; poor-man's on its withheld-text gate; the
+  ceiling only binds in the dark runtime pane. Revisit together with R-RT.
