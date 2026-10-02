@@ -3058,7 +3058,11 @@ export function blockStatements(toks, indents, indent) {
     // and was never a candidate — `splitTopLevel` is the same depth rule
     // `findTop` uses, so there is one definition of "top level" here.
     const parts = body.length === 0 ? splitTopLevel(header, ',') : [header]
-    if (parts.length > 1 && parts.every(isBindingSegment)) {
+    // ⭐ O1 (step 67, G8) — `a := x, b := y` too: a REASSIGNMENT segment splits
+    // exactly as a binding one does. Pine runs the comma-joined statements of a
+    // line left to right, which is what two lines do; the all-or-nothing rule
+    // above is unchanged (one segment of any other shape and nothing splits).
+    if (parts.length > 1 && parts.every((p) => isBindingSegment(p) || isReassignSegment(p))) {
       for (const part of parts) out.push({ header: part, body: [], sub: [] })
       continue
     }
@@ -3112,6 +3116,13 @@ function isBindingSegment(toks) {
 
   for (let i = 0; i < eq; i += 1) if (toks[i].kind !== 'ident') return false
   return true
+}
+
+/** ⭐ O1 — is this token run `name <mutator> expression` — one reassignment
+ *  (`:=`, `+=`, …) of ONE name, with a non-empty right-hand side? */
+function isReassignSegment(toks) {
+  if (toks.length < 3 || toks[0].kind !== 'ident') return false
+  return toks[1].kind === 'punct' && MUTATORS.has(toks[1].value)
 }
 
 /** The index of the first token at bracket depth 0 matching `pred`, or -1. */

@@ -109,3 +109,43 @@ describe('O1 G7 — `x = cond ? f(…) : na` is `if cond` + `f(…)`', () => {
     expect(refusedInExpression(v5(...HELPER, 'a = not na(lvl(open)) ? lvl(close) : na'))).toBe(1)
   })
 })
+
+// ─── G8 — `a := x, b := y` on one line is two statements ─────────────────────
+const sigOf = (t) => JSON.stringify({
+  ok: t.ok, guard: t.refusal && t.refusal.guard,
+  outs: (t.outputs || []).map((o) => [o.title, o.formula, o.refusal && o.refusal.guard]),
+  objs: progOf(t),
+})
+const STATE = [
+  'var float lo1 = na',
+  'var float lo2 = na',
+  'pl = ta.pivotlow(low, 3, 3)',
+]
+const COMMA = v5(...STATE, 'if not na(pl)', '    lo2 := lo1, lo1 := pl', 'plot(lo2, "lo2")', 'plot(lo1, "lo1")')
+const LINES = v5(...STATE, 'if not na(pl)', '    lo2 := lo1', '    lo1 := pl', 'plot(lo2, "lo2")', 'plot(lo1, "lo1")')
+
+describe('O1 G8 — comma-joined reassignments split exactly as separate lines', () => {
+  it('⛔ CONTROL — the two-line spelling translates both plots', () => {
+    const t = host(LINES)
+    expect(t.ok).toBe(true)
+    expect((t.outputs || []).filter((o) => o.kind === 'plot' && !o.refusal)).toHaveLength(2)
+  })
+
+  it('⭐⭐ SAME TRANSLATION, TWO SPELLINGS — `a := x, b := y`', () => {
+    expect(sigOf(host(COMMA))).toBe(sigOf(host(LINES)))
+  })
+
+  it('a binding and a reassignment on one line split too (`int d = na, d := …`)', () => {
+    const one = v5('d = 0.0', 'e = close, d := e * 2', 'plot(d, "d")')
+    const two = v5('d = 0.0', 'e = close', 'd := e * 2', 'plot(d, "d")')
+    expect(sigOf(host(one))).toBe(sigOf(host(two)))
+  })
+
+  it('⛔ ALL OR NOTHING — a segment of any other shape keeps the line whole', () => {
+    // `x := close, plot(x)`: the second segment is a call, not a binding — the line is
+    // not split (unchanged), so it is NOT the two-line program.
+    const one = v5('x = 0.0', 'x := close, plot(x, "x")')
+    const two = v5('x = 0.0', 'x := close', 'plot(x, "x")')
+    expect(sigOf(host(one))).not.toBe(sigOf(host(two)))
+  })
+})
