@@ -149,7 +149,23 @@ def _normalize_contract(c: dict) -> dict:
         "underlying_price": underlying.get("price"),
         "underlying_ticker": underlying.get("ticker"),
         "break_even": c.get("break_even_price"),
+        # BRK-01 increment 3: WHEN the bid/ask was quoted. The vol surface puts this on every
+        # point it draws, and refuses a point that has none (api/services/vol_surface.py).
+        "quote_time": _ns_to_iso(last_quote.get("last_updated")),
+        "quote_timeframe": last_quote.get("timeframe"),
     }
+
+
+def _ns_to_iso(ns) -> str | None:
+    """Massive stamps a quote in Unix NANOSECONDS. None (never a guessed 'now') when absent."""
+    try:
+        v = int(ns)
+    except (TypeError, ValueError):
+        return None
+    if v <= 0:
+        return None
+    from datetime import timezone
+    return datetime.fromtimestamp(v / 1e9, tz=timezone.utc).isoformat(timespec="seconds")
 
 
 def get_chain(ticker: str, expiration: str = "",

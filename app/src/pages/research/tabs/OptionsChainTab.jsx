@@ -3,6 +3,7 @@ import useSWR from 'swr'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import styles from './OptionsChainTab.module.css'
 import PayoffPanel from './PayoffPanel'
+import VolSurfacePanel from './VolSurfacePanel'
 
 // BRK-01 increment 1 (roadmap §3.3) — the option chain: calls | strike | puts, with the full
 // greek set, off the licensed Massive chain (api/routers/options_chain.py). DARK behind
@@ -37,7 +38,8 @@ export function atmStrike(rows, spot) {
   return best
 }
 
-export default function OptionsChainTab({ sym }) {
+// `volSurface`: BRK-01 increment 3's switch (options_vol_surface_enabled), passed by ResearchPage.
+export default function OptionsChainTab({ sym, volSurface = false }) {
   const s = (sym || '').toUpperCase().trim()
   const [picked, setPicked] = useState('')
   const exps = useSWR(s ? `/api/research/options/${encodeURIComponent(s)}/expirations` : null, sectionFetcher,
@@ -106,6 +108,7 @@ export default function OptionsChainTab({ sym }) {
         </table>
       </div>
       <PayoffPanel rows={rows} spot={Number(d.spot)} />
+      {volSurface && <VolSurfacePanel sym={s} expiration={d.expiration || ''} />}
       <p className={styles.muted} data-testid="chain-source">
         Live chain from Massive (OPRA), greeks and IV exchange-derived · refreshed every {d.cache_seconds || 60}s
         {d.served_at ? ` · as of ${d.served_at.replace('T', ' ').replace('+00:00', ' UTC')}` : ''}

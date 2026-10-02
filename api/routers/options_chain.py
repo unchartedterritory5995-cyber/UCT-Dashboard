@@ -24,14 +24,26 @@ from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_u
 
 router = APIRouter()
 ENABLED_ENV = "OPTIONS_CHAIN_ENABLED"
+# BRK-01 increment 3: the implied-vol surface under the chain. Its OWN switch, and it rides on top
+# of the chain's: the surface is served only while BOTH are "1".
+SURFACE_ENABLED_ENV = "OPTIONS_VOL_SURFACE_ENABLED"
 
 
 def is_enabled() -> bool:
     return os.environ.get(ENABLED_ENV, "").strip() == "1"
 
 
+def is_surface_enabled() -> bool:
+    return is_enabled() and os.environ.get(SURFACE_ENABLED_ENV, "").strip() == "1"
+
+
 def _armed() -> None:
     if not is_enabled():
+        raise HTTPException(status_code=404, detail="Not Found")
+
+
+def _surface_armed() -> None:
+    if not is_surface_enabled():
         raise HTTPException(status_code=404, detail="Not Found")
 
 
@@ -68,3 +80,16 @@ def option_chain(sym: str,
     return {**out, "served_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "cache_seconds": polygon_options._CHAIN_TTL,
             "iv_rank": None, "iv_rank_reason": "needs IV history, not yet licensed"}
+
+
+@router.get("/api/research/options/{sym}/surface", dependencies=[Depends(_surface_armed)])
+def option_vol_surface(sym: str,
+                       expiration: str = Query("", max_length=10, pattern=r"^(\d{4}-\d{2}-\d{2})?$"),
+                       _user: dict = Depends(require_paid)):
+    """BRK-01 increment 3: smile, term structure and grid off TODAY'S chain (vendor IV, every
+    point with its quote time). Bounded fan-out + 60 s cache live in api/services/vol_surface.py.
+    Plain `def`: it blocks on the provider."""
+    from api.services import vol_surface
+    out = vol_surface.get_surface(sym, selected=expiration)
+    _unavailable(out)
+    return out

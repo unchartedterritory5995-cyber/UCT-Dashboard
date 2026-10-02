@@ -2318,6 +2318,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/options/{sym}/surface",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/ownership/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

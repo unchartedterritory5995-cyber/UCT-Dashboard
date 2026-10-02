@@ -224,6 +224,17 @@ def _filing_blackline_flag() -> dict:
         return {}
 
 
+def _options_vol_surface_enabled() -> bool:
+    """BRK-01 increment 3: the implied-vol surface under the chain -- the SAME reader the
+    surface route's dark gate uses (both OPTIONS_CHAIN_ENABLED and OPTIONS_VOL_SURFACE_ENABLED).
+    Never raises."""
+    try:
+        from api.routers import options_chain
+        return bool(options_chain.is_surface_enabled())
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a feature flag
+        return False
+
+
 def _address_space_enabled() -> bool:
     """TERM-038: the command palette's Saved rows -- the SAME reader the address
     routes' dark gate uses. Never raises."""
@@ -497,6 +508,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         "ticker_history_enabled": _ticker_history_enabled(),
         "address_space_enabled": _address_space_enabled(),
         "options_chain_enabled": _options_chain_enabled(),
+        "options_vol_surface_enabled": _options_vol_surface_enabled(),
         "seasonality_enabled": _seasonality_enabled(),
         # ── S7 filing watch (Stage 4 creation surfaces + Stage 5 Settings) ──
         # Same request-time read and the same ENABLEMENT polarity as the

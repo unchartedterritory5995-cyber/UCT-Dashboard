@@ -401,6 +401,7 @@ Regenerate with `UPDATE_SKILL_WHITELIST=1 python -m pytest tests/test_skill_whit
 | GET | `/api/research/news/{sym}` | paid | research |
 | GET | `/api/research/options/{sym}/chain` | paid | research |
 | GET | `/api/research/options/{sym}/expirations` | paid | research |
+| GET | `/api/research/options/{sym}/surface` | paid | research |
 | GET | `/api/research/ownership/{sym}` | paid | research |
 | GET | `/api/research/quote/{sym}` | paid | research |
 | GET | `/api/research/ratings/{sym}` | paid | research |
