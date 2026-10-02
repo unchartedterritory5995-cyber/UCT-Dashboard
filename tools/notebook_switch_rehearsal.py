@@ -197,6 +197,22 @@ NOT_REHEARSED = {
     "NOTEBOOK_DOOR_GUARD": "a MODE, never switched off; its intended value is the owner's question",
     "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": "dark (wave 12 12A): waits for its real-browser walk and "
                                          "the owner naming who reviews submissions",
+    # Wave 11 (#263). Each reason names what the gate protects, from the PR body; a numbered
+    # "owner decision" is that body's "Decisions for you" list.
+    "NOTEBOOK_VOICE_NOTES_ENABLED": "dark (wave 11 11A): voice and meeting notes -- Whisper "
+                                    "transcription against the 60-minute monthly dictation "
+                                    "allowance and one summary call on the shared $25/day cap; "
+                                    "owner decisions 1-2 open (minute allowance, Desk transcripts)",
+    "NOTEBOOK_FORMULAS_ENABLED": "dark (wave 11 11B): formula and rollup properties, computed in "
+                                 "memory on read; waits on a quiet-machine 50k re-measure and the "
+                                 "owner's go",
+    "NOTEBOOK_AI_ACTIONS_ENABLED": "dark (wave 11 11C): Ask Notebook to do something -- one model "
+                                   "call per plan on the shared $25/day cap, then reviewed changes "
+                                   "written through the member's own write path, undoable; owner "
+                                   "decisions 5-6 open (fail-open counter, unsent-words fork)",
+    "NOTEBOOK_TRADE_CANVAS_ENABLED": "dark (wave 11 11D): the trade-plan canvas note (schema level 3, "
+                                     "NEVER-REVERT); no route of its own, only the doors that make "
+                                     "a canvas",
 }
 
 
