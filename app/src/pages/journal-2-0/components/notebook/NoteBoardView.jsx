@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import BlockedBadge from './BlockedBadge'
 import LockedGlyph from './LockedGlyph'
+import { ComputedChips } from './ComputedValue'
 import { useOptimisticNoteProperty } from '../../lib/useOptimisticNoteProperty'
 import styles from './NoteBoardView.module.css'
 
@@ -318,6 +319,7 @@ export default function NoteBoardView({
                       </button>
                       <LockedGlyph note={n} />
                       {n.ticker ? <span className={styles.ticker}>{n.ticker}</span> : null}
+                      <ComputedChips computed={n.computed} className={styles.computed} />
                       {isBlocked ? (
                         // UX #15, 2026-09-22: this used to be text-only, the
                         // only one of the four note-list views with no icon.

@@ -4,12 +4,24 @@ import LoadFailed from '../LoadFailed'
 import useJ2PropertyDefs from '../../hooks/useJ2PropertyDefs'
 import UIcon from '../../../../components/ui/UIcon'
 import RelationPropertyValue from './RelationPropertyValue'
+import ComputedValue from './ComputedValue'
+import FormulaEditor from './FormulaEditor'
+import RollupEditor, { rollupReady } from './RollupEditor'
+import useSWR from 'swr'
+import { notebookFlag } from '../../lib/offline/notebookFlags'
+import { checkFormula, displayExpression, formulaInputIds } from '../../lib/formula/computed'
 import {
   AUTOFILL_NOTHING_SENTENCE, AUTOFILL_NOT_SAVED, AUTOFILL_SOURCE_LABEL, autofillAlreadySetSentence,
   autofillCandidates, requestAutofill,
 } from '../../lib/propertyAutofill'
 import styles from './PropertiesSection.module.css'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
+
+const savedViewsFetcher = (url) =>
+  fetch(url, { credentials: 'include' }).then((r) => {
+    if (!r.ok) throw new Error(`${r.status}`)
+    return r.json()
+  })
 
 const NEW_PROPERTY_TYPES = [
   { value: 'text', label: 'Text' },
@@ -65,7 +77,20 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
       refresh()
     }
   }, [ticker, refresh])
-  const { propertyDefs, create: createDef } = useJ2PropertyDefs()
+  const { propertyDefs, create: createDef, updateConfig, refresh: refreshDefs } = useJ2PropertyDefs()
+  // Wave 11 (lane 11B): formula + rollup properties, offered only while the flag
+  // is on (latched per tab). Off, the type list and every row are exactly as before
+  // -- the server hides computed definitions too, so there is nothing to render.
+  const formulasOn = notebookFlag('notebook_formulas_enabled') === true
+  // The member's saved views, for a rollup over one -- fetched ONLY while the flag
+  // is on (same SWR key as useJ2SavedViews, so it shares that cache), so a member
+  // without the feature makes no new request when a note opens.
+  const { data: viewsData } = useSWR(formulasOn ? '/api/j2/saved-views' : null, savedViewsFetcher)
+  const savedViews = viewsData?.savedViews ?? []
+  const [newFormula, setNewFormula] = useState('')
+  const [newRollup, setNewRollup] = useState({})
+  // The computed property being edited in place: { id, type, text | config, error }.
+  const [editing, setEditing] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [manuallyShown, setManuallyShown] = useState(() => new Set())
   const [newPropOpen, setNewPropOpen] = useState(false)
@@ -90,13 +115,28 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
     return () => suggestAbortRef.current?.abort()
   }, [noteId])
 
+  // Wave 11: a formula shows once any input it reads has a value on this note, a
+  // rollup once its set has rows -- so a trade plan shows its R-multiple without
+  // the member adding it, and an unrelated note is not cluttered by it.
+  const valuesById = useMemo(
+    () => Object.fromEntries(properties.filter((p) => p.source === 'user_set' && !p.computed).map((p) => [p.id, p.value])),
+    [properties],
+  )
+  const shown = (p) => {
+    if (p.value !== null || manuallyShown.has(p.id)) return true
+    if (!p.computed) return false
+    if (p.type === 'rollup') return (p.computedValue?.setSize || 0) > 0
+    return formulaInputIds(p.config?.expression).some((id) => valuesById[id] !== null && valuesById[id] !== undefined)
+  }
   const visible = useMemo(
-    () => properties.filter((p) => p.value !== null || manuallyShown.has(p.id)),
-    [properties, manuallyShown],
+    () => properties.filter(shown),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [properties, manuallyShown, valuesById],
   )
   const hidden = useMemo(
-    () => properties.filter((p) => p.source === 'user_set' && p.value === null && !manuallyShown.has(p.id)),
-    [properties, manuallyShown],
+    () => properties.filter((p) => p.source === 'user_set' && !shown(p)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [properties, manuallyShown, valuesById],
   )
 
   // ⛔ F4 / A2R-07 (WCAG 2.4.3): "ADD PROPERTY" NEVER DROPS FOCUS. Lane 10E-2's keyboard walk:
@@ -283,6 +323,50 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
   }
 
   const isChoiceType = newPropType === 'select' || newPropType === 'multi_select'
+  const isFormula = newPropType === 'formula'
+  const isRollup = newPropType === 'rollup'
+  const typeChoices = formulasOn ? [...NEW_PROPERTY_TYPES, ...COMPUTED_PROPERTY_TYPES] : NEW_PROPERTY_TYPES
+  const canCreate = Boolean(newPropName.trim())
+    && (!isFormula || checkFormula(newFormula, propertyDefs).ok)
+    && (!isRollup || rollupReady(newRollup))
+
+  // A starter formula names the number properties it reads; this makes the ones
+  // the member does not have yet, so a first formula is one click from working.
+  const createMissing = async (names) => {
+    setError(null)
+    try {
+      for (const name of names) await createDef(name, 'number')
+      await refresh()
+    } catch (e) {
+      setError(e.message || 'Could not create those properties')
+    }
+  }
+
+  const startEdit = (p) => {
+    setError(null)
+    setEditing(p.type === 'formula'
+      ? { id: p.id, type: 'formula', name: p.name, text: displayExpression(p.config?.expression, propertyDefs), error: null }
+      : { id: p.id, type: 'rollup', name: p.name, config: { ...(p.config || {}) }, error: null })
+  }
+  const saveEdit = async () => {
+    if (!editing) return
+    let config
+    if (editing.type === 'formula') {
+      const checked = checkFormula(editing.text, propertyDefs, editing.id)
+      if (!checked.ok) { setEditing({ ...editing, error: checked.message }); return }
+      config = { expression: checked.stored }
+    } else {
+      config = editing.config
+    }
+    try {
+      await updateConfig(editing.id, config)
+      await refresh()
+      focusAfterRef.current = { prop: editing.id }
+      setEditing(null)
+    } catch (e) {
+      setEditing({ ...editing, error: e.message || 'Could not save' })
+    }
+  }
 
   const createAndAdd = async () => {
     const name = newPropName.trim()
@@ -296,7 +380,18 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
       const options = isChoiceType
         ? newPropOptions.split(',').map((s) => s.trim()).filter(Boolean).map((label) => ({ label }))
         : undefined
-      const def = await createDef(name, newPropType, options)
+      let config
+      if (isFormula) {
+        const checked = checkFormula(newFormula, propertyDefs)
+        if (!checked.ok) { setError(checked.message); return }
+        config = { expression: checked.stored }
+      } else if (isRollup) {
+        config = newRollup
+      }
+      // An ordinary property is created with exactly the call it always was; only a
+      // computed one carries a fourth argument.
+      const def = config ? await createDef(name, newPropType, options, config) : await createDef(name, newPropType, options)
+      if (config) await refreshDefs()
       // createDef only invalidates the property-defs list -- this note's OWN
       // resolved-properties cache (useNoteProperties, a separate SWR key) has
       // no way to know a new def now exists. Without this refresh the new
@@ -310,6 +405,8 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
       setNewPropName('')
       setNewPropType('text')
       setNewPropOptions('')
+      setNewFormula('')
+      setNewRollup({})
       setNewPropOpen(false)
       setPickerOpen(false)
     } catch (e) {
@@ -346,6 +443,41 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
           // gap without a <label> wrapper (which would need its own layout
           // rework of this label/control split).
           const labelId = `j2-prop-label-${p.id}`
+          if (p.computed) {
+            const isEditing = editing?.id === p.id
+            return (
+              <li key={p.id} className={`${styles.row} ${isEditing ? styles.rowEditing : ''}`} data-prop-row={p.id}>
+                <span className={styles.label} id={labelId}>{p.name}</span>
+                <span className={styles.control}>
+                  <span className={styles.readonlyValue}>
+                    <ComputedValue cell={p.computedValue} />
+                  </span>
+                  <button type="button" className={styles.editComputed} onClick={() => (isEditing ? setEditing(null) : startEdit(p))}
+                    aria-expanded={isEditing} aria-label={`Edit ${p.type} ${p.name}`}>
+                    {isEditing ? 'Close' : 'Edit'}
+                  </button>
+                </span>
+                {isEditing && (
+                  <div className={styles.computedEditor}
+                    onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setEditing(null); focusAfterRef.current = { prop: p.id } } }}>
+                    {p.type === 'formula' ? (
+                      <FormulaEditor value={editing.text} onChange={(text) => setEditing({ ...editing, text, error: null })}
+                        defs={propertyDefs} previewProps={valuesById} selfId={p.id} onCreateMissing={createMissing} />
+                    ) : (
+                      <RollupEditor value={editing.config} onChange={(config) => setEditing({ ...editing, config, error: null })}
+                        defs={propertyDefs} savedViews={savedViews} selfId={p.id} />
+                    )}
+                    {editing.error && <div className={styles.error} role="alert">{editing.error}</div>}
+                    <div className={styles.editActions}>
+                      <button type="button" className={styles.newPropCreate} onClick={saveEdit}
+                        disabled={p.type === 'rollup' && !rollupReady(editing.config)}>Save</button>
+                      <button type="button" className={styles.suggestBtn} onClick={() => setEditing(null)}>Cancel</button>
+                    </div>
+                  </div>
+                )}
+              </li>
+            )
+          }
           return (
             <li key={p.id} className={styles.row} data-prop-row={p.id}>
               <span className={styles.label} id={labelId}>{p.name}</span>
@@ -376,7 +508,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
         </button>
         {autofillControls}
         {pickerOpen && (
-          <div className={styles.picker}>
+          <div className={`${styles.picker} ${isFormula || isRollup ? styles.pickerWide : ''}`}>
             {hidden.map((p) => (
               <button key={p.id} type="button" className={styles.pickerItem} onClick={() => addExisting(p.id)}>
                 {p.name}
@@ -392,6 +524,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                   type="text"
                   className={styles.newPropInput}
                   placeholder="Property name"
+                  aria-label="Property name"
                   value={newPropName}
                   onChange={(e) => setNewPropName(e.target.value)}
                   autoFocus
@@ -399,12 +532,21 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                 <select
                   className={styles.newPropType}
                   value={newPropType}
+                  aria-label="Property type"
                   onChange={(e) => setNewPropType(e.target.value)}
                 >
-                  {NEW_PROPERTY_TYPES.map((t) => (
+                  {typeChoices.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
+                {isFormula && (
+                  <FormulaEditor value={newFormula} onChange={setNewFormula} defs={propertyDefs}
+                    previewProps={valuesById} onCreateMissing={createMissing}
+                    onStarter={(st) => { if (!newPropName.trim()) setNewPropName(st.name) }} />
+                )}
+                {isRollup && (
+                  <RollupEditor value={newRollup} onChange={setNewRollup} defs={propertyDefs} savedViews={savedViews} />
+                )}
                 {isChoiceType && (
                   <input
                     type="text"
@@ -414,7 +556,7 @@ export default function PropertiesSection({ noteId, updateNote, ticker, autofill
                     onChange={(e) => setNewPropOptions(e.target.value)}
                   />
                 )}
-                <button type="button" className={styles.newPropCreate} onClick={createAndAdd} disabled={!newPropName.trim()}>
+                <button type="button" className={styles.newPropCreate} onClick={createAndAdd} disabled={!canCreate}>
                   Create
                 </button>
               </div>
