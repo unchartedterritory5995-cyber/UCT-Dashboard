@@ -1,7 +1,7 @@
 # COV-04 blackline heading coverage: after
 
-Measured 2026-10-01 22:01:07 Central Daylight Time with `tools/blackline_coverage.py` at commit `703e93f599`.
-42 tickers in 8 cohorts. SEC requests: 0 over the network, 212 from the scratch cache.
+Measured 2026-10-01 22:29:51 Central Daylight Time with `tools/blackline_coverage.py` at commit `0d8a6deef2`.
+42 tickers in 8 cohorts. SEC requests: 0 over the network, 208 from the scratch cache.
 
 Found = located in BOTH filings of the pair. `unread` tickers never reached the extractor and are outside the denominator; they are listed by name.
 
