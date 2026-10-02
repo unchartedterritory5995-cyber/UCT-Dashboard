@@ -140,3 +140,22 @@ def test_one_filing_with_several_values_for_one_as_of_refuses_all_never_picks_th
            for v in (482_273_829, 1_400_000, 13_499_500)]
     out = ST.validate(obs, ST.Ledger())
     assert all(c.status == R.REJ_CONFLICT for c in out) and not any(c.usable for c in out)
+
+
+def test_split_ledger_gap_withholds_every_earlier_day_and_never_infers_a_factor():
+    """BXMT 2013: a 1:10 reverse split the ledger lacks -- adjusted price continuous, state /10, cap /10."""
+    from api.services.marketcap.build import split_ledger_gap_hold
+    d = [date(2013, 5, 1) + timedelta(days=i) for i in range(10)]
+    pclose = {x: 25.0 for x in d}
+    runs = {("i", "COMMON"): [("2013-05-01", "2013-05-05", 29_266_514, "a", "2013-03-05", "COVER_XBRL"),
+                              ("2013-05-06", "2013-05-10", 2_926_651, "b", "2013-05-06", "COVER_XBRL")]}
+    caps = {x: (29_266_514 if x < date(2013, 5, 6) else 2_926_651) * 25.0 for x in d}
+    assert split_ledger_gap_hold(runs, pclose, caps) == date(2013, 5, 6)
+    # a genuine split the ledger HAS is already normalized: no split-like state ratio -> no hold
+    runs_ok = {("i", "COMMON"): [("2013-05-01", "2013-05-05", 2_926_651, "a", "2013-03-05", "COVER_XBRL"),
+                                 ("2013-05-06", "2013-05-10", 2_930_000, "b", "2013-05-06", "COVER_XBRL")]}
+    assert split_ledger_gap_hold(runs_ok, pclose, {x: 2_926_651 * 25.0 for x in d}) is None
+    # a split the PRICE also shows (unadjusted bars) keeps the cap continuous -> no hold
+    pc2 = {x: (25.0 if x < date(2013, 5, 6) else 250.0) for x in d}
+    caps2 = {x: (29_266_514 * 25.0 if x < date(2013, 5, 6) else 2_926_651 * 250.0) for x in d}
+    assert split_ledger_gap_hold(runs, pc2, caps2) is None

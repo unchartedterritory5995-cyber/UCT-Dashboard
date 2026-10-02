@@ -114,6 +114,12 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
     st_by_cik: dict = defaultdict(dict)
     for (c_, ck_), rs_ in st.items():
         st_by_cik[c_][ck_] = rs_
+    inp = sqlite3.connect(os.path.join(data, "inputs.db"))
+    txt = sqlite3.connect(os.path.join(data, "text.db"))
+    PERIODIC = ("10-K", "10-Q", "10-K405", "10-KSB", "10-QSB", "20-F", "40-F", "10-KT")
+    stale_sub = Counter()
+    stale_sub_sec = defaultdict(set)
+    stale_examples = defaultdict(list)
     gapr = defaultdict(list)
     for cik, s, e, reason, n in B.execute("SELECT cik, start, end, reason, n_days FROM gap_run"):
         gapr[cik].append((s, e, reason, n))
@@ -170,6 +176,31 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
             if v1r["first"] and s > v1r["first"] and (v1r["last"] is None or e < v1r["last"]):
                 v1_internal[reason] += n
         unexplained_v1 = sum(n for r, n in v1_internal.items() if r not in EXPLAINED_V1) + (unexpl or 0)
+        # every INTERNAL SHARE_STATE_STALE run gets an honest sub-reason
+        for s, e, reason, n in gapr.get(cik, []):
+            if reason != "SHARE_STATE_STALE" or not v1r["first"] or not (s > v1r["first"] and e < (v1r["last"] or 0)):
+                continue
+            sd = f"{s // 10000:04d}-{s // 100 % 100:02d}-{s % 100:02d}"
+            ed = f"{e // 10000:04d}-{e // 100 % 100:02d}-{e % 100:02d}"
+            fl = inp.execute("SELECT accn, form FROM filing WHERE cik=? AND filing_date BETWEEN ? AND ? AND form IN "
+                             "(" + ",".join("?" * len(PERIODIC)) + ")", (cik, sd, ed, *PERIODIC)).fetchall()
+            if not fl:
+                sub = "NO_PERIODIC_FILINGS_IN_WINDOW"
+            else:
+                sts = {r[0] for a_, _f in fl for r in txt.execute("SELECT status FROM text_obs WHERE accn=?", (a_,))}
+                annual_only = all(f_.startswith(("20-F", "40-F", "10-K")) for _a, f_ in fl)
+                if annual_only and n <= 90:
+                    sub = "ANNUAL_FILER_CYCLE_EXCEEDS_15M_CEILING"
+                elif sts and "OK" not in sts:
+                    sub = "FILED_BUT_TEXT_UNPARSED:" + "/".join(sorted(sts))
+                elif not sts:
+                    sub = "FILED_NO_SHARE_EVIDENCE_EXTRACTED"
+                else:
+                    sub = "FILED_EVIDENCE_REFUSED_OR_CONFLICTING"
+            stale_sub[sub] += n
+            stale_sub_sec[sub].add(cik)
+            if len(stale_examples[sub]) < 12:
+                stale_examples[sub].append([pt, s, e, n, [f for _a, f in fl][:6]])
         rec = {"cik": cik, "ticker": pt, "foreign": bool(foreign), "structure": structure,
                "adr": "ADR" in kinds[cik],
                "multi": bool(kinds[cik] & {"MULTI_LISTED"}) or any(len(r[3]) > 1 for r in comps[cik]),
@@ -183,6 +214,8 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                "pre_edgar": bool(reasons.get("PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"))}
         # ---------------- anomalies on V1
         a = anomalies
+        starts = {r[0] for rs in st_by_cik.get(cik, {}).values() for r in rs}
+        nxt_close = {days[i]: cl.get(days[i + 1]) for i in range(len(days) - 1)}
         prev = None
         same_run = 0
         for d in days:
@@ -194,10 +227,15 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                 cr = v1[d] / pcap if pcap else None
                 prr = c / pc if pc else None
                 if cr and prr:
+                    nc = nxt_close.get(d)
+                    spike = bool(abs(math.log(prr)) > math.log(3) and nc and c and abs(math.log(nc / c)) > math.log(3)
+                                 and (math.log(nc / c) > 0) != (math.log(prr) > 0))
+                    cause = ("PRICE_SPIKE_REVERTING" if spike else "SHARE_STATE_CHANGE" if d in starts else
+                             "PRICE_MOVE" if abs(math.log(prr)) > math.log(3) else "OTHER")
                     if cr > 10 or cr < 0.1:
-                        a["P_order_of_magnitude"].append([pt, d, round(cr, 4)])
+                        a["P_order_of_magnitude"].append([pt, d, round(cr, 4), cause])
                     elif abs(math.log(cr) - math.log(prr)) > math.log(1.5):
-                        a["D_cap_jump_not_explained_by_price"].append([pt, d, round(cr, 4), round(prr, 4)])
+                        a["D_cap_jump_not_explained_by_price"].append([pt, d, round(cr, 4), round(prr, 4), cause])
                     if abs(cr - 1) < 1e-12 and abs(prr - 1) > 1e-6:
                         same_run += 1
                         if same_run == 5:
@@ -229,7 +267,34 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                         a["L_known_before_public"].append([pt, ck, accn, k[0], k[1]])
             for p, n in zip(rs, rs[1:]):
                 if p[2] and n[2] and (n[2] / p[2] > 10 or n[2] / p[2] < 0.1):
-                    a["C_share_jump_over_10x"].append([pt, ck, n[0], round(n[2] / p[2], 4), p[3], n[3]])
+                    i0 = next((i for i, x in enumerate(days) if x >= n[0]), None)
+                    cont = "NO_ADJACENT_VALUES"
+                    if i0 and days[i0 - 1] in v1 and days[i0] in v1 and cl.get(days[i0 - 1]) and cl.get(days[i0]):
+                        capr = v1[days[i0]] / v1[days[i0 - 1]]
+                        pr = cl[days[i0]] / cl[days[i0 - 1]]
+                        cont = "CAP_CONTINUOUS" if abs(math.log(capr) - math.log(pr)) < math.log(1.5) else "CAP_DISCONTINUOUS"
+                    a["C_share_jump_over_10x"].append([pt, ck, n[0], round(n[2] / p[2], 4), p[3], n[3], p[5], n[5], cont])
+            # SPLIT-LEDGER GAP SUSPECT: a split-like state ratio (k or 1/k, k in 2..100) that the adjusted PRICE does not
+            # mirror (price continuous) while the CAP jumps, with no ledger split between the two as-of dates. The
+            # bars are adjusted for a split the ledger lacks (BXMT 2013 1:10): every earlier state is on the old basis.
+            for p, n in zip(rs, rs[1:]):
+                if not (p[2] and n[2]):
+                    continue
+                r = n[2] / p[2]
+                lr = abs(math.log(r))
+                if lr < math.log(1.9):
+                    continue
+                k = round(r if r > 1 else 1 / r)
+                if not (2 <= k <= 100 and abs(math.log(r if r > 1 else 1 / r) - math.log(k)) < 0.02):
+                    continue
+                i0 = next((i for i, x in enumerate(days) if x >= n[0]), None)
+                if not (i0 and days[i0 - 1] in v1 and days[i0] in v1 and cl.get(days[i0 - 1]) and cl.get(days[i0])):
+                    continue
+                pr = cl[days[i0]] / cl[days[i0 - 1]]
+                capr = v1[days[i0]] / v1[days[i0 - 1]]
+                if abs(math.log(pr)) < math.log(1.5) and abs(math.log(capr)) > math.log(1.9):
+                    earlier = sum(1 for d in days if d < n[0] and d in v1)
+                    a["S_split_ledger_gap_suspect"].append([pt, ck, n[0], round(r, 4), k, p[3], n[3], earlier])
         # J recompute: cap(d) == sum(class state x own close x multiplier) on sampled days (independent of the engine)
         rec_mis = 0
         for d in days[:: max(1, len(days) // 60)] + days[-1:]:
@@ -253,7 +318,7 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
             a["J_cap_disagrees_with_state_x_price"].append([pt, rec_mis])
         # G: two listed classes of one issuer priced off the same ticker = double counting
         if comps[cik]:
-            pts_ = [c[1] for c in comps[cik][-1][3]]
+            pts_ = [c[1] for c in comps[cik][-1][3] if (c[3] or "") == "listed"]
             if len(pts_) != len(set(pts_)):
                 a["G_multi_class_same_price_ticker"].append([pt, pts_])
         # K duplicates are impossible by the cap_daily primary key; check bars
@@ -305,7 +370,29 @@ def run(build: str, baseline: str, data: str, v5: str, csv_path: str | None = No
                                              r["expected_sessions"] - r["v1"]["valued"]] for r in rows), key=lambda x: -x[1])[:50]
     out["worst50_v1_missing"] = sorted(([r["ticker"], r["expected_sessions"] - r["v1"]["valued"],
                                          dict(Counter(r["v1_reasons_all"]).most_common(2))] for r in rows), key=lambda x: -x[1])[:50]
+    for k in ("A_v1_unexplained_internal_gap", "B_state_older_than_365d_in_use", "C_share_jump_over_10x",
+              "D_cap_jump_not_explained_by_price", "E_ticker_reuse_contamination_BEFORE", "F_v1_cap_before_listing",
+              "G_multi_class_same_price_ticker", "J_cap_disagrees_with_state_x_price", "L_known_before_public",
+              "M_lookahead_state_before_known", "N_constant_cap_moving_price", "O_price_move_without_cap_move",
+              "P_order_of_magnitude", "S_split_ledger_gap_suspect"):
+        anomalies.setdefault(k, [])
     out["anomalies"] = {k: {"count": len(v), "securities": len({x[0] for x in v}), "examples": v[:25]} for k, v in sorted(anomalies.items())}
+    for k in ("P_order_of_magnitude", "D_cap_jump_not_explained_by_price"):
+        out["anomalies"][k]["by_cause"] = dict(Counter(x[-1] for x in anomalies[k]))
+        out["anomalies"][k]["securities_by_cause"] = {c: len({x[0] for x in anomalies[k] if x[-1] == c})
+                                                       for c in {x[-1] for x in anomalies[k]}}
+    out["anomalies"]["C_share_jump_over_10x"]["by_continuity"] = dict(Counter(x[-1] for x in anomalies["C_share_jump_over_10x"]))
+    out["anomalies"]["C_share_jump_over_10x"]["discontinuous_examples"] = [
+        x for x in anomalies["C_share_jump_over_10x"] if x[-1] == "CAP_DISCONTINUOUS"][:30]
+    out["anomalies"]["K_duplicate_dates"] = {"count": 0, "note": "impossible by the cap_daily (cik, d) primary key"}
+    sp = anomalies["S_split_ledger_gap_suspect"]
+    first_by_sec = {}
+    for x in sp:
+        first_by_sec.setdefault(x[0], x)
+    out["anomalies"]["S_split_ledger_gap_suspect"]["valued_sessions_before_first_suspect"] = sum(x[-1] for x in first_by_sec.values())
+    out["anomalies"]["S_split_ledger_gap_suspect"]["by_factor"] = dict(Counter(x[4] for x in sp).most_common(12))
+    out["stale_internal_subreasons"] = {k: {"sessions": v, "securities": len(stale_sub_sec[k]), "examples": stale_examples[k]}
+                                        for k, v in stale_sub.most_common()}
     if csv_path:
         with open(csv_path, "w", newline="") as f:
             w = csv.writer(f)

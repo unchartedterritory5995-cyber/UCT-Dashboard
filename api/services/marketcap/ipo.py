@@ -39,8 +39,21 @@ class IpoResult:
     note: str = ""
 
 
+def _windows(t: str, before: int = 260, after: int = 420) -> str:
+    """Every LINE match contains 'outstanding'; scan only merged windows around it (a 600 KB prospectus took ~1 s of
+    regex). Windows are joined by '. ' so no match (all spans are [^.;]-bounded or short) can cross two windows."""
+    spans = []
+    for m in re.finditer(r"outstanding", t, re.I):
+        a, b = max(0, m.start() - before), min(len(t), m.end() + after)
+        if spans and a <= spans[-1][1]:
+            spans[-1][1] = b
+        else:
+            spans.append([a, b])
+    return ". ".join(t[a:b] for a, b in spans)
+
+
 def parse(text: str) -> IpoResult:
-    t = for_matching(text)
+    t = _windows(for_matching(text))
     found: dict[str, set] = {}
     snips = []
     for m in LINE.finditer(t):

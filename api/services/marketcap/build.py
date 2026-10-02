@@ -13,6 +13,8 @@ build file.
 from __future__ import annotations
 
 import argparse
+import math
+import bisect
 import re
 import hashlib
 import json
@@ -88,6 +90,46 @@ def _late(d: str) -> datetime:
 # Dimensional cover axes that name ANOTHER ENTITY (combined filings: AEP's utility subsidiaries since 2019 tag their
 # counts on dei:LegalEntityAxis). Their rows are other registrants' capitalization, never a share class of this one.
 ENTITY_AXES = frozenset({"dei_LegalEntity", "srt_ConsolidatedEntities"})
+
+
+def split_ledger_gap_hold(runs_by_class: dict, pclose: dict, caps: dict):
+    """The latest date D such that every capitalization BEFORE D must be withheld (a split the ledger lacks), or None.
+
+    A transition between consecutive share states is a split-ledger gap when the state ratio is a clean split factor
+    k or 1/k (k = 2..100, within 2%), the primary's adjusted close is CONTINUOUS across it (< 1.5x) and the cap jumps
+    (> 1.9x). Pure: no factor is inferred, nothing is re-based."""
+    pdays_sorted = sorted(pclose)
+    hold_before = None
+    for rs in runs_by_class.values():
+        for p, n in zip(rs, rs[1:]):
+            if not (p[2] and n[2]):
+                continue
+            r = n[2] / p[2]
+            rr = r if r > 1 else 1 / r
+            k = round(rr)
+            if rr < 1.9 or not (2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.02):
+                continue
+            ds = date.fromisoformat(n[0])
+            i0 = bisect.bisect_left(pdays_sorted, ds)
+            if i0 <= 0 or i0 >= len(pdays_sorted):
+                continue
+            a_, b_ = pdays_sorted[i0 - 1], pdays_sorted[i0]
+            if a_ in caps and b_ in caps and pclose.get(a_) and pclose.get(b_):
+                pr, cr = pclose[b_] / pclose[a_], caps[b_] / caps[a_]
+                if abs(math.log(pr)) < math.log(1.5) and abs(math.log(cr)) > math.log(1.9):
+                    hold_before = max(hold_before or ds, ds)
+    return hold_before
+
+
+def _runs_by_class(w: dict, issuer_id: str) -> dict:
+    """This issuer's state runs from the build rows being written: {(issuer, class): [(start, end, shares, accn, as_of, src)]}."""
+    out: dict = {}
+    for iss, ck, s, e, sh, accn, as_of, src in w.get("state_run", []):
+        if iss == issuer_id:
+            out.setdefault((iss, ck), []).append((s, e, sh, accn, as_of, src))
+    for v in out.values():
+        v.sort()
+    return out
 
 
 def _authority(D):
@@ -498,6 +540,18 @@ def build_issuer(D: Data, cik: int, build_id: str, w) -> dict:
         if d in reasons_by_day and reasons_by_day[d] in (R.PRE_FIRST,) and d >= lst.start and first_val and d < first_val:
             if ipo_status != "NOT_APPLICABLE" and (d - lst.start).days < 200:
                 reasons_by_day[d] = R.IPO_UNRESOLVED
+    # ⛔ SPLIT-LEDGER GAP HOLD (fail closed). The bars are adjusted for splits the Massive split ledger does not list
+    # (MEASURED: ABT 1998, AMAT 1995/1998/2002, MSFT pre-2003, KO 1992/1996, BXMT 2013 1:10): share states before such
+    # a split stay on the OLD basis while prices are on today's -> the cap is k x wrong for every earlier day. Signature:
+    # consecutive states whose ratio is a clean split factor k or 1/k (2..100), the primary's adjusted price
+    # CONTINUOUS across the transition and the cap jumping. No factor is inferred: every earlier day is withheld
+    # (CORPORATE_ACTION_HOLD) until authoritative split evidence exists.
+    hold_before = split_ledger_gap_hold(_runs_by_class(w, issuer_id), bars[primary][1], caps)
+    if hold_before is not None:
+        for d in [d for d in caps if d < hold_before]:
+            del caps[d]
+            reasons_by_day[d] = R.CORP_ACTION_HOLD
+        first_val = min(caps) if caps else None
     # write daily output
     for d, v in caps.items():
         w["cap_daily"].append((cik, _i(d), v))
