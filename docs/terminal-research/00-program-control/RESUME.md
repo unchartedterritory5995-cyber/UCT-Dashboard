@@ -2,6 +2,18 @@
 
 ---
 
+## READ THIS FIRST — 2026-10-02 morning: BATCH 2 DEPLOYED
+
+`0a995e50fb` on master (owner-run push) and PROMOTED to production 08:01 CT; web new boot; `hub_nav_smoke --auth` PASS
+(19 routes / 32 nav entries, busiest /charts 14.2%). Batch 2 = everything in the block below plus the tail lane: TERM-038
+`P:` playbook entries (door `/model-book?view=builder&playbookEntry=`), COV-06 phone door (MobileLayoutsSheet), TERM-049
+journal lane (caller's own trades only, behind LANES2). Re-gate (2,429 files): 5 NEW = 2 master's (entryExcludesChartEngine),
+1 load-sensitive (ArticlesSection, passes alone), 2 ours fixed at cause: rule 12 (a joystick change set may not edit
+Notebook files: COV-10's gate now read per widget via `pages/charts/useListSubscribeEnabled.js`, never the workspace
+context) and TERM-047 (ListSubscription exempt as not-a-result-set). Not re-gated after those fixes; the charts dir,
+the rails and every importing test file were (138 files green). TERM-067 census baseline now 33.
+**The buildable Terminal scope is shipped.** What remains is the owner-decision list in the block below.
+
 ## READ THIS FIRST — 2026-10-01 late night: BATCH 2 (session patrick-4e)
 
 **Batch 2 on `integrate/terminal-fixes`, NOT on master at write time** (gate queued behind the Pine session's box lock):
