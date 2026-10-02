@@ -130,6 +130,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { captureEnabled } from '../../../widgets/captureRelease'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
+import useListSubscribeEnabled from '../useListSubscribeEnabled'
 
 // scanKey -> endpoint for the preset scans. ONE authority, two readers: this widget and
 // COV-10's tracking list (ListSubscription, which re-resolves a subscribed scan). It lives
@@ -147,7 +148,8 @@ export const SCAN_ENDPOINTS = {
 }
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
-  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef, listSubscribeEnabled } = useWorkspace() || {}
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
+  const listSubscribeEnabled = useListSubscribeEnabled()
   // Stable per-instance key for the wrapped watchlist table (arrow-nav / active id).
   const widgetId = useId()
 

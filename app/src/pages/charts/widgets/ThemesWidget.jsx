@@ -3,9 +3,11 @@ import ThemeTrackerPage from '../../ThemeTrackerPage'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import { KIND, channelFor, listRefCtx, usePublish } from '../../../lib/context/contextChannels'
+import useListSubscribeEnabled from '../useListSubscribeEnabled'
 
 export default function ThemesWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef, listSubscribeEnabled } = useWorkspace()
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace()
+  const listSubscribeEnabled = useListSubscribeEnabled()
   // Scoped context: routes the wrapped ThemeTrackerPage's useChartsSym calls
   // into THIS widget's color group, not Group A. `tf` is the timeframe the
   // chart in this group is showing — the tracker's own chart panel is hidden

@@ -19,6 +19,10 @@ import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 let track = {}
 let trackKeys = []
+// COV-10's gate is read from auth by each widget (useListSubscribeEnabled), not
+// carried on the workspace; the board helper below sets it per render.
+const listSubFlag = vi.hoisted(() => ({ on: true }))
+vi.mock('../useListSubscribeEnabled', () => ({ default: () => listSubFlag.on }))
 vi.mock('../../../hooks/useMobileSWR', () => ({
   default: (key) => {
     if (Array.isArray(key)) {
@@ -77,7 +81,8 @@ afterEach(() => cleanup())
 function Board({ store, on = true, wlColor = 'A', showThemes = true }) {
   const [wlOpts, setWlOpts] = useState({})
   Board.wlOpts = wlOpts
-  const ws = { ...WORKSPACE_FALLBACK, listSubscribeEnabled: on }
+  listSubFlag.on = on
+  const ws = { ...WORKSPACE_FALLBACK }
   return (
     <ContextChannelsProvider store={store}>
       <WorkspaceContext.Provider value={ws}>

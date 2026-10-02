@@ -6,6 +6,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import { ALIAS_PREFIX } from '../../watchlist/communityPick'
 import { KIND, channelFor, listRefCtx, usePublish, useChannel } from '../../../lib/context/contextChannels'
 import { SubscribeOffer, SubscribedList, ScreenSourceOffer, SUBSCRIBABLE_SOURCES } from './ListSubscription'
+import useListSubscribeEnabled from '../useListSubscribeEnabled'
 
 // Default column layout for a prebuilt (curated UCT) list. Prebuilt lists ALWAYS open in
 // their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
@@ -53,7 +54,8 @@ export function watchKeyToListRef(watchKey, watchName) {
 }
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef, listSubscribeEnabled } = useWorkspace()
+  const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace()
+  const listSubscribeEnabled = useListSubscribeEnabled()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
   const widgetId = useId()
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
