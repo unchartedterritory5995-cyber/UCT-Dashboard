@@ -3,9 +3,9 @@ from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
 from api.main import app
 
-# `/api/breadth`, `/api/themes` and `/api/leadership` are `require_paid`, and
-# `/api/rundown` is `get_current_user` (the free tier), since the 2026-08-09
-# auth sweep — all four answered anonymous callers. These are BEHAVIOUR tests,
+# `/api/breadth`, `/api/themes` and `/api/leadership` are `require_paid` since
+# the 2026-08-09 auth sweep, and `/api/rundown` since the 2026-10-02
+# "everything is paywall" ruling (it was the session-only free tier before). These are BEHAVIOUR tests,
 # so they get the caller they always implied; the gate is owned by
 # tests/test_exposed_routes_gated.py and asserted exactly once, there.
 from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)

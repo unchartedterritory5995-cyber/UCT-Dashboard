@@ -19,9 +19,10 @@ single authority for which route template belongs to which family:
               `is_paid_user` — admin OR paid plan OR in-trial)
     admin  -> an admin session (the same rule as `require_admin`)
     member -> any signed-in session (the same rule as `get_current_user`).
-              ONLY for reads the one free page (`FREE_PAGES = ['/morning-wire']`)
-              makes on every load — a free member must keep that page, and an
-              anonymous caller has no page that needs them.
+              ONLY for reads the signed-in shell makes on every load (it was
+              the one free page's, `/morning-wire`, until the 2026-10-02
+              "everything is paywall" ruling emptied FREE_PAGES); an anonymous
+              caller has no page that needs them.
 
 The dependency is attached where the routers are MOUNTED (`include_router(...,
 dependencies=[Depends(open_reads_gate)])` in `api/main.py`) — including the two
@@ -554,10 +555,12 @@ _add(ADMIN,
      *DOCS_PATHS,
      )
 
-# ── MEMBER: what the free page loads for a free member on every visit.
-#    Layout.jsx:77 -> lib/barsPackClient.js (every signed-in page, incl.
-#    /morning-wire); NavBar.jsx:206 / MoreSheet.jsx:108 (the member's own
-#    avatar). No anonymous page reads either.
+# ── MEMBER: what the signed-in shell loads on every page.
+#    Layout.jsx:77 -> lib/barsPackClient.js (every signed-in page);
+#    NavBar.jsx:206 / MoreSheet.jsx:108 (the member's own avatar). No anonymous
+#    page reads either. (Classified when /morning-wire was the free page; since
+#    2026-10-02 no free member renders the shell, so PAID would also hold. Left
+#    at MEMBER: it is the narrower change, and the flag is staged.)
 _add(MEMBER,
      "/api/intradaypack/manifest", "/api/intradaypack/{date}/delta",
      "/api/intradaypack/{date}/{idx}",
@@ -567,20 +570,16 @@ _add(MEMBER,
 #: The (d) write-shaped GETs, named so the report and the rail can find them.
 WRITE_SHAPED_GETS = ("/api/schwab/backfill-contract",)
 
-#: What the ONE free page (/morning-wire) and its TickerPopup read, derived
-#: 2026-09-27 from MorningWire.jsx, Layout.jsx, NavBar.jsx, CatalystTable.jsx
-#: and TickerPopup/ChartPane. A free member must keep every one of these; the
-#: rail (tests/test_open_reads_gate.py) holds them out of PAID and ADMIN.
-FREE_PAGE_READS = (
-    "/api/rundown", "/api/wire-feedback/mine", "/api/quote-of-the-day",
-    "/api/snapshot", "/api/tweets/feed", "/api/catalysts/today",
-    "/api/catalysts/my-feedback", "/api/live-prices",
-    "/api/intradaypack/manifest", "/api/intradaypack/{date}/delta",
-    "/api/intradaypack/{date}/{idx}", "/api/auth/avatar/{user_id}",
-    # TickerPopup / ChartPane / CommandPalette on the free page — these stay
-    # anonymous as well (the Discord Activity and the /r/chart renderer read
-    # them with no session), recorded as public/open in the baseline:
-    "/api/ticker-search", "/api/ticker-meta/{ticker}", "/api/ticker-ipo/{ticker}",
-    "/api/research/snapshot/{sym}", "/api/stream/prices",
-    "/api/chart/markers/{ticker}",
-)
+#: What a free member's free page reads. EMPTY since the owner ruling of
+#: 2026-10-02 (TERM-081 / OI-12, "everything is paywall"): FREE_PAGES
+#: (app/src/constants/freePages.js) is empty, so there is no free page for a
+#: free member to keep reading. The rail (tests/test_open_reads_gate.py) pins it
+#: empty and in agreement with the frontend value.
+#:
+#: ⚰️ Until then this held the 18 reads /morning-wire made (derived 2026-09-27),
+#: including `/api/rundown`, which is now `require_paid` at the route. The
+#: anonymous reference reads that sat here (ticker-search, ticker-meta, the price
+#: SSE, ...) stay out of every family for their OTHER readers (the Discord
+#: Activity and the /r/chart renderer, which have no session); that is railed on
+#: its own list in test_iv_the_anonymously_read_reference_data_stays_ANONYMOUS.
+FREE_PAGE_READS: tuple = ()
