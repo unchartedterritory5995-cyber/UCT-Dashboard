@@ -120,8 +120,12 @@ def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dic
             r = n[2] / p[2]
             rr = r if r > 1 else 1 / r
             k = round(rr)
-            # within 5%: the first post-split count has usually moved a little (USIO 2015 1:15 -> x14.59)
-            if rr < 1.9 or not (2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.05):
+            # within 5%: the first post-split count has usually moved a little (USIO 2015 1:15 -> x14.59).
+            # ⛔ A share count never FALLS 10x overnight with a continuous price except through a reverse split: a drop
+            # >= 10x is a split-like gap whatever its factor (ATLX 2017 /183, GPUS 2023 /300, BESS 2025 /140 -- reverse
+            # splits the ledger lacks, factors beyond the clean-factor rule).
+            big_drop = r < 1 / 10
+            if not big_drop and (rr < 1.9 or not (2 <= k <= 100 and abs(math.log(rr) - math.log(k)) < 0.05)):
                 continue
             ds = date.fromisoformat(n[0])
             a_ = date.fromisoformat(p[1])
@@ -129,8 +133,20 @@ def split_ledger_gaps(runs_by_class: dict, pclose: dict, caps: dict) -> list[dic
             if i0 >= len(pdays_sorted):
                 continue
             b_ = pdays_sorted[i0]
-            if a_ in caps and b_ in caps and pclose.get(a_) and pclose.get(b_):
-                pr, cr = pclose[b_] / pclose[a_], caps[b_] / caps[a_]
+            if a_ in caps and pclose.get(a_) and pclose.get(b_):
+                pr = pclose[b_] / pclose[a_]
+                if abs(math.log(pr)) >= math.log(1.5):
+                    # the bars may be DEFECTIVE right at the corporate action (IVT 2021-08-06: /10 for six weeks, then
+                    # back): continuity is judged on the first day within 60 sessions of the new state whose price is
+                    # back within 1.5x of the last pre-transition close
+                    n_end = date.fromisoformat(n[1])
+                    for b2 in pdays_sorted[i0:i0 + 60]:
+                        if b2 > n_end:
+                            break
+                        if pclose.get(b2) and abs(math.log(pclose[b2] / pclose[a_])) < math.log(1.5):
+                            pr = pclose[b2] / pclose[a_]
+                            break
+                cr = r * pr
                 if abs(math.log(pr)) < math.log(1.5) and abs(math.log(cr)) > math.log(1.9):
                     out.append({"date": ds, "k": k, "direction": "FORWARD" if r > 1 else "REVERSE", "cls": ck,
                                 "prev_asof": date.fromisoformat(p[4]), "next_asof": date.fromisoformat(n[4]),
@@ -700,6 +716,12 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             w["econ_request"].append((cik, wanted, rdays[0].isoformat(), rdays[-1].isoformat()))
         res = resolve(classes, lmap, econ, econ_accn)
         st = res.structure
+        # ⛔ a COMMON-only regime BETWEEN multi-class regimes is a filing that reported only one class's count without
+        # a class dimension (ZDGE 2021-11: class A's 524,775 priced at the class B ticker) -- never a single class
+        sandwiched = ks == frozenset({"COMMON"}) and any(len(x[1]) > 1 for x in regimes[:ri]) and any(len(x[1]) > 1 for x in regimes[ri + 1:])
+        if sandwiched:
+            res = resolve({"COMMON": 1.0, "?": 1.0}, {}, None)
+            st = Structure("UNRESOLVED", reason=R.MULTI_CLASS, note="common-only report between multi-class regimes")
         if ks == frozenset({"COMMON"}) and multi_suspect:
             st = Structure("UNRESOLVED", reason=R.MULTI_CLASS,
                            note=f"multi-class suspect ({len(listings)} equity tickers, share-class/total divergence={diverge}): "
@@ -741,7 +763,13 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
                     if st.kind != "ADR" and pre and post and abs(math.log(s_.ratio)) >= math.log(2):
                         a0 = max(pre, key=lambda o: o.as_of).value
                         b0 = min(post, key=lambda o: o.as_of).value
-                        if abs(math.log(b0 / a0)) < math.log(1.5):
+                        # ...unless the issuer RESTATED a pre-split date by exactly that factor after the split (CTNT:
+                        # its 2025-12-31 balance sheet, 3,418,587 when first filed, re-filed as 17,096 after the 2026
+                        # 1-for-200): the split happened; post-split issuance merely offset it
+                        restated = any(x.as_of == y.as_of and x.as_of < s_.ex_date and x.known_from <= s_.ex_date < y.known_from
+                                       and x.value > 0 and abs(math.log(y.value / x.value) - math.log(s_.ratio)) < 0.05
+                                       for _k1, x, _m1 in obs for _k2, y, _m2 in obs if _k1 == _k2)
+                        if not restated and abs(math.log(b0 / a0)) < math.log(1.5):
                             w["split_gap"].append((cik, s_.ex_date.isoformat(), None, "LEDGER", c.class_key, None, None,
                                                    "LEDGER_SPLIT_CONTRADICTED", s_.ex_date.isoformat(), s_.ratio, "LEDGER",
                                                    None, f"raw {a0:.0f} -> {b0:.0f}"))
@@ -885,6 +913,37 @@ def build_issuer(D: Data, cik: int, build_id: str, w, extra_splits: list | None 
             del caps[d]
             reasons_by_day[d] = R.HIST_SPLIT_UNRESOLVED
         first_val = min(caps) if caps else None
+    # ⛔ PRICE SERIES CONTRADICTS THE CORPORATE ACTION: a >= 3x share-state step and a >= 3x price step on the same
+    # transition IN THE SAME DIRECTION (IVT 2021-08-06: 1-for-10 reverse split, shares /10 AND the bars /10, then x10
+    # back on 2021-09-24). Neither basis can be trusted: the days are withheld from the step until the price steps
+    # back (>= 3x the other way) or a new share state begins (at most 250 sessions). Nothing is re-based.
+    pcl = bars[primary][1]
+    pdays_s = sorted(pcl)
+    for (_iss, _ck), rs in _runs_by_class(w, issuer_id).items():
+        for p_, n_ in zip(rs, rs[1:]):
+            if not (p_[2] and n_[2]):
+                continue
+            sr = n_[2] / p_[2]
+            a_ = date.fromisoformat(p_[1])
+            i0 = bisect.bisect_left(pdays_s, date.fromisoformat(n_[0]))
+            if i0 >= len(pdays_s) or not pcl.get(a_):
+                continue
+            b_ = pdays_s[i0]
+            pr_ = pcl[b_] / pcl[a_]
+            if abs(math.log(sr)) >= math.log(3) and abs(math.log(pr_)) >= math.log(3) and (sr > 1) == (pr_ > 1):
+                end_ = date.fromisoformat(n_[1])
+                for j_ in range(i0, min(len(pdays_s), i0 + 250)):
+                    d_ = pdays_s[j_]
+                    if d_ > end_:
+                        break
+                    if j_ > i0 and pcl.get(pdays_s[j_ - 1]) and pcl[d_] / pcl[pdays_s[j_ - 1]] and \
+                            abs(math.log(pcl[d_] / pcl[pdays_s[j_ - 1]])) >= math.log(3) and \
+                            ((pcl[d_] / pcl[pdays_s[j_ - 1]]) > 1) != (pr_ > 1):
+                        break
+                    if d_ in caps:
+                        del caps[d_]
+                        reasons_by_day[d_] = R.PRICE_BASIS_INCONSISTENT
+    first_val = min(caps) if caps else None
     # write daily output
     for d, v in caps.items():
         w["cap_daily"].append((cik, _i(d), v))
