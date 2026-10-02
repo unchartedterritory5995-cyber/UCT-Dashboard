@@ -198,3 +198,43 @@ describe('O1 — a getter read through a local is the getter read at the `if`', 
     expect(objDrops(t)).toBeGreaterThan(0)
   })
 })
+
+// ─── G2a — a first-match search loop is the chained `?:` it computes ───────────
+const searchLoop = (head, ...body) => v5('x = 0.0', head, ...body, 'plot(x, "x")')
+const FIRST = searchLoop('for i = 2 to 5', '    if close[i] > open[i]', '        x := i', '        break')
+const chainOf = (passes) => v5('x = 0.0',
+  `x := ${passes.map((v) => `(close[${v}] > open[${v}]) ? ${v} : `).join('')}x`, 'plot(x, "x")')
+const plotOf = (t) => (t.outputs || []).find((o) => o.kind === 'plot')
+
+describe('O1 G2a — `for i = A to B: if c(i): x := i; break` is the chained `?:`', () => {
+  it('⛔ CONTROL — the chained spelling is served', () => {
+    const p = plotOf(host(chainOf([2, 3, 4, 5])))
+    expect(p && p.refusal).toBeFalsy()
+    expect(p.formula).toMatch(/close\[2\] > open\[2\]/)
+  })
+
+  it('⭐⭐ SAME PLOT, TWO SPELLINGS — ascending, no `by`', () => {
+    expect(sigOf(host(FIRST))).toBe(sigOf(host(chainOf([2, 3, 4, 5]))))
+  })
+  it('`by` a positive step, and a descending count without one', () => {
+    expect(sigOf(host(searchLoop('for i = 2 to 6 by 2', '    if close[i] > open[i]', '        x := i', '        break'))))
+      .toBe(sigOf(host(chainOf([2, 4, 6]))))
+    expect(sigOf(host(searchLoop('for i = 5 to 2', '    if close[i] > open[i]', '        x := i', '        break'))))
+      .toBe(sigOf(host(chainOf([5, 4, 3, 2]))))
+  })
+
+  const servedPlot = (src) => { const p = plotOf(host(src)); return !!(p && !p.refusal) }
+  it('⛔ left alone: a test that calls something', () => {
+    expect(servedPlot(searchLoop('for i = 2 to 5', '    if math.abs(close[i] - open[i]) > 1', '        x := i', '        break'))).toBe(false)
+  })
+  it('⛔ left alone: a body with anything else in it', () => {
+    expect(servedPlot(searchLoop('for i = 2 to 5', '    if close[i] > open[i]', '        x := i', '        y = 1', '        break'))).toBe(false)
+    expect(servedPlot(searchLoop('for i = 2 to 5', '    if close[i] > open[i]', '        x := i'))).toBe(false)
+  })
+  it('⛔ left alone: a bound that is not a literal', () => {
+    expect(servedPlot(v5('n = input.int(5)', 'x = 0.0', 'for i = 2 to n', '    if close[i] > open[i]', '        x := i', '        break', 'plot(x, "x")'))).toBe(false)
+  })
+  it('⛔ left alone: more than 64 passes', () => {
+    expect(servedPlot(searchLoop('for i = 1 to 70', '    if close[i] > open[i]', '        x := i', '        break'))).toBe(false)
+  })
+})
