@@ -5,6 +5,7 @@ import UIcon from './ui/UIcon'
 import useHideOnScroll from '../hooks/useHideOnScroll'
 import useScrollLocked from '../hooks/useScrollLocked'
 import fb from './FeedbackWidget.module.css'
+import Textarea from './ui/Textarea'
 
 const S = {
   btn: {
@@ -131,7 +132,7 @@ export default function FeedbackWidget() {
           ) : (
             <>
               <div style={S.title}>Send Feedback</div>
-              <textarea
+              <Textarea aria-label="Feedback message"
                 style={S.textarea}
                 placeholder="What's on your mind?"
                 value={message}
