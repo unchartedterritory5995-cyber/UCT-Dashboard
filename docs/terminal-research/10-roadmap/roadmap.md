@@ -394,7 +394,7 @@ permanently."* Under an attention thesis, **saying what we do not have is covera
    TERMINAL-NEXT, never bare "UCT Terminal") and the additive gate (no changed line in a shared
    file, only an added entry), instrumented by `git diff --stat` plus the standing calendar rails.
 6. **RM-N02 is SENT.** ✅ **MET, now with an artifact:** sent 2026-09-29 ~21:30 ET to sales@massive.com
-   (`2026-09-26-massive-vendor-ask.md` `status: SENT`); no reply as of 2026-09-30 15:07 CT. ⛔ **The answer is not an exit condition** — nobody on this box controls it,
+   (`2026-09-26-massive-vendor-ask.md` `status: SENT`); no reply as of 2026-09-30 15:07 CT. ⭐ **REPLIED** (the vendor-ask file, `status: REPLIED 2026-09-30`): Q4 = yes, GEX from our entitlement — LCQ-02 is re-sourced (`GEX_CHAIN_SOURCE=massive` on web since 2026-09-30 22:43Z; `shadow` parity logging added 2026-10-02, `lane/lcq02-gex-massive`). Q1/Q2 = no historical chains/IV. ⛔ **The answer is not an exit condition** — nobody on this box controls it,
    and making a vendor reply a gate would stall the roadmap on a `vend` edge.
 
 ### 2.4 ⛔ WHAT NOW DELIBERATELY EXCLUDES, AND WHY EACH EXCLUSION IS A RULE RATHER THAN A PREFERENCE
