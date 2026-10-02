@@ -742,6 +742,7 @@ def list_filings(submissions: dict, form: str = FORM, n: int = 2, pages: list[di
 # At most this many pages are read.
 _MAX_OLDER_PAGES = 3
 _PERIOD_DAYS = {"10-K": (300, 430), "10-Q": (45, 200)}   # how far back the previous one is due
+_CADENCE_DAYS = {"10-K": 365, "10-Q": 91}
 
 
 def _due_pages(files: list[dict], form: str, newest: Optional[str]) -> list[dict]:
@@ -752,7 +753,16 @@ def _due_pages(files: list[dict], form: str, newest: Optional[str]) -> list[dict
     lo_days, hi_days = _PERIOD_DAYS.get(form, (0, 3650))
     lo, hi = (d - timedelta(days=hi_days)).isoformat(), (d - timedelta(days=lo_days)).isoformat()
     due = [f for f in files if (f.get("filingFrom") or "") <= hi and (f.get("filingTo") or "9999") >= lo]
-    return (due or files)[:_MAX_OLDER_PAGES]
+    # nearest the usual cadence first (a year for a 10-K, a quarter for a 10-Q)
+    expect = d - timedelta(days=_CADENCE_DAYS.get(form, 365))
+
+    def miss(f):
+        try:
+            a, b = date.fromisoformat(f["filingFrom"]), date.fromisoformat(f["filingTo"])
+        except (KeyError, TypeError, ValueError):
+            return 10 ** 6
+        return 0 if a <= expect <= b else min(abs((a - expect).days), abs((b - expect).days))
+    return (sorted(due, key=miss) or files)[:_MAX_OLDER_PAGES]
 
 
 def find_filings(submissions: dict, form: str, get, n: int = 2) -> dict:
