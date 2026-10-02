@@ -169,6 +169,9 @@ import {
   inputCallSites, sourceOrdinalOf, scriptKey, legacyLaneOf, decodeLegacyLane, paramIdFor, paramIdNumber,
 } from './paramIdSource.js'
 import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
+// ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
+// registry holds that version (`pineLibraries.js`).
+import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -4361,6 +4364,9 @@ let OTHER_SYMBOL_SINK = null
  *  it as `lowerTf` and the member door stamps `meta.lowerTf`, which is what a
  *  chart fetches intraday bars for (`engine/lowerTf.js::lowerTfWindowsOf`). */
 let LOWER_TF_SINK = null
+/** ⭐ L1 — the library link of the translation in progress (`linkLibraries`), read
+ *  back by `translatePine` to place library refusals on the member's import line. */
+let LIBRARY_LINK_SINK = null
 
 /** ⭐ C41 — does this resolved operand hold an `ltf` read? Asked only of the side a
  *  constant test may never take (the resolver's `ternary` and `and`/`or` cases),
@@ -21674,6 +21680,8 @@ export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
   const outerPeriodSink = PERIOD_READ_SINK
   const outerLowerSink = LOWER_TF_SINK
+  const outerLibrarySink = LIBRARY_LINK_SINK
+  LIBRARY_LINK_SINK = null
   const sink = new Map()
   const lowerSink = new Set()
   LOWER_TF_SINK = lowerSink
@@ -21681,14 +21689,30 @@ export function translatePine(source, opts = {}) {
   OTHER_SYMBOL_SINK = sink
   PERIOD_READ_SINK = periodSink
   let t
+  let libraryLink = null
   try {
     t = translatePineResult(source, opts)
   } finally {
+    libraryLink = LIBRARY_LINK_SINK
     OTHER_SYMBOL_SINK = outerSink
     PERIOD_READ_SINK = outerPeriodSink
     LOWER_TF_SINK = outerLowerSink
+    LIBRARY_LINK_SINK = outerLibrarySink
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
+  // only when a library was linked, so every other result is byte-identical. A
+  // refusal located inside a library's code is moved to the member's own import
+  // line and names the library and its line; spliced names read `alias.name`.
+  if (libraryLink && libraryLink.libraries.length) {
+    t.libraries = libraryLink.libraries.map((l) => ({
+      path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+    }))
+    const fix = (r) => remapLibraryLocation(r, libraryLink)
+    if (t.refusal) t.refusal = fix(t.refusal)
+    if (Array.isArray(t.refusals)) t.refusals = t.refusals.map(fix)
+    if (Array.isArray(t.notes)) t.notes = t.notes.map(fix)
+  }
   // ⭐⭐ C29 — THE CHART-PERIOD VALUES THIS TRANSLATION FOLDED, with each one's
   // value at every rung, so the bind can refuse a chart whose period differs
   // (`engine/periodReads.js`). Present only when a read was folded, so every
@@ -21742,7 +21766,10 @@ export function translatePine(source, opts = {}) {
  *  source call has one ordinal, one id and one entry, however many node objects
  *  or outputs reach it); `counter` only counts entries, for `firstTimeMark`. */
 function newParamMint(tokens, opts) {
-  const sites = inputCallSites(tokens)
+  // ⭐ L1 — the script's OWN tokens: a linked library adds no input call, and its
+  // tokens must never change which frozen entry this script is.
+  const own = tokens.unlinked || tokens
+  const sites = inputCallSites(own)
   const ordinalAt = new Map()
   sites.forEach((site, i) => ordinalAt.set(`${site.line}:${site.column}`, i + 1))
   return {
@@ -21751,7 +21778,7 @@ function newParamMint(tokens, opts) {
     metadata: [],
     sites,
     ordinalAt,
-    legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(tokens)], legacyLaneOf(opts)),
+    legacy: decodeLegacyLane(LEGACY_PARAM_IDS[scriptKey(own)], legacyLaneOf(opts)),
   }
 }
 
@@ -21806,6 +21833,9 @@ function translatePineResult(source, opts = {}) {
     const r = fromError(err)
     return { ...blank, refusal: r, refusals: [r] }
   }
+  // ⭐⭐ L1 — an imported library's exports become this script's own definitions.
+  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
+  LIBRARY_LINK_SINK = lexed.libraryLink || null
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
   beginPaletteScope(version)
@@ -22312,7 +22342,9 @@ function translatePineResult(source, opts = {}) {
       continue
     }
     if (word === 'import' || word === 'export') {
-      hardRefusals.push(refusalValue('pine:module', REFUSALS['pine:module'], locate(first)))
+      // ⭐ L1 — an import the linker could not serve says WHICH library and why.
+      const why = word === 'import' && first.libraryRefusal ? ` — ${first.libraryRefusal}` : ''
+      hardRefusals.push(refusalValue('pine:module', `${REFUSALS['pine:module']}${why}`, locate(first)))
       continue
     }
 

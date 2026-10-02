@@ -29,6 +29,11 @@ import { maxLookback } from '../../ast/interpret'
 import { objectsOnlyPaneEnabled } from '../../objectsOnlyPaneGate'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+
+// ⭐ L1 — opt-in: `PINE_LIBRARY_STORE=<scratch dir>` measures WITH the imported libraries
+// (never committed). Unset, the registry is empty, as in every production process.
+const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 const RUN = process.env.VENDOR_BATCH_CENSUS === '1'
 const OUT = process.env.VENDOR_BATCH_CENSUS_OUT
 const REPO = path.resolve(process.cwd(), '..')
@@ -120,6 +125,7 @@ describe.skipIf(!RUN)('member-door census for the vendor batch (opt-in)', () => 
       corpus: 'corpus/committed',
       flag: OBJECTS_ONLY_FLAG,
       ambientFlagOn,
+      librariesLoaded: LIBRARIES_LOADED,
       files: files.length,
       attached: { off: off.filter((r) => r.attached).length, on: on.filter((r) => r.attached).length },
       states,

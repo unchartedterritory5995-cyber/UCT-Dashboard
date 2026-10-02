@@ -33,6 +33,11 @@ import path from 'node:path'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 
+import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
+
+// ⭐ L1 — opt-in: `PINE_LIBRARY_STORE=<scratch dir>` measures WITH the imported libraries
+// (never committed). Unset, the registry is empty, as in every production process.
+const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 const REPO = path.resolve(process.cwd(), '..')
 const DIR = path.join(REPO, 'corpus/committed')
 
@@ -99,7 +104,8 @@ describe('⭐⭐ the runtime lane, measured over the committed corpus', () => {
     const pct = (n) => `${((n / SCRIPTS.length) * 100).toFixed(1)}%`
     const lines = [
       '',
-      `RUNTIME-LANE CORPUS CENSUS  —  ${SCRIPTS.length} scripts, tf=D, clock told`,
+      `RUNTIME-LANE CORPUS CENSUS  —  ${SCRIPTS.length} scripts, tf=D, clock told`
+        + (LIBRARIES_LOADED.length ? `, ${LIBRARIES_LOADED.length} libraries in the registry` : ''),
       `compiled end to end : ${compiled}  (${pct(compiled)})`,
       '  n  guard',
       ...rows.map(([g, n]) => `${String(n).padStart(3)}  ${g}`),
