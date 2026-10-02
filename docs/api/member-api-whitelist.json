@@ -2372,6 +2372,12 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/mention-series/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/news/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"

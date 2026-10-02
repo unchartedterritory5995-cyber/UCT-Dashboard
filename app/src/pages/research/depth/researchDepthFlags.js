@@ -13,6 +13,7 @@ export const RESEARCH_DEPTH_KEYS = [
   'earnings_reaction_panel_enabled',
   'events_timeline_enabled',
   'ftd_dataset_enabled',
+  'mention_series_enabled',
 ]
 
 export function readResearchDepth(d) {

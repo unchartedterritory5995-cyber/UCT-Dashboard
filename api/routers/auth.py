@@ -247,6 +247,7 @@ _RESEARCH_DEPTH_SURFACES = (
     ("earnings_reaction_panel_enabled", "earnings_reaction_panel"),
     ("events_timeline_enabled", "events_timeline"),
     ("ftd_dataset_enabled", "ftd_dataset"),
+    ("mention_series_enabled", "mention_series"),
 )
 
 

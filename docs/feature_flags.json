@@ -1409,6 +1409,12 @@
       "where": [],
       "note": "FT-068, fails-to-deliver half (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Fails to deliver and GET /api/research/ftd/{sym}. SEC's public cnsfails files (https://www.sec.gov/files/data/fails-deliver-data/cnsfailsYYYYMM[a|b].zip, two per month, posted weeks after the period) read ONLY through fundamentals_pit.sec_client by the job ftd_ingest (06:10 ET daily, always registered, at most 3 files per run, last 6 months; a no-op while unset) into SQLite at FTD_DB_PATH (default /data/ftd.db). Each file's trailer record count is checked against the rows parsed (count_mismatch is stored and shown); a file the SEC has not posted is not_published and retried after 20h. The panel lists per-settlement-date BALANCES (never summed), the latest and the peak, and the window covered; 'nothing ingested' and 'none reported in the window' are separate states. Request path reads the local store only. ENABLEMENT GATE, default OFF, read per request on the auth payload (ftd_dataset_enabled, present only when on); unset = the route 404s before identity and the panel is absent. Arm: railway variables --service web --set FTD_DATASET_ENABLED=1 (owner). Rollback = unset it; the table stays, nothing is read."
     },
+    "MENTION_SERIES_ENABLED": {
+      "status": "pending",
+      "since": "2026-10-02",
+      "where": [],
+      "note": "FT-080 (lane gaps-research, owner ruling 2026-10-02): Research > Depth > Room attention and GET /api/research/mention-series/{sym}?days=7..365. A per-ticker research panel, NOT a chart overlay: per ET day, #main-chat mentions, distinct people, and the ticker's share of all ticker mentions in the room, from the /buzz mention store (buzz.db, BUZZ_DB_PATH). A day before the store's first mention or a day the whole room was silent is null, never 0. Positive/negative polarity is returned as 'unavailable' with the reason: the store keeps no message text by design, so a ratio cannot be computed. Request path: one local SQLite read. ENABLEMENT GATE, default OFF, read per request on the auth payload (mention_series_enabled, present only when on); unset = the route 404s before identity and the panel is absent. Arm: railway variables --service web --set MENTION_SERIES_ENABLED=1 (owner). Rollback = unset it."
+    },
     "FILING_SEARCH_ENABLED": {
       "status": "pending",
       "since": "2026-10-02",
