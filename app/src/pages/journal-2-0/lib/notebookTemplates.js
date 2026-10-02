@@ -253,6 +253,36 @@ const SETUP_PLANS = [
   },
 ]
 
+// ── Position tracker property definitions (wave 12, lane 12B-2) ──────────────
+
+/**
+ * The definitions the Position Tracker declares, as DATA. `key` is this template's own
+ * handle; `name` is what the member sees and how an existing definition is reused (same
+ * name, same type). A formula names its inputs `{Name}` by these canonical names, and
+ * lib/templatePropertyDefs.js rewrites each to the id of the definition it resolved to
+ * (`{@id}`), so a reused or renamed-on-conflict input can never be ambiguous.
+ *
+ * `starter` names one of the 11B trader starter formulas (lib/formula/computed.js
+ * STARTER_FORMULAS) and takes its expression from there, never a copy typed here.
+ * Position size has no starter over these inputs (the starter's reads `Account risk`),
+ * so its expression is its own: the position's cost as a percent of the account.
+ * ⛔ Not imported here: this module is bundled for the hub and for a plain-Node rail
+ * (tests/test_notebook_builtin_templates_create.py), and stays free of the formula engine.
+ */
+const POSITION_TRACKER_PROPERTIES = Object.freeze([
+  { key: 'entry', name: 'Entry', type: 'number' },
+  { key: 'stop', name: 'Stop', type: 'number' },
+  { key: 'exit', name: 'Exit', type: 'number' },
+  { key: 'shares', name: 'Shares', type: 'number' },
+  { key: 'account', name: 'Account size', type: 'number' },
+  { key: 'r_multiple', name: 'R-multiple', type: 'formula', starter: 'r_multiple' },
+  { key: 'risk_per_share', name: 'Risk per share', type: 'formula', starter: 'risk_per_share' },
+  {
+    key: 'position_size', name: 'Position size %', type: 'formula',
+    expression: 'round({Shares} * {Entry} / {Account size} * 100, 2)',
+  },
+].map((d) => Object.freeze(d)))
+
 // ── The catalog (TEMPLATES, below, is this with each walkthrough appended) ────
 
 const CATALOG = [
@@ -960,6 +990,48 @@ const CATALOG = [
         p('Shares = (account × max risk %) ÷ risk per share. Do the arithmetic here, not in your head.'),
         h(2, 'Sanity check'),
         p('Does this size fit your total open risk across every position — not just this one?'),
+      ]),
+  },
+  {
+    // Wave 12, lane 12B-2: the one template that declares PROPERTY DEFINITIONS, so the
+    // 11B formulas come wired in. Applying it (NotebookTab's createFromTemplate, through
+    // lib/templatePropertyDefs.js) creates or reuses the member's definitions, then the
+    // note. With NOTEBOOK_FORMULAS_ENABLED off the formulas are left out and the note is
+    // still made. ⛔ The field is `propertyDefinitions`, never `properties`: `properties`
+    // means VALUES and opens the guarded second write in noteCreation.js, which the hub's
+    // write-path rails (hub/writePathsTransitive.test.js) forbid any template to declare.
+    key: 'position-tracker',
+    label: 'Position Tracker',
+    family: 'trades',
+    when: 'Holding a position, from entry to exit',
+    description: 'Entry, stop, shares and exit as properties, with R-multiple, risk per share and position size worked out.',
+    tags: ['position'],
+    needs: {},
+    propertyDefinitions: POSITION_TRACKER_PROPERTIES,
+    walkthrough: [
+      'Type Entry, Stop, Shares and Account size into the properties at the top of the note.',
+      'Risk per share and Position size % work themselves out from those numbers.',
+      'Log every add, trim and stop move in the management table, with the reason.',
+      'When you close, type the Exit price. R-multiple fills in from Entry, Stop and Exit.',
+      'Open the Table view and sort by R-multiple to compare your positions.',
+    ],
+    defaultTitle: (ctx = {}) => (ctx.ticker ? `Position — ${ctx.ticker}` : 'Position Tracker'),
+    build: () =>
+      doc([
+        callout('info', 'The numbers live in this note\'s properties, above the body: Entry, Stop, Shares and Account size, and Exit once you close.'),
+        h(2, 'Why I own it'),
+        p('The setup, the catalyst, and what the market was doing when you bought.'),
+        h(2, 'The plan'),
+        bullets([
+          'Where I add, and what has to be true first',
+          'Where I take a first piece',
+          'What makes me sell the rest',
+        ]),
+        h(2, 'Management log'),
+        table(['Date', 'Action', 'Price', 'Why'], [['', '', '', '']]),
+        hr(),
+        h(2, 'The exit'),
+        p('Type the Exit price above, then write a Trade Post-Mortem and link it here.'),
       ]),
   },
   {
