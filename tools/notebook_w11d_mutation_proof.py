@@ -228,5 +228,9 @@ ok = ok and not dirty
 out.append("VERDICT: " + ("PASS - every mutation killed, every restore verified against the committed blob" if ok else "FAIL"))
 OUT.parent.mkdir(parents=True, exist_ok=True)
 OUT.write_text("\n".join(out) + "\n", encoding="utf-8")
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:  # noqa: BLE001 -- a console that cannot be reconfigured still gets the file
+    pass
 print("\n".join(out))
 sys.exit(0 if ok else 1)
