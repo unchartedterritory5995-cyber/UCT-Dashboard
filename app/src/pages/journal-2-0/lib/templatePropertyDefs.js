@@ -104,7 +104,11 @@ export async function ensureTemplatePropertyDefs(tpl, {
       if (same.length) {
         // The member's own definition of this name and type is REUSED as it is -- an
         // existing "R-multiple" formula keeps the member's expression.
-        const reuse = same.find((d) => d.type === spec.type && d.source === 'user_set')
+        // ⛔ A code-defined built-in (`builtin:` id) is never reused: the list reports some
+        // as `user_set`, but they are not the member's definitions and a formula cannot
+        // read one by id.
+        const reuse = same.find((d) => d.type === spec.type && d.source === 'user_set'
+          && !String(d.id || '').startsWith('builtin:'))
         if (reuse) { def = reuse; break }
         continue // taken by another type (or a built-in): try the next name, never duplicate it
       }

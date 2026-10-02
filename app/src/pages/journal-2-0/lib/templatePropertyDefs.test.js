@@ -134,6 +134,13 @@ describe('12B-2 -- flag ON: definitions are created, numbers first, formulas sto
     expect(formulaInputIds(s.creates.find((c) => c.name === 'R-multiple').config.expression)).toContain(alt.id)
   })
 
+  it('a code-defined built-in of the same name and type is never reused (it is not the member\'s)', async () => {
+    const s = store([{ id: 'builtin:entry', name: 'Entry', type: 'number' }])
+    const out = await ensureTemplatePropertyDefs(tracker, { listDefs: s.listDefs, createDef: s.createDef })
+    expect(out.resolved.entry.id).not.toBe('builtin:entry')
+    expect(out.resolved.entry.name).toBe('Entry (number)')
+  })
+
   it('both names taken by other types: that input is skipped, and so are the formulas that read it', async () => {
     const s = store([
       { id: 'a', name: 'Stop', type: 'text' },
