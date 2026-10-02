@@ -30,7 +30,8 @@ def _massive(data: str) -> dict:
     for line in open(f"{data}/ref.jsonl", encoding="utf-8"):
         t, d, _s, _e = json.loads(line)
         if d and d.get("market_cap"):
-            out[t] = (float(d["market_cap"]), d.get("share_class_shares_outstanding"), d.get("name"), d.get("type"))
+            out[t] = (float(d["market_cap"]), d.get("share_class_shares_outstanding"), d.get("name"), d.get("type"),
+                      d.get("weighted_shares_outstanding"))
     return out
 
 
@@ -62,15 +63,23 @@ def scan(build: str, baseline: str, data: str) -> dict:
         bars_after = B.execute("SELECT COUNT(*) FROM gap_run WHERE cik=? AND start > ?", (cik, last[0])).fetchone()[0]
         recent = last_day and last[0] >= int(last_day.replace("-", "")) - 15 and bars_after == 0
         b = base.get(last[0])
+        ds = f"{last[0] // 10000}-{last[0] // 100 % 100:02d}-{last[0] % 100:02d}"
+        v1_shares = sum(sh * (1.0 if not mult else mult) for sh, mult in B.execute(
+            "SELECT s.shares, NULL FROM state_run s WHERE s.issuer_id=? AND s.start<=? AND s.end>=?", (f"cik:{cik}", ds, ds)))
+        m_sh = [x for x in (M[t][1], M[t][4]) if x]
+        shares_agree = bool(recent and v1_shares and any(abs(v1_shares / x - 1) <= 0.10 for x in m_sh))
         if not recent:
             k = "OLD_LAST_VALUE"
+        elif shares_agree:
+            k = "RECENT_SHARES_AGREE_PRICE_BASIS"       # V1's share count == the detector's own count: the cap gap is price
         elif b and abs(math.log(last[1] / b)) < 0.05:
             k = "RECENT_PRODUCTION_SAME"
         else:
             k = "RECENT_V1_INTRODUCED"
         now = B.execute("SELECT reason FROM gap_run WHERE cik=? ORDER BY end DESC LIMIT 1", (cik,)).fetchone()
         rows.append({"ticker": t, "cik": cik, "class": k, "v1_last_day": last[0], "v1_last_cap": last[1], "massive_cap": M[t][0],
-                     "ratio": r, "before_same_day": b, "reason_now": now[0] if now else None})
+                     "ratio": r, "before_same_day": b, "reason_now": now[0] if now else None, "v1_shares": v1_shares,
+                     "massive_shares": m_sh})
     return {"outliers": rows, "by_class": dict(Counter(r["class"] for r in rows)),
             "history_10x_vs_production": {"sessions": hist["sessions"], "securities": len(hist_secs),
                                           "top": hist_secs.most_common(40)}}
@@ -93,7 +102,16 @@ def dispositions(build: str, first: str, blockers: list, data: str) -> list:
         if valued_now and r is not None and abs(math.log10(r)) < math.log10(2):
             disp = "CORRECT"
         elif valued_now:
-            disp = "STILL_OUTLIER" if r is not None and abs(math.log10(r)) >= 1 else "VALUED_WITHIN_10X"
+            ds_ = f"{cur[0] // 10000}-{cur[0] // 100 % 100:02d}-{cur[0] % 100:02d}"
+            asof = B.execute("SELECT MAX(as_of) FROM state_run WHERE issuer_id=? AND start<=? AND end>=?", (f"cik:{cik}", ds_, ds_)).fetchone()[0]
+            from datetime import date as _date
+            fresh = bool(asof) and (_date.fromisoformat(ds_) - _date.fromisoformat(asof)).days <= 45   # within 45 days of the last bar
+            if r is not None and abs(math.log10(r)) >= 1:
+                disp = "STILL_OUTLIER"
+            elif fresh:
+                disp = "CORRECT_NEWER_EVIDENCE_THAN_DETECTOR"    # an authoritative count dated within 45 days of today
+            else:
+                disp = "VALUED_WITHIN_10X"
         else:
             disp = "REFUSED"
         bad = F.execute("SELECT class_key, shares, obs_accession, as_of, source_type FROM state_run WHERE issuer_id=? "

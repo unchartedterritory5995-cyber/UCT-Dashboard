@@ -20,6 +20,7 @@ class G:
         self.db = sqlite3.connect(build)
         self.px = sqlite3.connect(f"{data}/prices.db")
         self.inp = sqlite3.connect(f"{data}/inputs.db")
+        self.data = data
         self.results = []
 
     def cik(self, ticker):
@@ -144,6 +145,8 @@ def run(build: str, data: str) -> list:
         v = g.db.execute("SELECT COUNT(*) FROM cap_daily WHERE cik=? AND d < 19930101", (c,)).fetchone()[0]
         codes = {r[2] for r in g.gaps(c) if r[0] < 19930101}
         g.check("KO", "pre-EDGAR days never valued, coded PRE_EDGAR", v == 0 and codes <= {"PRE_EDGAR_NO_AUTHORITATIVE_SHARE_EVIDENCE"}, codes)
+    from .golden_correction import correction_pass_goldens
+    correction_pass_goldens(g)
     return g.results
 
 
