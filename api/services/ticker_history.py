@@ -44,7 +44,16 @@ SLICE 2 (2026-10-01) adds two lanes and the rename join:
 (see ``LANES2``): the parent flag is armed in production, and showing members the firm's setup
 win/loss record is an owner call, not a merge side effect.
 
-STILL NOT RENDERED: the member's own journal (deferred; named in ``not_rendered``).
+TAIL (2026-10-01) adds the member's own lane, behind the same LANES2 gate:
+
+  * ``journal``   — the CALLER's own Journal 2.0 trades in this ticker: the day a trade was
+                    OPENED (closed trades and still-open positions) and the day it was CLOSED
+                    (result and R as stored). ⛔ STRICTLY OWNER-SCOPED: read only through the
+                    journal_two service functions keyed on the caller's id
+                    (``trades.list_trades_for_user`` / ``positions.list_open_positions``), never
+                    raw SQL, and never for anyone but the requesting member. No member id, no
+                    lane (``unavailable``) -- it never falls back to anybody's journal.
+                    ``covers_from`` is the member's first journalled trade, any ticker.
 
 ⛔ NO COMPOSITE. Lanes are never blended into a score (FB-A13-01's PROD-C5/C6 warning): each lane
 is a list of dated facts from one store.
@@ -67,7 +76,7 @@ ET = ZoneInfo("America/New_York")
 ENABLED_ENV = "TICKER_HISTORY_ENABLED"
 DEFAULT_DAYS = 90
 MAX_DAYS = 365
-LANES = ("wire", "book", "catalysts", "room", "flow", "setups")
+LANES = ("wire", "book", "catalysts", "room", "flow", "setups", "journal")
 #: One read of one ticker's CreatedDate column off the tape. A liquid name is hundreds of
 #: thousands of prints; one narrow column keeps it to a few MB. Past this the lane is
 #: `unavailable` -- a timeout is not a quiet tape.
@@ -78,7 +87,7 @@ FLOW_TIMEOUT_S = 12.0
 #: without this a merge would put the firm's setup win/loss record and a per-ticker tape count
 #: in front of members with no decision taken. Unset, those two lanes are not read at all (no
 #: tape request, the engine DB never opened) and are named in `not_rendered` with the reason.
-LANES2 = ("flow", "setups")
+LANES2 = ("flow", "setups", "journal")
 LANES2_ENV = "TICKER_HISTORY_LANES2_ENABLED"
 
 
@@ -324,8 +333,78 @@ def setups_lane(sym: str, since: date) -> list[dict]:
     return rows
 
 
+# ── journal: the CALLER's own trades, owner-scoped ──────────────────────────────────
+
+#: Stored `j2_trades.result` words, said in English; anything else is shown AS STORED.
+JOURNAL_RESULT_TEXT = {"win": "win", "loss": "loss", "breakeven": "breakeven", "be": "breakeven"}
+
+
+def _member_journal(user_id: Optional[str]) -> tuple[list[dict], list[dict]]:
+    """(closed trades, open positions) for ONE member, through the journal_two service
+    functions keyed on that member's id. No id raises: the lane is then `unavailable`,
+    and there is no code path that reads a journal without the caller's own id."""
+    if not user_id:
+        raise LaneUnreadable("no member id: the journal lane is the caller's own or nothing")
+    from api.services.journal_two import positions, trades
+    return trades.list_trades_for_user(str(user_id)), positions.list_open_positions(str(user_id))
+
+
+def _day(v) -> Optional[str]:
+    s = str(v or "")[:10]
+    try:
+        return date.fromisoformat(s).isoformat()
+    except ValueError:
+        return None
+
+
+def journal_lane(sym: str, since: date, user_id: Optional[str] = None) -> list[dict]:
+    """The member's own trades in `sym`: an OPENED row on the entry day (closed trades and
+    open positions) and a CLOSED row on the exit day, with result and R as stored."""
+    closed, open_pos = _member_journal(user_id)
+    lo = since.isoformat()
+    rows = []
+    for t in closed:
+        if _norm(t.get("symbol")) != sym:
+            continue
+        ref = f"j2_trades#{t.get('tradeRef') or t.get('id')}"
+        side = t.get("side") or ""
+        opened, closed_on = _day(t.get("entryDate")), _day(t.get("exitDate"))
+        if opened and opened >= lo:
+            rows.append({"date": opened, "lane": "journal", "event": "opened", "side": side,
+                         "text": f"You opened a {side.lower() or 'trade'} position (your journal)",
+                         "source": "j2_trades", "as_of": opened, "ref": ref})
+        if closed_on and closed_on >= lo:
+            res = t.get("result")
+            said = JOURNAL_RESULT_TEXT.get(str(res or "").lower(), res or "closed")
+            rm = t.get("rMultiple")
+            tail = f" ({rm:+.2f}R)" if isinstance(rm, (int, float)) else ""
+            rows.append({"date": closed_on, "lane": "journal", "event": "closed", "side": side,
+                         "result": res, "r_multiple": rm,
+                         "text": f"You closed your {side.lower() or 'trade'} from {opened or 'an earlier date'}: {said}{tail}",
+                         "source": "j2_trades", "as_of": closed_on, "ref": ref})
+    for p in open_pos:
+        if _norm(p.get("symbol")) != sym:
+            continue
+        opened = _day(p.get("entryDate"))
+        if opened and opened >= lo:
+            side = p.get("side") or ""
+            rows.append({"date": opened, "lane": "journal", "event": "opened", "side": side,
+                         "text": f"You opened a {side.lower() or 'trade'} position, still open (your journal)",
+                         "source": "j2_positions", "as_of": opened, "ref": f"j2_positions#{p.get('id')}"})
+    return rows
+
+
+def _journal_coverage(user_id: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """The member's first journalled entry, any ticker. Before it, nothing was recorded."""
+    closed, open_pos = _member_journal(user_id)
+    days = [d for d in (_day(x.get("entryDate")) for x in [*closed, *open_pos]) if d]
+    return (min(days) if days else None, None)
+
+
 _LANE_FNS = {"wire": wire_lane, "book": book_lane, "catalysts": catalysts_lane, "room": room_lane,
-             "flow": flow_lane, "setups": setups_lane}
+             "flow": flow_lane, "setups": setups_lane, "journal": journal_lane}
+#: Lanes that are the CALLER's own: their read and their coverage take the member id.
+MEMBER_LANES = ("journal",)
 
 
 # ── Coverage: the first date each lane's STORE holds, whatever the ticker ──────────
@@ -389,7 +468,8 @@ def _first_only(fn):
 _COVERAGE_FNS = {"wire": _first_only(_wire_covers_from), "book": _first_only(_book_covers_from),
                  "catalysts": _first_only(_catalysts_covers_from),
                  "room": _first_only(_room_covers_from),
-                 "flow": _flow_coverage, "setups": _setups_coverage}
+                 "flow": _flow_coverage, "setups": _setups_coverage,
+                 "journal": _journal_coverage}
 
 
 # ── entity ids across renames ──────────────────────────────────────────────────────
@@ -423,17 +503,18 @@ def _in_era(d: str, valid_from: Optional[str], valid_to: Optional[str]) -> bool:
     return (valid_from is None or d >= valid_from) and (valid_to is None or d < valid_to)
 
 
-def history(sym: str, days: int = DEFAULT_DAYS) -> dict:
+def history(sym: str, days: int = DEFAULT_DAYS, user_id: Optional[str] = None) -> dict:
     """`{ticker, since, entity, lanes: {lane: {status, ...}}, timeline: [...]}`, newest first.
 
-    A lane that errors reports `status: "unavailable"` and contributes no rows — never an
-    empty list presented as "nothing happened"."""
+    `user_id` is the REQUESTING member; it keys the member's own lanes (``MEMBER_LANES``) and
+    nothing else. A lane that errors reports `status: "unavailable"` and contributes no rows —
+    never an empty list presented as "nothing happened"."""
     sym = _norm(sym)
     days = max(1, min(int(days or DEFAULT_DAYS), MAX_DAYS))
     since = _since(days)
     entity, eras = _entity_eras(sym)
     lanes, timeline = {}, []
-    not_rendered = {"journal": "the member's own journal is not joined (deferred)"}
+    not_rendered = {}
     armed2 = lanes2_enabled()
     if not armed2:
         for name in LANES2:
@@ -446,10 +527,13 @@ def history(sym: str, days: int = DEFAULT_DAYS) -> dict:
             for alias, valid_from, valid_to in eras:
                 if valid_to is not None and valid_to <= since.isoformat():
                     continue                                   # this name ended before the window
-                for r in _LANE_FNS[name](alias, since):
+                lane_rows = (_LANE_FNS[name](alias, since, user_id) if name in MEMBER_LANES
+                             else _LANE_FNS[name](alias, since))
+                for r in lane_rows:
                     if _in_era(r["date"], valid_from, valid_to):
                         rows.append({**r, "symbol": alias})    # the name it was RECORDED under
-            covers_from, covers_to = _COVERAGE_FNS[name]()
+            covers_from, covers_to = (_COVERAGE_FNS[name](user_id) if name in MEMBER_LANES
+                                      else _COVERAGE_FNS[name]())
             lanes[name] = {"status": "ok", "count": len(rows), "covers_from": covers_from,
                            "covers_to": covers_to,
                            # True when the store starts AFTER the window opens: rows

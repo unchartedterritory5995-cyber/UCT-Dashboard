@@ -143,14 +143,39 @@ def stores(tmp_path, monkeypatch):
 
 FLOW_REQUESTS: list = []
 
+_SETTINGS = {"breakevenRange": {"enabled": True, "unit": "$", "value": 20}}
+
+
+def _journal_member() -> str:
+    import uuid
+    return f"th-j-{uuid.uuid4().hex[:10]}"
+
+
+def _trade(uid, sym, entry, exit_, *, entry_px=100.0, exit_px=110.0, stop=95.0):
+    """A REAL closed trade through the journal's own manual-add service."""
+    from api.services.journal_two import trades
+    return trades.create_trade_manual(uid, {
+        "symbol": sym, "side": "Long", "shares": 10, "entryPrice": entry_px, "entryDate": entry,
+        "exitPrice": exit_px, "exitDate": exit_, "originalStop": stop, "setup": "VCP",
+        "notes": f"private note of {uid}"}, _SETTINGS)
+
+
+def _position(uid, sym, entry):
+    from api.services.journal_two import positions
+    return positions.create_position(uid, {"symbol": sym, "side": "Long", "shares": 5,
+                                           "entryPrice": 50.0, "entryDate": entry, "stopPrice": 45.0},
+                                     {})
+
 
 def test_all_six_lanes_join_with_source_and_date(stores):
-    out = th.history("nvda", days=30)
+    me = _journal_member()
+    _trade(me, "NVDA", D1, D2)
+    out = th.history("nvda", days=30, user_id=me)
     assert out["ticker"] == "NVDA"
     assert {k: v["status"] for k, v in out["lanes"].items()} == {l: "ok" for l in th.LANES}
     lanes = {r["lane"] for r in out["timeline"]}
-    assert lanes == {"wire", "book", "catalysts", "room", "flow", "setups"}
-    assert "flow" not in out["not_rendered"]
+    assert lanes == {"wire", "book", "catalysts", "room", "flow", "setups", "journal"}
+    assert "flow" not in out["not_rendered"] and "journal" not in out["not_rendered"]
     for r in out["timeline"]:
         assert r["source"] and r["as_of"] and r["ref"] and r["date"]
 
@@ -311,12 +336,15 @@ def test_slice2_lanes_are_dark_and_unread_until_their_own_gate_is_set(stores, mo
     monkeypatch.delenv(th.LANES2_ENV, raising=False)
     opened = []
     monkeypatch.setattr(th, "_engine_ro", lambda: opened.append(1) or (_ for _ in ()).throw(AssertionError))
-    out = th.history("NVDA", days=30)
+    journal_reads = []
+    monkeypatch.setattr(th, "_member_journal", lambda uid: journal_reads.append(uid) or ([], []))
+    out = th.history("NVDA", days=30, user_id="u-dark")
     assert set(out["lanes"]) == {"wire", "book", "catalysts", "room"}
     assert {r["lane"] for r in out["timeline"]} <= {"wire", "book", "catalysts", "room"}
     assert "TICKER_HISTORY_LANES2_ENABLED" in out["not_rendered"]["flow"]
     assert "TICKER_HISTORY_LANES2_ENABLED" in out["not_rendered"]["setups"]
-    assert FLOW_REQUESTS[0] == [] and opened == []
+    assert "TICKER_HISTORY_LANES2_ENABLED" in out["not_rendered"]["journal"]
+    assert FLOW_REQUESTS[0] == [] and opened == [] and journal_reads == []
 
 
 # ── slice 2: the setup ledger ────────────────────────────────────────────────────────
@@ -394,3 +422,55 @@ def test_dark_entity_master_keys_by_the_bare_ticker_and_says_why(renamed, monkey
     out = th.history("META", days=30)
     assert out["key"] == "ticker" and out["entity"]["status"] == "not_armed"
     assert [(r["date"], r["symbol"]) for r in _lane(out, "catalysts")] == [(D2, "META")]
+
+
+# ── tail: the member's OWN journal lane (owner-scoped, behind LANES2) ──────────────────
+
+def test_journal_lane_is_the_callers_own_trades_and_never_another_members(stores):
+    me, other = _journal_member(), _journal_member()
+    _trade(me, "NVDA", D1, D2)                        # mine: opened D1, closed D2 (a win)
+    _position(me, "NVDA", D2)                         # mine, still open
+    _trade(me, "AMD", D1, D2)                         # mine, another ticker
+    _trade(other, "NVDA", D1, D2, exit_px=90.0)       # SOMEONE ELSE's NVDA trade (a loss)
+    rows = _lane(th.history("NVDA", days=30, user_id=me), "journal")
+    got = sorted((r["date"], r["event"], r["source"]) for r in rows)
+    assert got == sorted([(D1, "opened", "j2_trades"), (D2, "closed", "j2_trades"),
+                          (D2, "opened", "j2_positions")])
+    closed = next(r for r in rows if r["event"] == "closed")
+    assert closed["result"] == "Win" and closed["text"].startswith(f"You closed your long from {D1}: win (+2.00R)")
+    blob = json.dumps(rows)
+    assert other not in blob and "loss" not in blob and "private note" not in blob
+    # ...and the other member sees exactly their own, none of mine
+    theirs = _lane(th.history("NVDA", days=30, user_id=other), "journal")
+    assert sorted(r["event"] for r in theirs) == ["closed", "opened"]
+    assert all(r["source"] == "j2_trades" for r in theirs) and me not in json.dumps(theirs)
+
+
+def test_journal_lane_without_a_member_is_unavailable_not_anyones(stores):
+    _trade(_journal_member(), "NVDA", D1, D2)
+    out = th.history("NVDA", days=30)                 # no caller id
+    assert out["lanes"]["journal"] == {"status": "unavailable", "count": None}
+    assert not _lane(out, "journal")
+    assert out["lanes"]["wire"]["status"] == "ok"
+
+
+def test_journal_lane_covers_from_the_members_first_entry(stores):
+    me = _journal_member()
+    _trade(me, "AMD", OLD, D1)                        # first journalled entry, another ticker
+    _trade(me, "NVDA", D1, D2)
+    lane = th.history("NVDA", days=30, user_id=me)["lanes"]["journal"]
+    assert lane["status"] == "ok" and lane["covers_from"] == OLD and lane["partial"] is False
+    empty = th.history("NVDA", days=30, user_id=_journal_member())["lanes"]["journal"]
+    assert empty == {"status": "ok", "count": 0, "covers_from": None, "covers_to": None, "partial": True}
+
+
+def test_the_route_keys_the_journal_lane_on_the_caller(monkeypatch, stores):
+    monkeypatch.setenv(th.ENABLED_ENV, "1")
+    monkeypatch.setattr("api.routers.ticker_history.is_paid_user", lambda u: True)
+    a, b = _journal_member(), _journal_member()
+    _trade(a, "NVDA", D1, D2)
+    _trade(b, "NVDA", D2, D2)
+    body = _client({**PAID, "id": a}).get("/api/research/history/NVDA?days=30").json()
+    assert sorted(r["date"] for r in body["timeline"] if r["lane"] == "journal") == [D1, D2]
+    body_b = _client({**PAID, "id": b}).get("/api/research/history/NVDA?days=30").json()
+    assert sorted(r["date"] for r in body_b["timeline"] if r["lane"] == "journal") == [D2, D2]

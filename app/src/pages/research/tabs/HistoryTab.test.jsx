@@ -114,6 +114,20 @@ describe('HistoryTab', () => {
     expect(screen.getByTestId('history-row').textContent).toMatch(/FB era\. \(as FB\)/)
   })
 
+  it('renders the member\'s own journal rows, labelled as theirs alone', async () => {
+    const body = { ...BODY, lanes: { ...BODY.lanes, journal: { status: 'ok', count: 2, covers_from: '2026-05-01', partial: false } },
+      timeline: [
+        { date: '2026-09-23', lane: 'journal', event: 'closed', text: 'You closed your long from 2026-09-20: win (+2.00R)', source: 'j2_trades', as_of: '2026-09-23', ref: 'j2_trades#id:1' },
+        { date: '2026-09-22', lane: 'journal', event: 'opened', text: 'You opened a long position, still open (your journal)', source: 'j2_positions', as_of: '2026-09-22', ref: 'j2_positions#p1' },
+      ] }
+    await renderWith({ ok: true, body })
+    const rows = screen.getAllByTestId('history-row').map((r) => r.textContent)
+    expect(rows[0]).toMatch(/2026-09-23 · Your journal · You closed your long from 2026-09-20: win \(\+2\.00R\)/)
+    expect(rows[0]).toMatch(/Your Journal 2\.0 trades \(only you see these\), as of 2026-09-23/)
+    expect(rows[1]).toMatch(/Your Journal 2\.0 open positions \(only you see these\)/)
+    expect(screen.getByTestId('history-tab').querySelector('p').textContent).toMatch(/Your journal recorded/)
+  })
+
   it('an empty history says so in words', async () => {
     await renderWith({ ok: true, body: { ...BODY, timeline: [] } })
     expect(screen.getByTestId('history-empty').textContent).toMatch(/No recorded mentions of NVDA/)

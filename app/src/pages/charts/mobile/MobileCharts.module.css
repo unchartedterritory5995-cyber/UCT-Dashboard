@@ -1050,6 +1050,25 @@
 }
 .layoutDel:active { color: var(--loss, #ef4444); }
 
+/* COV-06 phone door: the per-layout Version history control (same footprint as
+   delete, not destructive) and a host that holds the shared history/Recently
+   deleted controls at the 44px floor on EVERY width this shell serves (the
+   shared panel only enforces it at <=1024px; a coarse tablet can be wider). */
+.layoutHistory {
+  flex: 0 0 auto;
+  min-width: var(--tap-min, 44px);
+  min-height: var(--tap-min, 44px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.layoutHistory:active { color: var(--accent, #c9a84c); }
+.historyHost button { min-height: var(--tap-min, 44px); }
+
 .layoutConfirm {
   flex: 0 0 auto;
   display: inline-flex;

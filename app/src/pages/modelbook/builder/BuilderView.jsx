@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import useSWR from 'swr'
 import Sheet from '../../../components/mobile/Sheet'
+import useDoorParam from '../../../hooks/useDoorParam'
 import { TEMPLATES } from './upbTemplates'
 import UpbEntryPage from './UpbEntryPage'
 import styles from './BuilderView.module.css'
@@ -373,6 +374,15 @@ export default function BuilderView({ onExit, initialSectionId = null, initialEn
   const [sectionId, setSectionId] = useState(initialSectionId)
   const [entryId, setEntryId] = useState(initialEntryId)
 
+  // TERM-038: the P:<id> address door, `/model-book?view=builder&playbookEntry=<id>`.
+  // Opens the entry exactly as a click on its card does; re-read on every router
+  // location, so a palette pick while My Playbook is already mounted opens it too.
+  // The entry page itself is owner-scoped server-side (404 for anyone else's id).
+  useDoorParam('playbookEntry', (id) => {
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return
+    setEntryId(id)
+  })
+
   // If the open section vanishes from the overview (deleted in another tab),
   // fall back to the mini-hub rather than a ghost screen.
   const sections = overview?.sections || []
@@ -389,6 +399,7 @@ export default function BuilderView({ onExit, initialSectionId = null, initialEn
   if (entryId) {
     return (
       <UpbEntryPage
+        key={entryId}
         entryId={entryId}
         onBack={() => { setEntryId(null); mutateOverview() }}
       />

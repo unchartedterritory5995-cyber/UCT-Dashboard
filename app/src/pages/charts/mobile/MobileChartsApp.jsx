@@ -69,6 +69,7 @@ export default function MobileChartsApp({
   layoutsMine = [], layoutsPrebuilt = [], layoutsActive = null, layoutsLoading = false,
   layoutsSavedFlash = false, isAdmin = false,
   onApplyLayout, onApplyUctDefault, onSaveLayout, onSaveLayoutAs, onDeleteLayout,
+  onLayoutRestored,   // COV-06: ChartsWorkspace's handleDockRestored (version history / undelete)
 }) {
   const { groupSyms, setGroupSym, chartsTheme } = useWorkspace()
 
@@ -553,6 +554,7 @@ export default function MobileChartsApp({
         onSaveCurrent={onSaveLayout}
         onSaveAs={onSaveLayoutAs}
         onDelete={onDeleteLayout}
+        onRestored={onLayoutRestored}
         className={sheetTheme}
       />
       <MobileMoreSheet

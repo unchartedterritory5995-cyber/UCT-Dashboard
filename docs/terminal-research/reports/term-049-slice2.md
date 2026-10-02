@@ -108,7 +108,16 @@ classifier** as a security weakening and was not run. That guard is covered by
   `TICKER_HISTORY_LANES2_ENABLED` is that decision.
 * **First live read after arming.** The flow door is proven in production by the `/flow` card,
   but this route has not used it yet.
-* **The member's own journal lane:** deferred, named in `not_rendered`.
+* ~~**The member's own journal lane:** deferred, named in `not_rendered`.~~ Built on
+  `lane/terminal-tail` (2026-10-01). The deferral was time, not an owner or privacy ruling (no
+  ruling names it; OI-15 is about the `#tsdr` room corpus, and the capability matrix rates a
+  member's own data as allowed). Lane `journal`, behind `TICKER_HISTORY_LANES2_ENABLED`: the
+  CALLER's own Journal 2.0 trades in the ticker (opened, closed with result and R as stored,
+  and still-open positions), read only through `trades.list_trades_for_user` /
+  `positions.list_open_positions` keyed on the requesting member's id. With no id the lane is
+  `unavailable`. It never falls back to another member's journal. `covers_from` is the member's
+  first journalled entry. Rails: `tests/test_ticker_history.py` (4 new, 27 total) and
+  `HistoryTab.test.jsx` (13 total).
 * **Room/wire/book/catalysts over renames:** joined as above. Two spellings of one era (e.g.
   `BRK.B` / `BRK-B`) are not deduplicated. Each row says which spelling it came from.
 
