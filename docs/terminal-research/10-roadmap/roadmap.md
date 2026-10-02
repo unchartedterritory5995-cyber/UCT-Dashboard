@@ -665,7 +665,8 @@ sequence them and no implementer can pick them up.
 | **BRK-10** trailing implied-move calibration | LATER | ⛔ **NONE** | ⚠️ OPEN |
 | `STR-01`…`STR-06` | **NOT PLANNED** §5.1 / §5.4 | ⛔ never a ticket, at any priority | — |
 | `NGB-01`…`NGB-06` | **NOT PLANNED** §5.2 | ⛔ never a ticket | — |
-| `COV-01`, `COV-04`, `COV-06`, `COV-10`, `COV-11` | LATER — ⭐ need **no new data at all** | mostly ⛔ no ticket | CLEARED |
+| `COV-01`, `COV-04`, `COV-10`, `COV-11` | LATER — ⭐ need **no new data at all** | mostly ⛔ no ticket | CLEARED |
+| `COV-06` version history on user-authored artefacts | ⭐ **BUILT (dark), 2026-10-01**, branch `lane/cov-06-versions` — re-measured first: notes (Notebook) and the /charts working board (TERM-021/051, armed) HAD history; **named layouts, saved screens and watchlists had none**. Built for saved screens + named layouts behind `ARTIFACT_VERSIONS_ENABLED` (`pending`): newest 10 per artefact (MNRS) after coalescing saves superseded within 60 s, pre-write baseline, compare-and-set restore that appends (undoable), owner-scoped routes 404 while dark, History in My screens + the Layout Dock menu. Rows live in the TERM-021 store FILE (own table, same backup). NOT YET: watchlists, restoring a DELETED artefact, the phone/tablet charts shell | `COV-06` (no TERM ticket) | CLEARED — report `docs/terminal-research/reports/cov-06.md` |
 | `COV-02`, `COV-03` | NEXT/LATER with BRK-01 (same feed) | ⛔ no ticket | ⚠️ OPEN (`LCQ-01`) |
 | `COV-05`, `COV-07`, `COV-08`, `COV-09` | LATER RM-L19 | ⛔ no ticket | ⚠️ OPEN |
 | `NUL-01`…`NUL-05` | ⛔ **not gaps** — where nobody is the incumbent; `NUL-01` is RM-L13 | `TERM-049` | CLEARED |
