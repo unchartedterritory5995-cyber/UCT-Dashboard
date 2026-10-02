@@ -191,12 +191,15 @@ describe('the landing route is registered, and OUTSIDE the auth guard', () => {
     const freeLine = /FREE_PAGES\s*=\s*\[([^\]]*)\]/.exec(freePages)
     expect(freeLine, 'FREE_PAGES could not be read from constants/freePages.js').toBeTruthy()
 
-    // ⛔ NON-VACUITY. An empty capture would satisfy the assertion below for
-    // the wrong reason, which is exactly how this rail went quiet.
-    expect(freeLine[1].trim().length, 'FREE_PAGES parsed as empty').toBeGreaterThan(0)
-    expect(freeLine[1]).toContain('/morning-wire')
+    // ⛔ NON-VACUITY. FREE_PAGES may legitimately be EMPTY (owner ruling OI-12,
+    // 2026-10-02: "Everything is paywall"), so the capture's contents cannot
+    // be the control any more. The regex match above proves the array was
+    // READ; this control proves the assertion below can fail, by running the
+    // same check over a list that does contain the share path.
+    const containsJournal = (list) => list.includes('/journal')
+    expect(containsJournal(" '/dashboard', '/journal' "), 'the check below cannot see /journal').toBe(true)
 
-    expect(freeLine[1]).not.toContain('/journal')
+    expect(containsJournal(freeLine[1]), 'FREE_PAGES makes the share path free').toBe(false)
   })
 
   it('⛔ and AuthGuard no longer declares its own FREE_PAGES', () => {
