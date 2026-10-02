@@ -23,6 +23,7 @@ import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
 import styles from './VideoDockSlot.module.css'
+import Textarea from '../ui/Textarea'
 
 // Heavy lazy chunk — must not load for viewers who never open the follow pane.
 const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
@@ -680,7 +681,7 @@ export default function VideoDockSlot() {
           {draft && (
             <div className={styles.noteComposer}>
               <span className={styles.noteComposerT}>{fmtT(draft.t)}</span>
-              <textarea
+              <Textarea aria-label="Timestamp note"
                 className={styles.noteInput}
                 autoFocus
                 rows={2}
