@@ -11,6 +11,8 @@ import CompassAssistButton from '../voice/CompassAssistButton'
 import UIcon from '../ui/UIcon'
 import SymbolSearch from '../chart/SymbolSearch'
 import styles from './TickerHubSheet.module.css'
+import Input from '../ui/Input'
+import Select from '../ui/Select'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -211,11 +213,11 @@ function TickerHubBody({ sym, onClose }) {
         {/* Inline alert form */}
         {alertOpen && (
           <div className={styles.alertForm}>
-            <select className={styles.alertSel} value={alertDir} onChange={(e) => setAlertDir(e.target.value)}>
+            <Select aria-label="Alert direction" className={styles.alertSel} value={alertDir} onChange={(e) => setAlertDir(e.target.value)}>
               <option value="above">Above</option>
               <option value="below">Below</option>
-            </select>
-            <input
+            </Select>
+            <Input aria-label="Alert price"
               className={styles.alertInput}
               type="number"
               inputMode="decimal"

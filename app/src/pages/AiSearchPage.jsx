@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import AiSearchWidget, { AIS_HANDOFF_KEY, AnswerBody } from './charts/widgets/AiSearchWidget'
 import { WorkspaceContext, WORKSPACE_FALLBACK } from './charts/WorkspaceContext'
 import styles from './AiSearchPage.module.css'
+import Textarea from '../components/ui/Textarea'
 
 /**
  * Deep Research rail — async multi-step reports (plan → desk data + house KB +
@@ -102,7 +103,7 @@ function DeepResearchPanel({ onTicker }) {
       {open && (
         <div className={styles.deepPanel}>
           <div className={styles.deepAskRow}>
-            <textarea
+            <Textarea aria-label="Research question"
               className={styles.deepInput}
               rows={2}
               placeholder="One big question — the desk plans the research, sweeps sources, and writes a cited report (1-3 min)…"

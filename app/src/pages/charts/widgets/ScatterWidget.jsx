@@ -28,6 +28,7 @@ import chrome from './NewHighsLowsWidget.module.css'
 import styles from './ScatterWidget.module.css'
 import { prewarmVisibleList } from '../../../utils/prefetchBars'
 import { KIND, channelFor, useChannel } from '../../../lib/context/contextChannels'
+import Input from '../../../components/ui/Input'
 
 const getFetcher = (url) =>
   fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
@@ -127,7 +128,7 @@ function DropMenu({ groups, selectedKey, onPick, onClose, anchorEl, themeVars, a
       style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, width: pos.width, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}>
       {searchable && (
         <div className={styles.searchWrap}>
-          <input
+          <Input aria-label="Search"
             ref={searchRef}
             className={styles.searchInput}
             value={q}

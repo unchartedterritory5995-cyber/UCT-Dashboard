@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import useVoiceMemory from '../../hooks/useVoiceMemory'
 import styles from './VoiceMemoryPanel.module.css'
+import Input from '../ui/Input'
+import Select from '../ui/Select'
 
 const CATEGORIES = [
   { value: 'preference', label: 'Preference' },
@@ -37,20 +39,20 @@ export default function VoiceMemoryPanel() {
       {errorMsg && <div className={styles.error}>{errorMsg}</div>}
 
       <form className={styles.addRow} onSubmit={onAdd}>
-        <input
+        <Input aria-label="New memory"
           type="text"
           className={styles.input}
           placeholder="e.g. I trade small caps under $5B market cap"
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
         />
-        <select
+        <Select aria-label="Memory category"
           className={styles.select}
           value={newCategory}
           onChange={(e) => setNewCategory(e.target.value)}
         >
           {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </select>
+        </Select>
         <button type="submit" className={styles.addBtn} disabled={!newText.trim()}>
           Add
         </button>

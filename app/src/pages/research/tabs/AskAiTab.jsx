@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Provenance from '../../../components/provenance/Provenance'
 import styles from '../ResearchPage.module.css'
+import Textarea from '../../../components/ui/Textarea'
 
 // AI-Native Research Assistant Slice 1 + Security Research Q&A Slice 2 + 3
 // (I1 Intelligence Layer, owner-authorized, 2026-09-04). "Explain", not "ask
@@ -239,7 +240,7 @@ export default function AskAiTab({ sym }) {
           ))}
         </div>
         <form className={styles.explainForm} onSubmit={onSubmit}>
-          <textarea
+          <Textarea aria-label="Question"
             className={styles.explainInput}
             placeholder={`Ask about ${sym}'s recent news, financials, estimates, ownership, analyst activity, or filings…`}
             value={question}

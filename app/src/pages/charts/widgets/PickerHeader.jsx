@@ -7,6 +7,7 @@
 import { forwardRef } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './WatchlistPicker.module.css'
+import Input from '../../../components/ui/Input'
 
 function PickerHeader({
   tabs, tab, onTab,
@@ -58,7 +59,7 @@ function PickerHeader({
 
       {/* Search box — the exact Theme-Tracker style (squared, faint inset, thin border). */}
       <div className={styles.searchRow}>
-        <input
+        <Input aria-label="Search"
           className={styles.searchBox}
           placeholder={searchPlaceholder}
           value={query}

@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './VolumeScanWidget.module.css'
+import Input from '../../../components/ui/Input'
 
 const MENU_W = 216
 
@@ -126,7 +127,7 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
           {lists.map(l => (
             <div key={l.id} className={`${styles.scopeItem} ${l.id === activeId ? styles.scopeItemActive : ''}`}>
               {editingId === l.id ? (
-                <input
+                <Input aria-label="Rename list"
                   className={styles.scopeEdit}
                   autoFocus
                   value={draft}
@@ -153,7 +154,7 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
           <div className={styles.scopeDivider} />
           {creating ? (
             <div className={styles.scopeItem}>
-              <input
+              <Input aria-label="List name"
                 className={styles.scopeEdit}
                 autoFocus
                 placeholder="List name…"
@@ -210,7 +211,7 @@ export function AddTickerBar({ list, helpers }) {
   return (
     <div className={styles.addBar}>
       <UIcon name="plus" size={12} gold={false} />
-      <input
+      <Input
         className={styles.addInput}
         value={q}
         placeholder={`Add ticker to ${list.name}…`}

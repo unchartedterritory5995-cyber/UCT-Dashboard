@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import styles from '../ChartsWorkspace.module.css'
+import Input from '../../../components/ui/Input'
 
 const GROUP_DOT = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc' }
 
@@ -84,7 +85,7 @@ export default function ChartTabStrip({
               />
             )}
             {editing ? (
-              <input
+              <Input aria-label="Rename chart tab"
                 ref={inputRef}
                 className={styles.chartTabRename}
                 value={draft}

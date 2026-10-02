@@ -13,6 +13,8 @@ import Switch from '../../components/ui/Switch'
 import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
 
 const PANEL_W = 268
 
@@ -196,7 +198,7 @@ export default function WatchlistSettingsPanel({
           </div>
           {savingTpl ? (
             <div className={styles.tplSaveRow} data-tpl-wrap>
-              <input
+              <Input aria-label="Template name"
                 autoFocus
                 className={styles.tplInput}
                 placeholder="Template name"
@@ -251,14 +253,14 @@ export default function WatchlistSettingsPanel({
           {/* Text */}
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text size" hint="whole watchlist">
-            <select
+            <Select
               className={styles.sizeSelect}
               value={Number(s.fontSize)}
               onChange={e => set({ fontSize: Number(e.target.value) })}
               title="Watchlist text size"
             >
               {WATCHLIST_FONT_SIZES.map(px => <option key={px} value={px}>{px}</option>)}
-            </select>
+            </Select>
           </Row>
 
           {/* Text color — one color for all row text (symbol, price, volume + any

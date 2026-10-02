@@ -11,6 +11,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import adminStyles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
+import Input from '../ui/Input'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
 
@@ -146,7 +147,7 @@ export default function CatalystRulesPanel() {
       )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-        <input
+        <Input aria-label="New rule"
           type="text"
           placeholder="hand-add a durable rule (e.g. cut biotech names on dilution offerings)"
           value={newRule}

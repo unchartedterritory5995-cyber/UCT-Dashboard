@@ -18,6 +18,8 @@ import { neighborGroup } from './groupRecents'
 import GroupPicker from './GroupPicker'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MultiChartGrid.module.css'
+import Checkbox from '../../../components/ui/Checkbox'
+import Input from '../../../components/ui/Input'
 
 function LayoutIcon({ rows, cols }) {
   return (
@@ -149,7 +151,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
       </div>
       <div className={styles.nxmForm}>
         <span className={styles.nxmX} style={{ marginRight: 2 }}>Custom</span>
-        <input
+        <Input
           className={styles.nxmInput}
           type="number" min="1" max="8"
           value={rows}
@@ -157,7 +159,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           aria-label="Rows"
         />
         <span className={styles.nxmX}>×</span>
-        <input
+        <Input
           className={styles.nxmInput}
           type="number" min="1" max="8"
           value={cols}
@@ -170,24 +172,21 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
 
       <div className={wsStyles.menuDivider} />
       <label className={wsStyles.menuCheck}>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={mc.state.syncCrosshair}
           onChange={e => mc.setSyncCrosshair(e.target.checked)}
         />
         Sync crosshair across charts
       </label>
       <label className={wsStyles.menuCheck}>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={mc.state.syncTimeRange}
           onChange={e => mc.setSyncTimeRange(e.target.checked)}
         />
         Sync time range across charts
       </label>
       <label className={wsStyles.menuCheck}>
-        <input
-          type="checkbox"
+        <Checkbox
           checked={mc.state.groupsMode}
           onChange={e => mc.setGroupsMode(e.target.checked)}
         />
@@ -224,7 +223,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
           <div className={wsStyles.menuDivider} />
           <div className={wsStyles.menuForm}>
             <div className={wsStyles.menuSection} style={{ padding: 0 }}>Save grid as…</div>
-            <input
+            <Input aria-label="Grid name"
               className={wsStyles.menuInput}
               placeholder="Grid name"
               value={saveName}
@@ -234,8 +233,7 @@ export default function MultiChartMenu({ mc, onClose, flyout = false }) {
             />
             {isAdmin && (
               <label className={wsStyles.menuCheck}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={saveScope === 'global'}
                   onChange={e => setSaveScope(e.target.checked ? 'global' : 'user')}
                 />

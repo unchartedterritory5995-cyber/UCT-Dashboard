@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import UIcon from '../ui/UIcon'
 import styles from './VisionAttachButton.module.css'
+import Input from '../ui/Input'
 
 /**
  * Paperclip on the orb cluster — attach a chart screenshot (file upload OR
@@ -125,7 +126,7 @@ export default function VisionAttachButton() {
       >
         <UIcon name="paperclip" size={16} />
       </button>
-      <input
+      <Input aria-label="Attach image"
         ref={fileRef}
         type="file"
         accept="image/*"

@@ -10,6 +10,7 @@ import Sheet from '../../components/mobile/Sheet'
 import { ArticleIcon, PlusIcon } from '../education/icons'
 import * as progress from './articleProgress'
 import styles from './Desk.module.css'
+import Input from '../../components/ui/Input'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -114,7 +115,7 @@ function ArchiveSearch({ query, setQuery }) {
 
   return (
     <div className={styles.searchWrap}>
-      <input
+      <Input
         className={styles.searchInput}
         type="search"
         value={draft}
@@ -278,12 +279,12 @@ function PublicationsManager({ onClose, onChanged }) {
       <div className={styles.form}>
         <div className={styles.field}>
           <span className={styles.label}>Publication name</span>
-          <input className={styles.input} value={name} onChange={(e) => setName(e.target.value)}
+          <Input aria-label="Publication name" className={styles.input} value={name} onChange={(e) => setName(e.target.value)}
                  placeholder="UCT Intelligence Letter" />
         </div>
         <div className={styles.field}>
           <span className={styles.label}>RSS feed URL</span>
-          <input className={styles.input} value={url} onChange={(e) => setUrl(e.target.value)}
+          <Input aria-label="RSS feed URL" className={styles.input} value={url} onChange={(e) => setUrl(e.target.value)}
                  placeholder="https://yourname.substack.com/feed" />
         </div>
         {err && <div className={styles.formErr}>{err}</div>}

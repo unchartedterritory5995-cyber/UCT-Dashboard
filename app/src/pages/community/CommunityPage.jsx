@@ -12,6 +12,7 @@ import {
   useCommunityStatus, useSpaces, useThreads, useChatChannels, useTape, apiCall,
 } from './hooks/useCommunity'
 import styles from './Community.module.css'
+import Input from '../../components/ui/Input'
 
 const LAST_CH_KEY = 'uct.floor.lastChannel'
 
@@ -171,7 +172,7 @@ export default function CommunityPage() {
             )}
             {composing && (
               <div className={styles.newThreadCard}>
-                <input
+                <Input aria-label="Thread title"
                   className={styles.titleInput}
                   placeholder="Title"
                   maxLength={200}

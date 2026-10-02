@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import useSavedScreens from '../hooks/useSavedScreens'
 import styles from './ScannerShell.module.css'
+import Input from '../../../components/ui/Input'
 
 // "Save as scan" — turns the current filter selection into a named saved screen,
 // right where the member built it. Uses the SAME `create` door ScreensManager's
@@ -40,7 +41,7 @@ export default function SaveScanButton({ spec, hasFilters }) {
     <span className={styles.saveScanWrap} ref={wrapRef}>
       {open ? (
         <span className={styles.saveScanForm}>
-          <input autoFocus className={styles.saveScanInput} placeholder="Name this scan…"
+          <Input aria-label="Scan name" autoFocus className={styles.saveScanInput} placeholder="Name this scan…"
             value={name} onChange={e => setName(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter') save()

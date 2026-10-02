@@ -7,6 +7,7 @@ import { useState } from 'react'
 import useSWR from 'swr'
 import UIcon from '../ui/UIcon'
 import styles from './ShareToFloor.module.css'
+import Textarea from '../ui/Textarea'
 
 const fetcher = (u) => fetch(u, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 const CHANNEL = 'trading-floor'
@@ -68,7 +69,7 @@ export default function ShareToFloor({ card, label = 'Share to Floor', compact =
       {open && (
         <div className={styles.pop}>
           <div className={styles.popHead}>Share to <b>#{CHANNEL}</b></div>
-          <textarea className={styles.note} placeholder="Add a note (optional)…"
+          <Textarea aria-label="Note" className={styles.note} placeholder="Add a note (optional)…"
             maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
           {err && <div className={styles.err}>{err}</div>}
           <div className={styles.foot}>

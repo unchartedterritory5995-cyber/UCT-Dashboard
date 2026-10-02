@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { APP_THEMES, APP_THEME_FAMILIES, isUctTheme, uctThemeId, uctThemeValue } from '../styles/appThemes'
 import styles from './AppThemePicker.module.css'
+import Input from './ui/Input'
 
 // The always-present base themes (not in the catalog — plain data-theme values).
 // 'dark' is the default (neutral graphite, tokens.css :root); 'oled' is pure black.
@@ -115,7 +116,7 @@ export default function AppThemePicker({ value, onChange }) {
                   onClick={() => setFamily(f.id)}>{f.label}</button>
               ))}
             </div>
-            <input className={styles.search} placeholder="Search themes…"
+            <Input aria-label="Search themes" className={styles.search} placeholder="Search themes…"
               value={query} onChange={e => setQuery(e.target.value)} />
           </div>
           <div className={styles.grid}>

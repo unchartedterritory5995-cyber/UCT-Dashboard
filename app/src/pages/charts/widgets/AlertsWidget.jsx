@@ -28,6 +28,7 @@ import {
   mergeAlertsWidgetSettings, alertsWidgetStyleVars, alertsDefaultsForTheme,
 } from './alertsWidgetSettings'
 import styles from './AlertsWidget.module.css'
+import Input from '../../../components/ui/Input'
 
 const fetcher = url => fetch(url).then(r => (r.ok ? r.json() : []))
 
@@ -310,7 +311,7 @@ export default function AlertsWidget({
           embed: it is a REAL POST. */}
       {!readOnly && (
       <div className={styles.quickAdd}>
-        <input
+        <Input aria-label="Ticker"
           className={styles.tickerInput}
           type="text"
           placeholder="Ticker"
@@ -333,7 +334,7 @@ export default function AlertsWidget({
             onClick={() => setDir('below')}
           >Below</button>
         </span>
-        <input
+        <Input aria-label="Price"
           className={styles.priceInput}
           type="number"
           inputMode="decimal"

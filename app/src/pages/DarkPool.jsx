@@ -3,6 +3,7 @@ import TickerPopup from "../components/TickerPopup";
 import UIcon from "../components/ui/UIcon";
 import { clusterDarkPoolPrints } from "../components/chart/darkPoolCluster";
 import "./DarkPool.mobile.css";
+import Input from '../components/ui/Input'
 
 // The SAME chart the /charts workspace renders — identity row, session
 // toggle, market clock, timeframe bar, market-cap/earnings/UCT-rating meta,
@@ -2255,7 +2256,7 @@ function SearchModal({onClose, mktcapData = {}}){
         {/* Body — padding restored here so content has breathing room. */}
         <div style={{padding:"18px 28px 24px"}}>
         {/* Input */}
-        <input
+        <Input aria-label="Search ticker"
           autoFocus
           value={query}
           onChange={e=>setQuery(e.target.value)}
@@ -2402,7 +2403,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
 
       {/* Controls: search + market-cap band filter */}
       <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"center",marginBottom:12}}>
-        <input value={q} onChange={e=>{setQ(e.target.value);setLimit(100);}}
+        <Input aria-label="Search ticker" value={q} onChange={e=>{setQ(e.target.value);setLimit(100);}}
           placeholder="Search ticker…"
           style={{flex:"0 0 240px",padding:"7px 12px",
             background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,color:C.tx,

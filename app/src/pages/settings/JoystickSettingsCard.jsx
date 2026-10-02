@@ -18,6 +18,10 @@ import { cardVisible } from '../../hub/rolloutStage'
 import { clearSessionOverride } from '../../hub/hubSessionVisibility'
 import { clearGestureTrace, gestureTraceJson, readGestureTrace } from '../../hub/gestureTrace'
 import styles from '../Settings.module.css'
+import Checkbox from '../../components/ui/Checkbox'
+import Input from '../../components/ui/Input'
+import Select from '../../components/ui/Select'
+import Textarea from '../../components/ui/Textarea'
 
 export default function JoystickSettingsCard() {
   const { settings, storedEnabled, updateHubSettings } = useHubSettings()
@@ -130,8 +134,7 @@ export default function JoystickSettingsCard() {
     <TileCard icon="moveStop" title="Joystick">
       <div className={styles.voiceRow}>
         <label className={styles.voiceLabel}>
-          <input
-            type="checkbox"
+          <Checkbox
             data-testid="joystick-enabled-toggle"
             checked={!!settings.enabled}
             onChange={(e) => onToggle(e.target.checked)}
@@ -150,7 +153,7 @@ export default function JoystickSettingsCard() {
 
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel} htmlFor="joystick-handedness">Handedness</label>
-          <select
+          <Select
             id="joystick-handedness"
             data-testid="joystick-handedness"
             value={settings.handedness}
@@ -158,7 +161,7 @@ export default function JoystickSettingsCard() {
           >
             <option value="right">Right — pad on the right</option>
             <option value="left">Left — pad on the left</option>
-          </select>
+          </Select>
         </div>
 
         {/* ⭐⭐ THE SURFACE SWITCH — owner ruling R4, 2026-09-17, and the way back from it.
@@ -174,7 +177,7 @@ export default function JoystickSettingsCard() {
             not a recovery path. */}
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel} htmlFor="joystick-surface">Actions shown</label>
-          <select
+          <Select
             id="joystick-surface"
             data-testid="joystick-surface"
             value={settings.surface}
@@ -182,13 +185,12 @@ export default function JoystickSettingsCard() {
           >
             <option value="simplified">Simplified — the actions a thumb needs</option>
             <option value="full">Full — every action, including navigation</option>
-          </select>
+          </Select>
         </div>
 
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel}>
-            <input
-              type="checkbox"
+            <Checkbox
               data-testid="joystick-haptics"
               checked={!!settings.haptics}
               onChange={(e) => set('haptics')(e.target.checked)}
@@ -202,8 +204,7 @@ export default function JoystickSettingsCard() {
 
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel}>
-            <input
-              type="checkbox"
+            <Checkbox
               data-testid="joystick-sticky-fan"
               checked={!!settings.stickyFan}
               onChange={(e) => set('stickyFan')(e.target.checked)}
@@ -214,8 +215,7 @@ export default function JoystickSettingsCard() {
 
         <div className={styles.voiceRow}>
           <label className={styles.voiceLabel}>
-            <input
-              type="checkbox"
+            <Checkbox
               data-testid="joystick-high-contrast"
               checked={!!settings.highContrast}
               onChange={(e) => set('highContrast')(e.target.checked)}
@@ -304,8 +304,7 @@ export default function JoystickSettingsCard() {
         >
           <div className={styles.voiceRow}>
             <label className={styles.voiceLabel}>
-              <input
-                type="checkbox"
+              <Checkbox
                 data-testid="joystick-trace-toggle"
                 checked={!!settings.traceGestures}
                 onChange={(e) => set('traceGestures')(e.target.checked)}
@@ -334,7 +333,7 @@ export default function JoystickSettingsCard() {
             </div>
           )}
           {traceFallback && (
-            <textarea
+            <Textarea aria-label="Trace"
               data-testid="joystick-trace-fallback"
               readOnly
               rows={8}
@@ -362,7 +361,7 @@ function NumberSetting({ id, label, suffix, min, max, step, value, onChange, hin
     <>
       <div className={styles.voiceRow}>
         <label className={styles.voiceLabel} htmlFor={id}>{label}</label>
-        <input
+        <Input
           id={id}
           data-testid={id}
           type="range"

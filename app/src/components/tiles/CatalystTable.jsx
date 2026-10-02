@@ -19,6 +19,8 @@ import AbsenceReceipt from '../provenance/AbsenceReceipt'
 import Provenance from '../provenance/Provenance'
 import EpFlag, { isEpSetup } from './EpBaseRate'
 import { CATALYST_TAG_DISPLAY_ORDER, CATALYST_TAGS, keyedBy } from '../../lib/taxonomy/a8Taxonomy'
+import Input from '../ui/Input'
+import Textarea from '../ui/Textarea'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -237,7 +239,7 @@ function NoteEditor({ ticker, marketDate, value, onSave, onCancel }) {
   const [text, setText] = useState(value || '')
   return (
     <div className={styles.noteEditor}>
-      <textarea
+      <Textarea aria-label="Note"
         className={styles.noteInput}
         value={text}
         autoFocus
@@ -658,7 +660,7 @@ export default function CatalystTable({
             title="Previous day"
             aria-label="Previous day"
           >‹</button>
-          <input
+          <Input
             type="date"
             className={styles.dateInput}
             value={viewYmd}

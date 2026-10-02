@@ -721,7 +721,8 @@ describe('the Switch primitive is derived, and its uses are counted as primitive
     for (const f of ['app/src/pages/watchlist/WatchlistSettingsPanel.jsx',
       'app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx']) {
       const sites = perFile[f]?.sites || []
-      expect(sites.filter((s) => s.impl === 'primitive').length, f).toBe(2)
+      // the Switch uses only — other primitives (Input, Select) may live on the panel too
+      expect(sites.filter((s) => s.kind === 'primitive:Switch').length, f).toBe(2)
       expect(sites.filter(isHandRolledSwitch), f).toEqual([])
     }
   }, 120_000)
@@ -763,28 +764,77 @@ describe('⭐ HAND-ROLLED SWITCHES MAY NOT GROW', () => {
 // (the census header records that lesson). A file joins the list in the commit
 // that takes its last unnamed control away.
 export const NAMED_SURFACES = [
+  'app/src/components/AppThemePicker.jsx',
+  'app/src/components/FeedbackWidget.jsx',
+  'app/src/components/IntradayDayPopover.jsx',
   'app/src/components/TickerActions.jsx',
+  'app/src/components/admin/CatalystRulesPanel.jsx',
+  'app/src/components/admin/TwitterAccountsPanel.jsx',
   'app/src/components/chart/ChartDrawingOverlay.jsx',
   'app/src/components/chart/ChartSettingsModal.jsx',
   'app/src/components/chart/ChartToolbar.jsx',
   'app/src/components/chart/ComparisonPicker.jsx',
   'app/src/components/chart/builder/ParamControls.jsx',
+  'app/src/components/community/ShareToFloor.jsx',
+  'app/src/components/mobile/TickerHubSheet.jsx',
+  'app/src/components/tiles/CatalystTable.jsx',
+  'app/src/components/video/VideoDockSlot.jsx',
+  'app/src/components/voice/VisionAttachButton.jsx',
   'app/src/components/voice/VoiceDocumentsPanel.jsx',
+  'app/src/components/voice/VoiceMemoryPanel.jsx',
+  'app/src/floor2/ChartAttach.jsx',
+  'app/src/floor2/Composer.jsx',
+  'app/src/floor2/ReplyBox.jsx',
+  'app/src/floor2/SearchBox.jsx',
+  'app/src/hub/HubReportButton.jsx',
   'app/src/pages/Admin.jsx',
+  'app/src/pages/AiSearchPage.jsx',
+  'app/src/pages/AlertTester.jsx',
+  'app/src/pages/Confluence.jsx',
+  'app/src/pages/CotData.jsx',
+  'app/src/pages/DarkPool.jsx',
   'app/src/pages/LiveFlow.jsx',
+  'app/src/pages/LiveFlowMassive.jsx',
   'app/src/pages/ModelBook.jsx',
   'app/src/pages/OpenFlow.jsx',
   'app/src/pages/Settings.jsx',
+  'app/src/pages/SetupLibrary.jsx',
   'app/src/pages/Support.jsx',
   'app/src/pages/ThemeTrackerPage.jsx',
   'app/src/pages/Watchlists.jsx',
+  'app/src/pages/admin/ChartHealth.jsx',
+  'app/src/pages/admin/DetectionReviewCard.jsx',
+  'app/src/pages/admin/PatternReview.jsx',
   'app/src/pages/breadth/BreadthViewsCustomizePanel.jsx',
   'app/src/pages/breadth/CustomizePanel.jsx',
   'app/src/pages/calendar/CalendarHeader.jsx',
+  'app/src/pages/charts/ChartsWorkspace.jsx',
+  'app/src/pages/charts/CompareSymbolsPanel.jsx',
   'app/src/pages/charts/PeriodSortConfig.jsx',
+  'app/src/pages/charts/ReplayPanel.jsx',
+  'app/src/pages/charts/WidgetHeader.jsx',
+  'app/src/pages/charts/grid/MultiChartMenu.jsx',
+  'app/src/pages/charts/widgets/AlertsWidget.jsx',
+  'app/src/pages/charts/widgets/ChartTabStrip.jsx',
+  'app/src/pages/charts/widgets/CompanySearch.jsx',
+  'app/src/pages/charts/widgets/NhnlUniverseMenu.jsx',
+  'app/src/pages/charts/widgets/PickerHeader.jsx',
+  'app/src/pages/charts/widgets/ScatterWidget.jsx',
+  'app/src/pages/charts/widgets/VolumeScanLists.jsx',
+  'app/src/pages/community/ChatView.jsx',
+  'app/src/pages/community/CommunityPage.jsx',
+  'app/src/pages/community/components/FloorSearch.jsx',
+  'app/src/pages/desk/ArticlesSection.jsx',
   'app/src/pages/desk/TeamSection.jsx',
   'app/src/pages/modelbook/SetupsView.jsx',
   'app/src/pages/modelbook/shared/ChartExampleKit.jsx',
+  'app/src/pages/research/components/ComparisonAskAi.jsx',
+  'app/src/pages/research/tabs/AskAiTab.jsx',
+  'app/src/pages/screener/ScreensManager.jsx',
+  'app/src/pages/screener/shell/FlaggedActions.jsx',
+  'app/src/pages/screener/shell/SaveScanButton.jsx',
+  'app/src/pages/settings/JoystickSettingsCard.jsx',
+  'app/src/pages/watchlist/WatchlistSettingsPanel.jsx',
 ]
 const NAMED = new Set(['labelled', 'hidden', 'n/a'])
 export const unnamedSites = (sites) => sites.filter((s) => !NAMED.has(s.label))
@@ -813,6 +863,47 @@ describe('⭐ THE MIGRATED SURFACES STAY FULLY NAMED', () => {
     expect(unnamedSites(sites).map((s) => `${s.kind}/${s.impl} ${s.label} in ${s.component}`),
       `${file} was migrated under TERM-067 and every control on it had a name. Give the new one an`
       + ' aria-label or a <label htmlFor>.').toEqual([])
+  }, 120_000)
+})
+
+// ── the unnamed-site baseline ───────────────────────────────────────────────────
+//
+// NAMED_SURFACES holds the finished files; this holds the REST of the tree to the
+// number it has reached. An unnamed site is one whose label association is
+// `unlabelled` or `placeholder-only` (a placeholder is a hint, not a name — it
+// disappears on the first keystroke). `indeterminate` (a spread that may carry
+// the name) is not counted: the scan cannot see it either way.
+//
+// ⛔ SHRINK-ONLY, and TIGHT. A new unnamed control anywhere fails the first test;
+// a migration that names one fails the second until the number is lowered here,
+// in the commit that earned it. Never raise it — name the control instead.
+//
+//   2026-10-01  140  (start of the lane/term-067-batch run)
+export const UNNAMED_BASELINE = 74
+export const isUnnamedForBaseline = (s) => s.label === 'unlabelled' || s.label === 'placeholder-only'
+export const unnamedTotal = ({ perFile }) =>
+  Object.values(perFile).reduce((n, r) => n + r.sites.filter(isUnnamedForBaseline).length, 0)
+
+describe('⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK', () => {
+  it('the counter can tell a name from a hint', () => {
+    const sites = scanSource('const a = <div><input placeholder="x" /><select /><input aria-label="ok" /></div>').sites
+    expect(sites.filter(isUnnamedForBaseline).map((s) => s.label)).toEqual(['placeholder-only', 'unlabelled'])
+  })
+
+  it('no new unnamed control site appeared anywhere in app/src', () => {
+    const c = census()
+    const now = unnamedTotal(c)
+    const top = Object.entries(c.perFile)
+      .map(([f, r]) => [f, r.sites.filter(isUnnamedForBaseline).length]).filter(([, n]) => n)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8).map(([f, n]) => `${n}  ${f}`)
+    expect(now, `unnamed control sites grew ${UNNAMED_BASELINE} -> ${now}. Give the new control an`
+      + ` aria-label or a <label htmlFor>. Most unnamed:\n  ${top.join('\n  ')}`).toBeLessThanOrEqual(UNNAMED_BASELINE)
+  }, 120_000)
+
+  it('the baseline is tight — a migration lowers UNNAMED_BASELINE in the same commit', () => {
+    const now = unnamedTotal(census())
+    expect(now, `unnamed control sites shrank ${UNNAMED_BASELINE} -> ${now}: set UNNAMED_BASELINE = ${now}`)
+      .toBe(UNNAMED_BASELINE)
   }, 120_000)
 })
 

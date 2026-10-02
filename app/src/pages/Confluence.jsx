@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import useConfluence from '../hooks/useConfluence'
 import TickerPopup from '../components/TickerPopup'
 import s from './Confluence.module.css'
+import Input from '../components/ui/Input'
 
 const BAND_ORDER = ['L', 'M', 'S']
 const BAND_FALLBACK = { L: ['Large Cap', '$10B – $500B'], M: ['Mid Cap', '$2B – $10B'], S: ['Small Cap', '< $2B'] }
@@ -195,7 +196,7 @@ export default function Confluence() {
         <Seg val={dir} set={setDir} opts={[{ v: 'all', l: 'All' }, { v: 'BULL', l: 'Bull', cls: 'bull' }, { v: 'BEAR', l: 'Bear', cls: 'bear' }]} />
         <Seg val={cap} set={setCap} opts={[{ v: 'all', l: 'All caps' }, { v: 'L', l: 'Large' }, { v: 'M', l: 'Mid' }, { v: 'S', l: 'Small' }]} />
         <Seg val={status} set={setStatus} opts={[{ v: 'all', l: 'Any' }, { v: 'BUILDING', l: 'Building' }, { v: 'STEADY', l: 'Steady' }, { v: 'ESTABLISHED', l: 'Established' }]} />
-        <input className={s.search} placeholder="Ticker / sector…" value={q} onChange={e => setQ(e.target.value)} />
+        <Input aria-label="Filter by ticker or sector" className={s.search} placeholder="Ticker / sector…" value={q} onChange={e => setQ(e.target.value)} />
         <span className={s.count}>{filtered.length} of {rows.length}</span>
       </div>
 
