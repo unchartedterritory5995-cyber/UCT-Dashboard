@@ -3,6 +3,7 @@ import { Avatar } from './util'
 import { IconTop, IconClose } from './icons'
 import ChartCard from './ChartCard'
 import ChartAttach from './ChartAttach'
+import Textarea from '../components/ui/Textarea'
 
 // Inline reply / top-level comment composer. Enter to send, Shift+Enter newline.
 // Supports attaching a chart (ticker + timeframe).
@@ -23,7 +24,7 @@ export default function ReplyBox({ placeholder, onSubmit, onCancel, autoFocus, m
     <div className="inline-reply">
       <div style={{ display: 'flex', gap: 10 }}>
         <Avatar id={me?.id} info={me} size={28} />
-        <textarea
+        <Textarea aria-label="Comment"
           ref={ref} className="reply-box" value={text}
           placeholder={placeholder || 'Add a comment…'}
           onChange={(e) => setText(e.target.value)}
