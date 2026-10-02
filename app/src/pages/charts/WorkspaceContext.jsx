@@ -12,6 +12,9 @@ const FALLBACK = {
   // stored copy would fight it). Seeded 'D' to match ChartWidget's own default.
   groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
   setGroupTf: () => {},
+  // COV-10 — may a list widget subscribe to its group's scan? The board derives it from
+  // the auth payload; every other host (and the fallback) says no.
+  listSubscribeEnabled: false,
   chartsTheme: 'default',   // workspace-wide chart theme ('default' | 'sunrise')
   // Per-widget canvas maps, read by WidgetHost to publish a widget's own canvas
   // colour into its subtree. Empty (not undefined) so a host that supplies

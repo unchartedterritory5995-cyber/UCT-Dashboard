@@ -665,7 +665,7 @@ sequence them and no implementer can pick them up.
 | **BRK-10** trailing implied-move calibration | LATER | ⛔ **NONE** | ⚠️ OPEN |
 | `STR-01`…`STR-06` | **NOT PLANNED** §5.1 / §5.4 | ⛔ never a ticket, at any priority | — |
 | `NGB-01`…`NGB-06` | **NOT PLANNED** §5.2 | ⛔ never a ticket | — |
-| `COV-01`, `COV-04`, `COV-06`, `COV-10`, `COV-11` | LATER — ⭐ need **no new data at all** | mostly ⛔ no ticket | CLEARED |
+| `COV-01`, `COV-04`, `COV-06`, `COV-10`, `COV-11` | LATER — ⭐ need **no new data at all** | mostly ⛔ no ticket | CLEARED. ⭐ **COV-10 CLOSING SLICE EXISTS (dark), 2026-10-01**, branch `lane/cov-10-lists`: the Scanner widget publishes its scan on its colour group's `list-ref` channel; a same-group Watchlist widget subscribes as a **FROZEN** copy or a **TRACKING** list, chosen at import with no default, shown on the widget; an unreadable tracking source says so and never renders empty. Behind `CHARTS_LIST_SUBSCRIBE_ENABLED` (`pending`). Already shipped before it: TERM-077 copy-or-link for watchlists (armed 9/30) and TERM-079 typed channels. NOT YET: themes / saved-screen sources, more than four groups. Report: `docs/terminal-research/reports/cov-10.md` |
 | `COV-02`, `COV-03` | NEXT/LATER with BRK-01 (same feed) | ⛔ no ticket | ⚠️ OPEN (`LCQ-01`) |
 | `COV-05`, `COV-07`, `COV-08`, `COV-09` | LATER RM-L19 | ⛔ no ticket | ⚠️ OPEN |
 | `NUL-01`…`NUL-05` | ⛔ **not gaps** — where nobody is the incumbent; `NUL-01` is RM-L13 | `TERM-049` | CLEARED |

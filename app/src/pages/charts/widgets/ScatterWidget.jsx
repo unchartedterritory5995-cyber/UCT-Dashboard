@@ -38,6 +38,9 @@ const RED = '#f24b42'
 const GRID = 'rgba(255,255,255,0.06)'
 
 const DEFAULTS = { source: 'index', value: 'sp500', xKey: 'rvol', yKey: 'chg_today', sizeKey: '' }
+// The list-ref sources /api/scatter/data resolves — exactly what WatchlistWidget's
+// `watchKeyToListRef` publishes. Anything else on the channel is refused by name.
+export const MAP_PLOTTABLE_LIST_SOURCES = new Set(['flagged', 'watchlist', 'tag'])
 
 // ── value formatting by metric unit ──
 function abbrev(v) {
@@ -251,7 +254,12 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
   // is not even subscribed (null id), so a publish anywhere cannot re-render this map. ──
   const following = !!opts?.followList
   const linked = useChannel(following && color ? channelFor(KIND.LIST_REF, color) : null)
-  const showingLinked = following && !!linked
+  // COV-10 — a Scanner on this group publishes a `scan` list-ref, which /api/scatter/data
+  // cannot resolve. Following it would plot an EMPTY universe under a confident label, so
+  // the map refuses it BY NAME (the tab says so) and keeps plotting its own universe.
+  const linkedPlottable = !!linked && MAP_PLOTTABLE_LIST_SOURCES.has(linked.source)
+  const showingLinked = following && linkedPlottable
+  const linkedUnplottable = following && !!linked && !linkedPlottable
   const source = showingLinked ? linked.source : cur.source
   const value = showingLinked ? linked.value : cur.value
   const toggleFollow = useCallback(() => patch({ followList: !following }), [following, patch])
@@ -472,10 +480,16 @@ export default function ScatterWidget({ color, opts, onOptsChange }) {
             <span className={`${styles.uniTab} ${showingLinked ? styles.uniTabActive : styles.uniTabIdle}`}
               title={showingLinked
                 ? `Following the list shown in this group's watchlist`
-                : `Pick a list in a watchlist on this colour group to plot it here`}>
+                : linkedUnplottable
+                  ? `The linked list is a ${linked.source}, which the map cannot plot — showing ${cur.label || 'its own universe'} instead`
+                  : `Pick a list in a watchlist on this colour group to plot it here`}>
               <UIcon name="link" size={10} gold={false} />
               <span className={styles.uniTabLabel}>
-                {showingLinked ? (linked.label || linked.value || linked.source) : 'No linked list'}
+                {showingLinked
+                  ? (linked.label || linked.value || linked.source)
+                  : linkedUnplottable
+                    ? `Can't plot ${linked.label || linked.value || linked.source}`
+                    : 'No linked list'}
               </span>
               {showingLinked && !!plot.length && <span className={styles.uniTabCount}>{plot.length}</span>}
             </span>
