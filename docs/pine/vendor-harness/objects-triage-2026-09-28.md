@@ -5078,3 +5078,20 @@ Remaining runtime declines on the corpus (flag on): `runtime:repaint-unstated` 1
 `history-dynamic-offset` 9, `call-undeclared-builtin-state` 7, `library` 6, `na-test` 6 (cc-yata,
 fibonacci-dolphintradebot, pivot-point-supertrend, qqe-signals, supertrend-strategy,
 trend-targets-algoalpha), `function-global-state` 4, `statement` 4, `withheld-all` 3, others <= 3.
+
+## Wave 15 integration (2026-10-02) - L1 + B1 + H1 + RT1, and what H1 re-admitted
+
+Branch `integrate/wave15-2026-10-02`. Six-shard gate: 6 NEW against the baseline, 125 no
+longer failing, 2,485 files, totals reconcile. Three are master's known reds
+(`entryExcludesChartEngine` x2, `objectFnInline.vendor` sector-rotation). The other three, and
+two RT1 rails found by the focused run, were rule-meets-rule, none a regression:
+
+| rail | what moved | evidence |
+|---|---|---|
+| `rt1RuntimeFallback` (qqe-signals, pivot-point-supertrend) | the host lane now serves both, so the door never reaches the runtime fallback | `vendorHarness.h1Ratchet`: every label TradingView's |
+| `rt1RuntimeFallback` (pivot-point-supertrend `Buy`) | the runtime `Buy` now AGREES with TradingView; RT1's disagreement was the pivot tie, which the runtime lane reads from the shared house column, not the `na` test | `vendorHarness.h1PivotTies`; the decline keeps a door witness on `trend-targets-algoalpha` |
+| `graphSaveDoor`, `paramSingleTranslation`, `builderInputs.symbolClosure` | `high_engagement__03-supertrend-kivancozbilgic` (KivancOzbilgic SuperTrend) translates again: R-F had refused its band, H1 admits the ratchet | same ratchet shape graded on `pivot-point-supertrend`; host vs runtime on RDDT's 631 listing bars, all six rows: Up Trend 375 bars, Down Trend 247, UpTrend Begins 5, Buy 5, DownTrend Begins 6, Sell 6 - identical drawn sets, 0 values differ |
+
+The save door has its demonstration back: SuperTrend's document is 383,178 B and reduces to
+6,751 B (x56.8) with every parameter placed, reading back as the same indicator.
+No TradingView capture of SuperTrend itself exists yet; it is queued as a cheap confirmation.
